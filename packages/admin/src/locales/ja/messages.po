@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "{0}を検出"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:627
+#: packages/admin/src/components/TaxonomySidebar.tsx:629
 msgid "{0} fallback"
 msgstr "{0}のフォールバック"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0}件のシステムフィールド + {1}件のカスタム{2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
+#: packages/admin/src/components/TaxonomySidebar.tsx:689
 msgid "{0} updated"
 msgstr "{0}を更新しました"
 
@@ -741,7 +741,7 @@ msgstr "{label}を{1}件中{0}番目に移動しました。"
 msgid "{label} moved to position {0}."
 msgstr "{label}を{0}番目に移動しました。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:535
+#: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "{label} options"
 msgstr "{label}の選択肢"
 
@@ -1256,7 +1256,7 @@ msgstr "このラベルからスラッグを生成できません。半角英小
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "このラベルからスラッグを生成できません。手動で入力してください。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:769
+#: packages/admin/src/components/TaxonomySidebar.tsx:771
 msgid "A source and target locale are required"
 msgstr "翻訳元と翻訳先の言語を選択してください"
 
@@ -1988,8 +1988,8 @@ msgstr "指紋、顔、PIN、またはデバイスのパスワードでロック
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:694
-#: packages/admin/src/components/TaxonomySidebar.tsx:790
+#: packages/admin/src/components/TaxonomySidebar.tsx:696
+#: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:665
 #: packages/admin/src/router.tsx:686
@@ -2363,7 +2363,7 @@ msgid "Available bylines"
 msgstr "選択可能な執筆者"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:855
 msgid "Available in {0}"
 msgstr "{0}で利用可能"
 
@@ -3101,9 +3101,9 @@ msgstr "このサイトを確認中"
 msgid "Checking…"
 msgstr "確認中…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
-#: packages/admin/src/components/TaxonomySidebar.tsx:490
+#: packages/admin/src/components/TaxonomySidebar.tsx:398
+#: packages/admin/src/components/TaxonomySidebar.tsx:399
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Choose {label}"
 msgstr "{label}を選択"
 
@@ -3315,7 +3315,7 @@ msgstr "次のリンクをクリックして、{siteName}にログインして�
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:613
+#: packages/admin/src/components/TaxonomySidebar.tsx:615
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3962,7 +3962,7 @@ msgstr "作成"
 msgid "Create “{0}”"
 msgstr "「{0}」を作成"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create \"{trimmedInput}\""
 msgstr "「{trimmedInput}」を作成"
 
@@ -3972,7 +3972,7 @@ msgid "Create {0}"
 msgstr "{0}を作成"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:864
+#: packages/admin/src/components/TaxonomySidebar.tsx:866
 msgid "Create {0} translation"
 msgstr "{0}の翻訳を作成"
 
@@ -3993,7 +3993,7 @@ msgstr "箇条書きリストを作成"
 msgid "Create a new {0}"
 msgstr "{0}を新規作成"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create a new {singularLabel}"
 msgstr "{singularLabel}を新規作成"
 
@@ -5200,8 +5200,8 @@ msgstr "{0}フィールドを編集"
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel}を編集"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:416
-#: packages/admin/src/components/TaxonomySidebar.tsx:425
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+#: packages/admin/src/components/TaxonomySidebar.tsx:427
 msgid "Edit {label}"
 msgstr "{label}を編集"
 
@@ -5816,7 +5816,7 @@ msgstr "ウィジェットを更新できませんでした"
 msgid "esc"
 msgstr "esc"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:611
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 msgid "Esc"
 msgstr "Esc"
 
@@ -6032,7 +6032,7 @@ msgid "Failed to continue import"
 msgstr "インポートの続行に失敗しました"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:760
+#: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "Failed to create {0}"
 msgstr "{0}の作成に失敗しました"
 
@@ -6122,7 +6122,7 @@ msgstr "一部のコンテンツタイプの作成に失敗しました"
 msgid "Failed to create taxonomy"
 msgstr "分類グループの作成に失敗しました"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:739
+#: packages/admin/src/components/TaxonomySidebar.tsx:741
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "分類項目の作成に失敗しました"
@@ -6131,7 +6131,7 @@ msgstr "分類項目の作成に失敗しました"
 msgid "Failed to create term translation"
 msgstr "分類項目の翻訳の作成に失敗しました"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:789
+#: packages/admin/src/components/TaxonomySidebar.tsx:791
 #: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "翻訳の作成に失敗しました"
@@ -6902,7 +6902,7 @@ msgid "Failed to update"
 msgstr "更新に失敗しました"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:693
+#: packages/admin/src/components/TaxonomySidebar.tsx:695
 msgid "Failed to update {0}"
 msgstr "{0}の更新に失敗しました"
 
@@ -9500,7 +9500,7 @@ msgstr "フィールドに名前を付け、入力できる内容を選択しま
 msgid "Name your section, then add its content in the editor."
 msgstr "セクションに名前を付けてから、エディターで内容を追加してください。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:601
+#: packages/admin/src/components/TaxonomySidebar.tsx:603
 msgid "Navigate"
 msgstr "移動"
 
@@ -9681,7 +9681,7 @@ msgstr "まだ{0}がありません。"
 msgid "No {0} yet. Create one to get started."
 msgstr "まだ{0}がありません。作成しましょう。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:570
+#: packages/admin/src/components/TaxonomySidebar.tsx:572
 msgid "No {label} found."
 msgstr "{label}が見つかりません。"
 
@@ -11456,7 +11456,7 @@ msgstr "削除"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:459
+#: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "{0}を削除"
 
@@ -11475,7 +11475,7 @@ msgstr "{entry}を削除"
 msgid "Remove {label}"
 msgstr "{label}を削除"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:873
+#: packages/admin/src/components/TaxonomySidebar.tsx:875
 msgid "Remove assignment"
 msgstr "割り当てを削除"
 
@@ -12283,7 +12283,7 @@ msgstr "保存済み"
 msgid "Saved \"{0}\"."
 msgstr "「{0}」を保存しました。"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:688
+#: packages/admin/src/components/TaxonomySidebar.tsx:690
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "すぐに保存されます。分類項目の変更は「変更を公開」を待たずに反映されます。"
 
@@ -12458,11 +12458,11 @@ msgstr "{0}を検索"
 msgid "Search {0}..."
 msgstr "{0}を検索…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search {label}"
 msgstr "{label}を検索"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search {label}…"
 msgstr "{label}を検索…"
 
@@ -12553,11 +12553,11 @@ msgstr "検索フォームを表示"
 msgid "Search media"
 msgstr "メディアを検索"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search or create {label}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search or create {label}…"
 msgstr ""
 
@@ -12880,7 +12880,7 @@ msgstr "インポートするコンテンツタイプを選択してください
 msgid "Select..."
 msgstr "選択…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:430
+#: packages/admin/src/components/TaxonomySidebar.tsx:432
 msgid "Selected {label}"
 msgstr "選択中の{label}"
 
@@ -13757,7 +13757,7 @@ msgstr "翻訳先の言語"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:905
+#: packages/admin/src/components/TaxonomySidebar.tsx:907
 msgid "Taxonomies"
 msgstr "分類グループ"
 
@@ -14808,7 +14808,7 @@ msgstr "選択"
 msgid "Today"
 msgstr "今日"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:607
+#: packages/admin/src/components/TaxonomySidebar.tsx:609
 msgid "Toggle"
 msgstr "選択／解除"
 
@@ -14892,7 +14892,7 @@ msgstr "翻訳中…"
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:785
+#: packages/admin/src/components/TaxonomySidebar.tsx:787
 #: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "翻訳を作成しました"
@@ -15060,7 +15060,7 @@ msgstr "一意である必要がある値が、2つのレコードで重複し�
 msgid "Type"
 msgstr "種類"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:590
+#: packages/admin/src/components/TaxonomySidebar.tsx:592
 msgid "Type a name above to create a new {singularLabel}."
 msgstr ""
 
@@ -15187,7 +15187,7 @@ msgstr "未公開の変更"
 msgid "Unregistered Content Tables Found"
 msgstr "未登録のコンテンツテーブルがあります"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:851
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Unresolved assignment"
 msgstr "未解決の割り当て"
 

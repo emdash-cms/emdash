@@ -476,7 +476,7 @@ msgid "{0} detected"
 msgstr "{0} detected"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:627
+#: packages/admin/src/components/TaxonomySidebar.tsx:629
 msgid "{0} fallback"
 msgstr "{0} fallback"
 
@@ -591,7 +591,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} system + {1} custom {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:687
+#: packages/admin/src/components/TaxonomySidebar.tsx:689
 msgid "{0} updated"
 msgstr "{0} updated"
 
@@ -741,7 +741,7 @@ msgstr "{label} moved to position {0} of {1}."
 msgid "{label} moved to position {0}."
 msgstr "{label} moved to position {0}."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:535
+#: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "{label} options"
 msgstr "{label} options"
 
@@ -1256,7 +1256,7 @@ msgstr "A slug cannot be generated from this label. Type one manually using lowe
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "A slug cannot be generated from this label. Type one manually."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:769
+#: packages/admin/src/components/TaxonomySidebar.tsx:771
 msgid "A source and target locale are required"
 msgstr "A source and target locale are required"
 
@@ -1988,8 +1988,8 @@ msgstr "An encrypted digital key you unlock using your fingerprint, face, PIN, o
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
 #: packages/admin/src/components/settings/TransferSettings.tsx:85
-#: packages/admin/src/components/TaxonomySidebar.tsx:694
-#: packages/admin/src/components/TaxonomySidebar.tsx:790
+#: packages/admin/src/components/TaxonomySidebar.tsx:696
+#: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:665
 #: packages/admin/src/router.tsx:686
@@ -2363,7 +2363,7 @@ msgid "Available bylines"
 msgstr "Available bylines"
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:855
 msgid "Available in {0}"
 msgstr "Available in {0}"
 
@@ -3101,9 +3101,9 @@ msgstr "Checking this site"
 msgid "Checking…"
 msgstr "Checking…"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:396
-#: packages/admin/src/components/TaxonomySidebar.tsx:397
-#: packages/admin/src/components/TaxonomySidebar.tsx:490
+#: packages/admin/src/components/TaxonomySidebar.tsx:398
+#: packages/admin/src/components/TaxonomySidebar.tsx:399
+#: packages/admin/src/components/TaxonomySidebar.tsx:492
 msgid "Choose {label}"
 msgstr "Choose {label}"
 
@@ -3315,7 +3315,7 @@ msgstr "Click this link to sign in to {siteName}:"
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
-#: packages/admin/src/components/TaxonomySidebar.tsx:613
+#: packages/admin/src/components/TaxonomySidebar.tsx:615
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
 msgid "Close"
@@ -3962,7 +3962,7 @@ msgstr "Create"
 msgid "Create “{0}”"
 msgstr "Create “{0}”"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create \"{trimmedInput}\""
 msgstr "Create \"{trimmedInput}\""
 
@@ -3972,7 +3972,7 @@ msgid "Create {0}"
 msgstr "Create {0}"
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:864
+#: packages/admin/src/components/TaxonomySidebar.tsx:866
 msgid "Create {0} translation"
 msgstr "Create {0} translation"
 
@@ -3993,7 +3993,7 @@ msgstr "Create a bullet list"
 msgid "Create a new {0}"
 msgstr "Create a new {0}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:586
+#: packages/admin/src/components/TaxonomySidebar.tsx:588
 msgid "Create a new {singularLabel}"
 msgstr "Create a new {singularLabel}"
 
@@ -5200,8 +5200,8 @@ msgstr "Edit {0} field"
 msgid "Edit {itemLabel}"
 msgstr "Edit {itemLabel}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:416
-#: packages/admin/src/components/TaxonomySidebar.tsx:425
+#: packages/admin/src/components/TaxonomySidebar.tsx:418
+#: packages/admin/src/components/TaxonomySidebar.tsx:427
 msgid "Edit {label}"
 msgstr "Edit {label}"
 
@@ -5816,7 +5816,7 @@ msgstr "Error updating widget"
 msgid "esc"
 msgstr "esc"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:611
+#: packages/admin/src/components/TaxonomySidebar.tsx:613
 msgid "Esc"
 msgstr "Esc"
 
@@ -6032,7 +6032,7 @@ msgid "Failed to continue import"
 msgstr "Failed to continue import"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:760
+#: packages/admin/src/components/TaxonomySidebar.tsx:762
 msgid "Failed to create {0}"
 msgstr "Failed to create {0}"
 
@@ -6122,7 +6122,7 @@ msgstr "Failed to create some collections"
 msgid "Failed to create taxonomy"
 msgstr "Failed to create taxonomy"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:739
+#: packages/admin/src/components/TaxonomySidebar.tsx:741
 #: packages/admin/src/lib/api/taxonomies.ts:215
 msgid "Failed to create term"
 msgstr "Failed to create term"
@@ -6131,7 +6131,7 @@ msgstr "Failed to create term"
 msgid "Failed to create term translation"
 msgstr "Failed to create term translation"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:789
+#: packages/admin/src/components/TaxonomySidebar.tsx:791
 #: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "Failed to create translation"
@@ -6902,7 +6902,7 @@ msgid "Failed to update"
 msgstr "Failed to update"
 
 #. placeholder {0}: inlineLabel(taxonomy.label, lingui.locale)
-#: packages/admin/src/components/TaxonomySidebar.tsx:693
+#: packages/admin/src/components/TaxonomySidebar.tsx:695
 msgid "Failed to update {0}"
 msgstr "Failed to update {0}"
 
@@ -9500,7 +9500,7 @@ msgstr "Name the field and choose what it accepts."
 msgid "Name your section, then add its content in the editor."
 msgstr "Name your section, then add its content in the editor."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:601
+#: packages/admin/src/components/TaxonomySidebar.tsx:603
 msgid "Navigate"
 msgstr "Navigate"
 
@@ -9681,7 +9681,7 @@ msgstr "No {0} yet."
 msgid "No {0} yet. Create one to get started."
 msgstr "No {0} yet. Create one to get started."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:570
+#: packages/admin/src/components/TaxonomySidebar.tsx:572
 msgid "No {label} found."
 msgstr "No {label} found."
 
@@ -11456,7 +11456,7 @@ msgstr "Remove"
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:219
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
-#: packages/admin/src/components/TaxonomySidebar.tsx:459
+#: packages/admin/src/components/TaxonomySidebar.tsx:461
 msgid "Remove {0}"
 msgstr "Remove {0}"
 
@@ -11475,7 +11475,7 @@ msgstr "Remove {entry}"
 msgid "Remove {label}"
 msgstr "Remove {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:873
+#: packages/admin/src/components/TaxonomySidebar.tsx:875
 msgid "Remove assignment"
 msgstr "Remove assignment"
 
@@ -12283,7 +12283,7 @@ msgstr "Saved"
 msgid "Saved \"{0}\"."
 msgstr "Saved \"{0}\"."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:688
+#: packages/admin/src/components/TaxonomySidebar.tsx:690
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "Saved immediately; term changes do not wait for Publish changes."
 
@@ -12458,11 +12458,11 @@ msgstr "Search {0}"
 msgid "Search {0}..."
 msgstr "Search {0}..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search {label}"
 msgstr "Search {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search {label}…"
 msgstr "Search {label}…"
 
@@ -12553,11 +12553,11 @@ msgstr "Search form"
 msgid "Search media"
 msgstr "Search media"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:501
+#: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search or create {label}"
 msgstr "Search or create {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:522
+#: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search or create {label}…"
 msgstr "Search or create {label}…"
 
@@ -12880,7 +12880,7 @@ msgstr "Select which content types to import."
 msgid "Select..."
 msgstr "Select..."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:430
+#: packages/admin/src/components/TaxonomySidebar.tsx:432
 msgid "Selected {label}"
 msgstr "Selected {label}"
 
@@ -13757,7 +13757,7 @@ msgstr "Target locale"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 #: packages/admin/src/components/settings/transfer/labels.ts:13
-#: packages/admin/src/components/TaxonomySidebar.tsx:905
+#: packages/admin/src/components/TaxonomySidebar.tsx:907
 msgid "Taxonomies"
 msgstr "Taxonomies"
 
@@ -14808,7 +14808,7 @@ msgstr "to select"
 msgid "Today"
 msgstr "Today"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:607
+#: packages/admin/src/components/TaxonomySidebar.tsx:609
 msgid "Toggle"
 msgstr "Toggle"
 
@@ -14892,7 +14892,7 @@ msgstr "Translating..."
 
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
-#: packages/admin/src/components/TaxonomySidebar.tsx:785
+#: packages/admin/src/components/TaxonomySidebar.tsx:787
 #: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "Translation created"
@@ -15060,7 +15060,7 @@ msgstr "Two records have the same value where it must be unique"
 msgid "Type"
 msgstr "Type"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:590
+#: packages/admin/src/components/TaxonomySidebar.tsx:592
 msgid "Type a name above to create a new {singularLabel}."
 msgstr "Type a name above to create a new {singularLabel}."
 
@@ -15187,7 +15187,7 @@ msgstr "Unpublished changes"
 msgid "Unregistered Content Tables Found"
 msgstr "Unregistered Content Tables Found"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:851
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Unresolved assignment"
 msgstr "Unresolved assignment"
 
