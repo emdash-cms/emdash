@@ -679,6 +679,10 @@ export function createViteConfig(
 				: [
 						"@emdash-cms/admin",
 						"@astrojs/react/client.js",
+						// The admin route hydrates this wrapper, which also pulls in
+						// emdash/plugin-utils from plugin admin pages. The dep scan never
+						// reaches it, so the first admin visit would re-optimize and reload.
+						"emdash/internal/routes/PluginRegistry",
 						"emdash > lowlight",
 						"emdash > highlight.js",
 						"emdash > highlight.js/lib/core",
