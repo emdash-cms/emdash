@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {已导入 # 条评论} other {已导入 # 条评论}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2468
+#: packages/admin/src/router.tsx:2469
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# 条评论已更新} other {# 条评论已更新}}"
 
@@ -237,7 +237,7 @@ msgid "{0, plural, one {# content item imported} other {# content items imported
 msgstr "{0, plural, one {# 个内容项已导入} other {# 个内容项已导入}}"
 
 #. placeholder {0}: states.length
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:455
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:409
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# 个条目} other {# 个条目}}"
 
@@ -553,17 +553,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0}/{1} 步 · {2}/{3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:755
 msgid "{0} of {total} could not be deleted"
 msgstr "{total} 项中有 {0} 项无法删除"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:711
 msgid "{0} of {total} could not be published"
 msgstr "{total} 项中有 {0} 项无法发布"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:734
 msgid "{0} of {total} could not be updated"
 msgstr "{total} 项中有 {0} 项无法更新"
 
@@ -668,7 +668,7 @@ msgstr "{count, plural, one {# 个项目} other {# 个项目}}"
 msgid "{current} of {total}"
 msgstr "{current} / {total}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:468
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:422
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}，{entries}"
 
@@ -698,11 +698,11 @@ msgstr "{filesMissing, plural, one {还有 # 个文件需要上传。请再次�
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} 个项目} other {#{1} 个项目}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:387
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:340
 msgid "{hidden, plural, one {# more entry on {date}} other {# more entries on {date}}}"
 msgstr "{hidden, plural, one {{date} 还有 # 个条目} other {{date} 还有 # 个条目}}"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:394
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:347
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {还有 # 项} other {还有 # 项}}"
 
@@ -749,7 +749,7 @@ msgstr "{label} 选项"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:366
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
 msgstr "延迟 {lateness}"
 
@@ -937,15 +937,19 @@ msgstr "{siteName} 已迁移到 {siteHost}"
 msgid "{siteName} is now at {siteHost}. Sign in there from now on."
 msgstr "{siteName} 现已位于 {siteHost}。请从今往后在那里登录。"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:107
 msgid "{siteZone} · Your time: {viewerZone}"
 msgstr "{siteZone} · 您的时间：{viewerZone}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:282
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:266
 msgid "{state} · {when}"
 msgstr "{state} · {when}"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:344
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
+msgid "{state}, {lateness} late, {time}:"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {time}:"
 msgstr "{state}，{time}："
 
@@ -953,15 +957,15 @@ msgstr "{state}，{time}："
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel}（{label}，第 {position} 项）"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:194
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "{title} is a draft again."
 msgstr "{title} 已恢复为草稿。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 msgid "{title} is now live."
 msgstr "{title} 现已上线。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "{title} now goes live {when}."
 msgstr "{title} 将于 {when} 上线。"
 
@@ -1309,7 +1313,7 @@ msgstr "接受邀请"
 msgid "Access denied"
 msgstr "访问被拒绝"
 
-#: packages/admin/src/router.tsx:2490
+#: packages/admin/src/router.tsx:2491
 msgid "Access Denied"
 msgstr "访问被拒绝"
 
@@ -1759,7 +1763,7 @@ msgstr "显式调用此插件后，它可以将选中的未保存编辑器内容
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr "显式调用此插件后，它可以将选中的未保存编辑器内容发送到：{0}"
 
-#: packages/admin/src/routes/calendar.tsx:308
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:88
 msgid "Agenda"
 msgstr "日程"
 
@@ -1987,19 +1991,19 @@ msgstr "一种加密数字密钥，可使用指纹、面部、PIN 码或设备�
 #: packages/admin/src/components/TaxonomySidebar.tsx:694
 #: packages/admin/src/components/TaxonomySidebar.tsx:790
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:664
-#: packages/admin/src/router.tsx:685
-#: packages/admin/src/router.tsx:910
-#: packages/admin/src/router.tsx:1339
-#: packages/admin/src/router.tsx:1462
-#: packages/admin/src/router.tsx:1496
-#: packages/admin/src/router.tsx:1520
-#: packages/admin/src/router.tsx:1604
-#: packages/admin/src/router.tsx:1637
-#: packages/admin/src/router.tsx:2440
-#: packages/admin/src/router.tsx:2476
-#: packages/admin/src/router.tsx:2904
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:665
+#: packages/admin/src/router.tsx:686
+#: packages/admin/src/router.tsx:911
+#: packages/admin/src/router.tsx:1340
+#: packages/admin/src/router.tsx:1463
+#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1638
+#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:3092
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "发生错误"
@@ -2350,7 +2354,7 @@ msgstr "自动备份"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自动备份需要存储后端（R2、S3 或本地存储）。请在 EmDash 配置中配置存储以启用自动备份。"
 
-#: packages/admin/src/router.tsx:1459
+#: packages/admin/src/router.tsx:1460
 msgid "Autosave failed"
 msgstr "自动保存失败"
 
@@ -2676,7 +2680,7 @@ msgid "Byline updated"
 msgstr "署名已更新"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:339
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:382
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1110
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1114
 #: packages/admin/src/components/settings/transfer/labels.ts:19
@@ -2701,7 +2705,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
-#: packages/admin/src/routes/calendar.tsx:277
+#: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "日历"
 
@@ -2990,7 +2994,7 @@ msgstr "更新日志"
 msgid "Changes apply everywhere this byline appears."
 msgstr "更改将应用于此署名出现的所有位置。"
 
-#: packages/admin/src/router.tsx:1537
+#: packages/admin/src/router.tsx:1538
 msgid "Changes discarded"
 msgstr "更改已丢弃"
 
@@ -3038,7 +3042,7 @@ msgstr "检查站点"
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
 msgstr "检查服务器日志，然后使用媒体用量恢复 API 处理失败的任务。"
 
-#: packages/admin/src/routes/calendar.tsx:269
+#: packages/admin/src/routes/calendar.tsx:279
 msgid "Check your connection and try again."
 msgstr "检查网络连接后重试。"
 
@@ -3239,7 +3243,7 @@ msgstr "清除已完成"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:79
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:185
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:103
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:88
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
@@ -3295,7 +3299,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "点击此链接登录 {siteName}："
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:278
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:321
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3389,9 +3393,9 @@ msgstr "合集“{0}”包含条目"
 msgid "Collection “{0}” was created on this site"
 msgstr "合集“{0}”已在此站点创建"
 
-#: packages/admin/src/router.tsx:775
-#: packages/admin/src/router.tsx:977
-#: packages/admin/src/router.tsx:1964
+#: packages/admin/src/router.tsx:776
+#: packages/admin/src/router.tsx:978
+#: packages/admin/src/router.tsx:1965
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3585,7 +3589,7 @@ msgstr "内容错误 ({0})"
 msgid "Content found:"
 msgstr "找到的内容："
 
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1587
 msgid "Content has been scheduled for publishing"
 msgstr "内容已安排发布"
 
@@ -3593,7 +3597,7 @@ msgstr "内容已安排发布"
 msgid "Content ID:"
 msgstr "内容 ID："
 
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Content is now live"
 msgstr "内容现已上线"
 
@@ -3618,11 +3622,11 @@ msgstr "内容以无效方式引用了媒体"
 msgid "Content refers to media that is not in the package"
 msgstr "内容引用了安装包中不存在的媒体"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Content removed from public view"
 msgstr "内容已从公开视图中移除"
 
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:1598
 msgid "Content reverted to draft"
 msgstr "内容已恢复为草稿"
 
@@ -3810,11 +3814,11 @@ msgstr "无法从 URL 加载图片"
 msgid "Could not load media."
 msgstr "无法加载媒体。"
 
-#: packages/admin/src/routes/calendar.tsx:341
+#: packages/admin/src/routes/calendar.tsx:315
 msgid "Could not load the calendar"
 msgstr "无法加载日历"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:349
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
 msgid "Could not load this entry's details."
 msgstr "无法加载此条目的详情。"
 
@@ -3822,7 +3826,7 @@ msgstr "无法加载此条目的详情。"
 msgid "Could not load this folder."
 msgstr "无法加载此文件夹。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:183
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "Could not publish"
 msgstr "无法发布"
 
@@ -3830,7 +3834,7 @@ msgstr "无法发布"
 msgid "Could not reach {origin}"
 msgstr "无法连接 {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:198
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "Could not remove the schedule"
 msgstr "无法移除定时发布"
 
@@ -4165,7 +4169,7 @@ msgid "Created {0}"
 msgstr "创建于 {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "Created {0} translation"
 msgstr "已创建 {0} 翻译"
 
@@ -5019,7 +5023,7 @@ msgstr "正在下载安装包"
 msgid "visualEditing.draft"
 msgstr "草稿"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:413
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5788,7 +5792,7 @@ msgstr "链接侧的条目"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3366
+#: packages/admin/src/router.tsx:3367
 msgid "Error"
 msgstr "错误"
 
@@ -6128,7 +6132,7 @@ msgid "Failed to create term translation"
 msgstr "创建术语翻译失败"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:789
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/router.tsx:1635
 msgid "Failed to create translation"
 msgstr "创建翻译失败"
 
@@ -6140,7 +6144,7 @@ msgstr "创建小组件失败"
 msgid "Failed to create widget area"
 msgstr "创建小组件区域失败"
 
-#: packages/admin/src/router.tsx:753
+#: packages/admin/src/router.tsx:754
 msgid "Failed to delete"
 msgstr "删除失败"
 
@@ -6262,7 +6266,7 @@ msgstr "关闭欢迎页面失败"
 msgid "Failed to download a package file"
 msgstr "下载包文件失败"
 
-#: packages/admin/src/router.tsx:684
+#: packages/admin/src/router.tsx:685
 msgid "Failed to duplicate"
 msgstr "复制失败"
 
@@ -6524,7 +6528,7 @@ msgstr "获取更新状态失败"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2386
+#: packages/admin/src/router.tsx:2387
 msgid "Failed to fetch user"
 msgstr "获取用户失败"
 
@@ -6713,7 +6717,7 @@ msgid "Failed to lock the entry"
 msgstr "锁定条目失败"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2475
+#: packages/admin/src/router.tsx:2476
 msgid "Failed to perform bulk action"
 msgstr "执行批量操作失败"
 
@@ -6730,8 +6734,8 @@ msgstr "准备导入失败"
 msgid "Failed to probe URL"
 msgstr "探测 URL 失败"
 
-#: packages/admin/src/router.tsx:709
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:710
+#: packages/admin/src/router.tsx:1496
 msgid "Failed to publish"
 msgstr "发布失败"
 
@@ -6743,7 +6747,7 @@ msgstr "发布内容失败"
 msgid "Failed to read byline field usage"
 msgstr "读取署名字段使用情况失败"
 
-#: packages/admin/src/router.tsx:2903
+#: packages/admin/src/router.tsx:2904
 msgid "Failed to register {slug}"
 msgstr "注册 {slug} 失败"
 
@@ -6798,7 +6802,7 @@ msgstr "重新排序小部件失败"
 msgid "Failed to replace media image"
 msgstr "替换媒体图片失败"
 
-#: packages/admin/src/router.tsx:663
+#: packages/admin/src/router.tsx:664
 msgid "Failed to restore"
 msgstr "恢复失败"
 
@@ -6820,9 +6824,9 @@ msgstr "撤销 API 令牌失败"
 msgid "Failed to rewrite URLs"
 msgstr "重写 URL 失败"
 
-#: packages/admin/src/router.tsx:905
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:3090
+#: packages/admin/src/router.tsx:906
+#: packages/admin/src/router.tsx:1337
+#: packages/admin/src/router.tsx:3091
 msgid "Failed to save"
 msgstr "保存失败"
 
@@ -6877,7 +6881,7 @@ msgstr "开始导入失败"
 msgid "Failed to uninstall plugin"
 msgstr "卸载插件失败"
 
-#: packages/admin/src/router.tsx:1519
+#: packages/admin/src/router.tsx:1520
 msgid "Failed to unpublish"
 msgstr "取消发布失败"
 
@@ -6885,7 +6889,7 @@ msgstr "取消发布失败"
 msgid "Failed to unpublish content"
 msgstr "取消发布内容失败"
 
-#: packages/admin/src/router.tsx:1603
+#: packages/admin/src/router.tsx:1604
 msgid "Failed to unschedule"
 msgstr "取消安排发布失败"
 
@@ -6893,7 +6897,7 @@ msgstr "取消安排发布失败"
 msgid "Failed to unschedule content"
 msgstr "取消定时发布内容失败"
 
-#: packages/admin/src/router.tsx:732
+#: packages/admin/src/router.tsx:733
 msgid "Failed to update"
 msgstr "更新失败"
 
@@ -6984,7 +6988,7 @@ msgstr "更新分区失败"
 msgid "Failed to update settings"
 msgstr "更新设置失败"
 
-#: packages/admin/src/router.tsx:2439
+#: packages/admin/src/router.tsx:2440
 msgid "Failed to update status"
 msgstr "更新状态失败"
 
@@ -7241,7 +7245,7 @@ msgstr "文件夹"
 msgid "Folder deleted"
 msgstr "文件夹已删除"
 
-#: packages/admin/src/router.tsx:2109
+#: packages/admin/src/router.tsx:2110
 msgid "Folder no longer exists"
 msgstr "文件夹已不存在"
 
@@ -7387,12 +7391,12 @@ msgstr "Go"
 msgid "Go back to editing first."
 msgstr "请先返回编辑。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
 msgid "Go live {countdown}"
 msgstr "上线 {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3386
+#: packages/admin/src/router.tsx:3387
 msgid "Go to Dashboard"
 msgstr "前往仪表板"
 
@@ -7400,11 +7404,11 @@ msgstr "前往仪表板"
 msgid "Go to sign-in"
 msgstr "前往登录"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:308
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
 msgid "Goes live"
 msgstr "上线"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:375
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 msgid "Goes live {countdown}"
 msgstr "上线 {countdown}"
 
@@ -8365,7 +8369,7 @@ msgstr "语言"
 msgid "Large section heading"
 msgstr "大章节标题"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:343
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 msgid "Last edited"
 msgstr "上次编辑"
 
@@ -8562,7 +8566,7 @@ msgstr ""
 msgid "List view"
 msgstr "列表视图"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:429
 #: packages/admin/src/components/ContentSettingsPanel.tsx:188
 #: packages/admin/src/components/ContentSettingsPanel.tsx:198
 #: packages/admin/src/components/ContentSettingsPanel.tsx:224
@@ -8603,8 +8607,8 @@ msgstr "加载更多文件夹"
 msgid "Load preview"
 msgstr "加载预览"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:59
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
+#: packages/admin/src/router.tsx:3342
 msgid "Loading"
 msgstr "正在加载"
 
@@ -8633,8 +8637,8 @@ msgstr "正在加载合集..."
 msgid "Loading comments..."
 msgstr "正在加载评论..."
 
-#: packages/admin/src/router.tsx:3343
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3344
+#: packages/admin/src/router.tsx:3356
 msgid "Loading configuration..."
 msgstr "正在加载配置..."
 
@@ -8778,7 +8782,7 @@ msgstr "加载中…"
 msgid "Local time"
 msgstr "本地时间"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:320
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -8939,11 +8943,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "市场"
 
-#: packages/admin/src/router.tsx:2740
+#: packages/admin/src/router.tsx:2741
 msgid "Marketplace browsing is no longer available."
 msgstr "市场浏览功能已下线。"
 
-#: packages/admin/src/router.tsx:2715
+#: packages/admin/src/router.tsx:2716
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "市场浏览功能已下线。请在“插件”中管理已安装的插件。"
 
@@ -9230,7 +9234,7 @@ msgstr "审核信号"
 msgid "Modify collection schemas"
 msgstr "修改合集模式"
 
-#: packages/admin/src/routes/calendar.tsx:294
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:74
 msgid "Month"
 msgstr "月"
 
@@ -9366,11 +9370,11 @@ msgstr "移动了“{snippet}”"
 msgid "Moved {filename} to position {0}."
 msgstr "已将 {filename} 移到位置 {0}。"
 
-#: packages/admin/src/router.tsx:729
+#: packages/admin/src/router.tsx:730
 msgid "Moved {total} items to draft"
 msgstr "已将 {total} 个项目移到草稿"
 
-#: packages/admin/src/router.tsx:750
+#: packages/admin/src/router.tsx:751
 msgid "Moved {total} items to trash"
 msgstr "已将 {total} 个项目移到回收站"
 
@@ -9521,7 +9525,7 @@ msgstr "需要注意"
 msgid "Never"
 msgstr "从未"
 
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "new"
 msgstr "新建"
 
@@ -9632,7 +9636,7 @@ msgstr "新闻"
 msgid "Next"
 msgstr "下一步"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:77
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:131
 msgid "Next month"
 msgstr "下月"
 
@@ -9806,7 +9810,7 @@ msgid "No EmDash users found"
 msgstr "未找到 EmDash 用户"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:66
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No entries match these filters"
 msgstr "没有条目符合这些筛选条件"
 
@@ -9884,7 +9888,7 @@ msgid "No linked user"
 msgstr "无关联用户"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:63
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:100
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No loaded entries match these filters"
 msgstr "已加载的条目中没有符合这些筛选条件的"
 
@@ -10107,7 +10111,7 @@ msgstr "无（顶级）"
 msgid "Not compatible with this environment"
 msgstr "与此环境不兼容"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:277
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:298
 msgid "Not loaded"
 msgstr "未加载"
 
@@ -10129,7 +10133,7 @@ msgstr "未设置"
 msgid "Nothing else is scheduled this month."
 msgstr "本月没有其他已定时发布的内容。"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:600
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:554
 msgid "Nothing on this day."
 msgstr "当天没有内容。"
 
@@ -10147,7 +10151,7 @@ msgid "Nothing to preview yet."
 msgstr "暂无可预览的内容。"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:385
 msgid "Now · {time}"
 msgstr "现在 · {time}"
 
@@ -10258,7 +10262,7 @@ msgstr "打开文件夹 {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "在管理后台打开"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:482
 msgid "Open in editor"
 msgstr "在编辑器中打开"
 
@@ -10408,7 +10412,7 @@ msgstr "输出尺寸"
 msgid "Overdue"
 msgstr "已逾期"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:160
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:154
 msgid "Overdue · {lateness}"
 msgstr "已逾期 · {lateness}"
 
@@ -10435,7 +10439,7 @@ msgstr "包摘要"
 msgid "Package downloaded"
 msgstr "包已下载"
 
-#: packages/admin/src/router.tsx:3381
+#: packages/admin/src/router.tsx:3382
 msgid "Page Not Found"
 msgstr "页面未找到"
 
@@ -10794,8 +10798,8 @@ msgstr "插件仓库"
 msgid "Plugin registry configuration error"
 msgstr "插件库配置错误"
 
-#: packages/admin/src/router.tsx:2675
-#: packages/admin/src/router.tsx:2706
+#: packages/admin/src/router.tsx:2676
+#: packages/admin/src/router.tsx:2707
 msgid "Plugin registry is not configured."
 msgstr "插件库未配置。"
 
@@ -10908,7 +10912,7 @@ msgstr "按 Escape 退出代码编辑器。"
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "按空格拾取图片。使用方向键移动，然后按空格放下。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 #: packages/admin/src/components/ContentSettingsPanel.tsx:415
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
@@ -10918,7 +10922,7 @@ msgstr "按空格拾取图片。使用方向键移动，然后按空格放下。
 msgid "Preview"
 msgstr "预览"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:448
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:491
 msgid "Preview changes"
 msgstr "预览更改"
 
@@ -10943,7 +10947,7 @@ msgstr "此格式不支持预览"
 msgid "Previous"
 msgstr "上一步"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:64
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:118
 msgid "Previous month"
 msgstr "上月"
 
@@ -11039,7 +11043,7 @@ msgstr "发布更改？"
 msgid "visualEditing.publishFailed"
 msgstr "发布失败"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:408
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:451
 #: packages/admin/src/components/ContentSettingsPanel.tsx:494
 msgid "Publish now"
 msgstr "立即发布"
@@ -11058,14 +11062,14 @@ msgid "visualEditing.published"
 msgstr "已发布"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:180
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:223
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1490
+#: packages/admin/src/router.tsx:1491
 msgid "Published"
 msgstr "已发布"
 
@@ -11074,17 +11078,13 @@ msgstr "已发布"
 msgid "Published {0}"
 msgstr "发布于 {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
 msgid "Published {liveSince}"
 msgstr "已发布 {liveSince}"
 
-#: packages/admin/src/router.tsx:706
+#: packages/admin/src/router.tsx:707
 msgid "Published {total} items"
 msgstr "已发布 {total} 个项目"
-
-#: packages/admin/src/routes/calendar.tsx:278
-msgid "Published and scheduled entries across collections, in the site's time zone."
-msgstr "各内容集合中已发布和已定时发布的条目，按站点时区显示。"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:159
 msgid "Published At"
@@ -11110,7 +11110,7 @@ msgstr "发布者标识验证失败"
 msgid "Publisher release policy"
 msgstr "发布者发布策略"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:398
 msgid "Publishing"
 msgstr "发布中"
 
@@ -11222,7 +11222,7 @@ msgid "Read your taxonomies and terms"
 msgstr "读取您的分类法和术语"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2041
+#: packages/admin/src/router.tsx:2042
 msgid "Read-only"
 msgstr "只读"
 
@@ -11529,7 +11529,7 @@ msgstr "移除通行密钥"
 msgid "Remove passkey?"
 msgstr "移除通行密钥？"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:425
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:468
 #: packages/admin/src/components/ContentSettingsPanel.tsx:623
 msgid "Remove schedule"
 msgstr "移除定时发布"
@@ -11809,11 +11809,11 @@ msgstr "无障碍访问必需。为屏幕阅读器描述图片。"
 msgid "Requires EmDash {0}"
 msgstr "需要 EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:460
 msgid "Reschedule"
 msgstr "重新定时"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:206
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:249
 msgid "Rescheduled"
 msgstr "已重新定时"
 
@@ -11948,9 +11948,9 @@ msgstr "已退役"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3370
 #: packages/admin/src/routes/byline-schema.tsx:264
-#: packages/admin/src/routes/calendar.tsx:345
+#: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
 msgstr "重试"
 
@@ -11999,7 +11999,7 @@ msgstr "正在重试…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "可重用的内容区块，可插入到任何内容中"
 
-#: packages/admin/src/router.tsx:1538
+#: packages/admin/src/router.tsx:1539
 msgid "Reverted to published version"
 msgstr "已恢复到发布版本"
 
@@ -12349,19 +12349,19 @@ msgstr "定时日期"
 msgid "Schedule publication"
 msgstr "定时发布"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:190
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:233
 msgid "Schedule removed"
 msgstr "已移除定时发布"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1585
+#: packages/admin/src/router.tsx:1586
 msgid "Scheduled"
 msgstr "已定时"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:392
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:435
 msgid "Scheduled changes"
 msgstr "已定时更改"
 
@@ -13570,7 +13570,7 @@ msgstr "启动中"
 msgid "Starting…"
 msgstr "正在启动…"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:294
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:337
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "状态"
@@ -13907,11 +13907,11 @@ msgstr "浏览器通常会显示二维码。"
 msgid "The build provenance matches this release and its package."
 msgstr "构建来源与此发行版及其软件包一致。"
 
-#: packages/admin/src/routes/calendar.tsx:356
+#: packages/admin/src/routes/calendar.tsx:330
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
 msgstr "日历显示前 {maxEntries} 条，截止于 {cutOffDay}。"
 
-#: packages/admin/src/routes/calendar.tsx:357
+#: packages/admin/src/routes/calendar.tsx:331
 msgid "The calendar shows the first {maxEntries}."
 msgstr "日历显示前 {maxEntries} 条。"
 
@@ -14146,7 +14146,7 @@ msgstr "包的内容将写入本站点。导入一旦开始无法撤销；如需
 msgid "The package’s file index is not valid."
 msgstr "包的文件索引无效。"
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3384
 msgid "The page you're looking for doesn't exist."
 msgstr "您查找的页面不存在。"
 
@@ -14209,7 +14209,7 @@ msgstr "已添加的示例内容将保留。继续添加其余内容。"
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr "保存的媒体 ID 在分享链接中可能无法使用。请保存图片 URL，以便将此文件用于分享。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:193
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "对 {title} 的定时更改将保留为草稿。"
 
@@ -14365,7 +14365,7 @@ msgstr "此内容无法安全编辑"
 msgid "This content will be visible on the site immediately."
 msgstr "此内容将立即在站点上可见。"
 
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:599
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:553
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "此日期未加载。该范围内的条目多于日历可显示的数量。"
 
@@ -14386,15 +14386,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "您打开后，此条目已在其他地方更改。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1485
-#: packages/admin/src/router.tsx:1140
+#: packages/admin/src/router.tsx:1141
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "此条目已在其他地方更改。仍保存，或重新加载以获取较新的版本。"
 
-#: packages/admin/src/router.tsx:1976
+#: packages/admin/src/router.tsx:1977
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "此条目不存在或未发布。您的角色只能查看已发布的内容。"
 
-#: packages/admin/src/router.tsx:1977
+#: packages/admin/src/router.tsx:1978
 msgid "This entry doesn't exist or was deleted."
 msgstr "此条目不存在或已被删除。"
 
@@ -14410,7 +14410,7 @@ msgstr "此条目已在其他地方打开"
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "此条目为只读，因为其模式使用了此版本 EmDash 不支持的字段类型。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:363
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:406
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "此条目已到期 {lateness} 但尚未发布。定时发布可能未运行。"
 
@@ -14601,7 +14601,7 @@ msgstr "此发布者身份无法再解析。"
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "此发布者的 handle 无法解析回其身份。在发布者修复其 handle 之前，安装已被禁用。"
 
-#: packages/admin/src/routes/calendar.tsx:353
+#: packages/admin/src/routes/calendar.tsx:327
 msgid "This range has more than {maxEntries} entries"
 msgstr "此范围包含的条目超过 {maxEntries} 个"
 
@@ -14762,11 +14762,11 @@ msgstr "想法、教程等"
 msgid "Time"
 msgstr "时间"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:41
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "Times are in {zoneName}."
 msgstr "时间为 {zoneName} 时间。"
 
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:40
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:52
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr "时间为 {zoneName} 时间。您的浏览器使用 {viewerZoneName}。"
 
@@ -14805,8 +14805,8 @@ msgid "to select"
 msgstr "选择"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
-#: packages/admin/src/components/calendar/CalendarMonth.tsx:570
-#: packages/admin/src/components/calendar/CalendarToolbar.tsx:71
+#: packages/admin/src/components/calendar/CalendarMonth.tsx:524
+#: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
 #: packages/admin/src/components/revisions/revision-format.ts:107
 msgid "Today"
 msgstr "今天"
@@ -14896,7 +14896,7 @@ msgstr "翻译中..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:785
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/router.tsx:1629
 msgid "Translation created"
 msgstr "翻译已创建"
 
@@ -14905,7 +14905,7 @@ msgstr "翻译已创建"
 msgid "Translations"
 msgstr "翻译"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:327
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:370
 msgid "Translations:"
 msgstr "翻译："
 
@@ -15177,7 +15177,7 @@ msgstr "未命名用户"
 msgid "Unpublish {itemLabel}"
 msgstr "取消发布 {itemLabel}"
 
-#: packages/admin/src/router.tsx:1514
+#: packages/admin/src/router.tsx:1515
 msgid "Unpublished"
 msgstr "已取消发布"
 
@@ -15203,7 +15203,7 @@ msgstr "未保存"
 msgid "Unsaved content may leave your site"
 msgstr "未保存的内容可能离开您的站点"
 
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1597
 msgid "Unscheduled"
 msgstr "已取消安排"
 
@@ -15771,7 +15771,7 @@ msgstr "视频上传失败。请重试。"
 msgid "View email provider status and send test emails"
 msgstr "查看邮件提供商状态并发送测试邮件"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:458
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:501
 msgid "View live"
 msgstr "查看线上"
 
@@ -15847,7 +15847,7 @@ msgstr "警告"
 msgid "Warnings"
 msgstr "警告"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:307
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:350
 msgid "Was due"
 msgstr "已到期"
 
@@ -16208,7 +16208,7 @@ msgstr "您没有编辑此素材的权限。"
 msgid "You don’t have permission to move this file."
 msgstr "您没有移动此文件的权限。"
 
-#: packages/admin/src/routes/calendar.tsx:267
+#: packages/admin/src/routes/calendar.tsx:277
 msgid "You don't have permission to view the calendar."
 msgstr "您没有查看日历的权限。"
 
@@ -16228,7 +16228,7 @@ msgstr "您需要管理员权限才能管理媒体使用跟踪。"
 msgid "You need Admin permissions to transfer this site."
 msgstr "您需要管理员权限才能迁移此站点。"
 
-#: packages/admin/src/router.tsx:2491
+#: packages/admin/src/router.tsx:2492
 msgid "You need Editor permissions to moderate comments."
 msgstr "您需要编辑权限才能审核评论。"
 
@@ -16369,11 +16369,11 @@ msgstr "您的姓名（可选）"
 msgid "Your Role"
 msgstr "您的角色"
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2047
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "你的角色只能编辑处于草稿状态的自有条目。"
 
-#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2048
 msgid "Your role can't edit this entry."
 msgstr "你的角色无法编辑此条目。"
 
@@ -16390,8 +16390,8 @@ msgstr "您的站点当前位于 {currentUrl}。"
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "您的站点要求插件发布至少 {0} 后才能安装。此版本稍后将可供安装。"
 
-#: packages/admin/src/components/calendar/CalendarEntry.tsx:284
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:315
+#: packages/admin/src/components/calendar/CalendarEntry.tsx:268
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:358
 msgid "Your time: {viewerTime}"
 msgstr "您的时间：{viewerTime}"
 
