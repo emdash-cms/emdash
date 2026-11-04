@@ -1235,7 +1235,7 @@ describe("htmlToPortableText", () => {
 	});
 
 	it("does not treat an element whose name starts with a block tag as that block", () => {
-		const html = "<p>One</p><param name=\"movie\" value=\"video.swf\" /><p>Two</p>";
+		const html = '<p>One</p><param name="movie" value="video.swf" /><p>Two</p>';
 		const result = htmlToPortableText(html);
 
 		const paragraphs = result.filter((block) => block._type === "block") as PortableTextTextBlock[];
