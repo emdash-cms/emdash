@@ -11,8 +11,10 @@ export interface AutosavedDraft {
 }
 
 /**
- * The revision list as it stands after an autosave, without reading it again. An autosave writes
- * a new draft revision and deletes the one it replaces, unless that one is also the live revision.
+ * The revision list as it most likely stands after an autosave, without reading it again: the new
+ * draft revision on top, and the draft it follows removed unless that one is also the live
+ * revision. The server removes that draft only when it was an autosave too, and the new draft names
+ * everyone who autosaved into it, so the list is read again afterwards to correct the guess.
  */
 export function withAutosavedDraft(
 	list: RevisionListResponse,

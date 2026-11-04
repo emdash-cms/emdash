@@ -1,4 +1,4 @@
-import { sql, type Kysely, type Selectable } from "kysely";
+import { sql, type Insertable, type Kysely, type Selectable } from "kysely";
 import { B32_CHARACTERS, decodeTime, encodeTime, monotonicFactory, ULID_REGEX } from "ulidx";
 
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
@@ -40,6 +40,19 @@ export interface Revision {
 	createdAt: string;
 }
 
+export type RevisionKind = "autosave" | "recovery";
+
+/** What kind of save wrote a revision, and who edited it. */
+export interface RevisionCredit {
+	/** `null` for a kept revision. */
+	kind: RevisionKind | null;
+	/**
+	 * Users who edited the revision since the one before it, latest first. `null` means its author
+	 * alone.
+	 */
+	editedBy: string[] | null;
+}
+
 export interface RevisionAuthor {
 	id: string;
 	/** `null` when the account has no display name. */
@@ -56,6 +69,10 @@ export interface CreateRevisionInput {
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId?: string;
+	/** Absent or `null` for a kept revision. */
+	kind?: RevisionKind | null;
+	/** Users whose edits the revision holds, latest first. None means the author alone. */
+	editedBy?: readonly string[] | null;
 }
 
 export function normalizeRevisionLimit(value: unknown): number {
@@ -87,12 +104,14 @@ export class RevisionRepository {
 		const id = createRevisionId();
 		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
-		const row: Omit<RevisionTable, "created_at"> = {
+		const row: Insertable<RevisionTable> = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
 			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
+			kind: input.kind ?? null,
+			edited_by: input.editedBy?.length ? JSON.stringify(input.editedBy) : null,
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
@@ -150,13 +169,23 @@ export class RevisionRepository {
 	 * Find revision by ID
 	 */
 	async findById(id: string): Promise<Revision | null> {
-		const row = await this.db
-			.selectFrom("revisions")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirst();
-
+		const row = await this.findRow(id);
 		return row ? this.normalizeRow(row) : null;
+	}
+
+	/** Find a draft revision a save builds on, with what kind of save wrote it and who edited it. */
+	async findDraftBase(id: string): Promise<(Revision & RevisionCredit) | null> {
+		const row = await this.findRow(id);
+		if (!row) return null;
+		return {
+			...(await this.normalizeRow(row)),
+			kind: parseRevisionKind(row.kind),
+			editedBy: parseEditedBy(row.edited_by),
+		};
+	}
+
+	private findRow(id: string) {
+		return this.db.selectFrom("revisions").selectAll().where("id", "=", id).executeTakeFirst();
 	}
 
 	/** Shallow-merge `patch` into a stored revision's data. */
@@ -447,4 +476,23 @@ export class RevisionRepository {
 			createdAt: row.created_at,
 		};
 	}
+}
+
+function parseRevisionKind(value: string | null): RevisionKind | null {
+	return value === "autosave" || value === "recovery" ? value : null;
+}
+
+function parseEditedBy(value: string | null): string[] | null {
+	if (value === null) return null;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		return null;
+	}
+	return Array.isArray(parsed) &&
+		parsed.length > 0 &&
+		parsed.every((id): id is string => typeof id === "string")
+		? parsed
+		: null;
 }

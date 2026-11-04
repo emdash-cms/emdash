@@ -327,9 +327,10 @@ function patchAutosaveQueries(
 				.cancelQueries({ queryKey: listsKey })
 				.then(() => queryClient.invalidateQueries({ queryKey: listsKey }));
 		} else {
-			// The patched lists stay on screen; the next list that mounts, or view that opens,
-			// reads the exact server copy.
-			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "none" });
+			// The patch is a guess: the server keeps a previous draft that wasn't an autosave, and
+			// the new draft can name people this client doesn't know about. Open lists read the
+			// server's copy now, and the rest when they next mount.
+			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "active" });
 		}
 	}
 

@@ -383,6 +383,8 @@ export interface EmDashHandlers {
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
+			/** Users whose edits this save holds, latest first. Defaults to the actor alone. */
+			editedBy?: readonly string[];
 		},
 	) => Promise<HandlerResponse>;
 
