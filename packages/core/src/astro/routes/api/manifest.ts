@@ -10,6 +10,7 @@
 import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
+import { resolveSiteTitle } from "#api/site-title.js";
 import { getAuthMode } from "#auth/mode.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -68,7 +69,10 @@ export const GET: APIRoute = async ({ locals }) => {
 					"site:timezone",
 					"site:logo",
 				]);
-				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
+				const siteTitle = resolveSiteTitle(
+					titles.get("site:title"),
+					titles.get("emdash:site_title"),
+				);
 				siteTimezone = titles.get("site:timezone") || "UTC";
 				if (!adminBranding?.siteName && siteTitle) {
 					adminBranding = { ...adminBranding, siteName: siteTitle };

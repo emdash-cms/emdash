@@ -534,6 +534,12 @@ function restoreState(form: HTMLFormElement) {
 function clearSavedState(form: HTMLFormElement) {
 	const formId = form.dataset.formId;
 	if (formId) {
+		// A save still pending from the last keystroke would write the state back
+		const pending = saveTimers.get(formId);
+		if (pending) {
+			clearTimeout(pending);
+			saveTimers.delete(formId);
+		}
 		try {
 			sessionStorage.removeItem(STORAGE_PREFIX + formId);
 		} catch {

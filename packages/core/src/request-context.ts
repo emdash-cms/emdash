@@ -121,6 +121,12 @@ export interface EmDashRequestContext {
 	metrics?: RequestMetrics;
 	/** Deferred work that owns resources scoped to this request. */
 	deferredTasks?: DeferredTaskTracker;
+	/**
+	 * Resolves a storage key to its public URL through the configured storage
+	 * adapter, so code without `Astro.locals` (site settings) honors `publicUrl`.
+	 * @internal
+	 */
+	publicMediaUrl?: (storageKey: string) => string;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");

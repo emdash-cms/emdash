@@ -915,7 +915,7 @@ function FieldRow({
 							onChange={(e) => onChange({ name: e.target.value })}
 						/>
 					</div>
-					<div className="flex items-center gap-4">
+					<div className="flex items-end gap-4">
 						<Select
 							label="Type"
 							hideLabel={false}
@@ -930,11 +930,13 @@ function FieldRow({
 							onValueChange={(v) => onChange({ width: v ?? "full" })}
 							items={WIDTH_ITEMS}
 						/>
-						<Checkbox
-							label="Required"
-							checked={field.required}
-							onCheckedChange={(checked) => onChange({ required: checked })}
-						/>
+						<div className="flex h-9 items-center">
+							<Checkbox
+								label="Required"
+								checked={field.required}
+								onCheckedChange={(checked) => onChange({ required: checked })}
+							/>
+						</div>
 					</div>
 				</div>
 				<div className="flex items-center gap-0.5 pt-6">
