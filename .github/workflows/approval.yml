@@ -148,8 +148,8 @@ jobs:
               'i',
             );
 
-            // Removed lines count too: deleting `permissions:`, or every scope
-            // under it, can hand the workflow the repository's default token.
+            // Removed lines count too: deleting `permissions:` hands the workflow
+            // the repository's default token, and an empty one may not even parse.
             // GitHub leaves out the patch of a very large diff, so such an edit
             // can't be checked.
             const staysReadOnly = file => {
