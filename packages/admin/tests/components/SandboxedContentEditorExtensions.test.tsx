@@ -643,21 +643,19 @@ describe("SandboxedContentEditorPanel", () => {
 
 	it("accepts changed form values, block identities, and interaction types", async () => {
 		const blocks: Block[] = [
-			...["a", "b"].map(
-				(id): Block => ({
-					type: "form",
-					block_id: id,
-					fields: [
-						{
-							type: "text_input",
-							action_id: "summary",
-							label: `Summary ${id}`,
-							initial_value: "same",
-						},
-					],
-					submit: { action_id: "save", label: `Save ${id}` },
-				}),
-			),
+			...["a", "b"].map((id): Block => ({
+				type: "form",
+				block_id: id,
+				fields: [
+					{
+						type: "text_input",
+						action_id: "summary",
+						label: `Summary ${id}`,
+						initial_value: "same",
+					},
+				],
+				submit: { action_id: "save", label: `Save ${id}` },
+			})),
 			{ type: "actions", elements: [{ type: "button", action_id: "save", label: "Save button" }] },
 		];
 		const requests = Array.from({ length: 4 }, () => Promise.withResolvers<Response>());

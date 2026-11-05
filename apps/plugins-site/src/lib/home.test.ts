@@ -19,12 +19,10 @@ describe("popular keywords", () => {
 	});
 
 	it("returns at most the requested number of keywords", () => {
-		const packages = ["a", "b"].map(
-			(id): PackageSummary => ({
-				did: `did:plc:${id}`,
-				profile: { keywords: ["seo", "forms", "email"] },
-			}),
-		);
+		const packages = ["a", "b"].map((id): PackageSummary => ({
+			did: `did:plc:${id}`,
+			profile: { keywords: ["seo", "forms", "email"] },
+		}));
 
 		expect(popularKeywords(packages, 2)).toEqual(["email", "forms"]);
 	});

@@ -76,13 +76,13 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 			release = resolve;
 		});
 
-		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(
-			async function (this: BylineSchemaRegistry) {
-				calls += 1;
-				await gate;
-				return original.call(this);
-			},
-		);
+		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(async function (
+			this: BylineSchemaRegistry,
+		) {
+			calls += 1;
+			await gate;
+			return original.call(this);
+		});
 
 		const first = getBylineFieldDefs(db);
 		const second = getBylineFieldDefs(db);
@@ -108,17 +108,17 @@ describe("getBylineFieldDefs — dirty-version bypass (#1174 BUG 1)", () => {
 
 		const original = BylineSchemaRegistry.prototype.listFields;
 		let calls = 0;
-		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(
-			async function (this: BylineSchemaRegistry) {
-				calls += 1;
-				if (calls === 1) {
-					// Owner A's request is cancelled mid-query: on workerd the
-					// continuation never runs, so this promise never settles.
-					await new Promise(() => {});
-				}
-				return original.call(this);
-			},
-		);
+		vi.spyOn(BylineSchemaRegistry.prototype, "listFields").mockImplementation(async function (
+			this: BylineSchemaRegistry,
+		) {
+			calls += 1;
+			if (calls === 1) {
+				// Owner A's request is cancelled mid-query: on workerd the
+				// continuation never runs, so this promise never settles.
+				await new Promise(() => {});
+			}
+			return original.call(this);
+		});
 
 		// Owner A claims the lock and strands. Its request is gone, so nobody
 		// awaits its result.
