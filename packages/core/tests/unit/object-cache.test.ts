@@ -638,8 +638,8 @@ describe("deferObjectCacheInvalidations", () => {
 		).rejects.toThrow("rolled back");
 		await flush();
 
-		// A rollback can still leave rows changed (a partially applied callback on
-		// a backend without transactions), so the bump has to land either way.
+		// Values cached from reads made through the transaction must not outlive
+		// its rollback, so the bump has to land either way.
 		expect(backend.store.has("em:epoch:posts")).toBe(true);
 	});
 
