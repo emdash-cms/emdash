@@ -354,11 +354,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private restartWaiters = new Set<() => void>();
 	private shuttingDown = false;
 
-	/**
-	 * True once the crash budget is spent and scheduleRestart() stopped
-	 * scheduling retries. Giving up leaves needsRestart false, which at the
-	 * invocation site looks identical to a runner that has not started yet.
-	 */
+	/** True once the crash budget is spent; invocations cannot restart workerd. */
 	private gaveUp = false;
 
 	/** True when the last isAvailable() call could not run the workerd binary. */
@@ -458,9 +454,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * could not run, or why an invocation cannot reach workerd, the message
 	 * SandboxUnavailableError carries.
 	 *
-	 * Giving up is the one state no invocation retries out of: needsRestart
-	 * stays false, so ensureRunning() returns without starting anything and
-	 * workerd waits for a server restart, an install or an update.
+	 * Once the crash budget is spent, invocations leave workerd stopped until
+	 * the server restarts.
 	 */
 	unavailableReason(): string {
 		if (this.binaryFailed) {
@@ -478,9 +473,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * then workerd starts once on the first hook/route call.
 	 */
 	async ensureRunning(options?: { waitForPendingRestart?: boolean }): Promise<void> {
-		if (this.shuttingDown || this.plugins.size === 0) return;
-		// A crashed process waits for backoff before needsRestart is set.
-		if (this.restartTimer && !this.gaveUp && !this.needsRestart) {
+		if (this.shuttingDown || this.gaveUp || this.plugins.size === 0) return;
+		if (this.restartTimer) {
 			if (!options?.waitForPendingRestart) return;
 			await new Promise<void>((resolve) => {
 				this.restartWaiters.add(resolve);
@@ -497,17 +491,18 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// Serialize: concurrent callers await the same promise.
 		// Don't clear needsRestart until startup succeeds, so a transient
 		// failure (readiness timeout, spawn error) can be retried by
-		// the next invocation.
+		// an invocation after the restart backoff.
 		const configurationVersion = this.configurationVersion;
 		this.startupPromise = this.restart();
 		let restartSucceeded = false;
 		try {
 			await this.startupPromise;
 			this.needsRestart = configurationVersion !== this.configurationVersion;
-			// A repeat load returns the cached instance without marking a
-			// restart, so it never drives the start that clears this.
-			this.gaveUp = false;
 			restartSucceeded = true;
+		} catch (error) {
+			console.error("[emdash:workerd] startup failed:", error);
+			if (!this.restartTimer && !this.gaveUp) this.scheduleRestart();
+			throw error;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
 			// subsequent retries. needsRestart stays true on failure (set above
@@ -619,10 +614,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		if (this.eagerStartTimer) clearTimeout(this.eagerStartTimer);
 		this.eagerStartTimer = setTimeout(() => {
 			this.eagerStartTimer = null;
-			this.ensureRunning().catch((err) => {
-				console.error("[emdash:workerd] eager start failed:", err);
-				this.scheduleRestart();
-			});
+			this.ensureRunning().catch(() => {});
 		}, 50);
 	}
 
@@ -1073,7 +1065,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 * all plugins registered via load() into a single workerd start).
 	 */
 	private async ensureReady(): Promise<void> {
-		await this.runner.ensureRunning();
+		try {
+			await this.runner.ensureRunning();
+		} catch {
+			throw new SandboxUnavailableError(this.id, "workerd failed to start");
+		}
 		if (!this.runner.isHealthy()) {
 			throw new SandboxUnavailableError(this.id, this.runner.unavailableReason());
 		}

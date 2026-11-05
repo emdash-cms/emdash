@@ -2,8 +2,8 @@
  * Crash Budget Diagnostics Tests
  *
  * Pins what the runner reports once the crash budget is spent. Giving up
- * arms no retry and leaves `needsRestart` false, so `ensureRunning()`
- * starts nothing and every hook and route throws `SandboxUnavailableError`.
+ * arms no retry, and `ensureRunning()` starts nothing even if a later
+ * configuration change marks `needsRestart` true.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -80,16 +80,17 @@ describe("crash budget diagnostics", () => {
 		);
 	});
 
-	it("clears the give-up state once workerd starts again", async () => {
+	it("does not bypass the give-up state when a restart is needed", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => {});
 		exhaustCrashBudget(runner);
 
 		vi.mocked((runner as any).ensureRunning).mockRestore();
-		vi.spyOn(runner as any, "restart").mockResolvedValue(undefined);
+		const restart = vi.spyOn(runner as any, "restart").mockResolvedValue(undefined);
 		(runner as any).needsRestart = true;
 		await runner.ensureRunning();
 
-		expect(runner.unavailableReason()).toBe("workerd is not running");
+		expect(restart).not.toHaveBeenCalled();
+		expect(runner.unavailableReason()).toContain("crashed 5 times in 60 seconds");
 	});
 
 	it("stops naming a spent budget once the crash window reopens", () => {

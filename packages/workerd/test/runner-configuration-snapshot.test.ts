@@ -36,9 +36,11 @@ describe("workerd configuration readiness", () => {
 		await db?.destroy();
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
+		vi.useRealTimers();
 	});
 
-	it("propagates a failed startup to concurrent callers and retries on the next invocation", async () => {
+	it("propagates a failed startup and retries after the restart backoff", async () => {
+		vi.useFakeTimers();
 		db = new Kysely<Database>({
 			dialect: new SqliteDialect({ database: new DatabaseDriver(":memory:") }),
 		});
@@ -59,6 +61,10 @@ describe("workerd configuration readiness", () => {
 		expect(starts).toBe(1);
 		expect(runner["needsRestart"]).toBe(true);
 
+		await runner.ensureRunning();
+		expect(starts).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(1000);
 		await runner.ensureRunning();
 		expect(starts).toBe(2);
 		expect(runner["needsRestart"]).toBe(false);

@@ -61,15 +61,11 @@ export function waitForWorkerdReady(
 			finish(exitReason ?? "workerd closed before reporting all plugin ports");
 		}
 		async function checkReady(): Promise<void> {
-			try {
-				const ready = await probe();
-				if (finished || exitReason) return;
-				if (ready) {
-					finish();
-					return;
-				}
-			} catch {
-				// A listener may be bound before its worker can serve requests.
+			const ready = await probe();
+			if (finished || exitReason) return;
+			if (ready) {
+				finish();
+				return;
 			}
 			if (!finished && !exitReason) probeTimer = setTimeout(() => void checkReady(), 100);
 		}
