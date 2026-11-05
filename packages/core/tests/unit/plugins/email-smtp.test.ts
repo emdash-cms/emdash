@@ -187,6 +187,16 @@ describe("loadSmtpConfigFromEnv", () => {
 		expect(loadSmtpConfigFromEnv()?.port).toBe(587);
 	});
 
+	it("infers the security mode when EMAIL_SMTP_SECURE is empty", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "465";
+		process.env.EMAIL_SMTP_SECURE = "";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+
+		expect(loadSmtpConfigFromEnv()?.secure).toBe("tls");
+	});
+
 	it("throws when credentials are missing", () => {
 		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
 		process.env.EMAIL_SMTP_PORT = "587";
@@ -400,6 +410,43 @@ describe("deliverSmtp", () => {
 			.map((bin) => decoder.decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))))
 			.join("");
 		expect(decoded).toBe(subject);
+	});
+
+	it("still sends a subject and body that end in half an emoji", async () => {
+		const { socket, written } = mockSocket([
+			makeReply(220, "ready"),
+			EHLO_STARTTLS,
+			makeReply(220, "TLS go"),
+			EHLO_AUTH_LOGIN,
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "ok"),
+			makeReply(250, "ok"),
+			makeReply(354, "go"),
+			makeReply(250, "ok"),
+		]);
+		const halfEmoji = "Great post 👍".slice(0, -1);
+
+		await deliverSmtp(
+			baseConfig,
+			{ ...message, subject: halfEmoji, text: halfEmoji, html: undefined },
+			mockCtx,
+			async () => socket,
+		);
+
+		const transcript = written.join("");
+		expect(transcript).toMatch(/^Subject: =\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=\r\n/m);
+		expect(transcript).toContain("DATA\r\n");
+	});
+
+	it("rejects a recipient made of many @ signs quickly", async () => {
+		const connectFn = vi.fn(async () => mockSocket([]).socket);
+		const started = Date.now();
+		await expect(
+			deliverSmtp(baseConfig, { ...message, to: `${"@".repeat(50_000)} ` }, mockCtx, connectFn),
+		).rejects.toThrow(/Invalid recipient address/);
+		expect(Date.now() - started).toBeLessThan(500);
 	});
 
 	it("throws on AUTH failure", async () => {

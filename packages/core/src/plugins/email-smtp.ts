@@ -33,6 +33,7 @@ import { parseEncryptionKeys } from "../config/secrets.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { encodeBase64 } from "../utils/base64.js";
 import {
 	decryptPluginSetting,
 	encryptPluginSetting,
@@ -356,14 +357,9 @@ export class SmtpDeliveryError extends Error {
 	override name = "SmtpDeliveryError";
 }
 
-/** Base64 encode a UTF-8 string (bare `btoa` throws on non-Latin-1 input). */
-function b64(input: string): string {
-	return btoa(unescape(encodeURIComponent(input)));
-}
-
 /** Base64 encode UTF-8 text and wrap at 76 columns (RFC 2045 body limit). */
 function b64Body(input: string): string {
-	return b64(input)
+	return encodeBase64(input)
 		.replace(/.{1,76}/g, "$&\r\n")
 		.trimEnd();
 }
@@ -385,7 +381,7 @@ const NON_ASCII_REGEX = /[^\x20-\x7E]/;
 const ENCODED_WORD_MAX_BYTES = 36;
 
 function encodedWord(text: string): string {
-	return `=?UTF-8?B?${btoa(unescape(encodeURIComponent(text)))}?=`;
+	return `=?UTF-8?B?${encodeBase64(text)}?=`;
 }
 
 function encodeHeader(value: string): string {
@@ -410,7 +406,7 @@ function encodeHeader(value: string): string {
 	return words.join("\r\n ");
 }
 
-const ENVELOPE_ADDRESS_REGEX = /^[^\s<>,;"\\]+@[^\s<>,;"\\]+$/;
+const ENVELOPE_ADDRESS_REGEX = /^[^\s<>,;"\\@]+@[^\s<>,;"\\]+$/;
 
 /**
  * Validate an address before interpolating it into a MAIL FROM / RCPT TO
@@ -543,7 +539,7 @@ export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 			"EMAIL_SMTP_PORT=25 is not supported. Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
 		);
 	}
-	const secureRaw = process.env.EMAIL_SMTP_SECURE ?? (port === 465 ? "tls" : "starttls");
+	const secureRaw = process.env.EMAIL_SMTP_SECURE || (port === 465 ? "tls" : "starttls");
 	if (secureRaw !== "starttls" && secureRaw !== "tls") {
 		throw new Error(`EMAIL_SMTP_SECURE must be "starttls" or "tls", got "${secureRaw}"`);
 	}
@@ -854,14 +850,14 @@ export async function deliverSmtp(
 		// Credentials are redacted from the trace
 		const mechanisms = extensions.get("AUTH") ?? [];
 		if (mechanisms.includes("PLAIN")) {
-			await send(`AUTH PLAIN ${b64(`\0${config.user}\0${config.pass}`)}`, true);
+			await send(`AUTH PLAIN ${encodeBase64(`\0${config.user}\0${config.pass}`)}`, true);
 			await recv("AUTH PLAIN", 235);
 		} else if (mechanisms.includes("LOGIN")) {
 			await send("AUTH LOGIN");
 			await recv("AUTH LOGIN", 334);
-			await send(b64(config.user), true);
+			await send(encodeBase64(config.user), true);
 			await recv("AUTH username", 334);
-			await send(b64(config.pass), true);
+			await send(encodeBase64(config.pass), true);
 			await recv("AUTH password", 235);
 		} else {
 			throw new SmtpDeliveryError(
