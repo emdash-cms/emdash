@@ -26,6 +26,10 @@ function toCapnpId(pluginId: string): string {
 		.join("");
 }
 
+export function pluginSocketName(pluginId: string): string {
+	return `socket-${pluginId.replace(SAFE_NAME_RE, "_")}`;
+}
+
 export interface LoadedPlugin {
 	manifest: PluginManifest;
 	code: string;
@@ -84,7 +88,7 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 
 		lines.push(`    (name = "plugin-${safeName}", worker = .plugin${constId}),`);
 		socketEntries.push(
-			`    (name = "socket-${safeName}", address = "127.0.0.1:0", service = "plugin-${safeName}"),`,
+			`    (name = "${pluginSocketName(pluginId)}", address = "127.0.0.1:0", service = "plugin-${safeName}"),`,
 		);
 	}
 

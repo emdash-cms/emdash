@@ -49,7 +49,7 @@ import {
 
 import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
-import { generateCapnpConfig } from "./capnp.js";
+import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
 import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
 import { waitForWorkerdReady } from "./workerd-startup.js";
@@ -843,7 +843,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		proc.on("exit", makeWorkerdExitHandler(this as unknown as ExitHandlerHost, proc));
 
 		const sockets = new Map(
-			Array.from(plugins, ([id, plugin]) => [`socket-${id.replace(SAFE_ID_RE, "_")}`, plugin]),
+			Array.from(plugins, ([id, plugin]) => [pluginSocketName(id), plugin]),
 		);
 		try {
 			await waitForWorkerdReady(proc, sockets, () =>
