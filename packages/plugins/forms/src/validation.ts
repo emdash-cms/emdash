@@ -22,7 +22,7 @@ export interface ValidationResult {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const URL_RE = /^https?:\/\/.+/;
-const TEL_RE = /^[+\d][\d\s()-]*$/;
+const TEL_RE = /^[+(\d][\d\s()-]*$/;
 
 /**
  * Validate submission data against form field definitions.

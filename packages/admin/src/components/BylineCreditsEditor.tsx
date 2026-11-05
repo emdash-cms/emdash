@@ -721,7 +721,7 @@ function SortableBylineRow({
 				<DropdownMenu.Content className="origin-[var(--transform-origin)] p-1 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none">
 					<DropdownMenu.Item
 						className="py-1 data-highlighted:bg-kumo-fill"
-						icon={<Tag className="me-1.5 size-3.5" aria-hidden="true" />}
+						icon={<Tag className="size-3.5" aria-hidden="true" />}
 						onClick={onOpenRole}
 					>
 						{credit.roleLabel ? t`Edit role` : t`Set role`}
@@ -729,7 +729,7 @@ function SortableBylineRow({
 					{onEdit ? (
 						<DropdownMenu.Item
 							className="py-1 data-highlighted:bg-kumo-fill"
-							icon={<PencilSimple className="me-1.5 size-3.5" aria-hidden="true" />}
+							icon={<PencilSimple className="size-3.5" aria-hidden="true" />}
 							onClick={onEdit}
 						>
 							{t`Edit byline`}
@@ -738,7 +738,7 @@ function SortableBylineRow({
 					<DropdownMenu.Separator className="my-0.5" />
 					<DropdownMenu.Item
 						className="py-1"
-						icon={<UserMinus className="me-1.5 size-3.5" aria-hidden="true" />}
+						icon={<UserMinus className="size-3.5" aria-hidden="true" />}
 						variant="danger"
 						onClick={onRemove}
 					>

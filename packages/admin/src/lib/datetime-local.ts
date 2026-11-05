@@ -102,6 +102,6 @@ export function toDatetimeLocalInputValue(value: unknown, timezone = "UTC"): str
 }
 
 /** Convert an input value (`YYYY-MM-DDTHH:mm`) back to the stored ISO shape. */
-export function fromDatetimeLocalInputValue(value: string, timezone = "UTC"): string {
-	return value === "" ? "" : resolveSiteLocal(value, timezone);
+export function fromDatetimeLocalInputValue(value: string, timezone = "UTC"): string | null {
+	return value === "" ? null : resolveSiteLocal(value, timezone);
 }

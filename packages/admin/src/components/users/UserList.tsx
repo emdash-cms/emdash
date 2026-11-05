@@ -5,6 +5,14 @@ import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
 import { cn, formatDate } from "../../lib/utils.js";
+import {
+	DataTable,
+	DataTableMessage,
+	RowMeta,
+	RowTitleButton,
+	secondaryColumn,
+	tertiaryColumn,
+} from "../DataTable.js";
 import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
@@ -51,8 +59,8 @@ export function UserList({
 	return (
 		<div className="space-y-4">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-semibold leading-tight">{t`Users`}</h1>
+			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+				<h1 className="min-w-0 text-2xl font-semibold leading-tight">{t`Users`}</h1>
 				<Button onClick={onInviteUser} icon={<UserPlus />}>
 					{t`Invite User`}
 				</Button>
@@ -82,78 +90,65 @@ export function UserList({
 				</Select>
 			</TableToolbar>
 
-			{/* Table */}
-			<div className="rounded-md border bg-kumo-base overflow-x-auto">
-				<table className="w-full">
-					<thead>
-						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`User`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Role`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Status`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Last Login`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Passkeys`}
-							</th>
-						</tr>
-					</thead>
-					<tbody className="divide-y divide-kumo-line">
-						{users.length === 0 && !isLoading ? (
-							<tr>
-								<td colSpan={5} className="px-4 py-8 text-center text-kumo-subtle">
-									{searchQuery || roleFilter !== undefined ? (
-										<>
-											{t`No users found matching your filters.`}{" "}
-											<button
-												type="button"
-												className="text-kumo-link underline"
-												onClick={() => {
-													onSearchChange("");
-													onRoleFilterChange(undefined);
-												}}
-											>
-												{t`Clear filters`}
-											</button>
-										</>
-									) : (
-										<>
-											{t`No users yet.`}{" "}
-											<button
-												type="button"
-												className="text-kumo-link underline"
-												onClick={onInviteUser}
-											>
-												{t`Invite your first team member`}
-											</button>
-										</>
-									)}
-								</td>
-							</tr>
-						) : (
-							users.map((user) => (
-								<UserListRow key={user.id} user={user} onSelect={() => onSelectUser(user.id)} />
-							))
-						)}
-						{isLoading && (
-							<tr>
-								<td colSpan={5} className="px-4 py-4">
-									<div className="flex items-center justify-center gap-2 text-kumo-subtle">
-										<Loader size="sm" />
-										{t`Loading...`}
-									</div>
-								</td>
-							</tr>
-						)}
-					</tbody>
-				</table>
-			</div>
+			<DataTable>
+				<thead>
+					<tr>
+						<th scope="col">{t`User`}</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Role`}
+						</th>
+						<th scope="col" {...secondaryColumn}>
+							{t`Status`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Last Login`}
+						</th>
+						<th scope="col" {...tertiaryColumn}>
+							{t`Passkeys`}
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					{users.length === 0 && !isLoading ? (
+						<DataTableMessage colSpan={5}>
+							{searchQuery || roleFilter !== undefined ? (
+								<>
+									{t`No users found matching your filters.`}{" "}
+									<button
+										type="button"
+										className="text-kumo-link underline"
+										onClick={() => {
+											onSearchChange("");
+											onRoleFilterChange(undefined);
+										}}
+									>
+										{t`Clear filters`}
+									</button>
+								</>
+							) : (
+								<>
+									{t`No users yet.`}{" "}
+									<button type="button" className="text-kumo-link underline" onClick={onInviteUser}>
+										{t`Invite your first team member`}
+									</button>
+								</>
+							)}
+						</DataTableMessage>
+					) : (
+						users.map((user) => (
+							<UserListRow key={user.id} user={user} onSelect={() => onSelectUser(user.id)} />
+						))
+					)}
+					{isLoading && (
+						<DataTableMessage colSpan={5}>
+							<div className="flex items-center justify-center gap-2">
+								<Loader size="sm" />
+								{t`Loading...`}
+							</div>
+						</DataTableMessage>
+					)}
+				</tbody>
+			</DataTable>
 
 			{/* Load more */}
 			{hasMore && !isLoading && (
@@ -176,50 +171,62 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 	const displayName = user.name || user.email;
 	const { t, i18n } = useLingui();
 	const lastLogin = user.lastLogin ? formatDate(user.lastLogin, i18n.locale) : t`Never`;
+	const roleBadge = <RoleBadge role={user.role} />;
+	const disabledStatus = (
+		<span className="inline-flex items-center gap-1 text-kumo-danger">
+			<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
+			{t`Disabled`}
+		</span>
+	);
 
 	return (
-		<tr className="hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>
-			<td className="px-4 py-3">
+		<tr>
+			<td>
 				<div className="flex items-center gap-3">
 					{/* Avatar */}
 					{user.avatarUrl ? (
-						<img src={user.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+						<img
+							src={user.avatarUrl}
+							alt=""
+							className="h-8 w-8 shrink-0 rounded-full object-cover"
+						/>
 					) : (
-						<div className="h-8 w-8 rounded-full bg-kumo-tint flex items-center justify-center text-sm font-medium">
+						<div className="h-8 w-8 shrink-0 rounded-full bg-kumo-tint flex items-center justify-center text-sm font-medium">
 							{(user.name || user.email)?.[0]?.toUpperCase() ?? "?"}
 						</div>
 					)}
-					<div>
-						<div className="font-medium">{displayName}</div>
+					<div className="wrap-anywhere">
+						<RowTitleButton dir="auto" onClick={onSelect}>
+							{displayName}
+						</RowTitleButton>
 						{user.name && (
 							<div className="text-sm text-kumo-subtle">
 								<bdi dir="ltr">{user.email}</bdi>
 							</div>
 						)}
+						<RowMeta>
+							{roleBadge}
+							{user.disabled && disabledStatus}
+						</RowMeta>
 					</div>
 				</div>
 			</td>
-			<td className="px-4 py-3">
-				<RoleBadge role={user.role} />
-			</td>
-			<td className="px-4 py-3">
+			<td {...secondaryColumn}>{roleBadge}</td>
+			<td {...secondaryColumn}>
 				{user.disabled ? (
-					<span className="inline-flex items-center gap-1 text-sm text-kumo-danger">
-						<Prohibit className="h-3.5 w-3.5" aria-hidden="true" />
-						{t`Disabled`}
-					</span>
+					disabledStatus
 				) : (
-					<span className="inline-flex items-center gap-1 text-sm text-kumo-success">
+					<span className="inline-flex items-center gap-1 text-kumo-success">
 						<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
 						{t`Active`}
 					</span>
 				)}
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">
+			<td className="whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
 				<bdi>{lastLogin}</bdi>
 			</td>
-			<td className="px-4 py-3">
-				<span className={cn("text-sm", user.credentialCount === 0 && "text-kumo-subtle")}>
+			<td {...tertiaryColumn}>
+				<span className={cn(user.credentialCount === 0 && "text-kumo-subtle")}>
 					{user.credentialCount}
 				</span>
 			</td>
@@ -243,19 +250,24 @@ export function UserListSkeleton() {
 				<div className="h-10 w-44 bg-kumo-tint animate-pulse rounded" />
 			</div>
 
-			{/* Table skeleton */}
-			<div className="rounded-md border bg-kumo-base">
-				<div className="border-b bg-kumo-tint/50 px-4 py-3">
-					<div className="h-4 w-full bg-kumo-tint animate-pulse rounded" />
-				</div>
-				<div className="divide-y divide-kumo-line">
+			<DataTable aria-hidden="true">
+				<thead>
+					<tr>
+						<th colSpan={5}>
+							<div className="h-5 w-full animate-pulse rounded bg-kumo-tint" />
+						</th>
+					</tr>
+				</thead>
+				<tbody>
 					{Array.from({ length: 5 }, (_, i) => (
-						<div key={i} className="px-4 py-4">
-							<div className="h-8 w-full bg-kumo-tint animate-pulse rounded" />
-						</div>
+						<tr key={i}>
+							<td colSpan={5}>
+								<div className="h-9 w-full animate-pulse rounded bg-kumo-tint" />
+							</td>
+						</tr>
 					))}
-				</div>
-			</div>
+				</tbody>
+			</DataTable>
 		</div>
 	);
 }

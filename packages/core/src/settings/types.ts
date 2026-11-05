@@ -63,6 +63,13 @@ export interface SiteSettings {
 	// URLs
 	url?: string;
 
+	/**
+	 * Asks search engines not to index the site with a `noindex` robots tag
+	 * until it goes live. Sites created through the setup wizard
+	 * start in staging; an absent value means live.
+	 */
+	staging?: boolean;
+
 	// Display
 	postsPerPage: number;
 	dateFormat: string;
