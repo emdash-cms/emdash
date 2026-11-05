@@ -11,12 +11,11 @@ import type { Duplex } from "node:stream";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
 
 import { MAX_UPDATE_BYTES } from "../limits.js";
-import { CLOSE_CODES, roomId, type RoomConnection } from "../types.js";
+import { CLOSE_CODES, roomIdFromPath, type RoomConnection } from "../types.js";
 import type { AcceptedConnection } from "./registry.js";
 
 const LOG = "[co-editing]";
 const PING_INTERVAL_MS = 30_000;
-const ROOM_PATH = /\/_emdash\/api\/content\/([^/]+)\/([^/]+)\/room$/;
 const NOT_FOUND = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 
 /** The registry that takes room sockets. */
@@ -135,16 +134,7 @@ function roomUpgrade(request: IncomingMessage): string | null {
 	}
 	const url = request.url ?? "";
 	const query = url.indexOf("?");
-	const match = ROOM_PATH.exec(query === -1 ? url : url.slice(0, query));
-	if (!match) return null;
-	try {
-		return roomId({
-			collection: decodeURIComponent(match[1] ?? ""),
-			id: decodeURIComponent(match[2] ?? ""),
-		});
-	} catch {
-		return null;
-	}
+	return roomIdFromPath(query === -1 ? url : url.slice(0, query));
 }
 
 function tokenOf(url: string): string {
