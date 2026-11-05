@@ -34,6 +34,13 @@
 			"bucket_name": "emdash-media",
 		},
 	],
+	// Co-editing rooms, one Durable Object per entry being edited
+	"durable_objects": {
+		"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+	},
+	"exports": {
+		"EmDashRoom": { "type": "durable-object", "storage": "sqlite" },
+	},
 	// Cron triggers drive general maintenance.
 	"triggers": {
 		"crons": ["* * * * *"],
