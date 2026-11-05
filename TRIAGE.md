@@ -98,8 +98,6 @@ For issues the bot doesn't take on, or hasn't reached yet, you can help by:
 - Adding priority labels when the impact is clear.
 - Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
 
-Older issues may still carry `bot:*` lifecycle labels such as `bot:triage` or `bot:in-review`, and `triage/*` labels other than those listed above. They come from earlier triage automation; treat them as historical.
-
 ## AI-assisted contributions
 
 AI-assisted contributions are welcome when they follow the [AI usage policy](AI_POLICY.md). A human understands and tests the change, explicitly authorises each issue or pull request, and remains responsible for the result.
@@ -156,7 +154,7 @@ Start by identifying what kind of issue it is.
 | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
 | A bug report           | Ask for missing reproduction details, try to reproduce if practical, and add priority if the impact is clear. |
 | A feature request      | Convert it to an Ideas Discussion, or point the author there.                                                 |
-| A docs problem         | Add `documentation`, or comment with the specific page/section that needs work.                               |
+| A docs problem         | Add `area/docs`, or comment with the specific page/section that needs work.                                   |
 | A support question     | Answer if you know, or point to docs, Discussions or Discord then close.                                      |
 | A duplicate            | Link the earlier issue and close as a duplicate if you are confident.                                         |
 | Not enough information | Add `Awaiting author response` and ask one or two specific questions.                                         |
