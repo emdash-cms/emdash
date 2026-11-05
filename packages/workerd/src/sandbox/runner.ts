@@ -455,7 +455,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * SandboxUnavailableError carries.
 	 *
 	 * Once the crash budget is spent, invocations leave workerd stopped until
-	 * the server restarts.
+	 * a configuration change or server restart resets the budget.
 	 */
 	unavailableReason(): string {
 		if (this.binaryFailed) {
@@ -566,6 +566,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// The runtime loads plugins sequentially, so we batch by deferring
 		// the actual workerd spawn until the first hook/route invocation.
 		this.needsRestart = true;
+		this.gaveUp = false;
+		this.crashCount = 0;
+		this.crashWindowStart = 0;
 		this.scheduleEagerStart();
 
 		return new WorkerdSandboxedPlugin(pluginId, manifest, this.limits, this);
@@ -580,6 +583,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			entry.token = this.generatePluginToken(entry.manifest);
 			this.configurationVersion++;
 			this.needsRestart = true;
+			this.gaveUp = false;
+			this.crashCount = 0;
+			this.crashWindowStart = 0;
 			this.scheduleEagerStart();
 		}
 	}
@@ -602,6 +608,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			void this.stopWorkerd();
 		} else {
 			this.needsRestart = true;
+			this.gaveUp = false;
+			this.crashCount = 0;
+			this.crashWindowStart = 0;
 			this.scheduleEagerStart();
 		}
 	}

@@ -123,15 +123,13 @@ The runner declares Miniflare as an optional dependency. Package managers instal
 
 ### How the `workerd` process runs
 
-EmDash starts `workerd` while it initializes on the first request to the site, once the sandboxed plugins are loaded, and waits up to 10 seconds for the plugin services to answer. Installing or updating a plugin from the admin requests a restart, subject to the retry policy below. Everything `workerd` writes to stdout or stderr appears in the server's output with the prefix `[emdash:workerd]`.
+EmDash starts `workerd` while it initializes on the first request to the site, once the sandboxed plugins are loaded, and waits up to 10 seconds for the plugin services to answer. Installing or updating a plugin from the admin schedules a restart, subject to any pending restart delay. Everything `workerd` writes to stdout or stderr appears in the server's output with the prefix `[emdash:workerd]`.
 
 Plugin services listen on `127.0.0.1`, and the channel back to the server is a Unix domain socket (a `127.0.0.1` TCP port on Windows). No inbound port needs to be opened.
 
 The child process receives only `PATH`, `HOME`, `TMPDIR`, `TMP`, `TEMP`, `LANG`, and `LC_ALL` from the server's environment, so secrets in the server's environment stay out of the sandbox. To pass more variables, set `EMDASH_WORKERD_PASSTHROUGH_ENV` to a comma-separated list of variable names.
 
-If `workerd` exits unexpectedly or fails to start, the runner logs the cause and retries on the next invocation after a delay that starts at 1 second and doubles up to 30 seconds. Plugin invocations and configuration changes cannot bypass a pending delay.
-
-When `workerd` crashes or fails to start more than five times within 60 seconds, the runner stops restarting it and logs `[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up`. From then on, every sandboxed plugin hook and route fails with `Plugin sandbox unavailable for <plugin>: workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server`. Restart the server to start `workerd` again. Installing, updating, or re-enabling a plugin does not reset an exhausted retry budget. A `SIGTERM` to the server terminates `workerd` with it.
+If `workerd` exits unexpectedly, the runner logs `[emdash:workerd] workerd exited with <reason>` and restarts it on the next invocation, with a delay that starts at 1 second and doubles up to 30 seconds. When `workerd` crashes more than five times within 60 seconds, the runner stops restarting it and logs `[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up`. From then on, every sandboxed plugin hook and route fails with `Plugin sandbox unavailable for <plugin>: workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server`. Restarting the server starts `workerd` again, as does installing or updating a plugin from the admin. A `SIGTERM` to the server terminates `workerd` with it.
 
 ## Resource limits
 
@@ -207,11 +205,11 @@ Plugin hook and route calls receive this fixed reason when startup fails. Check 
 
 ### "workerd failed to start within 10 seconds"
 
-The child process started, but its plugin services did not answer within 10 seconds. The lines prefixed `[emdash:workerd]` before this message carry the output of `workerd` itself, including configuration and startup errors. While the retry budget remains available, the runner retries on the next invocation after the restart backoff.
+The child process started, but its plugin services did not answer within 10 seconds. The lines prefixed `[emdash:workerd]` before this message carry the output of `workerd` itself, including configuration and startup errors. The runner retries on the next invocation after the restart delay, while the retry budget remains available.
 
 ### "workerd crashed 5 times in 60 seconds, giving up"
 
-The runner has stopped restarting `workerd`. Check the preceding `[emdash:workerd]` server logs for startup errors, exit codes, or signals. Fix the cause, then restart the server. Installing, updating, or re-enabling a plugin does not reset the retry budget.
+The runner has stopped restarting `workerd`. The `[emdash:workerd] workerd exited with <reason>` lines before this message name the exit code or signal of each crash. Fix the cause, then restart the server or install or update a plugin to retry.
 
 ### `SANDBOX_NOT_AVAILABLE` when installing a plugin
 

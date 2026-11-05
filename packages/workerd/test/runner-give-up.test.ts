@@ -2,9 +2,11 @@
  * Crash Budget Diagnostics Tests
  *
  * Pins what the runner reports once the crash budget is spent. Giving up
- * arms no retry, and `ensureRunning()` starts nothing even if a later
- * configuration change marks `needsRestart` true.
+ * arms no invocation retry, while configuration changes can reset the
+ * recovery budget and restart the runner.
  */
+
+import { ChildProcess } from "node:child_process";
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -25,6 +27,15 @@ function exhaustCrashBudget(runner: WorkerdSandboxRunner): void {
 	}
 }
 
+function stubSuccessfulRestart(runner: WorkerdSandboxRunner) {
+	return vi.spyOn(runner as any, "restart").mockImplementation(async () => {
+		const child = new ChildProcess();
+		child.exitCode = 0;
+		runner["healthy"] = true;
+		runner["workerdProcess"] = child;
+	});
+}
+
 describe("crash budget diagnostics", () => {
 	let runner: WorkerdSandboxRunner;
 
@@ -35,6 +46,7 @@ describe("crash budget diagnostics", () => {
 		// registered plugin is a precondition; the stub keeps the
 		// ensureReady() behind an invocation from starting workerd for real.
 		vi.spyOn(runner as any, "ensureRunning").mockResolvedValue(undefined);
+		vi.spyOn(runner as any, "scheduleEagerStart").mockImplementation(() => {});
 		await runner.load(MANIFEST, "export default {};");
 	});
 
@@ -91,6 +103,90 @@ describe("crash budget diagnostics", () => {
 
 		expect(restart).not.toHaveBeenCalled();
 		expect(runner.unavailableReason()).toContain("crashed 5 times in 60 seconds");
+
+		const plugin = await runner.load(MANIFEST, "export default {};");
+		await expect(plugin.invokeHook("content:afterSave", {})).rejects.toMatchObject({
+			name: "SandboxUnavailableError",
+		});
+		expect(restart).not.toHaveBeenCalled();
+	});
+
+	it("does not replenish the budget for cached or no-op configuration changes", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		exhaustCrashBudget(runner);
+
+		await runner.load(MANIFEST, "changed code is ignored for a cached version");
+		runner.setPluginActive(`${MANIFEST.id}:${MANIFEST.version}`, true);
+		runner.setPluginActive("missing-plugin:1.0.0", true);
+		runner.unloadPlugin("missing-plugin:1.0.0");
+
+		expect((runner as any).gaveUp).toBe(true);
+		expect((runner as any).crashCount).toBe(6);
+	});
+
+	it("lets a new plugin version recover a spent crash budget", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		exhaustCrashBudget(runner);
+		vi.mocked((runner as any).ensureRunning).mockRestore();
+		const restart = stubSuccessfulRestart(runner);
+
+		await runner.load({ ...MANIFEST, version: "2.0.0" }, "export default {};\n");
+		await runner.ensureRunning();
+
+		expect(restart).toHaveBeenCalledOnce();
+		expect((runner as any).gaveUp).toBe(false);
+		expect((runner as any).crashCount).toBe(0);
+		expect(runner.isHealthy()).toBe(true);
+	});
+
+	it("recovers when unloading an existing plugin with another remaining", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		await runner.load({ ...MANIFEST, id: "remaining-plugin" }, "export default {};\n");
+		exhaustCrashBudget(runner);
+		vi.mocked((runner as any).ensureRunning).mockRestore();
+		const restart = stubSuccessfulRestart(runner);
+
+		runner.unloadPlugin(`${MANIFEST.id}:${MANIFEST.version}`);
+		await runner.ensureRunning();
+
+		expect(restart).toHaveBeenCalledOnce();
+		expect((runner as any).gaveUp).toBe(false);
+		expect((runner as any).crashCount).toBe(0);
+	});
+
+	it("recovers when re-enabling a plugin after an inactive transition", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		runner.setPluginActive(`${MANIFEST.id}:${MANIFEST.version}`, false);
+		exhaustCrashBudget(runner);
+		vi.mocked((runner as any).ensureRunning).mockRestore();
+		const restart = stubSuccessfulRestart(runner);
+
+		runner.setPluginActive(`${MANIFEST.id}:${MANIFEST.version}`, true);
+		await runner.ensureRunning();
+
+		expect(restart).toHaveBeenCalledOnce();
+		expect((runner as any).gaveUp).toBe(false);
+		expect((runner as any).crashCount).toBe(0);
+	});
+
+	it("uses a fresh one-second backoff after configuration recovery", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		exhaustCrashBudget(runner);
+		vi.mocked((runner as any).ensureRunning).mockRestore();
+		const restart = stubSuccessfulRestart(runner);
+		await runner.load({ ...MANIFEST, version: "2.0.0" }, "export default {};\n");
+
+		(runner as any).scheduleRestart();
+		expect((runner as any).crashCount).toBe(1);
+		expect((runner as any).gaveUp).toBe(false);
+		await runner.ensureRunning();
+		expect(restart).not.toHaveBeenCalled();
+
+		vi.advanceTimersByTime(999);
+		expect(restart).not.toHaveBeenCalled();
+		vi.advanceTimersByTime(1);
+		await runner.ensureRunning();
+		expect(restart).toHaveBeenCalledOnce();
 	});
 
 	it("stops naming a spent budget once the crash window reopens", () => {
