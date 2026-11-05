@@ -4,7 +4,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
+import { emdashLoader, LARGE_TERM_ASSIGNMENTS, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
@@ -280,6 +280,11 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		// The second taxonomy costs its own term lookup and nothing more: the size
 		// count rides in that lookup.
 		expect(two.queries).toHaveLength(one.queries.length + 1);
+		// Both term lookups carry the size count, capped so a large term is not
+		// read in full just to rank it.
+		for (const lookup of two.queries.slice(-3, -1)) {
+			expect(lookup.parameters).toContain(LARGE_TERM_ASSIGNMENTS);
+		}
 		// The content query binds the driving set first, so the tag (1 entry) leads
 		// the category (13 entries) although `category` was written first.
 		const content = two.queries.at(-1)!.parameters;

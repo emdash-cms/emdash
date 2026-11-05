@@ -1270,8 +1270,11 @@ function isIndexedPivotSort(orderBy: OrderBySpec | undefined): boolean {
  * every listing.
  *
  * With `countCollection`, `assignments` is the number of pivot rows the
- * resolved terms have in that collection, read in this same query so ordering
- * several taxonomy filters by size costs no extra round trip.
+ * resolved terms have in that collection, each term counted up to
+ * {@link LARGE_TERM_ASSIGNMENTS}. It rides in this query so ordering several
+ * taxonomy filters by size costs no extra round trip, and the cap keeps a large
+ * term from costing more to count than the ordering saves: the sort only has
+ * to tell a few dozen assignments from thousands.
  */
 async function resolveTermGroups(
 	db: Kysely<Database>,
@@ -1302,10 +1305,16 @@ async function resolveTermGroups(
 		.$if(countCollection !== undefined, (qb) =>
 			qb.select((eb) =>
 				eb
-					.selectFrom("content_taxonomies")
+					.selectFrom(
+						eb
+							.selectFrom("content_taxonomies")
+							.select(sql<number>`1`.as("hit"))
+							.where("content_taxonomies.collection", "=", countCollection!)
+							.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
+							.limit(LARGE_TERM_ASSIGNMENTS)
+							.as("capped"),
+					)
 					.select((inner) => inner.fn.countAll<number>().as("n"))
-					.where("content_taxonomies.collection", "=", countCollection!)
-					.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
 					.as("assignments"),
 			),
 		);
