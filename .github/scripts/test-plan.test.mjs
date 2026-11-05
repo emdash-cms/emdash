@@ -43,6 +43,7 @@ describe("test plan", () => {
 		assert.equal(plan.visual, true);
 		assert.equal(plan.e2e_cloudflare, false);
 		assert.equal(plan.d1, false);
+		assert.equal(plan.hosts, false);
 	});
 
 	it("runs no browser coverage for translation catalog changes", () => {
@@ -81,6 +82,7 @@ describe("test plan", () => {
 			"smoke",
 			"integration",
 			"d1",
+			"hosts",
 			"e2e_node",
 			"e2e_cloudflare",
 			"query_counts",
