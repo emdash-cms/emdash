@@ -680,7 +680,7 @@ msgstr "{dayLabel}, {timeLabel}"
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
 msgstr "{earlierCount, plural, one {पहले की # एंट्री दिखाएँ} other {पहले की # एंट्रीज़ दिखाएँ}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:162
+#: packages/admin/src/components/settings/GeneralSettings.tsx:238
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
 msgstr "{failed, plural, one {# ईमेल नहीं भेजा जा सका। ईमेल प्रोवाइडर जाँचें।} other {# ईमेल नहीं भेजे जा सके। ईमेल प्रोवाइडर जाँचें।}}"
 
@@ -925,7 +925,7 @@ msgstr "{selectedCount, plural, one {# चयनित} other {# चयनित
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {# आइटम को कूड़ेदान में ले जाएं? आप इसे बाद में पुनर्स्थापित कर सकते हैं।} other {# आइटम को कूड़ेदान में ले जाएं? आप उन्हें बाद में पुनर्स्थापित कर सकते हैं।}}"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:159
+#: packages/admin/src/components/settings/GeneralSettings.tsx:235
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
 msgstr "{sent, plural, one {# उपयोगकर्ता को ईमेल किया गया} other {# उपयोगकर्ताओं को ईमेल किया गया}}"
 
@@ -1235,7 +1235,7 @@ msgstr "एक रिकॉर्ड ऐसी चीज़ का संदर�
 msgid "A relation defines how two content types link. Reference fields on either side then pick entries through it."
 msgstr "संबंध तय करता है कि दो सामग्री प्रकार कैसे जुड़ते हैं। दोनों ओर के संदर्भ फ़ील्ड इसी संबंध के ज़रिए एन्ट्रीज़ चुनते हैं।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:289
+#: packages/admin/src/components/settings/GeneralSettings.tsx:367
 msgid "A short description of your site"
 msgstr "आपकी साइट का संक्षिप्त विवरण"
 
@@ -1974,10 +1974,11 @@ msgstr "एक एन्क्रिप्टेड डिजिटल कुं
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
 #: packages/admin/src/components/settings/EmailSettings.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:134
-#: packages/admin/src/components/settings/GeneralSettings.tsx:147
-#: packages/admin/src/components/settings/GeneralSettings.tsx:253
-#: packages/admin/src/components/settings/GeneralSettings.tsx:254
+#: packages/admin/src/components/settings/GeneralSettings.tsx:99
+#: packages/admin/src/components/settings/GeneralSettings.tsx:210
+#: packages/admin/src/components/settings/GeneralSettings.tsx:223
+#: packages/admin/src/components/settings/GeneralSettings.tsx:329
+#: packages/admin/src/components/settings/GeneralSettings.tsx:330
 #: packages/admin/src/components/settings/SecuritySettings.tsx:56
 #: packages/admin/src/components/settings/SecuritySettings.tsx:72
 #: packages/admin/src/components/settings/SecuritySettings.tsx:129
@@ -2878,11 +2879,11 @@ msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to
 msgstr "<0>{0}</0> को <1>{1}</1> से <2>{2}</2> में बदलें? वे उच्च-स्तरीय सुविधाओं तक पहुंच खो देंगे."
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
-#: packages/admin/src/components/settings/GeneralSettings.tsx:315
+#: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "डोमेन बदलें"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:451
+#: packages/admin/src/components/settings/GeneralSettings.tsx:529
 msgid "Change Favicon"
 msgstr "फ़ेविकॉन बदलें"
 
@@ -2894,7 +2895,7 @@ msgstr ""
 msgid "Change Image"
 msgstr "छवि बदलें"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:391
+#: packages/admin/src/components/settings/GeneralSettings.tsx:469
 msgid "Change Logo"
 msgstr "लोगो बदलें"
 
@@ -3138,7 +3139,7 @@ msgstr "लाइब्रेरी से कोई फ़ाइल चुन�
 msgid "Choose a non-empty {0} image."
 msgstr "कोई नॉन-एम्प्टी {0} छवि चुनें।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:517
+#: packages/admin/src/components/settings/GeneralSettings.tsx:595
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "तारीख़ दिखाने के लिए एक मान्यता प्राप्त टाइमज़ोन चुनें"
 
@@ -3688,7 +3689,7 @@ msgstr "आयात जारी रखें"
 msgid "Continue numbering"
 msgstr "क्रमांकन जारी रखें"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:332
+#: packages/admin/src/components/settings/GeneralSettings.tsx:410
 msgid "Continue on {handoverHost}"
 msgstr "{handoverHost} पर जारी रखें"
 
@@ -4324,7 +4325,7 @@ msgstr "दिनांक और समय चयनकर्ता"
 msgid "Date field to filter on"
 msgstr "फ़िल्टर करने के लिए दिनांक फ़ील्ड"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:496
+#: packages/admin/src/components/settings/GeneralSettings.tsx:574
 msgid "Date Format"
 msgstr "तारिख का प्रारूप"
 
@@ -4927,7 +4928,7 @@ msgstr "डोमेन"
 msgid "Domain added successfully"
 msgstr "डोमेन सफलतापूर्वक जोड़ा गया"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:216
+#: packages/admin/src/components/settings/GeneralSettings.tsx:292
 msgid "Domain changed to {url}"
 msgstr "डोमेन बदलकर {url} कर दिया गया"
 
@@ -5166,7 +5167,7 @@ msgstr "सबसे पहले सेव किया गया वर्श�
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:87
+#: packages/admin/src/components/Shell.tsx:88
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5404,11 +5405,11 @@ msgstr "ईमेल"
 msgid "Email address"
 msgstr "मेल पता"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:581
+#: packages/admin/src/components/settings/GeneralSettings.tsx:659
 msgid "Email all users?"
 msgstr "सभी उपयोगकर्ताओं को ईमेल करें?"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:344
+#: packages/admin/src/components/settings/GeneralSettings.tsx:422
 msgid "Email every other user a link to the sign-in page at {siteHost}."
 msgstr "बाकी सभी उपयोगकर्ताओं को {siteHost} पर साइन-इन पेज का लिंक ईमेल करें।"
 
@@ -5434,7 +5435,7 @@ msgstr "ईमेल प्रदाता सक्रिय"
 msgid "Email Settings"
 msgstr "ईमेल सेटिंग्स"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:354
+#: packages/admin/src/components/settings/GeneralSettings.tsx:432
 msgid "Email users"
 msgstr "उपयोगकर्ताओं को ईमेल करें"
 
@@ -5653,7 +5654,7 @@ msgstr ""
 msgid "Enter a path that starts with a single /."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:521
+#: packages/admin/src/components/settings/GeneralSettings.tsx:599
 msgid "Enter a recognized timezone to save"
 msgstr "सेव करने के लिए ऐसा टाइमज़ोन दर्ज करें जिसे सिस्टम पहचानता हो"
 
@@ -5824,7 +5825,7 @@ msgstr "Esc"
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
 msgstr "हर आयातित रिकॉर्ड और मीडिया फ़ाइल को वापस पढ़ा गया और वह पैकेज से मेल खाती है। ट्रांसफ़र के रिकॉर्ड के रूप में यह रसीद रखें।"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:582
+#: packages/admin/src/components/settings/GeneralSettings.tsx:660
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "सक्रिय खाते वाले बाकी सभी उपयोगकर्ताओं को ईमेल मिलता है कि साइट अब {siteHost} पर है, साथ में वहाँ साइन इन करने का लिंक भी। किसी दूसरे पते की पासकी {siteHost} पर काम नहीं करतीं, इसलिए उपयोगकर्ता ईमेल लिंक से साइन इन करते हैं और एक नई पासकी जोड़ते हैं।"
 
@@ -5848,7 +5849,7 @@ msgstr "यह सामग्री प्रकार जिन संबं�
 msgid "Exact group name..."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:502
+#: packages/admin/src/components/settings/GeneralSettings.tsx:580
 msgid "Example: {pattern} → {preview}"
 msgstr "उदाहरण: {pattern} → {preview}"
 
@@ -6003,7 +6004,7 @@ msgstr "रिक्वेस्ट मंज़ूर करने में �
 msgid "Failed to cancel import"
 msgstr "इम्पोर्ट रद्द करने में असफल"
 
-#: packages/admin/src/lib/api/settings.ts:119
+#: packages/admin/src/lib/api/settings.ts:127
 msgid "Failed to change the domain"
 msgstr "डोमेन बदलने में असफल"
 
@@ -6036,8 +6037,8 @@ msgstr "आयात जारी रखने में असफल"
 msgid "Failed to create {0}"
 msgstr "{0} बनाने में असफल"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:146
-#: packages/admin/src/lib/api/settings.ts:96
+#: packages/admin/src/components/settings/GeneralSettings.tsx:222
+#: packages/admin/src/lib/api/settings.ts:104
 msgid "Failed to create a sign-in link"
 msgstr "साइन-इन लिंक बनाने में असफल"
 
@@ -6274,7 +6275,7 @@ msgstr "कॉपी बनाने में असफल"
 msgid "Failed to duplicate content"
 msgstr "कंटेंट की कॉपी बनाने में असफल"
 
-#: packages/admin/src/lib/api/settings.ts:106
+#: packages/admin/src/lib/api/settings.ts:114
 msgid "Failed to email users"
 msgstr "उपयोगकर्ता को ईमेल भेजने में असफल"
 
@@ -6307,7 +6308,7 @@ msgstr "अनुमत डोमेन लाने में असफल"
 msgid "Failed to fetch API tokens"
 msgstr "API टोकन लाने में असफल"
 
-#: packages/admin/src/lib/api/client.ts:373
+#: packages/admin/src/lib/api/client.ts:375
 msgid "Failed to fetch auth mode"
 msgstr "ऑथेंटिकेशन मोड लाने में असफल"
 
@@ -6381,7 +6382,7 @@ msgstr "प्रवेश शर्तें लाने में असफ�
 msgid "Failed to fetch fields"
 msgstr "फ़ील्ड प्राप्त करने में असफल"
 
-#: packages/admin/src/lib/api/client.ts:356
+#: packages/admin/src/lib/api/client.ts:358
 msgid "Failed to fetch manifest"
 msgstr "मेनिफ़ेस्ट लाने में असफल"
 
@@ -6484,7 +6485,7 @@ msgstr "अनुभाग लाने में असफल"
 msgid "Failed to fetch sections"
 msgstr "अनुभाग लाने में असफल"
 
-#: packages/admin/src/lib/api/settings.ts:61
+#: packages/admin/src/lib/api/settings.ts:68
 msgid "Failed to fetch settings"
 msgstr "सेटिंग लाने में असफल"
 
@@ -6505,7 +6506,7 @@ msgstr "टर्म के अनुवाद प्राप्त करन�
 msgid "Failed to fetch terms"
 msgstr "शर्तें लाने में असफल"
 
-#: packages/admin/src/lib/api/settings.ts:88
+#: packages/admin/src/lib/api/settings.ts:96
 msgid "Failed to fetch the site domain"
 msgstr "साइट डोमेन लाने में असफल"
 
@@ -6835,7 +6836,8 @@ msgid "Failed to save backup settings"
 msgstr "बैकअप सेटिंग सहेजने में असफल"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
-#: packages/admin/src/components/settings/GeneralSettings.tsx:133
+#: packages/admin/src/components/settings/GeneralSettings.tsx:98
+#: packages/admin/src/components/settings/GeneralSettings.tsx:209
 #: packages/admin/src/components/settings/SeoSettings.tsx:85
 #: packages/admin/src/components/settings/SocialSettings.tsx:66
 msgid "Failed to save settings"
@@ -6984,7 +6986,7 @@ msgstr "रिलेशन अपडेट करने में असफल"
 msgid "Failed to update section"
 msgstr "अनुभाग अद्यतन करने में असफल"
 
-#: packages/admin/src/lib/api/settings.ts:73
+#: packages/admin/src/lib/api/settings.ts:81
 msgid "Failed to update settings"
 msgstr "सेटिंग्स अपडेट करने में असफल"
 
@@ -7037,8 +7039,8 @@ msgid "FAQ"
 msgstr "अक्सर पूछे जाने वाले प्रश्न"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:45
-#: packages/admin/src/components/settings/GeneralSettings.tsx:422
-#: packages/admin/src/components/settings/GeneralSettings.tsx:429
+#: packages/admin/src/components/settings/GeneralSettings.tsx:500
+#: packages/admin/src/components/settings/GeneralSettings.tsx:507
 msgid "Favicon"
 msgstr "फ़ेविकॉन"
 
@@ -7355,7 +7357,7 @@ msgstr "गैलरी सेटिंग्स"
 msgid "General"
 msgstr "सामान्य"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:231
+#: packages/admin/src/components/settings/GeneralSettings.tsx:307
 msgid "General Settings"
 msgstr "सामान्य सेटिंग्स"
 
@@ -7389,6 +7391,10 @@ msgstr "जाना"
 
 #: packages/admin/src/components/ContentEditor.tsx:1476
 msgid "Go back to editing first."
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
+msgid "Go live"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
@@ -7537,6 +7543,15 @@ msgstr "हीरो बैनर"
 msgid "hero, banner, cta"
 msgstr "हीरो, बैनर, सीटीए"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:116
+msgid "Hidden from search engines"
+msgstr ""
+
+#: packages/admin/src/components/Header.tsx:61
+#: packages/admin/src/components/Header.tsx:65
+msgid "Hidden from search engines until you go live"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:119
 msgid "Hide earlier entries"
 msgstr ""
@@ -7560,7 +7575,7 @@ msgstr "टोकन छिपाएँ"
 msgid "visualEditing.hideToolbar"
 msgstr ""
 
-#: packages/admin/src/components/Shell.tsx:87
+#: packages/admin/src/components/Shell.tsx:88
 msgid "Hide toolbar"
 msgstr ""
 
@@ -8536,7 +8551,7 @@ msgid "Links from"
 msgstr ""
 
 #. placeholder {0}: siteDomain.configuredUrl
-#: packages/admin/src/components/settings/GeneralSettings.tsx:301
+#: packages/admin/src/components/settings/GeneralSettings.tsx:379
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
@@ -8565,6 +8580,10 @@ msgstr ""
 #: packages/admin/src/components/MediaPickerModal.tsx:1293
 msgid "List view"
 msgstr "लिस्ट व्यू"
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:114
+msgid "Live"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
@@ -8711,7 +8730,7 @@ msgid "Loading sections..."
 msgstr "अनुभाग लोड हो रहे हैं..."
 
 #: packages/admin/src/components/PluginSettings.tsx:131
-#: packages/admin/src/components/settings/GeneralSettings.tsx:242
+#: packages/admin/src/components/settings/GeneralSettings.tsx:318
 #: packages/admin/src/components/settings/SeoSettings.tsx:137
 #: packages/admin/src/components/settings/SocialSettings.tsx:100
 msgid "Loading settings..."
@@ -8817,13 +8836,13 @@ msgstr "पहलू अनुपात लॉक करें"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "लॉक किया गया क्योंकि इस फ़ील्ड में मान संग्रहीत हैं। इसे बदलने के लिए मान (या फ़ील्ड) हटाएं।"
 
-#: packages/admin/src/components/Header.tsx:112
+#: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
 msgstr "लॉग आउट"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:44
-#: packages/admin/src/components/settings/GeneralSettings.tsx:362
-#: packages/admin/src/components/settings/GeneralSettings.tsx:369
+#: packages/admin/src/components/settings/GeneralSettings.tsx:440
+#: packages/admin/src/components/settings/GeneralSettings.tsx:447
 msgid "Logo"
 msgstr "प्रतीक चिन्ह"
 
@@ -9929,7 +9948,7 @@ msgstr "इस खाते के लिए कोई मेल खाती �
 msgid "No matching tags"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:534
+#: packages/admin/src/components/settings/GeneralSettings.tsx:612
 msgid "No matching timezones"
 msgstr ""
 
@@ -10125,7 +10144,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1641
 #: packages/admin/src/components/PluginSettings.tsx:342
-#: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/components/settings/GeneralSettings.tsx:385
 msgid "Not set"
 msgstr "सेट नहीं"
 
@@ -10164,7 +10183,7 @@ msgstr "संख्या"
 msgid "Number of posts"
 msgstr "पदों की संख्या"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:490
+#: packages/admin/src/components/settings/GeneralSettings.tsx:568
 msgid "Number of posts to show per page on list views"
 msgstr "सूची दृश्यों पर प्रति पृष्ठ दिखाए जाने वाले पोस्टों की संख्या"
 
@@ -10543,7 +10562,7 @@ msgstr ""
 msgid "Passkeys Not Available Here"
 msgstr "यहां पासकी उपलब्ध नहीं हैं"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:217
+#: packages/admin/src/components/settings/GeneralSettings.tsx:293
 msgid "Passkeys only work at the address where they were created."
 msgstr ""
 
@@ -10555,7 +10574,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:323
+#: packages/admin/src/components/settings/GeneralSettings.tsx:401
 msgid "Passkeys only work at the address where they were created. Continue on {handoverHost} to sign in there without a passkey, then add one for that address."
 msgstr ""
 
@@ -10877,7 +10896,7 @@ msgstr "पदों"
 msgid "Posts & Pages"
 msgstr "पोस्ट और पेज"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:484
+#: packages/admin/src/components/settings/GeneralSettings.tsx:562
 msgid "Posts Per Page"
 msgstr "प्रति पृष्ठ पोस्ट"
 
@@ -10941,7 +10960,7 @@ msgstr "ड्राफ्ट का पूर्वावलोकन करे
 msgid "Preview of {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:501
+#: packages/admin/src/components/settings/GeneralSettings.tsx:579
 msgid "Preview unavailable for this format"
 msgstr ""
 
@@ -11228,7 +11247,7 @@ msgstr "अपनी वर्गीकरण और शर्तें पढ�
 msgid "Read-only"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:481
+#: packages/admin/src/components/settings/GeneralSettings.tsx:559
 msgid "Reading"
 msgstr "पढ़ना"
 
@@ -11340,7 +11359,7 @@ msgstr "संदर्भ"
 msgid "Referenced collection"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:440
+#: packages/admin/src/components/settings/GeneralSettings.tsx:518
 msgid "Referenced favicon unavailable."
 msgstr "संदर्भित फ़ेविकॉन अनुपलब्ध है."
 
@@ -11443,8 +11462,8 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:459
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6643
-#: packages/admin/src/components/settings/GeneralSettings.tsx:400
-#: packages/admin/src/components/settings/GeneralSettings.tsx:460
+#: packages/admin/src/components/settings/GeneralSettings.tsx:478
+#: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
 #: packages/admin/src/components/settings/PasskeyItem.tsx:182
 #: packages/admin/src/components/settings/SeoSettings.tsx:222
@@ -11782,7 +11801,7 @@ msgstr "कोष"
 msgid "Request a new link"
 msgstr "एक नये लिंक का अनुरोध करें"
 
-#: packages/admin/src/lib/api/client.ts:344
+#: packages/admin/src/lib/api/client.ts:346
 msgid "Request failed"
 msgstr "अनुरोध असफल रहा"
 
@@ -12533,6 +12552,10 @@ msgstr "खोज इंजन अनुकूलन और सत्याप�
 msgid "Search Engine Verification"
 msgstr ""
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:122
+msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
+msgstr ""
+
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
 msgid "Search failed"
 msgstr ""
@@ -12550,7 +12573,7 @@ msgstr ""
 msgid "Search for a language…"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:514
+#: packages/admin/src/components/settings/GeneralSettings.tsx:592
 msgid "Search for an IANA timezone (e.g., Europe/London)"
 msgstr ""
 
@@ -12619,7 +12642,7 @@ msgstr "थीम खोजें"
 msgid "Search themes..."
 msgstr "थीम खोजें..."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:525
+#: packages/admin/src/components/settings/GeneralSettings.tsx:603
 msgid "Search timezones…"
 msgstr ""
 
@@ -12733,7 +12756,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "सुरक्षा एरर। सुनिश्चित करें कि आप सुरक्षित कनेक्शन पर हैं।"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:96
+#: packages/admin/src/components/Header.tsx:109
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -12823,11 +12846,11 @@ msgstr ""
 msgid "Select default social image"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:564
+#: packages/admin/src/components/settings/GeneralSettings.tsx:642
 msgid "Select favicon"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:472
+#: packages/admin/src/components/settings/GeneralSettings.tsx:550
 msgid "Select Favicon"
 msgstr "फ़ेविकॉन चुनें"
 
@@ -12851,11 +12874,11 @@ msgstr "छवि का चयन करें"
 msgid "Select Image"
 msgstr "छवि का चयन करें"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:556
+#: packages/admin/src/components/settings/GeneralSettings.tsx:634
 msgid "Select logo"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:412
+#: packages/admin/src/components/settings/GeneralSettings.tsx:490
 msgid "Select Logo"
 msgstr "लोगो चुनें"
 
@@ -12934,7 +12957,7 @@ msgstr "टीम के किसी नए सदस्य को आमंत
 msgid "Send email through your site"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:583
+#: packages/admin/src/components/settings/GeneralSettings.tsx:661
 msgid "Send emails"
 msgstr ""
 
@@ -12960,7 +12983,7 @@ msgstr "परीक्षण ईमेल भेजें"
 
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/settings/EmailSettings.tsx:123
-#: packages/admin/src/components/settings/GeneralSettings.tsx:584
+#: packages/admin/src/components/settings/GeneralSettings.tsx:662
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
@@ -13027,7 +13050,7 @@ msgstr "टिप्पणियाँ स्वचालित रूप से
 msgid "Set to draft"
 msgstr "ड्राफ्ट पर सेट करें"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:343
+#: packages/admin/src/components/settings/GeneralSettings.tsx:421
 msgid "Set up an email provider in Email settings to email users."
 msgstr ""
 
@@ -13057,7 +13080,7 @@ msgstr "की स्थापना..."
 #: packages/admin/src/components/ContentEditor.tsx:2045
 #: packages/admin/src/components/ContentEditor.tsx:2372
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
-#: packages/admin/src/components/Header.tsx:104
+#: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
@@ -13074,7 +13097,7 @@ msgid "Settings Read"
 msgstr "सेटिंग्स पढ़ें"
 
 #: packages/admin/src/components/PluginSettings.tsx:68
-#: packages/admin/src/components/settings/GeneralSettings.tsx:126
+#: packages/admin/src/components/settings/GeneralSettings.tsx:202
 msgid "Settings saved successfully"
 msgstr "सेटिंग्स सफलतापूर्वक सहेजी गईं"
 
@@ -13250,7 +13273,7 @@ msgstr ""
 msgid "Site identity"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:275
+#: packages/admin/src/components/settings/GeneralSettings.tsx:353
 msgid "Site Identity"
 msgstr "साइट की पहचान"
 
@@ -13259,7 +13282,7 @@ msgid "site identity applied (title, tagline, logo)"
 msgstr "साइट पहचान लागू (शीर्षक, टैगलाइन, लोगो)"
 
 #: packages/admin/src/components/Settings.tsx:55
-#: packages/admin/src/components/settings/GeneralSettings.tsx:232
+#: packages/admin/src/components/settings/GeneralSettings.tsx:308
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "साइट की पहचान, लोगो, फ़ेविकॉन और पढ़ने की प्राथमिकताएँ"
 
@@ -13281,11 +13304,19 @@ msgstr ""
 msgid "Site Settings"
 msgstr "साइट सेटिंग्स"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:109
+msgid "Site Status"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:91
+msgid "Site switched to staging"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:368
 msgid "Site title"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:278
+#: packages/admin/src/components/settings/GeneralSettings.tsx:356
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Site Title"
 msgstr "घटनास्थल शीर्षक"
@@ -13302,11 +13333,11 @@ msgstr "साइट शीर्षक आवश्यक है"
 msgid "Site Transfer"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:295
+#: packages/admin/src/components/settings/GeneralSettings.tsx:373
 msgid "Site URL"
 msgstr "साइट URL"
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:216
+#: packages/admin/src/components/settings/GeneralSettings.tsx:292
 msgid "Site URL set to {url}"
 msgstr ""
 
@@ -13530,6 +13561,12 @@ msgstr ""
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr ""
 
+#: packages/admin/src/components/Header.tsx:62
+#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/settings/GeneralSettings.tsx:114
+msgid "Staging"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:529
 msgid "Start a new import"
 msgstr ""
@@ -13673,6 +13710,10 @@ msgstr "दुर्बल"
 msgid "Swift"
 msgstr "तीव्र"
 
+#: packages/admin/src/components/settings/GeneralSettings.tsx:133
+msgid "Switch back to staging"
+msgstr ""
+
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to dark"
 msgstr ""
@@ -13730,7 +13771,7 @@ msgstr ""
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:286
+#: packages/admin/src/components/settings/GeneralSettings.tsx:364
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
 #: packages/admin/src/components/SetupWizard.tsx:149
 msgid "Tagline"
@@ -13812,7 +13853,7 @@ msgstr ""
 msgid "Technical verification details"
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:340
+#: packages/admin/src/components/settings/GeneralSettings.tsx:418
 msgid "Tell users where to sign in"
 msgstr ""
 
@@ -14069,7 +14110,7 @@ msgstr "मेनू हटा दिया गया है."
 msgid "The menu is now called \"{0}\"."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:281
+#: packages/admin/src/components/settings/GeneralSettings.tsx:359
 msgid "The name of your site, used in the header and metadata"
 msgstr "आपकी साइट का नाम, हेडर और मेटाडेटा में उपयोग किया जाता है"
 
@@ -14178,7 +14219,7 @@ msgstr ""
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:297
+#: packages/admin/src/components/settings/GeneralSettings.tsx:375
 msgid "The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata"
 msgstr ""
 
@@ -14195,7 +14236,7 @@ msgstr ""
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
 msgstr "संदर्भित छवि अब उपलब्ध नहीं है. कोई नया चुनें या संदर्भ हटा दें."
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:380
+#: packages/admin/src/components/settings/GeneralSettings.tsx:458
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "संदर्भित लोगो अब उपलब्ध नहीं है. कोई नया चुनें या संदर्भ हटा दें."
 
@@ -14636,7 +14677,7 @@ msgstr ""
 msgid "This removes the schedule and publishes immediately."
 msgstr ""
 
-#: packages/admin/src/components/settings/GeneralSettings.tsx:516
+#: packages/admin/src/components/settings/GeneralSettings.tsx:594
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
@@ -14778,7 +14819,7 @@ msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:312
-#: packages/admin/src/components/settings/GeneralSettings.tsx:508
+#: packages/admin/src/components/settings/GeneralSettings.tsx:586
 msgid "Timezone"
 msgstr "समयक्षेत्र"
 
@@ -15628,8 +15669,8 @@ msgid "Used to identify this section. Lowercase letters, numbers, and hyphens on
 msgstr "इस अनुभाग की पहचान करने के लिए उपयोग किया जाता है. केवल छोटे अक्षर, संख्याएँ और हाइफ़न।"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:255
-#: packages/admin/src/components/Header.tsx:44
-#: packages/admin/src/components/Header.tsx:84
+#: packages/admin/src/components/Header.tsx:46
+#: packages/admin/src/components/Header.tsx:97
 #: packages/admin/src/components/users/UserList.tsx:96
 msgid "User"
 msgstr "उपयोगकर्ता"
@@ -15795,7 +15836,7 @@ msgstr ""
 msgid "View setup"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:73
 msgid "View Site"
 msgstr "साइट देखें"
 
@@ -15809,6 +15850,14 @@ msgstr "spdx.org पर {license} लाइसेंस देखें"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:517
 msgid "Viewing the version from {when} by {name}."
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:116
+msgid "Visible to search engines"
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:121
+msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
 msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:780
@@ -16270,7 +16319,7 @@ msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
 #. placeholder {0}: window.location.host
-#: packages/admin/src/components/settings/GeneralSettings.tsx:322
+#: packages/admin/src/components/settings/GeneralSettings.tsx:400
 msgid "You're signed in at {0}"
 msgstr ""
 
@@ -16390,6 +16439,10 @@ msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
 msgid "Your site is currently at {currentUrl}."
+msgstr ""
+
+#: packages/admin/src/components/settings/GeneralSettings.tsx:91
+msgid "Your site is live"
 msgstr ""
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
