@@ -4,6 +4,7 @@ import { ulid } from "ulidx";
 import { getLocaleCandidates, getLocaleChainRank, getLocaleRank } from "../../i18n/config.js";
 import { localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { hasRoomNotifier, notifyEntryGroups } from "../../rooms/notifications.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
@@ -603,6 +604,7 @@ export class TaxonomyRepository {
 
 		// When deleting the last translation of a group the pivot rows that
 		// reference that translation_group become orphaned — purge them.
+		let unassigned: { collection: string; entry_id: string }[] = [];
 		if (term.translationGroup) {
 			const siblings = await this.db
 				.selectFrom("taxonomies")
@@ -611,6 +613,19 @@ export class TaxonomyRepository {
 				.where("id", "!=", id)
 				.execute();
 			if (siblings.length === 0) {
+				if (hasRoomNotifier()) {
+					// Only a collection that still exists has a table to find the entries in.
+					unassigned = await this.db
+						.selectFrom("content_taxonomies")
+						.innerJoin(
+							"_emdash_collections",
+							"_emdash_collections.slug",
+							"content_taxonomies.collection",
+						)
+						.select(["content_taxonomies.collection", "content_taxonomies.entry_id"])
+						.where("content_taxonomies.taxonomy_id", "=", term.translationGroup)
+						.execute();
+				}
 				await this.db
 					.deleteFrom("content_taxonomies")
 					.where("taxonomy_id", "=", term.translationGroup)
@@ -620,6 +635,16 @@ export class TaxonomyRepository {
 
 		const result = await this.db.deleteFrom("taxonomies").where("id", "=", id).executeTakeFirst();
 		invalidateTaxonomyObjectCache();
+		const groupsByCollection = new Map<string, string[]>();
+		for (const { collection, entry_id } of unassigned) {
+			const groups = groupsByCollection.get(collection);
+			if (groups) groups.push(entry_id);
+			else groupsByCollection.set(collection, [entry_id]);
+		}
+		for (const [collection, groups] of groupsByCollection) {
+			// oxlint-disable-next-line no-await-in-loop -- one table per collection
+			await this.notifyEntryGroups(collection, groups);
+		}
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
 
@@ -646,7 +671,10 @@ export class TaxonomyRepository {
 		if (!entryGroup) return 0;
 
 		const inserted = await this.insertAssignments(collection, entryGroup, uniqueGroups);
-		if (inserted > 0) invalidateTaxonomyObjectCache();
+		if (inserted > 0) {
+			invalidateTaxonomyObjectCache();
+			await this.notifyEntryGroups(collection, [entryGroup]);
+		}
 		return inserted;
 	}
 
@@ -706,13 +734,14 @@ export class TaxonomyRepository {
 		]);
 		if (!entryGroup || !taxonomyGroup) return;
 
-		await this.db
+		const result = await this.db
 			.deleteFrom("content_taxonomies")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryGroup)
 			.where("taxonomy_id", "=", taxonomyGroup)
-			.execute();
+			.executeTakeFirst();
 		invalidateTaxonomyObjectCache();
+		if ((result.numDeletedRows ?? 0n) > 0n) await this.notifyEntryGroups(collection, [entryGroup]);
 	}
 
 	/** Remove already-resolved term groups without replacing concurrent assignments. */
@@ -727,7 +756,10 @@ export class TaxonomyRepository {
 		if (!entryGroup) return 0;
 
 		const removed = await this.deleteAssignments(collection, entryGroup, uniqueGroups);
-		if (removed > 0) invalidateTaxonomyObjectCache();
+		if (removed > 0) {
+			invalidateTaxonomyObjectCache();
+			await this.notifyEntryGroups(collection, [entryGroup]);
+		}
 		return removed;
 	}
 
@@ -867,6 +899,9 @@ export class TaxonomyRepository {
 		} finally {
 			if (toRemove.length > 0 || toAdd.length > 0) invalidateTaxonomyObjectCache();
 		}
+		if (toRemove.length > 0 || toAdd.length > 0) {
+			await this.notifyEntryGroups(collection, [entryGroup]);
+		}
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
@@ -887,8 +922,16 @@ export class TaxonomyRepository {
 			.where("entry_id", "=", entryGroup)
 			.executeTakeFirst();
 		const removed = Number(result.numDeletedRows ?? 0);
-		if (removed > 0) invalidateTaxonomyObjectCache();
+		if (removed > 0) {
+			invalidateTaxonomyObjectCache();
+			await this.notifyEntryGroups(collection, [entryGroup]);
+		}
 		return removed;
+	}
+
+	/** Term assignments span a translation group, so every locale's room hears about them. */
+	private notifyEntryGroups(collection: string, entryGroups: string[]): Promise<void> {
+		return notifyEntryGroups(this.db, collection, entryGroups, ["terms"]);
 	}
 
 	private async resolveEntryTranslationGroup(

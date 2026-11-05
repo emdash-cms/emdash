@@ -17,13 +17,15 @@ import { RevisionRepository } from "../database/repositories/revision.js";
 import type { EmDashRuntime } from "../emdash-runtime.js";
 import { assertSiteWriteAllowed } from "../transfer/fence.js";
 import { isMissingTableError } from "../utils/db-errors.js";
-import type {
-	CheckpointInput,
-	EntryRef,
-	LoadedEntry,
-	RecoveryInput,
-	RoomSite,
-	SaveResult,
+import { withRoomNotificationQueue } from "./notifications.js";
+import {
+	roomId,
+	type CheckpointInput,
+	type EntryRef,
+	type LoadedEntry,
+	type RecoveryInput,
+	type RoomSite,
+	type SaveResult,
 } from "./types.js";
 
 /** Runs a function with the site's runtime, outside any request. */
@@ -34,7 +36,13 @@ const DRAFT_NOT_STAGED = "DRAFT_NOT_STAGED";
 export function createRoomSite(run: RunWithRuntime): RoomSite {
 	return {
 		load: (entry) => run((runtime) => loadEntry(runtime, entry)),
-		save: (entry, checkpoint) => run((runtime) => saveCheckpoint(runtime, entry, checkpoint)),
+		// The room's own writes don't notify it, but copies to sibling locales notify theirs.
+		save: (entry, checkpoint) =>
+			run((runtime) =>
+				withRoomNotificationQueue(() => saveCheckpoint(runtime, entry, checkpoint), {
+					skip: roomId(entry),
+				}),
+			),
 		saveRecovery: (entry, recovery) => run((runtime) => saveRecovery(runtime, entry, recovery)),
 	};
 }

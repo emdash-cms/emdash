@@ -318,6 +318,7 @@ import {
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { notifyRoom } from "./rooms/notifications.js";
 import type { RuntimeRoomHost } from "./rooms/types.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
@@ -4519,6 +4520,9 @@ export class EmDashRuntime {
 						authorId: bodyWithoutRev.authorId,
 						bylines: bodyWithoutRev.bylines,
 					});
+		if (result.success && bodyWithoutRev.references) {
+			notifyRoom({ collection, id: resolvedId }, ["references"]);
+		}
 
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched

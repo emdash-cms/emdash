@@ -13,6 +13,7 @@ import {
 } from "../../../../src/rooms/limits.js";
 import { createRoomHost } from "../../../../src/rooms/node/index.js";
 import { RoomRegistry, type AcceptedConnection } from "../../../../src/rooms/node/registry.js";
+import { hasRoomNotifier } from "../../../../src/rooms/notifications.js";
 import {
 	decodeMessage,
 	encodeSyncStep1,
@@ -297,6 +298,19 @@ describe("RoomRegistry", () => {
 		await registry.forgetTokens(ROOM, "ana");
 		expect(registry.size).toBe(0);
 		expect(await registry.issueToken("not-a-room-id", claims())).toBeNull();
+	});
+
+	it("hears outside writes once activated, until it shuts down, and leaves a newer registry's slot", async () => {
+		const older = start().registry;
+		const newer = start().registry;
+
+		older.activate();
+		expect(hasRoomNotifier()).toBe(true);
+		newer.activate();
+		await older.shutdown();
+		expect(hasRoomNotifier()).toBe(true);
+		await newer.shutdown();
+		expect(hasRoomNotifier()).toBe(false);
 	});
 });
 

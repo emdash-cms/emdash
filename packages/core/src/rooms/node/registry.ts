@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 import type { Database } from "../../database/types.js";
 import { isClaimedElsewhere, KyselyRoomStore, listExpiredRooms } from "../kysely-store.js";
 import { CLAIM_RENEWAL_MS, SERVER_WAIT_MS } from "../limits.js";
+import { clearRoomNotifier, setRoomNotifier } from "../notifications.js";
 import { Room } from "../room.js";
 import {
 	CLOSE_CODES,
@@ -80,8 +81,9 @@ export class RoomRegistry implements RuntimeRoomHost {
 		return false;
 	}
 
-	/** Makes this the registry the site's server hands room sockets to. */
+	/** Makes this the registry outside writes notify and the site's server hands room sockets to. */
 	activate(): void {
+		setRoomNotifier(this);
 		setUpgradeRegistry(this);
 	}
 
@@ -173,6 +175,7 @@ export class RoomRegistry implements RuntimeRoomHost {
 	async shutdown(): Promise<void> {
 		this.#shuttingDown = true;
 		untrackRegistry(this);
+		clearRoomNotifier(this);
 		clearUpgradeRegistry(this);
 		this.#cancelTick?.();
 		this.#cancelTick = null;
