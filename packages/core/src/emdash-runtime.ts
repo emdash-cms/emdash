@@ -4491,6 +4491,7 @@ export class EmDashRuntime {
 								collection,
 								resolvedId,
 								existing.draftRevisionId,
+								{ autosaveOnly: true },
 							);
 						} catch (error) {
 							console.error(

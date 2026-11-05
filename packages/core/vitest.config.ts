@@ -1,3 +1,5 @@
+import { isBuiltin } from "node:module";
+
 import { defineConfig } from "vitest/config";
 
 // Stub the adapter-provided virtual modules that runtime code imports.
@@ -28,6 +30,15 @@ const virtualStubs: Record<string, string> = {
 
 export default defineConfig({
 	plugins: [
+		{
+			// Vitest externalizes the built-ins in `builtinModules`, which on Node.js 22 leaves out
+			// prefix-only ones such as `node:sqlite`, so jsdom tests would try to bundle them.
+			name: "emdash-node-builtins",
+			enforce: "pre",
+			resolveId(id) {
+				return isBuiltin(id) ? { id, external: true } : null;
+			},
+		},
 		{
 			name: "emdash-virtual-stubs",
 			resolveId(id) {

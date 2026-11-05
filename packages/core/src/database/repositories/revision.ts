@@ -443,10 +443,15 @@ export class RevisionRepository {
 		return pruned;
 	}
 
+	/**
+	 * With `autosaveOnly`, deletes the revision only while it is still an autosave, so one marked
+	 * kept after the caller decided to replace it survives.
+	 */
 	async deleteIfUnreferenced(
 		collection: string,
 		entryId: string,
 		revisionId: string,
+		options: { autosaveOnly?: boolean } = {},
 	): Promise<boolean> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
@@ -455,6 +460,7 @@ export class RevisionRepository {
 			WHERE id = ${revisionId}
 			AND collection = ${collection}
 			AND entry_id = ${entryId}
+			${options.autosaveOnly ? sql`AND kind = 'autosave'` : sql``}
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
 				WHERE content.live_revision_id = revisions.id
