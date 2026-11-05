@@ -36,11 +36,11 @@ export function stop(server: Server): Promise<void> {
 	return new Promise((resolve) => server.close(() => resolve()));
 }
 
-/** A `GET`, resolving to its status once the body is read. Accepts self-signed certificates. */
-export function get(url: string): Promise<number> {
+/** A `GET`, resolving to its status once the body is read. Over HTTPS, trusts `ca`. */
+export function get(url: string, ca?: string): Promise<number> {
 	const send = url.startsWith("https:") ? httpsRequest : httpRequest;
 	return new Promise((resolve, reject) => {
-		const request = send(url, { rejectUnauthorized: false }, (response) => {
+		const request = send(url, { ca }, (response) => {
 			response.resume();
 			response.on("end", () => resolve(response.statusCode ?? 0));
 		});
@@ -98,7 +98,7 @@ export function openSocket(
 	options: ClientOptions = {},
 	protocol?: string,
 ): Promise<OpenedSocket> {
-	const ws = new WebSocket(url, protocol, { rejectUnauthorized: false, ...options });
+	const ws = new WebSocket(url, protocol, options);
 	const messages: Uint8Array[] = [];
 	const waiting: Array<(message: Uint8Array) => void> = [];
 	ws.on("message", (data: Buffer) => {

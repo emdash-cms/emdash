@@ -4,7 +4,9 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { encodeRev } from "../../../src/api/rev.js";
 import { POST as saveRecovery } from "../../../src/astro/routes/api/content/[collection]/[id]/revisions.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { MAX_RECOVERY_BYTES } from "../../../src/rooms/limits.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -112,6 +114,22 @@ describeEachDialect("recovery revisions route", (dialect) => {
 			_slug: "unsaved",
 		});
 		expect(await pointers()).toEqual(before);
+	});
+
+	it("stores and lists datetimes as sent, even ones that don't parse", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createField("post", { slug: "starts_at", label: "Starts", type: "datetime" });
+		await registry.createField("post", { slug: "ends_at", label: "Ends", type: "datetime" });
+		const data = { title: "Unsaved", starts_at: "2026-11-05T10:00:00+02:00", ends_at: "next Tue" };
+
+		const response = await post({ data, slug: "unsaved" });
+
+		expect(response.status).toBe(201);
+		const listed = await new RevisionRepository(ctx.db).findByEntry("post", entryId);
+		expect(listed.find((revision) => revision.data._slug === "unsaved")?.data).toEqual({
+			...data,
+			_slug: "unsaved",
+		});
 	});
 
 	it("saves for an entry in Trash, and a null slug", async () => {

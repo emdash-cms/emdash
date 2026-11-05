@@ -130,8 +130,7 @@ describeEachDialect("Room notifications from content writes", (dialect) => {
 		expect(await notifier.rooms()).toEqual([[fr.room, []]]);
 	});
 
-	it("names references when an update selects them and when publishing promotes them to every locale", async () => {
-		const registry = new SchemaRegistry(ctx.db);
+	async function relatePostsToPages() {
 		await new RelationRepository(ctx.db).create({
 			slug: "post_related_pages",
 			parentCollection: "post",
@@ -139,7 +138,7 @@ describeEachDialect("Room notifications from content writes", (dialect) => {
 			parentLabel: "Posts",
 			childLabel: "Related pages",
 		});
-		await registry.createField("post", {
+		await new SchemaRegistry(ctx.db).createField("post", {
 			slug: "related",
 			label: "Related",
 			type: "reference",
@@ -149,7 +148,19 @@ describeEachDialect("Room notifications from content writes", (dialect) => {
 				targetCollection: "page",
 			},
 		});
-		const runtime = createTestRuntime(ctx.db);
+		return createTestRuntime(ctx.db);
+	}
+
+	async function createPage(
+		slug: string,
+		options: { locale?: string; translationOf?: string } = {},
+	) {
+		const item = await repo.create({ type: "page", data: { title: slug }, slug, ...options });
+		return { item, room: roomId({ collection: "page", id: item.id }) };
+	}
+
+	it("names references when an update selects them and when publishing promotes them to every locale", async () => {
+		const runtime = await relatePostsToPages();
 		const page = await handleContentCreate(ctx.db, "page", {
 			data: { title: "Page" },
 			slug: "page",
@@ -174,7 +185,32 @@ describeEachDialect("Room notifications from content writes", (dialect) => {
 			new Map([
 				[room, ["publishedAt", "references"]],
 				[fr.room, ["references"]],
+				[roomId({ collection: "page", id: page.data.item.id }), ["references"]],
 			]),
 		);
+	});
+
+	it("names references in every locale on the other end of a published selection, added or removed", async () => {
+		const runtime = await relatePostsToPages();
+		const first = await createPage("first");
+		const firstFr = await createPage("first-fr", { locale: "fr", translationOf: first.item.id });
+		const second = await createPage("second");
+		const { item } = await createPost();
+		await runtime.handleContentUpdate("post", item.id, {
+			references: { related: [first.item.id] },
+		});
+		await runtime.handleContentPublish("post", item.id);
+		await notifier.take();
+
+		await runtime.handleContentUpdate("post", item.id, {
+			references: { related: [second.item.id] },
+		});
+		const published = await runtime.handleContentPublish("post", item.id);
+
+		expect(published.success).toBe(true);
+		const byRoom = new Map(await notifier.rooms());
+		expect(byRoom.get(first.room)).toEqual(["references"]);
+		expect(byRoom.get(firstFr.room)).toEqual(["references"]);
+		expect(byRoom.get(second.room)).toEqual(["references"]);
 	});
 });

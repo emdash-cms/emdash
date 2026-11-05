@@ -150,7 +150,6 @@ async function joinOnce(
 		if (!entryEditAccess(user, editable)) {
 			return failure(ErrorCode.FORBIDDEN, "Insufficient permissions");
 		}
-		await locks.releaseEntry(input.collection, entry.id);
 	}
 
 	const { version, commit, hash } = input.body.fingerprint;
@@ -175,6 +174,7 @@ async function joinOnce(
 	if (issued === "busy") return roomBusy();
 	if (issued === "full") return { success: true, data: { mode: "read-only" } };
 	if (issued === null) return singleEditor();
+	if (holder && holder.userId !== user.id) await locks.releaseEntry(input.collection, entry.id);
 	return {
 		success: true,
 		data: {

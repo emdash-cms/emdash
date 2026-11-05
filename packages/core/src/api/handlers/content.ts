@@ -52,7 +52,6 @@ import {
 import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { requestCached } from "../../request-cache.js";
-import { notifyEntryGroups, notifyRoom } from "../../rooms/notifications.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
@@ -2543,12 +2542,6 @@ export async function handleContentPublish(
 						stagedReferences,
 						stagedReferenceBaselines,
 					);
-					// References are keyed by translation group, so every locale's field changed.
-					if (existing.translationGroup) {
-						await notifyEntryGroups(trx, collection, [existing.translationGroup], ["references"]);
-					} else {
-						notifyRoom({ collection, id: resolvedId }, ["references"]);
-					}
 				}
 			}
 

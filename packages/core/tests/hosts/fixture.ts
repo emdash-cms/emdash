@@ -1,7 +1,7 @@
 /** The integration fixture built with co-editing on, and its servers in each Node.js mode. */
 
 import { execFile, spawn } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, symlinkSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync } from "node:fs";
 import { createServer } from "node:net";
 import { join, resolve as resolvePath } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -65,7 +65,7 @@ export async function freePort(): Promise<number> {
 	return address.port;
 }
 
-/** A self-signed certificate for `localhost`, or null where `openssl` isn't installed. */
+/** A self-signed certificate for `127.0.0.1`, or null where `openssl` isn't installed. */
 export async function certificate(dir: string): Promise<{ key: string; cert: string } | null> {
 	const key = join(dir, "key.pem");
 	const cert = join(dir, "cert.pem");
@@ -80,6 +80,8 @@ export async function certificate(dir: string): Promise<{ key: string; cert: str
 			"1",
 			"-subj",
 			"/CN=localhost",
+			"-addext",
+			"subjectAltName=IP:127.0.0.1",
 			"-keyout",
 			key,
 			"-out",
@@ -93,6 +95,8 @@ export async function certificate(dir: string): Promise<{ key: string; cert: str
 
 export interface RunningServer {
 	origin: string;
+	/** The certificate to trust, over HTTPS. */
+	ca?: string;
 	output(): string;
 	stop(): Promise<void>;
 }
@@ -134,6 +138,7 @@ export async function startServer(
 	const exited = new Promise<void>((resolve) => child.on("close", () => resolve()));
 	const server: RunningServer = {
 		origin,
+		ca: options.tls ? readFileSync(options.tls.cert, "utf8") : undefined,
 		output: () => output,
 		async stop() {
 			child.kill("SIGTERM");
@@ -143,7 +148,7 @@ export async function startServer(
 	const deadline = Date.now() + 60_000;
 	for (;;) {
 		try {
-			await get(`${origin}/favicon.ico`);
+			await get(`${origin}/favicon.ico`, server.ca);
 			return server;
 		} catch (error) {
 			if (Date.now() > deadline || child.exitCode !== null || child.signalCode !== null) {

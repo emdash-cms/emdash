@@ -17,9 +17,9 @@ const SECOND_YJS = "already imported";
  */
 async function expectRoomUpgrades(server: RunningServer): Promise<void> {
 	try {
-		await get(`${server.origin}/_emdash/api/manifest`);
+		await get(`${server.origin}/_emdash/api/manifest`, server.ca);
 		const url = server.origin.replace(/^http/, "ws") + roomPath("", "posts", "01MISSING", "forged");
-		const socket = await openSocket(url);
+		const socket = await openSocket(url, { ca: server.ca });
 		expect(socket.status).toBe(101);
 		expect((await socket.closed).code).toBe(CLOSE_CODES.busy);
 	} finally {

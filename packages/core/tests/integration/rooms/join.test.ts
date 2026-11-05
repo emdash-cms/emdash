@@ -280,6 +280,28 @@ describeEachDialect("room join", (dialect) => {
 		expect(await locks.findLive("post", entry.id)).toBeNull();
 	});
 
+	it.each([
+		["the client is outdated", fakeRooms(), { version: "other" }],
+		["the room is busy", fakeRooms("busy"), {}],
+		["the room can't open", fakeRooms(null), {}],
+		["the room is full", fakeRooms("full"), {}],
+	] as const)(
+		"keeps another user's lock when a takeover gets no room because %s",
+		async (_, rooms, stale) => {
+			const entry = await createEntry();
+			await giveLockTo(entry.id, AUTHOR.id);
+
+			const result = await join(rooms, entry, {
+				body: { takeover: true, fingerprint: { ...fingerprint, ...stale } },
+			});
+
+			expect(result).not.toMatchObject({ success: true, data: { mode: "room" } });
+			expect(await new EntryLockRepository(ctx.db).findLive("post", entry.id)).toMatchObject({
+				userId: AUTHOR.id,
+			});
+		},
+	);
+
 	it("ignores another user's lock on a collection that takes no edit locks", async () => {
 		const entry = await createEntry();
 		await giveLockTo(entry.id, AUTHOR.id);
