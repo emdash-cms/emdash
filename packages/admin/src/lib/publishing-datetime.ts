@@ -38,6 +38,14 @@ export function publishingInstantToLocalFields(value: string | null): Publishing
 	};
 }
 
+const MIN_SCHEDULE_LEAD_MS = 5 * 60 * 1000;
+
+export function nextPublishingScheduleSlot(now = new Date()): PublishingDateTimeFields {
+	const slot = new Date(now.getTime() + MIN_SCHEDULE_LEAD_MS);
+	if (slot.getMinutes() || slot.getSeconds() || slot.getMilliseconds()) slot.setMinutes(60, 0, 0);
+	return publishingInstantToLocalFields(slot.toISOString());
+}
+
 export function resolvePublishingLocalDateTime(
 	date: Date | undefined,
 	time: string,

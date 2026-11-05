@@ -260,6 +260,8 @@ export interface AdminManifest {
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
@@ -327,6 +329,8 @@ export interface AdminManifest {
 		logo?: string;
 		siteName?: string;
 		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

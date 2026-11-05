@@ -21,6 +21,7 @@ it("loads the published config descriptors without Wrangler installed", () => {
 				"--eval",
 				`
 					import assert from "node:assert/strict";
+					import { writeFileSync } from "node:fs";
 					import { createRequire } from "node:module";
 
 					const require = createRequire(import.meta.url);
@@ -31,6 +32,9 @@ it("loads the published config descriptors without Wrangler installed", () => {
 					assert.equal(r2({ binding: "MEDIA" }).entrypoint, "@emdash-cms/cloudflare/storage/r2");
 					assert.equal(kvCache({ binding: "CACHE" }).entrypoint, "@emdash-cms/cloudflare/cache/kv");
 					assert.throws(() => sandbox(), { code: "MODULE_NOT_FOUND" });
+
+					writeFileSync("cloudflare.config.ts", "export default {};\\n");
+					assert.equal(sandbox(), "@emdash-cms/cloudflare/sandbox");
 					console.log("Descriptors loaded without Wrangler");
 				`,
 			],
