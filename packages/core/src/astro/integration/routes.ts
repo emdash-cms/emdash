@@ -218,6 +218,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/content/[collection]/[id]/lock.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/room",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/room.ts"),
+	});
+
 	// i18n translation routes
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/translations",

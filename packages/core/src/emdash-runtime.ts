@@ -8,7 +8,7 @@
  */
 
 import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
-import { Permissions } from "@emdash-cms/auth";
+import { Permissions, toRoleLevel, type RoleLevel } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 import {
 	normalizePluginPagePath,
@@ -22,7 +22,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
-import { overlayDraft, type ContentWrite } from "./api/content-save.js";
+import { overlayDraft, saveContent, type ContentWrite } from "./api/content-save.js";
 import { ErrorCode } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
@@ -5618,11 +5618,12 @@ export class EmDashRuntime {
 		return handleRevisionGet(this.db, revisionId);
 	}
 
-	async handleRevisionRestore(revisionId: string, callerUserId: string) {
+	/** Without `role`, reads the caller's current role, which only a recovery revision needs. */
+	async handleRevisionRestore(revisionId: string, callerUserId: string, role?: RoleLevel) {
 		// Discover the parent entry up front so we can branch on whether
 		// the collection uses draft revisions.
 		const revisionRepo = new RevisionRepository(this.db);
-		const revision = await revisionRepo.findById(revisionId);
+		const revision = await revisionRepo.findDraftBase(revisionId);
 		if (!revision) {
 			return {
 				success: false as const,
@@ -5631,6 +5632,9 @@ export class EmDashRuntime {
 					message: `Revision not found: ${revisionId}`,
 				},
 			};
+		}
+		if (revision.kind === "recovery") {
+			return this.restoreRecoveryRevision(revision, callerUserId, role);
 		}
 
 		const collectionInfo = await this.schemaRegistry.getCollectionWithFields(revision.collection);
@@ -5717,6 +5721,48 @@ export class EmDashRuntime {
 				},
 			};
 		}
+	}
+
+	/**
+	 * Recovery revisions are stored without validation or hooks, so restoring one saves its
+	 * fields and slug as the restoring user, as a kept save.
+	 */
+	private async restoreRecoveryRevision(
+		revision: { collection: string; entryId: string; data: Record<string, unknown> },
+		callerUserId: string,
+		role: RoleLevel | undefined,
+	) {
+		const user =
+			role === undefined ? await this.findEnabledUser(callerUserId) : { id: callerUserId, role };
+		if (!user) {
+			return {
+				success: false as const,
+				error: { code: "FORBIDDEN", message: "Insufficient permissions" },
+			};
+		}
+		const slug = revision.data._slug;
+		return saveContent(this, {
+			collection: revision.collection,
+			id: revision.entryId,
+			user,
+			body: {
+				data: Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				),
+				// A room leaves the slug null when it couldn't read it; that must not clear the entry's.
+				...(typeof slug === "string" ? { slug } : {}),
+			},
+		});
+	}
+
+	private async findEnabledUser(id: string): Promise<{ id: string; role: RoleLevel } | null> {
+		const row = await this.db
+			.selectFrom("users")
+			.select(["role", "disabled"])
+			.where("id", "=", id)
+			.executeTakeFirst();
+		const role = row && !row.disabled ? toRoleLevel(row.role) : null;
+		return role === null ? null : { id, role };
 	}
 
 	private async findSyncedSiblingsForUsageRefresh(

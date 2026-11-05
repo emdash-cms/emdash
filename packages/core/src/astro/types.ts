@@ -548,7 +548,15 @@ export interface EmDashHandlers {
 		}>
 	>;
 
-	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
+	/**
+	 * A recovery revision restores as a save by the caller, with `role` or else their current
+	 * role.
+	 */
+	handleRevisionRestore: (
+		revisionId: string,
+		callerUserId: string,
+		role?: import("@emdash-cms/auth").RoleLevel,
+	) => Promise<HandlerResponse>;
 
 	// Plugin API route handler. `user` is the authenticated caller for
 	// private routes, exposed to plugin handlers as `ctx.user`.
