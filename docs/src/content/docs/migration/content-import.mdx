@@ -50,7 +50,9 @@ The admin performs these stages:
 5. **Import.** Convert and create content. The exporter path uses bounded content, comment, and finalization requests.
 6. **Copy media.** Download selected WXR attachments into EmDash storage and rewrite matching URLs.
 
-The WXR path can import posts, pages, custom post types, taxonomies, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch selected site settings and supported SEO values from the live WordPress API, and with exporter 1.2.0 or later also comments, menus, the logo, and the favicon.
+The WXR path can import posts, pages, custom post types, taxonomies, menus, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch selected site settings and supported SEO values from the live WordPress API, and with exporter 1.2.0 or later also comments, the logo, and the favicon.
+
+A WXR import creates each menu under its WordPress name, with its nesting and with links to the imported entries. An item without its own label shows the entry's title, as in WordPress. On a site translated with Polylang or WPML, each menu takes the language of the entries it links to. Items that link to a category or tag archive, or to content the import left out, are skipped and counted in the import result. A menu that already exists with the same name and language is left unchanged.
 
 ### Understand the analysis
 
