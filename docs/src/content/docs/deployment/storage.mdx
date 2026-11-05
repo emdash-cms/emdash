@@ -15,6 +15,8 @@ Choose one storage adapter for uploaded media. A database backup contains media 
 | **S3**         | A Node.js site uses AWS S3, R2's S3 API, MinIO, or compatible storage | Yes      |
 | **Local**      | A Node.js site has one writable persistent volume              | No             |
 
+When the R2 or S3 adapter has a `publicUrl`, rendered media components and the site settings media URLs returned by `getSiteSettings()` and `getSiteSetting()` use it. The admin, the REST API, and URLs stored in content keep the `/_emdash/api/media/file/` route.
+
 ## Cloudflare R2 binding
 
 Use the R2 binding adapter on Cloudflare Workers. The binding supplies access at runtime, so the site does not need R2 access keys.

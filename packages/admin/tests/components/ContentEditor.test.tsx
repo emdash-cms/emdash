@@ -2257,6 +2257,40 @@ describe("ContentEditor", () => {
 			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
 		});
 
+		it("offers Save draft before the first save and Publish now after it", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({ isNew: true, supportsDrafts: true, onPublish });
+
+			await expect.element(screen.getByRole("button", { name: "Save draft" })).toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByText("Saving creates a draft that stays off the site.", { exact: false }),
+				)
+				.toBeVisible();
+			expect(screen.getByRole("button", { name: "Publish now", exact: true }).query()).toBeNull();
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={defaultFields}
+					isNew={false}
+					supportsDrafts
+					item={makeItem({ status: "draft" })}
+					onSave={vi.fn()}
+					onPublish={onPublish}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("button", { name: "Publish now", exact: true }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Save draft" }).query()).toBeNull();
+			await expect
+				.element(screen.getByText("This version is not visible on the site"))
+				.toBeVisible();
+		});
+
 		it("shows Publish now for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
