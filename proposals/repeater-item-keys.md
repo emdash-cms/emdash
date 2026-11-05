@@ -5,8 +5,9 @@ status: proposed
 authors:
   - Leander Gilles (@LeanderG)
 champion: Leander Gilles (@LeanderG)
-sponsor: TBD
-discussions: []
+sponsor: Daniel Mueller (@danielmlr)
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/4538
 created: 2026-10-19
 ---
 
