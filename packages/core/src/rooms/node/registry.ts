@@ -7,7 +7,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { isClaimedElsewhere, KyselyRoomStore, listExpiredRooms } from "../kysely-store.js";
-import { CLAIM_RENEWAL_MS } from "../limits.js";
+import { CLAIM_RENEWAL_MS, SERVER_WAIT_MS } from "../limits.js";
 import { Room } from "../room.js";
 import {
 	CLOSE_CODES,
@@ -20,6 +20,8 @@ import {
 	type RuntimeRoomHost,
 	type TokenClaims,
 } from "../types.js";
+import { trackRegistry, untrackRegistry, updateSignalListeners } from "./signals.js";
+import { clearUpgradeRegistry, serverAttached, setUpgradeRegistry } from "./upgrades.js";
 
 const LOG = "[co-editing]";
 
@@ -57,12 +59,14 @@ export class RoomRegistry implements RuntimeRoomHost {
 	readonly #inFlight = new Map<string, number>();
 	#cancelTick: (() => void) | null = null;
 	#shuttingDown = false;
+	#firstTokenAt: number | null = null;
 
 	constructor(options: RoomRegistryOptions) {
 		this.#db = options.db;
 		this.#site = options.site;
 		this.#build = options.build;
 		this.#timers = options.timers ?? nodeTimers;
+		trackRegistry(this);
 	}
 
 	/** Rooms this process keeps in memory. */
@@ -70,16 +74,40 @@ export class RoomRegistry implements RuntimeRoomHost {
 		return this.#rooms.size;
 	}
 
-	activate(): void {}
+	/** Whether any of this process's rooms holds its claim. */
+	get holdsClaims(): boolean {
+		for (const room of this.#rooms.values()) if (room.holdsClaim) return true;
+		return false;
+	}
+
+	/** Makes this the registry the site's server hands room sockets to. */
+	activate(): void {
+		setUpgradeRegistry(this);
+	}
 
 	async issueToken(
 		roomId: string,
 		claims: TokenClaims,
 	): Promise<{ token: string } | "full" | "stale" | "busy" | null> {
 		if (this.#shuttingDown) return "busy";
+		if (this.#noServer()) return null;
 		const room = this.#room(roomId);
 		if (!room) return null;
-		return this.#counted(roomId, () => room.issueToken(claims));
+		const issued = await this.#counted(roomId, () => room.issueToken(claims));
+		if (typeof issued === "object" && issued !== null) this.#firstTokenAt ??= this.#timers.now();
+		return issued;
+	}
+
+	/**
+	 * Upgrades never reach this process: no server had the listener attached a minute after its
+	 * first token.
+	 */
+	#noServer(): boolean {
+		return (
+			this.#firstTokenAt !== null &&
+			!serverAttached() &&
+			this.#timers.now() - this.#firstTokenAt >= SERVER_WAIT_MS
+		);
 	}
 
 	async isOpen(roomId: string): Promise<boolean> {
@@ -144,6 +172,8 @@ export class RoomRegistry implements RuntimeRoomHost {
 
 	async shutdown(): Promise<void> {
 		this.#shuttingDown = true;
+		untrackRegistry(this);
+		clearUpgradeRegistry(this);
 		this.#cancelTick?.();
 		this.#cancelTick = null;
 		await Promise.allSettled(Array.from(this.#rooms.values(), (room) => room.shutdown()));
@@ -175,6 +205,7 @@ export class RoomRegistry implements RuntimeRoomHost {
 			const left = (this.#inFlight.get(roomId) ?? 1) - 1;
 			if (left > 0) this.#inFlight.set(roomId, left);
 			else this.#inFlight.delete(roomId);
+			updateSignalListeners();
 		}
 	}
 
@@ -192,6 +223,7 @@ export class RoomRegistry implements RuntimeRoomHost {
 			}
 		}
 		this.#cancelTick = null;
+		updateSignalListeners();
 		if (this.#rooms.size > 0) this.#scheduleTick();
 	}
 }

@@ -258,6 +258,9 @@ catalogs:
     '@types/semver':
       specifier: ^7.5.8
       version: 7.7.1
+    '@types/ws':
+      specifier: ^8.18.1
+      version: 8.18.1
     '@vitest/browser-playwright':
       specifier: 4.1.10
       version: 4.1.10
@@ -327,6 +330,9 @@ catalogs:
     wrangler:
       specifier: ^4.125.0
       version: 4.125.0
+    ws:
+      specifier: ^8.21.3
+      version: 8.21.3
     y-protocols:
       specifier: ^1.0.7
       version: 1.0.7
@@ -2267,6 +2273,9 @@ importers:
       upng-js:
         specifier: ^2.1.0
         version: 2.1.0
+      ws:
+        specifier: 'catalog:'
+        version: 8.21.3
       y-protocols:
         specifier: 'catalog:'
         version: 1.0.7(yjs@13.6.29)
@@ -2307,6 +2316,9 @@ importers:
       '@types/sax':
         specifier: ^1.2.7
         version: 1.2.7
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
       '@vitest/ui':
         specifier: 'catalog:'
         version: 4.1.10(vitest@4.1.10)
@@ -18215,7 +18227,6 @@ snapshots:
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 26.1.1
-    optional: true
 
   '@types/yargs-parser@21.0.3': {}
 

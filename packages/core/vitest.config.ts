@@ -64,6 +64,8 @@ export default defineConfig({
 			"tests/integration/client/**",
 			"tests/integration/media/**",
 			"tests/integration/fixture/**",
+			// Host tests have their own config: they start servers and child processes.
+			"tests/hosts/**",
 		],
 		coverage: {
 			provider: "v8",

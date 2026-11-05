@@ -11,6 +11,9 @@ import { COMMIT, VERSION } from "../../version.js";
 import { createRoomSite } from "../site.js";
 import type { RuntimeRoomHost } from "../types.js";
 import { RoomRegistry } from "./registry.js";
+import { watchServers } from "./upgrades.js";
+
+if (!cluster.isWorker) watchServers();
 
 /**
  * The runtime's room registry, or null in a `node:cluster` worker: the cluster's primary hands

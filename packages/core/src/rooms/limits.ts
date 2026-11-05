@@ -35,3 +35,7 @@ export const ROOM_STATE_LIFETIME_MS = 60 * MINUTE;
 export const CLAIM_RENEWAL_MS = 20 * SECOND;
 /** A Node.js claim not renewed for this long can be taken by another process. */
 export const CLAIM_EXPIRY_MS = MINUTE;
+/** Longest a Node.js process waits for its rooms to shut down after `SIGTERM` or `SIGINT`. */
+export const SHUTDOWN_WAIT_MS = 5 * SECOND;
+/** A Node.js process with no server this long after its first token issues no more tokens. */
+export const SERVER_WAIT_MS = MINUTE;
