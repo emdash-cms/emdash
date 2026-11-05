@@ -1770,6 +1770,7 @@ export function ContentEditor({
 					<EditorActions
 						collectionLabel={collectionLabel}
 						isNew={isNew}
+						supportsDrafts={supportsDrafts}
 						isDirty={isDirty}
 						isSaving={Boolean(saveFeedbackActive)}
 						isAutosaving={autosaveFeedbackActive}
