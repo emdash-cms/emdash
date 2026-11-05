@@ -463,7 +463,7 @@ describe("Blocks field keyboard", () => {
 		await expect.element(screen.getByRole("button", { name: "Jonas Berg actions" })).toHaveFocus();
 	});
 
-	it("reads a field's hint and a problem only as descriptions, once each, and a current block's version not at all", async () => {
+	it("reads a problem only as a description, once, and a current block's version not at all", async () => {
 		const screen = await renderHarness({
 			initial: [heroBlock("hero-1"), { _type: "note", _version: 1, _key: "note-1", title: "" }],
 			reveal: { token: 0 },
@@ -475,9 +475,12 @@ describe("Blocks field keyboard", () => {
 			}),
 		);
 		await screen.getByRole("button", { name: "Hero", exact: true }).click();
-		const eyebrow = screen.getByRole("textbox", { name: "Eyebrow", exact: true });
+		const eyebrow = screen.getByRole("textbox", {
+			name: "Eyebrow (shown above the headline)",
+			exact: true,
+		});
 		const noteTitle = screen.getByRole("textbox", { name: "Title", exact: true });
-		await expect.element(eyebrow).toHaveAccessibleDescription("Shown above the headline");
+		await expect.element(eyebrow).not.toHaveAccessibleDescription();
 		await expect.element(noteTitle).toHaveAttribute("aria-invalid", "true");
 		await expect.element(noteTitle).toHaveAccessibleDescription("Required");
 		await expect
@@ -485,7 +488,6 @@ describe("Blocks field keyboard", () => {
 			.not.toHaveAccessibleDescription();
 
 		const texts = await textNodes();
-		expect(texts).not.toContain("Shown above the headline");
 		expect(texts).not.toContain("Required");
 		expect(texts).not.toContain("Version 1");
 		expect(texts.filter((text) => /^Block \d/.test(text))).toEqual([]);

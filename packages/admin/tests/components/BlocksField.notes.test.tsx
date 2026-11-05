@@ -48,12 +48,10 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 }));
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
-const LINK_HINT = "Starts with /, https://, mailto:, tel: or #";
-const LINK_PROBLEM = `Invalid link. ${LINK_HINT}`;
-const SECTION_HINT = "Lowercase, for links like /#pricing";
+/** What a `url` field says of a value that isn't a safe link, too long for most lines. */
+const LINK_PROBLEM = "Enter a valid URL (e.g. https://example.com)";
 const PHOTO =
 	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/%3E";
-const PHOTO_HINT = "Shown at 16:9, at least 1600px wide";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
 	return {
@@ -87,15 +85,10 @@ const hero = blockType("hero", "Hero", [
 	{ slug: "image_caption", label: "Image caption (shown on the photo)", type: "string" },
 	{ slug: "columns", label: "Columns", type: "integer", validation: { min: 1, max: 4 } },
 	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
-	{
-		slug: "primary_cta_url",
-		label: "Primary button link (starts with /, https://, mailto:, tel: or #)",
-		type: "string",
-		validation: { pattern: LINK_PATTERN },
-	},
+	{ slug: "primary_cta_url", label: "Primary button link", type: "url" },
 	{
 		slug: "anchor_id",
-		label: "Section ID (lowercase, for links like /#pricing)",
+		label: "Section ID",
 		type: "string",
 		validation: { pattern: "^(?:$|[a-z][a-z0-9_-]*)$" },
 	},
@@ -167,12 +160,7 @@ const cardBlock = {
 const linkHero = blockType("hero", "Hero", [
 	{ slug: "headline", label: "Headline", type: "string", required: true },
 	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
-	{
-		slug: "primary_cta_url",
-		label: "Primary button link (starts with /, https://, mailto:, tel: or #)",
-		type: "string",
-		validation: { pattern: LINK_PATTERN },
-	},
+	{ slug: "primary_cta_url", label: "Primary button link", type: "url" },
 	{ slug: "site_url", label: "Website", type: "string", validation: { pattern: LINK_PATTERN } },
 ]);
 
@@ -189,12 +177,7 @@ const linkHeroBlock = {
 const switchHero = blockType("hero", "Hero", [
 	{ slug: "headline", label: "Headline", type: "string", required: true },
 	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
-	{
-		slug: "primary_cta_url",
-		label: "Primary button link (starts with /, https://, mailto:, tel: or #)",
-		type: "string",
-		validation: { pattern: LINK_PATTERN },
-	},
+	{ slug: "primary_cta_url", label: "Primary button link", type: "url" },
 	{ slug: "centered", label: "Center the layout", type: "boolean" },
 ]);
 
@@ -210,21 +193,6 @@ const switchHeroBlock = {
 
 const simple = blockType("simple", "Simple", [
 	{ slug: "headline", label: "Headline", type: "string", required: true },
-]);
-
-const cards = blockType("cards", "Cards", [
-	{
-		slug: "cards",
-		label: "Cards",
-		type: "repeater",
-		validation: {
-			subFields: [
-				{ slug: "title", label: "Title", type: "string" },
-				{ slug: "body", label: "Body", type: "text" },
-				{ slug: "photo", label: `Photo (${PHOTO_HINT.toLowerCase()})`, type: "image" },
-			],
-		},
-	},
 ]);
 
 function makeItem(data: Record<string, unknown>): ContentItem {
@@ -284,35 +252,24 @@ const SHORT = blockType("short", "Short", [{ slug: "title", label: "Title", type
 
 const LINKED = blockType("linked", "Linked", [
 	{ slug: "title", label: "Title", type: "string" },
-	{
-		slug: "cta_url",
-		label: "Link (starts with /, https://, mailto:, tel: or #)",
-		type: "string",
-		validation: { pattern: LINK_PATTERN },
-	},
+	{ slug: "cta_url", label: "Link", type: "url" },
 ]);
 
-/** A link whose hint, and so its problem, wraps a narrow label line in any font. */
+/** A label that alone fills a narrow label line in any font. */
+const WORDY_LINK =
+	"Link (starts with /, https://, mailto:, tel: or #, and goes to a page on this site or on another one)";
+
 const WORDY = blockType("wordy", "Wordy", [
 	{ slug: "title", label: "Title", type: "string" },
 	{
 		slug: "cta_url",
-		label:
-			"Link (starts with /, https://, mailto:, tel: or #, and goes to a page on this site or on another one)",
+		label: WORDY_LINK,
 		type: "string",
 		validation: { pattern: LINK_PATTERN },
 	},
 ]);
 
-const HINTED = blockType("hinted", "Hinted", [
-	{
-		slug: "summary",
-		label: "Summary (shown under the title on cards and in search results across the site)",
-		type: "string",
-	},
-]);
-
-const FIELD_TYPES = [SHORT, LINKED, WORDY, HINTED];
+const FIELD_TYPES = [SHORT, LINKED, WORDY];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -331,12 +288,6 @@ const wordy = (): StoredBlockValue => ({
 	_version: 1,
 	_key: "wordy",
 	title: "Contact",
-});
-const hinted = (): StoredBlockValue => ({
-	_type: "hinted",
-	_version: 1,
-	_key: "hinted",
-	summary: "Riverside",
 });
 
 function Harness({ initial }: { initial: StoredBlockValue[] }) {
@@ -609,7 +560,7 @@ afterEach(async () => {
 });
 
 describe.each(["ltr", "rtl"] as const)("A settings row's label (%s)", (dir) => {
-	it("stays as it is while its control has focus, with the hint at the end of the control's own line", async () => {
+	it("stays as it is while its control has focus", async () => {
 		document.documentElement.dir = dir;
 		await renderEditor([heroBlock], [hero]);
 		await openBlock("Hero");
@@ -622,15 +573,9 @@ describe.each(["ltr", "rtl"] as const)("A settings row's label (%s)", (dir) => {
 		const atRest = { box: box(label).toJSON(), font: fontOf(label) };
 		const tops = rowTops();
 		await sectionId.click();
-		await expect.poll(() => shownText(SECTION_HINT)).toBeDefined();
+		await expect.element(sectionId).toHaveFocus();
+		await settle();
 
-		const hint = shownText(SECTION_HINT)!;
-		const field = box(sectionId);
-		expect(sectionId.element().closest('[class~="group/control"]')!.contains(hint)).toBe(true);
-		expect(box(hint).top).toBeGreaterThanOrEqual(field.top - 0.5);
-		expect(box(hint).bottom).toBeLessThanOrEqual(field.bottom + 0.5);
-		if (dir === "ltr") expect(box(hint).left).toBeGreaterThan(field.left + field.width / 3);
-		else expect(box(hint).right).toBeLessThan(field.right - field.width / 3);
 		const focused = shownText("Section ID", row);
 		expect(focused).toBeDefined();
 		expect(box(focused!).toJSON()).toEqual(atRest.box);
@@ -639,47 +584,28 @@ describe.each(["ltr", "rtl"] as const)("A settings row's label (%s)", (dir) => {
 	});
 });
 
-describe("A settings row's hint with no room beside the value", () => {
-	it("stays out of the way of the value while it has focus", async () => {
-		await renderEditor([heroBlock], [hero]);
-		await openBlock("Hero");
-		const link = control("Primary button link");
-		await link.click();
-		await expect.element(link).toHaveFocus();
-
-		await settle();
-		const input = link.element() as HTMLInputElement;
-		const laidOut = [...document.querySelectorAll("*")].filter(
-			(element) => ownText(element) === LINK_HINT && element.getClientRects().length > 0,
-		);
-		expect(laidOut).toEqual([]);
-		expect(input.scrollWidth).toBeLessThanOrEqual(input.clientWidth);
-		await expect.element(link).toHaveAccessibleDescription(LINK_HINT);
-	});
-});
-
 describe("A settings row's problem", () => {
-	it("shows under its control's line, in words its hint doesn't use, at rest and with focus", async () => {
+	it("shows under its control's line when it has no room beside the value, at rest and with focus", async () => {
 		await renderEditor([heroBlock], [hero]);
 		await openBlock("Hero");
 		const link = control("Primary button link");
-		const row = page.getByRole("group", { name: "Primary button", exact: true }).element();
-		const font = fontOf(shownText("Primary button", row)!);
+		const row = page.getByRole("group", { name: "Primary button text", exact: true }).element();
+		const font = fontOf(shownText("Primary button text", row)!);
 
 		await link.fill("not a url");
 		await control("Headline").click();
 		await expect.element(link).toHaveAttribute("aria-invalid", "true");
-		await expect.element(link).toHaveAccessibleDescription(`Invalid link. ${LINK_HINT}`);
+		await expect.element(link).toHaveAccessibleDescription(LINK_PROBLEM);
 		const atRest = dangerTexts(row);
-		expect(atRest.map(ownText)).toEqual([`Invalid link. ${LINK_HINT}`]);
+		expect(atRest.map(ownText)).toEqual([LINK_PROBLEM]);
 		expect(box(atRest[0]!).top).toBeGreaterThanOrEqual(box(link).bottom - 0.5);
-		expect(fontOf(shownText("Primary button", row)!)).toBe(font);
+		expect(fontOf(shownText("Primary button text", row)!)).toBe(font);
 		const tops = rowTops();
 
 		await link.click();
 		await expect.element(link).toHaveFocus();
-		await expect.poll(() => dangerTexts(row).map(ownText)).toEqual([`Invalid link. ${LINK_HINT}`]);
-		expect(fontOf(shownText("Primary button", row)!)).toBe(font);
+		await expect.poll(() => dangerTexts(row).map(ownText)).toEqual([LINK_PROBLEM]);
+		expect(fontOf(shownText("Primary button text", row)!)).toBe(font);
 		expect(rowTops()).toEqual(tops);
 
 		await link.fill("/contact");
@@ -716,7 +642,7 @@ describe.each(["ltr", "rtl"] as const)(
 			await openBlock("Hero");
 			const link = control("Primary button link");
 			const input = link.element() as HTMLInputElement;
-			const group = page.getByRole("group", { name: "Primary button", exact: true }).element();
+			const group = page.getByRole("group", { name: "Primary button text", exact: true }).element();
 
 			await link.fill("contact us");
 			await control("Headline").click();
@@ -775,7 +701,7 @@ describe.each(["ltr", "rtl"] as const)("A short settings-row problem (%s)", (dir
 describe("A settings row's problem line", () => {
 	const center = () => page.getByRole("switch", { name: "Center the layout" });
 	const buttonRow = () =>
-		page.getByRole("group", { name: "Primary button", exact: true }).element();
+		page.getByRole("group", { name: "Primary button text", exact: true }).element();
 	const problem = () => fieldText(LINK_PROBLEM);
 
 	async function openLinked(width?: number) {
@@ -926,59 +852,33 @@ describe("A settings row's problem line", () => {
 	});
 });
 
-describe("A hint that wraps on a narrow field's label line", () => {
-	const label = () => document.getElementById("field-layout.hinted.summary-label")!;
-
-	async function openHinted() {
-		await renderField([hinted(), short("after")], { width: 300 });
-		await page.getByRole("button", { name: "Hinted", exact: true }).click();
-		await settled();
-	}
-
-	it("goes after a click below it has landed, rather than moving it away", async () => {
-		await openHinted();
-		const oneLine = label().getBoundingClientRect().height;
-		await textbox("Summary").click();
-		await expect.poll(() => label().getBoundingClientRect().height).toBeGreaterThan(oneLine);
-
-		await clickNearBottom(toggleOf("after"));
-
-		await settled();
-		expect(toggleOf("after").getAttribute("aria-expanded")).toBe("true");
-		expect(label().getBoundingClientRect().height).toBe(oneLine);
-	});
-
-	it("moves the rows below smoothly as focus brings it and takes it away", async () => {
-		await openHinted();
-		const atRest = label().getBoundingClientRect().height;
-		const head = toggleOf("after");
-		const summary = textbox("Summary").element() as HTMLElement;
-
-		const top = () => head.getBoundingClientRect().top;
-
-		const down = await readMotion(inField, top, () => summary.focus());
-		expect(label().getBoundingClientRect().height).toBeGreaterThan(atRest + 8);
-		expect(down.to - down.from).toBeGreaterThan(8);
-		expectGlide(down.along, down.from, down.to);
-
-		const up = await readMotion(inField, top, () => summary.blur());
-		expect(label().getBoundingClientRect().height).toBe(atRest);
-		expect(up.from - up.to).toBeGreaterThan(8);
-		expectGlide(up.along, up.from, up.to);
-	});
-});
-
-describe("A long problem that wraps its narrow field's label line", () => {
-	const link = () => textbox("Link");
+describe("A problem under a label that fills its narrow line", () => {
+	const link = () => textbox(WORDY_LINK);
 	const label = () => document.getElementById("field-layout.wordy.cta_url-label")!;
 
-	/** Opens the block at a width its problem wraps at, and returns the label's height at rest. */
+	/** Opens the block at a width its label fills, and returns the label's height at rest. */
 	async function openWordy() {
 		await renderField([wordy(), short("after")], { width: 300 });
 		await page.getByRole("button", { name: "Wordy", exact: true }).click();
 		await settled();
 		return label().getBoundingClientRect().height;
 	}
+
+	it("goes whole on a line of its own under the label", async () => {
+		await openWordy();
+		await link().fill("contact us");
+		await textbox("Title").click();
+		await expect.poll(() => dangerTexts(label()).map(ownText)).toEqual(["Invalid link"]);
+		await settled();
+
+		const problem = dangerTexts(label())[0]!;
+		const text = label().firstElementChild!;
+		expect(box(problem).top).toBeGreaterThanOrEqual(box(text).bottom - 0.5);
+		expect(box(problem).height).toBeLessThanOrEqual(
+			Number.parseFloat(getComputedStyle(problem).lineHeight) + 0.5,
+		);
+		expect(problem.scrollWidth).toBeLessThanOrEqual(problem.clientWidth);
+	});
 
 	it("moves the rows below smoothly as it comes", async () => {
 		const atRest = await openWordy();
@@ -1047,48 +947,6 @@ describe("A long problem that wraps its narrow field's label line", () => {
 	});
 });
 
-describe("An item's photo row", () => {
-	it("shows its hint beside Replace and Remove only where it fits there", async () => {
-		await renderEditor(
-			[
-				{
-					_type: "cards",
-					_version: 1,
-					_key: "cards-1",
-					cards: [
-						{ title: "Riverside", body: "Tower", photo: { id: "media-1", src: PHOTO, alt: "" } },
-					],
-				},
-			],
-			[cards],
-		);
-		await openBlock("Cards");
-		await page.getByRole("button", { name: "Riverside", exact: true }).click();
-		await settle();
-		const replace = page.getByRole("button", { name: "Replace", exact: true });
-		const remove = page.getByRole("button", { name: "Remove", exact: true });
-		const hint = () => fieldText(PHOTO_HINT);
-		const clear = (note: Element) =>
-			[replace, remove].every((button) => {
-				const a = box(note);
-				const b = box(button);
-				return a.right <= b.left || a.left >= b.right;
-			});
-
-		(replace.element() as HTMLElement).focus();
-		await expect.poll(hint).toBeDefined();
-		expect(clear(hint()!)).toBe(true);
-
-		(document.activeElement as HTMLElement).blur();
-		await page.viewport(600, 800);
-		await settle();
-		(replace.element() as HTMLElement).focus();
-		await settle();
-		const narrow = hint();
-		if (narrow) expect(clear(narrow)).toBe(true);
-	});
-});
-
 describe("A field's notes on a narrow screen", () => {
 	it("wrap onto another line instead of being cut off", async () => {
 		await page.viewport(320, 800);
@@ -1096,15 +954,11 @@ describe("A field's notes on a narrow screen", () => {
 		await openBlock("Hero");
 		const uncut = (element: Element) => element.scrollWidth <= element.clientWidth + 1;
 
-		await control("Second sentence").click();
-		await expect.poll(() => shownText("Shown muted after the headline")).toBeDefined();
-		expect(uncut(shownText("Shown muted after the headline")!)).toBe(true);
-
 		const link = control("Primary button link");
 		await link.fill("not a url");
 		await control("Headline").click();
-		const row = page.getByRole("group", { name: "Primary button", exact: true }).element();
-		await expect.poll(() => dangerTexts(row).map(ownText)).toEqual([`Invalid link. ${LINK_HINT}`]);
+		const row = page.getByRole("group", { name: "Primary button text", exact: true }).element();
+		await expect.poll(() => dangerTexts(row).map(ownText)).toEqual([LINK_PROBLEM]);
 		const problem = dangerTexts(row)[0]!;
 		expect(uncut(problem)).toBe(true);
 		expect(box(problem).height).toBeGreaterThan(

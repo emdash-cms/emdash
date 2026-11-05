@@ -471,7 +471,7 @@ describe("Blocks field photos, tables and picker", () => {
 
 		const photoBottom = image.getBoundingClientRect().bottom;
 		const settingsTop = page
-			.getByRole("group", { name: "Primary button", exact: true })
+			.getByRole("group", { name: "Primary button text", exact: true })
 			.element()
 			.getBoundingClientRect().top;
 		const rules = [...document.querySelectorAll("#field-content *")].filter((element) => {

@@ -26,7 +26,6 @@ import {
 	type ListSubField,
 	planBlockFields,
 	repeaterSubFields,
-	splitLabelHint,
 } from "../lib/block-field-layout.js";
 import {
 	createBlockKey,
@@ -126,7 +125,7 @@ interface NestedFieldDescriptor {
 	integer?: boolean;
 }
 
-/** How a block draws a nested field's control: the block draws the label, hint and errors. */
+/** How a block draws a nested field's control: the block draws the label and errors. */
 export interface FieldChrome {
 	/** Id of the element that names the control. */
 	labelledBy: string;
@@ -401,7 +400,7 @@ function nestedDescriptor(
 	return {
 		...(id ? { id } : {}),
 		kind: NESTED_KIND[field.type] ?? "unsupported",
-		label: splitLabelHint(field.label).label,
+		label: field.label,
 		required: field.required,
 		validation: field.validation,
 		blockType: block._type,
@@ -1706,15 +1705,12 @@ function BlockRow({
 interface ControlOptions {
 	/** Replaces every other placeholder, as the two halves of a button row do. */
 	placeholder?: string;
-	/** Shown in an empty optional field that has no hint. */
+	/** Shown in an empty optional field. */
 	emptyPlaceholder?: string;
 	heading?: boolean;
 	/** Draws a photo as a thumbnail in a settings row. */
 	thumbnail?: "row";
-	/**
-	 * A table cell, which has no room under it: keeps the hint for assistive technology only, and
-	 * draws a photo as a thumbnail.
-	 */
+	/** A table cell, which has no room under it: shows no count, and draws a photo as a thumbnail. */
 	cell?: boolean;
 	/**
 	 * The label's line that says what the control has to say, and which of its controls this one is.
@@ -1746,10 +1742,6 @@ interface FieldControlProps extends ControlOptions {
 	/** Called when the control changes its value, unless it only swaps one empty value for another. */
 	onEdit: () => void;
 	renderField: BlocksFieldProps["renderField"];
-}
-
-function labelText(field: LayoutFieldDefinition): string {
-	return splitLabelHint(field.label).label;
 }
 
 let measuring: CanvasRenderingContext2D | null | undefined;
@@ -1792,11 +1784,11 @@ function lineUse(wrapper: HTMLElement): { used: number; width: number } | null {
 }
 
 /**
- * A field's quiet control. What it has to say (its problem, and while it has focus its hint and
- * count) goes on its label's line, or at the end of its own line when it has no label line or sits
- * beside its label, so none of it moves or covers anything. Beside its label, a problem with no
- * room there goes on a line of its own under the control once focus has left, and stays there
- * while the control has focus again.
+ * A field's quiet control. What it has to say (its problem, and while it has focus its count) goes
+ * on its label's line, or at the end of its own line when it has no label line or sits beside its
+ * label, so none of it moves or covers anything. Beside its label, a problem with no room there
+ * goes on a line of its own under the control once focus has left, and stays there while the
+ * control has focus again.
  */
 function FieldControl({
 	field,
@@ -1832,24 +1824,19 @@ function FieldControl({
 		onLabelLine,
 		cell,
 	});
-	const { hint } = splitLabelHint(field.label);
-	const hintId = `${id}-hint`;
 	const errorId = `${id}-error`;
-	const error = issue ? issueMessage(issue, { hint, link: isLinkField(field) }) : undefined;
-	const errorHasHint = Boolean(hint) && issue?.code === "invalid_format";
+	const error = issue ? issueMessage(issue, { link: isLinkField(field) }) : undefined;
 	const describedBy =
-		[hint && !errorHasHint && hintId, error && errorId, notes.counted && notes.countSlotId]
-			.filter(Boolean)
-			.join(" ") || undefined;
+		[error && errorId, notes.counted && notes.countSlotId].filter(Boolean).join(" ") || undefined;
 	const [focused, setFocused] = React.useState(false);
 	// Focus left by a press is handled once its click lands, which can move this control to
 	// another place in its list.
 	const touch = useStableCallback(onTouch);
 	const wrapperRef = React.useRef<HTMLDivElement>(null);
 	const noteRef = React.useRef<HTMLSpanElement>(null);
-	const ownNote = !onLabelLine && Boolean(notes.message || notes.hint || notes.countSlotId);
-	/** Whether the hint and the problem fit at the end of the control's line beside its text. */
-	const [fit, setFit] = React.useState({ hint: true, message: true });
+	const ownNote = !onLabelLine && Boolean(notes.message || notes.countSlotId);
+	/** Whether the problem fits at the end of the control's line beside its text. */
+	const [messageFits, setMessageFits] = React.useState(true);
 	/**
 	 * The problem shows on a line of its own, which keeps its place while the control has focus. The
 	 * line comes at once with the control, and after that grows in and shrinks away, so the rows
@@ -1892,19 +1879,13 @@ function FieldControl({
 			const width = textWidth(text, note);
 			return line.used + width + NOTE_ROOM <= line.width && width <= wrapper.clientWidth * 0.6;
 		};
-		const count = note.querySelector("[data-count-slot]")?.textContent;
-		const hintFits = !notes.hint || fits(count ? `${notes.hint} ${count}` : notes.hint);
-		const messageFits = !notes.message || fits(notes.message);
-		setFit((current) =>
-			current.hint === hintFits && current.message === messageFits
-				? current
-				: { hint: hintFits, message: messageFits },
-		);
-		if (side && !focused) placeProblem(!messageFits);
+		const fitsNow = !notes.message || fits(notes.message);
+		setMessageFits(fitsNow);
+		if (side && !focused) placeProblem(!fitsNow);
 	});
 	React.useLayoutEffect(
 		() => measureNote(),
-		[ownNote, focused, side, notes.hint, notes.message, value, measureNote],
+		[ownNote, focused, side, notes.message, value, measureNote],
 	);
 	// The room beside the control's text changes with its line's width.
 	React.useLayoutEffect(() => {
@@ -1923,12 +1904,12 @@ function FieldControl({
 	const [lineMessage, setLineMessage] = React.useState(notes.message);
 	if (notes.message && notes.message !== lineMessage) setLineMessage(notes.message);
 	const endMessage =
-		notes.message && !below.shown ? (fit.message ? notes.message : notes.briefMessage) : undefined;
+		notes.message && !below.shown ? (messageFits ? notes.message : notes.briefMessage) : undefined;
 	const change = (next: unknown) => {
 		if (!isEmptyValue(value) || !isEmptyValue(next)) onEdit();
 		onChange(next);
 	};
-	const offerRestore = usePhotoUndo(labelText(field), isEmptyValue(value), change);
+	const offerRestore = usePhotoUndo(field.label, isEmptyValue(value), change);
 	return (
 		<>
 			<div
@@ -1969,11 +1950,6 @@ function FieldControl({
 						},
 					})}
 				</ImageRemovalContext>
-				{hint && !errorHasHint && (
-					<span id={hintId} hidden>
-						{hint}
-					</span>
-				)}
 				{ownNote && (
 					<span
 						ref={noteRef}
@@ -1989,23 +1965,10 @@ function FieldControl({
 									: "flex",
 						)}
 					>
-						{endMessage ? (
+						{endMessage && (
 							<span dir="auto" className="min-w-0 truncate text-kumo-danger">
 								{endMessage}
 							</span>
-						) : (
-							notes.hint &&
-							!notes.message && (
-								<span
-									dir="auto"
-									className={cn(
-										"min-w-0 truncate text-kumo-subtle",
-										focused && fit.hint ? NOTE_ON_FOCUS : "hidden",
-									)}
-								>
-									{notes.hint}
-								</span>
-							)
 						)}
 						{notes.countSlotId && (
 							<span
@@ -2176,7 +2139,7 @@ function BlockFields({
 					id: labelId(field),
 					htmlFor: controlId(field),
 					className: FIELD_LABEL,
-					text: labelText(field),
+					text: field.label,
 					controls: [notesOf(field)],
 				}}
 			>
@@ -2197,14 +2160,14 @@ function BlockFields({
 							id: labelId(field),
 							// Stacked over a thumbnail, which has no padding of its own, the label keeps a photo's gap.
 							className: cn(SETTING_LABEL, "pb-1.5"),
-							text: labelText(field),
+							text: field.label,
 							controls: [notesOf(field, { side: true })],
 						}
 					: {
 							id: labelId(field),
 							htmlFor: controlId(field),
 							className: SETTING_LABEL,
-							text: labelText(field),
+							text: field.label,
 							controls: [notesOf(field, { side: true })],
 						}
 			}
@@ -2246,7 +2209,7 @@ function BlockFields({
 							as: "span",
 							id: labelId(part.field),
 							className: cn(FIELD_LABEL, "pb-1"),
-							text: labelText(part.field),
+							text: part.field.label,
 							controls: [notesOf(part.field)],
 						}}
 					>
@@ -2254,7 +2217,7 @@ function BlockFields({
 						{caption && (
 							<>
 								<span id={labelId(caption)} hidden>
-									{labelText(caption)}
+									{caption.label}
 								</span>
 								{control(caption, labelId(caption), { emptyPlaceholder: t`Add a caption` })}
 							</>
@@ -2292,7 +2255,7 @@ function BlockFields({
 			>
 				<div className="grid min-w-0 grid-flow-row-dense grid-cols-2 items-start gap-x-2">
 					<span id={labelId(part.text)} hidden>
-						{labelText(part.text)}
+						{part.text.label}
 					</span>
 					{control(part.text, labelId(part.text), {
 						placeholder: textPlaceholder,
@@ -2300,7 +2263,7 @@ function BlockFields({
 						side: true,
 					})}
 					<span id={labelId(part.link)} hidden>
-						{labelText(part.link)}
+						{part.link.label}
 					</span>
 					{control(part.link, labelId(part.link), {
 						placeholder: linkPlaceholder,
@@ -2316,7 +2279,7 @@ function BlockFields({
 		.flatMap((field) => {
 			const value = values[field.slug];
 			if (typeof value !== "string" || value.trim() === "") return [];
-			const label = labelText(field);
+			const label = field.label;
 			return [t`${label}: ${value}`];
 		})
 		.join(" · ");

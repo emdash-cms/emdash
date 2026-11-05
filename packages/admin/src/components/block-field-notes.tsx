@@ -1,17 +1,14 @@
 // What a blocks field's controls have to say: a problem once it shows, and while a control has
-// focus its hint and count. Under its label, a control says it on the label's line. Beside its
-// label, it says it at the end of its own line, and a problem with no room there goes on a line of
-// its own under the control once focus has left it. Nothing moves as focus comes or goes.
+// focus its count. Under its label, a control says it on the label's line. Beside its label, it
+// says it at the end of its own line, and a problem with no room there goes on a line of its own
+// under the control once focus has left it. Nothing moves as focus comes or goes, except under a
+// label too long to leave its notes room, where a count takes a line of its own.
 
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
-import {
-	isLinkField,
-	type LayoutFieldDefinition,
-	splitLabelHint,
-} from "../lib/block-field-layout.js";
+import { isLinkField, type LayoutFieldDefinition } from "../lib/block-field-layout.js";
 import type { BlockValueIssue } from "../lib/block-validation.js";
 import { cn } from "../lib/utils.js";
 import { onFocusLeave, useAfterPress } from "./block-field-keyboard.js";
@@ -35,25 +32,21 @@ const EMPTY_SHOWN_BY_CONTROL = new Set([
 ]);
 
 interface IssueContext {
-	/** The field's hint, which a broken format restates after naming the problem. */
-	hint?: string;
 	/** The field holds a link. */
 	link?: boolean;
-	/** For a line with little room: the problem without the hint. */
+	/** For a line with little room: the problem without an example. */
 	brief?: boolean;
 }
 
 export function useIssueMessage() {
 	const { t, i18n } = useLingui();
 	return React.useCallback(
-		(issue: BlockValueIssue, { hint, link = false, brief = false }: IssueContext = {}): string => {
+		(issue: BlockValueIssue, { link = false, brief = false }: IssueContext = {}): string => {
 			switch (issue.code) {
 				case "required":
 					return t`Required`;
 				case "invalid_format": {
 					const isLink = link || issue.format === "url";
-					if (hint && !brief)
-						return isLink ? t`Invalid link. ${hint}` : t`Check the format. ${hint}`;
 					if (issue.format === "url" && !brief)
 						return t`Enter a valid URL (e.g. https://example.com)`;
 					return isLink ? t`Invalid link` : t`Check the format`;
@@ -109,8 +102,6 @@ interface ControlNotes {
 	message?: string;
 	/** The problem in a few words, for the end of the control's own line. */
 	briefMessage?: string;
-	/** Shown while it has focus, unless a problem shows. */
-	hint?: string;
 	/** Where its character count or range shows while it has focus. */
 	countSlotId?: string;
 	/** Whether it counts its characters or states its range. */
@@ -153,9 +144,8 @@ export function useControlNotes() {
 		cell?: boolean;
 	}): ControlNotes => {
 		const { field, issue, placeholder: override, onLabelLine, cell = false } = input;
-		const { hint } = splitLabelHint(field.label);
 		const empty = isEmptyValue(input.value);
-		const about = { hint, link: isLinkField(field) };
+		const about = { link: isLinkField(field) };
 		const message = issue ? issueMessage(issue, about) : undefined;
 		const emptyIssue =
 			!onLabelLine &&
@@ -166,12 +156,11 @@ export function useControlNotes() {
 		// Once the label's line says Required, the empty control reads like any other empty one.
 		const saysRequired = Boolean(field.required) && !(onLabelLine && message);
 		const placeholder =
-			override ?? (saysRequired ? t`Required` : (hint ?? input.emptyPlaceholder ?? t`Empty`));
+			override ?? (saysRequired ? t`Required` : (input.emptyPlaceholder ?? t`Empty`));
 		return {
 			message: emptyIssue ? undefined : message,
 			briefMessage:
 				issue && !emptyIssue ? issueMessage(issue, { ...about, brief: true }) : undefined,
-			hint: !cell && hint && !(placeholder === hint && empty) ? hint : undefined,
 			countSlotId: cell ? undefined : `${input.id}-count`,
 			counted: !cell && countsItself(field),
 			placeholder,
@@ -208,9 +197,10 @@ const BESIDE_VALUE_HIDDEN = "@min-[440px]/blocks:hidden";
 
 /**
  * A field's label, with what its controls have to say on the label's own line: the problem once it
- * shows, and the focused control's hint and count. A problem too long for the line wraps rather
- * than being cut short. `side` is a settings row's label, which once it sits beside its value
- * leaves the notes to the controls.
+ * shows, and the focused control's own problem and count. A problem too long for the line wraps
+ * rather than being cut short, and a label that leaves the notes too little room puts them on a
+ * line under it. `side` is a settings row's label, which once it sits beside its value leaves the
+ * notes to the controls.
  */
 function NotedLabel({
 	as: Element = "label",
@@ -232,18 +222,17 @@ function NotedLabel({
 	side?: boolean;
 }) {
 	const rest = controls.find((control) => control.message)?.message;
-	const hasNotes = Boolean(rest) || controls.some((control) => control.hint || control.countSlotId);
+	const hasNotes = Boolean(rest) || controls.some((control) => control.countSlotId);
 	const ref = React.useRef<HTMLLabelElement & HTMLSpanElement>(null);
-	const focusedControl = controls.find((control) => control.source === focused);
-	const focusedNote = focusedControl?.message ?? focusedControl?.hint;
-	// On a narrow line, a problem or the focused control's note can wrap the line as it comes or goes.
-	useHeightGlide(ref, JSON.stringify([rest, focused, focusedNote]));
+	const focusedMessage = controls.find((control) => control.source === focused)?.message;
+	// On a narrow line, a problem or the focused control's notes can wrap the line as they come or go.
+	useHeightGlide(ref, JSON.stringify([rest, focused, focusedMessage]));
 	return (
 		<Element
 			ref={ref}
 			id={id}
 			htmlFor={Element === "label" ? htmlFor : undefined}
-			className={cn(className, "flex items-baseline gap-x-1.5")}
+			className={cn(className, "flex flex-wrap items-baseline gap-x-1.5")}
 		>
 			<span className="min-w-0 wrap-anywhere">{text}</span>
 			{hasNotes && (
@@ -251,7 +240,7 @@ function NotedLabel({
 					aria-hidden="true"
 					className={cn(
 						NOTE,
-						"flex min-w-0 flex-1 basis-0 items-baseline gap-x-1.5 font-normal",
+						"flex min-w-[min(100%,8rem)] flex-1 basis-0 items-baseline gap-x-1.5 font-normal",
 						side && BESIDE_VALUE_HIDDEN,
 					)}
 				>
@@ -265,30 +254,19 @@ function NotedLabel({
 					)}
 					{controls.map((control) => {
 						const shown = control.source === focused;
-						const note = control.message ?? control.hint;
 						return (
 							<React.Fragment key={control.source}>
-								{note && (
+								{control.message && (
 									<span
 										className={cn(
 											"min-w-0 items-baseline gap-x-1.5",
 											// The line shows the problem already, with focus or without.
-											shown && note !== rest ? cn(NOTE_ON_FOCUS, "flex") : "hidden",
+											shown && control.message !== rest ? cn(NOTE_ON_FOCUS, "flex") : "hidden",
 										)}
 									>
 										{NOTE_DOT}
-										<span
-											dir="auto"
-											className={cn(
-												"min-w-0",
-												// A wrapping hint moves the rows below as focus comes, so a hint wraps only on
-												// the narrowest lines, which would cut off most of it.
-												control.message
-													? "wrap-anywhere text-kumo-danger"
-													: "truncate text-kumo-subtle @max-[22rem]/blocks:wrap-anywhere @max-[22rem]/blocks:whitespace-normal",
-											)}
-										>
-											{note}
+										<span dir="auto" className="min-w-0 wrap-anywhere text-kumo-danger">
+											{control.message}
 										</span>
 									</span>
 								)}

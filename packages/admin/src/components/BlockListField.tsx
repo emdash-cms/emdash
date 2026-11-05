@@ -17,7 +17,6 @@ import {
 	type ListSubField,
 	listItemText,
 	listPresentation,
-	splitLabelHint,
 } from "../lib/block-field-layout.js";
 import { cloneValue, createBlockKey, isBlankLine, pastedLines } from "../lib/block-field-state.js";
 import { useStableCallback } from "../lib/hooks.js";
@@ -100,7 +99,7 @@ export interface ListControlInput {
 	placeholder?: string;
 	/**
 	 * A table cell, where a photo draws as a thumbnail and there is no room under the control
-	 * for a hint or an error.
+	 * for an error.
 	 */
 	cell?: boolean;
 }
@@ -280,7 +279,6 @@ export function BlockListField({
 	const addRef = React.useRef<HTMLButtonElement>(null);
 	const focusRef = React.useRef<ListFocus | null>(null);
 	const reorder = useReorderMotion(rootRef, "data-item-key");
-	const hintId = React.useId();
 	const errorId = React.useId();
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -331,8 +329,7 @@ export function BlockListField({
 	const atMax = current.length >= maxItems;
 	const savedCount = current.filter((row) => !isBlank(row)).length;
 	const canDelete = (row: Row) => isBlank(row) || savedCount > minItems;
-	const { label: listLabel, hint } = splitLabelHint(label);
-	const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(" ") || undefined;
+	const describedBy = error ? errorId : undefined;
 
 	const emit = (next: Row[]) => {
 		const kept = next.filter((row) => !isBlank(row));
@@ -692,11 +689,7 @@ export function BlockListField({
 				className="grid grid-cols-[minmax(0,1fr)]"
 			>
 				{current.map((row, index) => (
-					<LineRow
-						key={row.key}
-						{...rowProps(row, index)}
-						lineLabel={splitLabelHint(lineField.label).label}
-					>
+					<LineRow key={row.key} {...rowProps(row, index)} lineLabel={lineField.label}>
 						{(labelledBy) => (
 							<div
 								data-item-control
@@ -735,7 +728,7 @@ export function BlockListField({
 								subField.type === "image" && "text-center",
 							)}
 						>
-							{splitLabelHint(subField.label).label}
+							{subField.label}
 						</span>
 					))}
 					{!readOnly && (
@@ -762,7 +755,7 @@ export function BlockListField({
 						{subFields.map((subField, column) => (
 							<LabelledCell
 								key={subField.slug}
-								label={splitLabelHint(subField.label).label}
+								label={subField.label}
 								position={index + 1}
 								first={column === 0}
 								onKeyDown={readOnly ? undefined : (event) => cellKeyDown(event, index, column)}
@@ -812,10 +805,10 @@ export function BlockListField({
 								((labelledBy) =>
 									control(row, index, editableTitle, {
 										labelledBy,
-										placeholder: splitLabelHint(editableTitle.label).label,
+										placeholder: editableTitle.label,
 									}))
 							}
-							titleLabel={editableTitle && splitLabelHint(editableTitle.label).label}
+							titleLabel={editableTitle?.label}
 						>
 							{renderItemFields({
 								at: at(index),
@@ -843,9 +836,9 @@ export function BlockListField({
 					: undefined
 			}
 		>
-			<div className={cn("flex min-w-0 items-baseline gap-1.5 ps-2", !hint && "pb-1")}>
+			<div className="flex min-w-0 items-baseline gap-1.5 ps-2 pb-1">
 				<span id={labelId} className={cn(LABEL, "wrap-anywhere")}>
-					{listLabel}
+					{label}
 				</span>
 				{savedCount > 0 && (
 					<>
@@ -867,11 +860,6 @@ export function BlockListField({
 					</>
 				)}
 			</div>
-			{hint && (
-				<p id={hintId} className="ps-2 pt-0.5 pb-1 text-xs leading-4 text-kumo-subtle">
-					{hint}
-				</p>
-			)}
 			{current.length > 0 ? (
 				<DndContext sensors={sensors} collisionDetection={closestCenter} {...drag}>
 					<SortableContext items={keys} strategy={verticalListSortingStrategy}>
@@ -891,7 +879,7 @@ export function BlockListField({
 						"h-8 w-full justify-start gap-2 px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default pointer-coarse:h-11",
 						presentation === "items" && current.length > 0 && "mt-0.5",
 					)}
-					aria-label={t`Add item to ${listLabel}`}
+					aria-label={t`Add item to ${label}`}
 					onClick={addRow}
 				>
 					{t`Add item`}

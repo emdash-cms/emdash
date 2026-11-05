@@ -78,7 +78,12 @@ const hero = blockType("hero", "Hero", [
 	{ slug: "subheadline", label: "Second sentence (shown muted after the headline)", type: "text" },
 	{ slug: "tagline", label: "Tagline", type: "text", validation: { maxLength: 60 } },
 	{ slug: "image", label: "Image", type: "image" },
-	{ slug: "image_caption", label: "Image caption (shown on the photo)", type: "string" },
+	{
+		slug: "image_caption",
+		label: "Image caption (shown on the photo)",
+		type: "string",
+		validation: { maxLength: 80 },
+	},
 	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
 	{
 		slug: "primary_cta_url",
@@ -267,27 +272,6 @@ afterEach(async () => {
 });
 
 describe("A field's notes", () => {
-	it("shows a field's hint on its label's line while you type, covering nothing", async () => {
-		await renderEditor([heroBlock], [hero]);
-		await openBlock("Hero");
-		const tops = rowTops();
-
-		const field = control("Second sentence");
-		await field.click();
-		await userEvent.keyboard(" Again.");
-		await expect.poll(() => shownText("Shown muted after the headline")).toBeDefined();
-		const hint = shownText("Shown muted after the headline")!;
-		const label = labelOf(field);
-		expect(label.contains(hint)).toBe(true);
-		expect(box(hint).top).toBeGreaterThanOrEqual(box(label).top - 0.5);
-		expect(box(hint).bottom).toBeLessThanOrEqual(box(label).bottom + 0.5);
-		expect(textBoxes(label).filter((rect) => overlaps(rect, box(hint)))).toEqual([]);
-		expect(rowTops()).toEqual(tops);
-
-		await control("Headline").click();
-		await expect.poll(() => shownText("Shown muted after the headline")).toBeUndefined();
-	});
-
 	it("counts a field's characters at the end of its label's line while it has focus", async () => {
 		await renderEditor([heroBlock], [hero]);
 		await openBlock("Hero");
@@ -301,22 +285,22 @@ describe("A field's notes", () => {
 		expect(textBoxes(label).filter((rect) => overlaps(rect, box(count)))).toEqual([]);
 	});
 
-	it("shows an unlabelled control's hint at the end of its own line, with its text kept clear of it", async () => {
+	it("counts an unlabelled control's characters at the end of its own line, with its text kept clear of them", async () => {
 		await renderEditor([heroBlock], [hero]);
 		await openBlock("Hero");
 		const tops = rowTops();
 
-		const caption = control("Image caption");
+		const caption = control("Image caption (shown on the photo)");
 		await caption.click();
 		await userEvent.keyboard(" at dusk");
-		await expect.poll(() => shownText("Shown on the photo")).toBeDefined();
-		const hint = box(shownText("Shown on the photo")!);
+		await expect.poll(() => shownText("23 of 80 characters")).toBeDefined();
+		const count = box(shownText("23 of 80 characters")!);
 		const input = caption.element() as HTMLInputElement;
 		const field = box(input);
-		expect(hint.top).toBeGreaterThanOrEqual(field.top - 0.5);
-		expect(hint.bottom).toBeLessThanOrEqual(field.bottom + 0.5);
+		expect(count.top).toBeGreaterThanOrEqual(field.top - 0.5);
+		expect(count.bottom).toBeLessThanOrEqual(field.bottom + 0.5);
 		const textEnd = () => field.right - Number.parseFloat(getComputedStyle(input).paddingRight);
-		await expect.poll(textEnd).toBeLessThanOrEqual(hint.left + 0.5);
+		await expect.poll(textEnd).toBeLessThanOrEqual(count.left + 0.5);
 		expect(textEnd()).toBeGreaterThan(field.left + field.width / 3);
 		expect(rowTops()).toEqual(tops);
 	});
@@ -547,10 +531,10 @@ describe("Spacing on a narrow screen", () => {
 		const gap = (above: Element, below: Element) => textBox(below).top - textBox(above).bottom;
 
 		const field = gap(control("Headline").element(), textOf("Body"));
-		const settings = gap(control("Primary button text").element(), textOf("Secondary button"));
+		const settings = gap(control("Primary button text").element(), textOf("Secondary button text"));
 		const advanced = gap(control("Secondary button text").element(), textOf("Advanced"));
 		const photo = document.querySelector('[data-block-key="cta-1"] [data-block-body] img')!;
-		const zone = textBox(textOf("Primary button")).top - box(photo).bottom;
+		const zone = textBox(textOf("Primary button text")).top - box(photo).bottom;
 
 		expect(Math.abs(settings - field)).toBeLessThanOrEqual(2);
 		expect(Math.abs(advanced - field)).toBeLessThanOrEqual(2);

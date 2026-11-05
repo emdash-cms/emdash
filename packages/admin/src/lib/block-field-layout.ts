@@ -64,27 +64,11 @@ const SETTING_TYPES = new Set([
 const TABLE_TYPES = new Set(["string", "url", "number", "integer", "select", "image"]);
 const HEADLINE_WORDS = ["headline", "heading", "title", "statement"];
 const NOT_HEADLINE_WORDS = ["label", "eyebrow", "kicker", "tag"];
-const HINT_IN_PARENTHESES = /^(.*?)\s*\(([^()]*\s[^()]*)\)\s*$/;
-const HINT_FOR_EXAMPLE = /^(.*?),\s*(for example\b.+)$/i;
-const LABEL_WORD_SEPARATOR = /[^\p{L}\p{N}]+/u;
-const TRAILING_TEXT_WORD = /\s+text$/i;
 const WHITESPACE_RUN = /\s+/g;
 const ITEM_SUMMARY_VALUES = 2;
 
 export function isLinkField(field: LayoutField): boolean {
 	return field.type === "url" || (field.type === "string" && LINK_SLUG.test(field.slug));
-}
-
-/**
- * Splits a trailing parenthetical that contains a space, or a trailing ", for example …",
- * off a label. Units and codes such as "(USD)" or "(16:9)" stay in the label.
- */
-export function splitLabelHint(label: string): { label: string; hint?: string } {
-	const match = HINT_IN_PARENTHESES.exec(label) ?? HINT_FOR_EXAMPLE.exec(label);
-	const text = match?.[1]?.trim();
-	const hint = match?.[2]?.trim();
-	if (!text || !hint) return { label };
-	return { label: text, hint: hint.charAt(0).toUpperCase() + hint.slice(1) };
 }
 
 interface ButtonPair<T> {
@@ -149,15 +133,8 @@ export function listPresentation(subFields: readonly LayoutField[]): ListPresent
 	return "items";
 }
 
-function fieldWords(field: PlanField): Set<string> {
-	const label = splitLabelHint(field.label).label.toLowerCase();
-	return new Set(
-		[...field.slug.toLowerCase().split("_"), ...label.split(LABEL_WORD_SEPARATOR)].filter(Boolean),
-	);
-}
-
-function hasWord(field: PlanField, words: readonly string[]): boolean {
-	const own = fieldWords(field);
+function hasWord(field: LayoutField, words: readonly string[]): boolean {
+	const own = new Set(field.slug.toLowerCase().split("_"));
 	return words.some((word) => own.has(word));
 }
 
@@ -213,8 +190,7 @@ export function planBlockFields<T extends PlanField>(
 		if (pair) {
 			placed.add(pair.text);
 			placed.add(pair.link);
-			const label = splitLabelHint(pair.text.label).label.replace(TRAILING_TEXT_WORD, "");
-			parts.push({ kind: "button", label, text: pair.text, link: pair.link });
+			parts.push({ kind: "button", label: pair.text.label, text: pair.text, link: pair.link });
 			continue;
 		}
 		parts.push({ kind: "field", field });

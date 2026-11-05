@@ -29,8 +29,8 @@ export const LABEL = "text-xs leading-4 font-medium text-kumo-subtle";
 export const FIELD_GAP = { block: "gap-y-4", item: "gap-y-3" } as const;
 
 /**
- * A note on a field's label line: a list's item count, a field's hint or count while it has focus,
- * and its problem once that shows. The line is there whether a note shows or not, so a note moves
+ * A note on a field's label line: a list's item count, a field's count while it has focus, and its
+ * problem once that shows. The line is there whether a note shows or not, so a note moves
  * nothing and covers nothing.
  */
 export const NOTE = "text-xs leading-4";

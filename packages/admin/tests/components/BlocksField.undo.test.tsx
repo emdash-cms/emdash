@@ -108,7 +108,7 @@ const CARD = blockType("card", "Card", [
 
 const EMBED = blockType("embed", "Embed", [{ slug: "body", label: "Body", type: "text" }]);
 
-const HINTED = blockType("hinted", "Hinted", [
+const LINKED = blockType("linked", "Linked", [
 	{ slug: "link", label: "Link (starts with / or https://)", type: "string" },
 ]);
 
@@ -126,7 +126,7 @@ const GALLERY = blockType("gallery", "Gallery", [
 	},
 ]);
 
-const TYPES = [SHORT, LONG, TALL, QUOTES, STATS, CARD, EMBED, HINTED, GALLERY];
+const TYPES = [SHORT, LONG, TALL, QUOTES, STATS, CARD, EMBED, LINKED, GALLERY];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -857,7 +857,7 @@ describe("Easing", () => {
 	it("moves and fades everything on the system's two curves", async () => {
 		await renderField([
 			{ _type: "card", _version: 1, _key: "card", headline: "Hi", photo: PHOTO },
-			{ _type: "hinted", _version: 1, _key: "hinted" },
+			{ _type: "linked", _version: 1, _key: "linked" },
 		]);
 		const curves = new Set<string>();
 		const collect = () => {
@@ -883,10 +883,10 @@ describe("Easing", () => {
 		await page.getByRole("button", { name: "Expand all" }).click();
 		await page.getByRole("button", { name: "Remove image" }).hover();
 		collect();
-		document.getElementById("field-layout.hinted.link")!.focus();
+		document.getElementById("field-layout.linked.link")!.focus();
 		await frame();
 		collect();
-		await menuButtonOf("hinted").click();
+		await menuButtonOf("linked").click();
 		await page.getByRole("menuitem", { name: "Duplicate" }).click();
 		for (let count = 0; count < 4; count++) {
 			collect();

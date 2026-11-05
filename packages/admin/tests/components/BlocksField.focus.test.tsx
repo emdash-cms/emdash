@@ -12,7 +12,6 @@ import type { StoredBlockValue } from "../../src/lib/block-field-state.js";
 import { render } from "../utils/render.js";
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
-const LINK_HINT = "Starts with /, https://, mailto:, tel: or #";
 
 function blockType(slug: string, label: string, fields: BlockFieldDefinition[]): BlockType {
 	return {
@@ -59,7 +58,7 @@ const LINKED = blockType("linked", "Linked", [
 	{ slug: "title", label: "Title", type: "string" },
 	{
 		slug: "cta_url",
-		label: "Link (starts with /, https://, mailto:, tel: or #)",
+		label: "Link",
 		type: "string",
 		validation: { pattern: LINK_PATTERN },
 	},
@@ -135,36 +134,14 @@ const toastOf = () =>
 const textbox = (name: string) => page.getByRole("textbox", { name, exact: true });
 const link = () => textbox("Link");
 
-function shown(element: Element): boolean {
-	return (
-		!element.closest(".sr-only, [hidden]") &&
-		element.getBoundingClientRect().width > 1 &&
-		element.checkVisibility({ opacityProperty: true, visibilityProperty: true })
-	);
-}
-
-function ownText(element: Element): string {
-	return [...element.childNodes]
-		.filter((node) => node.nodeType === 3)
-		.map((node) => node.textContent ?? "")
-		.join("")
-		.trim();
-}
-
 /** Waits, frame by frame, for `done`. */
 async function until(done: () => boolean) {
 	for (let count = 0; count < 120 && !done(); count++) await frame();
 	expect(done()).toBe(true);
 }
 
-/** Whether `text` shows anywhere in the blocks field. */
-const showsText = (text: string) =>
-	[...document.querySelectorAll("[data-blocks-field] *")].some(
-		(element) => ownText(element) === text && shown(element),
-	);
-
-async function openLinked(width?: number) {
-	await renderField([linked(), short("after")], { width });
+async function openLinked() {
+	await renderField([linked(), short("after")]);
 	await page.getByRole("button", { name: "Linked", exact: true }).click();
 	await settled();
 }
@@ -186,22 +163,6 @@ describe("Focus left by a press that opens a popup", () => {
 		await userEvent.keyboard("{Escape}");
 		await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
 		await expect.element(link()).toHaveAttribute("aria-invalid", "true");
-	});
-
-	it.each([
-		["beside the value", 1100],
-		["on the label's line", 400],
-	])("stops showing the control's hint %s", async (_where, width) => {
-		await openLinked(width);
-		await link().fill("/contact");
-		await expect.poll(() => showsText(LINK_HINT)).toBe(true);
-
-		await page.getByRole("button", { name: "Linked actions" }).click();
-		await expect.element(page.getByRole("menu")).toBeVisible();
-		await userEvent.keyboard("{Escape}");
-		await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
-
-		await expect.poll(() => showsText(LINK_HINT)).toBe(false);
 	});
 });
 

@@ -49,7 +49,6 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
-import { splitLabelHint } from "../lib/block-field-layout.js";
 import {
 	blockIssueElementId,
 	type BlockValueIssue,
@@ -219,7 +218,7 @@ function AutosavePausedNotice({
 		shownRef.current = null;
 		if (!heldBy || !key) return;
 		const block = heldBy.issue.blockLabel;
-		const field = splitLabelHint(heldBy.issue.label).label;
+		const field = heldBy.issue.label;
 		const toastId: string = add({
 			title: t`Autosave paused`,
 			description:

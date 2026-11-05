@@ -11,7 +11,6 @@ import {
 	listPresentation,
 	type PlanField,
 	planBlockFields,
-	splitLabelHint,
 } from "../../src/lib/block-field-layout.js";
 
 const format = {
@@ -65,53 +64,27 @@ function placedSlugs(plan: ReturnType<typeof planBlockFields>): string[] {
 	return [...parts, ...plan.advanced].map((placed) => placed.slug);
 }
 
-describe("splitLabelHint", () => {
-	it("turns a trailing parenthetical with a space into a capitalized hint", () => {
-		expect(
-			splitLabelHint("Primary button link (starts with /, https://, mailto:, tel: or #)"),
-		).toEqual({
-			label: "Primary button link",
-			hint: "Starts with /, https://, mailto:, tel: or #",
-		});
-		expect(splitLabelHint("Checklist (one item per line)")).toEqual({
-			label: "Checklist",
-			hint: "One item per line",
-		});
-	});
-
-	it('turns a trailing ", for example" into a hint', () => {
-		expect(splitLabelHint("Website, for example https://example.com")).toEqual({
-			label: "Website",
-			hint: "For example https://example.com",
-		});
-	});
-
-	it.each(["Price (USD)", "Size (px)", "Aspect ratio (16:9)", "Headline", "(one item per line)"])(
-		"keeps %j whole",
-		(label) => {
-			expect(splitLabelHint(label)).toEqual({ label });
-		},
-	);
-});
-
 describe("planBlockFields", () => {
 	it.each(
 		["_label", "_text", ""].flatMap((textSuffix) =>
 			["_url", "_link", "_href"].map((linkSuffix) => [`cta${textSuffix}`, `cta${linkSuffix}`]),
 		),
-	)("puts %s and %s in one button row", (text, link) => {
-		expect(
-			layout([
-				field("string", "headline"),
-				field("string", text, "Primary button text"),
-				field("string", link, "Primary button link (starts with /)"),
-			]),
-		).toEqual({
-			content: ["heading headline"],
-			settings: [`button "Primary button"(${text}, ${link})`],
-			advanced: [],
-		});
-	});
+	)(
+		"puts %s and %s in one button row, labelled with the text field's label as written",
+		(text, link) => {
+			expect(
+				layout([
+					field("string", "headline"),
+					field("string", text, "Primary button text"),
+					field("string", link, "Primary button link (starts with /)"),
+				]),
+			).toEqual({
+				content: ["heading headline"],
+				settings: [`button "Primary button text"(${text}, ${link})`],
+				advanced: [],
+			});
+		},
+	);
 
 	it("pairs each link with one text field, preferring _label, then _text, then the bare base", () => {
 		expect(
@@ -206,37 +179,63 @@ describe("planBlockFields", () => {
 		});
 	});
 
-	it("matches headline words whole, in the slug or the label", () => {
+	it("matches headline words whole, in the slug split at underscores", () => {
 		expect(
 			layout([
 				field("string", "kicker"),
-				field("text", "subheadline", "Subheadline"),
-				field("string", "subtitle", "Subtitle"),
-				field("string", "main", "Main statement"),
+				field("text", "subheadline"),
+				field("string", "subtitle"),
+				field("string", "main_statement"),
 			]).content,
-		).toEqual(["kicker", "subheadline", "subtitle", "heading main"]);
-		expect(
-			layout([field("text", "intro", "Intro"), field("string", "section_heading", "Top")]).content,
-		).toEqual(["intro", "heading section_heading"]);
+		).toEqual(["kicker", "subheadline", "subtitle", "heading main_statement"]);
+		expect(layout([field("text", "intro"), field("string", "section_heading")]).content).toEqual([
+			"intro",
+			"heading section_heading",
+		]);
 	});
 
-	it("never picks a label, eyebrow, kicker or tag as the headline", () => {
-		expect(
-			layout([
-				field("string", "eyebrow", "Label above headline"),
-				field("string", "headline", "Headline"),
-			]).content,
-		).toEqual(["eyebrow", "heading headline"]);
+	it.each(["section_label", "eyebrow", "kicker", "tag"])(
+		"never picks %s as the headline",
+		(slug) => {
+			expect(layout([field("string", slug), field("text", "quote")]).content).toEqual([
+				slug,
+				"quote",
+			]);
+		},
+	);
+
+	it("ignores label words when it picks the headline", () => {
 		expect(
 			layout([
 				field("string", "headline", "Section label (small text above the quotes)"),
 				field("text", "quote", "Quote"),
 			]).content,
-		).toEqual(["headline", "quote"]);
-		expect(layout([field("string", "tag", "Tag"), field("text", "body", "Body")]).content).toEqual([
-			"tag",
-			"body",
-		]);
+		).toEqual(["heading headline", "quote"]);
+		expect(
+			layout([field("string", "intro", "Label"), field("text", "body", "Body")]).content,
+		).toEqual(["heading intro", "body"]);
+		expect(
+			layout([field("text", "intro", "Intro"), field("string", "name", "Main headline")]).content,
+		).toEqual(["heading intro", "name"]);
+	});
+
+	it("places fields by type and slug, whatever their labels say", () => {
+		const fields = [
+			field("string", "eyebrow", "Headline (shown above the title)"),
+			field("string", "headline", "Label, for example Spring sale"),
+			field("text", "body", "Title (leave a blank line between paragraphs)"),
+			field("string", "cta_label", "Button text"),
+			field("string", "cta_url", "Button link (starts with / or https://)"),
+			field("image", "photo", "Photo (16:9)"),
+			field("string", "photo_caption", "Caption (shown on the photo)"),
+			field("boolean", "centered", "Heading (centered)"),
+			field("string", "anchor_id", "Section ID (lowercase, for links like /#pricing)"),
+		];
+		expect(layout(fields)).toEqual({
+			content: ["eyebrow", "heading headline", "body", "image(photo, photo_caption)"],
+			settings: ['button "Button text"(cta_label, cta_url)', "centered"],
+			advanced: ["anchor_id"],
+		});
 	});
 
 	it("falls back to the first text field, and has no headline in list items", () => {

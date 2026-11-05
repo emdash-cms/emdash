@@ -52,6 +52,11 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 }));
 
 const LINK_PATTERN = "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$";
+const PRIMARY_LINK = "Primary button link (starts with /, https://, mailto:, tel: or #)";
+const CAPTION = "Image caption (shown on the photo)";
+const ANNOUNCEMENT = "Announcement (shown above the headline)";
+const ANNOUNCEMENT_LINK = "Announcement link (starts with /, https://, mailto:, tel: or #)";
+const SECTION_ID = "Section ID (lowercase, for links like /#pricing)";
 const PHOTO =
 	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='9'/%3E";
 
@@ -61,23 +66,23 @@ const heroFields: BlockFieldDefinition[] = [
 	{ slug: "primary_cta_label", label: "Primary button text", type: "string" },
 	{
 		slug: "primary_cta_url",
-		label: "Primary button link (starts with /, https://, mailto:, tel: or #)",
+		label: PRIMARY_LINK,
 		type: "string",
 		validation: { pattern: LINK_PATTERN },
 	},
 	{ slug: "image", label: "Image", type: "image" },
-	{ slug: "image_caption", label: "Image caption (shown on the photo)", type: "string" },
-	{ slug: "eyebrow", label: "Announcement (shown above the headline)", type: "string" },
+	{ slug: "image_caption", label: CAPTION, type: "string" },
+	{ slug: "eyebrow", label: ANNOUNCEMENT, type: "string" },
 	{
 		slug: "eyebrow_url",
-		label: "Announcement link (starts with /, https://, mailto:, tel: or #)",
+		label: ANNOUNCEMENT_LINK,
 		type: "string",
 		validation: { pattern: LINK_PATTERN },
 	},
 	{ slug: "centered", label: "Center the layout", type: "boolean", defaultValue: false },
 	{
 		slug: "anchor_id",
-		label: "Section ID (lowercase, for links like /#pricing)",
+		label: SECTION_ID,
 		type: "string",
 		validation: { pattern: "^(?:$|[a-z][a-z0-9_-]*)$" },
 	},
@@ -200,10 +205,10 @@ describe("Fields inside a block", () => {
 		const headline = control("Headline");
 		const subheadline = control("Subheadline");
 		const photo = page.getByRole("group", { name: "Image", exact: true });
-		const caption = control("Image caption");
+		const caption = control(CAPTION);
 		const buttonText = control("Primary button text");
-		const buttonLink = control("Primary button link");
-		const announcement = page.getByRole("group", { name: "Announcement" });
+		const buttonLink = control(PRIMARY_LINK);
+		const announcement = page.getByRole("group", { name: ANNOUNCEMENT, exact: true });
 		const centered = page.getByRole("switch", { name: "Center the layout" });
 		const advanced = page.getByRole("button", { name: /^Advanced/ });
 
@@ -232,24 +237,24 @@ describe("Fields inside a block", () => {
 			Number(getComputedStyle(blockName).fontWeight),
 		);
 
-		const primary = page.getByRole("group", { name: "Primary button", exact: true });
+		const primary = page.getByRole("group", { name: "Primary button text", exact: true });
 		await expect
-			.element(primary.getByRole("textbox", { name: "Primary button text" }))
+			.element(primary.getByRole("textbox", { name: "Primary button text", exact: true }))
 			.toHaveValue("Book a demo");
 		await expect
-			.element(primary.getByRole("textbox", { name: "Primary button link" }))
+			.element(primary.getByRole("textbox", { name: PRIMARY_LINK, exact: true }))
 			.toHaveValue("/contact");
 		expect(Math.abs(box(buttonText).top - box(buttonLink).top)).toBeLessThan(2);
 		expect(box(buttonText).right).toBeLessThanOrEqual(box(buttonLink).left);
-		expect(box(primary.getByText("Primary button", { exact: true })).right).toBeLessThanOrEqual(
-			box(buttonText).left,
-		);
+		const rowLabel = () => shownText("Primary button text", primary.element());
+		await expect.poll(rowLabel).toBeDefined();
+		expect(rowLabel()!.getBoundingClientRect().right).toBeLessThanOrEqual(box(buttonText).left);
 
 		await expect.element(advanced).toHaveAttribute("aria-expanded", "false");
 		await expect.element(advanced).toHaveTextContent("pricing");
-		expect(control("Section ID").query()).toBeNull();
+		expect(control(SECTION_ID).query()).toBeNull();
 		await advanced.click();
-		await expect.element(control("Section ID")).toHaveValue("pricing");
+		await expect.element(control(SECTION_ID)).toHaveValue("pricing");
 	});
 
 	it("gives fields whose names match no convention a row of their own", async () => {
@@ -276,31 +281,7 @@ describe("Fields inside a block", () => {
 		expect(box(control("Destination")).top).toBeGreaterThan(box(control("Section")).bottom);
 	});
 
-	it("shows a label's hint in the empty field, at the end of its line while typing, and to screen readers", async () => {
-		await renderEditor([heroBlock]);
-		await openBlock();
-
-		const caption = control("Image caption");
-		await expect.element(caption).toHaveAttribute("placeholder", "Shown on the photo");
-		await expect.element(caption).toHaveAccessibleDescription("Shown on the photo");
-		const shownHint = () => shownText("Shown on the photo");
-		await caption.click();
-		expect(shownHint()).toBeUndefined();
-
-		const nextRowTop = box(control("Primary button text")).top;
-		await caption.fill("Riverside Tower");
-		await expect.poll(shownHint).toBeDefined();
-		const hint = shownHint()!.getBoundingClientRect();
-		expect(hint.top).toBeGreaterThanOrEqual(box(caption).top);
-		expect(hint.bottom).toBeLessThanOrEqual(box(caption).bottom);
-		expect(hint.left).toBeGreaterThan(box(caption).left + box(caption).width / 2);
-		expect(box(control("Primary button text")).top).toBe(nextRowTop);
-
-		await control("Headline").click();
-		await expect.poll(shownHint).toBeUndefined();
-	});
-
-	it("shows a field's hint after its label, and its character count at the line's end", async () => {
+	it("shows a field's character count after its whole label, at the end of the label's line", async () => {
 		const quote = blockType("quote", "Quote", [
 			{
 				slug: "tagline",
@@ -315,29 +296,23 @@ describe("Fields inside a block", () => {
 		);
 		await openBlock("Quote");
 
-		await control("Tagline").click();
-		await expect.poll(() => shownText("Shown above the quote")).toBeDefined();
+		const tagline = control("Tagline (shown above the quote)");
+		await tagline.click();
 		await expect.poll(() => shownText("5 of 60 characters")).toBeDefined();
-		const label = shownText("Tagline")!.getBoundingClientRect();
-		const hint = shownText("Shown above the quote")!.getBoundingClientRect();
+		const label = shownText("Tagline (shown above the quote)")!.getBoundingClientRect();
 		const count = shownText("5 of 60 characters")!.getBoundingClientRect();
-		for (const note of [hint, count]) {
-			expect(Math.abs(note.top + note.height / 2 - (label.top + label.height / 2))).toBeLessThan(1);
-		}
-		expect(hint.left).toBeGreaterThan(label.right);
-		expect(count.left).toBeGreaterThan(hint.right);
-		expect(count.top).toBeLessThan(box(control("Tagline")).top);
+		expect(Math.abs(count.top + count.height / 2 - (label.top + label.height / 2))).toBeLessThan(1);
+		expect(count.left).toBeGreaterThan(label.right);
+		expect(count.top).toBeLessThan(box(tagline).top);
 	});
 
 	it("keeps the Text and Link placeholders in a button row", async () => {
 		await renderEditor([{ ...heroBlock, eyebrow: "New: reports" }]);
 		await openBlock();
 
-		await expect.element(control("Announcement")).toHaveValue("New: reports");
-		await expect.element(control("Announcement link")).toHaveAttribute("placeholder", "Link");
-		await expect
-			.element(control("Announcement link"))
-			.toHaveAccessibleDescription("Starts with /, https://, mailto:, tel: or #");
+		await expect.element(control(ANNOUNCEMENT)).toHaveValue("New: reports");
+		await expect.element(control(ANNOUNCEMENT_LINK)).toHaveAttribute("placeholder", "Link");
+		await expect.element(control(ANNOUNCEMENT_LINK)).not.toHaveAccessibleDescription();
 		await expect.element(control("Primary button text")).toHaveAttribute("placeholder", "Text");
 	});
 
@@ -363,7 +338,7 @@ describe("Fields inside a block", () => {
 			await openBlock();
 
 			const headline = control("Headline");
-			const link = control("Primary button link");
+			const link = control(PRIMARY_LINK);
 			for (const value of [headline, link]) {
 				expect(getComputedStyle(value.element()).direction).toBe("ltr");
 				expect(getComputedStyle(value.element()).textAlign).toBe(dir === "rtl" ? "end" : "start");
@@ -577,7 +552,7 @@ function shownText(text: string, within?: Element): Element | undefined {
 }
 
 describe("Checking fields inside a block", () => {
-	it("shows a failed pattern beside the field as Check the format, and its hint to assistive technology, once the field is left", async () => {
+	it("shows a failed pattern in the field's row as Check the format, once the field is left", async () => {
 		await renderEditor(
 			[heroBlock, { _type: "logos", _version: 1, _key: "logos-1", logos: [{}, {}] }],
 			[hero, logoWall],
@@ -586,20 +561,16 @@ describe("Checking fields inside a block", () => {
 		await page.getByRole("button", { name: /^Advanced/ }).click();
 		await expect.poll(() => document.getAnimations().length).toBe(0);
 
-		const sectionId = control("Section ID");
-		const label = shownText("Section ID")!;
+		const sectionId = control(SECTION_ID);
+		const label = shownText(SECTION_ID)!;
 		const quietLabel = getComputedStyle(label).color;
 		await sectionId.fill("Pricing!");
-		await expect.poll(() => shownText("Lowercase, for links like /#pricing")).toBeDefined();
 		await control("Headline").click();
 		await expect.element(sectionId).toHaveAttribute("aria-invalid", "true");
-		await expect
-			.element(sectionId)
-			.toHaveAccessibleDescription("Check the format. Lowercase, for links like /#pricing");
-		// At rest, the problem shows as words in the field's row, not only as a colour. With no room
-		// beside the value, it says all of it on a line of its own.
+		await expect.element(sectionId).toHaveAccessibleDescription("Check the format");
+		// At rest, the problem shows as words in the field's row, not only as a colour.
 		const row = label.closest("label")!.parentElement!;
-		const problem = "Check the format. Lowercase, for links like /#pricing";
+		const problem = "Check the format";
 		await expect.poll(() => shownText(problem)).toBeDefined();
 		await expect.poll(() => document.getAnimations().length).toBe(0);
 		const error = shownText(problem)!.getBoundingClientRect();
@@ -623,6 +594,34 @@ describe("Checking fields inside a block", () => {
 		await control("Section label").click();
 		await expect.element(code).toHaveAccessibleDescription("Check the format");
 		await expect.poll(() => shownText("Check the format")).toBeDefined();
+	});
+
+	it("shows a label as written, wrapped beside its value, and a failed link as Invalid link alone", async () => {
+		const label = "Button link (starts with / or https://)";
+		const card = blockType("card", "Card", [
+			{ slug: "headline", label: "Headline", type: "string" },
+			{ slug: "button_url", label, type: "string", validation: { pattern: LINK_PATTERN } },
+		]);
+		await renderEditor([{ _type: "card", _version: 1, _key: "card-1", headline: "Hi" }], [card]);
+		await openBlock("Card");
+
+		const link = control(label);
+		await expect.element(link).toHaveAttribute("placeholder", "Empty");
+		await expect.element(link).not.toHaveAccessibleDescription();
+		await expect.poll(() => shownText(label)).toBeDefined();
+		const text = shownText(label)!;
+		expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth);
+		const range = document.createRange();
+		range.selectNodeContents(text);
+		const lines = [...range.getClientRects()];
+		expect(new Set(lines.map((line) => Math.round(line.top))).size).toBeGreaterThan(1);
+		for (const line of lines) expect(line.right).toBeLessThanOrEqual(box(link).left + 0.5);
+
+		await link.fill("example.com");
+		await control("Headline").click();
+		await expect.element(link).toHaveAttribute("aria-invalid", "true");
+		await expect.element(link).toHaveAccessibleDescription("Invalid link");
+		await expect.poll(() => shownText("Invalid link")).toBeDefined();
 	});
 
 	it("shows nothing on a new block's empty required field you leave untouched, and flags it once you empty it", async () => {
@@ -816,9 +815,9 @@ describe("Checking fields inside a block", () => {
 		await renderEditor([{ ...heroBlock, primary_cta_label: "" }], [strictHero]);
 		await openBlock();
 		const text = control("Primary button text");
-		const nextRowGap = () => box(control("Announcement")).top - box(text).top;
+		const nextRowGap = () => box(control(ANNOUNCEMENT)).top - box(text).top;
 		const gap = nextRowGap();
-		const row = page.getByRole("group", { name: "Primary button", exact: true }).element();
+		const row = page.getByRole("group", { name: "Primary button text", exact: true }).element();
 
 		await page.getByRole("textbox", { name: "Title" }).fill("Home page");
 		await saveButton().click();
