@@ -219,7 +219,7 @@ jobs:
           --config vitest.smoke.config.ts
 
   test-docs:
-    name: Docs Links
+    name: Docs Tests
     needs: change-plan
     if: needs.change-plan.outputs.docs == 'true'
     runs-on: ubuntu-latest
@@ -302,7 +302,7 @@ jobs:
           check_lane "Browser and playground tests" "$BROWSER_SELECTED" "$BROWSER_RESULT"
           check_lane "Node/Cloudflare E2E" "$E2E_SELECTED" "$E2E_RESULT"
           check_lane "Table E2E" "$TABLE_SELECTED" "$TABLE_RESULT"
-          check_lane "Docs links" "$DOCS_SELECTED" "$DOCS_RESULT"
+          check_lane "Docs tests" "$DOCS_SELECTED" "$DOCS_RESULT"
           exit "$failed"
 
   test-smoke-isolated:
