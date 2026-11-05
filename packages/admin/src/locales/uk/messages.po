@@ -1750,7 +1750,7 @@ msgstr "Розширені"
 msgid "After"
 msgstr "Стане"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:192
+#: packages/admin/src/components/settings/EmailSettings.tsx:485
 msgid "After send:"
 msgstr "Після надсилання:"
 
@@ -1973,7 +1973,8 @@ msgstr "Зашифрований цифровий ключ, який ви роз
 #: packages/admin/src/components/settings/BackupSettings.tsx:104
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
-#: packages/admin/src/components/settings/EmailSettings.tsx:45
+#: packages/admin/src/components/settings/EmailSettings.tsx:89
+#: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:99
 #: packages/admin/src/components/settings/GeneralSettings.tsx:210
 #: packages/admin/src/components/settings/GeneralSettings.tsx:223
@@ -2368,7 +2369,7 @@ msgstr "Доступні підписи"
 msgid "Available in {0}"
 msgstr "Доступно в локалях: {0}"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:203
+#: packages/admin/src/components/settings/EmailSettings.tsx:496
 msgid "Available Providers"
 msgstr "Доступні провайдери"
 
@@ -2500,7 +2501,7 @@ msgstr "Основні блоки"
 msgid "Before"
 msgstr "Було"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:187
+#: packages/admin/src/components/settings/EmailSettings.tsx:480
 msgid "Before send:"
 msgstr "Перед надсиланням:"
 
@@ -3193,6 +3194,10 @@ msgstr "Обрати файл пакета"
 msgid "Choose replacement image"
 msgstr "Оберіть зображення для заміни"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:439
+msgid "Choose SMTP above or install an email provider plugin to enable email features like invitations, magic links, and password recovery."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr "Оберіть дату публікації, яку показуватиме цей запис."
@@ -3505,6 +3510,10 @@ msgstr "Компонент"
 #: packages/admin/src/components/FieldEditor.tsx:1008
 msgid "Configure Field"
 msgstr "Налаштувати поле"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:182
+msgid "Configure the email provider, view pipeline status, and send test emails"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
@@ -5418,22 +5427,30 @@ msgstr "Надішліть усім іншим користувачам лист
 msgid "Email is required"
 msgstr "Email обов'язковий"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:184
+#: packages/admin/src/components/settings/EmailSettings.tsx:477
 msgid "Email Middleware"
 msgstr "Проміжні обробники пошти"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:91
+#: packages/admin/src/components/settings/EmailSettings.tsx:332
 msgid "Email Pipeline"
 msgstr "Ланцюжок надсилання пошти"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:166
+#: packages/admin/src/components/settings/EmailSettings.tsx:220
+msgid "Email Provider"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:457
 msgid "Email provider active"
 msgstr "Провайдер email активний"
 
 #: packages/admin/src/components/Settings.tsx:108
-#: packages/admin/src/components/settings/EmailSettings.tsx:58
+#: packages/admin/src/components/settings/EmailSettings.tsx:181
 msgid "Email Settings"
 msgstr "Налаштування email"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:82
+msgid "Email settings saved"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:432
 msgid "Email users"
@@ -5739,6 +5756,10 @@ msgstr "Введіть вміст markdown..."
 #: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter name"
 msgstr "Введіть ім'я"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:287
+msgid "Enter SMTP password"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Enter the code from your terminal"
@@ -6370,7 +6391,7 @@ msgstr "Не вдалося отримати авторів вмісту"
 msgid "Failed to fetch dashboard stats"
 msgstr "Не вдалося отримати статистику панелі"
 
-#: packages/admin/src/lib/api/email-settings.ts:34
+#: packages/admin/src/lib/api/email-settings.ts:47
 msgid "Failed to fetch email settings"
 msgstr "Не вдалося отримати налаштування email"
 
@@ -6624,8 +6645,8 @@ msgstr "Не вдалося завантажити налаштування ре
 msgid "Failed to load bylines: {0}"
 msgstr "Не вдалося завантажити підписи: {0}"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:80
-#: packages/admin/src/components/settings/EmailSettings.tsx:81
+#: packages/admin/src/components/settings/EmailSettings.tsx:203
+#: packages/admin/src/components/settings/EmailSettings.tsx:204
 msgid "Failed to load email settings"
 msgstr "Не вдалося завантажити налаштування email"
 
@@ -6835,6 +6856,11 @@ msgstr "Не вдалося зберегти"
 msgid "Failed to save backup settings"
 msgstr "Не вдалося зберегти налаштування резервного копіювання"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:88
+#: packages/admin/src/lib/api/email-settings.ts:90
+msgid "Failed to save email settings"
+msgstr ""
+
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:98
 #: packages/admin/src/components/settings/GeneralSettings.tsx:209
@@ -6856,8 +6882,8 @@ msgstr "Не вдалося надіслати посилання для вхо�
 msgid "Failed to send recovery link"
 msgstr "Не вдалося надіслати посилання для відновлення"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:44
-#: packages/admin/src/lib/api/email-settings.ts:45
+#: packages/admin/src/components/settings/EmailSettings.tsx:104
+#: packages/admin/src/lib/api/email-settings.ts:58
 msgid "Failed to send test email"
 msgstr "Не вдалося надіслати тестовий email"
 
@@ -7614,6 +7640,14 @@ msgstr "Хуки"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr "По горизонталі {0}%, по вертикалі {1}%"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:342
+msgid "Host"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:117
+msgid "Host and user are required."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr "Година"
@@ -7812,6 +7846,14 @@ msgstr "URL зображення"
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
 msgstr "Зображення"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:352
+msgid "Implicit TLS"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:269
+msgid "Implicit TLS (port 465)"
+msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
@@ -8109,10 +8151,6 @@ msgstr "Instagram"
 msgid "Install"
 msgstr "Встановити"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:148
-msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr "Встановіть і активуйте плагін email-провайдера, щоб увімкнути функції email: запрошення, посилання для входу та відновлення пароля."
-
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:208
 msgid "Install blocked"
 msgstr "Встановлення заблоковано"
@@ -8169,6 +8207,10 @@ msgstr "Недійсний JSON"
 #: packages/admin/src/components/SignupPage.tsx:285
 msgid "Invalid link"
 msgstr "Недійсне посилання"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:126
+msgid "Invalid port"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:132
 msgid "Invitation sent to {email}"
@@ -8439,6 +8481,10 @@ msgstr "Дізнатися більше"
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:40
 msgid "Leave"
 msgstr "Покинути"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:286
+msgid "Leave empty to keep current password"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Leave unassigned"
@@ -8775,7 +8821,7 @@ msgstr "Завантаження віджетів..."
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:155
-#: packages/admin/src/components/settings/EmailSettings.tsx:69
+#: packages/admin/src/components/settings/EmailSettings.tsx:192
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
 #: packages/admin/src/components/TaxonomyManager.tsx:1197
@@ -9236,6 +9282,10 @@ msgstr "Дрібний заголовок розділу"
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
 msgstr "Хвилина"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:116
+msgid "Missing SMTP configuration"
+msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:269
 msgid "Mixed"
@@ -9816,7 +9866,7 @@ msgstr "Для цього типу блоку немає редактора. Й�
 msgid "No email address"
 msgstr "Без адреси email"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:145
+#: packages/admin/src/components/settings/EmailSettings.tsx:436
 msgid "No email provider configured"
 msgstr "Email-провайдер не налаштовано"
 
@@ -10125,6 +10175,10 @@ msgstr "Немає"
 #: packages/admin/src/components/TaxonomyManager.tsx:777
 msgid "None (top level)"
 msgstr "Немає (верхній рівень)"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:301
+msgid "noreply@example.com"
+msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:713
 msgid "Not compatible with this environment"
@@ -10586,6 +10640,10 @@ msgstr "Для ключів доступу потрібен <0>безпечни�
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "Ключі доступу працюють лише через HTTPS або на http://localhost (з вашим портом): для браузера ця адреса не є безпечним контекстом."
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:280
+msgid "Password"
+msgstr ""
+
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:247
 msgid "Paste an embed code or an https link…"
 msgstr "Вставте код для вбудовування або посилання https…"
@@ -10873,6 +10931,19 @@ msgstr "Відновлення на момент часу"
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "Вказує пошуковим системам на оригінальну версію цієї сторінки, якщо вона дублюється з іншої URL-адреси"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:246
+#: packages/admin/src/components/settings/EmailSettings.tsx:346
+msgid "Port"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:135
+msgid "Port 25 is not supported"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:127
+msgid "Port must be between 1 and 65535."
+msgstr ""
+
 #: packages/admin/src/components/FocalPointEditor.tsx:50
 msgid "Portrait"
 msgstr "Вертикальне"
@@ -11020,7 +11091,11 @@ msgstr "Підтвердження походження необов'язков�
 msgid "Provenance required"
 msgstr "Підтвердження походження обов'язкове"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:168
+#: packages/admin/src/components/settings/EmailSettings.tsx:226
+msgid "Provider"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:459
 msgid "Provider:"
 msgstr "Провайдер:"
 
@@ -11296,7 +11371,7 @@ msgstr "Останні записи"
 msgid "Recently Updated"
 msgstr "Нещодавно оновлено"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:108
+#: packages/admin/src/components/settings/EmailSettings.tsx:395
 msgid "Recipient email"
 msgstr "Email одержувача"
 
@@ -11792,6 +11867,14 @@ msgstr "Заміна оригіналу..."
 #: packages/admin/src/components/comments/CommentDetail.tsx:120
 msgid "Reply to:"
 msgstr "Відповідь на:"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:367
+msgid "Reply-to"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:304
+msgid "Reply-to email (optional)"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:220
 msgid "Repository"
@@ -12291,6 +12374,7 @@ msgstr "Зберегти час публікації"
 
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
+#: packages/admin/src/components/settings/EmailSettings.tsx:325
 msgid "Save Settings"
 msgstr "Зберегти налаштування"
 
@@ -12332,6 +12416,7 @@ msgstr ""
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:39
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
+#: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12719,6 +12804,8 @@ msgstr "Захистіть свій обліковий запис"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:913
 #: packages/admin/src/components/Settings.tsx:87
+#: packages/admin/src/components/settings/EmailSettings.tsx:261
+#: packages/admin/src/components/settings/EmailSettings.tsx:350
 msgid "Security"
 msgstr "Безпека"
 
@@ -12820,6 +12907,10 @@ msgstr "Оберіть випуск, перш ніж перевіряти йог
 #: packages/admin/src/components/ContentList.tsx:733
 msgid "Select all on this page"
 msgstr "Обрати все на цій сторінці"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:221
+msgid "Select and configure the provider that delivers all outgoing email."
+msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3087
 msgid "Select at least one entry."
@@ -12945,7 +13036,7 @@ msgstr "Виділення"
 msgid "Self-Signup Domains"
 msgstr "Домени для самостійної реєстрації"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:98
+#: packages/admin/src/components/settings/EmailSettings.tsx:385
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "Надішліть тестовий email через повний ланцюжок, щоб перевірити налаштування пошти."
 
@@ -12973,16 +13064,28 @@ msgstr "Надіслати посилання для входу"
 msgid "Send Recovery Link"
 msgstr "Надіслати посилання для відновлення"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:123
+#: packages/admin/src/components/settings/EmailSettings.tsx:410
 msgid "Send Test"
 msgstr "Надіслати тест"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:97
+#: packages/admin/src/components/settings/EmailSettings.tsx:384
 msgid "Send Test Email"
 msgstr "Надіслати тестовий email"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:357
+msgid "Sender email"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:297
+msgid "Sender email (optional)"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:291
+msgid "Sender name (optional)"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:153
-#: packages/admin/src/components/settings/EmailSettings.tsx:123
+#: packages/admin/src/components/settings/EmailSettings.tsx:410
 #: packages/admin/src/components/settings/GeneralSettings.tsx:662
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
@@ -13294,6 +13397,10 @@ msgstr "Імпорт сайту"
 msgid "Site Import Analysis"
 msgstr "Аналіз імпорту сайту"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:294
+msgid "Site Name"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/labels.ts:36
 msgid "Site settings"
 msgstr "Налаштування сайту"
@@ -13419,6 +13526,31 @@ msgstr "Менший заголовок розділу"
 #: packages/admin/src/components/PortableTextEditor.tsx:2122
 msgid "Smallest section heading"
 msgstr "Найменший заголовок розділу"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:27
+#: packages/admin/src/components/settings/EmailSettings.tsx:230
+msgid "SMTP"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:239
+msgid "SMTP Host"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:374
+msgid "SMTP is configured in the admin UI. The password is encrypted in the database."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:375
+msgid "SMTP is configured via environment variables on the server."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:337
+msgid "SMTP Transport"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:242
+msgid "smtp-relay.brevo.com"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:60
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
@@ -13614,6 +13746,14 @@ msgstr "Запуск"
 msgid "Starting…"
 msgstr "Запуск…"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:352
+msgid "STARTTLS"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:268
+msgid "STARTTLS (port 587)"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
@@ -13701,6 +13841,10 @@ msgstr "Нижній індекс"
 #: packages/admin/src/components/PortableTextEditor.tsx:5378
 msgid "Superscript"
 msgstr "Верхній індекс"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:308
+msgid "support@example.com"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:53
 msgid "Svelte"
@@ -13899,7 +14043,11 @@ msgstr "Термін оновлено"
 msgid "Terms"
 msgstr "Терміни"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:112
+#: packages/admin/src/components/settings/EmailSettings.tsx:99
+msgid "Test email sent to {to}"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:399
 msgid "test@example.com"
 msgstr "test@example.com"
 
@@ -14284,6 +14432,14 @@ msgstr "Під час експорту сайт постійно змінюва�
 #: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The site’s storage could not be read or written."
 msgstr "Не вдалося прочитати сховище сайту або записати в нього."
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:314
+msgid "The SMTP password is encrypted before it is stored in the database."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:313
+msgid "The SMTP password is encrypted before it is stored in the database. Leave the password empty to keep the saved one."
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:518
 msgid "The starter content listed above is deleted and replaced with the package’s content. The import can’t be undone once it starts; to go back you would need a backup of this site."
@@ -15190,7 +15346,7 @@ msgstr "Унікальний"
 msgid "Unique identifier (ULID)"
 msgstr "Унікальний ідентифікатор (ULID)"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:170
+#: packages/admin/src/components/settings/EmailSettings.tsx:463
 #: packages/admin/src/components/users/useRolesConfig.ts:7
 msgid "Unknown"
 msgstr "Невідомо"
@@ -15585,6 +15741,10 @@ msgstr "Введіть не більше 200 символів."
 msgid "Use 200 options or fewer."
 msgstr "Вкажіть не більше 200 варіантів."
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:136
+msgid "Use 587 (STARTTLS) or 465 (implicit TLS)."
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/RelationForm.tsx:178
@@ -15701,6 +15861,10 @@ msgstr "Користувача не знайдено"
 msgid "User not found: {id}"
 msgstr "Користувача не знайдено: {id}"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:273
+msgid "Username"
+msgstr ""
+
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
@@ -15815,7 +15979,6 @@ msgid "Video upload failed. Try again."
 msgstr "Не вдалося завантажити відео. Спробуйте ще раз."
 
 #: packages/admin/src/components/Settings.tsx:113
-#: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
 msgstr "Статус поштового провайдера та тестові листи"
 
@@ -16148,7 +16311,7 @@ msgstr "Перед створенням Windows покаже, який мене�
 msgid "With a passkey, you don’t need to remember complex passwords"
 msgstr "З ключем доступу не потрібно запам'ятовувати складні паролі"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:149
+#: packages/admin/src/components/settings/EmailSettings.tsx:440
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Без поштового провайдера посилання-запрошення треба надсилати вручну."
 
@@ -16343,6 +16506,7 @@ msgstr "Вас запрошено!"
 msgid "you@company.com"
 msgstr "you@company.com"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:276
 #: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
 msgstr "you@example.com"

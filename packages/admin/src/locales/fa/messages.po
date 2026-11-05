@@ -1752,7 +1752,7 @@ msgstr ""
 msgid "After"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:192
+#: packages/admin/src/components/settings/EmailSettings.tsx:485
 msgid "After send:"
 msgstr "پس از ارسال:"
 
@@ -1975,7 +1975,8 @@ msgstr ""
 #: packages/admin/src/components/settings/BackupSettings.tsx:104
 #: packages/admin/src/components/settings/BackupSettings.tsx:124
 #: packages/admin/src/components/settings/BackupSettings.tsx:167
-#: packages/admin/src/components/settings/EmailSettings.tsx:45
+#: packages/admin/src/components/settings/EmailSettings.tsx:89
+#: packages/admin/src/components/settings/EmailSettings.tsx:105
 #: packages/admin/src/components/settings/GeneralSettings.tsx:99
 #: packages/admin/src/components/settings/GeneralSettings.tsx:210
 #: packages/admin/src/components/settings/GeneralSettings.tsx:223
@@ -2370,7 +2371,7 @@ msgstr ""
 msgid "Available in {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:203
+#: packages/admin/src/components/settings/EmailSettings.tsx:496
 msgid "Available Providers"
 msgstr "ارائه‌دهندگان موجود"
 
@@ -2502,7 +2503,7 @@ msgstr ""
 msgid "Before"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:187
+#: packages/admin/src/components/settings/EmailSettings.tsx:480
 msgid "Before send:"
 msgstr "قبل از ارسال:"
 
@@ -3195,6 +3196,10 @@ msgstr ""
 msgid "Choose replacement image"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:439
+msgid "Choose SMTP above or install an email provider plugin to enable email features like invitations, magic links, and password recovery."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
 msgstr ""
@@ -3507,6 +3512,10 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1008
 msgid "Configure Field"
 msgstr "پیکربندی فیلد"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:182
+msgid "Configure the email provider, view pipeline status, and send test emails"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
@@ -5417,22 +5426,30 @@ msgstr ""
 msgid "Email is required"
 msgstr "ایمیل الزامی است"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:184
+#: packages/admin/src/components/settings/EmailSettings.tsx:477
 msgid "Email Middleware"
 msgstr "میان‌افزار ایمیل"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:91
+#: packages/admin/src/components/settings/EmailSettings.tsx:332
 msgid "Email Pipeline"
 msgstr "مسیر ایمیل"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:166
+#: packages/admin/src/components/settings/EmailSettings.tsx:220
+msgid "Email Provider"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:457
 msgid "Email provider active"
 msgstr "ارائه‌دهنده ایمیل فعال"
 
 #: packages/admin/src/components/Settings.tsx:108
-#: packages/admin/src/components/settings/EmailSettings.tsx:58
+#: packages/admin/src/components/settings/EmailSettings.tsx:181
 msgid "Email Settings"
 msgstr "تنظیمات ایمیل"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:82
+msgid "Email settings saved"
+msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:432
 msgid "Email users"
@@ -5738,6 +5755,10 @@ msgstr "محتوای ی markdown را وارد کنید..."
 #: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter name"
 msgstr "نام را وارد کنید"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:287
+msgid "Enter SMTP password"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Enter the code from your terminal"
@@ -6369,7 +6390,7 @@ msgstr ""
 msgid "Failed to fetch dashboard stats"
 msgstr ""
 
-#: packages/admin/src/lib/api/email-settings.ts:34
+#: packages/admin/src/lib/api/email-settings.ts:47
 msgid "Failed to fetch email settings"
 msgstr ""
 
@@ -6623,8 +6644,8 @@ msgstr ""
 msgid "Failed to load bylines: {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:80
-#: packages/admin/src/components/settings/EmailSettings.tsx:81
+#: packages/admin/src/components/settings/EmailSettings.tsx:203
+#: packages/admin/src/components/settings/EmailSettings.tsx:204
 msgid "Failed to load email settings"
 msgstr "بارگذاری تنظیمات ایمیل ناموفق بود"
 
@@ -6834,6 +6855,11 @@ msgstr "ذخیره ناموفق بود"
 msgid "Failed to save backup settings"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:88
+#: packages/admin/src/lib/api/email-settings.ts:90
+msgid "Failed to save email settings"
+msgstr ""
+
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:98
 #: packages/admin/src/components/settings/GeneralSettings.tsx:209
@@ -6855,8 +6881,8 @@ msgstr "ارسال لینک جادویی ناموفق بود"
 msgid "Failed to send recovery link"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:44
-#: packages/admin/src/lib/api/email-settings.ts:45
+#: packages/admin/src/components/settings/EmailSettings.tsx:104
+#: packages/admin/src/lib/api/email-settings.ts:58
 msgid "Failed to send test email"
 msgstr "ارسال ایمیل آزمایشی ناموفق بود"
 
@@ -7613,6 +7639,14 @@ msgstr "هوک‌ها"
 msgid "Horizontal {0}%, vertical {1}%"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:342
+msgid "Host"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:117
+msgid "Host and user are required."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
 msgstr ""
@@ -7810,6 +7844,14 @@ msgstr "آدرس تصویر"
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
 msgid "Images"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:352
+msgid "Implicit TLS"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:269
+msgid "Implicit TLS (port 465)"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:244
@@ -8108,10 +8150,6 @@ msgstr "اینستاگرام"
 msgid "Install"
 msgstr "نصب"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:148
-msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr "افزونه ارائه‌دهنده ایمیل را نصب و فعال کنید تا قابلیت‌های ایمیلی مانند دعوت‌ها، لینک‌های جادویی و بازیابی گذرواژه فعال شوند."
-
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:208
 msgid "Install blocked"
 msgstr "نصب مسدود شد"
@@ -8168,6 +8206,10 @@ msgstr "JSON نامعتبر"
 #: packages/admin/src/components/SignupPage.tsx:285
 msgid "Invalid link"
 msgstr "لینک نامعتبر"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:126
+msgid "Invalid port"
+msgstr ""
 
 #: packages/admin/src/routes/users.tsx:132
 msgid "Invitation sent to {email}"
@@ -8437,6 +8479,10 @@ msgstr ""
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:38
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:40
 msgid "Leave"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:286
+msgid "Leave empty to keep current password"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2556
@@ -8774,7 +8820,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:155
-#: packages/admin/src/components/settings/EmailSettings.tsx:69
+#: packages/admin/src/components/settings/EmailSettings.tsx:192
 #: packages/admin/src/components/settings/SecuritySettings.tsx:104
 #: packages/admin/src/components/settings/TransferSettings.tsx:57
 #: packages/admin/src/components/TaxonomyManager.tsx:1197
@@ -9234,6 +9280,10 @@ msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:259
 msgid "Minute"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:116
+msgid "Missing SMTP configuration"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:269
@@ -9815,7 +9865,7 @@ msgstr ""
 msgid "No email address"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:145
+#: packages/admin/src/components/settings/EmailSettings.tsx:436
 msgid "No email provider configured"
 msgstr "ارائه‌دهنده ایمیلی پیکربندی نشده"
 
@@ -10124,6 +10174,10 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:777
 msgid "None (top level)"
 msgstr "هیچ‌کدام (سطح بالا)"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:301
+msgid "noreply@example.com"
+msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:713
 msgid "Not compatible with this environment"
@@ -10582,6 +10636,10 @@ msgstr ""
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "شاه‌کلیدها نیاز به HTTPS یا http://localhost (با پورت شما) دارند؛ این نام میزبان یک محیط امن مرورگر نیست."
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:280
+msgid "Password"
+msgstr ""
+
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:247
 msgid "Paste an embed code or an https link…"
 msgstr ""
@@ -10869,6 +10927,19 @@ msgstr ""
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "موتورهای جستجو را به نسخه اصلی این صفحه هدایت می‌کند، اگر از آدرس دیگری تکراری شده باشد"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:246
+#: packages/admin/src/components/settings/EmailSettings.tsx:346
+msgid "Port"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:135
+msgid "Port 25 is not supported"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:127
+msgid "Port must be between 1 and 65535."
+msgstr ""
+
 #: packages/admin/src/components/FocalPointEditor.tsx:50
 msgid "Portrait"
 msgstr ""
@@ -11016,7 +11087,11 @@ msgstr ""
 msgid "Provenance required"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:168
+#: packages/admin/src/components/settings/EmailSettings.tsx:226
+msgid "Provider"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:459
 msgid "Provider:"
 msgstr "ارائه‌دهنده:"
 
@@ -11292,7 +11367,7 @@ msgstr ""
 msgid "Recently Updated"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:108
+#: packages/admin/src/components/settings/EmailSettings.tsx:395
 msgid "Recipient email"
 msgstr "ایمیل گیرنده"
 
@@ -11788,6 +11863,14 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:120
 msgid "Reply to:"
 msgstr "پاسخ به:"
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:367
+msgid "Reply-to"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:304
+msgid "Reply-to email (optional)"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:220
 msgid "Repository"
@@ -12287,6 +12370,7 @@ msgstr ""
 
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
+#: packages/admin/src/components/settings/EmailSettings.tsx:325
 msgid "Save Settings"
 msgstr "ذخیره تنظیمات"
 
@@ -12328,6 +12412,7 @@ msgstr ""
 #: packages/admin/src/components/RelationFormPanel.tsx:151
 #: packages/admin/src/components/SaveButton.tsx:39
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
+#: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/users/UserDetail.tsx:330
 #: packages/admin/src/components/Widgets.tsx:1070
@@ -12715,6 +12800,8 @@ msgstr "حساب کاربری خود را ایمن کنید"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:913
 #: packages/admin/src/components/Settings.tsx:87
+#: packages/admin/src/components/settings/EmailSettings.tsx:261
+#: packages/admin/src/components/settings/EmailSettings.tsx:350
 msgid "Security"
 msgstr "امنیت"
 
@@ -12815,6 +12902,10 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentInbox.tsx:354
 #: packages/admin/src/components/ContentList.tsx:733
 msgid "Select all on this page"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:221
+msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:3087
@@ -12941,7 +13032,7 @@ msgstr ""
 msgid "Self-Signup Domains"
 msgstr "دامنه‌های ثبت‌نام آزاد"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:98
+#: packages/admin/src/components/settings/EmailSettings.tsx:385
 msgid "Send a test email through the full pipeline to verify your email configuration."
 msgstr "یک ایمیل آزمایشی از طریق مسیر کامل ارسال کنید تا پیکربندی ایمیل خود را تأیید کنید."
 
@@ -12969,16 +13060,28 @@ msgstr "ارسال لینک جادویی"
 msgid "Send Recovery Link"
 msgstr "ارسال لینک بازیابی"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:123
+#: packages/admin/src/components/settings/EmailSettings.tsx:410
 msgid "Send Test"
 msgstr "ارسال آزمایشی"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:97
+#: packages/admin/src/components/settings/EmailSettings.tsx:384
 msgid "Send Test Email"
 msgstr "ارسال ایمیل آزمایشی"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:357
+msgid "Sender email"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:297
+msgid "Sender email (optional)"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:291
+msgid "Sender name (optional)"
+msgstr ""
+
 #: packages/admin/src/components/LoginPage.tsx:153
-#: packages/admin/src/components/settings/EmailSettings.tsx:123
+#: packages/admin/src/components/settings/EmailSettings.tsx:410
 #: packages/admin/src/components/settings/GeneralSettings.tsx:662
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
@@ -13290,6 +13393,10 @@ msgstr ""
 msgid "Site Import Analysis"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:294
+msgid "Site Name"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/labels.ts:36
 msgid "Site settings"
 msgstr ""
@@ -13414,6 +13521,31 @@ msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2122
 msgid "Smallest section heading"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:27
+#: packages/admin/src/components/settings/EmailSettings.tsx:230
+msgid "SMTP"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:239
+msgid "SMTP Host"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:374
+msgid "SMTP is configured in the admin UI. The password is encrypted in the database."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:375
+msgid "SMTP is configured via environment variables on the server."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:337
+msgid "SMTP Transport"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:242
+msgid "smtp-relay.brevo.com"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:60
@@ -13610,6 +13742,14 @@ msgstr ""
 msgid "Starting…"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:352
+msgid "STARTTLS"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:268
+msgid "STARTTLS (port 587)"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
@@ -13696,6 +13836,10 @@ msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5378
 msgid "Superscript"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:308
+msgid "support@example.com"
 msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:53
@@ -13895,7 +14039,11 @@ msgstr ""
 msgid "Terms"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:112
+#: packages/admin/src/components/settings/EmailSettings.tsx:99
+msgid "Test email sent to {to}"
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:399
 msgid "test@example.com"
 msgstr "test@example.com"
 
@@ -14279,6 +14427,14 @@ msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The site’s storage could not be read or written."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:314
+msgid "The SMTP password is encrypted before it is stored in the database."
+msgstr ""
+
+#: packages/admin/src/components/settings/EmailSettings.tsx:313
+msgid "The SMTP password is encrypted before it is stored in the database. Leave the password empty to keep the saved one."
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:518
@@ -15186,7 +15342,7 @@ msgstr "یکتا"
 msgid "Unique identifier (ULID)"
 msgstr "شناسه یکتا (ULID)"
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:170
+#: packages/admin/src/components/settings/EmailSettings.tsx:463
 #: packages/admin/src/components/users/useRolesConfig.ts:7
 msgid "Unknown"
 msgstr "ناشناخته"
@@ -15581,6 +15737,10 @@ msgstr ""
 msgid "Use 200 options or fewer."
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:136
+msgid "Use 587 (STARTTLS) or 465 (implicit TLS)."
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
 #: packages/admin/src/components/FieldEditor.tsx:351
 #: packages/admin/src/components/RelationForm.tsx:178
@@ -15697,6 +15857,10 @@ msgstr "کاربر یافت نشد"
 msgid "User not found: {id}"
 msgstr ""
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:273
+msgid "Username"
+msgstr ""
+
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
@@ -15811,7 +15975,6 @@ msgid "Video upload failed. Try again."
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:113
-#: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
 msgstr "مشاهده وضعیت ارائه‌دهنده ایمیل و ارسال ایمیل‌های آزمایشی"
 
@@ -16144,7 +16307,7 @@ msgstr ""
 msgid "With a passkey, you don’t need to remember complex passwords"
 msgstr ""
 
-#: packages/admin/src/components/settings/EmailSettings.tsx:149
+#: packages/admin/src/components/settings/EmailSettings.tsx:440
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "بدون ارائه‌دهنده ایمیل، لینک‌های دعوت باید به‌صورت دستی به اشتراک گذاشته شوند."
 
@@ -16339,6 +16502,7 @@ msgstr ""
 msgid "you@company.com"
 msgstr "you@company.com"
 
+#: packages/admin/src/components/settings/EmailSettings.tsx:276
 #: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
 msgstr "you@example.com"
