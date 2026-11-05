@@ -10,7 +10,7 @@ created: 2026-10-10
 
 # Filter the content list by taxonomy term
 
-This plan records, retrospectively, the design of #3046, which was opened on September 10, 2026, before this process existed. #3046 is a working prototype of the API and the repository filter. Once this plan is accepted it will be updated to match it, including the term picker, the shared limit and the locale handling below.
+This plan records, retrospectively, the design of #3046, which was opened on September 10, 2026, before this process existed. #3046 is a working prototype of the API and the repository filter. Once this plan is accepted it will be updated to match it, including the term picker, the parameter binding and the locale handling below.
 
 ## Problem and user case
 
@@ -72,10 +72,12 @@ One known limitation follows: a term that exists only in a non-default locale ot
 - **Admin client:** `fetchContentList` accepts `termFilters`. "No selection" is the absence of a key, never an empty array.
 - **Stored data, migrations, configuration and plugin surface:** none.
 
-The query is one `EXISTS` subquery per key against `content_taxonomies`. Two details of that table are relied on, and both match nothing instead of raising an error when got wrong:
+The filter resolves each taxonomy's slugs to term translation groups once, before the list query, as the loader's taxonomy filter does. The list query then filters on those groups. A taxonomy whose slugs resolve to no term ends the request with an empty list, without running the list query. The exact SQL is left to the implementation. A correlated subquery per taxonomy, checked on every row of the collection, is the shape that made taxonomy listings read the whole collection in #1834, so the verification below checks rows read.
+
+Two details of `content_taxonomies` are relied on, and both match nothing instead of raising an error when got wrong:
 
 - `content_taxonomies.entry_id` holds the entry's `translation_group`, not its `id`.
-- It points at `taxonomies.translation_group`, so a term matches through any of its locale variants. The subquery does not restrict `taxonomies.locale`, even when the list is locale-scoped, or a fallback term offered by the picker would match nothing.
+- `content_taxonomies.taxonomy_id` holds the term's `translation_group`, so a term matches through any of its locale variants. The term lookup does not restrict `taxonomies.locale`, even when the list is locale-scoped, or a fallback term offered by the picker would match nothing.
 
 ## Errors and edge cases
 
@@ -86,7 +88,7 @@ A filter that silently matches everything returns a complete, plausible list wit
 - An empty array for a taxonomy is rejected by the API schema: a taxonomy filter needs at least one slug. Below the schema, the repository treats an empty array as matching nothing, so a caller that bypasses the route cannot get an unfiltered list either.
 - Malformed JSON is a validation error.
 - If two different terms of a taxonomy share a slug in different locales, a filter on that slug matches entries carrying either.
-- `termFilters` and `fieldFilters` end up in one statement and D1 accepts about 100 bound parameters, so they share one budget of `SQL_BATCH_SIZE` (50) operands. Each slug and each field filter operand counts as one, and each taxonomy counts as two, for its `collection` and `name` parameters. A request over budget is a `VALIDATION_ERROR`, checked at the route and in the repository as the field filter budget is today.
+- D1 accepts about 100 bound parameters per statement, and the list query also carries `fieldFilters` and up to 25 bylines. So each taxonomy's values are bound as one JSON array with `jsonTextValues`, as the loader binds long term lists, in the term lookup and in the list query. A taxonomy then costs the same few parameters however many terms are picked, the number of picked terms has no budget, and `fieldFilters` keeps its own budget unchanged.
 - Other limits: at most 10 taxonomies, taxonomy names of at most 63 characters matching `^[a-z][a-z0-9_]*$`, slugs of at most 200 characters, and a raw parameter of at most 8,192 characters.
 
 ## Verification
@@ -101,7 +103,12 @@ Repository tests, which seed `content_taxonomies` directly to pin the two juncti
 - A locale-scoped list matches an entry through a term that exists only in the default locale.
 - A parent term does not match an entry that carries only its child.
 
-Schema and handler tests: the limits above, the shared budget with `termFilters` and `fieldFilters` together, malformed JSON, and the `VALIDATION_ERROR` for a taxonomy not applied to the collection.
+Schema and handler tests: the limits above, malformed JSON, and the `VALIDATION_ERROR` for a taxonomy not applied to the collection.
+
+D1 tests (`tests/workerd/`):
+
+- A list filtered by more than 100 slugs, together with field filters and several bylines, loads.
+- Rows read: on a collection of several hundred entries where a narrow term is on a few of them, the filtered list and its count read fewer rows (`meta.rows_read`, summed over the request's statements) than the collection has entries.
 
 Admin component tests: a collection with no taxonomy renders no new control, several selected terms are sent as `termFilters`, the picker offers no way to create a term, terms load with fallback resolution and without counts, and "Clear filters" is offered for a term selection alone and removes the key.
 
