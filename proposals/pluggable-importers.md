@@ -93,12 +93,12 @@ The converter writes a site package through the site package SDK. The target sit
 
 ### Layers
 
-| Layer | Package | Responsibility |
-| --- | --- | --- |
-| Import frame | `emdash` | Registry, routes, admin Import page, field mapping, writers, jobs |
-| Source | `@emdash-cms/import-wordpress`, third-party packages | Probe, analyze and read a foreign system; yield normalized items and media references |
-| Builder adapter | Exported by a source package or a separate package | Claim items whose content a builder produced and convert it to Portable Text |
-| Site package SDK | `@emdash-cms/site-package` | Write and validate a `.emdash` package outside an EmDash runtime |
+| Layer            | Package                                              | Responsibility                                                                        |
+| ---------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Import frame     | `emdash`                                             | Registry, routes, admin Import page, field mapping, writers, jobs                     |
+| Source           | `@emdash-cms/import-wordpress`, third-party packages | Probe, analyze and read a foreign system; yield normalized items and media references |
+| Builder adapter  | Exported by a source package or a separate package   | Claim items whose content a builder produced and convert it to Portable Text          |
+| Site package SDK | `@emdash-cms/site-package`                           | Write and validate a `.emdash` package outside an EmDash runtime                      |
 
 ### Configuration
 
@@ -152,16 +152,16 @@ Analysis reports, per post type, how many items each adapter claimed and how man
 
 The frame owns routes addressed by source ID:
 
-| Route | Purpose |
-| --- | --- |
-| `POST /_emdash/api/import/probe` | Probe a URL against all configured sources |
-| `POST /_emdash/api/import/[source]/files` | Stage an uploaded file in storage |
-| `POST /_emdash/api/import/[source]/analyze` | Analyze staged input or a URL |
-| `POST /_emdash/api/import/[source]/prepare` | Create or map collections and fields |
-| `POST /_emdash/api/import/jobs` | Start a job from an analysis and a mapping |
-| `GET /_emdash/api/import/jobs/[id]` | Job state, progress and errors |
-| `POST /_emdash/api/import/jobs/[id]/advance` | Run one step |
-| `POST /_emdash/api/import/jobs/[id]/cancel` | Cancel a job |
+| Route                                        | Purpose                                    |
+| -------------------------------------------- | ------------------------------------------ |
+| `POST /_emdash/api/import/probe`             | Probe a URL against all configured sources |
+| `POST /_emdash/api/import/[source]/files`    | Stage an uploaded file in storage          |
+| `POST /_emdash/api/import/[source]/analyze`  | Analyze staged input or a URL              |
+| `POST /_emdash/api/import/[source]/prepare`  | Create or map collections and fields       |
+| `POST /_emdash/api/import/jobs`              | Start a job from an analysis and a mapping |
+| `GET /_emdash/api/import/jobs/[id]`          | Job state, progress and errors             |
+| `POST /_emdash/api/import/jobs/[id]/advance` | Run one step                               |
+| `POST /_emdash/api/import/jobs/[id]/cancel`  | Cancel a job                               |
 
 Every route requires `import:execute`, as today, and state-changing routes keep the `X-EmDash-Request` requirement. An uploaded file is staged in the site's storage once and read by every step, instead of being uploaded and parsed again for each chunk.
 
