@@ -6,7 +6,7 @@
  * astro-portabletext passes `node` (not `value`) for custom type components.
  * Any server can answer for a Mastodon URL, so the rendered post is sanitized.
  */
-import { MastodonPost } from "astro-embed";
+import { MastodonPost } from "@astro-community/astro-embed-mastodon";
 import type { MastodonBlock } from "../schemas.js";
 import SanitizeMastodon from "./SanitizeMastodon.astro";
 

@@ -1,19 +1,30 @@
 import { useLingui } from "@lingui/react/macro";
 import { useBlocker, type ShouldBlockFn } from "@tanstack/react-router";
+import * as React from "react";
 
 import { ConfirmDialog } from "./ConfirmDialog.js";
-
-const leavesPage: ShouldBlockFn = ({ current, next }) => current.pathname !== next.pathname;
 
 /**
  * While `when` is true, asks before leaving the page: a link to another page
  * opens a dialog, and reloading or closing the tab shows the browser's prompt.
- * A navigation the app starts after a save must pass `ignoreBlocker`.
+ * A link first calls `saveBeforeLeaving` and leaves without asking when it
+ * returns true. A navigation the app starts after a save or a delete must
+ * pass `ignoreBlocker`.
  */
-export function UnsavedChangesGuard({ when }: { when: boolean }) {
+export function UnsavedChangesGuard({
+	when,
+	saveBeforeLeaving,
+}: {
+	when: boolean;
+	saveBeforeLeaving?: () => boolean;
+}) {
 	const { t } = useLingui();
+	const shouldBlockFn = React.useCallback<ShouldBlockFn>(
+		({ current, next }) => current.pathname !== next.pathname && !saveBeforeLeaving?.(),
+		[saveBeforeLeaving],
+	);
 	const blocker = useBlocker({
-		shouldBlockFn: leavesPage,
+		shouldBlockFn,
 		disabled: !when,
 		withResolver: true,
 	});

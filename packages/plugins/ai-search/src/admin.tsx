@@ -1,4 +1,4 @@
-import { Banner, Button, Code, Loader, Tabs } from "@cloudflare/kumo";
+import { Banner, Button, Loader, Tabs } from "@cloudflare/kumo";
 import { PencilSimple } from "@phosphor-icons/react";
 import type { PluginAdminExports } from "emdash";
 import * as React from "react";
@@ -14,6 +14,7 @@ import {
 	tabFromUrl,
 } from "./admin-api.js";
 import { useBuildRunner, useStatusPoll } from "./admin-build.js";
+import { ConnectionCard, ConnectPanel } from "./admin-connection.js";
 import { EntryIndexPanel } from "./admin-entry-panel.js";
 import { IndexImpactNote } from "./admin-impact.js";
 import { PreviewSearchButton } from "./admin-preview.js";
@@ -26,14 +27,6 @@ const TABS: Array<{ value: SettingsTab; label: string }> = [
 	{ value: "content", label: "Search content" },
 	{ value: "relevance", label: "Relevance" },
 ];
-
-const BINDING_SNIPPET = `// wrangler.jsonc
-{
-  "compatibility_date": "2026-03-27",
-  "ai_search_namespaces": [
-    { "binding": "AI_SEARCH", "namespace": "my-site" }
-  ]
-}`;
 
 /** The wizard's starting point: a draft to edit and, optionally, the source to open at. */
 interface WizardLaunch {
@@ -151,14 +144,13 @@ function SettingsPage() {
 		);
 	} else if (!status.connected) {
 		body = (
-			<section className="space-y-4">
-				<Banner
-					variant="alert"
-					title="AI Search is not connected"
-					description="The plugin runs only on Cloudflare Workers and needs an AI Search namespace binding. Add one to your Wrangler configuration and deploy again."
-				/>
-				<Code lang="jsonc" code={BINDING_SNIPPET} />
-			</section>
+			<ConnectPanel
+				rejected={status.credentialsRejected}
+				onConnected={async () => {
+					const next = await refreshStatus();
+					if (next.connected && !settings.saved) setWizard({ draft: settings.config });
+				}}
+			/>
 		);
 	} else if (!settings.saved) {
 		body = (
@@ -213,6 +205,9 @@ function SettingsPage() {
 						onRebuild={() => void rebuild()}
 						onChanged={async () => void (await refreshStatus())}
 					/>
+					{status.method === "rest" && (
+						<ConnectionCard onChanged={() => void refreshStatus().catch(() => {})} />
+					)}
 				</aside>
 			</div>
 		);
@@ -228,6 +223,20 @@ function SettingsPage() {
 				</p>
 			</header>
 			{error && <Banner variant="error" description={error} />}
+			{status.instanceMissing && !wizard && (
+				<Banner
+					variant="alert"
+					title="AI Search has no instance for this site"
+					description="This can happen after connecting another account or namespace. Choose Edit setup and finish it to create the instance and rebuild the index."
+				/>
+			)}
+			{status.rateLimited && !wizard && (
+				<Banner
+					variant="alert"
+					title="Cloudflare is limiting requests to AI Search"
+					description="Figures on this page may be missing until it allows requests again."
+				/>
+			)}
 			{body}
 		</div>
 	);

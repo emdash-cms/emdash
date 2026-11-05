@@ -163,6 +163,13 @@ interface HookHandlerMap {
 	"page:fragments": PageFragmentHandler;
 }
 
+/** A host-enforced hook deadline, distinct from an error thrown by plugin code. */
+export class HookTimeoutError extends Error {
+	constructor(timeout: number) {
+		super(`Hook timeout after ${timeout}ms`);
+	}
+}
+
 /**
  * Hook execution result
  */
@@ -443,8 +450,7 @@ export class HookPipeline {
 	private async executeWithTimeout<T>(fn: () => Promise<T>, timeout: number): Promise<T> {
 		let timer: ReturnType<typeof setTimeout>;
 		const timeoutPromise = new Promise<T>(
-			(_, reject) =>
-				(timer = setTimeout(() => reject(new Error(`Hook timeout after ${timeout}ms`)), timeout)),
+			(_, reject) => (timer = setTimeout(() => reject(new HookTimeoutError(timeout)), timeout)),
 		);
 		try {
 			return await Promise.race([fn(), timeoutPromise]);
@@ -1544,8 +1550,16 @@ export interface ExclusiveHookResolutionOptions {
 	 * selection is stored, a fallback is auto-selected only if no other
 	 * provider of the hook is active, and that selection is not stored, so a
 	 * plugin provider that becomes active later is selected in its place.
+	 * When only fallbacks are active, the first in set order is used.
 	 */
 	fallbackProviders?: ReadonlySet<string>;
+	/**
+	 * Plugin IDs of providers that serve a hook only when explicitly selected.
+	 * They are never auto-selected and are not counted when looking for a
+	 * sole provider, so an unconfigured built-in does not block auto-selection
+	 * of a site's single provider plugin.
+	 */
+	manualProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
@@ -1560,7 +1574,8 @@ export const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * 3. If no selection and only one active provider → auto-select it. Fallback
  *    providers are not counted when another provider is active, so a single
  *    plugin provider is selected over a built-in fallback. A fallback
- *    selection is kept in memory only.
+ *    selection is kept in memory only. Manual providers are never
+ *    auto-selected.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
@@ -1574,6 +1589,7 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		deleteOption,
 		preferredHints,
 		fallbackProviders,
+		manualProviders,
 	} = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
@@ -1629,10 +1645,15 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		}
 
 		// Auto-select if only one active provider
-		const candidates =
-			activeProviderIds.size > 1 && fallbackProviders
-				? [...activeProviderIds].filter((id) => !fallbackProviders.has(id))
-				: [...activeProviderIds];
+		const autoSelectable = [...activeProviderIds].filter((id) => !manualProviders?.has(id));
+		let candidates =
+			autoSelectable.length > 1 && fallbackProviders
+				? autoSelectable.filter((id) => !fallbackProviders.has(id))
+				: autoSelectable;
+		if (candidates.length === 0 && fallbackProviders) {
+			const firstFallback = [...fallbackProviders].find((id) => autoSelectable.includes(id));
+			if (firstFallback) candidates = [firstFallback];
+		}
 		if (candidates.length === 1) {
 			const [onlyProvider] = candidates;
 			if (!fallbackProviders?.has(onlyProvider)) {
@@ -1650,7 +1671,11 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		if (preferredHints) {
 			let found = false;
 			for (const [pluginId, hooks] of preferredHints) {
-				if (hooks.includes(hookName) && activeProviderIds.has(pluginId)) {
+				if (
+					hooks.includes(hookName) &&
+					activeProviderIds.has(pluginId) &&
+					!manualProviders?.has(pluginId)
+				) {
 					try {
 						await setOption(key, pluginId);
 					} catch {

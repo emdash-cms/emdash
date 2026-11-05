@@ -501,6 +501,45 @@ describe("Image toolbar", () => {
 		expectFocus(pm);
 	});
 
+	it("paints floating controls above the sticky toolbar when their layers overlap", async () => {
+		const { pm, img } = await setup();
+		const menu = await selectImage(img);
+		const root = pm.closest<HTMLElement>("[data-emdash-editor-floating-root]")!;
+		const floating = [...root.children].find((child) => child.contains(menu)) as HTMLElement;
+		const toolbar = document.querySelector<HTMLElement>(
+			'[role="toolbar"][aria-label="Text formatting"]',
+		)!;
+		toolbar.style.position = "sticky";
+		toolbar.style.zIndex = "20";
+		const toolbarRect = toolbar.getBoundingClientRect();
+		// Force an overlap to exercise painting order rather than collision avoidance.
+		floating.style.setProperty("position", "fixed", "important");
+		floating.style.setProperty("left", `${toolbarRect.left}px`, "important");
+		floating.style.setProperty("top", `${toolbarRect.top}px`, "important");
+		const replace = button(menu, "Replace");
+		await vi.waitFor(() => {
+			const rect = replace.getBoundingClientRect();
+			const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+			expect(replace.contains(hit)).toBe(true);
+		});
+	});
+
+	it("moves between image controls with the arrow keys", async () => {
+		const { img } = await setup();
+		const toolbar = await selectImage(img);
+		const replace = button(toolbar, "Replace");
+		const alt = button(toolbar, "Alt text");
+		replace.focus();
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(alt);
+		await userEvent.keyboard("{Home}");
+		expect(document.activeElement).toBe(replace);
+		await userEvent.keyboard("{ArrowLeft}");
+		expect(document.activeElement).toBe(button(toolbar, "Delete image"));
+		await userEvent.keyboard("{ArrowRight}");
+		expect(document.activeElement).toBe(replace);
+	});
+
 	it("opens the alt text and link rows from the keyboard", async () => {
 		const { pm, img } = await setup();
 		const toolbar = await selectImage(img);
@@ -538,6 +577,21 @@ describe("Image toolbar", () => {
 		);
 		await pastTextBubbleDelay();
 		expect(toolbar).toBeVisible();
+	});
+
+	it("keeps the cursor in place while typing at the start of a caption, and follows undo", async () => {
+		const { editor, img, caption } = await setup({ image: { caption: "Red bike" } });
+		await selectImage(img);
+		await userEvent.click(caption);
+		caption.setSelectionRange(0, 0);
+		await userEvent.keyboard("Big ");
+
+		expect(caption).toHaveValue("Big Red bike");
+		expect(caption.selectionStart).toBe(4);
+		expect(imageAttrs(editor)?.caption).toBe("Big Red bike");
+
+		editor.commands.undo();
+		await vi.waitFor(() => expect(caption).toHaveValue("Red bike"));
 	});
 
 	it("shows the toolbar when a caption is clicked from another field", async () => {

@@ -46,6 +46,15 @@ function getServerInfo(): { baseUrl: string; token: string; sessionCookie: strin
 async function createInviteViaApi(email: string, role = 30): Promise<string> {
 	const { baseUrl, token, sessionCookie } = getServerInfo();
 
+	// Clear previously captured emails
+	await fetch(`${baseUrl}/_emdash/api/dev/emails`, {
+		method: "DELETE",
+		headers: {
+			"X-EmDash-Request": "1",
+			Cookie: sessionCookie,
+		},
+	});
+
 	// The shared fixture also registers a sandboxed email delivery provider.
 	const selectionRes = await fetch(`${baseUrl}/_emdash/api/admin/hooks/exclusive/email:deliver`, {
 		method: "PUT",
@@ -57,15 +66,6 @@ async function createInviteViaApi(email: string, role = 30): Promise<string> {
 		body: JSON.stringify({ pluginId: "emdash-console-email" }),
 	});
 	expect(selectionRes.status, await selectionRes.text()).toBe(200);
-
-	// Clear previously captured emails
-	await fetch(`${baseUrl}/_emdash/api/dev/emails`, {
-		method: "DELETE",
-		headers: {
-			"X-EmDash-Request": "1",
-			Cookie: sessionCookie,
-		},
-	});
 
 	// Create the invite
 	const createRes = await fetch(`${baseUrl}/_emdash/api/auth/invite`, {
