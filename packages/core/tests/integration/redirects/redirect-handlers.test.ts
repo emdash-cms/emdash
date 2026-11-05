@@ -116,6 +116,12 @@ describe("redirect handlers — loop detection", () => {
 			}
 		});
 
+		it("rejects a redirect to the same path in another encoding", async () => {
+			const result = await handleRedirectCreate(db, { source: "/café", destination: "/caf%C3%A9" });
+			expect(result.success).toBe(false);
+			if (!result.success) expect(result.error.message).toContain("loop");
+		});
+
 		it("allows a redirect that does not create a loop", async () => {
 			await handleRedirectCreate(db, { source: "/a", destination: "/b" });
 

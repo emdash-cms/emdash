@@ -2199,6 +2199,40 @@ describe("ContentEditor", () => {
 			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
 		});
 
+		it("offers Save draft before the first save and Publish now after it", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({ isNew: true, supportsDrafts: true, onPublish });
+
+			await expect.element(screen.getByRole("button", { name: "Save draft" })).toBeInTheDocument();
+			await expect
+				.element(
+					screen.getByText("Saving creates a draft that stays off the site.", { exact: false }),
+				)
+				.toBeVisible();
+			expect(screen.getByRole("button", { name: "Publish now", exact: true }).query()).toBeNull();
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={defaultFields}
+					isNew={false}
+					supportsDrafts
+					item={makeItem({ status: "draft" })}
+					onSave={vi.fn()}
+					onPublish={onPublish}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("button", { name: "Publish now", exact: true }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Save draft" }).query()).toBeNull();
+			await expect
+				.element(screen.getByText("This version is not visible on the site"))
+				.toBeVisible();
+		});
+
 		it("shows Publish now for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
@@ -2227,6 +2261,25 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
 			const previewBtn = screen.getByRole("button", { name: "Preview" });
 			await expect.element(previewBtn).toBeInTheDocument();
+		});
+
+		it("Preview opens the entry's own tab, so a second click reuses it", async () => {
+			const open = vi.spyOn(window, "open").mockReturnValue(null);
+			try {
+				const item = makeItem({ status: "draft" });
+				const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+				const previewBtn = screen.getByRole("button", { name: "Preview" });
+				await previewBtn.click();
+				await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+				await previewBtn.click();
+				await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(2));
+				const [first, second] = open.mock.calls;
+				expect(first![0]).toBe("https://example.com/preview");
+				expect(first![1]).not.toBe("_blank");
+				expect(second![1]).toBe(first![1]);
+			} finally {
+				open.mockRestore();
+			}
 		});
 
 		it("keeps one publish action reachable below lg", async () => {
@@ -2874,6 +2927,27 @@ describe("ContentEditor", () => {
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Edit API Docs", exact: true }))
+				.toBeInTheDocument();
+		});
+
+		it("names the back link after the list it opens", async () => {
+			const screen = await renderEditor({
+				isNew: true,
+				collectionLabel: "Post",
+				manifest: {
+					version: "1.0.0",
+					hash: "hash",
+					authMode: "passkey",
+					collections: {
+						posts: { label: "Posts", labelSingular: "Post", supports: [], hasSeo: false },
+					},
+					plugins: {},
+					taxonomies: [],
+				},
+			});
+
+			await expect
+				.element(screen.getByLabelText("Back to Posts list", { exact: true }))
 				.toBeInTheDocument();
 		});
 
