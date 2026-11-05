@@ -501,9 +501,7 @@ export class Room {
 		}
 		state.updatedAt = updatedAt ?? this.#timers.now();
 		// The first stored update is the initial or compacted state; compaction counts what follows.
-		state.storedBytes = updates
-			.slice(1)
-			.reduce((total, update) => total + update.byteLength, 0);
+		state.storedBytes = updates.slice(1).reduce((total, update) => total + update.byteLength, 0);
 		const stale =
 			!sameBuild(record.fingerprint, this.#build) ||
 			(entry !== null && entry.hash !== record.fingerprint.hash);
