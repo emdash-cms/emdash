@@ -4,6 +4,8 @@ const PAGE_PATH = "/image-variants";
 
 const lightImage = (scope: string) => `${scope} img[src$="light.png"]`;
 const darkImage = (scope: string) => `${scope} img[src$="dark.png"]`;
+const picture = (variant: "light" | "dark") =>
+	`#picture-variant picture:has(img[src*="${variant}.png"])`;
 
 const ONE_PIXEL_PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
@@ -72,6 +74,49 @@ test.describe("Image dark variant", () => {
 		expect(requested.some((url) => url.endsWith("/light.png"))).toBe(true);
 		expect(requested.some((url) => url.endsWith("/dark.png"))).toBe(false);
 	});
+
+	for (const { name, colorScheme, query, visible, hidden } of [
+		{
+			name: "the system prefers light",
+			colorScheme: "light",
+			query: "",
+			visible: "light",
+			hidden: "dark",
+		},
+		{
+			name: "the system prefers dark",
+			colorScheme: "dark",
+			query: "",
+			visible: "dark",
+			hidden: "light",
+		},
+		{
+			name: "<html> has the dark class",
+			colorScheme: "light",
+			query: "?theme=dark",
+			visible: "dark",
+			hidden: "light",
+		},
+		{
+			name: "<html> has the light class",
+			colorScheme: "dark",
+			query: "?theme=light",
+			visible: "light",
+			hidden: "dark",
+		},
+	] as const) {
+		test(`with formats, only the ${visible} picture is shown when ${name}`, async ({ page }) => {
+			await page.route("**/_image?**", (route) =>
+				route.fulfill({ status: 200, contentType: "image/png", body: ONE_PIXEL_PNG }),
+			);
+			await page.emulateMedia({ colorScheme });
+			await page.goto(`${PAGE_PATH}${query}`);
+
+			await expect(page.locator("#picture-variant picture")).toHaveCount(2);
+			await expect(page.locator(picture(visible))).toBeVisible();
+			await expect(page.locator(picture(hidden))).toHaveCSS("display", "none");
+		});
+	}
 
 	test("an image without a variant renders a single visible image in both schemes", async ({
 		page,

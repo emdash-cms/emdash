@@ -11,6 +11,7 @@ import type { WxrNavMenu, WxrNavMenuItem } from "../cli/wxr/parser.js";
 import type { Database } from "../database/types.js";
 import type { MenuItemType } from "../menus/types.js";
 import { invalidateMenuObjectCache } from "../object-cache/index.js";
+import { mapPostTypeToCollection } from "./utils.js";
 
 /**
  * Result of menu import operation
@@ -118,12 +119,14 @@ export async function importMenusFromWxr(
  * @param menus - Menus from plugin API
  * @param db - Database connection
  * @param contentIdMap - Map from WP post ID to EmDash content ID
+ * @param collectionMap - Map from WP post ID to the EmDash collection it was imported into
  * @returns Import result with counts and ID mapping
  */
 export async function importMenusFromPlugin(
 	menus: PluginMenu[],
 	db: Kysely<Database>,
 	contentIdMap: Map<number, string>,
+	collectionMap: Map<number, string>,
 ): Promise<MenuImportResult> {
 	const result: MenuImportResult = {
 		menusCreated: 0,
@@ -161,7 +164,13 @@ export async function importMenusFromPlugin(
 			result.menuIdMap.set(menu.name, menuId);
 
 			// Import menu items
-			const itemsCreated = await importPluginMenuItems(menu.items, menuId, db, contentIdMap);
+			const itemsCreated = await importPluginMenuItems(
+				menu.items,
+				menuId,
+				db,
+				contentIdMap,
+				collectionMap,
+			);
 			result.itemsCreated += itemsCreated;
 		} catch (error) {
 			result.errors.push({
@@ -246,6 +255,7 @@ async function importPluginMenuItems(
 	menuId: string,
 	db: Kysely<Database>,
 	contentIdMap: Map<number, string>,
+	collectionMap: Map<number, string>,
 ): Promise<number> {
 	const itemIdMap = new Map<number, string>();
 	let count = 0;
@@ -256,7 +266,11 @@ async function importPluginMenuItems(
 		const itemId = ulid();
 		itemIdMap.set(item.id, itemId);
 
-		const { type, collection, referenceId, customUrl } = mapPluginMenuItem(item, contentIdMap);
+		const { type, collection, referenceId, customUrl } = mapPluginMenuItem(
+			item,
+			contentIdMap,
+			collectionMap,
+		);
 
 		await db
 			.insertInto("_emdash_menu_items")
@@ -368,6 +382,7 @@ function mapWxrMenuItem(
 function mapPluginMenuItem(
 	item: PluginMenuItem,
 	contentIdMap: Map<number, string>,
+	collectionMap: Map<number, string>,
 ): {
 	type: MenuItemType;
 	collection: string | null;
@@ -384,7 +399,9 @@ function mapPluginMenuItem(
 			};
 
 		case "post_type": {
-			const collection = mapObjectToCollection(item.object);
+			const collection =
+				(item.object_id ? collectionMap.get(item.object_id) : undefined) ??
+				mapObjectToCollection(item.object);
 			const referenceId = item.object_id ? contentIdMap.get(item.object_id) || null : null;
 
 			if (!referenceId && item.url) {
@@ -427,13 +444,5 @@ function mapPluginMenuItem(
  */
 function mapObjectToCollection(objectType: string | undefined | null): string {
 	if (!objectType) return "posts";
-
-	const mapping: Record<string, string> = {
-		post: "posts",
-		page: "pages",
-		product: "products",
-		portfolio: "portfolio",
-	};
-
-	return mapping[objectType] || objectType;
+	return mapPostTypeToCollection(objectType);
 }
