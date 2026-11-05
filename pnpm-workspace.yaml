@@ -42,6 +42,7 @@ trustPolicyExclude:
   - "semver@6.3.1" # provenance -> none (old pinned util via @babel/core)
   - "@portabletext/toolkit@3.0.3" # provenance -> none (old pinned release)
   - "reselect@5.1.1" # provenance -> none (old pinned util)
+  - "tsrs@0.20.1-ts7.1.0-beta" # staged publish (0.0.0-bootstrap.0) -> trusted publisher with provenance
 
 overrides:
   "@vitest/runner": 4.1.10
