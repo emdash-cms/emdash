@@ -1,15 +1,17 @@
 /**
  * Menus in a WXR import.
  *
- * The admin lists an export's menus on the review screen and offers to import
- * them. These tests run the execute route the way the admin does and check
- * that the menus arrive with their labels, nesting and links.
+ * The analysis lists an export's menus, and the admin offers to import them.
+ * These tests run the analyze and execute routes the way the admin does and
+ * check that the menus arrive with their labels, nesting and links.
  */
 
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { POST as analyzePost } from "../../../src/astro/routes/api/import/wordpress/analyze.js";
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
+import { MenuRepository } from "../../../src/database/repositories/menu.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
@@ -298,6 +300,44 @@ describe("WXR import of menus", () => {
 		expect(result.success).toBe(false);
 		expect(result.errors).toContainEqual({ title: "Menus", error: "Failed to import menus" });
 		expect(result.menus).toBeUndefined();
+	});
+
+	it("reports a menu that fails without the failure's detail, and leaves no part of it", async () => {
+		const setItems = vi
+			.spyOn(MenuRepository.prototype, "setItems")
+			.mockRejectedValueOnce(
+				new Error("D1_ERROR: UNIQUE constraint failed: _emdash_menu_items.id"),
+			);
+		try {
+			const result = await execute(emdash, SITE);
+
+			expect(result.imported).toBe(3);
+			expect(result.success).toBe(false);
+			expect(result.errors).toEqual([{ title: "Menu: primary", error: "Failed to import menu" }]);
+			expect(JSON.stringify(result)).not.toContain("D1_ERROR");
+			// Nothing is left that would make importing the export again skip the menu
+			expect(await db.selectFrom("_emdash_menus").select("id").execute()).toEqual([]);
+		} finally {
+			setItems.mockRestore();
+		}
+	});
+
+	it("lists the export's menus by their names in WordPress in the analysis", async () => {
+		const formData = new FormData();
+		formData.append("file", new File([SITE], "export.xml", { type: "text/xml" }));
+		const response = await analyzePost({
+			request: new Request("http://localhost/_emdash/api/import/wordpress/analyze", {
+				method: "POST",
+				body: formData,
+			}),
+			locals: { emdash, user: { id: "test-admin", role: 50 } },
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the route reads only request and locals
+		} as never);
+
+		expect(response.status).toBe(200);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- apiSuccess wraps the analysis in `data`
+		const { data } = (await response.json()) as { data: { navMenus?: unknown } };
+		expect(data.navMenus).toEqual([{ name: "primary", label: "Main navigation", itemCount: 5 }]);
 	});
 
 	it("leaves an imported menu as it is when the same export is imported again", async () => {

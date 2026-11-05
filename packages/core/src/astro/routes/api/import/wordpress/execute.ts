@@ -787,7 +787,9 @@ async function importWxrMenus(
 		itemsSkipped: menuResult.itemsSkipped,
 	};
 	for (const menuError of menuResult.errors) {
-		result.errors.push({ title: `Menu: ${menuError.menu}`, error: menuError.error });
+		// The detail can carry database and adapter messages, so it stays in the log
+		console.error("[WXR_IMPORT_MENUS]", menuError.menu, menuError.error);
+		result.errors.push({ title: `Menu: ${menuError.menu}`, error: "Failed to import menu" });
 	}
 	if (menuResult.errors.length > 0) result.success = false;
 }
