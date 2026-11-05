@@ -11,6 +11,7 @@ import {
 	cachedQueryWithEpochs,
 	coalesceObjectCacheWrites,
 	contentNamespaces,
+	deferObjectCacheInvalidations,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
 	invalidateCommentObjectCache,
@@ -583,6 +584,83 @@ describe("coalesceObjectCacheWrites", () => {
 		await flush();
 
 		expect(backend.store.has("em:epoch:menus")).toBe(true);
+	});
+});
+
+describe("deferObjectCacheInvalidations", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("holds an invalidation until the scope ends", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await deferObjectCacheInvalidations(async () => {
+			invalidateObjectCache("posts");
+			await flush();
+			expect(backend.store.has("em:epoch:posts")).toBe(false);
+		});
+		await flush();
+
+		expect(backend.store.has("em:epoch:posts")).toBe(true);
+	});
+
+	it("joins a nested scope to the outermost one", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await deferObjectCacheInvalidations(async () => {
+			await deferObjectCacheInvalidations(() => {
+				invalidateObjectCache("posts");
+				return Promise.resolve();
+			});
+			await flush();
+			// The inner scope ending must not release the outer scope's hold.
+			expect(backend.store.has("em:epoch:posts")).toBe(false);
+		});
+		await flush();
+
+		expect(backend.store.has("em:epoch:posts")).toBe(true);
+	});
+
+	it("applies held invalidations when the work throws", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await expect(
+			deferObjectCacheInvalidations(async () => {
+				invalidateObjectCache("posts");
+				await flush();
+				throw new Error("rolled back");
+			}),
+		).rejects.toThrow("rolled back");
+		await flush();
+
+		// Values cached from reads made through the transaction must not outlive
+		// its rollback, so the bump has to land either way.
+		expect(backend.store.has("em:epoch:posts")).toBe(true);
+	});
+
+	it("writes through invalidations made after the scope has ended", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		let release!: () => void;
+		let late!: Promise<void>;
+
+		await deferObjectCacheInvalidations(async () => {
+			const released = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			late = released.then(() => invalidateObjectCache("taxonomies"));
+			await Promise.resolve();
+		});
+		release();
+		await late;
+		await flush();
+
+		expect(backend.store.has("em:epoch:taxonomies")).toBe(true);
 	});
 });
 
