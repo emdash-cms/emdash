@@ -374,6 +374,36 @@ const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
+ * The room engine and the editor schema it builds documents with. They load only when a room
+ * first runs, so on Cloudflare the optimizer would discover them mid-session, and the reloads
+ * that follow evaluate `@tiptap/pm/tables` twice ("Duplicate use of selection JSON ID cell").
+ */
+const ROOM_ENGINE_DEPS = [
+	"emdash > yjs",
+	"emdash > lib0/decoding",
+	"emdash > lib0/encoding",
+	"emdash > y-protocols/sync",
+	"emdash > @tiptap/y-tiptap",
+	"emdash > @tiptap/starter-kit",
+	"emdash > @tiptap/extension-code",
+	"emdash > @tiptap/extension-code-block",
+	"emdash > @tiptap/extension-list",
+	"emdash > @tiptap/extension-subscript",
+	"emdash > @tiptap/extension-superscript",
+	"emdash > @tiptap/extension-text-align",
+	"emdash > @tiptap/pm/history",
+	"emdash > @tiptap/pm/model",
+	"emdash > @tiptap/pm/state",
+	"emdash > @tiptap/pm/tables",
+	"emdash > @tiptap/pm/transform",
+	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table-cell",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table-header",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table-row",
+];
+
+/**
  * Detect whether the Cloudflare adapter is being used.
  */
 function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
@@ -652,6 +682,7 @@ export function createViteConfig(
 							// Only imported by the /_image route, so the first image
 							// request would otherwise discover it.
 							"@astrojs/cloudflare/image-transform-endpoint",
+							...(options.resolvedConfig.coEditing ? ROOM_ENGINE_DEPS : []),
 						],
 					},
 				}
