@@ -1396,7 +1396,7 @@ msgstr "ใช้งานอยู่"
 msgid "Active v{0}"
 msgstr "ใช้งานอยู่ v{0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "เพิ่มลิงก์"
 msgid "Add links to build your navigation menu"
 msgstr "เพิ่มลิงก์เพื่อสร้างเมนูนำทางของคุณ"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "เพิ่มประเภท MIME หรือนามสกุลไฟล์"
 
@@ -1887,7 +1887,7 @@ msgstr "ประเภทบล็อกที่อนุญาต"
 msgid "Allowed Domains"
 msgstr "โดเมนที่อนุญาต"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "ประเภทที่อนุญาต"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "อนุญาตมีเดียทุกประเภท (ขึ้นอยู่กับขีดจำกัดส่วนกลาง)"
 
@@ -2176,7 +2176,7 @@ msgstr "ข้อมูล JSON ตามต้องการ"
 msgid "Archived"
 msgstr "เก็บถาวรแล้ว"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "คลังเก็บถาวร"
@@ -2244,7 +2244,7 @@ msgstr "ไม่เกิน…"
 msgid "Attribution"
 msgstr "การระบุแหล่งที่มา"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "ความสามารถ"
 msgid "Caption"
 msgstr "คำบรรยายภาพ"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "คำบรรยายภาพ / คำบรรยายใต้ภาพ"
 
@@ -3906,7 +3906,7 @@ msgstr "โหลดข้อมูลการใช้งานไม่สำ
 msgid "Couldn't load versions"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "ไม่สามารถจับคู่ \"{draft}\" กับประเภท MIME ได้ พิมพ์ MIME โดยตรง"
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr "เอกสาร"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr "ทำสำเนาบล็อก"
 msgid "Duplicate redirects were left out"
 msgstr "ไม่รวมการเปลี่ยนเส้นทางที่ซ้ำกัน"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "เช่น application/zip หรือ .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "โหลดโฟลเดอร์ไม่สำเร็จ"
 msgid "Folders navigation"
 msgstr "การนำทางโฟลเดอร์"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "แบบอักษร"
 
@@ -7791,7 +7791,7 @@ msgstr "อัปโหลดรูปภาพไม่สำเร็จ ล�
 msgid "Image URL"
 msgstr "URL ของรูปภาพ"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr "อัปโหลดได้เฉพาะไฟล์รูปภา
 msgid "Only images and videos can be uploaded here."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "ระบบจะยอมรับเฉพาะประเภท MIME ที่ระบุไว้สำหรับฟิลด์นี้เท่านั้น"
 
@@ -10610,7 +10610,7 @@ msgstr "รูปแบบต้องมีตัวยึดตำแหน่
 msgid "Pause other tools that update content."
 msgstr "หยุดเครื่องมืออื่นที่อัปเดตเนื้อหาไว้ชั่วคราว"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "นำออก {0}"
 msgid "Remove {0} from selection"
 msgstr "นำ {0} ออกจากรายการที่เลือก"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "นำออก {entry}"
 
@@ -13502,7 +13502,7 @@ msgstr "สแปม"
 msgid "Split merged cell"
 msgstr "แยกเซลล์ที่ผสานไว้"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "สเปรดชีต"
 
@@ -15748,7 +15748,7 @@ msgstr ""
 msgid "Version restored"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

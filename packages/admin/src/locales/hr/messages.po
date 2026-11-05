@@ -1396,7 +1396,7 @@ msgstr "Aktivan"
 msgid "Active v{0}"
 msgstr "Aktivna v{0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "Dodaj poveznicu"
 msgid "Add links to build your navigation menu"
 msgstr "Dodajte poveznice kako biste izradili navigacijski izbornik"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "Dodaj MIME vrstu ili ekstenziju"
 
@@ -1887,7 +1887,7 @@ msgstr "Dopuštene vrste blokova"
 msgid "Allowed Domains"
 msgstr "Dopuštene domene"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "Dopuštene vrste"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "Dopuštena je svaka vrsta medija (uz globalna ograničenja)."
 
@@ -2176,7 +2176,7 @@ msgstr "Proizvoljni JSON podatci"
 msgid "Archived"
 msgstr "Arhivirano"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "Arhive"
@@ -2244,7 +2244,7 @@ msgstr "Najviše…"
 msgid "Attribution"
 msgstr "Navođenje autora"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "Mogućnosti"
 msgid "Caption"
 msgstr "Opis slike"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "Titlovi / podnaslovi"
 
@@ -3906,7 +3906,7 @@ msgstr "Nije moguće učitati korištenje."
 msgid "Couldn't load versions"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Nije moguće pridružiti „{draft}“ MIME vrsti. Upišite MIME vrstu izravno."
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr "Dokument"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr "Dupliciraj blok"
 msgid "Duplicate redirects were left out"
 msgstr "Duplicirana preusmjeravanja su izostavljena"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "npr. application/zip ili .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "Mape nije moguće učitati."
 msgid "Folders navigation"
 msgstr "Navigacija mapama"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "Fontovi"
 
@@ -7791,7 +7791,7 @@ msgstr "Prijenos slike nije uspio. Pokušajte ponovno."
 msgid "Image URL"
 msgstr "URL slike"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr "Ovdje se mogu prenositi samo slikovne datoteke."
 msgid "Only images and videos can be uploaded here."
 msgstr "Ovdje se mogu prenositi samo slike i videozapisi."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Za ovo polje prihvaćat će se samo navedene MIME vrste."
 
@@ -10610,7 +10610,7 @@ msgstr "Uzorak mora sadržavati rezervirano mjesto {0}"
 msgid "Pause other tools that update content."
 msgstr "Pauzirajte ostale alate koji ažuriraju sadržaj."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "Ukloni {0}"
 msgid "Remove {0} from selection"
 msgstr "Ukloni {0} iz odabira"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "Ukloni {entry}"
 
@@ -13502,7 +13502,7 @@ msgstr "Spam"
 msgid "Split merged cell"
 msgstr "Podijeli spojenu ćeliju"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "Proračunske tablice"
 
@@ -15748,7 +15748,7 @@ msgstr ""
 msgid "Version restored"
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

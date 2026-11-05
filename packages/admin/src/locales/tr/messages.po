@@ -1396,7 +1396,7 @@ msgstr "Aktif"
 msgid "Active v{0}"
 msgstr "Etkin v{0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "Bağlantı ekle"
 msgid "Add links to build your navigation menu"
 msgstr "Gezinme menünüzü oluşturmak için bağlantılar ekleyin"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "MIME türü veya uzantısı ekleyin"
 
@@ -1887,7 +1887,7 @@ msgstr "İzin verilen blok türleri"
 msgid "Allowed Domains"
 msgstr "İzin Verilen Alanlar"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "İzin verilen türler"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "İzin verilen herhangi bir medya türü (genel sınırlamalara tabidir)."
 
@@ -2176,7 +2176,7 @@ msgstr "Rastgele JSON verileri"
 msgid "Archived"
 msgstr "Arşivlendi"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "Arşivler"
@@ -2244,7 +2244,7 @@ msgstr "En fazla…"
 msgid "Attribution"
 msgstr "Atıf"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "İzinler"
 msgid "Caption"
 msgstr "Resim yazısı"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "Alt yazılar"
 
@@ -3906,7 +3906,7 @@ msgstr "Kullanım bilgileri yüklenemedi."
 msgid "Couldn't load versions"
 msgstr "Sürümler yüklenemedi"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "\"{draft}\" bir MIME türüyle eşlenemedi. MIME'yi doğrudan yazın."
 
@@ -4913,7 +4913,7 @@ msgstr "Docker dosyası"
 msgid "Document"
 msgstr "Belge"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr "Bloğu çoğalt"
 msgid "Duplicate redirects were left out"
 msgstr "Yinelenen yönlendirmeler dahil edilmedi"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "ör. application/zip veya .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "Klasörler yüklenemedi."
 msgid "Folders navigation"
 msgstr "Klasör gezinmesi"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "Yazı tipleri"
 
@@ -7791,7 +7791,7 @@ msgstr "Görsel yüklenemedi. Tekrar deneyin."
 msgid "Image URL"
 msgstr "Görsel URL'si"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr "Buraya yalnızca görsel dosyaları yüklenebilir."
 msgid "Only images and videos can be uploaded here."
 msgstr "Buraya yalnızca görsel ve video yüklenebilir."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Bu alan için yalnızca listelenen MIME türleri kabul edilecektir."
 
@@ -10610,7 +10610,7 @@ msgstr "Desen bir {0} yer tutucusu içermelidir"
 msgid "Pause other tools that update content."
 msgstr "İçeriği güncelleyen diğer araçları duraklatın."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF'ler"
 
@@ -11467,7 +11467,7 @@ msgstr "{0}'i kaldırın"
 msgid "Remove {0} from selection"
 msgstr "{0} dosyasını seçimden kaldır"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "{entry} öğesini kaldır"
 
@@ -13502,7 +13502,7 @@ msgstr "Spam"
 msgid "Split merged cell"
 msgstr "Birleştirilmiş hücreyi böl"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "E-tablolar"
 
@@ -15748,7 +15748,7 @@ msgstr "{when} tarihli sürüm"
 msgid "Version restored"
 msgstr "Sürüm geri yüklendi"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

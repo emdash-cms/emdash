@@ -1261,6 +1261,116 @@ describe("htmlToPortableText", () => {
 		expect(block.children.some((c) => c.marks?.includes("strong"))).toBe(true);
 		expect(block.children.some((c) => c.marks?.includes("em"))).toBe(true);
 	});
+
+	it("splits classic-editor text into paragraphs at blank lines", () => {
+		const html =
+			"First paragraph.\r\n\r\nSecond paragraph with a\r\nline break.\r\n\r\n<strong>Third</strong> paragraph.<h2>Heading</h2>\nAfter the heading.\n\n\nLast one.<div>In a div.\n\nStill in the div.</div>";
+		const result = htmlToPortableText(html);
+
+		expect(
+			result.map((block) => ({
+				style: (block as PortableTextTextBlock).style,
+				text: (block as PortableTextTextBlock).children.map((span) => span.text).join(""),
+			})),
+		).toEqual([
+			{ style: "normal", text: "First paragraph." },
+			{ style: "normal", text: "Second paragraph with a\nline break." },
+			{ style: "normal", text: "Third paragraph." },
+			{ style: "h2", text: "Heading" },
+			{ style: "normal", text: "After the heading." },
+			{ style: "normal", text: "Last one." },
+			{ style: "normal", text: "In a div." },
+			{ style: "normal", text: "Still in the div." },
+		]);
+	});
+
+	it("does not split a comment, a tag or formatting at a blank line", () => {
+		const html =
+			'Intro\n\n<!-- draft\n\nold paragraph\n\n-->\n\nOutro<p>Shown<!-- hidden\n\nstill hidden -->after</p><p><a href="https://example.com/" title="first\n\nsecond">Link</a> text.</p><p><strong>Bold\n\nstill bold</strong> plain.</p><p><a href="https://example.com/b">linked\n\nstill linked</a></p>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+		const text = (block: PortableTextTextBlock) => block.children.map((span) => span.text).join("");
+
+		expect(blocks.map(text)).toEqual([
+			"Intro",
+			"Outro",
+			"Shownafter",
+			"Link text.",
+			"Bold",
+			"still bold plain.",
+			"linked",
+			"still linked",
+		]);
+		expect(blocks[3]?.markDefs?.[0]).toMatchObject({ href: "https://example.com/" });
+		expect(blocks[4]?.children[0]?.marks).toContain("strong");
+		expect(blocks[5]?.children.find((span) => span.text === "still bold")?.marks).toContain(
+			"strong",
+		);
+		expect(blocks[5]?.children.find((span) => span.text === " plain.")?.marks ?? []).not.toContain(
+			"strong",
+		);
+		for (const block of blocks.slice(6)) {
+			expect(block.markDefs?.[0]).toMatchObject({ href: "https://example.com/b" });
+			expect(block.children[0]?.marks).toContain(block.markDefs?.[0]?._key);
+		}
+	});
+
+	it("keeps line breaks and no-break spaces at the edges of a paragraph", () => {
+		const blocks = htmlToPortableText(
+			"<p><br>Intro<br></p><p>&nbsp;Spaced&nbsp;</p>Text\n&nbsp;\nMore",
+		) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+			"\nIntro\n",
+			"\u00a0Spaced\u00a0",
+			"Text\n\u00a0\nMore",
+		]);
+	});
+
+	it("keeps each link's target across a paragraph break", () => {
+		const html =
+			'<a href="https://example.com/" target="_blank">One</a>\n\n<a href="https://example.com/">Two</a>\n\n<a href="https://example.com/" target="_blank">Three</a>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.markDefs?.[0]?.blank ?? false)).toEqual([true, false, true]);
+	});
+
+	it("keeps a link across every paragraph it spans", () => {
+		const html = '<a href="https://example.com/article">One\n\nTwo\n\nThree\n\nFour</a>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+			"One",
+			"Two",
+			"Three",
+			"Four",
+		]);
+		for (const block of blocks) {
+			expect(block.markDefs?.[0]).toMatchObject({ href: "https://example.com/article" });
+			expect(block.children[0]?.marks).toContain(block.markDefs?.[0]?._key);
+		}
+	});
+
+	it.each([
+		["unclosed formatting tags", "<b>x\n\n".repeat(20_000)],
+		[
+			"a long unclosed link",
+			`<a href="https://example.com/${"x".repeat(100_000)}">${"y\n\n".repeat(20_000)}`,
+		],
+		["a long run of spaces", `A${" ".repeat(100_000)}B`],
+		["a newline and a long run of spaces", `A\n${" ".repeat(100_000)}B`],
+		[
+			"a link in each of many paragraphs",
+			// One wrapper element keeps the timing on this package: parse5 detaches each
+			// top-level fragment node with an array splice, which is quadratic in their number.
+			`<span>${Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join("")}</span>`,
+		],
+	])("splits paragraphs after %s within a second", (_shape, html) => {
+		const start = process.cpuUsage();
+		htmlToPortableText(html);
+		const { user, system } = process.cpuUsage(start);
+
+		expect((user + system) / 1000).toBeLessThan(1000);
+	});
 });
 
 describe("classic editor tables", () => {
@@ -1636,10 +1746,11 @@ describe("WordPress.com classic editor content", () => {
 		["an image tag with a long run of tabs outside a paragraph", `<img${"\t".repeat(100_000)}`],
 		["repeated paragraph start tags without a closing bracket", "<p ".repeat(100_000)],
 	])("converts %s within a second", (_shape, html) => {
-		const started = performance.now();
+		const start = process.cpuUsage();
 		const result = htmlToPortableText(html);
+		const { user, system } = process.cpuUsage(start);
 
-		expect(performance.now() - started).toBeLessThan(1000);
+		expect((user + system) / 1000).toBeLessThan(1000);
 		expect(result).toEqual([]);
 	});
 

@@ -1396,7 +1396,7 @@ msgstr "活跃"
 msgid "Active v{0}"
 msgstr "活动版本 v{0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "添加链接"
 msgid "Add links to build your navigation menu"
 msgstr "添加链接以构建您的导航菜单"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "添加 MIME 类型或扩展名"
 
@@ -1887,7 +1887,7 @@ msgstr "允许的区块类型"
 msgid "Allowed Domains"
 msgstr "允许的域名"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "允许的类型"
 
@@ -2089,7 +2089,7 @@ msgstr ""
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "允许任何媒体类型（受全局限制）。"
 
@@ -2176,7 +2176,7 @@ msgstr "任意 JSON 数据"
 msgid "Archived"
 msgstr "已归档"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "归档"
@@ -2244,7 +2244,7 @@ msgstr "至多…"
 msgid "Attribution"
 msgstr "署名"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "权限"
 msgid "Caption"
 msgstr "说明文字"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "字幕 / 对白字幕"
 
@@ -3906,7 +3906,7 @@ msgstr "无法加载用量。"
 msgid "Couldn't load versions"
 msgstr "无法加载版本"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "无法将 \"{draft}\" 映射到 MIME 类型。请直接输入 MIME。"
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr "文档"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr "复制区块"
 msgid "Duplicate redirects were left out"
 msgstr "重复的重定向已被排除"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "例如 application/zip 或 .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "无法加载文件夹。"
 msgid "Folders navigation"
 msgstr "文件夹导航"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "字体"
 
@@ -7791,7 +7791,7 @@ msgstr "图片上传失败。请重试。"
 msgid "Image URL"
 msgstr "图片 URL"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr "此处只能上传图片文件。"
 msgid "Only images and videos can be uploaded here."
 msgstr "此处只能上传图片和视频。"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "此字段将只接受列出的 MIME 类型。"
 
@@ -10610,7 +10610,7 @@ msgstr "模式必须包含一个 {0} 占位符"
 msgid "Pause other tools that update content."
 msgstr "暂停其他更新内容的工具。"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "移除 {0}"
 msgid "Remove {0} from selection"
 msgstr "从选中项中移除 {0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "移除 {entry}"
 
@@ -13502,7 +13502,7 @@ msgstr "垃圾"
 msgid "Split merged cell"
 msgstr "拆分合并的单元格"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "电子表格"
 
@@ -15748,7 +15748,7 @@ msgstr "{when} 的版本"
 msgid "Version restored"
 msgstr "版本已恢复"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

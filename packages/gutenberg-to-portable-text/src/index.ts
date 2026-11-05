@@ -9,7 +9,7 @@
 import { parse } from "@wordpress/block-serialization-default-parser";
 
 import { createBlockScanner } from "./block-elements.js";
-import { extractText, parseInlineContent } from "./inline.js";
+import { extractText, parseInlineContent, parseInlineParagraphs } from "./inline.js";
 import { table as tableTransformer } from "./transformers/core.js";
 import { getTransformer } from "./transformers/index.js";
 import type {
@@ -196,19 +196,7 @@ export function htmlToPortableText(
 			);
 			if (tableBlocks.length === 0) continue;
 
-			const between = html.slice(lastIndex, table.start).trim();
-			if (between) {
-				const { children, markDefs } = parseInlineContent(between, generateKey);
-				if (children.some((c) => c.text.trim())) {
-					blocks.push({
-						_type: "block",
-						_key: generateKey(),
-						style: "normal",
-						children,
-						markDefs: markDefs.length > 0 ? markDefs : undefined,
-					});
-				}
-			}
+			pushParagraphs(blocks, html.slice(lastIndex, table.start), generateKey);
 			blocks.push(...tableBlocks);
 			lastIndex = table.end;
 		}
@@ -230,19 +218,7 @@ export function htmlToPortableText(
 		const content = match.content;
 
 		// Handle text between matches
-		const between = html.slice(lastIndex, match.index).trim();
-		if (between) {
-			const { children, markDefs } = parseInlineContent(between, generateKey);
-			if (children.some((c) => c.text.trim())) {
-				blocks.push({
-					_type: "block",
-					_key: generateKey(),
-					style: "normal",
-					children,
-					markDefs: markDefs.length > 0 ? markDefs : undefined,
-				});
-			}
-		}
+		pushParagraphs(blocks, html.slice(lastIndex, match.index), generateKey);
 		lastIndex = match.index + match.html.length;
 
 		// Check for standalone <img> tag (not wrapped in figure/p)
@@ -328,22 +304,10 @@ export function htmlToPortableText(
 				}
 
 				// Then handle the text content (with images and image links stripped)
-				let textContent = content
+				const textContent = content
 					.replace(LINKED_IMAGE_PATTERN, "") // Remove linked images
-					.replace(STANDALONE_IMAGE_PATTERN, "") // Remove standalone images
-					.trim();
-				if (textContent) {
-					const { children, markDefs } = parseInlineContent(textContent, generateKey);
-					if (children.some((c) => c.text.trim())) {
-						blocks.push({
-							_type: "block",
-							_key: generateKey(),
-							style: "normal",
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				}
+					.replace(STANDALONE_IMAGE_PATTERN, ""); // Remove standalone images
+				pushParagraphs(blocks, textContent, generateKey);
 				break;
 			}
 
@@ -449,21 +413,30 @@ export function htmlToPortableText(
 	pushTablesBefore(html.length);
 
 	// Handle remaining text
-	const remaining = html.slice(lastIndex).trim();
-	if (remaining) {
-		const { children, markDefs } = parseInlineContent(remaining, generateKey);
-		if (children.some((c) => c.text.trim())) {
-			blocks.push({
-				_type: "block",
-				_key: generateKey(),
-				style: "normal",
-				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
-			});
-		}
-	}
+	pushParagraphs(blocks, html.slice(lastIndex), generateKey);
 
 	return blocks;
+}
+
+/**
+ * Add text as paragraph blocks, one per run of text between blank lines.
+ * Classic-editor posts mark paragraphs only with blank lines: WordPress adds
+ * the `<p>` tags when it displays a post (`wpautop`).
+ */
+function pushParagraphs(
+	blocks: PortableTextBlock[],
+	html: string,
+	generateKey: () => string,
+): void {
+	for (const { children, markDefs } of parseInlineParagraphs(html, generateKey)) {
+		blocks.push({
+			_type: "block",
+			_key: generateKey(),
+			style: "normal",
+			children,
+			markDefs: markDefs.length > 0 ? markDefs : undefined,
+		});
+	}
 }
 
 /**

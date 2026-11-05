@@ -1396,7 +1396,7 @@ msgstr "Active"
 msgid "Active v{0}"
 msgstr "Active v{0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "Add link"
 msgid "Add links to build your navigation menu"
 msgstr "Add links to build your navigation menu"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "Add MIME type or extension"
 
@@ -1887,7 +1887,7 @@ msgstr "Allowed block types"
 msgid "Allowed Domains"
 msgstr "Allowed Domains"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "Allowed types"
 
@@ -2089,7 +2089,7 @@ msgstr "Another user already uses this email address. Enter a different one."
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr "Another widget area already uses this name. Enter a different one."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "Any media type allowed (subject to global limits)."
 
@@ -2176,7 +2176,7 @@ msgstr "Arbitrary JSON data"
 msgid "Archived"
 msgstr "Archived"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "Archives"
@@ -2244,7 +2244,7 @@ msgstr "At most…"
 msgid "Attribution"
 msgstr "Attribution"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "Capabilities"
 msgid "Caption"
 msgstr "Caption"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "Captions / Subtitles"
 
@@ -3906,7 +3906,7 @@ msgstr "Couldn’t load usage."
 msgid "Couldn't load versions"
 msgstr "Couldn't load versions"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr "Document"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr "Duplicate block"
 msgid "Duplicate redirects were left out"
 msgstr "Duplicate redirects were left out"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "e.g. application/zip or .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "Folders could not be loaded."
 msgid "Folders navigation"
 msgstr "Folders navigation"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "Fonts"
 
@@ -7791,7 +7791,7 @@ msgstr "Image upload failed. Try again."
 msgid "Image URL"
 msgstr "Image URL"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr "Only image files can be uploaded here."
 msgid "Only images and videos can be uploaded here."
 msgstr "Only images and videos can be uploaded here."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Only the listed MIME types will be accepted for this field."
 
@@ -10610,7 +10610,7 @@ msgstr "Pattern must include a {0} placeholder"
 msgid "Pause other tools that update content."
 msgstr "Pause other tools that update content."
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "Remove {0}"
 msgid "Remove {0} from selection"
 msgstr "Remove {0} from selection"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "Remove {entry}"
 
@@ -13502,7 +13502,7 @@ msgstr "Spam"
 msgid "Split merged cell"
 msgstr "Split merged cell"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "Spreadsheets"
 
@@ -15748,7 +15748,7 @@ msgstr "Version from {when}"
 msgid "Version restored"
 msgstr "Version restored"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

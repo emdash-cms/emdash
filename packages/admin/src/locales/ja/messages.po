@@ -1396,7 +1396,7 @@ msgstr "有効"
 msgid "Active v{0}"
 msgstr "有効なバージョン：v{0}"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:200
+#: packages/admin/src/components/AllowedTypesEditor.tsx:208
 #: packages/admin/src/components/BylineCreditsEditor.tsx:402
 #: packages/admin/src/components/MenuEditor.tsx:680
 msgid "Add"
@@ -1555,7 +1555,7 @@ msgstr "リンクを追加"
 msgid "Add links to build your navigation menu"
 msgstr "リンクを追加してナビゲーションメニューを作成します"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:188
+#: packages/admin/src/components/AllowedTypesEditor.tsx:196
 msgid "Add MIME type or extension"
 msgstr "MIMEタイプまたは拡張子を追加"
 
@@ -1887,7 +1887,7 @@ msgstr "使用できるブロックタイプ"
 msgid "Allowed Domains"
 msgstr "許可ドメイン"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:127
+#: packages/admin/src/components/AllowedTypesEditor.tsx:135
 msgid "Allowed types"
 msgstr "許可する種類"
 
@@ -2089,7 +2089,7 @@ msgstr "このメールアドレスは別のユーザーが使用しています
 msgid "Another widget area already uses this name. Enter a different one."
 msgstr "この名前は別のウィジェットエリアが使用しています。別の名前を入力してください。"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:130
+#: packages/admin/src/components/AllowedTypesEditor.tsx:138
 msgid "Any media type allowed (subject to global limits)."
 msgstr "この項目ではファイル形式を制限しません。ただし、ファイル形式やサイズに関するサイト全体の設定は適用されます。"
 
@@ -2176,7 +2176,7 @@ msgstr "自由形式のJSONデータ"
 msgid "Archived"
 msgstr "アーカイブ済み"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:89
+#: packages/admin/src/components/AllowedTypesEditor.tsx:97
 #: packages/admin/src/components/Widgets.tsx:174
 msgid "Archives"
 msgstr "アーカイブ"
@@ -2244,7 +2244,7 @@ msgstr "上限を指定…"
 msgid "Attribution"
 msgstr "執筆者の設定"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:90
+#: packages/admin/src/components/AllowedTypesEditor.tsx:98
 #: packages/admin/src/components/MediaLibrary.tsx:947
 #: packages/admin/src/components/MediaPickerModal.tsx:408
 msgid "Audio"
@@ -2823,7 +2823,7 @@ msgstr "権限"
 msgid "Caption"
 msgstr "キャプション"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:92
+#: packages/admin/src/components/AllowedTypesEditor.tsx:100
 msgid "Captions / Subtitles"
 msgstr "キャプション / 字幕"
 
@@ -3906,7 +3906,7 @@ msgstr "使用状況を読み込めませんでした。"
 msgid "Couldn't load versions"
 msgstr "変更履歴を読み込めませんでした"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:59
+#: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
 msgstr "「{draft}」をMIMEタイプに変換できませんでした。MIMEタイプを直接入力してください。"
 
@@ -4913,7 +4913,7 @@ msgstr "Dockerfile"
 msgid "Document"
 msgstr "文書"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:87
+#: packages/admin/src/components/AllowedTypesEditor.tsx:95
 #: packages/admin/src/components/MediaLibrary.tsx:948
 #: packages/admin/src/components/MediaPickerModal.tsx:409
 msgid "Documents"
@@ -5124,7 +5124,7 @@ msgstr "ブロックを複製"
 msgid "Duplicate redirects were left out"
 msgstr "重複するリダイレクトを除外しました"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:187
+#: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
 msgstr "例：application/zip または .pdf"
 
@@ -7281,7 +7281,7 @@ msgstr "フォルダーを読み込めませんでした。"
 msgid "Folders navigation"
 msgstr "フォルダー階層"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:93
+#: packages/admin/src/components/AllowedTypesEditor.tsx:101
 msgid "Fonts"
 msgstr "フォント"
 
@@ -7791,7 +7791,7 @@ msgstr "画像をアップロードできませんでした。もう一度お試
 msgid "Image URL"
 msgstr "画像URL"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:85
+#: packages/admin/src/components/AllowedTypesEditor.tsx:93
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
 #: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:406
@@ -10233,7 +10233,7 @@ msgstr "ここには画像ファイルだけをアップロードできます。
 msgid "Only images and videos can be uploaded here."
 msgstr "ここには画像と動画だけをアップロードできます。"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:131
+#: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "このフィールドでは一覧にあるMIMEタイプのみ受け付けます。"
 
@@ -10610,7 +10610,7 @@ msgstr "パターンには{0}プレースホルダーが必要です"
 msgid "Pause other tools that update content."
 msgstr "コンテンツを更新するほかのツールを停止してください。"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:86
+#: packages/admin/src/components/AllowedTypesEditor.tsx:94
 msgid "PDF"
 msgstr "PDF"
 
@@ -11467,7 +11467,7 @@ msgstr "{0}を削除"
 msgid "Remove {0} from selection"
 msgstr "{0}を選択から外す"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:170
+#: packages/admin/src/components/AllowedTypesEditor.tsx:178
 msgid "Remove {entry}"
 msgstr "{entry}を削除"
 
@@ -13502,7 +13502,7 @@ msgstr "スパム"
 msgid "Split merged cell"
 msgstr "結合したセルを分割"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:88
+#: packages/admin/src/components/AllowedTypesEditor.tsx:96
 msgid "Spreadsheets"
 msgstr "スプレッドシート"
 
@@ -15748,7 +15748,7 @@ msgstr "{when}の版"
 msgid "Version restored"
 msgstr "版を復元しました"
 
-#: packages/admin/src/components/AllowedTypesEditor.tsx:91
+#: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407

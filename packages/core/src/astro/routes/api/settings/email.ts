@@ -12,6 +12,7 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 export const prerender = false;
@@ -107,7 +108,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const optionsRepo = new OptionsRepository(emdash.db);
-		const siteName = (await optionsRepo.get<string>("emdash:site_title")) ?? "EmDash";
+		const siteName = (await getSiteTitle(optionsRepo)) ?? "EmDash";
 		const safeName = escapeHtml(siteName);
 
 		await emdash.email.send(
