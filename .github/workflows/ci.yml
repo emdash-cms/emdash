@@ -75,7 +75,8 @@ jobs:
       - name: Check package versions
         run: node .github/scripts/check-no-major.mjs
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - id: build
+        run: pnpm build
       - run: pnpm typecheck
       - run: pnpm run --filter emdash-demo --filter @emdash-cms/demo-cloudflare typecheck
       - run: pnpm typecheck:templates
@@ -98,6 +99,11 @@ jobs:
           else
             echo "No changesets added since origin/main; skipping validation."
           fi
+      - name: tsrs shadow typecheck (non-blocking)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node scripts/typecheck-tsrs-shadow.mjs
+        continue-on-error: true
+        timeout-minutes: 5
 
   # Compatibility checks for the current ruleset. The Typecheck job above now
   # covers these checks; skipped jobs report their legacy contexts without
