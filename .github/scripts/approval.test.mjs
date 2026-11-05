@@ -204,6 +204,10 @@ describe("Maintainer review status", () => {
 			files: [{ filename: ".github/scripts/test-plan.mjs", status: "removed" }],
 		},
 		{
+			change: "removes a permission scope from a read-only workflow",
+			files: [workflowEdit(".github/workflows/env-types.yml", "-  contents: read")],
+		},
+		{
 			change: "also edits a privileged workflow",
 			files: [
 				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),

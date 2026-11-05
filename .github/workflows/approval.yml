@@ -90,7 +90,6 @@ jobs:
             const readOnlyWorkflows = new Set([
               '.github/workflows/ci.yml',
               '.github/workflows/env-types.yml',
-              '.github/workflows/format.yml',
               '.github/workflows/preview-releases.yml',
               '.github/workflows/query-counts.yml',
               '.github/workflows/visual.yml',
@@ -119,16 +118,33 @@ jobs:
               'workflow_call',
               'workflow_run',
             ];
+            const permissionScopes = [
+              'actions',
+              'attestations',
+              'checks',
+              'contents',
+              'deployments',
+              'discussions',
+              'id-token',
+              'issues',
+              'models',
+              'packages',
+              'pages',
+              'pull-requests',
+              'repository-projects',
+              'security-events',
+              'statuses',
+            ];
             // Expressions ignore case, and an escape in a double-quoted YAML
             // string can spell any of these words, so case is ignored and any
             // backslash counts.
             const privilegeChange = new RegExp(
-              `permissions|secrets|\\bwrite\\b|\\\\|\\b(?:${privilegedEvents.join('|')})\\b`,
+              `permissions|secrets|\\bwrite\\b|\\\\|\\b(?:${privilegedEvents.join('|')})\\b|(?:^[+-]\\s*|[{,]\\s*)(?:${permissionScopes.join('|')})\\s*:`,
               'i',
             );
 
-            // Removed lines count too: deleting `permissions:` hands the workflow
-            // the repository's default token. GitHub leaves out the patch of a
+            // Removed lines count too: deleting `permissions:`, or every scope
+            // under it, can hand the workflow the repository's default token. GitHub leaves out the patch of a
             // very large diff, so such an edit can't be checked.
             const staysReadOnly = file => {
               if (file.status !== 'modified') return false;
