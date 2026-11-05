@@ -1494,6 +1494,43 @@ describe("BylineRepository", () => {
 			expect(results.afterUpdate?.customFields?.job_title).toBe("Publisher");
 		});
 
+		it("shares one value read between concurrent hydrations in a request", async () => {
+			const en = await bylineRepo.create({ slug: "jane", displayName: "Jane", locale: "en" });
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			await registry.createField({
+				slug: "twitter_handle",
+				label: "Twitter",
+				type: "string",
+				translatable: false,
+			});
+			resetBylineFieldDefsCacheForTests();
+			await bylineRepo.update(en.id, {
+				customFields: { job_title: "Editor", twitter_handle: "@jane" },
+			});
+
+			const reads = { values: 0, groupValues: 0 };
+			const counted = new BylineRepository(
+				db.withPlugin({
+					transformQuery(args) {
+						const node = JSON.stringify(args.node);
+						if (node.includes('"_emdash_byline_field_values"')) reads.values++;
+						if (node.includes('"_emdash_byline_field_group_values"')) reads.groupValues++;
+						return args.node;
+					},
+					transformResult: async (args) => args.result,
+				}),
+			);
+
+			const [first, second] = await runWithContext(
+				{ db: undefined, dbIsIsolated: false, metrics: undefined },
+				() => Promise.all([counted.findById(en.id), counted.findById(en.id)]),
+			);
+
+			expect(first?.customFields).toEqual({ job_title: "Editor", twitter_handle: "@jane" });
+			expect(second?.customFields).toEqual({ job_title: "Editor", twitter_handle: "@jane" });
+			expect(reads).toEqual({ values: 1, groupValues: 1 });
+		});
+
 		it("tolerates orphaned value rows (definition deleted but value lingering)", async () => {
 			const byline = await bylineRepo.create({
 				slug: "jane",
