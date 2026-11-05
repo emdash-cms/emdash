@@ -59,6 +59,26 @@ describe("opaque media asset route", () => {
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
 	});
 
+	it("serves BMP images inline like other safe raster types", async () => {
+		const bytes = new Uint8Array([0x42, 0x4d, 0, 0]);
+		const storageKey = "private/photo.bmp";
+		await storage.upload({ key: storageKey, body: bytes, contentType: "image/bmp" });
+		const item = await new MediaRepository(db).create({
+			filename: "photo.bmp",
+			mimeType: "image/bmp",
+			size: bytes.byteLength,
+			storageKey,
+		});
+
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- route test supplies the Astro fields read by GET
+		const response = await GET({
+			params: { id: item.id, filename: item.filename },
+			locals: { emdash: { db, storage }, user: { id: "reader", role: 10 } },
+		} as Parameters<typeof GET>[0]);
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Disposition")).toBe("inline");
+	});
+
 	it("does not serve pending media or a mismatched filename", async () => {
 		const pending = await new MediaRepository(db).createPending({
 			filename: "pending.bin",

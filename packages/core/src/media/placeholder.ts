@@ -147,6 +147,10 @@ export async function generatePlaceholder(
 
 		if (width === 0 || height === 0) return null;
 
+		for (let i = 3; i < data.length; i += 4) {
+			if (data[i] !== 255) return null;
+		}
+
 		// Downsample for blurhash encoding if needed
 		let encodePixels: Uint8ClampedArray;
 		let encodeWidth: number;
