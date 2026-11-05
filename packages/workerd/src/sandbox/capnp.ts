@@ -46,7 +46,7 @@ interface CapnpOptions {
  * Generate a workerd capnp configuration file.
  *
  * Each plugin gets its own worker (nanoservice) with:
- * - A listener socket on its assigned port
+ * - A listener socket on a kernel-assigned port
  * - Modules for wrapper + plugin code
  * - globalOutbound pointing to the backing service external server
  *   (all outbound fetch() goes through the backing service for
@@ -78,13 +78,13 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 	// Add a service + socket for each plugin
 	const socketEntries: string[] = [];
 
-	for (const [pluginId, plugin] of plugins) {
+	for (const [pluginId] of plugins) {
 		const constId = toCapnpId(pluginId);
 		const safeName = pluginId.replace(SAFE_NAME_RE, "_");
 
 		lines.push(`    (name = "plugin-${safeName}", worker = .plugin${constId}),`);
 		socketEntries.push(
-			`    (name = "socket-${safeName}", address = "127.0.0.1:${plugin.port}", service = "plugin-${safeName}"),`,
+			`    (name = "socket-${safeName}", address = "127.0.0.1:0", service = "plugin-${safeName}"),`,
 		);
 	}
 

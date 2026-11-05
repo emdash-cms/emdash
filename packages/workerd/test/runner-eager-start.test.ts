@@ -27,6 +27,19 @@ describe("scheduleEagerStart error handling", () => {
 		vi.restoreAllMocks();
 	});
 
+	it("cancels overlapping crash restart timers on termination", async () => {
+		const runner = new WorkerdSandboxRunner({ db: null as any });
+		runner["scheduleEagerStart"] = () => {};
+		try {
+			await runner.load({ id: "test-plugin", version: "1.0.0" } as any, "export default {};");
+			runner["scheduleRestart"]();
+			runner["scheduleRestart"]();
+		} finally {
+			await runner.terminateAll();
+		}
+		expect(vi.getTimerCount()).toBe(0);
+	});
+
 	it("logs and triggers scheduleRestart when ensureRunning rejects", async () => {
 		const runner = new WorkerdSandboxRunner({ db: null as any });
 		const startError = new Error("simulated startup failure");

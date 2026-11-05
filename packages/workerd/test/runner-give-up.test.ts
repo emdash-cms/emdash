@@ -106,6 +106,7 @@ describe("crash budget diagnostics", () => {
 
 	it("classifies a rejected hook transport as sandbox unavailable", async () => {
 		vi.spyOn(runner, "isHealthy").mockReturnValue(true);
+		vi.spyOn(runner, "getPluginPort").mockReturnValue(41001);
 		vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("connection lost"));
 		const plugin = await runner.load(MANIFEST, "export default {};");
 
@@ -116,6 +117,7 @@ describe("crash budget diagnostics", () => {
 
 	it("classifies a non-OK hook response as a plugin error", async () => {
 		vi.spyOn(runner, "isHealthy").mockReturnValue(true);
+		vi.spyOn(runner, "getPluginPort").mockReturnValue(41001);
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("hook failed", { status: 500 }));
 		const plugin = await runner.load(MANIFEST, "export default {};");
 
