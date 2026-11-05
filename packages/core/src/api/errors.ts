@@ -129,6 +129,7 @@ export const ErrorCode = {
 	ENTRY_LOCK_ERROR: "ENTRY_LOCK_ERROR",
 	ROOM_BUSY: "ROOM_BUSY",
 	CLIENT_OUTDATED: "CLIENT_OUTDATED",
+	ROOM_UNSUPPORTED_CONTENT: "ROOM_UNSUPPORTED_CONTENT",
 	NO_STORAGE: "NO_STORAGE",
 	NO_FILE: "NO_FILE",
 	INVALID_TYPE: "INVALID_TYPE",
@@ -535,6 +536,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.ENTRY_LOCKED:
 		case ErrorCode.ROOM_BUSY:
 		case ErrorCode.CLIENT_OUTDATED:
+		case ErrorCode.ROOM_UNSUPPORTED_CONTENT:
 		case ErrorCode.BLOCK_TYPE_EXISTS:
 		case ErrorCode.BLOCK_TYPE_BREAKING_CHANGE:
 		case ErrorCode.BLOCK_TYPE_VERSION_CONFLICT:

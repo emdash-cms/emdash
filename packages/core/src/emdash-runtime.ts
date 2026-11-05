@@ -23,7 +23,7 @@ import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
 import { overlayDraft, saveContent, type ContentWrite } from "./api/content-save.js";
-import { ErrorCode } from "./api/errors.js";
+import { ErrorCode, mapErrorStatus } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
 	handleMediaUpload as uploadMedia,
@@ -75,6 +75,7 @@ import { ContentRepository } from "./database/repositories/content.js";
 import { MediaRepository } from "./database/repositories/media.js";
 import {
 	RevisionRepository,
+	type Revision,
 	type RevisionCredit,
 	type RevisionKind,
 } from "./database/repositories/revision.js";
@@ -319,7 +320,7 @@ import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registr
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { notifyRoom } from "./rooms/notifications.js";
-import type { RuntimeRoomHost } from "./rooms/types.js";
+import { roomId, RoomSaveError, type EntryRef, type RuntimeRoomHost } from "./rooms/types.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
@@ -351,6 +352,20 @@ interface ContentPolicyMutationOptions {
 	actor?: ActorInfo;
 	origin?: ContentActionOrigin;
 	pluginInvocationId?: string;
+}
+
+/** An operation the entry's room refused or couldn't hold for. */
+type RoomOperationFailure = {
+	success: false;
+	error: { code: string; message: string };
+	status?: number;
+};
+
+interface PublishOptions extends ContentPolicyMutationOptions {
+	publishedAt?: string;
+	requireScheduledDue?: boolean;
+	expectedScheduledAt?: string;
+	currentTime?: Date;
 }
 
 type ContentPolicyCheck =
@@ -4583,7 +4598,11 @@ export class EmDashRuntime {
 		return hydrated;
 	}
 
-	async handleContentDelete(collection: string, id: string) {
+	async handleContentDelete(collection: string, id: string, options: { actor?: ActorInfo } = {}) {
+		return this.withRoomHold({ collection, id }, options, () => this.trashEntry(collection, id));
+	}
+
+	private async trashEntry(collection: string, id: string) {
 		// Run beforeDelete hooks (trusted plugins)
 		if (this.hooks.hasHooks("content:beforeDelete")) {
 			const { allowed } = await this.hooks.runContentBeforeDelete(id, collection);
@@ -4929,6 +4948,75 @@ export class EmDashRuntime {
 		);
 	}
 
+	/**
+	 * Runs a user's operation on an entry while the entry's room, if one is open in this process,
+	 * holds: the room saves a kept checkpoint as the actor first, and merges the entry once the
+	 * operation ends. `run` gets the caller's `_rev`, or else the checkpoint's. Operations that
+	 * replace the draft pass the values they write as `overwrite`: an open room refuses rich text
+	 * it can't represent, and afterwards writes the stored values over its document. Callers pass
+	 * the entry's ID: a slug finds no room.
+	 */
+	private async withRoomHold<T>(
+		entry: EntryRef,
+		options: {
+			_rev?: string;
+			actor?: { id: string };
+			origin?: ContentActionOrigin;
+			overwrite?: () => Promise<Record<string, unknown> | null | undefined>;
+		},
+		run: (rev: string | undefined) => Promise<T>,
+	): Promise<T | RoomOperationFailure> {
+		const rooms = this._rooms;
+		const actorId = options.actor?.id;
+		const source = options.origin?.source;
+		if (!rooms || actorId === undefined || source === "scheduler" || source === "plugin") {
+			return run(options._rev);
+		}
+		const id = roomId(entry);
+		if (options.overwrite && (await rooms.isOpen(id))) {
+			// The editor schema loads only where a room is open.
+			const { findUnsupportedPortableTextMarks } = await import("@emdash-cms/admin/portable-text");
+			const values = await options.overwrite();
+			const collection = await this.schemaRegistry.getCollectionWithFields(entry.collection);
+			for (const field of collection?.fields ?? []) {
+				const value = values?.[field.slug];
+				if (field.type !== "portableText" || !Array.isArray(value)) continue;
+				const marks = findUnsupportedPortableTextMarks(value);
+				if (marks.length === 0) continue;
+				return {
+					success: false,
+					error: {
+						code: "ROOM_UNSUPPORTED_CONTENT",
+						message: `The ${field.slug} field has formatting the editor can't show while the entry is open: ${marks.join(", ")}`,
+					},
+				};
+			}
+		}
+		let held: Awaited<ReturnType<RuntimeRoomHost["save"]>>;
+		try {
+			held = await rooms.save(id, actorId, options._rev);
+		} catch (error) {
+			if (error instanceof RoomSaveError) return roomSaveFailure(error);
+			throw error;
+		}
+		if (held === null) return run(options._rev);
+		if (held === "conflict") {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: "Revision precondition did not match" },
+			};
+		}
+		try {
+			return await run(options._rev ?? held.rev);
+		} finally {
+			try {
+				await rooms.release(id, held.hold, { overwrite: options.overwrite !== undefined });
+			} catch (error) {
+				console.error(`[co-editing] room ${id} couldn't merge after an operation:`, error);
+			}
+		}
+	}
+
 	private async checkContentPolicy(
 		name: ContentPolicyHookName,
 		collection: string,
@@ -5065,20 +5153,13 @@ export class EmDashRuntime {
 		};
 	}
 
-	async handleContentPublish(
-		collection: string,
-		id: string,
-		options: {
-			publishedAt?: string;
-			requireScheduledDue?: boolean;
-			expectedScheduledAt?: string;
-			_rev?: string;
-			currentTime?: Date;
-			actor?: ActorInfo;
-			origin?: ContentActionOrigin;
-			pluginInvocationId?: string;
-		} = {},
-	) {
+	async handleContentPublish(collection: string, id: string, options: PublishOptions = {}) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.publishEntry(collection, id, { ...options, _rev }),
+		);
+	}
+
+	private async publishEntry(collection: string, id: string, options: PublishOptions) {
 		const policy = await this.checkContentPolicy(
 			"content:beforePublish",
 			collection,
@@ -5147,6 +5228,16 @@ export class EmDashRuntime {
 		id: string,
 		options: ContentPolicyMutationOptions = {},
 	) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.unpublishEntry(collection, id, { ...options, _rev }),
+		);
+	}
+
+	private async unpublishEntry(
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions,
+	) {
 		const policy = await this.checkContentPolicy(
 			"content:beforeUnpublish",
 			collection,
@@ -5181,6 +5272,17 @@ export class EmDashRuntime {
 		id: string,
 		scheduledAt: string,
 		options: ContentPolicyMutationOptions = {},
+	) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.scheduleEntry(collection, id, scheduledAt, { ...options, _rev }),
+		);
+	}
+
+	private async scheduleEntry(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		options: ContentPolicyMutationOptions,
 	) {
 		const policy = await this.checkContentPolicy(
 			"content:beforeSchedule",
@@ -5226,11 +5328,17 @@ export class EmDashRuntime {
 	async handleContentUnschedule(
 		collection: string,
 		id: string,
-		options: {
-			_rev?: string;
-			origin?: ContentActionOrigin;
-			pluginInvocationId?: string;
-		} = {},
+		options: ContentPolicyMutationOptions = {},
+	) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.unscheduleEntry(collection, id, { ...options, _rev }),
+		);
+	}
+
+	private async unscheduleEntry(
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions,
 	) {
 		const result = await handleContentUnschedule(this.db, collection, id, { _rev: options._rev });
 		if (result.success && result.data) {
@@ -5254,7 +5362,23 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
-	async handleContentDiscardDraft(collection: string, id: string, options: { _rev?: string } = {}) {
+	async handleContentDiscardDraft(
+		collection: string,
+		id: string,
+		options: { _rev?: string; actor?: ActorInfo } = {},
+	) {
+		return this.withRoomHold(
+			{ collection, id },
+			{
+				...options,
+				overwrite: async () =>
+					(await new ContentRepository(this.db).findById(collection, id))?.data,
+			},
+			(_rev) => this.discardEntryDraft(collection, id, { _rev }),
+		);
+	}
+
+	private async discardEntryDraft(collection: string, id: string, options: { _rev?: string }) {
 		const result = await handleContentDiscardDraft(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
@@ -5626,8 +5750,7 @@ export class EmDashRuntime {
 	async handleRevisionRestore(revisionId: string, callerUserId: string, role?: RoleLevel) {
 		// Discover the parent entry up front so we can branch on whether
 		// the collection uses draft revisions.
-		const revisionRepo = new RevisionRepository(this.db);
-		const revision = await revisionRepo.findDraftBase(revisionId);
+		const revision = await new RevisionRepository(this.db).findDraftBase(revisionId);
 		if (!revision) {
 			return {
 				success: false as const,
@@ -5637,6 +5760,20 @@ export class EmDashRuntime {
 				},
 			};
 		}
+		return this.withRoomHold(
+			{ collection: revision.collection, id: revision.entryId },
+			{ actor: { id: callerUserId }, overwrite: async () => revision.data },
+			() => this.restoreRevision(revisionId, revision, callerUserId, role),
+		);
+	}
+
+	private async restoreRevision(
+		revisionId: string,
+		revision: Revision & RevisionCredit,
+		callerUserId: string,
+		role: RoleLevel | undefined,
+	) {
+		const revisionRepo = new RevisionRepository(this.db);
 		if (revision.kind === "recovery") {
 			return this.restoreRecoveryRevision(revision, callerUserId, role);
 		}
@@ -7110,4 +7247,21 @@ async function normalizePrimaryImageValue(
 		return normalizeMediaValue(value.src, getProvider);
 	}
 	return normalizeMediaValue(value, getProvider);
+}
+
+/** A failed room save fails the operation, with the status its reason gives. */
+function roomSaveFailure(error: RoomSaveError): RoomOperationFailure {
+	return {
+		success: false,
+		error: { code: error.code, message: error.message },
+		status: roomSaveStatus(error),
+	};
+}
+
+function roomSaveStatus({ reason, code }: RoomSaveError): number {
+	if (reason === "CONFLICT") return 409;
+	if (reason === "FORBIDDEN") return 403;
+	if (reason === "NOT_FOUND") return 404;
+	if (code === "UNLOADED" || code === "SITE_UNAVAILABLE") return 503;
+	return mapErrorStatus(code);
 }

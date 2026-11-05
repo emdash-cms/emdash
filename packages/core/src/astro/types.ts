@@ -394,7 +394,11 @@ export interface EmDashHandlers {
 		}
 	>;
 
-	handleContentDelete: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentDelete: (
+		collection: string,
+		id: string,
+		options?: { actor?: ActorInfo },
+	) => Promise<HandlerResponse>;
 
 	// Trash handlers
 	handleContentListTrashed: (
@@ -450,7 +454,7 @@ export interface EmDashHandlers {
 	handleContentUnschedule: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo },
 	) => Promise<HandlerResponse>;
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
@@ -458,7 +462,7 @@ export interface EmDashHandlers {
 	handleContentDiscardDraft: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo },
 	) => Promise<HandlerResponse>;
 
 	handleContentCompare: (collection: string, id: string) => Promise<HandlerResponse>;
