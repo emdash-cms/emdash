@@ -29,10 +29,10 @@ The data the widgets show is already localized. Since #4604 the Categories, Tags
 
 A site has `en` (default) and `fr`. The `sidebar` area exists in English with two widgets:
 
-| Locale | Widget                         | Title        | Content                  |
-| ------ | ------------------------------ | ------------ | ------------------------ |
-| `en`   | content                        | About us     | "We are a small museum…" |
-| `en`   | component `core:recent-posts`  | Recent posts |                          |
+| Locale | Widget                        | Title        | Content                  |
+| ------ | ----------------------------- | ------------ | ------------------------ |
+| `en`   | content                       | About us     | "We are a small museum…" |
+| `en`   | component `core:recent-posts` | Recent posts |                          |
 
 An editor opens Widgets in the admin, switches the locale to French and chooses **Translate**. EmDash creates a `sidebar` area row for `fr` in the same translation group and copies both widgets into it. The editor changes the titles to "À propos" and "Articles récents" and translates the rich text.
 
@@ -85,7 +85,10 @@ interface WidgetAreaQueryOptions {
 }
 
 function getWidgetArea(name: string, options?: WidgetAreaQueryOptions): Promise<WidgetArea | null>;
-function getWidgetAreaWithCacheHint(name: string, options?: WidgetAreaQueryOptions): Promise<{
+function getWidgetAreaWithCacheHint(
+	name: string,
+	options?: WidgetAreaQueryOptions,
+): Promise<{
 	data: WidgetArea | null;
 	cacheHint: CacheHint;
 }>;
