@@ -852,6 +852,7 @@ async function applySeedWrites(
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				const clearedTaxonomyGroups = new Set<string>();
 				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
 				const collectionRoutable = collectionInfo?.routable !== false;
 				const referenceFields = referenceFieldsOf(collectionInfo);
@@ -954,7 +955,15 @@ async function applySeedWrites(
 										seedBylineIdMap,
 										true,
 									);
-									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+									await applyContentTaxonomies(
+										trx,
+										collectionSlug,
+										existing.id,
+										entry,
+										existing.locale ?? entryLocale,
+										existing.translationGroup ?? existing.id,
+										clearedTaxonomyGroups,
+									);
 									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
 									// Seed is declarative — when status is "published", promote to a live
@@ -1084,7 +1093,15 @@ async function applySeedWrites(
 								entry,
 								seedBylineIdMap,
 							);
-							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+							await applyContentTaxonomies(
+								trx,
+								collectionSlug,
+								item.id,
+								entry,
+								entryLocale,
+								undefined,
+								clearedTaxonomyGroups,
+							);
 							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
@@ -2095,18 +2112,22 @@ async function applyContentTaxonomies(
 	collectionSlug: string,
 	contentId: string,
 	entry: { taxonomies?: Record<string, string[]> },
-	isUpdate: boolean,
+	locale: string,
+	updateGroup: string | undefined,
+	clearedGroups: Set<string>,
 ): Promise<void> {
 	const termRepo = new TaxonomyRepository(db);
-	// In update mode, clear existing taxonomy assignments first
-	if (isUpdate) {
+	// Assignments are shared by all translations; later translations add to the same set.
+	const shouldClear = updateGroup !== undefined && !clearedGroups.has(updateGroup);
+	if (shouldClear) {
 		await termRepo.clearEntryTerms(collectionSlug, contentId);
+		clearedGroups.add(updateGroup);
 	}
 
 	if (!entry.taxonomies) {
 		// In update mode we may have just deleted rows above; invalidate so
 		// hydration doesn't serve stale "has terms" cached value.
-		if (isUpdate) {
+		if (shouldClear) {
 			const { invalidateTermCache } = await import("../taxonomies/index.js");
 			invalidateTermCache();
 		}
@@ -2115,10 +2136,14 @@ async function applyContentTaxonomies(
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
 		for (const termSlug of termSlugs) {
-			const term = await termRepo.findBySlug(taxonomyName, termSlug);
-			if (term) {
-				await termRepo.attachToEntry(collectionSlug, contentId, term.id);
+			const term = await termRepo.findBySlug(taxonomyName, termSlug, locale);
+			if (!term) {
+				console.warn(
+					`content.${collectionSlug}: taxonomy term "${taxonomyName}/${termSlug}" not found in locale "${locale}". Skipping assignment.`,
+				);
+				continue;
 			}
+			await termRepo.attachToEntry(collectionSlug, contentId, term.id);
 		}
 	}
 

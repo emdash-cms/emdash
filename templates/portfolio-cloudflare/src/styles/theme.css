@@ -11,16 +11,20 @@
   changes light and dark mode at once; use light-dark(<light>, <dark>)
   to set different values per mode.
 
-  The serif display face (--font-heading) is loaded in astro.config.mjs.
-  Swap the loaded font there; use overrides here for system fonts or to
-  change the quiet system-sans body face (--font-body).
+  Two webfonts are loaded in astro.config.mjs: Host Grotesk on
+  --font-sans for headings and body text, and Fragment Mono on
+  --font-mono for labels. Swap a loaded font there. To give one role a
+  different face, or to use a system font, override --font-heading,
+  --font-body or --font-label here.
 
   Example:
 
   :root {
-    --color-brand: light-dark(#0f766e, #2dd4bf);
-    --font-body: "Avenir Next", system-ui, sans-serif;
-    --font-size-4xl: 4rem;
+    --color-brand: light-dark(#1d4ed8, #93c5fd);
+    --color-on-brand: light-dark(#ffffff, #0e0e0d);
+    --font-heading: "Iowan Old Style", Georgia, serif;
+    --font-weight-display: 400;
+    --frame-width: 1440px;
   }
 */
 

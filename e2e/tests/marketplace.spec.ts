@@ -1,5 +1,7 @@
 import { expect, test } from "../fixtures";
 
+const UNINSTALL_GALLERY_TITLE = /^Uninstall .*Gallery.*\?$/;
+
 test.describe("Registry cutover", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
@@ -93,7 +95,7 @@ test.describe("Registry cutover", () => {
 				},
 			},
 		});
-		const dialog = page.getByRole("dialog", { name: "Capability consent" });
+		const dialog = page.getByRole("dialog", { name: "Review Verified Plugin" });
 		await expect(dialog.getByRole("heading", { name: "Review Verified Plugin" })).toBeVisible();
 		await expect(
 			dialog.getByText(
@@ -155,7 +157,7 @@ test.describe("Registry cutover", () => {
 
 		await page.getByRole("button", { name: "Check for updates" }).click();
 		await card.getByRole("button", { name: "Update to v1.3.0" }).click();
-		const updateDialog = page.getByRole("dialog", { name: "Capability consent" });
+		const updateDialog = page.getByRole("dialog", { name: "Review Verified Update" });
 		await expect(
 			updateDialog.getByRole("heading", { name: "Review Verified Update" }),
 		).toBeVisible();
@@ -175,7 +177,7 @@ test.describe("Registry cutover", () => {
 			.first();
 		await updatedCard.getByRole("button", { name: "Expand details" }).click();
 		await updatedCard.getByRole("button", { name: "Uninstall", exact: true }).click();
-		const uninstallDialog = page.getByRole("dialog", { name: "Uninstall confirmation" });
+		const uninstallDialog = page.getByRole("dialog", { name: UNINSTALL_GALLERY_TITLE });
 		await uninstallDialog.getByText("Also delete plugin storage data").click();
 		await uninstallDialog.getByRole("button", { name: "Uninstall", exact: true }).click();
 		await expect(page.getByText("Plugin uninstalled", { exact: true })).toBeVisible();

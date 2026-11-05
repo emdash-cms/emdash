@@ -76,6 +76,35 @@ test.describe("Content CRUD", () => {
 			});
 		});
 
+		test("explains the first save as a draft and offers publishing after it", async ({
+			admin,
+		}, testInfo) => {
+			await admin.goToNewContent("posts");
+			await admin.waitForLoading();
+
+			const saveDraft = admin.page.getByRole("button", { name: "Save draft" });
+			await expect(saveDraft).toBeVisible();
+			await expect(
+				admin.page.getByText(
+					"Saving creates a draft that stays off the site. You can publish it after the first save.",
+				),
+			).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: "Publish now", exact: true }),
+			).not.toBeVisible();
+
+			await admin.fillField("title", `First Draft Save ${testInfo.retry}`);
+			await saveDraft.click();
+
+			await expect(admin.page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
+			await expect(admin.page.getByRole("button", { name: "Saved" }).first()).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: "Publish now", exact: true }),
+			).toBeVisible();
+			await expect(admin.page.getByText("This version is not visible on the site")).toBeVisible();
+			await expect(admin.page.getByRole("button", { name: "Save draft" })).toHaveCount(0);
+		});
+
 		test("auto-generates slug from title", async ({ admin }) => {
 			await admin.goToNewContent("posts");
 			await admin.waitForLoading();

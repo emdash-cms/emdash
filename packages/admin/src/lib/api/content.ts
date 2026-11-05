@@ -647,7 +647,7 @@ export async function fetchRevision(revisionId: string): Promise<Revision> {
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch revision`));
 	}
@@ -669,7 +669,7 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}

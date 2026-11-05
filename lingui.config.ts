@@ -14,6 +14,7 @@ const config: LinguiConfig = {
 			include: [
 				"<rootDir>/packages/admin/src/**/*.{ts,tsx}",
 				"<rootDir>/packages/auth-atproto/src/admin.tsx",
+				"<rootDir>/packages/plugins/forms/src/admin.tsx",
 			],
 		},
 	],

@@ -15,7 +15,6 @@ import {
 	InputArea,
 	Select,
 	Tabs,
-	Tooltip,
 	inputVariants,
 } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
@@ -34,7 +33,6 @@ import {
 	ImagesSquare,
 	LinkSimple,
 	Ruler,
-	Info,
 	WarningCircle,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -78,6 +76,7 @@ import {
 import { formatDate } from "../lib/utils.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { HelpTooltip } from "./FieldHelpLabel.js";
 import { FocalPointEditor, FocalPointPreviews } from "./FocalPointEditor.js";
 import { MediaImageCropper, type MediaCropSelection } from "./MediaImageCropper.js";
 import { MediaUsedIn } from "./MediaUsedIn.js";
@@ -787,8 +786,10 @@ export function MediaDetailPanel({
 		},
 		onError: (error, action) => {
 			setCropStatus("");
-			if (action === "replace") setShowCropConfirm(false);
-			if (error instanceof ApiResponseError && error.code === "NOT_FOUND") recoverMediaItem();
+			if (error instanceof ApiResponseError && error.code === "NOT_FOUND") {
+				if (action === "replace") setShowCropConfirm(false);
+				recoverMediaItem();
+			}
 		},
 		onSettled: () => {
 			cropPendingRef.current = false;
@@ -832,6 +833,12 @@ export function MediaDetailPanel({
 		cropMutation.error instanceof CropFileCreationError
 			? t`The cropped image could not be created.`
 			: getMutationError(cropMutation.error);
+	// One object per failure, so the confirmation can tell a new failure from an old one.
+	const cropReplaceError = React.useMemo(
+		() =>
+			cropMutation.variables === "replace" && cropErrorMessage ? new Error(cropErrorMessage) : null,
+		[cropMutation.variables, cropErrorMessage],
+	);
 
 	const requestClose = React.useCallback(() => {
 		if (isBusy) return;
@@ -1424,20 +1431,7 @@ export function MediaDetailPanel({
 								<div className="w-full space-y-2">
 									<div className="flex items-center gap-1.5">
 										<span className="text-[14px] font-medium text-kumo-default">{t`Filename`}</span>
-										<Tooltip
-											content={filenameHelp}
-											delay={0}
-											closeDelay={0}
-											render={
-												<button
-													type="button"
-													className="inline-flex cursor-help rounded-full text-kumo-subtle hover:text-kumo-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
-													aria-label={filenameHelpLabel}
-												>
-													<Info className="h-4 w-4" aria-hidden="true" />
-												</button>
-											}
-										/>
+										<HelpTooltip help={filenameHelp} ariaLabel={filenameHelpLabel} />
 									</div>
 									<Input
 										dir="auto"
@@ -1586,20 +1580,7 @@ export function MediaDetailPanel({
 										<div className="w-full space-y-2">
 											<div className="flex items-center gap-1.5">
 												<span className="text-[14px] font-medium text-kumo-default">{t`Alt Text`}</span>
-												<Tooltip
-													content={altTextHelp}
-													delay={0}
-													closeDelay={0}
-													render={
-														<button
-															type="button"
-															className="inline-flex cursor-help rounded-full text-kumo-subtle hover:text-kumo-default focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
-															aria-label={altTextHelpLabel}
-														>
-															<Info className="h-4 w-4" aria-hidden="true" />
-														</button>
-													}
-												/>
+												<HelpTooltip help={altTextHelp} ariaLabel={altTextHelpLabel} />
 											</div>
 											<InputArea
 												aria-label={t`Alt Text`}
@@ -1655,21 +1636,7 @@ export function MediaDetailPanel({
 											<div className="flex items-center justify-between gap-3">
 												<div className="flex min-w-0 items-center gap-1.5">
 													<h3 className="text-sm font-semibold">{t`Focal point`}</h3>
-													<Tooltip
-														content={focalPointHelp}
-														delay={0}
-														closeDelay={0}
-														render={
-															<Button
-																type="button"
-																variant="ghost"
-																shape="square"
-																size="xs"
-																aria-label={focalPointHelpLabel}
-																icon={<Info className="h-4 w-4" aria-hidden="true" />}
-															/>
-														}
-													/>
+													<HelpTooltip help={focalPointHelp} ariaLabel={focalPointHelpLabel} />
 												</div>
 												<p id={focalPointDescriptionId} className="sr-only">
 													{focalPointHelp}
@@ -1762,7 +1729,9 @@ export function MediaDetailPanel({
 											{cropSourceFailed ? (
 												<DialogError message={t`This image could not be loaded for cropping.`} />
 											) : null}
-											{cropErrorMessage ? <DialogError message={cropErrorMessage} /> : null}
+											{cropErrorMessage && !showCropConfirm ? (
+												<DialogError message={cropErrorMessage} />
+											) : null}
 											{hasChanges ? (
 												<p className="text-sm text-kumo-warning">
 													{t`Save or discard the other changes before cropping.`}
@@ -1918,7 +1887,6 @@ export function MediaDetailPanel({
 				}}
 				role="alertdialog"
 				title={t`Delete media?`}
-				titleClassName="text-[18px] font-semibold leading-6"
 				description={
 					<span className="text-[14px] leading-5">
 						{isProviderAsset
@@ -1928,11 +1896,9 @@ export function MediaDetailPanel({
 							: t`"${item.filename}" will be permanently deleted.`}
 					</span>
 				}
-				descriptionClassName="text-pretty text-[14px] leading-5 text-kumo-subtle"
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}
 				isPending={deleteMutation.isPending}
-				compact
 				error={deleteMutation.error}
 				onConfirm={() => deleteMutation.mutate()}
 			>
@@ -1946,7 +1912,7 @@ export function MediaDetailPanel({
 								{t`Content using this media item may show a broken reference.`}
 							</span>
 						}
-						className="mt-4 text-[14px]"
+						className="text-[14px]"
 						role="note"
 					/>
 				) : null}
@@ -1957,19 +1923,15 @@ export function MediaDetailPanel({
 				onClose={clearReplacement}
 				role="alertdialog"
 				title={t`Replace original image?`}
-				titleClassName="text-[18px] font-semibold leading-6"
 				description={
 					<span className="text-[14px] leading-5">
 						{t`Every place using this image will update to the selected version.`}
 					</span>
 				}
-				descriptionClassName="text-pretty text-[14px] leading-5 text-kumo-subtle"
 				confirmLabel={t`Replace image`}
 				pendingLabel={t`Replacing image...`}
 				isPending={isReplacing}
 				confirmDisabled={!replacementImage || replaceActionDisabled}
-				compact
-				preventCloseWhilePending
 				error={replaceMutation.error}
 				onConfirm={startReplacement}
 			>
@@ -1982,7 +1944,7 @@ export function MediaDetailPanel({
 							{t`EmDash does not keep the previous image.`}
 						</span>
 					}
-					className="mt-4 text-[14px]"
+					className="text-[14px]"
 					role="note"
 				/>
 			</ConfirmDialog>
@@ -1992,19 +1954,15 @@ export function MediaDetailPanel({
 				onClose={() => setShowCropConfirm(false)}
 				role="alertdialog"
 				title={t`Replace original image?`}
-				titleClassName="text-[18px] font-semibold leading-6"
 				description={
 					<span className="text-[14px] leading-5">
 						{t`Every place using this image will update to the cropped version.`}
 					</span>
 				}
-				descriptionClassName="text-pretty text-[14px] leading-5 text-kumo-subtle"
 				confirmLabel={t`Replace original`}
 				pendingLabel={t`Replacing original...`}
 				isPending={isCropping && cropMutation.variables === "replace"}
-				compact
-				preventCloseWhilePending
-				error={null}
+				error={cropReplaceError}
 				onConfirm={() => startCrop("replace")}
 			>
 				<Banner
@@ -2016,7 +1974,7 @@ export function MediaDetailPanel({
 							{t`EmDash does not keep the uncropped image.`}
 						</span>
 					}
-					className="mt-4 text-[14px]"
+					className="text-[14px]"
 					role="note"
 				/>
 				<p role="status" className="sr-only">
