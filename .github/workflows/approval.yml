@@ -120,11 +120,15 @@ jobs:
             ];
             const permissionScopes = [
               'actions',
+              'artifact-metadata',
               'attestations',
               'checks',
+              'code-quality',
               'contents',
+              'copilot-requests',
               'deployments',
               'discussions',
+              'drives',
               'id-token',
               'issues',
               'models',
@@ -134,6 +138,7 @@ jobs:
               'repository-projects',
               'security-events',
               'statuses',
+              'vulnerability-alerts',
             ];
             // Expressions ignore case, and an escape in a double-quoted YAML
             // string can spell any of these words, so case is ignored and any
@@ -144,8 +149,9 @@ jobs:
             );
 
             // Removed lines count too: deleting `permissions:`, or every scope
-            // under it, can hand the workflow the repository's default token. GitHub leaves out the patch of a
-            // very large diff, so such an edit can't be checked.
+            // under it, can hand the workflow the repository's default token.
+            // GitHub leaves out the patch of a very large diff, so such an edit
+            // can't be checked.
             const staysReadOnly = file => {
               if (file.status !== 'modified') return false;
               if (readOnlyScripts.has(file.filename)) return true;
