@@ -205,6 +205,7 @@ function resolveEditorBylines(item?: ContentItem | null): {
 
 import type { ContentSeoInput } from "../lib/api";
 import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
+import { openPreviewWindow } from "../lib/preview-window.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -400,8 +401,9 @@ export interface ContentEditorProps {
 		slug?: string;
 		bylines?: BylineCreditInput[];
 	}) => void | Promise<void>;
-	/** Callback to discard draft changes (revert to published version) */
-	onDiscardDraft?: () => void;
+	/** Callback to discard draft changes (revert to published version). A returned promise keeps
+	 * the confirmation open until it settles, and its rejection is shown there. */
+	onDiscardDraft?: () => Promise<unknown> | void;
 	/**
 	 * Callback when a revision is restored. A returned promise keeps the restore pending until it
 	 * settles; the editor then loads the restored draft once `item` carries it.
@@ -463,8 +465,9 @@ export interface ContentEditorProps {
 	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
 	/** Callback for updating a byline inline from the editor */
 	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
-	/** Callback when item is deleted (moved to trash) */
-	onDelete?: () => void;
+	/** Callback when item is deleted (moved to trash). A returned promise keeps the confirmation
+	 * open until it settles, and its rejection is shown there. */
+	onDelete?: () => Promise<unknown> | void;
 	/** Whether delete is in progress */
 	isDeleting?: boolean;
 	/** i18n config — present when multiple locales are configured */
@@ -1584,29 +1587,29 @@ export function ContentEditor({
 		try {
 			const result = await getPreviewUrl(collection, item.id);
 			if (result?.url) {
-				window.open(result.url, "_blank", "noopener,noreferrer");
+				openPreviewWindow(result.url, collection, item.id);
 			} else {
-				window.open(
+				openPreviewWindow(
 					contentUrl(collection, slug || item.id, urlPattern, {
 						locale: item.locale,
 						i18n,
 						id: item.id,
 						date: item.publishedAt,
 					}),
-					"_blank",
-					"noopener,noreferrer",
+					collection,
+					item.id,
 				);
 			}
 		} catch {
-			window.open(
-				contentUrl(collection, slug || item?.id || "", urlPattern, {
-					locale: item?.locale,
+			openPreviewWindow(
+				contentUrl(collection, slug || item.id, urlPattern, {
+					locale: item.locale,
 					i18n,
-					id: item?.id,
-					date: item?.publishedAt,
+					id: item.id,
+					date: item.publishedAt,
 				}),
-				"_blank",
-				"noopener,noreferrer",
+				collection,
+				item.id,
 			);
 		} finally {
 			setIsLoadingPreview(false);
@@ -1707,7 +1710,7 @@ export function ContentEditor({
 					to="/content/$collection"
 					params={{ collection }}
 					search={{ locale: undefined }}
-					aria-label={t`Back to ${collectionLabel} list`}
+					aria-label={t`Back to ${{ collectionLabel: collectionListLabel }} list`}
 					variant="ghost"
 					shape="square"
 					size="sm"
@@ -1767,6 +1770,7 @@ export function ContentEditor({
 					<EditorActions
 						collectionLabel={collectionLabel}
 						isNew={isNew}
+						supportsDrafts={supportsDrafts}
 						isDirty={isDirty}
 						isSaving={Boolean(saveFeedbackActive)}
 						isAutosaving={autosaveFeedbackActive}
@@ -2671,7 +2675,7 @@ function FieldRenderer({
 					id={id}
 					value={text}
 					onChange={(e) => handleChange(e.target.value)}
-					rows={10}
+					rows={textareaRows(field.options)}
 					maxLength={length.max}
 					aria-invalid={tooLong || undefined}
 					description={hint}
@@ -3219,6 +3223,11 @@ function isValidUrl(val: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function textareaRows(options: FieldDescriptor["options"]) {
+	const rows = Array.isArray(options) ? undefined : options?.rows;
+	return typeof rows === "number" && Number.isInteger(rows) && rows > 0 ? rows : 10;
 }
 
 interface Bounds {

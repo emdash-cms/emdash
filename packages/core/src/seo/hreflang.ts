@@ -24,6 +24,7 @@
 
 import type { Kysely } from "kysely";
 
+import { withBasePath } from "../api/public-url.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import type { Database } from "../database/types.js";
 import { getI18nConfig, isI18nEnabled } from "../i18n/config.js";
@@ -32,7 +33,6 @@ import { requestCached } from "../request-cache.js";
 import { getCollectionInfoWithDb } from "../schema/query.js";
 import { getSiteSettingsWithDb } from "../settings/index.js";
 
-const TRAILING_SLASH_RE = /\/$/;
 const ABSOLUTE_URL_RE = /^https?:\/\//i;
 
 /**
@@ -68,7 +68,8 @@ export interface HreflangAlternate {
 export interface HreflangOptions {
 	/**
 	 * Absolute site origin (e.g. `https://example.com`) used to build
-	 * the alternate URLs. Falls back to the site settings URL; when
+	 * the alternate URLs. Astro's `base` is appended unless the URL
+	 * already ends with it. Falls back to the site settings URL; when
 	 * neither is available the result is empty, since hreflang
 	 * requires fully-qualified URLs.
 	 */
@@ -129,8 +130,8 @@ export async function getHreflangAlternatesWithDb(
 	}
 	// hreflang requires fully-qualified URLs; a relative site URL would
 	// produce invalid output (and EmDashHead's isSafeHref would drop it).
-	if (!siteUrl || !ABSOLUTE_URL_RE.test(siteUrl)) return [];
-	siteUrl = siteUrl.replace(TRAILING_SLASH_RE, "");
+	if (!siteUrl || !ABSOLUTE_URL_RE.test(siteUrl) || !URL.canParse(siteUrl)) return [];
+	siteUrl = withBasePath(siteUrl, import.meta.env.BASE_URL);
 
 	const repo = new ContentRepository(db);
 	const item = await repo.findByIdOrSlug(collection, entryId);

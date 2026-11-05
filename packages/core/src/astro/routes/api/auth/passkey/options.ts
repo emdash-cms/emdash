@@ -16,6 +16,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { passkeyOptionsBody } from "#api/schemas.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { createChallengeStore, cleanupExpiredChallenges } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "#auth/rate-limit.js";
@@ -55,7 +56,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Get passkey config
 		const url = new URL(request.url);
 		const options = new OptionsRepository(emdash.db);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
+		const siteName = await getSiteTitle(options);
 		const siteUrl = getPublicOrigin(url, emdash?.config);
 		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
 

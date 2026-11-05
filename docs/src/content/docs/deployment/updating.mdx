@@ -15,7 +15,7 @@ EmDash follows semantic versioning:
 - A minor release carries backwards-compatible features.
 - A major release can require changes to an existing project. Its release entries identify affected projects and the required actions.
 
-`emdash` and `@emdash-cms/cloudflare` are released together and share one version number. `@emdash-cms/cloudflare` depends on the exact matching `emdash` version, so update the two packages in one step. Plugin packages such as `@emdash-cms/plugin-forms` have their own version numbers and declare the minimum `emdash` version they need.
+`emdash` and `@emdash-cms/cloudflare` are released together and share one version number. `@emdash-cms/cloudflare` requires the exact matching `emdash` version as a peer dependency, so update the two packages in one step. When the versions differ, npm stops the install with an `ERESOLVE` error, and pnpm and Yarn print a peer dependency warning. Plugin packages such as `@emdash-cms/plugin-forms` have their own version numbers and declare the minimum `emdash` version they need.
 
 The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry per package and version. `upgrade-emdash` fetches the changelog range for each direct package from its exact GitHub release tag. It removes generated dependency-bump entries, preserves the complete authored major, minor, and patch entries, and deduplicates entries repeated across packages.
 

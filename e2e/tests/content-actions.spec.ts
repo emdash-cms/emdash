@@ -238,21 +238,31 @@ test.describe("Schedule content", () => {
 		await expect(publishButton).not.toHaveAttribute("aria-haspopup", "menu");
 		await page.getByRole("button", { name: "Settings" }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
+		// Below lg the panel is a sheet that slides in; measure it where it stops.
+		await settingsPanel.evaluate(async (element) => {
+			await Promise.all(element.getAnimations().map((animation) => animation.finished));
+		});
 		const publishingSummary = settingsPanel.getByRole("group", { name: "Publishing summary" });
 		const scheduleButton = settingsPanel.getByRole("button", { name: "Schedule" });
 		await expect(publishingSummary).toBeVisible();
 		await expect(scheduleButton).toBeVisible();
-		for (const element of [publishingSummary, scheduleButton]) {
-			const box = await element.boundingBox();
-			expect(box).not.toBeNull();
-			expect(box!.x).toBeGreaterThanOrEqual(0);
-			expect(box!.x + box!.width).toBeLessThanOrEqual(320);
-		}
+		await expect(async () => {
+			for (const element of [publishingSummary, scheduleButton]) {
+				const box = await element.boundingBox();
+				expect(box).not.toBeNull();
+				expect(box!.x).toBeGreaterThanOrEqual(0);
+				expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+			}
+		}).toPass({ timeout: 5_000 });
 		expect(
 			await settingsPanel.evaluate((element) => element.scrollWidth <= element.clientWidth),
 		).toBe(true);
 		await scheduleButton.click();
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		await expect(dialog).toBeVisible();
+		// On a phone the dialog slides up from the bottom edge.
+		await expect(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 		const dialogBox = await dialog.boundingBox();
 		expect(dialogBox).not.toBeNull();
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);

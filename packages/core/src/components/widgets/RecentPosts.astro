@@ -1,6 +1,7 @@
 ---
 import { getEmDashCollection } from "../../query.js";
 import { getI18nConfig } from "../../i18n/config.js";
+import { localePathPrefix } from "../../i18n/resolve.js";
 import { getSiteSettings } from "../../settings/index.js";
 import { sanitizeHref } from "../../utils/url.js";
 import EmDashImage from "../EmDashImage.astro";
@@ -9,6 +10,7 @@ import {
 	createPublishedDateFormatter,
 	isThumbnailImage,
 	toPublishedDate,
+	withLocalePrefix,
 } from "../../widgets/recent-posts.js";
 
 interface Props {
@@ -20,14 +22,18 @@ interface Props {
 }
 
 const { count = 5, showThumbnails = false, showDate = true, urlTemplate } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const [{ entries: posts }, settings] = await Promise.all([
 	getEmDashCollection("posts", {
 		limit: count,
 		orderBy: { published_at: "desc" },
+		locale: Astro.currentLocale,
 	}),
 	showDate ? getSiteSettings() : undefined,
 ]);
+
+const localePrefix = await localePathPrefix(Astro.currentLocale);
 
 const dateFormatter = createPublishedDateFormatter({
 	locale: Astro.currentLocale ?? getI18nConfig()?.defaultLocale,
@@ -45,23 +51,27 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 			const title = getTitle(post.data);
 			const publishedAt = toPublishedDate(post.data.publishedAt);
 			const featuredImage = post.data.featured_image;
-			// Without a template, keep the widget's long-standing default:
-			// `post.id` is the loader's slug (or `locale/slug` with i18n
-			// prefixing), so the locale prefix is preserved. With a template,
-			// use the same token semantics as LiveSearch's routeMap — `:id`
-			// is the content ULID (`data.id`), `:slug` the bare slug.
+			// `post.id` is `locale/slug` for a translated entry, so links use
+			// the bare slug and put the page's locale prefix in front. A
+			// template uses the same token semantics as LiveSearch's routeMap:
+			// `:id` is the content ULID (`data.id`), `:slug` the bare slug.
+			const slug = typeof post.data.slug === "string" ? post.data.slug : post.id;
 			const href = urlTemplate
 				? sanitizeHref(
-						buildLiveSearchResultUrl(
-							{
-								collection: "posts",
-								id: typeof post.data.id === "string" ? post.data.id : post.id,
-								slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
-							},
-							{ posts: urlTemplate },
+						withLocalePrefix(
+							buildLiveSearchResultUrl(
+								{
+									collection: "posts",
+									id: typeof post.data.id === "string" ? post.data.id : post.id,
+									slug,
+								},
+								{ posts: urlTemplate },
+							),
+							localePrefix,
+							base,
 						),
 					)
-				: `/posts/${post.id}`;
+				: `${base}${localePrefix}/posts/${slug}`;
 			return (
 				<li>
 					{showThumbnails && isThumbnailImage(featuredImage) && (
