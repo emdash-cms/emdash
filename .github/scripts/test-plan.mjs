@@ -28,6 +28,13 @@ const DOCS_BUILD_INPUTS = new Set([
 	".github/workflows/ci.yml",
 	".github/scripts/test-plan.mjs",
 	".github/scripts/test-plan.test.mjs",
+	"packages/core/src/schema/types.ts",
+	"packages/core/src/plugins/types.ts",
+	"packages/core/src/astro/integration/runtime.ts",
+	"packages/core/src/db/adapters.ts",
+	"packages/core/src/astro/storage/adapters.ts",
+	"packages/core/src/astro/object-cache/adapters.ts",
+	"packages/cloudflare/src/index.ts",
 ]);
 const REPOSITORY_METADATA_PATTERN =
 	/^\.github\/(?:dependabot\.yml|codeql-config\.yml|zizmor\.yml)$/;
@@ -267,7 +274,13 @@ function isUnsafePath(path) {
 }
 
 function affectsDocs(path) {
-	return path.startsWith("docs/") || path.startsWith("patches/") || DOCS_BUILD_INPUTS.has(path);
+	return (
+		path.startsWith("docs/") ||
+		path.startsWith("patches/") ||
+		path.startsWith("packages/core/src/cli/") ||
+		path.startsWith("templates/") ||
+		DOCS_BUILD_INPUTS.has(path)
+	);
 }
 
 function createFullPlan(paths, reason, unknownPaths = []) {

@@ -32,9 +32,40 @@ describe("test plan", () => {
 		}
 	});
 
+	it("checks docs when reference inventory sources change", () => {
+		for (const path of [
+			"packages/core/src/schema/types.ts",
+			"packages/core/src/plugins/types.ts",
+			"packages/core/src/astro/integration/runtime.ts",
+			"packages/core/src/db/adapters.ts",
+			"packages/core/src/astro/storage/adapters.ts",
+			"packages/core/src/astro/object-cache/adapters.ts",
+			"packages/cloudflare/src/index.ts",
+			"packages/core/src/cli/index.ts",
+			"packages/core/src/cli/commands/content.ts",
+			"templates/blog/src/pages/index.astro",
+			"templates/minimal/src/components/Header.astro",
+		]) {
+			assert.equal(createTestPlan([path]).docs, true, path);
+		}
+	});
+
+	it("keeps docs selected when reference sources change alongside unclassified files", () => {
+		const plan = createTestPlan([
+			"future-system/src/index.ts",
+			"packages/core/src/plugins/types.ts",
+		]);
+
+		assert.equal(plan.full, true);
+		assert.equal(plan.docs, true);
+	});
+
 	it("skips docs for unrelated code, translations, metadata, and unknown paths", () => {
 		for (const path of [
 			"packages/core/src/index.ts",
+			"packages/core/src/plugins/manager.ts",
+			"packages/cloudflare/src/runtime.ts",
+			"assets/templates/example.ts",
 			"packages/admin/src/components/Editor.tsx",
 			"packages/admin/src/locales/ja/messages.po",
 			"packages/admin/src/locales/ar/messages.po",
@@ -293,12 +324,17 @@ describe("test plan", () => {
 
 	it("emits the docs selection for the workflow through the CLI", () => {
 		const script = fileURLToPath(new URL("./test-plan.mjs", import.meta.url));
-		const output = execFileSync(process.execPath, [script, "--github-output"], {
-			input: "docs/src/content/docs/guide.mdx\n",
-			encoding: "utf8",
-		});
+		for (const [path, unit] of [
+			["docs/src/content/docs/guide.mdx", false],
+			["packages/core/src/plugins/types.ts", true],
+		]) {
+			const output = execFileSync(process.execPath, [script, "--github-output"], {
+				input: `${path}\n`,
+				encoding: "utf8",
+			});
 
-		assert.ok(output.includes("docs=true\n"));
-		assert.ok(output.includes("unit=false\n"));
+			assert.ok(output.includes("docs=true\n"), path);
+			assert.ok(output.includes(`unit=${unit}\n`), path);
+		}
 	});
 });
