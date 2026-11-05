@@ -110,7 +110,10 @@ export interface RoomSite {
 
 /** Room storage for one room. */
 export interface RoomStore {
-	/** `updatedAt` is the time in ms of the last write or `touch`, or null when nothing is stored. */
+	/**
+	 * Updates come in the order they were written, so the first is the initial or compacted state.
+	 * `updatedAt` is the time in ms of the last write or `touch`, or null when nothing is stored.
+	 */
 	load(): Promise<{ record: RoomRecord | null; updates: Uint8Array[]; updatedAt: number | null }>;
 	append(updates: Uint8Array[]): Promise<void>;
 	writeRecord(record: RoomRecord, update?: Uint8Array): Promise<void>;

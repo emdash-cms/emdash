@@ -21,6 +21,16 @@ afterEach(() => {
 
 const HOUR = 60 * 60 * 1000;
 
+function resumedInfo(userId: string) {
+	return {
+		userId,
+		name: `Name ${userId}`,
+		access: "edit" as const,
+		connectedAt: Date.now(),
+		clientId: null,
+	};
+}
+
 /** Leaves the room with updates no save covered, then lets it close. */
 async function leaveUncovered(test: TestRoom, title: string): Promise<void> {
 	const ana = await test.join("ana");
@@ -165,6 +175,18 @@ describe("lineage, stale rooms and fingerprints", () => {
 		expect(test.store.record?.lineage).not.toBe(lineage);
 		expect(test.store.record?.fingerprint.version).toBe("1.1.0");
 		expect(test.site.recoveries).toHaveLength(1);
+	});
+
+	it("drops stored state it can't read, and initializes again", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.setField("title", "Stored");
+		await advance(1000);
+		test.restart();
+		test.store.updates.push(new Uint8Array([255, 255, 255]));
+		const ben = await test.join("ben");
+		expect(ben.field("title")).toBe("Hello");
+		expect(test.store.updates).toHaveLength(1);
 	});
 
 	it("answers stale when the status changed since the route checked access", async () => {
@@ -455,6 +477,29 @@ describe("restart and shutdown", () => {
 		expect(test.store.calls).not.toContain("touch");
 	});
 
+	it("names and merges an outside write that reaches a resumed socket's room", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		test.restart();
+		test.room.resume(ana, resumedInfo("ana"));
+		await test.site.write({ data: { title: "Outside" } }, ["seo"]);
+		await settle();
+		expect(ana.notices()).toContainEqual({ kind: "values", values: ["seo"] });
+		expect(ana.field("title")).toBe("Outside");
+	});
+
+	it("saves an operation's kept checkpoint in a resumed socket's room", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.setField("title", "Typed");
+		await advance(1000);
+		test.restart();
+		test.room.resume(ana, resumedInfo("ana"));
+		expect(await test.room.save("ben")).toMatchObject({ hold: expect.any(String) });
+		expect(test.site.saves.at(-1)).toMatchObject({ actorId: "ben", kept: true });
+		expect(test.site.current.data.title).toBe("Typed");
+	});
+
 	it("puts every field in the pending set after loading from storage", async () => {
 		const test = new TestRoom();
 		const ana = await test.join("ana");
@@ -501,5 +546,25 @@ describe("restart and shutdown", () => {
 		expect(test.store.claimed).toBe(false);
 		expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin);
 		expect(ben.closed?.code).toBe(CLOSE_CODES.rejoin);
+	});
+
+	it("answers busy to a token request whose load was in flight when shutdown began, and saves what it loaded", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.setField("title", "Stored");
+		await advance(1000);
+		test.restart();
+		let open!: () => void;
+		test.site.loadGate = new Promise<void>((resolve) => {
+			open = resolve;
+		});
+		const token = test.room.issueToken(test.claims("ana"));
+		await settle();
+		const shutdown = test.room.shutdown();
+		open();
+		expect(await token).toBe("busy");
+		await shutdown;
+		expect(test.site.current.data.title).toBe("Stored");
+		expect(test.store.claimed).toBe(false);
 	});
 });

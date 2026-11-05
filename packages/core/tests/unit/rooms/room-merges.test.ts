@@ -227,6 +227,21 @@ describe("notifications and merges", () => {
 		expect(test.store.record).toBeNull();
 	});
 
+	it("keeps updates typed just before a drop whose recovery save fails, for the next try", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.setField("title", "Typed");
+		await settle();
+		test.site.rejectRecoveries = true;
+		await test.site.write({ trashed: true });
+		await settle();
+		expect(ana.closed?.code).toBe(CLOSE_CODES.deleted);
+		test.site.rejectRecoveries = false;
+		await advance(60 * 60 * 1000);
+		await test.room.expire();
+		expect(test.site.recoveries).toMatchObject([{ data: { title: "Typed" } }]);
+	});
+
 	it("starts over with rejoin when a merge loads another schema hash", async () => {
 		const test = new TestRoom();
 		const ana = await test.join("ana");
@@ -268,6 +283,29 @@ describe("operations", () => {
 		await settle();
 		expect(await test.room.save("ana", test.site.current.rev)).toBe("conflict");
 		expect(test.site.saves).toHaveLength(0);
+	});
+
+	it("answers conflict for a _rev an unmerged write replaced, without saving again or holding", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		const rev = test.site.current.rev;
+		test.site.change({ data: { title: "Outside" } });
+		expect(await test.room.save("ana", rev)).toBe("conflict");
+		expect(test.site.saves).toHaveLength(1);
+		expect(ana.field("title")).toBe("Outside");
+		ana.setField("title", "Typed");
+		await advance(2000);
+		expect(test.site.current.data.title).toBe("Typed");
+	});
+
+	it("merges first for a _rev an unmerged write produced, then saves", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		test.site.change({ data: { title: "Outside" } });
+		expect(await test.room.save("ana", test.site.current.rev)).toMatchObject({
+			hold: expect.any(String),
+		});
+		expect(ana.field("title")).toBe("Outside");
 	});
 
 	it("answers null when the room isn't open", async () => {

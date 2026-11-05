@@ -94,6 +94,22 @@ describe("store", () => {
 		expect(ben.field(NOTES.slug)).toBe("d".repeat(300_000));
 	});
 
+	it("counts only updates stored since the last compaction after a restart", async () => {
+		const fields = ["a", "b", "c", "d"].map((slug) => ({ slug, type: "text" as const }));
+		const test = new TestRoom({ fields: [TITLE, BODY, ...fields] });
+		const ana = await test.join("ana");
+		for (const field of fields) {
+			ana.setField(field.slug, field.slug.repeat(300_000));
+			await advance(1000);
+		}
+		expect(test.store.compactions).toBe(1);
+		test.restart();
+		const ben = await test.join("ben");
+		ben.setField("title", "After");
+		await advance(1000);
+		expect(test.store.compactions).toBe(1);
+	});
+
 	it("saves and drops a compacted state over 2 MB", async () => {
 		const fields = ["a", "b", "c"].map((slug) => ({ slug, type: "text" as const }));
 		const test = new TestRoom({ fields: [TITLE, BODY, ...fields] });

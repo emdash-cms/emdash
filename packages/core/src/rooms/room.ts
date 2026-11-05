@@ -158,7 +158,7 @@ interface Hold {
 type SaveRequest =
 	| { kind: "auto" }
 	| { kind: "kept"; actor: string }
-	| { kind: "operation"; actor: string };
+	| { kind: "operation"; actor: string; guarded: boolean };
 
 type SaveOutcome =
 	| { ok: true; rev: string }
@@ -209,6 +209,7 @@ export class Room {
 	#lastClosedAt: number | null = null;
 	#cancelClose: (() => void) | null = null;
 	#claimed = false;
+	#shuttingDown = false;
 
 	constructor(options: RoomOptions) {
 		this.#entry = options.entry;
@@ -233,7 +234,9 @@ export class Room {
 		if (!sameBuild(claims.fingerprint, this.#build)) return null;
 		try {
 			const ready = await this.#readyForToken(claims);
-			return ready === "ready" ? this.#grant(claims) : ready;
+			if (ready !== "ready") return ready;
+			// A load already in flight when shutdown began can still finish ready.
+			return this.#shuttingDown ? "busy" : this.#grant(claims);
 		} finally {
 			void this.#releaseIfClosed();
 		}
@@ -243,7 +246,7 @@ export class Room {
 		actorId: string,
 		rev?: string,
 	): Promise<{ rev: string; hold: string } | "conflict" | null> {
-		if (!this.#loaded() || !this.isOpen()) return null;
+		if (!this.isOpen()) return null;
 		return new Promise((resolve, reject) => {
 			this.#enqueue(() => this.#operation(actorId, rev, resolve, reject)).catch(
 				(error: unknown) => {
@@ -266,7 +269,7 @@ export class Room {
 	}
 
 	async notify(outside: OutsideValue[]): Promise<void> {
-		if (!this.isOpen() || !this.#loaded()) return;
+		if (!this.isOpen()) return;
 		if (outside.length > 0) this.#broadcastNotice({ kind: "values", values: outside });
 		void this.#queueMerge();
 	}
@@ -314,7 +317,10 @@ export class Room {
 		return info;
 	}
 
-	/** Registers a socket that outlived the room's memory. The next message loads from storage. */
+	/**
+	 * Registers a socket that outlived the room's memory. The room loads from storage when it next
+	 * needs its state.
+	 */
 	resume(connection: RoomConnection, info: ConnectionInfo): void {
 		this.#connections.set(connection, info);
 		this.#reopen();
@@ -329,7 +335,7 @@ export class Room {
 	receive(connection: RoomConnection, message: Uint8Array): void {
 		if (!this.#connections.has(connection)) return;
 		if (this.#phase.kind === "unloaded") {
-			void this.#resumeFromStorage().then(() => this.receive(connection, message));
+			void this.#enqueue(() => this.#resume()).then(() => this.receive(connection, message));
 			return;
 		}
 		const state = this.#loaded();
@@ -358,7 +364,7 @@ export class Room {
 
 	/** The hourly drop, for the host's alarm or cleanup. */
 	async expire(): Promise<void> {
-		if (this.isOpen()) return;
+		if (this.isOpen() || this.#shuttingDown) return;
 		await this.#enqueue(() => this.#expire());
 		await this.#releaseIfClosed();
 	}
@@ -368,11 +374,13 @@ export class Room {
 	 * closes every connection.
 	 */
 	async shutdown(): Promise<void> {
-		const state = this.#loaded();
-		this.#phase = { kind: "shutting-down", state };
+		this.#shuttingDown = true;
+		this.#stopUpdates();
 		this.#forgetAllTokens();
 		this.#hold?.end({ overwrite: false });
 		await this.#enqueue(async () => {
+			// A token request queued before shutdown can have loaded state since.
+			const state = this.#stopUpdates();
 			if (state) {
 				await this.#flush(state);
 				if (this.#live(state)) await this.#saveTask(state, { kind: "auto" });
@@ -384,9 +392,17 @@ export class Room {
 		});
 	}
 
+	/** Moves the phase to shutting-down, where updates no longer apply, and returns its state. */
+	#stopUpdates(): LoadedState | null {
+		const phase = this.#phase;
+		const state = phase.kind === "loaded" || phase.kind === "shutting-down" ? phase.state : null;
+		this.#phase = { kind: "shutting-down", state };
+		return state;
+	}
+
 	async #readyForToken(claims: TokenClaims): Promise<"ready" | "busy" | null> {
 		while (this.#phase.kind === "dropping") await this.#phase.done;
-		if (this.#phase.kind === "shutting-down") return "busy";
+		if (this.#shuttingDown) return "busy";
 		const state = this.#loaded();
 		if (state && !this.#needsPreparing(state, claims)) return "ready";
 		return this.#enqueue(() => this.#prepareForToken(claims));
@@ -401,7 +417,7 @@ export class Room {
 	}
 
 	async #prepareForToken(claims: TokenClaims): Promise<"ready" | "busy" | null> {
-		if (this.#phase.kind === "shutting-down") return "busy";
+		if (this.#shuttingDown) return "busy";
 		let state = this.#loaded();
 		let entry: LoadedEntry | null | undefined;
 		if (!state) {
@@ -470,19 +486,24 @@ export class Room {
 		if (expiring && !expired) return "failed";
 		const entry = await this.#loadEntry();
 		if (entry === undefined) return "failed";
+		const fields = documentFields(entry?.fields ?? []);
 		const doc = new Y.Doc({ gc: true });
+		let state: LoadedState;
 		try {
 			doc.transact(() => {
 				for (const update of updates) Y.applyUpdate(doc, update);
 			}, STORAGE_ORIGIN);
+			state = this.#adopt(doc, record, entry, new Set(fields.map((field) => field.slug)));
 		} catch (error) {
-			this.#logError("couldn't apply stored updates", error);
-			return "failed";
+			this.#logError("dropped stored state it couldn't read", error);
+			doc.destroy();
+			return (await this.#stored(null, () => this.#store.drop())) ? "empty" : "failed";
 		}
-		const fields = documentFields(entry?.fields ?? []);
-		const state = this.#adopt(doc, record, entry, new Set(fields.map((field) => field.slug)));
 		state.updatedAt = updatedAt ?? this.#timers.now();
-		state.storedBytes = updates.reduce((total, update) => total + update.byteLength, 0);
+		// The first stored update is the initial or compacted state; compaction counts what follows.
+		state.storedBytes = updates
+			.slice(1)
+			.reduce((total, update) => total + update.byteLength, 0);
 		const stale =
 			!sameBuild(record.fingerprint, this.#build) ||
 			(entry !== null && entry.hash !== record.fingerprint.hash);
@@ -497,17 +518,16 @@ export class Room {
 		return { state, entry };
 	}
 
-	async #resumeFromStorage(): Promise<void> {
-		await this.#enqueue(async () => {
-			if (this.#phase.kind !== "unloaded") return;
-			const stored = await this.#loadStored(false);
-			if (typeof stored === "string") {
-				this.#closeAll(
-					stored === "busy" ? CLOSE_CODES.busy : CLOSE_CODES.rejoin,
-					"The room has no state to resume",
-				);
-			}
-		});
+	/** Loads the stored state of a room whose sockets outlived its memory, or closes them. */
+	async #resume(): Promise<{ state: LoadedState; entry: LoadedEntry | null } | null> {
+		if (this.#phase.kind !== "unloaded" || this.#connections.size === 0) return null;
+		const stored = await this.#loadStored(false);
+		if (typeof stored !== "string") return stored;
+		this.#closeAll(
+			stored === "busy" ? CLOSE_CODES.busy : CLOSE_CODES.rejoin,
+			"The room has no state to resume",
+		);
+		return null;
 	}
 
 	async #initialize(claims: TokenClaims): Promise<boolean> {
@@ -532,10 +552,7 @@ export class Room {
 		};
 		const state = this.#adopt(built.doc, record, entry, new Set());
 		const update = Y.encodeStateAsUpdate(built.doc);
-		return this.#stored(state, async () => {
-			await this.#store.writeRecord(this.#recordOf(state), update);
-			state.storedBytes = update.byteLength;
-		});
+		return this.#stored(state, () => this.#store.writeRecord(this.#recordOf(state), update));
 	}
 
 	/** The entry, null when it's gone, or undefined when the site can't be reached. */
@@ -781,7 +798,10 @@ export class Room {
 		let outcome = await this.#saveOnce(state, request);
 		if (outcome && !outcome.ok && outcome.reason === "CONFLICT" && this.#live(state)) {
 			const merged = await this.#runMerge(state, {});
-			if (merged === "merged" && this.#live(state)) outcome = await this.#saveOnce(state, request);
+			const retry = request.kind !== "operation" || !request.guarded;
+			if (merged === "merged" && retry && this.#live(state)) {
+				outcome = await this.#saveOnce(state, request);
+			}
 		}
 		if (outcome && !outcome.ok && outcome.reason === "NOT_FOUND" && this.#live(state)) {
 			await this.#runMerge(state, {});
@@ -871,6 +891,7 @@ export class Room {
 		for (;;) {
 			const result = await this.#callSave({ ...input, actorId });
 			if (!this.#live(state) || result.ok || result.reason !== "FORBIDDEN") return result;
+			void this.forgetTokens(actorId);
 			this.#closeUser(actorId, CLOSE_CODES.rejoin, "Edit access changed");
 			const following = next.shift();
 			if (following === undefined) return result;
@@ -929,10 +950,14 @@ export class Room {
 	#queueMerge(): Promise<void> {
 		if (this.#mergeQueued) return this.#mergeQueued;
 		const state = this.#loaded();
-		if (!state) return Promise.resolve();
+		if (!state && this.#phase.kind !== "unloaded") return Promise.resolve();
 		const queued = this.#enqueue(async () => {
 			this.#mergeQueued = null;
-			if (this.#live(state)) await this.#runMerge(state, {});
+			const resumed = state ? null : await this.#resume();
+			const current = resumed?.state ?? state ?? this.#loaded();
+			if (current && this.#live(current)) {
+				await this.#runMerge(current, { entry: resumed?.entry });
+			}
 		});
 		this.#mergeQueued = queued;
 		return queued;
@@ -1060,19 +1085,27 @@ export class Room {
 		resolve: (result: { rev: string; hold: string } | "conflict" | null) => void,
 		reject: (error: unknown) => void,
 	): Promise<void> {
-		const state = this.#loaded();
-		if (!state) return resolve(null);
-		if (rev !== undefined && (rev !== state.record.mergeBase.rev || this.#isUncovered(state))) {
-			return resolve("conflict");
-		}
+		let state: LoadedState | null;
 		let outcome: SaveOutcome | null;
 		try {
-			outcome = await this.#saveTask(state, { kind: "operation", actor: actorId });
+			state = this.#loaded() ?? (await this.#resume())?.state ?? null;
+			if (!state) return resolve(null);
+			// The caller's `_rev` is checked against the stored entry's, which an unmerged write moved.
+			if (rev !== undefined && rev !== state.record.mergeBase.rev) {
+				await this.#runMerge(state, {});
+				if (!this.#live(state)) return resolve(null);
+			}
+			if (rev !== undefined && (rev !== state.record.mergeBase.rev || this.#isUncovered(state))) {
+				return resolve("conflict");
+			}
+			const guarded = rev !== undefined;
+			outcome = await this.#saveTask(state, { kind: "operation", actor: actorId, guarded });
 		} catch (error) {
 			return reject(error);
 		}
 		if (!outcome) return reject(new RoomSaveError("UNLOADED", "UNLOADED", UNLOADED_MESSAGE));
 		if (!outcome.ok) {
+			if (outcome.reason === "CONFLICT" && rev !== undefined) return resolve("conflict");
 			return reject(new RoomSaveError(outcome.reason, outcome.code, outcome.message));
 		}
 		const ended = deferred<{ overwrite: boolean }>();
@@ -1120,7 +1153,10 @@ export class Room {
 		try {
 			const saved = !recovery || !this.#isUncovered(state) || (await this.#saveRecovery(state));
 			if (code !== undefined) this.#closeAll(code, "The room started over");
-			return saved && (await this.#stored(null, () => this.#store.drop()));
+			if (saved) return await this.#stored(null, () => this.#store.drop());
+			// The next try loads from storage, so it needs the updates not stored yet.
+			await this.#stored(null, () => this.#storeBuffered(state));
+			return false;
 		} finally {
 			this.#phase = { kind: "unloaded" };
 			state.doc.destroy();
@@ -1168,10 +1204,10 @@ export class Room {
 
 	/** Once the room isn't open and has finished writing, it unloads and releases its claim. */
 	#releaseIfClosed(): Promise<void> {
-		if (this.isOpen() || this.#phase.kind === "shutting-down") return Promise.resolve();
+		if (this.isOpen() || this.#shuttingDown) return Promise.resolve();
 		if (this.#phase.kind === "unloaded" && !this.#claimed) return Promise.resolve();
 		return this.#background(async () => {
-			if (this.isOpen() || this.#phase.kind === "shutting-down") return;
+			if (this.isOpen() || this.#shuttingDown) return;
 			const state = this.#loaded();
 			if (state) {
 				if (!(await this.#flush(state)) || !this.#live(state) || this.isOpen()) return;
@@ -1257,20 +1293,22 @@ export class Room {
 		});
 	}
 
-	/** Stores buffered updates, with the record when `editors` changed, so a restart keeps names. */
 	#flush(state: LoadedState): Promise<boolean> {
 		state.cancelStore?.();
 		state.cancelStore = null;
-		return this.#stored(state, async () => {
-			if (state.buffer.length === 0) return;
-			if (state.editorsChanged) {
-				await this.#writeRecordNow(state);
-				return;
-			}
-			const updates = state.buffer.splice(0);
-			await this.#store.append(updates);
-			await this.#counted(state, updates);
-		});
+		return this.#stored(state, () => this.#storeBuffered(state));
+	}
+
+	/** Stores buffered updates, with the record when `editors` changed, so a restart keeps names. */
+	async #storeBuffered(state: LoadedState): Promise<void> {
+		if (state.buffer.length === 0) return;
+		if (state.editorsChanged) {
+			await this.#writeRecordNow(state);
+			return;
+		}
+		const updates = state.buffer.splice(0);
+		await this.#store.append(updates);
+		await this.#counted(state, updates);
 	}
 
 	/** Writes the record, as of when the call runs, with every buffered update. */

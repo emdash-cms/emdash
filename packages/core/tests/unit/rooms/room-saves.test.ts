@@ -4,7 +4,15 @@ import * as Y from "yjs";
 import { readField } from "../../../src/rooms/document.js";
 import { snapshotContains } from "../../../src/rooms/snapshot.js";
 import { CLOSE_CODES } from "../../../src/rooms/types.js";
-import { advance, blocksText, BODY, settle, TestRoom, useRoomTimers } from "./test-room.js";
+import {
+	advance,
+	blocksText,
+	BODY,
+	settle,
+	TestClient,
+	TestRoom,
+	useRoomTimers,
+} from "./test-room.js";
 
 beforeEach(useRoomTimers);
 afterEach(() => {
@@ -231,6 +239,19 @@ describe("save results", () => {
 		expect(ben.closed?.code).toBe(CLOSE_CODES.rejoin);
 		expect(ana.closed).toBeNull();
 		expect(test.storedText()).toBe("Ben First paragraph.");
+	});
+
+	it("forgets the unused tokens of a user the site refuses", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		const unused = (await test.room.issueToken(test.claims("ana"))) as { token: string };
+		test.site.forbidden.add("ana");
+		ana.setField("title", "Ana");
+		await advance(2000);
+		expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin);
+		const again = new TestClient(test, "ana");
+		again.connect(unused.token);
+		expect(again.closed?.code).toBe(CLOSE_CODES.busy);
 	});
 
 	it("waits when no editor can save", async () => {

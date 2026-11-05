@@ -1255,7 +1255,6 @@ class Run {
 			ledger.fail("the room's last checkpoint doesn't cover its document after settling");
 		}
 
-		// 1. Every replica equals the room's document.
 		const expected = documentHash(room);
 		const vector = Y.encodeStateVector(room).join();
 		for (const client of this.clients) {
@@ -1265,10 +1264,6 @@ class Run {
 			if (!same) ledger.fail(`client ${client.index}'s replica differs from the room's document`);
 		}
 
-		// 2. Each checkpoint contains the one before it: checked as the room stores each one and as
-		// each client receives it.
-
-		// 3. No covered word is lost.
 		const entry = this.site.current;
 		const final = countWords([entry.data, entry.slug]);
 		const recovered = new Set(wordsInJson(this.site.recoveries.map((r) => [r.data, r.slug])));
@@ -1278,7 +1273,6 @@ class Run {
 			ledger.fail(`covered word ${describe(word)} is lost`);
 		}
 
-		// 4. No word appears twice in the final stored entry, beyond what block rewrites copied.
 		for (const [word, count] of final) {
 			if (count > 1 + (ledger.copies.get(word) ?? 0)) {
 				ledger.fail(`word ${describe(word)} is stored ${count} times`);
