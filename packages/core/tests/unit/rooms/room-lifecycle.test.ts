@@ -177,7 +177,7 @@ describe("lineage, stale rooms and fingerprints", () => {
 		expect(test.site.recoveries).toHaveLength(1);
 	});
 
-	it("drops stored state it can't read, and initializes again", async () => {
+	it("saves what it can read of stored state as a recovery revision, and initializes again", async () => {
 		const test = new TestRoom();
 		const ana = await test.join("ana");
 		ana.setField("title", "Stored");
@@ -185,8 +185,37 @@ describe("lineage, stale rooms and fingerprints", () => {
 		test.restart();
 		test.store.updates.push(new Uint8Array([255, 255, 255]));
 		const ben = await test.join("ben");
+		expect(test.site.recoveries).toMatchObject([{ data: { title: "Stored" } }]);
 		expect(ben.field("title")).toBe("Hello");
 		expect(test.store.updates).toHaveLength(1);
+	});
+
+	it("keeps stored state it can't read while its recovery save fails", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.setField("title", "Stored");
+		await advance(1000);
+		test.restart();
+		test.store.updates.push(new Uint8Array([255, 255, 255]));
+		const stored = [...test.store.updates];
+		test.site.rejectRecoveries = true;
+		expect(await test.room.issueToken(test.claims("ben"))).toBeNull();
+		expect(test.store.updates).toEqual(stored);
+		test.site.rejectRecoveries = false;
+		await test.join("ben");
+		expect(test.site.recoveries).toMatchObject([{ data: { title: "Stored" } }]);
+	});
+
+	it("saves the document as a recovery revision when the stored checkpoint can't be read", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.setField("title", "Stored");
+		await advance(1000);
+		test.restart();
+		test.store.record = { ...test.store.record!, checkpoint: "!" };
+		const ben = await test.join("ben");
+		expect(test.site.recoveries).toMatchObject([{ data: { title: "Stored" } }]);
+		expect(ben.field("title")).toBe("Hello");
 	});
 
 	it("answers stale when the status changed since the route checked access", async () => {

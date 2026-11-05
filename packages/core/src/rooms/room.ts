@@ -487,22 +487,39 @@ export class Room {
 		const entry = await this.#loadEntry();
 		if (entry === undefined) return "failed";
 		const fields = documentFields(entry?.fields ?? []);
+		// State that can't be read back drops like stale state, so recovery keeps what can be read.
+		let readable = true;
 		const doc = new Y.Doc({ gc: true });
-		let state: LoadedState;
+		doc.transact(() => {
+			for (const update of updates) {
+				try {
+					Y.applyUpdate(doc, update);
+				} catch (error) {
+					readable = false;
+					this.#logError("couldn't read a stored update", error);
+				}
+			}
+		}, STORAGE_ORIGIN);
+		let checkpoint: Y.Snapshot;
 		try {
-			doc.transact(() => {
-				for (const update of updates) Y.applyUpdate(doc, update);
-			}, STORAGE_ORIGIN);
-			state = this.#adopt(doc, record, entry, new Set(fields.map((field) => field.slug)));
+			checkpoint = decodeCheckpoint(record.checkpoint);
 		} catch (error) {
-			this.#logError("dropped stored state it couldn't read", error);
-			doc.destroy();
-			return (await this.#stored(null, () => this.#store.drop())) ? "empty" : "failed";
+			readable = false;
+			this.#logError("couldn't read the stored checkpoint", error);
+			checkpoint = Y.emptySnapshot;
 		}
+		const state = this.#adopt(
+			doc,
+			record,
+			checkpoint,
+			entry,
+			new Set(fields.map((field) => field.slug)),
+		);
 		state.updatedAt = updatedAt ?? this.#timers.now();
 		// The first stored update is the initial or compacted state; compaction counts what follows.
 		state.storedBytes = updates.slice(1).reduce((total, update) => total + update.byteLength, 0);
 		const stale =
+			!readable ||
 			!sameBuild(record.fingerprint, this.#build) ||
 			(entry !== null && entry.hash !== record.fingerprint.hash);
 		if (stale || expired) {
@@ -539,16 +556,17 @@ export class Room {
 		if (!entry || entry.trashed || entry.hash !== claims.fingerprint.hash) return false;
 		const built = buildInitial(entry);
 		if (!built) return false;
+		const checkpoint = Y.snapshot(built.doc);
 		const record: RoomRecord = {
 			lineage: randomId(LINEAGE_BYTES),
 			fingerprint: claims.fingerprint,
-			checkpoint: encodeCheckpoint(Y.snapshot(built.doc)),
+			checkpoint: encodeCheckpoint(checkpoint),
 			mergeBase: built.mergeBase,
 			editors: [],
 			status: entry.status,
 			authorId: entry.authorId,
 		};
-		const state = this.#adopt(built.doc, record, entry, new Set());
+		const state = this.#adopt(built.doc, record, checkpoint, entry, new Set());
 		const update = Y.encodeStateAsUpdate(built.doc);
 		return this.#stored(state, () => this.#store.writeRecord(this.#recordOf(state), update));
 	}
@@ -567,6 +585,7 @@ export class Room {
 	#adopt(
 		doc: Y.Doc,
 		record: RoomRecord,
+		checkpoint: Y.Snapshot,
 		entry: LoadedEntry | null,
 		pending: Set<string>,
 	): LoadedState {
@@ -574,7 +593,7 @@ export class Room {
 			generation: ++this.#generation,
 			doc,
 			record,
-			checkpoint: decodeCheckpoint(record.checkpoint),
+			checkpoint,
 			fields: documentFields(entry?.fields ?? []),
 			pluginTypes: entry?.pluginTypes ?? [],
 			pending,
