@@ -21,7 +21,7 @@ The work has four phases:
 
 1. **One authorization path.** Every role check in REST routes, MCP tools and the admin goes through the permission map, and the admin receives the signed-in user's effective permissions instead of deriving them from the role number. This phase changes no data model and is useful without the others.
 2. **Roles as data.** A roles table, collection scope for content permissions, and an API, a CLI command and a seed section for roles.
-3. **Role editor.** A permission matrix in the admin.
+3. **Role editor.** A Roles page in the admin with a permission matrix.
 4. **Own drafts only.** A permission that shows a role the drafts, revisions and trashed entries it owns, and no one else's.
 
 [#824](https://github.com/emdash-cms/emdash/discussions/824) asks for "user A can edit posts in collection X but not Y". This RFC answers that request and replaces the per-collection `min_role` I proposed in a comment there.
@@ -153,7 +153,7 @@ The request in #2332 becomes a role with the ten Subscriber permissions and `byl
 - **Locale scope.** A grant names collections, not locales, so a translator who may edit only the Spanish rows of a collection needs a later proposal. That role also needs a different translation check, because creating a translation requires edit access to the source entry. The grant format lets such a proposal add a restriction that older code denies instead of ignoring ([Check](#check)).
 - **Plugin-defined permissions.** Core owns the set of permission names. A plugin route keeps naming a core permission ([#1587](https://github.com/emdash-cms/emdash/discussions/1587)).
 - **Approval workflows.** A role without a publish permission cannot publish, which the existing permissions already express.
-- **Changing the built-in roles.** They cannot be edited or removed, and no permission is renamed.
+- **Changing the built-in roles.** They cannot be edited or removed, because every user keeps one of their five levels in `users.role`, which rollback, `minRole` and plugins read as that role's permissions ([Compatibility level](#compatibility-level)), and the last-admin guard counts users with the built-in Admin role. No permission is renamed.
 - **Deny rules.** Roles only grant.
 
 ## Detailed design
@@ -318,7 +318,7 @@ A write that includes a reserved permission is rejected. `content:delete_permane
 
 | Method and path                          | Purpose                                                                                                                                          |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /_emdash/api/admin/roles`           | `{ items }` of built-in and custom roles; built-in ones are read-only                                                                            |
+| `GET /_emdash/api/admin/roles`           | `{ items }` of built-in and custom roles; built-in ones are read-only, and each custom role carries its compatibility level and number of users  |
 | `POST /_emdash/api/admin/roles`          | Create from `{ slug, label, description?, permissions, collections }`                                                                            |
 | `GET /_emdash/api/admin/roles/{slug}`    | One role                                                                                                                                         |
 | `PUT /_emdash/api/admin/roles/{slug}`    | Replace label, description and grants; the slug is immutable                                                                                     |
@@ -339,6 +339,20 @@ The user, invite and allowed-domain routes accept a role slug wherever they acce
 
 - **CLI.** `emdash role list|get|create|update|delete`, going through the REST API like `emdash menu` and `emdash taxonomy`.
 - **Seed.** `SeedFile` gains `roles?: SeedRole[]` with the shape of the create body. Applying a seed creates missing roles and updates existing ones by slug. `emdash export-seed` writes the section.
+
+### Role editor
+
+A Roles page in the Admin group of the sidebar, beside Users, lists the roles and edits custom ones. Opening it requires `users:read`, and changing a role requires `users:manage`. Both are reserved, so in practice only the built-in Admin sees the page.
+
+- **Custom roles.** A table shows each role's label, slug and description, a summary of its content grants per scope ("Jobs: Read, Read drafts, Create" or "All collections: Read") with the number of site-wide permissions, its compatibility level and its number of users. Deleting a role asks for confirmation and is refused with `ROLE_IN_USE` while a user, an unexpired invite or an allowed domain uses it.
+- **Built-in roles.** They are listed read-only. "Start a role from this" opens the editor with that role's permissions, without the reserved ones, as a template.
+
+The editor is a dialog:
+
+- **Name, slug and description.** The slug cannot change once the role exists, because seed files and identity providers refer to the role by it.
+- **Content.** A matrix with one row for all collections, which holds the unscoped grants and also covers collections added later, and one row per collection for the scoped grants. The columns are the content permissions, `content:read_own_drafts` included. A grant that a wider grant includes ([Check](#check)) shows as checked and disabled, and names the grant that includes it.
+- **Everything else.** The site-wide permissions as checkboxes, grouped by area, such as Media, Taxonomies and Comments. Reserved permissions cannot be selected, and a note in their area names them.
+- **Compatibility level.** The dialog shows the level the role will get and updates it as permissions change.
 
 ### Localization and accessibility
 
@@ -410,7 +424,7 @@ The extra query on authenticated pages is the existing user lookup, which carrie
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
 | 1     | The optional resource on the checks and the equivalence test. Permission names replace the role comparisons in the user-management, API token and OAuth client routes, MCP and visual editing, with a new Admin-level name where none exists yet. Effective permissions in `/auth/me`. `useCan` in the admin. Plugin pages, widgets and panels visible by permission. Draft-only edits. | None          |
 | 2     | `_emdash_roles` and the references. Collection scope in content routes, cross-collection reads and MCP tools. The roles API, the seed section and the CLI. Role slugs in identity-provider mappings. Token scopes derived from grants. Custom roles in the user role picker. The route audit.                                                                                           | Additive      |
-| 3     | The role editor: a permission matrix that starts from a built-in role as a template. Documentation.                                                                                                                                                                                                                                                                                     | None          |
+| 3     | The [role editor](#role-editor): a Roles page and a permission matrix that can start from a built-in role as a template. Documentation.                                                                                                                                                                                                                                                 | None          |
 | 4     | `content:read_own_drafts` in the map and the role editor. Ownership checks on the single-entry routes, and the owner predicate in list routes and MCP list tools.                                                                                                                                                                                                                       | None          |
 
 Each phase is a separate set of pull requests and ships without a feature flag. Phase 1 can ship on its own. Phase 4 needs phase 2, because only a custom role can hold `content:read_own_drafts` without `content:read_drafts`. I will implement all four phases, in order.
