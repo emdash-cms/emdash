@@ -127,6 +127,7 @@ function PublishingVersionRow({
 
 function PublishingVersionRelationship({
 	publishingState,
+	isNew,
 	supportsDrafts,
 	scheduledAt,
 	locale,
@@ -134,6 +135,7 @@ function PublishingVersionRelationship({
 	discardDisabled,
 }: {
 	publishingState: ContentPublishingState;
+	isNew?: boolean;
 	supportsDrafts: boolean;
 	scheduledAt?: string | null;
 	locale: string;
@@ -168,7 +170,11 @@ function PublishingVersionRelationship({
 				<PublishingVersionRow
 					iconState="draft"
 					title={t`Draft version`}
-					description={t`This version is not visible on the site`}
+					description={
+						isNew
+							? t`Saving creates a draft that stays off the site. You can publish it after the first save.`
+							: t`This version is not visible on the site`
+					}
 				/>
 			);
 			break;
@@ -360,6 +366,7 @@ export function DiscardDraftDialog({
 export interface EditorActionsProps {
 	collectionLabel?: string;
 	isNew?: boolean;
+	supportsDrafts?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
 	/** Autosave in flight — reported by the save button's busy state. */
@@ -638,6 +645,7 @@ export function ScheduleActions({
 export function EditorActions({
 	collectionLabel,
 	isNew,
+	supportsDrafts,
 	isDirty,
 	isSaving,
 	isAutosaving,
@@ -658,6 +666,7 @@ export function EditorActions({
 }: EditorActionsProps) {
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
+	const savesFirstDraft = isNew && supportsDrafts;
 	// Saved reads as a quiet status; unsaved work becomes a button again.
 	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
 
@@ -667,11 +676,12 @@ export function EditorActions({
 				type="submit"
 				size="sm"
 				variant={saveVariant}
-				className={cn("min-w-0", compactBarButtonClassName)}
-				labelClassName="@max-2xl/editor-bar:hidden"
+				className={cn("min-w-0", !savesFirstDraft && compactBarButtonClassName)}
+				labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
 				isDirty={isDirty}
 				isSaving={busy}
 				disabled={saveDisabled}
+				saveLabel={savesFirstDraft ? t`Save draft` : undefined}
 			/>
 			{liveViewUrl && (
 				<LinkButton
@@ -934,7 +944,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
-				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
+				<SortableContentSettingsSection
+					id="publish"
+					label={t`Publish`}
+					hidden={isNew && !supportsDrafts}
+				>
 					<div className="p-4">
 						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 							{t`Publish`}
@@ -947,6 +961,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								{showPublishingRelationship ? (
 									<PublishingVersionRelationship
 										publishingState={resolvedPublishingState}
+										isNew={isNew}
 										supportsDrafts={supportsDrafts}
 										scheduledAt={item?.scheduledAt}
 										locale={lingui.locale}

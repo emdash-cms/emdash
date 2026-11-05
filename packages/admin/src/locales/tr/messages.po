@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# öğe)} other {(# öğe)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3276
+#: packages/admin/src/components/ContentEditor.tsx:3277
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} / # karakter, en az {min}} other {{counted} / # karakter, en az {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3281
+#: packages/admin/src/components/ContentEditor.tsx:3282
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} / # karakter} other {{counted} / # karakter}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# yorum içe aktarıldı} other {# yorum içe aktarıldı}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2469
+#: packages/admin/src/router.tsx:2470
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# yorum güncellendi} other {# yorum güncellendi}}"
 
@@ -404,7 +404,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {# video ekle} other {# video ekle}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3286
+#: packages/admin/src/components/ContentEditor.tsx:3287
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {En az # karakter} other {En az # karakter}}"
 
@@ -1213,9 +1213,9 @@ msgstr "Bir paket dosyası manifestle eşleşmiyor"
 msgid "A package file is missing"
 msgstr "Bir paket dosyası eksik"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:180
-#: packages/admin/src/components/ContentSettingsPanel.tsx:231
-#: packages/admin/src/components/ContentSettingsPanel.tsx:257
+#: packages/admin/src/components/ContentSettingsPanel.tsx:186
+#: packages/admin/src/components/ContentSettingsPanel.tsx:237
+#: packages/admin/src/components/ContentSettingsPanel.tsx:263
 msgid "A publication time has not been selected"
 msgstr "Yayın zamanı seçilmedi"
 
@@ -1313,7 +1313,7 @@ msgstr "Daveti Kabul Et"
 msgid "Access denied"
 msgstr "Erişim engellendi"
 
-#: packages/admin/src/router.tsx:2491
+#: packages/admin/src/router.tsx:2492
 msgid "Access Denied"
 msgstr "Erişim engellendi"
 
@@ -1577,8 +1577,8 @@ msgstr "Noindex meta etiketi ekle"
 msgid "Add Passkey"
 msgstr "Geçiş Anahtarı Ekle"
 
-#: packages/admin/src/components/ContentEditor.tsx:3193
-#: packages/admin/src/components/ContentEditor.tsx:3193
+#: packages/admin/src/components/ContentEditor.tsx:3194
+#: packages/admin/src/components/ContentEditor.tsx:3194
 msgid "Add reference"
 msgstr "Referans ekle"
 
@@ -1994,16 +1994,16 @@ msgstr "Parmak izi, yüz tanıma, PIN veya cihaz parolasıyla açabildiğiniz ş
 #: packages/admin/src/router.tsx:665
 #: packages/admin/src/router.tsx:686
 #: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1340
-#: packages/admin/src/router.tsx:1463
-#: packages/admin/src/router.tsx:1497
-#: packages/admin/src/router.tsx:1521
-#: packages/admin/src/router.tsx:1605
-#: packages/admin/src/router.tsx:1638
-#: packages/admin/src/router.tsx:2441
-#: packages/admin/src/router.tsx:2477
-#: packages/admin/src/router.tsx:2905
-#: packages/admin/src/router.tsx:3092
+#: packages/admin/src/router.tsx:1341
+#: packages/admin/src/router.tsx:1464
+#: packages/admin/src/router.tsx:1498
+#: packages/admin/src/router.tsx:1522
+#: packages/admin/src/router.tsx:1606
+#: packages/admin/src/router.tsx:1639
+#: packages/admin/src/router.tsx:2442
+#: packages/admin/src/router.tsx:2478
+#: packages/admin/src/router.tsx:2906
+#: packages/admin/src/router.tsx:3093
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Bir hata oluştu"
@@ -2228,11 +2228,11 @@ msgstr "MCP üzerinden bağlanan asistanlar, belirteçlerine aktarım kapsamı v
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3309
+#: packages/admin/src/components/ContentEditor.tsx:3310
 msgid "At least {min}"
 msgstr "En az {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3306
+#: packages/admin/src/components/ContentEditor.tsx:3307
 msgid "At most {max}"
 msgstr "En fazla {max}"
 
@@ -2274,7 +2274,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Kimlik doğrulama iptal edildi veya zaman aşımına uğradı. Lütfen tekrar deneyin."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1350
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2354,7 +2354,7 @@ msgstr "Otomatik Yedeklemeler"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Otomatik yedeklemeler için bir depolama arka ucu (R2, S3 veya yerel depolama) gerekir. Bunları etkinleştirmek için EmDash yapılandırmanızda depolamayı ayarlayın."
 
-#: packages/admin/src/router.tsx:1460
+#: packages/admin/src/router.tsx:1461
 msgid "Autosave failed"
 msgstr "Otomatik kaydetme başarısız oldu"
 
@@ -2507,7 +2507,7 @@ msgstr "Göndermeden önce:"
 msgid "Before you continue:"
 msgstr "Devam etmeden önce:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3303
+#: packages/admin/src/components/ContentEditor.tsx:3304
 msgid "Between {min} and {max}"
 msgstr "{min} ile {max} arasında"
 
@@ -2681,8 +2681,8 @@ msgstr "Yazar bilgisi güncellendi"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1114
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
@@ -2733,7 +2733,7 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:531
+#: packages/admin/src/components/ContentSettingsPanel.tsx:538
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -2907,7 +2907,7 @@ msgstr "Yayın tarihini değiştir"
 msgid "Change publication date: {0}"
 msgstr "Yayın tarihini değiştir: {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/ContentSettingsPanel.tsx:610
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Zamanlamayı değiştir"
@@ -2994,7 +2994,7 @@ msgstr "Değişiklik günlüğü"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Değişiklikler bu yazar bilgisinin göründüğü her yere uygulanır."
 
-#: packages/admin/src/router.tsx:1538
+#: packages/admin/src/router.tsx:1539
 msgid "Changes discarded"
 msgstr "Değişikliklerden vazgeçildi"
 
@@ -3341,7 +3341,7 @@ msgstr "Görsel ayarlarını kapat"
 msgid "Close panel"
 msgstr "Paneli kapat"
 
-#: packages/admin/src/components/ContentEditor.tsx:2385
+#: packages/admin/src/components/ContentEditor.tsx:2386
 msgid "Close settings"
 msgstr "Ayarları kapat"
 
@@ -3395,7 +3395,7 @@ msgstr "“{0}” koleksiyonu bu sitede oluşturuldu"
 
 #: packages/admin/src/router.tsx:776
 #: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1965
+#: packages/admin/src/router.tsx:1966
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3558,7 +3558,7 @@ msgstr "Bağlı {0}"
 msgid "Connects"
 msgstr "Bağladığı türler"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:466
+#: packages/admin/src/components/ContentSettingsPanel.tsx:473
 msgid "content"
 msgstr "içerik"
 
@@ -3589,7 +3589,7 @@ msgstr "İçerik Hataları ({0})"
 msgid "Content found:"
 msgstr "Bulunan içerik:"
 
-#: packages/admin/src/router.tsx:1587
+#: packages/admin/src/router.tsx:1588
 msgid "Content has been scheduled for publishing"
 msgstr "İçeriğin yayınlanması planlandı"
 
@@ -3597,11 +3597,11 @@ msgstr "İçeriğin yayınlanması planlandı"
 msgid "Content ID:"
 msgstr "İçerik Kimliği:"
 
-#: packages/admin/src/router.tsx:1491
+#: packages/admin/src/router.tsx:1492
 msgid "Content is now live"
 msgstr "İçerik artık yayında"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1076
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1091
 msgid "Content language"
 msgstr "İçerik dili"
 
@@ -3622,11 +3622,11 @@ msgstr "İçerik medyaya geçersiz bir şekilde referans veriyor"
 msgid "Content refers to media that is not in the package"
 msgstr "İçerik, pakette bulunmayan medyaya referans veriyor"
 
-#: packages/admin/src/router.tsx:1515
+#: packages/admin/src/router.tsx:1516
 msgid "Content removed from public view"
 msgstr "İçerik herkese açık görünümden kaldırıldı"
 
-#: packages/admin/src/router.tsx:1598
+#: packages/admin/src/router.tsx:1599
 msgid "Content reverted to draft"
 msgstr "İçerik taslağa geri döndürüldü"
 
@@ -3854,7 +3854,7 @@ msgstr "Medya öğesinin veya seçilen klasörün hâlâ mevcut olup olmadığı
 msgid "Couldn't detect WordPress"
 msgstr "WordPress algılanamadı"
 
-#: packages/admin/src/components/ContentEditor.tsx:3172
+#: packages/admin/src/components/ContentEditor.tsx:3173
 msgid "Couldn't load all references."
 msgstr "Tüm referanslar yüklenemedi."
 
@@ -4152,7 +4152,7 @@ msgid "Create, update, delete content"
 msgstr "İçerik oluşturma, güncelleme, silme"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1027
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4169,11 +4169,11 @@ msgid "Created {0}"
 msgstr "{0} oluşturuldu"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1630
+#: packages/admin/src/router.tsx:1631
 msgid "Created {0} translation"
 msgstr "{0} çevirisi oluşturuldu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1007
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
 msgid "Created and updated"
 msgstr "Oluşturulma ve güncellenme"
 
@@ -4817,8 +4817,8 @@ msgstr "Yapay zekâ eğitimine izin verme"
 msgid "Discard"
 msgstr "Değişikliklerden vazgeç"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:346
-#: packages/admin/src/components/ContentSettingsPanel.tsx:353
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
 msgid "Discard changes"
 msgstr "Değişikliklerden vazgeç"
 
@@ -4826,11 +4826,11 @@ msgstr "Değişikliklerden vazgeç"
 msgid "Discard changes?"
 msgstr "Değişikliklerden vazgeçilsin mi?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:357
 msgid "Discard draft changes?"
 msgstr "Taslak değişikliklerinden vazgeçilsin mi?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:354
+#: packages/admin/src/components/ContentSettingsPanel.tsx:360
 #: packages/admin/src/components/MediaDetailPanel.tsx:1876
 msgid "Discarding..."
 msgstr "Değişikliklerden vazgeçiliyor..."
@@ -4892,7 +4892,7 @@ msgstr "Etiket bulutunu göster"
 msgid "Displayed below the image as a visible caption."
 msgstr "Görselin altında resim yazısı olarak gösterilir."
 
-#: packages/admin/src/components/ContentEditor.tsx:1832
+#: packages/admin/src/components/ContentEditor.tsx:1833
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Dikkat dağıtmayan mod (⌘⇧\\)"
 
@@ -5029,12 +5029,12 @@ msgstr "Taslak"
 msgid "Draft"
 msgstr "Taslak"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
+#: packages/admin/src/components/ContentSettingsPanel.tsx:210
+#: packages/admin/src/components/ContentSettingsPanel.tsx:236
 msgid "Draft changes"
 msgstr "Taslak değişiklikler"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:170
+#: packages/admin/src/components/ContentSettingsPanel.tsx:172
 msgid "Draft version"
 msgstr "Taslak sürüm"
 
@@ -5565,7 +5565,7 @@ msgstr "Mevcut içeriği dizine eklemek ve referansları güncel tutmak için ta
 msgid "Enabled"
 msgstr "Etkin"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1079
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "İçerik dili yapılandırılmadığı için İngilizce kullanılıyor. İçerik dili kayıtla birlikte saklanır ve yönetim panelinizin dilinden ayrıdır."
 
@@ -5698,7 +5698,7 @@ msgstr ""
 msgid "Enter a valid time"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3353
+#: packages/admin/src/components/ContentEditor.tsx:3354
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Geçerli bir URL girin (ör. https://example.com)"
 
@@ -5723,7 +5723,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Kimlik bilgilerini manuel olarak girin"
 
-#: packages/admin/src/components/ContentEditor.tsx:1827
+#: packages/admin/src/components/ContentEditor.tsx:1828
 msgid "Enter distraction-free mode"
 msgstr "Dikkat dağıtmayan moda girin"
 
@@ -5731,7 +5731,7 @@ msgstr "Dikkat dağıtmayan moda girin"
 msgid "Enter email"
 msgstr "E-postayı girin"
 
-#: packages/admin/src/components/ContentEditor.tsx:2683
+#: packages/admin/src/components/ContentEditor.tsx:2684
 msgid "Enter markdown content..."
 msgstr "İşaretleme içeriğini girin..."
 
@@ -5792,7 +5792,7 @@ msgstr "bağlantı veren taraftaki kayıt"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3367
+#: packages/admin/src/router.tsx:3368
 msgid "Error"
 msgstr "Hata"
 
@@ -5869,11 +5869,11 @@ msgstr "Mevcut içerik dizine eklendi. Yeni değişiklikler otomatik olarak taki
 msgid "Exists"
 msgstr "Var"
 
-#: packages/admin/src/components/ContentEditor.tsx:1827
+#: packages/admin/src/components/ContentEditor.tsx:1828
 msgid "Exit distraction-free mode"
 msgstr "Dikkat dağıtmayan moddan çık"
 
-#: packages/admin/src/components/ContentEditor.tsx:1831
+#: packages/admin/src/components/ContentEditor.tsx:1832
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Dikkat dağıtmayan moddan çık (⌘⇧\\)"
 
@@ -6132,7 +6132,7 @@ msgid "Failed to create term translation"
 msgstr "Terim çevirisi oluşturulamadı"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1635
+#: packages/admin/src/router.tsx:1636
 msgid "Failed to create translation"
 msgstr "Çeviri oluşturulamadı"
 
@@ -6528,7 +6528,7 @@ msgstr "Güncelleme durumu getirilemedi"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2387
+#: packages/admin/src/router.tsx:2388
 msgid "Failed to fetch user"
 msgstr "Kullanıcı getirilemedi"
 
@@ -6717,7 +6717,7 @@ msgid "Failed to lock the entry"
 msgstr "Kayıt kilitlenemedi"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2476
+#: packages/admin/src/router.tsx:2477
 msgid "Failed to perform bulk action"
 msgstr "Toplu işlem gerçekleştirilemedi"
 
@@ -6735,7 +6735,7 @@ msgid "Failed to probe URL"
 msgstr "URL denetlenemedi"
 
 #: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1496
+#: packages/admin/src/router.tsx:1497
 msgid "Failed to publish"
 msgstr "Yayınlanamadı"
 
@@ -6747,7 +6747,7 @@ msgstr "İçerik yayınlanamadı"
 msgid "Failed to read byline field usage"
 msgstr "Yazar bilgisi alanı kullanımı okunamadı"
 
-#: packages/admin/src/router.tsx:2904
+#: packages/admin/src/router.tsx:2905
 msgid "Failed to register {slug}"
 msgstr "{slug} kaydedilemedi"
 
@@ -6825,8 +6825,8 @@ msgid "Failed to rewrite URLs"
 msgstr "URL'ler yeniden yazılamadı"
 
 #: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1337
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:1338
+#: packages/admin/src/router.tsx:3092
 msgid "Failed to save"
 msgstr "Kaydedilemedi"
 
@@ -6881,7 +6881,7 @@ msgstr "İçe aktarma başlatılamadı"
 msgid "Failed to uninstall plugin"
 msgstr "Eklenti kaldırılamadı"
 
-#: packages/admin/src/router.tsx:1520
+#: packages/admin/src/router.tsx:1521
 msgid "Failed to unpublish"
 msgstr "Yayından kaldırılamadı"
 
@@ -6889,7 +6889,7 @@ msgstr "Yayından kaldırılamadı"
 msgid "Failed to unpublish content"
 msgstr "İçerik yayından kaldırılamadı"
 
-#: packages/admin/src/router.tsx:1604
+#: packages/admin/src/router.tsx:1605
 msgid "Failed to unschedule"
 msgstr "Planlama iptal edilemedi"
 
@@ -6988,7 +6988,7 @@ msgstr "Bölüm güncellenemedi"
 msgid "Failed to update settings"
 msgstr "Ayarlar güncellenemedi"
 
-#: packages/admin/src/router.tsx:2440
+#: packages/admin/src/router.tsx:2441
 msgid "Failed to update status"
 msgstr "Durum güncellenemedi"
 
@@ -7204,7 +7204,7 @@ msgstr "Devam eden düzenlemeleri tamamlayın."
 msgid "First page"
 msgstr "İlk sayfa"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:179
+#: packages/admin/src/components/ContentSettingsPanel.tsx:185
 msgid "First publication"
 msgstr "İlk yayın"
 
@@ -7245,7 +7245,7 @@ msgstr "Klasör"
 msgid "Folder deleted"
 msgstr "Klasör silindi"
 
-#: packages/admin/src/router.tsx:2110
+#: packages/admin/src/router.tsx:2111
 msgid "Folder no longer exists"
 msgstr "Klasör artık mevcut değil"
 
@@ -7396,7 +7396,7 @@ msgid "Go live {countdown}"
 msgstr "{countdown} yayına girecek"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3387
+#: packages/admin/src/router.tsx:3388
 msgid "Go to Dashboard"
 msgstr "Kontrol Paneline Git"
 
@@ -7577,7 +7577,7 @@ msgstr "İsabetler"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Bir kayıt düzenlenirken kilitle ve diğer kullanıcıların düzenlemesini engelle"
 
-#: packages/admin/src/components/ContentEditor.tsx:2860
+#: packages/admin/src/components/ContentEditor.tsx:2861
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Bir içerik kaydı kimliği tutar. Bunun yerine kayıt seçebilmek için İçerik Türleri altında hedef koleksiyon belirleyin."
 
@@ -8147,7 +8147,7 @@ msgstr "GEÇERSİZ TANITICI"
 msgid "Invalid invite link"
 msgstr "Geçersiz davet bağlantısı"
 
-#: packages/admin/src/components/ContentEditor.tsx:3429
+#: packages/admin/src/components/ContentEditor.tsx:3430
 msgid "Invalid JSON"
 msgstr "Geçersiz JSON"
 
@@ -8567,14 +8567,14 @@ msgid "List view"
 msgstr "Liste görünümü"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
-#: packages/admin/src/components/ContentSettingsPanel.tsx:188
-#: packages/admin/src/components/ContentSettingsPanel.tsx:198
-#: packages/admin/src/components/ContentSettingsPanel.tsx:224
-#: packages/admin/src/components/ContentSettingsPanel.tsx:250
+#: packages/admin/src/components/ContentSettingsPanel.tsx:194
+#: packages/admin/src/components/ContentSettingsPanel.tsx:204
+#: packages/admin/src/components/ContentSettingsPanel.tsx:230
+#: packages/admin/src/components/ContentSettingsPanel.tsx:256
 msgid "Live version"
 msgstr "Yayındaki sürüm"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:685
+#: packages/admin/src/components/ContentSettingsPanel.tsx:695
 msgid "Live View"
 msgstr "Canlı Görünüm"
 
@@ -8608,7 +8608,7 @@ msgid "Load preview"
 msgstr "Önizlemeyi yükle"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3342
+#: packages/admin/src/router.tsx:3343
 msgid "Loading"
 msgstr "Yükleniyor"
 
@@ -8637,8 +8637,8 @@ msgstr "Koleksiyonlar yükleniyor..."
 msgid "Loading comments..."
 msgstr "Yorumlar yükleniyor..."
 
-#: packages/admin/src/router.tsx:3344
-#: packages/admin/src/router.tsx:3356
+#: packages/admin/src/router.tsx:3345
+#: packages/admin/src/router.tsx:3357
 msgid "Loading configuration..."
 msgstr "Yapılandırma yükleniyor..."
 
@@ -8696,7 +8696,7 @@ msgstr "Eklentiler yükleniyor..."
 msgid "Loading redirects..."
 msgstr "Yönlendirmeler yükleniyor..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3180
+#: packages/admin/src/components/ContentEditor.tsx:3181
 msgid "Loading references..."
 msgstr "Referanslar yükleniyor..."
 
@@ -8943,11 +8943,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Pazar yeri"
 
-#: packages/admin/src/router.tsx:2741
+#: packages/admin/src/router.tsx:2742
 msgid "Marketplace browsing is no longer available."
 msgstr "Pazar yerinde gezinme artık kullanılamıyor."
 
-#: packages/admin/src/router.tsx:2716
+#: packages/admin/src/router.tsx:2717
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Pazar yerinde gezinme artık kullanılamıyor. Yüklü eklentileri Eklentiler bölümünden yönetin."
 
@@ -9295,7 +9295,7 @@ msgstr "\"{title}\" çöp kutusuna taşınsın mı? Daha sonra geri yükleyebili
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3147
+#: packages/admin/src/components/ContentEditor.tsx:3148
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "{0} öğesini aşağı taşı"
@@ -9312,7 +9312,7 @@ msgstr "{0} dosyasını geriye taşı"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3136
+#: packages/admin/src/components/ContentEditor.tsx:3137
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "{0} öğesini yukarı taşı"
@@ -9343,14 +9343,14 @@ msgstr "Çöp kutusuna taşı"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1323
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1332
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
 msgid "Move to Trash"
 msgstr "Çöp Kutusuna Taşı"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1321
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1336
 msgid "Move to Trash?"
 msgstr "Çöp Kutusu'na taşınsın mı?"
 
@@ -9455,7 +9455,7 @@ msgid "Moving from another EmDash site?"
 msgstr "Başka bir EmDash sitesinden mi taşınıyorsunuz?"
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1324
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1339
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9525,7 +9525,7 @@ msgstr "Dikkat gerektiriyor"
 msgid "Never"
 msgstr "Asla"
 
-#: packages/admin/src/router.tsx:1630
+#: packages/admin/src/router.tsx:1631
 msgid "new"
 msgstr "yeni"
 
@@ -10012,7 +10012,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "Henüz yönlendirme yok"
 
-#: packages/admin/src/components/ContentEditor.tsx:3090
+#: packages/admin/src/components/ContentEditor.tsx:3091
 msgid "No references selected."
 msgstr "Referans seçilmedi."
 
@@ -10246,7 +10246,7 @@ msgid "Open"
 msgstr "Aç"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3125
+#: packages/admin/src/components/ContentEditor.tsx:3126
 msgid "Open {0} in a new tab"
 msgstr "{0} öğesini yeni sekmede aç"
 
@@ -10401,7 +10401,7 @@ msgstr "Orijinal:"
 msgid "Other"
 msgstr "Diğer"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1268
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1283
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "İçindekiler"
@@ -10422,8 +10422,8 @@ msgstr "Gecikmiş · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Arama motoru sonuçlarındaki sayfa başlığını geçersiz kılar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1098
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
 msgid "Ownership"
 msgstr "Mülkiyet"
 
@@ -10441,7 +10441,7 @@ msgstr "Paket karma değeri"
 msgid "Package downloaded"
 msgstr "Paket indirildi"
 
-#: packages/admin/src/router.tsx:3382
+#: packages/admin/src/router.tsx:3383
 msgid "Page Not Found"
 msgstr "Sayfa Bulunamadı"
 
@@ -10723,7 +10723,7 @@ msgstr "Eklenti işlemi başarısız oldu"
 msgid "Plugin actions"
 msgstr "Eklenti işlemleri"
 
-#: packages/admin/src/components/ContentEditor.tsx:1901
+#: packages/admin/src/components/ContentEditor.tsx:1902
 msgid "Plugin changes were not applied"
 msgstr "Eklenti değişiklikleri uygulanmadı"
 
@@ -10800,8 +10800,8 @@ msgstr "Eklenti kataloğu"
 msgid "Plugin registry configuration error"
 msgstr "Eklenti kataloğu yapılandırma hatası"
 
-#: packages/admin/src/router.tsx:2676
-#: packages/admin/src/router.tsx:2707
+#: packages/admin/src/router.tsx:2677
+#: packages/admin/src/router.tsx:2708
 msgid "Plugin registry is not configured."
 msgstr "Eklenti kataloğu yapılandırılmamış."
 
@@ -10915,7 +10915,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "Bir görseli taşımak üzere seçmek için Boşluk tuşuna basın. Taşımak için ok tuşlarını kullanın, ardından bırakmak için tekrar Boşluk tuşuna basın."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
-#: packages/admin/src/components/ContentSettingsPanel.tsx:415
+#: packages/admin/src/components/ContentSettingsPanel.tsx:422
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -10932,7 +10932,7 @@ msgstr "Değişiklikleri önizle"
 msgid "Preview content before publishing"
 msgstr "İçeriği yayınlamadan önce önizleyin"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:415
+#: packages/admin/src/components/ContentSettingsPanel.tsx:422
 msgid "Preview draft"
 msgstr "Taslağı önizleyin"
 
@@ -11009,9 +11009,9 @@ msgstr "Sağlayıcı:"
 msgid "Public routes"
 msgstr "Herkese açık yollar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:970
-#: packages/admin/src/components/ContentSettingsPanel.tsx:975
-#: packages/admin/src/components/ContentSettingsPanel.tsx:986
+#: packages/admin/src/components/ContentSettingsPanel.tsx:985
+#: packages/admin/src/components/ContentSettingsPanel.tsx:990
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Yayın tarihi"
@@ -11026,17 +11026,17 @@ msgid "visualEditing.publish"
 msgstr "Yayınla"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:521
-#: packages/admin/src/components/ContentSettingsPanel.tsx:937
-#: packages/admin/src/components/ContentSettingsPanel.tsx:940
+#: packages/admin/src/components/ContentSettingsPanel.tsx:528
+#: packages/admin/src/components/ContentSettingsPanel.tsx:949
+#: packages/admin/src/components/ContentSettingsPanel.tsx:954
 msgid "Publish"
 msgstr "Yayınla"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Publish changes"
 msgstr "Değişiklikleri yayınla"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:495
+#: packages/admin/src/components/ContentSettingsPanel.tsx:502
 msgid "Publish changes?"
 msgstr "Değişiklikler yayınlansın mı?"
 
@@ -11046,11 +11046,11 @@ msgid "visualEditing.publishFailed"
 msgstr "Yayınlama başarısız oldu. İzinlerinizi kontrol edip yeniden deneyin."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
-#: packages/admin/src/components/ContentSettingsPanel.tsx:494
+#: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "Publish now"
 msgstr "Şimdi yayınla"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:495
+#: packages/admin/src/components/ContentSettingsPanel.tsx:502
 msgid "Publish now?"
 msgstr "Şimdi yayınlansın mı?"
 
@@ -11071,7 +11071,7 @@ msgstr "Yayınlandı"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:266
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1491
+#: packages/admin/src/router.tsx:1492
 msgid "Published"
 msgstr "Yayınlandı"
 
@@ -11116,7 +11116,7 @@ msgstr "Yayıncının sürüm ilkesi"
 msgid "Publishing"
 msgstr "Yayınlanıyor"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:944
+#: packages/admin/src/components/ContentSettingsPanel.tsx:958
 msgid "Publishing summary"
 msgstr "Yayınlama özeti"
 
@@ -11224,7 +11224,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Sınıflandırmalarınızı ve terimlerini okuyun"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2042
+#: packages/admin/src/router.tsx:2043
 msgid "Read-only"
 msgstr "Salt okunur"
 
@@ -11248,7 +11248,7 @@ msgstr "Paket okunuyor"
 msgid "Ready"
 msgstr "Hazır"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:211
 msgid "Ready to publish now or schedule for later"
 msgstr "Şimdi yayınlamaya veya daha sonrası için zamanlamaya hazır"
 
@@ -11434,7 +11434,7 @@ msgstr "Kaldır"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3595
+#: packages/admin/src/components/ContentEditor.tsx:3596
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11454,7 +11454,7 @@ msgstr "Kaldır"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3160
+#: packages/admin/src/components/ContentEditor.tsx:3161
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11471,7 +11471,7 @@ msgstr "{0} dosyasını seçimden kaldır"
 msgid "Remove {entry}"
 msgstr "{entry} öğesini kaldır"
 
-#: packages/admin/src/components/ContentEditor.tsx:3593
+#: packages/admin/src/components/ContentEditor.tsx:3594
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11532,7 +11532,7 @@ msgid "Remove passkey?"
 msgstr "Geçiş anahtarı kaldırılsın mı?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
-#: packages/admin/src/components/ContentSettingsPanel.tsx:623
+#: packages/admin/src/components/ContentSettingsPanel.tsx:630
 msgid "Remove schedule"
 msgstr "Zamanlamayı kaldır"
 
@@ -11681,8 +11681,8 @@ msgstr "Tekrarlanan alan grubu"
 msgid "visualEditing.replaceImage"
 msgstr "Değiştir"
 
-#: packages/admin/src/components/ContentEditor.tsx:3585
-#: packages/admin/src/components/ContentEditor.tsx:3624
+#: packages/admin/src/components/ContentEditor.tsx:3586
+#: packages/admin/src/components/ContentEditor.tsx:3625
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -11700,7 +11700,7 @@ msgstr "Değiştir"
 msgid "Replace"
 msgstr "Değiştir"
 
-#: packages/admin/src/components/ContentEditor.tsx:3623
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:644
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -11737,7 +11737,7 @@ msgstr "Orijinal görsel değiştirilsin mi?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "“Orijinali değiştir” seçeneği “Orijinal” en boy oranıyla kullanılabilir."
 
-#: packages/admin/src/components/ContentEditor.tsx:3193
+#: packages/admin/src/components/ContentEditor.tsx:3194
 msgid "Replace reference"
 msgstr "Referansı değiştir"
 
@@ -11877,7 +11877,7 @@ msgstr "Kırpma alanını sol üst köşeden yeniden boyutlandır. Yeniden boyut
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Kırpma alanını sağ üst köşeden yeniden boyutlandır. Yeniden boyutlandırmak için ok tuşlarını kullanın."
 
-#: packages/admin/src/components/ContentEditor.tsx:2180
+#: packages/admin/src/components/ContentEditor.tsx:2181
 msgid "Resize settings panel"
 msgstr "Ayarlar panelini yeniden boyutlandır"
 
@@ -11934,7 +11934,7 @@ msgid "Retired"
 msgstr "Kullanımdan kaldırıldı"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3174
+#: packages/admin/src/components/ContentEditor.tsx:3175
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -11950,7 +11950,7 @@ msgstr "Kullanımdan kaldırıldı"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3371
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12001,7 +12001,7 @@ msgstr "Yeniden deneniyor…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Herhangi bir içeriğe ekleyebileceğiniz yeniden kullanılabilir içerik blokları"
 
-#: packages/admin/src/router.tsx:1539
+#: packages/admin/src/router.tsx:1540
 msgid "Reverted to published version"
 msgstr "Yayınlanan sürüme geri dönüldü"
 
@@ -12055,7 +12055,7 @@ msgstr "Gözden geçiriliyor…"
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1292
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12202,7 +12202,7 @@ msgstr "Örnek içerik"
 #: packages/admin/src/components/MenuEditor.tsx:906
 #: packages/admin/src/components/PortableTextEditor.tsx:2820
 #: packages/admin/src/components/Redirects.tsx:313
-#: packages/admin/src/components/SaveButton.tsx:35
+#: packages/admin/src/components/SaveButton.tsx:38
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Save"
@@ -12216,7 +12216,7 @@ msgstr "Kaydet (Giriş)"
 msgid "Save alt text"
 msgstr "Alt metni kaydet"
 
-#: packages/admin/src/components/ContentEditor.tsx:1929
+#: packages/admin/src/components/ContentEditor.tsx:1930
 msgid "Save anyway"
 msgstr "Yine de kaydet"
 
@@ -12240,6 +12240,10 @@ msgstr "İçeriği yayınlamadan önce taslak olarak kaydedin"
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:696
 msgid "Save date"
 msgstr "Tarihi kaydet"
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+msgid "Save draft"
+msgstr ""
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:62
@@ -12276,7 +12280,7 @@ msgstr "Ayarları Kaydet"
 msgid "visualEditing.saved"
 msgstr "Kaydedildi"
 
-#: packages/admin/src/components/SaveButton.tsx:37
+#: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "Kaydedildi"
 
@@ -12293,6 +12297,10 @@ msgstr "Hemen kaydedilir; terim değişiklikleri Değişiklikleri yayınla işle
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr "Burada bir koleksiyon kaydetmek bu alanı kayıt seçiciye dönüştürür. Saklanan kayıt kimlikleri ilişkiye taşınır; bu alanda artık arama veya filtreleme yapılamaz."
 
+#: packages/admin/src/components/ContentSettingsPanel.tsx:175
+msgid "Saving creates a draft that stays off the site. You can publish it after the first save."
+msgstr ""
+
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
@@ -12303,7 +12311,7 @@ msgstr "Burada bir koleksiyon kaydetmek bu alanı kayıt seçiciye dönüştür�
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:310
 #: packages/admin/src/components/RelationFormPanel.tsx:151
-#: packages/admin/src/components/SaveButton.tsx:36
+#: packages/admin/src/components/SaveButton.tsx:39
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/TaxonomyManager.tsx:827
 #: packages/admin/src/components/users/UserDetail.tsx:330
@@ -12333,7 +12341,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Yakındaki bir telefon veya tabletle QR kodunu tarayın."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/ContentSettingsPanel.tsx:610
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Zamanla"
@@ -12359,7 +12367,7 @@ msgstr "Zamanlama kaldırıldı"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1586
+#: packages/admin/src/router.tsx:1587
 msgid "Scheduled"
 msgstr "Zamanlandı"
 
@@ -12372,12 +12380,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr "Zamanlanmış kayıtlar burada yayın saatleriyle görünür."
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:149
+#: packages/admin/src/components/ContentSettingsPanel.tsx:151
 msgid "Scheduled for {0}"
 msgstr "Zamanlanan yayın: {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:157
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:159
+#: packages/admin/src/components/ContentSettingsPanel.tsx:262
 msgid "Scheduled publication"
 msgstr "Zamanlanmış yayın"
 
@@ -12745,8 +12753,8 @@ msgid "Select"
 msgstr "Seç"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3605
-#: packages/admin/src/components/ContentEditor.tsx:3623
+#: packages/admin/src/components/ContentEditor.tsx:3606
+#: packages/admin/src/components/ContentEditor.tsx:3624
 #: packages/admin/src/components/ImageFieldRenderer.tsx:645
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
@@ -12790,7 +12798,7 @@ msgstr "Doğrulamadan önce bir sürüm seçin"
 msgid "Select all on this page"
 msgstr "Bu sayfadakilerin tümünü seç"
 
-#: packages/admin/src/components/ContentEditor.tsx:3086
+#: packages/admin/src/components/ContentEditor.tsx:3087
 msgid "Select at least one entry."
 msgstr "En az bir içerik kaydı seçin."
 
@@ -12823,7 +12831,7 @@ msgstr "Site simgesini seç"
 msgid "Select Favicon"
 msgstr "Favicon Seç"
 
-#: packages/admin/src/components/ContentEditor.tsx:3609
+#: packages/admin/src/components/ContentEditor.tsx:3610
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Dosya seç"
@@ -12960,8 +12968,8 @@ msgstr "Test E-postası Gönder"
 msgid "Sending..."
 msgstr "Gönderiliyor..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1178
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1181
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1196
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13046,8 +13054,8 @@ msgid "Setting up..."
 msgstr "Kurulum..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2044
-#: packages/admin/src/components/ContentEditor.tsx:2371
+#: packages/admin/src/components/ContentEditor.tsx:2045
+#: packages/admin/src/components/ContentEditor.tsx:2372
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:104
 #: packages/admin/src/components/PluginManager.tsx:547
@@ -13145,7 +13153,7 @@ msgstr "{pageShowingRange} / {0} gösteriliyor"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "Yönetim panelinde görünür. Bazı temalar bunu sitede de gösterir."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1132
 msgid "Shown to readers in this order."
 msgstr "Okuyuculara bu sırayla gösterilir."
 
@@ -13337,7 +13345,7 @@ msgstr "Atlandı"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1068
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1083
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13547,7 +13555,7 @@ msgstr "Şablonun örnek yazıları ve sayfalarıyla başlayın. Yeni siteler i�
 msgid "Start writing with plain text"
 msgstr "Düz metinle yazmaya başlayın"
 
-#: packages/admin/src/components/ContentEditor.tsx:2644
+#: packages/admin/src/components/ContentEditor.tsx:2645
 #: packages/admin/src/components/PortableTextEditor.tsx:3579
 msgid "Start writing, or type '/' for commands"
 msgstr "Yazmaya başlayın veya komutlar için '/' yazın"
@@ -13757,7 +13765,7 @@ msgstr "Hedef"
 msgid "Target locale"
 msgstr "Hedef dil"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
 msgid "Taxonomies"
@@ -14145,7 +14153,7 @@ msgstr "Paketin içeriği bu siteye yazılır. İçe aktarma başladıktan sonra
 msgid "The package’s file index is not valid."
 msgstr "Paketin dosya dizini geçerli değil."
 
-#: packages/admin/src/router.tsx:3384
+#: packages/admin/src/router.tsx:3385
 msgid "The page you're looking for doesn't exist."
 msgstr "Aradığınız sayfa mevcut değil."
 
@@ -14360,7 +14368,7 @@ msgstr "Bu koleksiyon kodda tanımlanmıştır. Bazı ayarlar burada değiştiri
 msgid "This content cannot be edited safely"
 msgstr "Bu içerik güvenle düzenlenemiyor"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:500
+#: packages/admin/src/components/ContentSettingsPanel.tsx:507
 msgid "This content will be visible on the site immediately."
 msgstr "Bu içerik sitede hemen görünür olacak."
 
@@ -14380,20 +14388,20 @@ msgstr "Bu geçerli bir taşıma anahtarına benzemiyor. Eklentide yeni bir anah
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1925
+#: packages/admin/src/components/ContentEditor.tsx:1926
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Bu kayıt siz açtıktan sonra başka bir yerde değiştirildi."
 
 #: packages/admin/src/components/ContentEditor.tsx:1486
-#: packages/admin/src/router.tsx:1141
+#: packages/admin/src/router.tsx:1142
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Bu kayıt başka bir yerde değiştirildi. Yine de kaydedin veya yeni sürümü almak için yeniden yükleyin."
 
-#: packages/admin/src/router.tsx:1977
+#: packages/admin/src/router.tsx:1978
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Bu kayıt mevcut değil veya yayınlanmamış. Rolünüz yalnızca yayınlanmış içerikleri görüntülemeye izin veriyor."
 
-#: packages/admin/src/router.tsx:1978
+#: packages/admin/src/router.tsx:1979
 msgid "This entry doesn't exist or was deleted."
 msgstr "Bu kayıt mevcut değil veya silinmiş."
 
@@ -14405,7 +14413,7 @@ msgstr "Bu kayıt yayınlanana kadar URL'si yok. Bunun yerine bir URL yapıştı
 msgid "This entry is open somewhere else"
 msgstr "Bu kayıt başka bir yerde açık"
 
-#: packages/admin/src/components/ContentEditor.tsx:1912
+#: packages/admin/src/components/ContentEditor.tsx:1913
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Bu kaydın şeması EmDash'in bu sürümünün desteklemediği alan türlerini kullandığı için kayıt salt okunurdur."
 
@@ -14417,7 +14425,7 @@ msgstr "Bu kaydın {lateness} yayınlanması gerekiyordu, ancak hâlâ yayınlan
 msgid "This export is large"
 msgstr "Bu dışa aktarma büyük"
 
-#: packages/admin/src/components/ContentEditor.tsx:2472
+#: packages/admin/src/components/ContentEditor.tsx:2473
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Bu alan EmDash'in bu sürümüyle düzenlenemez."
@@ -14443,7 +14451,7 @@ msgstr "Bu alan {mimeType} dosyalarını kabul etmiyor."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Bu alan bir liste bekliyor. Saklanan değer, silinmesine neden olacak boş bir listeyle değiştirene kadar olduğu gibi kalır. Önce ihtiyacınız olanları kopyalayın."
 
-#: packages/admin/src/components/ContentEditor.tsx:3627
+#: packages/admin/src/components/ContentEditor.tsx:3628
 #: packages/admin/src/components/ImageFieldRenderer.tsx:664
 msgid "This field is required"
 msgstr "Bu alan zorunludur"
@@ -14624,7 +14632,7 @@ msgstr "Bu, yazar bilgisi profilini kaldırır. İçerikteki yazar bilgisi bağl
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Bu işlem ilişkiyi, ilişki altında saklanan tüm bağlantıları ve ilişkiyi kullanan referans alanlarını kaldırır:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:497
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "This removes the schedule and publishes immediately."
 msgstr "Bu işlem zamanlamayı kaldırır ve içeriği hemen yayınlar."
 
@@ -14715,7 +14723,7 @@ msgstr "Bu güncelleme, kimlik doğrulaması olmadan aşağıdaki rotaları orta
 msgid "This version can't be shown."
 msgstr "Bu sürüm gösterilemiyor."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:171
+#: packages/admin/src/components/ContentSettingsPanel.tsx:176
 msgid "This version is not visible on the site"
 msgstr "Bu sürüm sitede görünmüyor"
 
@@ -14727,7 +14735,7 @@ msgstr "Bu video oynatılamıyor."
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Bu, widget alanını ve tüm widget'larını siler. Bu eylem geri alınamaz."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1322
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Bu, öğeyi çöp kutusuna taşıyacaktır. Daha sonra çöp kutusundan geri yükleyebilirsiniz."
 
@@ -14749,7 +14757,7 @@ msgstr "Bu işlem, bu yorumu kalıcı olarak silecektir. Bu eylem geri alınamaz
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Bu, eklentiyi ve paketini sitenizden kaldıracaktır."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Bu, yayınlanan sürüme geri dönecektir. Taslak değişiklikleriniz kaybolacak."
 
@@ -14895,11 +14903,11 @@ msgstr "Çeviri..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1629
+#: packages/admin/src/router.tsx:1630
 msgid "Translation created"
 msgstr "Çeviri oluşturuldu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Çeviriler"
@@ -15100,8 +15108,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Pazaryerine ulaşılamıyor"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1342
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1374
 msgid "Unassigned"
 msgstr "Atanmamış"
 
@@ -15172,11 +15180,11 @@ msgstr "Adsız geçiş anahtarı"
 msgid "Unnamed user"
 msgstr "Adsız kullanıcı"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:486
+#: packages/admin/src/components/ContentSettingsPanel.tsx:493
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel} öğesini yayından kaldır"
 
-#: packages/admin/src/router.tsx:1515
+#: packages/admin/src/router.tsx:1516
 msgid "Unpublished"
 msgstr "Yayımlanmamış"
 
@@ -15202,7 +15210,7 @@ msgstr "Kaydedilmedi"
 msgid "Unsaved content may leave your site"
 msgstr "Kaydedilmemiş içerik sitenizin dışına çıkabilir"
 
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:1598
 msgid "Unscheduled"
 msgstr "Zamanlanmamış"
 
@@ -15226,7 +15234,7 @@ msgstr "{0} tarihine kadar"
 msgid "Untitled"
 msgstr "İsimsiz"
 
-#: packages/admin/src/components/ContentEditor.tsx:3527
+#: packages/admin/src/components/ContentEditor.tsx:3528
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Başlıksız dosya"
@@ -15295,7 +15303,7 @@ msgid "Update to v{0}"
 msgstr "v{0}'e güncelleme"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1049
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "Güncellendi"
@@ -15463,8 +15471,8 @@ msgstr "Video yükleniyor…"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
 msgid "URL & language"
 msgstr "URL ve dil"
 
@@ -15597,7 +15605,7 @@ msgstr "Sayfada görsel olmadığında yedek Open Graph görseli olarak kullanı
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Tanımlayıcı olarak kullanılır. Yalnızca küçük harfler, sayılar ve alt çizgiler."
 
-#: packages/admin/src/components/ContentEditor.tsx:2767
+#: packages/admin/src/components/ContentEditor.tsx:2768
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Listeleme sayfalarında ve gönderinin üst kısmında bu yazının ana görseli olarak kullanıldı"
 
@@ -15807,20 +15815,20 @@ msgstr "{name} tarafından kaydedilen {when} tarihli sürümü görüntülüyors
 msgid "Visitors hitting these paths will see an error."
 msgstr "Bu yollara giren ziyaretçiler bir hata görecektir."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:225
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
 msgid "Visitors see the published version until the scheduled update"
 msgstr "Ziyaretçiler, zamanlanmış güncellemeye kadar yayındaki sürümü görür"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:189
-#: packages/admin/src/components/ContentSettingsPanel.tsx:251
+#: packages/admin/src/components/ContentSettingsPanel.tsx:195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:257
 msgid "Visitors see this published version"
 msgstr "Ziyaretçiler bu yayındaki sürümü görür"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:199
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
 msgid "Visitors still see the published version"
 msgstr "Ziyaretçiler hâlâ yayındaki sürümü görür"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:499
+#: packages/admin/src/components/ContentSettingsPanel.tsx:506
 msgid "Visitors will see these changes immediately."
 msgstr "Ziyaretçiler bu değişiklikleri hemen görecek."
 
@@ -15942,7 +15950,7 @@ msgstr "İçe aktarılacaklar"
 msgid "What will happen when you import"
 msgstr "İçe aktardığınızda ne olacak?"
 
-#: packages/admin/src/components/ContentEditor.tsx:1926
+#: packages/admin/src/components/ContentEditor.tsx:1927
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Yazdıklarınız hâlâ burada. Kaydederseniz daha yeni sürümün üzerine yazılır."
 
@@ -15979,7 +15987,7 @@ msgstr "Bu sınıflandırmayı hangi içerik türleri kullanabilir?"
 msgid "Whole number"
 msgstr "Tam sayı"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1118
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
 msgid "Why are bylines shown in this order?"
 msgstr "Yazar bilgileri neden bu sırayla gösteriliyor?"
 
@@ -15987,7 +15995,7 @@ msgstr "Yazar bilgileri neden bu sırayla gösteriliyor?"
 msgid "Why can't this be changed?"
 msgstr "Bu neden değiştirilemiyor?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
 msgid "Why English is used"
 msgstr "Neden İngilizce kullanılıyor?"
 
@@ -16227,7 +16235,7 @@ msgstr "Medya kullanım takibini yönetmek için Yönetici izinlerine ihtiyacın
 msgid "You need Admin permissions to transfer this site."
 msgstr "Bu siteyi aktarmak için Yönetici yetkisine ihtiyacınız var."
 
-#: packages/admin/src/router.tsx:2492
+#: packages/admin/src/router.tsx:2493
 msgid "You need Editor permissions to moderate comments."
 msgstr "Yorumları denetlemek için Editör izinlerine ihtiyacınız var."
 
@@ -16368,11 +16376,11 @@ msgstr "Adınız (isteğe bağlı)"
 msgid "Your Role"
 msgstr "Rolünüz"
 
-#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2048
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Rolünüz yalnızca size ait taslak kayıtları düzenlemeye izin veriyor."
 
-#: packages/admin/src/router.tsx:2048
+#: packages/admin/src/router.tsx:2049
 msgid "Your role can't edit this entry."
 msgstr "Rolünüz bu kaydı düzenlemeye izin vermiyor."
 
