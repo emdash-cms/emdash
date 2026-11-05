@@ -1196,6 +1196,55 @@ describe("htmlToPortableText", () => {
 		});
 	});
 
+	it("keeps a code block that is followed by a paragraph", () => {
+		const html = "<p>Before</p><pre>Get-ADUser -Filter *</pre><p>After</p>";
+		const result = htmlToPortableText(html);
+
+		expect(result.map((block) => block._type)).toEqual(["block", "code", "block"]);
+		expect(result[1]).toMatchObject({ _type: "code", code: "Get-ADUser -Filter *" });
+	});
+
+	it("keeps a code block when the pre element has attributes", () => {
+		const html =
+			'<p>Before</p><pre class="brush: powershell">Get-ADUser -Filter *</pre><p>After</p>';
+		const result = htmlToPortableText(html);
+
+		expect(result.map((block) => block._type)).toEqual(["block", "code", "block"]);
+		expect(result[1]).toMatchObject({ _type: "code", code: "Get-ADUser -Filter *" });
+	});
+
+	it("converts line breaks inside a code block to newlines", () => {
+		const html = "<pre>$x = 1<br />$y = 2<br>$z = 3</pre>";
+		const result = htmlToPortableText(html);
+
+		expect(result[0]).toMatchObject({
+			_type: "code",
+			code: "$x = 1\n$y = 2\n$z = 3",
+		});
+	});
+
+	it("keeps the language of a code block", () => {
+		const html = '<pre><code class="language-powershell">Get-ADUser</code></pre>';
+		const result = htmlToPortableText(html);
+
+		expect(result[0]).toMatchObject({
+			_type: "code",
+			code: "Get-ADUser",
+			language: "powershell",
+		});
+	});
+
+	it("does not treat an element whose name starts with a block tag as that block", () => {
+		const html = '<p>One</p><param name="movie" value="video.swf" /><p>Two</p>';
+		const result = htmlToPortableText(html);
+
+		const paragraphs = result.filter((block) => block._type === "block") as PortableTextTextBlock[];
+		expect(paragraphs.map((block) => block.children.map((child) => child.text).join(""))).toEqual([
+			"One",
+			"Two",
+		]);
+	});
+
 	it("converts horizontal rules", () => {
 		const html = "<p>Before</p><hr><p>After</p>";
 		const result = htmlToPortableText(html);
@@ -1211,6 +1260,116 @@ describe("htmlToPortableText", () => {
 		const block = result[0] as PortableTextTextBlock;
 		expect(block.children.some((c) => c.marks?.includes("strong"))).toBe(true);
 		expect(block.children.some((c) => c.marks?.includes("em"))).toBe(true);
+	});
+
+	it("splits classic-editor text into paragraphs at blank lines", () => {
+		const html =
+			"First paragraph.\r\n\r\nSecond paragraph with a\r\nline break.\r\n\r\n<strong>Third</strong> paragraph.<h2>Heading</h2>\nAfter the heading.\n\n\nLast one.<div>In a div.\n\nStill in the div.</div>";
+		const result = htmlToPortableText(html);
+
+		expect(
+			result.map((block) => ({
+				style: (block as PortableTextTextBlock).style,
+				text: (block as PortableTextTextBlock).children.map((span) => span.text).join(""),
+			})),
+		).toEqual([
+			{ style: "normal", text: "First paragraph." },
+			{ style: "normal", text: "Second paragraph with a\nline break." },
+			{ style: "normal", text: "Third paragraph." },
+			{ style: "h2", text: "Heading" },
+			{ style: "normal", text: "After the heading." },
+			{ style: "normal", text: "Last one." },
+			{ style: "normal", text: "In a div." },
+			{ style: "normal", text: "Still in the div." },
+		]);
+	});
+
+	it("does not split a comment, a tag or formatting at a blank line", () => {
+		const html =
+			'Intro\n\n<!-- draft\n\nold paragraph\n\n-->\n\nOutro<p>Shown<!-- hidden\n\nstill hidden -->after</p><p><a href="https://example.com/" title="first\n\nsecond">Link</a> text.</p><p><strong>Bold\n\nstill bold</strong> plain.</p><p><a href="https://example.com/b">linked\n\nstill linked</a></p>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+		const text = (block: PortableTextTextBlock) => block.children.map((span) => span.text).join("");
+
+		expect(blocks.map(text)).toEqual([
+			"Intro",
+			"Outro",
+			"Shownafter",
+			"Link text.",
+			"Bold",
+			"still bold plain.",
+			"linked",
+			"still linked",
+		]);
+		expect(blocks[3]?.markDefs?.[0]).toMatchObject({ href: "https://example.com/" });
+		expect(blocks[4]?.children[0]?.marks).toContain("strong");
+		expect(blocks[5]?.children.find((span) => span.text === "still bold")?.marks).toContain(
+			"strong",
+		);
+		expect(blocks[5]?.children.find((span) => span.text === " plain.")?.marks ?? []).not.toContain(
+			"strong",
+		);
+		for (const block of blocks.slice(6)) {
+			expect(block.markDefs?.[0]).toMatchObject({ href: "https://example.com/b" });
+			expect(block.children[0]?.marks).toContain(block.markDefs?.[0]?._key);
+		}
+	});
+
+	it("keeps line breaks and no-break spaces at the edges of a paragraph", () => {
+		const blocks = htmlToPortableText(
+			"<p><br>Intro<br></p><p>&nbsp;Spaced&nbsp;</p>Text\n&nbsp;\nMore",
+		) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+			"\nIntro\n",
+			"\u00a0Spaced\u00a0",
+			"Text\n\u00a0\nMore",
+		]);
+	});
+
+	it("keeps each link's target across a paragraph break", () => {
+		const html =
+			'<a href="https://example.com/" target="_blank">One</a>\n\n<a href="https://example.com/">Two</a>\n\n<a href="https://example.com/" target="_blank">Three</a>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.markDefs?.[0]?.blank ?? false)).toEqual([true, false, true]);
+	});
+
+	it("keeps a link across every paragraph it spans", () => {
+		const html = '<a href="https://example.com/article">One\n\nTwo\n\nThree\n\nFour</a>';
+		const blocks = htmlToPortableText(html) as PortableTextTextBlock[];
+
+		expect(blocks.map((block) => block.children.map((span) => span.text).join(""))).toEqual([
+			"One",
+			"Two",
+			"Three",
+			"Four",
+		]);
+		for (const block of blocks) {
+			expect(block.markDefs?.[0]).toMatchObject({ href: "https://example.com/article" });
+			expect(block.children[0]?.marks).toContain(block.markDefs?.[0]?._key);
+		}
+	});
+
+	it.each([
+		["unclosed formatting tags", "<b>x\n\n".repeat(20_000)],
+		[
+			"a long unclosed link",
+			`<a href="https://example.com/${"x".repeat(100_000)}">${"y\n\n".repeat(20_000)}`,
+		],
+		["a long run of spaces", `A${" ".repeat(100_000)}B`],
+		["a newline and a long run of spaces", `A\n${" ".repeat(100_000)}B`],
+		[
+			"a link in each of many paragraphs",
+			// One wrapper element keeps the timing on this package: parse5 detaches each
+			// top-level fragment node with an array splice, which is quadratic in their number.
+			`<span>${Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join("")}</span>`,
+		],
+	])("splits paragraphs after %s within a second", (_shape, html) => {
+		const start = process.cpuUsage();
+		htmlToPortableText(html);
+		const { user, system } = process.cpuUsage(start);
+
+		expect((user + system) / 1000).toBeLessThan(1000);
 	});
 });
 
@@ -1536,6 +1695,63 @@ describe("WordPress.com classic editor content", () => {
 
 		// Link should be preserved
 		expect(img.link).toBe("https://sparge.wordpress.com/wp-content/uploads/2011/11/hip-hop.jpg");
+	});
+
+	it.each([
+		[
+			"an attribute after it that ends in href",
+			'<p><a\n\thref="https://example.com/full.jpg"\n\tdata-href="https://wrong.example/"><img\n\tsrc="https://example.com/thumb.jpg" alt="Hall" /></a></p>',
+			"https://example.com/full.jpg",
+		],
+		[
+			"href text in an attribute value before it",
+			`<p><a title="Open href='https://wrong.example/'" href="https://example.com/full.jpg"><img src="https://example.com/thumb.jpg" alt="Hall"></a></p>`,
+			"https://example.com/full.jpg",
+		],
+		[
+			"an apostrophe in its double-quoted value",
+			`<p><a href="https://example.com/hall's-plan.jpg"><img src="https://example.com/thumb.jpg" alt="Hall"></a></p>`,
+			"https://example.com/hall's-plan.jpg",
+		],
+	])("takes a linked image's link from its href with %s", (_shape, html, link) => {
+		expect(htmlToPortableText(html)).toEqual([
+			expect.objectContaining({
+				_type: "image",
+				asset: expect.objectContaining({ url: "https://example.com/thumb.jpg" }),
+				alt: "Hall",
+				link,
+			}),
+		]);
+	});
+
+	it.each([
+		["in a paragraph", '<p><img src="https://example.com/hall.jpg" alt="Hall > Floor 2"></p>'],
+		["outside a paragraph", '<img src="https://example.com/hall.jpg" alt="Hall > Floor 2">'],
+	])("keeps an image's alt text that contains > %s", (_place, html) => {
+		expect(htmlToPortableText(html)).toEqual([
+			expect.objectContaining({ _type: "image", alt: "Hall > Floor 2" }),
+		]);
+	});
+
+	it.each([
+		[
+			"a paragraph with a link start tag and a long run of tabs",
+			`<p><a${"\t".repeat(100_000)}</p>`,
+		],
+		[
+			"a paragraph with a link start tag and many href attributes",
+			`<p><a\thref="!"${'href="!"'.repeat(20_000)}</p>`,
+		],
+		["a paragraph with an image tag and a long run of tabs", `<p><img${"\t".repeat(100_000)}</p>`],
+		["an image tag with a long run of tabs outside a paragraph", `<img${"\t".repeat(100_000)}`],
+		["repeated paragraph start tags without a closing bracket", "<p ".repeat(100_000)],
+	])("converts %s within a second", (_shape, html) => {
+		const start = process.cpuUsage();
+		const result = htmlToPortableText(html);
+		const { user, system } = process.cpuUsage(start);
+
+		expect((user + system) / 1000).toBeLessThan(1000);
+		expect(result).toEqual([]);
 	});
 
 	it("preserves text content alongside images", () => {

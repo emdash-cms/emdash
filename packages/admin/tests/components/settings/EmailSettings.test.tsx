@@ -8,6 +8,8 @@ import { render } from "../../utils/render";
 
 const mockFetchEmailSettings = vi.fn<() => Promise<EmailSettingsData>>();
 const mockSendTestEmail = vi.fn<(to: string) => Promise<{ success: boolean; message: string }>>();
+const mockSaveEmailSettings =
+	vi.fn<(input: unknown) => Promise<{ success: boolean; message: string }>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -27,10 +29,15 @@ vi.mock("../../../src/lib/api/email-settings", async () => {
 		...actual,
 		fetchEmailSettings: () => mockFetchEmailSettings(),
 		sendTestEmail: (to: string) => mockSendTestEmail(to),
+		saveEmailSettings: (input: unknown) => mockSaveEmailSettings(input),
 	};
 });
 
 const { EmailSettings } = await import("../../../src/components/settings/EmailSettings");
+
+const unconfiguredTransports = {
+	smtp: { configured: false, source: null },
+} satisfies Pick<EmailSettingsData, "smtp">;
 
 const availableSettings: EmailSettingsData = {
 	available: true,
@@ -40,6 +47,7 @@ const availableSettings: EmailSettingsData = {
 		beforeSend: ["audit-log"],
 		afterSend: ["delivery-metrics"],
 	},
+	...unconfiguredTransports,
 };
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -54,6 +62,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchEmailSettings.mockResolvedValue(availableSettings);
 	mockSendTestEmail.mockResolvedValue({ success: true, message: "Test email sent" });
+	mockSaveEmailSettings.mockResolvedValue({ success: true, message: "saved" });
 });
 
 describe("EmailSettings", () => {
@@ -86,6 +95,7 @@ describe("EmailSettings", () => {
 			providers: [],
 			selectedProviderId: null,
 			middleware: { beforeSend: [], afterSend: [] },
+			...unconfiguredTransports,
 		});
 		const screen = await renderEmailSettings();
 
@@ -103,7 +113,9 @@ describe("EmailSettings", () => {
 		const screen = await renderEmailSettings();
 
 		await expect.element(screen.getByText("Email provider active")).toBeInTheDocument();
-		await expect.element(screen.getByText("resend", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByLabelText("Email Pipeline").getByText("resend", { exact: true }))
+			.toBeInTheDocument();
 		await expect.element(screen.getByText(/audit-log/)).toBeInTheDocument();
 		await expect.element(screen.getByText(/delivery-metrics/)).toBeInTheDocument();
 		await expect.element(screen.getByText("Available Providers")).toBeInTheDocument();
@@ -134,5 +146,83 @@ describe("EmailSettings", () => {
 		await expect.element(screen.getByText("Failed to send test email")).toBeInTheDocument();
 		await expect.element(screen.getByText("Provider rejected the message")).toBeInTheDocument();
 		await expect.element(recipient).toHaveValue("editor@example.com");
+	});
+
+	it("represents a selected plugin provider and re-saves it verbatim", async () => {
+		const screen = await renderEmailSettings();
+
+		const providerSelect = screen.getByRole("combobox", { name: "Provider" });
+		await expect.element(providerSelect).toHaveTextContent("resend");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
+		await vi.waitFor(() => {
+			expect(mockSaveEmailSettings).toHaveBeenCalledWith({
+				provider: "plugin",
+				pluginId: "resend",
+			});
+		});
+	});
+
+	it("does not save while no provider is selected", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: null,
+		});
+		const screen = await renderEmailSettings();
+
+		await expect.element(screen.getByRole("button", { name: "Save Settings" })).toBeDisabled();
+	});
+
+	it("blocks saving SMTP without host and user", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: "emdash-builtin-smtp",
+			providers: [{ pluginId: "emdash-builtin-smtp" }],
+		});
+		const screen = await renderEmailSettings();
+		await expect.element(screen.getByLabelText("Host")).toBeInTheDocument();
+
+		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
+		await expect.element(screen.getByText("Missing SMTP configuration")).toBeInTheDocument();
+		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
+	});
+
+	it("selects env-configured SMTP without copying it into the database", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: "emdash-builtin-smtp",
+			providers: [{ pluginId: "emdash-builtin-smtp" }],
+			smtp: {
+				configured: true,
+				source: "env",
+				host: "smtp.example.com",
+				port: 587,
+				secure: "starttls",
+				user: "mailer@example.com",
+			},
+		});
+		const screen = await renderEmailSettings();
+		await expect.element(screen.getByLabelText("Host")).toHaveValue("smtp.example.com");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
+		await vi.waitFor(() => {
+			expect(mockSaveEmailSettings).toHaveBeenCalledWith({ provider: "smtp" });
+		});
+	});
+
+	it("blocks saving SMTP on port 25", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: "emdash-builtin-smtp",
+			providers: [{ pluginId: "emdash-builtin-smtp" }],
+		});
+		const screen = await renderEmailSettings();
+		await screen.getByLabelText("Host").fill("smtp.example.com");
+		await screen.getByLabelText("Username").fill("mailer");
+		await screen.getByLabelText("Port").fill("25");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
+		await expect.element(screen.getByText("Port 25 is not supported")).toBeInTheDocument();
+		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
 	});
 });
