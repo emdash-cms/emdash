@@ -842,9 +842,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- runner satisfies ExitHandlerHost structurally; cast bypasses TS's nominal handling of private members
 		proc.on("exit", makeWorkerdExitHandler(this as unknown as ExitHandlerHost, proc));
 
-		const sockets = new Map(
-			Array.from(plugins, ([id, plugin]) => [pluginSocketName(id), plugin]),
-		);
+		const sockets = new Map(Array.from(plugins, ([id, plugin]) => [pluginSocketName(id), plugin]));
 		try {
 			await waitForWorkerdReady(proc, sockets, () =>
 				probeAllReady(plugins.values(), this.invokeToken),
