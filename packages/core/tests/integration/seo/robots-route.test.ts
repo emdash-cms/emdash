@@ -1,6 +1,6 @@
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as getRobots } from "../../../src/astro/routes/robots.txt.js";
 import type { Database } from "../../../src/database/types.js";
@@ -75,6 +75,7 @@ describe("robots.txt route", () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
 		await teardownTestDatabase(db);
 	});
 
@@ -83,6 +84,24 @@ describe("robots.txt route", () => {
 		expect(isAllowed(body, "GPTBot", "/")).toBe(true);
 		expect(body).not.toContain("Content-Signal");
 		expect(body).toContain("Sitemap: https://example.com/sitemap.xml");
+	});
+
+	it("prefixes the default sitemap directive with the Astro base", async () => {
+		vi.stubEnv("BASE_URL", "/field-notes");
+		const body = await robots(db);
+
+		expect(body).toContain("Sitemap: https://example.com/field-notes/sitemap.xml");
+		expect(body).not.toContain("Sitemap: https://example.com/sitemap.xml");
+	});
+
+	it("prefixes an appended sitemap directive in custom robots.txt with the Astro base", async () => {
+		vi.stubEnv("BASE_URL", "/field-notes/");
+		await setSiteSettings({ seo: { robotsTxt: "User-agent: *\nDisallow: /private/" } }, db);
+
+		const body = await robots(db);
+		expect(body).toContain("User-agent: *\nDisallow: /private/");
+		expect(body).toContain("Sitemap: https://example.com/field-notes/sitemap.xml");
+		expect(body).not.toContain("Sitemap: https://example.com/sitemap.xml");
 	});
 
 	it("blocks AI training crawlers but not search engines in the default robots.txt", async () => {

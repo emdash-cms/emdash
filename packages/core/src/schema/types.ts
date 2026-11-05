@@ -282,10 +282,11 @@ export interface Collection {
 	/** Whether published entries require a public slug. Defaults to true. */
 	routable?: boolean;
 	/**
-	 * Omit this collection's auto-generated sidebar entry and dashboard quick
-	 * action. The collection stays fully functional everywhere else (API, MCP,
-	 * hooks, direct `/content/:collection` URLs), so a plugin that owns the
-	 * collection can point editors at its own admin UI.
+	 * Omit this collection's auto-generated sidebar entry, dashboard quick
+	 * action, and dashboard Content card row. The collection stays fully
+	 * functional everywhere else (API, MCP, hooks, direct `/content/:collection`
+	 * URLs), so a plugin that owns the collection can point editors at its own
+	 * admin UI.
 	 */
 	hidden: boolean;
 	/**
@@ -358,7 +359,7 @@ export interface CreateCollectionInput {
 	urlPattern?: string;
 	routable?: boolean;
 	hasSeo?: boolean;
-	/** Omit the auto-generated sidebar entry and dashboard quick action (defaults to false) */
+	/** Omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row (defaults to false) */
 	hidden?: boolean;
 	/** Explicit admin sidebar position (omit for the alphabetical fallback) */
 	sortOrder?: number | null;
@@ -382,7 +383,7 @@ export interface UpdateCollectionInput {
 	urlPattern?: string | null;
 	routable?: boolean;
 	hasSeo?: boolean;
-	/** Omit the auto-generated sidebar entry and dashboard quick action */
+	/** Omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row */
 	hidden?: boolean;
 	/** Explicit admin sidebar position; `null` clears it back to alphabetical */
 	sortOrder?: number | null;

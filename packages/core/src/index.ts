@@ -447,6 +447,15 @@ export type {
 	CommentListOptions,
 	CommentCountOptions,
 
+	// Email hook types
+	EmailMessage,
+	EmailBeforeSendEvent,
+	EmailDeliverEvent,
+	EmailAfterSendEvent,
+	EmailBeforeSendHandler,
+	EmailDeliverHandler,
+	EmailAfterSendHandler,
+
 	// Scheduler types
 	CronScheduler,
 	SystemCleanupFn,
@@ -715,6 +724,7 @@ export type {
 
 // Search
 export {
+	SearchUnavailableError,
 	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,

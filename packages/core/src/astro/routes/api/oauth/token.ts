@@ -17,6 +17,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { apiError, handleError } from "#api/error.js";
+import { OAuthErrorCode } from "#api/errors.js";
 import { handleDeviceTokenExchange, handleTokenRefresh } from "#api/handlers/device-flow.js";
 import { handleAuthorizationCodeExchange } from "#api/handlers/oauth-authorization.js";
 
@@ -189,7 +190,10 @@ function oauthSuccess(data: unknown): Response {
 
 function oauthError(error: string, description: string, status: number): Response {
 	return Response.json(
-		{ error, error_description: description },
+		{
+			error: error === "INVALID_GRANT" ? OAuthErrorCode.INVALID_GRANT : error,
+			error_description: description,
+		},
 		{ status, headers: OAUTH_TOKEN_HEADERS },
 	);
 }

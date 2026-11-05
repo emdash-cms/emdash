@@ -14,6 +14,7 @@ import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
+import { shutdownRuntime } from "../runtime-holder.js";
 import { createAdminLocaleResolverPlugin, readAdminLocaleManifest } from "./admin-locales.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import {
@@ -493,6 +494,9 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options),
+			...(isDev && !cloudflare
+				? [{ name: "emdash-runtime-shutdown", apply: "serve", closeBundle: shutdownRuntime }]
+				: []),
 			// Must precede the Lingui macro plugin, which redirects source
 			// catalog imports to dist/ in dev.
 			...(adminLocales
@@ -675,6 +679,10 @@ export function createViteConfig(
 				: [
 						"@emdash-cms/admin",
 						"@astrojs/react/client.js",
+						// The admin route hydrates this wrapper, which also pulls in
+						// emdash/plugin-utils from plugin admin pages. The dep scan never
+						// reaches it, so the first admin visit would re-optimize and reload.
+						"emdash/internal/routes/PluginRegistry",
 						"emdash > lowlight",
 						"emdash > highlight.js",
 						"emdash > highlight.js/lib/core",

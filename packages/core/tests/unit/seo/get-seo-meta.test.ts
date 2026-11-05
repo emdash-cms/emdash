@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { getSeoMeta } from "../../../src/seo/index.js";
+import { setEntryTitleField } from "../../../src/seo/title-field.js";
 
 // Lightweight unit tests for the getSeoMeta + buildMediaUrl path.
 // These don't touch the DB — they exercise the URL-building logic
@@ -88,5 +89,25 @@ describe("getSeoMeta defaultTitle / defaultDescription (#1518)", () => {
 	it("applies the siteTitle suffix to the default title", () => {
 		const meta = getSeoMeta(entry, { defaultTitle: "Computed", siteTitle: "My Site" });
 		expect(meta.title).toBe("Computed | My Site");
+	});
+});
+
+describe("getSeoMeta title-field fallback", () => {
+	function entryWithTitleField(data: Record<string, unknown>) {
+		setEntryTitleField(data, "name");
+		return { data };
+	}
+
+	it("uses the entry's title field before data.title and after the caller default", () => {
+		const entry = entryWithTitleField({ title: "Senior Engineer", name: "Ada Lovelace" });
+
+		expect(getSeoMeta(entry).title).toBe("Ada Lovelace");
+		expect(getSeoMeta(entry, { defaultTitle: "Computed" }).title).toBe("Computed");
+	});
+
+	it("falls back to data.title when the title field is empty", () => {
+		const entry = entryWithTitleField({ title: "Senior Engineer", name: "" });
+
+		expect(getSeoMeta(entry).title).toBe("Senior Engineer");
 	});
 });
