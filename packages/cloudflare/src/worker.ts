@@ -3,7 +3,8 @@
  *
  * Wraps the Astro Cloudflare server handler with a `scheduled()` handler for
  * general maintenance. Re-exports the `PluginBridge` Durable Object so the
- * sandbox binding resolves against the entry module.
+ * sandbox binding resolves against the entry module, and the co-editing room
+ * classes so the `EMDASH_ROOMS` binding and the rooms' site loopback do too.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -15,6 +16,8 @@ import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
 
 export { PluginBridge } from "./sandbox/bridge.js";
+export { EmDashRoom } from "./rooms/object.js";
+export { EmDashRoomSite } from "./rooms/site.js";
 
 const APP_KEY = Symbol.for("@emdash-cms/cloudflare:astro-app");
 const CACHE_PROVIDER_KEY = Symbol.for("@emdash-cms/cloudflare:cache-provider");
