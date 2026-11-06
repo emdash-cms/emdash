@@ -4,7 +4,7 @@
  * Programmatic API for searching content using FTS5.
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
@@ -144,7 +144,7 @@ export async function searchWithDb(
 	const perCollectionLimit = offset + limit + 1;
 
 	// Search each collection and merge results
-	const allResults: SearchResult[] = [];
+	const allResults: RankedSearchResult[] = [];
 	for (const collection of collections) {
 		const collectionMetadata = metadata.get(collection);
 		if (!collectionMetadata) {
@@ -162,17 +162,26 @@ export async function searchWithDb(
 				scope: options.scope,
 			},
 			collectionMetadata,
+			true,
 		);
 
 		allResults.push(...collectionResults);
 	}
 
-	// Sort by score descending
-	allResults.sort((a, b) => b.score - a.score);
+	const titleLength = (r: RankedSearchResult) => r.title?.length ?? Number.POSITIVE_INFINITY;
+
+	allResults.sort(
+		(a, b) =>
+			b.titleMatchTier - a.titleMatchTier ||
+			b.score - a.score ||
+			b.rawScore - a.rawScore ||
+			titleLength(a) - titleLength(b) ||
+			compareIds(a.id, b.id),
+	);
 
 	// Page the merged set by offset. A nextCursor is issued only when at least
 	// one result exists past this page.
-	const items = allResults.slice(offset, offset + limit);
+	const items = allResults.slice(offset, offset + limit).map(toSearchResult);
 	const hasMore = allResults.length > offset + limit;
 	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
@@ -225,11 +234,28 @@ export async function searchCollection(
 		metadata,
 	);
 
-	const items = fetched.slice(offset, offset + limit);
+	const items = fetched.slice(offset, offset + limit).map(toSearchResult);
 	const hasMore = fetched.length > offset + limit;
 	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
 	return { items, nextCursor };
+}
+
+interface RankedSearchResult extends SearchResult {
+	titleMatchTier: number;
+	rawScore: number;
+}
+
+function toSearchResult({
+	titleMatchTier: _titleMatchTier,
+	rawScore: _rawScore,
+	...result
+}: RankedSearchResult): SearchResult {
+	return result;
+}
+
+function compareIds(a: string, b: string): number {
+	return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**
@@ -241,7 +267,8 @@ async function searchSingleCollection(
 	query: string,
 	options: CollectionSearchOptions,
 	metadata: CollectionSearchMetadata,
-): Promise<SearchResult[]> {
+	rankAcrossCollections = false,
+): Promise<RankedSearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
 
@@ -311,33 +338,62 @@ async function searchSingleCollection(
 	// Using raw SQL because Kysely doesn't have FTS5 support
 	const bm25Expr = bm25Args ? `bm25("${ftsTable}", ${bm25Args})` : `bm25("${ftsTable}")`;
 
-	// Snippet column index is 2 (after id=0, locale=1, first searchable field=2)
-	let results;
-	try {
-		results = await sql<{
-			id: string;
-			slug: string | null;
-			locale: string;
-			title: string | null;
-			snippet: string | null;
-			score: number;
-		}>`
-		SELECT
-			c.id,
-			c.slug,
-			c.locale,
-			${titleExpr} as title,
-			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
-			${sql.raw(bm25Expr)} as score
-		FROM "${sql.raw(ftsTable)}" f
+	// Materialization keeps bm25() in its FTS cursor context. The best-score
+	// CTE computes the global per-collection maximum from every match, not
+	// just the rows admitted by the title-ranked LIMIT, so normalized scores
+	// stay identical across pages and result-window sizes.
+	const titleColumn = titleField ?? "title";
+	const titleMatchTier =
+		rankAcrossCollections && searchableFields.includes(titleColumn)
+			? buildTitleMatchTier(ftsTable, titleColumn, searchableFields.indexOf(titleColumn) + 2, query)
+			: sql`0`;
+	const titleLengthExpr = searchableFields.includes(titleColumn)
+		? sql`coalesce(length(c.${sql.ref(titleColumn)}), 0)`
+		: sql`0`;
+	type SearchRow = {
+		id: string;
+		slug: string | null;
+		locale: string;
+		title: string | null;
+		snippet: string | null;
+		score: number;
+		title_match_tier: number;
+		raw_score: number;
+		title_length: number;
+	};
+	const fromMatches = sql`FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
 		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
-		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
-		ORDER BY score
-		LIMIT ${limit}
-	`.execute(db);
+		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}`;
+	const displayFields = sql`c.id, c.slug, c.locale, ${titleExpr} AS title,
+		snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) AS snippet`;
+	let results;
+	try {
+		const rankedQuery = rankAcrossCollections
+			? sql<SearchRow>`WITH matches AS MATERIALIZED (
+				SELECT c.id, ${sql.raw(bm25Expr)} AS score, ${titleMatchTier} AS title_match_tier, ${titleLengthExpr} AS title_length
+				${fromMatches}
+			), best AS MATERIALIZED (
+				SELECT nullif(max(abs(score)), 0) AS best_score FROM matches
+			), ranked AS MATERIALIZED (
+				SELECT m.id, m.title_match_tier, m.title_length,
+					abs(m.score) AS raw_score,
+					coalesce(abs(m.score) / nullif(best.best_score, 0), 0) AS score
+				FROM matches m CROSS JOIN best
+				ORDER BY m.title_match_tier DESC, score DESC, raw_score DESC, m.title_length ASC, m.id COLLATE BINARY
+				LIMIT ${limit}
+			)
+			SELECT ${displayFields}, r.score, r.title_match_tier, r.raw_score
+			FROM ranked r
+			JOIN "${sql.raw(contentTable)}" c ON c.id = r.id
+			JOIN "${sql.raw(ftsTable)}" f ON f.id = c.id
+			WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
+			ORDER BY r.title_match_tier DESC, r.score DESC, r.raw_score DESC, r.title_length ASC, r.id COLLATE BINARY`
+			: sql<SearchRow>`SELECT ${displayFields}, ${sql.raw(bm25Expr)} AS score, 0 AS title_match_tier, abs(${sql.raw(bm25Expr)}) AS raw_score, 0 AS title_length
+				${fromMatches} ORDER BY score, c.id COLLATE BINARY LIMIT ${limit}`;
+		results = await rankedQuery.execute(db);
 	} catch (error) {
 		// FTS5 returns syntax errors for queries with unbalanced quotes,
 		// stray operators, or other malformed input. Treat these as
@@ -365,7 +421,9 @@ async function searchSingleCollection(
 		// throw on `null.replace`. The SearchResult.snippet field is
 		// already optional, so omitting it is the documented contract.
 		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
-		score: Math.abs(row.score), // bm25 returns negative scores
+		score: Math.abs(row.score),
+		titleMatchTier: row.title_match_tier,
+		rawScore: row.raw_score,
 	}));
 }
 
@@ -402,6 +460,46 @@ function sanitizeSnippet(snippet: string): string {
 		.replace(SNIPPET_APOS_RE, "&#39;")
 		.replaceAll("&lt;mark&gt;", "<mark>")
 		.replaceAll("&lt;/mark&gt;", "</mark>");
+}
+
+const TITLE_OPERATOR_PATTERN = /^(AND|OR|NOT|NEAR)$/;
+
+function buildTitleMatchTier(
+	ftsTable: string,
+	titleColumn: string,
+	titleIndex: number,
+	query: string,
+): RawBuilder<number> {
+	validateIdentifier(titleColumn, "title field");
+	const trimmed = query.trim();
+	const phrase = trimmed.startsWith('"') && trimmed.endsWith('"');
+	const exact = phrase ? trimmed.slice(1, -1).trim() : trimmed;
+	const terms = phrase
+		? trimmed
+		: trimmed
+				.split(WHITESPACE_SPLIT_PATTERN)
+				.filter((term) => !TITLE_OPERATOR_PATTERN.test(term))
+				.join(" ");
+	const titleQuery = escapeQuery(terms, false);
+	if (!titleQuery) return sql`0`;
+	const exactQuery = `${titleColumn} : "${exact.replace(DOUBLE_QUOTE_PATTERN, '""')}"`;
+	const containsQuery = `${titleColumn} : (${titleQuery})`;
+	// FTS tokenization supplies Unicode case folding. A whole-title phrase must
+	// cover the complete title and have the same length, excluding prefix hits.
+	return sql<number>`CASE
+		WHEN c.id IN (
+			SELECT id FROM "${sql.raw(ftsTable)}"
+			WHERE "${sql.raw(ftsTable)}" MATCH ${exactQuery}
+			AND trim(highlight("${sql.raw(ftsTable)}", ${titleIndex}, char(1), char(2))) =
+				char(1) || trim(${sql.ref(titleColumn)}) || char(2)
+			AND length(trim(${sql.ref(titleColumn)})) = length(${exact})
+		) THEN 2
+		WHEN c.id IN (
+			SELECT id FROM "${sql.raw(ftsTable)}"
+			WHERE "${sql.raw(ftsTable)}" MATCH ${containsQuery}
+		) THEN 1
+		ELSE 0
+	END`;
 }
 
 /**
