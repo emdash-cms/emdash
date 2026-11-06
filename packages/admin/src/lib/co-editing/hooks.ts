@@ -116,6 +116,7 @@ export function useRemountKey(
 function sessionOptions(manifest: AdminManifest, collection: string): SessionOptions {
 	const fields = manifest.collections[collection]?.fields ?? {};
 	return {
+		manifest,
 		fingerprint: { version: ADMIN_BUILD.version, commit: ADMIN_BUILD.commit, hash: manifest.hash },
 		richTextFields: Object.entries(fields)
 			.filter(([, field]) => field.kind === "portableText")

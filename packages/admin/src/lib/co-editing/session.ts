@@ -5,6 +5,7 @@
  */
 
 import { CLOSE_CODES, type Notice, type RoomAccess } from "../../co-editing/types.js";
+import type { AdminManifest } from "../api/client.js";
 import type { JoinOutcome, JoinRequest, RecoveryInput, RoomFingerprint } from "../api/rooms.js";
 import type { TransportHealth } from "./transport-health.js";
 import type { CoEditing, RoomEditing, RoomEvent } from "./types.js";
@@ -31,7 +32,8 @@ export interface Away {
 	readonly rejoins: number;
 }
 
-export type SingleEditorReason = "server" | "locked" | "pinned" | "error";
+/** `deleted`: the entry went to Trash or is gone. */
+export type SingleEditorReason = "server" | "locked" | "pinned" | "deleted" | "error";
 export type KeptReason = "access" | "deleted" | "recovery-failed";
 export type RecoveryTarget =
 	| { readonly kind: "rejoin" }
@@ -211,7 +213,7 @@ function joined(
 			if (replica && event.uncovered) {
 				return keep(replica, outcome.kind === "forbidden" ? "access" : "deleted");
 			}
-			return leave(replica !== null, "error");
+			return leave(replica !== null, outcome.kind === "forbidden" ? "error" : "deleted");
 		case "failed":
 			return replica ? retryOffline(replica, away ?? freshAway(event.at)) : leave(false, "error");
 	}
@@ -255,7 +257,7 @@ function closed(
 			return joining(null, away, false, false, [DISCARD]);
 		case CLOSE_CODES.deleted:
 			if (replica && event.uncovered) return keep(replica, "deleted");
-			return leave(replica !== null, "error");
+			return leave(replica !== null, "deleted");
 		case CLOSE_CODES.busy:
 			return retryBusy(replica, away);
 		default:
@@ -411,6 +413,8 @@ export interface ReplicaHandle {
 	setOffline(offline: boolean): void;
 	/** Disconnected for good: the edits stay for copying, and no save can be waited for. */
 	freeze(): void;
+	/** Frozen, with its edits saved as a recovery revision, so they count as saved. */
+	recovered(): void;
 	dispose(): void;
 }
 
@@ -440,6 +444,7 @@ export interface SessionDeps {
 
 /** Pinned when the session starts. A later manifest never changes them. */
 export interface SessionOptions {
+	readonly manifest: AdminManifest;
 	readonly fingerprint: RoomFingerprint;
 	readonly richTextFields: readonly string[];
 	readonly pluginBlockTypes: readonly string[];
@@ -637,7 +642,10 @@ export function createCoEditingSession(
 		} catch {
 			ok = false;
 		}
-		if (replica === target) dispatch({ type: "recovered", ok });
+		if (replica !== target) return;
+		// Before a reload, so the unsaved-changes prompt doesn't stop it.
+		if (ok && target) target.recovered();
+		dispatch({ type: "recovered", ok });
 	}
 
 	function uncovered(): boolean {
@@ -671,7 +679,7 @@ export function createCoEditingSession(
 		const inputs = [state, offline, replica];
 		if (inputs.every((input, index) => input === viewInputs[index])) return;
 		viewInputs = inputs;
-		view = sessionView(state, offline, replica?.editing ?? null, actions);
+		view = sessionView(state, offline, replica?.editing ?? null, options.manifest, actions);
 		for (const listener of listeners) listener();
 	}
 
@@ -706,12 +714,14 @@ function sessionView(
 	state: SessionState,
 	offline: boolean,
 	editing: RoomEditing | null,
+	manifest: AdminManifest,
 	actions: { takeOver(fallback: () => void): void; reload(): void },
 ): CoEditing {
 	if (state.kind === "single-editor") {
 		return {
 			mode: "single-editor",
 			canJoin: state.reason !== "pinned",
+			deleted: state.reason === "deleted",
 			takeOver: actions.takeOver,
 		};
 	}
@@ -728,5 +738,6 @@ function sessionView(
 		offline,
 		kept: state.kind === "kept" ? state.reason : null,
 		reload: actions.reload,
+		manifest,
 	};
 }

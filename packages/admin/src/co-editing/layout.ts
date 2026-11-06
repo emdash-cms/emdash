@@ -78,21 +78,36 @@ export function writeField(
 	pluginTypes: readonly string[],
 	origin: unknown,
 ): boolean {
+	const write = fieldWrite(field, value, pluginTypes);
+	if (!write) return false;
+	doc.transact(() => write(doc), origin);
+	return true;
+}
+
+/**
+ * What `writeField` writes, with rich text converted once, to run inside a caller's
+ * transaction. Null for rich text the editor can't represent.
+ */
+export function fieldWrite(
+	field: LayoutField,
+	value: unknown,
+	pluginTypes: readonly string[],
+): ((doc: Y.Doc) => void) | null {
 	if (field.type !== "portableText") {
-		const map = doc.getMap(FIELDS_MAP);
-		doc.transact(() => {
+		return (doc) => {
+			const map = doc.getMap(FIELDS_MAP);
 			if (value === undefined) map.delete(field.slug);
 			else map.set(field.slug, value);
-		}, origin);
-		return true;
+		};
 	}
 	const node = editorNode(value, new Set(pluginTypes));
-	if (!node) return false;
-	const fragment = doc.getXmlFragment(fragmentName(field.slug));
-	doc.transact(() => {
-		updateYFragment(doc, fragment, node, { mapping: new Map(), isOMark: new Map() });
-	}, origin);
-	return true;
+	if (!node) return null;
+	return (doc) => {
+		updateYFragment(doc, doc.getXmlFragment(fragmentName(field.slug)), node, {
+			mapping: new Map(),
+			isOMark: new Map(),
+		});
+	};
 }
 
 /**

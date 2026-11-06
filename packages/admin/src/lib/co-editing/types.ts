@@ -28,11 +28,15 @@ export type CoEditing =
 			readonly kept: "access" | "deleted" | "recovery-failed" | null;
 			/** Reloads the admin, from `kept`. */
 			reload(): void;
+			/** The manifest the session started with, which the room's fields and blocks come from. */
+			readonly manifest: import("../api/client.js").AdminManifest;
 	  }
 	| {
 			readonly mode: "single-editor";
 			/** False once the browser session is pinned to single-editor mode. */
 			readonly canJoin: boolean;
+			/** The room closed or turned the join away because the entry went to Trash or is gone. */
+			readonly deleted: boolean;
 			/**
 			 * Joins again with `takeover`, for **Take over** and **Join** alike. Calls `fallback`, the
 			 * edit lock's own takeover, if the join still answers single-editor mode.
@@ -58,6 +62,13 @@ export interface RoomEditing {
 	captureDraft(fields: readonly string[]): DraftCapture;
 	/** True when one of `fields` changed after the capture, by anyone, or the capture is another replica's. */
 	changedSince(capture: DraftCapture, fields: readonly string[]): boolean;
+	/**
+	 * Writes a plugin's editor-draft patch in one transaction, which each bound rich-text editor
+	 * undoes in one step. Writes nothing and returns false for rich text the editor can't represent.
+	 */
+	applyPatch(values: Readonly<Record<string, unknown>>): boolean;
+	/** The name the room gave a user who is in it now. */
+	userName(userId: string): string | null;
 }
 
 /** The document's field values, and the entry slug under `slug`. */
@@ -65,8 +76,11 @@ export interface RoomFields {
 	subscribe(field: string, listener: () => void): () => void;
 	/** A copy, made once per change. Rich text reads as Portable Text. */
 	get(field: string): unknown;
-	/** Writes every changed value in one transaction. `undefined` removes a value. */
-	set(values: Readonly<Record<string, unknown>>): void;
+	/**
+	 * Writes every changed value in one transaction. `undefined` removes a value. Writes nothing
+	 * and returns false for rich text the editor can't represent.
+	 */
+	set(values: Readonly<Record<string, unknown>>): boolean;
 	read(fields: readonly string[]): Record<string, unknown>;
 	/** Counts the changes other clients made to the field. */
 	remoteVersion(field: string): number;

@@ -47,7 +47,7 @@ import {
 	getDraftStatus,
 } from "../lib/api";
 import { useRemountKey, useRoomFieldValue, useRoomSaveState } from "../lib/co-editing/hooks.js";
-import type { RichTextBinding, RoomEditing } from "../lib/co-editing/types.js";
+import type { DraftCapture, RichTextBinding, RoomEditing } from "../lib/co-editing/types.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
@@ -104,6 +104,8 @@ import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 const AUTOSAVE_DELAY = 2000;
 /** How long a link waits for the room to save this tab's edits before asking to leave. */
 const ROOM_LEAVE_WAIT_MS = 3000;
+/** Editor-draft captures a plugin's response can still name in a room. */
+const ROOM_DRAFT_CAPTURES_KEPT = 16;
 // Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
 const ADMIN_HEADER_HEIGHT_PX = 58;
 const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
@@ -210,7 +212,7 @@ function resolveEditorBylines(item?: ContentItem | null): {
 
 import type { ContentSeoInput } from "../lib/api";
 import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
-import { openPreviewWindow } from "../lib/preview-window.js";
+import { openBlankPreviewWindow, openPreviewWindow } from "../lib/preview-window.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
@@ -395,7 +397,8 @@ export interface ContentEditorProps {
 	itemResetToken?: number;
 	/** Whether the latest item reset follows a discard, which replaces unsaved edits too. */
 	itemResetDiscards?: boolean;
-	onPublish?: (payload: {
+	/** Called without a payload in a room, where the room saves the edits first. */
+	onPublish?: (payload?: {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
@@ -502,12 +505,30 @@ export interface ContentEditorProps {
 	 * field values and the slug, and the room saves them: nothing here autosaves or calls `onSave`.
 	 */
 	room?: RoomEditing | null;
+	/** A reset is replacing the room's replica: values outside the document save as in the room. */
+	roomResetting?: boolean;
+	/** Shows a loading state in place of the fields, at the height they last had. */
+	fieldsLoading?: boolean;
 	/** In a room: disconnected for 5 s or more. */
 	roomOffline?: boolean;
 	/** In a room: saving is refused, offline, without edit access, or for good. */
 	roomBlocked?: boolean;
 	/** Shown in the bar while the entry waits for its room. */
 	roomStatus?: "connecting" | "waiting" | null;
+	/**
+	 * In a room: saves bylines or references at once, outside the room's document. Rejects, with
+	 * the failure already shown, if the save fails.
+	 */
+	onSaveOutsideValues?: (changes: {
+		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
+	}) => Promise<unknown>;
+	/** In a room: Preview didn't open because no save of this tab's edits arrived. */
+	onPreviewNotSaved?: () => void;
+	/** Set to read the form's data and slug, which the page keeps before it joins a room. */
+	readFormRef?: React.RefObject<
+		(() => { data: Record<string, unknown>; slug: string | null }) | null
+	>;
 }
 
 /**
@@ -569,9 +590,14 @@ export function ContentEditor({
 	notice,
 	timezone = "UTC",
 	room = null,
+	roomResetting = false,
+	fieldsLoading = false,
 	roomOffline = false,
 	roomBlocked = false,
 	roomStatus = null,
+	onSaveOutsideValues,
+	onPreviewNotSaved,
+	readFormRef,
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -676,6 +702,20 @@ export function ContentEditor({
 	const titleField = manifest?.collections[collection]?.titleField;
 	const documentTitleField = titleField ?? (fields.title?.kind === "string" ? "title" : undefined);
 	const canvasRef = React.useRef<HTMLDivElement>(null);
+	// The fields' height in the room, which their loading state keeps through a reset, so the
+	// canvas keeps its scroll position. A layout effect, so the observer stops before it can
+	// see the loading state's height.
+	const fieldsRef = React.useRef<HTMLDivElement>(null);
+	const roomFieldsHeightRef = React.useRef<number | null>(null);
+	React.useLayoutEffect(() => {
+		const element = fieldsRef.current;
+		if (!room || !element) return;
+		const observer = new ResizeObserver(() => {
+			roomFieldsHeightRef.current = element.offsetHeight;
+		});
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [room]);
 	const settingsButtonRef = React.useRef<HTMLButtonElement>(null);
 	const listVisible = !isBelowLg && !isDistractionFree;
 	const focusAfterRevisionView = React.useCallback(() => {
@@ -947,6 +987,7 @@ export function ContentEditor({
 	const roomSaveState = useRoomSaveState(room);
 	// In a room, "Saved" means a checkpoint holds this tab's last edit.
 	const isDirty = roomSaveState ? !roomSaveState.covered : formIsDirty;
+	const readRoomUnsaved = React.useCallback(() => !room?.getSaveState().covered, [room]);
 	// A new entry is always "dirty" so it can be saved, but one nobody has
 	// touched has nothing to lose on leaving.
 	const [newEntryInitialState] = React.useState(currentData);
@@ -968,8 +1009,23 @@ export function ContentEditor({
 		onDirtyChangeRef.current?.(isDirty);
 	}, [isDirty]);
 
+	// In a room, bylines save at once and the entry's own are adopted again once no save is left.
+	const bylineSavesRef = React.useRef(0);
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
+			if (room) {
+				setInternalBylines(next);
+				setBylinesTouched(true);
+				const save = ++bylineSavesRef.current;
+				void onSaveOutsideValues?.({ bylines: next }).then(
+					() => {
+						if (bylineSavesRef.current === save) setBylinesTouched(false);
+						return undefined;
+					},
+					() => undefined,
+				);
+				return;
+			}
 			editorGenerationRef.current++;
 			markDirty();
 			setBylinesTouched(true);
@@ -980,7 +1036,7 @@ export function ContentEditor({
 			setInternalBylines(next);
 			onBylinesChange?.(next);
 		},
-		[isNew, onBylinesChange, markDirty],
+		[isNew, onBylinesChange, markDirty, room, onSaveOutsideValues],
 	);
 
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
@@ -1032,9 +1088,29 @@ export function ContentEditor({
 
 	// Replace a reference field's staged current selection (add/remove/reorder).
 	// Upserts the field so one with no hydrated rows can take its first pick.
+	/**
+	 * In a room, a selection saves at once. The saved rows become the baseline unless a later
+	 * change is on its way, so a refetch adopts the entry's selection only once nothing differs.
+	 */
+	const saveRoomReferences = React.useCallback(
+		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
+			void onSaveOutsideValues?.({ references: { [fieldSlug]: rows.map((row) => row.id) } }).then(
+				() =>
+					setReferenceState((prev) => {
+						const current = prev[fieldSlug];
+						return current?.current === rows
+							? { ...prev, [fieldSlug]: { ...current, baseline: rows } }
+							: prev;
+					}),
+				() => undefined,
+			);
+		},
+		[onSaveOutsideValues],
+	);
 	const handleReferenceCurrentChange = React.useCallback(
 		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
-			markDirty();
+			if (room) saveRoomReferences(fieldSlug, rows);
+			else markDirty();
 			setReferenceState((prev) => {
 				const existing = prev[fieldSlug];
 				return {
@@ -1045,7 +1121,7 @@ export function ContentEditor({
 				};
 			});
 		},
-		[markDirty],
+		[markDirty, room, saveRoomReferences],
 	);
 
 	// Page the rest of a field's hydrated set. The full set must be loaded before
@@ -1126,6 +1202,11 @@ export function ContentEditor({
 	formDataRef.current = formData;
 	const slugRef = React.useRef(slug);
 	slugRef.current = slug;
+	React.useImperativeHandle(
+		readFormRef,
+		() => () => ({ data: formDataRef.current, slug: slugRef.current || null }),
+		[],
+	);
 	const editorContextRef = React.useRef({
 		collection,
 		entryId: item?.id ?? null,
@@ -1139,9 +1220,32 @@ export function ContentEditor({
 		baseRevision: item?._rev ?? null,
 	};
 
+	// A plugin's response names its capture by invocation ID.
+	const roomDraftCapturesRef = React.useRef(new Map<string, DraftCapture>());
 	const captureEditorDraft = React.useCallback(
 		(access: EditorDraftAccessDeclaration): BrowserEditorDraftRequest | null => {
 			const context = editorContextRef.current;
+			if (room) {
+				const capture = room.captureDraft(selectEditorDraftFields(access.read, fields));
+				const baseRevision = capture.rev ?? context.baseRevision;
+				if (!context.entryId || !baseRevision) return null;
+				const invocationId = crypto.randomUUID();
+				const captures = roomDraftCapturesRef.current;
+				captures.set(invocationId, capture);
+				for (const oldest of captures.keys()) {
+					if (captures.size <= ROOM_DRAFT_CAPTURES_KEPT) break;
+					captures.delete(oldest);
+				}
+				return {
+					collection: context.collection,
+					entryId: context.entryId,
+					locale: context.locale,
+					baseRevision,
+					generation: capture.sequence,
+					invocationId,
+					fields: capture.values,
+				};
+			}
 			if (!context.entryId || !context.baseRevision) return null;
 			const selected = selectEditorDraftFields(access.read, fields);
 			const values: Record<string, unknown> = {};
@@ -1156,17 +1260,23 @@ export function ContentEditor({
 				fields: values,
 			};
 		},
-		[fields],
+		[fields, room],
 	);
 
 	const editorDraftResponseIsCurrent = React.useCallback(
 		(access: EditorDraftAccessDeclaration, response: EditorDraftResponse): boolean => {
 			const context = editorContextRef.current;
 			const receipt = response.editorInvocation;
-			if (
-				!receipt ||
-				receipt.entryId !== context.entryId ||
-				receipt.locale !== context.locale ||
+			if (!receipt || receipt.entryId !== context.entryId || receipt.locale !== context.locale) {
+				return false;
+			}
+			if (room) {
+				// Room saves change `_rev` every few seconds, so only a later edit to a field the
+				// patch changes makes it stale.
+				const capture = roomDraftCapturesRef.current.get(receipt.invocationId);
+				const patched = response.patch?.operations.map((operation) => operation.field) ?? [];
+				if (!capture || room.changedSince(capture, patched)) return false;
+			} else if (
 				receipt.baseRevision !== context.baseRevision ||
 				receipt.generation !== editorGenerationRef.current
 			) {
@@ -1181,7 +1291,7 @@ export function ContentEditor({
 					editorFieldMatchesReceipt(fields[operation.field], definitions.get(operation.field)),
 			);
 		},
-		[fields],
+		[fields, room],
 	);
 
 	const handleEditorDraftResponse = React.useCallback(
@@ -1209,6 +1319,21 @@ export function ContentEditor({
 			);
 			return;
 		}
+		if (room) {
+			const values = Object.fromEntries(
+				response.patch.operations.map((operation) => [
+					operation.field,
+					operation.op === "clear" ? null : operation.value,
+				]),
+			);
+			setPendingEditorDraftPatch(null);
+			if (!room.applyPatch(values)) {
+				setEditorDraftError(
+					t`The plugin result has formatting this editor can't show, so it wasn't applied.`,
+				);
+			}
+			return;
+		}
 		const next = { ...formDataRef.current };
 		for (const operation of response.patch.operations) {
 			next[operation.field] = operation.op === "clear" ? null : operation.value;
@@ -1218,7 +1343,7 @@ export function ContentEditor({
 		setFormData(next);
 		setHasAppliedEditorDraftPatch(true);
 		setPendingEditorDraftPatch(null);
-	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t, markDirty]);
+	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t, markDirty, room]);
 
 	/**
 	 * Advances the saved baseline to what a successful save sent. Editing further
@@ -1481,8 +1606,9 @@ export function ContentEditor({
 		)
 			return;
 		cancelPendingAutosave();
-		const payload = createSavePayload();
-		const saved = beginSave(payload);
+		// A room saves the edits itself before it publishes.
+		const payload = room ? undefined : createSavePayload();
+		const saved = payload && beginSave(payload);
 		isPublishingRef.current = true;
 		setIsPublishing(true);
 		const result = onPublish(payload);
@@ -1493,7 +1619,7 @@ export function ContentEditor({
 		}
 		void result.then(
 			() => {
-				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
+				if (saved) markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
 				isPublishingRef.current = false;
 				setIsPublishing(false);
 				return undefined;
@@ -1549,7 +1675,7 @@ export function ContentEditor({
 			}
 
 			cancelPendingAutosave();
-			const payload = hasPendingSaveRef.current ? createSavePayload() : undefined;
+			const payload = !room && hasPendingSaveRef.current ? createSavePayload() : undefined;
 			const saved = payload && beginSave(payload);
 			isPublishingRef.current = true;
 			setIsPublishing(true);
@@ -1645,49 +1771,76 @@ export function ContentEditor({
 
 	const handlePreview = async () => {
 		if (!item?.id) return;
-		const entrySlug = room ? slugText(room.fields.get("slug")) : slug;
+		const entry = item;
+		const previewUrl = async (entrySlug: string) => {
+			const result = await getPreviewUrl(collection, entry.id).catch(() => null);
+			if (result?.url) return result.url;
+			return contentUrl(collection, entrySlug || entry.id, urlPattern, {
+				locale: entry.locale,
+				i18n,
+				id: entry.id,
+				date: entry.publishedAt,
+			});
+		};
+
+		if (room) {
+			// The tab opens on the click, and loads once the room has saved this tab's edits.
+			const opened = openBlankPreviewWindow(collection, entry.id);
+			setIsLoadingPreview(true);
+			try {
+				await room.whenCovered({ save: false });
+			} catch {
+				if (opened?.created) opened.preview.close();
+				setIsLoadingPreview(false);
+				onPreviewNotSaved?.();
+				return;
+			}
+			try {
+				const url = await previewUrl(slugText(room.fields.get("slug")));
+				if (opened) {
+					opened.preview.location.href = url;
+					opened.preview.focus();
+				} else {
+					openPreviewWindow(url, collection, entry.id);
+				}
+			} finally {
+				setIsLoadingPreview(false);
+			}
+			return;
+		}
 
 		setIsLoadingPreview(true);
 		try {
-			const result = await getPreviewUrl(collection, item.id);
-			if (result?.url) {
-				openPreviewWindow(result.url, collection, item.id);
-			} else {
-				openPreviewWindow(
-					contentUrl(collection, entrySlug || item.id, urlPattern, {
-						locale: item.locale,
-						i18n,
-						id: item.id,
-						date: item.publishedAt,
-					}),
-					collection,
-					item.id,
-				);
-			}
-		} catch {
-			openPreviewWindow(
-				contentUrl(collection, entrySlug || item.id, urlPattern, {
-					locale: item.locale,
-					i18n,
-					id: item.id,
-					date: item.publishedAt,
-				}),
-				collection,
-				item.id,
-			);
+			openPreviewWindow(await previewUrl(slug), collection, entry.id);
 		} finally {
 			setIsLoadingPreview(false);
 		}
 	};
 
+	const [refusedRoomChange, setRefusedRoomChange] = React.useState<{
+		room: string;
+		field: string;
+	} | null>(null);
+	const refusedRoomChangeRef = React.useRef(refusedRoomChange);
+	refusedRoomChangeRef.current = refusedRoomChange;
+	const refusedFieldLabel =
+		refusedRoomChange && refusedRoomChange.room === room?.id
+			? getFieldLabel(refusedRoomChange.field, fields[refusedRoomChange.field])
+			: null;
 	const handleFieldChange = React.useCallback(
 		(name: string, value: unknown) => {
 			if (room) {
-				room.fields.set(
+				const written = room.fields.set(
 					name === (titleField ?? "title") && !slugTouched
 						? withRoomAutoSlug(room, name, value)
 						: { [name]: value },
 				);
+				const refused = refusedRoomChangeRef.current;
+				if (!written && (refused?.room !== room.id || refused.field !== name)) {
+					setRefusedRoomChange({ room: room.id, field: name });
+				} else if (written && refused?.field === name) {
+					setRefusedRoomChange(null);
+				}
 				return;
 			}
 			editorGenerationRef.current++;
@@ -1999,6 +2152,14 @@ export function ContentEditor({
 									description={editorDraftError}
 								/>
 							) : null}
+							{refusedFieldLabel && !isViewing ? (
+								<Banner
+									variant="error"
+									role="alert"
+									title={t`Your change to ${refusedFieldLabel} wasn’t saved`}
+									description={t`It has formatting this editor can’t keep.`}
+								/>
+							) : null}
 							{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
 							    undo history and the outline survive. */}
 							<fieldset disabled={readOnly} hidden={isViewing} className="contents">
@@ -2028,8 +2189,21 @@ export function ContentEditor({
 										}
 									/>
 								)}
-								<div className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
-									{Object.entries(fields).map(([name, field]) => {
+								<div
+									ref={fieldsRef}
+									className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base"
+									style={
+										fieldsLoading && roomFieldsHeightRef.current !== null
+											? { minHeight: roomFieldsHeightRef.current }
+											: undefined
+									}
+								>
+									{fieldsLoading && (
+										<div className="sticky top-24 flex justify-center py-16">
+											<Loader aria-label={t`Loading`} />
+										</div>
+									)}
+									{(fieldsLoading ? [] : Object.entries(fields)).map(([name, field]) => {
 										// Key by item id so all field editors remount cleanly when the
 										// underlying content item changes (e.g. switching translations).
 										// PortableTextEditor in particular freezes its initial content on
@@ -2195,6 +2369,7 @@ export function ContentEditor({
 										onTranslate={onTranslate}
 										hasSeo={hasSeo}
 										onSeoChange={onSeoChange ? handleSeoChange : undefined}
+										seoInRoom={room !== null || roomResetting}
 										portableTextEditor={portableTextEditor}
 										blockSidebarPanel={blockSidebarPanel}
 										onBlockSidebarClose={handleBlockSidebarClose}
@@ -2234,7 +2409,15 @@ export function ContentEditor({
 				<EditorDraftPatchPreview
 					operations={pendingEditorDraftPatch.response.patch.operations}
 					fields={fields}
-					currentValues={formDataRef.current}
+					currentValues={
+						room
+							? room.fields.read(
+									pendingEditorDraftPatch.response.patch.operations.map(
+										(operation) => operation.field,
+									),
+								)
+							: formDataRef.current
+					}
 					onApply={applyEditorDraftPatch}
 					onClose={() => setPendingEditorDraftPatch(null)}
 				/>
@@ -2242,6 +2425,7 @@ export function ContentEditor({
 			<UnsavedChangesGuard
 				when={isNew ? hasUnsavedNewEntry : isDirty}
 				saveBeforeLeaving={isNew ? undefined : saveBeforeLeaving}
+				isUnsaved={room ? readRoomUnsaved : undefined}
 			/>
 		</form>
 	);
@@ -2966,19 +3150,21 @@ function FieldRenderer({
 				);
 			}
 			return (
-				<ReferenceFieldRenderer
-					label={label}
-					labelClass={labelClass}
-					required={field.required}
-					targetCollection={targetCollection}
-					multiple={multiple}
-					reorderable={field.validation?.relationSide !== "child"}
-					state={referenceState?.[name]}
-					onChange={(rows) => onReferenceChange?.(name, rows)}
-					onLoadMore={() => onLoadMoreReferences?.(name)}
-					onRetry={() => onRetryReferences?.(name)}
-					entryLocale={entryLocale}
-				/>
+				<div data-emdash-outside="references">
+					<ReferenceFieldRenderer
+						label={label}
+						labelClass={labelClass}
+						required={field.required}
+						targetCollection={targetCollection}
+						multiple={multiple}
+						reorderable={field.validation?.relationSide !== "child"}
+						state={referenceState?.[name]}
+						onChange={(rows) => onReferenceChange?.(name, rows)}
+						onLoadMore={() => onLoadMoreReferences?.(name)}
+						onRetry={() => onRetryReferences?.(name)}
+						entryLocale={entryLocale}
+					/>
+				</div>
 			);
 		}
 
@@ -3129,7 +3315,14 @@ function RoomContentSettingsPanel({
 	...props
 }: ContentSettingsPanelProps & { room: RoomEditing | null }) {
 	const roomSlug = useRoomFieldValue(room, room ? "slug" : null);
-	return <ContentSettingsPanel {...props} slug={room ? slugText(roomSlug) : props.slug} />;
+	const roomRevision = useRoomSaveState(room)?.rev ?? null;
+	return (
+		<ContentSettingsPanel
+			{...props}
+			slug={room ? slugText(roomSlug) : props.slug}
+			roomRevision={roomRevision}
+		/>
+	);
 }
 
 function slugText(value: unknown): string {

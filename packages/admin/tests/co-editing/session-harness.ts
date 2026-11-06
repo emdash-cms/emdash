@@ -1,3 +1,4 @@
+import type { AdminManifest } from "../../src/lib/api/client";
 import type { JoinOutcome, JoinRequest, RecoveryInput } from "../../src/lib/api/rooms";
 import * as replicaModule from "../../src/lib/co-editing/replica/index";
 import type { Replica } from "../../src/lib/co-editing/replica/replica";
@@ -13,6 +14,14 @@ import { LoopbackRoom, settle } from "./loopback-room";
 
 export const ROOM_URL = "/_emdash/api/content/posts/01ENTRY/room";
 export const FINGERPRINT = { version: "1.4.0", commit: "abc1234", hash: "manifest-1" };
+const MANIFEST: AdminManifest = {
+	version: "1.4.0",
+	hash: "manifest-1",
+	authMode: "passkey",
+	collections: {},
+	plugins: {},
+	taxonomies: [],
+};
 
 export class ManualClock implements Clock {
 	time = 1_700_000_000_000;
@@ -58,7 +67,11 @@ export function resetTransportHealth(): void {
 }
 
 /** A session against a loopback room, with every dependency observable. */
-export function startSession(room: LoopbackRoom, overrides: Partial<SessionDeps> = {}) {
+export function startSession(
+	room: LoopbackRoom,
+	overrides: Partial<SessionDeps> = {},
+	richTextFields: readonly string[] = ["body"],
+) {
 	const clock = new ManualClock();
 	const joins: JoinRequest[] = [];
 	const answers: JoinOutcome[] = [];
@@ -103,8 +116,9 @@ export function startSession(room: LoopbackRoom, overrides: Partial<SessionDeps>
 		...overrides,
 	};
 	const session = createCoEditingSession(deps, {
+		manifest: MANIFEST,
 		fingerprint: FINGERPRINT,
-		richTextFields: ["body"],
+		richTextFields,
 		pluginBlockTypes: [],
 	});
 	return {

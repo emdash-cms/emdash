@@ -14,9 +14,12 @@ import { ConfirmDialog } from "./ConfirmDialog.js";
 export function UnsavedChangesGuard({
 	when,
 	saveBeforeLeaving,
+	isUnsaved,
 }: {
 	when: boolean;
 	saveBeforeLeaving?: () => boolean | Promise<boolean>;
+	/** Read when the tab closes or reloads, for changes saved since the last render. */
+	isUnsaved?: () => boolean;
 }) {
 	const { t } = useLingui();
 	const shouldBlockFn = React.useCallback<ShouldBlockFn>(
@@ -31,6 +34,7 @@ export function UnsavedChangesGuard({
 		shouldBlockFn,
 		disabled: !when,
 		withResolver: true,
+		enableBeforeUnload: isUnsaved ?? true,
 	});
 
 	return (

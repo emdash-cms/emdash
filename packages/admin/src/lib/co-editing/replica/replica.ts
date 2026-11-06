@@ -1,15 +1,16 @@
 import type { Editor } from "@tiptap/core";
+import { yUndoPluginKey, ySyncPluginKey } from "@tiptap/y-tiptap";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
 import {
 	ENTRY_SLUG,
 	FIELDS_MAP,
+	fieldWrite,
 	readField,
 	readFields,
 	readSlug,
 	touchedFields,
-	writeField,
 	type LayoutField,
 } from "../../../co-editing/layout.js";
 import type { RoomAccess } from "../../../co-editing/types.js";
@@ -33,6 +34,7 @@ import {
 import { Connection } from "./connection.js";
 import { Coverage, type CoverageMark } from "./coverage.js";
 import { FORM, REMOTE } from "./origins.js";
+import { readPeers } from "./presence.js";
 import { createRichTextBinding } from "./rich-text.js";
 
 /** As long as the room holds saves for an operation, so a save it never checkpoints can't hang one. */
@@ -117,6 +119,9 @@ export class Replica implements ReplicaHandle {
 			changedSince: (capture, names) =>
 				capture.replica !== this.doc.guid ||
 				names.some((name) => (this.#fieldSequences.get(name) ?? 0) > capture.sequence),
+			applyPatch: (values) => this.#applyPatch(values),
+			userName: (userId) =>
+				readPeers(this.awareness).find((peer) => peer.user.id === userId)?.user.name ?? null,
 		};
 	}
 
@@ -168,6 +173,12 @@ export class Replica implements ReplicaHandle {
 	freeze(): void {
 		this.#frozen = true;
 		this.#rejectWaiters(new RoomSaveError("gone"));
+	}
+
+	recovered(): void {
+		this.#coverage.forget();
+		this.freeze();
+		this.#updateSaveState();
 	}
 
 	dispose(): void {
@@ -302,19 +313,60 @@ export class Replica implements ReplicaHandle {
 		return value;
 	}
 
-	#set(values: Readonly<Record<string, unknown>>): void {
+	#set(values: Readonly<Record<string, unknown>>): boolean {
 		const map = this.doc.getMap(FIELDS_MAP);
+		const writes = this.#fieldWrites(values, (name, value) =>
+			value === undefined ? !map.has(name) : equalJsonValues(map.get(name), value),
+		);
+		if (!writes) return false;
 		this.doc.transact(() => {
-			for (const [name, value] of Object.entries(values)) {
-				const field = this.#layoutField(name);
-				if (field.type !== "portableText") {
-					const unchanged =
-						value === undefined ? !map.has(name) : equalJsonValues(map.get(name), value);
-					if (unchanged) continue;
-				}
-				writeField(this.doc, field, value, this.#options.pluginBlockTypes, FORM);
-			}
+			for (const write of writes) write(this.doc);
 		}, FORM);
+		return true;
+	}
+
+	/**
+	 * One transaction under y-sync's origin, which every bound editor's undo tracks, so each
+	 * rich-text field it changes undoes in one step. Capturing stops on both sides, so the patch
+	 * never joins the typing around it.
+	 */
+	#applyPatch(values: Readonly<Record<string, unknown>>): boolean {
+		const map = this.doc.getMap(FIELDS_MAP);
+		const writes = this.#fieldWrites(values, (name, value) =>
+			equalJsonValues(map.get(name), value),
+		);
+		if (!writes) return false;
+		const undoManagers = [...this.#editors.values()].flatMap((editor) => {
+			const undoManager: Y.UndoManager | undefined = yUndoPluginKey.getState(
+				editor.state,
+			)?.undoManager;
+			return undoManager ? [undoManager] : [];
+		});
+		for (const undoManager of undoManagers) undoManager.stopCapturing();
+		this.doc.transact(() => {
+			for (const write of writes) write(this.doc);
+		}, ySyncPluginKey);
+		for (const undoManager of undoManagers) undoManager.stopCapturing();
+		return true;
+	}
+
+	/**
+	 * The writes that change `values`, each rich-text value converted once, leaving out the other
+	 * values `unchanged` says the document already holds. Null when the editor can't represent
+	 * one of the rich-text values.
+	 */
+	#fieldWrites(
+		values: Readonly<Record<string, unknown>>,
+		unchanged: (name: string, value: unknown) => boolean,
+	): Array<(doc: Y.Doc) => void> | null {
+		const writes: Array<(doc: Y.Doc) => void> = [];
+		for (const [name, value] of Object.entries(values)) {
+			const field = this.#layoutField(name);
+			const write = fieldWrite(field, value, this.#options.pluginBlockTypes);
+			if (!write) return null;
+			if (field.type === "portableText" || !unchanged(name, value)) writes.push(write);
+		}
+		return writes;
 	}
 
 	#layoutField(name: string): LayoutField {

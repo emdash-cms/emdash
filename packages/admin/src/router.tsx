@@ -27,6 +27,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import type { OutsideValue } from "./co-editing/types.js";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
@@ -146,6 +147,7 @@ import {
 	type Revision,
 	type RevisionListItem,
 	type RevisionListResponse,
+	type UserListItem,
 } from "./lib/api";
 import {
 	fetchComments,
@@ -155,10 +157,18 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { saveRecoveryRevision, type RecoveryInput } from "./lib/api/rooms.js";
 import { runBulkAction } from "./lib/bulk";
 import { parseCalendarSearch } from "./lib/calendar";
 import { useCoEditing } from "./lib/co-editing/hooks.js";
-import type { CoEditing, RoomEvent } from "./lib/co-editing/types.js";
+import { RoomOperationsContext } from "./lib/co-editing/operations.js";
+import { whenOutsideValuesUnfocused } from "./lib/co-editing/outside-values.js";
+import {
+	RoomSaveError,
+	type CoEditing,
+	type RoomEditing,
+	type RoomEvent,
+} from "./lib/co-editing/types.js";
 import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
@@ -193,9 +203,16 @@ interface ContentUpdateChanges {
 interface ContentUpdateMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	source: "editor" | "auxiliary";
+	/** `outside`: a value outside a room's document, saved at once without `_rev`. */
+	source: "editor" | "auxiliary" | "outside";
 	changes: ContentUpdateChanges;
 }
+
+/** The values outside a room's document that save through the entry's update route. */
+type OutsideValueChanges = Pick<
+	ContentUpdateChanges,
+	"seo" | "authorId" | "bylines" | "references"
+>;
 
 interface AutosaveMutationInput {
 	targetId: string;
@@ -1093,6 +1110,21 @@ function ContentEditPage() {
 	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
 	// The room repeats a refused save at every update, so each refusal shows once until a save works.
 	const refusedSavesRef = React.useRef(new Set<string>());
+	const roomRef = React.useRef<RoomEditing | null>(null);
+	const reloadOutsideValues = (values: readonly OutsideValue[]) => {
+		const terms = values.filter((value) => value === "terms");
+		const others = values.filter((value) => value !== "terms");
+		if (terms.length > 0) {
+			void whenOutsideValuesUnfocused(terms).then(() =>
+				queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] }),
+			);
+		}
+		if (others.length > 0) {
+			void whenOutsideValuesUnfocused(others).then(() =>
+				queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			);
+		}
+	};
 	const handleRoomEvent = (event: RoomEvent) => {
 		switch (event.kind) {
 			case "left-room": {
@@ -1125,7 +1157,35 @@ function ContentEditPage() {
 			}
 			case "checkpoint":
 				refusedSavesRef.current.clear();
+				if (event.editedBy.length > 0) {
+					void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+					void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
+					// Only the first save after a publish or discard gives the entry a draft of its own.
+					if (!rawItem?.draftRevisionId || rawItem.draftRevisionId === rawItem.liveRevisionId) {
+						void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+					}
+				}
 				return;
+			case "values":
+				reloadOutsideValues(event.values);
+				return;
+			case "operation": {
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+				void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+				void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
+				if (event.by === currentUser?.id) return;
+				const name =
+					roomRef.current?.userName(event.by) ??
+					queryClient
+						.getQueryData<{ items: UserListItem[] }>(["users"])
+						?.items.find((user) => user.id === event.by)?.name ??
+					t`Someone`;
+				toastManager.add({
+					title: t`${name} changed this entry`,
+					description: t`They changed its publishing or schedule, or replaced its draft.`,
+				});
+				return;
+			}
 			default:
 				return;
 		}
@@ -1159,17 +1219,23 @@ function ContentEditPage() {
 	// The editor stays mounted across a switch to a cached entry, so only one that isn't showing
 	// yet waits for the room.
 	const editorShownRef = React.useRef(false);
+	// A reset drops the replica. Until the next one syncs, the form would show the entry as the
+	// page loaded it, so the fields wait for it as the page does on open. Values outside the
+	// document still save as they do in the room.
+	const lastRoomRef = React.useRef<RoomEditing | null>(null);
+	if (coEditing.mode === "room") lastRoomRef.current = coEditing.room;
+	const resetting = coEditing.mode === "pending" && coEditingMode === "room";
+	const loadingCapKey = resetting
+		? `${revisionIdentity}:${lastRoomRef.current?.id}`
+		: revisionIdentity;
 	const waitingForRoom =
-		coEditingMode === null && loadingCapEntry !== revisionIdentity && !editorShownRef.current;
+		(resetting || (coEditingMode === null && !editorShownRef.current)) &&
+		loadingCapEntry !== loadingCapKey;
 	React.useEffect(() => {
 		if (!waitingForRoom) return;
-		const timer = window.setTimeout(
-			setLoadingCapEntry,
-			CO_EDITING_LOADING_CAP_MS,
-			revisionIdentity,
-		);
+		const timer = window.setTimeout(setLoadingCapEntry, CO_EDITING_LOADING_CAP_MS, loadingCapKey);
 		return () => window.clearTimeout(timer);
-	}, [waitingForRoom, revisionIdentity]);
+	}, [waitingForRoom, loadingCapKey]);
 	// A reload the user turns down in the browser's prompt leaves the tab as it was.
 	const lastRoomViewRef = React.useRef<Extract<CoEditing, { mode: "room" }> | null>(null);
 	if (coEditing.mode === "room") lastRoomViewRef.current = coEditing;
@@ -1180,11 +1246,57 @@ function ContentEditPage() {
 			: coEditing.mode === "reloading"
 				? lastRoomViewRef.current
 				: null;
+	roomRef.current = roomView?.room ?? (resetting ? lastRoomRef.current : null);
+	const roomBlocked = roomView
+		? roomView.offline || roomView.access !== "edit" || roomView.kept !== null
+		: resetting;
+	const prepareRoomOperation = React.useCallback(async () => {
+		const room = roomRef.current;
+		if (!room) return;
+		try {
+			await room.whenCovered({ save: true });
+		} catch (error) {
+			throw new Error(
+				error instanceof RoomSaveError && error.reason === "refused"
+					? error.message
+					: t`Your edits couldn’t be saved, so this didn’t run. Try again.`,
+				{ cause: error },
+			);
+		}
+	}, [t]);
+	const inRoom = roomView !== null;
+	const roomOperations = React.useMemo(
+		() => ({ prepare: prepareRoomOperation, blocked: roomBlocked, inRoom }),
+		[prepareRoomOperation, roomBlocked, inRoom],
+	);
+	const toastManagerRef = React.useRef(toastManager);
+	toastManagerRef.current = toastManager;
+	/** Shows a failure the operation's control has nowhere to show, and passes it on. */
+	const failWithToast = React.useCallback(
+		(title: string) =>
+			(error: unknown): never => {
+				toastManagerRef.current.add({
+					title,
+					description: error instanceof Error ? error.message : t`An error occurred`,
+					variant: "error",
+				});
+				throw error;
+			},
+		[t],
+	);
+	const handlePreviewNotSaved = React.useCallback(() => {
+		toastManagerRef.current.add({
+			title: t`Preview opens once your edits are saved`,
+			description: t`Try again in a moment.`,
+			variant: "error",
+		});
+	}, [t]);
+	const entryDeleted = coEditing.mode === "single-editor" && coEditing.deleted;
 	const showsEditor =
 		Boolean(manifest?.collections[collection]) &&
 		!isLoading &&
 		!(itemError && !rawItem) &&
-		!waitingForRoom &&
+		!(waitingForRoom && !resetting) &&
 		!(coEditing.mode === "reloading" && !roomView);
 	React.useLayoutEffect(() => {
 		editorShownRef.current = showsEditor;
@@ -1193,8 +1305,43 @@ function ContentEditPage() {
 		collection,
 		entryId: id,
 		locale: activeLocale,
-		ready: Boolean(rawItem) && editAccess !== null && coEditingMode === "single-editor",
+		ready:
+			Boolean(rawItem) && editAccess !== null && coEditingMode === "single-editor" && !entryDeleted,
 	});
+	const readFormRef = React.useRef<(() => RecoveryInput) | null>(null);
+	/**
+	 * Unsaved single-editor edits as a Take over or Join found them. A room's document replaces
+	 * the form, so a room keeps them in a recovery revision. In single-editor mode the lock's
+	 * takeover keeps the form, which autosaves them.
+	 */
+	const joinSnapshotRef = React.useRef<{
+		from: CoEditing;
+		identity: string;
+		form: RecoveryInput;
+	} | null>(null);
+	const takeOverOrJoin = () => {
+		if (coEditing.mode !== "single-editor") return;
+		const form = isEditorDirtyRef.current ? readFormRef.current?.() : undefined;
+		joinSnapshotRef.current = form ? { from: coEditing, identity: revisionIdentity, form } : null;
+		coEditing.takeOver(entryLock.takeOver);
+	};
+	React.useEffect(() => {
+		const snapshot = joinSnapshotRef.current;
+		// Until the session answers the click, it shows the view the click came from.
+		if (!snapshot || coEditing === snapshot.from || coEditing.mode === "pending") return;
+		joinSnapshotRef.current = null;
+		if (coEditing.mode !== "room" || snapshot.identity !== revisionIdentity) return;
+		void saveRecoveryRevision({ collection, id, locale: activeLocale }, snapshot.form).then(
+			() => handleRoomEvent({ kind: "recovered" }),
+			(error: unknown) => {
+				toastManagerRef.current.add({
+					title: t`Your unsaved edits couldn’t be kept`,
+					description: error instanceof Error ? error.message : t`An error occurred`,
+					variant: "error",
+				});
+			},
+		);
+	}, [coEditing]);
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());
 	// The draft revision of the entry version each token names, which an autosave sent with that
@@ -1454,11 +1601,14 @@ function ContentEditPage() {
 	);
 
 	const updateMutation = useMutation({
-		mutationFn: async ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) => {
+		mutationFn: async ({ targetId, targetLocale, source, changes }: ContentUpdateMutationInput) => {
 			const savedItem = await updateContent(
 				collection,
 				targetId,
-				{ ...changes, _rev: revisionTokensRef.current.get(targetId) },
+				{
+					...changes,
+					_rev: source === "outside" ? undefined : revisionTokensRef.current.get(targetId),
+				},
 				{ locale: targetLocale },
 			);
 			recordWriteRevision(targetId, savedItem);
@@ -1499,7 +1649,10 @@ function ContentEditPage() {
 			const savedItem = await updateContent(
 				collection,
 				id,
-				{ publishedAt, _rev: revisionTokensRef.current.get(id) },
+				{
+					publishedAt,
+					_rev: roomRef.current ? undefined : revisionTokensRef.current.get(id),
+				},
 				{ locale: rawItem?.locale ?? activeLocale },
 			);
 			recordWriteRevision(id, savedItem);
@@ -1764,7 +1917,13 @@ function ContentEditPage() {
 		},
 	});
 
-	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
+	// A room's editors keep the manifest the session joined with. A schema change closes the room
+	// for this client as outdated, and the admin reloads.
+	const editorManifest = roomView?.manifest ?? manifest;
+	const pluginBlocks = React.useMemo(
+		() => (editorManifest ? getPluginBlocks(editorManifest) : []),
+		[editorManifest],
+	);
 
 	// Stable handler identities: these flow into the memoized
 	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
@@ -1810,8 +1969,23 @@ function ContentEditPage() {
 		},
 		[activeLocale, autosaveMutation.mutateAsync, id, rawItem?.locale, serializeEditorSave],
 	);
+	const saveOutsideValues = React.useCallback(
+		(changes: OutsideValueChanges) =>
+			updateMutation.mutateAsync({
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+				source: "outside",
+				// Reference edges save as autosaves do, without a revision.
+				changes: changes.references ? { ...changes, skipRevision: true } : changes,
+			}),
+		[activeLocale, id, rawItem?.locale, updateMutation.mutateAsync],
+	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
+			if (roomRef.current) {
+				saveOutsideValues({ authorId }).catch(() => undefined);
+				return;
+			}
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
@@ -1819,7 +1993,7 @@ function ContentEditPage() {
 				changes: { authorId },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, saveOutsideValues, updateMutation.mutate],
 	);
 	const handlePublishedAtChange = React.useCallback(
 		async (
@@ -1859,6 +2033,10 @@ function ContentEditPage() {
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
+			if (roomRef.current) {
+				saveOutsideValues({ seo }).catch(() => undefined);
+				return;
+			}
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
@@ -1866,11 +2044,11 @@ function ContentEditPage() {
 				changes: { seo },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, saveOutsideValues, updateMutation.mutate],
 	);
 
 	const handlePublish = React.useCallback(
-		(payload: {
+		(payload?: {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
@@ -1879,6 +2057,13 @@ function ContentEditPage() {
 			if (publishRequestRef.current) return publishRequestRef.current;
 
 			const request = (async () => {
+				// Only a room publishes without a payload: it saves the edits, and the route publishes
+				// that save.
+				if (!payload) {
+					await prepareRoomOperation().catch(failWithToast(t`Failed to publish`));
+					await publishMutation.mutateAsync({ revision: undefined, savedReferences: false });
+					return;
+				}
 				const savedItem = await serializeEditorSave(() =>
 					updateMutation.mutateAsync({
 						targetId: id,
@@ -1902,10 +2087,13 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			failWithToast,
 			id,
+			prepareRoomOperation,
 			publishMutation.mutateAsync,
 			rawItem?.locale,
 			serializeEditorSave,
+			t,
 			updateMutation.mutateAsync,
 		],
 	);
@@ -1918,6 +2106,11 @@ function ContentEditPage() {
 			if (unpublishRequestRef.current) return unpublishRequestRef.current;
 
 			const request = (async () => {
+				if (roomRef.current) {
+					await prepareRoomOperation().catch(failWithToast(t`Failed to unpublish`));
+					await unpublishMutation.mutateAsync(undefined);
+					return;
+				}
 				const savedItem = await serializeEditorSave(async () => {
 					if (!payload) return;
 					return updateMutation.mutateAsync({
@@ -1940,22 +2133,24 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			failWithToast,
 			id,
+			prepareRoomOperation,
 			rawItem?.locale,
 			serializeEditorSave,
+			t,
 			unpublishMutation.mutateAsync,
 			updateMutation.mutateAsync,
 		],
 	);
 	// The confirmation shows a failure, except a refusal the lock explains:
 	// that resolves, so the confirmation closes and the lock notice takes over.
-	const handleDiscardDraft = React.useCallback(
-		() =>
-			discardDraftMutation.mutateAsync().catch((error: unknown) => {
-				if (!entryLock.reportWriteError(error, id)) throw error;
-			}),
-		[discardDraftMutation.mutateAsync, entryLock.reportWriteError, id],
-	);
+	const handleDiscardDraft = React.useCallback(async () => {
+		if (roomRef.current) await prepareRoomOperation();
+		return discardDraftMutation.mutateAsync().catch((error: unknown) => {
+			if (!entryLock.reportWriteError(error, id)) throw error;
+		});
+	}, [discardDraftMutation.mutateAsync, entryLock.reportWriteError, id, prepareRoomOperation]);
 	const handleSchedule = React.useCallback(
 		async (
 			scheduledAt: string,
@@ -1966,6 +2161,7 @@ function ContentEditPage() {
 				references?: Record<string, string[]>;
 			},
 		) => {
+			if (roomRef.current) await prepareRoomOperation();
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
 				return updateMutation.mutateAsync({
@@ -1990,6 +2186,7 @@ function ContentEditPage() {
 			applyScheduleChange,
 			entryLock.reportWriteError,
 			id,
+			prepareRoomOperation,
 			rawItem?.locale,
 			scheduleMutation.mutateAsync,
 			serializeEditorSave,
@@ -2003,6 +2200,9 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
 		}) => {
+			if (roomRef.current) {
+				await prepareRoomOperation().catch(failWithToast(t`Failed to unschedule`));
+			}
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
 				return updateMutation.mutateAsync({
@@ -2018,21 +2218,23 @@ function ContentEditPage() {
 		[
 			activeLocale,
 			applyScheduleChange,
+			failWithToast,
 			id,
+			prepareRoomOperation,
 			rawItem?.locale,
 			serializeEditorSave,
+			t,
 			unscheduleMutation.mutateAsync,
 			updateMutation.mutateAsync,
 		],
 	);
 	// As with discarding, a refusal the lock explains closes the confirmation.
-	const handleDelete = React.useCallback(
-		() =>
-			deleteMutation.mutateAsync().catch((error: unknown) => {
-				if (!entryLock.reportWriteError(error, id)) throw error;
-			}),
-		[deleteMutation.mutateAsync, entryLock.reportWriteError, id],
-	);
+	const handleDelete = React.useCallback(async () => {
+		if (roomRef.current) await prepareRoomOperation();
+		return deleteMutation.mutateAsync().catch((error: unknown) => {
+			if (!entryLock.reportWriteError(error, id)) throw error;
+		});
+	}, [deleteMutation.mutateAsync, entryLock.reportWriteError, id, prepareRoomOperation]);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),
 		[translateMutation.mutate],
@@ -2114,9 +2316,34 @@ function ContentEditPage() {
 					onReload={coEditing.mode === "room" ? roomView.reload : () => window.location.reload()}
 				/>
 			);
+		} else if (coEditing.mode === "reloading") {
+			notice = (
+				<Banner
+					title={t`Reloading the admin`}
+					description={t`EmDash or this entry’s fields changed since you opened it.`}
+					action={
+						<Button
+							size="sm"
+							variant="secondary"
+							type="button"
+							onClick={() => window.location.reload()}
+						>
+							{t`Reload`}
+						</Button>
+					}
+				/>
+			);
 		} else if (roomView.access === "view") {
 			notice = readOnlyBanner;
 		}
+	} else if (entryDeleted) {
+		notice = (
+			<Banner
+				variant="alert"
+				title={t`This entry was moved to Trash or deleted`}
+				description={t`It’s shown read-only. An entry in Trash can be restored from there.`}
+			/>
+		);
 	} else if (editAccess === null) {
 		notice = readOnlyBanner;
 	} else if (coEditingMode === "single-editor") {
@@ -2124,9 +2351,7 @@ function ContentEditPage() {
 		notice = (
 			<EntryLockNotice
 				state={entryLock.state}
-				onTakeOver={() => {
-					if (coEditing.mode === "single-editor") coEditing.takeOver(entryLock.takeOver);
-				}}
+				onTakeOver={takeOverOrJoin}
 				onReadInstead={entryLock.readInstead}
 				isTakingOver={entryLock.isTakingOver || coEditing.mode !== "single-editor"}
 				takeOverFailed={entryLock.takeOverFailed}
@@ -2135,13 +2360,13 @@ function ContentEditPage() {
 		);
 	}
 
-	return (
+	const editor = (
 		<ContentEditor
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			timezone={manifest.timezone ?? "UTC"}
-			fields={collectionConfig.fields}
+			fields={(editorManifest?.collections[collection] ?? collectionConfig).fields}
 			isSaving={
 				updateMutation.isPending || publishedAtMutation.isPending || publishMutation.isPending
 			}
@@ -2187,19 +2412,25 @@ function ContentEditPage() {
 			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
-			manifest={manifest ?? null}
+			manifest={editorManifest ?? null}
 			onEntryRefresh={handlePluginEntryRefresh}
 			readOnly={readOnly}
 			notice={notice}
 			room={roomView?.room ?? null}
+			roomResetting={resetting}
+			fieldsLoading={resetting && waitingForRoom}
 			roomOffline={roomView?.offline ?? false}
-			roomBlocked={
-				roomView ? roomView.offline || roomView.access !== "edit" || roomView.kept !== null : false
-			}
+			roomBlocked={roomBlocked}
 			roomStatus={
 				coEditing.mode === "pending" ? (coEditing.waiting ? "waiting" : "connecting") : null
 			}
+			onSaveOutsideValues={saveOutsideValues}
+			onPreviewNotSaved={handlePreviewNotSaved}
+			readFormRef={readFormRef}
 		/>
+	);
+	return (
+		<RoomOperationsContext.Provider value={roomOperations}>{editor}</RoomOperationsContext.Provider>
 	);
 }
 

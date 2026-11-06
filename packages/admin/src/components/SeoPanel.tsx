@@ -22,6 +22,11 @@ export interface SeoPanelProps {
 	defaultTitle?: string | null;
 	/** Description `getSeoMeta` uses when this panel has none, shown as placeholder text. */
 	defaultDescription?: string | null;
+	/**
+	 * In a co-editing room, `onChange` gets only the values changed since this panel last sent or
+	 * loaded them, and a value saved elsewhere replaces each one not changed here since.
+	 */
+	inRoom?: boolean;
 }
 
 const SEO_TEXT_DEBOUNCE_MS = 500;
@@ -55,12 +60,26 @@ function serializeDraft(draft: SeoDraft): string {
 	return JSON.stringify(draft);
 }
 
+const DRAFT_KEYS = ["title", "description", "canonical", "noIndex"] as const;
+
+function copyKey<K extends keyof SeoDraft>(target: SeoDraft, source: SeoDraft, key: K): void {
+	target[key] = source[key];
+}
+
+function changedInput(draft: SeoDraft, sent: SeoDraft): ContentSeoInput {
+	const input = toInput(draft);
+	return Object.fromEntries(
+		DRAFT_KEYS.filter((key) => draft[key] !== sent[key]).map((key) => [key, input[key]]),
+	);
+}
+
 export function SeoPanel({
 	contentKey,
 	seo,
 	onChange,
 	defaultTitle,
 	defaultDescription,
+	inRoom = false,
 }: SeoPanelProps) {
 	const { t } = useLingui();
 	const titleId = React.useId();
@@ -71,19 +90,23 @@ export function SeoPanel({
 	const [draft, setDraft] = React.useState<SeoDraft>(propDraft);
 	const currentDraftRef = React.useRef(draft);
 	currentDraftRef.current = draft;
-	const lastPropSnapshotRef = React.useRef(propSnapshot);
-	const lastEmittedSnapshotRef = React.useRef(propSnapshot);
+	const lastPropDraftRef = React.useRef(propDraft);
+	const lastEmittedDraftRef = React.useRef(propDraft);
 	const activeContentKeyRef = React.useRef(contentKey);
 	const activeOnChangeRef = React.useRef(onChange);
+	const inRoomRef = React.useRef(inRoom);
+	inRoomRef.current = inRoom;
 	const pendingTextFlushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const emitChange = React.useCallback((nextDraft: SeoDraft) => {
-		const nextSnapshot = serializeDraft(nextDraft);
-		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+		const lastEmitted = lastEmittedDraftRef.current;
+		if (serializeDraft(nextDraft) === serializeDraft(lastEmitted)) {
 			return;
 		}
-		lastEmittedSnapshotRef.current = nextSnapshot;
-		activeOnChangeRef.current(toInput(nextDraft));
+		lastEmittedDraftRef.current = nextDraft;
+		activeOnChangeRef.current(
+			inRoomRef.current ? changedInput(nextDraft, lastEmitted) : toInput(nextDraft),
+		);
 	}, []);
 
 	const clearPendingTextFlush = React.useCallback(() => {
@@ -97,7 +120,7 @@ export function SeoPanel({
 		const nextDraft = currentDraftRef.current;
 		const nextSnapshot = serializeDraft(nextDraft);
 		clearPendingTextFlush();
-		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+		if (nextSnapshot === serializeDraft(lastEmittedDraftRef.current)) {
 			return;
 		}
 		emitChange(nextDraft);
@@ -113,9 +136,9 @@ export function SeoPanel({
 		activeOnChangeRef.current = onChange;
 		setDraft(propDraft);
 		currentDraftRef.current = propDraft;
-		lastPropSnapshotRef.current = propSnapshot;
-		lastEmittedSnapshotRef.current = propSnapshot;
-	}, [contentKey, flushPendingDraft, onChange, propDraft, propSnapshot]);
+		lastPropDraftRef.current = propDraft;
+		lastEmittedDraftRef.current = propDraft;
+	}, [contentKey, flushPendingDraft, onChange, propDraft]);
 
 	React.useEffect(() => {
 		return () => {
@@ -124,8 +147,25 @@ export function SeoPanel({
 	}, [flushPendingDraft]);
 
 	React.useEffect(() => {
-		const previousPropSnapshot = lastPropSnapshotRef.current;
+		const previousPropDraft = lastPropDraftRef.current;
+		const previousPropSnapshot = serializeDraft(previousPropDraft);
 		if (propSnapshot === previousPropSnapshot) {
+			return;
+		}
+		lastPropDraftRef.current = propDraft;
+
+		if (inRoomRef.current) {
+			const current = currentDraftRef.current;
+			const nextDraft = { ...current };
+			const emitted = { ...lastEmittedDraftRef.current };
+			for (const key of DRAFT_KEYS) {
+				if (propDraft[key] === previousPropDraft[key]) continue;
+				if (current[key] === emitted[key]) copyKey(nextDraft, propDraft, key);
+				if (nextDraft[key] === propDraft[key]) copyKey(emitted, propDraft, key);
+			}
+			lastEmittedDraftRef.current = emitted;
+			currentDraftRef.current = nextDraft;
+			setDraft(nextDraft);
 			return;
 		}
 
@@ -136,17 +176,15 @@ export function SeoPanel({
 		if (shouldSync) {
 			setDraft(propDraft);
 			currentDraftRef.current = propDraft;
-			lastEmittedSnapshotRef.current = propSnapshot;
+			lastEmittedDraftRef.current = propDraft;
 		}
-
-		lastPropSnapshotRef.current = propSnapshot;
 	}, [propDraft, propSnapshot]);
 
 	React.useEffect(() => {
 		clearPendingTextFlush();
 
 		const nextSnapshot = serializeDraft(currentDraftRef.current);
-		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+		if (nextSnapshot === serializeDraft(lastEmittedDraftRef.current)) {
 			return;
 		}
 

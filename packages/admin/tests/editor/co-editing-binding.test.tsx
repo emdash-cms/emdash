@@ -7,7 +7,12 @@ import { Editor as HeadlessEditor, Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import { SuggestionPluginKey } from "@tiptap/suggestion";
-import { prosemirrorJSONToYXmlFragment, yUndoPluginKey, ySyncPlugin } from "@tiptap/y-tiptap";
+import {
+	prosemirrorJSONToYXmlFragment,
+	yUndoPluginKey,
+	ySyncPlugin,
+	ySyncPluginKey,
+} from "@tiptap/y-tiptap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
@@ -111,8 +116,8 @@ function roomWith(value: unknown[]) {
 	});
 }
 
-async function join(room: LoopbackRoom) {
-	const session = startSession(room);
+async function join(room: LoopbackRoom, richTextFields?: readonly string[]) {
+	const session = startSession(room, {}, richTextFields);
 	sessions.push(session);
 	await settle();
 	const view = session.view();
@@ -576,6 +581,93 @@ describe("a rich-text editor bound to a room", () => {
 			"paragraph",
 		]);
 		expect(editor.state.doc.child(3).childCount).toBe(1);
+	});
+});
+
+describe("an editor-draft patch in a room", () => {
+	const SUMMARY = { slug: "summary", type: "portableText" } as const;
+
+	function roomWithFields() {
+		return new LoopbackRoom({
+			seed: (doc) => {
+				for (const [field, value] of [
+					[BODY, [block("k-a", "Alpha"), block("k-b", "Beta")]],
+					[SUMMARY, [block("k-s", "Short")]],
+				] as const) {
+					prosemirrorJSONToYXmlFragment(
+						editorSchema(),
+						portableTextToProsemirror(value, PLUGIN_TYPES),
+						doc.getXmlFragment(fragmentName(field.slug)),
+					);
+				}
+				doc.getMap("fields").set("title", "Title");
+			},
+		});
+	}
+
+	it("lands in one transaction, which each rich-text editor undoes in one step", async () => {
+		const room = roomWithFields();
+		const a = await join(room, [BODY.slug, SUMMARY.slug]);
+		const { editor: body } = await mount(a.editing);
+		const { editor: summary } = await mount(a.editing, {
+			collaboration: a.editing.richText(SUMMARY.slug),
+		});
+		// Typing right before the patch, inside the undo manager's capture window.
+		body.view.dispatch(body.state.tr.insertText(" mine", textEnd(body, "Alpha")));
+		const transactions: unknown[] = [];
+		a.replica().doc.on("afterTransaction", (transaction: { origin: unknown }) =>
+			transactions.push(transaction.origin),
+		);
+
+		expect(
+			a.editing.applyPatch({
+				body: [block("k-a", "Alpha mine"), block("k-p", "Patched")],
+				summary: [block("k-s", "A longer summary")],
+				title: "Patched title",
+			}),
+		).toBe(true);
+		expect(transactions).toEqual([ySyncPluginKey]);
+		expect(texts(body)).toEqual(["Alpha mine", "Patched"]);
+		expect(texts(summary)).toEqual(["A longer summary"]);
+		expect(a.editing.fields.get("title")).toBe("Patched title");
+
+		// The binding maps the patched blocks, so an edit in one lands in that block of the fragment.
+		body.view.dispatch(body.state.tr.insertText("!", textEnd(body, "Patched")));
+		await settle();
+		expect(readField(room.doc, BODY)).toEqual(portableText(body));
+		expect(texts(body)).toEqual(["Alpha mine", "Patched!"]);
+
+		expect(body.commands.undo()).toBe(true);
+		expect(texts(body)).toEqual(["Alpha mine", "Patched"]);
+		expect(body.commands.undo()).toBe(true);
+		expect(texts(body)).toEqual(["Alpha mine", "Beta"]);
+		expect(texts(summary)).toEqual(["A longer summary"]);
+		expect(body.commands.undo()).toBe(true);
+		expect(texts(body)).toEqual(["Alpha", "Beta"]);
+		expect(body.can().undo()).toBe(false);
+
+		expect(summary.commands.undo()).toBe(true);
+		expect(texts(summary)).toEqual(["Short"]);
+		expect(summary.can().undo()).toBe(false);
+		await settle();
+		expect(readField(room.doc, BODY)).toEqual(portableText(body));
+		expect(readField(room.doc, SUMMARY)).toEqual(portableText(summary));
+	});
+
+	it("writes nothing when its rich text has marks the editor can't represent", async () => {
+		const room = roomWithFields();
+		const a = await join(room, [BODY.slug, SUMMARY.slug]);
+		const { editor } = await mount(a.editing);
+		const unsupported = {
+			...block("k-a", "Alpha"),
+			children: [{ _type: "span", _key: "k-a-s", text: "Alpha", marks: ["glow"] }],
+		};
+
+		expect(a.editing.applyPatch({ title: "Patched title", body: [unsupported] })).toBe(false);
+		await settle();
+		expect(a.editing.fields.get("title")).toBe("Title");
+		expect(texts(editor)).toEqual(["Alpha", "Beta"]);
+		expect(a.sentUpdates()).toBe(0);
 	});
 });
 

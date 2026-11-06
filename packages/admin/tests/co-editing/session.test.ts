@@ -37,7 +37,7 @@ const waiting = (
 	reason: "offline" | "busy",
 ): SessionState => ({ kind: "waiting", replica, away, reason });
 const live: SessionState = { kind: "live", replica: EDIT };
-const single = (reason: "server" | "locked" | "pinned" | "error"): SessionState => ({
+const single = (reason: "server" | "locked" | "pinned" | "deleted" | "error"): SessionState => ({
 	kind: "single-editor",
 	reason,
 });
@@ -213,7 +213,14 @@ const ROWS: Row[] = [
 		single("error"),
 		[DISCARD, LEFT],
 	],
-	["gone, first join", joining(), joined({ kind: "gone" }), single("error"), [DISCARD]],
+	[
+		"gone after a room",
+		joining({ replica: EDIT }),
+		joined({ kind: "gone" }),
+		single("deleted"),
+		[DISCARD, LEFT],
+	],
+	["gone, first join", joining(), joined({ kind: "gone" }), single("deleted"), [DISCARD]],
 	[
 		"failed, with a replica",
 		joining({ replica: EDIT, away: AWAY }),
@@ -299,7 +306,7 @@ const ROWS: Row[] = [
 		[RECOVER],
 	],
 	["deleted, uncovered edits", live, closed(4402, { uncovered: true }), kept("deleted"), [FREEZE]],
-	["deleted", live, closed(4402), single("error"), [DISCARD, LEFT]],
+	["deleted", live, closed(4402), single("deleted"), [DISCARD, LEFT]],
 	["busy socket", live, closed(4403), waiting(EDIT, NEW_AWAY, "busy"), [retryIn(5000)]],
 	[
 		"dropped",

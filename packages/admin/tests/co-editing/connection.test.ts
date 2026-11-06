@@ -284,6 +284,22 @@ describe("closes and retries", () => {
 		expect(s.joins.map((request) => request.singleEditor)).toEqual([false, true]);
 	});
 
+	it("counts edits as saved once a recovery revision holds them, before reloading as outdated", async () => {
+		const room = new LoopbackRoom();
+		const coveredAtReload: boolean[] = [];
+		const s: TestSession = open(room, {
+			reload: () => coveredAtReload.push(s.replica().editing.getSaveState().covered),
+		});
+		await settle();
+		roomView(s.view()).room.fields.set({ title: "Typed" });
+		s.answer({ kind: "outdated" });
+		room.close(4400);
+		await settle();
+		expect(s.recoveries).toHaveLength(1);
+		expect(coveredAtReload).toEqual([true]);
+		expect(s.view().mode).toBe("reloading");
+	});
+
 	it("joins in single-editor mode instead of reloading when outdated twice within a minute", async () => {
 		const room = new LoopbackRoom();
 		const first = open(room);

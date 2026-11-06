@@ -1,3 +1,4 @@
+import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -11,9 +12,17 @@ import {
 	type FieldDescriptor,
 } from "../../src/components/ContentEditor";
 import { EntryLockNotice } from "../../src/components/EntryLockNotice";
-import type { ContentItem } from "../../src/lib/api";
-import type { RichTextBinding, RoomEditing, RoomSaveState } from "../../src/lib/co-editing/types";
+import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
+import { RoomOperationsContext, type RoomOperations } from "../../src/lib/co-editing/operations";
+import { RoomSaveError, type RoomEditing } from "../../src/lib/co-editing/types";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
+import { createRoom, SAVED, SAVING, UNSAVED } from "../co-editing/fake-room";
+import { LoopbackRoom, settle } from "../co-editing/loopback-room";
+import {
+	resetTransportHealth,
+	startSession,
+	type TestSession,
+} from "../co-editing/session-harness";
 import { render } from "../utils/render.tsx";
 
 /** Stands in for the rich-text editor, which reads its value once, like the real one. */
@@ -68,86 +77,11 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
 		fetchRevisions: vi.fn(async () => ({ items: [], total: 0 })),
+		getPreviewUrl: vi.fn(async () => ({ url: "/posts/my-post?_preview=token" })),
 	};
 });
 
 const AUTOSAVE_DELAY = 2000;
-const SAVED: RoomSaveState = { covered: true, saving: false, rev: "rev-1" };
-const UNSAVED: RoomSaveState = { covered: false, saving: false, rev: "rev-1" };
-const SAVING: RoomSaveState = { covered: false, saving: true, rev: "rev-1" };
-
-/** A room's document as the editor sees it, with a way to play another client's edits. */
-function createRoom(initial: Record<string, unknown>) {
-	const values = new Map(Object.entries(initial));
-	const fieldListeners = new Map<string, Set<() => void>>();
-	const remoteVersions = new Map<string, number>();
-	const saveListeners = new Set<() => void>();
-	const subscriptions: string[] = [];
-	const bindings = new Map<string, RichTextBinding>();
-	let saveState = SAVED;
-
-	const notify = (field: string) => {
-		for (const listener of fieldListeners.get(field) ?? []) listener();
-	};
-	const setSaveState = (next: RoomSaveState) => {
-		saveState = next;
-		for (const listener of saveListeners) listener();
-	};
-	const set = vi.fn((changes: Readonly<Record<string, unknown>>) => {
-		for (const [field, value] of Object.entries(changes)) values.set(field, value);
-		for (const field of Object.keys(changes)) notify(field);
-		setSaveState(UNSAVED);
-	});
-	const whenCovered = vi.fn((_options: { save: boolean }) => Promise.resolve());
-
-	const room: RoomEditing = {
-		id: "replica-1",
-		fields: {
-			subscribe(field, listener) {
-				subscriptions.push(field);
-				let listeners = fieldListeners.get(field);
-				if (!listeners) fieldListeners.set(field, (listeners = new Set()));
-				listeners.add(listener);
-				return () => listeners.delete(listener);
-			},
-			get: (field) => values.get(field) ?? null,
-			set,
-			read: (fields) =>
-				Object.fromEntries(fields.map((field) => [field, values.get(field) ?? null])),
-			remoteVersion: (field) => remoteVersions.get(field) ?? 0,
-		},
-		subscribe(listener) {
-			saveListeners.add(listener);
-			return () => saveListeners.delete(listener);
-		},
-		getSaveState: () => saveState,
-		whenCovered,
-		richText(field) {
-			let binding = bindings.get(field);
-			if (!binding) bindings.set(field, (binding = { extensions: [] }));
-			return binding;
-		},
-		captureDraft: () => ({ values: {}, rev: null, sequence: 0, replica: "replica-1" }),
-		changedSince: () => false,
-	};
-
-	return {
-		room,
-		set,
-		whenCovered,
-		subscriptions,
-		setSaveState,
-		value: (field: string) => values.get(field),
-		/** Another client's change, as the replica reports it. */
-		remote(changes: Record<string, unknown>) {
-			for (const [field, value] of Object.entries(changes)) {
-				values.set(field, value);
-				remoteVersions.set(field, (remoteVersions.get(field) ?? 0) + 1);
-			}
-			for (const field of Object.keys(changes)) notify(field);
-		},
-	};
-}
 
 const FIELDS: Record<string, FieldDescriptor> = {
 	title: { kind: "string", label: "Title" },
@@ -190,6 +124,7 @@ function editorProps(
 }
 
 let unmounts: Array<() => Promise<void>> = [];
+let sessions: TestSession[] = [];
 
 async function renderEditor(room: RoomEditing | null, props: Partial<ContentEditorProps> = {}) {
 	const screen = await render(<ContentEditor {...editorProps(room, props)} />);
@@ -207,6 +142,9 @@ afterEach(async () => {
 	// One at a time: overlapping unmounts leave the next test's render blank.
 	for (const unmount of unmounts) await unmount();
 	unmounts = [];
+	for (const { session } of sessions) session.dispose();
+	sessions = [];
+	resetTransportHealth();
 	blocker.options = null;
 	richText.mounts = 0;
 	richText.props = null;
@@ -297,6 +235,33 @@ describe("ContentEditor in a room", () => {
 
 		fake.setSaveState(SAVED);
 		await expect.poll(() => blocker.options?.disabled).toBe(true);
+	});
+
+	it("keeps the fields' height while they load after a reset, so the page doesn't scroll", async () => {
+		const fields: Record<string, FieldDescriptor> = Object.fromEntries(
+			Array.from({ length: 12 }, (_, index) => [
+				`line_${index}`,
+				{ kind: "string", label: `Line ${index}` },
+			]),
+		);
+		const fake = createRoom({ slug: "my-post" });
+		const props = editorProps(fake.room, { fields });
+		const inPage = (editor: React.ReactElement) => <div style={{ height: 600 }}>{editor}</div>;
+		const screen = await render(inPage(<ContentEditor {...props} />));
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByRole("textbox", { name: "Line 11" })).toBeVisible();
+		const canvas = document.querySelector<HTMLElement>("[data-emdash-editor-canvas]")!;
+		canvas.scrollTop = canvas.scrollHeight;
+		const top = canvas.scrollTop;
+		expect(top).toBeGreaterThan(0);
+
+		await screen.rerender(
+			inPage(<ContentEditor {...props} room={null} roomResetting fieldsLoading />),
+		);
+
+		await expect.element(screen.getByRole("status", { name: "Loading" })).toBeVisible();
+		expect(screen.getByRole("textbox", { name: "Line 11" }).query()).toBeNull();
+		expect(canvas.scrollTop).toBe(top);
 	});
 });
 
@@ -391,6 +356,116 @@ describe("ContentEditor fields in a room", () => {
 		(screen.getByRole("textbox", { name: "field-second" }).element() as HTMLInputElement).focus();
 		await expect.poll(() => mounts["field-first"]).toBe(3);
 		expect(mounts["field-second"]).toBe(1);
+	});
+
+	it("remounts a widget after a peer's change on the room's replica, at once or when focus leaves it", async () => {
+		const loopback = new LoopbackRoom({
+			seed: (doc) => {
+				const values = doc.getMap("fields");
+				values.set("title", "My Post");
+				values.set("first", "one");
+				values.set("second", "two");
+				values.set("slug", "my-post");
+			},
+		});
+		const session = startSession(loopback, {}, []);
+		sessions.push(session);
+		await settle();
+		const view = session.view();
+		if (view.mode !== "room") throw new Error(`Expected a room, got ${view.mode}`);
+		const peer = loopback.peer().getMap("fields");
+		const widgets = countingWidgets();
+		const screen = await render(
+			<PluginAdminProvider pluginAdmins={widgets.pluginAdmins}>
+				<ContentEditor
+					{...editorProps(view.room, {
+						fields: {
+							title: WIDGET_FIELDS.title!,
+							first: WIDGET_FIELDS.first!,
+							second: WIDGET_FIELDS.second!,
+						},
+					})}
+				/>
+			</PluginAdminProvider>,
+		);
+		unmounts.push(() => screen.unmount());
+		const first = screen.getByRole("textbox", { name: "field-first" });
+		await expect.element(first).toHaveValue("one");
+		expect(widgets.mounts["field-first"]).toBe(1);
+
+		peer.set("first", "unfocused change");
+		await expect.element(first).toHaveValue("unfocused change");
+		await expect.poll(() => widgets.mounts["field-first"]).toBe(2);
+
+		(first.element() as HTMLInputElement).focus();
+		peer.set("first", "focused change");
+		await expect.element(first).toHaveValue("focused change");
+		await userEvent.keyboard("!");
+		await expect.poll(() => view.room.fields.get("first")).toBe("focused change!");
+		expect(widgets.mounts["field-first"]).toBe(2);
+
+		(screen.getByRole("textbox", { name: "field-second" }).element() as HTMLInputElement).focus();
+		await expect.poll(() => widgets.mounts["field-first"]).toBe(3);
+		await expect.element(first).toHaveValue("focused change!");
+		expect(widgets.mounts["field-second"]).toBe(1);
+	});
+
+	it("says when a widget's rich text can't be saved, and writes none of it", async () => {
+		const loopback = new LoopbackRoom({
+			seed: (doc) => {
+				doc.getMap("fields").set("title", "My Post");
+				doc.getMap("fields").set("slug", "my-post");
+			},
+		});
+		const session = startSession(loopback, {}, ["notes"]);
+		sessions.push(session);
+		await settle();
+		const view = session.view();
+		if (view.mode !== "room") throw new Error(`Expected a room, got ${view.mode}`);
+		const span = (text: string, marks: string[]) => [
+			{
+				_type: "block",
+				_key: "k-1",
+				style: "normal",
+				markDefs: [],
+				children: [{ _type: "span", _key: "k-1-s", text, marks }],
+			},
+		];
+		const NotesWidget = ({ onChange }: { onChange(value: unknown): void }) => (
+			<>
+				<button type="button" onClick={() => onChange(span("Glowing", ["glow"]))}>
+					Glow
+				</button>
+				<button type="button" onClick={() => onChange(span("Plain", []))}>
+					Plain
+				</button>
+			</>
+		);
+		const screen = await render(
+			<PluginAdminProvider pluginAdmins={{ notes: { fields: { rich: NotesWidget } } }}>
+				<ContentEditor
+					{...editorProps(view.room, {
+						fields: {
+							title: { kind: "string", label: "Title" },
+							notes: { kind: "portableText", label: "Notes", widget: "notes:rich" },
+						},
+					})}
+				/>
+			</PluginAdminProvider>,
+		);
+		unmounts.push(() => screen.unmount());
+		const refusal = screen.getByText("Your change to Notes wasn’t saved");
+
+		await screen.getByRole("button", { name: "Glow" }).click();
+
+		await expect.element(refusal).toBeInTheDocument();
+		expect(view.room.fields.get("notes")).toEqual([]);
+		expect(view.room.getSaveState().covered).toBe(true);
+
+		await screen.getByRole("button", { name: "Plain" }).click();
+
+		await expect.element(refusal).not.toBeInTheDocument();
+		expect(view.room.fields.get("notes")).toMatchObject([{ children: [{ text: "Plain" }] }]);
 	});
 
 	it("binds rich text to the room and keeps the editor through a refetch", async () => {
@@ -573,6 +648,311 @@ describe("ContentEditor's notices in a room", () => {
 			}
 		},
 	);
+});
+
+describe("ContentEditor's operations in a room", () => {
+	const PUBLISHED_WITH_CHANGES = makeItem({
+		status: "published",
+		publishedAt: "2026-01-15T10:30:00Z",
+		liveRevisionId: "rev-live",
+		draftRevisionId: "rev-draft",
+	});
+	const operationProps = (item: ContentItem): Partial<ContentEditorProps> => ({
+		item,
+		supportsDrafts: true,
+		supportsPreview: true,
+		onPublish: vi.fn(),
+		onUnpublish: vi.fn(),
+		onDiscardDraft: vi.fn(),
+		onSchedule: vi.fn(),
+		onUnschedule: vi.fn(),
+		onDelete: vi.fn(),
+	});
+	const editorWith = (operations: RoomOperations, props: ContentEditorProps) => (
+		<RoomOperationsContext.Provider value={operations}>
+			<ContentEditor {...props} />
+		</RoomOperationsContext.Provider>
+	);
+	const buttons = (screen: Awaited<ReturnType<typeof render>>, name: string) => {
+		const found = screen.getByRole("button", { name, exact: true }).elements();
+		expect(found.length, name).toBeGreaterThan(0);
+		return found as HTMLButtonElement[];
+	};
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("disables publishing, scheduling, discarding, Trash and Preview while operations can't run", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const props = editorProps(fake.room, operationProps(PUBLISHED_WITH_CHANGES));
+		const open = { prepare: vi.fn(async () => {}), blocked: false, inRoom: true };
+		const blocked = { ...open, blocked: true };
+		const names = [
+			"Publish changes",
+			"Discard changes",
+			"Schedule",
+			"Move to Trash",
+			"Preview draft",
+		];
+		const screen = await render(editorWith(open, props));
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeVisible();
+		for (const name of names) {
+			for (const button of buttons(screen, name)) expect(button, name).toBeEnabled();
+		}
+
+		await screen.rerender(editorWith(blocked, props));
+		for (const name of names) {
+			for (const button of buttons(screen, name)) expect(button, name).toBeDisabled();
+		}
+
+		const published = makeItem({
+			status: "published",
+			publishedAt: "2026-01-15T10:30:00Z",
+			liveRevisionId: "rev-live",
+		});
+		await screen.rerender(editorWith(blocked, { ...props, item: published }));
+		for (const button of buttons(screen, "Unpublish Post")) expect(button).toBeDisabled();
+		await screen.rerender(editorWith(open, { ...props, item: published }));
+		for (const button of buttons(screen, "Unpublish Post")) expect(button).toBeEnabled();
+	});
+
+	it("opens Preview's tab on the click and loads it once the room has saved, without asking for a save", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		let cover!: () => void;
+		fake.whenCovered.mockImplementation(() => new Promise<void>((resolve) => (cover = resolve)));
+		const tab = {
+			location: { href: "about:blank" },
+			opener: window,
+			focus: vi.fn(),
+			close: vi.fn(),
+		};
+		const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+		const screen = await renderEditor(fake.room, operationProps(PUBLISHED_WITH_CHANGES));
+
+		await screen.getByRole("button", { name: "Preview draft" }).click();
+		expect(open).toHaveBeenCalledExactlyOnceWith("", "emdash-preview-posts-item-1");
+		expect(fake.whenCovered).toHaveBeenCalledExactlyOnceWith({ save: false });
+		expect(tab.opener).toBeNull();
+		expect(tab.location.href).toBe("about:blank");
+
+		cover();
+		await vi.waitFor(() => expect(tab.location.href).toBe("/posts/my-post?_preview=token"));
+		expect(tab.focus).toHaveBeenCalled();
+		expect(tab.close).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{ tab: "the tab its click opened", location: () => ({ href: "about:blank" }), closes: true },
+		{
+			tab: "the entry's preview tab, already open",
+			location: () => ({ href: `${window.location.origin}/posts/my-post` }),
+			closes: false,
+		},
+		{
+			tab: "the entry's preview tab, showing another site",
+			location: () => {
+				throw new DOMException("Blocked a frame", "SecurityError");
+			},
+			closes: false,
+		},
+	])("closes only $tab when the room's save doesn't arrive", async ({ location, closes }) => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		fake.whenCovered.mockRejectedValue(new RoomSaveError("timeout"));
+		const tab = { opener: null, focus: vi.fn(), close: vi.fn() };
+		Object.defineProperty(tab, "location", { get: location });
+		vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+		const onPreviewNotSaved = vi.fn();
+		const screen = await renderEditor(fake.room, {
+			...operationProps(PUBLISHED_WITH_CHANGES),
+			onPreviewNotSaved,
+		});
+
+		await screen.getByRole("button", { name: "Preview draft" }).click();
+		await vi.waitFor(() => expect(onPreviewNotSaved).toHaveBeenCalledOnce());
+		expect(tab.close).toHaveBeenCalledTimes(closes ? 1 : 0);
+		await expect.element(screen.getByRole("button", { name: "Preview draft" })).toBeEnabled();
+	});
+});
+
+describe("ContentEditor's values outside a room's document", () => {
+	const MINA: BylineSummary = {
+		id: "byline-mina",
+		slug: "mina-patel",
+		displayName: "Mina Patel",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: false,
+		createdAt: "2025-01-15T10:30:00Z",
+		updatedAt: "2025-01-15T10:30:00Z",
+		locale: "en",
+		translationGroup: null,
+	};
+
+	it("saves bylines at once, and keeps them in place when that save fails", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		let refuse!: (error: Error) => void;
+		const onSaveOutsideValues = vi.fn(() => new Promise((_resolve, reject) => (refuse = reject)));
+		const onSave = vi.fn();
+		const props = editorProps(fake.room, {
+			currentUser: { id: "u-1", role: 50 },
+			availableBylines: [MINA],
+			availableBylinesLoaded: true,
+			onSaveOutsideValues,
+			onSave,
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+		expect(onSaveOutsideValues).toHaveBeenCalledExactlyOnceWith({
+			bylines: [{ bylineId: "byline-mina", roleLabel: null }],
+		});
+		expect(fake.set).not.toHaveBeenCalled();
+
+		refuse(new Error("Refused"));
+		await screen.rerender(
+			<ContentEditor {...props} item={makeItem({ updatedAt: "2026-01-15T11:00:00Z" })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))
+			.toBeInTheDocument();
+		expect(onSave).not.toHaveBeenCalled();
+	});
+});
+
+describe("ContentEditor's editor-draft plugins in a room", () => {
+	const MANIFEST = {
+		version: "1.0.0",
+		hash: "manifest-1",
+		authMode: "passkey",
+		collections: {},
+		taxonomies: [],
+		plugins: {
+			writer: {
+				enabled: true,
+				adminMode: "blocks",
+				editorActions: [
+					{
+						id: "suggest",
+						label: "Suggest a title",
+						route: "suggest",
+						placement: "toolbar",
+						draft: { read: { fields: ["title", "summary"] }, patch: { fields: ["title"] } },
+					},
+				],
+			},
+		},
+	} as unknown as AdminManifest;
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	/** The plugin answers each draft with a new title, once the test lets it. */
+	function stubPlugin() {
+		const requests: Array<{ draft: Record<string, unknown> }> = [];
+		let answer!: () => void;
+		const answered = new Promise<void>((resolve) => (answer = resolve));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+				const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as {
+					draft: Record<string, unknown>;
+				};
+				requests.push(body);
+				await answered;
+				const { draft } = body;
+				return Response.json({
+					data: {
+						patch: {
+							type: "editor-draft-patch",
+							operations: [{ op: "set", field: "title", value: "Suggested title" }],
+						},
+						editorInvocation: {
+							entryId: draft.entryId,
+							locale: draft.locale,
+							baseRevision: draft.baseRevision,
+							generation: draft.generation,
+							invocationId: draft.invocationId,
+							fieldDefinitions: [
+								{
+									slug: "title",
+									label: "Title",
+									type: "string",
+									required: false,
+									translatable: false,
+								},
+							],
+						},
+					},
+				});
+			}),
+		);
+		return { requests, answer };
+	}
+
+	it("sends the room's values and latest save, and applies a patch after edits to other fields", async () => {
+		const fake = createRoom({ title: "My Post", summary: "Room summary", slug: "my-post" });
+		const plugin = stubPlugin();
+		const screen = await render(
+			<ContentEditor {...editorProps(fake.room, { manifest: MANIFEST })} />,
+			{
+				wrapper: Toasty,
+			},
+		);
+		unmounts.push(() => screen.unmount());
+
+		await screen.getByRole("button", { name: "Suggest a title" }).click();
+		await vi.waitFor(() => expect(plugin.requests).toHaveLength(1));
+		expect(plugin.requests[0]!.draft).toMatchObject({
+			baseRevision: "rev-1",
+			fields: { title: "My Post", summary: "Room summary" },
+		});
+		// Room saves change `_rev` every few seconds, and someone else edits a field the patch leaves.
+		fake.setSaveState({ ...SAVED, rev: "rev-2" });
+		fake.remote({ summary: "Edited elsewhere" });
+		plugin.answer();
+
+		const review = screen.getByRole("dialog", { name: "Review proposed changes" });
+		await expect.element(review).toBeVisible();
+		await review.getByRole("button", { name: "Apply changes" }).click();
+		expect(fake.applyPatch).toHaveBeenCalledExactlyOnceWith({ title: "Suggested title" });
+		expect(fake.set).not.toHaveBeenCalled();
+	});
+
+	it("refuses a patch to a field someone edited after the capture", async () => {
+		const fake = createRoom({ title: "My Post", summary: "Room summary", slug: "my-post" });
+		const plugin = stubPlugin();
+		const screen = await render(
+			<ContentEditor {...editorProps(fake.room, { manifest: MANIFEST })} />,
+			{
+				wrapper: Toasty,
+			},
+		);
+		unmounts.push(() => screen.unmount());
+
+		await screen.getByRole("button", { name: "Suggest a title" }).click();
+		await vi.waitFor(() => expect(plugin.requests).toHaveLength(1));
+		fake.remote({ title: "Retitled elsewhere" });
+		plugin.answer();
+
+		await expect
+			.element(
+				screen.getByText(
+					"The plugin result is stale because the editor changed while it was working.",
+				),
+			)
+			.toBeVisible();
+		expect(screen.getByRole("dialog", { name: "Review proposed changes" }).elements()).toHaveLength(
+			0,
+		);
+		expect(fake.applyPatch).not.toHaveBeenCalled();
+	});
 });
 
 describe("EntryLockNotice for a room", () => {

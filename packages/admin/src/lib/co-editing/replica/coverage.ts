@@ -80,6 +80,11 @@ export class Coverage {
 		return true;
 	}
 
+	/** The own edits are saved some other way, as a recovery revision. */
+	forget(): void {
+		this.#mark = null;
+	}
+
 	#deleteSetIfContained(mark: CoverageMark): DeleteSet | null {
 		const checkpoint = this.#checkpoint;
 		if (!checkpoint || !this.#base) return null;
