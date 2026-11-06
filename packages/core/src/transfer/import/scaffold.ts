@@ -7,7 +7,11 @@
 
 import { sql } from "kysely";
 
-import { processDueMediaUsageCollectionDeletions } from "../../media/usage/collection-deletion-processor.js";
+import {
+	processDueMediaUsageCollectionDeletions,
+	processMediaUsageCollectionDeletion,
+} from "../../media/usage/collection-deletion-processor.js";
+import { MediaUsageCollectionDeletionRepository } from "../../media/usage/collection-deletion.js";
 import {
 	invalidateMenuObjectCache,
 	invalidateWidgetObjectCache,
@@ -58,7 +62,9 @@ export async function clearScaffold(
 				return { state: "continue", step: next };
 			}
 			context.budget.start();
-			await removeItem(context, item);
+			if ((await removeItem(context, item)) === "wait") {
+				return { state: "wait", step: next };
+			}
 			if (item.type === "menu" || item.type === "menu_item") removedMenus = true;
 			if (item.type === "widget" || item.type === "widget_area") removedWidgets = true;
 			next++;
@@ -77,10 +83,14 @@ export async function clearScaffold(
 		context.budget.start();
 		const pending = await context.db
 			.selectFrom("_emdash_media_usage_collection_deletions")
-			.select("collection_id")
+			.select(["collection_id", "collection_slug", "state"])
 			.where("collection_id", "in", collectionIds)
 			.execute();
 		if (pending.length === 0) break;
+		const failed = pending.find((deletion) => deletion.state === "failed");
+		if (failed) {
+			throw scaffoldDeletionFailed(context, failed.collection_id, failed.collection_slug);
+		}
 		const tick = await processDueMediaUsageCollectionDeletions(context.db);
 		if (tick.outcome === "idle" || tick.outcome === "claim_lost" || tick.outcome === "retry") {
 			return { state: "wait", step: next };
@@ -95,7 +105,27 @@ export async function clearScaffold(
 	return { state: "done" };
 }
 
-async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promise<void> {
+function scaffoldDeletionFailed(
+	context: ImportContext,
+	collectionId: string,
+	slug: string,
+): TransferError {
+	return new TransferError(
+		"TRANSFER_IMPORT_ERROR",
+		"Removing a seeded scaffold collection failed",
+		{
+			detail: {
+				type: "collection",
+				id: collectionId,
+				reason: "COLLECTION_DELETION_FAILED",
+				deletedCollectionId: collectionId,
+				message: `Deletion of the scaffold collection "${slug}" failed. Abandon this import with \`emdash site import abandon ${context.operationId}\`, then send {"collectionId":"${collectionId}"} to POST /_emdash/api/admin/media-usage/collection-deletions/retry. After cleanup finishes, reset this site or set up a new one before analyzing and running the import again.`,
+			},
+		},
+	);
+}
+
+async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promise<void | "wait"> {
 	const db = context.db;
 	switch (item.type) {
 		case "collection": {
@@ -115,6 +145,21 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 				await new SchemaRegistry(db).deleteCollection(row.slug);
 			} catch (error) {
 				if (error instanceof SchemaError && error.code === "COLLECTION_NOT_FOUND") return;
+				if (error instanceof SchemaError && error.code === "CONFLICT") {
+					const deletion = await new MediaUsageCollectionDeletionRepository(db).findBySlug(
+						row.slug,
+					);
+					if (deletion?.collectionId === item.id) {
+						const outcome =
+							deletion.state === "failed"
+								? "failed"
+								: await processMediaUsageCollectionDeletion(db, deletion);
+						if (outcome === "failed") {
+							throw scaffoldDeletionFailed(context, item.id, row.slug);
+						}
+						return "wait";
+					}
+				}
 				if (error instanceof SchemaError) {
 					throw new TransferError("TRANSFER_TARGET_NOT_EMPTY", "Scaffold collection is in use", {
 						detail: { type: item.type, id: item.id, reason: error.code },
