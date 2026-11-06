@@ -10,7 +10,7 @@ import { defineMiddleware } from "astro:middleware";
 import type { Kysely } from "kysely";
 // Import from virtual modules (populated by integration at build time)
 // @ts-ignore - virtual module
-import { buildTime as virtualBuildTime } from "virtual:emdash/build";
+import { buildTime as virtualBuildTime, onBeforeFullReload } from "virtual:emdash/build";
 // @ts-ignore - virtual module
 import virtualConfig from "virtual:emdash/config";
 // @ts-ignore - virtual module
@@ -89,9 +89,13 @@ import {
 	createPublicPluginApiRouteHandler,
 	getPublicPluginRouteMeta,
 } from "./public-plugin-api-routes.js";
-import { getRuntimeHolder } from "./runtime-holder.js";
+import { getRuntimeHolder, shutdownRuntime } from "./runtime-holder.js";
 import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
+
+// globalThis survives a program reload; cached methods must not retain imports
+// of lazy optimizer chunks that the new graph has replaced.
+onBeforeFullReload(shutdownRuntime);
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
 export type { EmDashRuntime } from "../emdash-runtime.js";
