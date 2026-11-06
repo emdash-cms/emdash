@@ -38,6 +38,7 @@ import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { OptionalLabel } from "./OptionalLabel.js";
+import { RequiredFieldMessage, useShowRequiredError } from "./RequiredFieldError.js";
 import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 /**
@@ -180,6 +181,7 @@ export function ImageFieldRenderer({
 	const { t } = useLingui();
 	const labelled = labelledBy !== undefined;
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const errorId = React.useId();
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [mobileActionsOpen, setMobileActionsOpen] = React.useState(false);
 	const [imageBroken, setImageBroken] = React.useState(false);
@@ -704,6 +706,11 @@ export function ImageFieldRenderer({
 		</LayerCard>
 	) : null;
 
+	const showRequiredError = useShowRequiredError(required, !displayUrl);
+	const requiredErrorProps = showRequiredError
+		? { "aria-invalid": true as const, "aria-describedby": errorId }
+		: undefined;
+
 	const labelContent = showOptional ? <OptionalLabel>{label}</OptionalLabel> : label;
 
 	const picker = (
@@ -932,6 +939,7 @@ export function ImageFieldRenderer({
 					fieldId={fieldId}
 					blockType={blockType}
 					blockVersion={blockVersion}
+					buttonProps={requiredErrorProps}
 				/>
 			) : (
 				<Button
@@ -943,7 +951,7 @@ export function ImageFieldRenderer({
 						labelled ? "mx-2 h-14 w-auto" : "h-32 w-full",
 					)}
 					onClick={() => openPicker("image")}
-					aria-describedby={labelled ? describedBy : undefined}
+					{...(labelled ? { "aria-describedby": describedBy } : requiredErrorProps)}
 				>
 					<div
 						className={cn(
@@ -965,8 +973,8 @@ export function ImageFieldRenderer({
 					{assetEditor.error}
 				</p>
 			)}
-			{required && !displayUrl && !labelled && (
-				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
+			{showRequiredError && !labelled && (
+				<RequiredFieldMessage id={errorId}>{t`This field is required`}</RequiredFieldMessage>
 			)}
 		</div>
 	);
