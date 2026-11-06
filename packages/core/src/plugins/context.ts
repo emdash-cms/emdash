@@ -188,11 +188,9 @@ export function createKVAccess(
 				: await optionsRepo.getByPrefix(fullPrefix);
 			const result: Array<{ key: string; value: unknown }> = [];
 			for (const [fullKey, value] of entriesMap) {
-				if (includesSettings && fullKey.startsWith(`${prefix}settings:`)) continue;
-				result.push({
-					key: fullKey.slice(prefix.length),
-					value,
-				});
+				const key = fullKey.slice(prefix.length);
+				if (!fullKey.startsWith(fullPrefix) || key.startsWith("settings:")) continue;
+				result.push({ key, value });
 			}
 			if (includesSettings) {
 				const settingPrefix = requestedPrefix.startsWith("settings:")
@@ -1020,6 +1018,7 @@ export function createMediaAccessWithWrite(
 		| ((filename: string, contentType: string) => Promise<{ uploadUrl: string; mediaId: string }>)
 		| undefined,
 	storage?: Storage,
+	imagePlaceholders = true,
 ): MediaAccessWithWrite {
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
@@ -1079,7 +1078,9 @@ export function createMediaAccessWithWrite(
 			});
 
 			// Derive dimensions + LQIP placeholders (no-op for non-images).
-			const enriched = await enrichImageMetadata(new Uint8Array(bytes), mimeType);
+			const enriched = await enrichImageMetadata(new Uint8Array(bytes), mimeType, {
+				placeholders: imagePlaceholders,
+			});
 
 			// Create DB record — clean up storage on failure
 			let media;
@@ -1553,6 +1554,8 @@ export interface PluginContextFactoryOptions {
 	 * client IP the core auth path does.
 	 */
 	trustedProxyHeaders?: string[];
+	/** Whether media uploads should generate server-side image placeholders. */
+	imagePlaceholders?: boolean;
 	commentModerate?: (
 		pluginId: string,
 		id: string,
@@ -1641,6 +1644,7 @@ export class PluginContextFactory {
 	private now: () => Date;
 	private emailPipeline?: EmailPipeline;
 	private commentModerate?: PluginContextFactoryOptions["commentModerate"];
+	private imagePlaceholders: boolean;
 	/**
 	 * Plugin IDs already warned about a missing media-write backend, so the
 	 * warning fires once per factory instead of on every hook/route context
@@ -1662,6 +1666,7 @@ export class PluginContextFactory {
 		this.now = options.now ?? (() => new Date());
 		this.emailPipeline = options.emailPipeline;
 		this.commentModerate = options.commentModerate;
+		this.imagePlaceholders = options.imagePlaceholders ?? true;
 	}
 
 	/**
@@ -1787,7 +1792,12 @@ export class PluginContextFactory {
 		}
 		if (capabilities.has("media:write")) {
 			if (this.getUploadUrl || this.storage) {
-				media = createMediaAccessWithWrite(db, this.getUploadUrl, this.storage);
+				media = createMediaAccessWithWrite(
+					db,
+					this.getUploadUrl,
+					this.storage,
+					this.imagePlaceholders,
+				);
 			} else {
 				if (!this.warnedMissingMediaBackend.has(plugin.id)) {
 					this.warnedMissingMediaBackend.add(plugin.id);

@@ -91,6 +91,117 @@ describe("image service passthrough", () => {
 		}
 	});
 
+	test.each([
+		{ formats: ["avif"] },
+		{ formats: ["avif", "webp"] },
+		{ formats: ["avif", "webp"], fallbackFormat: "jpeg" },
+	])("formats %j fall back to plain images for both color schemes", async (formatProps) => {
+		usePassthroughService();
+		const container = await AstroContainer.create();
+		const html = await container.renderToString(EmDashImage, {
+			props: {
+				image: { ...image, darkVariant: { ...image, src: "/media/dark.jpg" } },
+				...formatProps,
+				id: "hero",
+				priority: true,
+				quality: 70,
+			},
+			request: request(),
+		});
+		expect(html).not.toContain("<picture");
+		expect(html).not.toContain("<source");
+		const tags = html.match(/<img\b[^>]*>/g) ?? [];
+		expect(tags).toHaveLength(2);
+		expectPlainImage(tags[0]!, source);
+		expectPlainImage(tags[1]!, "/media/dark.jpg");
+		expect(attr(tags[0]!, "class")).toContain("emdash-image--light");
+		expect(attr(tags[1]!, "class")).toContain("emdash-image--dark");
+		expect(attr(tags[0]!, "id")).toBe("hero");
+		expect(attr(tags[1]!, "id")).toBe("hero--dark");
+		for (const tag of tags) {
+			expect(attr(tag, "loading")).toBe("eager");
+			expect(attr(tag, "fetchpriority")).toBe("high");
+			expect(attr(tag, "formats")).toBeUndefined();
+			expect(attr(tag, "fallbackFormat")).toBeUndefined();
+			expect(attr(tag, "quality")).toBeUndefined();
+		}
+	});
+
+	test.each([
+		{ blockedFormat: "avif", failure: "passthrough" },
+		{ blockedFormat: "avif", failure: "error" },
+		{ blockedFormat: "jpeg", failure: "passthrough" },
+		{ blockedFormat: "jpeg", failure: "error" },
+	])(
+		"dark variant $blockedFormat $failure does not advertise unavailable formats",
+		async ({ blockedFormat, failure }) => {
+			globalThis.astroAsset.imageService = {
+				...originalService,
+				getURL(options, config, logger) {
+					const src = typeof options.src === "string" ? options.src : options.src.src;
+					if (src.endsWith("/media/dark.jpg") && options.format === blockedFormat) {
+						if (failure === "error") throw new Error("format unavailable");
+						return src;
+					}
+					return originalService.getURL(options, config, logger);
+				},
+			};
+			const container = await AstroContainer.create();
+			const html = await container.renderToString(EmDashImage, {
+				props: {
+					image: { ...image, darkVariant: { ...image, src: "/media/dark.jpg" } },
+					formats: ["avif", "webp"],
+					fallbackFormat: "jpeg",
+				},
+				request: request(),
+			});
+			const pictures = html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/g) ?? [];
+			expect(pictures).toHaveLength(1);
+			expect(pictures[0]).toContain("emdash-image--light");
+			expect(pictures[0]).not.toContain("dark.jpg");
+			const tags = html.match(/<img\b[^>]*>/g) ?? [];
+			expect(tags).toHaveLength(2);
+			expectPlainImage(tags[1]!, "/media/dark.jpg");
+			expect(attr(tags[1]!, "class")).toContain("emdash-image--dark");
+		},
+	);
+
+	test("working formats retain distinct transformed candidates in both pictures", async () => {
+		const container = await AstroContainer.create();
+		const html = await container.renderToString(EmDashImage, {
+			props: {
+				image: { ...image, darkVariant: { ...image, src: "/media/dark.jpg" } },
+				formats: ["avif", "webp"],
+				fallbackFormat: "jpeg",
+				quality: 70,
+			},
+			request: request(),
+		});
+		const pictures = html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/g) ?? [];
+		expect(pictures).toHaveLength(2);
+		for (const [i, picture] of pictures.entries()) {
+			const original = i === 0 ? source : "/media/dark.jpg";
+			const sources = picture.match(/<source\b[^>]*>/g) ?? [];
+			expect(sources.map((tag) => attr(tag, "type"))).toEqual(["image/avif", "image/webp"]);
+			const img = picture.match(/<img\b[^>]*>/)?.[0] ?? "";
+			for (const [index, tag] of [...sources, img].entries()) {
+				const expectedFormat = ["avif", "webp", "jpeg"][index];
+				const candidates = attr(tag, "srcset")!
+					.split(", ")
+					.map((s) => s.split(" ")[0]!);
+				expect(candidates.length).toBeGreaterThan(1);
+				expect(new Set(candidates).size).toBe(candidates.length);
+				expect(attr(tag, "sizes")).toBe("(min-width: 1536px) 1536px, 100vw");
+				for (const candidate of candidates) {
+					const url = new URL(candidate, "https://quality.example.com");
+					expect(url.searchParams.get("href")).toBe(`https://quality.example.com${original}`);
+					expect(url.searchParams.get("f")).toBe(expectedFormat);
+					expect(url.searchParams.get("q")).toBe("70");
+				}
+			}
+		}
+	});
+
 	test.each([undefined, { href: "/gallery", blank: true }])(
 		"Portable Text image preserves its wrapper, link and placeholder (%j)",
 		async (link) => {

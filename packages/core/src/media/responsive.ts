@@ -102,13 +102,25 @@ export type GetImage = (options: {
 	height?: number;
 	widths?: number[];
 	sizes?: string;
+	format?: string;
 	quality?: EmbedOptions["quality"];
 }) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
 
-/** Check this source, not just the service: unauthorized hosts also pass through. */
+/** MIME type for a transform output format, for `<source type>`. */
+export function formatContentType(format: string): string {
+	return `image/${format === "jpg" ? "jpeg" : format}`;
+}
+
+/** Return whether the image service rewrites the URL for this transform. */
 export async function canOptimizeImage(
 	getImage: GetImage,
-	opts: { src: string; width: number; height: number; quality?: EmbedOptions["quality"] },
+	opts: {
+		src: string;
+		width: number;
+		height: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	},
 ): Promise<boolean> {
 	if (!ABSOLUTE_HTTP_URL.test(opts.src)) return false;
 	try {
@@ -149,10 +161,11 @@ export async function buildResponsiveImage(
 		width?: number;
 		height?: number;
 		originalWidth?: number;
+		format?: string;
 		quality?: EmbedOptions["quality"];
 	},
 ): Promise<ResponsiveImage | null> {
-	const { src, width, height, originalWidth, quality } = opts;
+	const { src, width, height, originalWidth, format, quality } = opts;
 	if (!src || !width || !height) return null;
 	if (!ABSOLUTE_HTTP_URL.test(src)) return null;
 	try {
@@ -163,6 +176,7 @@ export async function buildResponsiveImage(
 			height,
 			widths: responsiveWidths(width, originalWidth),
 			sizes,
+			format,
 			...(quality !== undefined ? { quality } : {}),
 		});
 		// Passthrough: the service returned the source unchanged (unauthorized

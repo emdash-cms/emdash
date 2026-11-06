@@ -170,8 +170,17 @@ if (!src) {
 		id: asset._ref,
 	});
 	if (renderWidth && renderHeight) {
-		const absoluteSrc = toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config));
-		if (await canOptimizeImage(getImage, { src: absoluteSrc, width: renderWidth, height: renderHeight })) {
+		const absoluteSrc = toAbsoluteMediaUrl(
+			src,
+			getPublicOrigin(Astro.url, Astro.locals.emdash?.config),
+		);
+		if (
+			await canOptimizeImage(getImage, {
+				src: absoluteSrc,
+				width: renderWidth,
+				height: renderHeight,
+			})
+		) {
 			astroImageSrc = absoluteSrc;
 		}
 	}

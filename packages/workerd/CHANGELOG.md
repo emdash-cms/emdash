@@ -1,5 +1,12 @@
 # @emdash-cms/sandbox-workerd
 
+## 0.9.6
+
+### Patch Changes
+
+- Updated dependencies [[`064fbbf`](https://github.com/emdash-cms/emdash/commit/064fbbfe00a9f3b8c2fdea8b0b1abec43e785505), [`75030fc`](https://github.com/emdash-cms/emdash/commit/75030fc48cff39d5925367295c9072b038bca11f), [`ec973c0`](https://github.com/emdash-cms/emdash/commit/ec973c06c216c8e81dae77848f476982649b29f5), [`ceaf9b6`](https://github.com/emdash-cms/emdash/commit/ceaf9b68bdeca07dcaf3484b79e211241931a471), [`3d29980`](https://github.com/emdash-cms/emdash/commit/3d29980290fd2ebcbe9ce7d53808b17c4aa65190), [`9d9fd82`](https://github.com/emdash-cms/emdash/commit/9d9fd82c50986496809e9e5c414569c13210f1bb), [`3ce9d36`](https://github.com/emdash-cms/emdash/commit/3ce9d368e1c7cab41aa5ab6d58d2ad5636d9dead), [`8da0792`](https://github.com/emdash-cms/emdash/commit/8da0792564d06cf2411eee2bcbb832d7a1cdfc5c), [`c238da2`](https://github.com/emdash-cms/emdash/commit/c238da2931b12ab58f6228a5a4d79551d05f6d3b), [`a6f4091`](https://github.com/emdash-cms/emdash/commit/a6f4091c056df606b98340b566916cf44e99b567), [`f197acf`](https://github.com/emdash-cms/emdash/commit/f197acf3abdac8bde0f67fc3e87ae26559dab67c), [`57abb5c`](https://github.com/emdash-cms/emdash/commit/57abb5c445e0627acff748999e2ca35b75d1e102), [`e1c4a87`](https://github.com/emdash-cms/emdash/commit/e1c4a87a7b3c634b96d7274dbd728975b9382b05), [`bed3e42`](https://github.com/emdash-cms/emdash/commit/bed3e421e02429f51c2717fe0aa90ea5340ff921), [`4409acb`](https://github.com/emdash-cms/emdash/commit/4409acb10736c2bf8031bbf29c761dc594e919ed), [`53acf71`](https://github.com/emdash-cms/emdash/commit/53acf7159f405786d484b35288f5effb6ffb81be), [`6be7263`](https://github.com/emdash-cms/emdash/commit/6be726348b2414e95dec6eb910680e215bb9abbb), [`9e7cd3d`](https://github.com/emdash-cms/emdash/commit/9e7cd3ddf5faa76b54d2db223081f506de57b1e7), [`a16ab2c`](https://github.com/emdash-cms/emdash/commit/a16ab2c2b3f2d6e97bdcca3ab32015d9194d6554), [`9201138`](https://github.com/emdash-cms/emdash/commit/92011387eb2fee065e54f7d4b2c20405d1a3e347), [`d1e25e0`](https://github.com/emdash-cms/emdash/commit/d1e25e01fdcfed9d05e7dc42f9f3f2500cf96700), [`6c5d878`](https://github.com/emdash-cms/emdash/commit/6c5d87831c4e0ed3976ac6d449e37952c4387a61), [`56cb9da`](https://github.com/emdash-cms/emdash/commit/56cb9dab91c2798c147dc6482aa2db62d0f6f7f1)]:
+  - emdash@1.4.0
+
 ## 0.9.5
 
 ### Patch Changes

@@ -22,6 +22,7 @@ import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-co
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
 import { LocaleDirectionProvider } from "./locales/index.js";
+import { KumoTranslationsProvider } from "./locales/KumoTranslationsProvider.js";
 import { createAdminRouter } from "./router";
 
 // Create a query client
@@ -167,19 +168,21 @@ export function AdminApp({
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
 				<LocaleDirectionProvider>
-					<Toasty>
-						<AdminBrandingProvider adminBranding={adminBranding}>
-							<AuthProviderProvider authProviders={authProviders}>
-								<PluginAdminProvider pluginAdmins={pluginAdmins}>
-									<QueryClientProvider client={queryClient}>
-										<LinkProvider component={KumoRouterLink}>
-											<RouterProvider router={router} />
-										</LinkProvider>
-									</QueryClientProvider>
-								</PluginAdminProvider>
-							</AuthProviderProvider>
-						</AdminBrandingProvider>
-					</Toasty>
+					<KumoTranslationsProvider>
+						<Toasty>
+							<AdminBrandingProvider adminBranding={adminBranding}>
+								<AuthProviderProvider authProviders={authProviders}>
+									<PluginAdminProvider pluginAdmins={pluginAdmins}>
+										<QueryClientProvider client={queryClient}>
+											<LinkProvider component={KumoRouterLink}>
+												<RouterProvider router={router} />
+											</LinkProvider>
+										</QueryClientProvider>
+									</PluginAdminProvider>
+								</AuthProviderProvider>
+							</AdminBrandingProvider>
+						</Toasty>
+					</KumoTranslationsProvider>
 				</LocaleDirectionProvider>
 			</I18nProvider>
 		</ThemeProvider>
