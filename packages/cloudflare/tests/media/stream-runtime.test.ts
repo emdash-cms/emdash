@@ -134,7 +134,10 @@ describe("cloudflare stream hosted player mapping", () => {
 			apiResponse({ uploadURL: "https://upload.example.com", uid: "UID" }),
 			new Response("uploaded"),
 			...Array.from({ length: 10 }, () =>
-				apiResponse({ ...streamVideo(), status: { state: "queued" } }),
+				apiResponse({
+					...streamVideo("https://customer-abc12345.cloudflarestream.com/UID/watch"),
+					status: { state: "queued" },
+				}),
 			),
 		);
 
