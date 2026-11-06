@@ -1,11 +1,15 @@
 import { vi } from "vitest";
 
+import { assignAuthorColors, authorColorOf } from "../../src/lib/author-colors";
 import type {
 	DraftCapture,
+	PresenceUser,
 	RichTextBinding,
 	RoomEditing,
 	RoomSaveState,
 } from "../../src/lib/co-editing/types";
+
+const NO_USERS: readonly PresenceUser[] = [];
 
 export const SAVED: RoomSaveState = { covered: true, saving: false, rev: "rev-1" };
 export const UNSAVED: RoomSaveState = { covered: false, saving: false, rev: "rev-1" };
@@ -20,7 +24,22 @@ export function createRoom(initial: Record<string, unknown>) {
 	const saveListeners = new Set<() => void>();
 	const subscriptions: string[] = [];
 	const bindings = new Map<string, RichTextBinding>();
-	const users = new Map<string, string>();
+	const people = new Map<string, { name: string; field: string | null }>();
+	const presenceListeners = new Set<() => void>();
+	let self: string | null = null;
+	let users: readonly PresenceUser[] = NO_USERS;
+	const byField = new Map<string, readonly PresenceUser[]>();
+	const updatePresence = () => {
+		const colors = assignAuthorColors([self, ...people.keys()]);
+		users = [...people]
+			.filter(([id]) => id !== self)
+			.map(([id, person]) => ({ id, ...person, color: authorColorOf(colors, id) }));
+		byField.clear();
+		for (const user of users) {
+			if (user.field !== null) byField.set(user.field, [...(byField.get(user.field) ?? []), user]);
+		}
+		for (const listener of presenceListeners) listener();
+	};
 	let saveState = SAVED;
 	let sequence = 0;
 
@@ -86,7 +105,17 @@ export function createRoom(initial: Record<string, unknown>) {
 		changedSince: (capture, fields) =>
 			fields.some((field) => (fieldSequences.get(field) ?? 0) > capture.sequence),
 		applyPatch,
-		userName: (userId) => users.get(userId) ?? null,
+		presence: {
+			setSelf(userId) {
+				self = userId;
+				updatePresence();
+			},
+			subscribe(listener) {
+				presenceListeners.add(listener);
+				return () => presenceListeners.delete(listener);
+			},
+			getUsers: (field) => (field === undefined ? users : (byField.get(field) ?? NO_USERS)),
+		},
 	};
 
 	return {
@@ -104,9 +133,14 @@ export function createRoom(initial: Record<string, unknown>) {
 			}
 			change(changes);
 		},
-		/** A person in the room, as presence names them. */
-		present(userId: string, name: string) {
-			users.set(userId, name);
+		/** A person in the room, as presence names them, in `field` or viewing. */
+		present(userId: string, name: string, field: string | null = null) {
+			people.set(userId, { name, field });
+			updatePresence();
+		},
+		leave(userId: string) {
+			people.delete(userId);
+			updatePresence();
 		},
 	};
 }

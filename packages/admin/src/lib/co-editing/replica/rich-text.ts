@@ -19,11 +19,8 @@ export function createRichTextBinding(replica: Replica, field: string): RichText
 				name: "coEditingCursors",
 				addProseMirrorPlugins: () => [
 					yCursorPlugin(replica.awareness, {
-						cursorBuilder: remoteCaret,
-						selectionBuilder: () => ({
-							class: "emdash-remote-selection",
-							"data-author-color": "",
-						}),
+						cursorBuilder: replica.cursors.caret,
+						selectionBuilder: replica.cursors.selection,
 					}),
 				],
 			}),
@@ -39,16 +36,4 @@ export function createRichTextBinding(replica: Replica, field: string): RichText
 			}),
 		],
 	};
-}
-
-function remoteCaret(user: { name?: unknown }): HTMLElement {
-	const caret = document.createElement("span");
-	caret.className = "emdash-remote-caret";
-	caret.setAttribute("data-author-color", "");
-	const label = document.createElement("span");
-	label.className = "emdash-remote-caret-label";
-	label.textContent = typeof user.name === "string" ? user.name : "";
-	// Word joiners keep the caret from opening a line break where it sits.
-	caret.append("\u2060", label, "\u2060");
-	return caret;
 }

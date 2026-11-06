@@ -1175,7 +1175,7 @@ function ContentEditPage() {
 				void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
 				if (event.by === currentUser?.id) return;
 				const name =
-					roomRef.current?.userName(event.by) ??
+					roomRef.current?.presence.getUsers().find((user) => user.id === event.by)?.name ??
 					queryClient
 						.getQueryData<{ items: UserListItem[] }>(["users"])
 						?.items.find((user) => user.id === event.by)?.name ??

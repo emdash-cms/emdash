@@ -6,6 +6,7 @@
 import type { AnyExtension } from "@tiptap/core";
 
 import type { OutsideValue, RoomAccess } from "../../co-editing/types.js";
+import type { AuthorColor } from "../author-colors.js";
 
 /** The session's mode, as the page renders it. */
 export type CoEditing =
@@ -67,8 +68,32 @@ export interface RoomEditing {
 	 * undoes in one step. Writes nothing and returns false for rich text the editor can't represent.
 	 */
 	applyPatch(values: Readonly<Record<string, unknown>>): boolean;
-	/** The name the room gave a user who is in it now. */
-	userName(userId: string): string | null;
+	readonly presence: RoomPresence;
+}
+
+/** Who else is in the room, and where. */
+export interface RoomPresence {
+	/**
+	 * The user this tab belongs to. Colors are assigned over everyone present, this user included,
+	 * so every client gives each person the same color.
+	 */
+	setSelf(userId: string | null): void;
+	subscribe(listener: () => void): () => void;
+	/**
+	 * The other people in the room, once each and in the order they joined, or only those in
+	 * `field`. The same array until someone joins, leaves, renames or changes field: a cursor
+	 * moving never changes it.
+	 */
+	getUsers(field?: string): readonly PresenceUser[];
+}
+
+/** Another person in the room. */
+export interface PresenceUser {
+	readonly id: string;
+	readonly name: string;
+	readonly color: AuthorColor;
+	/** The field one of their tabs is in, or null for a viewer or someone in none. */
+	readonly field: string | null;
 }
 
 /** The document's field values, and the entry slug under `slug`. */
@@ -107,7 +132,7 @@ export interface RichTextBinding {
 	readonly extensions: readonly AnyExtension[];
 }
 
-/** Another client in the room. Viewers have no field. */
+/** Another client in the room, as its awareness state says. Viewers have no field. */
 export interface PresencePeer {
 	readonly clientId: number;
 	readonly user: { readonly id: string; readonly name: string };

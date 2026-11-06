@@ -563,6 +563,71 @@ describe("ContentEditor's save button in a room", () => {
 	});
 });
 
+describe("ContentEditor's presence in a room", () => {
+	afterEach(async () => {
+		await page.viewport(1280, 800);
+	});
+
+	it.each([
+		[1280, 4],
+		[375, 4],
+	])(
+		"shows who else is here at %ipx without moving the bar or the fields",
+		async (width, circles) => {
+			await page.viewport(width, 800);
+			const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+			await renderEditor(fake.room, { currentUser: { id: "u-me", role: 50 } });
+			const bar = () => document.querySelector("[data-emdash-editor-bar]")!.getBoundingClientRect();
+			const field = (name: string) =>
+				document.querySelector(`[data-co-editing-field="${name}"]`)!.getBoundingClientRect();
+			const layout = () => ({
+				bar: bar().height,
+				save: saveButton().getBoundingClientRect().left,
+				title: field("title").top,
+				summary: field("summary").top,
+			});
+			await expect.element(page.getByRole("button", { name: "Saved" })).toBeVisible();
+			const alone = layout();
+			const avatars = () =>
+				document.querySelectorAll("[data-emdash-editor-bar] [role=group] button").length;
+			const pills = (name: string) =>
+				Array.from(
+					document.querySelectorAll(`[data-co-editing-field="${name}"] .emdash-presence-pill`),
+					(pill) => pill.textContent,
+				);
+
+			fake.present("u-me", "Me in another tab", "summary");
+			fake.present("u-ana", "Ana Lima", "title");
+			await expect.poll(() => pills("title")).toEqual(["Ana Lima"]);
+			expect(pills("summary")).toEqual([]);
+			expect(layout()).toEqual(alone);
+
+			for (const [id, name] of [
+				["u-ben", "Ben Okafor"],
+				["u-cleo", "Cleo Park"],
+				["u-dev", "Dev Iyer"],
+			]) {
+				fake.present(id!, name!);
+			}
+			await expect.poll(avatars).toBe(circles);
+			expect(layout()).toEqual(alone);
+
+			fake.present("u-eli", "Eli Cohen");
+			fake.present("u-fay", "Fay Wong");
+			await expect
+				.poll(() => document.querySelector("[data-emdash-editor-bar] [role=group]")?.textContent)
+				.toContain("+3");
+			expect(avatars()).toBe(circles);
+			expect(layout()).toEqual(alone);
+
+			for (const id of ["u-ana", "u-ben", "u-cleo", "u-dev", "u-eli", "u-fay"]) fake.leave(id);
+			await expect.poll(avatars).toBe(0);
+			expect(pills("title")).toEqual([]);
+			expect(layout()).toEqual(alone);
+		},
+	);
+});
+
 describe("ContentEditor's notices in a room", () => {
 	it.each([
 		{ locale: "en", dir: "ltr" },

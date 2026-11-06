@@ -41,6 +41,7 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { useRoomOperations } from "../lib/co-editing/operations.js";
+import type { RoomEditing } from "../lib/co-editing/types.js";
 import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
@@ -71,6 +72,7 @@ import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { FieldPresence } from "./presence/FieldPresence.js";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { namedSince, useRevisionFormat } from "./revisions/revision-format.js";
@@ -845,6 +847,8 @@ export interface ContentSettingsPanelProps {
 	onEntryRefresh?: () => void | Promise<void>;
 	/** In a room, the latest checkpoint's `_rev`, which sandboxed panels load again on. */
 	roomRevision?: string | null;
+	/** The entry's room, which shows who else is in the slug. */
+	room?: RoomEditing | null;
 }
 
 /**
@@ -903,6 +907,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onEditorDraftResponse,
 	onEntryRefresh,
 	roomRevision,
+	room = null,
 }: ContentSettingsPanelProps) {
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
@@ -998,6 +1003,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			</div>
 		) : null;
 	}
+
+	const slugInput = (
+		<Input
+			dir="ltr"
+			label={t`Slug`}
+			value={slug}
+			onChange={(event) => onSlugChange(event.target.value)}
+			placeholder="my-post-slug"
+		/>
+	);
 
 	return (
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
@@ -1143,13 +1158,14 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							{t`URL & language`}
 						</Text>
 						<div className="grid gap-4">
-							<Input
-								dir="ltr"
-								label={t`Slug`}
-								value={slug}
-								onChange={(event) => onSlugChange(event.target.value)}
-								placeholder="my-post-slug"
-							/>
+							{room ? (
+								<div data-co-editing-field="slug" className="relative">
+									{slugInput}
+									<FieldPresence room={room} field="slug" />
+								</div>
+							) : (
+								slugInput
+							)}
 							{contentLocale ? (
 								<div className="flex items-center justify-between gap-3">
 									<div className="flex items-center gap-1.5">

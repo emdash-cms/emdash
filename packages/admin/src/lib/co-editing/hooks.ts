@@ -10,9 +10,10 @@ import {
 	type SessionOptions,
 } from "./session.js";
 import { createTransportHealth } from "./transport-health.js";
-import type { CoEditing, RoomEditing, RoomEvent, RoomSaveState } from "./types.js";
+import type { CoEditing, PresenceUser, RoomEditing, RoomEvent, RoomSaveState } from "./types.js";
 
 const PENDING: CoEditing = { mode: "pending", waiting: false };
+const NO_USERS: readonly PresenceUser[] = Object.freeze([]);
 
 export interface UseCoEditingOptions {
 	collection: string;
@@ -79,6 +80,25 @@ export function useRoomFieldValue(room: RoomEditing | null, field: string | null
 		[room, field],
 	);
 	return React.useSyncExternalStore(subscribe, read);
+}
+
+/**
+ * The other people in the room, or those in `field`. Re-renders only when someone joins, leaves
+ * or changes field, never when a cursor moves.
+ */
+export function useRoomPeers(room: RoomEditing | null, field?: string): readonly PresenceUser[] {
+	const read = React.useCallback(
+		() => (room ? room.presence.getUsers(field) : NO_USERS),
+		[room, field],
+	);
+	return React.useSyncExternalStore(room?.presence.subscribe ?? subscribeToNothing, read);
+}
+
+/** Tells the room which user this tab belongs to, before the first paint, so colors never shift. */
+export function useRoomSelf(room: RoomEditing | null, userId: string | null): void {
+	React.useLayoutEffect(() => {
+		room?.presence.setSelf(userId);
+	}, [room, userId]);
 }
 
 /**

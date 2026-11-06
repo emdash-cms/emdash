@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { yUndoPluginKey, ySyncPluginKey } from "@tiptap/y-tiptap";
+import { yCursorPluginKey, yUndoPluginKey, ySyncPluginKey } from "@tiptap/y-tiptap";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -33,8 +33,9 @@ import {
 } from "../types.js";
 import { Connection } from "./connection.js";
 import { Coverage, type CoverageMark } from "./coverage.js";
+import { RemoteCursors } from "./cursors.js";
 import { FORM, REMOTE } from "./origins.js";
-import { readPeers } from "./presence.js";
+import { Presence, trackFocusedField } from "./presence.js";
 import { createRichTextBinding } from "./rich-text.js";
 
 /** As long as the room holds saves for an operation, so a save it never checkpoints can't hang one. */
@@ -60,6 +61,8 @@ interface Waiter {
 export class Replica implements ReplicaHandle {
 	readonly doc = new Y.Doc();
 	readonly awareness = new Awareness(this.doc);
+	readonly presence = new Presence(this.awareness);
+	readonly cursors: RemoteCursors;
 	readonly editing: RoomEditing;
 	readonly #options: ReplicaOptions;
 	readonly #richText: ReadonlySet<string>;
@@ -81,11 +84,16 @@ export class Replica implements ReplicaHandle {
 	#frozen = false;
 	#disposed = false;
 	#saveState: RoomSaveState = { covered: true, saving: false, rev: null };
+	readonly #stopPresence: () => void;
 
 	constructor(options: ReplicaOptions) {
 		this.#options = options;
 		this.#richText = new Set(options.richTextFields);
 		this.awareness.setLocalState({ field: null });
+		this.cursors = new RemoteCursors(this.awareness, options.clock, (userId) =>
+			this.presence.colorOf(userId),
+		);
+		this.#stopPresence = this.#followPresence();
 		this.doc.on("afterTransaction", (transaction: Y.Transaction) =>
 			this.#afterTransaction(transaction),
 		);
@@ -120,8 +128,7 @@ export class Replica implements ReplicaHandle {
 				capture.replica !== this.doc.guid ||
 				names.some((name) => (this.#fieldSequences.get(name) ?? 0) > capture.sequence),
 			applyPatch: (values) => this.#applyPatch(values),
-			userName: (userId) =>
-				readPeers(this.awareness).find((peer) => peer.user.id === userId)?.user.name ?? null,
+			presence: this.presence,
 		};
 	}
 
@@ -185,6 +192,9 @@ export class Replica implements ReplicaHandle {
 		if (this.#disposed) return;
 		this.#disposed = true;
 		this.#rejectWaiters(new RoomSaveError("gone"));
+		this.#stopPresence();
+		this.cursors.dispose();
+		this.presence.dispose();
 		this.awareness.destroy();
 		this.doc.destroy();
 		this.#saveListeners.clear();
@@ -291,6 +301,27 @@ export class Replica implements ReplicaHandle {
 		}
 		this.#saveState = { covered, saving, rev: this.#rev };
 		for (const listener of this.#saveListeners) listener();
+	}
+
+	/**
+	 * Sends the focused field, and gives the carets and selections new colors when someone's
+	 * changes, as when this tab learns its own user after the editors drew them.
+	 */
+	#followPresence(): () => void {
+		const stopFocus = trackFocusedField(this.awareness, this.doc.guid);
+		let colors = this.presence.colors;
+		const unsubscribe = this.presence.subscribe(() => {
+			if (colors === this.presence.colors) return;
+			colors = this.presence.colors;
+			this.cursors.recolor();
+			for (const editor of this.#editors.values()) {
+				editor.view.dispatch(editor.state.tr.setMeta(yCursorPluginKey, { awarenessUpdated: true }));
+			}
+		});
+		return () => {
+			stopFocus();
+			unsubscribe();
+		};
 	}
 
 	#richTextBinding(field: string): RichTextBinding {

@@ -46,7 +46,12 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
-import { useRemountKey, useRoomFieldValue, useRoomSaveState } from "../lib/co-editing/hooks.js";
+import {
+	useRemountKey,
+	useRoomFieldValue,
+	useRoomSaveState,
+	useRoomSelf,
+} from "../lib/co-editing/hooks.js";
 import type { DraftCapture, RichTextBinding, RoomEditing } from "../lib/co-editing/types.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
@@ -82,6 +87,8 @@ import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { FieldPresence } from "./presence/FieldPresence.js";
+import { PresenceAvatars } from "./presence/PresenceAvatars.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RevisionViewProvider } from "./revisions/revision-view-context.js";
@@ -1904,6 +1911,18 @@ export function ContentEditor({
 		setScheduleDialogOpen(false);
 	}, [item?.id, item?.locale, item?.scheduledAt]);
 
+	useRoomSelf(room, currentUser?.id ?? null);
+	const presenceFieldLabel = React.useCallback(
+		(name: string) => (name === "slug" ? t`Slug` : getFieldLabel(name, fields[name])),
+		[fields, t],
+	);
+	const presencePhotos = React.useMemo(
+		() =>
+			new Map(
+				users?.flatMap((user) => (user.avatarUrl ? [[user.id, user.avatarUrl] as const] : [])),
+			),
+		[users],
+	);
 	const sandboxedEditorActions = React.useMemo(
 		() => (!isNew && item ? resolveSandboxedEditorActions(manifest?.plugins, collection) : []),
 		[collection, isNew, item, manifest?.plugins],
@@ -1933,8 +1952,8 @@ export function ContentEditor({
 			data-emdash-editor-bar=""
 			className="@container/editor-bar flex min-h-12 shrink-0 items-center gap-1.5 border-b border-kumo-line px-3 py-2 sm:px-4"
 		>
-			{/* The title gives up its width first; the actions wrap only when even
-			    their icons don't fit. */}
+			{/* The title gives up its width first, to the avatars and the actions;
+			    the actions wrap only when even their icons don't fit. */}
 			{!isDistractionFree && (
 				<RouterLinkButton
 					to="/content/$collection"
@@ -1969,7 +1988,7 @@ export function ContentEditor({
 						</span>
 					</>
 				)}
-				<h1 dir="auto" className="min-w-0 truncate text-base font-medium">
+				<h1 dir="auto" data-presence-yields="" className="min-w-0 truncate text-base font-medium">
 					{room && documentTitleField ? (
 						<RoomBarTitle room={room} field={documentTitleField} fallback={fallbackBarTitle} />
 					) : (
@@ -1985,6 +2004,9 @@ export function ContentEditor({
 					<span role="status" className="shrink-0 text-sm text-kumo-subtle">
 						{roomStatus === "waiting" ? t`Waiting to join…` : t`Connecting…`}
 					</span>
+				)}
+				{room && (
+					<PresenceAvatars room={room} fieldLabel={presenceFieldLabel} photos={presencePhotos} />
 				)}
 			</div>
 			{/* The distraction-free toggle stays outside the disabled fieldset:
@@ -2095,6 +2117,7 @@ export function ContentEditor({
 	return (
 		<form
 			onSubmit={handleSubmit}
+			data-co-editing-room={room?.id}
 			className={cn(
 				"flex h-full flex-col bg-kumo-elevated",
 				isDistractionFree && "fixed inset-0 z-50",
@@ -3281,13 +3304,14 @@ function RoomFieldRenderer({ room, ...props }: RoomFieldRendererProps) {
 		scope,
 	);
 	return (
-		<div ref={scope} data-co-editing-field={name}>
+		<div ref={scope} data-co-editing-field={name} className="relative">
 			<FieldRenderer
 				key={remountKey}
 				{...props}
 				value={value}
 				collaboration={bound ? room.richText(name) : undefined}
 			/>
+			<FieldPresence room={room} field={name} />
 		</div>
 	);
 }
@@ -3321,6 +3345,7 @@ function RoomContentSettingsPanel({
 			{...props}
 			slug={room ? slugText(roomSlug) : props.slug}
 			roomRevision={roomRevision}
+			room={room}
 		/>
 	);
 }
