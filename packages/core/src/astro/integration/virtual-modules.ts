@@ -537,9 +537,14 @@ export function generateBuildModule(buildTime: number, reloadRuntime = false): s
 export function onBeforeFullReload(callback) {
   ${
 		reloadRuntime
-			? `if (import.meta.hot) import.meta.hot.on("vite:beforeFullReload", (payload) => {
+			? `if (import.meta.hot) import.meta.hot.on("vite:beforeFullReload", async (payload) => {
     // File edits retain optimizer chunks; dependency re-optimization does not.
-    if (!payload.triggeredBy) return callback();
+    if (payload.triggeredBy) return;
+    try {
+      await callback();
+    } catch (error) {
+      console.error("[emdash] Runtime shutdown failed before dependency reload:", error);
+    }
   });`
 			: ""
 	}

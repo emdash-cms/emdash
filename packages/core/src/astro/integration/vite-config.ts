@@ -5,7 +5,7 @@
  * Vite-specific configuration for EmDash.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -188,7 +188,10 @@ export interface VitePluginOptions {
 /**
  * Creates the EmDash virtual modules Vite plugin.
  */
-export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
+export function createVirtualModulesPlugin(
+	options: VitePluginOptions,
+	optimizeRuntime = false,
+): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
@@ -402,10 +405,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				return generateEnvModule(astroConfig.adapter?.name);
 			}
 			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
-				return generateBuildModule(
-					buildTime,
-					viteCommand === "serve" && isCloudflareAdapter(astroConfig),
-				);
+				return generateBuildModule(buildTime, viteCommand === "serve" && optimizeRuntime);
 			}
 		},
 	};
@@ -479,6 +479,26 @@ function createCloudflareOptimizerReloadPlugin(): Plugin {
 	};
 }
 
+function hasRolldownOptimizer(projectRoot: string): boolean {
+	try {
+		// Resolve through Astro, not core's own Vite dependency or a hoisted copy.
+		const projectRequire = createRequire(resolve(projectRoot, "package.json"));
+		const astroRequire = createRequire(projectRequire.resolve("astro/package.json"));
+		const vitePackage: unknown = JSON.parse(
+			readFileSync(astroRequire.resolve("vite/package.json"), "utf8"),
+		);
+		return (
+			typeof vitePackage === "object" &&
+			vitePackage !== null &&
+			"version" in vitePackage &&
+			typeof vitePackage.version === "string" &&
+			Number.parseInt(vitePackage.version, 10) >= 8
+		);
+	} catch {
+		return false;
+	}
+}
+
 function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
 	try {
 		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
@@ -506,6 +526,7 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+	const optimizeRuntime = cloudflare && isDev && !useSource && hasRolldownOptimizer(projectRoot);
 	const adminLocales = options.resolvedConfig.admin?.locales;
 	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
@@ -580,8 +601,8 @@ export function createViteConfig(
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
-			createVirtualModulesPlugin(options),
-			...(isDev && cloudflare && !useSource ? [createCloudflareOptimizerReloadPlugin()] : []),
+			createVirtualModulesPlugin(options, optimizeRuntime),
+			...(optimizeRuntime ? [createCloudflareOptimizerReloadPlugin()] : []),
 			...(isDev && !cloudflare
 				? [{ name: "emdash-runtime-shutdown", apply: "serve", closeBundle: shutdownRuntime }]
 				: []),
@@ -628,12 +649,12 @@ export function createViteConfig(
 						exclude: [
 							"virtual:emdash",
 							"@emdash-cms/cloudflare",
-							...(useSource ? ["emdash", "@emdash-cms/admin"] : []),
+							...(!optimizeRuntime ? ["emdash", "@emdash-cms/admin"] : []),
 						],
 						include: [
 							// Cache the runtime graph across workerd program reloads.
 							// These entrypoints are otherwise discovered serially on startup.
-							...(!useSource
+							...(optimizeRuntime
 								? [
 										"emdash",
 										"@emdash-cms/admin",
