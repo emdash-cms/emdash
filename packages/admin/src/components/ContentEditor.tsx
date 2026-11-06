@@ -972,14 +972,20 @@ export function ContentEditor({
 					itemReset && !discarded && !restored
 						? (JSON.parse(lastSavedData) as { data: Record<string, unknown> }).data
 						: undefined;
-				// A save's reload can arrive behind edits made after the save went out. Where the
-				// editor reads its value once, they stay in the editor and in the form, so the next
-				// save sends them under the revision they were made on.
+				// A save's reload may arrive after newer edits. Keep fields changed since
+				// the saved payload while accepting refreshed values for the others.
 				const keepEdits = (current: Record<string, unknown>) => {
 					let next = item.data;
 					if (!saved) return next;
-					for (const name of changedReadOnceFields(fields, saved, current)) {
-						next = { ...next, [name]: current[name] };
+					for (const [name, field] of Object.entries(fields)) {
+						const before = READ_ONCE_FIELD_KINDS.has(field.kind)
+							? listValue(saved[name])
+							: saved[name];
+						const after = READ_ONCE_FIELD_KINDS.has(field.kind)
+							? listValue(current[name])
+							: current[name];
+						if (JSON.stringify(before) !== JSON.stringify(after))
+							next = { ...next, [name]: current[name] };
 					}
 					return next;
 				};

@@ -391,6 +391,31 @@ describe("ContentEditPage background reads with the real editor", () => {
 		vi.useRealTimers();
 	});
 
+	it("keeps newer edits when a manual save's delayed refetch completes", async () => {
+		vi.useRealTimers();
+		const { screen, queryClient } = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await title.fill("Mobile checkpoint");
+		server.delayRead();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		await title.fill("Later changes");
+		server.resolveRead();
+		await vi.waitFor(() =>
+			expect(queryClient.isFetching({ queryKey: ["content", "posts", "post_1"] })).toBe(0),
+		);
+		await expect.element(title).toHaveValue("Later changes");
+		await expect
+			.poll(() => server.requests.filter((request) => request.method === "PUT").length, {
+				timeout: 6000,
+			})
+			.toBe(2);
+		expect(server.requests.findLast((request) => request.method === "PUT")?.body).toMatchObject({
+			skipRevision: true,
+			data: { title: "Later changes" },
+		});
+	});
+
 	it.each(["entry", "locale"])(
 		"resets a dirty form when its %s identity changes",
 		async (identity) => {
@@ -637,6 +662,7 @@ describe("ContentEditPage rich text body", () => {
 		server.resolveRead();
 		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Body saved in another tab"));
 
+		await expect.element(title).toHaveValue("Saved title, edited during the save");
 		await typeAtEnd("!");
 		await vi.advanceTimersByTimeAsync(2500);
 		const sent = server.requests.findLast((r) => r.method === "PUT")?.body as

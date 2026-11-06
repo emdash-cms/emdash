@@ -152,10 +152,11 @@ the request is in progress, and disappears after a successful save. There is no 
 label. A screen-reader-only status announces **Saving...** and **Saved**. Autosave replaces the
 current draft revision instead of filling revision history with a checkpoint for every pause.
 
-For an entry with drafts and revision history enabled, you can retain an autosaved version in history
-by waiting for autosave to finish and then making an explicit save. On a phone, open **Settings** and
-select **Save draft**. An explicit save retains the preceding draft revision; later autosaves can
-still replace the current draft. The same revision handling applies to the toolbar's **Save** action.
+On a phone, entries with drafts and revision history offer **Settings** > **Save draft** even after
+autosave finishes. To retain the autosaved version in history, wait for autosave before using this
+action. On tablet and desktop, the toolbar's **Save** action is only offered while there are unsaved
+changes. Both actions retain the preceding draft revision; later autosaves can still replace the
+current draft.
 
 If a save fails, the editor keeps the unsaved fields in place, shows a dismissible error banner below
 the editor header, and displays an error toast. Dismissing the banner does not save the data. Retry

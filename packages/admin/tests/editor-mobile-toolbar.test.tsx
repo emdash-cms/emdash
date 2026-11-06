@@ -245,6 +245,20 @@ describe("ContentEditor mobile action bar", () => {
 			.toBeVisible();
 	});
 
+	it("keeps a narrow tablet toolbar horizontal with square secondary actions", async () => {
+		await page.viewport(768, 800);
+		const { toolbar, screen } = await renderDirectEditor(item(false));
+		screen.container.style.width = "600px";
+		await expect.poll(() => toolbar.clientWidth).toBe(600);
+		expectSingleRow(toolbar);
+		const settings = screen
+			.getByRole("button", { name: "Settings", exact: true })
+			.first()
+			.element()
+			.getBoundingClientRect();
+		expect(settings.width).toBeCloseTo(settings.height, 0);
+	});
+
 	it("does not wrap the desktop action row", async () => {
 		await page.viewport(1280, 800);
 		const { toolbar } = await renderDirectEditor(item(false));
