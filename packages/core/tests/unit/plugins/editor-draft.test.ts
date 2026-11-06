@@ -93,6 +93,18 @@ describe("editor draft host validation", () => {
 		expect(validate({ request: request(changed) })).toMatchObject({ code: "EDITOR_DRAFT_STALE" });
 	});
 
+	it("takes the request's base revision as sent while the entry's room is open", () => {
+		const result = validate({ request: request({ baseRevision: "rev-2" }), roomOpen: true });
+		expect(result).not.toHaveProperty("code");
+		if ("code" in result) return;
+		expect(result.snapshot.baseRevision).toBe("rev-2");
+		expect(result.receipt.baseRevision).toBe("rev-2");
+
+		expect(validate({ request: request({ entryId: "entry-2" }), roomOpen: true })).toMatchObject({
+			code: "EDITOR_DRAFT_STALE",
+		});
+	});
+
 	it("keeps read and patch capabilities independent", () => {
 		expect(validate({ canRead: false })).toMatchObject({
 			code: "EDITOR_DRAFT_CAPABILITY_REQUIRED",

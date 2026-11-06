@@ -209,6 +209,10 @@
       "types": "./dist/plugins/host.d.mts",
       "default": "./dist/plugins/host.mjs"
     },
+    "./internal/co-editing/node": {
+      "types": "./dist/rooms/node/index.d.mts",
+      "default": "./dist/rooms/node/index.mjs"
+    },
     "./plugins/secret-redactor": {
       "types": "./dist/plugins/secret-redactor.d.mts",
       "default": "./dist/plugins/secret-redactor.mjs"
@@ -319,6 +323,7 @@
     "smol-toml": "^1.6.0",
     "ulidx": "^2.4.1",
     "upng-js": "^2.1.0",
+    "ws": "catalog:",
     "y-protocols": "catalog:",
     "yjs": "catalog:",
     "zod": "catalog:",
@@ -352,6 +357,7 @@
     "@types/react-dom": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
+    "@types/ws": "catalog:",
     "@vitest/ui": "catalog:",
     "astro": "catalog:",
     "image-size": "catalog:",

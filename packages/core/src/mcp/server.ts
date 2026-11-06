@@ -859,6 +859,28 @@ function extractContentRev(data: unknown): string | undefined {
 	return typeof rev === "string" ? rev : undefined;
 }
 
+/**
+ * The publish or unpublish `content_update` chains after saving fields. When it conflicts, the
+ * fields stay saved, so the error says so and names the `_rev` they saved.
+ */
+function afterSavedFields(
+	result: HandlerResult,
+	savedRev: string | undefined,
+	step: "publish" | "unpublish",
+): HandlerResult {
+	const error = result.error as { code?: unknown; message?: unknown } | undefined;
+	if (result.success || savedRev === undefined || error?.code !== "CONFLICT") return result;
+	const reason = typeof error.message === "string" ? `: ${error.message}` : "";
+	return {
+		success: false,
+		error: {
+			code: "CONFLICT",
+			message: `The fields were saved, but the ${step} conflicted${reason}`,
+			details: { _rev: savedRev },
+		},
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
@@ -1455,6 +1477,7 @@ export function createMcpServer(
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
 				let rev: string | undefined = args._rev;
+				let savedRev: string | undefined;
 				let liveChanged = false;
 				if (
 					args.data ||
@@ -1479,15 +1502,20 @@ export function createMcpServer(
 					});
 					if (!updateResult.success) return unwrap(updateResult);
 					liveChanged = updateResult.liveContentChanged !== false;
-					rev = extractContentRev(updateResult.data);
+					savedRev = extractContentRev(updateResult.data);
+					rev = savedRev;
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentPublish(args.collection, resolvedId, {
-						_rev: rev,
-						actor: { ...actor, source: "mcp" },
-						origin: { source: "mcp" },
-					}),
+					afterSavedFields(
+						await emdash.handleContentPublish(args.collection, resolvedId, {
+							_rev: rev,
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						savedRev,
+						"publish",
+					),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1495,6 +1523,7 @@ export function createMcpServer(
 
 			if (args.status === "draft") {
 				let rev: string | undefined = args._rev;
+				let savedRev: string | undefined;
 				let liveChanged = false;
 				if (
 					args.data ||
@@ -1519,15 +1548,20 @@ export function createMcpServer(
 					});
 					if (!updateResult.success) return unwrap(updateResult);
 					liveChanged = updateResult.liveContentChanged !== false;
-					rev = extractContentRev(updateResult.data);
+					savedRev = extractContentRev(updateResult.data);
+					rev = savedRev;
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentUnpublish(args.collection, resolvedId, {
-						_rev: rev,
-						actor: { ...actor, source: "mcp" },
-						origin: { source: "mcp" },
-					}),
+					afterSavedFields(
+						await emdash.handleContentUnpublish(args.collection, resolvedId, {
+							_rev: rev,
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						savedRev,
+						"unpublish",
+					),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1569,7 +1603,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1586,10 +1620,13 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
 			if (locked) return locked;
-			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
-				args.collection,
-				resolvedId,
-			]);
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentDelete(args.collection, resolvedId, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1835,7 +1872,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			const existing = await ec.handleContentGet(args.collection, args.id);
 			if (!existing.success) {
@@ -1853,7 +1890,9 @@ export function createMcpServer(
 			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentUnschedule(args.collection, resolvedId),
+				await ec.handleContentUnschedule(args.collection, resolvedId, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1899,7 +1938,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1918,7 +1957,10 @@ export function createMcpServer(
 			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+				await ec.handleContentDiscardDraft(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -3708,7 +3750,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const { emdash, userId } = getExtra(extra);
+			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch the revision to discover the parent content entry
 			const revision = await emdash.handleRevisionGet(args.revisionId);
@@ -3743,7 +3785,7 @@ export function createMcpServer(
 			);
 			if (locked) return locked;
 
-			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
+			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId, userRole));
 		},
 	);
 

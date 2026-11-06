@@ -1,7 +1,10 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
-import { startingRevisionId } from "../../../src/database/repositories/revision.js";
+import {
+	RevisionRepository,
+	startingRevisionId,
+} from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
@@ -25,6 +28,7 @@ describeEachDialect("autosave revision credit", (dialect) => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownForDialect(ctx);
 	});
 
@@ -101,6 +105,27 @@ describeEachDialect("autosave revision credit", (dialect) => {
 			editedBy: [ANA.id],
 			authorId: ANA.id,
 		});
+	});
+
+	it("keeps an autosave a room marks kept while an outside autosave is replacing it", async () => {
+		const { id } = await createPost();
+		const byAna = await autosave(id, ANA, "Ana");
+		const repo = new ContentRepository(ctx.db);
+		const findDraftBase = RevisionRepository.prototype.findDraftBase;
+		vi.spyOn(RevisionRepository.prototype, "findDraftBase").mockImplementationOnce(async function (
+			this: RevisionRepository,
+			revisionId: string,
+		) {
+			const base = await findDraftBase.call(this, revisionId);
+			const entry = await repo.findById("post", id);
+			expect(await repo.markDraftRevisionKept("post", id, entry!)).toBe(true);
+			return base;
+		});
+
+		await autosave(id, BEN, "Ben");
+
+		expect(await revisionIds(id)).toContain(byAna);
+		expect(await credit(byAna)).toMatchObject({ kind: null, editedBy: [ANA.id] });
 	});
 
 	it("names everyone who autosaved into a version, latest first, once each", async () => {

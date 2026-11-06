@@ -94,11 +94,11 @@ export class EntryLockRepository {
 	async refreshHeld(input: LeaseInput): Promise<boolean> {
 		const result = await this.db
 			.updateTable("_emdash_entry_locks")
-			.set({ expires_at: this.timestampOffset(input.leaseSeconds) })
+			.set({ expires_at: timestampOffset(this.db, input.leaseSeconds) })
 			.where("collection", "=", input.collection)
 			.where("entry_id", "=", input.entryId)
 			.where("user_id", "=", input.userId)
-			.where(this.leaseIsLive("expires_at"))
+			.where(leaseIsLive(this.db, "expires_at"))
 			.executeTakeFirst();
 		return Number(result.numUpdatedRows ?? 0) > 0;
 	}
@@ -158,8 +158,8 @@ export class EntryLockRepository {
 	private async claim(
 		input: LeaseInput & { token: string; takeover?: boolean },
 	): Promise<LockRow | undefined> {
-		const now = this.timestampOffset(0);
-		const expiresAt = this.timestampOffset(input.leaseSeconds);
+		const now = timestampOffset(this.db, 0);
+		const expiresAt = timestampOffset(this.db, input.leaseSeconds);
 		return this.db
 			.insertInto("_emdash_entry_locks")
 			.values({
@@ -185,7 +185,7 @@ export class EntryLockRepository {
 				return update.where((eb) =>
 					eb.or([
 						eb("_emdash_entry_locks.user_id", "=", input.userId),
-						this.leaseHasExpired("_emdash_entry_locks.expires_at"),
+						leaseHasExpired(this.db, "_emdash_entry_locks.expires_at"),
 					]),
 				);
 			})
@@ -208,7 +208,7 @@ export class EntryLockRepository {
 			])
 			.where("_emdash_entry_locks.collection", "=", collection)
 			.where("_emdash_entry_locks.entry_id", "=", entryId)
-			.where(this.leaseIsLive("_emdash_entry_locks.expires_at"));
+			.where(leaseIsLive(this.db, "_emdash_entry_locks.expires_at"));
 	}
 
 	private async withHolderName(row: LockRow): Promise<EntryLock> {
@@ -226,32 +226,38 @@ export class EntryLockRepository {
 			expiresAt: row.expires_at,
 		};
 	}
+}
 
-	private leaseIsLive(column: string) {
-		const expiresAt = sql.ref(column);
-		return isPostgres(this.db)
-			? sql<boolean>`${expiresAt}::timestamptz > clock_timestamp()`
-			: sql<boolean>`${expiresAt} > strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-	}
+/**
+ * Whether `column`, a timestamp from {@link timestampOffset}, is later than the database
+ * clock's now plus `offsetSeconds`.
+ */
+export function leaseIsLive(db: Kysely<Database>, column: string, offsetSeconds = 0) {
+	const at = sql.ref(column);
+	return isPostgres(db)
+		? sql<boolean>`${at}::timestamptz > clock_timestamp() + (${offsetSeconds} * INTERVAL '1 second')`
+		: sql<boolean>`${at} > ${timestampOffset(db, offsetSeconds)}`;
+}
 
-	private leaseHasExpired(column: string) {
-		const expiresAt = sql.ref(column);
-		return isPostgres(this.db)
-			? sql<boolean>`${expiresAt}::timestamptz <= clock_timestamp()`
-			: sql<boolean>`${expiresAt} <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
-	}
+/** Whether `column` is at or before the database clock's now plus `offsetSeconds`. */
+export function leaseHasExpired(db: Kysely<Database>, column: string, offsetSeconds = 0) {
+	const at = sql.ref(column);
+	return isPostgres(db)
+		? sql<boolean>`${at}::timestamptz <= clock_timestamp() + (${offsetSeconds} * INTERVAL '1 second')`
+		: sql<boolean>`${at} <= ${timestampOffset(db, offsetSeconds)}`;
+}
 
-	private timestampOffset(offsetSeconds: number): RawBuilder<string> {
-		if (isPostgres(this.db)) {
-			return sql<string>`to_char(
-				(clock_timestamp() AT TIME ZONE 'UTC') + (${offsetSeconds} * INTERVAL '1 second'),
-				'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
-			)`;
-		}
-		return sql<string>`strftime(
-			'%Y-%m-%dT%H:%M:%fZ',
-			'now',
-			${`${offsetSeconds >= 0 ? "+" : ""}${offsetSeconds} seconds`}
+/** The database clock's now plus `offsetSeconds`, as ISO 8601 with milliseconds and `Z`. */
+export function timestampOffset(db: Kysely<Database>, offsetSeconds: number): RawBuilder<string> {
+	if (isPostgres(db)) {
+		return sql<string>`to_char(
+			(clock_timestamp() AT TIME ZONE 'UTC') + (${offsetSeconds} * INTERVAL '1 second'),
+			'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
 		)`;
 	}
+	return sql<string>`strftime(
+		'%Y-%m-%dT%H:%M:%fZ',
+		'now',
+		${`${offsetSeconds >= 0 ? "+" : ""}${offsetSeconds} seconds`}
+	)`;
 }

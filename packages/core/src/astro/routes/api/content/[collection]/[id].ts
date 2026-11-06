@@ -158,7 +158,9 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 		});
 	}
 
-	const result = await emdash.handleContentDelete(collection, resolvedId);
+	const result = await emdash.handleContentDelete(collection, resolvedId, {
+		actor: { id: user!.id, role: user!.role },
+	});
 
 	if (!result.success) return unwrapResult(result);
 

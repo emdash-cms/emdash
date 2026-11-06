@@ -164,6 +164,7 @@ catalog:
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   "@types/semver": ^7.5.8
+  "@types/ws": ^8.18.1
   "@vitest/browser-playwright": 4.1.10
   "@vitest/ui": 4.1.10
   astro: ^7.3.2
@@ -187,6 +188,7 @@ catalog:
   vite: ^8.3.0
   vitest: 4.1.10
   wrangler: ^4.125.0
+  ws: ^8.21.3
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
   zod: 4.6.7

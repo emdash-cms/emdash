@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import { readField } from "../../../src/rooms/document.js";
-import { CLOSE_CODES } from "../../../src/rooms/types.js";
+import { encodeSyncStep1 } from "../../../src/rooms/protocol.js";
+import { CLOSE_CODES, parseRoomId, roomId } from "../../../src/rooms/types.js";
 import { advance, BODY, settle, TestRoom, TITLE, useRoomTimers } from "./test-room.js";
 
 beforeEach(useRoomTimers);
@@ -191,5 +192,98 @@ describe("store", () => {
 		const test = new TestRoom();
 		test.store.refuseClaims = true;
 		expect(await test.room.issueToken(test.claims("ana"))).toBe("busy");
+	});
+});
+
+describe("claim renewal", () => {
+	it("renews a held claim only when no store call or claim renewed it in the last 10 s", async () => {
+		const test = new TestRoom();
+		await test.room.renew();
+		expect(test.store.calls).toEqual([]);
+
+		const ana = await test.join("ana");
+		expect(test.room.holdsClaim).toBe(true);
+		test.store.calls = [];
+		await advance(9_999);
+		await test.room.renew();
+		expect(test.store.calls).toEqual([]);
+		await advance(1);
+		await test.room.renew();
+		await test.room.renew();
+		expect(test.store.calls).toEqual(["renew"]);
+
+		await advance(5_000);
+		ana.disconnect();
+		await settle();
+		expect(test.store.calls).toEqual(["renew", "touch"]);
+		await advance(9_999);
+		await test.room.renew();
+		expect(test.store.calls).toEqual(["renew", "touch"]);
+		await advance(1);
+		expect(test.room.holdsClaim).toBe(false);
+		await test.room.renew();
+		expect(test.store.calls).toEqual(["renew", "touch", "release"]);
+	});
+
+	it("closes every connection with rejoin and forgets the document when renewing finds the claim lost", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		const vic = await test.join("vic", { access: "view" });
+		test.store.claimLost = true;
+		await advance(10_000);
+
+		await test.room.renew();
+
+		expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin);
+		expect(vic.closed?.code).toBe(CLOSE_CODES.rejoin);
+		expect(test.room.holdsClaim).toBe(false);
+		test.store.claimLost = false;
+		test.store.claimed = false;
+		test.store.calls = [];
+		await test.join("ben");
+		expect(test.store.calls.slice(0, 2)).toEqual(["claim", "load"]);
+		expect(test.store.calls).not.toContain("release");
+		expect(test.site.saves).toHaveLength(0);
+	});
+
+	it("stops holding a lost claim, and closes resumed sockets with rejoin, while nothing is loaded", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		test.restart();
+		test.room.resume(ana, {
+			userId: "ana",
+			name: "Name ana",
+			access: "edit",
+			connectedAt: Date.now(),
+			clientId: null,
+		});
+		const load = test.store.holdNext("load");
+		ana.toRoom(encodeSyncStep1(ana.doc));
+		await settle();
+		expect(test.room.holdsClaim).toBe(true);
+		test.store.claimLost = true;
+		await advance(10_000);
+
+		await test.room.renew();
+
+		expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin);
+		expect(test.room.holdsClaim).toBe(false);
+		load.open();
+		await settle();
+		expect(test.store.calls).not.toContain("release");
+	});
+});
+
+describe("room IDs", () => {
+	it("parses the entry back out of a room ID, and refuses one that names no entry", () => {
+		expect(parseRoomId(roomId({ collection: "posts", id: "01ENTRY" }))).toEqual({
+			collection: "posts",
+			id: "01ENTRY",
+		});
+		expect(parseRoomId(roomId({ collection: "posts", id: "a:b" }))).toEqual({
+			collection: "posts",
+			id: "a:b",
+		});
+		for (const id of ["posts", ":01ENTRY", "posts:", ""]) expect(parseRoomId(id)).toBeNull();
 	});
 });

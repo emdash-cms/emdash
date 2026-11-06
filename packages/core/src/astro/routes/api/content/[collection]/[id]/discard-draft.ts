@@ -65,6 +65,7 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 
 	const result = await emdash.handleContentDiscardDraft(collection, resolvedId, {
 		_rev: body?._rev,
+		actor: { id: user!.id, role: user!.role },
 	});
 
 	if (!result.success) return unwrapResult(result);
