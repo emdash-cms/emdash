@@ -154,6 +154,21 @@ The operation ID is stable within the generated contract and is commonly used as
 | `GET` | `/_emdash/api/schema/orphans` | `listOrphanedTables` | List orphaned content tables |
 | `POST` | `/_emdash/api/schema/orphans/{slug}` | `registerOrphanedTable` | Register an orphaned table as a collection |
 
+### Editorial comments
+
+Private review threads on an entry. Every operation needs the `content:read_drafts` and `editorial:comment` permissions.
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/content/{collection}/{id}/threads` | `listEditorialThreads` | List the entry's editorial threads |
+| `POST` | `/_emdash/api/content/{collection}/{id}/threads` | `createEditorialThread` | Start an editorial thread |
+| `PATCH` | `/_emdash/api/content/{collection}/{id}/threads/anchors` | `updateEditorialAnchors` | Store recomputed thread anchors |
+| `PATCH` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}` | `updateEditorialThread` | Resolve or reopen a thread |
+| `DELETE` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}` | `deleteEditorialThread` | Delete a thread |
+| `POST` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}/comments` | `createEditorialComment` | Reply to a thread |
+| `PATCH` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}/comments/{commentId}` | `updateEditorialComment` | Edit a comment |
+| `DELETE` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}/comments/{commentId}` | `deleteEditorialComment` | Delete a comment |
+
 ### Comments
 
 | Method | Path | Operation | Summary |
