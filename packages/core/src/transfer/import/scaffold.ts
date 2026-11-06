@@ -62,9 +62,9 @@ export async function clearScaffold(
 				return { state: "continue", step: next };
 			}
 			context.budget.start();
-			if ((await removeItem(context, item)) === "wait") {
-				return { state: "wait", step: next };
-			}
+			const progress = await removeItem(context, item);
+			if (progress === "wait") return { state: "wait", step: next };
+			if (progress === "continue") continue;
 			if (item.type === "menu" || item.type === "menu_item") removedMenus = true;
 			if (item.type === "widget" || item.type === "widget_area") removedWidgets = true;
 			next++;
@@ -96,6 +96,19 @@ export async function clearScaffold(
 			return { state: "wait", step: next };
 		}
 		if (tick.outcome === "failed") {
+			const failedDeletion = await context.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select(["collection_id", "collection_slug"])
+				.where("collection_id", "in", collectionIds)
+				.where("state", "=", "failed")
+				.executeTakeFirst();
+			if (failedDeletion) {
+				throw scaffoldDeletionFailed(
+					context,
+					failedDeletion.collection_id,
+					failedDeletion.collection_slug,
+				);
+			}
 			throw new TransferError(
 				"TRANSFER_IMPORT_ERROR",
 				"Removing the seeded scaffold collections failed",
@@ -125,7 +138,10 @@ function scaffoldDeletionFailed(
 	);
 }
 
-async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promise<void | "wait"> {
+async function removeItem(
+	context: ImportContext,
+	item: ScaffoldItemRef,
+): Promise<void | "wait" | "continue"> {
 	const db = context.db;
 	switch (item.type) {
 		case "collection": {
@@ -157,7 +173,7 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 						if (outcome === "failed") {
 							throw scaffoldDeletionFailed(context, item.id, row.slug);
 						}
-						return "wait";
+						return outcome === "progress" || outcome === "finalized" ? "continue" : "wait";
 					}
 				}
 				if (error instanceof SchemaError) {

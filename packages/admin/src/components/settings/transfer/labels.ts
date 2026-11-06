@@ -103,6 +103,13 @@ export function domainBlockerLabel(i18n: I18n, blocker: PortableDomainBlocker): 
 		case "collection_has_entries":
 			return i18n._(msg`Collection “${blocker.slug}” has entries`);
 		case "collection_deletion_unfinished":
+			if (blocker.state === "failed") {
+				const body = JSON.stringify({ collectionId: blocker.id });
+				const action = "POST /_emdash/api/admin/media-usage/collection-deletions/retry";
+				return i18n._(
+					msg`Deletion of collection “${blocker.slug}” failed. Retry it by sending ${body} to ${action} before importing.`,
+				);
+			}
 			return i18n._(
 				msg`Deletion of collection “${blocker.slug}” has not finished. Wait for cleanup before importing.`,
 			);

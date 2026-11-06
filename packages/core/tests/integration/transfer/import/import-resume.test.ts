@@ -62,8 +62,8 @@ async function deletedPostsSourceCount(db: Kysely<Database>): Promise<number> {
 	return Number(row.count);
 }
 
-// Imports reserved before unfinished deletions became blockers can still reach
-// schema with leftover cleanup. Reconstruct that state after the schema checkpoint.
+// Leave collection-deletion tombstones at the schema checkpoint, after the
+// reservation check that would otherwise refuse them.
 async function stageResumedCleanup(
 	db: Kysely<Database>,
 	storage: MemoryStorage,
@@ -876,6 +876,61 @@ describeEachDialect("site import resumption", (dialect) => {
 			reason: "COLLECTION_DELETION_FAILED",
 			deletedCollectionId: failedId,
 		});
+	});
+
+	it("preserves the deletion diagnostic when cleanup fails terminally during the drain", async () => {
+		await activateCapture(ctx.db);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
+		let failedId: string | undefined;
+		faults.afterCheckpoint = async () => {
+			if (failedId) return;
+			const operation = await new TransferOperationRepository(ctx.db).require(staged.operationId);
+			if (operation.cursor?.stage !== "clear_scaffold" || operation.cursor.step !== 1) return;
+			const deletion = await ctx.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select(["collection_id", "collection_slug"])
+				.executeTakeFirstOrThrow();
+			failedId = deletion.collection_id;
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({ phase: "finalize", attempt_count: 4 })
+				.where("collection_id", "=", failedId)
+				.execute();
+			await sql`CREATE TABLE ${sql.ref(`ec_${deletion.collection_slug}`)} (id text PRIMARY KEY)`.execute(
+				ctx.db,
+			);
+		};
+		const result = await advanceImport({
+			db,
+			storage,
+			operationId: staged.operationId,
+			verify: verifyOk,
+		});
+		expect(failedId).toBeDefined();
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select(["state", "last_error_code"])
+				.where("collection_id", "=", failedId!)
+				.executeTakeFirst(),
+		).toMatchObject({
+			state: "failed",
+			last_error_code: "MEDIA_USAGE_COLLECTION_DELETION_FAILED",
+		});
+		expect(result.operation.state).toBe("failed");
+		expect(result.operation.errorCode).toBe("TRANSFER_IMPORT_ERROR");
+		expect(result.operation.errorDetail).toMatchObject({
+			reason: "COLLECTION_DELETION_FAILED",
+			deletedCollectionId: failedId,
+		});
+		expect(result.operation.errorDetail?.message).toContain(
+			`emdash site import abandon ${staged.operationId}`,
+		);
+		expect(result.operation.errorDetail?.message).toContain(`{"collectionId":"${failedId}"}`);
+		expect(result.operation.errorDetail?.message).toContain(
+			"POST /_emdash/api/admin/media-usage/collection-deletions/retry",
+		);
 	});
 
 	it("rejects a deletion started after analysis before mutation begins", async () => {

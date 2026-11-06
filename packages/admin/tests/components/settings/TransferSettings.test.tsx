@@ -219,6 +219,13 @@ describe("TransferSettings", () => {
 						state: "pending",
 						phase: "sources",
 					},
+					{
+						code: "collection_deletion_unfinished",
+						id: "c3",
+						slug: "legacy",
+						state: "failed",
+						phase: "sources",
+					},
 					{ code: "table_not_empty", table: "media" },
 				],
 			}),
@@ -230,6 +237,13 @@ describe("TransferSettings", () => {
 			.element(
 				screen.getByText(
 					"Deletion of collection “events” has not finished. Wait for cleanup before importing.",
+				),
+			)
+			.toBeVisible();
+		await expect
+			.element(
+				screen.getByText(
+					'Deletion of collection “legacy” failed. Retry it by sending {"collectionId":"c3"} to POST /_emdash/api/admin/media-usage/collection-deletions/retry before importing.',
 				),
 			)
 			.toBeVisible();
