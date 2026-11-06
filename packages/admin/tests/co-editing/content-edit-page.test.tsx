@@ -469,6 +469,24 @@ describe("reloading from a room", () => {
 		expect(asksBeforeUnload()).toBe(false);
 		await expect.element(screen.getByText("Reloading the admin")).toBeVisible();
 	});
+
+	it("shows edits it can no longer save on the save button, through a reload", async () => {
+		const { screen, fake } = await openInRoom(entry());
+		const kept = { ...roomView(fake), kept: "deleted" as const };
+
+		show(kept);
+
+		const popover = screen.getByRole("dialog", { name: "Your last edits weren’t saved" });
+		await expect.element(popover).toHaveTextContent(/moved to Trash or deleted/);
+		await expect.element(screen.getByRole("button", { name: "Not saved" })).toBeVisible();
+		await popover.getByRole("button", { name: "Reload" }).click();
+		expect(kept.reload).toHaveBeenCalledOnce();
+
+		show({ mode: "reloading" });
+
+		await expect.element(screen.getByRole("button", { name: "Not saved" })).toBeVisible();
+		expect(screen.getByText("Reloading the admin").query()).toBeNull();
+	});
 });
 
 describe("resetting a room", () => {
@@ -484,7 +502,7 @@ describe("resetting a room", () => {
 		expect(screen.getByRole("textbox", { name: "SEO Title" }).query()).not.toBeNull();
 		await expect.element(title, { timeout: 3000 }).toBeInTheDocument();
 		await expect.element(title).toBeDisabled();
-		await expect.element(screen.getByText("Connecting…")).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Joining…" })).toBeEnabled();
 
 		show(roomView(createRoom({ title: "From the new replica", slug: "post-one" })));
 

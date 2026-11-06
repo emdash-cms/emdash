@@ -31,7 +31,7 @@ import type { OutsideValue } from "./co-editing/types.js";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
-import { KeptNotice } from "./components/co-editing/KeptNotice.js";
+import type { SyncProblem } from "./components/co-editing/SyncStatus.js";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
@@ -1250,6 +1250,18 @@ function ContentEditPage() {
 	const roomBlocked = roomView
 		? roomView.offline || roomView.access !== "edit" || roomView.kept !== null
 		: resetting;
+	let roomSync: SyncProblem | null | undefined;
+	if (coEditing.mode === "pending") {
+		roomSync = { kind: "joining", waiting: coEditing.waiting };
+	} else if (roomView?.kept) {
+		roomSync = {
+			kind: "not-saved",
+			reason: roomView.kept,
+			reload: coEditing.mode === "room" ? roomView.reload : () => window.location.reload(),
+		};
+	} else if (roomView) {
+		roomSync = roomView.offline ? { kind: "offline" } : null;
+	}
 	const prepareRoomOperation = React.useCallback(async () => {
 		const room = roomRef.current;
 		if (!room) return;
@@ -2310,13 +2322,8 @@ function ContentEditPage() {
 	let notice: React.ReactNode = null;
 	if (roomView) {
 		readOnly = !roomView.editable;
-		if (roomView.kept) {
-			notice = (
-				<KeptNotice
-					onReload={coEditing.mode === "room" ? roomView.reload : () => window.location.reload()}
-				/>
-			);
-		} else if (coEditing.mode === "reloading") {
+		// Kept edits show on the save button, which these banners would contradict.
+		if (roomView.kept === null && coEditing.mode === "reloading") {
 			notice = (
 				<Banner
 					title={t`Reloading the admin`}
@@ -2333,7 +2340,7 @@ function ContentEditPage() {
 					}
 				/>
 			);
-		} else if (roomView.access === "view") {
+		} else if (roomView.kept === null && roomView.access === "view") {
 			notice = readOnlyBanner;
 		}
 	} else if (entryDeleted) {
@@ -2419,11 +2426,8 @@ function ContentEditPage() {
 			room={roomView?.room ?? null}
 			roomResetting={resetting}
 			fieldsLoading={resetting && waitingForRoom}
-			roomOffline={roomView?.offline ?? false}
+			roomSync={roomSync}
 			roomBlocked={roomBlocked}
-			roomStatus={
-				coEditing.mode === "pending" ? (coEditing.waiting ? "waiting" : "connecting") : null
-			}
 			onSaveOutsideValues={saveOutsideValues}
 			onPreviewNotSaved={handlePreviewNotSaved}
 			readFormRef={readFormRef}

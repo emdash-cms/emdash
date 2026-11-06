@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
-import { KeptNotice } from "../../src/components/co-editing/KeptNotice";
 import {
 	ContentEditor,
 	type ContentEditorProps,
@@ -118,7 +117,7 @@ function editorProps(
 		onSave: vi.fn(),
 		onAutosave: vi.fn(),
 		room,
-		roomOffline: false,
+		roomSync: null,
 		...props,
 	};
 }
@@ -134,7 +133,7 @@ async function renderEditor(room: RoomEditing | null, props: Partial<ContentEdit
 
 function saveButton(): HTMLButtonElement {
 	return document.querySelector<HTMLButtonElement>(
-		'[data-emdash-editor-bar] button[type="submit"]',
+		"[data-emdash-editor-bar] button:has([data-save-button-labels])",
 	)!;
 }
 
@@ -528,7 +527,7 @@ describe("ContentEditor auto-slug in a room", () => {
 });
 
 describe("ContentEditor's save button in a room", () => {
-	it("reads Offline in the same place and at the same size as its other states", async () => {
+	it("reads every state in the same place and at the same size", async () => {
 		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
 		const props = editorProps(fake.room);
 		const screen = await render(<ContentEditor {...props} />);
@@ -547,19 +546,166 @@ describe("ContentEditor's save button in a room", () => {
 		fake.setSaveState(SAVING);
 		await measure("Saving...");
 		fake.setSaveState(UNSAVED);
-		await screen.rerender(<ContentEditor {...props} roomOffline roomBlocked />);
+		await screen.rerender(<ContentEditor {...props} roomSync={{ kind: "offline" }} roomBlocked />);
 		await measure("Offline");
+		await screen.rerender(
+			<ContentEditor
+				{...props}
+				readOnly
+				room={null}
+				roomSync={{ kind: "joining", waiting: false }}
+				roomBlocked
+			/>,
+		);
+		await measure("Joining…");
+		await screen.rerender(
+			<ContentEditor
+				{...props}
+				roomSync={{ kind: "not-saved", reason: "deleted", reload: vi.fn() }}
+				roomBlocked
+			/>,
+		);
+		await measure("Not saved");
 
-		expect(saveButton()).toBeDisabled();
+		expect(Object.keys(boxes)).toHaveLength(6);
 		for (const box of Object.values(boxes)) {
 			expect(box.left).toBeCloseTo(boxes.Saved!.left, 1);
 			expect(box.width).toBeCloseTo(boxes.Saved!.width, 1);
 			expect(box.height).toBeCloseTo(boxes.Saved!.height, 1);
 		}
+	});
+
+	it("explains Offline when selected, without saving", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const onSave = vi.fn();
+		const screen = await renderEditor(fake.room, {
+			onSave,
+			roomSync: { kind: "offline" },
+			roomBlocked: true,
+		});
+		const offline = screen.getByRole("button", { name: "Offline" });
+		await expect.element(offline).toBeEnabled();
+		expect(screen.getByRole("dialog").query()).toBeNull();
+
 		await screen.getByRole("textbox", { name: "Summary" }).fill("Typed offline");
 		expect(fake.set).toHaveBeenLastCalledWith({ summary: "Typed offline" });
-		saveButton().form?.requestSubmit();
+		const submitted = vi.fn((event: Event) => event.preventDefault());
+		saveButton().form!.addEventListener("submit", submitted);
+		await offline.click();
+
+		const popover = screen.getByRole("dialog", { name: "You’re offline" });
+		await expect.element(popover).toBeVisible();
+		await expect.element(popover).toHaveTextContent(/save when you’re back online/);
+		expect(submitted).not.toHaveBeenCalled();
 		expect(fake.whenCovered).not.toHaveBeenCalled();
+		expect(onSave).not.toHaveBeenCalled();
+
+		await userEvent.keyboard("{Escape}");
+		await expect.element(popover).not.toBeInTheDocument();
+	});
+
+	it("doesn't tell a reader to keep typing offline", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const screen = await renderEditor(fake.room, {
+			readOnly: true,
+			roomSync: { kind: "offline" },
+			roomBlocked: true,
+		});
+		await screen.getByRole("button", { name: "Offline" }).click();
+
+		const popover = screen.getByRole("dialog", { name: "You’re offline" });
+		await expect.element(popover).toHaveTextContent(/show here again once you’re back online/);
+		await expect.element(popover).not.toHaveTextContent(/Keep typing/);
+	});
+
+	it("changes state on the same button, and opens Not saved by itself without taking focus", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const props = editorProps(fake.room);
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+		const button = saveButton();
+		const announced = () => button.querySelector('[role="status"]')?.textContent;
+		const summary = screen.getByRole("textbox", { name: "Summary" });
+		await summary.click();
+
+		await screen.rerender(<ContentEditor {...props} roomSync={{ kind: "offline" }} roomBlocked />);
+		await expect.poll(announced).toBe("Offline");
+		expect(screen.getByRole("dialog").query()).toBeNull();
+
+		await screen.rerender(
+			<ContentEditor
+				{...props}
+				roomSync={{ kind: "not-saved", reason: "deleted", reload: vi.fn() }}
+				roomBlocked
+			/>,
+		);
+		await expect
+			.element(screen.getByRole("dialog", { name: "Your last edits weren’t saved" }))
+			.toBeVisible();
+		expect(announced()).toBe("Not saved");
+		expect(document.activeElement).toBe(summary.element());
+
+		await screen.rerender(<ContentEditor {...props} />);
+		await expect.poll(announced).toBe("Saved");
+		expect(saveButton()).toBe(button);
+	});
+
+	it("closes Not saved on Escape or a second select, and moves focus in on Enter", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const screen = await renderEditor(fake.room, {
+			roomSync: { kind: "not-saved", reason: "access", reload: vi.fn() },
+			roomBlocked: true,
+		});
+		const popover = screen.getByRole("dialog", { name: "Your last edits weren’t saved" });
+		await expect.element(popover).toBeVisible();
+
+		saveButton().focus();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(popover).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Not saved" }).click();
+		await expect.element(popover).toBeVisible();
+		await screen.getByRole("button", { name: "Not saved" }).click();
+		await expect.element(popover).not.toBeInTheDocument();
+
+		await screen.rerender(
+			<ContentEditor {...editorProps(fake.room)} roomSync={{ kind: "offline" }} roomBlocked />,
+		);
+		await screen.rerender(
+			<ContentEditor
+				{...editorProps(fake.room)}
+				roomSync={{ kind: "not-saved", reason: "access", reload: vi.fn() }}
+				roomBlocked
+			/>,
+		);
+		await expect.element(popover).toBeVisible();
+		saveButton().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(popover.getByRole("button", { name: "Copy my edits" })).toHaveFocus();
+	});
+
+	it("keeps a reader's other bar actions disabled while Joining… explains", async () => {
+		await renderEditor(null, {
+			readOnly: true,
+			roomSync: { kind: "joining", waiting: false },
+			roomBlocked: true,
+			supportsDrafts: true,
+			supportsPreview: true,
+			onPublish: vi.fn(),
+			onUnpublish: vi.fn(),
+		});
+		await expect.element(page.getByRole("button", { name: "Joining…" })).toBeEnabled();
+
+		const others = [
+			...document.querySelectorAll<HTMLButtonElement>("[data-emdash-editor-bar] button"),
+		].filter(
+			(button) =>
+				button !== saveButton() &&
+				!/distraction-free/i.test(button.getAttribute("aria-label") ?? ""),
+		);
+		expect(others.length).toBeGreaterThan(1);
+		for (const button of others) {
+			expect(button.matches(":disabled"), button.textContent ?? "").toBe(true);
+		}
 	});
 });
 
@@ -632,40 +778,75 @@ describe("ContentEditor's notices in a room", () => {
 	it.each([
 		{ locale: "en", dir: "ltr" },
 		{ locale: "ar", dir: "rtl" },
-	])("keeps the edits for copying once they can't be saved ($dir)", async ({ locale, dir }) => {
-		const previousLocale = i18n.locale;
-		const previousDir = document.documentElement.dir;
-		i18n.load(locale, {});
-		i18n.activate(locale);
-		document.documentElement.dir = dir;
+	])(
+		"explains edits it can no longer save and offers to copy them ($dir)",
+		async ({ locale, dir }) => {
+			const previousLocale = i18n.locale;
+			const previousDir = document.documentElement.dir;
+			i18n.load(locale, {});
+			i18n.activate(locale);
+			document.documentElement.dir = dir;
+			const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+			try {
+				const fake = createRoom({ title: "My Post", summary: "Kept summary", slug: "my-post" });
+				fake.setSaveState(UNSAVED);
+				const reload = vi.fn();
+				const screen = await renderEditor(fake.room, {
+					roomSync: { kind: "not-saved", reason: "access", reload },
+					roomBlocked: true,
+				});
+
+				const popover = screen.getByRole("dialog", { name: "Your last edits weren’t saved" });
+				await expect.element(popover).toBeVisible();
+				await expect.element(popover).toHaveTextContent(/no longer have edit access/);
+				await expect.element(screen.getByRole("button", { name: "Not saved" })).toBeEnabled();
+				await expect.element(screen.getByRole("textbox", { name: "Summary" })).toBeEnabled();
+
+				const copy = popover.getByRole("button", { name: "Copy my edits" });
+				const reloadButton = popover.getByRole("button", { name: "Reload" });
+				const [copyBox, reloadBox] = [copy, reloadButton].map((button) =>
+					button.element().getBoundingClientRect(),
+				);
+				if (dir === "rtl") expect(copyBox!.left).toBeGreaterThan(reloadBox!.left);
+				else expect(copyBox!.left).toBeLessThan(reloadBox!.left);
+
+				await copy.click();
+				expect(writeText).toHaveBeenCalledExactlyOnceWith(
+					"Title\nMy Post\n\nSummary\nKept summary",
+				);
+				await expect.element(popover.getByRole("button", { name: "Copied" })).toBeVisible();
+
+				await reloadButton.click();
+				expect(reload).toHaveBeenCalledOnce();
+				expect(fake.whenCovered).not.toHaveBeenCalled();
+			} finally {
+				writeText.mockRestore();
+				document.documentElement.dir = previousDir;
+				i18n.activate(previousLocale);
+			}
+		},
+	);
+
+	it("says when the edits couldn't be copied", async () => {
+		const writeText = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
 		try {
-			const fake = createRoom({ title: "My Post", summary: "Kept summary", slug: "my-post" });
-			fake.setSaveState(UNSAVED);
-			const onReload = vi.fn();
+			const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
 			const screen = await renderEditor(fake.room, {
+				roomSync: { kind: "not-saved", reason: "recovery-failed", reload: vi.fn() },
 				roomBlocked: true,
-				notice: <KeptNotice onReload={onReload} />,
 			});
-			const notice = screen
-				.getByRole("alert")
-				.filter({ hasText: "These edits can no longer be saved" });
-			await expect.element(notice).toBeVisible();
-			await expect.element(screen.getByRole("textbox", { name: "Summary" })).toBeEnabled();
-			expect(saveButton()).toBeDisabled();
+			const popover = screen.getByRole("dialog", { name: "Your last edits weren’t saved" });
+			await expect.element(popover).toHaveTextContent(/couldn’t merge them/);
 
-			const reload = screen.getByRole("button", { name: "Reload" });
-			const noticeBox = notice.element().getBoundingClientRect();
-			const reloadBox = reload.element().getBoundingClientRect();
-			const noticeCenter = noticeBox.left + noticeBox.width / 2;
-			if (dir === "rtl") expect(reloadBox.right).toBeLessThan(noticeCenter);
-			else expect(reloadBox.left).toBeGreaterThan(noticeCenter);
+			await popover.getByRole("button", { name: "Copy my edits" }).click();
 
-			await reload.click();
-			expect(onReload).toHaveBeenCalledOnce();
-			expect(fake.whenCovered).not.toHaveBeenCalled();
+			await expect
+				.element(popover.getByRole("alert"))
+				.toHaveTextContent("Couldn’t copy. Select the text on the page and copy it instead.");
 		} finally {
-			document.documentElement.dir = previousDir;
-			i18n.activate(previousLocale);
+			writeText.mockRestore();
 		}
 	});
 
@@ -682,11 +863,13 @@ describe("ContentEditor's notices in a room", () => {
 			document.documentElement.dir = dir;
 			try {
 				const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
-				const props = editorProps(fake.room, { roomOffline: true, roomBlocked: true });
+				const props = editorProps(fake.room, {
+					roomSync: { kind: "offline" },
+					roomBlocked: true,
+				});
 				const screen = await render(<ContentEditor {...props} />);
 				unmounts.push(() => screen.unmount());
-				const offline = screen.getByRole("button", { name: "Offline" });
-				await expect.element(offline).toBeDisabled();
+				await expect.element(screen.getByRole("button", { name: "Offline" })).toBeVisible();
 				const label = saveButton().querySelector("[data-save-button-visible-state] span")!;
 				const [icon, text] = [label.firstElementChild!, label.lastElementChild!].map((element) =>
 					element.getBoundingClientRect(),
@@ -699,14 +882,17 @@ describe("ContentEditor's notices in a room", () => {
 						{...props}
 						readOnly
 						room={null}
-						roomOffline={false}
-						roomStatus="waiting"
+						roomSync={{ kind: "joining", waiting: true }}
 					/>,
 				);
-				await expect
-					.element(screen.getByRole("status").filter({ hasText: "Waiting to join…" }))
-					.toBeVisible();
+				const joining = screen.getByRole("button", { name: "Joining…" });
+				await expect.element(joining).toBeEnabled();
 				await expect.element(screen.getByRole("textbox", { name: "Title" })).toBeDisabled();
+				expect(screen.getByRole("dialog").query()).toBeNull();
+				await joining.click();
+				await expect
+					.element(screen.getByRole("dialog", { name: "Waiting to join" }))
+					.toHaveTextContent(/keeps trying every few seconds/);
 			} finally {
 				document.documentElement.dir = previousDir;
 				i18n.activate(previousLocale);

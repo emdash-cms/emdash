@@ -62,6 +62,7 @@ import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
+import { SyncStatus, type SyncProblem } from "./co-editing/SyncStatus.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
@@ -381,8 +382,15 @@ export interface EditorActionsProps {
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
 	saveDisabled?: boolean;
-	/** Set in a co-editing room, where the save button reads "Offline" while disconnected. */
-	isOffline?: boolean;
+	/**
+	 * Set in a co-editing room: null while there's nothing to explain, or the problem the save
+	 * button shows and explains in its place.
+	 */
+	sync?: SyncProblem | null;
+	/** The edits as plain text, for the save button's **Copy my edits**. */
+	onCopyEdits?: () => string;
+	/** Disables every action but the save button, which still explains a co-editing problem. */
+	readOnly?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
@@ -706,7 +714,9 @@ export function EditorActions({
 	isSaving,
 	isAutosaving,
 	saveDisabled,
-	isOffline,
+	sync,
+	onCopyEdits,
+	readOnly,
 	isLive,
 	hasPendingChanges,
 	publishingState,
@@ -726,62 +736,73 @@ export function EditorActions({
 	const busy = isSaving || Boolean(isAutosaving);
 	const savesFirstDraft = isNew && supportsDrafts;
 	// Saved reads as a quiet status; unsaved work becomes a button again.
-	const saveVariant = (!isDirty && !busy) || isOffline ? "ghost" : isNew ? "primary" : "secondary";
+	const saveVariant = (!isDirty && !busy) || sync ? "ghost" : isNew ? "primary" : "secondary";
+	const saveButton = (
+		<SaveButton
+			type={sync ? "button" : "submit"}
+			size="sm"
+			variant={saveVariant}
+			className={cn("min-w-0", !savesFirstDraft && compactBarButtonClassName)}
+			labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
+			isDirty={isDirty}
+			isSaving={busy}
+			sync={sync === undefined ? undefined : (sync?.kind ?? null)}
+			disabled={sync ? undefined : saveDisabled}
+			saveLabel={savesFirstDraft ? t`Save draft` : undefined}
+		/>
+	);
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-			<SaveButton
-				type="submit"
-				size="sm"
-				variant={saveVariant}
-				className={cn("min-w-0", !savesFirstDraft && compactBarButtonClassName)}
-				labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
-				isDirty={isDirty}
-				isSaving={busy}
-				offline={isOffline}
-				disabled={saveDisabled}
-				saveLabel={savesFirstDraft ? t`Save draft` : undefined}
-			/>
-			{liveViewUrl && (
-				<LinkButton
-					href={liveViewUrl}
-					external
-					variant="ghost"
-					size="sm"
-					className={compactBarButtonClassName}
-					icon={<ArrowSquareOut />}
-				>
-					<span className={compactBarLabelClassName}>{t`Live View`}</span>
-				</LinkButton>
+			{sync === undefined ? (
+				saveButton
+			) : (
+				<SyncStatus problem={sync} readOnly={readOnly} onCopyEdits={onCopyEdits}>
+					{saveButton}
+				</SyncStatus>
 			)}
-			{!isNew && supportsPreview && (
-				<PreviewButton
-					size="sm"
-					variant="ghost"
-					compact
-					hasPendingChanges={hasPendingChanges}
-					isLoadingPreview={isLoadingPreview}
-					onPreview={onPreview}
-				/>
-			)}
-			{beforePublish}
-			{!isNew && (
-				<PublishActions
-					collectionLabel={collectionLabel}
-					isNew={isNew}
-					isLive={isLive}
-					hasPendingChanges={hasPendingChanges}
-					publishingState={publishingState}
-					isPending={publishingPending}
-					disabled={publishDisabled}
-					onPublish={onPublish}
-					onUnpublish={onUnpublish}
-					onMenuOpenChange={onMenuOpenChange}
-					size="sm"
-					compact
-					revisions={revisions}
-				/>
-			)}
+			<fieldset disabled={readOnly} className="contents">
+				{liveViewUrl && (
+					<LinkButton
+						href={liveViewUrl}
+						external
+						variant="ghost"
+						size="sm"
+						className={compactBarButtonClassName}
+						icon={<ArrowSquareOut />}
+					>
+						<span className={compactBarLabelClassName}>{t`Live View`}</span>
+					</LinkButton>
+				)}
+				{!isNew && supportsPreview && (
+					<PreviewButton
+						size="sm"
+						variant="ghost"
+						compact
+						hasPendingChanges={hasPendingChanges}
+						isLoadingPreview={isLoadingPreview}
+						onPreview={onPreview}
+					/>
+				)}
+				{beforePublish}
+				{!isNew && (
+					<PublishActions
+						collectionLabel={collectionLabel}
+						isNew={isNew}
+						isLive={isLive}
+						hasPendingChanges={hasPendingChanges}
+						publishingState={publishingState}
+						isPending={publishingPending}
+						disabled={publishDisabled}
+						onPublish={onPublish}
+						onUnpublish={onUnpublish}
+						onMenuOpenChange={onMenuOpenChange}
+						size="sm"
+						compact
+						revisions={revisions}
+					/>
+				)}
+			</fieldset>
 		</div>
 	);
 }

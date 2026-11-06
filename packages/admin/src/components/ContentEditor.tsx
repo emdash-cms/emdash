@@ -46,6 +46,7 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
+import { copyEditsText } from "../lib/co-editing/copy-edits.js";
 import {
 	useRemountKey,
 	useRoomFieldValue,
@@ -72,6 +73,7 @@ import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
 import { BlocksField } from "./BlocksField.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
+import type { SyncProblem } from "./co-editing/SyncStatus.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
@@ -516,12 +518,13 @@ export interface ContentEditorProps {
 	roomResetting?: boolean;
 	/** Shows a loading state in place of the fields, at the height they last had. */
 	fieldsLoading?: boolean;
-	/** In a room: disconnected for 5 s or more. */
-	roomOffline?: boolean;
+	/**
+	 * Co-editing only: null while there's nothing to explain, or the problem the save button shows
+	 * and explains, such as joining the room or being offline.
+	 */
+	roomSync?: SyncProblem | null;
 	/** In a room: saving is refused, offline, without edit access, or for good. */
 	roomBlocked?: boolean;
-	/** Shown in the bar while the entry waits for its room. */
-	roomStatus?: "connecting" | "waiting" | null;
 	/**
 	 * In a room: saves bylines or references at once, outside the room's document. Rejects, with
 	 * the failure already shown, if the save fails.
@@ -599,9 +602,8 @@ export function ContentEditor({
 	room = null,
 	roomResetting = false,
 	fieldsLoading = false,
-	roomOffline = false,
+	roomSync,
 	roomBlocked = false,
-	roomStatus = null,
 	onSaveOutsideValues,
 	onPreviewNotSaved,
 	readFormRef,
@@ -1776,6 +1778,12 @@ export function ContentEditor({
 		input.setSelectionRange(input.value.length, input.value.length);
 	}, []);
 
+	const copyEdits = React.useCallback(
+		() =>
+			copyEditsText(fields, (name) => (room ? room.fields.get(name) : formDataRef.current[name])),
+		[fields, room],
+	);
+
 	const handlePreview = async () => {
 		if (!item?.id) return;
 		const entry = item;
@@ -2000,21 +2008,17 @@ export function ContentEditor({
 						{item.locale}
 					</Badge>
 				)}
-				{roomStatus && (
-					<span role="status" className="shrink-0 text-sm text-kumo-subtle">
-						{roomStatus === "waiting" ? t`Waiting to join…` : t`Connecting…`}
-					</span>
-				)}
 				{room && (
 					<PresenceAvatars room={room} fieldLabel={presenceFieldLabel} photos={presencePhotos} />
 				)}
 			</div>
-			{/* The distraction-free toggle stays outside the disabled fieldset:
-			    it changes the view, not the entry, and a reader must be able to
-			    leave the overlay. */}
+			{/* The distraction-free toggle stays enabled for a reader: it changes
+			    the view, not the entry, and a reader must be able to leave the
+			    overlay. So does the save button, which explains a co-editing
+			    problem such as joining the room. */}
 			<div className="ms-0.5 flex flex-wrap items-center justify-end gap-1.5 sm:ms-1.5">
-				<fieldset disabled={readOnly} className="contents">
-					{!isDistractionFree && item && sandboxedEditorActions.length > 0 ? (
+				{!isDistractionFree && item && sandboxedEditorActions.length > 0 ? (
+					<fieldset disabled={readOnly} className="contents">
 						<SandboxedContentEditorActions
 							actions={sandboxedEditorActions}
 							collection={collection}
@@ -2027,68 +2031,70 @@ export function ContentEditor({
 							captureDraft={captureEditorDraft}
 							onDraftResponse={handleEditorDraftResponse}
 						/>
-					) : null}
-					<EditorActions
-						collectionLabel={collectionLabel}
-						isNew={isNew}
-						supportsDrafts={supportsDrafts}
-						isDirty={isDirty}
-						isSaving={roomSaveState ? roomSaveState.saving : Boolean(saveFeedbackActive)}
-						isAutosaving={roomSaveState ? false : autosaveFeedbackActive}
-						saveDisabled={isContentSaveBlocked}
-						isOffline={room ? roomOffline : undefined}
-						isLive={isLive}
-						hasPendingChanges={hasPendingChanges}
-						publishingState={publishingState}
-						publishingPending={publishingPending}
-						publishDisabled={hasSaveConflict || isViewing}
-						liveViewUrl={liveViewUrl}
-						supportsPreview={supportsPreview}
-						isLoadingPreview={isLoadingPreview}
-						onPreview={handlePreview}
-						onPublish={onPublish ? handlePublish : undefined}
-						onUnpublish={onUnpublish ? handleUnpublish : undefined}
-						onMenuOpenChange={setPublishingMenuOpen}
-						revisions={
-							supportsRevisions && item
-								? {
-										collection,
-										entryId: item.id,
-										liveRevisionId: item.liveRevisionId ?? null,
-									}
-								: undefined
-						}
-						beforePublish={
-							// The settings panel holds these outside distraction-free mode.
-							isDistractionFree && !isNew ? (
-								<>
-									{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-										<DiscardDraftDialog
-											onDiscard={onDiscardDraft}
-											triggerVariant="outline"
-											triggerSize="sm"
-											compact
-											disabled={isViewing}
-										/>
-									)}
-									<ScheduleActions
-										publishingState={publishingState}
-										canSchedule={canSchedule}
-										isScheduling={isScheduling}
-										isUnscheduling={isUnscheduling}
-										disabled={publishingPending || hasSaveConflict || isViewing}
-										onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-										onUnschedule={onUnschedule ? handleUnschedule : undefined}
-										inline
+					</fieldset>
+				) : null}
+				<EditorActions
+					collectionLabel={collectionLabel}
+					isNew={isNew}
+					supportsDrafts={supportsDrafts}
+					isDirty={isDirty}
+					isSaving={roomSaveState ? roomSaveState.saving : Boolean(saveFeedbackActive)}
+					isAutosaving={roomSaveState ? false : autosaveFeedbackActive}
+					saveDisabled={isContentSaveBlocked}
+					sync={roomSync}
+					onCopyEdits={copyEdits}
+					readOnly={readOnly}
+					isLive={isLive}
+					hasPendingChanges={hasPendingChanges}
+					publishingState={publishingState}
+					publishingPending={publishingPending}
+					publishDisabled={hasSaveConflict || isViewing}
+					liveViewUrl={liveViewUrl}
+					supportsPreview={supportsPreview}
+					isLoadingPreview={isLoadingPreview}
+					onPreview={handlePreview}
+					onPublish={onPublish ? handlePublish : undefined}
+					onUnpublish={onUnpublish ? handleUnpublish : undefined}
+					onMenuOpenChange={setPublishingMenuOpen}
+					revisions={
+						supportsRevisions && item
+							? {
+									collection,
+									entryId: item.id,
+									liveRevisionId: item.liveRevisionId ?? null,
+								}
+							: undefined
+					}
+					beforePublish={
+						// The settings panel holds these outside distraction-free mode.
+						isDistractionFree && !isNew ? (
+							<>
+								{supportsDrafts && hasPendingChanges && onDiscardDraft && (
+									<DiscardDraftDialog
+										onDiscard={onDiscardDraft}
+										triggerVariant="outline"
+										triggerSize="sm"
+										compact
+										disabled={isViewing}
 									/>
-								</>
-							) : null
-						}
-					/>
-					{!isDistractionFree && isBelowLg && (
-						<MobileSettingsButton buttonRef={settingsButtonRef} />
-					)}
-				</fieldset>
+								)}
+								<ScheduleActions
+									publishingState={publishingState}
+									canSchedule={canSchedule}
+									isScheduling={isScheduling}
+									isUnscheduling={isUnscheduling}
+									disabled={publishingPending || hasSaveConflict || isViewing}
+									onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+									onUnschedule={onUnschedule ? handleUnschedule : undefined}
+									inline
+								/>
+							</>
+						) : null
+					}
+				/>
+				{!isDistractionFree && isBelowLg && (
+					<MobileSettingsButton buttonRef={settingsButtonRef} disabled={readOnly} />
+				)}
 				<Button
 					variant="ghost"
 					shape="square"
@@ -2662,13 +2668,20 @@ function RevisionViewSheetSync({
  * "Settings" trigger for the mobile sheet. Lives in the editor strip,
  * which sits inside the Sidebar.Provider, so it can reach the context.
  */
-function MobileSettingsButton({ buttonRef }: { buttonRef?: React.Ref<HTMLButtonElement> }) {
+function MobileSettingsButton({
+	buttonRef,
+	disabled,
+}: {
+	buttonRef?: React.Ref<HTMLButtonElement>;
+	disabled?: boolean;
+}) {
 	const { t } = useLingui();
 	const { toggleSidebar } = useSidebar();
 	return (
 		<Button
 			ref={buttonRef}
 			type="button"
+			disabled={disabled}
 			variant="ghost"
 			size="sm"
 			className={compactBarButtonClassName}
