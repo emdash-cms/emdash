@@ -69,7 +69,7 @@ Relative SQLite paths resolve from the project root, not from the installed EmDa
 
 `emdash migrate` reads the credential variables in the table above from the environment of the shell that runs it. It does not load `.env`, `.env.local`, or `.dev.vars`, so a variable stored only in one of those files is reported as missing.
 
-On D1, if `CLOUDFLARE_API_TOKEN` is stored only in a file, the command fails with `CLOUDFLARE_API_TOKEN is required for D1 migrations.` If `CLOUDFLARE_ACCOUNT_ID` is stored only in a file and neither `--account-id` nor `account_id` in the selected Wrangler config provides the account, the command fails with `A valid Cloudflare account ID is required for D1 migrations.`
+On D1, the account ID is resolved before the token. If `CLOUDFLARE_ACCOUNT_ID` is stored only in a file and neither `--account-id` nor `account_id` in the selected Wrangler config provides the account, the command fails with `A valid Cloudflare account ID is required for D1 migrations.` If the account resolves but `CLOUDFLARE_API_TOKEN` is stored only in a file, the command fails with `CLOUDFLARE_API_TOKEN is required for D1 migrations.`
 
 To use a local file for one command in a POSIX shell such as bash or zsh, export its variables in a subshell:
 
