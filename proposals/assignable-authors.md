@@ -1,7 +1,7 @@
 ---
 title: Let Editors pick an entry's author
 type: feature-plan
-status: proposed
+status: accepted
 authors:
   - Daniel Mueller (@danielmlr)
 discussion: null
