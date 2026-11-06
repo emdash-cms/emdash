@@ -1,12 +1,12 @@
 import { Button, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Check, FloppyDisk } from "@phosphor-icons/react";
+import { Check, CloudSlash, FloppyDisk } from "@phosphor-icons/react";
 import { isValidElement, useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 
 import { cn } from "../lib/utils";
 
-type SaveState = "save" | "saving" | "saved";
+type SaveState = "save" | "saving" | "saved" | "offline";
 
 const TEXT_SWAP_DURATION_MS = 150;
 
@@ -18,6 +18,11 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	labelClassName?: string;
 	/** Replaces the "Save" label, e.g. "Save draft". */
 	saveLabel?: string;
+	/**
+	 * Shows "Offline" and disables the button while true. Set it, true or false, wherever the
+	 * button can go offline, so the button keeps one width across all four states.
+	 */
+	offline?: boolean;
 }
 
 export function SaveButton({
@@ -26,6 +31,7 @@ export function SaveButton({
 	announce = true,
 	labelClassName,
 	saveLabel: customSaveLabel,
+	offline,
 	className,
 	disabled,
 	icon,
@@ -38,21 +44,35 @@ export function SaveButton({
 	const saveLabel = customSaveLabel ?? t`Save`;
 	const savingLabel = t`Saving...`;
 	const savedLabel = t`Saved`;
+	const offlineLabel = t`Offline`;
 	const isBusy = isSaving || Boolean(loading);
-	const activeState: SaveState = isBusy ? "saving" : isDirty ? "save" : "saved";
-	const activeLabel =
-		activeState === "save" ? saveLabel : activeState === "saving" ? savingLabel : savedLabel;
-	const states = [
+	const activeState: SaveState = offline
+		? "offline"
+		: isBusy
+			? "saving"
+			: isDirty
+				? "save"
+				: "saved";
+	const labelFor = (state: SaveState) =>
+		state === "save"
+			? saveLabel
+			: state === "saving"
+				? savingLabel
+				: state === "saved"
+					? savedLabel
+					: offlineLabel;
+	const activeLabel = labelFor(activeState);
+	const states: { id: SaveState; label: string }[] = [
 		{ id: "save", label: saveLabel },
 		{ id: "saving", label: savingLabel },
 		{ id: "saved", label: savedLabel },
-	] as const;
+	];
+	if (offline !== undefined) states.push({ id: "offline", label: offlineLabel });
 	const [displayedState, setDisplayedState] = useState<SaveState>(activeState);
 	const [swapPhase, setSwapPhase] = useState<"idle" | "exit" | "enter-start">("idle");
 	const displayedStateRef = useRef(displayedState);
 	const textRef = useRef<HTMLSpanElement>(null);
-	const displayedLabel =
-		displayedState === "save" ? saveLabel : displayedState === "saving" ? savingLabel : savedLabel;
+	const displayedLabel = labelFor(displayedState);
 	const displayedIcon =
 		displayedState === "save" ? (
 			isValidElement(icon) ? (
@@ -62,6 +82,8 @@ export function SaveButton({
 			)
 		) : displayedState === "saving" ? (
 			<Loader size="sm" />
+		) : displayedState === "offline" ? (
+			<CloudSlash />
 		) : (
 			<Check />
 		);
@@ -102,8 +124,8 @@ export function SaveButton({
 		<Button
 			{...props}
 			className={cn("min-w-[100px] justify-center", className)}
-			disabled={disabled || !isDirty || isBusy}
-			variant={variant ?? (isDirty || isBusy ? "primary" : "secondary")}
+			disabled={disabled || !isDirty || isBusy || offline}
+			variant={variant ?? ((isDirty || isBusy) && !offline ? "primary" : "secondary")}
 			aria-label={ariaLabel ?? activeLabel}
 			aria-busy={isBusy}
 		>

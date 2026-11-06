@@ -377,6 +377,8 @@ export interface EditorActionsProps {
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
 	saveDisabled?: boolean;
+	/** Set in a co-editing room, where the save button reads "Offline" while disconnected. */
+	isOffline?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
@@ -695,6 +697,7 @@ export function EditorActions({
 	isSaving,
 	isAutosaving,
 	saveDisabled,
+	isOffline,
 	isLive,
 	hasPendingChanges,
 	publishingState,
@@ -714,7 +717,7 @@ export function EditorActions({
 	const busy = isSaving || Boolean(isAutosaving);
 	const savesFirstDraft = isNew && supportsDrafts;
 	// Saved reads as a quiet status; unsaved work becomes a button again.
-	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
+	const saveVariant = (!isDirty && !busy) || isOffline ? "ghost" : isNew ? "primary" : "secondary";
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -726,6 +729,7 @@ export function EditorActions({
 				labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
 				isDirty={isDirty}
 				isSaving={busy}
+				offline={isOffline}
 				disabled={saveDisabled}
 				saveLabel={savesFirstDraft ? t`Save draft` : undefined}
 			/>

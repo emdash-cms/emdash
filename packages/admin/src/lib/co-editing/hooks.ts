@@ -81,6 +81,38 @@ export function useRoomFieldValue(room: RoomEditing | null, field: string | null
 	return React.useSyncExternalStore(subscribe, read);
 }
 
+/**
+ * A key that changes after another client changes the field, for editors that read their value
+ * once. While focus is inside `scope` it waits until focus leaves, so a remount never takes the
+ * field away from someone using it. Call it where the field's value is subscribed, so a remote
+ * change re-renders the caller.
+ */
+export function useRemountKey(
+	room: RoomEditing,
+	field: string,
+	enabled: boolean,
+	scope: React.RefObject<HTMLElement | null>,
+): number {
+	const remoteVersion = room.fields.remoteVersion(field);
+	const [key, setKey] = React.useState(remoteVersion);
+	React.useEffect(() => {
+		const element = scope.current;
+		if (!enabled || key === remoteVersion || !element) return;
+		if (!element.contains(document.activeElement)) {
+			setKey(remoteVersion);
+			return;
+		}
+		const onFocusOut = (event: FocusEvent) => {
+			if (!(event.relatedTarget instanceof Node && element.contains(event.relatedTarget))) {
+				setKey(room.fields.remoteVersion(field));
+			}
+		};
+		element.addEventListener("focusout", onFocusOut);
+		return () => element.removeEventListener("focusout", onFocusOut);
+	}, [enabled, key, remoteVersion, room, field, scope]);
+	return key;
+}
+
 function sessionOptions(manifest: AdminManifest, collection: string): SessionOptions {
 	const fields = manifest.collections[collection]?.fields ?? {};
 	return {

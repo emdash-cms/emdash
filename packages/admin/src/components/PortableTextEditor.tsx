@@ -2186,6 +2186,10 @@ export function PortableTextEditor({
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
 	const [collaboration] = React.useState(collaborationProp);
+	// The drag handle's plugin moves the handle's element out of React's tree, so the handle can't
+	// unmount while the editor lives. Once mounted it stays, and hides itself while read-only.
+	const [dragHandleMounted, setDragHandleMounted] = React.useState(editable);
+	if (editable && !dragHandleMounted) setDragHandleMounted(true);
 	const onArrowUpAtStartRef = React.useRef(onArrowUpAtStart);
 	onArrowUpAtStartRef.current = onArrowUpAtStart;
 	const isDocument = variant === "document";
@@ -2661,14 +2665,22 @@ export function PortableTextEditor({
 		[isDocument],
 	);
 
+	const editorEditable = editable && unsupportedMarks.length === 0 && tableConversionError === null;
 	const editor = useEditor({
 		extensions,
 		content: collaboration ? "" : (initialContent as Parameters<typeof useEditor>[0]["content"]),
-		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
+		editable: editorEditable,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => reportChange(updatedEditor),
 	});
+	// useEditor reads its options once, so a later `editable` reaches the editor here, without the
+	// update event that would report a change.
+	React.useEffect(() => {
+		if (editor && !editor.isDestroyed && editor.isEditable !== editorEditable) {
+			editor.setEditable(editorEditable, false);
+		}
+	}, [editor, editorEditable]);
 
 	/**
 	 * Takes the line the block insert button typed back out, or only its slash
@@ -3387,7 +3399,9 @@ export function PortableTextEditor({
 					}
 				>
 					<EditorContent editor={editor} />
-					{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
+					{dragHandleMounted && (
+						<DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />
+					)}
 				</div>
 				{isDocument ? (
 					<DocumentEnd editor={editor} editable={editable}>

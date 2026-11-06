@@ -404,6 +404,18 @@ const ROOM_ENGINE_DEPS = [
 ];
 
 /**
+ * What the admin's co-editing chunk imports beyond the editor. It loads on the first room join,
+ * and discovering these then would re-optimize and reload the admin.
+ */
+const ROOM_CLIENT_DEPS = [
+	"emdash > @emdash-cms/admin > yjs",
+	"emdash > @emdash-cms/admin > y-protocols/awareness",
+	"emdash > @emdash-cms/admin > y-protocols/sync",
+	"emdash > @emdash-cms/admin > lib0/decoding",
+	"emdash > @emdash-cms/admin > lib0/encoding",
+];
+
+/**
  * Detect whether the Cloudflare adapter is being used.
  */
 function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
@@ -715,6 +727,7 @@ export function createViteConfig(
 						"emdash > @emdash-cms/admin > @lezer/highlight",
 						// Each admin language loads its date locale on first use.
 						"emdash > @emdash-cms/admin > react-day-picker/locale/*",
+						...(options.resolvedConfig.coEditing ? ROOM_CLIENT_DEPS : []),
 					]
 				: [
 						"@emdash-cms/admin",

@@ -46,6 +46,8 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
+import { useRemountKey, useRoomFieldValue, useRoomSaveState } from "../lib/co-editing/hooks.js";
+import type { RichTextBinding, RoomEditing } from "../lib/co-editing/types.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
@@ -68,6 +70,7 @@ import type { BylineFormValues } from "./BylineFormDialog.js";
 import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
+	type ContentSettingsPanelProps,
 	compactBarButtonClassName,
 	compactBarLabelClassName,
 	DiscardDraftDialog,
@@ -99,6 +102,8 @@ import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
+/** How long a link waits for the room to save this tab's edits before asking to leave. */
+const ROOM_LEAVE_WAIT_MS = 3000;
 // Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
 const ADMIN_HEADER_HEIGHT_PX = 58;
 const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
@@ -492,6 +497,17 @@ export interface ContentEditorProps {
 	notice?: React.ReactNode;
 	/** IANA timezone used to interpret datetime-local fields. */
 	timezone?: string;
+	/**
+	 * The entry's co-editing room, once this tab holds a synced replica. Its document then owns the
+	 * field values and the slug, and the room saves them: nothing here autosaves or calls `onSave`.
+	 */
+	room?: RoomEditing | null;
+	/** In a room: disconnected for 5 s or more. */
+	roomOffline?: boolean;
+	/** In a room: saving is refused, offline, without edit access, or for good. */
+	roomBlocked?: boolean;
+	/** Shown in the bar while the entry waits for its room. */
+	roomStatus?: "connecting" | "waiting" | null;
 }
 
 /**
@@ -552,6 +568,10 @@ export function ContentEditor({
 	readOnly: readOnlyProp = false,
 	notice,
 	timezone = "UTC",
+	room = null,
+	roomOffline = false,
+	roomBlocked = false,
+	roomStatus = null,
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -790,6 +810,13 @@ export function ContentEditor({
 			// A restore replaces the form whatever it holds, once the item carries the restored draft.
 			const restored = revisionView.isRestoreArrival(item.draftRevisionId, itemReset);
 			setStatus(item.status);
+			// The room's document owns the field values, and adopting them would remount bound editors.
+			if (room) {
+				if (!bylinesTouched) setInternalBylines(nextBylines);
+				if (item.references && !referencesDirty) setReferenceState(seedReferenceState(item));
+				if (restored) revisionView.completeRestore();
+				return;
+			}
 			// Background reads cannot replace the copy the writer has edited or its baseline.
 			if (isDirtyRef.current && !itemReset && !autosaveJustCompleted && !restored) return;
 			editorGenerationRef.current++;
@@ -885,6 +912,8 @@ export function ContentEditor({
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 	const unsupportedPortableTextMarks = React.useMemo(() => {
 		const unsupported = new Set<string>();
+		// A room never initializes with marks the editor can't represent.
+		if (room) return [];
 		for (const [name, field] of Object.entries(fields)) {
 			if (field.kind !== "portableText" || field.widget) continue;
 			const value = formData[name];
@@ -894,7 +923,7 @@ export function ContentEditor({
 			}
 		}
 		return [...unsupported].toSorted();
-	}, [fields, formData]);
+	}, [fields, formData, room]);
 	const hasUnsupportedPortableTextMarks = unsupportedPortableTextMarks.length > 0;
 
 	// Check if form has unsaved changes
@@ -913,8 +942,11 @@ export function ContentEditor({
 		() => Object.values(referenceState).some((s) => !sameReferenceIds(s.baseline, s.current)),
 		[referenceState],
 	);
-	const isDirty =
+	const formIsDirty =
 		isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData || referencesDirty;
+	const roomSaveState = useRoomSaveState(room);
+	// In a room, "Saved" means a checkpoint holds this tab's last edit.
+	const isDirty = roomSaveState ? !roomSaveState.covered : formIsDirty;
 	// A new entry is always "dirty" so it can be saved, but one nobody has
 	// touched has nothing to lose on leaving.
 	const [newEntryInitialState] = React.useState(currentData);
@@ -956,7 +988,7 @@ export function ContentEditor({
 	// Read at call time, not captured: a control that has not re-rendered since the
 	// last autosave settled would otherwise flush a payload that is already saved.
 	const hasPendingSaveRef = React.useRef(false);
-	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
+	hasPendingSaveRef.current = Boolean(formIsDirty || saveFeedbackActive || autosaveFeedbackActive);
 	const hasSaveConflictRef = React.useRef(false);
 	hasSaveConflictRef.current = Boolean(hasSaveConflict);
 	const currentSaveKey = React.useMemo(
@@ -979,7 +1011,9 @@ export function ContentEditor({
 	 * Runs when a link leaves a saved entry: sends a pending autosave now and
 	 * reports whether the edits are saved or a save on its way carries all of them.
 	 */
-	const saveBeforeLeaving = React.useCallback(() => {
+	const saveBeforeLeaving = React.useCallback((): boolean | Promise<boolean> => {
+		// The room saves 2 s after the last update, so waiting a little usually saves the edits.
+		if (room) return coveredWithin(room, ROOM_LEAVE_WAIT_MS);
 		const { saveKey, dirty, saveInFlight, autosaveFailed } = leaveStateRef.current;
 		// The guard unsubscribes in an effect, and a save can land before the next render.
 		if (!dirty || savedSaveKeyRef.current === saveKey) return true;
@@ -987,10 +1021,14 @@ export function ContentEditor({
 		// No render has shown a just-flushed autosave in flight yet.
 		const autosaveSent = !autosaveFailed && pendingAutosaveKeyRef.current === saveKey;
 		return autosaveSent || (saveInFlight && sentSaveKeyRef.current === saveKey);
-	}, [flushPendingAutosave]);
+	}, [flushPendingAutosave, room]);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
-		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly || isViewing;
+		isContentOperationPending ||
+		hasUnsupportedPortableTextMarks ||
+		readOnly ||
+		isViewing ||
+		roomBlocked;
 
 	// Replace a reference field's staged current selection (add/remove/reorder).
 	// Upserts the field so one with no hydrated rows can take its first pick.
@@ -1309,8 +1347,10 @@ export function ContentEditor({
 	}, []);
 
 	React.useEffect(() => {
-		// Don't autosave for new items (no ID yet) or if autosave isn't configured
+		// Don't autosave for new items (no ID yet) or if autosave isn't configured, or in a room,
+		// which saves on its own
 		if (
+			room ||
 			isNew ||
 			!onAutosave ||
 			!item?.id ||
@@ -1387,10 +1427,25 @@ export function ContentEditor({
 		currentSaveKey,
 		rejectedAutosaveState,
 		hasSaveConflict,
+		room,
 	]);
+
+	const urlFields = React.useMemo(
+		() =>
+			Object.entries(fields)
+				.filter(([, field]) => field.kind === "url")
+				.map(([name]) => name),
+		[fields],
+	);
 
 	// Cancel pending autosave on manual save
 	const submitSave = () => {
+		if (room) {
+			if (isContentSaveBlocked || hasInvalidUrls(room.fields.read(urlFields))) return;
+			// A refused save reaches every tab as a notice, and the button stays unsaved.
+			room.whenCovered({ save: true }).catch(() => undefined);
+			return;
+		}
 		if (
 			isContentSaveBlocked ||
 			isPublishingRef.current ||
@@ -1420,7 +1475,7 @@ export function ContentEditor({
 			isPublishingRef.current ||
 			isViewingRef.current ||
 			!onPublish ||
-			hasInvalidUrls(formDataRef.current) ||
+			hasInvalidUrls(room ? room.fields.read(urlFields) : formDataRef.current) ||
 			hasUnsupportedPortableTextMarks ||
 			hasSaveConflictRef.current
 		)
@@ -1457,6 +1512,8 @@ export function ContentEditor({
 		hasInvalidUrls,
 		hasUnsupportedPortableTextMarks,
 		onPublish,
+		room,
+		urlFields,
 	]);
 	const runScheduleChange = React.useCallback(
 		(
@@ -1475,7 +1532,10 @@ export function ContentEditor({
 			if (isViewingRef.current) {
 				return Promise.reject(new Error(t`Go back to editing first.`));
 			}
-			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
+			if (
+				hasInvalidUrls(room ? room.fields.read(urlFields) : formDataRef.current) ||
+				hasUnsupportedPortableTextMarks
+			) {
 				return Promise.reject(
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
 				);
@@ -1526,6 +1586,8 @@ export function ContentEditor({
 			hasInvalidUrls,
 			hasUnsupportedPortableTextMarks,
 			t,
+			room,
+			urlFields,
 		],
 	);
 	const handleSchedule = React.useCallback(
@@ -1565,7 +1627,8 @@ export function ContentEditor({
 	const entryTitle = item && titleField ? getEntryTitle(item, titleField) : "";
 	const liveTitleValue = documentTitleField ? formData[documentTitleField] : undefined;
 	const liveTitle = typeof liveTitleValue === "string" ? liveTitleValue.trim() : "";
-	const barTitle = liveTitle || entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
+	const fallbackBarTitle = entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
+	const barTitle = liveTitle || fallbackBarTitle;
 	const collectionListLabel = manifest?.collections[collection]?.label ?? collectionLabel;
 	const documentTitleRef = React.useRef<HTMLInputElement>(null);
 	const hasDocumentTitle =
@@ -1582,6 +1645,7 @@ export function ContentEditor({
 
 	const handlePreview = async () => {
 		if (!item?.id) return;
+		const entrySlug = room ? slugText(room.fields.get("slug")) : slug;
 
 		setIsLoadingPreview(true);
 		try {
@@ -1590,7 +1654,7 @@ export function ContentEditor({
 				openPreviewWindow(result.url, collection, item.id);
 			} else {
 				openPreviewWindow(
-					contentUrl(collection, slug || item.id, urlPattern, {
+					contentUrl(collection, entrySlug || item.id, urlPattern, {
 						locale: item.locale,
 						i18n,
 						id: item.id,
@@ -1602,7 +1666,7 @@ export function ContentEditor({
 			}
 		} catch {
 			openPreviewWindow(
-				contentUrl(collection, slug || item.id, urlPattern, {
+				contentUrl(collection, entrySlug || item.id, urlPattern, {
 					locale: item.locale,
 					i18n,
 					id: item.id,
@@ -1618,6 +1682,14 @@ export function ContentEditor({
 
 	const handleFieldChange = React.useCallback(
 		(name: string, value: unknown) => {
+			if (room) {
+				room.fields.set(
+					name === (titleField ?? "title") && !slugTouched
+						? withRoomAutoSlug(room, name, value)
+						: { [name]: value },
+				);
+				return;
+			}
 			editorGenerationRef.current++;
 			markDirty();
 			setFormData((prev) => ({ ...prev, [name]: value }));
@@ -1625,17 +1697,22 @@ export function ContentEditor({
 				setSlug(slugify(value));
 			}
 		},
-		[slugTouched, markDirty, titleField],
+		[slugTouched, markDirty, titleField, room],
 	);
 
 	const handleSlugChange = React.useCallback(
 		(value: string) => {
+			if (room) {
+				room.fields.set({ slug: value });
+				setSlugTouched(true);
+				return;
+			}
 			editorGenerationRef.current++;
 			markDirty();
 			setSlug(value);
 			setSlugTouched(true);
 		},
-		[markDirty],
+		[markDirty, room],
 	);
 
 	const isPublished = status === "published";
@@ -1740,12 +1817,21 @@ export function ContentEditor({
 					</>
 				)}
 				<h1 dir="auto" className="min-w-0 truncate text-base font-medium">
-					{barTitle}
+					{room && documentTitleField ? (
+						<RoomBarTitle room={room} field={documentTitleField} fallback={fallbackBarTitle} />
+					) : (
+						barTitle
+					)}
 				</h1>
 				{i18n && item?.locale && (
 					<Badge variant="outline" className="uppercase text-xs">
 						{item.locale}
 					</Badge>
+				)}
+				{roomStatus && (
+					<span role="status" className="shrink-0 text-sm text-kumo-subtle">
+						{roomStatus === "waiting" ? t`Waiting to join…` : t`Connecting…`}
+					</span>
 				)}
 			</div>
 			{/* The distraction-free toggle stays outside the disabled fieldset:
@@ -1772,9 +1858,10 @@ export function ContentEditor({
 						isNew={isNew}
 						supportsDrafts={supportsDrafts}
 						isDirty={isDirty}
-						isSaving={Boolean(saveFeedbackActive)}
-						isAutosaving={autosaveFeedbackActive}
+						isSaving={roomSaveState ? roomSaveState.saving : Boolean(saveFeedbackActive)}
+						isAutosaving={roomSaveState ? false : autosaveFeedbackActive}
 						saveDisabled={isContentSaveBlocked}
+						isOffline={room ? roomOffline : undefined}
 						isLive={isLive}
 						hasPendingChanges={hasPendingChanges}
 						publishingState={publishingState}
@@ -1951,39 +2038,41 @@ export function ContentEditor({
 										// the new translation on the next edit.
 										const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
 										const isDocumentBody = field.kind === "portableText" && name === "content";
-										const fieldEl = (
-											<FieldRenderer
-												key={fieldKey}
-												name={name}
-												field={field}
-												value={formData[name]}
-												onChange={handleFieldChange}
-												onEditorReady={isDocumentBody ? setPortableTextEditor : undefined}
-												isDocumentTitle={name === documentTitleField}
-												titleInputRef={name === documentTitleField ? documentTitleRef : undefined}
-												onDocumentTitleExit={portableTextEditor ? focusDocumentBody : undefined}
-												isDocumentBody={isDocumentBody}
-												onArrowUpAtStart={
-													isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined
-												}
-												pluginBlocks={pluginBlocks}
-												onBlockSidebarOpen={
-													field.kind === "portableText" ? handleBlockSidebarOpen : undefined
-												}
-												onBlockSidebarClose={
-													field.kind === "portableText" ? handleBlockSidebarClose : undefined
-												}
-												manifest={manifest}
-												readOnly={readOnly}
-												timezone={timezone}
-												referenceState={referenceState}
-												onReferenceChange={handleReferenceCurrentChange}
-												onLoadMoreReferences={handleLoadMoreReferences}
-												onRetryReferences={handleRetryReferences}
-												// Existing entries carry their locale on `item`; new entries only
-												// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
-												entryLocale={item?.locale ?? entryLocale}
+										const fieldProps: Omit<FieldRendererProps, "value"> = {
+											name,
+											field,
+											onChange: handleFieldChange,
+											onEditorReady: isDocumentBody ? setPortableTextEditor : undefined,
+											isDocumentTitle: name === documentTitleField,
+											titleInputRef: name === documentTitleField ? documentTitleRef : undefined,
+											onDocumentTitleExit: portableTextEditor ? focusDocumentBody : undefined,
+											isDocumentBody,
+											onArrowUpAtStart:
+												isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined,
+											pluginBlocks,
+											onBlockSidebarOpen:
+												field.kind === "portableText" ? handleBlockSidebarOpen : undefined,
+											onBlockSidebarClose:
+												field.kind === "portableText" ? handleBlockSidebarClose : undefined,
+											manifest,
+											readOnly,
+											timezone,
+											referenceState,
+											onReferenceChange: handleReferenceCurrentChange,
+											onLoadMoreReferences: handleLoadMoreReferences,
+											onRetryReferences: handleRetryReferences,
+											// Existing entries carry their locale on `item`; new entries only
+											// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
+											entryLocale: item?.locale ?? entryLocale,
+										};
+										const fieldEl = room ? (
+											<RoomFieldRenderer
+												key={`${name}:${item?.id ?? "new"}:${room.id}`}
+												room={room}
+												{...fieldProps}
 											/>
+										) : (
+											<FieldRenderer key={fieldKey} value={formData[name]} {...fieldProps} />
 										);
 										return fieldEl;
 									})}
@@ -2065,7 +2154,8 @@ export function ContentEditor({
 									</div>
 								)}
 								<RevisionViewProvider value={supportsRevisions ? revisionView.context : null}>
-									<ContentSettingsPanel
+									<RoomContentSettingsPanel
+										room={room}
 										collection={collection}
 										item={item}
 										isNew={isNew}
@@ -2438,6 +2528,8 @@ interface FieldRendererProps {
 	isDocumentBody?: boolean;
 	/** ArrowUp from the body's first line, to move back to the title. */
 	onArrowUpAtStart?: () => void;
+	/** Binds a rich-text field's editor to the room, which then owns its content. */
+	collaboration?: RichTextBinding;
 }
 
 /**
@@ -2466,6 +2558,7 @@ function FieldRenderer({
 	onDocumentTitleExit,
 	isDocumentBody = false,
 	onArrowUpAtStart,
+	collaboration,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -2666,6 +2759,7 @@ function FieldRenderer({
 						onBlockSidebarOpen={onBlockSidebarOpen}
 						onBlockSidebarClose={onBlockSidebarClose}
 						editable={!readOnly}
+						collaboration={collaboration}
 					/>
 				</div>
 			);
@@ -2981,6 +3075,97 @@ function FieldRenderer({
 				/>
 			);
 	}
+}
+
+type RoomFieldRendererProps = Omit<FieldRendererProps, "value" | "collaboration"> & {
+	room: RoomEditing;
+};
+
+/** A field whose value lives in the room's document, re-rendering only when that field changes. */
+function RoomFieldRenderer({ room, ...props }: RoomFieldRendererProps) {
+	const { name, field } = props;
+	const scope = React.useRef<HTMLDivElement>(null);
+	// A bound editor renders the field's fragment itself.
+	const bound = field.kind === "portableText" && !field.widget;
+	const value = useRoomFieldValue(room, bound ? null : name);
+	const remountKey = useRemountKey(
+		room,
+		name,
+		field.kind === "blocks" || Boolean(field.widget),
+		scope,
+	);
+	return (
+		<div ref={scope} data-co-editing-field={name}>
+			<FieldRenderer
+				key={remountKey}
+				{...props}
+				value={value}
+				collaboration={bound ? room.richText(name) : undefined}
+			/>
+		</div>
+	);
+}
+
+/** The bar title in a room, re-rendering only when the title field changes. */
+function RoomBarTitle({
+	room,
+	field,
+	fallback,
+}: {
+	room: RoomEditing;
+	field: string;
+	fallback: string;
+}) {
+	const value = useRoomFieldValue(room, field);
+	return (typeof value === "string" ? value.trim() : "") || fallback;
+}
+
+/**
+ * The settings panel, with the slug from the room when there is one, so a change to the slug
+ * re-renders only the panel.
+ */
+function RoomContentSettingsPanel({
+	room,
+	...props
+}: ContentSettingsPanelProps & { room: RoomEditing | null }) {
+	const roomSlug = useRoomFieldValue(room, room ? "slug" : null);
+	return <ContentSettingsPanel {...props} slug={room ? slugText(roomSlug) : props.slug} />;
+}
+
+function slugText(value: unknown): string {
+	return typeof value === "string" ? value : "";
+}
+
+/**
+ * The title change, with the slug it derives in the same write. The slug follows the title only
+ * while it is empty or still the title's own slug, so a title edit never replaces a slug someone
+ * typed.
+ */
+function withRoomAutoSlug(
+	room: RoomEditing,
+	titleField: string,
+	title: unknown,
+): Record<string, unknown> {
+	if (typeof title !== "string" || !title) return { [titleField]: title };
+	const slug = slugText(room.fields.get("slug"));
+	const previous = room.fields.get(titleField);
+	const derived = typeof previous === "string" && previous ? slugify(previous) : "";
+	return slug === "" || slug === derived
+		? { [titleField]: title, slug: slugify(title) }
+		: { [titleField]: title };
+}
+
+/** Whether a checkpoint covers the room's edits within `ms`. Never rejects. */
+function coveredWithin(room: RoomEditing, ms: number): Promise<boolean> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<boolean>((resolve) => {
+		timer = setTimeout(resolve, ms, false);
+	});
+	const covered = room.whenCovered({ save: false }).then(
+		() => true,
+		() => false,
+	);
+	return Promise.race([covered, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Display label for a staged reference row: title, then slug, then id. */

@@ -30,6 +30,7 @@ import * as React from "react";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
+import { KeptNotice } from "./components/co-editing/KeptNotice.js";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
@@ -156,6 +157,8 @@ import {
 } from "./lib/api/comments";
 import { runBulkAction } from "./lib/bulk";
 import { parseCalendarSearch } from "./lib/calendar";
+import { useCoEditing } from "./lib/co-editing/hooks.js";
+import type { CoEditing, RoomEvent } from "./lib/co-editing/types.js";
 import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
@@ -1023,6 +1026,11 @@ const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
 const EMPTY_FIELDS: AdminManifest["collections"][string]["fields"] = {};
+/**
+ * How long opening an entry keeps its loading state while it joins the entry's room. After that
+ * the stored entry shows read-only until the room is ready.
+ */
+const CO_EDITING_LOADING_CAP_MS = 1500;
 
 function ContentEditPage() {
 	const { t } = useLingui();
@@ -1082,11 +1090,110 @@ function ContentEditPage() {
 	// refuses what the role can't do.
 	const editAccess = rawItem && currentUser ? entryEditAccess(currentUser, rawItem) : "full";
 	const canPublish = !rawItem || !currentUser || canPublishEntry(currentUser, rawItem);
+	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
+	// The room repeats a refused save at every update, so each refusal shows once until a save works.
+	const refusedSavesRef = React.useRef(new Set<string>());
+	const handleRoomEvent = (event: RoomEvent) => {
+		switch (event.kind) {
+			case "left-room": {
+				const draftRevisionId = rawItem?.draftRevisionId;
+				void Promise.all([
+					queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+					draftRevisionId
+						? queryClient.invalidateQueries({ queryKey: ["revision", draftRevisionId] })
+						: undefined,
+				]).then(() => resetEditorItem(id));
+				return;
+			}
+			case "recovered":
+				toastManager.add({
+					title: t`Your unsaved edits are in a recovery revision`,
+					description: t`Find it in this entry’s revisions.`,
+					variant: "info",
+				});
+				return;
+			case "refused": {
+				const key = `${revisionIdentity}\n${event.code}\n${event.message}`;
+				if (refusedSavesRef.current.has(key)) return;
+				refusedSavesRef.current.add(key);
+				toastManager.add({
+					title: t`Your latest edits couldn’t be saved`,
+					description: event.message,
+					variant: "error",
+				});
+				return;
+			}
+			case "checkpoint":
+				refusedSavesRef.current.clear();
+				return;
+			default:
+				return;
+		}
+	};
+	const coEditing = useCoEditing({
+		collection,
+		entryId: id,
+		locale: activeLocale,
+		manifest,
+		onEvent: handleRoomEvent,
+	});
+	// The mode the session last settled in. A Take over or Join from single-editor mode keeps the
+	// edit lock running while its join is in flight, so the lock's own takeover can follow.
+	const [settledCoEditing, setSettledCoEditing] = React.useState<{
+		identity: string;
+		mode: Exclude<CoEditing["mode"], "pending">;
+	} | null>(null);
+	const coEditingMode =
+		coEditing.mode !== "pending"
+			? coEditing.mode
+			: settledCoEditing?.identity === revisionIdentity
+				? settledCoEditing.mode
+				: null;
+	if (
+		coEditing.mode !== "pending" &&
+		(settledCoEditing?.identity !== revisionIdentity || settledCoEditing.mode !== coEditing.mode)
+	) {
+		setSettledCoEditing({ identity: revisionIdentity, mode: coEditing.mode });
+	}
+	const [loadingCapEntry, setLoadingCapEntry] = React.useState<string | null>(null);
+	// The editor stays mounted across a switch to a cached entry, so only one that isn't showing
+	// yet waits for the room.
+	const editorShownRef = React.useRef(false);
+	const waitingForRoom =
+		coEditingMode === null && loadingCapEntry !== revisionIdentity && !editorShownRef.current;
+	React.useEffect(() => {
+		if (!waitingForRoom) return;
+		const timer = window.setTimeout(
+			setLoadingCapEntry,
+			CO_EDITING_LOADING_CAP_MS,
+			revisionIdentity,
+		);
+		return () => window.clearTimeout(timer);
+	}, [waitingForRoom, revisionIdentity]);
+	// A reload the user turns down in the browser's prompt leaves the tab as it was.
+	const lastRoomViewRef = React.useRef<Extract<CoEditing, { mode: "room" }> | null>(null);
+	if (coEditing.mode === "room") lastRoomViewRef.current = coEditing;
+	else if (coEditing.mode !== "reloading") lastRoomViewRef.current = null;
+	const roomView =
+		coEditing.mode === "room"
+			? coEditing
+			: coEditing.mode === "reloading"
+				? lastRoomViewRef.current
+				: null;
+	const showsEditor =
+		Boolean(manifest?.collections[collection]) &&
+		!isLoading &&
+		!(itemError && !rawItem) &&
+		!waitingForRoom &&
+		!(coEditing.mode === "reloading" && !roomView);
+	React.useLayoutEffect(() => {
+		editorShownRef.current = showsEditor;
+	});
 	const entryLock = useEntryLock({
 		collection,
 		entryId: id,
 		locale: activeLocale,
-		ready: Boolean(rawItem) && editAccess !== null,
+		ready: Boolean(rawItem) && editAccess !== null && coEditingMode === "single-editor",
 	});
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());
@@ -1094,7 +1201,6 @@ function ContentEditPage() {
 	// token replaces.
 	const tokenDraftRevisionsRef = React.useRef(new Map<string, string | null>());
 	const activeRevisionEntryRef = React.useRef("");
-	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
 	if (activeRevisionEntryRef.current !== revisionIdentity) {
 		activeRevisionEntryRef.current = revisionIdentity;
 		revisionTokensRef.current.delete(id);
@@ -1984,6 +2090,51 @@ function ContentEditPage() {
 		return <ErrorScreen error={itemError.message} />;
 	}
 
+	if (!showsEditor) {
+		return <LoadingScreen />;
+	}
+
+	const readOnlyBanner = (
+		<Banner
+			title={t`Read-only`}
+			description={
+				rawItem && currentUser && entryEditAccess(currentUser, { ...rawItem, status: "draft" })
+					? t`Your role can edit your own entries only while they are drafts.`
+					: t`Your role can't edit this entry.`
+			}
+		/>
+	);
+	let readOnly = true;
+	let notice: React.ReactNode = null;
+	if (roomView) {
+		readOnly = !roomView.editable;
+		if (roomView.kept) {
+			notice = (
+				<KeptNotice
+					onReload={coEditing.mode === "room" ? roomView.reload : () => window.location.reload()}
+				/>
+			);
+		} else if (roomView.access === "view") {
+			notice = readOnlyBanner;
+		}
+	} else if (editAccess === null) {
+		notice = readOnlyBanner;
+	} else if (coEditingMode === "single-editor") {
+		readOnly = entryLock.readOnly || coEditing.mode !== "single-editor";
+		notice = (
+			<EntryLockNotice
+				state={entryLock.state}
+				onTakeOver={() => {
+					if (coEditing.mode === "single-editor") coEditing.takeOver(entryLock.takeOver);
+				}}
+				onReadInstead={entryLock.readInstead}
+				isTakingOver={entryLock.isTakingOver || coEditing.mode !== "single-editor"}
+				takeOverFailed={entryLock.takeOverFailed}
+				canJoin={coEditing.mode !== "single-editor" || coEditing.canJoin}
+			/>
+		);
+	}
+
 	return (
 		<ContentEditor
 			collection={collection}
@@ -2038,28 +2189,15 @@ function ContentEditPage() {
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
 			onEntryRefresh={handlePluginEntryRefresh}
-			readOnly={entryLock.readOnly || editAccess === null}
-			notice={
-				editAccess === null ? (
-					<Banner
-						title={t`Read-only`}
-						description={
-							rawItem &&
-							currentUser &&
-							entryEditAccess(currentUser, { ...rawItem, status: "draft" })
-								? t`Your role can edit your own entries only while they are drafts.`
-								: t`Your role can't edit this entry.`
-						}
-					/>
-				) : (
-					<EntryLockNotice
-						state={entryLock.state}
-						onTakeOver={entryLock.takeOver}
-						onReadInstead={entryLock.readInstead}
-						isTakingOver={entryLock.isTakingOver}
-						takeOverFailed={entryLock.takeOverFailed}
-					/>
-				)
+			readOnly={readOnly}
+			notice={notice}
+			room={roomView?.room ?? null}
+			roomOffline={roomView?.offline ?? false}
+			roomBlocked={
+				roomView ? roomView.offline || roomView.access !== "edit" || roomView.kept !== null : false
+			}
+			roomStatus={
+				coEditing.mode === "pending" ? (coEditing.waiting ? "waiting" : "connecting") : null
 			}
 		/>
 	);
