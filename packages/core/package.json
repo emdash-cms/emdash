@@ -54,10 +54,22 @@
       "types": "./dist/astro/middleware/redirect.d.mts",
       "default": "./dist/astro/middleware/redirect.mjs"
     },
-    "./ui": "./src/ui.ts",
-    "./ui/comments": "./src/ui-comments.ts",
-    "./ui/search": "./src/components/LiveSearch.astro",
-    "./ui/webmcp-search": "./src/components/WebMcpSearch.astro",
+    "./ui": {
+      "types": "./dist/ui.d.mts",
+      "default": "./src/ui.ts"
+    },
+    "./ui/comments": {
+      "types": "./dist/ui-comments.d.mts",
+      "default": "./src/ui-comments.ts"
+    },
+    "./ui/search": {
+      "types": "./dist/ui-search.d.mts",
+      "default": "./src/components/LiveSearch.astro"
+    },
+    "./ui/webmcp-search": {
+      "types": "./dist/ui-webmcp-search.d.mts",
+      "default": "./src/components/WebMcpSearch.astro"
+    },
     "./cli": {
       "types": "./dist/cli/index.d.mts",
       "default": "./dist/cli/index.mjs"
@@ -251,7 +263,7 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "prepublishOnly": "node --run build",
-    "typecheck": "tsgo --noEmit && tsgo --noEmit -p tsconfig.components.json",
+    "typecheck": "tsgo --noEmit && tsgo --noEmit -p tsconfig.components.json && tsgo --noEmit -p tsconfig.typecheck.json",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution --ignore-rules=internal-resolution-error",
     "test": "vitest",
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
@@ -278,6 +290,7 @@
     "@oslojs/encoding": "catalog:",
     "@phosphor-icons/react": "catalog:",
     "@portabletext/toolkit": "^5.0.1",
+    "@portabletext/types": "^2.0.15",
     "@tiptap/core": "catalog:",
     "@tiptap/extension-code": "catalog:",
     "@tiptap/extension-code-block": "catalog:",
@@ -309,6 +322,7 @@
     "jpeg-js": "^0.4.4",
     "jsonc-parser": "catalog:",
     "kysely": "catalog:",
+    "marked": "^17.0.3",
     "mime": "^4.1.0",
     "modern-tar": "^0.7.5",
     "picocolors": "^1.1.1",
@@ -339,6 +353,7 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
+    "@astrojs/compiler": "^2.13.1",
     "@astrojs/react": "catalog:",
     "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",

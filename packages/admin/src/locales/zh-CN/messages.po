@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# 个项目)} other {(# 个项目)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3297
+#: packages/admin/src/components/ContentEditor.tsx:3793
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted}，共 # 个字符（至少 {min}）} other {{counted}，共 # 个字符（至少 {min}）}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3302
+#: packages/admin/src/components/ContentEditor.tsx:3798
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted}，共 # 个字符} other {{counted}，共 # 个字符}}"
 
@@ -240,6 +240,11 @@ msgstr "{0, plural, one {# 个内容项已导入} other {# 个内容项已导入
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:409
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# 个条目} other {# 个条目}}"
+
+#. placeholder {0}: count ?? issues.length
+#: packages/admin/src/components/BlocksField.tsx:557
+msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
+msgstr ""
 
 #. placeholder {0}: relation.boundFields.length
 #: packages/admin/src/components/RelationList.tsx:189
@@ -404,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {添加 # 个视频} other {添加 # 个视频}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3307
+#: packages/admin/src/components/ContentEditor.tsx:3803
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {至少 # 个字符} other {至少 # 个字符}}"
 
@@ -659,6 +664,7 @@ msgstr "{count, plural, one {# 个条目} other {# 个条目}}"
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# 个文件} other {# 个文件}}"
 
+#: packages/admin/src/components/BlockListField.tsx:165
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
 #: packages/admin/src/components/WordPressImport.tsx:2408
 msgid "{count, plural, one {# item} other {# items}}"
@@ -672,7 +678,7 @@ msgstr "{current} / {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}，{entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -706,7 +712,7 @@ msgstr "{hidden, plural, one {{date} 还有 # 个条目} other {{date} 还有 # 
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {还有 # 项} other {还有 # 项}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {再显示 # 个} other {再显示 # 个}}"
 
@@ -725,6 +731,20 @@ msgstr "{label} — 无翻译"
 #: packages/admin/src/components/LocaleSwitcher.tsx:117
 msgid "{label} — view translation"
 msgstr "{label} — 查看翻译"
+
+#: packages/admin/src/components/BlocksField.tsx:1648
+msgid "{label} · version {versionNumber}"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:1113
+#: packages/admin/src/components/BlockListField.tsx:1156
+msgid "{label} {position}"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:1022
+#: packages/admin/src/components/BlocksField.tsx:1599
+msgid "{label} actions"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:261
 msgid "{label} in {menuName}"
@@ -749,9 +769,17 @@ msgstr "{label} 选项"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
+#: packages/admin/src/components/BlocksField.tsx:2283
+msgid "{label}: {value}"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
 msgstr "延迟 {lateness}"
+
+#: packages/admin/src/components/BlocksField.tsx:1238
+msgid "{list} +{more}"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1442
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
@@ -773,6 +801,18 @@ msgstr "{maximum, plural, one {{name} 最多只能有 # 个字符。} other {{na
 msgid "{maximum, plural, one {{name} can have at most # item.} other {{name} can have at most # items.}}"
 msgstr "{maximum, plural, one {{name} 最多只能有 # 项。} other {{name} 最多只能有 # 项。}}"
 
+#: packages/admin/src/components/block-field-notes.tsx:75
+msgid "{maximum, plural, one {Keep to # item} other {Keep to # items}}"
+msgstr ""
+
+#: packages/admin/src/components/block-field-notes.tsx:78
+msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:495
+msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
+msgstr ""
+
 #: packages/admin/src/lib/content-validation-errors.ts:81
 msgid "{minimum, plural, one {{name} needs at least # character.} other {{name} needs at least # characters.}}"
 msgstr "{minimum, plural, one {{name} 至少需要 # 个字符。} other {{name} 至少需要 # 个字符。}}"
@@ -780,6 +820,24 @@ msgstr "{minimum, plural, one {{name} 至少需要 # 个字符。} other {{name}
 #: packages/admin/src/lib/content-validation-errors.ts:87
 msgid "{minimum, plural, one {{name} needs at least # item.} other {{name} needs at least # items.}}"
 msgstr "{minimum, plural, one {{name} 至少需要 # 项。} other {{name} 至少需要 # 项。}}"
+
+#: packages/admin/src/components/block-field-notes.tsx:61
+msgid "{minimum, plural, one {Add at least # item} other {Add at least # items}}"
+msgstr ""
+
+#: packages/admin/src/components/block-field-notes.tsx:64
+msgid "{minimum, plural, one {Use at least # character} other {Use at least # characters}}"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:662
+#: packages/admin/src/components/BlocksField.tsx:1044
+msgid "{moved} is already first"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:662
+#: packages/admin/src/components/BlocksField.tsx:1045
+msgid "{moved} is already last"
+msgstr ""
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
@@ -796,6 +854,10 @@ msgstr "{name} 的值无效。"
 #: packages/admin/src/lib/content-validation-errors.ts:69
 msgid "{name} is not a field in this collection."
 msgstr "{name} 不是此集合中的字段。"
+
+#: packages/admin/src/components/useDragAnnouncements.ts:59
+msgid "{name} is over position {position} of {total}"
+msgstr ""
 
 #: packages/admin/src/lib/content-validation-errors.ts:67
 msgid "{name} is required."
@@ -816,6 +878,10 @@ msgstr "{name} 必须至少为 {bound}。"
 #: packages/admin/src/lib/content-validation-errors.ts:113
 msgid "{name} must be at most {bound}."
 msgstr "{name} 必须至多为 {bound}。"
+
+#: packages/admin/src/components/useDragAnnouncements.ts:40
+msgid "{name} was not moved"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:101
 msgid "{name}: this site already has some"
@@ -969,6 +1035,14 @@ msgstr "{title} 现已上线。"
 msgid "{title} now goes live {when}."
 msgstr "{title} 将于 {when} 上线。"
 
+#: packages/admin/src/components/BlocksField.tsx:945
+msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:951
+msgid "{toFix, plural, one {# to fix} other {# to fix}}"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1448
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# 个项目} other {# 个项目}}"
@@ -1048,6 +1122,7 @@ msgstr "<0>{name}</0> 正在编辑此条目。您可以以只读方式打开，�
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> 现已持有此条目，因此您的更改不再保存。收回以继续编辑。"
 
+#: packages/admin/src/components/BlocksField.tsx:1408
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:231
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt+点击</0>可在上方添加"
@@ -1056,10 +1131,12 @@ msgstr "<0>Alt+点击</0>可在上方添加"
 msgid "<0>Click</0> to add below"
 msgstr "<0>点击</0>可在下方添加"
 
+#: packages/admin/src/components/BlocksField.tsx:1454
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:273
 msgid "<0>Click</0> to open menu"
 msgstr "<0>点击</0>打开菜单"
 
+#: packages/admin/src/components/BlocksField.tsx:1450
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:269
 msgid "<0>Drag</0> to move"
 msgstr "<0>拖拽</0>移动"
@@ -1219,7 +1296,7 @@ msgstr "缺少某个包文件"
 msgid "A publication time has not been selected"
 msgstr "尚未选择发布时间"
 
-#: packages/admin/src/components/ContentEditor.tsx:1485
+#: packages/admin/src/components/ContentEditor.tsx:1697
 msgid "A publishing action is already in progress"
 msgstr "已有发布操作正在进行中"
 
@@ -1342,6 +1419,7 @@ msgstr "账户信息"
 msgid "ACF Fields"
 msgstr "ACF 字段"
 
+#: packages/admin/src/components/BlockListField.tsx:736
 #: packages/admin/src/components/comments/CommentInbox.tsx:365
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
@@ -1425,6 +1503,10 @@ msgstr "将 {singularLower} 添加到 1 篇文章"
 msgid "Add {singularLower} to posts"
 msgstr "将 {singularLower} 添加到文章"
 
+#: packages/admin/src/components/BlocksField.tsx:2222
+msgid "Add a caption"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:334
 msgid "Add a detail every byline can fill in, such as a job title."
 msgstr ""
@@ -1446,7 +1528,7 @@ msgstr "添加要在内容中署名的人员或团队。"
 msgid "Add another byline"
 msgstr "添加另一个署名"
 
-#: packages/admin/src/components/BlocksField.tsx:283
+#: packages/admin/src/components/BlocksField.tsx:1069
 msgid "Add at least {minItems} blocks."
 msgstr "至少添加 {minItems} 个区块。"
 
@@ -1460,9 +1542,23 @@ msgstr ""
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "添加至少一个子字段以定义重复器结构。"
 
-#: packages/admin/src/components/BlocksField.tsx:184
+#: packages/admin/src/components/BlocksField.tsx:908
+#: packages/admin/src/components/BlockTypePicker.tsx:80
 msgid "Add block"
 msgstr "添加区块"
+
+#: packages/admin/src/components/BlocksField.tsx:1629
+msgid "Add block above"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:1406
+#: packages/admin/src/components/BlocksField.tsx:1630
+msgid "Add block below"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:1425
+msgid "Add block below {label}"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:316
 msgid "Add byline"
@@ -1494,7 +1590,7 @@ msgstr "添加内容"
 msgid "Add Custom Link"
 msgstr "添加自定义链接"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:474
+#: packages/admin/src/components/ImageFieldRenderer.tsx:618
 msgid "Add dark mode variant"
 msgstr "添加深色模式变体"
 
@@ -1537,6 +1633,7 @@ msgstr "添加图片"
 msgid "Add images to gallery"
 msgstr "向画廊添加图片"
 
+#: packages/admin/src/components/BlockListField.tsx:885
 #: packages/admin/src/components/PortableTextEditor.tsx:3019
 msgid "Add item"
 msgstr "添加项目"
@@ -1544,6 +1641,18 @@ msgstr "添加项目"
 #: packages/admin/src/components/RepeaterField.tsx:165
 msgid "Add Item"
 msgstr "添加项目"
+
+#: packages/admin/src/components/BlockListField.tsx:1046
+msgid "Add item above"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:1047
+msgid "Add item below"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:882
+msgid "Add item to {label}"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5212
 #: packages/admin/src/components/PortableTextEditor.tsx:6021
@@ -1581,8 +1690,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "添加通行密钥"
 
-#: packages/admin/src/components/ContentEditor.tsx:3211
-#: packages/admin/src/components/ContentEditor.tsx:3211
+#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3707
 msgid "Add reference"
 msgstr "添加引用"
 
@@ -1746,9 +1855,14 @@ msgstr "管理员导航"
 msgid "Administrator"
 msgstr "管理员"
 
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2013
 msgid "Advanced"
 msgstr "高级"
+
+#: packages/admin/src/components/BlocksField.tsx:2327
+msgid "Advanced: {blockLabel}"
+msgstr ""
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
 msgid "After"
@@ -2234,11 +2348,11 @@ msgstr "通过 MCP 连接的助手在开始导出或导入前需要管理员批�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3330
+#: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "At least {min}"
 msgstr "至少 {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3327
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "At most {max}"
 msgstr "至多 {max}"
 
@@ -2364,6 +2478,10 @@ msgstr "自动备份需要存储后端（R2、S3 或本地存储）。请在 EmD
 msgid "Autosave failed"
 msgstr "自动保存失败"
 
+#: packages/admin/src/components/ContentEditor.tsx:228
+msgid "Autosave paused"
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:353
 msgid "Available bylines"
 msgstr "可用署名"
@@ -2405,7 +2523,7 @@ msgstr "返回"
 msgid "Back"
 msgstr "返回"
 
-#: packages/admin/src/components/ContentEditor.tsx:1725
+#: packages/admin/src/components/ContentEditor.tsx:1941
 msgid "Back to {collectionLabel} list"
 msgstr "返回到 {collectionLabel} 列表"
 
@@ -2513,7 +2631,7 @@ msgstr "发送前："
 msgid "Before you continue:"
 msgstr "继续之前："
 
-#: packages/admin/src/components/ContentEditor.tsx:3324
+#: packages/admin/src/components/ContentEditor.tsx:3820
 msgid "Between {min} and {max}"
 msgstr "在 {min} 和 {max} 之间"
 
@@ -2528,11 +2646,6 @@ msgstr "简介"
 #: packages/admin/src/components/editor/BlockMenu.tsx:92
 msgid "Block"
 msgstr "区块"
-
-#. placeholder {0}: index + 1
-#: packages/admin/src/components/BlocksField.tsx:423
-msgid "Block {0}"
-msgstr "区块 {0}"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:138
 msgid "Block actions"
@@ -2553,6 +2666,7 @@ msgid "Block type versions"
 msgstr "区块类型版本"
 
 #: packages/admin/src/components/BlockTypeList.tsx:28
+#: packages/admin/src/components/BlockTypePicker.tsx:163
 #: packages/admin/src/components/settings/transfer/labels.ts:9
 msgid "Block types"
 msgstr "区块类型"
@@ -3013,7 +3127,7 @@ msgstr "更改将应用于此署名出现的所有位置。"
 msgid "Changes discarded"
 msgstr "更改已丢弃"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "此版本的更改"
 
@@ -3052,6 +3166,10 @@ msgstr "检查 astro.config.mjs 中的 registry.policy.minimumReleaseAgeExclude�
 #: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
 msgstr "检查站点"
+
+#: packages/admin/src/components/block-field-notes.tsx:52
+msgid "Check the format"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:476
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
@@ -3197,6 +3315,10 @@ msgstr "选择署名"
 #: packages/admin/src/components/MediaPickerModal.tsx:1145
 msgid "Choose files to upload"
 msgstr "选择要上传的文件"
+
+#: packages/admin/src/components/block-field-notes.tsx:55
+msgid "Choose one of the options"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:269
@@ -3360,7 +3482,7 @@ msgstr "关闭图片设置"
 msgid "Close panel"
 msgstr "关闭面板"
 
-#: packages/admin/src/components/ContentEditor.tsx:2404
+#: packages/admin/src/components/ContentEditor.tsx:2644
 msgid "Close settings"
 msgstr "关闭设置"
 
@@ -3384,9 +3506,9 @@ msgstr "代码块"
 msgid "Code block actions"
 msgstr "代码块操作"
 
-#: packages/admin/src/components/BlocksField.tsx:358
-msgid "Collapse block"
-msgstr "折叠区块"
+#: packages/admin/src/components/BlocksField.tsx:984
+msgid "Collapse all"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/PluginManager.tsx:580
@@ -3877,7 +3999,7 @@ msgstr "无法确认媒体项或所选文件夹是否仍存在。请重试。"
 msgid "Couldn't detect WordPress"
 msgstr "无法检测到 WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:3188
+#: packages/admin/src/components/ContentEditor.tsx:3684
 msgid "Couldn't load all references."
 msgstr "无法加载所有引用。"
 
@@ -4277,7 +4399,7 @@ msgstr "当前"
 msgid "Current cell"
 msgstr "当前单元格"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "当前版本"
@@ -4312,7 +4434,7 @@ msgstr "每日自动备份"
 
 #: packages/admin/src/components/FieldEditor.tsx:1792
 #: packages/admin/src/components/FieldEditor.tsx:1795
-#: packages/admin/src/components/ImageFieldRenderer.tsx:418
+#: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "深色模式变体"
 
@@ -4410,6 +4532,7 @@ msgstr "定义您的内容结构"
 msgid "Defined in code"
 msgstr "代码定义"
 
+#: packages/admin/src/components/BlocksField.tsx:1099
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4429,6 +4552,7 @@ msgstr "代码定义"
 #: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
+#: packages/admin/src/components/RowMenuItems.tsx:106
 #: packages/admin/src/components/Sections.tsx:423
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
 #: packages/admin/src/components/TaxonomyManager.tsx:448
@@ -4488,11 +4612,14 @@ msgstr "删除 {0} 小部件区域"
 msgid "Delete {0}?"
 msgstr "删除 {0}？"
 
+#: packages/admin/src/components/BlocksField.tsx:1097
+msgid "Delete {confirmName}?"
+msgstr ""
+
 #: packages/admin/src/components/settings/BackupSettings.tsx:367
 msgid "Delete backup?"
 msgstr "删除备份？"
 
-#: packages/admin/src/components/BlocksField.tsx:399
 #: packages/admin/src/components/editor/EmbedBlockShell.tsx:358
 msgid "Delete block"
 msgstr "删除区块"
@@ -4634,6 +4761,11 @@ msgstr ""
 msgid "Deleted"
 msgstr "已删除"
 
+#: packages/admin/src/components/BlocksField.tsx:824
+#: packages/admin/src/components/BlocksField.tsx:850
+msgid "Deleted {name}"
+msgstr ""
+
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1429
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
@@ -4645,6 +4777,7 @@ msgstr "删除“{0}”将同时删除其中所有语言的每个术语，并从
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个存储值} other {# 个存储值}}。此操作无法撤销。"
 
+#: packages/admin/src/components/BlocksField.tsx:1100
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1787
@@ -4920,7 +5053,7 @@ msgstr "显示标签云"
 msgid "Displayed below the image as a visible caption."
 msgstr "显示在图片下方作为可见说明。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1845
+#: packages/admin/src/components/ContentEditor.tsx:2061
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "无干扰模式（⌘⇧\\）"
 
@@ -5141,16 +5274,21 @@ msgstr "将 WordPress 导出文件拖放到此处"
 
 #: packages/admin/src/components/ContentList.tsx:1608
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
+#: packages/admin/src/components/RowMenuItems.tsx:68
 msgid "Duplicate"
 msgstr "复制"
-
-#: packages/admin/src/components/BlocksField.tsx:390
-msgid "Duplicate block"
-msgstr "复制区块"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:156
 msgid "Duplicate redirects were left out"
 msgstr "重复的重定向已被排除"
+
+#: packages/admin/src/components/BlockListField.tsx:438
+msgid "Duplicated {copied}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:766
+msgid "Duplicated {name}"
+msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
@@ -5224,7 +5362,7 @@ msgstr "编辑 {0}"
 msgid "Edit {0} field"
 msgstr "编辑 {0} 字段"
 
-#: packages/admin/src/components/ContentEditor.tsx:1580
+#: packages/admin/src/components/ContentEditor.tsx:1796
 msgid "Edit {itemLabel}"
 msgstr "编辑{itemLabel}"
 
@@ -5235,9 +5373,11 @@ msgstr "编辑{label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/ImageFieldRenderer.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:381
-#: packages/admin/src/components/ImageFieldRenderer.tsx:449
+#: packages/admin/src/components/ImageFieldRenderer.tsx:419
+#: packages/admin/src/components/ImageFieldRenderer.tsx:461
+#: packages/admin/src/components/ImageFieldRenderer.tsx:462
+#: packages/admin/src/components/ImageFieldRenderer.tsx:525
+#: packages/admin/src/components/ImageFieldRenderer.tsx:593
 #: packages/admin/src/components/MediaPickerModal.tsx:1637
 msgid "Edit asset"
 msgstr "编辑资源"
@@ -5257,7 +5397,7 @@ msgstr "编辑署名字段"
 msgid "Edit caption"
 msgstr "编辑说明文字"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:447
+#: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "Edit dark mode asset"
 msgstr "编辑深色模式资源"
 
@@ -5550,6 +5690,7 @@ msgstr "EmDash 将继续设置并恢复扫描现有内容。"
 msgid "EmDash will scan existing content to show where media is used."
 msgstr "EmDash 将扫描现有内容以显示媒体的使用位置。"
 
+#: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:437
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:21
 msgid "Empty"
@@ -5604,6 +5745,14 @@ msgstr "已启用"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1094
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "由于未配置内容语言，将使用英文。内容语言随条目存储，与您的管理语言相互独立。"
+
+#: packages/admin/src/components/block-field-notes.tsx:84
+msgid "Enter {formatted} or less"
+msgstr ""
+
+#: packages/admin/src/components/block-field-notes.tsx:70
+msgid "Enter {formatted} or more"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
@@ -5734,9 +5883,14 @@ msgstr ""
 msgid "Enter a valid time"
 msgstr "请输入有效的时间"
 
-#: packages/admin/src/components/ContentEditor.tsx:3374
+#: packages/admin/src/components/block-field-notes.tsx:51
+#: packages/admin/src/components/ContentEditor.tsx:3874
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "输入有效的 URL（例如 https://example.com）"
+
+#: packages/admin/src/components/block-field-notes.tsx:57
+msgid "Enter a whole number"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Enter a whole number of 0 or more."
@@ -5759,7 +5913,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "手动输入凭据"
 
-#: packages/admin/src/components/ContentEditor.tsx:1840
+#: packages/admin/src/components/ContentEditor.tsx:2056
 msgid "Enter distraction-free mode"
 msgstr "进入无干扰模式"
 
@@ -5767,7 +5921,7 @@ msgstr "进入无干扰模式"
 msgid "Enter email"
 msgstr "输入邮箱"
 
-#: packages/admin/src/components/ContentEditor.tsx:2702
+#: packages/admin/src/components/ContentEditor.tsx:3137
 msgid "Enter markdown content..."
 msgstr "输入 Markdown 内容..."
 
@@ -5909,17 +6063,17 @@ msgstr "现有内容已索引。新更改将自动跟踪。"
 msgid "Exists"
 msgstr "已存在"
 
-#: packages/admin/src/components/ContentEditor.tsx:1840
+#: packages/admin/src/components/ContentEditor.tsx:2056
 msgid "Exit distraction-free mode"
 msgstr "退出无干扰模式"
 
-#: packages/admin/src/components/ContentEditor.tsx:1844
+#: packages/admin/src/components/ContentEditor.tsx:2060
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "退出无干扰模式（⌘⇧\\）"
 
-#: packages/admin/src/components/BlocksField.tsx:358
-msgid "Expand block"
-msgstr "展开区块"
+#: packages/admin/src/components/BlocksField.tsx:984
+msgid "Expand all"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/PluginManager.tsx:580
@@ -7267,13 +7421,21 @@ msgstr "第一个版本"
 msgid "First-time commenters only"
 msgstr "仅首次评论者"
 
-#: packages/admin/src/components/ContentEditor.tsx:1562
+#: packages/admin/src/components/ContentEditor.tsx:232
+msgid "Fix {field} in the {block} block to resume saving."
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1778
 msgid "Fix invalid fields before changing the publication date"
 msgstr "请先修正无效字段，再更改发布日期。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1492
+#: packages/admin/src/components/ContentEditor.tsx:1706
 msgid "Fix invalid fields before changing the schedule"
 msgstr "请先修正无效字段，再更改定时发布。"
+
+#: packages/admin/src/components/ContentEditor.tsx:231
+msgid "Fix the {block} block to resume saving."
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
@@ -7438,7 +7600,7 @@ msgstr "为此通行密钥命名以便日后识别。"
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1488
+#: packages/admin/src/components/ContentEditor.tsx:1700
 msgid "Go back to editing first."
 msgstr "请先返回编辑。"
 
@@ -7458,6 +7620,10 @@ msgstr "前往仪表板"
 #: packages/admin/src/locales/emails.ts:74
 msgid "Go to sign-in"
 msgstr "前往登录"
+
+#: packages/admin/src/components/BlocksField.tsx:938
+msgid "Go to the next problem"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:352
 msgid "Goes live"
@@ -7513,6 +7679,10 @@ msgstr "仅访客"
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
 msgstr "句柄不可用"
+
+#: packages/admin/src/components/BlockListField.tsx:174
+msgid "Has fields to fix"
+msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:234
 msgid "Header column added"
@@ -7641,7 +7811,7 @@ msgstr "点击量"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "当有人正在编辑条目时将其锁定，并拒绝其他写入者。"
 
-#: packages/admin/src/components/ContentEditor.tsx:2879
+#: packages/admin/src/components/ContentEditor.tsx:3371
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "存储条目 ID。若要选择条目，请在内容类型下设置目标合集。"
 
@@ -7810,8 +7980,8 @@ msgstr "图片"
 msgid "Image {0}"
 msgstr "图片 {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:343
-#: packages/admin/src/components/ImageFieldRenderer.tsx:358
+#: packages/admin/src/components/ImageFieldRenderer.tsx:487
+#: packages/admin/src/components/ImageFieldRenderer.tsx:502
 #: packages/admin/src/components/SeoImageField.tsx:171
 msgid "Image actions"
 msgstr "图片操作"
@@ -7829,9 +7999,10 @@ msgid "Image link"
 msgstr "图片链接"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
-#: packages/admin/src/components/ImageFieldRenderer.tsx:494
-#: packages/admin/src/components/ImageFieldRenderer.tsx:533
-#: packages/admin/src/components/ImageFieldRenderer.tsx:595
+#: packages/admin/src/components/ImageFieldRenderer.tsx:638
+#: packages/admin/src/components/ImageFieldRenderer.tsx:677
+#: packages/admin/src/components/ImageFieldRenderer.tsx:884
+#: packages/admin/src/components/ImageFieldRenderer.tsx:917
 #: packages/admin/src/components/SeoImageField.tsx:146
 msgid "Image not found"
 msgstr "未找到图片"
@@ -8030,7 +8201,7 @@ msgstr "在回收站中"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "在 Windows 设置中，打开「帐户」，然后打开「登录选项」，并设置 PIN。指纹和人脸识别为可选项。"
 
-#: packages/admin/src/components/BlocksField.tsx:372
+#: packages/admin/src/components/BlocksField.tsx:1266
 msgid "Inactive version"
 msgstr "非活动版本"
 
@@ -8227,10 +8398,11 @@ msgstr "无效句柄"
 msgid "Invalid invite link"
 msgstr "无效的邀请链接"
 
-#: packages/admin/src/components/ContentEditor.tsx:3450
+#: packages/admin/src/components/ContentEditor.tsx:3967
 msgid "Invalid JSON"
 msgstr "无效的 JSON"
 
+#: packages/admin/src/components/block-field-notes.tsx:52
 #: packages/admin/src/components/SignupPage.tsx:285
 msgid "Invalid link"
 msgstr "链接无效"
@@ -8298,6 +8470,7 @@ msgid "Italic"
 msgstr "斜体"
 
 #. placeholder {0}: index + 1
+#: packages/admin/src/components/BlockListField.tsx:386
 #: packages/admin/src/components/PortableTextEditor.tsx:3181
 #: packages/admin/src/components/RepeaterField.tsx:252
 msgid "Item {0}"
@@ -8549,6 +8722,7 @@ msgstr "许可证"
 msgid "Limit"
 msgstr "限制"
 
+#: packages/admin/src/components/BlocksField.tsx:2238
 #: packages/admin/src/components/PortableTextEditor.tsx:6696
 msgid "Link"
 msgstr "链接"
@@ -8792,7 +8966,7 @@ msgstr "正在加载插件..."
 msgid "Loading redirects..."
 msgstr "正在加载重定向..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3196
+#: packages/admin/src/components/ContentEditor.tsx:3692
 msgid "Loading references..."
 msgstr "正在加载引用..."
 
@@ -9361,7 +9535,7 @@ msgstr "更多格式"
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
-#: packages/admin/src/components/ImageFieldRenderer.tsx:578
+#: packages/admin/src/components/ImageFieldRenderer.tsx:867
 msgid "More information about {label}"
 msgstr "关于 {label} 的更多信息"
 
@@ -9395,7 +9569,7 @@ msgstr "将「{title}」移至回收站？您可以稍后恢复它。"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3163
+#: packages/admin/src/components/ContentEditor.tsx:3659
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "将 {0} 下移"
@@ -9412,13 +9586,14 @@ msgstr "将 {0} 后移"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3152
+#: packages/admin/src/components/ContentEditor.tsx:3648
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "将 {0} 上移"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:788
+#: packages/admin/src/components/RowMenuItems.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:429
 #: packages/admin/src/routes/byline-schema.tsx:443
 msgid "Move down"
@@ -9435,6 +9610,14 @@ msgstr "将此站点迁移到另一个 EmDash 安装，或导入站点包"
 #: packages/admin/src/components/settings/TransferSettings.tsx:47
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr "将此站点迁移到另一个 EmDash 安装，或将站点包导入到当前站点。"
+
+#: packages/admin/src/components/RowMenuItems.tsx:97
+msgid "Move to bottom"
+msgstr ""
+
+#: packages/admin/src/components/RowMenuItems.tsx:90
+msgid "Move to top"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:673
 #: packages/admin/src/components/ContentList.tsx:1617
@@ -9456,6 +9639,7 @@ msgstr "移至回收站？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
 #: packages/admin/src/components/MenuEditor.tsx:779
+#: packages/admin/src/components/RowMenuItems.tsx:76
 #: packages/admin/src/components/TaxonomyManager.tsx:421
 #: packages/admin/src/routes/byline-schema.tsx:436
 msgid "Move up"
@@ -9469,6 +9653,15 @@ msgstr "移动了“{snippet}”"
 #: packages/admin/src/components/MediaPickerModal.tsx:722
 msgid "Moved {filename} to position {0}."
 msgstr "已将 {filename} 移到位置 {0}。"
+
+#: packages/admin/src/components/BlockListField.tsx:426
+msgid "Moved {moved} to position {position} of {total}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:777
+#: packages/admin/src/components/useDragAnnouncements.ts:72
+msgid "Moved {name} to position {position} of {total}"
+msgstr ""
 
 #: packages/admin/src/router.tsx:730
 msgid "Moved {total} items to draft"
@@ -9633,7 +9826,7 @@ msgstr "新建"
 msgid "NEW"
 msgstr "新"
 
-#: packages/admin/src/components/ContentEditor.tsx:1580
+#: packages/admin/src/components/ContentEditor.tsx:1796
 msgid "New {itemLabel}"
 msgstr "新建{itemLabel}"
 
@@ -9805,7 +9998,7 @@ msgstr "暂无已审核评论。"
 msgid "No block types defined"
 msgstr "未定义区块类型"
 
-#: packages/admin/src/components/BlocksField.tsx:237
+#: packages/admin/src/components/BlocksField.tsx:1062
 msgid "No blocks yet"
 msgstr "暂无区块"
 
@@ -9973,6 +10166,7 @@ msgstr "无可安装的版本"
 msgid "No invite token provided"
 msgstr "未提供邀请令牌"
 
+#: packages/admin/src/components/BlockListField.tsx:870
 #: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/RepeaterField.tsx:172
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
@@ -10000,7 +10194,7 @@ msgstr "无匹配项"
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr "无匹配项。按 Enter 使用“{freeFormLanguage}”。"
 
-#: packages/admin/src/components/BlocksField.tsx:228
+#: packages/admin/src/components/BlockTypePicker.tsx:218
 msgid "No matching block types"
 msgstr "无匹配的区块类型"
 
@@ -10112,7 +10306,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "暂无重定向"
 
-#: packages/admin/src/components/ContentEditor.tsx:3106
+#: packages/admin/src/components/ContentEditor.tsx:3602
 msgid "No references selected."
 msgstr "未选择引用。"
 
@@ -10350,7 +10544,7 @@ msgid "Open"
 msgstr "打开"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3141
+#: packages/admin/src/components/ContentEditor.tsx:3637
 msgid "Open {0} in a new tab"
 msgstr "在新标签页中打开 {0}"
 
@@ -10501,7 +10695,7 @@ msgstr "原图已裁剪。"
 msgid "Original:"
 msgstr "原始："
 
-#: packages/admin/src/components/BlocksField.tsx:157
+#: packages/admin/src/components/BlockTypePicker.tsx:113
 msgid "Other"
 msgstr "其他"
 
@@ -10771,6 +10965,10 @@ msgstr "PHP"
 msgid "Picked up {label}."
 msgstr "已拾取 {label}。"
 
+#: packages/admin/src/components/useDragAnnouncements.ts:52
+msgid "Picked up {name}, position {position} of {total}"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:1879
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "选择此条目所链接的条目后，编辑者可拖拽排序。反向列出指向此条目的所有条目，不可排序。"
@@ -10836,7 +11034,7 @@ msgstr "插件操作失败"
 msgid "Plugin actions"
 msgstr "插件操作"
 
-#: packages/admin/src/components/ContentEditor.tsx:1916
+#: packages/admin/src/components/ContentEditor.tsx:2146
 msgid "Plugin changes were not applied"
 msgstr "插件更改未应用"
 
@@ -11199,7 +11397,7 @@ msgstr "已发布"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -11564,13 +11762,15 @@ msgstr "移除图片"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3619
+#: packages/admin/src/components/ContentEditor.tsx:4160
+#: packages/admin/src/components/ContentEditor.tsx:4226
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
-#: packages/admin/src/components/ImageFieldRenderer.tsx:336
-#: packages/admin/src/components/ImageFieldRenderer.tsx:390
-#: packages/admin/src/components/ImageFieldRenderer.tsx:461
+#: packages/admin/src/components/ImageFieldRenderer.tsx:431
+#: packages/admin/src/components/ImageFieldRenderer.tsx:534
+#: packages/admin/src/components/ImageFieldRenderer.tsx:605
+#: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
 #: packages/admin/src/components/PortableTextEditor.tsx:6731
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
@@ -11584,7 +11784,7 @@ msgstr "移除"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3176
+#: packages/admin/src/components/ContentEditor.tsx:3672
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11601,7 +11801,9 @@ msgstr "从选中项中移除 {0}"
 msgid "Remove {entry}"
 msgstr "移除 {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3617
+#: packages/admin/src/components/ContentEditor.tsx:4158
+#: packages/admin/src/components/ContentEditor.tsx:4224
+#: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11611,7 +11813,7 @@ msgstr "移除 {label}"
 msgid "Remove assignment"
 msgstr "移除分配"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:459
+#: packages/admin/src/components/ImageFieldRenderer.tsx:603
 msgid "Remove dark mode variant"
 msgstr "移除深色模式变体"
 
@@ -11628,7 +11830,9 @@ msgid "Remove from post"
 msgstr "从文章中移除"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:596
-#: packages/admin/src/components/ImageFieldRenderer.tsx:334
+#: packages/admin/src/components/ImageFieldRenderer.tsx:429
+#: packages/admin/src/components/ImageFieldRenderer.tsx:477
+#: packages/admin/src/components/ImageFieldRenderer.tsx:478
 msgid "Remove image"
 msgstr "移除图片"
 
@@ -11686,6 +11890,10 @@ msgstr "移除了“{snippet}”"
 #: packages/admin/src/components/MediaPickerModal.tsx:727
 msgid "Removed {0} from selection."
 msgstr "已从选中项中移除 {0}。"
+
+#: packages/admin/src/components/block-field-undo.tsx:302
+msgid "Removed {fieldLabel}"
+msgstr ""
 
 #: packages/admin/src/components/revisions/change-labels.ts:52
 msgid "Removed a code block"
@@ -11792,7 +12000,7 @@ msgstr "重新排序"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:348
+#: packages/admin/src/components/BlocksField.tsx:1467
 #: packages/admin/src/components/BylineCreditsEditor.tsx:690
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -11811,18 +12019,21 @@ msgstr "重复的字段组"
 msgid "visualEditing.replaceImage"
 msgstr "替换图片"
 
-#: packages/admin/src/components/ContentEditor.tsx:3609
-#: packages/admin/src/components/ContentEditor.tsx:3650
+#: packages/admin/src/components/ContentEditor.tsx:4115
+#: packages/admin/src/components/ContentEditor.tsx:4150
+#: packages/admin/src/components/ContentEditor.tsx:4216
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:427
-#: packages/admin/src/components/ImageFieldRenderer.tsx:310
-#: packages/admin/src/components/ImageFieldRenderer.tsx:371
-#: packages/admin/src/components/ImageFieldRenderer.tsx:434
-#: packages/admin/src/components/ImageFieldRenderer.tsx:659
-#: packages/admin/src/components/ImageFieldRenderer.tsx:662
+#: packages/admin/src/components/ImageFieldRenderer.tsx:405
+#: packages/admin/src/components/ImageFieldRenderer.tsx:450
+#: packages/admin/src/components/ImageFieldRenderer.tsx:515
+#: packages/admin/src/components/ImageFieldRenderer.tsx:578
+#: packages/admin/src/components/ImageFieldRenderer.tsx:739
+#: packages/admin/src/components/ImageFieldRenderer.tsx:742
+#: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/PortableTextEditor.tsx:5989
 #: packages/admin/src/components/PortableTextEditor.tsx:6071
 #: packages/admin/src/components/SeoImageField.tsx:194
@@ -11830,18 +12041,19 @@ msgstr "替换图片"
 msgid "Replace"
 msgstr "替换"
 
-#: packages/admin/src/components/ContentEditor.tsx:3649
-#: packages/admin/src/components/ImageFieldRenderer.tsx:653
+#: packages/admin/src/components/ContentEditor.tsx:4114
+#: packages/admin/src/components/ImageFieldRenderer.tsx:733
+#: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Replace {label}"
 msgstr "替换 {label}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:432
+#: packages/admin/src/components/ImageFieldRenderer.tsx:576
 msgid "Replace dark mode image"
 msgstr "替换深色模式图片"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:650
+#: packages/admin/src/components/ImageFieldRenderer.tsx:730
 msgid "Replace dark mode variant for {label}"
 msgstr "替换 {label} 的深色模式变体"
 
@@ -11867,7 +12079,7 @@ msgstr "要替换原图吗？"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "使用「原图」宽高比时可替换原图。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3211
+#: packages/admin/src/components/ContentEditor.tsx:3707
 msgid "Replace reference"
 msgstr "替换引用"
 
@@ -11928,6 +12140,8 @@ msgstr "请求失败"
 msgid "Require a slug before content can be published"
 msgstr "内容发布前必须填写别名"
 
+#: packages/admin/src/components/block-field-notes.tsx:47
+#: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:956
 #: packages/admin/src/components/FieldEditor.tsx:1193
@@ -12015,7 +12229,7 @@ msgstr "从左上角调整裁剪。使用方向键调整大小。"
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "从右上角调整裁剪。使用方向键调整大小。"
 
-#: packages/admin/src/components/ContentEditor.tsx:2199
+#: packages/admin/src/components/ContentEditor.tsx:2439
 msgid "Resize settings panel"
 msgstr "调整设置面板大小"
 
@@ -12066,13 +12280,13 @@ msgstr "正在恢复…"
 msgid "Results"
 msgstr "结果"
 
-#: packages/admin/src/components/BlocksField.tsx:373
+#: packages/admin/src/components/BlocksField.tsx:1267
 #: packages/admin/src/components/FieldEditor.tsx:1488
 msgid "Retired"
 msgstr "已退役"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3190
+#: packages/admin/src/components/ContentEditor.tsx:3686
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12354,7 +12568,7 @@ msgstr "保存 (Enter)"
 msgid "Save alt text"
 msgstr "保存替代文本"
 
-#: packages/admin/src/components/ContentEditor.tsx:1944
+#: packages/admin/src/components/ContentEditor.tsx:2174
 msgid "Save anyway"
 msgstr "仍要保存"
 
@@ -12616,11 +12830,11 @@ msgstr "搜索 {label}"
 msgid "Search {label}…"
 msgstr "搜索 {label}…"
 
-#: packages/admin/src/components/BlocksField.tsx:192
+#: packages/admin/src/components/BlockTypePicker.tsx:144
 msgid "Search block types"
 msgstr "搜索区块类型"
 
-#: packages/admin/src/components/BlocksField.tsx:195
+#: packages/admin/src/components/BlockTypePicker.tsx:150
 msgid "Search blocks"
 msgstr "搜索区块"
 
@@ -12899,9 +13113,11 @@ msgid "Select"
 msgstr "选择"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3629
-#: packages/admin/src/components/ContentEditor.tsx:3649
-#: packages/admin/src/components/ImageFieldRenderer.tsx:654
+#: packages/admin/src/components/ContentEditor.tsx:4114
+#: packages/admin/src/components/ContentEditor.tsx:4175
+#: packages/admin/src/components/ContentEditor.tsx:4236
+#: packages/admin/src/components/ImageFieldRenderer.tsx:734
+#: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
 msgstr "选择 {label}"
@@ -12948,7 +13164,7 @@ msgstr "选择本页全部"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3214
+#: packages/admin/src/components/ContentEditor.tsx:3710
 msgid "Select at least one entry."
 msgstr "请至少选择一个条目。"
 
@@ -12965,7 +13181,7 @@ msgstr "选择 {0} 的评论"
 msgid "Select content"
 msgstr "选择内容"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:651
+#: packages/admin/src/components/ImageFieldRenderer.tsx:731
 msgid "Select dark mode variant for {label}"
 msgstr "选择 {label} 的深色模式变体"
 
@@ -12981,7 +13197,8 @@ msgstr "选择网站图标"
 msgid "Select Favicon"
 msgstr "选择网站图标"
 
-#: packages/admin/src/components/ContentEditor.tsx:3635
+#: packages/admin/src/components/ContentEditor.tsx:4177
+#: packages/admin/src/components/ContentEditor.tsx:4242
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "选择文件"
@@ -12990,8 +13207,9 @@ msgstr "选择文件"
 msgid "Select gallery images"
 msgstr "选择图库图片"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:511
-#: packages/admin/src/components/ImageFieldRenderer.tsx:632
+#: packages/admin/src/components/ImageFieldRenderer.tsx:655
+#: packages/admin/src/components/ImageFieldRenderer.tsx:821
+#: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 #: packages/admin/src/components/PortableTextEditor.tsx:4872
 msgid "Select image"
@@ -13048,8 +13266,8 @@ msgstr "已选择 {label}"
 msgid "Selected {selectedItemTitle}"
 msgstr "已选择 {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:272
-#: packages/admin/src/components/ImageFieldRenderer.tsx:287
+#: packages/admin/src/components/ImageFieldRenderer.tsx:367
+#: packages/admin/src/components/ImageFieldRenderer.tsx:382
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr "已选图片"
@@ -13216,8 +13434,8 @@ msgid "Setting up..."
 msgstr "正在设置..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2059
-#: packages/admin/src/components/ContentEditor.tsx:2390
+#: packages/admin/src/components/ContentEditor.tsx:2299
+#: packages/admin/src/components/ContentEditor.tsx:2630
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
@@ -13269,6 +13487,10 @@ msgstr "短文本"
 #: packages/admin/src/components/FieldEditor.tsx:1694
 msgid "Short Text"
 msgstr "短文本"
+
+#: packages/admin/src/components/ContentEditor.tsx:237
+msgid "Show"
+msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
@@ -13760,7 +13982,8 @@ msgstr "使用模板的示例文章和页面。推荐新站点使用。"
 msgid "Start writing with plain text"
 msgstr "用纯文本开始写作"
 
-#: packages/admin/src/components/ContentEditor.tsx:2663
+#: packages/admin/src/components/ContentEditor.tsx:3060
+#: packages/admin/src/components/ContentEditor.tsx:3083
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "开始写作，或输入「/」使用命令"
@@ -14091,6 +14314,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
+#: packages/admin/src/components/BlocksField.tsx:2237
 #: packages/admin/src/components/PortableTextEditor.tsx:3800
 msgid "Text"
 msgstr ""
@@ -14406,8 +14630,8 @@ msgstr "插件字段组件渲染失败。"
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "插件尚未保存这些更改。更新编辑器前请检查。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1163
-#: packages/admin/src/components/ContentEditor.tsx:1179
+#: packages/admin/src/components/ContentEditor.tsx:1312
+#: packages/admin/src/components/ContentEditor.tsx:1328
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "插件结果已过时，因为编辑器在其运行期间发生了更改。"
 
@@ -14570,7 +14794,7 @@ msgstr "安装后这些工具将保持禁用状态，直到您明确启用代理
 msgid "This also removes:"
 msgstr "这还将删除："
 
-#: packages/admin/src/components/BlocksField.tsx:411
+#: packages/admin/src/components/BlocksField.tsx:1677
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "此区块无法编辑，因为其存储的定义不可用。"
 
@@ -14579,9 +14803,25 @@ msgstr "此区块无法编辑，因为其存储的定义不可用。"
 msgid "This block embeds a page from {0}."
 msgstr "此区块嵌入了来自 {0} 的页面。"
 
+#: packages/admin/src/components/BlocksField.tsx:2069
+msgid "This block has no fields."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
 msgid "This block runs JavaScript."
 msgstr "此区块运行 JavaScript。"
+
+#: packages/admin/src/components/BlocksField.tsx:881
+msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:874
+msgid "This block uses an older version of its type, so it can't be restored after you delete it."
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:876
+msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
@@ -14629,11 +14869,11 @@ msgstr "这看起来不是有效的迁移密钥。请在插件中生成一个新
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1940
+#: packages/admin/src/components/ContentEditor.tsx:2170
 msgid "This entry changed somewhere else after you opened it."
 msgstr "您打开后，此条目已在其他地方更改。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1498
+#: packages/admin/src/components/ContentEditor.tsx:1712
 #: packages/admin/src/router.tsx:1142
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "此条目已在其他地方更改。仍保存，或重新加载以获取较新的版本。"
@@ -14654,7 +14894,7 @@ msgstr "此条目在发布之前没有 URL。请粘贴一个 URL。"
 msgid "This entry is open somewhere else"
 msgstr "此条目已在其他地方打开"
 
-#: packages/admin/src/components/ContentEditor.tsx:1927
+#: packages/admin/src/components/ContentEditor.tsx:2157
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "此条目为只读，因为其模式使用了此版本 EmDash 不支持的字段类型。"
 
@@ -14666,7 +14906,8 @@ msgstr "此条目已到期 {lateness} 但尚未发布。定时发布可能未运
 msgid "This export is large"
 msgstr "此导出较大"
 
-#: packages/admin/src/components/ContentEditor.tsx:2491
+#: packages/admin/src/components/ContentEditor.tsx:2835
+#: packages/admin/src/components/ContentEditor.tsx:2843
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "此字段无法被此版本的 EmDash 编辑。"
@@ -14692,8 +14933,8 @@ msgstr "此字段不接受 {mimeType} 文件。"
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "此字段需要一个列表。存储的值将保持不变，直到您将其替换为空列表（这将删除它）。请先复制您需要的任何内容。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3653
-#: packages/admin/src/components/ImageFieldRenderer.tsx:673
+#: packages/admin/src/components/ContentEditor.tsx:4248
+#: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "此字段为必填项"
 
@@ -15359,6 +15600,7 @@ msgstr "未分配"
 msgid "Underline"
 msgstr "下划线"
 
+#: packages/admin/src/components/block-field-undo.tsx:219
 #: packages/admin/src/components/PortableTextEditor.tsx:6751
 msgid "Undo"
 msgstr "撤销"
@@ -15395,7 +15637,7 @@ msgstr "唯一标识符 (ULID)"
 msgid "Unknown"
 msgstr "未知"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "未知作者"
 
@@ -15417,7 +15659,7 @@ msgstr "解锁宽高比"
 msgid "Unnamed passkey"
 msgstr "未命名通行密钥"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "未命名用户"
 
@@ -15455,7 +15697,7 @@ msgstr "未保存的内容可能离开您的站点"
 msgid "Unscheduled"
 msgstr "已取消安排"
 
-#: packages/admin/src/components/BlocksField.tsx:374
+#: packages/admin/src/components/BlocksField.tsx:1268
 #: packages/admin/src/components/ContentTypeEditor.tsx:955
 msgid "Unsupported"
 msgstr "不支持"
@@ -15470,12 +15712,13 @@ msgstr "不支持的小部件元素类型：{0}"
 msgid "Until {0}"
 msgstr "直到 {0}"
 
+#: packages/admin/src/components/BlockListField.tsx:386
 #: packages/admin/src/components/Dashboard.tsx:598
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "无标题"
 
-#: packages/admin/src/components/ContentEditor.tsx:3549
+#: packages/admin/src/components/ContentEditor.tsx:4074
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "无标题文件"
@@ -15851,7 +16094,7 @@ msgstr "当页面没有 Open Graph 图片时作为默认图片。推荐尺寸：
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作标识符。仅限小写字母、数字和下划线。"
 
-#: packages/admin/src/components/ContentEditor.tsx:2786
+#: packages/admin/src/components/ContentEditor.tsx:3271
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "用于在列表页和文章顶部作为主要视觉展示"
 
@@ -15987,7 +16230,7 @@ msgstr "版本"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:371
+#: packages/admin/src/components/BlocksField.tsx:1658
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -16211,7 +16454,7 @@ msgstr "将导入的内容"
 msgid "What will happen when you import"
 msgstr "导入时会发生什么"
 
-#: packages/admin/src/components/ContentEditor.tsx:1941
+#: packages/admin/src/components/ContentEditor.tsx:2171
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "您输入的内容仍在此处。保存将替换较新的版本。"
 
