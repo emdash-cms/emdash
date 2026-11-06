@@ -1268,6 +1268,13 @@ function isIndexedPivotSort(orderBy: OrderBySpec | undefined): boolean {
  * {@link LARGE_TERM_ASSIGNMENTS} pivot rows in that collection. The capped
  * probe rides in this query; a query of its own would add a round trip to
  * every listing.
+ *
+ * With `countCollection`, `assignments` is the number of pivot rows the
+ * resolved terms have in that collection, each term counted up to
+ * {@link LARGE_TERM_ASSIGNMENTS}. It rides in this query so ordering several
+ * taxonomy filters by size costs no extra round trip, and the cap keeps a large
+ * term from costing more to count than the ordering saves: the sort only has
+ * to tell a few dozen assignments from thousands.
  */
 async function resolveTermGroups(
 	db: Kysely<Database>,
@@ -1275,7 +1282,8 @@ async function resolveTermGroups(
 	slugs: string[],
 	locale: string | undefined,
 	probeCollection?: string,
-): Promise<{ groups: string[]; large: boolean }> {
+	countCollection?: string,
+): Promise<{ groups: string[]; large: boolean; assignments: number }> {
 	let query = db
 		.selectFrom("taxonomies")
 		.select("translation_group")
@@ -1293,16 +1301,34 @@ async function resolveTermGroups(
 					.offset(LARGE_TERM_ASSIGNMENTS - 1)
 					.as("large"),
 			),
+		)
+		.$if(countCollection !== undefined, (qb) =>
+			qb.select((eb) =>
+				eb
+					.selectFrom(
+						eb
+							.selectFrom("content_taxonomies")
+							.select(sql<number>`1`.as("hit"))
+							.where("content_taxonomies.collection", "=", countCollection!)
+							.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
+							.limit(LARGE_TERM_ASSIGNMENTS)
+							.as("capped"),
+					)
+					.select((inner) => inner.fn.countAll<number>().as("n"))
+					.as("assignments"),
+			),
 		);
 	if (locale) query = query.where(localeMatches("locale", locale));
 	const rows = await query.execute();
-	const groups = new Set<string>();
+	const counts = new Map<string, number>();
 	let large = false;
 	for (const row of rows) {
-		if (row.translation_group) groups.add(row.translation_group);
+		if (row.translation_group) counts.set(row.translation_group, Number(row.assignments ?? 0));
 		if (row.large != null) large = true;
 	}
-	return { groups: [...groups], large };
+	let assignments = 0;
+	for (const n of counts.values()) assignments += n;
+	return { groups: [...counts.keys()], large, assignments };
 }
 
 /** Single-term equality preserves the pivot index's early-LIMIT seek. */
@@ -1895,22 +1921,32 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 						isIndexedPivotSort(orderBy)
 							? type
 							: undefined;
+					// With two or more taxonomies, each resolution also counts its terms'
+					// pivot rows, so the smallest set can drive the pivot query.
+					const countCollection = taxonomyFilters.length > 1 ? type : undefined;
+					const sized: Array<{ groups: string[]; assignments: number }> = [];
 					let driveFromContent = false;
 					for (const taxFilter of taxonomyFilters) {
-						const { groups, large } = await resolveTermGroups(
+						const { groups, large, assignments } = await resolveTermGroups(
 							db,
 							taxFilter.name,
 							taxFilter.slugs,
 							locale,
 							probeCollection,
+							countCollection,
 						);
 						// A slug that resolves to no term matches nothing; since taxonomy
 						// filters AND together, one empty set empties the whole result.
 						if (groups.length === 0) {
 							return { entries: [], cacheHint: { tags: [type] } };
 						}
-						groupSets.push(groups);
+						sized.push({ groups, assignments });
 						driveFromContent = large && groups.length === 1;
+					}
+					// The pivot query walks the first set through `content_taxonomies` and checks the rest with a
+					// correlated EXISTS per candidate row, so the smallest set drives.
+					for (const { groups } of sized.toSorted((a, b) => a.assignments - b.assignments)) {
+						groupSets.push(groups);
 					}
 
 					result = await buildTaxonomyPivotQuery({
