@@ -3,7 +3,14 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
-import { SeoPanel } from "../../src/components/SeoPanel";
+import {
+	createSeoTextBridge,
+	SeoPanel,
+	seoTextInput,
+	type SeoText,
+	type SeoTextBridge,
+} from "../../src/components/SeoPanel";
+import type { ContentSeo, ContentSeoInput } from "../../src/lib/api";
 import { render } from "../utils/render";
 import { tap } from "../utils/touch";
 
@@ -374,5 +381,206 @@ describe("SeoPanel", () => {
 
 		await tap(help.element());
 		await expect.element(helpText).not.toBeInTheDocument();
+	});
+});
+
+function seoOf(title: string): ContentSeo {
+	return { title, description: null, image: null, canonical: null, noIndex: false };
+}
+
+/** Writes SEO text the way the editor does: through a mounted panel, or saved at once. */
+function writeText(
+	bridge: SeoTextBridge,
+	text: Partial<SeoText>,
+	save: (seo: ContentSeoInput) => void,
+) {
+	bridge.text = { ...bridge.text, ...text };
+	if (bridge.setText) bridge.setText(text);
+	else save(seoTextInput(text));
+}
+
+describe("SeoPanel text bridge", () => {
+	it("starts from the bridge's text and doesn't send it again", async () => {
+		const onChange = vi.fn();
+		const bridge = createSeoTextBridge(seoOf("Saved title"));
+		bridge.text = { title: "Patched title", description: "" };
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="post-1"
+					seo={seoOf("Saved title")}
+					onChange={onChange}
+					textBridge={bridge}
+				/>
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByLabelText("SEO Title")).toHaveValue("Patched title");
+		await new Promise((resolve) => setTimeout(resolve, 700));
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("writes typed text to the bridge before its debounce sends it", async () => {
+		const onChange = vi.fn();
+		const bridge = createSeoTextBridge(seoOf(""));
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel contentKey="post-1" seo={seoOf("")} onChange={onChange} textBridge={bridge} />
+			</QueryWrapper>,
+		);
+
+		await userEvent.type(screen.getByLabelText("Meta Description"), "Typed");
+
+		expect(bridge.text).toEqual({ title: "", description: "Typed" });
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("saves text written through the bridge after its debounce, and sends pending text as it unmounts", async () => {
+		const onChange = vi.fn();
+		const bridge = createSeoTextBridge(seoOf(""));
+		function Host() {
+			const [visible, setVisible] = React.useState(true);
+			return (
+				<>
+					{visible && (
+						<SeoPanel contentKey="post-1" seo={seoOf("")} onChange={onChange} textBridge={bridge} />
+					)}
+					<button type="button" onClick={() => setVisible(false)}>
+						Hide panel
+					</button>
+				</>
+			);
+		}
+		const screen = await render(
+			<QueryWrapper>
+				<Host />
+			</QueryWrapper>,
+		);
+
+		writeText(bridge, { title: "Bonjour" }, onChange);
+		await expect.element(screen.getByLabelText("SEO Title")).toHaveValue("Bonjour");
+		expect(onChange).not.toHaveBeenCalled();
+		await vi.waitFor(() =>
+			expect(onChange).toHaveBeenCalledWith({
+				title: "Bonjour",
+				description: null,
+				canonical: null,
+				noIndex: false,
+			}),
+		);
+
+		writeText(bridge, { title: "Bonjour à tous" }, onChange);
+		await userEvent.click(screen.getByRole("button", { name: "Hide panel" }));
+		expect(onChange).toHaveBeenLastCalledWith({
+			title: "Bonjour à tous",
+			description: null,
+			canonical: null,
+			noIndex: false,
+		});
+		expect(bridge.setText).toBeNull();
+	});
+
+	it("shows and saves text the editor writes as the panel mounts", async () => {
+		const onChange = vi.fn();
+		const bridge = createSeoTextBridge(seoOf("Saved title"));
+		function Host() {
+			const [visible, setVisible] = React.useState(false);
+			React.useLayoutEffect(() => {
+				if (visible) writeText(bridge, { title: "Patched title" }, onChange);
+			}, [visible]);
+			return (
+				<>
+					{visible && (
+						<SeoPanel
+							contentKey="post-1"
+							seo={seoOf("Saved title")}
+							onChange={onChange}
+							textBridge={bridge}
+						/>
+					)}
+					<button type="button" onClick={() => setVisible(true)}>
+						Show panel
+					</button>
+				</>
+			);
+		}
+		const screen = await render(
+			<QueryWrapper>
+				<Host />
+			</QueryWrapper>,
+		);
+
+		await userEvent.click(screen.getByRole("button", { name: "Show panel" }));
+
+		await expect.element(screen.getByLabelText("SEO Title")).toHaveValue("Patched title");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+		expect(onChange).toHaveBeenLastCalledWith({
+			title: "Patched title",
+			description: null,
+			canonical: null,
+			noIndex: false,
+		});
+	});
+
+	it("sends text the editor writes right after an entry switch to the new entry", async () => {
+		const savesToFirst = vi.fn();
+		const savesToSecond = vi.fn();
+		const entries = {
+			"post-1": {
+				seo: seoOf("First"),
+				bridge: createSeoTextBridge(seoOf("First")),
+				save: savesToFirst,
+			},
+			"post-2": {
+				seo: seoOf("Second"),
+				bridge: createSeoTextBridge(seoOf("Second")),
+				save: savesToSecond,
+			},
+		};
+		function Host() {
+			const [key, setKey] = React.useState<keyof typeof entries>("post-1");
+			const entry = entries[key];
+			React.useLayoutEffect(() => {
+				if (key === "post-2")
+					writeText(entry.bridge, { title: "For the second entry" }, entry.save);
+			}, [entry, key]);
+			return (
+				<>
+					<SeoPanel
+						contentKey={key}
+						seo={entry.seo}
+						onChange={entry.save}
+						textBridge={entry.bridge}
+					/>
+					<button type="button" onClick={() => setKey("post-2")}>
+						Switch entry
+					</button>
+				</>
+			);
+		}
+		const screen = await render(
+			<QueryWrapper>
+				<Host />
+			</QueryWrapper>,
+		);
+		const title = screen.getByLabelText("SEO Title");
+		await userEvent.clear(title);
+		await userEvent.type(title, "Unsaved first");
+
+		await userEvent.click(screen.getByRole("button", { name: "Switch entry" }));
+
+		await expect.element(title).toHaveValue("For the second entry");
+		await vi.waitFor(() =>
+			expect(savesToSecond).toHaveBeenCalledWith({
+				title: "For the second entry",
+				description: null,
+				canonical: null,
+				noIndex: false,
+			}),
+		);
+		expect(savesToFirst.mock.calls).toEqual([
+			[{ title: "Unsaved first", description: null, canonical: null, noIndex: false }],
+		]);
+		expect(entries["post-1"].bridge.text.title).toBe("Unsaved first");
 	});
 });

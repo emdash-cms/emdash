@@ -159,6 +159,8 @@ export interface AdminManifest {
 					/** Database row ID (ULID) for the field. Used to widen MIME allowlists on upload/media-list calls. */
 					id?: string;
 					kind: string;
+					/** Schema type; `slug` and `string` share the `string` kind. Absent for unsupported types. */
+					type?: string;
 					label?: string;
 					required?: boolean;
 					translatable?: boolean;

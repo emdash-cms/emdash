@@ -1,4 +1,5 @@
 import { Button } from "@cloudflare/kumo";
+import type { EditorDraftFieldDefinition, EditorDraftPatchOperation } from "@emdash-cms/blocks";
 import { Trans } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -8,7 +9,47 @@ export interface ContentEditorPanelContext {
 	collection: string;
 	entry: ContentItem;
 	locale?: string;
+	/**
+	 * Reads and patches the editor's unsaved values. Keeps its identity while the editor
+	 * shows this entry. Absent on hosts that predate draft access.
+	 */
+	editorDraft?: ContentEditorDraft;
 }
+
+/** The open editor's unsaved field values, slug and SEO text, for a trusted panel. */
+export interface ContentEditorDraft {
+	get(): ContentEditorDraftSnapshot;
+	/**
+	 * Sets or clears draft values in the form without saving it. Refuses the whole patch when
+	 * any draft value changed after `expectedRevision` was read. Never throws.
+	 */
+	patch(
+		operations: readonly EditorDraftPatchOperation[],
+		options: { expectedRevision: string },
+	): ContentEditorDraftPatchResult;
+}
+
+export interface ContentEditorDraftSnapshot {
+	/** Identifies the draft values the snapshot was taken from. */
+	revision: string;
+	/** True while the editor doesn't accept edits, and once it no longer shows this entry. */
+	readOnly: boolean;
+	/**
+	 * A copy of each draft value, keyed by field slug, `slug`, `seo.title` or `seo.description`,
+	 * with null for none.
+	 */
+	fields: Record<string, unknown>;
+	fieldDefinitions: EditorDraftFieldDefinition[];
+}
+
+export type ContentEditorDraftPatchResult =
+	| { ok: true }
+	| {
+			ok: false;
+			code: "EDITOR_DRAFT_STALE" | "EDITOR_DRAFT_READ_ONLY" | "EDITOR_DRAFT_INVALID";
+			/** English text for developers; show your own text based on `code`. */
+			message: string;
+	  };
 
 export interface ContentEditorPanelExtension {
 	/** Stable identifier, unique within this plugin's editor panels. */

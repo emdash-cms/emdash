@@ -212,3 +212,36 @@ definePlugin({
 A schema field selects a `fields` entry with `widget: "<plugin-id>:<widget-name>"`. The component receives `value`, `onChange(value)`, `label`, `id`, and optionally `required`, `options`, `validation`, and `minimal`. `options` is the field's schema `options` unless the field is a `select` or `multiSelect` with legacy `validation.options`, in which case it is an array of `{ value, label }` items. The host renders no label around the widget, so render `label` yourself. A missing widget name falls back to the default editor for the field type. Trusted React widgets need no `admin.fieldWidgets` declaration; that field is for sandboxed Block Kit widgets.
 
 Native admin code must follow the repository's Kumo, localization, accessibility, and RTL rules. It runs with the site's authority and is not registry-installable.
+
+## Native content editor panels
+
+A native plugin adds a section to the settings sidebar of a saved entry by exporting `contentEditorPanels` from its admin entry. The panel needs the `adminEntry` and `admin.entry` pair so the module loads, but no `admin.pages` or `admin.widgets` declaration. Panels do not mount for new entries.
+
+```tsx title="src/admin.tsx"
+import type { ContentEditorPanelExtension } from "@emdash-cms/admin";
+
+// TranslatePanel's props are typed as ContentEditorPanelContext.
+import { TranslatePanel } from "./TranslatePanel.js";
+
+export const contentEditorPanels = [
+	{
+		id: "translate",
+		title: "Translate",
+		component: TranslatePanel,
+		collections: ["posts"],
+		order: 10,
+	},
+] satisfies readonly ContentEditorPanelExtension[];
+```
+
+`id`, `title`, and `component` are required, and `id` is unique within the plugin's panels. `collections` is an array of collection names or a predicate; omit it for every collection. `minRole` only hides the panel and does not authorize API calls. Lower `order` values render first. A render error stays inside the host's panel error boundary; catch errors in event handlers and async work yourself.
+
+The component receives `collection`, `locale`, `entry` (the entry as last saved), and `editorDraft`, which reads and patches the unsaved values in the open form:
+
+- `editorDraft` is `undefined` on hosts without draft access. Hide draft actions when it is missing, or declare the minimum `emdash` version in `peerDependencies`.
+- `get()` is synchronous and returns `{ revision, readOnly, fields, fieldDefinitions }`. `fields` holds JSON copies keyed by field slug, as the editor holds them: a boolean from storage is `0` or `1` until the user changes it, and a missing value is `null`. `fieldDefinitions` has `slug`, `label`, schema `type`, `required`, `translatable`, and `validation`.
+- The draft omits reference fields bound to a relation, unsupported field types, bylines, taxonomy terms, status, and the SEO image, canonical URL, and no-index setting. It adds `slug` (type `slug`, always present) and, in collections with SEO, `seo.title` (type `string`, `maxLength` 200) and `seo.description` (type `text`, `maxLength` 500). When writing through the content API, send these as `slug` and `seo: { title, description }`, never in `data`.
+- `patch(operations, { expectedRevision: snapshot.revision })` takes whole-value `{ op: "set", field, value }` and `{ op: "clear", field }` operations. It is synchronous, never throws, and applies all operations or none. A success writes the values into the form without saving. A patch to collection fields or the slug marks the form dirty, and the form autosaves as usual. The SEO panel saves `seo.title` and `seo.description` itself about half a second later, which takes effect at once, on published entries too, and is not stored in revisions.
+- A failure returns `{ ok: false, code, message }`. `EDITOR_DRAFT_STALE`: a draft field, slug, or SEO text changed since `get()`, or the editor switched entry or locale or unmounted. `EDITOR_DRAFT_READ_ONLY`: `readOnly` is true. `EDITOR_DRAFT_INVALID`: malformed or empty operations, a duplicate or unknown field, clearing `slug` or setting it to anything but a non-empty string, an SEO value over `maxLength`, a value with the wrong shape for its type, or Portable Text the editor cannot load. Recompute from a fresh `get()` before retrying. `message` is English; show localized text based on `code`.
+- A success can change the revision, so call `get()` again before another patch. Required, length, pattern, choice, reference, and slug-uniqueness rules are checked on save, not by `patch()`.
+- Read draft values and send them to an outside service only from an explicit user action, such as a button press, and tell the user where the content goes.

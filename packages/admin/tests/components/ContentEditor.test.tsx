@@ -60,7 +60,8 @@ let portableTextMountCount = 0;
 type EditorReadyCall = { mockId: number | null };
 let onEditorReadyCalls: EditorReadyCall[] = [];
 const portableTextProps: { current: Record<string, unknown> | null } = { current: null };
-vi.mock("../../src/components/PortableTextEditor", () => ({
+vi.mock("../../src/components/PortableTextEditor", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/components/PortableTextEditor")>()),
 	PortableTextEditor: (props: Record<string, any>) => {
 		const { value, placeholder, onEditorReady } = props;
 		portableTextProps.current = props;

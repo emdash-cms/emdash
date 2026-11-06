@@ -432,6 +432,30 @@ describe("ContentEditPage background reads with the real editor", () => {
 		},
 	);
 
+	it("keeps a title and a slug typed while a manual save was in flight through its reload", async () => {
+		const { screen } = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		const slug = screen.getByRole("textbox", { name: "Slug", exact: true });
+		await title.fill("Saved title");
+		await vi.advanceTimersByTimeAsync(150);
+		server.delayRead();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		await title.fill("Typed during the save");
+		await slug.fill("typed-during-the-save");
+		server.resolveRead();
+		await vi.advanceTimersByTimeAsync(2500);
+
+		const puts = server.requests.filter((r) => r.method === "PUT");
+		expect(puts).toHaveLength(2);
+		expect(puts[1]?.body).toMatchObject({
+			data: { title: "Typed during the save" },
+			slug: "typed-during-the-save",
+		});
+		await expect.element(title).toHaveValue("Typed during the save");
+		await expect.element(slug).toHaveValue("typed-during-the-save");
+	});
+
 	it.each(["discard", "restore"])("replaces unsaved edits after an explicit %s", async (action) => {
 		vi.useRealTimers();
 		if (action === "discard") server.publishWithDraft();

@@ -46,12 +46,20 @@ import {
 	getPreviewUrl,
 	getDraftStatus,
 } from "../lib/api";
+import {
+	boundReference,
+	checkSandboxedPatch,
+	createContentEditorDraft,
+	type DraftChanges,
+	type EditorDraftHost,
+	type EditorDraftState,
+} from "../lib/content-editor-draft.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { getFieldLabel } from "../lib/field-label.js";
 import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
-import { usePluginAdmins } from "../lib/plugin-context.js";
+import { usePluginAdmins, type PluginAdmins } from "../lib/plugin-context.js";
 import {
 	resolveSandboxedEditorActions,
 	selectEditorDraftFields,
@@ -95,6 +103,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { adoptSavedSeoText, createSeoTextBridge, seoTextInput } from "./SeoPanel.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -127,19 +136,30 @@ function listValue(value: unknown): unknown[] {
 	return Array.isArray(value) ? value : [];
 }
 
+/** The fields where `next` holds a different value than `current`, comparing list values as their editors load them. */
+function changedFields(
+	fields: Record<string, FieldDescriptor>,
+	current: Record<string, unknown>,
+	next: Record<string, unknown>,
+): string[] {
+	return Object.entries(fields)
+		.filter(([name, field]) =>
+			READ_ONCE_FIELD_KINDS.has(field.kind)
+				? JSON.stringify(listValue(current[name])) !== JSON.stringify(listValue(next[name]))
+				: JSON.stringify(current[name]) !== JSON.stringify(next[name]),
+		)
+		.map(([name]) => name);
+}
+
 /** The fields with editors that read their value once, where `next` holds a different value than `current`. */
 function changedReadOnceFields(
 	fields: Record<string, FieldDescriptor>,
 	current: Record<string, unknown>,
 	next: Record<string, unknown>,
 ): string[] {
-	return Object.entries(fields)
-		.filter(
-			([name, field]) =>
-				READ_ONCE_FIELD_KINDS.has(field.kind) &&
-				JSON.stringify(listValue(current[name])) !== JSON.stringify(listValue(next[name])),
-		)
-		.map(([name]) => name);
+	return changedFields(fields, current, next).filter((name) =>
+		READ_ONCE_FIELD_KINDS.has(fields[name]!.kind),
+	);
 }
 
 function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<string, unknown> {
@@ -185,6 +205,46 @@ function editorFieldMatchesReceipt(
 	);
 }
 
+type PluginFieldComponent = React.ComponentType<{
+	value: unknown;
+	onChange: (value: unknown) => void;
+	label: string;
+	id: string;
+	required?: boolean;
+	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+	validation?: Record<string, unknown>;
+	minimal?: boolean;
+}>;
+
+type ResolvedFieldWidget =
+	| { type: "trusted"; component: PluginFieldComponent }
+	| { type: "sandboxed"; elements: import("@emdash-cms/blocks").Element[] };
+
+/**
+ * The plugin widget that renders a `pluginId:widgetName` field widget: a trusted plugin's
+ * component, or a sandboxed plugin's Block Kit elements. Null when neither is available,
+ * and the field falls back to its built-in editor.
+ */
+function resolvePluginFieldWidget(
+	widget: string | undefined,
+	pluginAdmins: PluginAdmins,
+	manifest: import("../lib/api/client.js").AdminManifest | null | undefined,
+): ResolvedFieldWidget | null {
+	const sepIdx = widget?.indexOf(":") ?? -1;
+	if (!widget || sepIdx <= 0) return null;
+	const pluginId = widget.slice(0, sepIdx);
+	const widgetName = widget.slice(sepIdx + 1);
+	const component = pluginAdmins[pluginId]?.fields?.[widgetName] as
+		| PluginFieldComponent
+		| undefined;
+	if (typeof component === "function") return { type: "trusted", component };
+	const widgetDef = manifest?.plugins[pluginId]?.fieldWidgets?.find((w) => w.name === widgetName);
+	if (widgetDef?.elements && widgetDef.elements.length > 0) {
+		return { type: "sandboxed", elements: widgetDef.elements };
+	}
+	return null;
+}
+
 function resolveEditorBylines(item?: ContentItem | null): {
 	explicitCredits: BylineCreditInput[];
 	inferredByline: BylineSummary | null;
@@ -216,6 +276,8 @@ import {
 export interface FieldDescriptor {
 	id?: string;
 	kind: string;
+	/** Schema type from the manifest; `slug` and `string` share the `string` kind. */
+	type?: string;
 	label?: string;
 	required?: boolean;
 	translatable?: boolean;
@@ -367,6 +429,8 @@ export interface ContentEditorProps {
 		references?: Record<string, string[]>;
 		/** The entries behind `references`, for callers that cache the saved selection. */
 		referenceRows?: Record<string, ReferenceEntryRow[]>;
+		/** Keep the draft revision this autosave replaces, as a manual save does. */
+		keepReplacedRevision?: true;
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
@@ -579,7 +643,6 @@ export function ContentEditor({
 	const editorGenerationRef = React.useRef(0);
 	const editorIdentity = `${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
 	const [editorDraftError, setEditorDraftError] = React.useState<string | null>(null);
-	const [hasAppliedEditorDraftPatch, setHasAppliedEditorDraftPatch] = React.useState(false);
 	const [pendingEditorDraftPatch, setPendingEditorDraftPatch] = React.useState<{
 		access: EditorDraftAccessDeclaration;
 		response: EditorDraftResponse;
@@ -588,8 +651,13 @@ export function ContentEditor({
 		editorGenerationRef.current++;
 		setEditorDraftError(null);
 		setPendingEditorDraftPatch(null);
-		setHasAppliedEditorDraftPatch(false);
 	}, [editorIdentity]);
+	// Every write to these two counts sits beside a state update or runs during render, so a
+	// render follows it and the dirty state derived from them below is current.
+	/** Applied editor draft patches that wrote the form. */
+	const patchCountRef = React.useRef(0);
+	/** The patch count the last successful save had sent: its patches no longer need saving. */
+	const keptPatchCountRef = React.useRef(0);
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
@@ -720,6 +788,8 @@ export function ContentEditor({
 	const entrySwitchesRef = React.useRef(0);
 	/** The entry switch count when the last autosave was sent. */
 	const autosaveSwitchesRef = React.useRef(0);
+	/** The patch count when the pending autosave was sent. */
+	const pendingAutosavePatchesRef = React.useRef<number | null>(null);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
@@ -755,14 +825,26 @@ export function ContentEditor({
 		pendingAutosaveStateRef.current = null;
 		pendingAutosaveKeyRef.current = null;
 		pendingAutosaveReferencesRef.current = null;
+		pendingAutosavePatchesRef.current = null;
 		savedSaveKeyRef.current = null;
 		sentSaveKeyRef.current = null;
 		entrySwitchesRef.current++;
+		// A late save from the previous entry can't then count as saving a newer patch.
+		keptPatchCountRef.current = patchCountRef.current;
 		setReferenceState(seedReferenceState(item));
 		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
-		setHasAppliedEditorDraftPatch(false);
 	}
+
+	const entrySwitches = entrySwitchesRef.current;
+	/** The SEO title and description for the shown entry, which outlive SeoPanel. */
+	const seoTextBridge = React.useMemo(() => createSeoTextBridge(item?.seo), [entrySwitches]);
+	const savedSeoTitle = item?.seo?.title ?? "";
+	const savedSeoDescription = item?.seo?.description ?? "";
+	React.useEffect(() => {
+		adoptSavedSeoText(seoTextBridge, { title: savedSeoTitle, description: savedSeoDescription });
+	}, [savedSeoDescription, savedSeoTitle, seoTextBridge]);
+	const seoAvailable = hasSeo && !isNew && Boolean(onSeoChange);
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
@@ -793,7 +875,6 @@ export function ContentEditor({
 			// Background reads cannot replace the copy the writer has edited or its baseline.
 			if (isDirtyRef.current && !itemReset && !autosaveJustCompleted && !restored) return;
 			editorGenerationRef.current++;
-			setHasAppliedEditorDraftPatch(false);
 
 			// When an autosave resolves, the server payload is a snapshot from the
 			// moment the request was sent. Writing it back into formData would
@@ -808,19 +889,19 @@ export function ContentEditor({
 			) {
 				const saved =
 					itemReset && !discarded && !restored
-						? (JSON.parse(lastSavedData) as { data: Record<string, unknown> }).data
+						? (JSON.parse(lastSavedData) as { data: Record<string, unknown>; slug: string })
 						: undefined;
-				// A save's reload can arrive behind edits made after the save went out. Where the
-				// editor reads its value once, they stay in the editor and in the form, so the next
-				// save sends them under the revision they were made on.
+				// A save's reload can arrive behind edits made after the save went out. They stay in
+				// the form, so the next save sends them under the revision they were made on.
 				const keepEdits = (current: Record<string, unknown>) => {
 					let next = item.data;
 					if (!saved) return next;
-					for (const name of changedReadOnceFields(fields, saved, current)) {
+					for (const name of changedFields(fields, saved.data, current)) {
 						next = { ...next, [name]: current[name] };
 					}
 					return next;
 				};
+				const keepSlug = saved !== undefined && slugRef.current !== saved.slug;
 				const replaced = changedReadOnceFields(
 					fields,
 					formDataRef.current,
@@ -830,6 +911,7 @@ export function ContentEditor({
 					// An open block panel acts on an editor this replaces.
 					handleBlockSidebarClose();
 				}
+				if (discarded || restored) keptPatchCountRef.current = patchCountRef.current;
 				if (restored) {
 					setFieldsGeneration((generation) => generation + 1);
 				} else if (replaced.length > 0) {
@@ -841,8 +923,10 @@ export function ContentEditor({
 				}
 				// An edit can still be waiting to render, so the kept edits come from the latest form.
 				setFormData(keepEdits);
-				setSlug(item.slug || "");
-				setSlugTouched(!!item.slug);
+				if (!keepSlug) {
+					setSlug(item.slug || "");
+					setSlugTouched(!!item.slug);
+				}
 				setInternalBylines(nextBylines);
 				setBylinesTouched(false);
 			}
@@ -856,6 +940,7 @@ export function ContentEditor({
 			if (!autosaveJustCompleted || restored) {
 				pendingAutosaveStateRef.current = null;
 				pendingAutosaveKeyRef.current = null;
+				pendingAutosavePatchesRef.current = null;
 				savedSaveKeyRef.current = null;
 				setRejectedAutosaveState(null);
 			}
@@ -913,8 +998,9 @@ export function ContentEditor({
 		() => Object.values(referenceState).some((s) => !sameReferenceIds(s.baseline, s.current)),
 		[referenceState],
 	);
-	const isDirty =
-		isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData || referencesDirty;
+	// A patch can write the values the form already holds, and still counts as an edit to save.
+	const hasUnsavedPatch = patchCountRef.current > keptPatchCountRef.current;
+	const isDirty = isNew || hasUnsavedPatch || currentData !== lastSavedData || referencesDirty;
 	// A new entry is always "dirty" so it can be saved, but one nobody has
 	// touched has nothing to lose on leaving.
 	const [newEntryInitialState] = React.useState(currentData);
@@ -1161,27 +1247,6 @@ export function ContentEditor({
 		[editorDraftResponseIsCurrent, t],
 	);
 
-	const applyEditorDraftPatch = React.useCallback(() => {
-		if (!pendingEditorDraftPatch) return;
-		const { access, response } = pendingEditorDraftPatch;
-		if (!response.patch || !editorDraftResponseIsCurrent(access, response)) {
-			setPendingEditorDraftPatch(null);
-			setEditorDraftError(
-				t`The plugin result is stale because the editor changed while it was working.`,
-			);
-			return;
-		}
-		const next = { ...formDataRef.current };
-		for (const operation of response.patch.operations) {
-			next[operation.field] = operation.op === "clear" ? null : operation.value;
-		}
-		editorGenerationRef.current++;
-		markDirty();
-		setFormData(next);
-		setHasAppliedEditorDraftPatch(true);
-		setPendingEditorDraftPatch(null);
-	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t, markDirty]);
-
 	/**
 	 * Advances the saved baseline to what a successful save sent. Editing further
 	 * before the save resolved leaves the form and `current` ahead of this
@@ -1193,6 +1258,7 @@ export function ContentEditor({
 			referenceRows: Record<string, ReferenceEntryRow[]> | null | undefined,
 			key: string | null,
 			switches?: number,
+			patches?: number | null,
 		) => {
 			// The editor stays mounted when it switches to another cached entry.
 			if (switches !== undefined && switches !== entrySwitchesRef.current) return;
@@ -1200,7 +1266,9 @@ export function ContentEditor({
 			if (state) {
 				setLastSavedData(state);
 				editorGenerationRef.current++;
-				setHasAppliedEditorDraftPatch(false);
+				if (patches != null) {
+					keptPatchCountRef.current = Math.max(keptPatchCountRef.current, patches);
+				}
 			}
 			if (!referenceRows) return;
 			setReferenceState((prev) => {
@@ -1224,10 +1292,13 @@ export function ContentEditor({
 			pendingAutosaveStateRef.current,
 			pendingAutosaveReferencesRef.current,
 			pendingAutosaveKeyRef.current,
+			undefined,
+			pendingAutosavePatchesRef.current,
 		);
 		pendingAutosaveStateRef.current = null;
 		pendingAutosaveKeyRef.current = null;
 		pendingAutosaveReferencesRef.current = null;
+		pendingAutosavePatchesRef.current = null;
 	}, [autosaveCompletionToken]);
 
 	React.useEffect(() => {
@@ -1238,6 +1309,7 @@ export function ContentEditor({
 		setRejectedAutosaveState(pendingAutosaveKeyRef.current);
 		pendingAutosaveKeyRef.current = null;
 		pendingAutosaveStateRef.current = null;
+		pendingAutosavePatchesRef.current = null;
 		// The selections it carried were not saved, so nothing may advance their
 		// baseline — least of all a later autosave completing.
 		pendingAutosaveReferencesRef.current = null;
@@ -1296,7 +1368,13 @@ export function ContentEditor({
 			});
 			const key = autosavePayloadKey(state, payload.references);
 			sentSaveKeyRef.current = key;
-			return { state, referenceRows, key, switches: entrySwitchesRef.current };
+			return {
+				state,
+				referenceRows,
+				key,
+				switches: entrySwitchesRef.current,
+				patches: patchCountRef.current,
+			};
 		},
 		[activeBylines],
 	);
@@ -1347,12 +1425,18 @@ export function ContentEditor({
 			runAutosaveRef.current = null;
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload = createSavePayload();
-			const { state, referenceRows, key, switches } = beginSave(payload);
+			const { state, referenceRows, key, switches, patches } = beginSave(payload);
 			pendingAutosaveStateRef.current = state;
 			pendingAutosaveReferencesRef.current = referenceRows ?? null;
 			pendingAutosaveKeyRef.current = key;
+			pendingAutosavePatchesRef.current = patches;
 			autosaveSwitchesRef.current = switches;
-			onAutosave(referenceRows ? { ...payload, referenceRows } : payload);
+			onAutosave({
+				...payload,
+				...(referenceRows && { referenceRows }),
+				// The first save of a patch keeps the revision it replaces, as a manual save does.
+				...(patches > keptPatchCountRef.current && { keepReplacedRevision: true }),
+			});
 		};
 
 		// Schedule autosave
@@ -1405,7 +1489,7 @@ export function ContentEditor({
 		if (!result) return;
 		void result.then(
 			() => {
-				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
+				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches, saved.patches);
 				return undefined;
 			},
 			() => undefined,
@@ -1438,7 +1522,7 @@ export function ContentEditor({
 		}
 		void result.then(
 			() => {
-				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
+				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches, saved.patches);
 				isPublishingRef.current = false;
 				setIsPublishing(false);
 				return undefined;
@@ -1510,7 +1594,8 @@ export function ContentEditor({
 
 			return result
 				.then(() => {
-					if (saved) markSaved(saved.state, saved.referenceRows, saved.key, saved.switches);
+					if (saved)
+						markSaved(saved.state, saved.referenceRows, saved.key, saved.switches, saved.patches);
 					return undefined;
 				})
 				.finally(() => {
@@ -1616,13 +1701,18 @@ export function ContentEditor({
 		}
 	};
 
+	// The handlers write the refs as well as the state, so an editor draft read in the same
+	// task sees an edit that hasn't rendered: the rich text editor reports changes outside
+	// React events.
 	const handleFieldChange = React.useCallback(
 		(name: string, value: unknown) => {
 			editorGenerationRef.current++;
 			markDirty();
+			formDataRef.current = { ...formDataRef.current, [name]: value };
 			setFormData((prev) => ({ ...prev, [name]: value }));
 			if (name === (titleField ?? "title") && !slugTouched && typeof value === "string" && value) {
-				setSlug(slugify(value));
+				slugRef.current = slugify(value);
+				setSlug(slugRef.current);
 			}
 		},
 		[slugTouched, markDirty, titleField],
@@ -1632,11 +1722,109 @@ export function ContentEditor({
 		(value: string) => {
 			editorGenerationRef.current++;
 			markDirty();
+			slugRef.current = value;
 			setSlug(value);
 			setSlugTouched(true);
 		},
 		[markDirty],
 	);
+
+	const pluginAdmins = usePluginAdmins();
+	const rendersWidget = React.useCallback(
+		(field: { widget?: string }) =>
+			resolvePluginFieldWidget(field.widget, pluginAdmins, manifest) !== null,
+		[manifest, pluginAdmins],
+	);
+
+	/** The one step that writes an editor draft patch, trusted or sandboxed, into the editor. */
+	const applyDraftChanges = React.useCallback(
+		(changes: DraftChanges) => {
+			const names = Object.keys(changes.fields);
+			const writesForm = names.length > 0 || changes.slug !== undefined;
+			if (writesForm) {
+				formDataRef.current = { ...formDataRef.current, ...changes.fields };
+				// A new object even for a slug-only patch, so a render shows the patch count.
+				setFormData((previous) => ({ ...previous, ...changes.fields }));
+				patchCountRef.current++;
+			}
+			if (names.length > 0) {
+				// An open block panel edits through a rich text editor this remount replaces.
+				if (names.some((name) => READ_ONCE_FIELD_KINDS.has(fields[name]?.kind ?? ""))) {
+					handleBlockSidebarClose();
+				}
+				setFieldGenerations((generations) => {
+					const next = { ...generations };
+					for (const name of names) next[name] = (next[name] ?? 0) + 1;
+					return next;
+				});
+				editorGenerationRef.current++;
+				markDirty();
+			}
+			if (changes.slug !== undefined) handleSlugChange(changes.slug);
+			if (changes.seo) {
+				seoTextBridge.text = { ...seoTextBridge.text, ...changes.seo };
+				// A mounted SeoPanel saves it after its debounce, as it saves typing. Without one it
+				// is saved now, as the panel saves pending text when it closes.
+				if (seoTextBridge.setText) seoTextBridge.setText(changes.seo);
+				else handleSeoChange(seoTextInput(changes.seo));
+			}
+		},
+		[fields, handleBlockSidebarClose, handleSeoChange, handleSlugChange, markDirty, seoTextBridge],
+	);
+
+	const draftHost = {
+		read: (): EditorDraftState => ({
+			acceptsEdits: !readOnly && !isViewing,
+			fields,
+			formData: formDataRef.current,
+			slug: slugRef.current,
+			seo: seoAvailable ? seoTextBridge.text : null,
+			pluginBlocks: pluginBlocks ?? [],
+			rendersWidget,
+		}),
+		apply: applyDraftChanges,
+	} satisfies EditorDraftHost;
+	const draftHostRef = React.useRef(draftHost);
+	draftHostRef.current = draftHost;
+	/** Retires the draft objects once the editor unmounts. */
+	const mountedRef = React.useRef(true);
+	// A layout cleanup, so no task can patch between the unmount commit and the retirement.
+	React.useLayoutEffect(() => {
+		mountedRef.current = true;
+		return () => {
+			mountedRef.current = false;
+		};
+	}, []);
+	// Keyed by the switch count, which is what retires an object, so the object handed out
+	// always matches the count, including after a render that advanced it was discarded.
+	const editorDraft = React.useMemo(() => {
+		const switches = entrySwitchesRef.current;
+		return createContentEditorDraft({
+			read: () =>
+				mountedRef.current && entrySwitchesRef.current === switches
+					? draftHostRef.current.read()
+					: null,
+			apply: (changes) => draftHostRef.current.apply(changes),
+		});
+	}, [entrySwitches]);
+
+	const applyEditorDraftPatch = React.useCallback(() => {
+		if (!pendingEditorDraftPatch) return;
+		const { access, response } = pendingEditorDraftPatch;
+		setPendingEditorDraftPatch(null);
+		if (!response.patch || !editorDraftResponseIsCurrent(access, response)) {
+			setEditorDraftError(
+				t`The plugin result is stale because the editor changed while it was working.`,
+			);
+			return;
+		}
+		const checked = checkSandboxedPatch(response.patch.operations, draftHostRef.current.read());
+		if (!checked.ok) {
+			setEditorDraftError(t`The plugin proposed a value this editor can't load.`);
+			return;
+		}
+		applyDraftChanges(checked.changes);
+	}, [applyDraftChanges, editorDraftResponseIsCurrent, pendingEditorDraftPatch, t]);
 
 	const isPublished = status === "published";
 
@@ -2103,6 +2291,8 @@ export function ContentEditor({
 										captureEditorDraft={captureEditorDraft}
 										onEditorDraftResponse={handleEditorDraftResponse}
 										onEntryRefresh={onEntryRefresh}
+										editorDraft={editorDraft}
+										seoTextBridge={seoTextBridge}
 									/>
 								</RevisionViewProvider>
 							</div>
@@ -2476,65 +2666,40 @@ function FieldRenderer({
 		);
 	}
 
-	// Check for plugin field widget override
-	if (field.widget) {
-		const sepIdx = field.widget.indexOf(":");
-		if (sepIdx <= 0) {
-			console.warn(
-				`[emdash] Field "${name}" has widget "${field.widget}" but it should use the format "pluginId:widgetName". Falling back to default editor.`,
-			);
-		}
-		if (sepIdx > 0) {
-			const pluginId = field.widget.slice(0, sepIdx);
-			const widgetName = field.widget.slice(sepIdx + 1);
-			// Trusted plugin: React component
-			const PluginField = pluginAdmins[pluginId]?.fields?.[widgetName] as
-				| React.ComponentType<{
-						value: unknown;
-						onChange: (value: unknown) => void;
-						label: string;
-						id: string;
-						required?: boolean;
-						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
-						validation?: Record<string, unknown>;
-						minimal?: boolean;
-				  }>
-				| undefined;
-			if (typeof PluginField === "function") {
-				return (
-					<PluginFieldErrorBoundary fieldKind={field.kind}>
-						<PluginField
-							value={value}
-							onChange={handleChange}
-							label={label}
-							id={id}
-							required={field.required}
-							options={field.options}
-							validation={field.validation}
-							minimal={minimal}
-						/>
-					</PluginFieldErrorBoundary>
-				);
-			}
-			// Sandboxed plugin: Block Kit elements from manifest
-			if (manifest) {
-				const pluginManifest = manifest.plugins[pluginId];
-				const widgetDef = pluginManifest?.fieldWidgets?.find((w) => w.name === widgetName);
-				if (widgetDef?.elements && widgetDef.elements.length > 0) {
-					return (
-						<PluginFieldErrorBoundary fieldKind={field.kind}>
-							<BlockKitFieldWidget
-								label={label}
-								elements={widgetDef.elements}
-								value={value}
-								onChange={handleChange}
-							/>
-						</PluginFieldErrorBoundary>
-					);
-				}
-			}
-			// Widget declared but plugin not found/active -- fall through to default
-		}
+	if (field.widget && field.widget.indexOf(":") <= 0) {
+		console.warn(
+			`[emdash] Field "${name}" has widget "${field.widget}" but it should use the format "pluginId:widgetName". Falling back to default editor.`,
+		);
+	}
+	const widget = resolvePluginFieldWidget(field.widget, pluginAdmins, manifest);
+	if (widget?.type === "trusted") {
+		const PluginField = widget.component;
+		return (
+			<PluginFieldErrorBoundary fieldKind={field.kind}>
+				<PluginField
+					value={value}
+					onChange={handleChange}
+					label={label}
+					id={id}
+					required={field.required}
+					options={field.options}
+					validation={field.validation}
+					minimal={minimal}
+				/>
+			</PluginFieldErrorBoundary>
+		);
+	}
+	if (widget?.type === "sandboxed") {
+		return (
+			<PluginFieldErrorBoundary fieldKind={field.kind}>
+				<BlockKitFieldWidget
+					label={label}
+					elements={widget.elements}
+					value={value}
+					onChange={handleChange}
+				/>
+			</PluginFieldErrorBoundary>
+		);
 	}
 
 	if (LIST_FIELD_KINDS.has(field.kind) && isNonListValue(value)) {
@@ -2836,12 +3001,7 @@ function FieldRenderer({
 		}
 
 		case "reference": {
-			const relationGroup =
-				typeof field.validation?.relation === "string" ? field.validation.relation : undefined;
-			const targetCollection =
-				typeof field.validation?.targetCollection === "string"
-					? field.validation.targetCollection
-					: undefined;
+			const bound = boundReference(field);
 			// For a bound field the manifest reports the relation's own cardinality
 			// here; the field row's `multiple` is only the create-time input that set
 			// it, and a later schema edit can rewrite the row without it.
@@ -2849,7 +3009,7 @@ function FieldRenderer({
 			// A reference field created before relations existed keeps its own column
 			// holding one entry id, so it stays the text input it has always been
 			// until an admin gives it a target collection.
-			if (!relationGroup || !targetCollection) {
+			if (!bound) {
 				return (
 					<Input
 						label={label}
@@ -2867,7 +3027,7 @@ function FieldRenderer({
 					label={label}
 					labelClass={labelClass}
 					required={field.required}
-					targetCollection={targetCollection}
+					targetCollection={bound.targetCollection}
 					multiple={multiple}
 					reorderable={field.validation?.relationSide !== "child"}
 					state={referenceState?.[name]}

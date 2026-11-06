@@ -69,6 +69,8 @@ export interface ManifestCollection {
 		string,
 		{
 			kind: string;
+			/** Schema type. Absent for unsupported types and for descriptors derived from Zod schemas. */
+			type?: string;
 			label?: string;
 			required?: boolean;
 			translatable?: boolean;
