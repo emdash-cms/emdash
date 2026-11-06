@@ -601,6 +601,7 @@ export function ContentList({
 									termFilter={termFilter}
 									onTermFilterChange={onTermFilterChange}
 									locale={activeLocale ?? undefined}
+									defaultLocale={i18n?.defaultLocale}
 								/>
 							)}
 						</TableToolbar>
@@ -1002,6 +1003,8 @@ interface FilterBarProps {
 	onTermFilterChange?: (filter: TermFilterState) => void;
 	/** Locale the list is showing, so the byline picker offers matching rows. */
 	locale?: string;
+	/** Site default locale, for taxonomy definitions missing in `locale`. */
+	defaultLocale?: string;
 }
 
 /**
@@ -1025,6 +1028,7 @@ function FilterBar({
 	termFilter,
 	onTermFilterChange,
 	locale,
+	defaultLocale,
 }: FilterBarProps) {
 	const { t } = useLingui();
 
@@ -1115,9 +1119,10 @@ function FilterBar({
 			{onTermFilterChange && (
 				<TermFilters
 					collection={collection}
-					value={termFilter ?? {}}
+					value={termFilter ?? EMPTY_TERM_FILTER}
 					onChange={onTermFilterChange}
 					locale={locale}
+					defaultLocale={defaultLocale}
 				/>
 			)}
 

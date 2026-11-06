@@ -22,6 +22,10 @@ import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
+import {
+	parseTaxonomyCollections,
+	selectTaxonomyDefs,
+} from "../../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	ContentCollectionNotFoundError,
@@ -995,26 +999,15 @@ export async function handleContentList(
 			where.fieldFilters = params.fieldFilters;
 		}
 
-		// A taxonomy not attached to this collection can never match: reject it.
+		// A taxonomy not applied to this collection can never match: reject it
+		// rather than return an empty or unfiltered list.
 		if (params.termFilters && Object.keys(params.termFilters).length > 0) {
 			const names = Object.keys(params.termFilters);
-			const attached = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.select(["name", "collections"])
-				.where("name", "in", names)
-				.execute();
+			const defs = await selectTaxonomyDefs(db).where("d.name", "in", names).execute();
 			const appliesHere = new Set(
-				attached
-					.filter((row) => {
-						if (!row.collections) return false;
-						try {
-							const list = JSON.parse(row.collections) as unknown;
-							return Array.isArray(list) && list.includes(collection);
-						} catch {
-							return false;
-						}
-					})
-					.map((row) => row.name),
+				defs
+					.filter((def) => parseTaxonomyCollections(def.collections).includes(collection))
+					.map((def) => def.name),
 			);
 			const unknown = names.filter((name) => !appliesHere.has(name));
 			if (unknown.length > 0) {

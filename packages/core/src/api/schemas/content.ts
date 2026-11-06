@@ -127,9 +127,8 @@ export const contentFieldFiltersSchema = z
 /**
  * Taxonomy-term filters: OR within a taxonomy, AND across taxonomies.
  *
- * Bounded the same way as indexed field filters, because both end up as
- * operands in one statement: a cap on taxonomies, and a shared operand budget
- * over the slugs.
+ * Each taxonomy's slugs are bound as one JSON value, so the number of slugs
+ * has no parameter budget; the number of taxonomies is capped instead.
  */
 export const contentTermFiltersSchema = z
 	.record(
@@ -141,13 +140,7 @@ export const contentTermFiltersSchema = z
 	)
 	.refine((filters) => Object.keys(filters).length <= 10, {
 		message: "At most 10 taxonomy filters are allowed",
-	})
-	.refine(
-		(filters) =>
-			Object.values(filters).reduce<number>((total, slugs) => total + slugs.length, 0) <=
-			SQL_BATCH_SIZE,
-		{ message: `Taxonomy term filters have a total operand budget of ${SQL_BATCH_SIZE}` },
-	);
+	});
 
 const contentTermFiltersQuery = z
 	.string()

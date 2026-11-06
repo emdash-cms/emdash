@@ -8,7 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
-import type { ContentFieldFilters } from "../content-list-query.js";
+import type { ContentFieldFilters, ContentTermFilters } from "../content-list-query.js";
 import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
 	PluginEditorExtensionDispatch,
@@ -316,6 +316,7 @@ export interface EmDashHandlers {
 			bylinesNone?: boolean;
 			includeInferredBylines?: boolean;
 			fieldFilters?: ContentFieldFilters;
+			termFilters?: ContentTermFilters;
 		},
 	) => Promise<HandlerResponse>;
 

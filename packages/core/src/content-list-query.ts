@@ -37,6 +37,6 @@ export type ContentFieldFilters = Record<string, ContentFieldFilterValue>;
  * filters read in a UI: two terms of one taxonomy widen a search, two
  * taxonomies narrow it.
  *
- * Slugs are resolved per locale, as terms are elsewhere.
+ * A slug matches its term through any of the term's locale variants.
  */
 export type ContentTermFilters = Record<string, string[]>;

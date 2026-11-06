@@ -1,16 +1,18 @@
-import { Select } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchTaxonomyDefs, fetchTerms, type TaxonomyTerm } from "../lib/api";
+import { fetchTaxonomyDefs } from "../lib/api";
+import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
+import { fetchTerms, TaxonomyTermPicker, type TaxonomyTerm } from "./TaxonomySidebar.js";
 
 /**
- * Taxonomy-term filters for the content list, keyed by taxonomy name.
+ * Taxonomy-term filters for the content list: term slugs keyed by taxonomy
+ * name.
  *
- * One key per taxonomy the user has narrowed. A key is present only while it
- * has a selection: an empty array means "match nothing" to the server, which is
- * not what an untouched control means.
+ * A key is present only while it has a selection. The server reads an empty
+ * array as "match nothing", which is not what an untouched control means.
  */
 export type TermFilterState = Record<string, string[]>;
 
@@ -20,116 +22,119 @@ export function isTermFilterActive(filter: TermFilterState): boolean {
 	return Object.values(filter).some((slugs) => slugs.length > 0);
 }
 
-/** Depth-first flatten so a hierarchical taxonomy reads as an indented list. */
-function flatten(terms: TaxonomyTerm[], depth = 0): Array<{ term: TaxonomyTerm; depth: number }> {
-	return terms.flatMap((term) => [{ term, depth }, ...flatten(term.children ?? [], depth + 1)]);
-}
+const NO_CREATE = () => {};
 
 /**
- * A dropdown per taxonomy applied to this collection, beside the status,
- * author and byline filters.
- *
- * Renders nothing when the collection has no taxonomies, so collections that
- * do not use them are unchanged.
+ * One term picker per taxonomy applied to this collection, beside the status,
+ * author and byline filters. Renders nothing for a collection without
+ * taxonomies.
  */
 export function TermFilters({
 	collection,
 	value,
 	onChange,
 	locale,
+	defaultLocale,
 }: {
 	collection: string;
 	value: TermFilterState;
 	onChange: (next: TermFilterState) => void;
+	/** Locale the list is showing; terms load for it with default-locale fallback. */
 	locale?: string;
+	defaultLocale?: string;
 }) {
-	const { t } = useLingui();
-
-	const { data: defs } = useQuery({
-		queryKey: ["taxonomy-defs", locale],
-		queryFn: () => fetchTaxonomyDefs({ locale }),
-		placeholderData: keepPreviousData,
+	const { data: defs = [] } = useQuery({
+		queryKey: ["taxonomy-defs"],
+		queryFn: () => fetchTaxonomyDefs(),
 	});
-
 	const applicable = React.useMemo(
-		() => (defs ?? []).filter((def) => def.collections.includes(collection)),
-		[defs, collection],
+		() =>
+			resolveTaxonomyDefinitions(defs, locale, defaultLocale).filter((def) =>
+				def.collections.includes(collection),
+			),
+		[defs, locale, defaultLocale, collection],
 	);
 
-	if (applicable.length === 0) return null;
-
-	return (
-		<>
-			{applicable.map((def) => {
-				const label = def.label;
-				return (
-					<TermSelect
-						key={def.name}
-						name={def.name}
-						label={def.label}
-						locale={locale}
-						selected={value[def.name]?.[0] ?? ""}
-						onSelect={(slug) => {
-							const next = { ...value };
-							// Dropping the key rather than storing an empty array keeps
-							// "no selection" distinct from "match nothing".
-							if (slug) next[def.name] = [slug];
-							else delete next[def.name];
-							onChange(next);
-						}}
-						allLabel={t`All ${label}`}
-						ariaLabel={t`Filter by ${label}`}
-					/>
-				);
-			})}
-		</>
-	);
+	return applicable.map((def) => (
+		<TaxonomyTermFilter
+			key={def.name}
+			name={def.name}
+			label={def.label}
+			singularLabel={def.labelSingular || def.label}
+			locale={locale}
+			slugs={value[def.name] ?? []}
+			onSlugsChange={(slugs) => {
+				const next = { ...value };
+				// Drop the key rather than store an empty array, so "no selection"
+				// never reaches the server as "match nothing".
+				if (slugs.length > 0) next[def.name] = slugs;
+				else delete next[def.name];
+				onChange(next);
+			}}
+		/>
+	));
 }
 
-function TermSelect({
+function TaxonomyTermFilter({
 	name,
+	label,
+	singularLabel,
 	locale,
-	selected,
-	onSelect,
-	allLabel,
-	ariaLabel,
+	slugs,
+	onSlugsChange,
 }: {
 	name: string;
 	label: string;
+	singularLabel: string;
 	locale?: string;
-	selected: string;
-	onSelect: (slug: string) => void;
-	allLabel: string;
-	ariaLabel: string;
+	slugs: string[];
+	onSlugsChange: (slugs: string[]) => void;
 }) {
-	// Terms load per taxonomy and only for taxonomies actually on screen, so a
-	// site with several does not pay for all of them at once.
-	const { data: terms } = useQuery({
+	const { t } = useLingui();
+	// The same request the entry editor's picker makes: the list's locale with
+	// default-locale fallback, and no usage counts.
+	const { data: terms = [] } = useQuery({
 		queryKey: ["taxonomy-terms", name, locale],
-		queryFn: () => fetchTerms(name, { locale }),
-		placeholderData: keepPreviousData,
+		queryFn: () => fetchTerms(name, locale),
 	});
 
-	const options = React.useMemo(() => flatten(terms ?? []), [terms]);
-	if (options.length === 0) return null;
+	const flat = React.useMemo(() => flattenTerms(terms), [terms]);
+	const selectedIds = React.useMemo(
+		() => new Set(flat.filter((term) => slugs.includes(term.slug)).map((term) => term.id)),
+		[flat, slugs],
+	);
+	if (terms.length === 0) return null;
+
+	const first = flat.find((term) => term.slug === slugs[0]);
+	const buttonLabel =
+		slugs.length === 0
+			? t`All ${label}`
+			: slugs.length === 1 && first
+				? first.label
+				: plural(slugs.length, { one: `# ${singularLabel}`, other: `# ${label}` });
 
 	return (
-		<Select
-			size="sm"
-			aria-label={ariaLabel}
-			value={selected}
-			onValueChange={(v) => onSelect(v ?? "")}
-			items={{
-				"": allLabel,
-				...Object.fromEntries(options.map(({ term }) => [term.slug, term.label])),
+		<TaxonomyTermPicker
+			terms={terms}
+			selectedIds={selectedIds}
+			onChange={(ids) => {
+				const picked = new Set(ids);
+				onSlugsChange([
+					...new Set(flat.filter((term) => picked.has(term.id)).map((term) => term.slug)),
+				]);
 			}}
-		>
-			<Select.Option value="">{allLabel}</Select.Option>
-			{options.map(({ term, depth }) => (
-				<Select.Option key={term.id} value={term.slug}>
-					<span style={{ paddingInlineStart: `${depth}rem` }}>{term.label}</span>
-				</Select.Option>
-			))}
-		</Select>
+			onCreate={NO_CREATE}
+			isCreating={false}
+			label={label}
+			entryLocale={locale}
+			canCreate={false}
+			allowDelimitedValues={false}
+			singularLabel={singularLabel}
+			toolbar={{ buttonLabel, ariaLabel: t`Filter by ${label}` }}
+		/>
 	);
+}
+
+function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
+	return terms.flatMap((term) => [term, ...flattenTerms(term.children)]);
 }
