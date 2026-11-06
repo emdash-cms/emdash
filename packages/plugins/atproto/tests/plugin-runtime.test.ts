@@ -159,38 +159,48 @@ describe("sandbox hooks", () => {
 		expect(ctx.http.fetch).not.toHaveBeenCalled();
 	});
 
-	it("uses featured_image media for the standard.site document and Bluesky thumbnail", async () => {
-		const { default: plugin } = await import("../src/plugin.js");
-		const ctx = configuredCtx();
-		const handler = (plugin as any).hooks["content:afterPublish"].handler;
+	it.each([
+		[undefined, undefined],
+		["", undefined],
+		[undefined, ""],
+		["", ""],
+	])(
+		"uses featured_image for both records with nested cover %s and legacy cover %s",
+		async (nestedCover, legacyCover) => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const ctx = configuredCtx();
+			const handler = (plugin as any).hooks["content:afterPublish"].handler;
 
-		await handler(
-			{
-				collection: "posts",
-				content: {
-					id: "post-1",
-					status: "published",
-					data: {
-						title: "A post with an image",
-						featured_image: { provider: "local", id: "media-1", meta: { storageKey: "key.png" } },
+			await handler(
+				{
+					collection: "posts",
+					content: {
+						id: "post-1",
+						status: "published",
+						cover_image: legacyCover,
+						data: {
+							cover_image: nestedCover,
+							title: "A post with an image",
+							featured_image: { provider: "local", id: "media-1", meta: { storageKey: "key.png" } },
+						},
 					},
 				},
-			},
-			ctx,
-		);
+				ctx,
+			);
 
-		expect(ctx.media.readBytes).toHaveBeenCalledWith("media-1", { maxBytes: 1_000_000 });
-		expect(
-			ctx.http.fetch.mock.calls.some(([url]) => String(url).startsWith("https://example.com")),
-		).toBe(false);
-		const pdsBodies = ctx.http.fetch.mock.calls
-			.filter(([url]) => /com.atproto.repo.(createRecord|putRecord)$/.test(String(url)))
-			.map(([, init]) => JSON.parse((init as RequestInit).body as string));
-		const document = pdsBodies.find((body) => body.collection === "site.standard.document");
-		const bsky = pdsBodies.find((body) => body.collection === "app.bsky.feed.post");
-		expect(document.record.coverImage).toEqual(uploadedBlob);
-		expect(bsky.record.embed.external.thumb).toEqual(uploadedBlob);
-	});
+			expect(ctx.media.readBytes).toHaveBeenCalledWith("media-1", { maxBytes: 1_000_000 });
+			expect(
+				ctx.http.fetch.mock.calls.some(([url]) => String(url).startsWith("https://example.com")),
+			).toBe(false);
+			const pdsBodies = ctx.http.fetch.mock.calls
+				.filter(([url]) => /com.atproto.repo.(createRecord|putRecord)$/.test(String(url)))
+				.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+			const document = pdsBodies.find((body) => body.collection === "site.standard.document");
+			const bsky = pdsBodies.find((body) => body.collection === "app.bsky.feed.post");
+			expect(document.record.coverImage).toEqual(uploadedBlob);
+			expect(bsky.record.embed.external.thumb).toEqual(uploadedBlob);
+		},
+	);
 
 	it.each([
 		[

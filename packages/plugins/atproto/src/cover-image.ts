@@ -26,9 +26,13 @@ export async function uploadCoverImage(
 	accessJwt: string,
 ): Promise<{ blob?: BlobRef; warning?: string }> {
 	const data = getContentData(content);
-	const image =
-		data.cover_image ?? content.cover_image ?? data.featured_image ?? content.featured_image;
-	if (image === undefined || image === null || image === "") return {};
+	const image = [
+		data.cover_image,
+		content.cover_image,
+		data.featured_image,
+		content.featured_image,
+	].find((candidate) => candidate !== undefined && candidate !== null && candidate !== "");
+	if (image === undefined) return {};
 
 	try {
 		const value = asRecord(image);
@@ -63,7 +67,6 @@ export async function uploadCoverImage(
 				throw new CoverImageWarning("The image URL must use HTTP or HTTPS.");
 			const res = await requireHttp(ctx).fetch(url.href);
 			if (!res.ok) throw new CoverImageWarning(`Image download failed (HTTP ${res.status}).`);
-			// Bound URL downloads too, including responses without Content-Length.
 			if (!res.body) throw new CoverImageWarning("Image download returned an empty response.");
 			const reader = res.body.getReader();
 			const chunks: Uint8Array[] = [];

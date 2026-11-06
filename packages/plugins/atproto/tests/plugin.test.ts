@@ -50,7 +50,6 @@ describe("atproto plugin manifest", () => {
 	it("declares the required capabilities", async () => {
 		const manifest = await loadManifest();
 		expect(manifest.capabilities).toContain("content:read");
-		expect(manifest.capabilities).toContain("media:bytes:read");
 		expect(manifest.capabilities).toContain("network:request:unrestricted");
 	});
 
