@@ -98,6 +98,8 @@ For issues the bot doesn't take on, or hasn't reached yet, you can help by:
 - Adding priority labels when the impact is clear.
 - Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
 
+Older issues may still carry `bot:*` lifecycle labels such as `bot:triage` or `bot:in-review`, and `triage/*` labels other than those listed above. They come from earlier triage automation; treat them as historical.
+
 ## AI-assisted contributions
 
 AI-assisted contributions are welcome when they follow the [AI usage policy](AI_POLICY.md). A human understands and tests the change, explicitly authorises each issue or pull request, and remains responsible for the result.
