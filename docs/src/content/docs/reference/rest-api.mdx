@@ -367,7 +367,8 @@ A read or acquire response shows whether locking is enabled, whether the caller 
 			"userName": "Ada",
 			"acquiredAt": "2026-05-01T09:12:04.117Z",
 			"expiresAt": "2026-05-01T09:19:04.117Z"
-		}
+		},
+		"room": false
 	}
 }
 ```
@@ -377,6 +378,8 @@ When a collection has edit locking disabled, `enabled` is `false` and no lease i
 The acquire body can include an opaque `token` that identifies one editing session and `takeover: true` when the user chooses to replace another editor's lease. Pass the same token as a query parameter when releasing the lock. A second tab from the same account then cannot release the first tab's lease accidentally.
 
 When another user holds the lease, protected content writes return `409 ENTRY_LOCKED`. The error details identify the holder and expiry. To override the lock, send `"overrideLock": true` in the JSON body for a write that has a body, or `?overrideLock=true` for a `DELETE` operation that has no body.
+
+While people [co-edit the entry](/guides/working-with-content/#edit-with-other-people), `room` is `true`. The response then reports a holder that stands for the room, with an empty `userId` and a `null` `userName`, and `heldByCaller` is `false`. An acquire request deletes every lock on the entry and grants none. Content writes aren't refused with `ENTRY_LOCKED`, and their changes appear in the open editors.
 
 ## Reference selections
 

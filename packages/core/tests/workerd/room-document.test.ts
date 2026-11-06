@@ -1,6 +1,7 @@
+import { readFields, writeField } from "@emdash-cms/admin/co-editing";
 import { describe, expect, it } from "vitest";
 
-import { buildDocument, documentFields, readFields, writeField } from "../../src/rooms/document.js";
+import { buildDocument, documentFields } from "../../src/rooms/document.js";
 import { hashValue } from "../../src/rooms/hash.js";
 
 const span = (key: string, text: string, marks: string[] = []) => ({

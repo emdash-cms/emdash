@@ -40,6 +40,8 @@ import {
 	type TranslationSummary,
 	type UserListItem,
 } from "../lib/api";
+import { useRoomOperations } from "../lib/co-editing/operations.js";
+import type { RoomEditing } from "../lib/co-editing/types.js";
 import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
@@ -70,6 +72,7 @@ import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { FieldPresence } from "./presence/FieldPresence.js";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { namedSince, useRevisionFormat } from "./revisions/revision-format.js";
@@ -341,13 +344,14 @@ export function DiscardDraftDialog({
 }) {
 	const { t } = useLingui();
 	const discard = useConfirmedRequest(onDiscard);
+	const { blocked } = useRoomOperations();
 	return (
 		<>
 			<Button
 				type="button"
 				variant={triggerVariant}
 				size={triggerSize}
-				disabled={disabled}
+				disabled={disabled || blocked}
 				className={compact ? compactBarExtraButtonClassName : undefined}
 				icon={<X />}
 				onClick={discard.show}
@@ -377,6 +381,8 @@ export interface EditorActionsProps {
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
 	saveDisabled?: boolean;
+	/** Set in a co-editing room, where the save button reads "Offline" while disconnected. */
+	isOffline?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
@@ -414,6 +420,7 @@ export function PreviewButton({
 	compact,
 }: PreviewButtonProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
 	return (
 		<Button
 			type="button"
@@ -421,7 +428,7 @@ export function PreviewButton({
 			size={size}
 			className={compact ? compactBarButtonClassName : undefined}
 			onClick={onPreview}
-			disabled={isLoadingPreview}
+			disabled={isLoadingPreview || blocked}
 			icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
 		>
 			<span className={compact ? compactBarLabelClassName : undefined}>
@@ -493,7 +500,7 @@ export function PublishActions({
 	hasPendingChanges,
 	publishingState,
 	isPending,
-	disabled,
+	disabled: disabledProp,
 	onPublish,
 	onUnpublish,
 	onMenuOpenChange,
@@ -502,6 +509,8 @@ export function PublishActions({
 	revisions,
 }: PublishActionsProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
+	const disabled = disabledProp || blocked;
 	const [publishOpen, setPublishOpen] = React.useState(false);
 	const publishOpenRef = React.useRef(publishOpen);
 	publishOpenRef.current = publishOpen;
@@ -614,12 +623,14 @@ export function ScheduleActions({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
-	disabled,
+	disabled: disabledProp,
 	onOpenSchedule,
 	onUnschedule,
 	inline,
 }: ScheduleActionsProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
+	const disabled = disabledProp || blocked;
 	const hasSchedule =
 		publishingState === "scheduled" ||
 		publishingState === "update-scheduled" ||
@@ -695,6 +706,7 @@ export function EditorActions({
 	isSaving,
 	isAutosaving,
 	saveDisabled,
+	isOffline,
 	isLive,
 	hasPendingChanges,
 	publishingState,
@@ -714,7 +726,7 @@ export function EditorActions({
 	const busy = isSaving || Boolean(isAutosaving);
 	const savesFirstDraft = isNew && supportsDrafts;
 	// Saved reads as a quiet status; unsaved work becomes a button again.
-	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
+	const saveVariant = (!isDirty && !busy) || isOffline ? "ghost" : isNew ? "primary" : "secondary";
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -726,6 +738,7 @@ export function EditorActions({
 				labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
 				isDirty={isDirty}
 				isSaving={busy}
+				offline={isOffline}
 				disabled={saveDisabled}
 				saveLabel={savesFirstDraft ? t`Save draft` : undefined}
 			/>
@@ -816,6 +829,8 @@ export interface ContentSettingsPanelProps {
 	onTranslate?: (locale: string) => void;
 	hasSeo: boolean;
 	onSeoChange?: (seo: ContentSeoInput) => void;
+	/** In a co-editing room, where the SEO panel sends only the values changed here. */
+	seoInRoom?: boolean;
 	/** portableText editor for the document outline (null when none mounted) */
 	portableTextEditor: Editor | null;
 	/** When set, the panel shows the block's detail panel instead of settings */
@@ -830,6 +845,10 @@ export interface ContentSettingsPanelProps {
 		response: EditorDraftResponse,
 	) => void;
 	onEntryRefresh?: () => void | Promise<void>;
+	/** In a room, the latest checkpoint's `_rev`, which sandboxed panels load again on. */
+	roomRevision?: string | null;
+	/** The entry's room, which shows who else is in the slug. */
+	room?: RoomEditing | null;
 }
 
 /**
@@ -879,6 +898,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onTranslate,
 	hasSeo,
 	onSeoChange,
+	seoInRoom = false,
 	portableTextEditor,
 	blockSidebarPanel,
 	onBlockSidebarClose,
@@ -886,6 +906,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	captureEditorDraft,
 	onEditorDraftResponse,
 	onEntryRefresh,
+	roomRevision,
+	room = null,
 }: ContentSettingsPanelProps) {
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
@@ -935,6 +957,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const [datesOpen, setDatesOpen] = React.useState(false);
 	const trash = useConfirmedRequest(onDelete);
+	const { blocked: operationsBlocked } = useRoomOperations();
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -980,6 +1003,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			</div>
 		) : null;
 	}
+
+	const slugInput = (
+		<Input
+			dir="ltr"
+			label={t`Slug`}
+			value={slug}
+			onChange={(event) => onSlugChange(event.target.value)}
+			placeholder="my-post-slug"
+		/>
+	);
 
 	return (
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
@@ -1028,7 +1061,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 										{item.publishedAt ? (
 											<dl>
 												{canUpdatePublishedDate && onPublishedAtChange ? (
-													<div>
+													<div data-emdash-outside="publishedAt">
 														<dt className="sr-only">{t`Publication date`}</dt>
 														<dd>
 															<PublicationDateDialog
@@ -1125,13 +1158,14 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							{t`URL & language`}
 						</Text>
 						<div className="grid gap-4">
-							<Input
-								dir="ltr"
-								label={t`Slug`}
-								value={slug}
-								onChange={(event) => onSlugChange(event.target.value)}
-								placeholder="my-post-slug"
-							/>
+							{room ? (
+								<div data-co-editing-field="slug" className="relative">
+									{slugInput}
+									<FieldPresence room={room} field="slug" />
+								</div>
+							) : (
+								slugInput
+							)}
 							{contentLocale ? (
 								<div className="flex items-center justify-between gap-3">
 									<div className="flex items-center gap-1.5">
@@ -1159,18 +1193,20 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`Ownership`}
 							</Text>
-							<AuthorSelector
-								authorId={item?.authorId || null}
-								users={users}
-								onChange={onAuthorChange}
-							/>
+							<div data-emdash-outside="author">
+								<AuthorSelector
+									authorId={item?.authorId || null}
+									users={users}
+									onChange={onAuthorChange}
+								/>
+							</div>
 						</div>
 					</SortableContentSettingsSection>
 				)}
 
 				{currentUser && currentUser.role >= ROLE_EDITOR && (
 					<SortableContentSettingsSection id="bylines" label={t`Bylines`}>
-						<div className="p-4">
+						<div className="p-4" data-emdash-outside="bylines">
 							<div className="mb-4 flex items-center gap-1.5 pe-24">
 								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
@@ -1225,20 +1261,22 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{/* Do not register an empty sortable row when this collection has no taxonomies. */}
 				{item && hasApplicableTaxonomies && (
 					<SortableContentSettingsSection id="taxonomies" label={t`Taxonomies`}>
-						<TaxonomySidebar
-							className="p-4"
-							collection={collection}
-							entryId={item.id}
-							entryLocale={activeEntryLocale}
-							defaultLocale={i18n?.defaultLocale}
-							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
-						/>
+						<div data-emdash-outside="terms">
+							<TaxonomySidebar
+								className="p-4"
+								collection={collection}
+								entryId={item.id}
+								entryLocale={activeEntryLocale}
+								defaultLocale={i18n?.defaultLocale}
+								canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+							/>
+						</div>
 					</SortableContentSettingsSection>
 				)}
 
 				{hasSeo && !isNew && onSeoChange && (
 					<SortableContentSettingsSection id="seo" label={t`SEO`}>
-						<div className="p-4">
+						<div className="p-4" data-emdash-outside="seo">
 							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`SEO`}
 							</Text>
@@ -1246,6 +1284,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
+								inRoom={seoInRoom}
 								defaultTitle={
 									item
 										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
@@ -1287,7 +1326,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												collection={collection}
 												entryId={item.id}
 												locale={item.locale ?? entryLocale}
-												versionToken={item._rev ?? item.updatedAt}
+												versionToken={roomRevision ?? item._rev ?? item.updatedAt}
 												draftAccess={extension.draft}
 												captureDraft={captureEditorDraft}
 												onDraftResponse={onEditorDraftResponse}
@@ -1372,7 +1411,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						type="button"
 						variant="ghost"
 						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
-						disabled={isDeleting}
+						disabled={isDeleting || operationsBlocked}
 						icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 						onClick={trash.show}
 					>

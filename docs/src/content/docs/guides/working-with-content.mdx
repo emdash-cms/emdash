@@ -165,15 +165,164 @@ the public version, and **Publish changes** when the draft is ready to replace i
 Changing the slug of a published entry follows the same draft flow. The public URL changes when you
 publish the draft, not when autosave runs.
 
-## Work with another editor
+## Edit with other people
 
-Opening an entry takes an edit lock for that entry and locale. If another person already has it
-open, EmDash identifies the lock holder and offers two choices:
+Several people can edit an entry at the same time. Each person sees the others' changes as they
+type, and everyone's edits save together. Co-editing works in collections with revision support, on
+sites where [`coEditing`](/reference/configuration/#coediting) is on, which is the default. In the
+cases listed under [Single-editor mode](#single-editor-mode), the editor takes an
+[edit lock](#edit-locks) instead.
+
+Each translation is edited on its own, so people working on different locales of an entry don't see
+each other.
+
+### See who else is editing
+
+- The editor bar shows each other person who has the entry open as a circle with their initials:
+  up to three, then a count such as **+2**. Hover over or focus a circle to see the person's name
+  and the field they're editing, or **Viewing** when they aren't in a field. Select a circle to go
+  to that person's field, or select the count to list everyone.
+- The names of the people in a field appear at the end of its label row, in their colors.
+- In rich text, each person's cursor and selection appear in their color. Their name shows at the
+  cursor for a couple of seconds after it moves, and while you hover over it.
+
+### Save while others edit
+
+EmDash saves everyone's edits together two seconds after the latest change, and at least every 10
+seconds while people keep typing. Your **Save** button shows **Saved** once a save holds all of your
+own edits. Other people's typing doesn't change it.
+
+**Save** keeps the current point in revision history, as it does when you edit alone. Each version
+in **Revisions** names everyone who edited it.
+
+- In rich text, undo reverts only your own edits. Other fields use the browser's undo.
+- If you leave the entry before a save holds your edits, the editor asks you to confirm. Links
+  within the admin first wait up to three seconds for the save.
+- If a save is refused, for example by a validation rule, everyone with the entry open sees the
+  error. EmDash tries again after the next change.
+- Changes saved another way, such as through the REST API, MCP, the CLI, the visual editor or a
+  plugin, appear in open editors within a second.
+- SEO settings, the author, the publication date, taxonomy terms, bylines and reference fields save
+  separately from the rest of the entry, and aren't merged: when two people change the same one, the
+  later save is kept. Other people see the new value once they leave that field.
+
+### Keep editing offline
+
+If your connection drops, keep typing. The editor reconnects on its own, then merges and saves your
+edits. After five seconds without a connection, the **Save** button shows **Offline** and can't be
+selected. A shorter drop shows nothing.
+
+While the editor is offline, **Preview** and the actions in
+[Publish while others edit](#publish-while-others-edit) are disabled. Your offline edits exist only
+in that browser tab, so closing it loses them.
+
+If no one was connected to the entry for an hour before you reconnect, your offline edits can't
+merge. The editor saves them as a [recovery revision](#recovery-revisions) instead, and tells you
+so.
+
+### Publish while others edit
+
+Publishing, scheduling, unpublishing, discarding changes, restoring a version and moving the entry
+to Trash first save everyone's edits, then run. Each action needs the same permission as when you
+edit alone.
+
+- Publishing makes everyone's edits live as they were at that moment. Edits made after it are
+  pending changes, which **Publish changes** makes live.
+- Other people with the entry open see a message such as **Ana changed this entry**.
+- **Restore** and **Discard changes** replace the fields they change. Text that anyone types into
+  those fields while the action runs is lost, and no version holds it.
+- If the save before an action fails, the action doesn't run, and the editor shows the error.
+- **Preview** opens its tab at once and loads the page once your edits are saved. If they can't be
+  saved, the tab closes and the editor shows **Preview opens once your edits are saved**.
+- A Contributor can edit their own entry only while it's a draft. Once it's published or scheduled,
+  their editor turns read-only.
+- When someone moves the entry to Trash, the other editors show it read-only, with a notice that it
+  was moved to Trash or deleted.
+
+### Simultaneous changes
+
+Rich text merges: when several people type in it at once, everyone's text is kept. Other changes
+follow these rules:
+
+- Every other field, including the title, the slug, block and repeater fields, and fields that
+  plugins add, holds one value. When two people change one at the same time, one of the changes is
+  kept, the same for everyone.
+- **Turn into**, dragging, deleting, wrapping a block in a list or quote, joining it with the block
+  next to it, and indenting it all replace the block. Text that someone else types inside that block
+  at the same moment is lost.
+- Text you type offline inside content that someone else deleted is lost.
+- When a script or another tool changes a field that someone in the editor changed since the last
+  save, the editor's value is kept and saved over it. Plugin writes, CLI and MCP updates, and REST
+  updates without `skipRevision` create a version, so the replaced value stays in **Revisions**.
+
+### When the editor opens read-only
+
+If you can view drafts but can't edit the entry, such as an Author or Contributor opening someone
+else's draft, the editor is read-only and shows others' changes as they type. Others see you as
+**Viewing**.
+
+An entry also opens read-only while the entry is already open in 25 tabs or in 5 of yours, and while
+the server is busy, for example because it's restarting. The editor bar shows **Waiting to join…**,
+and the editor keeps trying until it joins. After a server stops unexpectedly, joining can take up
+to a minute.
+
+### Single-editor mode
+
+In single-editor mode, the editor works as it does for one person, with an [edit lock](#edit-locks).
+It uses single-editor mode when:
+
+- the collection doesn't support revisions;
+- [co-editing](/reference/configuration/#coediting) is off, or the site's host can't run it;
+- the browser can't open co-editing connections, for example because a proxy or network blocks
+  WebSockets;
+- the entry is larger than 1 MB, or its rich text has formatting the editor can't show;
+- the tab was opened before co-editing was available on the site, until you reload it;
+- you already have the entry open in a tab that uses single-editor mode; or
+- the site is partway through deploying a new EmDash version.
+
+After a browser's first three co-editing connections fail, it uses single-editor mode for every
+entry until the browser session ends.
+
+When a tab in single-editor mode opens an entry that others are co-editing, EmDash shows **People
+are editing this entry together**. Select **Join** to edit with them, or **Open read-only**. When the
+browser can't open co-editing connections, **Join** isn't offered, and the entry opens read-only.
+
+### Recovery revisions
+
+A recovery revision holds edits that EmDash couldn't merge or save. It appears in **Revisions** with
+the other versions, and never becomes the draft or the published version. To use one, open it and
+select **Restore**. Restoring saves its fields as your edit and checks them as any save does.
+
+EmDash saves a recovery revision in these cases:
+
+- The editor has to start again from a fresh copy of the entry while it holds unsaved edits, such as
+  after you reconnect too late to merge. A message says that your unsaved edits are in a recovery
+  revision.
+- EmDash is upgraded, or a collection, plugin or taxonomy definition changes, such as when someone
+  adds a field. Within 15 minutes, open editors save their unsaved edits this way and reload the
+  admin.
+- Edits stay unsaved for an hour after everyone leaves the entry, for example because every save
+  failed validation.
+
+When your edits can't be saved at all, the editor keeps them in the tab and shows **These edits can
+no longer be saved**. This happens when you lose edit access, when the entry is moved to Trash or
+deleted, or when the recovery revision itself can't be saved. Copy what you need, then select
+**Reload**.
+
+### Edit locks
+
+When an entry opens in single-editor mode, the editor takes an edit lock for that entry and locale.
+If another person already has it open in single-editor mode, EmDash identifies the lock holder and
+offers two choices:
 
 - **Open read-only** shows the entry without accepting edits, so you cannot type work that will be
   discarded.
-- **Take over** gives you the lock. The other person keeps what they typed, but within two minutes
-  their editor reports that you hold the entry. Their next save is refused.
+- **Take over** gives you the entry. The other person keeps what they typed, but within two minutes
+  their editor reports that their changes are no longer being saved.
+
+When the entry can't be co-edited, their next save is refused. Otherwise, **Take over** removes
+their lock and opens the entry for co-editing, and their saves still reach the entry until their
+editor reports the change.
 
 The lock is renewed while the entry is open and released when you leave the editor or close the tab.
 If the browser or computer closes without releasing it, the lock expires seven minutes after its
@@ -181,7 +330,8 @@ last renewal.
 
 Locks are independent for each locale, so two people can edit different translations of the same
 entry. A script, API client, or MCP client is also refused while another editor holds the lock
-unless it uses the documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock)
+unless it uses the documented override. While people co-edit an entry, it has no lock, so these
+writes land and appear in the editor. See [Entry edit lock](/reference/rest-api/#entry-edit-lock)
 for the complete API behavior and
 [Content lifecycle and bylines](/reference/mcp-server/#content-lifecycle-and-bylines) for the MCP
 tools.

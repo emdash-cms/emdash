@@ -1,9 +1,3 @@
-import * as decoding from "lib0/decoding";
-import * as encoding from "lib0/encoding";
-import { describe, expect, it } from "vitest";
-import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
-import * as Y from "yjs";
-
 import {
 	MESSAGE_AWARENESS,
 	MESSAGE_ROOM,
@@ -16,7 +10,12 @@ import {
 	encodeUpdate,
 	type Message,
 	type RoomMessage,
-} from "../../../src/rooms/protocol.js";
+} from "@emdash-cms/admin/co-editing";
+import * as decoding from "lib0/decoding";
+import * as encoding from "lib0/encoding";
+import { describe, expect, it } from "vitest";
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
+import * as Y from "yjs";
 
 function docWith(text: string): Y.Doc {
 	const doc = new Y.Doc();
@@ -145,6 +144,25 @@ describe("awareness messages", () => {
 
 		expect(awareness.getStates().get(12)).toEqual({ user: { name: "Ana" } });
 		awareness.destroy();
+	});
+
+	it("keeps the raw update, which a y-protocols Awareness applies", () => {
+		const sender = new Awareness(new Y.Doc());
+		sender.setLocalState({ user: { name: "Ben" } });
+		const update = encodeAwarenessUpdate(sender, [sender.clientID]);
+		const bytes = raw((encoder) => {
+			encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
+			encoding.writeVarUint8Array(encoder, update);
+		});
+		const receiver = new Awareness(new Y.Doc());
+
+		const message = decoded(bytes, "awareness");
+		applyAwarenessUpdate(receiver, message.update, "test");
+
+		expect(message.update).toEqual(update);
+		expect(receiver.getStates().get(sender.clientID)).toEqual({ user: { name: "Ben" } });
+		sender.destroy();
+		receiver.destroy();
 	});
 
 	it("rejects a state that isn't an object or null", () => {

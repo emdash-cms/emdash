@@ -4,6 +4,7 @@ import { ArrowCounterClockwise, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { ContentItem, RevisionListItem } from "../../lib/api";
+import { useRoomOperations } from "../../lib/co-editing/operations.js";
 import { cn } from "../../lib/utils.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import {
@@ -82,6 +83,7 @@ export function RevisionViewBar({
 	dockRef,
 }: RevisionViewBarProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
 	const format = useRevisionFormat();
 	const titleId = React.useId();
 	const [restoreOpen, setRestoreOpen] = React.useState(false);
@@ -236,7 +238,7 @@ export function RevisionViewBar({
 							type="button"
 							variant="primary"
 							icon={<ArrowCounterClockwise />}
-							disabled={saveBusy || restorePending}
+							disabled={saveBusy || restorePending || blocked}
 							onClick={() => setRestoreOpen(true)}
 						>
 							{t`Restore`}

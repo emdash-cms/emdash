@@ -26,12 +26,27 @@ async function emulateCoarsePointer(page: Page) {
 }
 
 test.describe("Admin code block highlighting", () => {
+	let postId: string | undefined;
+
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
 		await admin.goToContent("posts");
 		await admin.waitForLoading();
 		await admin.page.getByRole("link", { name: "Post With Code", exact: true }).click();
 		await admin.waitForLoading();
+		postId = new URL(admin.page.url()).pathname.split("/").at(-1);
+	});
+
+	// The entry's room saves edits even when the tab closes at once, so drop them for the next test.
+	test.afterEach(async ({ serverInfo }) => {
+		await fetch(`${serverInfo.baseUrl}/_emdash/api/content/posts/${postId}/discard-draft`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${serverInfo.token}`,
+				"X-EmDash-Request": "1",
+				Origin: serverInfo.baseUrl,
+			},
+		});
 	});
 
 	test("highlights supported languages and leaves unsupported languages plain", async ({

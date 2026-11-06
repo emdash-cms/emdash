@@ -6,6 +6,7 @@ import { userEvent } from "vitest/browser";
 import "../../../dist/styles.css";
 import { RevisionViewBar } from "../../../src/components/revisions/RevisionViewBar";
 import type { RevisionListItem } from "../../../src/lib/api";
+import { RoomOperationsContext } from "../../../src/lib/co-editing/operations";
 import { render } from "../../utils/render.tsx";
 
 /** A Saturday, so the Wednesday before it reads as "Wednesday", the longest English weekday. */
@@ -33,6 +34,7 @@ function BarAt({
 	firstVersion = false,
 	author = "Maya Chen",
 	editedBy = null,
+	dirty = false,
 	onExit = vi.fn(),
 }: {
 	width: number;
@@ -48,6 +50,8 @@ function BarAt({
 	firstVersion?: boolean;
 	author?: string;
 	editedBy?: RevisionListItem["editedBy"];
+	/** The editor holds edits that restoring would replace. */
+	dirty?: boolean;
 	onExit?: () => void;
 }) {
 	const titleRef = React.useRef<HTMLHeadingElement>(null);
@@ -83,7 +87,7 @@ function BarAt({
 				onStep={vi.fn()}
 				readOnly={false}
 				saveBusy={false}
-				isDirty={false}
+				isDirty={dirty}
 				restorePending={false}
 				onRestoreStart={vi.fn()}
 				onRestoreFailed={vi.fn()}
@@ -243,5 +247,72 @@ describe("RevisionViewBar", () => {
 			};
 		});
 		expect(layout[1]).toEqual(layout[0]);
+	});
+
+	describe("in a room", () => {
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
+		it("restores only once the room has saved this tab's edits", async () => {
+			const order: string[] = [];
+			const prepare = vi.fn(async () => {
+				order.push("prepare");
+			});
+			vi.stubGlobal(
+				"fetch",
+				vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+					const url =
+						typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+					order.push(`${init?.method ?? "GET"} ${url}`);
+					return Response.json({ data: { item: { id: "post_1", _rev: undefined } } });
+				}),
+			);
+			const screen = await renderBar(
+				<RoomOperationsContext.Provider value={{ prepare, blocked: false, inRoom: true }}>
+					<BarAt width={2000} createdAt={lastWednesdayEvening()} />
+				</RoomOperationsContext.Provider>,
+			);
+
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+			await screen
+				.getByRole("dialog", { name: "Restore this version?" })
+				.getByRole("button", { name: "Restore", exact: true })
+				.click();
+
+			await vi.waitFor(() =>
+				expect(order).toEqual(["prepare", "POST /_emdash/api/revisions/rev-1/restore"]),
+			);
+		});
+
+		it("warns about typing during the restore, not about unsaved changes", async () => {
+			const screen = await renderBar(
+				<RoomOperationsContext.Provider value={{ prepare: vi.fn(), blocked: false, inRoom: true }}>
+					<BarAt width={2000} createdAt={lastWednesdayEvening()} dirty />
+				</RoomOperationsContext.Provider>,
+			);
+
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+			const dialog = screen.getByRole("dialog", { name: "Restore this version?" });
+
+			await expect
+				.element(dialog)
+				.toHaveTextContent(
+					"Anything typed into the changed fields during the restore will be lost.",
+				);
+			await expect.element(dialog).not.toHaveTextContent("Your unsaved changes will be lost.");
+		});
+
+		it("can't restore while operations are blocked", async () => {
+			const screen = await renderBar(
+				<RoomOperationsContext.Provider value={{ prepare: vi.fn(), blocked: true, inRoom: true }}>
+					<BarAt width={2000} createdAt={lastWednesdayEvening()} />
+				</RoomOperationsContext.Provider>,
+			);
+
+			await expect
+				.element(screen.getByRole("button", { name: "Restore", exact: true }))
+				.toBeDisabled();
+		});
 	});
 });

@@ -368,10 +368,12 @@ export interface EmDashConfig {
 	/**
 	 * Real-time co-editing of entries in collections with revisions.
 	 *
-	 * Needs `@astrojs/node`. Sites on other adapters, and `node:cluster`
-	 * workers, keep single-editor mode. Changing it needs a rebuild.
+	 * Runs on `@astrojs/node`, outside `node:cluster` workers, and on
+	 * `@astrojs/cloudflare` with the `EMDASH_ROOMS` Durable Object binding.
+	 * Elsewhere the editor uses single-editor mode with edit locks. Changing
+	 * it needs a rebuild.
 	 *
-	 * @default false
+	 * @default true
 	 */
 	coEditing?: boolean;
 

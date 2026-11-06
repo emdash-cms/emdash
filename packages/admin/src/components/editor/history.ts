@@ -1,0 +1,40 @@
+/**
+ * The editor's undo history: prosemirror-history in a single editor, and
+ * Collaboration's Y.UndoManager in a room, where prosemirror-history's own
+ * functions find no history.
+ */
+
+import { closeHistory, undo, undoDepth } from "@tiptap/pm/history";
+import type { EditorState, Transaction } from "@tiptap/pm/state";
+import { yUndoPluginKey } from "@tiptap/y-tiptap";
+import type { UndoManager } from "yjs";
+
+function undoManager(state: EditorState): UndoManager | undefined {
+	return yUndoPluginKey.getState(state)?.undoManager;
+}
+
+/** The number of undo steps the history holds. */
+export function historyDepth(state: EditorState): number {
+	const manager = undoManager(state);
+	return manager ? manager.undoStack.length : undoDepth(state);
+}
+
+/** Makes `tr` start a new undo step, so it doesn't join the one before it. */
+export function closeHistoryGroup(state: EditorState, tr: Transaction): Transaction {
+	const manager = undoManager(state);
+	if (!manager) return closeHistory(tr);
+	manager.stopCapturing();
+	return tr;
+}
+
+/**
+ * Undoes the last undo step. Y.UndoManager renders its undo through the
+ * binding itself, so `dispatch` only receives prosemirror-history's.
+ */
+export function undoLastGroup(state: EditorState, dispatch: (tr: Transaction) => void): boolean {
+	const manager = undoManager(state);
+	if (!manager) return undo(state, dispatch);
+	if (manager.undoStack.length === 0) return false;
+	manager.undo();
+	return true;
+}

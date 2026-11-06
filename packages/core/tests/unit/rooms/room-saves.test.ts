@@ -1,8 +1,7 @@
+import { readField, snapshotContains } from "@emdash-cms/admin/co-editing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import { readField } from "../../../src/rooms/document.js";
-import { snapshotContains } from "../../../src/rooms/snapshot.js";
 import { CLOSE_CODES } from "../../../src/rooms/types.js";
 import {
 	advance,
@@ -224,6 +223,19 @@ describe("save results", () => {
 		await advance(2000);
 		expect(test.site.saves).toHaveLength(3);
 		expect(test.site.saves[2]?.data).toHaveProperty("title", "Typed");
+	});
+
+	it("saves after the next notification following a second conflict", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		test.site.forced = ["CONFLICT", "CONFLICT"];
+		ana.setField("title", "Typed");
+		await advance(2000);
+		expect(test.site.saves).toHaveLength(2);
+		await test.site.write({ data: { body: [] } });
+		await advance(2000);
+		expect(test.site.saves).toHaveLength(3);
+		expect(test.site.current.data.title).toBe("Typed");
 	});
 
 	it("saves as the next editor when the site refuses the actor", async () => {

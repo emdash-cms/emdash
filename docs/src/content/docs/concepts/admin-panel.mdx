@@ -49,10 +49,14 @@ Saving and publishing are separate states for collections with drafts. **Save** 
 work as a draft. **Publish** or **Publish changes** makes that saved version available to public
 queries. Scheduling records when a draft or pending change should become public.
 
-When edit locking is enabled for a collection, opening an entry holds a lock for that editor. Other
-writers are refused while the lock is active instead of silently overwriting the entry. If an entry
-changes after an editor loads it, EmDash also refuses the stale save so the editor can reload the
-newer version instead of overwriting it.
+On sites that run co-editing, several people can edit an entry in a collection with revisions at
+the same time, and changes saved elsewhere appear in their editors. See
+[Edit with other people](/guides/working-with-content/#edit-with-other-people).
+In [single-editor mode](/guides/working-with-content/#single-editor-mode), when edit locking is
+enabled for a collection, opening an entry holds a lock for that editor. Other writers are refused
+while the lock is active instead of silently overwriting the entry. If an entry changes after an
+editor loads it, EmDash also refuses the stale save so the editor can reload the newer version
+instead of overwriting it.
 
 <Aside>
 	Moving an entry to the trash is a reversible content action. Permanently deleting it from the
