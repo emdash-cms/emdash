@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
+import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { handlersFromRuntime, createTestRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -14,6 +15,7 @@ async function setup(): Promise<Harness> {
 		slug: "post",
 		label: "Posts",
 		labelSingular: "Post",
+		urlPattern: "/blog/{slug}",
 	});
 	await registry.createField("post", { slug: "title", label: "Title", type: "string" });
 	await registry.createField("post", {
@@ -57,6 +59,84 @@ function makeWxr(postCount: number): string {
 		<link>https://example.com</link>
 		${items}
 	</channel>
+</rss>`;
+}
+
+function makeWxrWithRedirectCases(): string {
+	const posts = [
+		{
+			id: 1,
+			title: "Post 1",
+			slug: "post-1",
+			status: "publish",
+			link: "https://example.com/2004/05/01/post-1/",
+			date: "2004-05-01 20:00:00",
+			gmt: "2004-05-02 00:00:00",
+		},
+		{
+			id: 2,
+			title: "Post 2",
+			slug: "post-2",
+			status: "publish",
+			link: "https://example.com/2004/06/27/post-2/",
+			date: "2004-06-27 21:50:26",
+			gmt: "2004-06-28 04:50:26",
+		},
+		{
+			id: 3,
+			title: "Post 3",
+			slug: "post-3",
+			status: "publish",
+			link: "https://example.com/2004/05/02/post-3/",
+			date: "2004-05-02 12:00:00",
+			gmt: "2004-05-02 12:00:00",
+		},
+		{
+			id: 4,
+			title: "Draft",
+			slug: "draft",
+			status: "draft",
+			link: "https://example.com/2004/05/01/draft/",
+			date: "2004-05-01 20:00:00",
+			gmt: "2004-05-02 00:00:00",
+		},
+		{
+			id: 5,
+			title: "Conflict",
+			slug: "conflict",
+			status: "publish",
+			link: "https://example.com/2004/05/01/conflict/",
+			date: "2004-05-01 20:00:00",
+			gmt: "2004-05-02 00:00:00",
+		},
+		{
+			id: 6,
+			title: "No link",
+			slug: "no-link",
+			status: "publish",
+			date: "2004-05-01 20:00:00",
+			gmt: "2004-05-02 00:00:00",
+		},
+	];
+	const items = posts
+		.map(
+			({ id, title, slug, status, link, date, gmt }) => `<item>
+			<title>${title}</title>
+			<wp:post_id>${id}</wp:post_id>
+			<wp:post_type>post</wp:post_type>
+			<wp:status>${status}</wp:status>
+			<wp:post_name>${slug}</wp:post_name>
+			${link ? `<link>${link}</link>` : ""}
+			<wp:post_date>${date}</wp:post_date>
+			<wp:post_date_gmt>${gmt}</wp:post_date_gmt>
+			<content:encoded><![CDATA[<p>${title}</p>]]></content:encoded>
+		</item>`,
+		)
+		.join("\n");
+
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+	<channel><title>Test Site</title><link>https://example.com</link>${items}</channel>
 </rss>`;
 }
 
@@ -282,6 +362,113 @@ describe("WXR execute chunked import", () => {
 
 		const second = await runImport();
 		expect(second).toMatchObject({ imported: 0, skipped: 1 });
+	});
+
+	it("updates owned redirects when the collection permalink pattern changes", async () => {
+		const wxr = makeWxrWithRedirectCases();
+		const redirects = new RedirectRepository(harness.db);
+		await redirects.create({
+			source: "/2004/05/01/conflict/",
+			destination: "/manual-conflict",
+			type: 302,
+		});
+
+		const firstResponse = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(buildFormData(wxr), harness.emdash) as any,
+		);
+		expect(firstResponse.status).toBe(200);
+		expect((await firstResponse.json()).data).toMatchObject({
+			imported: 6,
+			errors: [
+				expect.objectContaining({ title: "Conflict", error: expect.stringContaining("redirect") }),
+			],
+		});
+		expect(
+			await harness.db
+				.selectFrom("ec_post")
+				.select(["slug", "published_at"])
+				.where("slug", "in", ["post-1", "post-2"])
+				.orderBy("slug")
+				.execute(),
+		).toEqual([
+			{ slug: "post-1", published_at: "2004-05-02T00:00:00.000Z" },
+			{ slug: "post-2", published_at: "2004-06-28T04:50:26.000Z" },
+		]);
+
+		const registry = new SchemaRegistry(harness.db);
+		await registry.updateCollection("post", { urlPattern: "/{year}/{month}/{day}/{slug}" });
+
+		const rerun = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(buildFormData(wxr, { skipExisting: true }), harness.emdash) as any,
+		);
+		expect(rerun.status).toBe(200);
+		expect((await rerun.json()).data).toMatchObject({
+			imported: 0,
+			skipped: 6,
+			errors: [
+				expect.objectContaining({ title: "Conflict", error: expect.stringContaining("redirect") }),
+			],
+		});
+		expect(
+			await harness.db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination", "type"])
+				.orderBy("source")
+				.execute(),
+		).toEqual([
+			{ source: "/2004/05/01/conflict/", destination: "/manual-conflict", type: 302 },
+			{ source: "/2004/05/01/post-1/", destination: "/2004/05/02/post-1", type: 301 },
+			{ source: "/2004/06/27/post-2/", destination: "/2004/06/28/post-2", type: 301 },
+		]);
+
+		await harness.db
+			.deleteFrom("_emdash_redirects")
+			.where("source", "=", "/2004/05/01/post-1/")
+			.execute();
+		const retry = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(buildFormData(wxr, { skipExisting: true }), harness.emdash) as any,
+		);
+		expect(retry.status).toBe(200);
+		expect((await retry.json()).data).toMatchObject({
+			imported: 0,
+			skipped: 6,
+			errors: [
+				expect.objectContaining({ title: "Conflict", error: expect.stringContaining("redirect") }),
+			],
+		});
+		expect(
+			await harness.db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination", "type"])
+				.orderBy("source")
+				.execute(),
+		).toEqual([
+			{ source: "/2004/05/01/conflict/", destination: "/manual-conflict", type: 302 },
+			{ source: "/2004/05/01/post-1/", destination: "/2004/05/02/post-1", type: 301 },
+			{ source: "/2004/06/27/post-2/", destination: "/2004/06/28/post-2", type: 301 },
+		]);
+	});
+
+	it("imports plain permalink WXR links without creating redirects", async () => {
+		const wxr = makeWxr(2)
+			.replace(
+				"<wp:post_name>post-1</wp:post_name>",
+				"<wp:post_name>post-1</wp:post_name>\n\t\t\t<link>https://example.com/?p=123</link>",
+			)
+			.replace(
+				"<wp:post_name>post-2</wp:post_name>",
+				"<wp:post_name>post-2</wp:post_name>\n\t\t\t<link>https://example.com/?page_id=456</link>",
+			);
+		const response = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(buildFormData(wxr), harness.emdash) as any,
+		);
+		expect(response.status).toBe(200);
+		expect((await response.json()).data).toMatchObject({ imported: 2, errors: [] });
+		expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
 	});
 
 	it("schedules future posts and keeps missed schedules as drafts", async () => {

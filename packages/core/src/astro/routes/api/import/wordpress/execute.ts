@@ -20,7 +20,9 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+import type { ContentItem } from "#db/repositories/types.js";
 import { relativizeContentLinks, resolveImportByline } from "#import/utils.js";
+import { importWxrPermalinks, type WxrPermalinkEntry } from "#import/wxr-permalinks.js";
 import {
 	attachPostTaxonomies,
 	isWxrTaxonomyConflictError,
@@ -497,6 +499,18 @@ export async function importContent(
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
+	const permalinks: WxrPermalinkEntry[] = [];
+	const queuePermalink = (post: WxrPost, collection: string, item: ContentItem) => {
+		const schema = manifest.collections[collection];
+		if (!post.link || schema?.routable === false) return;
+		permalinks.push({
+			title: post.title || "Untitled",
+			link: post.link,
+			collection,
+			pattern: schema?.urlPattern ?? null,
+			item,
+		});
+	};
 
 	for (const post of posts) {
 		const postType = post.postType || "post";
@@ -555,6 +569,7 @@ export async function importContent(
 					if (post.translationGroup) {
 						translationGroupMap.set(post.translationGroup, existing.id);
 					}
+					queuePermalink(post, collection, existing);
 					result.skipped++;
 					continue;
 				}
@@ -636,7 +651,8 @@ export async function importContent(
 				// typed as `unknown` to avoid coupling the route surface to
 				// internal handler types, so we narrow here.
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler contract documented at handleContentCreate
-				const createdItem = (createResult.data as { item: { id: string } } | undefined)?.item;
+				const createdItem = (createResult.data as { item: ContentItem } | undefined)?.item;
+				if (createdItem) queuePermalink(post, collection, createdItem);
 
 				// Track translation group: the first imported post in a group
 				// becomes the anchor that later translations link to.
@@ -728,6 +744,7 @@ export async function importContent(
 		}
 	}
 
+	result.errors.push(...(await importWxrPermalinks(emdash.db, permalinks)));
 	result.success = result.errors.length === 0;
 	return result;
 }
