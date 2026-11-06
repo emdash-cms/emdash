@@ -26,11 +26,16 @@ function toCapnpId(pluginId: string): string {
 		.join("");
 }
 
-interface LoadedPlugin {
+export function pluginSocketName(pluginId: string): string {
+	return `socket-${pluginId.replace(SAFE_NAME_RE, "_")}`;
+}
+
+export interface LoadedPlugin {
 	manifest: PluginManifest;
 	code: string;
 	port: number;
 	token: string;
+	active: boolean;
 }
 
 interface CapnpOptions {
@@ -45,7 +50,7 @@ interface CapnpOptions {
  * Generate a workerd capnp configuration file.
  *
  * Each plugin gets its own worker (nanoservice) with:
- * - A listener socket on its assigned port
+ * - A listener socket on a kernel-assigned port
  * - Modules for wrapper + plugin code
  * - globalOutbound pointing to the backing service external server
  *   (all outbound fetch() goes through the backing service for
@@ -77,13 +82,13 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 	// Add a service + socket for each plugin
 	const socketEntries: string[] = [];
 
-	for (const [pluginId, plugin] of plugins) {
+	for (const [pluginId] of plugins) {
 		const constId = toCapnpId(pluginId);
 		const safeName = pluginId.replace(SAFE_NAME_RE, "_");
 
 		lines.push(`    (name = "plugin-${safeName}", worker = .plugin${constId}),`);
 		socketEntries.push(
-			`    (name = "socket-${safeName}", address = "127.0.0.1:${plugin.port}", service = "plugin-${safeName}"),`,
+			`    (name = "${pluginSocketName(pluginId)}", address = "127.0.0.1:0", service = "plugin-${safeName}"),`,
 		);
 	}
 
@@ -124,7 +129,7 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 		//
 		// In other words: plugins cannot reach the internet by calling plain
 		// fetch(). They must use ctx.http.fetch(), which goes through the
-		// http/fetch bridge handler, which enforces network:fetch capability
+		// http/fetch bridge handler, which enforces network:request capability
 		// and the allowedHosts allowlist.
 		lines.push(`  globalOutbound = "emdash-backing",`);
 		// Note: workerd capnp config does not support per-worker cpu/memory

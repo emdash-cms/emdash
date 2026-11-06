@@ -1,0 +1,64 @@
+---
+import type { RegistryEntryData } from "@emdash-cms/registry-loader";
+
+import PluginCard from "../PluginCard.astro";
+import StatePanel from "../StatePanel.astro";
+
+interface Props {
+	entries: RegistryEntryData[];
+	hasError: boolean;
+}
+
+const { entries, hasError } = Astro.props;
+---
+
+<section id="plugins" class="recent section" aria-labelledby="recent-title">
+	<div class="shell">
+		<div class="section-head">
+			<div>
+				<p class="eyebrow">Registry</p>
+				<h2 id="recent-title" class="h-section">
+					Recently updated <span class="tone">in the registry</span>
+				</h2>
+			</div>
+			<div>
+				<p>
+					Every plugin lists the permissions it needs, so you know what it can
+					do before you install it.
+				</p>
+				<a class="btn btn-secondary" href="/search">Browse all plugins</a>
+			</div>
+		</div>
+
+		{
+			hasError ? (
+				<StatePanel icon="refresh" title="The registry is taking a moment">
+					Try again shortly. Plugins already installed on your site keep
+					working.
+					<a slot="actions" class="btn btn-secondary" href="/">
+						Try again
+					</a>
+				</StatePanel>
+			) : entries.length === 0 ? (
+				<StatePanel icon="box" title="Plugins are on the way">
+					Published plugins will appear here after registry review.
+					<a
+						slot="actions"
+						class="btn btn-secondary"
+						href="https://docs.emdashcms.com/plugins/creating-plugins/publishing/"
+					>
+						Publishing guide
+					</a>
+				</StatePanel>
+			) : (
+				<ul class="plugin-grid">
+					{entries.map((entry) => (
+						<li>
+							<PluginCard entry={entry} />
+						</li>
+					))}
+				</ul>
+			)
+		}
+	</div>
+</section>

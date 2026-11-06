@@ -23,24 +23,31 @@
  * the contract, the filter pins the gate.
  */
 
+import { setupI18n } from "@lingui/core";
 import {
 	Plug,
 	Gear,
 	Trophy,
 	ClockCounterClockwise,
 	IdentificationCard,
+	SquaresFour,
 } from "@phosphor-icons/react";
 import * as React from "react";
-import { describe, it, expect } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, it, expect, vi } from "vitest";
 
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
+	declaredLabelTranslator,
 	filterNavItemsByRole,
 	getSidebarTaxonomies,
 	isItemActive,
+	NavIcon,
+	parseFolderState,
 	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
+	resolvePluginWidgetTitle,
 	toPhosphorIconName,
 	visibleCollectionEntries,
 } from "../../src/components/Sidebar";
@@ -96,6 +103,36 @@ describe("resolveItemPath", () => {
 describe("isItemActive", () => {
 	it("matches taxonomy links independently of their locale query", () => {
 		expect(isItemActive("/taxonomies/course?locale=de", "/taxonomies/course")).toBe(true);
+	});
+
+	it('matches a plugin page declared with path "/", whose target carries a trailing slash', () => {
+		expect(isItemActive("/plugins/emdash-forms/", "/plugins/emdash-forms")).toBe(true);
+	});
+
+	it("still matches nested routes under a plugin page", () => {
+		expect(isItemActive("/plugins/emdash-forms/", "/plugins/emdash-forms/submissions")).toBe(true);
+	});
+
+	it("does not match a different plugin whose id shares a prefix", () => {
+		expect(isItemActive("/plugins/emdash-forms/", "/plugins/emdash-forms-extra")).toBe(false);
+	});
+
+	it("keeps the admin root exact", () => {
+		expect(isItemActive("/", "/media")).toBe(false);
+		expect(isItemActive("/", "/")).toBe(true);
+	});
+});
+
+describe("NavIcon", () => {
+	it("uses Phosphor's filled variant while its navigation item is active", () => {
+		const inactiveIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive={false} />);
+		const activeIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive />);
+
+		expect(inactiveIcon).toBe(
+			renderToStaticMarkup(<SquaresFour weight="regular" aria-hidden="true" />),
+		);
+		expect(activeIcon).toBe(renderToStaticMarkup(<SquaresFour weight="fill" aria-hidden="true" />));
+		expect(activeIcon).not.toBe(inactiveIcon);
 	});
 });
 
@@ -154,6 +191,22 @@ describe("filterNavItemsByRole", () => {
 	});
 });
 
+describe("parseFolderState", () => {
+	it("keeps only label → boolean pairs from the stored value", () => {
+		expect(parseFolderState('{"Calendar":false,"Club":true,"x":"yes","y":1}')).toEqual({
+			Calendar: false,
+			Club: true,
+		});
+	});
+
+	it("treats missing, malformed, or non-object storage as no choices", () => {
+		expect(parseFolderState(null)).toEqual({});
+		expect(parseFolderState("{oops")).toEqual({});
+		expect(parseFolderState("[true]")).toEqual({});
+		expect(parseFolderState("null")).toEqual({});
+	});
+});
+
 describe("visibleCollectionEntries", () => {
 	const collections = {
 		posts: { label: "Posts" },
@@ -199,6 +252,28 @@ describe("resolvePluginPageLabel", () => {
 		// English — never run it through the catalog.
 		expect(resolvePluginPageLabel(undefined, "my-shop", translate)).toBe("My Shop");
 		expect(resolvePluginPageLabel(undefined, "orders", translate)).toBe("Orders");
+	});
+});
+
+describe("declaredLabelTranslator", () => {
+	it("translates a label the active catalog has", () => {
+		const i18n = setupI18n({ locale: "de", messages: { de: { Orders: "Bestellungen" } } });
+		const translate = declaredLabelTranslator(i18n, (id) => i18n._(id));
+		expect(translate("Orders")).toBe("Bestellungen");
+	});
+
+	it("returns a label the catalog lacks as declared, without a missing-message warning", () => {
+		const i18n = setupI18n({ locale: "en", messages: { en: {} } });
+		// A production build has no message compiler; that is where Lingui warns.
+		i18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const translate = declaredLabelTranslator(i18n, (id) => i18n._(id));
+			expect(translate("Fuzzy Redirects")).toBe("Fuzzy Redirects");
+			expect(warn).not.toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
 
@@ -256,5 +331,36 @@ describe("resolveNavIcon", () => {
 		const resolved = screen.getByTestId("resolved");
 		await expect.element(resolved).toBeInTheDocument();
 		expect(resolved.element().innerHTML).toBe(screen.getByTestId("expected").element().innerHTML);
+	});
+});
+
+describe("resolvePluginWidgetTitle", () => {
+	// Mirrors the page-label test: plugins load catalogs into the shared i18n
+	// instance and dashboard widget titles must resolve the same way.
+	const translate = (id: string) => (id === "Forms" ? "Formularze" : id);
+
+	it("translates a declared title through the shared i18n instance", () => {
+		expect(resolvePluginWidgetTitle("Forms", "overview", translate)).toBe("Formularze");
+	});
+
+	it("falls back to the literal title when no catalog entry exists", () => {
+		expect(resolvePluginWidgetTitle("Orders", "overview", translate)).toBe("Orders");
+	});
+
+	it("falls back to the raw widget id when no title is declared", () => {
+		expect(resolvePluginWidgetTitle(undefined, "overview", translate)).toBe("overview");
+	});
+
+	it("returns an untranslated title as declared, without a missing-message warning, through the dashboard's translator", () => {
+		const i18n = setupI18n({ locale: "en", messages: { en: {} } });
+		i18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const dashboardTranslate = declaredLabelTranslator(i18n, (id) => i18n._(id));
+			expect(resolvePluginWidgetTitle("Orders", "overview", dashboardTranslate)).toBe("Orders");
+			expect(warn).not.toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });

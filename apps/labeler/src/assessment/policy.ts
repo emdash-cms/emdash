@@ -129,15 +129,7 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 			imageIdentities,
 		);
 	}
-	return resolution(
-		input,
-		"review",
-		coverage,
-		[],
-		["model-promotion-required"],
-		textIdentity,
-		imageIdentities,
-	);
+	return resolution(input, "pass", coverage, [], ["automatic-pass"], textIdentity, imageIdentities);
 }
 
 function assertExpectedRefs(input: AssessmentPolicyInput): void {

@@ -89,4 +89,28 @@ describeEachDialect("MediaRepository numbered pages", (dialect) => {
 		expect(cursorResult).toEqual({ items: [], nextCursor: undefined });
 		expect(pageResult).toEqual({ items: [], totalCount: 0 });
 	});
+
+	it.each([
+		{ limit: -2, expected: 1 },
+		{ limit: 2.9, expected: 2 },
+	])("normalizes a $limit limit for cursor and numbered pages", async ({ limit, expected }) => {
+		await seedMedia();
+
+		const cursorResult = await repo.findMany({ limit });
+		const pageResult = await repo.findPage({ page: 1, limit });
+
+		expect(cursorResult.items).toHaveLength(expected);
+		expect(pageResult.items).toHaveLength(expected);
+	});
+
+	it("defaults a non-number limit for cursor and numbered pages", async () => {
+		await seedMedia();
+		const limit = "bad" as never;
+
+		const cursorResult = await repo.findMany({ limit });
+		const pageResult = await repo.findPage({ page: 1, limit });
+
+		expect(cursorResult.items).toHaveLength(4);
+		expect(pageResult.items).toHaveLength(4);
+	});
 });

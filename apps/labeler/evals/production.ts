@@ -1,7 +1,13 @@
 import type { WorkflowInstanceStatus } from "cloudflare:workers";
 
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_IMAGE_PROMPT_HASH,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_PROMPT_HASH,
+	requireClefModelId,
+} from "../src/ai/clef.js";
 import { sha256Hex } from "../src/ai/hash.js";
-import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
 import { loadEvalDataset } from "./dataset.js";
 import { EVAL_RUNNER_VERSION } from "./harness.js";
 import { runProtectedLiveEvaluation } from "./live.js";
@@ -570,15 +576,16 @@ export async function executeProductionLiveEvaluation(
 		{
 			dataset,
 			text: {
-				modelId: env.LABELER_TEXT_MODEL_ID,
-				promptHash: TEXT_PROMPT_HASH,
+				...CLEF_TEXT_ASSESSMENT_SETTINGS,
+				modelId: requireClefModelId(env.LABELER_TEXT_MODEL_ID),
+				promptHash: CLEF_TEXT_PROMPT_HASH,
 				configuredUnits: parseUnits(env.EVAL_TEXT_CONFIGURED_UNITS, "text"),
 			},
 			image: {
-				modelId: env.LABELER_IMAGE_MODEL_ID,
-				promptHash: IMAGE_PROMPT_HASH,
+				...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+				modelId: requireClefModelId(env.LABELER_IMAGE_MODEL_ID),
+				promptHash: CLEF_IMAGE_PROMPT_HASH,
 				configuredUnits: parseUnits(env.EVAL_IMAGE_CONFIGURED_UNITS, "image"),
-				thinking: false,
 			},
 			repeatCount: 3,
 			runnerCommit: env.VERSION_METADATA.id,
@@ -650,9 +657,9 @@ async function productionEvaluationIdentity(
 		runnerCommit: env.VERSION_METADATA.id,
 		repeatCount: 3,
 		textModelId: env.LABELER_TEXT_MODEL_ID,
-		textPromptHash: TEXT_PROMPT_HASH,
+		textPromptHash: CLEF_TEXT_PROMPT_HASH,
 		imageModelId: env.LABELER_IMAGE_MODEL_ID,
-		imagePromptHash: IMAGE_PROMPT_HASH,
+		imagePromptHash: CLEF_IMAGE_PROMPT_HASH,
 	};
 }
 

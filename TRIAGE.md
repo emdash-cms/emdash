@@ -1,8 +1,8 @@
-# Community Triage Guide
+# Project Team triage guide
 
-Thank you for helping with EmDash. This guide is for community members who have been given triage access to the repository.
+This guide is for Project Team members who help keep issues, Discussions, and pull requests understandable, actionable, and moving.
 
-The triage team is a small group of trusted community members who help keep issues and PRs understandable, actionable, and moving. This is some of the most valuable work in the project.
+Project Team membership is broader than GitHub permissions. [GOVERNANCE.md](GOVERNANCE.md) defines the role, membership, and decision-making authority.
 
 ## You Are a Volunteer
 
@@ -13,18 +13,20 @@ The triage team is a small group of trusted community members who help keep issu
 
 If the work stops being enjoyable or a thread is stressing you out, hand it off and walk away. Sustainable help beats heroic help.
 
-## Discord
+## Public and team coordination
 
-Triagers get the **Triage Team** role on the EmDash Discord, and the private `#triage` channel is home base. Use it for anything that doesn't belong on a public thread:
+Use public GitHub artifacts and the public `#contributing` Discord channel for substantive project discussion. GitHub holds the durable record of project decisions.
 
-- "Am I handling this right?" — no question is too small, especially early on.
-- Handing off an issue or PR you've started on but can't finish.
-- Flagging something to maintainers informally before (or instead of) a formal escalation.
-- Talking through a tricky report with the rest of the team.
+Use `#project-team` for trusted operational coordination:
 
-When in doubt, ask in the channel. A thirty-second question there beats an hour of second-guessing on a public thread.
+- asking for help handling a difficult public thread;
+- handing off work you cannot finish;
+- finding an owner or reviewer; and
+- flagging public work that needs attention.
 
-## What Triage Access Lets You Do
+Do not make product, architecture, roadmap, proposal, review, or governance decisions in `#project-team`. Move substantive reasoning to the relevant public GitHub artifact. [GOVERNANCE.md](GOVERNANCE.md#public-and-private-channels) defines the full public and private channel boundary.
+
+## What Triage access lets you do
 
 The GitHub triage role lets you:
 
@@ -36,41 +38,77 @@ The GitHub triage role lets you:
 
 It does not let you merge PRs, push to branches, or change repository settings — those stay with maintainers.
 
-You can also review and approve PRs. A triager's approval doesn't change the PR's status to "approved", but it is still useful: it tells maintainers "a human has looked at this and it holds up," which makes the final review much faster. A PR still needs maintainer approval before it can be merged, but don't let that stop you from giving one.
+You can also review pull requests. A Project Team review is useful evidence for the Maintainer who decides whether to approve, but it does not satisfy the required human Maintainer approval.
 
-## Working With the Bots
+## Working with the bots
 
-EmDash has a lot of automation. Probably the most important piece is @emdashbot, the AI code review bot:
+Two project-operated bots work in this repository, each with its own GitHub App account:
 
-- **It reviews every PR automatically** and is generally solid at catching mechanical problems: bugs in the diff, missing tests, pattern violations, SQL injection risks.
-- **Apply the `bot:review` label to summon a re-review**, for example after an author pushes significant changes. It sometimes fails to review the first time (e.g. if there's an error while it is running), in which case it is useful to ask for a re-review.
-- Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically by workflows. See [PR Labels](#pr-labels) for what they mean.
+- **EmDashBot** (`emdashbot[bot]`) reviews implementation PRs.
+- **The autofix bot** (`emdash-autofix[bot]`) works on issues it is handed or takes on through auto-intake, and opens PRs with its fixes.
 
-Issue triage is a different story. There is a separate issue-investigation bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)), but its expensive work only runs when a **maintainer** explicitly asks for it, and a human always owns the outcome. In practice, most issues are still triaged and reproduced by humans, so your work here is particularly valuable.
+Their reviews and PRs are evidence for a Maintainer, not approval. Either bot can submit an approving GitHub review or have repository permissions, but neither is a Maintainer, and neither satisfies the human approval requirement.
 
-You can help by:
+### EmDashBot reviews
 
-- Confirming whether a bug is reproducible.
-- Asking for missing reproduction details.
-- Adding priority labels when the impact is clear.
-- Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
+- **It reviews implementation PRs automatically** when the PR is opened, reopened, or marked ready for review.
+- **It reviews again after new commits, once CI has finished.** On a PR it has reviewed before, a push schedules a follow-up review of the PR's current head. The review starts when every check run on that head has completed, after 10 minutes if no check runs appear, or after 60 minutes at the latest. A follow-up review checks whether the earlier findings were addressed and whether the new commits introduce a defect. Pushes that only merge `main` or only add the bot's formatting commits are not reviewed again, and a PR gets at most five automatic follow-up reviews in 24 hours.
+- **Apply the `bot:review` label to request a full review of the current head straight away**, for example when a review failed with an error or the PR has reached the follow-up limit. The label removes itself when the review finishes.
+- **It skips drafts, design PRs, and PRs opened by bots other than EmDashBot and the autofix bot.** A draft implementation PR gets its review when it is marked ready. `bot:review` never overrides the design-PR exclusion.
+- Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically. See [PR Labels](#pr-labels) for what they mean.
 
-And even on PRs, where the bot reviews every change, there is a lot of work it consistently can't do:
+EmDashBot compares a feature implementation with its linked accepted proposal. It reports omissions, divergences, unplanned scope, and missing tests alongside its normal correctness review.
+
+EmDashBot reviews every change, but there is a lot of work it consistently can't do:
 
 - **Running a real site.** The bot checks out the branch, but it doesn't build, run, or deploy it, or look at any real site. Clicking through the admin UI as an editor would, or trying a change against the workflows real users hit, catches things no code review will.
 - **Judging whether the change should happen at all.** The bot reviews the diff in front of it and does try to judge if the fix is taking the right approach as well as being correct. However it won't notice that a feature contradicts a roadmap decision, that a fix papers over the real bug, or that the same problem was already solved elsewhere.
 - **Understanding what the author actually meant.** Humans notice when the description and the code disagree, or when the interesting question is one the PR doesn't ask.
 - **Empathy.** A first-time contributor who gets a kind, specific comment from a human is far more likely to stick around than one who only ever hears from a bot.
 
-## AI-Assisted Contributions
+### Issue work and the autofix bot
 
-The majority of PRs are now written largely or entirely by agents, and some issues are too. That's fine for PRs: AI-assisted contributions are welcome and held to the same bar as any other (see [CONTRIBUTING.md § AI-generated PRs](CONTRIBUTING.md#ai-generated-prs)). What the project asks is that **a human understands the change and has tested it**. The submitter is responsible for correctness, not the tool. This is also why we discourage using agents to submit _issues_ — the reporter should have actually seen the bug, not just had an agent predict one. It's fine to have an agent help write a report, but the reporter should have actually run the code and seen the bug themselves, and should generally submit the issue in their own words.
+The autofix bot works on issues and PRs a maintainer hands to it, and on new issues it takes on through auto-intake (below). Organization members and repository collaborators can hand work to it in two ways:
+
+- **Apply the `bot:fix` label** to an issue, or to a PR opened from a branch in this repository. Removing the label from the issue or from the bot's PR stops the bot, and the bot takes its labels off both.
+- **Start a comment with `@emdash-autofix`**, followed by instructions. The bot takes the issue on and records the rest of the comment as maintainer instructions. On an issue or PR the bot already has, the comment reaches it as feedback.
+
+The bot reads comments and reviews from maintainers, EmDashBot's reviews, and comments from the issue's reporter on that issue. It ignores comments from anyone else.
+
+The bot also takes on new issues by itself (auto-intake): it triages each new issue, declines likely spam, feature requests, questions, and large changes, and works on clear, small bugs and tasks. A maintainer can still hand it any issue with the `bot:fix` label.
+
+The bot works on a branch named `emdash-bot/issue-<number>` and opens its PR ready for review. It keeps one progress comment with its plan and status, on the issue until the PR opens and on the PR after that. On the PR's head commit it keeps an `EmDash bot` check run, which is in progress while the bot works, succeeds when the PR is ready for human review, and is otherwise neutral; it never fails. EmDashBot reviews every push the bot makes to its own PR. The bot responds to review findings, maintainer reviews and comments, failing checks, and merge conflicts until the PR is ready for human review. When the PR's preview is up, the bot asks the reporter on the issue to try it.
+
+The bot keeps `bot:fix` on whatever it is working on, including its own PR. It also applies these labels to the issue and its PR, derived from its own records:
+
+- `triage/awaiting-reporter` — the PR is ready, and the reporter hasn't confirmed the fix yet.
+- `triage/verified` — the reporter confirmed that the fix works. Confirmation never gates merging.
+- `triage/skipped` — the bot declined the issue.
+- `triage/failed` — the bot stopped because of a model or platform failure.
+- `area/*` — from the paths the PR changes.
+
+The bot's PRs carry `bot:fix` and no `review/*` label. They need human Maintainer approval to merge like any other PR, and a Maintainer who makes substantial changes to one counts as an author (see [MAINTAINING.md](MAINTAINING.md)).
+
+To see what the bot is doing, read its progress comment or open the public board at [autofix.emdashcms.com](https://autofix.emdashcms.com). The board groups every case by who acts next: needs a maintainer, ready for review, working or queued, waiting, and finished this week. The same data is available as JSON at `https://autofix.emdashcms.com/api/cases`, and `https://autofix.emdashcms.com/api/cases?issue=<number>` returns the cases for one issue or PR number. The board shows only what is already public on GitHub.
+
+For issues the bot doesn't take on, or hasn't reached yet, you can help by:
+
+- Confirming whether a bug is reproducible.
+- Asking for missing reproduction details.
+- Adding priority labels when the impact is clear.
+- Redirecting the reporter if the report is a feature request (to Discussions) or support question (to the docs or the public Discord channels if you can't answer it).
+
+Older issues may still carry `bot:*` lifecycle labels such as `bot:triage` or `bot:in-review`, and `triage/*` labels other than those listed above. They come from earlier triage automation; treat them as historical.
+
+## AI-assisted contributions
+
+AI-assisted contributions are welcome when they follow the [AI usage policy](AI_POLICY.md). A human understands and tests the change, explicitly authorises each issue or pull request, and remains responsible for the result.
 
 Your job as a triager is not to detect AI — it's to check for that human understanding:
 
 - If it's unclear whether anyone has actually run the change, ask. "What did you test, and how?" is a fair question on any PR, and a specific answer is a good sign.
 - An author who can't answer questions about their own PR, or who responds only with pasted agent output, hasn't met the bar yet. Ask them to test and confirm in their own words; if that goes nowhere, leave it with the author and move on — the review state labels will track it from there.
-- The same applies to issues: the reporter should have actually seen the bug, not just had an agent predict one.
+- The same applies to issues: a human reproduces the bug before opening the report, and a contributor's agent does not post later issue comments or replies.
 
 **Translation PRs are a special case.** We ask that only native or fluent speakers of the target language open translation PRs — AI-assisted translation is fine, but a fluent speaker must review the results and check them in a real demo site, where context, layout, and tone problems show up that a diff never will. If it's unclear whether the author is a native speaker or has looked at the translations running, ask before the PR gets a review. If _you_ are a fluent speaker of the target language, your review is particularly valuable — you can catch problems the bot and non-speakers can't.
 
@@ -134,7 +172,8 @@ Useful details to ask for on bug reports:
 - Relevant collection schema, field config, or plugin config.
 - Exact steps to reproduce from a fresh project when possible.
 - Expected behavior and actual behavior.
-- Error logs, screenshots, or network response details.
+- Error logs or network response details.
+- A screenshot for every report that refers to the interface.
 
 Do not ask for everything by default. Ask for the smallest missing piece that would unblock the next person.
 
@@ -149,33 +188,7 @@ For issues, priority is often the best thing a human triager can add — it's a 
 
 Use priority labels when you have enough context to make a reasonable call. If you are unsure, leave priority unset and explain what information would help judge impact.
 
-For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. Where the bug is visual or interactive — admin UI glitches, editor behavior, layout problems — a screenshot or short screen recording is extra useful: it shows exactly what you saw, and often settles "works for me" threads instantly. You can drag media straight into a GitHub comment.
-
-### The Investigation Bot and `bot:*` Labels
-
-A maintainer can hand an issue to the investigation bot with an `@emdashbot` comment. The bot classifies and routes issues when they mention `@emdashbot`, and the expensive work — reproducing, diagnosing, building a fix — only runs on an explicit **maintainer** directive, so you will not trigger it yourself:
-
-- `@emdashbot investigate` — reproduce the bug and diagnose it, with evidence. It does not attempt a fix; it posts a verdict.
-- `@emdashbot fix` — on an issue the bot already reproduced, build a candidate fix on a `bot/fix-<n>` branch and publish a preview for the reporter to try (see below). No pull request opens until the reporter confirms.
-- `@emdashbot status` / `@emdashbot help` — anyone can ask; these just print the current state and the available commands.
-
-Every verdict carries its evidence — the commands the bot ran and what it found. "Could not reproduce," with a transcript, is a first-class outcome, not a failure. The bot only proposes; a maintainer disposes.
-
-**The reporter preview-confirm loop.** When a maintainer runs `@emdashbot fix`, the bot pushes a candidate branch, waits for a `pkg.pr.new` preview to publish, and then asks the _reporter_ to install that preview and confirm it fixes their case against their own site — the only place a site-specific bug reliably reproduces. If the reporter confirms, a draft PR opens. If they say it is still broken, or stay silent for two weeks, the bot reaps the candidate branch and falls back to the reproduced verdict for a maintainer to pick up. If you are the reporter, trying the preview is the single most useful thing you can do.
-
-Like the PR labels, the bot's state labels are managed by the bot — you read them, you don't set them:
-
-- `bot:investigating` — a reproduce-and-diagnose run is in flight.
-- `bot:reproduced` — reproduced, with a diagnosis attached; resting until a maintainer triggers a fix or disposes of it.
-- `bot:diagnosed` — root cause identified but not confirmed by a reproduction (environment limits). Actionable like `bot:reproduced`; the fix loop verifies with a failing test before changing anything.
-- `bot:not-reproduced` — could not reproduce, transcript attached. Add steps and a maintainer can re-investigate.
-- `bot:needs-info` — the investigation needs information only the reporter has.
-- `bot:fixing` / `bot:preview-building` / `bot:awaiting-reporter` — the fix loop: building a candidate, publishing its preview, and waiting for the reporter to confirm it.
-- `bot:blocked` / `bot:failed` — the bot stopped for a human decision, or a run errored; the reason is in its comment.
-
-If an issue carries one of these, a bot investigation has happened or is in flight — read the bot's comments before starting a manual reproduction. `bot:awaiting-reporter` in particular means a candidate fix and preview already exist, so testing that fix beats re-reproducing the original bug. Double-checking the bot's conclusions is itself valuable triage: a human confirming or refuting a `bot:reproduced` or `bot:not-reproduced` verdict is worth more than the label.
-
-(You may still see older `triage/*` labels on issues filed before the switch to `bot:*`; treat them as historical.)
+For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. A report that refers to the interface must include a screenshot showing the reported state. If it is missing, ask the author to add one. A short screen recording can supplement the screenshot when the bug depends on an interaction. You can drag or paste media into a GitHub comment, or attach a local file with `gh issue comment --attach './screenshot.png#Description of the reported state'` when using GitHub CLI 2.99.0 or later.
 
 ## PR Triage
 
@@ -184,33 +197,34 @@ First, decide whether the PR is something the project accepts. The full policy i
 Accepted directly:
 
 - Bug fixes with a reproducing test.
-- Documentation fixes and typos.
+- Documentation and tests.
 - Translation PRs from native or fluent speakers.
+- Scoped chores.
+- Behavior-preserving refactors and performance changes.
 
-Needs prior maintainer approval via a Discussion:
+Needs an accepted design:
 
 - Features.
-- Large refactors.
-- Dependency upgrades outside Renovate/Dependabot.
-- Broad cleanup PRs.
+- Behavior-changing refactors or performance changes.
+- Public API, stored-data, security, compatibility, or architecture changes.
 
 Normally closed without merging:
 
-- Features with no Discussion or maintainer approval.
+- Features with no merged design PR.
 - New plugins. These should be published independently.
-- Drive-by PRs (usually from bots) that aren't from people who are using EmDash.
+- Drive-by PRs that do not meet the eligibility rules in [AI_POLICY.md](AI_POLICY.md#pull-request-eligibility).
 
-Approval usually happens in Discussions: when a maintainer approves a proposal, the Discussion gets the `Approved for PR` label. But don't be pedantic about the mechanism — even if CI complains about a missing Discussion, a maintainer approving the idea in a PR or issue comment counts just as well, and maintainers can bypass the requirement entirely. What matters is whether a maintainer has said yes somewhere, not where they said it.
+Every feature uses a merged design PR. A bounded feature uses a feature plan. A broader or harder-to-reverse change starts with an Ideas Discussion and then uses an RFC. [proposals/README.md](proposals/README.md) defines the boundary and approval rules.
 
 Two things to calibrate on:
 
-- **The larger the feature, the more discussion it needs.** A small, obviously-useful addition might get a quick yes in a comment; a new subsystem or a change in project direction needs a real Discussion where the design gets worked through.
-- **Opening a Discussion is not the same as it being approved.** A PR opened alongside its Discussion — or linking to one no maintainer has responded to — hasn't met the bar. The point is to get a yes _before_ the work, so wait for maintainer approval on the Discussion before treating the PR as reviewable.
+- **A small feature still needs a design.** Its feature plan can be short and has no fixed review period.
+- **An Ideas Discussion does not accept a design.** It establishes the problem and demand before an RFC. Merging the later design PR accepts the implementation plan.
 
-If there's no sign of approval anywhere, add `needs-discussion` and leave a comment like:
+If a feature implementation has no merged design PR, leave a comment like:
 
 ```markdown
-Thanks for the PR. This looks like a feature/change in project direction, so it needs an approved Discussion before review. Could you open one in Discussions and link it here? That helps avoid asking contributors to invest in work that may not fit the roadmap.
+Thanks for the PR. Feature implementation starts after a feature plan or RFC has been accepted in a merged design PR. Please move the proposed behavior into a design PR using the process in `proposals/README.md`. You can keep prototype code in a fork while the design is reviewed.
 ```
 
 ### What To Look For Before Review
@@ -222,7 +236,8 @@ The bot does code-level review and is good at it, but it's not perfect. The most
 - For bug fixes, is there a test that would fail without the fix?
 - For user-facing package behavior changes, is there a changeset, and is it well written? (See [Checking Changesets](#checking-changesets).)
 - For admin UI changes, are user-facing strings localized and does the layout use RTL-safe classes?
-- For feature/refactor/performance PRs, has a maintainer approved the idea — a linked Discussion labeled `Approved for PR`, or approval in a PR or issue comment?
+- For UI changes, does the PR include screenshots of the rendered result?
+- For a feature, does the PR link a merged design PR, and does the implementation conform to the accepted proposal?
 - Are unrelated files changed, such as generated translation catalogs in a non-translation PR?
 - Is the AI disclosure filled in, and has a human author understood and tested the change? (See [AI-Assisted Contributions](#ai-assisted-contributions).)
 - For translation PRs, is the author a native or fluent speaker who has checked the translations in a real demo site?
@@ -230,7 +245,7 @@ The bot does code-level review and is good at it, but it's not perfect. The most
 
 You don't need to check all of these: any one of these checks on a PR is a useful contribution, and nobody runs the whole list every time.
 
-If something is missing, ask for it directly and keep the request narrow. The `review/*` state labels update automatically, so there's nothing to set when a PR looks ready — but if the author has pushed significant changes since the bot's last pass, add `bot:review` to summon a re-review.
+If something is missing, ask for it directly and keep the request narrow. The `review/*` state labels update automatically, so there's nothing to set when a PR looks ready. EmDashBot reviews new commits by itself once CI finishes; add `bot:review` only when a review failed or you want a full review of the current head straight away.
 
 ### Checking Changesets
 
@@ -240,36 +255,53 @@ Request a rewrite when technically accurate prose is still vague, implementation
 
 ### PR Labels
 
-Almost every label you'll see on a PR is applied and removed by a workflow. You read them to scan the queue; you don't manage them:
+Almost every label you'll see on a PR is applied and removed automatically. You read them to scan the queue; you don't manage them:
 
-- `review/needs-review`, `review/awaiting-author`, `review/needs-rereview`, `review/approved` — four mutually exclusive review states, kept in sync with actual review activity.
+- `review/*` — four mutually exclusive review states, set by the same automation as the informational `Human Maintainer approval` check. The check finishes neutrally while review is outstanding and succeeds when enough Maintainers have approved; it does not block merging. Only reviews from Maintainers listed in [GOVERNANCE.md](GOVERNANCE.md#maintainers) count:
+  - `review/approved` — the approval requirement is met: enough Maintainer approvals on the current revision (two for governance and privileged paths) and no outstanding change requests.
+  - `review/needs-rereview` — commits have landed since the last Maintainer review, or since a Maintainer requested changes. Merging `main` into the branch doesn't count; a rebase does.
+  - `review/awaiting-author` — a Maintainer requested changes or commented on the current revision.
+  - `review/needs-review` — no Maintainer has reviewed yet, or the PR needs another approval.
+- `type/design` — a feature plan, RFC, or proposal amendment. AI reviewers skip these PRs.
 - `needs-approval` — CI hasn't run because the workflows are waiting for maintainer approval, which is normal for first-time contributors. Despite the name, it has nothing to do with Discussion approval.
 - `needs-rebase` — the branch has merge conflicts with `main`.
-- `overlap` — another open PR touches the same files; the bot leaves a comment identifying it.
-- `stale` — no activity for two weeks. Stale PRs are closed automatically after three; a comment from you can keep a promising one alive.
-- `size/*`, `area/*`, `bot`, and the CLA labels are applied when the PR is opened or updated.
+- `stale` — the PR is waiting on its author (changes requested, merge conflicts, or still a draft) and has had no human activity for two weeks. Implementation PRs are closed a week after the warning unless someone responds; design PRs are warned but never closed for inactivity. A human comment or update keeps a promising PR alive. PRs waiting on a review never go stale.
+- `size/*`, `area/*`, `bot`, and the CLA labels are applied when the PR is opened or updated. A PR whose CLA is still unsigned a day after it opens gets a reminder, and is closed at seven days.
 
 The labels you apply by hand on a PR:
 
-- `bot:review` to summon a bot re-review.
-- `needs-discussion` when a feature/refactor PR has no maintainer approval anywhere.
+- `bot:review` to request a full EmDashBot review of the current head.
+- `bot:fix` to hand a PR opened from a branch in this repository to the autofix bot (see [Issue work and the autofix bot](#issue-work-and-the-autofix-bot)).
+- `ci:run` to start CI on the PR's latest commit. It approves workflows waiting for approval (`needs-approval`) and re-runs failed jobs once CI has finished, for example after a flaky test. Approving runs the contributor's code on our runners, so read the diff first and don't approve anything that touches workflows, build scripts, or dependencies in ways you can't account for. The label removes itself, so add it again for another attempt, and again after the contributor pushes new commits.
 - `blocked` when progress depends on another issue, PR, or maintainer decision.
 
 ## Discussions
 
-Discussions is where ideas get shaped before they become work, and where a lot of community support happens. Triage there is just as valuable as on issues and PRs:
+Ideas Discussions are the request inbox and the first step for full RFCs. They can describe an early request, a roadmap discovery problem, an offer to champion a design, or an offer to implement it. A requester does not need to design the solution.
 
 - **Answer Q&A questions when you can**, and mark the accepted answer so the next person searching finds it. A marked answer turns a one-off reply into documentation.
-- **Weigh in on Ideas.** You know this project from contributing to it, and a comment like "this would conflict with how revisions work" or "I'd use this, and here's my use case" is exactly what a maintainer needs when deciding whether to approve a proposal. Don't hold back because approval isn't your call — shaping the proposal is how you help it get there.
+- **Weigh in on Ideas.** Add concrete use cases, constraints, related work, and evidence of demand. Discussion feedback shapes the problem before an RFC is written.
 - **Convert misfiled issues.** A feature request opened as an issue can be converted to an Ideas Discussion directly (the "Convert to discussion" option in the issue sidebar) — friendlier than asking the author to repost.
 - **Connect the dots.** Link related Discussions, issues, and prior proposals. Many ideas have been discussed before, and a link to the earlier thread saves everyone from re-litigating it.
-- **Surface proposals that look ready.** If an Idea has a worked-through design and community support but no maintainer response, raise it in `#triage`.
+- **Surface requests that need a decision.** If an Idea has clear use cases and community support but no Maintainer response, flag its public link in `#project-team`.
 
-The one thing that stays with maintainers is the decision itself: `Approved for PR` on a Discussion is a maintainer call.
+Triage does not accept a design or commit the project to implementation. A merged design PR accepts a feature plan or RFC. Roadmap placement is a separate decision for project-led work.
+
+### Sorting Ideas
+
+Most Ideas need sorting rather than detailed discussion. Sort an Idea with one of these labels:
+
+- `Design PR welcome` — the project would consider the feature, and anyone can propose it in a feature plan or RFC.
+- `Better as a plugin` — the feature fits an independently published plugin better than EmDash itself.
+- `Out of scope` — the feature does not fit the project. Explain why, then close the Discussion.
+
+Sort an Idea yourself when the answer is clear from documented policy or earlier decisions. Otherwise flag it in `#project-team` or bring it to a regular project call, where Ideas can be evaluated together. There is no deadline for a first response.
+
+A `Design PR welcome` Idea stays open until its design is implemented. Automation links the design PR from the Idea when the PR opens, comments when the design PR merges, and closes the Idea when the implementation that completes the proposal merges (see [Linked Ideas Discussions](proposals/README.md#linked-ideas-discussions)).
 
 ## Area Labels
 
-On PRs, area labels are applied automatically from the changed file paths. On issues they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
+On PRs, area labels are applied automatically from the changed file paths. On issues, they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
 
 - `area/admin` for the React admin UI.
 - `area/auth` for passkeys, sessions, users, roles, and login.
@@ -300,7 +332,7 @@ When closing, leave a short explanation. If it closed as a duplicate, use the "C
 
 ## Escalate to a Maintainer
 
-To escalate, post in `#triage` on Discord or @-mention a maintainer in a comment on the thread, and say what decision is needed. Ask a maintainer to step in when:
+To escalate, post the public link in `#project-team` or mention a Maintainer in the public thread, and say what decision is needed. Ask a Maintainer to step in when:
 
 - A report involves data loss, security, auth bypass, or production outage risk.
 - A contributor is proposing a breaking change.
@@ -311,11 +343,13 @@ To escalate, post in `#triage` on Discord or @-mention a maintainer in a comment
 
 Escalating is a normal outcome of triage, so don't worry if you need to.
 
-**Security reports should not be debugged in public.** If an issue appears to describe a vulnerability, don't ask for exploit details in the thread. Ask the reporter to resubmit through [private vulnerability reporting](https://github.com/emdash-cms/emdash/security/advisories/new) (the "Report a vulnerability" button on the Security tab), close the issue and flag it in `#triage`.
+**Security reports should not be debugged in public.** If an issue appears to describe a vulnerability, don't ask for exploit details in the thread. Ask the reporter to resubmit through [private vulnerability reporting](https://github.com/emdash-cms/emdash/security/advisories/new) (the "Report a vulnerability" button on the Security tab), close the issue, and flag it in `#maintainers`.
 
 ## Useful Links
 
-- [EmDash Discord](https://discord.gg/YY9vBaQRYt) — `#triage` is home base
+- [EmDash Discord](https://discord.gg/YY9vBaQRYt) — use public `#contributing` by default
+- [Governance](GOVERNANCE.md)
+- [Feature plans and RFCs](proposals/README.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Architecture and code patterns](AGENTS.md)
 - [Documentation](https://docs.emdashcms.com)

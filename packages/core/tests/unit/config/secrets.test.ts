@@ -236,7 +236,7 @@ describe("config/secrets", () => {
 
 		it("repeated first-resolves are idempotent (sequential test of convergence)", async () => {
 			// Five sequential first-resolves on a fresh DB should converge.
-			// Note: better-sqlite3 is synchronous, so this doesn't exercise
+			// Node SQLite is synchronous, so this doesn't exercise
 			// genuine cross-process concurrency. The cross-process atomicity
 			// is provided by `INSERT ... ON CONFLICT DO NOTHING` at the DB
 			// layer; see the lost-race test below for in-process coverage

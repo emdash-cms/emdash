@@ -29,8 +29,10 @@ interface TableToolbarSearchProps {
 	onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
 	placeholder: string;
 	"aria-label": string;
+	size?: React.ComponentProps<typeof InputGroup>["size"];
 	maxLength?: number;
 	className?: string;
+	inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export function TableToolbarSearch({
@@ -38,15 +40,18 @@ export function TableToolbarSearch({
 	onChange,
 	placeholder,
 	"aria-label": ariaLabel,
+	size = "sm",
 	maxLength,
 	className,
+	inputRef,
 }: TableToolbarSearchProps) {
 	return (
-		<InputGroup size="sm" className={cn("w-full min-w-0 sm:w-64 sm:flex-none", className)}>
+		<InputGroup size={size} className={cn("w-full min-w-0 sm:w-64 sm:flex-none", className)}>
 			<InputGroup.Addon>
 				<MagnifyingGlass className="h-4 w-4" aria-hidden="true" />
 			</InputGroup.Addon>
 			<InputGroup.Input
+				ref={inputRef}
 				type="search"
 				placeholder={placeholder}
 				aria-label={ariaLabel}

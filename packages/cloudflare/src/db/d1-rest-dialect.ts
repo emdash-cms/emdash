@@ -9,11 +9,14 @@ import type {
 } from "kysely";
 import { SqliteQueryCompiler } from "kysely";
 
-import { D1Adapter } from "./d1-dialect.js";
+import { D1BaseAdapter } from "./d1-dialect.js";
 import { D1Introspector } from "./d1-introspector.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
-const DEFAULT_MAX_RESPONSE_BYTES = 1_048_576;
+// One D1 row can be 1 MB, and a migration batch reads fifty rows with
+// their JSON, so the bound is sized for that rather than for a single
+// small result. It still stops an unbounded read.
+const DEFAULT_MAX_RESPONSE_BYTES = 64 * 1_048_576;
 const JSON_CONTENT_TYPE_PATTERN = /^application\/(?:[a-z0-9.+-]+\+)?json\b/i;
 const READ_STATEMENT_PATTERN = /^\s*(?:select|explain)\b/i;
 
@@ -250,6 +253,14 @@ class D1RestTransport {
 			);
 			if (!response.ok) {
 				if (isWrite && response.status >= 500) throw new D1AmbiguousWriteError();
+				if (response.status === 400) {
+					try {
+						const body = await readBoundedJson(response, this.#config.maxResponseBytes);
+						validateStatementResponse(body, this.#config.token);
+					} catch (error) {
+						if (error instanceof D1DefinitiveResponseError) throw error;
+					}
+				}
 				throw new D1DefinitiveResponseError(
 					`D1 API request failed with HTTP status ${response.status}.`,
 				);
@@ -283,8 +294,8 @@ export class D1RestDialect implements Dialect {
 		this.#config = config;
 	}
 
-	createAdapter(): D1Adapter {
-		return new D1Adapter();
+	createAdapter(): D1BaseAdapter {
+		return new D1BaseAdapter();
 	}
 
 	createDriver(): Driver {

@@ -32,6 +32,7 @@ export const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "css", label: msg`CSS` },
 	{ id: "diff", label: msg`Diff`, aliases: ["patch"] },
 	{ id: "dockerfile", label: msg`Dockerfile`, aliases: ["docker"] },
+	{ id: "fsharp", label: msg`F#`, aliases: ["f#", "fs"] },
 	{ id: "go", label: msg`Go`, aliases: ["golang"] },
 	{ id: "graphql", label: msg`GraphQL`, aliases: ["gql"] },
 	{ id: "html", label: msg`HTML` },
@@ -87,7 +88,7 @@ export function findLanguage(value: string | null | undefined): CodeBlockLanguag
  *   normalizeLanguage("TypeScript")   -> "typescript" (canonical id)
  *   normalizeLanguage("ts")           -> "typescript" (alias)
  *   normalizeLanguage("Objective C")  -> "objective-c" (sanitized)
- *   normalizeLanguage("F#")           -> "f-" (sanitized)
+ *   normalizeLanguage("F#")           -> "fsharp" (canonical id)
  *   normalizeLanguage("")             -> undefined
  */
 // Hoisted to module scope to avoid re-compilation on every call.

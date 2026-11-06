@@ -7,7 +7,17 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { validatePublishUrlForTest as validate } from "../src/commands/publish.js";
+import {
+	removedArtifactBaseUrlError,
+	validatePublishUrlForTest as validate,
+} from "../src/commands/publish.js";
+
+it("rejects the removed artifact base URL option with migration guidance", () => {
+	expect(removedArtifactBaseUrlError("https://artifacts.example/plugins")).toBe(
+		"--artifact-base-url was removed. Remove the option so listing images are uploaded to the publisher PDS.",
+	);
+	expect(removedArtifactBaseUrlError(undefined)).toBeNull();
+});
 
 describe("validatePublishUrl", () => {
 	describe("rejects non-public IPv4 literals", () => {

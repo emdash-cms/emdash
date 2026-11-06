@@ -5,6 +5,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { PluginInfo, AdminManifest } from "../../src/lib/api";
 import type { PluginUpdateInfo } from "../../src/lib/api/marketplace";
+import {
+	MarketplaceUpdateEscalationError,
+	MarketplaceUpdateMcpConsentRequiredError,
+} from "../../src/lib/api/marketplace";
+import { RegistryUpdateEscalationError } from "../../src/lib/api/registry";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -56,6 +61,8 @@ vi.mock("../../src/lib/api", async () => {
 const mockCheckPluginUpdates = vi.fn<() => Promise<PluginUpdateInfo[]>>();
 const mockUpdateMarketplacePlugin = vi.fn<() => Promise<void>>();
 const mockUninstallMarketplacePlugin = vi.fn<() => Promise<void>>();
+const mockResolveDidToHandle = vi.fn();
+const mockUpdateRegistryPlugin = vi.fn<() => Promise<void>>();
 
 vi.mock("../../src/lib/api/marketplace", async () => {
 	const actual = await vi.importActual("../../src/lib/api/marketplace");
@@ -68,8 +75,20 @@ vi.mock("../../src/lib/api/marketplace", async () => {
 	};
 });
 
+vi.mock("../../src/lib/api/registry", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/api/registry")>(
+		"../../src/lib/api/registry",
+	);
+	return {
+		...actual,
+		resolveDidToHandle: (...args: unknown[]) => mockResolveDidToHandle(...args),
+		updateRegistryPlugin: (...args: unknown[]) => mockUpdateRegistryPlugin(...(args as [])),
+	};
+});
+
 // Import after mocks
-const { PluginManager } = await import("../../src/components/PluginManager");
+const { PluginManager, UninstallConfirmDialog } =
+	await import("../../src/components/PluginManager");
 
 function makePlugin(overrides: Partial<PluginInfo> = {}): PluginInfo {
 	return {
@@ -99,9 +118,9 @@ function makeManifest(overrides: Partial<AdminManifest> = {}): AdminManifest {
 	};
 }
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({ children, staleTime }: { children: React.ReactNode; staleTime?: number }) {
 	const qc = new QueryClient({
-		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+		defaultOptions: { queries: { retry: false, staleTime }, mutations: { retry: false } },
 	});
 	return (
 		<QueryClientProvider client={qc}>
@@ -137,6 +156,8 @@ describe("PluginManager", () => {
 		mockCheckPluginUpdates.mockResolvedValue([]);
 		mockUpdateMarketplacePlugin.mockResolvedValue(undefined);
 		mockUninstallMarketplacePlugin.mockResolvedValue(undefined);
+		mockResolveDidToHandle.mockResolvedValue({ status: "ok", handle: "example.com" });
+		mockUpdateRegistryPlugin.mockResolvedValue(undefined);
 	});
 
 	it("displays plugin list with names and versions", async () => {
@@ -149,6 +170,203 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("v1.0.0")).toBeInTheDocument();
 		await expect.element(screen.getByText("SEO Helper")).toBeInTheDocument();
 		await expect.element(screen.getByText("v2.0.0")).toBeInTheDocument();
+	});
+
+	it.each([
+		{ count: 1, label: "1 plugin" },
+		{ count: 2, label: "2 plugins" },
+	])("shows the plugin count as $label", async ({ count, label }) => {
+		mockFetchPlugins.mockResolvedValue(
+			Array.from({ length: count }, (_, i) =>
+				makePlugin({ id: `plugin-${i}`, name: `Plugin ${i}` }),
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText(label, { exact: true })).toBeInTheDocument();
+	});
+
+	it("shows the server's MCP tool name before enabling a scoped plugin's tools", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "@acme/calendar",
+				name: "Calendar",
+				mcpToolsEnabled: false,
+				mcpTools: [
+					{
+						name: "createEvent",
+						mcpName: "acme__calendar__createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+					},
+				],
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByRole("button", { name: "Expand details" }).click();
+		await expect
+			.element(screen.getByText("acme__calendar__createEvent", { exact: true }))
+			.toBeVisible();
+		await expect
+			.element(screen.getByRole("switch", { name: "Enable plugin MCP tools" }))
+			.not.toBeChecked();
+	});
+
+	it("shows the canonical public name for an installed registry plugin", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "r_abcdefghijklmnop",
+				name: "My Gallery",
+				source: "registry",
+				registryPublisherDid: "did:plc:publisher",
+				registrySlug: "my-gallery",
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("@example.com/my-gallery")).toBeInTheDocument();
+		await expect.element(screen.getByText("Registry")).toBeInTheDocument();
+		const publicNameLink = screen.getByRole("link", { name: "@example.com/my-gallery" });
+		expect((publicNameLink.element() as HTMLAnchorElement).getAttribute("href")).toBe(
+			"/plugins/registry/@example.com/my-gallery",
+		);
+	});
+
+	it("shows an invalid-handle warning for an installed registry plugin", async () => {
+		mockResolveDidToHandle.mockResolvedValue({ status: "invalid" });
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "r_abcdefghijklmnop",
+				name: "Editorial Workflow",
+				source: "registry",
+				registryPublisherDid: "did:plc:publisher",
+				registrySlug: "editorial-workflow",
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("INVALID HANDLE")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("This publisher identity no longer resolves."))
+			.toBeInTheDocument();
+	});
+
+	it("retries registry updates with the exact public routes and signed record CIDs", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "r_abcdefghijklmnop",
+				name: "Editorial Workflow",
+				source: "registry",
+				version: "1.0.0",
+				registryPublisherDid: "did:plc:publisher",
+				registrySlug: "editorial-workflow",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "r_abcdefghijklmnop",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		mockUpdateRegistryPlugin.mockRejectedValueOnce(
+			new RegistryUpdateEscalationError(
+				"ROUTE_VISIBILITY_ESCALATION",
+				"Review the update",
+				{ added: [], removed: [] },
+				{ newlyPublic: ["webhook"] },
+				{
+					profileCid: "profile-cid",
+					releaseCid: "release-cid",
+					provenance: "verified",
+					policy: {
+						requireProvenance: true,
+						confirmation: "escalation-only",
+						approvers: ["did:plc:publisher"],
+					},
+				},
+			),
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+		await vi.waitFor(() => {
+			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(1, "r_abcdefghijklmnop", {});
+		});
+		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
+		const acceptUpdate = screen.getByRole("button", { name: "Accept & Update" });
+		await expect.element(acceptUpdate).toBeEnabled();
+		acceptUpdate.element().click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(2, "r_abcdefghijklmnop", {
+				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
+				confirmMcpTools: false,
+				acknowledgedProfileCid: "profile-cid",
+				acknowledgedReleaseCid: "release-cid",
+			});
+		});
+	});
+
+	it.each([
+		{
+			source: "registry" as const,
+			id: "r_abcdefghijklmnop",
+			extra: { registryPublisherDid: "did:plc:publisher", registrySlug: "editorial-workflow" },
+		},
+		{ source: "marketplace" as const, id: "mp-plugin", extra: {} },
+	])("clears the $source update badge once the update succeeds", async ({ source, id, extra }) => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id, name: "Editorial Workflow", source, version: "1.0.0", ...extra }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{ pluginId: id, installed: "1.0.0", latest: "2.0.0", hasCapabilityChanges: false },
+		]);
+		const screen = await render(
+			<Wrapper staleTime={60_000}>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await screen.getByText("Check for updates").click();
+		await expect.element(screen.getByText("v2.0.0 available")).toBeInTheDocument();
+
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id, name: "Editorial Workflow", source, version: "2.0.0", ...extra }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{ pluginId: id, installed: "2.0.0", latest: "2.0.0", hasCapabilityChanges: false },
+		]);
+		await screen.getByText("Update to v2.0.0").click();
+
+		await expect.element(screen.getByText("v2.0.0", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("v2.0.0 available")).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Update to v2.0.0")).not.toBeInTheDocument();
 	});
 
 	it("enabled plugins show toggle in on state", async () => {
@@ -240,7 +458,7 @@ describe("PluginManager", () => {
 		});
 	});
 
-	it("empty state when no plugins", async () => {
+	it("empty state links to plugin installation docs when the sandbox is disabled", async () => {
 		mockFetchPlugins.mockResolvedValue([]);
 		const screen = await render(
 			<Wrapper>
@@ -248,38 +466,68 @@ describe("PluginManager", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("No plugins configured")).toBeInTheDocument();
-		await expect
-			.element(
-				screen.getByText("Add plugins to your astro.config.mjs to extend EmDash functionality."),
-			)
-			.toBeInTheDocument();
+		const docsLink = screen.getByRole("link", { name: /documentation/ });
+		await expect.element(docsLink).toBeInTheDocument();
+		expect((docsLink.element() as HTMLAnchorElement).href).toBe(
+			"https://docs.emdashcms.com/plugins/installing/",
+		);
 	});
 
 	// -----------------------------------------------------------------------
-	// Marketplace features
+	// Discovery and legacy marketplace lifecycle
 	// -----------------------------------------------------------------------
 
-	it("shows Marketplace link when manifest has marketplace URL", async () => {
+	it("shows one registry discovery path while a legacy marketplace plugin remains manageable", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "legacy-plugin",
+				name: "Legacy Plugin",
+				source: "marketplace",
+				version: "1.0.0",
+				marketplaceVersion: "1.0.0",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "legacy-plugin",
+				installed: "1.0.0",
+				latest: "1.1.0",
+				hasCapabilityChanges: false,
+			},
+		]);
 		const screen = await render(
 			<Wrapper>
 				<PluginManager
-					manifest={makeManifest({ marketplace: "https://marketplace.emdashcms.com" })}
+					manifest={makeManifest({
+						marketplace: true,
+						registry: { aggregatorUrl: "https://registry.emdashcms.com" },
+					})}
 				/>
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
-		await expect.element(screen.getByText("Marketplace")).toBeInTheDocument();
+		await expect.element(screen.getByText("Legacy Plugin")).toBeInTheDocument();
+
+		const catalogLinks = [...document.querySelectorAll("a")].filter((link) =>
+			["Registry", "Marketplace"].includes(link.textContent?.trim() ?? ""),
+		);
+		expect(catalogLinks.map((link) => link.textContent?.trim())).toEqual(["Registry"]);
+
+		await screen.getByText("Check for updates").click();
+		await expect.element(screen.getByText("Update to v1.1.0")).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Expand details" }).click();
+		await expect.element(screen.getByText("Uninstall")).toBeInTheDocument();
 	});
 
-	it("hides Marketplace link when no marketplace configured", async () => {
+	it("hides catalog links when no registry is configured", async () => {
 		const screen = await render(
 			<Wrapper>
 				<PluginManager manifest={makeManifest()} />
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Audit Log")).toBeInTheDocument();
-		const marketplaceLink = screen.getByText("Marketplace");
-		await expect.element(marketplaceLink).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Registry")).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Marketplace")).not.toBeInTheDocument();
 	});
 
 	it("shows Marketplace badge on marketplace-installed plugins", async () => {
@@ -319,7 +567,7 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Check for updates")).toBeInTheDocument();
 	});
 
-	it("confirms marketplace capability changes with the server contract field", async () => {
+	it("preflights marketplace updates before showing the exact authority changes", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({
 				id: "mp-plugin",
@@ -336,6 +584,26 @@ describe("PluginManager", () => {
 				hasCapabilityChanges: true,
 			},
 		]);
+		mockUpdateMarketplacePlugin.mockRejectedValueOnce(
+			new MarketplaceUpdateEscalationError(
+				"ROUTE_VISIBILITY_ESCALATION",
+				"Review the update",
+				{
+					added: ["media:bytes:read", "media:metadata:write", "network:request"],
+					removed: [],
+				},
+				{ newlyPublic: ["webhook"] },
+				[
+					{
+						name: "sync",
+						description: "Sync content",
+						route: "sync",
+						permission: "content:write",
+						destructive: false,
+					},
+				],
+			),
+		);
 		const screen = await render(
 			<Wrapper>
 				<PluginManager />
@@ -346,14 +614,150 @@ describe("PluginManager", () => {
 		const updateButton = screen.getByText("Update to v2.0.0");
 		await expect.element(updateButton).toBeInTheDocument();
 		await updateButton.click();
-		await screen.getByText("Accept & Update").click();
 
 		await vi.waitFor(() => {
-			expect(mockUpdateMarketplacePlugin).toHaveBeenCalledWith("mp-plugin", {
-				confirmCapabilityChanges: true,
-				confirmMcpTools: false,
+			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(1, "mp-plugin", {
+				version: "2.0.0",
 			});
 		});
+		await expect.element(screen.getByText("Read media file contents")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Edit media alt text, captions, and focal points"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Connect to network hosts and load external plugin admin images"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
+		await expect.element(screen.getByText("sync", { exact: true })).toBeInTheDocument();
+
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "3.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		screen.getByText("Check for updates").element().click();
+		await expect.element(screen.getByText("Update to v3.0.0")).toBeInTheDocument();
+		await expect.element(screen.getByText("2.0.0", { exact: true })).toBeInTheDocument();
+		const acceptUpdate = screen.getByRole("button", { name: "Accept & Update" });
+		await expect.element(acceptUpdate).toBeEnabled();
+		acceptUpdate.element().click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(2, "mp-plugin", {
+				version: "2.0.0",
+				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
+				confirmMcpTools: true,
+			});
+		});
+		await expect.element(screen.getByText("MP Plugin updated to v2.0.0")).toBeInTheDocument();
+		await expect.element(screen.getByText("MP Plugin updated to v3.0.0")).not.toBeInTheDocument();
+	});
+
+	it("shows MCP-only update consent without an inline failure", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id: "mp-plugin", name: "MP Plugin", source: "marketplace" }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: false,
+			},
+		]);
+		mockUpdateMarketplacePlugin.mockRejectedValueOnce(
+			new MarketplaceUpdateMcpConsentRequiredError(
+				[
+					{
+						name: "sync",
+						description: "Sync content",
+						route: "sync",
+						permission: "content:write",
+						destructive: false,
+					},
+				],
+				{ added: [], removed: [] },
+			),
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+
+		await expect.element(screen.getByText("sync", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Plugin MCP tools require explicit consent"))
+			.not.toBeInTheDocument();
+	});
+
+	it("reports marketplace preflight failures", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id: "mp-plugin", name: "MP Plugin", source: "marketplace" }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: false,
+			},
+		]);
+		mockUpdateMarketplacePlugin.mockRejectedValueOnce(new Error("Marketplace unavailable"));
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+
+		await expect.element(screen.getByText("Failed to update plugin")).toBeInTheDocument();
+		await expect.element(screen.getByText("Marketplace unavailable")).toBeInTheDocument();
+	});
+
+	it("reports a failed Accept & Update once, inside the consent dialog", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({ id: "mp-plugin", name: "MP Plugin", source: "marketplace" }),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		mockUpdateMarketplacePlugin
+			.mockRejectedValueOnce(
+				new MarketplaceUpdateEscalationError("CAPABILITY_ESCALATION", "Review the update", {
+					added: ["network:request"],
+					removed: [],
+				}),
+			)
+			.mockRejectedValueOnce(new Error("Marketplace unavailable"));
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+		const dialog = screen.getByRole("dialog", { name: "Review New Permissions" });
+		await expect.element(dialog).toBeVisible();
+		dialog.getByRole("button", { name: "Accept & Update" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Marketplace unavailable");
+		expect(screen.getByText("Failed to update plugin").query()).toBeNull();
 	});
 
 	it("hides 'Check for updates' button when no marketplace plugins", async () => {
@@ -438,17 +842,55 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Also delete plugin storage data")).toBeInTheDocument();
 	});
 
-	it("empty state mentions marketplace when configured", async () => {
+	it("empty state links to the registry when the sandbox is enabled", async () => {
 		mockFetchPlugins.mockResolvedValue([]);
 		const screen = await render(
 			<Wrapper>
 				<PluginManager
-					manifest={makeManifest({ marketplace: "https://marketplace.emdashcms.com" })}
+					manifest={makeManifest({
+						sandboxEnabled: true,
+						registry: { aggregatorUrl: "https://registry.emdashcms.com" },
+					})}
 				/>
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("No plugins configured")).toBeInTheDocument();
-		// The empty state links to the marketplace
-		await expect.element(screen.getByText("marketplace", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("registry", { exact: true })).toBeInTheDocument();
+	});
+
+	it("empty state links to docs when the registry is browse-only", async () => {
+		mockFetchPlugins.mockResolvedValue([]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager
+					manifest={makeManifest({
+						registry: { aggregatorUrl: "https://registry.emdashcms.com" },
+					})}
+				/>
+			</Wrapper>,
+		);
+		await expect.element(screen.getByRole("link", { name: /documentation/ })).toBeInTheDocument();
+		await expect.element(screen.getByText("registry", { exact: true })).not.toBeInTheDocument();
+	});
+});
+
+describe("UninstallConfirmDialog", () => {
+	it("uninstalls once on a double press", async () => {
+		const onConfirm = vi.fn();
+		const screen = await render(
+			<UninstallConfirmDialog
+				pluginName="Gallery"
+				isPending={false}
+				onConfirm={onConfirm}
+				onCancel={vi.fn()}
+			/>,
+		);
+
+		const uninstall = screen.getByRole("button", { name: "Uninstall", exact: true });
+		await expect.element(uninstall).toBeEnabled();
+		uninstall.element().click();
+		uninstall.element().click();
+		expect(onConfirm).toHaveBeenCalledTimes(1);
+		expect(onConfirm).toHaveBeenCalledWith(false);
 	});
 });

@@ -1,11 +1,16 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
+
+import { refreshDevTypes } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
+import { MAX_SCHEMA_SLUG_LENGTH } from "../../../src/schema/slug.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
+
+vi.mock("../../../src/astro/dev-typegen.js", () => ({ refreshDevTypes: vi.fn() }));
 
 describe("SchemaRegistry", () => {
 	let db: Kysely<EmDashDatabase>;
@@ -96,6 +101,14 @@ describe("SchemaRegistry", () => {
 				.execute();
 
 			expect(result).toBeDefined();
+		});
+
+		it("rejects an unregistered content table with a structured conflict", async () => {
+			await sql`CREATE TABLE ec_orphaned (id TEXT PRIMARY KEY)`.execute(db);
+
+			await expect(
+				registry.createCollection({ slug: "orphaned", label: "Orphaned" }),
+			).rejects.toMatchObject({ code: "COLLECTION_TABLE_ORPHANED" });
 		});
 
 		it("should list collections", async () => {
@@ -284,6 +297,30 @@ describe("SchemaRegistry", () => {
 			expect(updated.hidden).toBe(true);
 		});
 
+		it("groups a collection into a sidebar folder and moves it back inline", async () => {
+			const created = await registry.createCollection({
+				slug: "calendar_entries",
+				label: "Entries",
+				group: "  Calendar ",
+			});
+			expect(created.group).toBe("Calendar");
+
+			const relabeled = await registry.updateCollection("calendar_entries", { label: "Dates" });
+			expect(relabeled.group).toBe("Calendar");
+
+			const inline = await registry.updateCollection("calendar_entries", { group: null });
+			expect(inline.group).toBeUndefined();
+
+			const blank = await registry.updateCollection("calendar_entries", { group: "" });
+			expect(blank.group).toBeUndefined();
+		});
+
+		it("clears a collection icon with an empty string", async () => {
+			await registry.createCollection({ slug: "trophies", label: "Trophies", icon: "trophy" });
+			const cleared = await registry.updateCollection("trophies", { icon: "" });
+			expect(cleared.icon).toBeUndefined();
+		});
+
 		it("persists collection admin list columns", async () => {
 			const created = await registry.createCollection({
 				slug: "tickets",
@@ -330,6 +367,20 @@ describe("SchemaRegistry", () => {
 			);
 		});
 
+		it("should cap collection slugs at MAX_SCHEMA_SLUG_LENGTH characters", async () => {
+			const atLimit = "a".repeat(MAX_SCHEMA_SLUG_LENGTH);
+			await expect(
+				registry.createCollection({ slug: atLimit, label: "At limit" }),
+			).resolves.toMatchObject({ slug: atLimit });
+
+			await expect(
+				registry.createCollection({
+					slug: "b".repeat(MAX_SCHEMA_SLUG_LENGTH + 1),
+					label: "Too long",
+				}),
+			).rejects.toThrow(SchemaError);
+		});
+
 		it("should validate collection slug format", async () => {
 			await expect(registry.createCollection({ slug: "My Posts", label: "Posts" })).rejects.toThrow(
 				SchemaError,
@@ -346,6 +397,56 @@ describe("SchemaRegistry", () => {
 	});
 
 	describe("Field Operations", () => {
+		it("preserves unsupported stored field types instead of treating them as strings", async () => {
+			await registry.createField("posts", {
+				slug: "future",
+				label: "Future",
+				type: "string",
+			});
+
+			await db
+				.updateTable("_emdash_fields")
+				.set({ type: "future_blocks" })
+				.where("slug", "=", "future")
+				.execute();
+
+			const field = await registry.getField("posts", "future");
+			expect(field?.unsupportedType).toEqual({
+				type: "future_blocks",
+				path: "type",
+			});
+			await expect(
+				registry.updateField("posts", "future", { label: "Changed" }),
+			).rejects.toMatchObject({ code: "UNSUPPORTED_FIELD_TYPE" });
+		});
+
+		it("preserves unsupported stored repeater sub-field types", async () => {
+			await registry.createField("posts", {
+				slug: "sections",
+				label: "Sections",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "title", label: "Title", type: "string" }],
+				},
+			});
+
+			await db
+				.updateTable("_emdash_fields")
+				.set({
+					validation: JSON.stringify({
+						subFields: [{ slug: "title", label: "Title", type: "future_nested" }],
+					}),
+				})
+				.where("slug", "=", "sections")
+				.execute();
+
+			const field = await registry.getField("posts", "sections");
+			expect(field?.unsupportedType).toEqual({
+				type: "future_nested",
+				path: "validation.subFields[0].type",
+			});
+		});
+
 		beforeEach(async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 		});
@@ -1078,6 +1179,20 @@ describe("SchemaRegistry", () => {
 
 			const field = await registry.getField("articles", "body");
 			expect(field).toBeNull();
+		});
+	});
+
+	describe("dev typegen hook", () => {
+		it("signals a dev types refresh after a schema mutation", async () => {
+			vi.mocked(refreshDevTypes).mockClear();
+
+			await registry.createCollection({
+				slug: "typed",
+				label: "Typed",
+				supports: ["drafts", "revisions"],
+			});
+
+			expect(refreshDevTypes).toHaveBeenCalledTimes(1);
 		});
 	});
 });

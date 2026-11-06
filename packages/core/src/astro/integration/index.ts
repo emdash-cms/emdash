@@ -10,12 +10,16 @@
  * to avoid bundling Node.js-only code into the production build.
  */
 
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
 
+import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { unknownOptionWarning, validateConfigShape } from "../../config/options-schema.js";
 import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
 import { normalizeAstroI18n } from "../../i18n/normalize.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
@@ -27,8 +31,18 @@ import {
 import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
 import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import {
+	normalizeRegistryConfig,
+	parseDurationSeconds,
+	resolveRegistryConfigForSandbox,
+} from "../../registry/config.js";
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
+import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
+import { resolveHiddenNavItems } from "./admin-nav.js";
+import { loadDevEnv } from "./dev-env.js";
+import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
+import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
 	injectCoreRoutes,
@@ -37,7 +51,7 @@ import {
 	injectMcpRoute,
 } from "./routes.js";
 import type { EmDashConfig } from "./runtime.js";
-import { createViteConfig } from "./vite-config.js";
+import { createViteConfig, resolveAdminDist } from "./vite-config.js";
 
 // Re-export runtime types and functions
 export type {
@@ -65,16 +79,62 @@ function resolveAstroVersion(): string | undefined {
 	}
 }
 
+/**
+ * `@emdash-cms/cloudflare` requires the exact `emdash` version it was
+ * released with. npm refuses a mismatched install, but pnpm and Yarn only
+ * print a peer dependency warning, so warn when the installed adapter's
+ * version differs from this one.
+ *
+ * @internal Exported for unit testing.
+ */
+export function adapterVersionMismatchWarning(
+	root: URL,
+	version: string = VERSION,
+): string | undefined {
+	if (version === "dev") return undefined;
+	for (let dir = fileURLToPath(root); dir !== dirname(dir); dir = dirname(dir)) {
+		const file = join(dir, "node_modules", "@emdash-cms", "cloudflare", "package.json");
+		if (!existsSync(file)) continue;
+		let pkg: { version?: unknown };
+		try {
+			pkg = JSON.parse(readFileSync(file, "utf8")) as { version?: unknown };
+		} catch {
+			return undefined;
+		}
+		if (typeof pkg.version !== "string" || pkg.version === version) return undefined;
+		return (
+			`@emdash-cms/cloudflare ${pkg.version} requires emdash ${pkg.version}, ` +
+			`but emdash ${version} is installed. ` +
+			`Install the same version of both packages, for example:\n\n` +
+			`  npm install emdash@${version} @emdash-cms/cloudflare@${version}`
+		);
+	}
+	return undefined;
+}
+
 /** Default storage: Local filesystem in .emdash directory */
 const DEFAULT_STORAGE = local({
 	directory: "./.emdash/uploads",
 	baseUrl: "/_emdash/api/media/file",
 });
 
-interface ImageRemotePattern {
+export interface ImageRemotePattern {
 	protocol?: "http" | "https";
 	hostname?: string;
 	pathname?: string;
+}
+
+/**
+ * Resolve the site origin for `image.remotePatterns`: the configured `siteUrl`,
+ * then `EMDASH_SITE_URL` / `SITE_URL`. Astro bakes `remotePatterns` into the
+ * build output, so the env vars only take effect if they are set when
+ * `astro build` runs.
+ *
+ * @internal Exported for unit testing.
+ */
+export function resolveBuildTimeSiteUrl(configuredSiteUrl: string | undefined): string | undefined {
+	if (configuredSiteUrl) return configuredSiteUrl;
+	return getEnvSiteUrl();
 }
 
 /**
@@ -136,10 +196,12 @@ export function buildImageRemotePatterns(
 
 	if (siteUrl) {
 		try {
-			patterns.push({
-				hostname: new URL(siteUrl).hostname,
-				pathname: `${INTERNAL_MEDIA_PREFIX}**`,
-			});
+			const { hostname } = new URL(siteUrl);
+			// WHATWG URL accepts `*` in a hostname, which Astro's matcher treats
+			// as a wildcard that would allowlist other hosts.
+			if (!hostname.includes("*")) {
+				patterns.push({ hostname, pathname: `${INTERNAL_MEDIA_PREFIX}**` });
+			}
 		} catch {
 			// ignore an unparseable site URL
 		}
@@ -150,6 +212,34 @@ export function buildImageRemotePatterns(
 	}
 
 	return patterns;
+}
+
+/**
+ * Build the config subset baked into `virtual:emdash/config` and exposed
+ * at runtime as `locals.emdash.config`. A config option that runtime code
+ * reads (routes, middleware) MUST be listed here — an option only on
+ * `EmDashConfig` is invisible at runtime and silently ignored.
+ *
+ * @internal Exported for unit testing.
+ */
+export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<string, unknown> {
+	return {
+		database: resolvedConfig.database,
+		migrations: resolvedConfig.migrations,
+		storage: resolvedConfig.storage,
+		auth: resolvedConfig.auth,
+		authProviders: resolvedConfig.authProviders,
+		marketplace: resolvedConfig.marketplace,
+		registry: resolvedConfig.registry,
+		siteUrl: resolvedConfig.siteUrl,
+		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
+		maxUploadSize: resolvedConfig.maxUploadSize,
+		imagePlaceholders: resolvedConfig.imagePlaceholders,
+		admin: resolvedConfig.admin,
+		toolbar: resolvedConfig.toolbar,
+		updateCheck: resolvedConfig.updateCheck,
+		objectCacheEnabled: resolvedConfig.objectCache !== undefined,
+	};
 }
 
 /**
@@ -193,7 +283,7 @@ export function resolveImageEndpoint(opts: {
 		return {
 			entrypoint: opts.isCloudflare
 				? "@emdash-cms/cloudflare/image-endpoint"
-				: "emdash/image-endpoint",
+				: "emdash/internal/image-endpoint",
 		};
 	}
 	// A deliberate passthrough setup: leave it alone, no warning.
@@ -203,6 +293,18 @@ export function resolveImageEndpoint(opts: {
 			`A custom image.endpoint (${current}) is configured; EmDash will not wrap ` +
 			`it, so storage-backed media may render unoptimized.`,
 	};
+}
+
+const EDGE_SLASHES = /^\/+|\/+$/g;
+
+/**
+ * The `routePattern` Astro reports for requests to the image endpoint. It drops
+ * the trailing slash `image.endpoint.route` carries under `trailingSlash: "always"`.
+ *
+ * @internal
+ */
+export function imageEndpointRoutePattern(route: string | undefined): string {
+	return `/${(route ?? "/_image").replace(EDGE_SLASHES, "")}`;
 }
 
 /**
@@ -230,6 +332,31 @@ export function missingReactIntegrationWarning(
 		`  export default defineConfig({\n` +
 		`    integrations: [react(), emdash({ ... })],\n` +
 		`  });`
+	);
+}
+
+/**
+ * Warn when Astro has no session driver. Sign-in stores the user in the Astro
+ * session, so without a driver every sign-in route fails. The Node, Cloudflare,
+ * and Netlify adapters configure a driver in `astro:config:setup`; others,
+ * such as Vercel, do not.
+ */
+function missingSessionDriverWarning(
+	session: { driver?: unknown } | false | undefined,
+): string | undefined {
+	if (session && session.driver) return undefined;
+	const problem =
+		session === false
+			? `Astro sessions are disabled (\`session: false\`), but EmDash stores signed-in users in the Astro session.`
+			: `No Astro session driver is configured, but EmDash stores signed-in users in the Astro session.`;
+	return (
+		`${problem} Without one, signing in to the admin fails. Use an adapter that ` +
+		`provides a driver (Node, Cloudflare, Netlify) or configure one yourself, for example:\n\n` +
+		`  import { defineConfig, sessionDrivers } from "astro/config";\n` +
+		`  export default defineConfig({\n` +
+		`    session: { driver: sessionDrivers.redis({ url: process.env.REDIS_URL }) },\n` +
+		`  });\n\n` +
+		`See https://docs.astro.build/en/guides/sessions/`
 	);
 }
 
@@ -297,34 +424,76 @@ export function buildMiddlewareEntries(
 
 	entries.push(
 		{ entrypoint: "emdash/middleware", order: "pre" },
-		{ entrypoint: "emdash/middleware/redirect", order: "pre" },
+		{ entrypoint: "emdash/internal/middleware/redirect", order: "pre" },
 	);
 
 	if (!config.playground) {
 		entries.push(
-			{ entrypoint: "emdash/middleware/setup", order: "pre" },
-			{ entrypoint: "emdash/middleware/auth", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/setup", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/auth", order: "pre" },
 		);
 	}
 
 	entries.push(
-		{ entrypoint: "emdash/middleware/media-usage-write-fence", order: "pre" },
-		{ entrypoint: "emdash/middleware/request-context", order: "pre" },
+		{ entrypoint: "emdash/internal/middleware/media-usage-write-fence", order: "pre" },
+		{ entrypoint: "emdash/internal/middleware/request-context", order: "pre" },
 	);
 
 	return entries;
+}
+
+function assertNoRemovedRegistryOption(config: EmDashConfig): void {
+	const experimental: unknown = Reflect.get(config, "experimental");
+	if (
+		typeof experimental === "object" &&
+		experimental !== null &&
+		Reflect.get(experimental, "registry") !== undefined
+	) {
+		throw new Error(
+			"EmDash config: `experimental.registry` has been removed. Configure the registry with the top-level `registry` option instead.",
+		);
+	}
 }
 
 /**
  * Create the EmDash Astro integration
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
+	assertNoRemovedRegistryOption(config);
+	const unknownOptions = validateConfigShape(config);
+
+	const registry = resolveRegistryConfigForSandbox({
+		registry: config.registry,
+		sandboxRunner: config.sandboxRunner,
+		sandboxEnabled: config.sandbox !== false,
+	});
+
 	// Apply defaults
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
 		migrations: normalizeMigrationConfig(config.migrations),
+		registry: config.registry === false ? false : registry,
 	};
+
+	// Validate environment-independent registry settings while Astro is still
+	// evaluating its config. The command-aware check in astro:config:setup
+	// applies the stricter production localhost policy.
+	normalizeRegistryConfig(registry, { allowLocalhost: true });
+
+	const updateCheckAge =
+		typeof resolvedConfig.updateCheck === "object"
+			? resolvedConfig.updateCheck?.minimumReleaseAge
+			: undefined;
+	if (updateCheckAge !== undefined) {
+		try {
+			parseDurationSeconds(updateCheckAge);
+		} catch (e) {
+			throw new Error(`Invalid updateCheck.minimumReleaseAge: ${String(updateCheckAge)}`, {
+				cause: e,
+			});
+		}
+	}
 
 	// Validate marketplace URL
 	if (resolvedConfig.marketplace) {
@@ -344,18 +513,13 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			}
 			throw e;
 		}
-		if (!resolvedConfig.sandboxRunner) {
-			throw new Error(
-				"Marketplace requires `sandboxRunner` to be configured. " +
-					"Marketplace plugins run in sandboxed V8 isolates.",
-			);
-		}
 	}
 
 	// Validate siteUrl if provided in astro.config.mjs.
 	// Env-var fallback (EMDASH_SITE_URL / SITE_URL) is handled at runtime by
-	// getPublicOrigin() in api/public-url.ts — NOT here — so Docker images built
-	// without a domain can pick it up at container start via process.env.
+	// getPublicOrigin() in api/public-url.ts — don't fold it into
+	// resolvedConfig.siteUrl here — so Docker images built without a domain can
+	// pick it up at container start via process.env.
 	if (resolvedConfig.siteUrl) {
 		const raw = resolvedConfig.siteUrl;
 		try {
@@ -425,25 +589,26 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		}
 	}
 
+	if (config.admin?.locales !== undefined) {
+		const manifest = readAdminLocaleManifest(resolveAdminDist());
+		resolvedConfig.admin = {
+			...config.admin,
+			locales: resolveAdminLocales(config.admin.locales, Object.keys(manifest)),
+		};
+	}
+	if (config.admin?.hiddenNavItems !== undefined) {
+		resolvedConfig.admin = {
+			...resolvedConfig.admin,
+			hiddenNavItems: resolveHiddenNavItems(config.admin.hiddenNavItems),
+		};
+	}
+
 	// Resolved plugins (populated at build time by importing entrypoints)
 	let _resolvedPlugins: ResolvedPlugin[] = [];
 
 	// Serialize config for virtual module (database/storage/auth - plugins handled separately)
 	// i18n is populated in astro:config:setup from astroConfig.i18n
-	const serializableConfig: Record<string, unknown> = {
-		database: resolvedConfig.database,
-		migrations: resolvedConfig.migrations,
-		storage: resolvedConfig.storage,
-		auth: resolvedConfig.auth,
-		authProviders: resolvedConfig.authProviders,
-		marketplace: resolvedConfig.marketplace,
-		experimental: resolvedConfig.experimental,
-		siteUrl: resolvedConfig.siteUrl,
-		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
-		maxUploadSize: resolvedConfig.maxUploadSize,
-		admin: resolvedConfig.admin,
-		toolbar: resolvedConfig.toolbar,
-	};
+	const serializableConfig = buildSerializableConfig(resolvedConfig);
 
 	// Determine auth mode for route injection
 	// Check if auth is an AuthDescriptor (has entrypoint) indicating external auth
@@ -452,6 +617,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// Captured in astro:config:setup so the astro:server:setup hook can tell
 	// whether we're running `astro dev` (where the dev-bypass shortcut applies).
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
+	let usesCloudflareAdapter = false;
 	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
 	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
 
@@ -459,7 +625,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		name: "emdash",
 		hooks: {
 			"astro:config:setup": ({
-				injectRoute,
+				injectRoute: astroInjectRoute,
 				addMiddleware,
 				logger,
 				updateConfig,
@@ -467,7 +633,25 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
+				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
+				normalizeRegistryConfig(registry, {
+					allowLocalhost: command === "dev" || command === "sync",
+				});
 				printBanner(logger);
+				for (const key of unknownOptions) logger.warn(unknownOptionWarning(key));
+				if (command === "dev") {
+					// In Node `astro dev`, Vite loads `.env` into `import.meta.env`
+					// but not `process.env`. The plugin-secret encryption key
+					// intentionally reads only `process.env`, so a freshly
+					// scaffolded site can't save secret plugin settings until the
+					// key is copied over. Load only `EMDASH_ENCRYPTION_KEY` here,
+					// honoring any value already present in the shell.
+					try {
+						loadDevEnv(astroConfig.root);
+					} catch (error: unknown) {
+						logger.warn(`Failed to load EMDASH_ENCRYPTION_KEY from .env: ${String(error)}`);
+					}
+				}
 				// Capture the host's Astro version so the runtime can expose it
 				// to the admin and the registry install gate for `env:astro`
 				// constraint checks.
@@ -546,7 +730,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// merges arrays, so user-configured remotePatterns are preserved.
 				const imageRemotePatterns = buildImageRemotePatterns(
 					resolvedConfig.storage,
-					resolvedConfig.siteUrl,
+					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
 					command,
 				);
 
@@ -562,7 +746,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 				const imageConfig: Record<string, unknown> = {};
 				if (imageRemotePatterns.length) imageConfig.remotePatterns = imageRemotePatterns;
-				if (imageEndpoint) imageConfig.endpoint = { entrypoint: imageEndpoint };
+				if (imageEndpoint) {
+					imageConfig.endpoint = { entrypoint: imageEndpoint };
+					serializableConfig.imageEndpointRoute = imageEndpointRoutePattern(
+						astroConfig.image?.endpoint?.route,
+					);
+				}
 
 				updateConfig({
 					security: securityConfig,
@@ -581,8 +770,17 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					),
 				});
 
+				// Astro reads a route's `export const prerender` by matching the file's
+				// source text, which the compiled route modules don't match. Without an
+				// explicit value, `output: "static"` would prerender them.
+				const injectRoute: typeof astroInjectRoute = (route) =>
+					astroInjectRoute({ ...route, prerender: false });
+
 				// Inject all core routes
-				injectCoreRoutes(injectRoute, { srcDir: astroConfig.srcDir });
+				injectCoreRoutes(injectRoute, {
+					srcDir: astroConfig.srcDir,
+					cloudflareDevScheduler: command === "dev" && usesCloudflareAdapter,
+				});
 
 				// Inject routes from pluggable auth providers (authProviders config)
 				if (resolvedConfig.authProviders?.length) {
@@ -610,6 +808,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
+				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);
+				if (adapterWarning) logger.warn(adapterWarning);
+				const sessionWarning = useExternalAuth
+					? undefined
+					: missingSessionDriverWarning(finalConfig.session);
+				if (sessionWarning) logger.warn(sessionWarning);
 
 				if (astroCommand !== "build" && astroCommand !== "sync") return;
 				if (!migrationMetadata.database) {
@@ -634,6 +838,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				await writeMigrationManifest(fileURLToPath(finalConfig.root), manifest);
 			},
 			"astro:server:setup": ({ server, logger }) => {
+				if (astroCommand === "dev" && usesCloudflareAdapter) {
+					startDevSchedulerBridge(server, logger);
+				}
+
 				// Print route info with absolute, clickable URLs once the server
 				// is listening. Only in `astro dev` -- the dev-bypass shortcut is
 				// dev-only and the port is unknown until now.
@@ -651,57 +859,20 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					});
 				}
 
-				// Generate types once the server is listening.
+				// Generate types once the server is listening, and listen for
+				// schema mutations in dev so they update the file too.
 				// The endpoint returns the types content; we write the file here
 				// (in Node) because workerd has no real filesystem access.
-				server.httpServer?.once("listening", async () => {
-					const { writeFile, readFile } = await import("node:fs/promises");
-					const { resolve } = await import("node:path");
-
+				server.httpServer?.once("listening", () => {
 					const address = server.httpServer?.address();
 					if (!address || typeof address === "string") return;
 
 					const port = address.port;
-					const typegenUrl = `http://localhost:${port}/_emdash/api/typegen`;
-					const outputPath = resolve(process.cwd(), "emdash-env.d.ts");
+					const refreshDevTypes = createDebouncedTypegenRefresh(port, logger);
+					listenForDevTypegenRefresh(server, refreshDevTypes);
 
-					try {
-						const response = await fetch(typegenUrl, {
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-						});
-
-						if (!response.ok) {
-							const body = await response.text().catch(() => "");
-							logger.warn(`Typegen failed: ${response.status} ${body.slice(0, 200)}`);
-							return;
-						}
-
-						const { data: result } = (await response.json()) as {
-							data: {
-								types: string;
-								hash: string;
-								collections: number;
-							};
-						};
-
-						// Only write if content changed
-						let needsWrite = true;
-						try {
-							const existing = await readFile(outputPath, "utf-8");
-							if (existing === result.types) needsWrite = false;
-						} catch {
-							// File doesn't exist yet
-						}
-
-						if (needsWrite) {
-							await writeFile(outputPath, result.types, "utf-8");
-							logger.info(`Generated emdash-env.d.ts (${result.collections} collections)`);
-						}
-					} catch (error) {
-						const msg = error instanceof Error ? error.message : String(error);
-						logger.warn(`Typegen failed: ${msg}`);
-					}
+					// Initial generation now that the server is up.
+					refreshDevTypes();
 				});
 			},
 			"astro:build:done": ({ logger }) => {

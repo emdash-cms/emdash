@@ -1,5 +1,6 @@
 import type {
 	AccordionBlock,
+	ActionElement,
 	ActionsBlock,
 	BannerBlock,
 	Block,
@@ -17,14 +18,16 @@ import type {
 	RepeaterElement,
 	RepeaterSubField,
 	DividerBlock,
-	Element,
 	EmptyBlock,
 	FieldsBlock,
 	FormBlock,
 	FormField,
 	HeaderBlock,
 	ImageBlock,
+	LinkElement,
+	LinkTarget,
 	MediaPickerElement,
+	MenuElement,
 	MeterBlock,
 	NumberInputElement,
 	SecretInputElement,
@@ -50,7 +53,10 @@ function header(text: string, opts?: { blockId?: string }): HeaderBlock {
 	};
 }
 
-function section(text: string, opts?: { accessory?: Element; blockId?: string }): SectionBlock {
+function section(
+	text: string,
+	opts?: { accessory?: ActionElement; blockId?: string },
+): SectionBlock {
 	return {
 		type: "section",
 		text,
@@ -96,7 +102,7 @@ function table(opts: {
 	};
 }
 
-function actionsBlock(elements: Element[], opts?: { blockId?: string }): ActionsBlock {
+function actionsBlock(elements: ActionElement[], opts?: { blockId?: string }): ActionsBlock {
 	return {
 		type: "actions",
 		elements,
@@ -186,6 +192,34 @@ function textInput(
 			initial_value: opts.initialValue,
 		}),
 		...(opts?.multiline !== undefined && { multiline: opts.multiline }),
+	};
+}
+
+function link(
+	label: string,
+	target: LinkTarget,
+	opts?: { appearance?: LinkElement["appearance"] },
+): LinkElement {
+	return {
+		type: "link",
+		label,
+		target,
+		...(opts?.appearance !== undefined && { appearance: opts.appearance }),
+	};
+}
+
+function menu(
+	actionId: string,
+	label: string,
+	items: Array<{ label: string; value: string }>,
+	opts?: { style?: MenuElement["style"] },
+): MenuElement {
+	return {
+		type: "menu",
+		action_id: actionId,
+		label,
+		items,
+		...(opts?.style !== undefined && { style: opts.style }),
 	};
 }
 
@@ -467,7 +501,7 @@ function empty(opts: {
 	description?: string;
 	commandLine?: string;
 	size?: "sm" | "base" | "lg";
-	actions?: Element[];
+	actions?: ActionElement[];
 }): EmptyBlock {
 	return {
 		type: "empty",
@@ -525,6 +559,8 @@ export const elements = {
 	select,
 	toggle,
 	button,
+	link,
+	menu,
 	secretInput,
 	checkbox,
 	combobox,

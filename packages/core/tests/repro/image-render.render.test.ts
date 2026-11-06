@@ -8,10 +8,19 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, test } from "vitest";
 
 import EmDashImage from "../../src/components/EmDashImage.astro";
+import EmDashMedia from "../../src/components/EmDashMedia.astro";
 import Image from "../../src/components/Image.astro";
+import { createMediaProvider as createLocalMediaProvider } from "../../src/media/local-runtime.js";
 import OverrideImage from "./OverrideImage.astro";
 
 const testMediaProviders = [
+	{
+		id: "local",
+		name: "Library",
+		capabilities: { browse: true, search: false, upload: true, delete: true },
+		createProvider: (ctx: Record<string, unknown>) =>
+			createLocalMediaProvider({ ...ctx, enabled: true }),
+	},
 	{
 		id: "mock-images",
 		name: "Mock Images",
@@ -53,6 +62,7 @@ const locals = {
 
 const imgSrc = (html: string) => html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1] ?? "(no <img>)";
 const imgTag = (html: string) => html.match(/<img\b[^>]*>/)?.[0] ?? "";
+const anchorTag = (html: string) => html.match(/<a\b[^>]*>/)?.[0] ?? "";
 const attr = (tag: string, name: string) =>
 	tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]?.replaceAll("&amp;", "&");
 const compact = (html: string) => html.replace(/\s+/g, " ").trim();
@@ -61,17 +71,28 @@ async function renderImage(
 	renderNode: Record<string, unknown>,
 	renderLocals: typeof locals | undefined = locals,
 	placeholder = true,
+	request?: Request,
 ) {
 	const c = await AstroContainer.create();
 	return c.renderToString(Image, {
 		props: { node: renderNode, placeholder },
 		...(renderLocals ? { locals: renderLocals } : {}),
+		...(request ? { request } : {}),
 	});
 }
 
-async function renderEmDashImage(props: Record<string, unknown>) {
+async function renderEmDashImage(props: Record<string, unknown>, request?: Request) {
 	const c = await AstroContainer.create();
-	return c.renderToString(EmDashImage, { props, locals });
+	return c.renderToString(EmDashImage, {
+		props,
+		locals,
+		...(request ? { request } : {}),
+	});
+}
+
+async function renderEmDashMedia(props: Record<string, unknown>) {
+	const c = await AstroContainer.create();
+	return c.renderToString(EmDashMedia, { props, locals });
 }
 
 describe("faithful render of migrated image node", () => {
@@ -104,21 +125,30 @@ describe("faithful render of migrated image node", () => {
 	});
 
 	test("local image keeps wrapper, dimensions, alt, caption and alignment", async () => {
-		const html = await renderImage({
-			...node,
-			alt: "Migrated image",
-			caption: "A caption",
-			alignment: "center",
-			width: 1200,
-			height: 800,
-			displayWidth: 600,
-			displayHeight: undefined,
-		});
+		const html = await renderImage(
+			{
+				...node,
+				alt: "Migrated image",
+				caption: "A caption",
+				title: "Image details",
+				alignment: "center",
+				width: 1200,
+				height: 800,
+				displayWidth: 600,
+				displayHeight: undefined,
+			},
+			locals,
+			true,
+			new Request("https://quality.example.com/"),
+		);
 		const tag = imgTag(html);
 
 		expect(compact(html)).toContain('<figure class="emdash-image emdash-image--align-center"');
-		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png");
+		expect(decodeURIComponent(attr(tag, "src") ?? "")).toContain(
+			"/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png",
+		);
 		expect(attr(tag, "alt")).toBe("Migrated image");
+		expect(attr(tag, "title")).toBe("Image details");
 		expect(attr(tag, "width")).toBe("600");
 		expect(attr(tag, "height")).toBe("400");
 		expect(attr(tag, "loading")).toBe("lazy");
@@ -127,6 +157,49 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(html).toContain("<figcaption");
 		expect(html).toContain("A caption");
+	});
+
+	test("non-finite dimensions never reach rendered attributes or styles", async () => {
+		const html = await renderImage({
+			...node,
+			width: Number.NaN,
+			height: Number.POSITIVE_INFINITY,
+			displayWidth: Number.NaN,
+			displayHeight: Number.POSITIVE_INFINITY,
+		});
+
+		expect(html).not.toContain("NaN");
+		expect(html).not.toContain("Infinity");
+	});
+
+	test("linked image wraps the figure body in a sanitized anchor", async () => {
+		const html = await renderImage({
+			...node,
+			title: "Linked image details",
+			link: { href: "https://example.com/promo", blank: true },
+		});
+		const a = anchorTag(html);
+		const tag = imgTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/promo");
+		expect(attr(a, "target")).toBe("_blank");
+		expect(attr(a, "rel")).toBe("noopener noreferrer");
+		expect(attr(tag, "title")).toBe("Linked image details");
+		expect(compact(html)).toMatch(/<a\b[^>]*>\s*<img\b/);
+	});
+
+	test("same-page anchor links never open in a new tab", async () => {
+		const html = await renderImage({ ...node, link: { href: "#gallery", blank: true } });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("#gallery");
+		expect(attr(a, "target")).toBeUndefined();
+		expect(attr(a, "rel")).toBeUndefined();
+	});
+
+	test("legacy string links from WordPress imports still render", async () => {
+		const html = await renderImage({ ...node, link: "https://example.com/legacy" });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/legacy");
+		expect(attr(a, "target")).toBeUndefined();
 	});
 
 	test("bare local media ref falls back to the media file route", async () => {
@@ -211,6 +284,22 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "sizes")).toBe("(min-width: 600px) 600px, 100vw");
 	});
 
+	test("provider srcsets stop at the original width", async () => {
+		const html = await renderImage({
+			...node,
+			asset: { _ref: "provider-image", provider: "mock-images" },
+			width: 1000,
+			height: 1000,
+			displayWidth: 600,
+			displayHeight: 600,
+		});
+		const widths = attr(imgTag(html), "srcset")
+			?.split(", ")
+			.map((candidate) => candidate.split(" ")[1]);
+
+		expect(widths).toEqual(["600w", "640w", "750w", "828w", "960w", "1000w"]);
+	});
+
 	test("missing external provider falls back without crashing", async () => {
 		const html = await renderImage({
 			...node,
@@ -239,23 +328,79 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "class")).toContain("emdash-image-media");
 	});
 
-	test("public EmDashImage uses Astro Image for same-origin local media", async () => {
-		const html = await renderEmDashImage({
-			image: {
-				id: "01CUSTOM",
-				src: "/media/custom.jpg",
-				alt: "Custom local media",
-				width: 640,
-				height: 360,
+	test.each([
+		{
+			name: "canonical direct URL",
+			value: {
+				id: "",
+				provider: "external",
+				src: "https://media.example/canonical.jpg",
 			},
-		});
+			expectedSrc: "https://media.example/canonical.jpg",
+		},
+		{
+			name: "legacy external URL",
+			value: {
+				id: "",
+				provider: "external-url",
+				previewUrl: "https://media.example/legacy.jpg",
+			},
+			expectedSrc: "https://media.example/legacy.jpg",
+		},
+	])("public media components render a $name value", async ({ value: mediaValue, expectedSrc }) => {
+		const imageHtml = await renderEmDashImage({ image: mediaValue, alt: "Remote image" });
+		const mediaHtml = await renderEmDashMedia({ value: mediaValue, alt: "Remote image" });
+
+		expect(attr(imgTag(imageHtml), "src")).toBe(expectedSrc);
+		expect(attr(imgTag(mediaHtml), "src")).toBe(expectedSrc);
+	});
+
+	test("public EmDashImage uses Astro Image for same-origin local media", async () => {
+		const html = await renderEmDashImage(
+			{
+				image: {
+					id: "01CUSTOM",
+					src: "/media/custom.jpg",
+					alt: "Custom local media",
+					width: 640,
+					height: 360,
+				},
+			},
+			new Request("https://quality.example.com/"),
+		);
 		const tag = imgTag(html);
 
-		expect(attr(tag, "src")).toContain("/media/custom.jpg");
+		expect(decodeURIComponent(attr(tag, "src") ?? "")).toContain("/media/custom.jpg");
 		expect(attr(tag, "data-astro-image")).toBe("constrained");
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(attr(tag, "loading")).toBe("lazy");
 		expect(attr(tag, "decoding")).toBe("async");
+	});
+
+	test("public EmDashImage offers the original instead of an upscaled 2x", async () => {
+		const html = await renderEmDashImage({
+			image: { id: "01PROVIDER", provider: "mock-images", width: 60, height: 60 },
+			alt: "Avatar",
+			width: 40,
+			height: 40,
+		});
+
+		expect(attr(imgTag(html), "srcset")).toBe(
+			"https://img.example.com/render?w=40&h=40 40w, https://img.example.com/render?w=60&h=60 60w",
+		);
+	});
+
+	test("public EmDashImage offers 1x and 2x for a small provider image", async () => {
+		const html = await renderEmDashImage({
+			image: { id: "01PROVIDER", provider: "mock-images", width: 1200, height: 1200 },
+			alt: "Avatar",
+			width: 40,
+			height: 40,
+		});
+
+		expect(attr(imgTag(html), "srcset")).toBe(
+			"https://img.example.com/render?w=40&h=40 40w, https://img.example.com/render?w=80&h=80 80w",
+		);
 	});
 
 	test("public EmDashImage preserves priority and passthrough attrs", async () => {
@@ -276,7 +421,46 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01MEDIA.jpg");
 		expect(attr(tag, "loading")).toBe("eager");
 		expect(attr(tag, "fetchpriority")).toBe("high");
-		expect(attr(tag, "class")).toBe("hero-image");
+		expect(attr(tag, "class")).toContain("hero-image");
+		expect(attr(tag, "srcset")).toBeUndefined();
+		expect(attr(tag, "sizes")).toBeUndefined();
 		expect(attr(tag, "data-testid")).toBe("hero");
+	});
+});
+
+describe("EmDashMedia local media", () => {
+	const cdnLocals = {
+		emdash: { getPublicMediaUrl: (k: string) => `https://media.example.com/${k}` },
+	};
+
+	test("serves a local storage key from the storage public URL", async () => {
+		const c = await AstroContainer.create();
+		const html = await c.renderToString(EmDashMedia, {
+			props: {
+				value: {
+					provider: "local",
+					id: "01KTRTJ5QSVC3TB57387DX445P",
+					mimeType: "image/png",
+					meta: { storageKey: "01KTRTJ55S65SADEH9P9TSY89H.png" },
+				},
+				alt: "Local image",
+			},
+			locals: cdnLocals,
+		});
+
+		expect(imgSrc(html)).toBe("https://media.example.com/01KTRTJ55S65SADEH9P9TSY89H.png");
+	});
+
+	test("keeps a bare media id on the internal media route", async () => {
+		const c = await AstroContainer.create();
+		const html = await c.renderToString(EmDashMedia, {
+			props: {
+				value: { provider: "local", id: "01KTRTJ5QSVC3TB57387DX445P", mimeType: "image/png" },
+				alt: "Local image",
+			},
+			locals: cdnLocals,
+		});
+
+		expect(imgSrc(html)).toBe("/_emdash/api/media/file/01KTRTJ5QSVC3TB57387DX445P");
 	});
 });

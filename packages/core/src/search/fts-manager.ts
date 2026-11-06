@@ -10,6 +10,8 @@ import { sql } from "kysely";
 import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { isStoragelessFieldRow } from "../schema/types.js";
+import { normalizeSearchError } from "./errors.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
 
@@ -25,6 +27,47 @@ function resolveSearchTokenizer(tokenize?: SearchTokenizer): SearchTokenizer {
 		throw new Error(`Unsupported FTS5 tokenizer: "${String(tokenize)}"`);
 	}
 	return tokenize;
+}
+
+export interface CollectionSearchMetadata {
+	config: SearchConfig;
+	searchableFields: string[];
+	hasTitle: boolean;
+}
+
+function parseSearchConfig(searchConfig: string, titleField: string | null): SearchConfig | null {
+	try {
+		const parsed: unknown = JSON.parse(searchConfig);
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			!("enabled" in parsed) ||
+			typeof parsed.enabled !== "boolean"
+		) {
+			return null;
+		}
+		const config: SearchConfig = { enabled: parsed.enabled };
+		if (titleField) config.titleField = titleField;
+		if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
+			// weights is a JSON-parsed object — safe to treat as Record<string, number>
+			const weights: Record<string, number> = {};
+			for (const [k, v] of Object.entries(parsed.weights)) {
+				if (typeof v === "number") {
+					weights[k] = v;
+				}
+			}
+			config.weights = weights;
+		}
+		if ("tokenize" in parsed) {
+			if (!isSearchTokenizer(parsed.tokenize)) {
+				return null;
+			}
+			config.tokenize = parsed.tokenize;
+		}
+		return config;
+	} catch {
+		return null;
+	}
 }
 
 /**
@@ -113,7 +156,10 @@ export class FTSManager {
 				tokenize='${tokenizer}'
 			)
 		`)
-			.execute(this.db);
+			.execute(this.db)
+			.catch((error: unknown) => {
+				throw normalizeSearchError(error);
+			});
 
 		// Create triggers for automatic sync
 		await this.createTriggers(collectionSlug, searchableFields);
@@ -183,7 +229,7 @@ export class FTSManager {
 	 * modes (migration 039) do not apply to self-contained tables.
 	 *
 	 * `INSERT OR REPLACE` keeps the insert path idempotent: re-running a
-	 * populate (D1 has no migration lock, so two isolates can race) converges
+	 * populate (search repair runs per isolate, so two isolates can race) converges
 	 * on one index row per content row instead of failing on the rowid
 	 * constraint.
 	 *
@@ -280,11 +326,15 @@ export class FTSManager {
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
-		// Drop triggers first
-		await this.dropTriggers(collectionSlug);
+		try {
+			// Drop triggers first
+			await this.dropTriggers(collectionSlug);
 
-		// Drop the FTS table
-		await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(this.db);
+			// Drop the FTS table
+			await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(this.db);
+		} catch (error) {
+			throw normalizeSearchError(error);
+		}
 	}
 
 	/**
@@ -313,8 +363,8 @@ export class FTSManager {
 	/**
 	 * Populate the FTS table from existing content.
 	 *
-	 * `INSERT OR REPLACE` so a concurrent double-populate (D1 has no
-	 * migration lock) converges instead of failing on the rowid constraint.
+	 * `INSERT OR REPLACE` so a concurrent double-populate (search repair runs
+	 * per isolate) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		if (!isSqlite(this.db)) return;
@@ -341,6 +391,46 @@ export class FTSManager {
 	}
 
 	/**
+	 * Index up to `limit` content rows with `rowid > afterRowid`, in rowid
+	 * order, so a large collection can be populated across several requests.
+	 * Returns the last rowid covered, or null when no rows remain. Returns
+	 * null on dialects without FTS5.
+	 */
+	async populateRange(
+		collectionSlug: string,
+		searchableFields: string[],
+		afterRowid: number,
+		limit: number,
+	): Promise<number | null> {
+		if (!isSqlite(this.db)) return null;
+		this.validateInputs(collectionSlug, searchableFields);
+		const ftsTable = this.getFtsTableName(collectionSlug);
+		const contentTable = this.getContentTableName(collectionSlug);
+		const range = await sql<{ last: number | null }>`
+			SELECT MAX(rowid) AS last FROM (
+				SELECT rowid FROM ${sql.ref(contentTable)}
+				WHERE rowid > ${afterRowid}
+				ORDER BY rowid
+				LIMIT ${limit}
+			)
+		`.execute(this.db);
+		const last = range.rows[0]?.last ?? null;
+		if (last === null) return null;
+
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
+		const fieldList = searchableFields.join(", ");
+		const valueList = searchableFields
+			.map((f) => this.searchValueExpr(`"${contentTable}"."${f}"`, fieldTypes.get(f)))
+			.join(", ");
+		await sql`
+			INSERT OR REPLACE INTO ${sql.ref(ftsTable)}(rowid, id, locale, ${sql.raw(fieldList)})
+			SELECT rowid, id, locale, ${sql.raw(valueList)} FROM ${sql.ref(contentTable)}
+			WHERE deleted_at IS NULL AND rowid > ${afterRowid} AND rowid <= ${last}
+		`.execute(this.db);
+		return Number(last);
+	}
+
+	/**
 	 * Get the search configuration for a collection
 	 */
 	async getSearchConfig(collectionSlug: string): Promise<SearchConfig | null> {
@@ -354,38 +444,74 @@ export class FTSManager {
 			return null;
 		}
 
-		try {
-			const parsed: unknown = JSON.parse(result.search_config);
-			if (
-				typeof parsed !== "object" ||
-				parsed === null ||
-				!("enabled" in parsed) ||
-				typeof parsed.enabled !== "boolean"
-			) {
-				return null;
-			}
-			const config: SearchConfig = { enabled: parsed.enabled };
-			if (result.title_field) config.titleField = result.title_field;
-			if ("weights" in parsed && typeof parsed.weights === "object" && parsed.weights !== null) {
-				// weights is a JSON-parsed object — safe to treat as Record<string, number>
-				const weights: Record<string, number> = {};
-				for (const [k, v] of Object.entries(parsed.weights)) {
-					if (typeof v === "number") {
-						weights[k] = v;
-					}
-				}
-				config.weights = weights;
-			}
-			if ("tokenize" in parsed) {
-				if (!isSearchTokenizer(parsed.tokenize)) {
-					return null;
-				}
-				config.tokenize = parsed.tokenize;
-			}
-			return config;
-		} catch {
-			return null;
+		return parseSearchConfig(result.search_config, result.title_field);
+	}
+
+	/**
+	 * Load all metadata needed to search the requested collections in one round trip.
+	 * Omitted or empty slugs select all search-enabled collections.
+	 */
+	async getSearchMetadata(
+		collectionSlugs?: string[],
+	): Promise<Map<string, CollectionSearchMetadata>> {
+		if (!isSqlite(this.db)) return new Map();
+
+		let query = this.db
+			.selectFrom("_emdash_collections as c")
+			.select([
+				// SQLite resolves bm25 at prepare time even when no rows match.
+				// The unreachable branch probes FTS5 without invoking bm25 outside
+				// a MATCH query.
+				sql<null>`CASE WHEN 0 THEN bm25(NULL) END`.as("fts5_capability"),
+				"c.slug",
+				"c.search_config",
+				"c.title_field",
+				// bm25 weights are positional, so use the index's physical column order.
+				sql<string>`(
+					SELECT json_group_array(name ORDER BY cid)
+					FROM pragma_table_info(${"_emdash_fts_"} || c.slug)
+					WHERE cid >= 2
+				)`.as("searchable_fields"),
+				sql<number>`EXISTS (
+					SELECT 1 FROM _emdash_fields WHERE collection_id = c.id AND slug = 'title'
+				)`.as("has_title"),
+			])
+			.where("c.search_config", "is not", null).where(sql<boolean>`EXISTS (
+				SELECT 1 FROM sqlite_master
+				WHERE type = 'table' AND name = ${"_emdash_fts_"} || c.slug
+			)`);
+
+		if (collectionSlugs?.length) {
+			query = query.where(
+				"c.slug",
+				"in",
+				sql<string>`(SELECT value FROM json_each(${JSON.stringify(collectionSlugs)}))`,
+			);
 		}
+
+		const metadata = new Map<string, CollectionSearchMetadata>();
+		const rows = await query.execute().catch((error: unknown) => {
+			throw normalizeSearchError(error);
+		});
+		for (const row of rows) {
+			const config = row.search_config
+				? parseSearchConfig(row.search_config, row.title_field)
+				: null;
+			if (!config?.enabled) continue;
+			const searchableFields: unknown = JSON.parse(row.searchable_fields);
+			if (
+				!Array.isArray(searchableFields) ||
+				!searchableFields.every((field: unknown) => typeof field === "string")
+			) {
+				throw new Error("Invalid FTS field metadata");
+			}
+			metadata.set(row.slug, {
+				config,
+				searchableFields,
+				hasTitle: Boolean(row.has_title),
+			});
+		}
+		return metadata;
 	}
 
 	/**
@@ -403,7 +529,8 @@ export class FTSManager {
 	}
 
 	/**
-	 * Get searchable fields for a collection
+	 * Get searchable fields for a collection. Fields that store no column (bound
+	 * reference fields) are left out: the index triggers read each field's column.
 	 */
 	async getSearchableFields(collectionSlug: string): Promise<string[]> {
 		const collection = await this.db
@@ -418,12 +545,12 @@ export class FTSManager {
 
 		const fields = await this.db
 			.selectFrom("_emdash_fields")
-			.select("slug")
+			.select(["slug", "type", "validation"])
 			.where("collection_id", "=", collection.id)
 			.where("searchable", "=", 1)
 			.execute();
 
-		return fields.map((f) => f.slug);
+		return fields.filter((f) => !isStoragelessFieldRow(f)).map((f) => f.slug);
 	}
 
 	/**

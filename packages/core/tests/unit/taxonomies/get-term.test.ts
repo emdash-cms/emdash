@@ -10,6 +10,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import { primeRegisteredCollections } from "../../../src/schema/collection-slugs-cache.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -59,10 +60,13 @@ describeEachDialect("getTerm", (dialect) => {
 		// scoped to the def's declared collections, so point it at the test
 		// collection (`post`).
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "=", "category")
 			.execute();
+		// In production the runtime's init read primes this; the query budget
+		// below reflects the steady state, not the once-per-isolate lookup.
+		primeRegisteredCollections(["post", "page"]);
 	});
 
 	afterEach(async () => {

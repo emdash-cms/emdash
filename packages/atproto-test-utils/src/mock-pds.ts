@@ -3,7 +3,7 @@
  * requests against them. Implements both the publish-side endpoints
  * (`com.atproto.repo.applyWrites`, `putRecord`, `getRecord`-as-JSON) and the
  * aggregator-side endpoints (`com.atproto.sync.getRecord`-as-CAR,
- * `com.atproto.repo.listRecords`).
+ * `com.atproto.sync.getRepo`, `com.atproto.repo.listRecords`).
  *
  * Conforms to `@atcute/client`'s `FetchHandlerObject` so it can be plugged in
  * via `Client.fromHandler({ handler: pds })` for the publish path. The
@@ -11,9 +11,9 @@
  * so the same handler is reachable via a wrapping `fetch` shim too.
  *
  * Response shapes mirror the cirrus PDS reference implementation: CAR bytes
- * for `sync.getRecord` with `Content-Type: application/vnd.ipld.car`, JSON
- * `{ records, cursor? }` for `listRecords`, JSON `{ uri, cid, value }` for
- * `repo.getRecord`.
+ * for `sync.getRecord` and `sync.getRepo` with
+ * `Content-Type: application/vnd.ipld.car`, JSON `{ records, cursor? }` for
+ * `listRecords`, and JSON `{ uri, cid, value }` for `repo.getRecord`.
  */
 
 import type { FetchHandlerObject } from "@atcute/client";
@@ -66,6 +66,8 @@ export class MockPds implements FetchHandlerObject {
 				return this.repoPutRecord(body);
 			case "get /xrpc/com.atproto.sync.getRecord":
 				return this.syncGetRecord(url);
+			case "get /xrpc/com.atproto.sync.getRepo":
+				return this.syncGetRepo(url);
 			default: {
 				// Distinguish "wrong method" from "unknown endpoint" — real
 				// PDSes return 405 vs 404, and tests asserting on those status
@@ -76,6 +78,7 @@ export class MockPds implements FetchHandlerObject {
 					"/xrpc/com.atproto.repo.applyWrites",
 					"/xrpc/com.atproto.repo.putRecord",
 					"/xrpc/com.atproto.sync.getRecord",
+					"/xrpc/com.atproto.sync.getRepo",
 				]);
 				if (knownRoutes.has(url.pathname)) {
 					return jsonResponse(405, {
@@ -244,6 +247,28 @@ export class MockPds implements FetchHandlerObject {
 			return jsonResponse(500, {
 				error: "InternalServerError",
 				message: err instanceof Error ? err.message : "failed to build proof CAR",
+			});
+		}
+	}
+
+	private async syncGetRepo(url: URL): Promise<Response> {
+		const did = parseDid(url.searchParams.get("did"));
+		if (!did) return invalidRequest("missing or malformed did");
+		const repo = this.repos.get(did);
+		if (!repo) return notFound("RepoNotFound", `MockPds does not host ${did}`);
+		try {
+			const car = await repo.getFullRepoCar();
+			return new Response(car, {
+				status: 200,
+				headers: {
+					"Content-Type": "application/vnd.ipld.car",
+					"Content-Length": car.length.toString(),
+				},
+			});
+		} catch (err) {
+			return jsonResponse(500, {
+				error: "InternalServerError",
+				message: err instanceof Error ? err.message : "failed to build repository CAR",
 			});
 		}
 	}

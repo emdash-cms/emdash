@@ -1,0 +1,132 @@
+---
+import { getEditMeta } from "emdash";
+import type { ContentEntry } from "emdash";
+import { PortableText } from "emdash/ui";
+import type { Page } from "../../emdash-env";
+import PageBlocks from "./PageBlocks.astro";
+import { startsWithHeading } from "../utils/page";
+
+interface Props {
+	/** Without an entry, the page shows `title` and a placeholder. */
+	page?: ContentEntry<Page> | null;
+	title?: string;
+}
+
+const { page, title = page?.data.title } = Astro.props;
+const layout = page?.data.layout ?? [];
+const content = page?.data.content;
+// In edit mode an empty body carries edit metadata; render it so the
+// inline editor has somewhere to start.
+const showContent = Boolean(
+	content && (content.length > 0 || getEditMeta(content)),
+);
+// A layout that opens with a statement or contact block supplies the h1, so
+// the title isn't shown and the blocks come first.
+const blocksFirst = startsWithHeading(layout);
+---
+
+{
+	blocksFirst ? (
+		<>
+			<div class="page-blocks page-blocks--first" {...page?.edit.layout}>
+				<PageBlocks value={layout} />
+			</div>
+			{showContent && (
+				<div
+					class="frame prose prose-hang page__body page__body--after"
+					{...page?.edit.content}
+				>
+					<PortableText value={content} />
+				</div>
+			)}
+		</>
+	) : (
+		<>
+			<article class="frame page">
+				<header class="page__head">
+					<h1 class="page__title" {...page?.edit.title}>
+						{title}
+					</h1>
+				</header>
+
+				{(showContent || layout.length === 0) && (
+					<div class="prose prose-hang page__body" {...page?.edit.content}>
+						{showContent ? (
+							<PortableText value={content} />
+						) : (
+							<p class="page__empty">Content coming soon.</p>
+						)}
+					</div>
+				)}
+			</article>
+			{layout.length > 0 && (
+				<div class="page-blocks" {...page?.edit.layout}>
+					<PageBlocks value={layout} />
+				</div>
+			)}
+		</>
+	)
+}
+
+<style>
+	.page {
+		padding-block-start: var(--page-head-space);
+	}
+
+	.page__head {
+		margin-block-end: clamp(2.5rem, 1.5rem + 4vw, 6rem);
+	}
+
+	.page__title {
+		font-size: var(--font-size-title);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-none);
+		letter-spacing: var(--tracking-display);
+		text-wrap: balance;
+		overflow-wrap: anywhere;
+	}
+
+	.page__body {
+		--prose-media-column: 1 / -1;
+	}
+
+	.page__body--after {
+		margin-block-start: var(--section-gap);
+	}
+
+	/* The opening paragraph is the page's lead. */
+	.page .page__body > :global(p:first-child:not(.page__empty)) {
+		max-width: none;
+		color: var(--color-text);
+		font-size: var(--font-size-2xl);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-tight);
+	}
+
+	.page .page__body > :global(p:first-child + :is(p, ul, ol)) {
+		margin-block-start: var(--prose-media);
+	}
+
+	.page__empty {
+		grid-column: 1 / -1;
+		color: var(--color-muted);
+	}
+
+	/* Blocks don't space themselves, so sections sit the same way in any order */
+	.page-blocks > :global(*) {
+		margin-block-start: var(--section-gap);
+	}
+
+	.page-blocks--first > :global(:first-child) {
+		margin-block-start: var(--page-head-space);
+	}
+
+	@media (min-width: 1024px) {
+		.page .page__body > :global(p:first-child:not(.page__empty)) {
+			grid-column: 1 / 11;
+			font-size: var(--font-size-3xl);
+			line-height: 1.1;
+		}
+	}
+</style>

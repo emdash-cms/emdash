@@ -16,12 +16,23 @@ rules:
       # CLA assistant must comment on PRs from forks; runs a pinned third-party
       # action and does not execute any code from the PR.
       - cla.yml
+      # ci-run only approves and re-runs a PR's existing `pull_request` runs
+      # via github-script; it never checks out or runs PR code, and those runs
+      # keep the read-only, secretless permissions of a fork PR.
+      - ci-run.yml
       # auto-format-apply uses workflow_run to commit the formatted patch
       # computed by the untrusted `auto-format` workflow. The trusted job only
       # consumes the inert patch artifact, verifies the PR head SHA matches the
       # workflow_run head SHA, applies the diff, and pushes back via an app
       # token. It never checks out or executes PR-controlled code.
       - auto-format-apply.yml
+      # env-types-apply uses workflow_run to commit the regenerated
+      # emdash-env.d.ts patch computed by the untrusted `env-types` workflow.
+      # The trusted job only consumes the inert patch artifact, verifies the PR
+      # head SHA matches the workflow_run head SHA, refuses patches touching
+      # anything but emdash-env.d.ts, applies the diff, and pushes back via an
+      # app token. It never executes PR-controlled code.
+      - env-types-apply.yml
       # Lunaria only reads localized content and posts a status comment; does
       # not execute PR-controlled code.
       - lunaria.yml
@@ -29,8 +40,10 @@ rules:
       # author) via github-script. They never check out PR code.
       - pr-compliance.yml
       - pr-triage.yml
-      # review-state only reads PR and review metadata via github-script to set review/* labels; it never checks out or runs PR code.
-      - review-state.yml
+      # approval only reads PR, review, and GOVERNANCE.md metadata via github-script to set the approval check and review/* labels; it never checks out or runs PR code.
+      - approval.yml
+      # proposal-discussions checks out only the base branch's script and reads PR proposal files through the API as data; it never runs PR code.
+      - proposal-discussions.yml
       # query-counts-apply uses workflow_run to apply snapshot updates that
       # were computed in the untrusted `query-counts` workflow. The trusted
       # workflow only consumes the artifact JSON, verifies the head SHA, and
@@ -40,6 +53,10 @@ rules:
       # query-counts-label labels PRs based on path filters; it does not
       # check out PR code.
       - query-counts-label.yml
+      # release-action-bundle-apply sanitizes the artifact, binds it to a
+      # same-repo Dependabot npm PR at the measured head, and writes only the
+      # generated bundle path without executing PR-controlled code.
+      - release-action-bundle-apply.yml
       # visual-report uses workflow_run to comment on PRs after the untrusted
       # `visual` measure workflow completes. The trusted job only consumes the
       # inert PNG + metadata artifact, verifies the PR head SHA matches the

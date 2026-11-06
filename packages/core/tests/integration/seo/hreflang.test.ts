@@ -10,7 +10,8 @@
  */
 
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { sql } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -46,6 +47,7 @@ describe("getHreflangAlternates (#1690)", () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
 		await db.destroy();
@@ -79,6 +81,29 @@ describe("getHreflangAlternates (#1690)", () => {
 			{ hreflang: "en", href: `${SITE}/blog/hello` },
 			{ hreflang: "fr", href: `${SITE}/fr/blog/bonjour` },
 			{ hreflang: "x-default", href: `${SITE}/blog/hello` },
+		]);
+	});
+
+	it("resolves date tokens from each variant's publish date, matching the sitemap", async () => {
+		await db
+			.updateTable("_emdash_collections")
+			.set({ url_pattern: "/{year}/{month}/{day}/{slug}" })
+			.where("slug", "=", "post")
+			.execute();
+		const { en, fr } = await createPair();
+		await sql`UPDATE ec_post SET published_at = ${"2023-05-08T10:00:00.000Z"} WHERE id = ${en.id}`.execute(
+			db,
+		);
+		await sql`UPDATE ec_post SET published_at = ${"2024-01-02T10:00:00.000Z"} WHERE id = ${fr.id}`.execute(
+			db,
+		);
+
+		const alternates = await getHreflangAlternatesWithDb(db, "post", en.id, { siteUrl: SITE });
+
+		expect(alternates).toEqual([
+			{ hreflang: "en", href: `${SITE}/2023/05/08/hello` },
+			{ hreflang: "fr", href: `${SITE}/fr/2024/01/02/bonjour` },
+			{ hreflang: "x-default", href: `${SITE}/2023/05/08/hello` },
 		]);
 	});
 
@@ -227,4 +252,20 @@ describe("getHreflangAlternates (#1690)", () => {
 
 		expect(alternates[0]?.href).toBe(`${SITE}/post/hello`);
 	});
+
+	it.each([SITE, `${SITE}/field-notes`])(
+		"includes the Astro base once when the site URL is %s",
+		async (siteUrl) => {
+			vi.stubEnv("BASE_URL", "/field-notes/");
+			const { en } = await createPair();
+
+			const alternates = await getHreflangAlternatesWithDb(db, "post", en.id, { siteUrl });
+
+			expect(alternates.map((a) => a.href)).toEqual([
+				`${SITE}/field-notes/blog/hello`,
+				`${SITE}/field-notes/fr/blog/bonjour`,
+				`${SITE}/field-notes/blog/hello`,
+			]);
+		},
+	);
 });

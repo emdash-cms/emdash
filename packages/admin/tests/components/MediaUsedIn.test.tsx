@@ -52,7 +52,9 @@ const manifest: AdminManifest = {
 			labelSingular: "Post",
 			supports: ["drafts"],
 			hasSeo: false,
-			fields: {},
+			fields: {
+				featured_image: { kind: "image", label: "Featured image" },
+			},
 		},
 	},
 	plugins: {},
@@ -84,6 +86,7 @@ function usageResponse(
 ): MediaUsageDetailsResponse {
 	return {
 		items,
+		siteSettings: [],
 		coverage: { scope: "all_content_collections", status: "complete" },
 		...overrides,
 	};
@@ -113,6 +116,7 @@ describe("MediaUsedIn", () => {
 		const screen = await renderUsedIn();
 
 		await expect.element(screen.getByRole("heading", { name: "Used in" })).toBeVisible();
+		await expect.element(screen.getByText("See where this file is used.")).toBeVisible();
 		await expect
 			.element(screen.getByRole("region", { name: "Used in" }))
 			.toHaveAttribute("aria-busy", "true");
@@ -122,7 +126,21 @@ describe("MediaUsedIn", () => {
 	it("shows active references as links and trashed references as static rows", async () => {
 		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(
 			usageResponse([
-				usageEntry(),
+				usageEntry({
+					sources: [
+						{
+							variant: "columns",
+							occurrences: [
+								{
+									fieldSlug: "featured_image",
+									fieldPath: "featured_image",
+									occurrenceIndex: 0,
+									referenceType: "image_field",
+								},
+							],
+						},
+					],
+				}),
 				usageEntry({
 					contentId: "entry-2",
 					title: "Archived notes",
@@ -139,10 +157,57 @@ describe("MediaUsedIn", () => {
 		const activeLink = list.getByRole("link", { name: /Launch notes/ });
 		await expect.element(activeLink).toHaveAttribute("href", "/content/posts/entry-1?locale=fr");
 		await expect.element(activeLink.getByText("Posts", { exact: true })).toBeVisible();
-		await expect.element(activeLink.getByText("launch-notes", { exact: true })).toBeVisible();
+		await expect.element(activeLink.getByText("Featured image", { exact: true })).toBeVisible();
 		await expect.element(activeLink.getByText("fr", { exact: true })).toBeVisible();
+		await expect.element(activeLink.getByText("Open", { exact: true })).toBeVisible();
 		await expect.element(screen.getByText("In trash")).toBeVisible();
 		expect(screen.getByText("Archived notes").element().closest("a")).toBeNull();
+	});
+
+	it("lists site settings that use the file as a static row", async () => {
+		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(
+			usageResponse([], {
+				siteSettings: [{ setting: "favicon" }, { setting: "seo.defaultOgImage" }],
+			}),
+		);
+
+		const screen = await renderUsedIn();
+
+		const row = screen.getByRole("listitem").filter({ hasText: "Site Settings" });
+		await expect.element(row).toBeVisible();
+		await expect.element(row.getByText("Favicon & Default Social Image")).toBeVisible();
+		expect(row.element().querySelector("a")).toBeNull();
+		await expect
+			.element(screen.getByText("No tracked references found"), { timeout: 100 })
+			.not.toBeInTheDocument();
+	});
+
+	it("leaves enough scroll clearance for the first usage card ring", async () => {
+		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
+
+		const screen = await renderUsedIn();
+		const list = screen.getByRole("list");
+		await expect.element(list.getByRole("link")).toBeVisible();
+
+		expect(list.element()).toHaveClass("p-0.5");
+	});
+
+	it("mirrors the Open icon in right-to-left layouts", async () => {
+		const previousDirection = document.documentElement.dir;
+		document.documentElement.dir = "rtl";
+		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
+
+		try {
+			const screen = await renderUsedIn();
+			const openLabel = screen.getByText("Open", { exact: true });
+			await expect.element(openLabel).toBeVisible();
+			const openIcon = openLabel.element().querySelector("svg");
+
+			expect(openIcon).not.toBeNull();
+			expect(openIcon).toHaveClass("rtl:-scale-x-100");
+		} finally {
+			document.documentElement.dir = previousDirection;
+		}
 	});
 
 	it.each<[MediaUsageCoverageStatus, string]>([
@@ -189,8 +254,21 @@ describe("MediaUsedIn", () => {
 	it("distinguishes trustworthy and incomplete empty results", async () => {
 		const completeScreen = await renderUsedIn();
 		await expect
-			.element(completeScreen.getByText("No usage found in EmDash-managed content fields."))
+			.element(completeScreen.getByText("No tracked references found", { exact: true }))
 			.toBeVisible();
+		await expect
+			.element(
+				completeScreen.getByText(
+					"Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked.",
+				),
+			)
+			.toBeVisible();
+		await expect
+			.element(completeScreen.getByRole("link", { name: "What’s tracked" }))
+			.toHaveAttribute(
+				"href",
+				"https://docs.emdashcms.com/guides/media-library/#see-where-a-file-is-used",
+			);
 		await expect
 			.element(completeScreen.getByRole("region", { name: "Used in" }).getByRole("button"), {
 				timeout: 100,
@@ -205,7 +283,10 @@ describe("MediaUsedIn", () => {
 		const incompleteScreen = await renderUsedIn({ mediaId: "media-2" });
 
 		await expect
-			.element(incompleteScreen.getByText("No indexed references are currently available."))
+			.element(incompleteScreen.getByText("No usage to show yet", { exact: true }))
+			.toBeVisible();
+		await expect
+			.element(incompleteScreen.getByText("Some content may not appear here yet.").last())
 			.toBeVisible();
 		await expect
 			.element(

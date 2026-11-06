@@ -1,6 +1,11 @@
 import { type Kysely, sql } from "kysely";
 import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
 
+import {
+	busyLockHeldSince,
+	MIGRATION_LOCK_TABLE,
+	migrationLockHeldMessage,
+} from "../migration-lock.js";
 import { MIGRATION_LOCK_BUSY_MESSAGE } from "../pg-migration-lock.js";
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
@@ -76,6 +81,28 @@ import * as m070 from "./070_collection_routable.js";
 import * as m071 from "./071_restore_content_bylines_table.js";
 import * as m072 from "./072_media_folders.js";
 import * as m073 from "./073_media_focal_point.js";
+import * as m074 from "./074_content_deleted_scheduled_index.js";
+import * as m075 from "./075_entry_edit_locks.js";
+import * as m076 from "./076_collection_nav_group.js";
+import * as m077 from "./077_plugin_storage_revisions.js";
+import * as m078 from "./078_menu_item_translation_groups.js";
+import * as m079 from "./079_datetime_normalization.js";
+import * as m080 from "./080_content_translation_locale_unique.js";
+import * as m081 from "./081_redirect_write_guards.js";
+import * as m082 from "./082_taxonomy_translation_locale_unique.js";
+import * as m083 from "./083_block_types.js";
+import * as m084 from "./084_site_transfer.js";
+import * as m085 from "./085_taxonomy_def_groups.js";
+import * as m086 from "./086_relations_structural.js";
+import * as m087 from "./087_reference_field_relations.js";
+import * as m088 from "./088_cron_oneshot_utc.js";
+import * as m089 from "./089_auto_seed_completion.js";
+import * as m090 from "./090_redirect_enable_loop_guard.js";
+import * as m091 from "./091_redirect_artifacts.js";
+import * as m092 from "./092_plugin_kv_options.js";
+import * as m093 from "./093_menu_item_orphans.js";
+import * as m094 from "./094_media_usage_file_url_reindex.js";
+import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -150,6 +177,27 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"071_restore_content_bylines_table": m071,
 	"072_media_folders": m072,
 	"073_media_focal_point": m073,
+	"074_content_deleted_scheduled_index": m074,
+	"075_entry_edit_locks": m075,
+	"076_collection_nav_group": m076,
+	"077_plugin_storage_revisions": m077,
+	"078_menu_item_translation_groups": m078,
+	"079_datetime_normalization": m079,
+	"080_content_translation_locale_unique": m080,
+	"081_redirect_write_guards": m081,
+	"082_taxonomy_translation_locale_unique": m082,
+	"083_block_types": m083,
+	"084_site_transfer": m084,
+	"085_taxonomy_def_groups": m085,
+	"086_relations_structural": m086,
+	"087_reference_field_relations": m087,
+	"088_cron_oneshot_utc": m088,
+	"089_auto_seed_completion": m089,
+	"090_redirect_enable_loop_guard": m090,
+	"091_redirect_artifacts": m091,
+	"092_plugin_kv_options": m092,
+	"093_menu_item_orphans": m093,
+	"094_media_usage_file_url_reindex": m094,
 });
 
 /** Ordered names from the statically registered migration set. */
@@ -197,9 +245,56 @@ export class ConcurrentMigrationTimeoutError extends Error {
 	}
 }
 
+/**
+ * Thrown without waiting when the migration lock is older than
+ * MIGRATION_LOCK_WAIT_MAX_AGE_MS. Callers with failure backoff apply it: the
+ * holder has most likely stopped, and only a person can release its lock.
+ */
+export class MigrationLockHeldError extends Error {
+	readonly heldSince: number;
+
+	constructor(heldSince: number) {
+		super(migrationLockHeldMessage(heldSince));
+		this.name = "MigrationLockHeldError";
+		this.heldSince = heldSince;
+	}
+}
+
+/**
+ * Thrown when the migrator reports an error while applying pending migrations.
+ * Callers with failure backoff apply it. Errors from the applied-migration
+ * count check before the migrator runs are not wrapped and stay retryable.
+ */
+export class MigrationFailedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MigrationFailedError";
+	}
+}
+
+/**
+ * Thrown before the migration lock is taken when the pending content-sized
+ * migrations process more rows than the caller's `contentRowLimit`. Nothing
+ * has been applied; `emdash migrate` applies them outside a request.
+ */
+export class MigrationRowLimitError extends Error {
+	readonly migrations: string[];
+	readonly rowLimit: number;
+
+	constructor(migrations: readonly string[], rowLimit: number) {
+		super(
+			`Pending migration ${migrations.join(", ")} processes more than ${rowLimit} content rows, ` +
+				"too many to apply while serving a request. Apply it with `emdash migrate`: " +
+				"https://docs.emdashcms.com/deployment/core-migrations/#apply-large-content-migrations-from-the-cli",
+		);
+		this.name = "MigrationRowLimitError";
+		this.migrations = [...migrations];
+		this.rowLimit = rowLimit;
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
-const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
 
 export interface MigrationOptions {
 	migrationTableSchema?: string;
@@ -209,9 +304,20 @@ export interface MigrationOptions {
 	 * give-up path doesn't take 10 seconds per case.
 	 */
 	raceWaitMs?: number;
+	/**
+	 * Refuse with MigrationRowLimitError, before taking the migration lock, when
+	 * the pending content-sized migrations process more rows than this.
+	 */
+	contentRowLimit?: number;
+	/**
+	 * An applied-migration count the caller already read from this database
+	 * (`getAppliedMigrationCount`). The fast path uses it instead of reading
+	 * its own. Leave it undefined to have runMigrations read the count.
+	 */
+	appliedCount?: number | null;
 }
 
-function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
+export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
 	return new Migrator({
 		db,
 		provider: new StaticMigrationProvider(),
@@ -256,11 +362,12 @@ function escapeRegExp(value: string): string {
 
 /**
  * Pattern used to detect the concurrent-migration race. The Kysely
- * `SqliteAdapter.acquireMigrationLock` is a no-op (inherited by `kysely-d1`
- * and our `EmDashD1Dialect`), so two isolates running migrations against the
- * same database can both attempt `INSERT INTO _emdash_migrations` for the
- * same migration name. The losing insert fails with a UNIQUE constraint
- * error, which is benign: the other isolate is applying the same schema.
+ * `SqliteAdapter.acquireMigrationLock` is a no-op, so two processes migrating
+ * the same SQLite database (or the same D1 database, when one of them runs a
+ * build whose D1 adapter takes no lock) can both attempt
+ * `INSERT INTO _emdash_migrations` for the same migration name. The losing
+ * insert fails with a UNIQUE constraint error, which is benign: the other
+ * process is applying the same schema.
  *
  * We match on the table name (not the full error text) because different
  * SQLite drivers phrase the message differently
@@ -283,6 +390,13 @@ const MIGRATION_RACE_PATTERN = new RegExp(
 export const MIGRATION_RACE_WAIT_MS = 10_000;
 /** Polling interval while waiting for a concurrent migrator. */
 const MIGRATION_RACE_POLL_MS = 100;
+
+/**
+ * A migration lock older than this is not waited on. Its holder has most
+ * likely stopped, and polling a lock that only a person can release would add
+ * a 10-second stall and a hundred queries to every runtime init until then.
+ */
+const MIGRATION_LOCK_WAIT_MAX_AGE_MS = 60_000;
 
 /**
  * Pattern used to detect "table does not exist" errors across the dialects
@@ -316,7 +430,7 @@ const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
  * permission errors, or other unexpected driver problems behind a 10s wait
  * and a bogus "we're done" verdict.
  */
-async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
+export async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
 	try {
 		const result = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
@@ -328,6 +442,17 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
 		}
 		throw error;
 	}
+}
+
+/**
+ * Whether an applied-migration count (from `getAppliedMigrationCount`) covers
+ * every migration this build knows about. `>=` rather than `===` so a
+ * database with extra rows from a newer build (e.g. mid-deploy old isolate,
+ * or downgrade) still counts as current, instead of falling through to the
+ * migrator's race-recovery path unnecessarily.
+ */
+export function isMigrationCountCurrent(count: number | null | undefined): boolean {
+	return count != null && count >= MIGRATION_COUNT;
 }
 
 /**
@@ -411,6 +536,23 @@ export async function getExactMigrationStatus(
 	return { knownApplied, pending, unknownApplied };
 }
 
+async function assertWithinContentRowLimit(
+	db: Kysely<Database>,
+	rowLimit: number,
+	options: MigrationOptions | undefined,
+): Promise<void> {
+	const { pending } = await getExactMigrationStatus(db, options);
+	const sized = pending.filter((name) => CONTENT_SIZED_MIGRATIONS.has(name));
+	let rows = 0;
+	for (const name of sized) {
+		const migration = CONTENT_SIZED_MIGRATIONS.get(name);
+		if (!migration) continue;
+		// oxlint-disable-next-line no-await-in-loop -- each count is capped by what the previous ones left
+		rows += await migration.countRows(db, rowLimit + 1 - rows);
+		if (rows > rowLimit) throw new MigrationRowLimitError(sized, rowLimit);
+	}
+}
+
 /**
  * Run all pending migrations.
  *
@@ -422,9 +564,10 @@ export async function getExactMigrationStatus(
  * tables exist. On D1 with ~57 tables, that's ~116 queries saved per init.
  *
  * Concurrent-migration safety: the Kysely Migrator's `acquireMigrationLock`
- * is a no-op for SQLite (and therefore D1), so two callers running this
- * concurrently against the same database will both try to apply pending
- * migrations. SQLite serializes the writes, but the loser still surfaces a
+ * is a no-op for SQLite, so two callers running this concurrently against the
+ * same database will both try to apply pending migrations. (D1 and Postgres
+ * take a lock, and the loser gets the busy error handled below.) SQLite
+ * serializes the writes, but the loser still surfaces a
  * `UNIQUE constraint failed: _emdash_migrations.name` error. We treat that
  * specific error as benign: another caller is already applying the same
  * schema. We wait for the concurrent migrator to finish, then return
@@ -436,16 +579,20 @@ export async function runMigrations(
 	options?: MigrationOptions,
 ): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
-	// A single cheap query vs the Migrator's full schema introspection.
-	// We use `>=` rather than `===` so a database with extra rows from a
-	// newer build (e.g. mid-deploy old isolate, or downgrade) still skips
-	// the migrator instead of falling through to the race-recovery path
-	// unnecessarily.
+	// A single cheap query vs the Migrator's full schema introspection, or
+	// none when the caller already read the count.
 	if (!options?.migrationTableSchema) {
-		const initialCount = await getAppliedMigrationCount(db);
-		if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
+		const initialCount =
+			options?.appliedCount !== undefined
+				? options.appliedCount
+				: await getAppliedMigrationCount(db);
+		if (isMigrationCountCurrent(initialCount)) {
 			return { applied: [] };
 		}
+	}
+
+	if (options?.contentRowLimit !== undefined) {
+		await assertWithinContentRowLimit(db, options.contentRowLimit, options);
 	}
 
 	const migrator = createMigrator(db, options);
@@ -461,13 +608,17 @@ export async function runMigrations(
 		const failedMigration = results?.find((r) => r.status === "Error");
 
 		// Concurrent-migration race: another caller is applying (or just
-		// applied) the same migration. SQLite/D1 surface it as the
-		// bookkeeping UNIQUE violation (their migration lock is a no-op);
-		// Postgres surfaces it as the fail-fast advisory try-lock reporting
-		// busy (see pg-migration-lock.ts). Either way: wait for the
-		// concurrent migrator to finish, then verify the schema is fully
-		// migrated and treat as success.
+		// applied) the same migration. SQLite surfaces it as the bookkeeping
+		// UNIQUE violation (its migration lock is a no-op); D1 and Postgres
+		// surface it as their lock reporting busy (see migration-lock.ts and
+		// pg-migration-lock.ts). Either way: wait for the concurrent migrator
+		// to finish, then verify the schema is fully migrated and treat as
+		// success.
 		const lockBusy = msg.includes(MIGRATION_LOCK_BUSY_MESSAGE);
+		const heldSince = lockBusy ? busyLockHeldSince(error) : undefined;
+		if (heldSince !== undefined && Date.now() - heldSince > MIGRATION_LOCK_WAIT_MAX_AGE_MS) {
+			throw new MigrationLockHeldError(heldSince);
+		}
 		if (MIGRATION_RACE_PATTERN.test(msg) || lockBusy) {
 			const settled = await waitForConcurrentMigrator(db, options?.raceWaitMs);
 			if (settled) {
@@ -483,7 +634,7 @@ export async function runMigrations(
 		}
 
 		const failedSuffix = failedMigration ? ` (migration: ${failedMigration.migrationName})` : "";
-		throw new Error(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
+		throw new MigrationFailedError(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
 	}
 
 	return { applied };

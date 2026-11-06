@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { handleSchemaFieldCreate } from "../../../src/api/handlers/schema.js";
 import { IdentifierError } from "../../../src/database/validate.js";
 import {
 	buildContentMediaUsageFieldFingerprint,
 	loadContentMediaUsageFields,
 	MediaUsageFieldDiscoveryError,
 } from "../../../src/media/usage/content-fields.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -128,6 +130,70 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 		);
 	});
 
+	it("discovers every retained block version and fingerprints contract changes", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		const created = await blocks.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		const versioned = await blocks.updateBlockType("hero", {
+			expectedFingerprint: created.versions[0]!.fingerprint,
+			breaking: true,
+			fields: [{ slug: "file", label: "File", type: "file" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["hero"] },
+		});
+
+		const before = await loadContentMediaUsageFields(ctx.db, "posts");
+		expect(before.extractionFields[0]).toMatchObject({
+			slug: "layout",
+			type: "blocks",
+			blockTypes: [{ slug: "hero", versions: [{ version: 1 }, { version: 2 }] }],
+		});
+		const beforeFingerprint = await buildContentMediaUsageFieldFingerprint(before);
+
+		await blocks.updateBlockType("hero", {
+			expectedFingerprint: versioned.versions[0]!.fingerprint,
+			fields: [
+				{ slug: "image", label: "Image", type: "image" },
+				{ slug: "gallery", label: "Gallery", type: "portableText" },
+			],
+		});
+		const after = await loadContentMediaUsageFields(ctx.db, "posts");
+		expect(await buildContentMediaUsageFieldFingerprint(after)).not.toBe(beforeFingerprint);
+	});
+
+	it("fails closed when a configured block type cannot be resolved", async () => {
+		const collection = await registry.getCollection("posts");
+		await ctx.db
+			.insertInto("_emdash_fields")
+			.values({
+				id: "layout-field",
+				collection_id: collection!.id,
+				slug: "layout",
+				label: "Layout",
+				type: "blocks",
+				column_type: "JSON",
+				required: 0,
+				unique: 0,
+				default_value: "[]",
+				validation: JSON.stringify({ allowedTypes: ["missing"] }),
+				widget: null,
+				options: null,
+				sort_order: 0,
+			})
+			.execute();
+
+		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toMatchObject({
+			code: "UNSUPPORTED_BLOCK_DEFINITION",
+		});
+	});
+
 	it("rejects supported fields with invalid slugs before they can become column refs", async () => {
 		const collection = await registry.getCollection("posts");
 		expect(collection).not.toBeNull();
@@ -152,6 +218,21 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			.execute();
 
 		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toThrow(IdentifierError);
+	});
+
+	it("keeps a reference field bound to a relation out of the display fields", async () => {
+		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		const created = await handleSchemaFieldCreate(ctx.db, "posts", {
+			slug: "name",
+			label: "Name",
+			type: "reference",
+			validation: { targetCollection: "posts" },
+		});
+		expect(created.success).toBe(true);
+
+		const discovery = await loadContentMediaUsageFields(ctx.db, "posts");
+
+		expect(discovery.displayFieldSlugs).toEqual(["title"]);
 	});
 
 	it("fingerprints exact extraction and display-field definitions independent of row order", async () => {

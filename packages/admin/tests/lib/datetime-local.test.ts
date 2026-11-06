@@ -13,30 +13,61 @@ describe("toDatetimeLocalInputValue", () => {
 		expect(toDatetimeLocalInputValue("")).toBe("");
 	});
 
-	it("strips seconds/ms/Z from full ISO 8601", () => {
-		expect(toDatetimeLocalInputValue("2026-02-26T09:30:00.000Z")).toBe("2026-02-26T09:30");
+	it("displays a stored instant in the configured site timezone", () => {
+		expect(toDatetimeLocalInputValue("2026-02-26T09:30:00.000Z", "Asia/Tokyo")).toBe(
+			"2026-02-26T18:30",
+		);
 	});
 
-	it("pads date-only values to UTC midnight", () => {
-		expect(toDatetimeLocalInputValue("2026-02-26")).toBe("2026-02-26T00:00");
+	it("keeps legacy naive values readable without applying the browser timezone", () => {
+		expect(toDatetimeLocalInputValue("2026-02-26T09:30", "Asia/Tokyo")).toBe("2026-02-26T09:30");
+		expect(toDatetimeLocalInputValue("2026-02-26", "Asia/Tokyo")).toBe("2026-02-26T00:00");
 	});
 
 	it("preserves a value already in datetime-local shape", () => {
 		expect(toDatetimeLocalInputValue("2026-02-26T09:30")).toBe("2026-02-26T09:30");
 	});
+
+	it("falls back to UTC when the site timezone is not a valid IANA zone", () => {
+		expect(toDatetimeLocalInputValue("2026-02-26T09:30:00.000Z", "Lisboa")).toBe(
+			"2026-02-26T09:30",
+		);
+	});
 });
 
 describe("fromDatetimeLocalInputValue", () => {
-	it("returns empty for empty input", () => {
-		expect(fromDatetimeLocalInputValue("")).toBe("");
+	it("clears the stored value with null for empty input", () => {
+		const cleared = fromDatetimeLocalInputValue("");
+		expect(cleared).toBeNull();
+		expect(toDatetimeLocalInputValue(cleared)).toBe("");
 	});
 
-	it("appends seconds/ms/Z so the value matches the validator's ISO shape", () => {
-		expect(fromDatetimeLocalInputValue("2026-02-26T09:30")).toBe("2026-02-26T09:30:00.000Z");
+	it("converts site-local input to a canonical UTC instant", () => {
+		expect(fromDatetimeLocalInputValue("2026-02-26T09:30", "Asia/Tokyo")).toBe(
+			"2026-02-26T00:30:00.000Z",
+		);
+	});
+
+	it("falls back to UTC when the site timezone is not a valid IANA zone", () => {
+		expect(fromDatetimeLocalInputValue("2026-02-26T09:30", "Lisboa")).toBe(
+			"2026-02-26T09:30:00.000Z",
+		);
 	});
 
 	it("round-trips a stored ISO value without drift", () => {
 		const stored = "2026-02-26T09:30:00.000Z";
-		expect(fromDatetimeLocalInputValue(toDatetimeLocalInputValue(stored))).toBe(stored);
+		expect(
+			fromDatetimeLocalInputValue(
+				toDatetimeLocalInputValue(stored, "America/New_York"),
+				"America/New_York",
+			),
+		).toBe(stored);
 	});
+
+	it.each(["2026-11-01T01:30", "2026-03-08T02:30"])(
+		"refuses ambiguous or nonexistent site-local input: %s",
+		(value) => {
+			expect(() => fromDatetimeLocalInputValue(value, "America/New_York")).toThrow();
+		},
+	);
 });

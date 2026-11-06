@@ -322,19 +322,20 @@ describe("EmDashClient Integration", () => {
 		});
 
 		// Schedule for a future date
-		await ctx.client.schedule("posts", item.id, { at: "2027-06-01T09:00:00Z" });
+		await ctx.client.schedule("posts", item.id, { at: "2027-06-01T18:00:00+09:00" });
 
 		// Verify via get
 		const fetched = await ctx.client.get("posts", item.id);
-		expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00Z");
+		expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00.000Z");
 
 		// Trash and restore
 		await ctx.client.delete("posts", item.id);
 		await ctx.client.restore("posts", item.id);
 
-		// Should be accessible again (restore preserves the previous status)
+		// Restore brings the entry back as a draft without its schedule
 		const restored = await ctx.client.get("posts", item.id);
-		expect(restored.status).toBe("scheduled");
+		expect(restored.status).toBe("draft");
+		expect(restored.scheduledAt).toBeNull();
 
 		// Final cleanup
 		await ctx.client.delete("posts", item.id);

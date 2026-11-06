@@ -33,6 +33,9 @@
  * ```
  */
 
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+
 import type {
 	AuthDescriptor,
 	DatabaseDescriptor,
@@ -42,6 +45,8 @@ import type {
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
+
+const require = createRequire(import.meta.url);
 
 const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -71,11 +76,14 @@ export interface D1Config {
 	 *
 	 * **Warning:** incompatible with the `global_fetch_strictly_public`
 	 * compatibility flag. With that flag set, the internal request the D1
-	 * Sessions API makes to route queries to replicas is silently blocked
-	 * and every SSR request hangs until the Worker is killed — with no
-	 * error logged (`outcome: "canceled"`, empty `exceptions`). The hang
-	 * may only start once replicas finish provisioning, so it can pass an
-	 * initial post-deploy check. Remove the flag or keep sessions
+	 * Sessions API makes to route queries to replicas is silently blocked,
+	 * so session queries never complete. EmDash waits five seconds on the
+	 * first session query in each isolate, logs an error, re-runs `SELECT`
+	 * queries on the primary database, rejects writes caught in that
+	 * window, and turns sessions off for the rest of the isolate. Every new
+	 * isolate repeats the delay, and no request reads from a replica. The
+	 * problem may only start once replicas finish provisioning, so it can
+	 * pass an initial post-deploy check. Remove the flag or keep sessions
 	 * disabled. See https://github.com/emdash-cms/emdash/issues/1273.
 	 */
 	session?: "disabled" | "auto" | "primary-first";
@@ -241,7 +249,7 @@ export interface AccessConfig {
 
 	/**
 	 * Role level for users not matching any group in roleMapping
-	 * @default 30 (Editor)
+	 * @default 30 (Author, who can publish their own content)
 	 */
 	defaultRole?: number;
 
@@ -253,6 +261,13 @@ export interface AccessConfig {
 	syncRoles?: boolean;
 
 	/**
+	 * Update user's name from the IdP on every authenticated request
+	 * When false, name is only set on first provisioning, so names edited in the admin are kept
+	 * @default true
+	 */
+	syncName?: boolean;
+
+	/**
 	 * Map IdP group names to EmDash role levels
 	 * First match wins if user is in multiple groups
 	 *
@@ -260,8 +275,8 @@ export interface AccessConfig {
 	 * ```ts
 	 * roleMapping: {
 	 *   "Admins": 50,        // Admin
-	 *   "Developers": 40,    // Developer
-	 *   "Content Team": 30,  // Editor
+	 *   "Editors": 40,       // Editor
+	 *   "Content Team": 30,  // Author
 	 * }
 	 * ```
 	 */
@@ -289,7 +304,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/d1-migrations",
 			manifestConfig: { binding: config.binding },
 		},
 		supportsRequestScope: true,
@@ -389,7 +404,7 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 		},
 		type: "postgres",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/hyperdrive-migrations",
 			manifestConfig: { binding, connectionStringEnv },
 		},
 		// Each request gets a fresh pg connection that is closed afterwards —
@@ -513,7 +528,8 @@ export function r2(config: R2StorageConfig): StorageDescriptor {
  *   audience: "abc123...",
  *   roleMapping: {
  *     "Admins": 50,
- *     "Editors": 30,
+ *     "Editors": 40, // Editor
+ *     "Authors": 30, // Author
  *   },
  * })
  * ```
@@ -529,15 +545,39 @@ export function access(config: AccessConfig): AuthDescriptor {
 /**
  * Cloudflare Worker Loader sandbox adapter
  *
- * Returns the module path for the Cloudflare sandbox runner.
- * Use this in the `sandboxRunner` config option.
+ * Returns the module path for the Cloudflare sandbox runner when the project's
+ * Wrangler config includes the `LOADER` Worker Loader binding. Without that
+ * paid-plan binding, sandboxed plugins are disabled at build time.
+ * Requires `wrangler` to be installed; other config helpers do not need it.
+ *
+ * When `cloudflare.config.ts` exists in the working directory, the runner is
+ * always returned and a missing `LOADER` binding is reported when the Worker
+ * starts, because that file can only be evaluated asynchronously.
  *
  * @example
  * ```ts
  * sandboxRunner: sandbox()
  * ```
  */
-export function sandbox(): string {
+export function sandbox(): string | undefined {
+	if (existsSync("cloudflare.config.ts")) return "@emdash-cms/cloudflare/sandbox";
+
+	const environment = process.env.CLOUDFLARE_ENV;
+	const { unstable_readConfig }: typeof import("wrangler") = require("wrangler");
+	const config = unstable_readConfig(environment ? { env: environment } : {}, {
+		hideWarnings: true,
+	});
+	const hasWorkerLoader = config.worker_loaders?.some(
+		(loader: { binding?: string }) => loader.binding === "LOADER",
+	);
+
+	if (!hasWorkerLoader) {
+		console.warn(
+			"[emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.",
+		);
+		return undefined;
+	}
+
 	return "@emdash-cms/cloudflare/sandbox";
 }
 
@@ -605,8 +645,3 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 // Re-export media providers (config-time)
 export { cloudflareImages, type CloudflareImagesConfig } from "./media/images.js";
 export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js";
-
-// Legacy Cache API + zone REST purge provider (config-time). Prefer
-// cacheCloudflare() from @astrojs/cloudflare/cache with wrangler
-// "cache": { "enabled": true } for native Workers Caching.
-export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";

@@ -38,7 +38,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	return unwrapResult(result);
 };
 
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -79,17 +79,16 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		);
 	}
 
+	const actor = user ? { id: user.id, role: user.role } : undefined;
+
 	// Auto-set authorId to current user when creating content
 	const result = await emdash.handleContentCreate(collection, {
 		...body,
 		authorId: user?.id,
 		locale: body.locale,
 		translationOf: body.translationOf,
+		actor,
 	});
-
-	if (!result.success) return unwrapResult(result);
-
-	if (cache?.enabled) await cache.invalidate({ tags: [collection] });
 
 	return unwrapResult(result, 201);
 };

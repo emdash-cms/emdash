@@ -20,6 +20,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 
 import { join, resolve } from "node:path";
 
 import { EmDashClient } from "../../src/client/index.js";
+import { consumerEnvironment } from "../utils/consumer-environment.js";
 
 // Test regex patterns
 const SESSION_COOKIE_REGEX = /^([^;]+)/;
@@ -173,8 +174,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	const astroBin = join(workDir, "node_modules", ".bin", "astro");
 	const server = spawn(astroBin, ["dev", "--port", String(port)], {
 		cwd: workDir,
-		env: {
-			...process.env,
+		env: consumerEnvironment({
 			// Force foreground mode: `astro dev` otherwise detects coding-agent
 			// environments and re-spawns itself as a detached background process,
 			// which our SIGTERM cleanup can't reach (leaking the port). With this
@@ -184,7 +184,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 			EMDASH_TEST_UPLOADS: uploadsDir,
 			EMDASH_TEST_VITE_CACHE: viteCacheDir,
 			...options.env,
-		},
+		}),
 		stdio: "pipe",
 	});
 

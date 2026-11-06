@@ -7,7 +7,7 @@
  * substituted by the bundler. This function defines the safe artifact form.
  *
  * It is imported by BOTH the build (`tsdown.config.ts` `entryFileNames`) and
- * the route injector (`resolveRoute`, which resolves `emdash/routes/*`).
+ * the route injector (`resolveRoute`, which resolves `emdash/internal/routes/*`).
  * They must stay in lockstep: change the scheme here and both follow.
  *
  * `[` and `]` -> `_` (e.g. `[collection]` -> `_collection_`,

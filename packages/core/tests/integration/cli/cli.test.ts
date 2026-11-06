@@ -275,11 +275,11 @@ describe("CLI Integration", () => {
 			);
 
 			// Schedule does not produce JSON output, just a success message
-			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T09:00:00Z");
+			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T04:00:00-05:00");
 
 			// Verify via get
 			const fetched = await cliJson<{ scheduledAt: string }>("content", "get", "posts", item.id);
-			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00Z");
+			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00.000Z");
 
 			// Clean up
 			await cli("content", "delete", "posts", item.id);
@@ -300,9 +300,9 @@ describe("CLI Integration", () => {
 			// Restore
 			await cli("content", "restore", "posts", item.id);
 
-			// Should be accessible again (auto-published before deletion, so restored as published)
+			// Accessible again, as a draft even though it was auto-published before deletion
 			const fetched = await cliJson<{ status: string }>("content", "get", "posts", item.id);
-			expect(fetched.status).toBe("published");
+			expect(fetched.status).toBe("draft");
 
 			// Final cleanup
 			await cli("content", "delete", "posts", item.id);
@@ -363,6 +363,8 @@ describe("CLI Integration", () => {
 				tmpFile,
 				"--alt",
 				"CLI test image",
+				"--caption",
+				"CLI test caption",
 			);
 			expect(uploaded.id).toBeDefined();
 			expect(uploaded.filename).toBe("emdash-cli-test.png");
@@ -373,8 +375,15 @@ describe("CLI Integration", () => {
 			expect(ids).toContain(uploaded.id);
 
 			// Get
-			const fetched = await cliJson<{ id: string; filename: string }>("media", "get", uploaded.id);
+			const fetched = await cliJson<{
+				id: string;
+				filename: string;
+				alt: string | null;
+				caption: string | null;
+			}>("media", "get", uploaded.id);
 			expect(fetched.id).toBe(uploaded.id);
+			expect(fetched.alt).toBe("CLI test image");
+			expect(fetched.caption).toBe("CLI test caption");
 
 			// Delete
 			await cli("media", "delete", uploaded.id);
@@ -406,6 +415,32 @@ describe("CLI Integration", () => {
 			const result = await cliJson<{ email: string; role: string }>("whoami");
 			expect(result.email).toBe("dev@emdash.local");
 			expect(result.role).toBe("admin");
+		});
+
+		it("whoami without a token on localhost reports the dev-bypass user", async () => {
+			const { mkdtempSync, rmSync } = await import("node:fs");
+			const { join } = await import("node:path");
+			const { tmpdir } = await import("node:os");
+			const isolated = mkdtempSync(join(tmpdir(), "emdash-whoami-"));
+			const env: NodeJS.ProcessEnv = { ...process.env, XDG_CONFIG_HOME: isolated };
+			delete env.EMDASH_TOKEN;
+			delete env.EMDASH_URL;
+			delete env.EMDASH_HEADERS;
+
+			try {
+				const { stdout } = await exec("node", [CLI_BIN, "whoami", "--url", ctx.baseUrl, "--json"], {
+					cwd: isolated,
+					env,
+					timeout: 15_000,
+				});
+				expect(JSON.parse(stdout)).toMatchObject({
+					email: "dev@emdash.local",
+					role: "admin",
+					authMethod: "dev-bypass",
+				});
+			} finally {
+				rmSync(isolated, { recursive: true, force: true });
+			}
 		});
 	});
 

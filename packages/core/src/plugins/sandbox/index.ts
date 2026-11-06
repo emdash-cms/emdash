@@ -11,14 +11,23 @@ export {
 	getSandboxRouteErrorDetails,
 	getSandboxRouteErrorEnvelope,
 } from "./types.js";
+export {
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
+} from "./hook-result.js";
 
 export type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxCommentModerateCallback,
+	SandboxContentCreateCallback,
+	SandboxHttpFetchCallback,
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,
@@ -26,3 +35,8 @@ export type {
 	SandboxRouteErrorDetails,
 	SandboxRouteErrorEnvelope,
 } from "./types.js";
+export type {
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
+} from "./hook-result.js";

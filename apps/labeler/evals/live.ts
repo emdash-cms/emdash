@@ -1,15 +1,14 @@
 import {
+	createClefImageAdapter,
+	createClefTextAdapter,
+	type ClefAdapterConfig,
+} from "../src/ai/clef.js";
+import {
 	createCloudflareImagesDerivativeTransformer,
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../src/ai/image-resize.js";
-import {
-	createWorkersAiImageAdapter,
-	createWorkersAiTextAdapter,
-	workersAiBindingFromEnv,
-	type WorkersAiAdapterConfig,
-	type WorkersAiBinding,
-} from "../src/ai/workers-ai.js";
+import { workersAiBindingFromEnv, type WorkersAiBinding } from "../src/ai/workers-ai.js";
 import { assertSealedEvalDataset } from "./dataset.js";
 import { runEvaluation, type EvaluationRunOptions } from "./harness.js";
 import type { EvalCaseRun, EvalResultBundle, SealedEvalDataset } from "./types.js";
@@ -23,8 +22,8 @@ export interface LiveEvaluationArtifact {
 
 export interface ProtectedLiveEvaluationInput {
 	dataset: SealedEvalDataset;
-	text: WorkersAiAdapterConfig & { configuredUnits: number };
-	image: WorkersAiAdapterConfig & { configuredUnits: number };
+	text: ClefAdapterConfig & { configuredUnits: number };
+	image: ClefAdapterConfig & { configuredUnits: number };
 	repeatCount: number;
 	runnerCommit: string;
 	executedAt?: string;
@@ -70,8 +69,8 @@ function createLiveEvaluationOptions(
 	executedAt: string,
 	durability?: ProtectedLiveEvaluationDurability,
 ): EvaluationRunOptions {
-	const text = createWorkersAiTextAdapter(ai, input.text);
-	const baseImage = createWorkersAiImageAdapter(ai, input.image);
+	const text = createClefTextAdapter(ai, input.text);
+	const baseImage = createClefImageAdapter(ai, input.image);
 	const image = images
 		? createResizedImageModerationAdapter(
 				createCloudflareImagesDerivativeTransformer(images),

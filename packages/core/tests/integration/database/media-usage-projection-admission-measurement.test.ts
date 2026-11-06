@@ -1,6 +1,7 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 vi.mock(
 	"virtual:emdash/object-cache",
@@ -44,7 +45,7 @@ interface MeasurementRow extends Measurement {
 	payloadBytes?: number;
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let captured: CapturedQuery[];
 let fixture: Awaited<ReturnType<typeof createActiveFixture>>;

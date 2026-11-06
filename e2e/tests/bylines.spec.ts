@@ -34,17 +34,20 @@ test.describe("Bylines", () => {
 
 		await page.getByRole("button", { name: "New" }).click();
 		await page.getByLabel("Display name").fill(initialName);
-		await page.getByLabel("Slug").fill(`guest-byline-${unique}`);
+		await page.getByLabel("Slug", { exact: true }).fill(`guest-byline-${unique}`);
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
 
-		await expect(page.getByRole("button", { name: initialName })).toBeVisible({ timeout: 5000 });
+		const editByline = page.getByRole("button", { name: `Edit ${initialName}`, exact: true });
+		await expect(editByline).toBeVisible({ timeout: 5000 });
 
-		await page.getByRole("button", { name: initialName }).click();
+		await editByline.click();
 		await page.getByLabel("Display name").fill(updatedName);
 		await page.getByRole("button", { name: "Save" }).click();
 
-		await expect(page.getByRole("button", { name: updatedName })).toBeVisible({ timeout: 5000 });
+		await expect(
+			page.getByRole("button", { name: `Edit ${updatedName}`, exact: true }),
+		).toBeVisible({ timeout: 5000 });
 	});
 
 	test("sets a byline avatar via the media picker and preserves it across edits (#1250)", async ({
@@ -84,14 +87,112 @@ test.describe("Bylines", () => {
 		await admin.waitForLoading();
 
 		// Open the byline in the editor and confirm the avatar field renders.
-		await page.getByRole("button", { name }).click();
-		await expect(page.getByText("Avatar", { exact: true })).toBeVisible();
+		await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
+		await expect(page.getByText("Avatar (optional)", { exact: true })).toBeVisible();
 
-		// Open the avatar picker and upload an image. The picker auto-selects
-		// the freshly uploaded item, enabling the Insert button.
+		// Open the avatar picker and upload an image. The upload stays inside
+		// this picker and becomes the selected library card when it finishes.
 		await page.getByRole("button", { name: "Select image" }).click();
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Select Avatar" });
 		await expect(dialog).toBeVisible();
+		await expect(dialog).not.toContainText("No media selected");
+		await expect(dialog.locator("[data-media-results-viewport]")).toBeVisible();
+		const libraryTab = dialog.getByRole("tab", { name: "Library" });
+		const fromUrlTab = dialog.getByRole("tab", { name: "From URL" });
+		const uploadButton = dialog.getByRole("button", { name: "Upload files" });
+		await uploadButton.hover();
+
+		const [libraryTabBox, uploadButtonBox, searchBox] = await Promise.all([
+			libraryTab.boundingBox(),
+			uploadButton.boundingBox(),
+			dialog.getByRole("searchbox", { name: "Search media" }).boundingBox(),
+		]);
+		expect(libraryTabBox).not.toBeNull();
+		expect(uploadButtonBox).not.toBeNull();
+		expect(searchBox).not.toBeNull();
+		expect(
+			Math.abs(
+				libraryTabBox!.y +
+					libraryTabBox!.height / 2 -
+					uploadButtonBox!.y -
+					uploadButtonBox!.height / 2,
+			),
+		).toBeLessThanOrEqual(2);
+		expect(Math.abs(uploadButtonBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
+		const [libraryTabSizing, uploadButtonSizing] = await Promise.all([
+			libraryTab.evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					fontSize: style.fontSize,
+					paddingInlineStart: style.paddingInlineStart,
+					paddingInlineEnd: style.paddingInlineEnd,
+				};
+			}),
+			uploadButton.evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					fontSize: style.fontSize,
+					paddingInlineStart: style.paddingInlineStart,
+					paddingInlineEnd: style.paddingInlineEnd,
+				};
+			}),
+		]);
+		expect(libraryTabSizing).toEqual(uploadButtonSizing);
+		await expect(libraryTab).toBeInViewport({ ratio: 1 });
+		await expect(fromUrlTab).toBeInViewport({ ratio: 1 });
+		await expect(libraryTab.locator("svg")).toBeVisible();
+		await expect(fromUrlTab.locator("svg")).toBeVisible();
+
+		const gridTab = dialog.getByRole("tab", { name: "Grid view" });
+		const listTab = dialog.getByRole("tab", { name: "List view" });
+		const [typeFilterBox, viewModeBox, resultsViewportBox] = await Promise.all([
+			dialog.getByRole("combobox", { name: "Filter by type" }).boundingBox(),
+			dialog.getByRole("group", { name: "View mode" }).boundingBox(),
+			dialog.locator("[data-media-results-viewport]").boundingBox(),
+		]);
+		expect(typeFilterBox).not.toBeNull();
+		expect(viewModeBox).not.toBeNull();
+		expect(resultsViewportBox).not.toBeNull();
+		expect(Math.abs(viewModeBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
+		await expect(gridTab).toBeInViewport({ ratio: 1 });
+		await expect(listTab).toBeInViewport({ ratio: 1 });
+		const toolbarBottom = Math.max(
+			searchBox!.y + searchBox!.height,
+			typeFilterBox!.y + typeFilterBox!.height,
+			viewModeBox!.y + viewModeBox!.height,
+		);
+		expect(resultsViewportBox!.y).toBeGreaterThan(toolbarBottom);
+		const gridDialogWidth = await dialog.evaluate((element) => element.clientWidth);
+		await listTab.click();
+		await expect(dialog.locator('[data-media-layout="list"]').first()).toBeVisible();
+		expect(await dialog.evaluate((element) => element.clientWidth)).toBe(gridDialogWidth);
+		await gridTab.click();
+		await expect(dialog.locator('[data-media-layout="grid"]').first()).toBeVisible();
+
+		const libraryDialogSize = await dialog.evaluate((element) => ({
+			width: element.clientWidth,
+			height: element.clientHeight,
+		}));
+		await fromUrlTab.click();
+		await expect(dialog.getByLabel("Image URL")).toBeVisible();
+		const urlDialogSize = await dialog.evaluate((element) => ({
+			width: element.clientWidth,
+			height: element.clientHeight,
+		}));
+		expect(urlDialogSize).toEqual(libraryDialogSize);
+		await libraryTab.click();
+		await expect(dialog.getByRole("searchbox", { name: "Search media" })).toBeVisible();
+
+		const originalViewport = page.viewportSize();
+		expect(originalViewport).not.toBeNull();
+		for (const width of [320, 640, 768, 784]) {
+			await page.setViewportSize({ width, height: 800 });
+			const responsiveDialogBox = await dialog.boundingBox();
+			expect(responsiveDialogBox).not.toBeNull();
+			expect(responsiveDialogBox!.x).toBeGreaterThanOrEqual(0);
+			expect(responsiveDialogBox!.x + responsiveDialogBox!.width).toBeLessThanOrEqual(width);
+		}
+		await page.setViewportSize(originalViewport!);
 
 		const uploadDone = page.waitForResponse(
 			(res) => /\/api\/media/.test(res.url()) && res.request().method() === "POST" && res.ok(),
@@ -99,10 +200,12 @@ test.describe("Bylines", () => {
 		);
 		await dialog.locator('input[type="file"]').setInputFiles(TEST_IMAGE_PATH);
 		await uploadDone;
+		await expect(page.getByRole("dialog")).toHaveCount(1);
+		await expect(
+			dialog.getByRole("button", { name: "test-image.png", exact: true }),
+		).toHaveAttribute("aria-pressed", "true");
 
-		// Two "Insert" buttons exist (the disabled "Insert from URL" action and
-		// the footer confirm); the confirm enables once an item is selected.
-		await dialog.getByRole("button", { name: "Insert", disabled: false }).click();
+		await dialog.getByRole("button", { name: "Select", disabled: false }).click();
 		await expect(dialog).not.toBeVisible();
 
 		// Persist the byline and wait for the PUT to land.
@@ -124,6 +227,7 @@ test.describe("Bylines", () => {
 		// Regression guard for #1250: editing another field through the UI must
 		// not wipe the avatar. The PUT route coerces a missing `avatarMediaId`
 		// back to null, so before the fix every save dropped the avatar.
+		await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
 		await page.getByLabel("Display name").fill(`${name} edited`);
 		const secondSave = page.waitForResponse(
 			(res) =>
@@ -137,6 +241,108 @@ test.describe("Bylines", () => {
 
 		const afterEdit = await getByline(bylineId);
 		expect(afterEdit.avatarMediaId).toBe(avatarId);
+	});
+
+	test("creates a full byline from a post without marking it as a guest", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		const unique = Date.now();
+		const name = `Rebekah Writer ${unique}`;
+		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
+
+		const postResponse = await fetch(`${serverInfo.baseUrl}/_emdash/api/content/posts`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ data: { title: `Byline Profile Post ${unique}` } }),
+		});
+		expect(postResponse.ok).toBe(true);
+		const postBody: any = await postResponse.json();
+		const postId = postBody.data.item.id as string;
+
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+
+		const bylinesSection = page
+			.getByRole("heading", { name: "Bylines" })
+			.locator("xpath=ancestor::section")
+			.first();
+		await bylinesSection.getByRole("button", { name: "Choose bylines" }).click();
+		await page.getByLabel("Search bylines").fill(name);
+		await page.getByRole("button", { name: `Create ${name}` }).click();
+
+		const dialog = page.getByRole("dialog", { name: "New byline" });
+		await expect(dialog.getByLabel("Display name")).toHaveValue(name);
+		await expect(dialog.getByRole("switch", { name: "Guest byline" })).not.toBeChecked();
+		await dialog.getByLabel("Website URL").fill("https://rebekah.example");
+		await dialog.getByLabel("Bio").fill("Covers the newsroom.");
+		await dialog.getByRole("button", { name: "Create and add" }).click();
+
+		await expect(
+			bylinesSection.getByRole("button", { name: `More actions for ${name}` }),
+		).toBeVisible();
+
+		const bylinesResponse = await fetch(
+			`${serverInfo.baseUrl}/_emdash/api/admin/bylines?search=${encodeURIComponent(name)}`,
+			{ headers },
+		);
+		expect(bylinesResponse.ok).toBe(true);
+		const bylinesBody: any = await bylinesResponse.json();
+		expect(bylinesBody.data.items).toEqual([
+			expect.objectContaining({
+				displayName: name,
+				websiteUrl: "https://rebekah.example",
+				bio: "Covers the newsroom.",
+				isGuest: false,
+			}),
+		]);
+	});
+
+	test("credits a byline on a new post before its first save", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		const unique = Date.now();
+		const name = `First Draft Writer ${unique}`;
+		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
+
+		const bylineResponse = await fetch(`${serverInfo.baseUrl}/_emdash/api/admin/bylines`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ displayName: name, slug: `first-draft-writer-${unique}` }),
+		});
+		expect(bylineResponse.ok).toBe(true);
+
+		await admin.goToNewContent("posts");
+		await admin.waitForLoading();
+		const bylinesSection = page
+			.getByRole("heading", { name: "Bylines" })
+			.locator("xpath=ancestor::section")
+			.first();
+		await bylinesSection.getByRole("button", { name: "Choose bylines" }).click();
+		await page.getByLabel("Search bylines").fill(name);
+		await page.getByRole("button", { name: `Add ${name}` }).click();
+		await expect(
+			bylinesSection.getByRole("button", { name: `More actions for ${name}` }),
+		).toBeVisible();
+
+		await admin.fillField("title", `New Post Byline ${unique}`);
+		await admin.clickSave();
+		await expect(page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
+
+		const contentId = new URL(page.url()).pathname.split("/").pop();
+		const contentResponse = await fetch(
+			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
+			{ headers },
+		);
+		expect(contentResponse.ok).toBe(true);
+		const contentBody: any = await contentResponse.json();
+		const names = (contentBody.data?.item?.bylines ?? []).map(
+			(credit: { byline?: { displayName?: string } }) => credit?.byline?.displayName,
+		);
+		expect(names).toEqual([name]);
 	});
 
 	test("assigns bylines and preserves them on ownership change", async ({

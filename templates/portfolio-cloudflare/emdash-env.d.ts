@@ -3,7 +3,73 @@
 
 /// <reference types="emdash/locals" />
 
-import type { ContentBylineCredit, PortableTextBlock } from "emdash";
+import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
+
+export interface Project {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  featured_image: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  summary?: string;
+  client?: string;
+  year?: string;
+  url?: string;
+  featured?: boolean;
+  content?: PortableTextBlock[];
+  gallery?: { "image": { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }; "caption"?: string | null }[];
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
+export interface PageLayoutPortfolioStatementV1Block {
+  _type: "portfolio_statement";
+  _version: 1;
+  _key: string;
+  "text": string;
+  "label"?: string | null;
+}
+
+export type PageLayoutPortfolioStatementBlock = PageLayoutPortfolioStatementV1Block;
+
+export interface PageLayoutPortfolioSelectedWorkV1Block {
+  _type: "portfolio_selected_work";
+  _version: 1;
+  _key: string;
+  "heading": string;
+}
+
+export type PageLayoutPortfolioSelectedWorkBlock = PageLayoutPortfolioSelectedWorkV1Block;
+
+export interface PageLayoutPortfolioClientsV1Block {
+  _type: "portfolio_clients";
+  _version: 1;
+  _key: string;
+  "heading": string;
+  "clients": { "name": string }[];
+}
+
+export type PageLayoutPortfolioClientsBlock = PageLayoutPortfolioClientsV1Block;
+
+export interface PageLayoutPortfolioContactV1Block {
+  _type: "portfolio_contact";
+  _version: 1;
+  _key: string;
+  "heading": string;
+  "label"?: string | null;
+  "intro"?: string | null;
+  "email": string;
+  "email_label"?: string | null;
+  "details"?: { "label": string; "text": string; "note"?: string | null }[] | null;
+}
+
+export type PageLayoutPortfolioContactBlock = PageLayoutPortfolioContactV1Block;
+
+export type PageLayoutBlock = PageLayoutPortfolioStatementBlock | PageLayoutPortfolioSelectedWorkBlock | PageLayoutPortfolioClientsBlock | PageLayoutPortfolioContactBlock;
 
 export interface Page {
   id: string;
@@ -11,33 +77,18 @@ export interface Page {
   status: string;
   title: string;
   content?: PortableTextBlock[];
+  layout?: PageLayoutBlock[];
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
+  byline?: BylineSummary | null;
   bylines?: ContentBylineCredit[];
-}
-
-export interface Project {
-  id: string;
-  slug: string | null;
-  status: string;
-  title: string;
-  featured_image: { id: string; src?: string; alt?: string; width?: number; height?: number };
-  client?: string;
-  year?: string;
-  summary?: string;
-  content?: PortableTextBlock[];
-  gallery?: unknown;
-  url?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
 }
 
 declare module "emdash" {
   interface EmDashCollections {
-    pages: Page;
     projects: Project;
+    pages: Page;
   }
 }

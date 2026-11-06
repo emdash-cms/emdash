@@ -128,6 +128,7 @@ test.describe("Form Data Loss Prevention", () => {
 		// Wait for the taxonomy sidebar to load
 		const taxonomyHeading = page.locator("h3", { hasText: "Taxonomies" });
 		await expect(taxonomyHeading).toBeVisible({ timeout: 10000 });
+		await page.getByRole("button", { name: "Choose Categories" }).click();
 
 		// Find the category checkboxes
 		const newsCheckbox = page.getByRole("checkbox", { name: "News" });
@@ -161,6 +162,7 @@ test.describe("Form Data Loss Prevention", () => {
 
 		// After reload, all should still be unchecked
 		await expect(taxonomyHeading).toBeVisible({ timeout: 10000 });
+		await page.getByRole("button", { name: "Choose Categories" }).click();
 		await expect(page.getByRole("checkbox", { name: "News" })).not.toBeChecked();
 		await expect(page.getByRole("checkbox", { name: "Tutorials" })).not.toBeChecked();
 		await expect(page.getByRole("checkbox", { name: "Opinion" })).not.toBeChecked();

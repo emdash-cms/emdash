@@ -19,6 +19,7 @@ import { handleTaxonomyCreate } from "../../../src/api/handlers/taxonomies.js";
 import { TaxonomyRepository as TaxonomyRepo } from "../../../src/database/repositories/taxonomy.js";
 import { encodeCursor } from "../../../src/database/repositories/types.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { decodeBase64, encodeBase64 } from "../../../src/utils/base64.js";
 import {
@@ -164,6 +165,7 @@ describe("taxonomy_list_terms", () => {
 
 	afterEach(async () => {
 		if (harness) await harness.cleanup();
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -241,6 +243,35 @@ describe("taxonomy_list_terms", () => {
 		// No overlap
 		const p1Slugs = p1.items.map((i) => i.slug);
 		for (const t of p2.items) expect(p1Slugs).not.toContain(t.slug);
+	});
+
+	it("accepts a code-stamped cursor when filtering by its configured locale path", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en"],
+			localeAliases: { "en-US": "en" },
+		});
+		const repo = new TaxonomyRepo(db);
+		const first = await repo.create({ name: "categories", slug: "first", label: "First" });
+		await repo.create({ name: "categories", slug: "second", label: "Second" });
+		await db
+			.updateTable("taxonomies")
+			.set({ locale: "en-US" })
+			.where("id", "=", first.id)
+			.execute();
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const page1 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", locale: "en", limit: 1 },
+		});
+		const p1 = extractJson<{ nextCursor?: string }>(page1);
+		expect(p1.nextCursor).toBeTruthy();
+		const page2 = await harness.client.callTool({
+			name: "taxonomy_list_terms",
+			arguments: { taxonomy: "categories", locale: "en", limit: 1, cursor: p1.nextCursor },
+		});
+		expect(page2.isError, extractText(page2)).toBeFalsy();
 	});
 
 	it("paginates in manual term order", async () => {
@@ -696,8 +727,8 @@ describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
-		await setupTaxonomy(db, { name: "tags", label: "Tags" });
-		await setupTaxonomy(db, { name: "sections", label: "Sections" });
+		await setupTaxonomy(db, { name: "tags", label: "Tags", hierarchical: true });
+		await setupTaxonomy(db, { name: "sections", label: "Sections", hierarchical: true });
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 	});
 
@@ -733,6 +764,25 @@ describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 		const { term } = extractJson<{ term: { label: string } }>(result);
 		expect(term.label).toBe("New Label");
+	});
+
+	it("updates only the translation named by locale when translations share a slug", async () => {
+		const repo = new TaxonomyRepo(db);
+		await repo.create({ name: "tags", slug: "shared", label: "Shared", locale: "en" });
+		await repo.create({ name: "tags", slug: "shared", label: "Partagé", locale: "fr" });
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "shared", locale: "fr", label: "Partagé (maj)" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { label: string; locale: string } }>(result);
+		expect(term.locale).toBe("fr");
+		expect(term.label).toBe("Partagé (maj)");
+
+		// The sibling translation is untouched.
+		const english = await repo.findBySlug("tags", "shared", "en");
+		expect(english?.label).toBe("Shared");
 	});
 
 	it("reparents a term and detaches via parentId: null", async () => {
@@ -878,7 +928,7 @@ describe("taxonomy_delete_term (bug #13 / F12)", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
-		await setupTaxonomy(db, { name: "tags", label: "Tags" });
+		await setupTaxonomy(db, { name: "tags", label: "Tags", hierarchical: true });
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 	});
 
@@ -939,5 +989,172 @@ describe("taxonomy_delete_term (bug #13 / F12)", () => {
 			(t) => t.slug,
 		);
 		expect(afterSlugs).not.toContain("leaf");
+	});
+
+	it("deletes only the translation named by locale when translations share a slug", async () => {
+		const repo = new TaxonomyRepo(db);
+		await repo.create({ name: "tags", slug: "shared", label: "Shared", locale: "en" });
+		await repo.create({ name: "tags", slug: "shared", label: "Partagé", locale: "fr" });
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_delete_term",
+			arguments: { taxonomy: "tags", termSlug: "shared", locale: "fr" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		expect(await repo.findBySlug("tags", "shared", "fr")).toBeNull();
+		expect(await repo.findBySlug("tags", "shared", "en")).not.toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Taxonomy definition mutations (bug #2798)
+// ---------------------------------------------------------------------------
+
+describe("taxonomy definition mutations (bug #2798)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "post", label: "Posts" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("MCP exposes taxonomy_get, taxonomy_create, taxonomy_update, taxonomy_delete", async () => {
+		const tools = await harness.client.listTools();
+		const names = new Set(tools.tools.map((t) => t.name));
+		expect(names.has("taxonomy_get")).toBe(true);
+		expect(names.has("taxonomy_create")).toBe(true);
+		expect(names.has("taxonomy_update")).toBe(true);
+		expect(names.has("taxonomy_delete")).toBe(true);
+	});
+
+	it("taxonomy_create + taxonomy_get round-trip", async () => {
+		const create = await harness.client.callTool({
+			name: "taxonomy_create",
+			arguments: {
+				name: "genre",
+				label: "Genres",
+				labelSingular: "Genre",
+				hierarchical: true,
+				collections: ["post"],
+			},
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre" },
+		});
+		expect(get.isError, extractText(get)).toBeFalsy();
+		const taxonomy = extractJson<{
+			taxonomy: { name: string; label: string; hierarchical: boolean; collections: string[] };
+		}>(get).taxonomy;
+		expect(taxonomy.name).toBe("genre");
+		expect(taxonomy.label).toBe("Genres");
+		expect(taxonomy.hierarchical).toBe(true);
+		expect(taxonomy.collections).toEqual(["post"]);
+	});
+
+	it("taxonomy_create with translationOf inherits hierarchical and collections (#2525)", async () => {
+		const source = await handleTaxonomyCreate(db, {
+			name: "genre",
+			label: "Genres",
+			labelSingular: "Genre",
+			hierarchical: true,
+			collections: ["post"],
+		});
+		expect(source.success).toBe(true);
+		if (!source.success) return;
+
+		const create = await harness.client.callTool({
+			name: "taxonomy_create",
+			arguments: {
+				name: "genre",
+				label: "Genres",
+				locale: "es",
+				translationOf: source.data.taxonomy.id,
+			},
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre", locale: "es" },
+		});
+		expect(get.isError, extractText(get)).toBeFalsy();
+		const taxonomy = extractJson<{ taxonomy: { hierarchical: boolean; collections: string[] } }>(
+			get,
+		).taxonomy;
+		expect(taxonomy.hierarchical).toBe(true);
+		expect(taxonomy.collections).toEqual(["post"]);
+	});
+
+	it("taxonomy_update changes label, collections and hierarchical flag", async () => {
+		await handleTaxonomyCreate(db, {
+			name: "genre",
+			label: "Genres",
+			hierarchical: true,
+			collections: ["post"],
+		});
+
+		const update = await harness.client.callTool({
+			name: "taxonomy_update",
+			arguments: {
+				name: "genre",
+				label: "Kinds",
+				labelSingular: "Kind",
+				hierarchical: false,
+				collections: [],
+			},
+		});
+		expect(update.isError, extractText(update)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre" },
+		});
+		const taxonomy = extractJson<{
+			taxonomy: {
+				label: string;
+				labelSingular?: string;
+				hierarchical: boolean;
+				collections: string[];
+			};
+		}>(get).taxonomy;
+		expect(taxonomy.label).toBe("Kinds");
+		expect(taxonomy.labelSingular).toBe("Kind");
+		expect(taxonomy.hierarchical).toBe(false);
+		expect(taxonomy.collections).toEqual([]);
+	});
+
+	it("taxonomy_delete removes the definition, its terms, and their assignments", async () => {
+		await handleTaxonomyCreate(db, { name: "genre", label: "Genres", collections: ["post"] });
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "genre", slug: "noir", label: "Noir" },
+		});
+
+		const del = await harness.client.callTool({
+			name: "taxonomy_delete",
+			arguments: { name: "genre" },
+		});
+		expect(del.isError, extractText(del)).toBeFalsy();
+		const body = extractJson<{ deleted: boolean }>(del);
+		expect(body.deleted).toBe(true);
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre" },
+		});
+		expect(get.isError).toBe(true);
+		expect(extractText(get)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
 	});
 });

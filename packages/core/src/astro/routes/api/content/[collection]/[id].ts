@@ -9,10 +9,17 @@
 import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
-import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
+import {
+	entryEditAccess,
+	requireEntryEditPerm,
+	requireOwnerPerm,
+	requirePerm,
+} from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentUpdateBody } from "#api/schemas.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
@@ -27,7 +34,9 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const id = params.id!;
 	const locale = url.searchParams.get("locale") || undefined;
 
-	const result = await emdash.handleContentGet(collection, id, locale);
+	const result = await emdash.handleContentGet(collection, id, locale, {
+		includeDrafts: hasPermission(user, "content:read_drafts"),
+	});
 
 	// Hide non-published items from users without content:read_drafts. Return
 	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.
@@ -97,8 +106,14 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const editDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
+	const entry = { authorId, status: existingItem?.status };
+	const editDenied = requireEntryEditPerm(user, entry);
 	if (editDenied) return editDenied;
+	// A draft-only grant covers the entry only while it is a draft. Conditioning
+	// the save on the checked revision makes it fail if the entry is published
+	// between this check and the write.
+	const checkedRev = typeof existingData?._rev === "string" ? existingData._rev : undefined;
+	const rev = entryEditAccess(user, entry) === "draft" ? (body._rev ?? checkedRev) : body._rev;
 
 	// Only EDITOR+ can write publishedAt directly — incl. clearing to null.
 	if (body.publishedAt !== undefined && !hasPermission(user, "content:publish_any")) {
@@ -112,22 +127,36 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	// Use the resolved ID (handles slug → ID resolution)
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: body.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
+
 	// Only allow authorId changes if user has content:edit_any permission (editor+)
 	const canChangeAuthor =
 		body.authorId !== undefined && user && hasPermission(user, "content:edit_any");
-	const updateBody = canChangeAuthor ? body : { ...body, authorId: undefined };
+	const { overrideLock: _overrideLock, ...writeBody } = canChangeAuthor
+		? body
+		: { ...body, authorId: undefined };
+
+	const actor = user ? { id: user.id, role: user.role } : undefined;
 
 	// Pass _rev through for optimistic concurrency validation
 	const result = await emdash.handleContentUpdate(collection, resolvedId, {
-		...updateBody,
+		...writeBody,
 		locale,
-		_rev: body._rev,
+		_rev: rev,
+		actor,
 	});
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled && result.liveContentChanged !== false) {
-		await cache.invalidate({ tags: [collection, resolvedId] });
+	if (result.liveContentChanged !== false) {
+		await invalidateRouteCache(cache, [collection, resolvedId]);
 	}
 
 	return unwrapResult(result);
@@ -172,11 +201,21 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	// Use the resolved ID (handles slug → ID resolution)
 	const resolvedId = typeof deleteItem?.id === "string" ? deleteItem.id : id;
 
+	// DELETE carries no body, so the lock opt-out rides on the query string.
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: url.searchParams.get("overrideLock") === "true",
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
+
 	const result = await emdash.handleContentDelete(collection, resolvedId);
 
 	if (!result.success) return unwrapResult(result);
 
-	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
+	await invalidateRouteCache(cache, [collection, resolvedId]);
 
 	return unwrapResult(result);
 };

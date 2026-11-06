@@ -26,6 +26,8 @@ import {
 } from "./hooks.js";
 import { PluginRouteRegistry, type RouteResult, type InvokeRouteOptions } from "./routes.js";
 import type {
+	ActorInfo,
+	ContentSaveHookDetails,
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginStorageConfig,
@@ -67,6 +69,8 @@ export interface PluginManagerOptions {
 	 * resolution in plugin route handlers. Thread through from the runtime.
 	 */
 	trustedProxyHeaders?: string[];
+	/** Whether media uploads should generate server-side image placeholders. */
+	imagePlaceholders?: boolean;
 }
 
 /**
@@ -87,6 +91,7 @@ export class PluginManager {
 			storage: options.storage,
 			getUploadUrl: options.getUploadUrl,
 			trustedProxyHeaders: options.trustedProxyHeaders,
+			imagePlaceholders: options.imagePlaceholders,
 		};
 	}
 
@@ -305,12 +310,15 @@ export class PluginManager {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		id?: string,
+		actor?: ActorInfo,
+		details?: ContentSaveHookDetails,
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
 	}> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentBeforeSave(content, collection, isNew);
+		return this.hookPipeline!.runContentBeforeSave(content, collection, isNew, id, actor, details);
 	}
 
 	/**
@@ -320,9 +328,18 @@ export class PluginManager {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		actor?: ActorInfo,
+		details?: ContentSaveHookDetails,
 	): Promise<HookResult<void>[]> {
 		this.ensureInitialized();
-		return this.hookPipeline!.runContentAfterSave(content, collection, isNew);
+		return this.hookPipeline!.runContentAfterSave(
+			content,
+			collection,
+			isNew,
+			actor,
+			undefined,
+			details,
+		);
 	}
 
 	/**

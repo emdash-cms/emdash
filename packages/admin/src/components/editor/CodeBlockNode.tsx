@@ -24,7 +24,7 @@
  * #1200). Keeping the input outside the editor DOM avoids it entirely.
  */
 
-import { Autocomplete, Button, Popover, Toolbar, Tooltip, TooltipProvider } from "@cloudflare/kumo";
+import { Autocomplete, Popover, Toolbar, Tooltip, TooltipProvider } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { CaretDown, Check, Copy, X } from "@phosphor-icons/react";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -39,6 +39,12 @@ import {
 	languageLabelDescriptor,
 	normalizeLanguage,
 } from "./codeBlockLanguages";
+import { useAttachedKey } from "./useAttachedKey.js";
+
+// Kumo's Toolbar sets physical corner and divider classes on its children from the root's
+// child selectors, which outrank a child's own classes. Important logical classes win in RTL.
+const TOOLBAR_BUTTON_LOGICAL_EDGES =
+	"first:rounded-s-lg! first:rounded-e-none! last:rounded-s-none! last:rounded-e-lg! not-first:border-s! not-first:border-e-0!";
 
 const ADMIN_CODE_BLOCK_LOWLIGHT_KEY = Symbol.for("emdash:admin-code-block-lowlight");
 const globalStore = globalThis as Record<symbol, unknown>;
@@ -96,12 +102,15 @@ async function copyTextToClipboard(text: string, shouldUseFallback: () => boolea
 		}
 	}
 }
+
 function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied" | "failed">("idle");
 	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	const copyRequestId = React.useRef(0);
+	const controlsRef = React.useRef<HTMLDivElement>(null);
+	const toolbarKey = useAttachedKey(controlsRef);
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
 
 	const labelText = React.useCallback(
@@ -113,7 +122,10 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	);
 
 	const languageItems = React.useMemo(
-		() => CODE_BLOCK_LANGUAGES.map((language) => t(language.label)),
+		() =>
+			CODE_BLOCK_LANGUAGES.map((language) => t(language.label)).toSorted((a, b) =>
+				a.localeCompare(b),
+			),
 		[t],
 	);
 
@@ -135,27 +147,21 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		},
 		[findLanguageByDisplayLabel, t],
 	);
-
 	const [draft, setDraft] = React.useState(() => labelText(storedLanguage));
-
-	// Sync draft when the stored language changes from outside the node view
-	// (e.g. another collaborator edits the attribute, or the editor reloads
-	// content). Don't clobber an in-progress edit.
-	React.useEffect(() => {
-		if (!isEditing) {
-			setDraft(labelText(storedLanguage));
-		}
-	}, [storedLanguage, isEditing, labelText]);
+	const hasLanguageMatches = React.useMemo(
+		() => languageItems.some((item) => filterLanguages(item, draft.trim())),
+		[draft, filterLanguages, languageItems],
+	);
+	const freeFormLanguage = hasLanguageMatches ? undefined : normalizeLanguage(draft);
 
 	const openPicker = React.useCallback(() => {
-		setDraft(storedLanguage ? labelText(storedLanguage) : "");
+		setDraft("");
 		setIsEditing(true);
-	}, [storedLanguage, labelText]);
+	}, []);
 
 	const closePicker = React.useCallback(() => {
 		setIsEditing(false);
-		setDraft(labelText(storedLanguage));
-	}, [storedLanguage, labelText]);
+	}, []);
 
 	const commit = React.useCallback(
 		(value?: string) => {
@@ -168,10 +174,10 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		[draft, findLanguageByDisplayLabel, updateAttributes],
 	);
 
-	// Enter in the autocomplete input commits the current draft. Escape is
-	// handled by the Popover itself (it calls onOpenChange(false) -> closePicker).
+	// Enter commits a free-form value when no suggestion is active. The
+	// autocomplete handles highlighted suggestions and Escape.
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-		if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+		if (e.key === "Enter" && !e.defaultPrevented && e.target instanceof HTMLInputElement) {
 			e.preventDefault();
 			commit();
 		}
@@ -213,7 +219,8 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 			</pre>
 
 			<div
-				className="absolute end-1 top-0 z-10 select-none"
+				ref={controlsRef}
+				className="absolute end-1 top-1 z-10 select-none"
 				style={{ width: "max-content", maxWidth: "calc(100% - 0.25rem)" }}
 				contentEditable={false}
 			>
@@ -223,15 +230,16 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 				>
 					<TooltipProvider>
 						<Toolbar
+							key={toolbarKey}
 							size="sm"
-							className="emdash-code-block-controls max-w-full text-[13px]"
+							className="emdash-code-block-controls max-w-full border border-kumo-line text-[13px] ring-0 shadow-none"
 							data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 							aria-label={t`Code block actions`}
 						>
 							<Popover.Trigger
 								render={
 									<Toolbar.Button
-										className="min-w-0 flex-1 overflow-hidden text-[13px]"
+										className={`${TOOLBAR_BUTTON_LOGICAL_EDGES} min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:relative focus-visible:z-10 focus-visible:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus focus-visible:ring-0`}
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Set language (current: ${label})`}
 									>
@@ -247,7 +255,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 								render={
 									<Toolbar.Button
 										shape="square"
-										className="relative isolate overflow-hidden text-[13px]"
+										className={`${TOOLBAR_BUTTON_LOGICAL_EDGES} relative isolate overflow-hidden text-[13px]`}
 										onMouseDown={(event) => event.preventDefault()}
 										onClick={copyCode}
 										aria-label={copyFailed ? t`Retry copy` : t`Copy code`}
@@ -269,51 +277,53 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<span className="sr-only" role="status" aria-live="polite">
 						{copyFailed ? t`Copy failed` : copied ? t`Copied` : ""}
 					</span>
-					<Popover.Content side="bottom" className="w-auto p-1">
-						<div className="flex items-center gap-1" onKeyDown={handleKeyDown}>
-							<Autocomplete
-								items={languageItems}
-								value={draft}
-								onValueChange={(next: string) => setDraft(next)}
-								filter={filterLanguages}
+					<Popover.Content
+						side="bottom"
+						className="emdash-code-language-popover z-[100] max-h-[var(--available-height)] w-80 max-w-[calc(100vw-1rem)] overflow-hidden p-3"
+					>
+						<Autocomplete
+							inline
+							label={t`Language`}
+							open={isEditing}
+							onOpenChange={(open: boolean) => {
+								if (!open) closePicker();
+							}}
+							items={languageItems}
+							value={draft}
+							onValueChange={(next: string) => setDraft(next)}
+							filter={filterLanguages}
+						>
+							<div onKeyDown={handleKeyDown}>
+								<Autocomplete.InputGroup
+									size="base"
+									className="emdash-code-language-input border border-kumo-line ring-0 focus:ring-0"
+									placeholder={t`Search for a language…`}
+								/>
+							</div>
+							<Autocomplete.List className="emdash-code-language-list mt-2 max-h-[min(20rem,calc(var(--available-height)-6rem))]">
+								{(item: string) => {
+									const isCurrentLanguage = Boolean(storedLanguage) && item === label;
+									return (
+										<Autocomplete.Item
+											key={item}
+											value={item}
+											aria-selected={isCurrentLanguage}
+											data-selected={isCurrentLanguage ? "" : undefined}
+											onClick={() => commit(item)}
+										>
+											{item}
+										</Autocomplete.Item>
+									);
+								}}
+							</Autocomplete.List>
+							<Autocomplete.Empty
+								className={hasLanguageMatches ? undefined : "px-3 py-2 text-base text-kumo-subtle"}
 							>
-								<Autocomplete.InputGroup size="sm" placeholder={t`Language`} />
-								<Autocomplete.Content sideOffset={4}>
-									<Autocomplete.List>
-										{(item: string) => (
-											<Autocomplete.Item key={item} value={item}>
-												{item}
-											</Autocomplete.Item>
-										)}
-									</Autocomplete.List>
-									<Autocomplete.Empty>{t`No matches`}</Autocomplete.Empty>
-								</Autocomplete.Content>
-							</Autocomplete>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-7 w-7"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => commit()}
-								title={t`Apply language`}
-								aria-label={t`Apply language`}
-							>
-								<Check className="h-4 w-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-7 w-7"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={closePicker}
-								title={t`Cancel`}
-								aria-label={t`Cancel`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
+								{freeFormLanguage
+									? t`No matches. Press Enter to use “${freeFormLanguage}”.`
+									: t`No matches`}
+							</Autocomplete.Empty>
+						</Autocomplete>
 					</Popover.Content>
 				</Popover>
 			</div>
@@ -338,6 +348,14 @@ export const CodeBlockExtension = CodeBlockLowlight.extend({
 
 		return {
 			...shortcuts,
+			"Mod-a": () => {
+				if (!selectionIsInCodeBlock()) return false;
+				const { $from } = this.editor.state.selection;
+				return this.editor.commands.setTextSelection({
+					from: $from.start(),
+					to: $from.end(),
+				});
+			},
 			Tab: (props) => (selectionIsInCodeBlock() ? (shortcuts.Tab?.(props) ?? false) : false),
 			"Shift-Tab": (props) =>
 				selectionIsInCodeBlock() ? (shortcuts["Shift-Tab"]?.(props) ?? false) : false,

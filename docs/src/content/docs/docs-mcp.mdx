@@ -5,9 +5,9 @@ description: Connect your AI coding assistant to the EmDash documentation so it 
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-The EmDash documentation site exposes a [Model Context Protocol](https://modelcontextprotocol.io) server at `https://docs.emdashcms.com/mcp`. Connect your coding assistant to it and the assistant can search the docs as you work, instead of guessing from training data that may be out of date.
+The EmDash documentation site exposes a public [Model Context Protocol](https://modelcontextprotocol.io) server at `https://docs.emdashcms.com/mcp`. Connect a coding assistant to search the published docs while you work.
 
-This is **separate from your site's MCP server** (covered in the [AI Tools guide](/guides/ai-tools)). The docs MCP only knows about EmDash's documentation -- it cannot read or modify your content. Most developers want both: the docs MCP to look things up, and the site MCP to manage content.
+This is **separate from your site's MCP server** (covered in the [AI Tools guide](/guides/ai-tools)). The docs MCP only knows about EmDash's documentation -- it cannot read or modify your content. Connect the docs MCP for documentation lookup, the site MCP for content management, or both when the assistant needs both kinds of access.
 
 ## What it does
 
@@ -17,7 +17,7 @@ The docs MCP exposes a single tool:
 | ------------- | --------------------------------------------------------------------------------------------- |
 | `search_docs` | Search the EmDash documentation. Returns relevant chunks with source URLs and match scores. |
 
-Behind the scenes it uses [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/) over an index built from `docs.emdashcms.com`. The crawler keeps the index in sync with the published site, so answers reflect the docs you're reading.
+The server uses [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/) over an index of `docs.emdashcms.com`. Results contain source URLs and matching passages; the AI client decides how to use them in its answer.
 
 ## Connect it
 
@@ -44,6 +44,22 @@ Open the project and accept the workspace-trust prompt the tool shows on first r
 If you're not using a template, or you use a different tool, add it once with the snippet for your client:
 
 <Tabs>
+<TabItem label="Codex">
+
+Add the public remote server with the Codex CLI:
+
+```bash
+codex mcp add emdash-docs --url https://docs.emdashcms.com/mcp
+```
+
+The ChatGPT desktop app, Codex CLI, and IDE extension share MCP configuration for the same Codex host. The [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) covers the CLI, `config.toml`, and current transport support.
+
+</TabItem>
+<TabItem label="ChatGPT">
+
+ChatGPT developer mode can create an app from a remote MCP server with no authentication. Use the docs MCP endpoint when creating the app. Follow the [official ChatGPT developer mode guide](https://developers.openai.com/api/docs/guides/developer-mode) for current eligibility and controls instead of relying on a copied settings path.
+
+</TabItem>
 <TabItem label="Claude Code">
 
 The following command adds the server with the Claude Code CLI:
@@ -52,7 +68,7 @@ The following command adds the server with the Claude Code CLI:
 claude mcp add --transport http emdash-docs https://docs.emdashcms.com/mcp
 ```
 
-Alternatively, commit a `.mcp.json` file at the project root with the following contents:
+Alternatively, commit the same `.mcp.json` file that EmDash templates provide:
 
 ```json title=".mcp.json"
 {
@@ -84,7 +100,7 @@ Add the following entry to `opencode.jsonc`:
 </TabItem>
 <TabItem label="Cursor">
 
-Commit a `.cursor/mcp.json` file at the project root with the following contents, or add the server via **Cursor Settings -> MCP -> Add new MCP server**:
+Commit a `.cursor/mcp.json` file at the project root with the following contents. For user-level or interface setup, follow [Cursor's MCP documentation](https://docs.cursor.com/context/model-context-protocol):
 
 ```json title=".cursor/mcp.json"
 {
@@ -100,7 +116,7 @@ Commit a `.cursor/mcp.json` file at the project root with the following contents
 </TabItem>
 <TabItem label="VS Code">
 
-Add the following entry to `.vscode/mcp.json` in the project, or to user settings:
+Add the following entry to `.vscode/mcp.json` in the project. For user-level configuration and trust controls, follow [Visual Studio Code's MCP documentation](https://code.visualstudio.com/docs/copilot/chat/mcp-servers):
 
 ```json title=".vscode/mcp.json"
 {
@@ -114,20 +130,9 @@ Add the following entry to `.vscode/mcp.json` in the project, or to user setting
 ```
 
 </TabItem>
-<TabItem label="Claude Desktop">
+<TabItem label="Claude">
 
-Claude Desktop only supports stdio MCP servers natively, so use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge. Add the following entry to `claude_desktop_config.json`:
-
-```json title="claude_desktop_config.json"
-{
-  "mcpServers": {
-    "emdash-docs": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://docs.emdashcms.com/mcp"]
-    }
-  }
-}
-```
+Add the endpoint as a remote custom connector. Connector screens and plan requirements are controlled by Anthropic, so follow its [current remote MCP connector instructions](https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp).
 
 </TabItem>
 </Tabs>
@@ -139,7 +144,7 @@ Claude Desktop only supports stdio MCP servers natively, so use [`mcp-remote`](h
 - You're porting a WordPress theme and want examples of seed file patterns.
 - You're stuck on an error and want to search release notes and concepts.
 
-## Recommend it in your AGENTS.md
+## Recommend it in `AGENTS.md`
 
 If your project uses `AGENTS.md` (or `CLAUDE.md`, `.cursorrules`, etc.) to instruct AI tools, point them at the docs MCP so they prefer real documentation over assumptions:
 

@@ -19,9 +19,6 @@
 		},
 		"packages/admin": {},
 		"packages/gutenberg-to-portable-text": {},
-		"packages/sandbox-cloudflare": {
-			"ignoreDependencies": ["cloudflare"]
-		},
 		"packages/plugins/*": {},
 		"demos/*": {
 			"entry": ["src/**/*.{ts,astro}"],

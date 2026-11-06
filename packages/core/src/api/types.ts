@@ -35,16 +35,7 @@ export interface ContentResponse {
 export interface ManifestResponse {
 	version: string;
 	hash: string;
-	collections: Record<
-		string,
-		{
-			label: string;
-			labelSingular: string;
-			supports: string[];
-			routable?: boolean;
-			fields: Record<string, FieldDescriptor>;
-		}
-	>;
+	collections: ManifestCollectionMap;
 	plugins: Record<
 		string,
 		{
@@ -54,10 +45,46 @@ export interface ManifestResponse {
 	>;
 }
 
+export type ManifestCollectionMap = Record<string, ManifestCollectionDescriptor>;
+
+export interface ManifestCollectionDescriptor {
+	label: string;
+	labelSingular: string;
+	supports: string[];
+	hasSeo: boolean;
+	urlPattern?: string;
+	routable?: boolean;
+	titleField?: string;
+	dateField?: string;
+	hidden?: boolean;
+	/** Phosphor icon name for the admin sidebar entry */
+	icon?: string;
+	/** Admin sidebar folder shared with other collections of the same group */
+	group?: string;
+	/** `false` omits the dashboard's "new entry" quick action */
+	quickCreate?: boolean;
+	listColumns?: string[];
+	fields: Record<string, ManifestFieldDescriptor>;
+}
+
+export interface ManifestFieldDescriptor extends FieldDescriptor {
+	id?: string;
+	widget?: string;
+	validation?: Record<string, unknown>;
+	unsupportedType?: { type: string; path: string };
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
+	/** Value a new entry starts with in the admin editor. */
+	defaultValue?: unknown;
+	/** Set on `integer` fields, which share the `number` kind. */
+	integer?: boolean;
+}
+
 export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
+	translatable?: boolean;
 	/**
 	 * For `select` / `multiSelect`: the list of enum choices.
 	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
@@ -91,3 +118,4 @@ export interface ApiContext {
 	userId?: string;
 	userRole?: string;
 }
+import type { BlockType } from "../schema/block-types.js";

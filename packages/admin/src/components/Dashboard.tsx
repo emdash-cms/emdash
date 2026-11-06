@@ -1,23 +1,34 @@
-import { Badge, Banner, LayerCard, SkeletonLine } from "@cloudflare/kumo";
+import { Badge, Banner, Button, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Upload } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { FileArrowUp, Plus, Upload, X } from "@phosphor-icons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import * as React from "react";
 
 import type { AdminManifest } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
-import { fetchDashboardStats } from "../lib/api/dashboard";
+import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
+import { fetchTransferCapabilities, TRANSFER_CAPABILITIES_QUERY_KEY } from "../lib/api/transfer.js";
 import { usePluginWidget } from "../lib/plugin-context";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons";
 import {
 	ContentStatusIcon,
 	CONTENT_STATUS_ICONS,
 	type ContentStatusState,
 } from "./ContentStatusBadge.js";
+import { CoreUpdateBanner } from "./CoreUpdateBanner.js";
+import { getMutationError } from "./DialogError.js";
+import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
+import {
+	declaredLabelTranslator,
+	resolvePluginWidgetTitle,
+	visibleCollectionEntries,
+} from "./Sidebar.js";
 
 const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	published: "published",
@@ -29,6 +40,12 @@ const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	archived: "archived",
 };
 
+const ROLE_ADMIN = 50;
+const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
+
+const SITE_IMPORT_HINT_DISMISSED_KEY = "emdash:dashboard:site-import-hint-dismissed";
+
 export interface DashboardProps {
 	manifest: AdminManifest;
 }
@@ -38,6 +55,7 @@ export interface DashboardProps {
  */
 export function Dashboard({ manifest }: DashboardProps) {
 	const { t } = useLingui();
+	const { data: user } = useCurrentUser();
 	const {
 		data: stats,
 		isLoading,
@@ -52,17 +70,30 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 	return (
 		<div className="space-y-6">
+			{manifest.marketplace && (user?.role ?? 0) >= ROLE_ADMIN && <MarketplaceMigrationBanner />}
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
 
+			<CoreUpdateBanner />
+
 			{isError && <DashboardDataError />}
 
 			{showDashboardData && (
 				<>
-					{stats && <SchedulerWarning stats={stats} />}
-					<SummaryMetrics stats={stats} loading={isLoading} />
+					{stats && (user?.role ?? 0) >= ROLE_ADMIN && <SiteImportHint stats={stats} />}
+					{stats && (
+						<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
+					)}
+					<SummaryMetrics
+						stats={stats}
+						loading={isLoading}
+						linkCalendar={
+							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+							!manifest.admin?.hiddenNavItems?.includes("calendar")
+						}
+					/>
 
 					{/* Collections + Recent activity */}
 					<div className="grid gap-6 lg:grid-cols-2">
@@ -82,18 +113,43 @@ export function Dashboard({ manifest }: DashboardProps) {
 	);
 }
 
-function SchedulerWarning({ stats }: { stats: DashboardStats }) {
+function SchedulerWarning({
+	stats,
+	canDismissPolicy,
+}: {
+	stats: DashboardStats;
+	canDismissPolicy: boolean;
+}) {
 	const { t } = useLingui();
+	const queryClient = useQueryClient();
+	const dismissMutation = useMutation({
+		mutationFn: ({
+			collection,
+			id,
+			revision,
+		}: {
+			collection: string;
+			id: string;
+			revision: string;
+		}) => dismissScheduledPolicyRejection(collection, id, revision),
+		onSettled: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+		},
+	});
+	const policyRejected = stats.policyRejectedScheduled ?? 0;
+	const policyRejections = stats.policyRejections ?? [];
 	const overdueCount = stats.collections.reduce(
 		(sum, collection) => sum + (collection.overdueScheduled ?? 0),
 		0,
 	);
-	if (overdueCount === 0 || !stats.schedulerHealth || stats.schedulerHealth.status === "healthy") {
-		return null;
-	}
+	const schedulerNeedsAttention =
+		overdueCount > 0 &&
+		stats.schedulerHealth !== undefined &&
+		stats.schedulerHealth.status !== "healthy";
+	if (policyRejected === 0 && !schedulerNeedsAttention) return null;
 
-	const description =
-		stats.schedulerHealth.status === "unknown"
+	const schedulerDescription = schedulerNeedsAttention
+		? stats.schedulerHealth!.status === "unknown"
 			? plural(overdueCount, {
 					one: "One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
 					other:
@@ -103,14 +159,148 @@ function SchedulerWarning({ stats }: { stats: DashboardStats }) {
 					one: "One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
 					other:
 						"# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
-				});
+				})
+		: "";
+
+	return (
+		<div className="space-y-3">
+			{policyRejected > 0 && (
+				<div className="space-y-2">
+					<Banner
+						variant="alert"
+						title={t`Publication policy blocked scheduled content`}
+						description={plural(policyRejected, {
+							one: "Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.",
+							other:
+								"Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.",
+						})}
+						role="alert"
+					/>
+					{policyRejections.length > 0 && (
+						<ul className="space-y-2">
+							{policyRejections.map((rejection) => (
+								<li key={`${rejection.collection}:${rejection.id}`}>
+									<LayerCard.Secondary className="p-3">
+										<Link
+											to="/content/$collection/$id"
+											params={{ collection: rejection.collection, id: rejection.id }}
+											className="font-medium text-kumo-brand hover:underline"
+										>
+											<bdi dir="ltr">
+												{rejection.collection}/{rejection.id}
+											</bdi>
+										</Link>
+										<p className="mt-1 text-sm text-kumo-subtle">{rejection.reason}</p>
+										{canDismissPolicy && (
+											<Button
+												variant="secondary"
+												size="sm"
+												className="mt-2"
+												disabled={dismissMutation.isPending}
+												onClick={() =>
+													dismissMutation.mutate({
+														collection: rejection.collection,
+														id: rejection.id,
+														revision: rejection._rev,
+													})
+												}
+											>
+												{t`Dismiss`}
+											</Button>
+										)}
+									</LayerCard.Secondary>
+								</li>
+							))}
+						</ul>
+					)}
+					{policyRejected > policyRejections.length && (
+						<p className="text-sm text-kumo-subtle">
+							{plural(policyRejected - policyRejections.length, {
+								one: "One more blocked entry is not shown.",
+								other: "# more blocked entries are not shown.",
+							})}
+						</p>
+					)}
+					{dismissMutation.isError && (
+						<p className="text-sm text-kumo-danger" role="alert">
+							{getMutationError(dismissMutation.error) ??
+								t`Failed to dismiss scheduled publication rejection`}
+						</p>
+					)}
+				</div>
+			)}
+			{schedulerNeedsAttention && (
+				<Banner
+					variant="alert"
+					title={t`Scheduled publishing needs attention`}
+					description={schedulerDescription}
+					role="alert"
+				/>
+			)}
+		</div>
+	);
+}
+
+function readSiteImportHintDismissed(): boolean {
+	try {
+		return window.localStorage.getItem(SITE_IMPORT_HINT_DISMISSED_KEY) === "1";
+	} catch {
+		return false;
+	}
+}
+
+function SiteImportHint({ stats }: { stats: DashboardStats }) {
+	const { t } = useLingui();
+	const [dismissed, setDismissed] = React.useState(readSiteImportHintDismissed);
+	// Any content or media rules out an import, so only ask the server when the
+	// counts already loaded for the dashboard leave it possible.
+	const mayBeEmpty =
+		stats.mediaCount === 0 && stats.collections.every((collection) => collection.total === 0);
+	const { data: capabilities } = useQuery({
+		queryKey: TRANSFER_CAPABILITIES_QUERY_KEY,
+		queryFn: fetchTransferCapabilities,
+		enabled: !dismissed && mayBeEmpty,
+	});
+
+	if (dismissed || !mayBeEmpty || !capabilities?.portableDomain.empty) return null;
+
+	const dismiss = () => {
+		setDismissed(true);
+		try {
+			window.localStorage.setItem(SITE_IMPORT_HINT_DISMISSED_KEY, "1");
+		} catch {
+			// Without storage the hint stays hidden until the next page load.
+		}
+	};
 
 	return (
 		<Banner
-			variant="alert"
-			title={t`Scheduled publishing needs attention`}
-			description={description}
-			role="alert"
+			variant="secondary"
+			icon={<FileArrowUp aria-hidden="true" />}
+			title={t`Moving from another EmDash site?`}
+			description={t`This site has no content yet, so you can import a .emdash package exported from another EmDash site.`}
+			action={
+				<div className="flex items-center gap-1">
+					<RouterLinkButton
+						to="/settings/transfer"
+						search={{ start: "import" }}
+						variant="secondary"
+						size="sm"
+					>
+						{t`Import a site package`}
+					</RouterLinkButton>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						shape="square"
+						onClick={dismiss}
+						aria-label={t`Dismiss import suggestion`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			}
 		/>
 	);
 }
@@ -143,7 +333,9 @@ function DashboardCardInset({ className, ...props }: React.ComponentPropsWithout
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const { t } = useLingui();
-	const collections = Object.entries(manifest.collections);
+	const collections = visibleCollectionEntries(manifest.collections).filter(
+		([, config]) => config.quickCreate !== false,
+	);
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
@@ -159,16 +351,27 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
-			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
-				{t`Upload Media`}
-			</RouterLinkButton>
+			{!manifest.admin?.hiddenNavItems?.includes("media") && (
+				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
+					{t`Upload Media`}
+				</RouterLinkButton>
+			)}
 		</div>
 	);
 }
 
 // --- Summary metrics ---
 
-function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: boolean }) {
+function SummaryMetrics({
+	stats,
+	loading,
+	linkCalendar,
+}: {
+	stats?: DashboardStats;
+	loading: boolean;
+	/** Link the Scheduled count to the calendar, for roles that can open it. */
+	linkCalendar: boolean;
+}) {
 	if (loading) {
 		return (
 			<div className="grid gap-4 sm:grid-cols-3">
@@ -196,7 +399,7 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
 	const hasScheduledContent = totalScheduled > 0;
 
-	const metrics: Array<{ label: string; value: number }> = [
+	const metrics: Array<{ label: string; value: number; calendar?: boolean }> = [
 		{
 			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
 			value: totalDrafts,
@@ -206,30 +409,56 @@ function SummaryMetrics({ stats, loading }: { stats?: DashboardStats; loading: b
 					{
 						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
 						value: totalScheduled,
+						calendar: linkCalendar,
 					},
 				]
 			: []),
-		{
-			label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
-			value: stats.mediaCount,
-		},
-		{
-			label: plural(stats.userCount, { one: "User", other: "Users" }),
-			value: stats.userCount,
-		},
+		...(stats.mediaCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+						value: stats.mediaCount,
+					},
+				]),
+		...(stats.userCount === undefined
+			? []
+			: [
+					{
+						label: plural(stats.userCount, { one: "User", other: "Users" }),
+						value: stats.userCount,
+					},
+				]),
 	];
 
 	return (
 		<div
 			className={
-				hasScheduledContent
+				metrics.length === 4
 					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: "grid gap-4 sm:grid-cols-3"
+					: metrics.length === 3
+						? "grid gap-4 sm:grid-cols-3"
+						: "grid gap-4 sm:grid-cols-2"
 			}
 		>
 			{metrics.map((metric) => (
 				<LayerCard key={metric.label} data-testid="dashboard-metric">
-					<DashboardCardHeading>{metric.label}</DashboardCardHeading>
+					<DashboardCardHeading>
+						{metric.calendar ? (
+							<Link
+								to="/calendar"
+								className="group inline-flex items-center gap-1 rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+							>
+								{metric.label}
+								<ArrowNext
+									aria-hidden="true"
+									className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+								/>
+							</Link>
+						) : (
+							metric.label
+						)}
+					</DashboardCardHeading>
 					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
 						<DashboardCardInset data-testid="dashboard-metric-value">
 							{metric.value}
@@ -263,6 +492,7 @@ function CollectionList({
 	loading: boolean;
 }) {
 	const { t } = useLingui();
+	const visibleCollections = collections.filter((col) => !manifest.collections[col.slug]?.hidden);
 
 	return (
 		<LayerCard className="h-full">
@@ -270,13 +500,13 @@ function CollectionList({
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
 					<SkeletonRows count={3} />
-				) : collections.length === 0 ? (
+				) : visibleCollections.length === 0 ? (
 					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
 						{t`No collections configured`}
 					</p>
 				) : (
 					<div className="space-y-1">
-						{collections.map((col) => {
+						{visibleCollections.map((col) => {
 							const config = manifest.collections[col.slug];
 							return (
 								<Link
@@ -341,7 +571,7 @@ function CountBadge({
 // --- Recent activity ---
 
 function RecentActivity({ items, loading }: { items: RecentItem[]; loading: boolean }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	return (
 		<LayerCard className="h-full">
@@ -375,7 +605,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 									data-testid="activity-time"
 									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
 								>
-									{formatRelativeTime(item.updatedAt)}
+									<bdi>{formatRelativeTime(item.updatedAt, i18n.locale)}</bdi>
 								</span>
 							</Link>
 						))}
@@ -446,11 +676,17 @@ function PluginWidgetCard({
 }: {
 	widget: { id: string; pluginId: string; title?: string; size?: string };
 }) {
+	const { i18n } = useLingui();
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
+	const title = resolvePluginWidgetTitle(
+		widget.title,
+		widget.id,
+		declaredLabelTranslator(i18n, (id) => i18n._(id)),
+	);
 
 	return (
 		<LayerCard className="h-full">
-			<DashboardCardHeading>{widget.title || widget.id}</DashboardCardHeading>
+			<DashboardCardHeading>{title}</DashboardCardHeading>
 			<LayerCard.Primary className="flex-1">
 				<DashboardCardInset>
 					{WidgetComponent ? (

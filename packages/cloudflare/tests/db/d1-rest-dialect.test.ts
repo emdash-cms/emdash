@@ -114,6 +114,27 @@ describe("D1RestDialect", () => {
 		await db.destroy();
 	});
 
+	it("preserves a structured D1 query error returned with HTTP 400", async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+			jsonResponse(
+				{
+					success: false,
+					errors: [{ code: 7500, message: "no such table: _emdash_migrations: SQLITE_ERROR" }],
+					messages: [],
+					result: null,
+				},
+				{ status: 400 },
+			),
+		);
+		const db = database(fetch);
+
+		await expect(sql`select name from _emdash_migrations`.execute(db)).rejects.toThrow(
+			"no such table: _emdash_migrations",
+		);
+		expect(fetch).toHaveBeenCalledTimes(1);
+		await db.destroy();
+	});
+
 	it("preserves a top-level Cloudflare API failure", async () => {
 		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
 			jsonResponse({
@@ -175,6 +196,20 @@ describe("D1RestDialect", () => {
 		const db = database(fetch, { maxResponseBytes: 100 });
 
 		await expect(sql`select 1`.execute(db)).rejects.toThrow(/response.*large/i);
+		await db.destroy();
+	});
+
+	it("accepts a multi-megabyte response under the default bound", async () => {
+		// A batch of fifty content revisions with their bodies is several MiB on a
+		// real site; the default bound must not refuse the migration that reads them.
+		const padding = "x".repeat(3 * 1_048_576);
+		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+			jsonResponse(queryEnvelope([{ data: padding }])),
+		);
+		const db = database(fetch);
+
+		const result = await sql<{ data: string }>`select 1`.execute(db);
+		expect(result.rows[0]?.data.length).toBe(padding.length);
 		await db.destroy();
 	});
 

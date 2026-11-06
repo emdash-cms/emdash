@@ -1,10 +1,35 @@
-import { sql, type Kysely } from "kysely";
-import { monotonicFactory } from "ulidx";
+import { sql, type Kysely, type Selectable } from "kysely";
+import { B32_CHARACTERS, decodeTime, encodeTime, monotonicFactory, ULID_REGEX } from "ulidx";
 
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
 const monotonic = monotonicFactory();
+
+export function createRevisionId(): string {
+	return monotonic();
+}
+
+/**
+ * The id of an entry's starting revision. Every save of the entry derives the same id, so
+ * overlapping first saves write the row once. Its time is just before the entry was created,
+ * so it sorts before every other revision of the entry.
+ */
+export function startingRevisionId(collection: string, entryId: string, createdAt: string): string {
+	const created = ULID_REGEX.test(entryId) ? decodeTime(entryId) : Date.parse(createdAt);
+	const time = Number.isFinite(created) ? Math.max(created - 1, 0) : 0;
+	let hash = 0xcbf29ce484222325n;
+	let suffix = "";
+	for (const char of `${collection}/${entryId}`) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0)!)) * 0x100000001b3n);
+	}
+	for (let i = 0; i < 16; i++) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(i)) * 0x100000001b3n);
+		suffix += B32_CHARACTERS[Number(hash >> 59n)];
+	}
+	return encodeTime(time, 10) + suffix;
+}
 
 export interface Revision {
 	id: string;
@@ -15,11 +40,28 @@ export interface Revision {
 	createdAt: string;
 }
 
+export interface RevisionAuthor {
+	id: string;
+	/** `null` when the account has no display name. */
+	name: string | null;
+}
+
+export interface RevisionWithAuthor extends Revision {
+	/** `null` when no author was recorded or the account no longer exists. */
+	author: RevisionAuthor | null;
+}
+
 export interface CreateRevisionInput {
 	collection: string;
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId?: string;
+}
+
+export function normalizeRevisionLimit(value: unknown): number {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric)) return 50;
+	return Math.max(1, Math.min(Math.trunc(numeric), 100));
 }
 
 /**
@@ -29,19 +71,27 @@ export interface CreateRevisionInput {
  * Used when collection has `supports: ["revisions"]` enabled.
  */
 export class RevisionRepository {
-	constructor(private db: Kysely<Database>) {}
+	private readonly datetimes: ContentDatetimeNormalizer;
+
+	constructor(
+		private db: Kysely<Database>,
+		datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
+	}
 
 	/**
 	 * Create a new revision
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
-		const id = monotonic();
+		const id = createRevisionId();
+		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Omit<RevisionTable, "created_at"> = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
-			data: JSON.stringify(input.data),
+			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
 		};
 
@@ -52,26 +102,48 @@ export class RevisionRepository {
 			throw new Error("Failed to create revision");
 		}
 
+		await this.queuePruning(input.collection, input.entryId, id);
+
+		return revision;
+	}
+
+	/**
+	 * Write a revision under a given id unless one with that id already exists.
+	 */
+	async createIfMissing(input: CreateRevisionInput & { id: string }): Promise<void> {
+		const data = await this.datetimes.normalizeData(input.collection, input.data);
+		await this.db
+			.insertInto("revisions")
+			.values({
+				id: input.id,
+				collection: input.collection,
+				entry_id: input.entryId,
+				data: JSON.stringify(data),
+				author_id: input.authorId ?? null,
+			})
+			.onConflict((conflict) => conflict.column("id").doNothing())
+			.execute();
+	}
+
+	async queuePruning(collection: string, entryId: string, revisionId: string): Promise<void> {
 		try {
 			await this.db
 				.insertInto("_emdash_revision_prune_queue")
 				.values({
-					collection: input.collection,
-					entry_id: input.entryId,
-					revision_id: id,
+					collection,
+					entry_id: entryId,
+					revision_id: revisionId,
 				})
 				.onConflict((conflict) =>
-					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: id }),
+					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: revisionId }),
 				)
 				.execute();
 		} catch (error) {
 			console.error(
-				`[revisions] Failed to queue revision pruning for ${input.collection}/${input.entryId}:`,
+				`[revisions] Failed to queue revision pruning for ${collection}/${entryId}:`,
 				error,
 			);
 		}
-
-		return revision;
 	}
 
 	/**
@@ -84,7 +156,23 @@ export class RevisionRepository {
 			.where("id", "=", id)
 			.executeTakeFirst();
 
-		return row ? this.rowToRevision(row) : null;
+		return row ? this.normalizeRow(row) : null;
+	}
+
+	/** Shallow-merge `patch` into a stored revision's data. */
+	async mergeData(id: string, patch: Record<string, unknown>): Promise<void> {
+		const row = await this.db
+			.selectFrom("revisions")
+			.select("data")
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return;
+		const data: Record<string, unknown> = { ...JSON.parse(row.data), ...patch };
+		await this.db
+			.updateTable("revisions")
+			.set({ data: JSON.stringify(data) })
+			.where("id", "=", id)
+			.execute();
 	}
 
 	/**
@@ -97,20 +185,91 @@ export class RevisionRepository {
 		collection: string,
 		entryId: string,
 		options: { limit?: number } = {},
-	): Promise<Revision[]> {
+	): Promise<RevisionWithAuthor[]> {
 		let query = this.db
 			.selectFrom("revisions")
-			.selectAll()
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
-			.orderBy("id", "desc");
+			.leftJoin("users", "users.id", "revisions.author_id")
+			.selectAll("revisions")
+			.select(["users.id as author_user_id", "users.name as author_name"])
+			.where("revisions.collection", "=", collection)
+			.where("revisions.entry_id", "=", entryId)
+			.orderBy("revisions.id", "desc");
 
 		if (options.limit) {
 			query = query.limit(options.limit);
 		}
 
 		const rows = await query.execute();
-		return rows.map((row) => this.rowToRevision(row));
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			rows.map((row) => JSON.parse(row.data)),
+		);
+		return rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return {
+				...this.rowToRevision(row, normalized),
+				author: row.author_user_id
+					? { id: row.author_user_id, name: row.author_name?.trim() || null }
+					: null,
+			};
+		});
+	}
+
+	/** Read revisions only when the owning content row is visible in the same statement snapshot. */
+	async findVisibleByEntry(
+		collection: string,
+		entryId: string,
+		options: { limit?: number } = {},
+	): Promise<Revision[]> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const limit = normalizeRevisionLimit(options.limit);
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			ORDER BY revisions.id DESC
+			LIMIT ${limit}
+		`.execute(this.db);
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			result.rows.map((row) => JSON.parse(row.data)),
+		);
+		return result.rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return this.rowToRevision(row, normalized);
+		});
+	}
+
+	/** Read one revision only when its owning content row is visible in the same statement snapshot. */
+	async findVisibleById(
+		collection: string,
+		entryId: string,
+		revisionId: string,
+	): Promise<Revision | null> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.id = ${revisionId}
+			AND revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			LIMIT 1
+		`.execute(this.db);
+		const row = result.rows[0];
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -126,7 +285,7 @@ export class RevisionRepository {
 			.limit(1)
 			.executeTakeFirst();
 
-		return row ? this.rowToRevision(row) : null;
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -256,19 +415,34 @@ export class RevisionRepository {
 	/**
 	 * Convert database row to Revision object
 	 */
-	private rowToRevision(row: {
+	private async normalizeRow(row: {
 		id: string;
 		collection: string;
 		entry_id: string;
 		data: string;
 		author_id: string | null;
 		created_at: string;
-	}): Revision {
+	}): Promise<Revision> {
+		const data = await this.datetimes.normalizeData(row.collection, JSON.parse(row.data));
+		return this.rowToRevision(row, data);
+	}
+
+	private rowToRevision(
+		row: {
+			id: string;
+			collection: string;
+			entry_id: string;
+			data: string;
+			author_id: string | null;
+			created_at: string;
+		},
+		data: Record<string, unknown>,
+	): Revision {
 		return {
 			id: row.id,
 			collection: row.collection,
 			entryId: row.entry_id,
-			data: JSON.parse(row.data),
+			data,
 			authorId: row.author_id,
 			createdAt: row.created_at,
 		};

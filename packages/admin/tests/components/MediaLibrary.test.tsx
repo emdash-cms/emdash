@@ -2,6 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
 import type { LocalMediaItem, MediaFolder, MediaItem, MediaProviderItem } from "../../src/lib/api";
@@ -448,7 +449,7 @@ describe("MediaLibrary", () => {
 			await simulateMediaDrop(item, folder);
 			await vi.waitFor(() => expect(onMoveMedia).toHaveBeenCalledWith(item, folder));
 			expect(onOpenFolder).not.toHaveBeenCalled();
-			expect(screen.getByRole("heading", { name: "Media Details" }).query()).toBeNull();
+			expect(screen.getByRole("heading", { name: "Media details" }).query()).toBeNull();
 			await expect
 				.element(screen.getByText("Moved to Product photos", { exact: true }))
 				.toBeVisible();
@@ -509,7 +510,7 @@ describe("MediaLibrary", () => {
 
 			expect(onMoveMedia).not.toHaveBeenCalled();
 			await expect
-				.element(screen.getByRole("heading", { name: "Media Details" }))
+				.element(screen.getByRole("heading", { name: "Media details" }))
 				.toBeInTheDocument();
 		});
 
@@ -746,7 +747,7 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Loading folders")).toBeInTheDocument();
 		});
 
-		it("shows Back and breadcrumbs inside a folder and hides local creation actions", async () => {
+		it("shows Back and breadcrumbs inside a folder, hides folder creation, and keeps upload available", async () => {
 			const onBackToMain = vi.fn();
 			const screen = await renderLibrary({
 				folderId: "folder-1",
@@ -775,7 +776,9 @@ describe("MediaLibrary", () => {
 				getComputedStyle(currentFolder.element()).fontSize,
 			);
 			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
-			expect(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first())
+				.toBeInTheDocument();
 		});
 
 		it("keeps browsing available without folder-management permission", async () => {
@@ -867,19 +870,52 @@ describe("MediaLibrary", () => {
 			expect(onOpenFolder).toHaveBeenCalledWith(expect.objectContaining({ id: "folder-result" }));
 		});
 
-		it("disables local page-drop upload while inside a folder", async () => {
-			const onUpload = vi.fn();
+		it("allows local page-drop upload while inside a folder and passes the folder id", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
 			const screen = await renderLibrary({
 				folderId: "folder-1",
 				currentFolder: makeFolder(),
 				onUpload,
 			});
 
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first())
+				.toBeInTheDocument();
+
 			dropFiles(window, [new File(["image"], "dropped.jpg", { type: "image/jpeg" })]);
 
-			await new Promise((resolve) => setTimeout(resolve, 50));
-			expect(onUpload).not.toHaveBeenCalled();
-			expect(screen.getByText("Drop files to upload").query()).toBeNull();
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+			expect(onUpload).toHaveBeenCalledWith(
+				expect.objectContaining({ name: "dropped.jpg" }),
+				expect.objectContaining({ folderId: "folder-1" }),
+			);
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+		});
+
+		it("offers upload alongside Back in an empty folder", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({
+				folderId: "folder-1",
+				currentFolder: makeFolder(),
+				onUpload,
+			});
+			await expect
+				.element(screen.getByRole("heading", { name: "This folder is empty" }))
+				.toBeVisible();
+			const uploadButtons = screen.getByRole("button", { name: "Upload Files", exact: true });
+			await vi.waitFor(() => expect(uploadButtons.all()).toHaveLength(2));
+			await uploadButtons.nth(1).click();
+			setInputFiles(screen.getByLabelText("Browse files to upload").element() as HTMLInputElement, [
+				new File(["folder"], "folder.jpg", { type: "image/jpeg" }),
+			]);
+			await vi.waitFor(() =>
+				expect(onUpload).toHaveBeenCalledWith(
+					expect.objectContaining({ name: "folder.jpg" }),
+					expect.objectContaining({ folderId: "folder-1" }),
+				),
+			);
 		});
 
 		it("keeps media usable when folders fail and offers retry", async () => {
@@ -951,6 +987,31 @@ describe("MediaLibrary", () => {
 			await expect.element(img).toHaveAttribute("src", "https://example.com/photo.jpg");
 			expect(img.element().style.objectPosition).toBe("20% 80%");
 		});
+
+		it("shows filenames and file formats on local grid cards", async () => {
+			const longFilename = "annual-report-final-approved-version.jpg";
+			const screen = await renderLibrary({
+				items: [
+					makeMediaItem({
+						id: "image-1",
+						filename: longFilename,
+						alt: "An annual report cover",
+						mimeType: "image/jpeg",
+					}),
+					makeMediaItem({
+						id: "document-1",
+						filename: "annual-report.pdf",
+						mimeType: "application/pdf",
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("JPEG", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("PDF", { exact: true })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: longFilename, exact: true }))
+				.toBeInTheDocument();
+		});
 	});
 
 	describe("view mode toggle", () => {
@@ -995,6 +1056,38 @@ describe("MediaLibrary", () => {
 			await expect
 				.element(screen.getByRole("heading", { name: "Upload to Library" }))
 				.toBeInTheDocument();
+		});
+
+		it("keeps the folder destination captured when the parent changes while uploading", async () => {
+			const onUpload = vi.fn().mockResolvedValue(undefined);
+			const screen = await renderLibrary({
+				folderId: "folder-original",
+				currentFolder: makeFolder({ id: "folder-original", name: "Original" }),
+				onUpload,
+			});
+
+			screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first().element().click();
+			await expect
+				.element(screen.getByRole("heading", { name: "Upload to Library" }))
+				.toBeInTheDocument();
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaLibrary
+						folderId="folder-new"
+						currentFolder={makeFolder({ id: "folder-new", name: "New" })}
+						onUpload={onUpload}
+					/>
+				</QueryWrapper>,
+			);
+			setInputFiles(screen.getByLabelText("Browse files to upload").element() as HTMLInputElement, [
+				new File(["queued"], "queued.jpg", { type: "image/jpeg" }),
+			]);
+
+			await vi.waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+			expect(onUpload).toHaveBeenCalledWith(
+				expect.objectContaining({ name: "queued.jpg" }),
+				expect.objectContaining({ folderId: "folder-original", deduplicate: false }),
+			);
 		});
 
 		it("opens the upload dialog and caps parallel uploads at three", async () => {
@@ -1044,6 +1137,38 @@ describe("MediaLibrary", () => {
 			await vi.waitFor(() => expect(screen.getByText("Drop files to upload").query()).toBeNull());
 		});
 
+		it("cancels external-provider file drops without invoking upload callbacks", async () => {
+			const api = await import("../../src/lib/api");
+			vi.mocked(api.fetchMediaProviders).mockResolvedValueOnce([
+				{
+					id: "external",
+					name: "External files",
+					capabilities: { browse: true, search: false, upload: false, delete: false },
+				},
+			]);
+			const onUpload = vi.fn();
+			const screen = await renderLibrary({ onUpload });
+			await screen.getByRole("tab", { name: "External files" }).click();
+			const transfer = new DataTransfer();
+			transfer.items.add(new File(["blocked"], "blocked.jpg", { type: "image/jpeg" }));
+			const dragOver = new DragEvent("dragover", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			const drop = new DragEvent("drop", {
+				bubbles: true,
+				cancelable: true,
+				dataTransfer: transfer,
+			});
+			window.dispatchEvent(dragOver);
+			window.dispatchEvent(drop);
+			expect(dragOver.defaultPrevented).toBe(true);
+			expect(drop.defaultPrevented).toBe(true);
+			expect(onUpload).not.toHaveBeenCalled();
+			expect(api.uploadToProvider).not.toHaveBeenCalled();
+		});
+
 		it("opens the same direct-upload dialog for files dropped on the page", async () => {
 			const onUpload = vi.fn().mockResolvedValue(undefined);
 			const screen = await renderLibrary({ onUpload });
@@ -1084,6 +1209,56 @@ describe("MediaLibrary", () => {
 	});
 
 	describe("item selection", () => {
+		it.each([
+			{
+				label: "owner",
+				role: 30,
+				authorId: "user-1",
+				duplicate: true,
+				replace: true,
+			},
+			{
+				label: "another author",
+				role: 30,
+				authorId: "user-2",
+				duplicate: true,
+				replace: false,
+			},
+			{
+				label: "subscriber",
+				role: 10,
+				authorId: "user-1",
+				duplicate: false,
+				replace: false,
+			},
+		])("derives crop actions for an $label", async (testCase) => {
+			setupMocks.role = testCase.role;
+			const item = makeLocalMediaItem({
+				status: "ready",
+				authorId: testCase.authorId,
+				url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E",
+			});
+			const screen = await renderLibrary({ items: [item] });
+
+			await screen.getByRole("button", { name: "photo.jpg" }).click();
+			screen.getByRole("tab", { name: "Edit image" }).element().click();
+			const crop = screen.getByRole("tab", { name: "Crop" });
+			if (!testCase.duplicate && !testCase.replace) {
+				expect(crop.query()).toBeNull();
+				return;
+			}
+			await expect.element(crop).toBeVisible();
+			crop.element().click();
+			await expect.element(screen.getByLabelText("Crop output dimensions")).toBeVisible();
+
+			expect(screen.getByRole("button", { name: "Create cropped copy" }).query() !== null).toBe(
+				testCase.duplicate,
+			);
+			expect(screen.getByRole("button", { name: "Replace original" }).query() !== null).toBe(
+				testCase.replace,
+			);
+		});
+
 		it("clicking an item opens detail dialog", async () => {
 			const items = [makeMediaItem({ id: "1", filename: "photo.jpg", alt: "A photo" })];
 			const screen = await renderLibrary({ items });
@@ -1092,7 +1267,7 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("button", { name: "photo.jpg" }).click();
 
 			// MediaDetailPanel should open showing the item details
-			await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+			await expect.element(screen.getByText("Media details")).toBeInTheDocument();
 		});
 
 		it("opens the detail dialog on an animation frame so Kumo entry animation runs", async () => {
@@ -1115,12 +1290,12 @@ describe("MediaLibrary", () => {
 
 				expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
 				await expect
-					.element(screen.getByText("Media Details"), { timeout: 100 })
+					.element(screen.getByText("Media details"), { timeout: 100 })
 					.not.toBeInTheDocument();
 
 				openFrame?.(performance.now());
 
-				await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+				await expect.element(screen.getByText("Media details")).toBeInTheDocument();
 			} finally {
 				requestAnimationFrameSpy.mockRestore();
 				cancelAnimationFrameSpy.mockRestore();
@@ -1153,7 +1328,7 @@ describe("MediaLibrary", () => {
 
 			await screen.getByRole("button", { name: "photo.jpg" }).click();
 			screen.getByRole("button", { name: "Delete" }).element().click();
-			await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+			await expect.element(screen.getByText("Delete media?")).toBeInTheDocument();
 			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
 
 			await vi.waitFor(() => {
@@ -1179,7 +1354,7 @@ describe("MediaLibrary", () => {
 
 			await screen.getByRole("button", { name: "photo.jpg" }).click();
 			screen.getByRole("button", { name: "Delete" }).element().click();
-			await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+			await expect.element(screen.getByText("Delete media?")).toBeInTheDocument();
 			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
 
 			await vi.waitFor(() => {
@@ -1225,8 +1400,37 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("tab", { name: "List view" }).click();
 
 			await expect.element(screen.getByText("document.pdf")).toBeInTheDocument();
-			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
-			await expect.element(screen.getByText("1 MB")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "application/pdf", exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "1 MB", exact: true }))
+				.toBeInTheDocument();
+		});
+
+		it("opens a file's details from the filename button with the keyboard", async () => {
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "photo.jpg" })],
+			});
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const filename = screen.getByRole("button", { name: "photo.jpg", exact: true });
+
+			await userEvent.tab();
+			await expect.element(filename).toHaveFocus();
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(screen.getByRole("heading", { name: "Media details" })).toBeVisible();
+		});
+
+		it("opens a file's details from a click elsewhere on its row", async () => {
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "photo.jpg", mimeType: "image/jpeg" })],
+			});
+			await screen.getByRole("tab", { name: "List view" }).click();
+
+			await screen.getByRole("cell", { name: "image/jpeg", exact: true }).click();
+
+			await expect.element(screen.getByRole("heading", { name: "Media details" })).toBeVisible();
 		});
 	});
 
@@ -1323,23 +1527,19 @@ describe("MediaLibrary", () => {
 				const [page, setPage] = React.useState(1);
 				const [isPending, setIsPending] = React.useState(false);
 				return (
-					<>
-						<MediaLibrary
-							items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
-							pagination={makePagination({
-								page,
-								totalCount: 90,
-								isPending,
-								onPageChange(nextPage) {
-									setPage(nextPage);
-									setIsPending(true);
-								},
-							})}
-						/>
-						<button type="button" onClick={() => setIsPending(false)}>
-							Finish page request
-						</button>
-					</>
+					<MediaLibrary
+						items={[makeMediaItem({ id: String(page), filename: `page-${page}.jpg` })]}
+						pagination={makePagination({
+							page,
+							totalCount: 90,
+							isPending,
+							onPageChange(nextPage) {
+								setPage(nextPage);
+								setIsPending(true);
+								setTimeout(setIsPending, 50, false);
+							},
+						})}
+					/>
 				);
 			}
 
@@ -1351,7 +1551,6 @@ describe("MediaLibrary", () => {
 
 			const nextPage = screen.getByRole("button", { name: "Next page" });
 			await nextPage.click();
-			await screen.getByRole("button", { name: "Finish page request" }).click();
 
 			await vi.waitFor(() => {
 				expect(document.activeElement).toBe(nextPage.element());
@@ -1514,13 +1713,30 @@ describe("MediaLibrary", () => {
 			const poster = screen.getByAltText("webinar.mp4");
 			await expect.element(poster).toBeInTheDocument();
 			expect(poster.element().getAttribute("src")).toBe(STREAM_POSTER);
+			await expect.element(screen.getByText("MP4", { exact: true })).toBeInTheDocument();
+		});
+
+		it("uses the file fallback when a provider image has no preview URL", async () => {
+			const screen = await renderStreamTab(
+				makeStreamProviderItem({
+					filename: "no-preview.jpg",
+					mimeType: "image/jpeg",
+					previewUrl: undefined,
+				}),
+			);
+
+			const item = screen.getByRole("button", { name: "no-preview.jpg" }).element();
+			expect(item.querySelector("img")).toBeNull();
+			await expect.element(screen.getByText("JPEG", { exact: true })).toBeInTheDocument();
 		});
 
 		it("shows a size the provider reports only under meta", async () => {
 			const screen = await renderStreamTab();
 			await screen.getByRole("tab", { name: "List view" }).click();
 
-			await expect.element(screen.getByText("71.9 MB")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "71.9 MB", exact: true }))
+				.toBeInTheDocument();
 		});
 	});
 });

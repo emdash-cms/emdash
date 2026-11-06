@@ -41,7 +41,7 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 		ctx = await setupForDialectWithCollections(dialectName);
 		db = ctx.db;
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();
@@ -341,7 +341,8 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 		expect(titles(await load({ category: "news" }))).toEqual([]);
 
 		await content.restore("post", post.id);
-		expect(titles(await load({ category: "news" }))).toEqual(["Toggle"]);
+		expect(titles(await load({ category: "news" }))).toEqual([]);
+		expect(titles(await load({ category: "news" }, { status: "draft" }))).toEqual(["Toggle"]);
 	});
 
 	it("schedule updates taxonomy-filtered status from the content row", async () => {

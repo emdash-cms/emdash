@@ -15,6 +15,18 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
+	PLUGIN_HTTP_MAX_RESPONSE_BYTES,
+} from "../../../core/src/plugins/http-wire.js";
+import {
+	bytesOverLimit,
+	chunkedBytes,
+	INVALID_PLUGIN_HTTP_BYTES,
+	PLUGIN_HTTP_FORM_BYTES,
+	PLUGIN_HTTP_FORM_CONTENT_TYPE,
+	pluginHttpFormBody,
+} from "../../../core/tests/fixtures/plugin-http.js";
 import { sandboxHttpFetch } from "../../src/sandbox/bridge-http.js";
 
 function okResponse(body = "ok"): Response {
@@ -35,6 +47,11 @@ function mockFetchSequence(responses: Response[]): FetchImpl {
 		return next;
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- vi.fn's generic signature doesn't line up with Workers' fetch type; cast to the injectable contract
 	}) as unknown as FetchImpl;
+}
+
+function initOfFetchCall(fetchImpl: FetchImpl, index: number): RequestInit | undefined {
+	const call = (fetchImpl as unknown as { mock: { calls: unknown[][] } }).mock.calls[index];
+	return call?.[1] as RequestInit | undefined;
 }
 
 afterEach(() => {
@@ -100,7 +117,7 @@ describe("sandboxHttpFetch — redirect allowlist enforcement", () => {
 			]),
 		});
 		expect(res.status).toBe(200);
-		expect(res.text).toBe("from-b");
+		expect(new TextDecoder().decode(res.body)).toBe("from-b");
 	});
 
 	it("rejects chains that exceed the redirect limit", async () => {
@@ -122,6 +139,202 @@ describe("sandboxHttpFetch — redirect allowlist enforcement", () => {
 				fetchImpl,
 			}),
 		).rejects.toThrow(/too many redirects|redirect/i);
+	});
+});
+
+describe("sandboxHttpFetch — bounded binary transport", () => {
+	it("preserves invalid UTF-8 bytes and response metadata", async () => {
+		const response = new Response(
+			chunkedBytes([
+				INVALID_PLUGIN_HTTP_BYTES.subarray(0, 2),
+				INVALID_PLUGIN_HTTP_BYTES.subarray(2),
+			]),
+			{
+				status: 206,
+				statusText: "Partial Content",
+				headers: { "content-type": "application/octet-stream" },
+			},
+		);
+		const result = await sandboxHttpFetch("https://a.example.com/file", undefined, {
+			capabilities: ["network:request"],
+			allowedHosts: ["a.example.com"],
+			fetchImpl: mockFetchSequence([response]),
+		});
+
+		expect(result).toMatchObject({
+			status: 206,
+			statusText: "Partial Content",
+			finalUrl: "https://a.example.com/file",
+			redirected: false,
+		});
+		expect(result.headers).toContainEqual(["content-type", "application/octet-stream"]);
+		expect(result.body).toEqual(INVALID_PLUGIN_HTTP_BYTES);
+	});
+
+	it("rejects a disallowed host before reading the request body", async () => {
+		let bodyRead = false;
+		const init = { method: "POST" } as RequestInit;
+		Object.defineProperty(init, "body", {
+			get() {
+				bodyRead = true;
+				return "secret";
+			},
+		});
+		await expect(
+			sandboxHttpFetch("https://blocked.example.com", init, {
+				capabilities: ["network:request"],
+				allowedHosts: ["api.example.com"],
+				fetchImpl: mockFetchSequence([okResponse()]),
+			}),
+		).rejects.toThrow(/host not allowed/i);
+		expect(bodyRead).toBe(false);
+	});
+
+	it("rejects streamed requests after the decoded limit before dispatch", async () => {
+		const fetchImpl = mockFetchSequence([okResponse()]);
+		await expect(
+			sandboxHttpFetch(
+				"https://a.example.com/upload",
+				{
+					method: "POST",
+					body: bytesOverLimit(PLUGIN_HTTP_MAX_REQUEST_BYTES),
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Node's fetch runtime requires duplex for streamed request bodies but lib.dom omits it
+					duplex: "half",
+				} as RequestInit,
+				{
+					capabilities: ["network:request"],
+					allowedHosts: ["a.example.com"],
+					fetchImpl,
+				},
+			),
+		).rejects.toThrow(/request body exceeds the 8388608 byte limit/i);
+		expect(fetchImpl).not.toHaveBeenCalled();
+	});
+
+	it("rejects streamed responses after the decoded limit", async () => {
+		await expect(
+			sandboxHttpFetch("https://a.example.com/file", undefined, {
+				capabilities: ["network:request"],
+				allowedHosts: ["a.example.com"],
+				fetchImpl: mockFetchSequence([
+					new Response(bytesOverLimit(PLUGIN_HTTP_MAX_RESPONSE_BYTES)),
+				]),
+			}),
+		).rejects.toThrow(/response body exceeds the 8388608 byte limit/i);
+	});
+
+	it.each([
+		{ status: 301, method: "POST", rewritten: true },
+		{ status: 302, method: "POST", rewritten: true },
+		{ status: 303, method: "PUT", rewritten: true },
+		{ status: 307, method: "POST", rewritten: false },
+		{ status: 308, method: "POST", rewritten: false },
+	])(
+		"applies Fetch method and body rules for a $status redirect",
+		async ({ status, method, rewritten }) => {
+			const fetchImpl = mockFetchSequence([
+				redirectResponse("https://a.example.com/final", status),
+				okResponse(),
+			]);
+			await sandboxHttpFetch(
+				"https://a.example.com/start",
+				{
+					method,
+					headers: {
+						"content-type": "application/octet-stream",
+						"content-language": "en",
+						"content-length": String(INVALID_PLUGIN_HTTP_BYTES.byteLength),
+						"transfer-encoding": "chunked",
+						"x-request-id": "request-1",
+					},
+					body: INVALID_PLUGIN_HTTP_BYTES,
+				},
+				{
+					capabilities: ["network:request"],
+					allowedHosts: ["a.example.com"],
+					fetchImpl,
+				},
+			);
+			const redirectedInit = initOfFetchCall(fetchImpl, 1);
+			expect(redirectedInit?.method).toBe(rewritten ? "GET" : method);
+			if (rewritten) expect(redirectedInit?.body).toBeUndefined();
+			else expect(redirectedInit?.body).toBeInstanceOf(ArrayBuffer);
+			const headers = new Headers(redirectedInit?.headers);
+			expect(headers.get("x-request-id")).toBe("request-1");
+			expect(headers.get("content-type")).toBe(rewritten ? null : "application/octet-stream");
+			expect(headers.get("content-language")).toBe(rewritten ? null : "en");
+			expect(headers.get("content-length")).toBe(
+				rewritten ? null : String(INVALID_PLUGIN_HTTP_BYTES.byteLength),
+			);
+			expect(headers.get("transfer-encoding")).toBe(rewritten ? null : "chunked");
+		},
+	);
+
+	it("returns the redirect response when redirect mode is manual", async () => {
+		const fetchImpl = mockFetchSequence([redirectResponse("https://a.example.com/final")]);
+		const result = await sandboxHttpFetch(
+			"https://a.example.com/start",
+			{ redirect: "manual" },
+			{
+				capabilities: ["network:request"],
+				allowedHosts: ["a.example.com"],
+				fetchImpl,
+			},
+		);
+		expect(result).toMatchObject({
+			status: 302,
+			finalUrl: "https://a.example.com/start",
+			redirected: false,
+		});
+		expect(fetchImpl).toHaveBeenCalledOnce();
+	});
+
+	it("rejects the redirect when redirect mode is error", async () => {
+		const fetchImpl = mockFetchSequence([redirectResponse("https://a.example.com/final")]);
+		await expect(
+			sandboxHttpFetch(
+				"https://a.example.com/start",
+				{ redirect: "error" },
+				{
+					capabilities: ["network:request"],
+					allowedHosts: ["a.example.com"],
+					fetchImpl,
+				},
+			),
+		).rejects.toThrow(/redirect mode is "error"/i);
+		expect(fetchImpl).toHaveBeenCalledOnce();
+	});
+
+	it("does not follow a non-redirect 3xx response with Location", async () => {
+		const fetchImpl = mockFetchSequence([
+			new Response(null, {
+				status: 304,
+				headers: { location: "https://a.example.com/final" },
+			}),
+		]);
+		const result = await sandboxHttpFetch("https://a.example.com/start", undefined, {
+			capabilities: ["network:request"],
+			allowedHosts: ["a.example.com"],
+			fetchImpl,
+		});
+		expect(result).toMatchObject({ status: 304, redirected: false });
+		expect(fetchImpl).toHaveBeenCalledOnce();
+	});
+
+	it("encodes URLSearchParams with the portable request content type", async () => {
+		const fetchImpl = mockFetchSequence([okResponse()]);
+		await sandboxHttpFetch(
+			"https://a.example.com/form",
+			{ method: "POST", body: pluginHttpFormBody() },
+			{
+				capabilities: ["network:request"],
+				allowedHosts: ["a.example.com"],
+				fetchImpl,
+			},
+		);
+		const init = initOfFetchCall(fetchImpl, 0);
+		expect(new Headers(init?.headers).get("content-type")).toBe(PLUGIN_HTTP_FORM_CONTENT_TYPE);
+		expect(new Uint8Array(init?.body as ArrayBuffer)).toEqual(PLUGIN_HTTP_FORM_BYTES);
 	});
 });
 

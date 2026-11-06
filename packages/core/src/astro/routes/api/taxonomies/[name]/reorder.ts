@@ -15,10 +15,12 @@ import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleTermReorder } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { reorderTermsBody } from "#api/schemas.js";
+import { taxonomyTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { name } = params;
 	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name required", 400);
@@ -34,6 +36,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleTermReorder(emdash.db, name, body);
+		if (!result.success) return unwrapResult(result);
+		await invalidateRouteCache(cache, [taxonomyTag(name)]);
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to reorder terms", "TERM_REORDER_ERROR");

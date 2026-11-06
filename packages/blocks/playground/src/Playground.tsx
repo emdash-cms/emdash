@@ -1,5 +1,5 @@
 import { BlockRenderer, validateBlocks } from "@emdash-cms/blocks";
-import type { Block, BlockInteraction } from "@emdash-cms/blocks";
+import type { Block, BlockInteraction, LinkTarget } from "@emdash-cms/blocks";
 import { Sun, Moon, Share, Check, Trash, CaretDown, Warning, Plus } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -13,6 +13,19 @@ interface ActionLogEntry {
 	id: number;
 	timestamp: Date;
 	interaction: BlockInteraction;
+}
+
+function resolvePreviewLink(target: LinkTarget): string {
+	switch (target.kind) {
+		case "content":
+			return `/content/${encodeURIComponent(target.collection)}/${encodeURIComponent(target.id)}`;
+		case "plugin-page":
+			return `/plugins/example${target.path}`;
+		case "plugin-settings":
+			return "/plugins-manager/example/settings";
+		case "external":
+			return target.url;
+	}
 }
 
 // ── Hash sharing ─────────────────────────────────────────────────────────────
@@ -339,7 +352,11 @@ export function Playground() {
 					<div className="min-h-0 flex-1 overflow-auto p-4">
 						<div className="mx-auto max-w-2xl">
 							{!parseError && blocks.length > 0 ? (
-								<BlockRenderer blocks={blocks} onAction={handleAction} />
+								<BlockRenderer
+									blocks={blocks}
+									onAction={handleAction}
+									resolveLinkTarget={resolvePreviewLink}
+								/>
 							) : (
 								<div className="flex h-full items-center justify-center">
 									<p className="text-sm text-kumo-text-secondary">

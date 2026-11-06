@@ -93,7 +93,7 @@ const MAX_JSON_BIND_BYTES = 1_900_000;
 const MEDIA_USAGE_EVENT_QUERY_CEILING = 900;
 const MEDIA_USAGE_QUERY_RESERVE = 150;
 
-function chunkJsonRows<T>(rows: readonly T[]): T[][] {
+export function chunkJsonRows<T>(rows: readonly T[]): T[][] {
 	const batches: T[][] = [];
 	let batch: T[] = [];
 	let batchBytes = 2;
@@ -454,6 +454,12 @@ export interface MediaUsageCollectionIndexStatusScope {
 	status: string | null;
 	schemaVersion: number | null;
 	reconciliationRequired: boolean;
+}
+
+export interface MediaUsageCoverageRead {
+	scopes: MediaUsageCollectionIndexStatusScope[];
+	/** Raw JSON option values by name; `null` when the option is not stored. */
+	options: Map<string, string | null>;
 }
 
 export interface MediaUsageCollectionProgress {
@@ -1291,11 +1297,18 @@ export class MediaUsageRepository {
 		return counts;
 	}
 
-	async findCollectionIndexStatusScopes(
+	/**
+	 * Read collection index status and the named options in one statement.
+	 * The one-row anchor keeps the option values readable on a site with no
+	 * collections.
+	 */
+	async findCoverageWithOptions(
 		identity: Pick<MediaUsageIndexStatusIdentity, "adapterId" | "scopeType">,
-	): Promise<MediaUsageCollectionIndexStatusScope[]> {
-		const rows = await this.db
-			.selectFrom("_emdash_collections as collection")
+		optionNames: readonly string[],
+	): Promise<MediaUsageCoverageRead> {
+		let query = this.db
+			.selectFrom(this.db.selectNoFrom(sql<number>`1`.as("anchor")).as("anchor"))
+			.leftJoin("_emdash_collections as collection", (join) => join.on(sql<boolean>`1 = 1`))
 			.leftJoin("_emdash_media_usage_index_status as status", (join) =>
 				join
 					.on("status.adapter_id", "=", identity.adapterId)
@@ -1308,16 +1321,33 @@ export class MediaUsageRepository {
 				"status.schema_version as schema_version",
 				"status.reconciliation_required as reconciliation_required",
 			])
-			.orderBy("collection.slug", "asc")
-			.execute();
+			.orderBy("collection.slug", "asc");
+		const optionAliases = optionNames.map((name, index) => [name, `option_${index}`] as const);
+		for (const [name, alias] of optionAliases) {
+			query = query.select((eb) =>
+				eb.selectFrom("options").select("value").where("name", "=", name).as(alias),
+			);
+		}
+		const rows: Array<Record<string, unknown>> = await query.execute();
 
-		return rows.map((row) => ({
-			collectionSlug: row.collection_slug,
-			status: row.status,
-			schemaVersion: row.schema_version === null ? null : Number(row.schema_version),
-			reconciliationRequired:
-				row.reconciliation_required !== null && Number(row.reconciliation_required) !== 0,
-		}));
+		const scopes: MediaUsageCollectionIndexStatusScope[] = [];
+		for (const row of rows) {
+			if (typeof row.collection_slug !== "string") continue;
+			scopes.push({
+				collectionSlug: row.collection_slug,
+				status: typeof row.status === "string" ? row.status : null,
+				schemaVersion: row.schema_version == null ? null : Number(row.schema_version),
+				reconciliationRequired:
+					row.reconciliation_required != null && Number(row.reconciliation_required) !== 0,
+			});
+		}
+		const firstRow = rows[0];
+		const options = new Map<string, string | null>();
+		for (const [name, alias] of optionAliases) {
+			const value = firstRow?.[alias];
+			options.set(name, typeof value === "string" ? value : null);
+		}
+		return { scopes, options };
 	}
 
 	async findCollectionProgress(): Promise<MediaUsageCollectionProgress | null> {
@@ -1801,12 +1831,21 @@ export class MediaUsageRepository {
 		};
 	}
 
+	/**
+	 * Scans for reclaimable occurrences, or resolves to `null` when the sweep was
+	 * never issued because the lease is gone or the tick is out of budget. An
+	 * empty array means the scan ran and found nothing, which lets the caller
+	 * retire the sweep window; `null` must leave the cursor where it was.
+	 */
 	async findMediaUsageCleanupCandidates(input: {
 		cutoff: string;
 		cursor: MediaUsageCleanupCursor | null;
 		limit: number;
 		cleanupLease?: MediaUsageCleanupLease;
-	}): Promise<MediaUsageCleanupCandidate[]> {
+		canIssueStatement?: () => boolean;
+	}): Promise<MediaUsageCleanupCandidate[] | null> {
+		if (!(await this.admitCleanupScan(input.cleanupLease, input.canIssueStatement))) return null;
+
 		let query = this.db
 			.selectFrom("_emdash_media_usage as u")
 			.leftJoin("_emdash_media_usage_sources as s", "s.source_key", "u.source_key")
@@ -1828,19 +1867,11 @@ export class MediaUsageRepository {
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
 			.limit(Math.max(0, Math.floor(input.limit)));
-		if (input.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(input.cleanupLease));
-		}
 
 		if (input.cursor) {
+			const cursor = input.cursor;
 			query = query.where((eb) =>
-				eb.or([
-					eb("u.created_at", ">", input.cursor!.createdAt),
-					eb.and([
-						eb("u.created_at", "=", input.cursor!.createdAt),
-						eb("u.id", ">", input.cursor!.id),
-					]),
-				]),
+				eb(eb.refTuple("u.created_at", "u.id"), ">", eb.tuple(cursor.createdAt, cursor.id)),
 			);
 		}
 
@@ -1928,9 +1959,9 @@ export class MediaUsageRepository {
 				options.canIssueStatement,
 			);
 		}
-		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
+		if (!(await this.admitCleanupScan(options.cleanupLease, options.canIssueStatement))) return 0;
 
-		let query = this.db
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage as u")
 			.leftJoin("_emdash_media_usage_sources as s", (join) =>
 				join.onRef("s.source_key", "=", "u.source_key"),
@@ -1946,11 +1977,8 @@ export class MediaUsageRepository {
 			.where(this.noActiveGenerationWriteExpression("u"))
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
-			.limit(batchLimit);
-		if (options.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(options.cleanupLease));
-		}
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 
 		return this.deleteOrphanCandidateIds(
 			rows.map((row) => row.id),
@@ -1975,9 +2003,9 @@ export class MediaUsageRepository {
 				options.canIssueStatement,
 			);
 		}
-		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
+		if (!(await this.admitCleanupScan(options.cleanupLease, options.canIssueStatement))) return 0;
 
-		let query = this.db
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage as u")
 			.innerJoin("_emdash_media_usage_sources as s", (join) =>
 				join.onRef("s.source_key", "=", "u.source_key"),
@@ -1994,11 +2022,8 @@ export class MediaUsageRepository {
 			.where(this.noActiveGenerationWriteExpression("u"))
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
-			.limit(batchLimit);
-		if (options.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(options.cleanupLease));
-		}
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 
 		return this.deleteStaleCandidateIds(
 			rows.map((row) => row.id),
@@ -2023,9 +2048,9 @@ export class MediaUsageRepository {
 				options.canIssueStatement,
 			);
 		}
-		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
+		if (!(await this.admitCleanupScan(options.cleanupLease, options.canIssueStatement))) return 0;
 
-		let query = this.db
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage as u")
 			.innerJoin("_emdash_media_usage_sources as s", (join) =>
 				join.onRef("s.source_key", "=", "u.source_key"),
@@ -2042,11 +2067,8 @@ export class MediaUsageRepository {
 			.where(this.noActiveGenerationWriteExpression("u"))
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
-			.limit(batchLimit);
-		if (options.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(options.cleanupLease));
-		}
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 
 		return this.deleteAbandonedCandidateIds(
 			rows.map((row) => row.id),
@@ -2062,16 +2084,16 @@ export class MediaUsageRepository {
 		canIssueStatement?: () => boolean,
 	): Promise<number> {
 		const batchLimit = Math.floor(limit);
-		if (batchLimit <= 0 || !canIssueCleanupStatement(canIssueStatement)) return 0;
-		let query = this.db
+		if (batchLimit <= 0) return 0;
+		if (!(await this.admitCleanupScan(cleanupLease, canIssueStatement))) return 0;
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage_generation_writes")
 			.select("lease_token")
 			.where(this.generationWriteLeaseHasExpired("expires_at"))
 			.orderBy("expires_at", "asc")
 			.orderBy("lease_token", "asc")
-			.limit(batchLimit);
-		if (cleanupLease) query = query.where(this.activeCleanupLeaseExpression(cleanupLease));
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 		if (rows.length === 0 || !canIssueCleanupStatement(canIssueStatement)) return 0;
 		let deleteQuery = this.db
 			.deleteFrom("_emdash_media_usage_generation_writes")
@@ -2904,6 +2926,43 @@ export class MediaUsageRepository {
 					AND writer.generation = ${generation}
 					AND ${this.generationWriteLeaseExpiryIsInFuture("writer.expires_at")}
 			)`;
+	}
+
+	/**
+	 * Gates a bounded cleanup scan on the lease and the tick's statement budget.
+	 *
+	 * The budget is re-read after the lease row because that read is itself a
+	 * statement: an isolate suspended across it can resume with the budget spent.
+	 */
+	private async admitCleanupScan(
+		cleanupLease: MediaUsageCleanupLease | undefined,
+		canIssueStatement: (() => boolean) | undefined,
+	): Promise<boolean> {
+		if (!canIssueCleanupStatement(canIssueStatement)) return false;
+		if (!cleanupLease) return true;
+		return (
+			(await this.holdsCleanupLease(cleanupLease)) && canIssueCleanupStatement(canIssueStatement)
+		);
+	}
+
+	/**
+	 * Reads the lease row on its own so a lost lease can short-circuit a sweep.
+	 *
+	 * As a row-level `EXISTS` inside a `LIMIT`ed scan this predicate is constant
+	 * across every candidate row: when it is false the limit is unreachable and
+	 * the scan reads the whole `created_at` range before returning nothing.
+	 * Mutating statements still carry {@link activeCleanupLeaseExpression},
+	 * which is what actually fences a displaced owner.
+	 */
+	private async holdsCleanupLease(cleanupLease: MediaUsageCleanupLease): Promise<boolean> {
+		let query = this.db
+			.selectFrom("_emdash_media_usage_cleanup")
+			.select("task_key")
+			.where("task_key", "=", "projection_gc")
+			.where("lease_token", "=", cleanupLease.leaseToken)
+			.where(this.cleanupLeaseExpiryIsInFuture("_emdash_media_usage_cleanup.lease_expires_at"));
+		if (isPostgres(this.db)) query = query.forUpdate();
+		return (await query.executeTakeFirst()) !== undefined;
 	}
 
 	private activeCleanupLeaseExpression(cleanupLease: MediaUsageCleanupLease) {

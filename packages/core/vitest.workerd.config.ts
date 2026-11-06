@@ -1,4 +1,4 @@
-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 const virtualStubs: Record<string, string> = {
@@ -24,15 +24,19 @@ export default defineConfig({
 			},
 		},
 		cloudflareTest({
+			main: "./tests/workerd/fixtures/plugin-storage-worker.ts",
 			miniflare: {
+				workerLoaders: { LOADER: {} },
 				compatibilityDate: "2026-05-14",
 				compatibilityFlags: ["nodejs_compat"],
-				d1Databases: ["DB"],
+				d1Databases: ["DB", "TARGET_DB"],
+				r2Buckets: ["MEDIA"],
 			},
 		}),
 	],
 	test: {
 		include: ["tests/workerd/**/*.test.ts"],
+		globalSetup: ["./tests/workerd/global-setup/sqlite-package.ts"],
 		testTimeout: 30_000,
 		hookTimeout: 30_000,
 	},

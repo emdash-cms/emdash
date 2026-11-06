@@ -255,7 +255,7 @@ describe("BylineRepository", () => {
 		expect(resolved?.avatarDominantColor).toBe("#112233");
 	});
 
-	it("leaves avatar storage key null on the plain byline finders", async () => {
+	it("hydrates avatar media on the single-row byline finders", async () => {
 		await db
 			.insertInto("media")
 			.values({
@@ -264,19 +264,56 @@ describe("BylineRepository", () => {
 				mime_type: "image/png",
 				storage_key: "media-avatar-2.png",
 				status: "ready",
+				alt: "Finder avatar",
+				blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+				dominant_color: "#445566",
+			})
+			.execute();
+		await db
+			.insertInto("users")
+			.values({
+				id: "user-finder",
+				email: "finder@example.com",
+				name: "Finder Avatar",
+				role: 30,
+				email_verified: 1,
 			})
 			.execute();
 		const created = await bylineRepo.create({
 			slug: "finder-avatar",
 			displayName: "Finder Avatar",
 			avatarMediaId: "media-avatar-2",
+			userId: "user-finder",
 		});
 
-		// findById/findBySlug don't join media — the field is null there, and
-		// callers should rely on the content-credit hydration path for it.
-		const byId = await bylineRepo.findById(created.id);
-		expect(byId?.avatarMediaId).toBe("media-avatar-2");
-		expect(byId?.avatarStorageKey).toBeNull();
+		// A byline profile page resolves exactly one byline and has no entry to
+		// hydrate credits through, so the by-id/by-slug/by-user finders join
+		// media themselves.
+		for (const found of [
+			await bylineRepo.findById(created.id),
+			await bylineRepo.findBySlug("finder-avatar"),
+			await bylineRepo.findByUserId("user-finder"),
+		]) {
+			expect(found?.avatarMediaId).toBe("media-avatar-2");
+			expect(found?.avatarStorageKey).toBe("media-avatar-2.png");
+			expect(found?.avatarAlt).toBe("Finder avatar");
+			expect(found?.avatarBlurhash).toBe("L6PZfSi_.AyE_3t7t7R**0o#DgR4");
+			expect(found?.avatarDominantColor).toBe("#445566");
+		}
+
+		// A byline with no avatar keeps nulls rather than undefined.
+		const bare = await bylineRepo.create({ slug: "no-avatar", displayName: "No Avatar" });
+		const foundBare = await bylineRepo.findById(bare.id);
+		expect(foundBare?.avatarStorageKey).toBeNull();
+		expect(foundBare?.avatarAlt).toBeNull();
+		expect(foundBare?.avatarBlurhash).toBeNull();
+		expect(foundBare?.avatarDominantColor).toBeNull();
+
+		// findMany stays a single-table scan — list pages pay no media join.
+		const listed = await bylineRepo.findMany();
+		const fromList = listed.items.find((b) => b.id === created.id);
+		expect(fromList?.avatarMediaId).toBe("media-avatar-2");
+		expect(fromList?.avatarStorageKey).toBeNull();
 	});
 
 	it("getContentBylinesMany handles more IDs than SQL_BATCH_SIZE", async () => {
@@ -1420,6 +1457,78 @@ describe("BylineRepository", () => {
 
 			expect(results.enResult?.customFields?.twitter_handle).toBe("@jane");
 			expect(results.frResult?.customFields?.twitter_handle).toBe("@jane");
+		});
+
+		it("reads a byline's translatable values once per request", async () => {
+			const byline = await bylineRepo.create({ slug: "jane", displayName: "Jane", locale: "en" });
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			resetBylineFieldDefsCacheForTests();
+			await bylineRepo.update(byline.id, { customFields: { job_title: "Editor" } });
+
+			let valueReads = 0;
+			const counted = new BylineRepository(
+				db.withPlugin({
+					transformQuery(args) {
+						if (JSON.stringify(args.node).includes('"_emdash_byline_field_values"')) valueReads++;
+						return args.node;
+					},
+					transformResult: async (args) => args.result,
+				}),
+			);
+
+			const results = await runWithContext(
+				{ db: undefined, dbIsIsolated: false, metrics: undefined },
+				async () => {
+					const first = await counted.findById(byline.id);
+					const second = await counted.findById(byline.id);
+					const readsBeforeUpdate = valueReads;
+					await counted.update(byline.id, { customFields: { job_title: "Publisher" } });
+					const afterUpdate = await counted.findById(byline.id);
+					return { first, second, readsBeforeUpdate, afterUpdate };
+				},
+			);
+
+			expect(results.first?.customFields?.job_title).toBe("Editor");
+			expect(results.second?.customFields?.job_title).toBe("Editor");
+			expect(results.readsBeforeUpdate).toBe(1);
+			expect(results.afterUpdate?.customFields?.job_title).toBe("Publisher");
+		});
+
+		it("shares one value read between concurrent hydrations in a request", async () => {
+			const en = await bylineRepo.create({ slug: "jane", displayName: "Jane", locale: "en" });
+			await registry.createField({ slug: "job_title", label: "Job title", type: "string" });
+			await registry.createField({
+				slug: "twitter_handle",
+				label: "Twitter",
+				type: "string",
+				translatable: false,
+			});
+			resetBylineFieldDefsCacheForTests();
+			await bylineRepo.update(en.id, {
+				customFields: { job_title: "Editor", twitter_handle: "@jane" },
+			});
+
+			const reads = { values: 0, groupValues: 0 };
+			const counted = new BylineRepository(
+				db.withPlugin({
+					transformQuery(args) {
+						const node = JSON.stringify(args.node);
+						if (node.includes('"_emdash_byline_field_values"')) reads.values++;
+						if (node.includes('"_emdash_byline_field_group_values"')) reads.groupValues++;
+						return args.node;
+					},
+					transformResult: async (args) => args.result,
+				}),
+			);
+
+			const [first, second] = await runWithContext(
+				{ db: undefined, dbIsIsolated: false, metrics: undefined },
+				() => Promise.all([counted.findById(en.id), counted.findById(en.id)]),
+			);
+
+			expect(first?.customFields).toEqual({ job_title: "Editor", twitter_handle: "@jane" });
+			expect(second?.customFields).toEqual({ job_title: "Editor", twitter_handle: "@jane" });
+			expect(reads).toEqual({ values: 1, groupValues: 1 });
 		});
 
 		it("tolerates orphaned value rows (definition deleted but value lingering)", async () => {

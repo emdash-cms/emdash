@@ -15,44 +15,8 @@
 import type { APIRoute } from "astro";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
-import type { SchemaRegistry } from "#schema/registry.js";
 
 export const prerender = false;
-
-/**
- * Safely list collections, returning empty array if tables don't exist yet
- */
-async function safeListCollections(registry: SchemaRegistry) {
-	try {
-		return await registry.listCollections();
-	} catch (error) {
-		// Handle missing tables for new sites that haven't run setup yet
-		if (error instanceof Error && error.message.includes("no such table")) {
-			return [];
-		}
-		throw error;
-	}
-}
-
-/**
- * Generate types content and metadata from the current schema.
- */
-async function generateTypes(registry: SchemaRegistry) {
-	const { generateTypesFile, generateSchemaHash } = await import("#schema/zod-generator.js");
-
-	const collections = await safeListCollections(registry);
-	const collectionsWithFields = await Promise.all(
-		collections.map(async (c) => {
-			const fields = await registry.listFields(c.id);
-			return { ...c, fields };
-		}),
-	);
-
-	const types = generateTypesFile(collectionsWithFields);
-	const hash: string = await generateSchemaHash(collectionsWithFields);
-
-	return { types, hash, collections: collections.length };
-}
 
 /**
  * GET - Return types as plain text (for preview/debugging)
@@ -69,9 +33,8 @@ export const GET: APIRoute = async ({ locals }) => {
 	}
 
 	try {
-		const { SchemaRegistry } = await import("#schema/registry.js");
-		const registry = new SchemaRegistry(emdash.db);
-		const { types } = await generateTypes(registry);
+		const { generateEnvTypes } = await import("#schema/env-types.js");
+		const { types } = await generateEnvTypes(emdash.db);
 
 		return new Response(types, {
 			status: 200,
@@ -103,9 +66,8 @@ export const POST: APIRoute = async ({ locals }) => {
 	}
 
 	try {
-		const { SchemaRegistry } = await import("#schema/registry.js");
-		const registry = new SchemaRegistry(emdash.db);
-		const result = await generateTypes(registry);
+		const { generateEnvTypes } = await import("#schema/env-types.js");
+		const result = await generateEnvTypes(emdash.db);
 
 		return apiSuccess(result);
 	} catch (error) {

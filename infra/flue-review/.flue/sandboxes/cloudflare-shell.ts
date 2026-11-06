@@ -28,6 +28,11 @@ import type {
 } from "@flue/runtime";
 import { getCloudflareContext } from "@flue/runtime/cloudflare";
 
+import {
+	assertCodeToolOutputWithinBudget,
+	formatCodeToolOutput,
+} from "../lib/code-tool-output-budget.js";
+
 export interface GetShellSandboxOptions {
 	workspace: Workspace;
 	loader: WorkerLoader;
@@ -172,12 +177,14 @@ function createCodeTool(executor: DynamicWorkerExecutor, stateProvider: Resolved
 			const { result, error, logs } = await executor.execute(code, [stateProvider]);
 			if (error) {
 				const logsTail = logs?.length ? `\n\nlogs:\n${logs.join("\n")}` : "";
-				throw new Error(`code tool failed: ${error}${logsTail}`);
+				const errorText = `code tool failed: ${error}${logsTail}`;
+				assertCodeToolOutputWithinBudget(errorText);
+				throw new Error(errorText);
 			}
 			const resultText = formatResult(result);
-			const logsText = logs?.length ? `\n\n--- logs ---\n${logs.join("\n")}` : "";
+			const output = formatCodeToolOutput(resultText, logs);
 			return {
-				content: [{ type: "text" as const, text: resultText + logsText }],
+				content: [{ type: "text" as const, text: output }],
 				details: logs?.length ? { logs } : {},
 			};
 		},

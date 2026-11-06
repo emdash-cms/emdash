@@ -14,11 +14,18 @@
  * Do NOT import this at config time.
  */
 
+import { env } from "cloudflare:workers";
+import type { Storage } from "emdash";
+import { EmDashStorageError } from "emdash";
 import type { Dialect } from "kysely";
 
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
 import type { PreviewDOConfig } from "./do-types.js";
+import {
+	PlaygroundAssetsStorage,
+	type PlaygroundAssetFetcher,
+} from "./playground-assets-storage.js";
 
 /**
  * Create a playground DO dialect from config.
@@ -43,6 +50,15 @@ export function createDialect(_config: PreviewDOConfig): Dialect {
 	};
 
 	return new PreviewDODialect({ getStub: () => notInitialized });
+}
+
+export function createStorage(_config: Record<string, unknown>): Storage {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding from generated environment
+	const assets = (env as Record<string, unknown>).ASSETS as PlaygroundAssetFetcher | undefined;
+	if (!assets) {
+		throw new EmDashStorageError("Playground ASSETS binding not found", "BINDING_NOT_FOUND");
+	}
+	return new PlaygroundAssetsStorage(assets);
 }
 
 export { EmDashPreviewDB } from "./do-class.js";

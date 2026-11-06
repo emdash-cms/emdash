@@ -30,13 +30,13 @@
  */
 
 import type { ContentSeo } from "../database/repositories/types.js";
-import { buildSeoImageUrl } from "./media-url.js";
+import { buildSeoImageUrl, resolveSeoCanonicalUrl } from "./media-url.js";
+import { getEntryTitleField } from "./title-field.js";
 
 export { getHreflangAlternates, getHreflangAlternatesWithDb } from "./hreflang.js";
 export type { HreflangAlternate, HreflangOptions } from "./hreflang.js";
 
 const TRAILING_SLASH_RE = /\/$/;
-const ABSOLUTE_URL_RE = /^https?:\/\//i;
 
 /**
  * Content input for SEO functions.
@@ -85,7 +85,7 @@ export interface SeoMetaOptions {
 	defaultOgImage?: string;
 	/**
 	 * Default page title used when the SEO panel has none. Ranks above the
-	 * `data.title` fallback, so computed titles (e.g. `` `${title} (cover of
+	 * entry-title fallback, so computed titles (e.g. `` `${title} (cover of
 	 * ${artist})` ``) apply while an editor-set SEO title still wins.
 	 */
 	defaultTitle?: string;
@@ -99,8 +99,10 @@ export interface SeoMetaOptions {
 /**
  * Generate resolved SEO meta tags from a content item.
  *
- * Uses the content item's SEO fields, falling back to content data
- * (title from `data.title`, description from `data.excerpt`).
+ * Uses the content item's SEO fields, falling back to content data. The
+ * title falls back to the collection's `titleField` (on an entry from
+ * `getEmDashEntry()` or `resolveEmDashPath()`), then `data.title`; the
+ * description to `data.excerpt`.
  *
  * @param content - The content item (from getEmDashEntry, etc.)
  * @param options - Configuration for title construction, canonical URLs, etc.
@@ -119,10 +121,13 @@ export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptio
 			noIndex: false,
 		};
 
-	// Title: SEO panel title > caller default > content title
+	// Title: SEO panel title > caller default > collection's title field > content title
+	const titleField = getEntryTitleField(content.data);
+	const fieldTitle: unknown = titleField ? Reflect.get(content.data, titleField) : undefined;
 	const pageTitle =
 		seo.title ||
 		defaultTitle ||
+		(typeof fieldTitle === "string" ? fieldTitle : null) ||
 		(typeof content.data.title === "string" ? content.data.title : null) ||
 		"";
 
@@ -138,16 +143,12 @@ export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptio
 	// OG image: SEO image > default
 	const ogImage = seo.image ? buildSeoImageUrl(seo.image, siteUrl) : (defaultOgImage ?? null);
 
-	// Canonical: explicit > path-based > null
+	// Canonical: explicit > path-based > null. The explicit value goes
+	// through the same resolver as the <EmDashHead> overlay, so a panel
+	// canonical renders identically on both paths.
 	let canonical: string | null = null;
 	if (seo.canonical) {
-		// Ensure relative canonical paths get a leading slash so we don't
-		// produce "https://example.composts/x" when joined with siteUrl
-		if (siteUrl && !seo.canonical.startsWith("/") && !ABSOLUTE_URL_RE.test(seo.canonical)) {
-			canonical = `${siteUrl.replace(TRAILING_SLASH_RE, "")}/${seo.canonical}`;
-		} else {
-			canonical = seo.canonical;
-		}
+		canonical = resolveSeoCanonicalUrl(seo.canonical, siteUrl);
 	} else if (siteUrl && path) {
 		const safePath = path.startsWith("/") ? path : `/${path}`;
 		canonical = `${siteUrl.replace(TRAILING_SLASH_RE, "")}${safePath}`;

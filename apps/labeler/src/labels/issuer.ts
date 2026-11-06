@@ -128,23 +128,54 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 			reason: proposal.reason,
 			idempotencyKey: proposal.idempotencyKey,
 		};
-		const validated = validateListingLabelIssuance(
-			this.signer.issuerDid,
-			context,
-			proposal.label,
-			createdAt,
-		);
 		const existing = await this.readByIdempotencyKey(proposal.idempotencyKey);
 		if (existing) {
 			this.assertStoredRequestMatches(existing, context, proposal.label);
-			return this.finalizationCommit(proposal, await this.publishBestEffort(existing));
+			return this.publishFinalization(proposal);
 		}
 
-		const signed = await this.signer.sign(validated.label);
+		const finalizationTime = await this.strictlyLaterDecisionTime(proposal.subject, createdAt);
+		const transitions: Array<{
+			context: AutomatedIssuanceContext;
+			proposal: ListingLabelProposal;
+		}> = [{ context, proposal: proposal.label }];
+		for (const value of ["listing-passed", "listing-review", "listing-error"] as const) {
+			if (
+				value !== proposal.label.value &&
+				(await this.isCurrentActiveExactLabel(proposal.subject, value, finalizationTime))
+			) {
+				transitions.push({
+					context: {
+						...context,
+						idempotencyKey: `${proposal.idempotencyKey}:retract:${value}`,
+					},
+					proposal: { subject: proposal.subject, value, negate: true },
+				});
+			}
+		}
+		const prepared = await Promise.all(
+			transitions.map(async (transition) => {
+				const validated = validateListingLabelIssuance(
+					this.signer.issuerDid,
+					transition.context,
+					transition.proposal,
+					finalizationTime,
+				);
+				return { ...transition, label: await this.signer.sign(validated.label) };
+			}),
+		);
 		const signingKeyId = `${this.signer.issuerDid}#atproto_label`;
 		const statements = [
 			this.finalizationUpdate(proposal, coverageJson, summaryJson, completedAt, false),
-			this.finalizationLabelInsert(context, proposal, signed, signingKeyId, createdAt),
+			...prepared.map((transition) =>
+				this.finalizationLabelInsert(
+					transition.context,
+					proposal,
+					transition.label,
+					signingKeyId,
+					finalizationTime,
+				),
+			),
 			...proposal.resolution.findings.map((finding, index) =>
 				this.finalizationFindingInsert(proposal, finding, index, completedAt),
 			),
@@ -158,7 +189,7 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 				throw error;
 			}
 			this.assertStoredRequestMatches(concurrent, context, proposal.label);
-			return this.finalizationCommit(proposal, await this.publishBestEffort(concurrent));
+			return this.publishFinalization(proposal);
 		}
 
 		const issued = await this.readByIdempotencyKey(proposal.idempotencyKey);
@@ -167,7 +198,7 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 			throw new Error("assessment finalization committed without its signed label");
 		}
 		this.assertStoredRequestMatches(issued, context, proposal.label);
-		return this.finalizationCommit(proposal, await this.publishBestEffort(issued));
+		return this.publishFinalization(proposal);
 	}
 
 	async issue(
@@ -757,6 +788,45 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 			labelSequence: issued.sequence,
 			publicationPending: issued.publicationPending,
 		};
+	}
+
+	private async publishFinalization(
+		proposal: AssessmentFinalizationProposal,
+	): Promise<AssessmentFinalizationCommit> {
+		const labels = await this.readFinalizationLabels(proposal);
+		const outcome = labels.find(({ idempotencyKey }) => idempotencyKey === proposal.idempotencyKey);
+		if (!outcome) throw new Error("assessment finalization has no outcome label");
+		for (const label of labels) await this.publishBestEffort(label);
+		const refreshed = await this.readByIdempotencyKey(proposal.idempotencyKey);
+		if (!refreshed) throw new Error("assessment finalization outcome label disappeared");
+		return this.finalizationCommit(proposal, refreshed);
+	}
+
+	private async readFinalizationLabels(
+		proposal: AssessmentFinalizationProposal,
+	): Promise<IssuedListingLabel[]> {
+		const keys = [
+			proposal.idempotencyKey,
+			...(["listing-passed", "listing-review", "listing-error"] as const)
+				.filter((value) => value !== proposal.label.value)
+				.map((value) => `${proposal.idempotencyKey}:retract:${value}`),
+		];
+		const result = await this.db
+			.prepare(
+				`SELECT l.id, l.idempotency_key, l.assessment_id,
+				 l.assessment_policy_version, l.assessment_outcome, l.operator_action_id,
+				 l.actor_did, l.actor_role, l.reason, l.sequence, l.ver, l.src, l.uri,
+				 l.cid, l.val, l.neg, l.cts, l.exp, l.sig, l.signing_key_id,
+				 l.publication_pending, NULL AS operator_action,
+				 NULL AS operator_idempotency_key
+				 FROM issued_labels l
+				 WHERE l.assessment_id = ?
+				   AND l.idempotency_key IN (?, ?, ?)
+				 ORDER BY l.sequence ASC`,
+			)
+			.bind(proposal.assessmentId, ...keys)
+			.all<StoredLabelRow>();
+		return (result.results ?? []).map(storedRowToIssuedLabel);
 	}
 
 	private async throwFinalizationConflict(

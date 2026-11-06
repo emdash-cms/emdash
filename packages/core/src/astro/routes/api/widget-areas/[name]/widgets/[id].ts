@@ -11,12 +11,14 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { updateWidgetBody } from "#api/schemas.js";
-import { rowToWidget } from "#widgets/index.js";
+import { widgetAreaTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
+import { invalidateWidgetObjectCache, rowToWidget } from "#widgets/index.js";
 import type { WidgetRow } from "#widgets/types.js";
 
 export const prerender = false;
 
-export const PUT: APIRoute = async ({ params, request, locals }) => {
+export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const db = emdash.db;
 	const { name, id } = params;
@@ -71,6 +73,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		}
 
 		await db.updateTable("_emdash_widgets").set(updates).where("id", "=", id).execute();
+		invalidateWidgetObjectCache();
 
 		const widget = await db
 			.selectFrom("_emdash_widgets")
@@ -79,13 +82,14 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			.where("id", "=", id)
 			.executeTakeFirstOrThrow();
 
+		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess(rowToWidget(widget));
 	} catch (error) {
 		return handleError(error, "Failed to update widget", "WIDGET_UPDATE_ERROR");
 	}
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	const { emdash, user } = locals;
 	const db = emdash.db;
 	const { name, id } = params;
@@ -123,6 +127,8 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 
 		await db.deleteFrom("_emdash_widgets").where("id", "=", id).execute();
 
+		invalidateWidgetObjectCache();
+		await invalidateRouteCache(cache, [widgetAreaTag(name)]);
 		return apiSuccess({ deleted: true });
 	} catch (error) {
 		return handleError(error, "Failed to delete widget", "WIDGET_DELETE_ERROR");

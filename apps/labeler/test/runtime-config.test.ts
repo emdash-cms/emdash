@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
+import { CLEF_IMAGE_PROMPT_HASH, CLEF_TEXT_PROMPT_HASH } from "../src/ai/clef.js";
 import { readLabelerRuntimeConfig } from "../src/runtime-config.js";
 
 const ENV = {
@@ -8,10 +8,10 @@ const ENV = {
 	LABELER_SERVICE_URL: "https://labels.emdashcms.com",
 	LABEL_SIGNING_PRIVATE_KEY: "private-key",
 	LABEL_SIGNING_PUBLIC_KEY: "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
-	LABELER_POLICY_VERSION: "listing-metadata-v1",
+	LABELER_POLICY_VERSION: "listing-metadata-v2",
 	LABELER_PARSER_VERSION: "canonical-listing-input-v1",
-	LABELER_TEXT_MODEL_ID: "@cf/text",
-	LABELER_IMAGE_MODEL_ID: "@cf/image",
+	LABELER_TEXT_MODEL_ID: "@cf/cloudflare/clef",
+	LABELER_IMAGE_MODEL_ID: "@cf/cloudflare/clef-flash",
 };
 
 describe("labeler runtime configuration", () => {
@@ -26,11 +26,17 @@ describe("labeler runtime configuration", () => {
 				policyVersion: ENV.LABELER_POLICY_VERSION,
 				parserVersion: ENV.LABELER_PARSER_VERSION,
 				textModelId: ENV.LABELER_TEXT_MODEL_ID,
-				textPromptHash: TEXT_PROMPT_HASH,
+				textPromptHash: CLEF_TEXT_PROMPT_HASH,
 				imageModelId: ENV.LABELER_IMAGE_MODEL_ID,
-				imagePromptHash: IMAGE_PROMPT_HASH,
+				imagePromptHash: CLEF_IMAGE_PROMPT_HASH,
 			},
 		});
+	});
+
+	it("rejects a model the Clef adapters cannot run", async () => {
+		await expect(
+			readLabelerRuntimeConfig({ ...ENV, LABELER_IMAGE_MODEL_ID: "@cf/zai-org/glm-5.3-flash" }),
+		).rejects.toThrow(/Clef model/);
 	});
 
 	it("rejects a DID/service mismatch", async () => {

@@ -22,6 +22,7 @@ import type { PluginDescriptor, ResolvedPlugin } from "emdash";
 import { definePlugin } from "emdash";
 
 import { version } from "../package.json";
+import { formIdFromDigestTask } from "./digest-task.js";
 import { handleCleanup, handleDigest } from "./handlers/cron.js";
 import {
 	formsCreateHandler,
@@ -112,76 +113,79 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 				handler: async (event, ctx) => {
 					if (event.name === "cleanup") {
 						await handleCleanup(ctx);
-					} else if (event.name.startsWith("digest:")) {
-						const formId = event.name.slice("digest:".length);
-						await handleDigest(formId, ctx);
+					} else {
+						const formId = formIdFromDigestTask(event.name);
+						if (formId) await handleDigest(formId, ctx);
 					}
 				},
 			},
 		},
 
-		// Route handlers are typed with specific input schemas but the route record
-		// erases the generic to `unknown`. The cast is safe because the input schema
-		// guarantees the runtime shape matches the handler's expected type.
 		routes: {
 			// --- Public routes ---
 
 			submit: {
 				public: true,
 				input: submitSchema,
-				handler: submitHandler as never,
+				handler: submitHandler,
 			},
 
 			definition: {
 				public: true,
 				input: definitionSchema,
-				handler: definitionHandler as never,
+				handler: definitionHandler,
 			},
 
 			// --- Admin routes (require auth) ---
+			// Reads are open to editors (plugins:read). Routes without a
+			// `permission` fall back to plugins:manage, so writes stay admin-only.
 
 			"forms/list": {
+				permission: "plugins:read",
 				handler: formsListHandler,
 			},
 			"forms/create": {
 				input: formCreateSchema,
-				handler: formsCreateHandler as never,
+				handler: formsCreateHandler,
 			},
 			"forms/update": {
 				input: formUpdateSchema,
-				handler: formsUpdateHandler as never,
+				handler: formsUpdateHandler,
 			},
 			"forms/delete": {
 				input: formDeleteSchema,
-				handler: formsDeleteHandler as never,
+				handler: formsDeleteHandler,
 			},
 			"forms/duplicate": {
 				input: formDuplicateSchema,
-				handler: formsDuplicateHandler as never,
+				handler: formsDuplicateHandler,
 			},
 
 			"submissions/list": {
+				permission: "plugins:read",
 				input: submissionsListSchema,
-				handler: submissionsListHandler as never,
+				handler: submissionsListHandler,
 			},
 			"submissions/get": {
+				permission: "plugins:read",
 				input: submissionGetSchema,
-				handler: submissionGetHandler as never,
+				handler: submissionGetHandler,
 			},
 			"submissions/update": {
 				input: submissionUpdateSchema,
-				handler: submissionUpdateHandler as never,
+				handler: submissionUpdateHandler,
 			},
 			"submissions/delete": {
 				input: submissionDeleteSchema,
-				handler: submissionDeleteHandler as never,
+				handler: submissionDeleteHandler,
 			},
 			"submissions/export": {
 				input: exportSchema,
-				handler: exportHandler as never,
+				handler: exportHandler,
 			},
 
 			"settings/turnstile-status": {
+				permission: "plugins:read",
 				handler: async (ctx) => {
 					const siteKey = await ctx.kv.get<string>("settings:turnstileSiteKey");
 					const secretKey = await ctx.kv.get<string>("settings:turnstileSecretKey");

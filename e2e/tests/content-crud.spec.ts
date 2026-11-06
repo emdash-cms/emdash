@@ -76,6 +76,35 @@ test.describe("Content CRUD", () => {
 			});
 		});
 
+		test("explains the first save as a draft and offers publishing after it", async ({
+			admin,
+		}, testInfo) => {
+			await admin.goToNewContent("posts");
+			await admin.waitForLoading();
+
+			const saveDraft = admin.page.getByRole("button", { name: "Save draft" });
+			await expect(saveDraft).toBeVisible();
+			await expect(
+				admin.page.getByText(
+					"Saving creates a draft that stays off the site. You can publish it after the first save.",
+				),
+			).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: "Publish now", exact: true }),
+			).not.toBeVisible();
+
+			await admin.fillField("title", `First Draft Save ${testInfo.retry}`);
+			await saveDraft.click();
+
+			await expect(admin.page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
+			await expect(admin.page.getByRole("button", { name: "Saved" }).first()).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: "Publish now", exact: true }),
+			).toBeVisible();
+			await expect(admin.page.getByText("This version is not visible on the site")).toBeVisible();
+			await expect(admin.page.getByRole("button", { name: "Save draft" })).toHaveCount(0);
+		});
+
 		test("auto-generates slug from title", async ({ admin }) => {
 			await admin.goToNewContent("posts");
 			await admin.waitForLoading();
@@ -192,12 +221,12 @@ test.describe("Content CRUD", () => {
 			expect(count).toBeGreaterThan(0);
 		});
 
-		test("publish action changes status", async ({ admin }) => {
+		test("publish action changes status", async ({ admin }, testInfo) => {
 			// Create a new draft post first
 			await admin.goToNewContent("posts");
 			await admin.waitForLoading();
 
-			await admin.fillField("title", "Draft to Publish Test");
+			await admin.fillField("title", `Draft to Publish Test ${testInfo.retry}`);
 			await admin.clickSave();
 
 			// Wait for redirect to edit page (confirms save succeeded)
@@ -207,18 +236,19 @@ test.describe("Content CRUD", () => {
 
 			// Publish the draft
 			const publishButton = admin.page.getByRole("button", {
-				name: "Publish",
+				name: "Publish now",
 				exact: true,
 			});
 			await expect(publishButton).toBeVisible();
 			await publishButton.click();
-			await admin.waitForLoading();
+			await admin.page
+				.getByRole("dialog", { name: "Publish now?" })
+				.getByRole("button", { name: "Publish now", exact: true })
+				.click();
 
-			// Once live with no pending changes, the action flips to "Unpublish Post",
-			// confirming the status actually changed.
-			await expect(
-				admin.page.getByRole("button", { name: "Unpublish Post", exact: true }),
-			).toBeVisible({ timeout: 10000 });
+			await expect(admin.page.getByText("Live version", { exact: true })).toBeVisible({
+				timeout: 10000,
+			});
 		});
 	});
 });

@@ -1,32 +1,46 @@
 import {
 	AtprotoWebDidDocumentResolver,
 	CompositeDidDocumentResolver,
+	CompositeHandleResolver,
+	DohJsonHandleResolver,
 	PlcDidDocumentResolver,
+	WellKnownHandleResolver,
 } from "@atcute/identity-resolver";
+import { isDid, type AtprotoDid } from "@atcute/lexicons/syntax";
+import { REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	createClefImageAdapter,
+	createClefTextAdapter,
+	requireClefModelId,
+} from "../ai/clef.js";
 import {
 	createCloudflareImagesDerivativeTransformer,
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../ai/image-resize.js";
-import {
-	createWorkersAiImageAdapter,
-	createWorkersAiTextAdapter,
-	workersAiBindingFromEnv,
-} from "../ai/workers-ai.js";
+import { workersAiBindingFromEnv } from "../ai/workers-ai.js";
 import { createD1ListingLabelIssuer, type ListingLabelIssuer } from "../labels/issuer.js";
-import { readLabelerRuntimeConfig, type LabelerRuntimeConfig } from "../runtime-config.js";
-import { createDohHostnameResolver } from "../runtime-network.js";
+import {
+	LABELER_POLICY_EFFECTIVE_AT,
+	readLabelerRuntimeConfig,
+	type LabelerRuntimeConfig,
+} from "../runtime-config.js";
+import { createDohHostnameResolver, DOH_ENDPOINT } from "../runtime-network.js";
 import { createLabelPublicationTarget } from "../subscriptions/publisher.js";
 import { createD1AssessmentLifecycleStore } from "./lifecycle.js";
 import { createGuardedMediaAcquirer } from "./media.js";
+import { publisherHandleFromDidDocument, verifiedHandleDid } from "./publisher-identity.js";
 import { createAtprotoExactRecordVerifier } from "./records.js";
 import {
 	createCloudflareImagesDecoder,
 	createR2MediaContentStore,
 	createR2ModerationMediaReader,
+	createTrustedOriginServiceBindingTransport,
 	createWorkersSocketPinnedTransport,
 } from "./runtime-media.js";
 import type { AssessmentWorkflowDependencies } from "./workflow.js";
@@ -36,16 +50,24 @@ export async function createProductionAssessmentWorkflowDependencies(
 ): Promise<AssessmentWorkflowDependencies> {
 	const config = await readLabelerRuntimeConfig(env);
 	const resolveHostname = createDohHostnameResolver();
-	const guardedFetch = createGuardedIdentityFetch(resolveHostname);
-	const didResolver = new CompositeDidDocumentResolver({
-		methods: {
-			plc: new PlcDidDocumentResolver({ fetch: guardedFetch }),
-			web: new AtprotoWebDidDocumentResolver({ fetch: guardedFetch }),
-		},
-	});
+	const didResolver = createProductionDidResolver(resolveHostname);
 	const ai = workersAiBindingFromEnv(env.AI);
 	const { connect } = await import("cloudflare:sockets");
 	const issuer = await createProductionListingLabelIssuer(env, config);
+	const textAdapter = createClefTextAdapter(ai, {
+		...CLEF_TEXT_ASSESSMENT_SETTINGS,
+		modelId: requireClefModelId(config.versions.textModelId),
+		promptHash: config.versions.textPromptHash,
+	});
+	const imageAdapter = createResizedImageModerationAdapter(
+		createCloudflareImagesDerivativeTransformer(env.IMAGES),
+		createClefImageAdapter(ai, {
+			...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+			modelId: requireClefModelId(config.versions.imageModelId),
+			promptHash: config.versions.imagePromptHash,
+		}),
+		DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+	);
 	return {
 		lifecycle: createD1AssessmentLifecycleStore(env.DB),
 		recordVerifier: createAtprotoExactRecordVerifier({
@@ -66,34 +88,49 @@ export async function createProductionAssessmentWorkflowDependencies(
 					return addresses;
 				},
 			},
-			transport: createWorkersSocketPinnedTransport(connect),
+			transport: createTrustedOriginServiceBindingTransport(
+				REGISTRY_CUMULUS_ORIGIN,
+				env.REGISTRY_BLOB_CACHE,
+				createWorkersSocketPinnedTransport(connect),
+			),
 			store: createR2MediaContentStore(env.MEDIA_QUARANTINE, env.DB),
 			decoder: createCloudflareImagesDecoder(env.IMAGES),
 		}),
 		mediaReader: createR2ModerationMediaReader(env.MEDIA_QUARANTINE),
-		textAdapter: createWorkersAiTextAdapter(ai, {
-			modelId: config.versions.textModelId,
-			promptHash: config.versions.textPromptHash,
-		}),
-		imageAdapter: createResizedImageModerationAdapter(
-			createCloudflareImagesDerivativeTransformer(env.IMAGES),
-			createWorkersAiImageAdapter(ai, {
-				modelId: config.versions.imageModelId,
-				promptHash: config.versions.imagePromptHash,
-				thinking: false,
-			}),
-			DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
-		),
+		textAdapter,
+		imageAdapter,
 		policy: {
 			...INITIAL_LISTING_POLICY_FIXTURE,
 			policyVersion: config.versions.policyVersion,
+			effectiveAt: LABELER_POLICY_EFFECTIVE_AT,
 			requiredPositiveSources: [config.labelerDid],
 			acceptedStateSources: [config.labelerDid],
 			redactionSources: [config.labelerDid],
-			autoPass: "disabled",
+			autoPass: "assisted",
 		},
 		finalizer: issuer,
 	};
+}
+
+export async function resolveProductionPublisherHandle(
+	publisherDid: string,
+): Promise<string | null> {
+	if (!isAtprotoDid(publisherDid)) return null;
+	const resolveHostname = createDohHostnameResolver();
+	const document = await createProductionDidResolver(resolveHostname).resolve(publisherDid);
+	if (document.id !== publisherDid) return null;
+	return publisherHandleFromDidDocument(document);
+}
+
+export async function resolveProductionHandleDid(handle: string): Promise<string | null> {
+	const resolveHostname = createDohHostnameResolver();
+	const handleResolver = new CompositeHandleResolver({
+		methods: {
+			dns: new DohJsonHandleResolver({ dohUrl: DOH_ENDPOINT }),
+			http: new WellKnownHandleResolver({ fetch: createGuardedIdentityFetch(resolveHostname) }),
+		},
+	});
+	return verifiedHandleDid(handle, handleResolver, createProductionDidResolver(resolveHostname));
 }
 
 export async function createProductionListingLabelIssuer(
@@ -161,4 +198,20 @@ function createGuardedIdentityFetch(
 			headers: result.value.headers,
 		});
 	};
+}
+
+function createProductionDidResolver(
+	resolveHostname: ReturnType<typeof createDohHostnameResolver>,
+) {
+	const guardedFetch = createGuardedIdentityFetch(resolveHostname);
+	return new CompositeDidDocumentResolver({
+		methods: {
+			plc: new PlcDidDocumentResolver({ fetch: guardedFetch }),
+			web: new AtprotoWebDidDocumentResolver({ fetch: guardedFetch }),
+		},
+	});
+}
+
+function isAtprotoDid(value: string): value is AtprotoDid {
+	return isDid(value) && (value.startsWith("did:plc:") || value.startsWith("did:web:"));
 }

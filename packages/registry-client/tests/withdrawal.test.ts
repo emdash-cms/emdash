@@ -14,6 +14,7 @@ function release(labels: unknown[]): ValidatedReleaseView {
 		did: "did:plc:publisher",
 		package: "gallery",
 		version: "1.0.0",
+		artifactCaches: [],
 		indexedAt: "2026-08-24T10:00:00.000Z",
 		release: null,
 		labels,

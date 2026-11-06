@@ -18,7 +18,7 @@ import {
 	MemoryBlockstore,
 	Repo,
 	WriteOpAction,
-	blocksToCarFile,
+	getFullRepo,
 	getRecords,
 	type RecordCreateOp,
 	type RecordPath,
@@ -152,15 +152,14 @@ export class FakeRepo {
 
 	/**
 	 * Returns the full repo as a CAR. Used for `com.atproto.sync.getRepo` and
-	 * by reconciliation flows that want to verify the entire repo at once.
-	 * Not used by the verification path today, but it's a one-liner that
-	 * matches a real PDS endpoint, so we expose it for future tests.
+	 * by verification flows that need a complete repository snapshot.
 	 */
 	async getFullRepoCar(): Promise<Uint8Array> {
 		const head = await this.storage.getRoot();
 		if (!head) throw new Error("repo has no root commit");
-		const blocks = await this.storage.getBlocks([head]);
-		return blocksToCarFile(head, blocks.blocks);
+		const chunks: Uint8Array[] = [];
+		for await (const chunk of getFullRepo(this.storage, head)) chunks.push(chunk);
+		return concatBytes(chunks);
 	}
 
 	/**

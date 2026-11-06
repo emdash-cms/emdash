@@ -22,6 +22,8 @@ import { bylineTranslationCreateBody } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
+import { after } from "../../../../../../after.js";
+
 export const prerender = false;
 
 export const GET: APIRoute = async ({ params, locals }) => {
@@ -74,17 +76,16 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			bio: body.bio ?? null,
 			avatarMediaId: body.avatarMediaId ?? source.avatarMediaId,
 			websiteUrl: body.websiteUrl ?? source.websiteUrl,
-			// Translations don't inherit the source's user_id or guest flag —
-			// the partial unique on (user_id, locale) means a single user can
-			// own one byline per locale, but the editor must opt into linking
-			// the new row by editing it after creation.
-			userId: null,
 			isGuest: source.isGuest,
 			locale: body.locale,
 			translationOf: id,
 		});
 
-		if (result.success) invalidateBylineCache();
+		if (result.success) {
+			invalidateBylineCache();
+			const byline = result.data;
+			after(() => emdash.hooks.runBylineAfterSave(byline, true));
+		}
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(

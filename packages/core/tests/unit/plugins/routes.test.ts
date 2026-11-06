@@ -20,6 +20,7 @@ import {
 	PluginRouteRegistry,
 	PluginRouteError,
 	createRouteRegistry,
+	pluginPublicRouteAcknowledgementSchema,
 	toRouteCallerInfo,
 } from "../../../src/plugins/routes.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
@@ -128,6 +129,15 @@ describe("PluginRouteError", () => {
 			expect(error.status).toBe(500);
 			expect(error.message).toBe("Something broke");
 		});
+	});
+});
+
+describe("public route acknowledgement", () => {
+	it("accepts every route-name set allowed by the manifest contract", () => {
+		const routes = Array.from({ length: 101 }, (_, index) =>
+			index === 0 ? "a".repeat(257) : `route-${index}`,
+		);
+		expect(pluginPublicRouteAcknowledgementSchema.parse(routes)).toEqual(routes);
 	});
 });
 
@@ -244,6 +254,32 @@ describe("PluginRouteHandler", () => {
 
 			expect(handler.getRouteMeta("admin")).toEqual({ public: false });
 		});
+
+		it("exposes declared method, request, and response policy", () => {
+			const plugin = createTestPlugin({
+				routes: {
+					webhook: {
+						public: true,
+						methods: ["POST"],
+						request: {
+							body: "bytes",
+							maxBytes: 4096,
+							headers: ["x-signature"],
+						},
+						response: "raw",
+						handler: vi.fn(),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("webhook")).toEqual({
+				public: true,
+				methods: ["POST"],
+				request: { body: "bytes", maxBytes: 4096, headers: ["x-signature"] },
+				response: "raw",
+			});
+		});
 	});
 
 	describe("getRouteNames", () => {
@@ -312,7 +348,7 @@ describe("PluginRouteHandler", () => {
 					create: {
 						input: z.object({
 							name: z.string().min(1),
-							email: z.string().email(),
+							email: z.email(),
 						}),
 						handler: vi.fn(),
 					},
@@ -351,6 +387,68 @@ describe("PluginRouteHandler", () => {
 			expect(result.status).toBe(403);
 			expect(result.error?.code).toBe("FORBIDDEN");
 			expect(result.error?.message).toBe("No access");
+		});
+
+		it("handles a PluginRouteError from a separate copy of the module", async () => {
+			// Under `astro dev`, a plugin's `emdash` import can resolve to a separate
+			// module instance, so the class it throws is not this module's PluginRouteError.
+			class ForeignPluginRouteError extends Error {
+				constructor(
+					public code: string,
+					message: string,
+					public status: number,
+					public details?: unknown,
+				) {
+					super(message);
+					this.name = "PluginRouteError";
+				}
+			}
+			const plugin = createTestPlugin({
+				routes: {
+					fail: {
+						handler: async () => {
+							throw new ForeignPluginRouteError("BAD_REQUEST", "Invalid URL", 400, {
+								field: "url",
+							});
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("fail", {
+				request: new Request("http://test.com"),
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.status).toBe(400);
+			expect(result.error).toEqual({
+				code: "BAD_REQUEST",
+				message: "Invalid URL",
+				details: { field: "url" },
+			});
+		});
+
+		it("treats an error that only borrows the PluginRouteError name as unknown", async () => {
+			const plugin = createTestPlugin({
+				routes: {
+					crash: {
+						handler: async () => {
+							const error = new Error("Not a route error");
+							error.name = "PluginRouteError";
+							throw error;
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("crash", {
+				request: new Request("http://test.com"),
+			});
+
+			expect(result.status).toBe(500);
+			expect(result.error?.code).toBe("INTERNAL_ERROR");
 		});
 
 		it("handles unknown errors from handler", async () => {

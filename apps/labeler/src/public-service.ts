@@ -1,6 +1,4 @@
-import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
-
-import { readPublicLabelerRuntimeConfig } from "./runtime-config.js";
+import { LABELER_POLICY_EFFECTIVE_AT, readPublicLabelerRuntimeConfig } from "./runtime-config.js";
 
 export function labelerDidDocument(env: Env): Response {
 	const config = readPublicLabelerRuntimeConfig(env);
@@ -8,6 +6,7 @@ export function labelerDidDocument(env: Env): Response {
 		{
 			"@context": ["https://www.w3.org/ns/did/v1"],
 			id: config.labelerDid,
+			alsoKnownAs: [`at://${new URL(config.serviceUrl).hostname}`],
 			verificationMethod: [
 				{
 					id: `${config.labelerDid}#atproto_label`,
@@ -28,6 +27,16 @@ export function labelerDidDocument(env: Env): Response {
 	);
 }
 
+export function labelerHandleDocument(env: Env): Response {
+	const config = readPublicLabelerRuntimeConfig(env);
+	return new Response(config.labelerDid, {
+		headers: {
+			"cache-control": "public, max-age=300",
+			"content-type": "text/plain; charset=utf-8",
+		},
+	});
+}
+
 export function labelerPolicyDocument(env: Env): Response {
 	const config = readPublicLabelerRuntimeConfig(env);
 	return Response.json(
@@ -35,8 +44,8 @@ export function labelerPolicyDocument(env: Env): Response {
 			schemaVersion: 1,
 			labelerDid: config.labelerDid,
 			policyVersion: config.versions.policyVersion,
-			effectiveAt: INITIAL_LISTING_POLICY_FIXTURE.effectiveAt,
-			autoPass: "disabled",
+			effectiveAt: LABELER_POLICY_EFFECTIVE_AT,
+			autoPass: "assisted",
 			subjectCollections: [
 				"com.emdashcms.experimental.package.profile",
 				"com.emdashcms.experimental.package.release",

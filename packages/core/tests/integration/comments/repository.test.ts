@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CommentRepository, type Comment } from "../../../src/database/repositories/comment.js";
@@ -94,6 +94,23 @@ describe("CommentRepository", () => {
 	// -------------------------------------------------------------------------
 
 	describe("Status transitions", () => {
+		it("applies exactly one concurrent expected-status transition", async () => {
+			const created = await repo.create(makeInput({ status: "pending" }));
+			const results = await Promise.all([
+				repo.updateStatusIf(created.id, "approved", "pending"),
+				repo.updateStatusIf(created.id, "spam", "pending"),
+			]);
+			expect(results.filter((result) => result.state === "updated")).toHaveLength(1);
+			expect(results.filter((result) => result.state === "conflict")).toHaveLength(1);
+		});
+
+		it("does not update timestamps or report a transition for an unchanged status", async () => {
+			const created = await repo.create(makeInput({ status: "pending" }));
+			await expect(repo.updateStatusIf(created.id, "pending", "pending")).resolves.toEqual({
+				state: "unchanged",
+				comment: created,
+			});
+		});
 		it("updateStatus changes status", async () => {
 			const created = await repo.create(makeInput());
 			const updated = await repo.updateStatus(created.id, "approved");
@@ -114,6 +131,41 @@ describe("CommentRepository", () => {
 			const found2 = await repo.findById(c2.id);
 			expect(found1!.status).toBe("approved");
 			expect(found2!.status).toBe("approved");
+		});
+
+		it("bulkUpdateStatus rolls back earlier batches when a later update fails", async () => {
+			const comments = [];
+			for (let i = 0; i < 50; i++) {
+				comments.push(await repo.create(makeInput()));
+			}
+			comments.push(await repo.create(makeInput({ body: "Reject update" })));
+			await sql`
+				CREATE TRIGGER reject_comment_status BEFORE UPDATE ON _emdash_comments
+				WHEN NEW.body = 'Reject update'
+				BEGIN
+					SELECT RAISE(ABORT, 'status update rejected');
+				END
+			`.execute(db);
+
+			await expect(
+				repo.bulkUpdateStatus(
+					comments.map((comment) => comment.id),
+					"approved",
+				),
+			).rejects.toThrow("status update rejected");
+
+			const stored = await db
+				.selectFrom("_emdash_comments")
+				.select(["id", "status", "updated_at"])
+				.execute();
+			expect(stored).toHaveLength(comments.length);
+			for (const comment of comments) {
+				expect(stored.find((row) => row.id === comment.id)).toEqual({
+					id: comment.id,
+					status: "pending",
+					updated_at: comment.updatedAt,
+				});
+			}
 		});
 
 		it("bulkUpdateStatus returns 0 for empty array", async () => {
@@ -227,6 +279,19 @@ describe("CommentRepository", () => {
 	// -------------------------------------------------------------------------
 
 	describe("Cursor pagination", () => {
+		it("paginates plugin administration reads and excludes trash from list and count", async () => {
+			for (let index = 0; index < 3; index++) {
+				await repo.create(makeInput({ body: `Visible ${index}`, status: "pending" }));
+			}
+			await repo.create(makeInput({ body: "Trashed", status: "trash" }));
+
+			const first = await repo.findForPlugin({ limit: 2 });
+			expect(first.items).toHaveLength(2);
+			expect(first.nextCursor).toBeTruthy();
+			const second = await repo.findForPlugin({ limit: 2, cursor: first.nextCursor });
+			expect(second.items).toHaveLength(1);
+			await expect(repo.countForPlugin()).resolves.toBe(3);
+		});
 		it("findByContent paginates with cursor", async () => {
 			// Create 5 comments
 			for (let i = 0; i < 5; i++) {
@@ -256,6 +321,20 @@ describe("CommentRepository", () => {
 			expect(new Set(allIds).size).toBe(5);
 		});
 
+		it("clamps a negative limit to a single-item page", async () => {
+			for (let i = 0; i < 5; i++) {
+				await repo.create(makeInput({ status: "approved", body: `Comment ${i}` }));
+			}
+
+			const byContent = await repo.findByContent("post", "content-1", { limit: -2 });
+			expect(byContent.items).toHaveLength(1);
+			expect(byContent.nextCursor).toBeTruthy();
+
+			const byStatus = await repo.findByStatus("approved", { limit: -2 });
+			expect(byStatus.items).toHaveLength(1);
+			expect(byStatus.nextCursor).toBeTruthy();
+		});
+
 		it("findByStatus paginates with cursor", async () => {
 			for (let i = 0; i < 4; i++) {
 				await repo.create(makeInput({ status: "approved", body: `Comment ${i}` }));
@@ -271,6 +350,31 @@ describe("CommentRepository", () => {
 			});
 			expect(page2.items).toHaveLength(2);
 			expect(page2.nextCursor).toBeUndefined();
+		});
+	});
+
+	// -------------------------------------------------------------------------
+	// Page size
+	// -------------------------------------------------------------------------
+
+	describe("Page size", () => {
+		beforeEach(async () => {
+			for (let i = 0; i < 5; i++) {
+				await repo.create(makeInput({ status: "approved", body: `Comment ${i}` }));
+			}
+		});
+
+		it("rounds a fractional limit down instead of failing the query", async () => {
+			const byContent = await repo.findByContent("post", "content-1", { limit: 2.5 });
+			expect(byContent.items).toHaveLength(2);
+
+			const forPlugin = await repo.findForPlugin({ limit: 2.5 });
+			expect(forPlugin.items).toHaveLength(2);
+		});
+
+		it("falls back to the default page size for a non-numeric limit", async () => {
+			const result = await repo.findForPlugin({ limit: Number.NaN });
+			expect(result.items).toHaveLength(5);
 		});
 	});
 

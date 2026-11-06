@@ -1,4 +1,14 @@
-import { sql, type Kysely, type Transaction } from "kysely";
+import {
+	sql,
+	type Kysely,
+	type KyselyPlugin,
+	type PluginTransformQueryArgs,
+	type PluginTransformResultArgs,
+	type QueryResult,
+	type RootOperationNode,
+	type Transaction,
+	type UnknownRow,
+} from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { runSystemCleanup } from "../../../src/cleanup.js";
@@ -9,6 +19,7 @@ import {
 	MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
 	MEDIA_USAGE_CLEANUP_DELETE_LIMIT,
 	MEDIA_USAGE_CLEANUP_INTERVAL_MS,
+	MEDIA_USAGE_CLEANUP_WRITE_LEASE_DELETE_LIMIT,
 } from "../../../src/media/usage/cleanup.js";
 import {
 	describeEachDialect,
@@ -18,6 +29,52 @@ import {
 } from "../../utils/test-db.js";
 
 const MAX_CLEANUP_ADMISSION_TIME_MS = 5_000;
+
+/** Records every table a statement reads through its FROM or JOIN clauses. */
+class ReadTableRecorder implements KyselyPlugin {
+	readonly tables = new Set<string>();
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		collectTableNames(args.node, this.tables);
+		return args.node;
+	}
+
+	async transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return args.result;
+	}
+}
+
+/** Spends the whole statement budget while the cleanup lease row is being read. */
+class SuspendOnCleanupLeaseRead implements KyselyPlugin {
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		const tables = new Set<string>();
+		collectTableNames(args.node, tables);
+		if (tables.has("_emdash_media_usage_cleanup")) {
+			vi.advanceTimersByTime(MAX_CLEANUP_ADMISSION_TIME_MS);
+		}
+		return args.node;
+	}
+
+	async transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return args.result;
+	}
+}
+
+function collectTableNames(node: unknown, into: Set<string>): void {
+	if (Array.isArray(node)) {
+		for (const item of node) collectTableNames(item, into);
+		return;
+	}
+	if (node === null || typeof node !== "object") return;
+	const table = (node as { kind?: string; table?: { identifier?: { name?: unknown } } }).table;
+	if (
+		(node as { kind?: string }).kind === "TableNode" &&
+		typeof table?.identifier?.name === "string"
+	) {
+		into.add(table.identifier.name);
+	}
+	for (const value of Object.values(node)) collectTableNames(value, into);
+}
 
 describeEachDialect("scheduled media usage cleanup", (dialect) => {
 	let ctx: DialectTestContext;
@@ -926,6 +983,109 @@ describeEachDialect("scheduled media usage cleanup", (dialect) => {
 			.where("source_key", "=", stale.sourceKey)
 			.executeTakeFirst();
 		expect(Number(promotion.numUpdatedRows ?? 0)).toBe(0);
+	});
+
+	it("reads only the lease row when its cleanup lease is lost", async () => {
+		const stale = await repo.replaceSource(contentSource("entry-fenced-scan"), [
+			occurrence("media-stale"),
+		]);
+		await repo.replaceSource(contentSource("entry-fenced-scan"), [occurrence("media-current")]);
+		await db
+			.updateTable("_emdash_media_usage")
+			.set({ created_at: "2026-02-01T19:00:00.000Z" })
+			.where("generation", "=", stale.currentGeneration)
+			.execute();
+		expect(
+			await repo.claimMediaUsageCleanup({
+				leaseToken: "fenced-scan-owner",
+				leaseDurationSeconds: 5 * 60,
+				nextEligibleDelaySeconds: 60,
+				sweepSafetyWindowSeconds: 60 * 60,
+			}),
+		).not.toBeNull();
+
+		const cutoff = "2100-01-01T00:00:00.000Z";
+		const scanArgs = {
+			cutoff,
+			cursor: null,
+			limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
+		};
+		expect(
+			await repo.findMediaUsageCleanupCandidates({
+				...scanArgs,
+				cleanupLease: { leaseToken: "fenced-scan-owner" },
+			}),
+		).not.toHaveLength(0);
+
+		const readTables = new ReadTableRecorder();
+		const fenced = new MediaUsageRepository(db.withPlugin(readTables));
+		const lostLease = { leaseToken: "displaced-owner" };
+
+		expect(
+			await fenced.findMediaUsageCleanupCandidates({ ...scanArgs, cleanupLease: lostLease }),
+		).toBeNull();
+		expect(
+			await fenced.deleteOrphanOccurrencesOlderThan(cutoff, MEDIA_USAGE_CLEANUP_DELETE_LIMIT, {
+				cleanupLease: lostLease,
+			}),
+		).toBe(0);
+		expect(
+			await fenced.deleteStaleGenerationsOlderThan(cutoff, MEDIA_USAGE_CLEANUP_DELETE_LIMIT, {
+				cleanupLease: lostLease,
+			}),
+		).toBe(0);
+		expect(
+			await fenced.deleteAbandonedGenerationsOlderThan(cutoff, MEDIA_USAGE_CLEANUP_DELETE_LIMIT, {
+				cleanupLease: lostLease,
+			}),
+		).toBe(0);
+		expect(
+			await fenced.deleteExpiredGenerationWriteLeases(
+				MEDIA_USAGE_CLEANUP_WRITE_LEASE_DELETE_LIMIT,
+				lostLease,
+			),
+		).toBe(0);
+
+		expect([...readTables.tables]).toEqual(["_emdash_media_usage_cleanup"]);
+	});
+
+	it("does not issue its scan when the budget expires during the lease read", async () => {
+		const stale = await repo.replaceSource(contentSource("entry-lease-read-budget"), [
+			occurrence("media-stale"),
+		]);
+		await repo.replaceSource(contentSource("entry-lease-read-budget"), [
+			occurrence("media-current"),
+		]);
+		await db
+			.updateTable("_emdash_media_usage")
+			.set({ created_at: "2026-02-01T19:00:00.000Z" })
+			.where("generation", "=", stale.currentGeneration)
+			.execute();
+		expect(
+			await repo.claimMediaUsageCleanup({
+				leaseToken: "lease-read-budget-owner",
+				leaseDurationSeconds: 5 * 60,
+				nextEligibleDelaySeconds: 60,
+				sweepSafetyWindowSeconds: 60 * 60,
+			}),
+		).not.toBeNull();
+
+		const readTables = new ReadTableRecorder();
+		const startedMs = Date.now();
+		const suspended = new MediaUsageRepository(
+			db.withPlugin(readTables).withPlugin(new SuspendOnCleanupLeaseRead()),
+		);
+
+		expect(
+			await suspended.findMediaUsageCleanupCandidates({
+				cutoff: "2100-01-01T00:00:00.000Z",
+				cursor: null,
+				limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
+				cleanupLease: { leaseToken: "lease-read-budget-owner" },
+				canIssueStatement: () => Date.now() - startedMs < MAX_CLEANUP_ADMISSION_TIME_MS,
+			}),
+		).toBeNull();
+		expect([...readTables.tables]).toEqual(["_emdash_media_usage_cleanup"]);
 	});
 
 	it("stops deletion when a newer cleanup owner takes the lease", async () => {

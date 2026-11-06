@@ -12,6 +12,32 @@ import { sanitizeHref } from "./url.js";
 
 // Regex patterns for inline parsing
 const WHITESPACE_PATTERN = /\S/;
+/** A run of source whitespace; like wpautop, a no-break space is not part of one */
+const WHITESPACE_RUN_PATTERN = /[\t\n\v\f\r ]+/g;
+/** Stands for a blank line in parsed text; parse5 drops U+0000 from text, so content can't contain it */
+const PARAGRAPH_BREAK_MARK = "\u0000";
+
+// Elements that put what follows on a new line anyway, so a newline right
+// before one is not a line break of its own
+const NEW_LINE_ELEMENTS = new Set([
+	"blockquote",
+	"br",
+	"div",
+	"figure",
+	"h1",
+	"h2",
+	"h3",
+	"h4",
+	"h5",
+	"h6",
+	"hr",
+	"li",
+	"ol",
+	"p",
+	"pre",
+	"table",
+	"ul",
+]);
 
 // Pre-compiled block tag patterns
 const BLOCK_TAG_PATTERNS: Record<string, { open: RegExp; close: RegExp }> = {
@@ -67,7 +93,7 @@ export function parseInlineContent(html: string, generateKey: () => string): Par
 	const fragment = parseFragment(strippedHtml);
 
 	// Walk the tree and build spans
-	walkNodes(fragment.childNodes, [], children, markDefs, markDefMap, generateKey);
+	walkNodes(fragment.childNodes, children, markDefs, markDefMap, generateKey);
 
 	// Ensure at least one span exists
 	if (children.length === 0) {
@@ -79,6 +105,59 @@ export function parseInlineContent(html: string, generateKey: () => string): Par
 	}
 
 	return { children, markDefs };
+}
+
+/**
+ * Parse inline HTML into the paragraphs that its blank lines separate, as
+ * wpautop does. Only blank lines in text count, so one inside a comment or an
+ * attribute is not a break, and spans keep their marks and links across one.
+ */
+export function parseInlineParagraphs(html: string, generateKey: () => string): ParseResult[] {
+	const fragment = parseFragment(stripBlockTags(html));
+	markParagraphBreaks(fragment.childNodes);
+
+	const children: PortableTextSpan[] = [];
+	const markDefs: PortableTextMarkDef[] = [];
+	walkNodes(fragment.childNodes, children, markDefs, new Map(), generateKey);
+
+	const paragraphs: PortableTextSpan[][] = [[]];
+	for (const span of children) {
+		for (const [index, text] of span.text.split(PARAGRAPH_BREAK_MARK).entries()) {
+			if (index > 0) paragraphs.push([]);
+			if (text) {
+				paragraphs.at(-1)!.push({ ...span, _key: index === 0 ? span._key : generateKey(), text });
+			}
+		}
+	}
+
+	const markDefsByKey = new Map(markDefs.map((def) => [def._key, def]));
+	const results: ParseResult[] = [];
+	for (const spans of paragraphs) {
+		if (!spans.some((span) => WHITESPACE_PATTERN.test(span.text))) continue;
+		const marks = new Set(spans.flatMap((span) => span.marks ?? []));
+		results.push({
+			children: spans,
+			markDefs: [...marks].flatMap((mark) => markDefsByKey.get(mark) ?? []),
+		});
+	}
+	return results;
+}
+
+/**
+ * Replace each run of whitespace in the fragment's text that holds a blank
+ * line, meaning two newlines, with a paragraph break mark
+ */
+function markParagraphBreaks(nodes: Node[]): void {
+	const pending = [...nodes];
+	for (let node = pending.pop(); node; node = pending.pop()) {
+		if (isTextNode(node)) {
+			node.value = node.value.replace(WHITESPACE_RUN_PATTERN, (run) =>
+				run.indexOf("\n") === run.lastIndexOf("\n") ? run : PARAGRAPH_BREAK_MARK,
+			);
+		} else if (isElement(node)) {
+			for (const child of node.childNodes) pending.push(child);
+		}
+	}
 }
 
 /**
@@ -103,25 +182,30 @@ function stripBlockTags(html: string): string {
 }
 
 /**
- * Recursively walk DOM nodes and build spans
+ * Walk DOM nodes in document order and build spans
  */
 function walkNodes(
 	nodes: Node[],
-	currentMarks: string[],
 	children: PortableTextSpan[],
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
 	generateKey: () => string,
 ): void {
-	for (const node of nodes) {
+	const pending: PendingNode[] = [];
+	pushChildren(pending, nodes, [], undefined);
+	for (let entry = pending.pop(); entry; entry = pending.pop()) {
+		const { node, marks: currentMarks, link: currentLink } = entry;
 		if (isTextNode(node)) {
 			const text = node.value;
 			if (text) {
 				// Handle line breaks in text
 				const parts = text.split("\n");
+				const inlineFollows = WHITESPACE_PATTERN.test(text) || isInlineNode(pending.at(-1)?.node);
+				const leadingBreak =
+					inlineFollows && children.length > 0 && !children.at(-1)!.text.endsWith("\n");
 				for (let i = 0; i < parts.length; i++) {
 					const part = parts[i];
-					if (part || i > 0) {
+					if (part || i > 0 || leadingBreak) {
 						// Add text span
 						if (part) {
 							children.push({
@@ -172,11 +256,40 @@ function walkNodes(
 
 			// Get mark for this element
 			const markResult = getMarkForElement(node, markDefs, markDefMap, generateKey);
-			const newMarks = markResult ? [...currentMarks, markResult] : currentMarks;
+			let newMarks = currentMarks;
+			let newLink = currentLink;
+			if (markResult && !currentMarks.includes(markResult)) {
+				if (tagName === "a") {
+					// A span keeps only its innermost link
+					newMarks = [...currentMarks.filter((mark) => mark !== currentLink), markResult];
+					newLink = markResult;
+				} else {
+					newMarks = [...currentMarks, markResult];
+				}
+			}
 
-			// Recurse into children
-			walkNodes(node.childNodes, newMarks, children, markDefs, markDefMap, generateKey);
+			pushChildren(pending, node.childNodes, newMarks, newLink);
 		}
+	}
+}
+
+interface PendingNode {
+	node: Node;
+	marks: string[];
+	link: string | undefined;
+}
+
+/**
+ * Queue nodes so that popping them yields document order
+ */
+function pushChildren(
+	pending: PendingNode[],
+	nodes: Node[],
+	marks: string[],
+	link: string | undefined,
+): void {
+	for (let i = nodes.length - 1; i >= 0; i--) {
+		pending.push({ node: nodes[i]!, marks, link });
 	}
 }
 
@@ -219,10 +332,11 @@ function getMarkForElement(
 
 		case "a": {
 			const href = sanitizeHref(getAttr(element, "href"));
-			const target = getAttr(element, "target");
+			const blank = getAttr(element, "target") === "_blank";
 
-			// Check if we already have a markDef for this href
-			const existingKey = markDefMap.get(href);
+			// Reuse the definition of an earlier link with the same href and target
+			const mapKey = `${blank ? 1 : 0}${href}`;
+			const existingKey = markDefMap.get(mapKey);
 			if (existingKey) {
 				return existingKey;
 			}
@@ -234,11 +348,11 @@ function getMarkForElement(
 				_key: key,
 				href,
 			};
-			if (target === "_blank") {
+			if (blank) {
 				markDef.blank = true;
 			}
 			markDefs.push(markDef);
-			markDefMap.set(href, key);
+			markDefMap.set(mapKey, key);
 			return key;
 		}
 
@@ -263,6 +377,12 @@ function isTextNode(node: Node): node is TextNode {
 	return node.nodeName === "#text";
 }
 
+function isInlineNode(node: Node | undefined): boolean {
+	if (!node) return false;
+	if (isTextNode(node)) return true;
+	return isElement(node) && !NEW_LINE_ELEMENTS.has(node.tagName.toLowerCase());
+}
+
 /**
  * Type guard for elements
  */
@@ -278,16 +398,58 @@ export function extractText(html: string): string {
 	return getTextContent(fragment.childNodes);
 }
 
+/**
+ * Concatenate text content, trimming each element's text as a unit:
+ * whitespace is kept only when its innermost element has non-whitespace
+ * text both before and after it.
+ */
 function getTextContent(nodes: Node[]): string {
 	let text = "";
-	for (const node of nodes) {
-		if (isTextNode(node)) {
-			text += node.value;
+	const open: Array<{ nodes: Node[]; index: number; textStart: number }> = [
+		{ nodes, index: 0, textStart: 0 },
+	];
+	// Whitespace awaiting later text in the same element, in document order
+	const pendingSpace: Array<{ depth: number; space: string }> = [];
+
+	for (;;) {
+		const depth = open.length;
+		const current = open[depth - 1]!;
+		const node = current.nodes[current.index++];
+		if (node === undefined) {
+			open.pop();
+			while (pendingSpace.at(-1)?.depth === depth) {
+				pendingSpace.pop();
+			}
+			if (open.length === 0) {
+				return text;
+			}
+		} else if (isTextNode(node)) {
+			const value = node.value;
+			const afterLeading = value.trimStart();
+			const body = afterLeading.trimEnd();
+			const hasEarlierText = text.length > current.textStart;
+			if (!body) {
+				if (hasEarlierText && value) {
+					pendingSpace.push({ depth, space: value });
+				}
+				continue;
+			}
+			for (const pending of pendingSpace) {
+				text += pending.space;
+			}
+			pendingSpace.length = 0;
+			if (hasEarlierText) {
+				text += value.slice(0, value.length - afterLeading.length);
+			}
+			text += body;
+			const trailing = afterLeading.slice(body.length);
+			if (trailing) {
+				pendingSpace.push({ depth, space: trailing });
+			}
 		} else if (isElement(node)) {
-			text += getTextContent(node.childNodes);
+			open.push({ nodes: node.childNodes, index: 0, textStart: text.length });
 		}
 	}
-	return text.trim();
 }
 
 /**
@@ -325,7 +487,7 @@ export function extractSrc(html: string): string | undefined {
 /**
  * Decode HTML entities commonly found in URLs
  */
-function decodeUrlEntities(url: string): string {
+export function decodeUrlEntities(url: string): string {
 	return url
 		.replace(URL_AMP_ENTITY_PATTERN, "&")
 		.replace(URL_NUMERIC_AMP_ENTITY_PATTERN, "&")

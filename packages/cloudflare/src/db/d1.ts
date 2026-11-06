@@ -9,7 +9,11 @@
  */
 
 import { env } from "cloudflare:workers";
-import type { CollectionDeletionGuardInput, CollectionDeletionGuardResult } from "emdash";
+import {
+	EmDashConfigurationError,
+	type CollectionDeletionGuardInput,
+	type CollectionDeletionGuardResult,
+} from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
 import { type Dialect, Kysely } from "kysely";
 
@@ -106,9 +110,10 @@ export function createDialect(config: D1Config): Dialect {
 			null,
 			2,
 		);
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`D1 binding "${config.binding}" not found in environment. ` +
 				`Check your wrangler.jsonc configuration:\n\n${example}`,
+			"BINDING_NOT_FOUND",
 		);
 	}
 	// Coalescing only applies to the per-request session db; without
@@ -136,7 +141,10 @@ export function createDialect(config: D1Config): Dialect {
 export function createCoalescingDialect(config: D1Config): Dialect {
 	const db = getBinding(config);
 	if (!db) {
-		throw new Error(`D1 binding "${config.binding}" not found in environment.`);
+		throw new EmDashConfigurationError(
+			`D1 binding "${config.binding}" not found in environment.`,
+			"BINDING_NOT_FOUND",
+		);
 	}
 	return new CoalescingD1Dialect({ database: db });
 }
@@ -190,7 +198,12 @@ export async function executeCollectionDeletionGuard(
 ): Promise<CollectionDeletionGuardResult> {
 	assertCollectionDeletionInput(input);
 	const binding = getBinding(config);
-	if (!binding) throw new Error(`D1 binding "${config.binding}" not found in environment.`);
+	if (!binding) {
+		throw new EmDashConfigurationError(
+			`D1 binding "${config.binding}" not found in environment.`,
+			"BINDING_NOT_FOUND",
+		);
+	}
 	return input.action === "fence"
 		? executeFenceBatch(binding, input)
 		: executeDropBatch(binding, input);

@@ -7,7 +7,11 @@ import {
 	MEDIA_USAGE_ACTIVATION_RUNTIME_GENERATION,
 	MediaUsageActivationVersionMismatchError,
 } from "./activation.js";
-import { processDueMediaUsageCollectionDeletions } from "./collection-deletion-processor.js";
+import {
+	processDueMediaUsageCollectionDeletions,
+	processMediaUsageCollectionDeletion,
+} from "./collection-deletion-processor.js";
+import { MediaUsageCollectionDeletionRepository } from "./collection-deletion.js";
 import { processDueMediaUsageReconciliationDetailed } from "./reconciliation-processor.js";
 import { MediaUsageReconciliationRepository } from "./reconciliation.js";
 import { processDueMediaUsageWork } from "./work-processor.js";
@@ -102,6 +106,48 @@ export async function runMediaUsageMaintenanceStep(
 		state: "idle",
 		continuation: { kind: "none" },
 	};
+}
+
+export type MediaUsageCollectionDeletionFinish =
+	| { state: "finished" }
+	| { state: "pending" }
+	| { state: "failed"; collectionId: string };
+
+/**
+ * Finish the pending deletion of a collection slug within this request, so the
+ * slug can be registered again. A call stops after about one maintenance step's
+ * queries, so a create request never waits on a large cleanup.
+ *
+ * - `pending`: it can't finish now, because another request holds its lease,
+ *   it is waiting out a retry, or this call's query window ran out. Progress
+ *   is checkpointed, so a later call continues where this one stopped.
+ * - `failed`: it ran out of attempts and stays until an operator retries it
+ *   by the deleted collection's ID.
+ */
+export async function finishMediaUsageCollectionDeletion(
+	db: Kysely<Database>,
+	collectionSlug: string,
+): Promise<MediaUsageCollectionDeletionFinish> {
+	const repository = new MediaUsageCollectionDeletionRepository(db);
+	const metrics = getRequestContext()?.metrics;
+	const firstQuery = metrics?.dbCount ?? 0;
+	for (;;) {
+		const deletion = await repository.findBySlug(collectionSlug);
+		if (!deletion) return { state: "finished" };
+		if (deletion.state === "failed") {
+			return { state: "failed", collectionId: deletion.collectionId };
+		}
+		if (
+			metrics &&
+			(metrics.dbCount - firstQuery >= MEDIA_USAGE_MAINTENANCE_LIMITS.maxStepQueries ||
+				!canStartMediaUsageMaintenanceStep(metrics))
+		) {
+			return { state: "pending" };
+		}
+		const outcome = await processMediaUsageCollectionDeletion(db, deletion);
+		if (outcome === "failed") return { state: "failed", collectionId: deletion.collectionId };
+		if (outcome !== "progress" && outcome !== "finalized") return { state: "pending" };
+	}
 }
 
 async function runActivationStep(db: Kysely<Database>): Promise<MediaUsageMaintenanceStepResult> {

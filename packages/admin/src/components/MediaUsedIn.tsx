@@ -1,10 +1,22 @@
-import { Badge, Banner, Button, SkeletonLine, Tooltip } from "@cloudflare/kumo";
+import {
+	Badge,
+	Banner,
+	Button,
+	LayerCard,
+	Link as KumoLink,
+	SkeletonLine,
+	Tooltip,
+} from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowCounterClockwise,
 	CircleNotch,
 	Clock,
+	Gear,
 	Question,
+	ArrowUpRight,
 	Warning,
 	XCircle,
 } from "@phosphor-icons/react";
@@ -19,10 +31,23 @@ import {
 	type AdminManifest,
 	type MediaUsageCoverageStatus,
 	type MediaUsageEntryDetail,
+	type MediaUsageSiteSettingDetail,
 } from "../lib/api/index.js";
 import { getCollectionNavIcon } from "./admin-navigation-icons.js";
 
 const USAGE_PAGE_SIZE = 50;
+
+const MEDIA_USAGE_DOCS_URL =
+	"https://docs.emdashcms.com/guides/media-library/#see-where-a-file-is-used";
+
+const SITE_SETTING_LABELS: Record<MediaUsageSiteSettingDetail["setting"], MessageDescriptor> = {
+	logo: msg`Logo`,
+	favicon: msg`Favicon`,
+	"seo.defaultOgImage": msg`Default Social Image`,
+};
+
+const USAGE_ROW_CLASS_NAME =
+	"group flex w-full min-w-0 items-center gap-3 rounded-lg bg-kumo-base px-3 py-3 text-start ring ring-kumo-line";
 
 export interface MediaUsedInProps {
 	mediaId: string;
@@ -60,6 +85,7 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 	const accessDenied = usageQuery.error instanceof MediaUsageAccessDeniedError;
 	const pages = usageQuery.data?.pages ?? [];
 	const entries = pages.flatMap((page) => page.items);
+	const siteSettings = pages[0]?.siteSettings ?? [];
 	const coverageStatus = aggregateCoverageStatus(pages.map((page) => page.coverage.status));
 	const coverageComplete = coverageStatus === "complete";
 	const refreshError = usageQuery.isError && pages.length > 0 && !usageQuery.isFetchNextPageError;
@@ -115,33 +141,36 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 
 	return (
 		<section
-			className="space-y-2"
+			className="flex h-full min-h-0 flex-col gap-4"
 			aria-labelledby={headingId}
 			aria-busy={usageQuery.isFetching || undefined}
 			data-testid="media-used-in"
 		>
-			<div className="flex items-center gap-2">
-				<h3 id={headingId} className="text-[14px] font-medium text-kumo-default">
-					{t`Used in`}
-				</h3>
-				{coverageIcon && coverageMessage && (
-					<Tooltip
-						content={coverageMessage}
-						delay={0}
-						closeDelay={0}
-						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								size="xs"
-								icon={coverageIcon}
-								className={coverageTone}
-								aria-label={coverageMessage}
-							/>
-						}
-					/>
-				)}
+			<div className="grid gap-1.5">
+				<div className="flex items-center gap-2">
+					<h3 id={headingId} className="text-base font-semibold text-kumo-default">
+						{t`Used in`}
+					</h3>
+					{coverageIcon && coverageMessage && (
+						<Tooltip
+							content={coverageMessage}
+							delay={0}
+							closeDelay={0}
+							render={
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									size="xs"
+									icon={coverageIcon}
+									className={coverageTone}
+									aria-label={coverageMessage}
+								/>
+							}
+						/>
+					)}
+				</div>
+				<p className="text-sm text-kumo-subtle">{t`See where this file is used.`}</p>
 			</div>
 			<span className="sr-only" role="status">
 				{statusMessage}
@@ -156,11 +185,16 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 			) : usageQuery.isError && pages.length === 0 ? (
 				<UsageError onRetry={() => void usageQuery.refetch()} />
 			) : pages.length > 0 ? (
-				<div className="space-y-2">
+				<div className="flex min-h-0 flex-1 flex-col">
 					{refreshError && <UsageError onRetry={() => void usageQuery.refetch()} />}
 
-					{entries.length > 0 ? (
-						<ul className="max-h-[10.6875rem] space-y-2 overflow-y-auto overscroll-contain pe-1">
+					{entries.length > 0 || siteSettings.length > 0 ? (
+						<ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto overscroll-contain p-0.5">
+							{siteSettings.length > 0 && (
+								<li>
+									<SiteSettingsUsage settings={siteSettings} />
+								</li>
+							)}
 							{entries.map((entry) => (
 								<li key={`${entry.collection}:${entry.contentId}`}>
 									<UsageEntry
@@ -173,11 +207,27 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 							))}
 						</ul>
 					) : canRenderEmpty ? (
-						<p className="text-sm text-kumo-subtle">
-							{coverageComplete
-								? t`No usage found in EmDash-managed content fields.`
-								: t`No indexed references are currently available.`}
-						</p>
+						<LayerCard className="grid justify-items-center gap-1.5 px-6 py-14 text-center">
+							<p className="text-sm font-medium text-kumo-default">
+								{coverageComplete ? t`No tracked references found` : t`No usage to show yet`}
+							</p>
+							<p className="text-sm text-kumo-subtle">
+								{coverageComplete
+									? t`Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked.`
+									: t`Some content may not appear here yet.`}
+							</p>
+							{coverageComplete && (
+								<KumoLink
+									href={MEDIA_USAGE_DOCS_URL}
+									target="_blank"
+									rel="noreferrer"
+									className="text-sm"
+								>
+									{t`What’s tracked`}
+									<KumoLink.ExternalIcon />
+								</KumoLink>
+							)}
+						</LayerCard>
 					) : null}
 
 					{usageQuery.hasNextPage && (
@@ -231,6 +281,30 @@ function UsageError({ onRetry }: { onRetry: () => void }) {
 	);
 }
 
+function SiteSettingsUsage({ settings }: { settings: readonly MediaUsageSiteSettingDetail[] }) {
+	const { i18n, t } = useLingui();
+	const settingLabels = new Intl.ListFormat(i18n.locale, {
+		style: "short",
+		type: "conjunction",
+	}).format(settings.map(({ setting }) => t(SITE_SETTING_LABELS[setting])));
+
+	return (
+		<div className={USAGE_ROW_CLASS_NAME}>
+			<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-kumo-tint text-kumo-subtle">
+				<Gear className="h-4 w-4" aria-hidden="true" />
+			</span>
+			<span className="min-w-0 flex-1 space-y-0.5">
+				<span className="block truncate text-sm font-medium text-kumo-default">
+					{t`Site Settings`}
+				</span>
+				<span className="block truncate text-sm text-kumo-subtle" title={settingLabels}>
+					{settingLabels}
+				</span>
+			</span>
+		</div>
+	);
+}
+
 function UsageEntry({
 	entry,
 	manifest,
@@ -242,12 +316,28 @@ function UsageEntry({
 	navigationBlocked?: boolean;
 	onEntryClick?: MediaUsedInProps["onEntryClick"];
 }) {
-	const { t } = useLingui();
+	const { i18n, t } = useLingui();
 	const title = entry.title || entry.slug || t`Untitled`;
 	const titleDirection = entry.title ? "auto" : entry.slug ? "ltr" : "auto";
 	const manifestLabel = manifest?.collections[entry.collection]?.label;
 	const collectionLabel = manifestLabel || entry.collection;
 	const identifier = entry.slug || entry.contentId;
+	const fieldSlugs = [
+		...new Set(
+			entry.sources.flatMap((source) =>
+				source.occurrences.map((occurrence) => occurrence.fieldSlug),
+			),
+		),
+	];
+	const fieldLabels = fieldSlugs.map(
+		(fieldSlug) => manifest?.collections[entry.collection]?.fields[fieldSlug]?.label || fieldSlug,
+	);
+	const usageLocation =
+		fieldLabels.length > 0
+			? new Intl.ListFormat(i18n.locale, { style: "short", type: "conjunction" }).format(
+					fieldLabels,
+				)
+			: identifier;
 	const showLocale = Boolean(manifest?.i18n && entry.locale);
 	const CollectionIcon = getCollectionNavIcon(entry.collection);
 	const content = (
@@ -257,7 +347,7 @@ function UsageEntry({
 			</span>
 			<span className="min-w-0 flex-1 space-y-0.5">
 				<span className="flex min-w-0 items-center gap-2">
-					<span className="truncate text-base font-medium text-kumo-default" dir={titleDirection}>
+					<span className="truncate text-sm font-medium text-kumo-default" dir={titleDirection}>
 						{title}
 					</span>
 					{entry.deletedAt && (
@@ -273,8 +363,13 @@ function UsageEntry({
 					<span className="shrink-0 text-kumo-inactive" aria-hidden="true">
 						·
 					</span>
-					<span className="min-w-0 truncate font-mono" dir="ltr" translate="no" title={identifier}>
-						{identifier}
+					<span
+						className={`min-w-0 truncate ${fieldLabels.length === 0 ? "font-mono" : ""}`}
+						dir={fieldLabels.length === 0 ? "ltr" : "auto"}
+						translate={fieldLabels.length === 0 ? "no" : undefined}
+						title={usageLocation}
+					>
+						{usageLocation}
 					</span>
 					{showLocale && (
 						<>
@@ -288,19 +383,22 @@ function UsageEntry({
 					)}
 				</span>
 			</span>
+			{!entry.deletedAt && (
+				<span className="ms-auto flex shrink-0 items-center gap-1 text-sm font-medium text-kumo-subtle group-hover:text-kumo-default">
+					{t`Open`}
+					<ArrowUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+				</span>
+			)}
 		</>
 	);
-	const rowClassName =
-		"flex w-full min-w-0 items-center gap-3 rounded-md border border-kumo-line bg-kumo-control px-3 py-2.5 text-start";
-
-	if (entry.deletedAt) return <div className={rowClassName}>{content}</div>;
+	if (entry.deletedAt) return <div className={USAGE_ROW_CLASS_NAME}>{content}</div>;
 
 	return (
 		<Link
 			to="/content/$collection/$id"
 			params={{ collection: entry.collection, id: entry.contentId }}
 			search={{ locale: entry.locale ?? undefined }}
-			className={`${rowClassName} hover:bg-kumo-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
+			className={`${USAGE_ROW_CLASS_NAME} hover:bg-kumo-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
 			aria-disabled={navigationBlocked || undefined}
 			onClick={(event) => {
 				if (navigationBlocked) {

@@ -1,7 +1,8 @@
 /**
  * SEO Settings sub-page
  *
- * Title separator, search engine verification codes, and robots.txt.
+ * Title separator, search engine verification codes, robots.txt, and the
+ * AI training opt-out.
  */
 
 import {
@@ -10,7 +11,9 @@ import {
 	Field,
 	Input,
 	InputArea,
+	Label,
 	Loader,
+	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
@@ -18,18 +21,24 @@ import { Upload, WarningCircle, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type MediaItem, type SiteSettings } from "../../lib/api";
+import {
+	fetchSettings,
+	updateSettings,
+	type MediaItem,
+	type SiteSettingsUpdate,
+} from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-function seoSettingsSnapshot(settings: Partial<SiteSettings>) {
+function seoSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
-		titleSeparator: settings.seo?.titleSeparator || "|",
+		titleSeparator: settings.seo?.titleSeparator ?? "",
 		defaultOgImage: settings.seo?.defaultOgImage ?? null,
 		googleVerification: settings.seo?.googleVerification ?? "",
 		bingVerification: settings.seo?.bingVerification ?? "",
 		robotsTxt: settings.seo?.robotsTxt ?? "",
+		disallowAiTraining: settings.seo?.disallowAiTraining === true,
 	});
 }
 
@@ -48,8 +57,8 @@ export function SeoSettings() {
 		staleTime: Infinity,
 	});
 
-	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
+	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
+	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [ogImagePickerOpen, setOgImagePickerOpen] = React.useState(false);
 
 	React.useEffect(() => {
@@ -65,7 +74,7 @@ export function SeoSettings() {
 	);
 
 	const saveMutation = useMutation({
-		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
+		mutationFn: (data: SiteSettingsUpdate) => updateSettings(data),
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -110,7 +119,7 @@ export function SeoSettings() {
 	const handleDefaultOgImageRemove = () => {
 		setFormData((prev) => ({
 			...prev,
-			seo: { ...prev.seo, defaultOgImage: undefined },
+			seo: { ...prev.seo, defaultOgImage: null },
 		}));
 	};
 
@@ -162,7 +171,8 @@ export function SeoSettings() {
 					<SettingRow>
 						<Input
 							label={t`Title Separator`}
-							value={formData.seo?.titleSeparator || "|"}
+							value={formData.seo?.titleSeparator ?? ""}
+							placeholder="|"
 							onChange={(e) => handleSeoChange("titleSeparator", e.target.value)}
 							description={t`Character between page title and site name (e.g., "My Post | My Site")`}
 						/>
@@ -179,7 +189,7 @@ export function SeoSettings() {
 										<img
 											src={formData.seo.defaultOgImage.url}
 											alt={formData.seo.defaultOgImage.alt || t`Default social image`}
-											className="h-32 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2"
+											className="emdash-media-transparency-grid h-32 max-w-full rounded border border-kumo-line object-contain p-2"
 										/>
 									) : (
 										<div
@@ -227,15 +237,10 @@ export function SeoSettings() {
 					</SettingRow>
 				</SettingsSection>
 
-				<SettingsSection
-					title={
-						<>
-							{t`Google Verification`} / {t`Bing Verification`}
-						</>
-					}
-				>
+				<SettingsSection title={t`Search Engine Verification`}>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Google Verification`}
 							value={formData.seo?.googleVerification || ""}
 							onChange={(e) => handleSeoChange("googleVerification", e.target.value)}
@@ -244,6 +249,7 @@ export function SeoSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Bing Verification`}
 							value={formData.seo?.bingVerification || ""}
 							onChange={(e) => handleSeoChange("bingVerification", e.target.value)}
@@ -255,11 +261,28 @@ export function SeoSettings() {
 				<SettingsSection title={t`robots.txt`}>
 					<SettingRow>
 						<InputArea
+							dir="ltr"
 							label={t`robots.txt`}
 							value={formData.seo?.robotsTxt || ""}
 							onChange={(e) => handleSeoChange("robotsTxt", e.target.value)}
 							rows={5}
 							description={t`Custom robots.txt content. Leave empty to use the default.`}
+						/>
+					</SettingRow>
+					<SettingRow className="flex items-start justify-between gap-6">
+						<div className="grid gap-1">
+							<Label htmlFor="seo-disallow-ai-training">{t`Disallow AI training`}</Label>
+							<p id="seo-disallow-ai-training-description" className="text-sm text-kumo-subtle">
+								{t`Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.`}
+							</p>
+						</div>
+						<Switch
+							id="seo-disallow-ai-training"
+							className="shrink-0"
+							checked={formData.seo?.disallowAiTraining === true}
+							onCheckedChange={(checked) => handleSeoChange("disallowAiTraining", checked)}
+							aria-label={t`Disallow AI training`}
+							aria-describedby="seo-disallow-ai-training-description"
 						/>
 					</SettingRow>
 				</SettingsSection>
@@ -281,7 +304,7 @@ export function SeoSettings() {
 				onSelect={handleDefaultOgImageSelect}
 				mimeTypeFilters={["image/jpeg", "image/png", "image/webp", "image/gif"]}
 				localOnly
-				title={t`Select Default Social Image`}
+				title={t`Select default social image`}
 			/>
 		</SettingsFrame>
 	);

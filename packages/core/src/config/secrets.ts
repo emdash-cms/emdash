@@ -4,8 +4,9 @@
  * Single source of truth for site-level cryptographic secrets:
  *
  * - `EMDASH_ENCRYPTION_KEY` — primary key for encrypting plugin secrets at
- *   rest. Multi-key (comma-separated) for rotation forward-compat. v1 ships
- *   single-key. Format: `emdash_enc_v1_<43 base64url chars>` representing
+ *   rest. A comma-separated list supports rotation: the first key encrypts
+ *   new values and every listed key remains available for decryption. Format:
+ *   `emdash_enc_v1_<43 base64url chars>` representing
  *   32 random bytes. **Operator-provided; never stored in the database.**
  *   Losing the key means losing every secret encrypted with it. Validated
  *   at runtime startup via `validateEncryptionKeyAtStartup` — request-time
@@ -33,6 +34,7 @@ import type { Kysely } from "kysely";
 
 import { after } from "../after.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { isRequestScopedDb } from "../database/request-scoped.js";
 import type { Database } from "../database/types.js";
 import { decodeBase64url, encodeBase64url } from "../utils/base64.js";
 import {
@@ -123,8 +125,8 @@ export interface ResolveSecretsOptions {
 /** Environment-variable shape consulted by the resolver. */
 export interface SecretsEnv {
 	/**
-	 * Read by `validateEncryptionKeyAtStartup` and (in a follow-up PR) by the
-	 * plugin-secret encryption layer. **Not** consulted by `resolveSecrets`,
+	 * Read by `validateEncryptionKeyAtStartup` and the plugin-secret encryption
+	 * layer. **Not** consulted by `resolveSecrets`,
 	 * so a malformed value can't 500 the preview/comment hot paths.
 	 */
 	EMDASH_ENCRYPTION_KEY?: string;
@@ -243,6 +245,19 @@ export async function parseEncryptionKeys(
 }
 
 /**
+ * Resolve the encryption keys used for plugin secret settings.
+ *
+ * This is deliberately separate from `resolveSecrets`: plugin settings are
+ * not on the anonymous request path, and a missing or malformed key must only
+ * fail operations that need encrypted plugin settings.
+ */
+export function resolvePluginEncryptionKeys(
+	env?: SecretsEnv,
+): Promise<ParsedEncryptionKey[] | null> {
+	return parseEncryptionKeys((env ?? readDefaultEnv()).EMDASH_ENCRYPTION_KEY);
+}
+
+/**
  * Compute the kid for a raw key string (the env-var form including the
  * `emdash_enc_v1_` prefix). Public so the CLI's `fingerprint` subcommand
  * and admin endpoints can show kids without exposing raw keys.
@@ -308,8 +323,8 @@ export function generateEncryptionKey(): string {
  * Note: `EMDASH_ENCRYPTION_KEY` is **not** consumed here. It's validated
  * separately at runtime startup (see `validateEncryptionKeyAtStartup`) so a
  * malformed key can't take down preview-token verification or comment
- * submission for unrelated visitors. Future plugin-secret encryption code
- * will read it via its own dedicated helper.
+ * submission for unrelated visitors. Plugin-secret encryption reads it
+ * separately through `resolvePluginEncryptionKeys`.
  */
 export async function resolveSecrets(options: ResolveSecretsOptions): Promise<ResolvedSecrets> {
 	const env = options.env ?? readDefaultEnv();
@@ -342,10 +357,10 @@ export async function resolveSecrets(options: ResolveSecretsOptions): Promise<Re
 /**
  * Validate `EMDASH_ENCRYPTION_KEY` once at runtime startup. Logs an
  * operator-facing error if the value is malformed but does **not** throw —
- * the key is currently inert (no consumers), and the follow-up PR that
- * actually uses it will throw at point of use. This way, deployment
- * mistakes surface immediately in startup logs without wedging unrelated
- * request paths in the meantime.
+ * plugin secret-setting operations fail closed at their own boundary when
+ * the key is invalid. This way, deployment mistakes surface immediately in
+ * startup logs without wedging unrelated request paths such as preview-token
+ * verification or comment submission.
  *
  * Returns `true` if the key is unset or valid, `false` if it was malformed.
  */
@@ -358,7 +373,7 @@ export async function validateEncryptionKeyAtStartup(env?: SecretsEnv): Promise<
 		if (error instanceof EmDashSecretsError) {
 			console.error(
 				`[emdash] EMDASH_ENCRYPTION_KEY is invalid: ${error.message} ` +
-					"Plugin-secret encryption will fail once it ships. " +
+					"Plugin secret settings are unavailable until this is fixed. " +
 					"Generate a fresh key with `emdash secrets generate`.",
 			);
 			return false;
@@ -368,17 +383,22 @@ export async function validateEncryptionKeyAtStartup(env?: SecretsEnv): Promise<
 }
 
 /**
- * Per-DB cache of resolved secrets, keyed by Kysely instance identity.
+ * Per-DB cache of resolved secrets. Request-scoped views of the configured
+ * database (see `database/request-scoped.ts`) share one entry; any other
+ * Kysely instance is keyed by its identity.
  *
  * The resolved values are stable for the lifetime of the deployment (env
  * vars don't change without a restart, and DB-stored values are written
  * once via `setIfAbsent`). Caching avoids one options-table read per
- * request on the hot paths (preview verification, comment hashing).
+ * request on the hot paths (preview verification, comment hashing). A
+ * deleted row is regenerated only by a process or isolate that has not
+ * cached the old value, so rotating a DB-stored secret needs a restart or
+ * redeploy.
  *
  * Lives on `globalThis` so module-duplication during SSR bundling can't
  * fragment the cache. See `request-context.ts` for the same pattern.
  *
- * Each db gets its own poison-immune single-flight cache (see
+ * Each entry is a poison-immune single-flight cache (see
  * `utils/single-flight-cache.ts`): the resolved *value* is cached, never an
  * in-flight promise, so a request cancelled mid-resolve can't strand later
  * preview/comment requests on the isolate.
@@ -391,9 +411,10 @@ const SECRETS_CACHE_KEY = Symbol.for("@emdash-cms/core/secrets-cache@2");
 
 interface SecretsCacheHolder {
 	cache: WeakMap<Kysely<Database>, SingleFlightCache<ResolvedSecrets>>;
+	requestScoped?: SingleFlightCache<ResolvedSecrets>;
 }
 
-function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<ResolvedSecrets>> {
+function getSecretsCache(db: Kysely<Database>): SingleFlightCache<ResolvedSecrets> {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
 	const holder = globalThis as Record<symbol, SecretsCacheHolder | undefined>;
 	let entry = holder[SECRETS_CACHE_KEY];
@@ -401,7 +422,16 @@ function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<Resolved
 		entry = { cache: new WeakMap() };
 		holder[SECRETS_CACHE_KEY] = entry;
 	}
-	return entry.cache;
+	if (isRequestScopedDb(db)) {
+		entry.requestScoped ??= createSingleFlightCache<ResolvedSecrets>();
+		return entry.requestScoped;
+	}
+	let cache = entry.cache.get(db);
+	if (!cache) {
+		cache = createSingleFlightCache<ResolvedSecrets>();
+		entry.cache.set(db, cache);
+	}
+	return cache;
 }
 
 /**
@@ -409,18 +439,14 @@ function getSecretsCache(): WeakMap<Kysely<Database>, SingleFlightCache<Resolved
  * paths (preview verification, comment IP hashing) so they don't reread
  * env / re-query options on every request.
  *
- * The cache is keyed by `Kysely` instance, so playground / per-DO / per-test
- * databases each get their own resolution. Concurrent cold callers coalesce
- * onto one resolution via the single-flight lock; a failed resolution
- * propagates to the caller and releases the lock so the next caller retries.
+ * Request-scoped views of the configured database share one resolution;
+ * playground / DO preview / per-test databases each get their own.
+ * Concurrent cold callers coalesce onto one resolution via the single-flight
+ * lock; a failed resolution propagates to the caller and releases the lock so
+ * the next caller retries.
  */
 export function resolveSecretsCached(db: Kysely<Database>): Promise<ResolvedSecrets> {
-	const caches = getSecretsCache();
-	let cache = caches.get(db);
-	if (!cache) {
-		cache = createSingleFlightCache<ResolvedSecrets>();
-		caches.set(db, cache);
-	}
+	const cache = getSecretsCache(db);
 	return singleFlightCached(cache, () => resolveSecrets({ db }), {
 		anchor: (promise) => after(() => promise),
 		ownerTimeoutMs: 30_000,

@@ -1,11 +1,14 @@
+import { useLingui } from "@lingui/react/macro";
 import { useMatches } from "@tanstack/react-router";
 import * as React from "react";
 
+import type { AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { Header } from "./Header";
+import { RegistryConfigurationBanner } from "./RegistryConfigurationBanner.js";
 import { Sidebar, SidebarNav } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
 
@@ -27,7 +30,7 @@ export interface ShellProps {
 			string,
 			{
 				package?: string;
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 			}
 		>;
 		taxonomies: Array<{
@@ -39,6 +42,9 @@ export interface ShellProps {
 		}>;
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
+		admin?: AdminManifest["admin"];
+		registryConfigurationError?: AdminManifest["registryConfigurationError"];
+		staging?: boolean;
 	};
 }
 
@@ -50,6 +56,7 @@ export interface ShellProps {
  */
 export function Shell({ children, manifest }: ShellProps) {
 	const [welcomeModalOpen, setWelcomeModalOpen] = React.useState(false);
+	const { t } = useLingui();
 
 	const { data: user } = useCurrentUser();
 	const { locale } = useLocale();
@@ -67,7 +74,7 @@ export function Shell({ children, manifest }: ShellProps) {
 
 	// Maintain the non-secret "an editor session may exist in this browser"
 	// localStorage flag consumed by the public-site toolbar bootstrap
-	// (`toolbar: "client"`, Discussion #1742). Set here — not in the login
+	// (`toolbar: "client"`). Set here — not in the login
 	// flows — so every auth method (passkey, OAuth, magic link, dev bypass)
 	// is covered. Opening the admin also un-dismisses the toolbar.
 	// Key literals are duplicated in emdash core, which the admin can't import.
@@ -76,14 +83,19 @@ export function Shell({ children, manifest }: ShellProps) {
 		try {
 			if (user.role >= 30) {
 				localStorage.setItem("emdash-editor", "1");
+				localStorage.setItem(
+					"emdash-toolbar-labels",
+					JSON.stringify({ editMode: t`Edit`, hideToolbar: t`Hide toolbar` }),
+				);
 				localStorage.removeItem("emdash-toolbar-dismissed");
 			} else {
 				localStorage.removeItem("emdash-editor");
+				localStorage.removeItem("emdash-toolbar-labels");
 			}
 		} catch {
 			// localStorage unavailable — the toolbar pill just won't appear
 		}
-	}, [user]);
+	}, [t, user]);
 
 	return (
 		<Sidebar.Provider
@@ -103,11 +115,19 @@ export function Shell({ children, manifest }: ShellProps) {
 
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
-				<Header />
+				<Header staging={manifest.staging} />
+				{manifest.registryConfigurationError && (
+					<div className="space-y-3 px-6 pt-6">
+						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
+					</div>
+				)}
+				{/* Full-bleed clips because scrollIntoView() and focus() can still scroll
+				    an overflow-hidden box, pushing the page up under the header. A
+				    clipping box isn't a scroll container, so it also needs min-h-0. */}
 				<main
 					className={
 						fullBleed
-							? "flex-1 overflow-hidden bg-kumo-elevated"
+							? "min-h-0 flex-1 overflow-clip bg-kumo-elevated"
 							: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
 					}
 				>

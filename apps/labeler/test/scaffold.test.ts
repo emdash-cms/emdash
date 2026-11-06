@@ -40,6 +40,7 @@ describe("labeler scaffold", () => {
 	it("exposes the public health route", async () => {
 		const response = await SELF.fetch("https://labeler.test/health");
 		expect(response.status).toBe(503);
+		expect(response.headers.get("access-control-allow-origin")).toBe("*");
 		expect(await response.json()).toMatchObject({
 			service: "emdash-labeler",
 			status: "not-ready",
@@ -51,32 +52,55 @@ describe("labeler scaffold", () => {
 		expect(missing.status).toBe(404);
 	});
 
-	it("publishes the did:web signing method and manual-only policy", async () => {
+	it("publishes the did:web signing method and assisted policy", async () => {
 		const did = await SELF.fetch("https://labeler.test/.well-known/did.json");
 		expect(did.status).toBe(200);
+		expect(did.headers.get("access-control-allow-origin")).toBe("*");
 		expect(await did.json()).toMatchObject({
 			id: "did:web:labels.emdashcms.com",
+			alsoKnownAs: ["at://labels.emdashcms.com"],
 			verificationMethod: [
 				expect.objectContaining({
 					id: "did:web:labels.emdashcms.com#atproto_label",
 				}),
 			],
 		});
+		const handle = await SELF.fetch("https://labeler.test/.well-known/atproto-did");
+		expect(handle.status).toBe(200);
+		expect(handle.headers.get("access-control-allow-origin")).toBe("*");
+		expect(handle.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+		expect(await handle.text()).toBe("did:web:labels.emdashcms.com");
 		const policy = await SELF.fetch("https://labeler.test/.well-known/emdash-labeler-policy.json");
+		expect(policy.headers.get("access-control-allow-origin")).toBe("*");
 		expect(await policy.json()).toMatchObject({
 			labelerDid: "did:web:labels.emdashcms.com",
-			autoPass: "disabled",
+			autoPass: "assisted",
 			subjectCollections: [
 				"com.emdashcms.experimental.package.profile",
 				"com.emdashcms.experimental.package.release",
 			],
 		});
+		const preflight = await SELF.fetch("https://labeler.test/.well-known/did.json", {
+			method: "OPTIONS",
+			headers: {
+				origin: "https://pdsls.dev",
+				"access-control-request-method": "GET",
+			},
+		});
+		expect(preflight.status).toBe(204);
+		expect(preflight.headers.get("access-control-allow-origin")).toBe("*");
 	});
 
 	it("routes the public label query and subscription endpoints", async () => {
 		const query = await SELF.fetch("https://labeler.test/xrpc/com.atproto.label.queryLabels");
 		expect(query.status).toBe(400);
+		expect(query.headers.get("access-control-allow-origin")).toBe("*");
 		expect(await query.json()).toMatchObject({ error: "InvalidRequest" });
+		const validQuery = await SELF.fetch(
+			"https://labeler.test/xrpc/com.atproto.label.queryLabels?uriPatterns=*",
+		);
+		expect(validQuery.status).toBe(200);
+		expect(validQuery.headers.get("access-control-allow-origin")).toBe("*");
 
 		const subscribe = await SELF.fetch(
 			"https://labeler.test/xrpc/com.atproto.label.subscribeLabels",
@@ -87,12 +111,14 @@ describe("labeler scaffold", () => {
 	it("routes the public assessment policy query", async () => {
 		const response = await SELF.fetch(`https://labeler.test/xrpc/${NSID.labelerGetPolicy}`);
 		expect(response.status).toBe(200);
+		expect(response.headers.get("access-control-allow-origin")).toBe("*");
 		expect(is(LabelerGetPolicy.mainSchema.output.schema, await response.json())).toBe(true);
 
 		const mutation = await SELF.fetch(`https://labeler.test/xrpc/${NSID.labelerGetPolicy}`, {
 			method: "POST",
 		});
 		expect(mutation.status).toBe(405);
+		expect(mutation.headers.get("access-control-allow-origin")).toBe("*");
 		expect(mutation.headers.get("allow")).toBe("GET");
 	});
 

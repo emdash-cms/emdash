@@ -5,6 +5,15 @@ import { fileURLToPath } from "node:url";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	clefImagePromptHash,
+	clefTextPromptHash,
+	createClefImageAdapter,
+	createClefTextAdapter,
+	isClefModelId,
+} from "../src/ai/clef.js";
 import { sha256Hex } from "../src/ai/hash.js";
 import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 import type {
@@ -13,15 +22,17 @@ import type {
 	ModerationModelIdentity,
 	TextModerationAdapter,
 } from "../src/ai/types.js";
-import {
-	createWorkersAiImageAdapter,
-	createWorkersAiTextAdapter,
-	type WorkersAiBinding,
-} from "../src/ai/workers-ai.js";
+import { createUnanimousTextModerationAdapter, unanimousTextModelId } from "../src/ai/unanimous.js";
+import { createWorkersAiImageAdapter, createWorkersAiTextAdapter } from "../src/ai/workers-ai.js";
 import { loadEvalDataset } from "./dataset.js";
 import { calculateEvalMetrics, evaluateBudgets, runEvaluation } from "./harness.js";
 import { loadRecordedBaseline } from "./recordings.js";
-import { evaluateAutoPassReadiness, evaluatePromotionConfidence } from "./report.js";
+import {
+	evaluateAutomaticAdmissionReadiness,
+	evaluateAutoPassReadiness,
+	evaluatePromotionConfidence,
+} from "./report.js";
+import { createRemoteSweepBinding, type RawProviderResponse } from "./sweep-client.js";
 import type { EvalFixture, EvalResultBundle, SealedEvalDataset } from "./types.js";
 
 const endpoint = process.env.WORKERS_AI_SWEEP_URL;
@@ -33,17 +44,24 @@ const concurrency = Number(process.env.MODEL_SWEEP_CONCURRENCY ?? "3");
 const caseConcurrency = Number(process.env.MODEL_SWEEP_CASE_CONCURRENCY ?? "1");
 const textModels = parseModels(process.env.MODEL_SWEEP_TEXT_MODELS);
 const imageModels = parseModels(process.env.MODEL_SWEEP_IMAGE_MODELS);
+const textEnsemble = process.env.MODEL_SWEEP_TEXT_ENSEMBLE === "1";
 const liveFixtureIds = new Set(parseModels(process.env.MODEL_SWEEP_FIXTURE_IDS));
 const disableThinkingModels = new Set(parseModels(process.env.MODEL_SWEEP_DISABLE_THINKING_MODELS));
 const imageMaxDimension = parseOptionalInteger(process.env.MODEL_SWEEP_IMAGE_MAX_DIMENSION);
 const maxCompletionTokens = parseOptionalInteger(process.env.MODEL_SWEEP_MAX_COMPLETION_TOKENS);
 const reasoningEffort = parseReasoningEffort(process.env.MODEL_SWEEP_REASONING_EFFORT);
+const clefThreshold = process.env.MODEL_SWEEP_CLEF_THRESHOLD
+	? Number(process.env.MODEL_SWEEP_CLEF_THRESHOLD)
+	: undefined;
 
 describe("live Workers AI model sweep", () => {
 	it("evaluates production adapters against the canonical corpus", async () => {
 		if (!endpoint || !outputPath) throw new Error("sweep endpoint and output path are required");
 		if (textModels.length + imageModels.length === 0)
 			throw new Error("at least one model is required");
+		if (textEnsemble && textModels.length < 2) {
+			throw new Error("a text ensemble requires at least two models");
+		}
 		if (!Number.isInteger(repeatCount) || repeatCount < 1 || repeatCount > 5) {
 			throw new Error("MODEL_SWEEP_REPEATS must be between 1 and 5");
 		}
@@ -66,40 +84,73 @@ describe("live Workers AI model sweep", () => {
 			}
 		}
 		const rawResponses: RawProviderResponse[] = [];
-		const ai = remoteBinding(
-			endpoint,
-			imageMaxDimension,
-			captureRaw ? (response) => rawResponses.push(response) : undefined,
-		);
+		const ai = createRemoteSweepBinding(endpoint, {
+			...(imageMaxDimension === undefined ? {} : { maxDimension: imageMaxDimension }),
+			...(captureRaw ? { onResponse: (response) => rawResponses.push(response) } : {}),
+		});
 		const textPromptHash = await sha256Hex(TEXT_SYSTEM_PROMPT);
 		const imagePromptHash = await sha256Hex(IMAGE_SYSTEM_PROMPT);
+		const clefText = {
+			...CLEF_TEXT_ASSESSMENT_SETTINGS,
+			...(clefThreshold === undefined ? {} : { threshold: clefThreshold }),
+		};
+		const clefImage = {
+			...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+			...(clefThreshold === undefined ? {} : { threshold: clefThreshold }),
+		};
+		const clefTextHash = await clefTextPromptHash(clefText);
+		const clefImageHash = await clefImagePromptHash(clefImage);
 		const runnerCommit = execFileSync("git", ["rev-parse", "HEAD"], {
 			encoding: "utf8",
 		}).trim();
 		const startedAt = new Date().toISOString();
-		const jobs = [
-			...textModels.map((model) => ({ lane: "text" as const, model })),
+		const jobs: SweepJob[] = [
+			...(textEnsemble
+				? [
+						{
+							lane: "text" as const,
+							model: unanimousTextModelId(textModels),
+							members: textModels,
+						},
+					]
+				: textModels.map((model) => ({ lane: "text" as const, model }))),
 			...imageModels.map((model) => ({ lane: "image" as const, model })),
 		];
-		const results = await mapConcurrent(jobs, concurrency, async ({ lane, model }) => {
+		const results = await mapConcurrent(jobs, concurrency, async ({ lane, model, members }) => {
 			const started = performance.now();
 			try {
-				const text = createWorkersAiTextAdapter(ai, {
-					modelId: lane === "text" ? model : baseline.textIdentity.modelId,
-					promptHash: textPromptHash,
-					configuredUnits: 1,
-					...(disableThinkingModels.has(model) ? { thinking: false } : {}),
-					...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
-					...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-				});
-				const image = createWorkersAiImageAdapter(ai, {
-					modelId: lane === "image" ? model : baseline.imageIdentity.modelId,
-					promptHash: imagePromptHash,
-					configuredUnits: 1,
-					...(disableThinkingModels.has(model) ? { thinking: false } : {}),
-					...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
-					...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-				});
+				const text =
+					lane !== "text"
+						? createWorkersAiTextAdapter(ai, {
+								modelId: baseline.textIdentity.modelId,
+								promptHash: textPromptHash,
+								configuredUnits: 1,
+							})
+						: members
+							? createUnanimousTextModerationAdapter(
+									members.map((member) => textAdapter(member)) as [
+										TextModerationAdapter,
+										TextModerationAdapter,
+										...TextModerationAdapter[],
+									],
+								)
+							: textAdapter(model);
+				const image =
+					lane === "image" && isClefModelId(model)
+						? createClefImageAdapter(ai, {
+								...clefImage,
+								modelId: model,
+								promptHash: clefImageHash,
+								configuredUnits: 1,
+							})
+						: createWorkersAiImageAdapter(ai, {
+								modelId: lane === "image" ? model : baseline.imageIdentity.modelId,
+								promptHash: imagePromptHash,
+								configuredUnits: 1,
+								...(disableThinkingModels.has(model) ? { thinking: false } : {}),
+								...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
+								...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+							});
 				const bundle = await runEvaluation({
 					dataset,
 					mode: "live",
@@ -127,6 +178,25 @@ describe("live Workers AI model sweep", () => {
 					error: error instanceof Error ? error.message : String(error),
 				} satisfies SweepRunnerError;
 			}
+
+			function textAdapter(modelId: string): TextModerationAdapter {
+				if (isClefModelId(modelId)) {
+					return createClefTextAdapter(ai, {
+						...clefText,
+						modelId,
+						promptHash: clefTextHash,
+						configuredUnits: 1,
+					});
+				}
+				return createWorkersAiTextAdapter(ai, {
+					modelId,
+					promptHash: textPromptHash,
+					configuredUnits: 1,
+					...(disableThinkingModels.has(modelId) ? { thinking: false } : {}),
+					...(maxCompletionTokens === undefined ? {} : { maxCompletionTokens }),
+					...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+				});
+			}
 		});
 		const combined = combinedSelection(results, dataset, repeatCount);
 		const artifact = {
@@ -141,6 +211,7 @@ describe("live Workers AI model sweep", () => {
 			imageMaxDimension,
 			maxCompletionTokens,
 			reasoningEffort,
+			clef: { text: clefText, image: clefImage },
 			repeatCount,
 			caseConcurrency,
 			liveFixtureIds: [...liveFixtureIds],
@@ -157,56 +228,6 @@ describe("live Workers AI model sweep", () => {
 afterAll(() => {
 	delete process.env.WORKERS_AI_SWEEP_URL;
 });
-
-interface RawProviderResponse {
-	model: string;
-	attempt: number;
-	status: number;
-	input: Record<string, unknown>;
-	output: unknown;
-}
-
-function remoteBinding(
-	url: string,
-	maxDimension: number | undefined,
-	onResponse?: (response: RawProviderResponse) => void,
-): WorkersAiBinding {
-	return {
-		async run(model, input) {
-			const retryDelays = [250, 1_000, 3_000] as const;
-			for (let attempt = 0; ; attempt += 1) {
-				const response = await fetch(url, {
-					method: "POST",
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({
-						model,
-						input,
-						...(maxDimension === undefined ? {} : { imageMaxDimension: maxDimension }),
-					}),
-				});
-				const value: unknown = await response.json();
-				onResponse?.({
-					model,
-					attempt: attempt + 1,
-					status: response.status,
-					input,
-					output: value,
-				});
-				if (response.ok) return value;
-				const delay = retryDelays[attempt];
-				if ((response.status === 429 || response.status >= 500) && delay !== undefined) {
-					await new Promise((done) => setTimeout(done, delay));
-					continue;
-				}
-				const message =
-					typeof value === "object" && value !== null && "error" in value
-						? String(value.error)
-						: `HTTP ${response.status}`;
-				throw new Error(message);
-			}
-		},
-	};
-}
 
 function combinedSelection(
 	results: readonly SweepResult[],
@@ -230,6 +251,7 @@ function combinedSelection(
 		metrics,
 		budgetEvaluation: evaluateBudgets(metrics, dataset.budgets, { requireCompleteUsage: true }),
 		autoPassReadiness: evaluateAutoPassReadiness(metrics, dataset.budgets),
+		automaticAdmissionReadiness: evaluateAutomaticAdmissionReadiness(cases, dataset.budgets),
 		promotionConfidence: evaluatePromotionConfidence({ repeatCount: repeats, cases }),
 	};
 }
@@ -333,6 +355,11 @@ interface SweepRunnerError {
 	status: "runner-error";
 	durationMs: number;
 	error: string;
+}
+interface SweepJob {
+	lane: "text" | "image";
+	model: string;
+	members?: readonly string[];
 }
 type SweepResult = CompleteSweepResult | SweepRunnerError;
 

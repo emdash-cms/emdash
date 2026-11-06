@@ -33,6 +33,13 @@ describe("image field", () => {
 		expect(() => field.schema.parse(minimal)).not.toThrow();
 	});
 
+	it.each(["A source caption", ""])("should preserve an image caption %j", (caption) => {
+		const field = image();
+		const value = { id: "img-caption", alt: "Description", caption };
+
+		expect(field.schema.parse(value)).toEqual(value);
+	});
+
 	it("should preserve cached media metadata", () => {
 		const field = image();
 		const value = {
@@ -64,6 +71,24 @@ describe("image field", () => {
 
 		// Optional should accept undefined
 		expect(() => optional.schema.parse(undefined)).not.toThrow();
+	});
+
+	it("accepts a dark variant and exposes the darkVariant option", () => {
+		const field = image({ darkVariant: true });
+		const value = {
+			id: "img-light",
+			caption: "Light source",
+			darkVariant: {
+				id: "img-dark",
+				caption: "Dark source",
+				provider: "local",
+				meta: { storageKey: "dark.webp" },
+			},
+		};
+
+		expect(field.options?.darkVariant).toBe(true);
+		expect(field.schema.parse(value)).toEqual(value);
+		expect(() => field.schema.parse({ id: "img-light", darkVariant: "img-dark" })).toThrow();
 	});
 
 	it("should store options", () => {

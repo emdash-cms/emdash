@@ -130,15 +130,88 @@ export function mediaUploadUrlBody(maxSize: number) {
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
 			contentHash: z.string().optional(),
 			fieldId: z.string().optional(),
+			blockType: z.string().optional().describe("Block type slug for a composite block fieldId"),
+			blockVersion: z
+				.number()
+				.int()
+				.positive()
+				.max(Number.MAX_SAFE_INTEGER)
+				.optional()
+				.describe("Retained block version containing the nested media field"),
+			deduplicate: z.boolean().optional(),
+			ensureUniqueFilename: z.boolean().optional(),
+			folderId: mediaFolderIdSchema.nullable().optional(),
 		})
 		.meta({ id: "MediaUploadUrlBody" });
 }
+
+export const mediaUploadDeduplicateForm = z
+	.enum(["true", "false"])
+	.default("true")
+	.transform((value) => value === "true");
+
+export const mediaUploadEnsureUniqueFilenameForm = z
+	.enum(["true", "false"])
+	.default("false")
+	.transform((value) => value === "true");
+
+const optionalMediaTextForm = z
+	.string()
+	.optional()
+	.transform((value) => (value === "" ? undefined : value));
+
+export const mediaUploadMetadataForm = z.object({
+	alt: optionalMediaTextForm,
+	caption: optionalMediaTextForm,
+});
+
+export const mediaReplaceMetadataForm = z.object({
+	width: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+	height: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+});
+
+const binaryFileSchema = z.string().meta({ format: "binary" });
+
+export const mediaDirectUploadBody = z
+	.object({
+		file: binaryFileSchema,
+		alt: z.string().optional(),
+		caption: z.string().optional(),
+		width: z.string().optional(),
+		height: z.string().optional(),
+		thumbnail: binaryFileSchema.optional(),
+		fieldId: z.string().optional(),
+		blockType: z.string().optional().describe("Block type slug for a composite block fieldId"),
+		blockVersion: z.string().optional().describe("Retained block version number as a string"),
+		deduplicate: z.enum(["true", "false"]).optional(),
+		ensureUniqueFilename: z.enum(["true", "false"]).optional(),
+		folderId: z.union([mediaFolderIdSchema, z.literal("unfiled")]).optional(),
+	})
+	.meta({ id: "MediaDirectUploadBody" });
+
+export const mediaReplaceBody = z
+	.object({
+		file: binaryFileSchema,
+		width: z.number().int().positive(),
+		height: z.number().int().positive(),
+	})
+	.meta({ id: "MediaReplaceBody" });
 
 export const mediaConfirmBody = z
 	.object({
 		size: z.number().int().nonnegative().optional(),
 		width: z.number().int().positive().optional(),
 		height: z.number().int().positive().optional(),
+		thumbnail: z
+			.object({
+				contentType: z.enum(["image/jpeg", "image/png"]),
+				data: z.string().max(32_768),
+			})
+			.optional()
+			.meta({
+				description:
+					"Optional base64-encoded JPEG or PNG thumbnail for LQIP generation. Used instead of decoding the full-resolution original when imagePlaceholders is enabled, on every runtime.",
+			}),
 	})
 	.meta({ id: "MediaConfirmBody" });
 
@@ -247,6 +320,17 @@ export const mediaConfirmResponseSchema = z
 		item: mediaItemSchema.extend({ url: z.string() }),
 	})
 	.meta({ id: "MediaConfirmResponse" });
+
+export const mediaUploadResponseSchema = z
+	.object({
+		item: mediaItemSchema.extend({ url: z.string() }),
+		deduplicated: z.literal(true).optional(),
+	})
+	.meta({ id: "MediaUploadResponse" });
+
+export const mediaReplaceResponseSchema = z
+	.object({ item: mediaItemSchema.extend({ url: z.string() }) })
+	.meta({ id: "MediaReplaceResponse" });
 
 export const mediaStreamUploadResponseSchema = z
 	.object({

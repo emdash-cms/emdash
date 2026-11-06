@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   CLAssistant:
+    if: github.repository_id == '1198246700'
     runs-on: ubuntu-latest
     steps:
       - name: "CLA Assistant"
@@ -27,12 +28,15 @@ jobs:
           path-to-signatures: "signatures/version1/cla.json"
           path-to-document: "https://www.cloudflare.com/cla/"
           branch: "cla-signatures"
-          allowlist: dependabot[bot],emdashbot[bot],copilot-swe-agent[bot],ask-bonk[bot],opencode
+          allowlist: dependabot[bot],emdashbot[bot],copilot-swe-agent[bot],emdash-autofix[bot]
           lock-pullrequest-aftermerge: false
 
   label:
     needs: CLAssistant
-    if: always() && (github.event_name == 'pull_request_target' || github.event.issue.pull_request)
+    if: >-
+      always() &&
+      github.repository_id == '1198246700' &&
+      (github.event_name == 'pull_request_target' || github.event.issue.pull_request)
     runs-on: ubuntu-latest
     steps:
       - name: Label CLA status

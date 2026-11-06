@@ -5,7 +5,10 @@ import { join } from "node:path";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { openNodeSqliteDatabase } from "../../../src/db/node-sqlite-compat.js";
+import {
+	NodeSqliteCompatDatabase,
+	openNodeSqliteDatabase,
+} from "../../../src/db/node-sqlite-compat.js";
 
 describe("openNodeSqliteDatabase", () => {
 	const openDatabases: ReturnType<typeof openNodeSqliteDatabase>[] = [];
@@ -56,6 +59,33 @@ describe("openNodeSqliteDatabase", () => {
 		await db.destroy();
 	});
 
+	it("supports direct statement calls", () => {
+		const database = new NodeSqliteCompatDatabase(":memory:");
+		openDatabases.push(database);
+		database.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY, title TEXT NOT NULL)");
+		const insert = database.prepare("INSERT INTO entries (title) VALUES (?)");
+		insert.run("First");
+		insert.run("Second");
+
+		expect(database.open).toBe(true);
+		expect(database.prepare("SELECT title FROM entries ORDER BY id").all()).toEqual([
+			{ title: "First" },
+			{ title: "Second" },
+		]);
+		expect(database.prepare("SELECT title FROM entries WHERE id = ?").get(2)).toEqual({
+			title: "Second",
+		});
+	});
+
+	it("can be closed more than once", () => {
+		const database = open();
+		database.close();
+
+		expect(() => database.close()).not.toThrow();
+		expect(database.open).toBe(false);
+		openDatabases.pop();
+	});
+
 	it("normalizes supported positional values without shifting parameters", () => {
 		const database = open();
 		database.prepare("CREATE TABLE values_test (a, b, c, d, e, f)").run([]);
@@ -90,7 +120,7 @@ describe("openNodeSqliteDatabase", () => {
 		]);
 	});
 
-	it("matches the existing SQLite runtime connection defaults", () => {
+	it("applies connection defaults without changing the journal mode", () => {
 		const database = open(temporaryDatabasePath());
 
 		expect(database.prepare("PRAGMA journal_mode").all([])).toEqual([{ journal_mode: "delete" }]);
@@ -100,7 +130,7 @@ describe("openNodeSqliteDatabase", () => {
 		expect(database.prepare("PRAGMA foreign_keys").all([])).toEqual([{ foreign_keys: 1 }]);
 	});
 
-	it("matches the existing CLI WAL settings", () => {
+	it("switches to WAL with NORMAL synchronization when requested", () => {
 		const database = open(temporaryDatabasePath(), { journalMode: "wal" });
 
 		expect(database.prepare("PRAGMA journal_mode").all([])).toEqual([{ journal_mode: "wal" }]);
@@ -108,7 +138,7 @@ describe("openNodeSqliteDatabase", () => {
 		expect(database.prepare("PRAGMA cache_size").all([])).toEqual([{ cache_size: -16000 }]);
 	});
 
-	it("keeps NORMAL synchronization when runtime reopens an existing WAL database", () => {
+	it("keeps NORMAL synchronization when reopening an existing WAL database without the option", () => {
 		const path = temporaryDatabasePath();
 		const cliDatabase = open(path, { journalMode: "wal" });
 		cliDatabase.close();

@@ -75,6 +75,36 @@ function json(data: unknown, status = 200) {
 	);
 }
 
+/** Render the whole admin, parked on one taxonomy's page. */
+async function renderAdminAt(taxonomy: string) {
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: { retry: false, gcTime: 0, staleTime: 60_000 },
+			mutations: { retry: false },
+		},
+	});
+	const router = createAdminRouter(queryClient);
+	await router.navigate({ to: "/taxonomies/$taxonomy", params: { taxonomy } });
+
+	function TestApp() {
+		return (
+			<ThemeProvider defaultTheme="light">
+				<I18nProvider i18n={i18n}>
+					<Toasty>
+						<QueryClientProvider client={queryClient}>
+							<LinkProvider component={TestLink}>
+								<RouterProvider router={router} />
+							</LinkProvider>
+						</QueryClientProvider>
+					</Toasty>
+				</I18nProvider>
+			</ThemeProvider>
+		);
+	}
+
+	return render(<TestApp />);
+}
+
 describe("taxonomy sidebar refresh", () => {
 	let originalFetch: typeof fetch;
 	let manifestFetches: number;
@@ -120,35 +150,7 @@ describe("taxonomy sidebar refresh", () => {
 	});
 
 	it("shows a newly created taxonomy in the sidebar without reloading", async () => {
-		const queryClient = new QueryClient({
-			defaultOptions: {
-				queries: { retry: false, gcTime: 0, staleTime: 60_000 },
-				mutations: { retry: false },
-			},
-		});
-		const router = createAdminRouter(queryClient);
-		await router.navigate({
-			to: "/taxonomies/$taxonomy",
-			params: { taxonomy: "category" },
-		});
-
-		function TestApp() {
-			return (
-				<ThemeProvider defaultTheme="light">
-					<I18nProvider i18n={i18n}>
-						<Toasty>
-							<QueryClientProvider client={queryClient}>
-								<LinkProvider component={TestLink}>
-									<RouterProvider router={router} />
-								</LinkProvider>
-							</QueryClientProvider>
-						</Toasty>
-					</I18nProvider>
-				</ThemeProvider>
-			);
-		}
-
-		const screen = await render(<TestApp />);
+		const screen = await renderAdminAt("category");
 		await expect.element(screen.getByRole("link", { name: "Categories" })).toBeInTheDocument();
 		expect(screen.getByRole("link", { name: "Genres" }).query()).toBeNull();
 
@@ -158,5 +160,77 @@ describe("taxonomy sidebar refresh", () => {
 
 		await expect.element(screen.getByRole("link", { name: "Genres" })).toBeInTheDocument();
 		expect(manifestFetches).toBe(2);
+	});
+});
+
+describe("taxonomy sidebar after deletion", () => {
+	let originalFetch: typeof fetch;
+	let manifestFetches: number;
+	let requests: string[];
+
+	beforeEach(() => {
+		originalFetch = globalThis.fetch;
+		manifestFetches = 0;
+		requests = [];
+		i18n.loadAndActivate({ locale: "en", messages: {} });
+
+		globalThis.fetch = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			const method = init?.method ?? "GET";
+			requests.push(`${method} ${url}`);
+
+			if (method === "GET" && url === "/_emdash/api/manifest") {
+				manifestFetches += 1;
+				return json({ data: manifestFetches === 1 ? refreshedManifest : initialManifest });
+			}
+			if (method === "GET" && url === "/_emdash/api/auth/me") {
+				return json({
+					data: { id: "admin", email: "admin@example.com", name: "Admin", role: 50 },
+				});
+			}
+			if (method === "GET" && url === "/_emdash/api/admin/comments/counts") {
+				return json({ data: { pending: 0, approved: 0, spam: 0, trash: 0 } });
+			}
+			if (method === "GET" && url === "/_emdash/api/dashboard") {
+				return json({ data: { collections: [], mediaCount: 0, userCount: 0, recentItems: [] } });
+			}
+			if (method === "GET" && url === "/_emdash/api/taxonomies") {
+				const deleted = requests.includes("DELETE /_emdash/api/taxonomies/genre");
+				const taxonomies = deleted ? [category] : [category, genre];
+				return json({ data: { taxonomies } });
+			}
+			if (method === "GET" && url.startsWith("/_emdash/api/taxonomies/genre/terms")) {
+				return json({ data: { terms: [] } });
+			}
+			if (method === "DELETE" && url === "/_emdash/api/taxonomies/genre") {
+				return json({ data: { deleted: true } });
+			}
+
+			throw new Error(`Unexpected request: ${method} ${url}`);
+		}) as typeof fetch;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	it("removes a deleted taxonomy from the sidebar and leaves its page", async () => {
+		const screen = await renderAdminAt("genre");
+		await expect.element(screen.getByRole("link", { name: "Genres" })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "More actions for Genres" }).click();
+		await screen.getByRole("menuitem", { name: "Delete taxonomy" }).click();
+		await expect
+			.element(screen.getByRole("heading", { name: "Delete Taxonomy" }))
+			.toBeInTheDocument();
+		// Direct DOM click to bypass Base UI inert overlay
+		screen.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect.element(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Genres" })).not.toBeInTheDocument();
+		const deleteAt = requests.indexOf("DELETE /_emdash/api/taxonomies/genre");
+		expect(deleteAt).toBeGreaterThanOrEqual(0);
+		expect(requests.slice(deleteAt + 1).filter((r) => r.includes("/taxonomies"))).toEqual([]);
 	});
 });

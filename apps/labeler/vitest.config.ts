@@ -38,6 +38,7 @@ export default defineConfig({
 						if (url.pathname.endsWith("/current")) return Response.json({ current: true });
 						return new Response("not found", { status: 404 });
 					},
+					REGISTRY_BLOB_CACHE: () => new Response("not found", { status: 404 }),
 				},
 			},
 		}),

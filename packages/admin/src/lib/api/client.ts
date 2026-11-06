@@ -6,6 +6,8 @@ import type { Element } from "@emdash-cms/blocks";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+import type { EditorDraftAccessDeclaration } from "../sandboxed-editor-extensions.js";
+
 export const API_BASE = "/_emdash/api";
 
 /**
@@ -58,6 +60,34 @@ function formatValidationIssues(error: Record<string, unknown>): string | undefi
 	return messages.length > 0 ? messages.join("; ") : undefined;
 }
 
+function formatSandboxedSaveRejection(error: Record<string, unknown>): string | undefined {
+	if (error.code !== "SAVE_REJECTED" || !isRecord(error.details)) return undefined;
+	const { pluginId, reason } = error.details;
+	if (typeof pluginId !== "string" || typeof reason !== "string") return undefined;
+	if (pluginId.length === 0 || reason.length === 0) return undefined;
+	return i18n._(msg`Plugin ${pluginId} rejected the save: ${reason}`);
+}
+
+/**
+ * Client errors that pass no verdict on the request body, so resending it
+ * unchanged can still succeed. Every other 4xx repeats its verdict on every
+ * attempt.
+ */
+const RETRYABLE_CLIENT_ERROR_STATUSES: ReadonlySet<number> = new Set([
+	408, // Request Timeout: the server gave up waiting for the request
+	421, // Misdirected Request: another connection can be routed correctly
+	425, // Too Early: sent as TLS early data, replayable after the handshake
+	429, // Too Many Requests: succeeds once the rate limit window has passed
+]);
+
+/** Whether retrying the same request unchanged can never succeed. */
+export function isTerminalRequestError(error: unknown): boolean {
+	if (!(error instanceof ApiResponseError)) return false;
+	return (
+		error.status >= 400 && error.status < 500 && !RETRYABLE_CLIENT_ERROR_STATUSES.has(error.status)
+	);
+}
+
 /**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
@@ -73,16 +103,12 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 	if (isRecord(body) && isRecord(body.error)) {
 		const { error } = body;
 		message = formatValidationIssues(error);
+		if (!message) message = formatSandboxedSaveRejection(error);
 		if (!message && typeof error.message === "string") message = error.message;
 		if (typeof error.code === "string") code = error.code;
 		if (isRecord(error.details)) details = error.details;
 	}
-	throw new ApiResponseError(
-		res.status,
-		code,
-		message || `${fallback}: ${res.statusText}`,
-		details,
-	);
+	throw new ApiResponseError(res.status, code, message || fallback, details);
 }
 
 /**
@@ -105,6 +131,8 @@ export interface AdminManifest {
 	version: string;
 	/** Version of Astro the host is built with, when resolvable. */
 	astroVersion?: string;
+	/** IANA timezone used to interpret datetime-local editor values. */
+	timezone?: string;
 	hash: string;
 	collections: Record<
 		string,
@@ -118,6 +146,12 @@ export interface AdminManifest {
 			titleField?: string;
 			dateField?: string;
 			hidden?: boolean;
+			/** Phosphor icon name for the sidebar entry */
+			icon?: string;
+			/** Sidebar folder shared with other collections of the same group */
+			group?: string;
+			/** `false` omits the dashboard's "new entry" quick action */
+			quickCreate?: boolean;
 			listColumns?: string[];
 			fields: Record<
 				string,
@@ -127,6 +161,7 @@ export interface AdminManifest {
 					kind: string;
 					label?: string;
 					required?: boolean;
+					translatable?: boolean;
 					widget?: string;
 					/**
 					 * For `select` / `multiSelect`: the list of enum choices.
@@ -134,6 +169,13 @@ export interface AdminManifest {
 					 */
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
+					unsupportedType?: { type: string; path: string };
+					blockTypes?: import("./schema.js").BlockType[];
+					blockTypeFingerprint?: string;
+					/** Value a new entry starts with. */
+					defaultValue?: unknown;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}
@@ -158,11 +200,30 @@ export interface AdminManifest {
 				path: string;
 				label?: string;
 				icon?: string;
+				group?: string;
 			}>;
 			dashboardWidgets?: Array<{
 				id: string;
 				title?: string;
 				size?: "full" | "half" | "third";
+			}>;
+			editorPanels?: Array<{
+				id: string;
+				title: string;
+				route: string;
+				collections?: string[];
+				order?: number;
+				draft?: EditorDraftAccessDeclaration;
+			}>;
+			editorActions?: Array<{
+				id: string;
+				label: string;
+				route: string;
+				placement: "toolbar" | "overflow";
+				collections?: string[];
+				style?: "default" | "danger";
+				confirm?: import("@emdash-cms/blocks").ConfirmDialog;
+				draft?: EditorDraftAccessDeclaration;
 			}>;
 			fieldWidgets?: Array<{
 				name: string;
@@ -190,16 +251,24 @@ export interface AdminManifest {
 	 */
 	authMode: string;
 	/**
+	 * Whether the external auth provider replaces user names on every
+	 * authenticated request, so names cannot be edited in the admin.
+	 */
+	providerManagedName?: boolean;
+	/**
 	 * Whether self-signup is enabled (at least one allowed domain is active).
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
 	i18n?: {
 		defaultLocale: string;
 		locales: string[];
+		prefixDefaultLocale?: boolean;
 	};
 	/** Stored-content locale policy, independent from the admin UI language. */
 	contentLocale?: {
@@ -220,15 +289,16 @@ export interface AdminManifest {
 		translationGroup?: string | null;
 	}>;
 	/**
-	 * Marketplace registry URL. Present when `marketplace` is configured
-	 * in the EmDash integration. Enables marketplace features in the UI.
+	 * Whether legacy marketplace lifecycle support is configured. The admin
+	 * uses this to show migration guidance; marketplace discovery stays hidden.
+	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
-	marketplace?: string;
+	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
-	 * Experimental decentralized plugin registry. Present when
-	 * `experimental.registry` is configured in the EmDash integration.
-	 * When present, the admin UI uses the registry instead of the
-	 * centralized marketplace for browse and install.
+	 * Decentralized plugin registry. Defaults to the hosted aggregator when
+	 * the plugin sandbox is enabled, or reflects an explicit registry config.
 	 */
 	registry?: {
 		aggregatorUrl: string;
@@ -238,6 +308,19 @@ export interface AdminManifest {
 			minimumReleaseAgeExclude?: string[];
 		};
 	};
+	/** Field-level diagnostic returned when registry configuration is invalid. */
+	registryConfigurationError?: {
+		code:
+			| "REGISTRY_AGGREGATOR_URL_REQUIRED"
+			| "REGISTRY_AGGREGATOR_URL_INVALID"
+			| "REGISTRY_AGGREGATOR_URL_FORBIDDEN"
+			| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
+			| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
+		field:
+			| "registry.aggregatorUrl"
+			| "registry.policy.minimumReleaseAge"
+			| "registry.policy.minimumReleaseAgeExclude";
+	};
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
@@ -245,6 +328,9 @@ export interface AdminManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

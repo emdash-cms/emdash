@@ -13,10 +13,15 @@ export type {
 	UserTable,
 	MediaTable,
 } from "./database/index.js";
+export { EmDashConfigurationError } from "./config/errors.js";
+export type { EmDashConfigurationErrorCode } from "./config/errors.js";
+export { resolvePluginEncryptionKeys } from "./config/secrets.js";
 
 // Repositories
 export {
 	ContentRepository,
+	CommentRepository,
+	RevisionRepository,
 	MediaRepository,
 	PluginStorageRepository,
 	UserRepository,
@@ -75,6 +80,7 @@ export {
 	handleContentUnpublish,
 	handleContentSchedule,
 	handleContentUnschedule,
+	handleScheduledPolicyRejection,
 	handleContentCountScheduled,
 	handleContentDiscardDraft,
 	handleContentCompare,
@@ -82,8 +88,13 @@ export {
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
+	handleMediaRegisterUpload,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageProgress,
+	handleMediaUsageRepair,
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
@@ -98,13 +109,21 @@ export type {
 	RevisionListResponse,
 	RevisionResponse,
 	ManifestResponse,
+	ManifestCollectionMap,
+	ManifestCollectionDescriptor,
+	ManifestFieldDescriptor,
 	FieldDescriptor,
 	ApiContext,
 } from "./api/index.js";
 
 // Content converters (Portable Text <-> ProseMirror)
-export { prosemirrorToPortableText, portableTextToProsemirror } from "./content/index.js";
+export {
+	portableTextIdentityExtensions,
+	prosemirrorToPortableText,
+	portableTextToProsemirror,
+} from "./content/index.js";
 export type {
+	PortableTextToProsemirrorOptions,
 	PortableTextSpan,
 	PortableTextMarkDef,
 	PortableTextLinkMark,
@@ -112,6 +131,12 @@ export type {
 	PortableTextImageBlock,
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
+	PortableTextIframeBlock,
+	PortableTextVideoBlock,
+	PortableTextTableAlignment,
+	PortableTextTableBlock,
+	PortableTextTableCell,
+	PortableTextTableRow,
 	PortableTextUnknownBlock,
 	ProseMirrorMark,
 	ProseMirrorNode,
@@ -128,6 +153,7 @@ export { decodeSlug, slugify } from "./utils/slugify.js";
 export {
 	getEmDashCollection,
 	getEmDashEntry,
+	getEmDashReferences,
 	getEditMeta,
 	getTranslations,
 	resolveEmDashPath,
@@ -140,8 +166,17 @@ export type {
 	EditFieldMeta,
 	EntryResult,
 	EmDashCollections,
+	EmDashCollectionReferences,
 	InferCollectionData,
+	InferCollectionReferences,
+	ReferencePage,
+	ReferencePages,
+	ReferenceQuery,
+	ReferenceResult,
+	ReferenceSelection,
 	ResolvePathResult,
+	SelectableReferences,
+	SelectedReferences,
 	TranslationSummary,
 	TranslationsResult,
 	WhereRange,
@@ -201,6 +236,8 @@ export type {
 	SignedUploadOptions,
 	UploadResult,
 	DownloadResult,
+	DownloadOptions,
+	ByteRange,
 	ListResult,
 	ListOptions,
 	FileInfo,
@@ -219,6 +256,7 @@ export {
 	invalidateTaxonomyObjectCache,
 	invalidateBylineObjectCache,
 	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
 	invalidateSchemaObjectCache,
 	invalidateCommentObjectCache,
 	contentNamespace,
@@ -234,8 +272,10 @@ export type {
 } from "./object-cache/types.js";
 
 // Plugin system
+export { pluginResponse } from "./plugin-types.js";
 export {
 	definePlugin,
+	definePluginRoute,
 	adaptSandboxEntry,
 	pluginManifestSchema,
 	createHookPipeline,
@@ -243,6 +283,12 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	StorageSerializationError,
+	ContentSaveRejectedError,
+	isContentSaveRejection,
+	SCHEDULED_POLICY_REJECTION_PREFIX,
+	isScheduledPolicyRejection,
+	scheduledPolicyRejectionKey,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
 	NodeCronScheduler,
 	// Sandbox
@@ -253,34 +299,114 @@ export {
 	createSandboxRouteErrorEnvelope,
 	getSandboxRouteErrorDetails,
 	getSandboxRouteErrorEnvelope,
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
 	createNoopSandboxRunner,
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
 	createUnrestrictedHttpAccess,
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
+	PLUGIN_HTTP_MAX_RESPONSE_BYTES,
+	bufferPluginHttpRequest,
+	pluginHttpRedirectAction,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
+	readPluginHttpBytes,
+	rewritePluginHttpRedirect,
+	createContentAccess,
+	createContentAccessWithWrite,
+	createSettingsAccess,
+	createPluginSecretRedactor,
+	decodePluginSettingValue,
+	encryptPluginSetting,
+	isEncryptedPluginSetting,
+	PluginSettingEncryptionError,
+	createCommentAccess,
+	createRedirectAccess,
+	RedirectAccessError,
+	createSchemaAccess,
+	createBylineAccess,
+	createMediaAccess,
+	DEFAULT_PLUGIN_MEDIA_READ_BYTES,
+	MAX_PLUGIN_MEDIA_READ_BYTES,
+	parsePluginMediaMetadataPatch,
+	readPluginMediaBytes,
+	toPluginMediaItem,
+	updatePluginMediaMetadata,
+	CronAccessImpl,
 } from "./plugins/index.js";
 export type {
+	EncryptedPluginSetting,
+	PluginSecretRedactor,
 	PluginDefinition,
 	ResolvedPlugin,
 	PluginCapability,
 	PluginContext,
 	PluginStorageConfig,
 	StorageCollection,
+	PaginatedResult,
+	NumericDelta,
+	UpdateIfArgs,
+	UpdateIfResult,
+	VersionedValue,
+	VersionedContentItem,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
+	ContentActionCallbacks,
 	KVAccess,
+	SettingsAccess,
+	SettingField,
 	ContentAccess,
+	ContentItem as PluginContentItem,
+	ContentTranslationSummary,
+	ContentRevisionInfo,
+	SchemaAccess,
+	CollectionSchemaInfo,
+	FieldSchemaInfo,
 	ContentCreateOptions,
+	ContentListOptions,
+	CronTaskInfo,
 	MediaAccess,
+	MediaBytes,
+	MediaMetadataPatch,
 	HttpAccess,
+	PluginHttpResponseWire,
+	PluginHttpRedirectAction,
 	LogAccess,
+	SiteInfo,
 	TaxonomyAccess,
+	TaxonomyAccessWithWrite,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
+	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
+	BylineAccess,
+	BylineCreditInfo,
+	BylineInfo,
+	BylineListOptions,
+	EntryBylineCredits,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 	PluginHooks,
 	HookConfig,
 	HookName,
 	ResolvedHook,
 	ResolvedPluginHooks,
+	ActorInfo,
+	ScheduledPolicyRejection,
+	VersionedScheduledPolicyRejection,
+	ContentActionOrigin,
 	ContentHookEvent,
+	ContentPolicyDecision,
+	ContentPolicyEvent,
+	ContentSchedulePolicyEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
 	ContentRestoreStateChangeEvent,
@@ -289,13 +415,20 @@ export type {
 	MediaUploadEvent,
 	HookResult,
 	PluginRoute,
+	PluginRouteDefinition,
 	RouteContext,
 	PluginAdminConfig,
 	PluginAdminPage,
+	PluginEditorPanel,
+	PluginEditorAction,
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
 	PortableTextBlockField,
+	BylineAfterSaveEvent,
+	BylineAfterDeleteEvent,
+	BylineAfterSaveHandler,
+	BylineAfterDeleteHandler,
 	// Comment types
 	CommentBeforeCreateEvent,
 	CommentModerateEvent,
@@ -308,6 +441,20 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+	PluginComment,
+	PluginCommentStatus,
+	CommentAccess,
+	CommentListOptions,
+	CommentCountOptions,
+
+	// Email hook types
+	EmailMessage,
+	EmailBeforeSendEvent,
+	EmailDeliverEvent,
+	EmailAfterSendEvent,
+	EmailBeforeSendHandler,
+	EmailDeliverHandler,
+	EmailAfterSendHandler,
 
 	// Scheduler types
 	CronScheduler,
@@ -316,16 +463,23 @@ export type {
 	// Sandbox runtime types
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxCommentModerateCallback,
+	SandboxContentCreateCallback,
+	SandboxHttpFetchCallback,
 	PluginManifest,
 	ValidatedPluginManifest,
 	SerializedRequest,
 	SandboxRouteErrorCode,
 	SandboxRouteErrorDetails,
 	SandboxRouteErrorEnvelope,
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
 } from "./plugins/index.js";
 
 // Capability normalization (legacy → canonical alias layer)
@@ -334,6 +488,7 @@ export {
 	isDeprecatedCapability,
 	normalizeCapability,
 	normalizeCapabilities,
+	normalizePluginCapabilities,
 } from "./plugins/index.js";
 export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
 
@@ -341,7 +496,15 @@ export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plug
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
 
 // Schema registry
-export { SchemaRegistry, SchemaError, getCollectionInfo } from "./schema/index.js";
+export {
+	SchemaRegistry,
+	SchemaError,
+	BlockTypeRegistry,
+	expandCollectionBlockFields,
+	normalizeBlocksData,
+	resolveBlockTypes,
+	getCollectionInfo,
+} from "./schema/index.js";
 export type {
 	FieldType,
 	ColumnType,
@@ -349,6 +512,7 @@ export type {
 	CollectionSource,
 	FieldValidation,
 	FieldWidgetOptions,
+	UnsupportedFieldType,
 	Collection,
 	Field,
 	CreateCollectionInput,
@@ -356,6 +520,21 @@ export type {
 	CreateFieldInput,
 	UpdateFieldInput,
 	CollectionWithFields,
+	BlockFieldDefinition,
+	BlockFieldOptions,
+	BlockFieldType,
+	BlockType,
+	BlockTypeCompatibility,
+	BlockTypeDifference,
+	BlockTypeSource,
+	BlockTypeVersion,
+	CreateBlockTypeInput,
+	UpdateBlockTypeInput,
+	ApplySeedBlockTypeInput,
+	SeedBlockTypeVersionInput,
+	BlockWriteOptions,
+	ResolvedBlockTypes,
+	StoredBlockValue,
 } from "./schema/index.js";
 export {
 	FIELD_TYPE_TO_COLUMN,
@@ -425,13 +604,16 @@ export {
 	getPluginSettings,
 	getSiteSetting,
 	getSiteSettings,
+	getSiteSettingsWithCacheHint,
 	setSiteSettings,
 } from "./settings/index.js";
 export type {
 	SiteSettings,
+	SiteSettingsUpdate,
 	SiteSettingKey,
 	MediaReference,
 	SeoSettings,
+	SeoSettingsUpdate,
 } from "./settings/types.js";
 
 // SEO
@@ -456,7 +638,7 @@ export { getComments, getCommentCount } from "./comments/query.js";
 export type { GetCommentsOptions, GetCommentsResult } from "./comments/query.js";
 
 // Menus
-export { getMenu, getMenus } from "./menus/index.js";
+export { getMenu, getMenuWithCacheHint, getMenus } from "./menus/index.js";
 export type {
 	Menu,
 	MenuItem,
@@ -477,6 +659,7 @@ export {
 	getTaxonomyDefs,
 	getTaxonomyDef,
 	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
@@ -493,7 +676,12 @@ export type {
 } from "./taxonomies/types.js";
 
 // Widgets
-export { getWidgetArea, getWidgetAreas, getWidgetComponents } from "./widgets/index.js";
+export {
+	getWidgetArea,
+	getWidgetAreaWithCacheHint,
+	getWidgetAreas,
+	getWidgetComponents,
+} from "./widgets/index.js";
 export type {
 	Widget,
 	WidgetArea,
@@ -536,6 +724,7 @@ export type {
 
 // Search
 export {
+	SearchUnavailableError,
 	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,

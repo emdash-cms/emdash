@@ -5,7 +5,8 @@
  * conversion the inline (visual-editing) editor exercises, so author-inserted
  * images keep their placeholders. LQIP is persisted as first-class block fields
  * (matching the image-field path); `asset.meta` is only a read fallback for
- * legacy snapshots.
+ * legacy snapshots. Image blocks seeded with `$media` by earlier versions store
+ * a MediaValue asset instead of a reference and must keep their media reference.
  */
 
 import { describe, it, expect } from "vitest";
@@ -115,5 +116,136 @@ describe("Image LQIP round-trip (inline editor seam)", () => {
 		expect(restored.asset?.meta).toBeUndefined();
 		expect(restored.blurhash).toBeUndefined();
 		expect(restored.dominantColor).toBeUndefined();
+	});
+});
+
+describe("Image caption round-trip (inline editor seam)", () => {
+	it("keeps captions and tooltip titles independent", () => {
+		const pm = portableTextToPM([
+			{
+				_type: "image",
+				_key: "img003",
+				asset: { _ref: "01CAPTION", url: "/caption.jpg" },
+				caption: "Visible caption",
+				title: "Hover title",
+			},
+		]);
+
+		const [restored] = pmToPortableText(pm) as Array<{
+			caption?: string;
+			title?: string;
+		}>;
+
+		expect(restored.caption).toBe("Visible caption");
+		expect(restored.title).toBe("Hover title");
+	});
+
+	it("reads captions from title-only legacy Portable Text blocks", () => {
+		const [restored] = pmToPortableText(
+			portableTextToPM([
+				{
+					_type: "image",
+					_key: "img-legacy",
+					asset: { _ref: "01LEGACY", url: "/legacy.jpg" },
+					title: "Legacy caption",
+				},
+			]),
+		) as Array<{ caption?: string }>;
+
+		expect(restored.caption).toBe("Legacy caption");
+	});
+
+	it("keeps a cleared caption separate from the tooltip title across reloads", () => {
+		const portableText = pmToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: { src: "/current.jpg", caption: "", title: "Hover title" },
+				},
+			],
+		});
+		const [restored] = pmToPortableText(portableTextToPM(portableText)) as Array<{
+			caption?: string;
+			title?: string;
+		}>;
+
+		expect(restored.caption).toBe("");
+		expect(restored.title).toBe("Hover title");
+	});
+});
+
+describe("Image link and alignment round-trip (inline editor seam)", () => {
+	it("drops unknown alignments and empty links", () => {
+		const [restored] = pmToPortableText(
+			portableTextToPM([
+				{
+					_type: "image",
+					_key: "img-invalid",
+					asset: { _ref: "01INVALID", url: "/invalid.jpg" },
+					alignment: "diagonal",
+					link: { href: "  ", blank: true },
+				},
+			]),
+		) as Array<{ alignment?: unknown; link?: unknown }>;
+
+		expect(restored.alignment).toBeUndefined();
+		expect(restored.link).toBeUndefined();
+	});
+});
+
+describe("Image media reference (inline editor seam)", () => {
+	it("keeps the media reference of a seeded $media asset through PT → PM → PT", () => {
+		const seeded = [
+			{
+				_type: "image",
+				_key: "img003",
+				asset: {
+					provider: "local",
+					id: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+					alt: "A photo",
+					width: 1400,
+					height: 963,
+					mimeType: "image/jpeg",
+					meta: { storageKey: "01M2QZRZR8HDNT3039QNQ95B9D.jpg" },
+				},
+				caption: "A caption",
+			},
+			{
+				_type: "image",
+				_key: "img004",
+				asset: { provider: "external", id: "01EXT", src: "https://example.com/photo.jpg" },
+			},
+		];
+
+		const pm = portableTextToPM(seeded);
+		expect(pm.content?.map((node) => node.attrs)).toMatchObject([
+			{
+				src: "/_emdash/api/media/file/01M2QZRZR8HDNT3039QNQ95B9D.jpg",
+				mediaId: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+				alt: "A photo",
+				width: 1400,
+				height: 963,
+			},
+			{ src: "https://example.com/photo.jpg", mediaId: "01EXT", provider: "external" },
+		]);
+
+		expect(pmToPortableText(pm)).toMatchObject([
+			{
+				_type: "image",
+				asset: {
+					_ref: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+					url: "/_emdash/api/media/file/01M2QZRZR8HDNT3039QNQ95B9D.jpg",
+				},
+				alt: "A photo",
+				caption: "A caption",
+				width: 1400,
+				height: 963,
+			},
+			{
+				_type: "image",
+				asset: { _ref: "01EXT", url: "https://example.com/photo.jpg", provider: "external" },
+			},
+		]);
 	});
 });

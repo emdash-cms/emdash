@@ -5,7 +5,7 @@ description: Command-line interface for EmDash CMS.
 
 import { Aside } from "@astrojs/starlight/components";
 
-The EmDash CLI provides commands for managing an EmDash CMS instance — database setup, type generation, content CRUD, schema management, media, and more.
+The EmDash CLI provides commands for database setup, type generation, creating and editing content, schema management, media, and site export and import.
 
 ## Installation
 
@@ -17,35 +17,88 @@ npm install emdash
 
 Run commands with `npx emdash` or add scripts to `package.json`. The binary is also available as `em` for brevity.
 
-Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed.
+Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and, before setup is completed, applies the bundled seed's schema and structure once. Sample content from the seed is applied only when an administrator chooses it in the setup wizard.
 
 ## Authentication
 
-Commands using the shared remote client resolve authentication in this order:
+Commands that connect to a running EmDash instance resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
 3. **Stored credentials** from `~/.config/emdash/auth.json` (saved by `emdash login`)
 4. **Dev bypass** — if the URL is localhost and no token is available, automatically authenticates via the dev bypass endpoint
 
-These commands accept `--url` (from `EMDASH_URL`, falling back to `http://localhost:4321`) and `--token` flags. Authentication commands have their own connection options. When targeting a local dev server, no token is needed.
+The `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, and `site` commands connect to a running instance. Authentication commands have their own connection options. When targeting a local development server, no token is needed.
 
-## Common Flags
+## Common flags
 
-These flags are available on commands using the shared remote client:
+Connection flags vary by command. The grouped commands below mean every subcommand in that group.
 
-| Flag                    | Alias | Description                            | Default                          |
-| ----------------------- | ----- | -------------------------------------- | -------------------------------- |
-| `--url`                 | `-u`  | EmDash instance URL                    | `EMDASH_URL` or `http://localhost:4321` |
-| `--token`               | `-t`  | Auth token                             | From env/stored creds            |
-| `--header "Name: Value"` | `-H`  | Custom request header; may be repeated | From `EMDASH_HEADERS`/stored creds |
-| `--json`                |       | Output as JSON (for piping)            | Auto-detected from TTY           |
+| Flag                      | Alias | Available on | Description and default |
+| ------------------------- | ----- | ------------ | ----------------------- |
+| `--url`                   | `-u`  | `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Instance URL; defaults to `EMDASH_URL` or `http://localhost:4321` |
+| `--token`                 | `-t`  | `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Token from the flag, `EMDASH_TOKEN`, or stored credentials |
+| `--header "Name: Value"` | `-H`  | `types`, `login`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
+| `--json`                  |       | `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Write raw JSON instead of terminal-formatted output |
 
 ## Output
 
-For commands using the shared remote client, stdout is pretty-printed with consola when it is a TTY and becomes raw JSON when piped or when `--json` is set. `emdash migrate` emits JSON only with its explicit `--json` option.
+When a command writes results to an interactive terminal, it formats them for reading. The commands listed with `--json` above write raw JSON when the flag is set or their output is piped. `emdash migrate` emits JSON only with its explicit `--json` option.
 
 ## Commands
+
+### `emdash init`
+
+Initialize a local SQLite database from the template metadata in `package.json`. The command runs core migrations, then applies the optional SQL file named by `emdash.schema`. Run `emdash seed` separately for JSON seed data.
+
+```bash
+npx emdash init [options]
+```
+
+| Option       | Alias | Description                         | Default       |
+| ------------ | ----- | ----------------------------------- | ------------- |
+| `--database` | `-d`  | SQLite database path                | `./data.db`   |
+| `--cwd`      |       | Project working directory           | Current directory |
+| `--force`    | `-f`  | Reapply the template schema when collections already exist | `false` |
+
+Without `--force`, an initialized database is left unchanged. This command opens a local SQLite file directly; use `emdash migrate` for deployment-managed D1, PostgreSQL, libSQL, or Hyperdrive migrations.
+
+### `emdash doctor`
+
+Check a local SQLite database for connection, migration, collection, table, and user problems. If the project has a Wrangler configuration, the command also checks that a Cron Trigger and EmDash `scheduled()` handler are configured together.
+
+```bash
+npx emdash doctor [options]
+```
+
+| Option       | Alias | Description               | Default       |
+| ------------ | ----- | ------------------------- | ------------- |
+| `--database` | `-d`  | SQLite database path      | `./data.db`   |
+| `--cwd`      |       | Project working directory | Current directory |
+| `--json`     |       | Emit structured results   | `false`       |
+
+The command reports each check as pass, warning, or failure and exits non-zero when a check fails.
+
+### `emdash seed`
+
+Validate or apply a JSON seed to a local SQLite database. The command uses the positional path when provided, then `.emdash/seed.json`, then the `emdash.seed` path from `package.json`.
+
+```bash
+npx emdash seed [path] [options]
+```
+
+| Option             | Alias | Description                                            | Default                          |
+| ------------------ | ----- | ------------------------------------------------------ | -------------------------------- |
+| `--database`       | `-d`  | SQLite database path                                   | `./data.db`                      |
+| `--cwd`            |       | Project working directory                              | Current directory                |
+| `--validate`       |       | Validate the seed without changing the database        | `false`                          |
+| `--no-content`     |       | Skip entries, bylines, and taxonomy terms               | `false`                          |
+| `--on-conflict`    |       | Handle existing records with `skip`, `update`, or `error` | `skip`                         |
+| `--uploads-dir`    |       | Local directory used for seed media                    | `./uploads`                      |
+| `--media-base-url` |       | Base URL stored for local seed media                   | `/_emdash/api/media/file`        |
+| `--skip-media`     |       | Resolve `$media` references to external URLs instead of downloading and storing them | `false` |
+
+Applying a seed runs core migrations first. Use `--validate` in continuous integration when you need to check the file without opening or creating the database.
 
 ### `emdash migrate`
 
@@ -55,6 +108,8 @@ Check or apply the core migration set emitted by an Astro build.
 npx emdash migrate [options]
 npx emdash migrate --check [options]
 npx emdash migrate --status --json [options]
+npx emdash migrate --release-lock <id> [options]
+npx emdash migrate --take-over-lock <id> [options]
 ```
 
 By default the command discovers the project root and reads `.emdash/migrations.json`. It validates the manifest against the project's installed EmDash package, resolves the adapter's project-local executor, and prints the immutable target before any SQL.
@@ -69,7 +124,9 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--manifest <path>` | Read a non-standard manifest path |
 | `--from-config` | Explicitly evaluate trusted Astro configuration instead of a manifest |
 | `--config <path>` | Astro config path used with `--from-config` |
-| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply |
+| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply, lock release, or lock take-over |
+| `--release-lock <id>` | Release the D1 migration lock with the id that `--status` reports; cannot be combined with `--check` or `--status` |
+| `--take-over-lock <id>` | Apply pending migrations under the D1 migration lock with the id that `--status` reports, without freeing it in between; cannot be combined with `--check`, `--status`, or `--release-lock` |
 | `--database <path>` | Override a SQLite path |
 | `--database-url-env <name>` | Override a PostgreSQL connection-variable name |
 | `--d1 <uuid-or-name>` | Select a D1 database explicitly |
@@ -77,7 +134,7 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--wrangler-config <path>` | Read D1 binding metadata from an explicit Wrangler config |
 | `--wrangler-env <name>` | Select an environment; requires `--wrangler-config` |
 
-Interactive human-readable apply asks for confirmation. Non-interactive apply and every apply using `--json` require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
+Interactive human-readable apply, lock release, and lock take-over ask for confirmation. Non-interactive apply, lock release, or lock take-over, and every one of them using `--json`, require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
 
 #### Exit codes
 
@@ -90,15 +147,7 @@ Interactive human-readable apply asks for confirmation. Non-interactive apply an
 | `4` | Confirmation missing, declined, or target fingerprint mismatch |
 | `130` | Interrupted after bounded executor cleanup |
 
-See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and D1 serialization.
-
-### `emdash dev` (deprecated)
-
-<Aside type="caution" title="Deprecated command">
-	`emdash dev` remains available for backwards compatibility but is hidden from CLI help. Start the site with its package script, such as `pnpm dev`, or run `astro dev` directly.
-</Aside>
-
-The legacy command initializes and migrates a local SQLite database before starting Astro. That behavior does not use the database adapter configured by the site and is incompatible with Cloudflare D1 development. Existing invocations now print a deprecation warning before doing any database work.
+See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and the D1 migration lock.
 
 ### `emdash types`
 
@@ -110,12 +159,14 @@ npx emdash types [options]
 
 #### Options
 
-| Option     | Alias | Description              | Default              |
-| ---------- | ----- | ------------------------ | -------------------- |
-| `--url`    | `-u`  | EmDash instance URL    | `http://localhost:4321` |
-| `--token`  | `-t`  | Auth token               | From env/stored creds |
-| `--output` | `-o`  | Output path for types    | `.emdash/types.ts` |
-| `--cwd`    |       | Working directory        | Current directory    |
+| Option     | Alias | Description                        | Default                    |
+| ---------- | ----- | ---------------------------------- | -------------------------- |
+| `--url`    | `-u`  | EmDash instance URL                | `EMDASH_URL` or `http://localhost:4321` |
+| `--token`  | `-t`  | Auth token                         | From env or stored credentials |
+| `--header` | `-H`  | Custom request header; repeatable  | From env or stored credentials |
+| `--json`   |       | Accepted but does not change this command's files or progress output | — |
+| `--output` | `-o`  | Output path for types              | `.emdash/types.ts`          |
+| `--cwd`    |       | Working directory                  | Current directory          |
 
 #### Examples
 
@@ -124,7 +175,7 @@ npx emdash types [options]
 npx emdash types
 
 # Generate from remote instance
-npx emdash types --url https://my-site.pages.dev
+npx emdash types --url https://example.com
 
 # Custom output path
 npx emdash types --output src/types/emdash.ts
@@ -147,15 +198,16 @@ npx emdash login [options]
 
 #### Options
 
-| Option  | Alias | Description           | Default                |
-| ------- | ----- | --------------------- | ---------------------- |
-| `--url` | `-u`  | EmDash instance URL | `http://localhost:4321` |
+| Option     | Alias | Description                       | Default                    |
+| ---------- | ----- | --------------------------------- | -------------------------- |
+| `--url`    | `-u`  | EmDash instance URL               | `EMDASH_URL` or `http://localhost:4321` |
+| `--header` | `-H`  | Custom request header; repeatable | From `EMDASH_HEADERS`       |
 
 #### Behavior
 
 1. Discovers auth endpoints from the instance
 2. If localhost and no auth configured, uses dev bypass automatically
-3. Otherwise initiates OAuth Device Flow — displays a code and opens your browser
+3. Otherwise initiates OAuth Device Flow — displays a code and opens your browser. After you enter the code, the admin page lists the permissions the CLI will receive, and any requested permissions your role does not allow, before you approve.
 4. Polls for authorization, then saves credentials to `~/.config/emdash/auth.json`
 
 Saved credentials are used automatically by all subsequent commands targeting the same instance.
@@ -172,7 +224,7 @@ npx emdash logout [options]
 
 | Option  | Alias | Description           | Default                |
 | ------- | ----- | --------------------- | ---------------------- |
-| `--url` | `-u`  | EmDash instance URL | `http://localhost:4321` |
+| `--url` | `-u`  | EmDash instance URL | `EMDASH_URL` or `http://localhost:4321` |
 
 ### `emdash whoami`
 
@@ -184,13 +236,14 @@ npx emdash whoami [options]
 
 #### Options
 
-| Option    | Alias | Description           | Default                |
-| --------- | ----- | --------------------- | ---------------------- |
-| `--url`   | `-u`  | EmDash instance URL | `http://localhost:4321` |
-| `--token` | `-t`  | Auth token            | From env/stored creds  |
-| `--json`  |       | Output as JSON        |                        |
+| Option                   | Alias | Description           | Default                                  |
+| ------------------------ | ----- | --------------------- | ---------------------------------------- |
+| `--url`                  | `-u`  | EmDash instance URL   | `EMDASH_URL` or `http://localhost:4321` |
+| `--token`                | `-t`  | Auth token            | From env/stored creds                    |
+| `--header "Name: Value"` | `-H`  | Custom header, repeatable | Merged with `EMDASH_HEADERS`         |
+| `--json`                 |       | Output as JSON        |                                          |
 
-Displays email, name, role, auth method, and instance URL.
+Displays email, name, role, auth method, and instance URL. On localhost with no token or stored credentials, `whoami` signs in through the dev bypass, which creates the `dev@emdash.local` admin user if it doesn't exist, and reports that user. It exits with a non-zero status when the instance can't be reached or the dev bypass is unavailable, for example when the site isn't running under `astro dev`.
 
 ### `emdash content`
 
@@ -206,6 +259,7 @@ npx emdash content list posts --status published --limit 10
 | Option     | Description          |
 | ---------- | -------------------- |
 | `--status` | Filter by status     |
+| `--locale` | Filter by locale     |
 | `--limit`  | Maximum items        |
 | `--cursor` | Pagination cursor    |
 
@@ -216,9 +270,11 @@ npx emdash content get posts 01ABC123
 npx emdash content get posts 01ABC123 --raw
 ```
 
-| Option  | Description                                      |
-| ------- | ------------------------------------------------ |
-| `--raw` | Return raw Portable Text (skip markdown conversion) |
+| Option        | Description                                           |
+| ------------- | ----------------------------------------------------- |
+| `--locale`    | Locale to use when the ID argument is a slug          |
+| `--raw`       | Return raw Portable Text instead of Markdown          |
+| `--published` | Ignore a pending draft and return published data only |
 
 The response includes a `_rev` token. Pass it to `content update` to confirm you have seen the current state before overwriting it.
 
@@ -256,13 +312,21 @@ npx emdash content update posts 01ABC123 \
   --data '{"title": "Updated"}'
 ```
 
-| Option   | Description                            |
-| -------- | -------------------------------------- |
-| `--rev`  | Revision token from `get` (required)   |
-| `--data` | JSON string with content data          |
-| `--file` | Read data from a JSON file             |
+| Option            | Description                                              |
+| ----------------- | -------------------------------------------------------- |
+| `--rev`           | Revision token from `get` (required)                     |
+| `--data`          | JSON string with content data                            |
+| `--file`          | Read data from a JSON file                               |
+| `--locale`        | Locale to use when the ID argument is a slug              |
+| `--draft`         | Keep the update as a draft instead of auto-publishing     |
+| `--override-lock` | Write even though another editor has the entry open      |
 
 If the item has changed since your `get`, the server returns 409 Conflict — re-read and try again.
+
+If someone has the entry open in the admin, the server returns 409 with code
+`ENTRY_LOCKED` and a message that names the holder. Wait for them to finish, or
+pass `--override-lock`. The same flag is available on `content delete`,
+`content publish`, `content unpublish` and `content schedule`.
 
 #### `content delete <collection> <id>`
 
@@ -272,17 +336,23 @@ npx emdash content delete posts 01ABC123
 
 Soft-deletes the content item (moves to trash).
 
+Pass `--override-lock` to delete an entry that another editor has open.
+
 #### `content publish <collection> <id>`
 
 ```bash
 npx emdash content publish posts 01ABC123
 ```
 
+Pass `--override-lock` to publish an entry that another editor has open.
+
 #### `content unpublish <collection> <id>`
 
 ```bash
 npx emdash content unpublish posts 01ABC123
 ```
+
+Pass `--override-lock` to unpublish an entry that another editor has open.
 
 #### `content schedule <collection> <id>`
 
@@ -292,7 +362,9 @@ npx emdash content schedule posts 01ABC123 --at 2026-03-01T09:00:00Z
 
 | Option | Description                     |
 | ------ | ------------------------------- |
-| `--at` | ISO 8601 datetime (required)    |
+| `--at` | ISO 8601 datetime with `Z` or an explicit UTC offset (required) |
+
+Pass `--override-lock` to schedule an entry that another editor has open.
 
 #### `content restore <collection> <id>`
 
@@ -301,6 +373,16 @@ npx emdash content restore posts 01ABC123
 ```
 
 Restores a trashed content item.
+
+#### `content translations <collection> <id>`
+
+List every translation in the entry's translation group:
+
+```bash
+npx emdash content translations posts 01ABC123
+```
+
+The result includes each translation's ID, locale, slug, status, and whether it is the requested entry.
 
 ### `emdash schema`
 
@@ -357,7 +439,7 @@ npx emdash schema add-field posts featured --type boolean --required
 
 | Option       | Description                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------ |
-| `--type`     | Field type: string, text, number, integer, boolean, datetime, image, reference, portableText, json (required) |
+| `--type`     | Field type: string, text, url, number, integer, boolean, datetime, select, multiSelect, portableText, image, file, reference, json, slug, or repeater (required) |
 | `--label`    | Field label (defaults to field slug)                                                             |
 | `--required` | Whether the field is required                                                                    |
 
@@ -441,6 +523,7 @@ npx emdash search "hello" --collection posts --limit 5
 | Option         | Alias | Description          |
 | -------------- | ----- | -------------------- |
 | `--collection` | `-c`  | Filter by collection |
+| `--locale`     |       | Filter by locale     |
 | `--limit`      | `-l`  | Maximum results      |
 
 ### `emdash taxonomy`
@@ -496,9 +579,138 @@ npx emdash menu get primary
 
 Returns the menu with all its items.
 
+### `emdash site`
+
+Export a whole site to a `.emdash` site package, and import a package into an empty site. The [site transfer guide](/guides/site-transfer/) explains what a package contains, what the target site needs, and how to read an import plan.
+
+The token needs the `admin` scope, which the `emdash login` token has, or the matching transfer scopes: `transfer:export` to export, and `transfer:analyze` and `transfer:execute` to import. A token without them fails with `INSUFFICIENT_SCOPE`.
+
+Progress messages always go to stderr, and the result goes to stdout. With `--json`, or when stdout is not a terminal, stdout contains only the JSON result. An error is written as `{ "error": { "code": "…", "message": "…" } }`. The codes are the server's error codes, plus `INVALID_ARGUMENT` for bad flags, `PACKAGE_FILE_REQUIRED` when a resumed import still needs the package file, and `UNKNOWN_ERROR`.
+
+The commands retry network failures and `408`, `429`, and `5xx` responses with backoff.
+
+#### `site export`
+
+Export the site and write it to a package file:
+
+```bash
+npx emdash site export --output site.emdash
+```
+
+| Option          | Alias | Description                                        | Default           |
+| --------------- | ----- | -------------------------------------------------- | ----------------- |
+| `--output`      | `-o`  | Package file to write (required)                   |                   |
+| `--no-comments` |       | Leave comments and comment reactions out           | Comments included |
+
+The command starts an export, advances it until it completes, and downloads the package file by file. It checks that the downloaded manifest matches the export's package digest, and fails with `TRANSFER_PACKAGE_DIGEST_MISMATCH` before writing anything if it does not. It checks each file's size and SHA-256 digest before writing it. The package is written to `<output>.partial` and renamed to the output path when it is complete.
+
+The command keeps its progress in `<output>.partial.json` and the downloaded files in the `<output>.parts/` directory. Run the same command again after an interruption to resume the same export; files already downloaded are checked and reused, and the command reports how many it reused. Both are deleted when the package is written. The progress file is ignored when it was written for another URL or another comments setting, or when its export failed or expired; the command then starts a new export.
+
+The JSON result contains `operationId`, `output`, `packageDigest`, `files`, `bytes`, and `resumed`.
+
+#### `site import <file>`
+
+Import a package in two steps. Analyze it first, then confirm the plan digest that analysis printed:
+
+```bash
+npx emdash site import site.emdash --analyze
+npx emdash site import site.emdash --plan sha256:3f1c… --confirm
+```
+
+| Option                   | Description                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `--analyze`              | Upload the package, analyze it, and print the import plan                                            |
+| `--map-principal <from>=<to>` | With `--analyze`: map a package principal, by ID or email address, to a site user by ID or email address, or to `none`. Repeatable |
+| `--use-target-title`     | With `--analyze`: keep this site's title instead of the package's                                     |
+| `--use-target-tagline`   | With `--analyze`: keep this site's tagline instead of the package's                                   |
+| `--plan <digest>`        | The plan digest to execute, as `sha256:<hex>` or bare hex. Requires `--confirm`                      |
+| `--confirm`              | Execute the plan given by `--plan`. Requires `--plan`                                                |
+| `--yes`                  | Alias `-y`. With `cancel` or `abandon`: skip the confirmation prompt                                 |
+
+`--analyze` verifies the whole package file locally, then finds the site's existing import of the same package or creates one. It uploads the files the site does not have yet, runs analysis, and prints the plan: the package and plan digests, record counts, sizes, the title and tagline choice, each principal and its mapping, the transformations under "Differences from the source site", the warnings, and the blockers. If an earlier import of the same package failed, was cancelled or abandoned, or expired, the command warns and starts a new import.
+
+Decisions are stored with the import, so a later `--analyze` run without decision flags keeps them. Each change of decisions produces a new plan digest. Decisions cannot be combined with `--plan`, and `--plan` cannot be combined with `--analyze`.
+
+`--plan <digest> --confirm` executes the import only when the digest matches the current plan, then advances it until it completes and prints the receipt. If the plan changed since you reviewed it, the command fails with `TRANSFER_PLAN_DIGEST_MISMATCH`; analyze again and confirm the new digest.
+
+The JSON result of `--analyze` contains `operationId`, `state`, `packageDigest`, `planDigest`, `executable`, and the full `plan`. The JSON result of `--confirm` contains `operationId`, `state` (`complete`), `receipt`, and `receiptDigestValid`, which reports whether the receipt's `receiptDigest` matches its contents.
+
+These forms operate on an import by its operation ID:
+
+| Command | Description |
+| --- | --- |
+| `emdash site import status <operation-id>` | Print the import's state, stage, progress, digests, and error, and how many files are uploaded. The JSON result is `{ operation, files: { declared, verified } }`. |
+| `emdash site import resume <operation-id> [file]` | Continue the import from its current state: finish uploading, finish analysis and print the plan, or finish execution and print the receipt. Pass the package file only while the import is still uploading. |
+| `emdash site import receipt <operation-id>` | Print the receipt of a complete import, in the same shape as `--confirm`. |
+| `emdash site import cancel <operation-id>` | Cancel the import. A running import stops after its current batch; what it already wrote stays on the site. |
+| `emdash site import abandon <operation-id>` | Lift the write block that a failed or cancelled import leaves on the site. What the import wrote is not deleted, so reset the site or set up a new one before importing again. |
+
+`cancel` and `abandon` ask for confirmation. Pass `--yes` to skip the prompt; the prompt is also skipped with `--json` or when stdout is not a terminal. When stdin is not a terminal and neither applies, the command fails with `INVALID_ARGUMENT`. Declining the prompt changes nothing and exits with code `1`. The JSON result of both is `{ operationId, state, operation }`.
+
+The import commands exit with these codes:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. For `status`, an import that is in progress or complete |
+| `1` | An error, a declined prompt, an import that ended without a receipt, or a receipt whose digest does not match. For `status`, an import that failed, was cancelled or abandoned, or expired |
+| `2` | Analysis finished, but the plan has blockers |
+
+### `emdash import`
+
+Convert content exported from another CMS into files on disk.
+
+#### `import wordpress <file>`
+
+Convert a WordPress eXtended RSS (WXR) export into JSON files. The command works on local files only. It does not connect to an EmDash site or write to its database; use the admin importer described in [Migrate from WordPress](/migration/from-wordpress/) to import content into a site.
+
+The conversion runs in two steps. First analyze the export and write a migration config, then convert the content with that config:
+
+```bash
+npx emdash import wordpress export.xml
+npx emdash import wordpress export.xml --execute
+```
+
+| Option         | Alias | Description                                                                      | Default                                |
+| -------------- | ----- | -------------------------------------------------------------------------------- | -------------------------------------- |
+| `--prepare`    |       | Analyze the export and write the migration config. This is the default step      |                                        |
+| `--execute`    |       | Convert content using the migration config                                       |                                        |
+| `--resume`     |       | Run `--execute`, skipping entries and attachments that an earlier run converted  |                                        |
+| `--output-dir` | `-o`  | Directory for the migration config, converted files, and progress file          | `./wordpress-import`                   |
+| `--config`     |       | Migration config path                                                            | `<output-dir>/migration-config.json`   |
+| `--force`      |       | Overwrite an existing migration config in the prepare step                       |                                        |
+| `--media-dir`  |       | Directory for downloaded attachments                                             | `<output-dir>/media`                   |
+| `--skip-media` |       | Do not download attachments                                                      | Attachments downloaded                 |
+| `--dry-run`    |       | Report the files the step would write without writing them                      |                                        |
+| `--verbose`    | `-v`  | Log each converted entry and attachment                                          |                                        |
+| `--json`       |       | Write the result to stdout as JSON instead of progress messages                  |                                        |
+
+`--prepare` cannot be combined with `--execute` or `--resume`. Pass the same `--output-dir` and `--config` values to every step. The prepare step exits with code `1` instead of replacing a migration config that already exists; pass `--force` to overwrite it.
+
+The prepare step writes these files to the output directory:
+
+- `migration-config.json` maps each WordPress post type to a collection and each post-meta key to a field. Set `enabled` to `false` to leave a post type or field out, or change `collection` or `field` to rename the target.
+- `suggested-live.config.ts` lists the collections and fields to create in the admin under **Content Types**.
+
+The execute step converts Gutenberg and Classic Editor markup to Portable Text and writes one file per entry to `<output-dir>/<collection>/<slug>.json`. Each `collection` value is converted to a valid collection slug before it is used as a directory name. WordPress posts with the status `future` are written with the status `scheduled` and a `scheduledAt` date. Entries are named by slug, so two entries in the same collection with the same slug, such as translations, write the same file. The step also writes `_redirects.json`, which maps each WordPress URL to its converted path, and `.wp-migration-progress.json`.
+
+Unless you pass `--skip-media`, the execute step downloads every attachment URL into the media directory. An attachment under `/wp-content/uploads/` keeps its upload path, such as `<media-dir>/2025/01/hero.jpg`; any other attachment is saved under a directory named after its WordPress ID. The WordPress site must be reachable, and URLs that resolve to private network addresses are refused.
+
+The progress file records the WordPress IDs of converted entries and downloaded attachments. It is saved after every 50 converted entries and when the step finishes. After an interruption or failed items, run the step again with `--resume` to skip the IDs already recorded. An attachment is downloaded again when its file is missing from the media directory:
+
+```bash
+npx emdash import wordpress export.xml --resume
+```
+
+The command exits with code `1` when an entry or attachment fails, and lists the failures in the `errors` array of the progress file. A `--resume` run removes the failures of items that it now converts. With `--json`, the result contains `phase`, `dryRun`, `summary`, `files`, `errors`, and `nextSteps`.
+
 ### `emdash export-seed`
 
 Export database schema and content as a seed file. Works directly on a local SQLite file.
+
+The database must have every migration known to the installed EmDash version. If the command
+reports pending migrations, run `npx emdash migrate`, then export again. If the database was
+migrated by a newer EmDash version, upgrade the installed version before exporting. The export
+opens the database read-only and never applies migrations itself.
 
 ```bash
 npx emdash export-seed [options] > seed.json
@@ -511,20 +723,42 @@ npx emdash export-seed [options] > seed.json
 | `--database`     | `-d`  | Database file path                                   | `./data.db`       |
 | `--cwd`          |       | Working directory                                    | Current directory |
 | `--with-content` |       | Include content (all or comma-separated collections) |                   |
-| `--no-pretty`    |       | Disable JSON formatting                              | `false`           |
+| `--pretty` / `--no-pretty` |       | Enable or disable indented JSON output              | Pretty output enabled |
+| `--media-base-url` |     | Public URL of the site, used to write absolute `$media` URLs |           |
 
-#### Output Format
+#### Output format
 
 The exported seed file includes:
 
 - **Settings**: Site title, tagline, social links
 - **Collections**: All collection definitions with fields
+- **Block types**: Every retained version and each type's active version pointer
 - **Taxonomies**: Taxonomy definitions and terms
 - **Menus**: Navigation menus with items
+- **Redirects**: Redirect rules with status 301, 302, 307, or 308
 - **Widget Areas**: Widget areas and widgets
+- **Sections**: Reusable content blocks
 - **Content** (if requested): Entries with `$media` references and `$ref:` syntax for portability
 
-### `emdash secrets generate`
+Scheduled entries are exported as drafts, because a seed has no field for a publish time. The export leaves out, with a warning on stderr, anything `emdash seed` would reject: redirect rules with status 410 or 451, extra rules that share a source (possible in older databases), and sections whose slug contains characters other than lowercase letters, digits, and hyphens.
+
+#### Media URLs
+
+`emdash seed` downloads each `$media` URL and uploads the file to the target site's storage, so it needs an absolute `http` or `https` URL it can reach. Pass the source site's public URL to write absolute URLs:
+
+```bash
+npx emdash export-seed --with-content=all --media-base-url=https://example.com > seed.json
+```
+
+The site must serve its media from `/_emdash/api/media/file/` under that URL while the seed is applied, and the URL must not point at `localhost` or a private network address, which `emdash seed` refuses to download from. Without `--media-base-url`, `$media` URLs are site-relative paths that `emdash seed` skips, leaving the fields empty, and the export prints a warning on stderr.
+
+Image and file fields, and image sub-fields of repeaters, are exported as `$media` references. Images inside Portable Text fields keep their stored media ID and URL, which do not resolve on a different site.
+
+### `emdash secrets`
+
+Generate and inspect the key used to encrypt plugin secrets.
+
+#### `secrets generate`
 
 Generate an `EMDASH_ENCRYPTION_KEY` for your deployment. The key is used to
 encrypt plugin secrets at rest.
@@ -534,19 +768,19 @@ npx emdash secrets generate
 ```
 
 Prints the new key to stdout. Pipe it into your secret store, or write it
-straight to your local `.env` file with `--write`. The same `.env` file is
-read by Node and, in local development, by Wrangler and the Cloudflare Vite
-plugin:
+straight to your local `.env` file with `--write`. Wrangler and the Cloudflare
+Vite plugin read that file in local development. A standalone Node server does
+not load `.env` automatically; load it through the process manager or provide
+the key through the server's process environment. The [Node.js deployment
+guide](/deployment/nodejs/#build-and-run) shows the local command.
 
 ```bash
 npx emdash secrets generate --write .env
 ```
 
-`--write` refuses to overwrite an existing entry without `--force`.
-Replacing a key in a deployment with existing encrypted data will leave
-those secrets unreadable, so the protection is intentional.
+`--write` refuses to overwrite an existing entry without `--force`. To rotate a deployment with existing encrypted data, prepend the generated key to the existing value and separate the keys with a comma. EmDash encrypts new values with the first key and uses older entries for decryption by `kid`. Re-save every plugin secret before removing an old key. EmDash does not currently list the key IDs still used by stored settings, so keep an inventory of the credentials you resave and verify each integration before removing its old key.
 
-### `emdash secrets fingerprint <key>`
+#### `secrets fingerprint <key>`
 
 Print the 8-character fingerprint (kid) of a key without exposing its
 value. This is useful in CI for verifying the right key was deployed. The following command prints a key's fingerprint:
@@ -555,11 +789,17 @@ value. This is useful in CI for verifying the right key was deployed. The follow
 npx emdash secrets fingerprint emdash_enc_v1_...
 ```
 
-## Generated Files
+## Generated files
+
+### `emdash-env.d.ts`
+
+The Astro integration generates `emdash-env.d.ts` in the project root when the local development server starts. It refreshes the file after schema changes made through the running development site. The declarations augment `EmDashCollections`, so calls such as `getEmDashCollection("posts")` infer the fields defined in the local database.
+
+This file is automatic and belongs to the local Astro development workflow. You do not need to run `emdash types` to create it.
 
 ### `.emdash/types.ts`
 
-The `emdash types` command generates TypeScript interfaces for each collection:
+The `emdash types` command fetches a running instance's schema and writes standalone TypeScript interfaces. Use it when the schema lives on a remote EmDash instance, when tooling needs a file at a custom path, or when the local Astro development server is not running:
 
 ```ts title=".emdash/types.ts"
 // Generated by EmDash CLI
@@ -569,15 +809,29 @@ import type { PortableTextBlock } from "emdash";
 
 export interface Post {
 	id: string;
+	slug: string | null;
+	status: string;
 	title: string;
-	content: PortableTextBlock[];
+	content?: PortableTextBlock[];
+	createdAt: Date;
+	updatedAt: Date;
 	publishedAt: Date | null;
+	bylines?: ContentBylineCredit[];
+	terms?: Record<string, TaxonomyTerm[]>;
 }
 ```
 
+The remote output contains standalone collection interfaces and does not augment `EmDashCollections`. It changes only when you run `emdash types`; `emdash-env.d.ts` uses module augmentation and refreshes as part of local development.
+
+<Aside type="caution">
+	The current remote output always includes `bylines` and `terms`, but does not import their
+	`ContentBylineCredit` and `TaxonomyTerm` types. Add both names to the generated `import type`
+	line before type-checking the file. Running `emdash types` again overwrites that manual fix.
+</Aside>
+
 ### `.emdash/schema.json`
 
-The command also writes a raw schema export for tooling:
+The command also writes a raw schema export named `schema.json` beside the selected TypeScript output. With the default output path, the file is `.emdash/schema.json`:
 
 ```json title=".emdash/schema.json"
 {
@@ -592,13 +846,13 @@ The command also writes a raw schema export for tooling:
 }
 ```
 
-## Environment Variables
+## Environment variables
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
 | `EMDASH_DATABASE_URL`     | Override database URL                      |
 | `EMDASH_TOKEN`            | Auth token for remote operations          |
-| `EMDASH_URL`              | Default URL for commands using the shared remote client |
+| `EMDASH_URL`              | Default URL for commands using the shared remote client, `login`, `logout`, and `whoami` |
 | `EMDASH_HEADERS`          | Newline-separated custom request headers for the shared remote client and `login` |
 | `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. Generate with `emdash secrets generate`. |
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, EmDash generates and persists one in the options table. |
@@ -620,7 +874,9 @@ Add common commands as `package.json` scripts for convenience:
 }
 ```
 
-## Exit Codes
+## General exit codes
+
+Most commands use `0` for success and `1` for an error. `emdash migrate` also uses codes `2`, `3`, `4`, and `130` for the specific outcomes listed in its [exit-code table](#exit-codes). `emdash site import` uses `2` when the import plan has blockers.
 
 | Code | Description                              |
 | ---- | ---------------------------------------- |

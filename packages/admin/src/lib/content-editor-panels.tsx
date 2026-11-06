@@ -187,7 +187,7 @@ export class ContentEditorPanelBoundary extends React.Component<
 		if (!this.state.hasError) return this.props.children;
 
 		return (
-			<div role="alert" className="text-sm text-kumo-subtle">
+			<div role="alert" className="text-xs leading-4 text-kumo-subtle">
 				<p>
 					<Trans>Plugin panel unavailable.</Trans>
 				</p>

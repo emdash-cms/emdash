@@ -11,6 +11,10 @@ import {
 	encrypt,
 	decrypt,
 	validateScopes,
+	hasScope,
+	isTransferScope,
+	TRANSFER_SCOPES,
+	VALID_SCOPES,
 } from "./tokens.js";
 
 const BASE64URL_REGEX = /^[A-Za-z0-9_-]+$/;
@@ -33,6 +37,35 @@ describe("tokens", () => {
 				"mcp:tools:Calendar",
 				"mcp:tools:-calendar",
 			]);
+		});
+	});
+
+	describe("transfer scopes", () => {
+		it("are valid scopes", () => {
+			expect(validateScopes([...TRANSFER_SCOPES])).toEqual([]);
+			expect(validateScopes(["transfer:import", "transfer:*"])).toEqual([
+				"transfer:import",
+				"transfer:*",
+			]);
+		});
+
+		it.each(TRANSFER_SCOPES)("are granted by admin: %s", (scope) => {
+			expect(hasScope(["admin"], scope)).toBe(true);
+		});
+
+		it.each(TRANSFER_SCOPES)("are not granted by any other scope: %s", (scope) => {
+			const others = VALID_SCOPES.filter((s) => s !== "admin" && !isTransferScope(s));
+			expect(hasScope(others, scope)).toBe(false);
+		});
+
+		it("each grants only itself", () => {
+			for (const held of TRANSFER_SCOPES) {
+				for (const required of TRANSFER_SCOPES) {
+					expect(hasScope([held], required)).toBe(held === required);
+				}
+				expect(hasScope([held], "admin")).toBe(false);
+				expect(hasScope([held], "content:read")).toBe(false);
+			}
 		});
 	});
 
@@ -63,6 +96,19 @@ describe("tokens", () => {
 			const token1 = generateToken();
 			const token2 = generateToken();
 			expect(hashToken(token1)).not.toBe(hashToken(token2));
+		});
+
+		it("hashes malformed (non-base64url) tokens without throwing", () => {
+			for (const malformed of ["!!!", "not a token", "\0", "日本語"]) {
+				expect(() => hashToken(malformed)).not.toThrow();
+				expect(hashToken(malformed)).toMatch(NO_PADDING_REGEX);
+			}
+		});
+
+		it("hashes malformed tokens deterministically to a non-matching value", () => {
+			const token = generateToken();
+			expect(hashToken("!!!")).toBe(hashToken("!!!"));
+			expect(hashToken("!!!")).not.toBe(hashToken(token));
 		});
 	});
 

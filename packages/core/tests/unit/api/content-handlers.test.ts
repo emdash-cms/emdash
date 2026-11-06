@@ -8,9 +8,11 @@ import {
 	handleContentList,
 	handleContentPublish,
 	handleContentSchedule,
+	handleContentUnschedule,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
+import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database } from "../../../src/database/types.js";
@@ -62,6 +64,34 @@ describe("Content Handlers — auto-slug generation", () => {
 
 			expect(result.success).toBe(true);
 			expect(result.data?.item.slug).toBe("from-title");
+		});
+
+		it("should generate the slug from the collection's titleField instead of title", async () => {
+			// A person's name is the headline; `title` is their job title.
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const first = await handleContentCreate(db, "page", {
+				data: { name: "Jane Smith", title: "Trustee" },
+			});
+			const second = await handleContentCreate(db, "page", {
+				data: { name: "John Doe", title: "Trustee" },
+			});
+
+			expect(first.success).toBe(true);
+			expect(first.data?.item.slug).toBe("jane-smith");
+			expect(second.success).toBe(true);
+			expect(second.data?.item.slug).toBe("john-doe");
+		});
+
+		it("should fall back to title when the entry has no value for the titleField", async () => {
+			await new SchemaRegistry(db).updateCollection("page", { titleField: "name" });
+
+			const result = await handleContentCreate(db, "page", {
+				data: { title: "Trustee" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(result.data?.item.slug).toBe("trustee");
 		});
 
 		it("should respect explicit slug and not auto-generate", async () => {
@@ -361,6 +391,13 @@ describe("Content Handlers — auto-slug generation", () => {
 
 			expect(scheduled.success).toBe(true);
 			expect(scheduled.data?.item).toMatchObject({ slug: null, status: "scheduled" });
+			const scheduledView = await handleContentGet(db, "post", created.data!.item.id);
+			expect(scheduled.data?._rev).toBe(scheduledView.data?._rev);
+
+			const unscheduled = await handleContentUnschedule(db, "post", created.data!.item.id);
+			expect(unscheduled.success).toBe(true);
+			const unscheduledView = await handleContentGet(db, "post", created.data!.item.id);
+			expect(unscheduled.data?._rev).toBe(unscheduledView.data?._rev);
 		});
 	});
 
@@ -898,9 +935,35 @@ describe("Content Handlers — list total", () => {
 		expect(result.data?.items).toHaveLength(2);
 		expect(result.data?.total).toBe(8);
 	});
+
+	it("serves numbered pages with the total and no cursor", async () => {
+		const pages = await Promise.all(
+			[1, 2, 3].map((page) => handleContentList(db, "post", { page, limit: 3 })),
+		);
+
+		const ids = pages.flatMap((result) => result.data?.items.map((item) => item.id) ?? []);
+		expect(pages.map((result) => result.data?.items.length)).toEqual([3, 3, 2]);
+		expect(new Set(ids).size).toBe(8);
+		expect(pages.map((result) => result.data?.total)).toEqual([8, 8, 8]);
+		expect(pages.map((result) => result.data?.nextCursor)).toEqual([
+			undefined,
+			undefined,
+			undefined,
+		]);
+	});
+
+	it.each([
+		["with a cursor", { page: 2, cursor: "cursor" }],
+		["past the safe-integer offset range", { page: Number.MAX_SAFE_INTEGER, limit: 100 }],
+	])("rejects a page %s", async (_case, params) => {
+		const result = await handleContentList(db, "post", params);
+
+		expect(result.success).toBe(false);
+		expect(result.error?.code).toBe("VALIDATION_ERROR");
+	});
 });
 
-describe("Content Handlers — slug-change auto-redirect on publish", () => {
+describe("Content Handlers — slug-change auto-redirect", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
@@ -977,6 +1040,50 @@ describe("Content Handlers — slug-change auto-redirect on publish", () => {
 
 		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
 		expect(redirects).toHaveLength(0);
+	});
+
+	it.each([
+		["that keeps it a draft", { slug: "renamed" }],
+		["that publishes it", { slug: "renamed", status: "published" }],
+	])("does not redirect a draft renamed in an update %s", async (_case, body) => {
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Draft" },
+			slug: "unused-path",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		const updated = await handleContentUpdate(db, "post", id, body);
+		expect(updated.success).toBe(true);
+		expect(updated.data?.item.slug).toBe("renamed");
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(0);
+	});
+
+	it("keeps an existing redirect whose source a draft's slug change would claim", async () => {
+		await new RedirectRepository(db).create({
+			source: "/post/old-product",
+			destination: "/post/new-product",
+		});
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Draft" },
+			slug: "tmp",
+			status: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		const updated = await handleContentUpdate(db, "post", id, { slug: "old-product" });
+		expect(updated.success).toBe(true);
+
+		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+		expect(redirects).toHaveLength(1);
+		expect(redirects[0]).toMatchObject({
+			source: "/post/old-product",
+			destination: "/post/new-product",
+		});
 	});
 
 	it("does not create a redirect when republishing without a slug change", async () => {

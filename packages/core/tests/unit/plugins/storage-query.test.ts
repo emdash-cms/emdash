@@ -277,6 +277,15 @@ describe("storage-query", () => {
 			expect(result.sql).toBe(`${ageNum} >= ? AND ${ageNum} < ?`);
 			expect(result.params).toEqual([18, 65]);
 		});
+
+		it("should throw for a range filter whose every bound is undefined", () => {
+			// An empty predicate is silently dropped downstream, which turns a
+			// guard into an unconditional match.
+			expect(() => buildCondition(db, "age", { gte: undefined })).toThrow(StorageQueryError);
+			expect(() => buildCondition(db, "age", { gt: undefined, lte: undefined })).toThrow(
+				StorageQueryError,
+			);
+		});
 	});
 
 	describe("buildWhereClause", () => {
@@ -313,6 +322,14 @@ describe("storage-query", () => {
 			expect(result.sql).toContain("LIKE ? ESCAPE");
 			expect(result.sql).toContain(">= ?");
 			expect(result.params).toEqual(["active", "pending", "test%", 5]);
+		});
+
+		it("should never emit a dangling AND", () => {
+			// A condition that contributes no SQL must not leave an empty slot in
+			// the join, which would produce `<cond> AND ` and fail to parse.
+			expect(() => buildWhereClause(db, { count: { gte: -99 }, name: { gte: undefined } })).toThrow(
+				StorageQueryError,
+			);
 		});
 	});
 

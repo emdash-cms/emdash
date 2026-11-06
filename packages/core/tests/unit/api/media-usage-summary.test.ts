@@ -1,7 +1,8 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import {
 	aggregateMediaUsageCoverageStatus,
@@ -128,7 +129,7 @@ describe("media usage coverage aggregation", () => {
 });
 
 describe("media usage summary handler and routes", () => {
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let db: Kysely<DatabaseSchema>;
 	let queries: string[];
 	let usedMedia: MediaItem;

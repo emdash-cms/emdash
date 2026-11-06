@@ -16,9 +16,14 @@ const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverif
 /**
  * Resolve the configured Turnstile secret key, or `""` when Turnstile
  * enforcement is not configured.
+ *
+ * Reads `process.env` only: Vite replaces `import.meta.env` at build time,
+ * which would bake a build-machine secret into the bundle and hide a secret
+ * set on the deployment platform.
  */
 export function getTurnstileSecretKey(): string {
-	return import.meta.env.EMDASH_TURNSTILE_SECRET_KEY || import.meta.env.TURNSTILE_SECRET_KEY || "";
+	const env = typeof process !== "undefined" && process.env ? process.env : {};
+	return env.EMDASH_TURNSTILE_SECRET_KEY || env.TURNSTILE_SECRET_KEY || "";
 }
 
 /**

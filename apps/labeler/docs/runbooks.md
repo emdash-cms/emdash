@@ -28,6 +28,9 @@ Confirm the non-secret values in `apps/labeler/wrangler.jsonc`:
 - Confirm the policy, parser, and model versions. Prompt identities are computed from the
   embedded prompts. These values are written into assessment records and published in the
   policy document.
+- Changing a version applies only to listing versions that have no decision yet. A listing version
+  that has passed, is held for review, is blocked, or has an operator decision keeps its outcome,
+  and no automated trigger assesses it again. To re-check one, use the operator rerun action.
 
 Confirm the deployed policy in `apps/aggregator/wrangler.jsonc`:
 
@@ -176,9 +179,14 @@ pnpm --dir apps/labeler eval:image:local -- /secure/path/downloaded-images
 ```
 
 The command searches directories recursively and writes one JSON object per file to standard
-output. The JSON contains the local path, pass/review outcome, findings, model identity, latency,
-and usage. Image bytes are not included in the output or stored by the evaluator. Stop the proxy
-when evaluation finishes.
+output. The JSON contains the local path, pass/review outcome, findings, the probability for each
+finding category, model identity, latency, and usage. Image bytes are not included in the output or
+stored by the evaluator. Stop the proxy when evaluation finishes.
+
+The evaluator uses the production image settings. To compare other settings, set
+`LOCAL_IMAGE_EVAL_MODEL` to a Clef model ID, `LOCAL_IMAGE_EVAL_THRESHOLD` to a probability between
+zero and one, or `LOCAL_IMAGE_EVAL_SEPARATE_QUESTIONS` to `0` to send every question in one
+request.
 
 ## Deploy both Workers
 
@@ -258,15 +266,15 @@ curl --fail-with-body --silent --show-error \
 Compare `verificationMethod[0].publicKeyMultibase` with the reviewed
 `LABEL_SIGNING_PUBLIC_KEY`; a `z` prefix alone is not sufficient verification.
 
-Verify the published policy remains manual-only and names only profile and release listing
-subjects:
+Verify the published policy enables assisted automatic moderation and names only profile and
+release listing subjects:
 
 ```sh
 curl --fail-with-body --silent --show-error \
   "${EMDASH_LABELER_ORIGIN}/.well-known/emdash-labeler-policy.json" \
   | jq -e '
       .labelerDid == "did:web:labels.emdashcms.com" and
-      .autoPass == "disabled" and
+      .autoPass == "assisted" and
       .subjectCollections == [
         "com.emdashcms.experimental.package.profile",
         "com.emdashcms.experimental.package.release"
@@ -274,14 +282,14 @@ curl --fail-with-body --silent --show-error \
     '
 ```
 
-Verify the public XRPC policy exposes the same manual positive-label rule and metadata-only
+Verify the public XRPC policy exposes automated positive labels for the same metadata-only
 subjects:
 
 ```sh
 curl --fail-with-body --silent --show-error \
   "${EMDASH_LABELER_ORIGIN}/xrpc/com.emdashcms.experimental.labeler.getPolicy" \
   | jq -e '
-      .policyVersion == "listing-metadata-v1" and
+      .policyVersion == "listing-metadata-v2" and
       .supportedSubjects == [
         {
           "kind": "profile",
@@ -293,6 +301,7 @@ curl --fail-with-body --silent --show-error \
         }
       ] and
       ([.labels[] | select(.value == "listing-passed")][0].issuanceModes == [
+        "automated",
         "reviewer",
         "admin"
       ])
@@ -573,7 +582,7 @@ EMDASH_EVAL_START="$(curl --fail-with-body --silent --show-error \
   --header 'Content-Type: application/json' \
   --header "Origin: ${EMDASH_LABELER_ORIGIN}" \
   --header 'X-EmDash-Request: 1' \
-  --header 'Idempotency-Key: eval-listing-metadata-v1-001' \
+  --header 'Idempotency-Key: eval-listing-metadata-v2-001' \
   --data '{"reason":"Run the protected evaluation for the reviewed model bundle."}' \
   "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run")"
 
@@ -618,9 +627,8 @@ artifact:
 pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, workflow_instance_id, status, attempt, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
 ```
 
-The comparison and challenge hash do not authorize a promotion. A successful run also does not
-enable automatic passing. The published policy remains `autoPass: "disabled"` until a separate
-authenticated review and policy change is deployed.
+An evaluation run does not change runtime behavior. Change the selected models, prompts, or
+`autoPass` policy through the normal reviewed configuration and deployment workflow.
 
 ## Recover the aggregator D1 database
 

@@ -1,0 +1,110 @@
+---
+import { Font } from "astro:assets";
+
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { serializeJsonLd } from "../lib/seo.js";
+import { THEME_COLORS, THEME_STORAGE_KEY } from "../lib/theme.js";
+import "../styles/global.css";
+
+interface Props {
+	title?: string;
+	description?: string;
+	canonical?: string;
+	image?: string;
+	noindex?: boolean;
+	jsonLd?: unknown;
+}
+
+const {
+	title = "EmDash Plugins",
+	description = "Find sandboxed EmDash plugins for SEO, forms, email, and more. See what each one can access before you install it.",
+	canonical = Astro.url.pathname,
+	image,
+	noindex = false,
+	jsonLd,
+} = Astro.props;
+const pageTitle =
+	title === "EmDash Plugins" ? title : `${title} · EmDash Plugins`;
+const canonicalUrl = new URL(canonical, Astro.site ?? Astro.url.origin);
+const ogImage = image ?? new URL("/og.jpg", canonicalUrl).href;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content={description} />
+		{noindex && <meta name="robots" content="noindex, follow" />}
+		<meta name="color-scheme" content="light dark" />
+		<meta
+			name="theme-color"
+			media="(prefers-color-scheme: light)"
+			content={THEME_COLORS.light}
+		/>
+		<meta
+			name="theme-color"
+			media="(prefers-color-scheme: dark)"
+			content={THEME_COLORS.dark}
+		/>
+		<script
+			is:inline
+			define:vars={{ storageKey: THEME_STORAGE_KEY, colors: THEME_COLORS }}
+		>
+			(() => {
+				const root = document.documentElement;
+				root.classList.add("js");
+				const smooth = () => root.classList.add("smooth-scroll");
+				addEventListener("pointerdown", smooth, { once: true, capture: true });
+				addEventListener("keydown", smooth, { once: true, capture: true });
+				let stored = null;
+				try {
+					stored = localStorage.getItem(storageKey);
+				} catch {}
+				const preference =
+					stored === "light" || stored === "dark" ? stored : "system";
+				const resolved =
+					preference === "system"
+						? matchMedia("(prefers-color-scheme: dark)").matches
+							? "dark"
+							: "light"
+						: preference;
+				root.dataset.theme = resolved;
+				root.dataset.themePreference = preference;
+				if (preference !== "system") {
+					const color = colors[resolved];
+					document
+						.querySelectorAll('meta[name="theme-color"]')
+						.forEach((meta) => meta.setAttribute("content", color));
+				}
+			})();
+		</script>
+		<link rel="canonical" href={canonicalUrl} />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="EmDash Plugins" />
+		<meta property="og:title" content={pageTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:image" content={ogImage} />
+		<meta name="twitter:card" content="summary_large_image" />
+		{
+			jsonLd !== undefined && (
+				<script
+					is:inline
+					type="application/ld+json"
+					set:html={serializeJsonLd(jsonLd)}
+				/>
+			)
+		}
+		<title>{pageTitle}</title>
+		<Font cssVariable="--font-sans" preload />
+	</head>
+	<body>
+		<a class="skip-link" href="#main">Skip to content</a>
+		<SiteHeader />
+		<main id="main"><slot /></main>
+		<SiteFooter />
+	</body>
+</html>

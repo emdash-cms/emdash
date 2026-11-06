@@ -1,8 +1,9 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import {
 	handleTaxonomyCreate,
@@ -100,6 +101,27 @@ describeEachDialect("single-taxonomy CRUD", (dialect) => {
 	afterEach(async () => {
 		setI18nConfig(null);
 		await teardownForDialect(ctx);
+	});
+
+	describe("handleTaxonomyCreate", () => {
+		it("rejects a translation whose name differs from its source", async () => {
+			const source = await handleTaxonomyGet(db, "genre");
+			expect(source.success).toBe(true);
+			if (!source.success) return;
+
+			const result = await handleTaxonomyCreate(db, {
+				name: "genero",
+				label: "Géneros",
+				locale: "es",
+				translationOf: source.data.taxonomy.id,
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+			const stored = await handleTaxonomyGet(db, "genero");
+			expect(stored.success).toBe(false);
+		});
 	});
 
 	describe("handleTaxonomyGet", () => {
@@ -472,7 +494,7 @@ describe("taxonomy delete with foreign keys enforced", () => {
 
 	beforeEach(async () => {
 		const sqlite = new BetterSqlite3(":memory:");
-		sqlite.pragma("foreign_keys = ON");
+		sqlite.exec("PRAGMA foreign_keys = ON");
 		db = new Kysely<DatabaseSchema>({ dialect: new SqliteDialect({ database: sqlite }) });
 		await runMigrations(db);
 		await new SchemaRegistry(db).createCollection({

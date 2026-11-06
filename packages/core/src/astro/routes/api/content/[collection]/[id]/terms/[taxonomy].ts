@@ -5,22 +5,28 @@
  * POST /_emdash/api/content/:collection/:id/terms/:taxonomy - Set terms for an entry
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
-import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
+import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
+import { taxonomyTag } from "#cache/chrome-tags.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
 import { ContentRepository } from "#db/repositories/content.js";
 import {
 	TaxonomyRepository,
 	type TaxonomyAssignmentResolution,
 } from "#db/repositories/taxonomy.js";
 import { invalidateTermCache } from "#taxonomies/index.js";
+import { chunks } from "#utils/chunks.js";
 
 import { getI18nConfig } from "../../../../../../../i18n/config.js";
 
 export const prerender = false;
+
+const MAX_CACHE_PURGE_TAGS = 100;
 
 function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLocale: string) {
 	const config = getI18nConfig();
@@ -75,7 +81,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		// entry's locale server-side so the response includes only that locale's
 		// term variant.
 		const entry = await new ContentRepository(emdash.db).findByIdOrSlug(collection, id);
-		if (!entry) return apiError("NOT_FOUND", "Content not found", 404);
+		if (!entry || (entry.status !== "published" && !hasPermission(user, "content:read_drafts"))) {
+			return apiError("NOT_FOUND", "Content not found", 404);
+		}
 		const locale = entry.locale || getI18nConfig()?.defaultLocale || "en";
 		const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 
@@ -97,7 +105,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 /**
  * Set terms for an entry (replaces existing)
  */
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
@@ -107,7 +115,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	const denied = requirePerm(user, "content:edit_own");
+	const denied = requireAnyPerm(user, ["content:edit_own", "content:edit_own_drafts"]);
 	if (denied) return denied;
 
 	if (!emdash.handleContentGet) {
@@ -137,7 +145,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				(existingData.item as Record<string, unknown>)
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const editDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
+	const editDenied = requireEntryEditPerm(user, { authorId, status: existingItem?.status });
 	if (editDenied) return editDenied;
 
 	// Resolve the canonical content ID from the handler result.
@@ -178,6 +186,17 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// Term assignments changed — invalidate the hasAnyTermAssignments cache
 		// so hydration on subsequent reads issues a fresh query.
 		invalidateTermCache();
+		if (cache?.enabled) {
+			const translationGroup = existingItem?.translationGroup;
+			const siblingIds =
+				typeof translationGroup === "string"
+					? await new ContentRepository(emdash.db).findTranslationIds(collection, translationGroup)
+					: [];
+			const tags = [collection, ...new Set([canonicalId, ...siblingIds]), taxonomyTag(taxonomy)];
+			for (const tagBatch of chunks(tags, MAX_CACHE_PURGE_TAGS)) {
+				await invalidateRouteCache(cache, tagBatch);
+			}
+		}
 
 		// Get the updated terms using the canonical ID, scoped to the entry locale
 		const assignments = await repo.getTermAssignmentsForEntry(

@@ -3,14 +3,14 @@
  *
  * Detail view for a plugin from the experimental decentralized plugin
  * registry. Resolves `(handle, slug)` directly against the configured
- * aggregator; install routes through the EmDash server's
- * `/_emdash/api/admin/plugins/registry/install` endpoint, which
- * re-resolves and re-verifies before writing the install.
+ * aggregator. Consent and installation route through the EmDash server,
+ * which independently verifies publisher records, artifact, manifest, and
+ * provenance before any write.
  *
- * Identified in the URL by a `pluginId` that is `${handle}/${slug}`.
- * The router wraps this component when `manifest.registry` is set on
- * the same route the marketplace detail uses, so existing bookmarks /
- * sidebar entries stay stable.
+ * `pluginId` is `${publisher}/${slug}`, where `publisher` is a verified
+ * handle (with or without `@`) or a stable DID. The dedicated registry route
+ * renders this component; the marketplace detail route forwards matching
+ * legacy DID-based links for backward compatibility.
  */
 
 import { Badge, Button, LinkButton, Select, Tabs } from "@cloudflare/kumo";
@@ -26,7 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchManifest } from "../lib/api/client.js";
+import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
 import {
 	PluginMcpConsentRequiredError,
 	type PluginMcpConsentTool,
@@ -42,19 +42,26 @@ import {
 	installRegistryPlugin,
 	listRegistryReleases,
 	presentSections,
+	registryVerificationErrorMessage,
 	registryQueryPolicyKey,
 	releasePassesPolicy,
 	resolveRegistryPackageStatus,
+	resolveDidToHandle,
 	sbomDownloadHref,
+	verifyRegistryPlugin,
 	type RegistryClientConfig,
+	type RegistryInstallResult,
 	type RegistryReleaseView,
 	type SectionKey,
 } from "../lib/api/registry.js";
 import { renderMarkdown } from "../lib/markdown.js";
+import { registryIdentity } from "../lib/registry-identity.js";
+import { formatDate } from "../lib/utils.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
 import { PublisherIdentity } from "./PublisherHandle.js";
+import { RegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 
 export interface RegistryPluginDetailProps {
 	/** `${handle}/${slug}` -- the pluginId param from the route. */
@@ -64,10 +71,12 @@ export interface RegistryPluginDetailProps {
 }
 
 export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
 	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
+	const [verificationPreview, setVerificationPreview] =
+		React.useState<RegistryInstallResult | null>(null);
 
 	// Plugins list — used to compute whether this package is already
 	// installed. Same query key as elsewhere so the install mutation's
@@ -79,6 +88,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			const { fetchPlugins } = await import("../lib/api/plugins.js");
 			return fetchPlugins();
 		},
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
 	});
 
 	// Host environment versions (`env:emdash`, `env:astro`) — used to evaluate
@@ -98,7 +109,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// historically, though atproto handles don't; the DID form
 	// definitely doesn't).
 	const slashIdx = pluginId.lastIndexOf("/");
-	const publisher = slashIdx > 0 ? pluginId.slice(0, slashIdx) : "";
+	const publisherParam = slashIdx > 0 ? pluginId.slice(0, slashIdx) : "";
+	const publisher = publisherParam.startsWith("@") ? publisherParam.slice(1) : publisherParam;
 	const slug = slashIdx > 0 ? pluginId.slice(slashIdx + 1) : "";
 	const isDid = publisher.startsWith("did:");
 
@@ -134,6 +146,16 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		isPackageFetchedAfterMount && !packageQueryError ? cachedPackageStatus : undefined;
 	const pkg = packageStatus?.status === "passed" ? packageStatus.value : undefined;
 	const listingUnavailable = packageStatus?.status === "unavailable";
+	const { data: publisherHandleResolution } = useQuery({
+		queryKey: ["registry", "publisher-handle", pkg?.did],
+		queryFn: () => resolveDidToHandle(pkg!.did),
+		enabled: Boolean(pkg?.did),
+	});
+	const publisherHandlePending = Boolean(pkg?.did) && publisherHandleResolution === undefined;
+	// A conclusive round-trip mismatch blocks the UI. Indeterminate lookup failures
+	// do not participate in trust decisions; the server verifies DID-bound records.
+	const publisherHandleInvalid = publisherHandleResolution?.status === "invalid";
+	const publicIdentity = pkg ? registryIdentity(pkg.did, slug, publisherHandleResolution) : null;
 
 	// `listReleases` returns releases in descending semver order. The aggregator
 	// contains only the aggregator's approved projection. Lexicon-invalid records
@@ -186,9 +208,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// visible.
 	const defaultVersion = React.useMemo(() => {
 		if (!pkg || releases.length === 0) return undefined;
-		const passes = releases.find((r) =>
-			releasePassesPolicy(r, { did: pkg.did, slug }, config.policy),
-		);
+		const passes = releases.find((r) => releasePassesPolicy(r, pkg, config.policy));
 		return (passes ?? releases[0])?.version;
 	}, [pkg, releases, slug, config.policy]);
 
@@ -223,17 +243,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const isPreRelease = release ? isPreReleaseVersion(release.version) : false;
 
 	// `release.extensions[com.emdashcms.experimental.package.releaseExtension]`
-	// carries the structured `declaredAccess` -- the trust contract. The sandbox
-	// enforces the legacy `capabilities: string[]` shape, so we derive that list
-	// from declaredAccess using the SAME total converter the bundler and runtime
-	// use (`@emdash-cms/plugin-types`). Deriving via the shared converter -- not
-	// a component-local reimplementation -- is what keeps the consent list equal
-	// to what the install handler enforces; an earlier divergent local flattener
-	// dropped hook-registration capabilities and broke every such install.
-	//
-	// `canonicalCapabilitiesForDriftCheck` filters non-strings, dedupes, and
-	// sorts so an aggregator-supplied array with unstable order can't trigger a
-	// spurious server-side drift rejection later.
+	// carries the aggregator's copy of `declaredAccess`. This list is only a
+	// preliminary detail-page preview. The consent dialog uses the server's
+	// direct-PDS verification response and the manifest extracted from the
+	// checksum-verified bundle.
 	//
 	// NSID is exact-matched, not prefix-matched. RFC 0001 fixes the NSID for
 	// this extension; accepting variants like `…releaseExtensionV2` would let a
@@ -350,8 +363,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				}))
 			: [];
 
-	const policyOk =
-		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
+	const policyOk = release && pkg ? releasePassesPolicy(release, pkg, config.policy) : true;
 
 	// Environment compatibility: compare the selected release's `requires`
 	// constraints against the running host. `requires` is the lexicon's open
@@ -376,43 +388,66 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		);
 	}, [pkg, installedPlugins, slug]);
 	const isInstalled = Boolean(installedEntry);
+	const activeVerification =
+		verificationPreview !== null &&
+		verificationPreview.publisherDid === pkg?.did &&
+		verificationPreview.slug === slug &&
+		verificationPreview.version === release?.version
+			? verificationPreview
+			: null;
+
+	const verificationMutation = useMutation({
+		mutationFn: () => {
+			if (!pkg || !release) throw new Error(t`Select a release before verifying it`);
+			return verifyRegistryPlugin({
+				did: pkg.did,
+				slug,
+				version: release.version,
+			});
+		},
+		onSuccess: (result) => {
+			setVerificationPreview(result);
+			setMcpConsentTools(result.mcpTools);
+			setShowConsent(true);
+		},
+	});
 
 	const installMutation = useMutation({
 		mutationFn: () => {
 			if (!pkg) throw new Error("Package not loaded");
+			if (!activeVerification) throw new Error(t`Verify the plugin before installing it`);
 			return installRegistryPlugin({
 				did: pkg.did,
 				slug,
-				version: release?.version,
-				// Always send the acknowledgement, even when the dialog
-				// showed no permissions. The server compares this list
-				// against the bundle's actual `manifest.capabilities`
-				// after download:
-				//
-				//   - If the bundle has capabilities, the server
-				//     requires us to send a matching list (the consent
-				//     dialog is the only place the admin sees what
-				//     they're agreeing to).
-				//   - If the bundle has no capabilities, no consent is
-				//     required and the server ignores this field.
-				//
-				// Sending the empty list when the release extension was
-				// missing means a publisher who ships a bundle with
-				// permissions but no extension block can't sneak the
-				// permissions past an empty consent dialog -- the
-				// server will refuse with `DECLARED_ACCESS_REQUIRED`.
-				acknowledgedDeclaredAccess: capabilities,
+				version: activeVerification.version,
+				// The server re-fetches the signed records and bundle, then
+				// requires these permissions, tools, and CIDs to match the
+				// evidence shown in the dialog.
+				acknowledgedDeclaredAccess: activeVerification.capabilities,
 				acknowledgedMcpTools: mcpConsentTools,
+				acknowledgedPublicRoutes: activeVerification.publicRoutes,
+				acknowledgedProfileCid: activeVerification.verification.profileCid,
+				acknowledgedReleaseCid: activeVerification.verification.releaseCid,
 			});
 		},
 		onSuccess: () => {
 			setShowConsent(false);
 			setMcpConsentTools([]);
+			setVerificationPreview(null);
+			verificationMutation.reset();
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			void queryClient.invalidateQueries({ queryKey: ["registry"] });
 		},
 		onError: (error) => {
+			if (error instanceof ApiResponseError && error.code === "ALREADY_INSTALLED") {
+				setShowConsent(false);
+				setMcpConsentTools([]);
+				setVerificationPreview(null);
+				verificationMutation.reset();
+				void queryClient.invalidateQueries({ queryKey: ["plugins"] });
+				return;
+			}
 			if (error instanceof PluginMcpConsentRequiredError) {
 				setMcpConsentTools(error.tools);
 				setShowConsent(true);
@@ -503,6 +538,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 				<div className="min-w-0 flex-1">
 					<h1 className="truncate text-2xl font-semibold">{displayName ?? slug}</h1>
+					{publicIdentity ? (
+						<RegistryPluginIdentity
+							identity={publicIdentity}
+							invalidMessage={t`The publisher identity cannot be verified.`}
+							className="mt-1"
+							linked={false}
+						/>
+					) : null}
 					<p className="text-sm text-kumo-subtle">
 						<Trans>
 							Published by{" "}
@@ -536,12 +579,16 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 							{lastUpdated ? (
 								<div className="flex items-center gap-1">
 									<dt className="font-medium">{t`Updated`}</dt>
-									<dd>{formatDate(lastUpdated)}</dd>
+									<dd>
+										<bdi>{formatRegistryDate(lastUpdated, i18n.locale)}</bdi>
+									</dd>
 								</div>
 							) : null}
 							<div className="flex items-center gap-1">
 								<dt className="font-medium">{t`Indexed`}</dt>
-								<dd>{formatDate(release.indexedAt)}</dd>
+								<dd>
+									<bdi>{formatRegistryDate(release.indexedAt, i18n.locale)}</bdi>
+								</dd>
 							</div>
 						</dl>
 					) : null}
@@ -557,11 +604,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						>
 							{releases.map((r) => {
 								const preRelease = isPreReleaseVersion(r.version);
-								const policyBlocked = !releasePassesPolicy(
-									r,
-									{ did: pkg.did, slug },
-									config.policy,
-								);
+								const policyBlocked = !releasePassesPolicy(r, pkg, config.policy);
 								return (
 									<Select.Option key={r.version} value={r.version}>
 										<span className="flex items-center gap-2">
@@ -585,16 +628,46 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					) : (
 						<Button
 							variant="primary"
-							disabled={!release || !policyOk || !envOk}
-							onClick={() => setShowConsent(true)}
+							disabled={
+								!release ||
+								!policyOk ||
+								!envOk ||
+								publisherHandlePending ||
+								publisherHandleInvalid ||
+								verificationMutation.isPending
+							}
+							onClick={() => verificationMutation.mutate()}
 						>
-							{t`Install`}
+							{verificationMutation.isPending ? t`Verifying...` : t`Install`}
 						</Button>
 					)}
 				</div>
 			</div>
+			{verificationMutation.error ? (
+				<div
+					className="rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-sm text-kumo-error"
+					role="alert"
+				>
+					{registryVerificationErrorMessage(verificationMutation.error) ??
+						getMutationError(verificationMutation.error)}
+				</div>
+			) : null}
 
-			{/* The aggregator returned records but none passed lexicon validation. */}
+			{publisherHandleInvalid ? (
+				<div
+					className="flex items-start gap-3 rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-kumo-error"
+					role="alert"
+				>
+					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
+					<div>
+						<p className="font-medium">{t`Publisher handle verification failed`}</p>
+						<p className="mt-1 text-sm text-kumo-default">
+							{t`This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle.`}
+						</p>
+					</div>
+				</div>
+			) : null}
+
 			{hasFilteredAllReleases ? (
 				<div
 					className="flex items-start gap-3 rounded-md border border-kumo-warning bg-kumo-warning/10 p-4 text-kumo-warning"
@@ -713,7 +786,11 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 									</a>
 								) : null}
 								{a.email ? (
-									<a href={`mailto:${a.email}`} className="text-kumo-link hover:underline">
+									<a
+										href={`mailto:${a.email}`}
+										dir="ltr"
+										className="text-kumo-link hover:underline"
+									>
 										{a.email}
 									</a>
 								) : null}
@@ -735,13 +812,18 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 								className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
 							>
 								{c.email ? (
-									<a href={`mailto:${c.email}`} className="text-kumo-link hover:underline">
+									<a
+										href={`mailto:${c.email}`}
+										dir="ltr"
+										className="text-kumo-link hover:underline"
+									>
 										{c.email}
 									</a>
 								) : null}
 								{c.url ? (
 									<a
 										href={c.url}
+										dir="ltr"
 										target="_blank"
 										rel="noreferrer"
 										className="text-kumo-link hover:underline"
@@ -792,18 +874,29 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			) : null}
 
 			{/* Consent dialog */}
-			{showConsent && release ? (
+			{showConsent && release && activeVerification ? (
 				<CapabilityConsentDialog
 					mode="install"
 					pluginName={displayName ?? slug}
-					capabilities={capabilities}
+					capabilities={activeVerification.capabilities}
+					allowedHosts={
+						declaredAccessToCapabilities(activeVerification.declaredAccess).allowedHosts
+					}
 					mcpTools={mcpConsentTools}
+					newlyPublicRoutes={activeVerification.publicRoutes}
+					verification={activeVerification.verification}
 					isPending={installMutation.isPending}
-					error={getMutationError(installMutation.error)}
+					error={
+						installMutation.error instanceof PluginMcpConsentRequiredError
+							? null
+							: (registryVerificationErrorMessage(installMutation.error) ??
+								getMutationError(installMutation.error))
+					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);
 						setMcpConsentTools([]);
+						setVerificationPreview(null);
 						installMutation.reset();
 					}}
 				/>
@@ -824,7 +917,7 @@ function BackLink() {
 	const { t } = useLingui();
 	return (
 		<Link
-			to="/plugins/marketplace"
+			to="/plugins/registry"
 			className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 		>
 			<ArrowPrev className="h-4 w-4" />
@@ -856,9 +949,10 @@ function envLabel(key: string): string {
 	return key.startsWith("env:") ? key.slice("env:".length) : key;
 }
 
-function formatDate(iso: string): string {
+/** Registry timestamps come from a third party: show the raw value rather than throw on a bad one. */
+function formatRegistryDate(iso: string, locale: string): string {
 	try {
-		return new Date(iso).toLocaleDateString();
+		return formatDate(iso, locale, {});
 	} catch {
 		return iso;
 	}

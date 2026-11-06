@@ -13,7 +13,8 @@
 import type { Kysely } from "kysely";
 
 import { handleContentPublish } from "./api/handlers/content.js";
-import { ContentRepository } from "./database/repositories/content.js";
+import { ContentRepository, findTypesWithDueContent } from "./database/repositories/content.js";
+import { OptionsRepository } from "./database/repositories/options.js";
 import type { Database } from "./database/types.js";
 import { SchemaRegistry } from "./schema/registry.js";
 
@@ -29,6 +30,27 @@ export interface PublishedRef {
  * invocation's CPU/subrequest budget; the remainder drains on later ticks.
  */
 export const SCHEDULED_PUBLISH_BATCH_LIMIT = 100;
+const SCHEDULED_PUBLISH_CURSOR_PREFIX = "emdash:scheduled-publish-cursor:";
+
+interface ScheduledPublishCursor {
+	scheduledAt: string;
+	id: string;
+}
+
+function scheduledPublishCursorKey(collection: string): string {
+	return `${SCHEDULED_PUBLISH_CURSOR_PREFIX}${collection}`;
+}
+
+function isScheduledPublishCursor(value: unknown): value is ScheduledPublishCursor {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"scheduledAt" in value &&
+		typeof value.scheduledAt === "string" &&
+		"id" in value &&
+		typeof value.id === "string"
+	);
+}
 
 /**
  * Publishes a single content item. Mirrors the relevant subset of
@@ -44,6 +66,7 @@ export type ScheduledPublishFn = (
 		publishedAt?: string;
 		requireScheduledDue?: boolean;
 		expectedScheduledAt?: string;
+		currentTime?: Date;
 	},
 ) => Promise<{ success: boolean; error?: { code?: string } }>;
 
@@ -67,15 +90,18 @@ export interface PublishDueContentOptions {
 	 * `SCHEDULED_PUBLISH_BATCH_LIMIT`. Pass `0` (or a negative) for unbounded.
 	 */
 	limit?: number;
+	/** Clock value shared by due selection and the final publication fence. */
+	currentTime?: Date;
 }
 
 /**
  * Publish every content item whose `scheduled_at` is in the past.
  *
- * Iterates all collections, finds due items (`findReadyToPublish` returns both
- * scheduled drafts and published entries with pending scheduled changes), and
- * publishes each. `publish()` clears `scheduled_at`, so a second sweep is a
- * no-op — safe to run on every tick.
+ * Finds the collections with due content (`findTypesWithDueContent`), then, in
+ * each of them, the due items (`findReadyToPublish` returns both scheduled
+ * drafts and published entries with pending scheduled changes), and publishes
+ * each. `publish()` clears `scheduled_at`, so a second sweep is a no-op — safe
+ * to run on every tick.
  *
  * Bounded per collection by `limit` (default `SCHEDULED_PUBLISH_BATCH_LIMIT`):
  * a large backlog drains across successive ticks rather than in one unbounded
@@ -89,7 +115,12 @@ export async function publishDueContent(
 	db: Kysely<Database>,
 	options: PublishDueContentOptions = {},
 ): Promise<PublishedRef[]> {
-	const { publish, onPublished, limit = SCHEDULED_PUBLISH_BATCH_LIMIT } = options;
+	const {
+		publish,
+		onPublished,
+		limit = SCHEDULED_PUBLISH_BATCH_LIMIT,
+		currentTime = new Date(),
+	} = options;
 	const published: PublishedRef[] = [];
 
 	let collections;
@@ -101,14 +132,44 @@ export async function publishDueContent(
 	}
 
 	const repo = new ContentRepository(db);
+	const optionsRepo = new OptionsRepository(db);
 	const doPublish: ScheduledPublishFn =
 		publish ?? ((collection, id, opts) => handleContentPublish(db, collection, id, opts));
 	// 0 / negative means unbounded; findReadyToPublish treats that as "no LIMIT".
 	const batchLimit = limit > 0 ? limit : undefined;
 
+	let dueCollections: Set<string> | undefined;
+	try {
+		dueCollections = await findTypesWithDueContent(
+			db,
+			collections.map((collection) => collection.slug),
+			currentTime,
+		);
+	} catch (error) {
+		console.error("[scheduled-publish] Failed to find collections with due content:", error);
+	}
+
 	for (const collection of collections) {
+		if (dueCollections && !dueCollections.has(collection.slug)) continue;
 		try {
-			const due = await repo.findReadyToPublish(collection.slug, batchLimit);
+			let cursor: ScheduledPublishCursor | undefined;
+			let cursorRevision: string | null = null;
+			if (batchLimit !== undefined) {
+				try {
+					const stored = await optionsRepo.getVersioned(scheduledPublishCursorKey(collection.slug));
+					cursorRevision = stored?.revision ?? null;
+					if (isScheduledPublishCursor(stored?.value)) cursor = stored.value;
+				} catch (error) {
+					console.error(
+						`[scheduled-publish] Failed to read cursor for "${collection.slug}":`,
+						error,
+					);
+				}
+			}
+			let due = await repo.findReadyToPublish(collection.slug, batchLimit, currentTime, cursor);
+			if (cursor && due.length === 0) {
+				due = await repo.findReadyToPublish(collection.slug, batchLimit, currentTime);
+			}
 			const batch: PublishedRef[] = [];
 			for (const item of due) {
 				// First publication of a scheduled draft should record the intended
@@ -119,16 +180,35 @@ export async function publishDueContent(
 					publishedAt,
 					requireScheduledDue: true,
 					expectedScheduledAt: item.scheduledAt ?? undefined,
+					currentTime,
 				});
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });
-				} else if (result.error?.code === "NOT_DUE") {
+				} else if (result.error?.code === "NOT_DUE" || result.error?.code === "PUBLISH_REJECTED") {
 					// Unscheduled or rescheduled between selection and publish — the
 					// editor changed their mind; skip quietly, not a failure.
 				} else {
 					console.error(
 						`[scheduled-publish] Failed to publish ${collection.slug}/${item.id}:`,
 						result.error,
+					);
+				}
+			}
+			const lastAttempted = due.at(-1);
+			if (batchLimit !== undefined && lastAttempted?.scheduledAt) {
+				try {
+					await optionsRepo.compareAndSet(
+						scheduledPublishCursorKey(collection.slug),
+						cursorRevision,
+						{
+							scheduledAt: lastAttempted.scheduledAt,
+							id: lastAttempted.id,
+						},
+					);
+				} catch (error) {
+					console.error(
+						`[scheduled-publish] Failed to save cursor for "${collection.slug}":`,
+						error,
 					);
 				}
 			}

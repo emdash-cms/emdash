@@ -1,0 +1,6 @@
+{
+	"description": "A configured editorial site with collections and fields but no sample entries.",
+	"setup": "dev-bypass",
+	"includeContent": false,
+	"startPath": "/_emdash/admin/"
+}

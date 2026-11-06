@@ -59,7 +59,11 @@ export type ValidatedPackageView = Omit<AggregatorGetPackage.$output, "profile">
  * against the `com.emdashcms.experimental.package.release` lexicon. `release`
  * is `null` when the record does not conform.
  */
-export type ValidatedReleaseView = Omit<AggregatorGetLatestRelease.$output, "release"> & {
+export type ValidatedReleaseView = Omit<
+	AggregatorGetLatestRelease.$output,
+	"artifactCaches" | "release"
+> & {
+	artifactCaches: NonNullable<AggregatorGetLatestRelease.$output["artifactCaches"]>;
 	release: PackageRelease.Main | null;
 };
 
@@ -99,6 +103,14 @@ function validateProfile(raw: unknown): PackageProfile.Main | null {
 function validateRelease(raw: unknown): PackageRelease.Main | null {
 	const result = safeParse(PackageRelease.mainSchema, raw);
 	return result.ok ? result.value : null;
+}
+
+function validateReleaseView(view: AggregatorGetLatestRelease.$output): ValidatedReleaseView {
+	return {
+		...view,
+		artifactCaches: view.artifactCaches ?? [],
+		release: validateRelease(view.release),
+	};
 }
 
 /**
@@ -280,7 +292,7 @@ export class DiscoveryClient {
 		const out = await ok(this.#client.call(AggregatorListReleases, { params }));
 		return {
 			...out,
-			releases: out.releases.map((r) => ({ ...r, release: validateRelease(r.release) })),
+			releases: out.releases.map(validateReleaseView),
 		};
 	}
 
@@ -294,6 +306,6 @@ export class DiscoveryClient {
 		params: AggregatorGetLatestRelease.$params,
 	): Promise<ValidatedReleaseView> {
 		const out = await ok(this.#client.call(AggregatorGetLatestRelease, { params }));
-		return { ...out, release: validateRelease(out.release) };
+		return validateReleaseView(out);
 	}
 }

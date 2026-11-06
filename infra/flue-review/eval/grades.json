@@ -1,0 +1,994 @@
+{
+	"baseline": {
+		"4226": {
+			"kimi": {
+				"scores": {
+					"K1": 1,
+					"K2": 0,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 with the exact middleware gate; praised the routeCacheFill test instead of noting it hides K1"
+			},
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 with the exact gate; K2 names the objectCache:false test that sets routeCacheFill by hand"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 and K2, same as Opus"
+			}
+		},
+		"4225": {
+			"kimi": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "judged the replacement atomic everywhere; comment verdict only for two stale-comment and test-layout suggestions"
+			},
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "noted the Durable Object dialect takes the transaction fallback without seeing that the fallback is not atomic there"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4224": {
+			"kimi": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "repeated the PR's \"no migration is required\""
+			},
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "repeated the PR's \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4221": {
+			"kimi": {
+				"scores": {
+					"K8": 0,
+					"K9": 0.5
+				},
+				"falseClaims": [],
+				"note": "noted the <img> leak and the ignored getImage path, then dismissed both as pre-existing"
+			},
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 in full (leak onto <img>, no effect on the getImage path) as a suggestion; approved"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4201": {
+			"kimi": {
+				"scores": {
+					"K10": 0,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11 with generator and schema locations; valid backfill note"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11, including the dark variant"
+			}
+		},
+		"4208": {
+			"kimi": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4128": {
+			"kimi": {
+				"scores": {
+					"H2": 0
+				},
+				"falseClaims": [],
+				"note": "accepted \"drafts are not visible on public pages\""
+			},
+			"opus": {
+				"scores": {
+					"H2": 0
+				},
+				"falseClaims": [],
+				"note": "accepted the claim; checked status validation only"
+			},
+			"sol": {
+				"scores": {
+					"H2": 1
+				},
+				"falseClaims": [],
+				"note": "draft translation with taxonomies clears the published source's group-level terms, purge removed, with a reproduction"
+			}
+		},
+		"4167": {
+			"kimi": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference as a suggestion"
+			},
+			"opus": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference, plus a narrative test-header nit"
+			},
+			"sol": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference as needs_fixing"
+			}
+		},
+		"4150": {
+			"kimi": {
+				"scores": {
+					"H4": 0
+				},
+				"falseClaims": [],
+				"note": "conditional changeset-overlap suggestion (valid)"
+			},
+			"opus": {
+				"scores": {
+					"H4": 1
+				},
+				"falseClaims": [],
+				"note": "changeset omits comments, plus stale comments"
+			},
+			"sol": {
+				"scores": {
+					"H4": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4203": {
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4186": {
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4172": {
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve; did not repeat the masking claim"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve; said outright that the folded-read await cannot reject; valid test-name nit"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [
+					"needs_fixing: speculative reads now run before the migration-failure backoff check. True at this head, but a minor cost during an error backoff window, overstated as blocking"
+				],
+				"note": "comment verdict on a clean PR"
+			}
+		},
+		"4157": {
+			"kimi": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		}
+	},
+	"issue": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 tied to the reporter's setup (no object cache); K2"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1 tied to the reporter's setup; K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved; called the overlap test a genuine regression test"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "approved; repeated \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 1
+				},
+				"falseClaims": [],
+				"note": "K6 (code-stored seed rows unreachable, 1.x compatibility) and re-seed not matching the existing row; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 in full, as a suggestion; approved"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "approved; saw meta.caption only as a fallback"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11"
+			}
+		}
+	},
+	"issue+framing": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 1
+				},
+				"falseClaims": [],
+				"note": "K1, K2 and the first K3 of any run: expiry drops the snapshot before refresh, so a failed refresh errors; suggests stale-while-revalidate"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0.5,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "noted the REST/CLI D1 dialect falls back to non-atomic writes and dismissed it; approved"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 1
+				},
+				"falseClaims": [],
+				"note": "K6 and K14 (re-applying a seed creates a duplicate en row); \"no migration\" false"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6 with the seed source of code-stamped rows; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 across all three render paths; comment"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "clean approve"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; existing entries never gain a caption (valid)"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; fully populated older values skip caption enrichment (valid)"
+			}
+		}
+	},
+	"issue+framing-reasoning-r1": {
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6 with the seed source and a migration or changeset fix; comment"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6; request_changes"
+			}
+		}
+	},
+	"issue+framing-reasoning": {
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "approved; repeated \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6, including code- and path-stamped rows coexisting; request_changes"
+			}
+		}
+	},
+	"issue+framing-v1": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0.5
+				},
+				"falseClaims": [],
+				"note": "K1, K2; noted a failed refresh now errors instead of serving the last snapshot, as a minor unanchored note"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6 with the seed source and a migration or changeset fix; comment"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 as needs_fixing"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0.5,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "top-level caption duplicates meta.caption, leaving a stale copy (suggestion); backfill gap"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			}
+		},
+		"4208": {
+			"opus": {
+				"scores": {
+					"H1": 0.5
+				},
+				"falseClaims": [],
+				"note": "found the same storage-less title bug in FTS title detection (verified at head), not the media-usage site"
+			},
+			"sol": {
+				"scores": {
+					"H1": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4128": {
+			"opus": {
+				"scores": {
+					"H2": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			},
+			"sol": {
+				"scores": {
+					"H2": 1
+				},
+				"falseClaims": [],
+				"note": "draft translation with taxonomies clears the published source's terms"
+			}
+		},
+		"4167": {
+			"opus": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference; narrative test header"
+			},
+			"sol": {
+				"scores": {
+					"H3": 1
+				},
+				"falseClaims": [],
+				"note": "issue reference"
+			}
+		},
+		"4150": {
+			"opus": {
+				"scores": {
+					"H4": 1
+				},
+				"falseClaims": [],
+				"note": "changeset omits comments"
+			},
+			"sol": {
+				"scores": {
+					"H4": 0
+				},
+				"falseClaims": [],
+				"note": "valid docs point: the Skip rule does not skip later custom WAF rules"
+			}
+		},
+		"4203": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			}
+		},
+		"4186": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			}
+		},
+		"4172": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [
+					"Speculative reads now run before the migration-failure backoff check: true, but a minor cost during an error backoff window, overstated as needs_fixing"
+				],
+				"note": "comment; did not repeat the masking claim"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [
+					"Speculative reads now run before the migration-failure backoff check: true, but a minor cost during an error backoff window, overstated as needs_fixing"
+				],
+				"note": "comment; did not repeat the masking claim"
+			}
+		},
+		"4157": {
+			"opus": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			},
+			"sol": {
+				"scores": {},
+				"falseClaims": [],
+				"note": "approve"
+			}
+		}
+	},
+	"issue+framing-v2": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 0,
+					"K5": 1,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "K5: D1 REST and DO SQL dialects reject transactions, so the changeset's intact-on-failure claim is false there (suggestion); approved"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 0,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "approved; repeated \"no migration is needed\""
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6, including code- and path-stamped rows coexisting; request_changes"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 as needs_fixing"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 0,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "backfill gap and gallery picker notes only"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			}
+		}
+	},
+	"issue+framing-v3": {
+		"4226": {
+			"opus": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			},
+			"sol": {
+				"scores": {
+					"K1": 1,
+					"K2": 1,
+					"K3": 0
+				},
+				"falseClaims": [],
+				"note": "K1, K2"
+			}
+		},
+		"4225": {
+			"opus": {
+				"scores": {
+					"K4": 1,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "K4: the widget-area step still deletes then reinserts; comment"
+			},
+			"sol": {
+				"scores": {
+					"K4": 0,
+					"K5": 0,
+					"K15": 0,
+					"K16": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4224": {
+			"opus": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 1
+				},
+				"falseClaims": [],
+				"note": "K6 and K14 (re-applying a seed duplicates the row)"
+			},
+			"sol": {
+				"scores": {
+					"K6": 1,
+					"K7": 0,
+					"K14": 0
+				},
+				"falseClaims": [],
+				"note": "K6"
+			}
+		},
+		"4221": {
+			"opus": {
+				"scores": {
+					"K8": 0,
+					"K9": 1
+				},
+				"falseClaims": [],
+				"note": "K9 as needs_fixing"
+			},
+			"sol": {
+				"scores": {
+					"K8": 0,
+					"K9": 0
+				},
+				"falseClaims": [],
+				"note": "approved"
+			}
+		},
+		"4201": {
+			"opus": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			},
+			"sol": {
+				"scores": {
+					"K10": 0,
+					"K11": 1,
+					"K12": 0,
+					"K13": 0
+				},
+				"falseClaims": [],
+				"note": "K11; backfill gap"
+			}
+		}
+	}
+}

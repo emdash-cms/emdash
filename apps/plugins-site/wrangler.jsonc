@@ -1,0 +1,22 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-plugins-site",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-08-22",
+	"compatibility_flags": ["nodejs_compat"],
+	"cache": {
+		"enabled": true,
+	},
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
+	"routes": [
+		{
+			"pattern": "plugins.emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"observability": {
+		"enabled": true,
+	},
+}

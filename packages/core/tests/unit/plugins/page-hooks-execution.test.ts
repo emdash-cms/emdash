@@ -12,9 +12,10 @@
  * broken before the fix.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { HookPipeline } from "../../../src/plugins/hooks.js";
 import type {

@@ -28,13 +28,19 @@ import {
 	consumeAuthorizedPromotionReview,
 	createProtectedPromotionRunner,
 	createPromotionManifest,
+	evaluateAutomaticAdmissionReadiness,
 	evaluateAutoPassReadiness,
 	evaluatePromotionConfidence,
 	promotionReviewChallengeHash,
 } from "../evals/report.js";
 import type { EvalCaseResult, EvalResultBundle } from "../evals/types.js";
+import {
+	CLEF_IMAGE_ASSESSMENT_SETTINGS,
+	CLEF_IMAGE_PROMPT_HASH,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
+	CLEF_TEXT_PROMPT_HASH,
+} from "../src/ai/clef.js";
 import { sha256Hex } from "../src/ai/hash.js";
-import { IMAGE_SYSTEM_PROMPT, TEXT_SYSTEM_PROMPT } from "../src/ai/prompts.js";
 
 const nativeAiRun = vi.hoisted(() => vi.fn());
 
@@ -139,7 +145,7 @@ describe("sealed evaluation datasets", () => {
 		);
 	});
 
-	it("keeps password-form screenshots benign despite visible prompt injection", async () => {
+	it("distinguishes a passive password form from visible moderation manipulation", async () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		const text = dataset.fixtures.find(({ id }) => id === "prompt-injection-with-phishing-text");
 		const passwordForm = dataset.fixtures.find(({ id }) => id === "image-password-form");
@@ -148,7 +154,10 @@ describe("sealed evaluation datasets", () => {
 		);
 		expect(text?.expected.categories).toContain("phishing-or-credential-solicitation");
 		expect(passwordForm?.expected).toEqual({ categories: [], outcome: "pass" });
-		expect(injectedPasswordForm?.expected).toEqual({ categories: [], outcome: "pass" });
+		expect(injectedPasswordForm?.expected).toEqual({
+			categories: ["moderation-manipulation"],
+			outcome: "review",
+		});
 	});
 
 	it("sends the complete production canonical profile input to text evals", async () => {
@@ -166,6 +175,19 @@ describe("sealed evaluation datasets", () => {
 			]),
 		);
 	});
+
+	it("uses a fixture's profile slug as its canonical record key", async () => {
+		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
+		const fixture = dataset.fixtures.find(({ id }) => id === "benign-emdash-origin-phrase");
+		if (!fixture || fixture.kind !== "text") throw new Error("origin phrase fixture is missing");
+		const request = await buildCanonicalTextEvalRequest(fixture);
+		expect(request.subject.uri).toMatch(/\/freeform$/);
+		expect(request.text).toContainEqual({
+			ref: "profile.slug",
+			value: "freeform",
+			format: "plain",
+		});
+	});
 });
 
 describe("promotion hardening", () => {
@@ -179,6 +201,7 @@ describe("promotion hardening", () => {
 			"scam-or-spam",
 			"malicious-or-deceptive-link",
 			"misleading-media-or-claims",
+			"moderation-manipulation",
 		];
 		const reviewCases = Array.from({ length: 300 }, (_, index) =>
 			confidenceCase({
@@ -236,6 +259,43 @@ describe("promotion hardening", () => {
 		const unsafe = evaluateAutoPassReadiness(calculateEvalMetrics([item]), readinessBudgets());
 		expect(unsafe.passed).toBe(false);
 		expect(unsafe.failures).toContain("expected-outcome budget exceeded");
+	});
+
+	it("allows bounded fail-closed fallbacks but never an unsafe automatic pass", () => {
+		const reviews = Array.from({ length: 10 }, (_, index) =>
+			confidenceCase({
+				id: `review-fallback-${index}`,
+				kind: "text",
+				category: "phishing-or-credential-solicitation",
+				outcome: "review",
+			}),
+		);
+		for (const run of reviews[0]!.runs) {
+			run.status = "model-error";
+			run.actualOutcome = "error";
+			run.errorCode = "provider-unavailable";
+		}
+		const passes = Array.from({ length: 20 }, (_, index) =>
+			confidenceCase({ id: `pass-fallback-${index}`, kind: "text", outcome: "pass" }),
+		);
+		passes[0]!.runs[0]!.status = "model-error";
+		passes[0]!.runs[0]!.actualOutcome = "error";
+		passes[0]!.runs[0]!.errorCode = "provider-unavailable";
+
+		expect(
+			evaluateAutomaticAdmissionReadiness([...reviews, ...passes], readinessBudgets()),
+		).toMatchObject({
+			passed: true,
+			evidence: { safeFallbackRuns: 1, expectedPassRuns: 60 },
+		});
+
+		reviews[1]!.runs[0]!.actualOutcome = "pass";
+		expect(
+			evaluateAutomaticAdmissionReadiness([...reviews, ...passes], readinessBudgets()),
+		).toMatchObject({
+			passed: false,
+			failures: expect.arrayContaining(["unsafe automatic pass observed"]),
+		});
 	});
 
 	it("requires identical fixture IDs and dataset hashes for comparisons", async () => {
@@ -332,25 +392,29 @@ describe("promotion hardening", () => {
 		const input = {
 			dataset,
 			text: {
-				modelId: "@cf/test/text",
-				promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+				...CLEF_TEXT_ASSESSMENT_SETTINGS,
+				modelId: "@cf/cloudflare/clef" as const,
+				promptHash: CLEF_TEXT_PROMPT_HASH,
 				configuredUnits: 1,
 			},
 			image: {
-				modelId: "@cf/test/image",
-				promptHash: await sha256Hex(IMAGE_SYSTEM_PROMPT),
+				...CLEF_IMAGE_ASSESSMENT_SETTINGS,
+				modelId: "@cf/cloudflare/clef" as const,
+				promptHash: CLEF_IMAGE_PROMPT_HASH,
 				configuredUnits: 1,
 			},
 			repeatCount: 1,
 			runnerCommit: "test",
 		};
 		nativeAiRun.mockImplementation(async (_model, request) => ({
-			response: JSON.stringify({
-				schemaVersion: 1,
-				findings: [],
-				coveredEvidenceRefs: modelEvidenceRefs(request),
-			}),
-			usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+			model: "clef",
+			answers: Object.fromEntries(
+				Object.keys(clefQuestions(request)).map((category) => [
+					category,
+					{ type: "noul", noul: 0.01 },
+				]),
+			),
+			usage: { input_tokens: 10, output_tokens: 0 },
 		}));
 		const artifact = await runProtectedLiveEvaluation(input);
 		expect(artifact.bundle.mode).toBe("live");
@@ -659,42 +723,11 @@ function readinessBudgets() {
 	};
 }
 
-function modelEvidenceRefs(input: unknown): string[] {
-	if (!isRecord(input)) {
-		throw new TypeError("model input is invalid");
+function clefQuestions(input: unknown): Record<string, unknown> {
+	if (!isRecord(input) || !isRecord(input["questions"])) {
+		throw new TypeError("Clef questions are missing");
 	}
-	const messages = input["messages"];
-	if (!Array.isArray(messages)) throw new TypeError("model messages are missing");
-	const message = messages[1];
-	if (!isRecord(message)) {
-		throw new TypeError("model user message is invalid");
-	}
-	const content = message["content"];
-	let encoded: unknown;
-	if (typeof content === "string") encoded = content;
-	else if (Array.isArray(content)) {
-		const first = content[0];
-		if (!isRecord(first)) {
-			throw new TypeError("model image message is invalid");
-		}
-		encoded = first["text"];
-	}
-	if (typeof encoded !== "string") throw new TypeError("model evidence is missing");
-	const payload: unknown = JSON.parse(encoded);
-	if (!isRecord(payload)) {
-		throw new TypeError("model evidence payload is invalid");
-	}
-	if (typeof payload["evidenceRef"] === "string") return [payload["evidenceRef"]];
-	const text = Array.isArray(payload["text"]) ? payload["text"] : [];
-	const links = Array.isArray(payload["links"]) ? payload["links"] : [];
-	return [...text, ...links].map((field) => {
-		if (!isRecord(field)) {
-			throw new TypeError("model evidence field is invalid");
-		}
-		const ref = field["ref"];
-		if (typeof ref !== "string") throw new TypeError("model evidence ref is invalid");
-		return ref;
-	});
+	return input["questions"];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

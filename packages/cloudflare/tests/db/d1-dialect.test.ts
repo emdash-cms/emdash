@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { CoalescingD1Dialect } from "../../src/db/coalescing-d1.js";
 import {
+	D1Adapter,
 	D1_COMPOUND_SELECT_LIMIT,
 	EmDashD1Dialect,
 	RawBindingD1Dialect,
@@ -31,6 +32,7 @@ interface MockStatement {
 
 function createMockD1(rows: Record<string, unknown>[] = []) {
 	const allCalls: string[] = [];
+	const batchCalls: MockStatement[][] = [];
 	let inFlight = 0;
 	let maxInFlight = 0;
 	const database = {
@@ -55,12 +57,19 @@ function createMockD1(rows: Record<string, unknown>[] = []) {
 			};
 			return stmt;
 		},
+		async batch(statements: MockStatement[]) {
+			batchCalls.push(statements);
+			const results = [];
+			for (const statement of statements) results.push(await statement.all());
+			return results;
+		},
 	};
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- mock implements the prepare/batch subset the dialect uses
 	const db = database as unknown as D1Database;
 	return {
 		database: db,
 		allCalls,
+		batchCalls,
 		maxInFlight: () => maxInFlight,
 	};
 }
@@ -131,7 +140,37 @@ describe("D1 compound-SELECT ceiling", () => {
 	});
 });
 
+describe("D1 atomic batches", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+		["coalescing", CoalescingD1Dialect],
+	])("exposes atomic batches on the %s adapter", (_name, Dialect) => {
+		const { database } = createMockD1();
+		const adapter = new Dialect({ database }).createAdapter();
+
+		expect(adapter).toHaveProperty("executeAtomicBatch", expect.any(Function));
+	});
+});
+
 describe("D1 write results", () => {
+	it("forwards compiled statements to one binding batch and maps results", async () => {
+		const { database, batchCalls } = createMockD1();
+		const adapter = new D1Adapter(database);
+
+		const results = await adapter.executeAtomicBatch([
+			CompiledQuery.raw("update entries set title = ?", ["Restored"]),
+			CompiledQuery.raw("insert into revisions (id) values (?)", ["revision-1"]),
+		]);
+
+		expect(batchCalls).toHaveLength(1);
+		expect(batchCalls[0]?.map((statement) => [statement.sql, statement.params])).toEqual([
+			["update entries set title = ?", ["Restored"]],
+			["insert into revisions (id) values (?)", ["revision-1"]],
+		]);
+		expect(results).toHaveLength(2);
+	});
+
 	it.each([
 		["raw binding", RawBindingD1Dialect],
 		["session", EmDashD1Dialect],

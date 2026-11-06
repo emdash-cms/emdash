@@ -86,6 +86,20 @@ function normalizeExtractionFields(
 ): Record<string, unknown>[] {
 	return fields
 		.map((field) => {
+			if (field.type === "blocks") {
+				return {
+					slug: field.slug,
+					type: field.type,
+					blockTypes: (field.blockTypes ?? []).map((type) => ({
+						slug: type.slug,
+						currentVersion: type.currentVersion,
+						versions: type.versions.map((version) => ({
+							version: version.version,
+							fingerprint: version.fingerprint,
+						})),
+					})),
+				};
+			}
 			if (field.type !== "repeater") return { slug: field.slug, type: field.type };
 			return {
 				slug: field.slug,

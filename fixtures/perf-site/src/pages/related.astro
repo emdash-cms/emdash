@@ -1,0 +1,31 @@
+---
+// An entry rendered with one reference field hydrated. Pair with
+// /related-baseline, which is the same page without the `references` option:
+// the gap between the two snapshots is what opting in costs — one query for the
+// collection's reference fields, one link query for the field, and one entry
+// query for the collection it points at.
+import { getEmDashEntry } from "emdash";
+import Base from "../layouts/Base.astro";
+
+const { entry: post, cacheHint } = await getEmDashEntry(
+	"posts",
+	"designing-with-constraints",
+	{ references: { related_posts: true } },
+);
+Astro.cache.set(cacheHint);
+
+const related = post?.references?.related_posts?.entries ?? [];
+---
+
+<Base title="Related posts" description="An entry with its reference field resolved">
+	<h1>{post?.data.title}</h1>
+	<ul>
+		{
+			related.map((entry) => (
+				<li>
+					<a href={`/posts/${entry.id}`}>{entry.data.title}</a>
+				</li>
+			))
+		}
+	</ul>
+</Base>

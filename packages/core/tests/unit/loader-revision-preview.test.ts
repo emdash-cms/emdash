@@ -94,6 +94,28 @@ describe("Loader revision preview", () => {
 		expect(data.updatedAt).toBeInstanceOf(Date);
 	});
 
+	it("excludes unpublished posts with retained publication dates from public collection loads", async () => {
+		const unpublished = await createPublishedPost("Unpublished");
+		const visible = await createPublishedPost("Visible");
+		const contentRepo = new ContentRepository(db);
+		await contentRepo.publish("post", unpublished.id, "2020-01-01T00:00:00.000Z");
+		await contentRepo.unpublish("post", unpublished.id);
+		await contentRepo.publish("post", visible.id, "2021-01-01T00:00:00.000Z");
+
+		const retained = await contentRepo.findById("post", unpublished.id);
+		expect(retained).toMatchObject({
+			status: "draft",
+			publishedAt: "2020-01-01T00:00:00.000Z",
+		});
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			loader.loadCollection!({ filter: { type: "post" } }),
+		);
+
+		expect(result.entries.map((entry) => entry.data.title)).toEqual(["Visible"]);
+	});
+
 	it("should use revision content fields while preserving system date types", async () => {
 		const post = await createPublishedPost("Original Title");
 

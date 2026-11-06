@@ -17,11 +17,19 @@
  * there.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
 import { generatePluginsModule } from "../../../src/astro/integration/virtual-modules.js";
+import { getRuntimeHolder, shutdownRuntime } from "../../../src/astro/runtime-holder.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
 describe("definePlugin()", () => {
 	it("returns a resolved native plugin for input with id + version", () => {
@@ -74,7 +82,7 @@ describe("generatePluginsModule() standard format", () => {
 		const code = generatePluginsModule(descriptors);
 
 		expect(code).toContain("adaptSandboxEntry");
-		expect(code).toContain('from "emdash/plugins/adapt-sandbox-entry"');
+		expect(code).toContain('from "emdash/internal/plugins/adapt-sandbox-entry"');
 		expect(code).toContain('import pluginDef0 from "@my/standard-plugin"');
 		expect(code).toContain("adaptSandboxEntry(pluginDef0");
 	});
@@ -153,12 +161,6 @@ describe("generatePluginsModule() standard format", () => {
 		expect(code).not.toContain("adaptSandboxEntry");
 	});
 
-	it("returns empty plugins array for no descriptors", () => {
-		const code = generatePluginsModule([]);
-
-		expect(code).toBe("export const plugins = [];");
-	});
-
 	it("throws an actionable error when a descriptor has no entrypoint (issue #1416)", () => {
 		// In-process plugins -- an inline `definePlugin({...})` result passed
 		// directly to `plugins: []` -- have no file entrypoint. The generator
@@ -215,5 +217,195 @@ describe("generatePluginsModule() standard format", () => {
 		expect(code).toContain('"capabilities":["content:read","network:request"]');
 		expect(code).toContain('"allowedHosts":["api.example.com"]');
 		expect(code).toContain('"storage":{"events":{"indexes":["timestamp"]}}');
+	});
+});
+
+describe("generatePluginsModule() for a built standard plugin", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "emdash-plugins-module-"));
+	});
+
+	afterEach(async () => {
+		await shutdownRuntime();
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	it("returns a stable empty array when no plugins are configured", async () => {
+		const module = join(dir, "empty.mjs");
+		await writeFile(module, generatePluginsModule([]));
+		const { plugins } = (await import(module)) as { plugins: () => ResolvedPlugin[] };
+
+		expect(plugins()).toEqual([]);
+		expect(plugins()).toBe(plugins());
+	});
+
+	it("defers standard adaptation and native creation until first use, then shares instances", async () => {
+		const standard = join(dir, "standard.mjs");
+		const native = join(dir, "native.mjs");
+		await writeFile(
+			standard,
+			`let ready = false;
+export function markReady() { ready = true; }
+export default {
+  get hooks() {
+    if (!ready) throw new ReferenceError("Plugin dependencies are not initialized");
+    return { "content:afterSave": async () => {} };
+  }
+};`,
+		);
+		await writeFile(
+			native,
+			`export let creations = 0;
+export function createPlugin(options) {
+  creations++;
+  return { id: "native", version: "1.0.0", hooks: {}, options };
+}`,
+		);
+		const code = generatePluginsModule([
+			{ id: "standard", version: "1.0.0", entrypoint: standard, format: "standard" },
+			{ id: "native", version: "1.0.0", entrypoint: native, options: { debug: true } },
+		]);
+		const adapter = fileURLToPath(
+			new URL("../../../src/plugins/adapt-sandbox-entry.ts", import.meta.url),
+		);
+		const module = join(dir, "lazy.mjs");
+		await writeFile(module, code.replace("emdash/internal/plugins/adapt-sandbox-entry", adapter));
+
+		const { plugins } = (await import(module)) as { plugins: () => ResolvedPlugin[] };
+		const nativeModule = (await import(native)) as { creations: number };
+		expect(nativeModule.creations).toBe(0);
+		expect(() => plugins()).toThrow("Plugin dependencies are not initialized");
+		const { markReady } = (await import(standard)) as { markReady: () => void };
+		markReady();
+
+		const resolved = plugins();
+		expect(resolved.map((plugin) => plugin.id)).toEqual(["standard", "native"]);
+		expect(resolved[0]!.hooks["content:afterSave"]).toMatchObject({ priority: 100 });
+		expect(plugins()).toBe(resolved);
+		expect(nativeModule.creations).toBe(1);
+
+		// Vite can duplicate the generated module across SSR chunks.
+		const duplicate = join(dir, "duplicate.mjs");
+		await writeFile(
+			duplicate,
+			code.replace("emdash/internal/plugins/adapt-sandbox-entry", adapter),
+		);
+		const second = (await import(duplicate)) as { plugins: () => ResolvedPlugin[] };
+		expect(second.plugins()).toBe(resolved);
+		expect(nativeModule.creations).toBe(1);
+
+		const otherConfig = join(dir, "other-config.mjs");
+		await writeFile(
+			otherConfig,
+			generatePluginsModule([
+				{ id: "standard", version: "1.0.0", entrypoint: standard, format: "standard" },
+				{ id: "native", version: "1.0.0", entrypoint: native, options: { debug: false } },
+			]).replace("emdash/internal/plugins/adapt-sandbox-entry", adapter),
+		);
+		const other = (await import(otherConfig)) as { plugins: () => ResolvedPlugin[] };
+		expect(other.plugins()).not.toBe(resolved);
+		expect(other.plugins()).toMatchObject([
+			{ id: "standard" },
+			{ id: "native", options: { debug: false } },
+		]);
+		expect(nativeModule.creations).toBe(2);
+	});
+
+	it.each([false, true])(
+		"creates fresh plugin instances after shutdown (runtime initialized: %s)",
+		async (initialized) => {
+			const entrypoint = join(dir, "native.mjs");
+			await writeFile(
+				entrypoint,
+				`export function createPlugin(options) {
+  return { id: "native", version: "1.0.0", hooks: {}, options };
+}`,
+			);
+			const load = async (debug: boolean) => {
+				const module = join(dir, `plugins-${debug}.mjs`);
+				await writeFile(
+					module,
+					generatePluginsModule([
+						{ id: "native", version: "1.0.0", entrypoint, options: { debug } },
+					]),
+				);
+				return (await import(module)) as { plugins: () => ResolvedPlugin[] };
+			};
+			const firstConfig = await load(true);
+			const secondConfig = await load(false);
+			const first = firstConfig.plugins();
+			const second = secondConfig.plugins();
+			const runtime = { shutdown: vi.fn(async () => {}) };
+			if (initialized) getRuntimeHolder().instance = runtime as never;
+
+			await shutdownRuntime();
+
+			for (const [provider, previous] of [
+				[firstConfig.plugins, first],
+				[secondConfig.plugins, second],
+			] as const) {
+				const refreshed = provider();
+				expect(refreshed).not.toBe(previous);
+				expect(refreshed[0]).not.toBe(previous[0]);
+				expect(refreshed).toEqual(previous);
+				expect(provider()).toBe(refreshed);
+			}
+			expect(runtime.shutdown).toHaveBeenCalledTimes(initialized ? 1 : 0);
+		},
+	);
+
+	it("registers the MCP tools its descriptor declares", async () => {
+		// `emdash-plugin build` drops `mcp` from the runtime module and ships
+		// the tools as JSON Schema in the descriptor instead.
+		const entrypoint = join(dir, "plugin.mjs");
+		await writeFile(
+			entrypoint,
+			`export default { routes: { "events/list": { permission: "content:read", handler: async () => ({ items: [] }) } } };`,
+		);
+		const code = generatePluginsModule([
+			{
+				id: "events",
+				version: "1.0.0",
+				entrypoint,
+				format: "standard",
+				mcp: {
+					tools: [
+						{
+							name: "list_events",
+							description: "List upcoming events.",
+							route: "events/list",
+							permission: "content:read",
+							destructive: false,
+							inputSchema: z.toJSONSchema(z.object({ limit: z.number().int().max(50) }), {
+								target: "draft-7",
+							}),
+							outputSchema: z.toJSONSchema(z.object({ items: z.array(z.string()) }), {
+								target: "draft-7",
+							}),
+						},
+					],
+				},
+			},
+		]);
+		const adapter = fileURLToPath(
+			new URL("../../../src/plugins/adapt-sandbox-entry.ts", import.meta.url),
+		);
+		const module = join(dir, "plugins.mjs");
+		await writeFile(module, code.replace("emdash/internal/plugins/adapt-sandbox-entry", adapter));
+
+		const { plugins } = (await import(module)) as { plugins: () => ResolvedPlugin[] };
+		const tool = plugins()[0]!.mcp?.tools.list_events;
+
+		expect(tool).toMatchObject({
+			description: "List upcoming events.",
+			route: "events/list",
+			destructive: false,
+		});
+		expect(tool!.input.safeParse({ limit: 10 }).success).toBe(true);
+		expect(tool!.input.safeParse({ limit: 500 }).success).toBe(false);
+		expect(tool!.output?.safeParse({ items: [] }).success).toBe(true);
+		expect(tool!.output?.safeParse({ items: [1] }).success).toBe(false);
 	});
 });

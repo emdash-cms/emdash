@@ -1,9 +1,51 @@
 /**
- * Shared sanitization for gallery block images, used by both converters so
- * the editor round-trip and the stored shape stay in lockstep.
+ * Shared sanitization for gallery block images and image media, used by both
+ * converters so the editor round-trip and the stored shape stay in lockstep.
  */
 
+import { localMediaFileUrl } from "../../media/url.js";
 import type { PortableTextGalleryImage } from "./types.js";
+
+export interface ImageMedia {
+	asset: PortableTextGalleryImage["asset"];
+	alt?: string;
+	width?: number;
+	height?: number;
+}
+
+/**
+ * Read an image's media reference, alt text, and dimensions. Accepts the
+ * reference shape (`_ref`, `url`) and the MediaValue that seeded `$media`
+ * stores instead (`id`, `src`, `meta.storageKey`, dimensions). The image's own
+ * `alt`, `width`, and `height` take precedence over the asset's.
+ */
+export function resolveImageMedia(image: unknown): ImageMedia {
+	const record: Record<string, unknown> = isRecord(image) ? image : {};
+	const asset: Record<string, unknown> = isRecord(record.asset) ? record.asset : {};
+	// The media id is not a storage key, so local files need `url`.
+	const storageKey = isRecord(asset.meta) ? nonEmptyString(asset.meta.storageKey) : undefined;
+	const url =
+		nonEmptyString(asset.url) ??
+		nonEmptyString(asset.src) ??
+		(storageKey ? localMediaFileUrl(storageKey) : undefined);
+	const provider = nonEmptyString(asset.provider);
+	const alt = nonEmptyString(record.alt) ?? nonEmptyString(asset.alt);
+	const width = typeof record.width === "number" ? record.width : asset.width;
+	const height = typeof record.height === "number" ? record.height : asset.height;
+
+	const media: ImageMedia = {
+		asset: {
+			_type: "reference",
+			_ref: nonEmptyString(asset._ref) ?? nonEmptyString(asset.id) ?? "",
+			...(url ? { url } : {}),
+			...(provider ? { provider } : {}),
+		},
+	};
+	if (alt) media.alt = alt;
+	if (typeof width === "number") media.width = width;
+	if (typeof height === "number") media.height = height;
+	return media;
+}
 
 /**
  * Normalize an untrusted `images` value into well-formed gallery images.
@@ -21,9 +63,8 @@ export function sanitizeGalleryImages(
 	for (const entry of value as unknown[]) {
 		if (!isRecord(entry)) continue;
 		const record = entry;
-		const asset = record.asset;
-		if (!isRecord(asset)) continue;
-		const assetRecord = asset;
+		if (!isRecord(record.asset)) continue;
+		const { asset, alt, width, height } = resolveImageMedia(record);
 
 		const image: PortableTextGalleryImage = {
 			_type: "image",
@@ -33,19 +74,12 @@ export function sanitizeGalleryImages(
 					: generateKey
 						? generateKey()
 						: "",
-			asset: {
-				_type: "reference",
-				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
-				...(typeof assetRecord.url === "string" && assetRecord.url ? { url: assetRecord.url } : {}),
-				...(typeof assetRecord.provider === "string" && assetRecord.provider
-					? { provider: assetRecord.provider }
-					: {}),
-			},
+			asset,
 		};
-		if (typeof record.alt === "string" && record.alt) image.alt = record.alt;
+		if (alt) image.alt = alt;
 		if (typeof record.caption === "string" && record.caption) image.caption = record.caption;
-		if (typeof record.width === "number") image.width = record.width;
-		if (typeof record.height === "number") image.height = record.height;
+		if (width !== undefined) image.width = width;
+		if (height !== undefined) image.height = height;
 		if (typeof record.focalX === "number") image.focalX = record.focalX;
 		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (typeof record.blurhash === "string" && record.blurhash) image.blurhash = record.blurhash;
@@ -56,6 +90,10 @@ export function sanitizeGalleryImages(
 	}
 
 	return images;
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+	return typeof value === "string" && value ? value : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

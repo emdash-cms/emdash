@@ -4,7 +4,7 @@ Declarative JSON UI for sandboxed plugin admin pages. The host renders blocks â€
 
 Trusted plugins (declared in `astro.config.ts`) can ship custom React components instead. Block Kit is for runtime-installed sandboxed plugins.
 
-Block Kit elements are also used for [Portable Text block editing fields](./portable-text-blocks.md). When a plugin declares `fields` on a block type, the editor renders a Block Kit form.
+Native plugins also use Block Kit elements for [Portable Text block editing fields](./portable-text-blocks.md). Plugin CLI and registry packages cannot register Portable Text block types.
 
 ## How It Works
 
@@ -58,38 +58,43 @@ routes: {
 
 ## Block Types
 
-| Type      | Description                                         |
-| --------- | --------------------------------------------------- |
-| `header`  | Large bold heading                                  |
-| `section` | Text with optional accessory element                |
-| `divider` | Horizontal rule                                     |
-| `fields`  | Two-column label/value grid                         |
-| `table`   | Data table with formatting, sorting, pagination     |
-| `actions` | Horizontal row of buttons and controls              |
-| `stats`   | Dashboard metric cards with trend indicators        |
-| `form`    | Input fields with conditional visibility and submit |
-| `image`   | Block-level image with caption                      |
-| `context` | Small muted help text                               |
-| `columns` | 2-3 column layout with nested blocks                |
-| `chart`   | Charts (timeseries line/bar, pie, custom ECharts)   |
-| `code`    | Syntax-highlighted code block                       |
-| `meter`   | Progress/quota meter bar                            |
-| `banner`  | Info, warning, or error inline messages             |
+| Type        | Description                                         |
+| ----------- | --------------------------------------------------- |
+| `header`    | Large bold heading                                  |
+| `section`   | Text with optional accessory element                |
+| `divider`   | Horizontal rule                                     |
+| `fields`    | Two-column label/value grid                         |
+| `table`     | Data table with formatting, sorting, pagination     |
+| `actions`   | Horizontal row of buttons and controls              |
+| `stats`     | Dashboard metric cards with trend indicators        |
+| `form`      | Input fields with conditional visibility and submit |
+| `image`     | Block-level image with alt text and optional title  |
+| `context`   | Small muted help text                               |
+| `columns`   | 2-3 column layout with nested blocks                |
+| `chart`     | Charts (timeseries line/bar, pie, custom ECharts)   |
+| `code`      | Syntax-highlighted code block                       |
+| `meter`     | Progress/quota meter bar                            |
+| `banner`    | Info, warning, or error inline messages             |
+| `empty`     | Empty state with optional command and actions       |
+| `accordion` | Collapsible section containing nested blocks        |
 
 ## Element Types
 
-| Type           | Description                                     |
-| -------------- | ----------------------------------------------- |
-| `button`       | Action button with optional confirmation dialog |
-| `text_input`   | Single-line or multiline text input             |
-| `number_input` | Numeric input with min/max                      |
-| `select`       | Dropdown select                                 |
-| `toggle`       | On/off switch                                   |
-| `secret_input` | Masked input for API keys and tokens            |
-| `checkbox`     | Multi-select checkboxes                         |
-| `radio`        | Single-select radio buttons                     |
-| `date_input`   | Date picker                                     |
-| `combobox`     | Searchable dropdown select                      |
+| Type           | Description                                               |
+| -------------- | --------------------------------------------------------- |
+| `button`       | Action button with optional confirmation dialog           |
+| `link`         | Host-resolved navigation that does not dispatch an action |
+| `text_input`   | Single-line or multiline text input                       |
+| `number_input` | Numeric input with min/max                                |
+| `select`       | Dropdown select                                           |
+| `toggle`       | On/off switch                                             |
+| `secret_input` | Masked input for API keys and tokens                      |
+| `checkbox`     | Multi-select checkboxes                                   |
+| `radio`        | Single-select radio buttons                               |
+| `date_input`   | Date picker                                               |
+| `combobox`     | Searchable dropdown select                                |
+| `repeater`     | Array of records with scalar sub-fields                   |
+| `media_picker` | Media-library picker that stores the asset URL            |
 
 ## Block Syntax
 
@@ -330,6 +335,92 @@ For pie charts, gauges, or any ECharts visualization:
 - `variant` â€” `"default"` (info, default), `"alert"` (warning), or `"error"`
 - At least one of `title` or `description` is required
 
+### Empty
+
+```json
+{
+	"type": "empty",
+	"title": "No submissions",
+	"description": "New submissions appear here.",
+	"command_line": "pnpm run seed",
+	"size": "base",
+	"actions": [{ "type": "button", "action_id": "refresh", "label": "Refresh" }]
+}
+```
+
+### Tabs
+
+Use `tab` to group related blocks into labelled panels:
+
+```json
+{
+	"type": "tab",
+	"panels": [
+		{
+			"label": "General",
+			"blocks": [{ "type": "context", "text": "General settings" }]
+		}
+	]
+}
+```
+
+### Accordion
+
+```json
+{
+	"type": "accordion",
+	"label": "Advanced settings",
+	"default_open": false,
+	"blocks": [{ "type": "context", "text": "Settings visible when expanded" }]
+}
+```
+
+## Repeater and media picker elements
+
+`repeater` and `media_picker` are admin-authoring elements, not ordinary fields in a sandboxed admin-page `form`.
+
+`repeater` captures an array of objects. Its nested fields are limited to `text_input`, `number_input`, `select`, and `toggle`:
+
+```typescript
+{
+	"type": "repeater",
+	"action_id": "items",
+	"label": "Questions",
+	"item_label": "Question",
+	"fields": [
+		{ "type": "text_input", "action_id": "question", "label": "Question" },
+		{ "type": "text_input", "action_id": "answer", "label": "Answer", "multiline": true }
+	]
+}
+```
+
+`media_picker` opens the media library and stores the selected asset's URL string:
+
+```typescript
+{
+	"type": "media_picker",
+	"action_id": "hero",
+	"label": "Hero image",
+	"mime_type_filter": "image/"
+}
+```
+
+## Declarative field widgets
+
+The admin field editor can render a plugin field widget from Block Kit elements. A schema field refers to `pluginId:widgetName`; a config-declared standard descriptor supplies `name`, `label`, compatible `fieldTypes`, and `elements`.
+
+The field-widget renderer currently supports only these elements:
+
+- `text_input`
+- `number_input`
+- `toggle`
+- `select`
+- `media_picker`
+
+It stores an object keyed by each element's `action_id`. Use a `json` field for this composed value; other field types are accepted by the manifest schema but are not covered by an end-to-end save test. Other element types render an unsupported-element message.
+
+`emdash-plugin.jsonc` accepts this field-widget definition, and the plugin CLI preserves it in the registry manifest and generated descriptor. The artifact transport is tested; the repository's browser E2E test still covers a native React field widget rather than a registry declarative widget. Verify the rendered editor and saved value for the selected elements.
+
 ## Conditional Fields
 
 Show/hide fields based on other field values. Evaluated client-side, no round-trip.
@@ -358,8 +449,18 @@ Show/hide fields based on other field values. Evaluated client-side, no round-tr
 ```typescript
 import { blocks, elements } from "@emdash-cms/blocks";
 
-const { header, form, section, stats, timeseriesChart, customChart, banner: bannerBlock } = blocks;
-const { textInput, toggle, select, button } = elements;
+const {
+	header,
+	form,
+	section,
+	stats,
+	timeseriesChart,
+	customChart,
+	banner: bannerBlock,
+	empty,
+	accordion,
+} = blocks;
+const { textInput, toggle, select, button, repeater, mediaPicker } = elements;
 
 return {
 	blocks: [
@@ -424,6 +525,52 @@ return {
 	}
 }
 ```
+
+## Saved-entry panels and actions
+
+`admin.editorPanels` and `admin.editorActions` point to private plugin routes. Panel routes return Block Kit and receive `panel_load`, `block_action`, or `form_submit`. Action routes receive `editor_action` and return only these bounded fields:
+
+```typescript
+{
+	toast?: { message: string; type: "success" | "error" | "info" };
+	refresh?: true;
+	navigate?: LinkTarget;
+	patch?: EditorDraftPatchEffect;
+}
+```
+
+Use only one of `refresh`, `navigate`, or `patch`. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
+
+For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Ordinary panel load contains no draft. An explicit interaction includes selected unsaved fields only when the plugin has `admin.editor-draft:read` and the extension declares bounded `draft.read` access. `admin.editor-draft:patch` separately permits atomic whole-field `set` and `clear` proposals for fields in `draft.patch`; the host previews accepted changes without saving them.
+
+## Links and admin locale
+
+Use a structured link target instead of returning an admin URL:
+
+```json
+{
+	"type": "link",
+	"label": "Edit article",
+	"target": { "kind": "content", "collection": "posts", "id": "post-1", "locale": "ar" },
+	"appearance": "primary"
+}
+```
+
+Targets can identify saved content, a page declared by the same plugin, the plugin's generated settings page, or an absolute external HTTP, HTTPS, or `mailto:` URL. External links open in a new tab with `noopener noreferrer`. A link has no `action_id`; use a button when the interaction must call the plugin.
+
+Every page and widget response is validated before rendering. Responses are limited to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string. Root-relative image URLs are accepted. External images require HTTPS and either `network:request` with the hostname in the plugin manifest's `allowedHosts`, or `network:request:unrestricted`.
+
+The admin route receives host-attested UI context separately from the interaction:
+
+```typescript
+const { locale, direction, surface } = routeCtx.ui ?? {
+	locale: "en",
+	direction: "ltr",
+	surface: "admin-page",
+};
+```
+
+The UI locale is the administrator's active locale. It is separate from the site's default content locale in `ctx.site.locale`. Runtime page labels can use it to select localized Block Kit text; manifest navigation labels remain static.
 
 ## Toast Responses
 

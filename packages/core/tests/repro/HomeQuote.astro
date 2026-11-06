@@ -1,0 +1,12 @@
+---
+interface Props {
+	value: { text: string; attribution?: string };
+}
+
+const { value } = Astro.props;
+---
+
+<figure data-home-block="quote">
+	<blockquote>{value.text}</blockquote>
+	{value.attribution && <figcaption>{value.attribution}</figcaption>}
+</figure>

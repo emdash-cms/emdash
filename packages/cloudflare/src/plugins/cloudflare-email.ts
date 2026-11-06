@@ -3,12 +3,12 @@
  *
  * Delivers EmDash emails (magic links, invites, comment notifications)
  * through Cloudflare Email Sending via a `send_email` Worker binding.
- * Registers `email:deliver` as an exclusive hook — activate the plugin,
- * then select it as the provider under Settings → Email.
+ * Registers `email:deliver` as an exclusive hook. EmDash selects this
+ * plugin automatically when it is the only active email provider.
  *
- * Without a production provider, deployments on Cloudflare only have the
- * dev console stub, and email-dependent auth flows (magic link login,
- * invites) fail with "Email is not configured".
+ * Without an email provider, magic link sign-in on a Cloudflare
+ * deployment fails with "Email is not configured", and invites return a
+ * link to share manually.
  *
  * @example
  * ```typescript
@@ -62,7 +62,8 @@ export interface CloudflareEmailConfig {
 
 	/**
 	 * Optional Reply-To address — useful when the sender is a
-	 * no-reply style subdomain address.
+	 * no-reply style subdomain address. A message's own `replyTo` takes
+	 * precedence.
 	 */
 	replyTo?: string;
 }
@@ -71,6 +72,7 @@ export interface CloudflareEmailConfig {
 interface SendEmailBinding {
 	send(message: {
 		to: string | string[];
+		cc?: string[];
 		from: { email: string; name?: string };
 		subject: string;
 		text?: string;
@@ -86,12 +88,18 @@ interface SendEmailBinding {
  * `Astro.locals.runtime`. The `cloudflare:workers` module exposes the
  * same env to any code bundled into the Worker — including in `astro dev`
  * when the Cloudflare Vite plugin provides the workerd runtime.
+ *
+ * The env is imported through `cloudflare-email-env.ts` rather than directly,
+ * so the built-in module is referenced via a static import in a dedicated
+ * helper. This avoids relying on a direct dynamic import of `cloudflare:workers`
+ * in the bundled Worker, which some Astro Cloudflare builds do not resolve
+ * correctly.
  */
 async function loadWorkerEnv(): Promise<Record<string, unknown>> {
 	try {
-		const mod = await import("cloudflare:workers");
+		const { env } = await import("./cloudflare-email-env.js");
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Env is deployment-specific; the binding lookup validates the shape
-		return mod.env as unknown as Record<string, unknown>;
+		return env as unknown as Record<string, unknown>;
 	} catch {
 		throw new Error(
 			"[cloudflare-email] cloudflare:workers is not available — this provider " +
@@ -127,13 +135,15 @@ export function createCloudflareEmailDeliver(
 			);
 		}
 
+		const replyTo = message.replyTo ?? config.replyTo;
 		const result = await binding.send({
 			from,
 			to: message.to,
 			subject: message.subject,
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
-			...(config.replyTo ? { replyTo: config.replyTo } : {}),
+			...(message.cc?.length ? { cc: message.cc } : {}),
+			...(replyTo ? { replyTo } : {}),
 		});
 
 		ctx.log.info("email delivered via Cloudflare Email Sending", {
@@ -181,8 +191,9 @@ export function createPlugin(config: CloudflareEmailConfig): ResolvedPlugin {
 /**
  * Create a Cloudflare Email Sending provider plugin descriptor.
  *
- * Pass it to the emdash() integration's plugins array, activate it under
- * Admin → Extensions, then select it under Settings → Email.
+ * Pass it to the emdash() integration's plugins array. The plugin is active
+ * from the first deployment, and EmDash selects it automatically when it is
+ * the only active email provider.
  *
  * Returns a `PluginDescriptor` (not an in-process definition): the astro
  * integration requires every `plugins: []` entry to resolve to a bundlable

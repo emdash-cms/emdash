@@ -31,6 +31,7 @@ import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 
 import { buildPlugin, BuildError, type BuildLogger, type BuildResult } from "../build/api.js";
+import { formatPackageReleaseIdentifier } from "../package-identifier.js";
 import { CAPABILITY_RENAMES, isDeprecatedCapability, type PluginManifest } from "./types.js";
 import {
 	collectBundleEntries,
@@ -94,6 +95,8 @@ export interface BundleOptions {
 	 * pre-publish checks. Default: `false`.
 	 */
 	validateOnly?: boolean;
+	/** Publisher handle or DID used for human-readable progress output. */
+	displayPublisher?: string;
 	/** Optional progress reporter. */
 	logger?: BundleLogger;
 }
@@ -131,7 +134,12 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	// ── 1. Build dist/ via the shared pipeline ──
 	let build: BuildResult;
 	try {
-		build = await buildPlugin({ dir: pluginDir, outDir, logger: log });
+		build = await buildPlugin({
+			dir: pluginDir,
+			outDir,
+			logger: log,
+			displayPublisher: options.displayPublisher,
+		});
 	} catch (error) {
 		if (error instanceof BuildError) {
 			throw new BundleError(error.code, error.message);
@@ -142,7 +150,9 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	const manifest = build.wireManifest;
 	const resolvedPlugin = build.resolvedPlugin;
 
-	log.success?.(`Plugin: ${manifest.id}@${manifest.version}`);
+	log.success?.(
+		`Plugin: ${formatPackageReleaseIdentifier(options.displayPublisher ?? build.manifest.publisher, manifest.id, manifest.version)}`,
+	);
 	log.info?.(
 		`  Capabilities: ${
 			manifest.capabilities.length > 0 ? manifest.capabilities.join(", ") : "(none)"

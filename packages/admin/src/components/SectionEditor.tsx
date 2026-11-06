@@ -4,7 +4,7 @@
  * Edit a section's content and metadata.
  */
 
-import { Input, InputArea, Label, Loader, Toast } from "@cloudflare/kumo";
+import { Input, InputArea, Label, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
@@ -37,7 +37,7 @@ export function SectionEditor() {
 	const { slug } = useParams({ from: "/_admin/sections/$slug" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const {
 		data: section,
@@ -70,7 +70,7 @@ export function SectionEditor() {
 			toastManager.add({
 				title: t`Error saving section`,
 				description: mutationError.message,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -203,13 +203,13 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>
 				<p className="text-sm text-kumo-subtle">
 					{section.source === "theme" ? t`Theme Section` : t`Custom Section`} &middot;{" "}
-					{section.slug}
+					<bdi dir="ltr">{section.slug}</bdi>
 				</p>
 			</EditorHeader>
 
-			<div className="grid grid-cols-12 gap-6">
+			<div className="grid gap-6 xl:grid-cols-12">
 				{/* Main content */}
-				<div className="col-span-8 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-8">
 					{/* Content editor */}
 					<div className="rounded-lg border bg-kumo-base p-6">
 						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
@@ -236,7 +236,7 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 				</div>
 
 				{/* Sidebar */}
-				<div className="col-span-4 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-4">
 					{blockSidebarPanel?.type === "image" ? (
 						<ImageDetailPanel
 							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
@@ -277,6 +277,7 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 
 								<div>
 									<Input
+										dir="ltr"
 										label={t`Slug`}
 										value={sectionSlug}
 										onChange={(e) => {

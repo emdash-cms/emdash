@@ -22,27 +22,49 @@ import {
 	defineWorkflow,
 	type ActionContext,
 	type WorkflowRouteHandler,
+	type WorkflowRunsHandler,
 } from "@flue/runtime";
 import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cloudflare";
+import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
-import { withCapacityRetry } from "../lib/capacity.js";
 import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
-	mintInstallationToken,
+	githubRateLimitGate,
+	fetchRepositoryTarball,
 	fetchUnifiedDiff,
-	fetchPullRequestHeadSha,
+	fetchPullRequestRevision,
+	classifyPullRequestHeadMove,
+	fetchAcceptedDesign,
+	fetchLinkedIssues,
 	fetchPriorReview,
 	postReview,
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
+	POST_MODEL_PERMIT_WAIT_MS,
+	type AcceptedDesign,
+	type GitHubToken,
 } from "../lib/github.js";
+import { followUpHead } from "../lib/rereview.js";
+import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
+import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
+import { reviewUntilCurrentHead, type PullRequestRevision } from "../lib/review-head.js";
+import { linkedIssueSections, type LinkedIssue } from "../lib/review-linked-issues.js";
+import { completeWithGateway, reviewPlan } from "../lib/review-model.js";
+import { MODEL_REVIEW_STAGE_LIMIT_MS, runReviewPanel } from "../lib/review-panel.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
+	followUpMaxLines,
+	followUpScope,
+	maxSuggestions,
+	type ChangedLines,
+} from "../lib/review-scope.js";
+import {
 	getReviewWatchdog,
+	withStageHeartbeats,
 	type ReviewStage,
 	type ReviewTerminal,
 } from "../lib/review-watchdog.js";
@@ -54,6 +76,7 @@ const reviewPayloadSchema = v.object({
 	prNumber: v.number(),
 	prTitle: v.string(),
 	prBody: v.string(),
+	authorLogin: v.optional(v.string()),
 	headRef: v.string(),
 	// Optional only so persisted pre-observability runs remain readable; run() fails closed without them.
 	headSha: v.optional(v.string()),
@@ -65,12 +88,28 @@ const reviewPayloadSchema = v.object({
 	expectedRunId: v.optional(v.string()),
 	deliveryId: v.optional(v.string()),
 	checkRunId: v.optional(v.number()),
+	// Set by the re-review scheduler: review only what changed since priorHeadSha.
+	reviewMode: v.optional(v.picklist(["full", "scoped"])),
+	priorHeadSha: v.optional(v.string()),
+	// Set only by the local evaluation runner, which has no token to fetch them.
+	linkedIssues: v.optional(
+		v.array(v.object({ number: v.number(), title: v.string(), body: v.string() })),
+	),
+	priorReview: v.optional(v.string()),
+	interHeadDiff: v.optional(v.string()),
 });
+
+async function coordinatedToken(env: Env, consumer: string): Promise<GitHubToken> {
+	const gate = githubRateLimitGate(env);
+	const token = await gate.getInstallationToken();
+	return { token, gate, consumer };
+}
 
 type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
 
 const REPO_DIR = "/repo";
 const DIFF_PATH = `${REPO_DIR}/.flue-pr.diff`;
+const FOLLOW_UP_DIFF_PATH = `${REPO_DIR}/.flue-follow-up.diff`;
 const HYDRATED = `${REPO_DIR}/.flue-hydrated`;
 
 const NAME = /^[A-Za-z0-9._-]+$/;
@@ -99,6 +138,7 @@ function assertSafe(payload: ReviewPayload): void {
 	for (const [key, value] of [
 		["baseSha", payload.baseSha],
 		["headSha", payload.headSha],
+		["priorHeadSha", payload.priorHeadSha],
 	] as const) {
 		if (value !== undefined && !SHA.test(value))
 			throw new Error(`payload.${key} is not a full SHA`);
@@ -128,8 +168,8 @@ function workflowRunId(): string {
 const reviewAgent = defineAgent<Env>(({ env }) => {
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	return {
-		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
-		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		model: reviewPlan(env).reviewers[0],
+		compaction: REVIEW_COMPACTION,
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
 		instructions: [
@@ -143,7 +183,27 @@ const reviewAgent = defineAgent<Env>(({ env }) => {
 	};
 });
 
-function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
+function followUpSection(priorHeadSha: string): string[] {
+	return [
+		"",
+		"## Follow-up review",
+		"",
+		`This is an automatic follow-up review of the author's changes since your last review, at ${priorHeadSha}. The diff from that head to this one is at ${FOLLOW_UP_DIFF_PATH}; the full PR diff is still at ${DIFF_PATH}.`,
+		"",
+		"- Check whether each earlier finding is addressed or reasonably answered, and whether the new changes introduce a defect.",
+		"- Do not look for new issues in code that has not changed since the last review.",
+		"- An author's reply to a finding settles it: do not reopen it.",
+		"- When the earlier findings are addressed, a clean review with no findings is the expected result.",
+	];
+}
+
+function buildPrContext(
+	payload: ReviewPayload,
+	priorReview?: string,
+	acceptedDesign?: AcceptedDesign,
+	linkedIssues: readonly LinkedIssue[] = [],
+	followUpFrom?: string,
+): string {
 	const lines = [
 		`PR #${payload.prNumber} in ${payload.owner}/${payload.repo}.`,
 		`Head ref: ${payload.headRef}. Base branch: ${payload.baseRef}.`,
@@ -153,10 +213,22 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 		"## Description",
 		"",
 		payload.prBody || "(no description provided)",
+		...linkedIssueSections(linkedIssues),
 	];
+	if (acceptedDesign) {
+		lines.push(
+			"",
+			"## Accepted design",
+			"",
+			`This PR links merged design PR #${acceptedDesign.prNumber}, which accepted:`,
+			"",
+			...acceptedDesign.proposals.map((path) => `- ${REPO_DIR}/${path}`),
+		);
+	}
 	if (priorReview) {
 		lines.push("", "## Prior review context (this is a re-review)", "", priorReview);
 	}
+	if (followUpFrom) lines.push(...followUpSection(followUpFrom));
 	return lines.join("\n");
 }
 
@@ -180,31 +252,33 @@ function hydrateStep(payload: ReviewPayload, step: string, startedAt: number): v
 // no pack indexing: pure-JS pack inflation in the DO stops completing once
 // the repo's shallow pack grows past roughly 16MB, so hydration must not
 // depend on git. gzip decompression is the runtime-native DecompressionStream.
-// Idempotent: a HYDRATED marker skips re-fetching on workflow re-entry.
-async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+// Idempotent for one head and replaceable when a re-review advances to a new head.
+async function hydrate(
+	env: Env,
+	payload: ReviewPayload,
+	token: GitHubToken | undefined,
+): Promise<void> {
 	const t0 = Date.now();
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	hydrateStep(payload, "workspace created", t0);
-	if (await workspace.exists(HYDRATED)) {
+	if (!payload.headSha) throw new Error("hydrate requires the PR head SHA");
+	const hydratedHead = await workspace.readFile(HYDRATED);
+	if (hydratedHead?.trim().toLowerCase() === payload.headSha.toLowerCase()) {
+		await omitReviewArtifacts(workspace, REPO_DIR);
 		hydrateStep(payload, "already hydrated", t0);
 		return;
 	}
-	if (!payload.headSha) throw new Error("hydrate requires the PR head SHA");
+	await workspace.rm(REPO_DIR, { recursive: true, force: true });
 
-	const url = `https://api.github.com/repos/${payload.owner}/${payload.repo}/tarball/${payload.headSha}`;
-	const response = await fetch(url, {
-		headers: { "User-Agent": "emdash-flue-review", Accept: "application/vnd.github+json" },
-	});
-	if (!response.ok || !response.body) {
-		throw new Error(`tarball fetch failed: ${response.status} ${await response.text()}`);
-	}
+	const tarball = await fetchRepositoryTarball(payload.owner, payload.repo, payload.headSha, token);
 	hydrateStep(payload, "tarball response", t0);
 
-	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
+	const tarStream = tarball.pipeThrough(new DecompressionStream("gzip"));
 	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
 	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
+	await omitReviewArtifacts(workspace, REPO_DIR);
 
-	await workspace.writeFile(HYDRATED, new Date().toISOString());
+	await workspace.writeFile(HYDRATED, payload.headSha);
 	hydrateStep(payload, "hydrated", t0);
 }
 
@@ -231,7 +305,7 @@ function logReviewEvent(
 
 async function reportStage(
 	env: Env,
-	token: string | undefined,
+	token: GitHubToken | undefined,
 	payload: ReviewPayload,
 	runId: string,
 	stage: ReviewStage,
@@ -299,8 +373,10 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 	// GitHub access lives only in this trusted Action code, never in the agent's
 	// workspace. Without app creds (local dev) we skip posting and return.
 	const creds = readAppCreds(env);
-	let token: string | undefined;
-	let priorReview: string | undefined;
+	let token: GitHubToken | undefined;
+	let priorReview = payload.priorReview;
+	let acceptedDesign: AcceptedDesign | undefined;
+	let linkedIssues: readonly LinkedIssue[] = payload.linkedIssues ?? [];
 	let reactionId: number | undefined;
 	let stage: ReviewStage = "admitted";
 	try {
@@ -321,132 +397,295 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			throw new Error("Review attempt is no longer active");
 		}
 		if (creds) {
-			token = await mintInstallationToken(creds);
+			token = await coordinatedToken(env, `review-workflow:${payload.attemptId ?? runId}`);
 			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
 			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
-		}
-
-		// Hydrate the Workspace (clone + checkout the PR head) into the same DO
-		// SQLite + R2 namespace the agent's sandbox reads from.
-		stage = "hydrating";
-		if (
-			!(await reportStage(env, token, payload, runId, "hydrating", "Preparing the PR workspace."))
-		) {
-			throw new Error("Review attempt is no longer active");
-		}
-		await hydrate(env, payload);
-
-		const session = await context.harness.session();
-
-		// Stage the canonical unified diff into the Workspace (no `git` in cf-shell).
-		stage = "fetching_diff";
-		if (
-			!(await reportStage(
-				env,
+			acceptedDesign = await fetchAcceptedDesign(
 				token,
-				payload,
-				runId,
-				"fetching_diff",
-				"Fetching the canonical PR diff.",
-			))
-		) {
-			throw new Error("Review attempt is no longer active");
+				payload.owner,
+				payload.repo,
+				payload.prBody,
+			);
+			linkedIssues = await fetchLinkedIssues(token, payload.owner, payload.repo, payload.prNumber);
 		}
-		const diff = await fetchUnifiedDiff(
-			payload.owner,
-			payload.repo,
-			payload.prNumber,
-			token,
-			payload.baseSha,
-			payload.headSha,
-		);
-		await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
 
-		stage = "model_review";
-		if (
-			!(await reportStage(
-				env,
-				token,
-				payload,
-				runId,
-				"model_review",
-				"The model is reviewing the diff.",
-			))
-		) {
-			throw new Error("Review attempt is no longer active");
-		}
-		const { data } = await withCapacityRetry(
-			(signal) =>
-				session.skill("review", {
-					args: {
-						prContext: buildPrContext(payload, priorReview),
-						owner: payload.owner,
-						repo: payload.repo,
-						prNumber: payload.prNumber,
-						baseRef: payload.baseRef,
-						headRef: payload.headRef,
-						repoDir: REPO_DIR,
-						diffPath: DIFF_PATH,
-					},
-					result: reviewResultSchema,
-					signal,
-				}),
-			{
-				label: `review#${payload.prNumber}`,
-				attempts: 3,
-				perAttemptTimeoutMs: 30 * 60_000,
-				onRetry: ({ attempt, delayMs, error }) =>
-					context.log.warn?.("[review] model over capacity, backing off", {
-						prNumber: payload.prNumber,
-						attempt,
-						delayMs,
-						error: String(error),
-					}),
-			},
-		);
+		const initialRevision = { headSha: payload.headSha, baseSha: payload.baseSha };
+		const reviewRevision = async (revision: PullRequestRevision): Promise<ReviewResult> => {
+			const activePayload = { ...payload, ...revision };
 
-		logReviewEvent("log", payload, runId, "review model result received", {
-			hasToken: Boolean(token),
-			verdict: data.verdict,
-			summaryLength: data.summary.length,
-			findingCount: data.findings.length,
-		});
-
-		if (token) {
-			stage = "posting_review";
+			stage = "hydrating";
 			if (
 				!(await reportStage(
 					env,
 					token,
-					payload,
+					activePayload,
 					runId,
-					"posting_review",
-					"Posting the review to GitHub.",
+					"hydrating",
+					"Preparing the PR workspace.",
 				))
 			) {
 				throw new Error("Review attempt is no longer active");
 			}
-			if (payload.headSha) {
-				const currentHeadSha = await fetchPullRequestHeadSha(
+			await hydrate(env, activePayload, token);
+
+			stage = "fetching_diff";
+			if (
+				!(await reportStage(
+					env,
 					token,
-					payload.owner,
-					payload.repo,
-					payload.prNumber,
-				);
-				if (currentHeadSha.toLowerCase() !== payload.headSha.toLowerCase()) {
-					throw new Error("PR head changed before the review could be posted");
+					activePayload,
+					runId,
+					"fetching_diff",
+					"Fetching the canonical PR diff.",
+				))
+			) {
+				throw new Error("Review attempt is no longer active");
+			}
+			const diff = await fetchUnifiedDiff(
+				activePayload.owner,
+				activePayload.repo,
+				activePayload.prNumber,
+				token,
+				revision.baseSha,
+				revision.headSha,
+			);
+			await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
+
+			let followUpFrom = followUpHead(activePayload, priorReview);
+			let changed: ChangedLines | undefined;
+			let largeFollowUp: { lines: number; maxLines: number } | undefined;
+			if (followUpFrom) {
+				const followUpDiff =
+					activePayload.interHeadDiff ??
+					(await fetchUnifiedDiff(
+						activePayload.owner,
+						activePayload.repo,
+						activePayload.prNumber,
+						token,
+						followUpFrom,
+						revision.headSha,
+					));
+				const maxLines = followUpMaxLines(env);
+				const scope = followUpScope(diff, followUpDiff, maxLines);
+				logReviewEvent("log", activePayload, runId, "follow-up scope chosen", {
+					priorHeadSha: followUpFrom,
+					changedLines: scope.lines,
+					maxLines,
+					reviewMode: scope.scoped ? "scoped" : "full",
+				});
+				if (scope.scoped) {
+					changed = scope.changed;
+					await context.harness.fs.writeFile(
+						FOLLOW_UP_DIFF_PATH,
+						elideLargeDiffSections(followUpDiff),
+					);
+				} else {
+					largeFollowUp = { lines: scope.lines, maxLines };
+					followUpFrom = undefined;
 				}
 			}
-			await postReview(
-				token,
-				payload.owner,
-				payload.repo,
-				payload.prNumber,
-				data,
-				payload.headSha,
-				payload.attemptId,
+
+			stage = "model_review";
+			if (
+				!(await reportStage(
+					env,
+					token,
+					activePayload,
+					runId,
+					"model_review",
+					"The model is reviewing the diff.",
+				))
+			) {
+				throw new Error("Review attempt is no longer active");
+			}
+			const plan = reviewPlan(env, { followUp: Boolean(followUpFrom) });
+			const prContext = buildPrContext(
+				activePayload,
+				priorReview,
+				acceptedDesign,
+				linkedIssues,
+				followUpFrom,
 			);
+			const watchdog =
+				activePayload.attemptId && activePayload.checkRunId !== undefined
+					? getReviewWatchdog(env, activePayload.attemptId)
+					: undefined;
+			const attemptId = activePayload.attemptId;
+			const { result: data, mergePath } = await withStageHeartbeats(
+				(signal) =>
+					runReviewPanel(
+						plan,
+						{
+							review: async (model, attemptSignal) => {
+								// A lone reviewer keeps the session name earlier runs used.
+								const session = await context.harness.session(
+									plan.reviewers.length === 1
+										? `review-${revision.headSha}`
+										: `review-${revision.headSha}-${plan.reviewers.indexOf(model)}`,
+								);
+								return session.skill("review", {
+									args: {
+										prContext,
+										owner: activePayload.owner,
+										repo: activePayload.repo,
+										prNumber: activePayload.prNumber,
+										baseRef: activePayload.baseRef,
+										headRef: activePayload.headRef,
+										repoDir: REPO_DIR,
+										diffPath: DIFF_PATH,
+									},
+									result: reviewResultSchema,
+									model,
+									signal: attemptSignal,
+								});
+							},
+							merge: async (model, prompt, attemptSignal) => {
+								const { text, usage } = await completeWithGateway(env, model, prompt, {
+									signal: attemptSignal,
+									reasoning: "low",
+								});
+								return { data: text, usage };
+							},
+							log: (message, fields) =>
+								logReviewEvent("log", activePayload, runId, message, fields),
+						},
+						{
+							...(priorReview ? { priorReview } : {}),
+							...(changed ? { changed } : {}),
+							...(largeFollowUp
+								? {
+										footerNote: `The change since the last review (${largeFollowUp.lines} lines) was too large for a scoped follow-up, so this is a full review.`,
+									}
+								: {}),
+							maxSuggestions: maxSuggestions(env),
+							signal,
+						},
+					),
+				{
+					maxMs: MODEL_REVIEW_STAGE_LIMIT_MS,
+					beat: async () =>
+						watchdog && attemptId ? watchdog.heartbeat(attemptId, runId, "model_review") : true,
+					onError: (error) =>
+						logReviewEvent("error", activePayload, runId, "review heartbeat failed", {
+							error: error instanceof Error ? error.message : String(error),
+						}),
+				},
+			);
+
+			logReviewEvent("log", activePayload, runId, "review model result received", {
+				hasToken: Boolean(token),
+				mergePath,
+				reviewMode: followUpFrom ? "scoped" : "full",
+				priorHeadSha: followUpFrom,
+				reviewers: plan.reviewers,
+				linkedIssueCount: linkedIssues.length,
+				verdict: data.verdict,
+				summaryLength: data.summary.length,
+				findingCount: data.findings.length,
+			});
+			return data;
+		};
+
+		let data: ReviewResult;
+		if (token) {
+			const postModelToken =
+				typeof token !== "string"
+					? { ...token, maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS }
+					: token;
+			data = await reviewUntilCurrentHead(initialRevision, {
+				review: reviewRevision,
+				currentRevision: async () => {
+					stage = "posting_review";
+					if (
+						!(await reportStage(
+							env,
+							postModelToken,
+							payload,
+							runId,
+							"posting_review",
+							"The model review is complete; the bot is verifying the PR head before publishing.",
+						))
+					) {
+						throw new Error("Review attempt is no longer active");
+					}
+					return fetchPullRequestRevision(
+						postModelToken,
+						payload.owner,
+						payload.repo,
+						payload.prNumber,
+					);
+				},
+				classifyMove: async (fromHeadSha, toHeadSha) => {
+					const move = await classifyPullRequestHeadMove(
+						postModelToken,
+						payload.owner,
+						payload.repo,
+						fromHeadSha,
+						toHeadSha,
+					);
+					logReviewEvent("log", payload, runId, "review head changed", {
+						fromHeadSha,
+						toHeadSha,
+						move,
+					});
+					return move;
+				},
+				publish: async (result, reviewedRevision) => {
+					const reviewedPayload = { ...payload, ...reviewedRevision };
+					stage = "posting_review";
+					if (
+						!(await reportStage(
+							env,
+							postModelToken,
+							reviewedPayload,
+							runId,
+							"posting_review",
+							"Posting the review to GitHub.",
+						))
+					) {
+						throw new Error("Review attempt is no longer active");
+					}
+					await postReview(
+						postModelToken,
+						payload.owner,
+						payload.repo,
+						payload.prNumber,
+						result,
+						reviewedRevision.headSha,
+						payload.attemptId,
+						{
+							pullRequestAuthorLogin: payload.authorLogin,
+							beforeRetry: async ({ retry, maxRetries, delayMs }) => {
+								const retryToken = creds
+									? await coordinatedToken(
+											env,
+											`review-publication-retry:${payload.attemptId ?? runId}`,
+										)
+									: undefined;
+								const postModelRetryToken =
+									retryToken && typeof retryToken !== "string"
+										? { ...retryToken, maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS }
+										: retryToken;
+								if (
+									!(await reportStage(
+										env,
+										postModelRetryToken,
+										reviewedPayload,
+										runId,
+										"posting_review",
+										`GitHub rate limit wait completed after ${Math.ceil(delayMs / 1_000)} seconds. Retrying review publication (${retry} of ${maxRetries}).`,
+									))
+								) {
+									throw new Error("Review attempt is no longer active");
+								}
+								return postModelRetryToken;
+							},
+						},
+					);
+				},
+			});
 		} else {
+			data = await reviewRevision(initialRevision);
 			logReviewEvent("log", payload, runId, "GitHub App credentials unavailable; skipping post");
 		}
 
@@ -482,3 +721,7 @@ export default defineWorkflow({
 // Enable POST /workflows/review (the internal admission route the webhook
 // handler calls). Pass-through: admission control lives in the webhook handler.
 export const route: WorkflowRouteHandler = async (_c, next) => next();
+
+// Run reads are served only under the local evaluation mount.
+export const runs: WorkflowRunsHandler = async (c, next) =>
+	workerEnv.REVIEW_EVAL === "1" ? next() : c.json({ error: "Not found" }, 404);

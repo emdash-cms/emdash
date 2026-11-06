@@ -1,0 +1,202 @@
+name: Release Action Bundle — Apply
+
+# The producer runs dependency code without credentials. This privileged stage
+# sanitizes its artifact, pins it to a same-repository Dependabot npm PR at the
+# measured head commit, and never executes code from the pull request.
+on:
+  workflow_run:
+    workflows: ["Release Action Bundle"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  apply:
+    name: Apply
+    if: |
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Find bundle artifact
+        id: artifact
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((item) => item.name === 'release-action-bundle');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('No bundle artifact — nothing to apply.');
+              return;
+            }
+            core.setOutput('found', 'true');
+            core.setOutput('id', String(artifact.id));
+
+      - name: Download bundle without extracting it
+        if: steps.artifact.outputs.found == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.artifact.outputs.id }}
+          path: ${{ runner.temp }}/release-action-bundle
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          skip-decompress: true
+
+      - name: Sanitize bundle artifact
+        if: steps.artifact.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          download_dir="$RUNNER_TEMP/release-action-bundle"
+          safe_dir="$RUNNER_TEMP/release-action-safe"
+          mapfile -d '' archives < <(find "$download_dir" -mindepth 1 -maxdepth 1 -type f -print0)
+          if [[ "${#archives[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one downloaded artifact archive" >&2
+            exit 1
+          fi
+          archive="${archives[0]}"
+          mkdir -m 700 "$safe_dir"
+
+          unzip -p "$archive" index.js | head -c 10485761 > "$safe_dir/index.js"
+          bundle_size=$(wc -c < "$safe_dir/index.js")
+          if (( bundle_size == 0 || bundle_size > 10485760 )); then
+            echo "::error::Bundle must be between 1 byte and 10 MiB" >&2
+            exit 1
+          fi
+
+          unzip -p "$archive" pr-number | head -c 33 > "$safe_dir/pr-number"
+          pr_number_size=$(wc -c < "$safe_dir/pr-number")
+          if (( pr_number_size == 0 || pr_number_size > 32 )); then
+            echo "::error::PR number artifact is invalid" >&2
+            exit 1
+          fi
+
+      - name: Resolve Dependabot PR
+        if: steps.artifact.outputs.found == 'true'
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const artifactDir = path.join(process.env.RUNNER_TEMP, 'release-action-safe');
+            const prNumber = Number(
+              fs.readFileSync(path.join(artifactDir, 'pr-number'), 'utf8').trim(),
+            );
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const expectedRepo = `${context.repo.owner}/${context.repo.repo}`;
+            const headSha = context.payload.workflow_run.head_sha;
+            if (pr.state !== 'open' || pr.base.ref !== 'main') {
+              core.setFailed(`PR #${prNumber} is not an open pull request targeting main.`);
+              return;
+            }
+            if (pr.user.login !== 'dependabot[bot]') {
+              core.setFailed(`PR #${prNumber} was not opened by Dependabot.`);
+              return;
+            }
+            if (
+              pr.head.repo.full_name !== expectedRepo
+              || !pr.head.ref.startsWith('dependabot/npm_and_yarn/')
+            ) {
+              core.setFailed(`PR #${prNumber} is not a same-repository Dependabot npm update.`);
+              return;
+            }
+            if (pr.head.sha !== headSha) {
+              core.setFailed(
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match the built SHA (${headSha}).`,
+              );
+              return;
+            }
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('sha', headSha);
+
+      - name: Generate app token
+        if: steps.artifact.outputs.found == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Commit and push bundle
+        if: steps.artifact.outputs.found == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const headRef = process.env.HEAD_REF;
+            const headSha = process.env.HEAD_SHA;
+            const ref = `heads/${headRef}`;
+            const { data: currentRef } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref,
+            });
+            if (currentRef.object.sha !== headSha) {
+              core.setFailed(
+                `Dependabot branch moved from ${headSha} to ${currentRef.object.sha}; its next update will rebuild the bundle.`,
+              );
+              return;
+            }
+            const bundle = fs.readFileSync(
+              path.join(process.env.RUNNER_TEMP, 'release-action-safe', 'index.js'),
+            );
+            const { data: parent } = await github.rest.git.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: headSha,
+            });
+            const { data: blob } = await github.rest.git.createBlob({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              content: bundle.toString('base64'),
+              encoding: 'base64',
+            });
+            const { data: tree } = await github.rest.git.createTree({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base_tree: parent.tree.sha,
+              tree: [{
+                path: 'apps/release-action/dist/index.js',
+                mode: '100644',
+                type: 'blob',
+                sha: blob.sha,
+              }],
+            });
+            const { data: commit } = await github.rest.git.createCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              message: 'chore: update release action bundle',
+              tree: tree.sha,
+              parents: [headSha],
+            });
+            await github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref,
+              sha: commit.sha,
+              force: false,
+            });

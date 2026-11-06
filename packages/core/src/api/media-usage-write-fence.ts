@@ -2,7 +2,6 @@ import type { Kysely } from "kysely";
 
 import { tableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
-import { apiError } from "./error.js";
 
 export interface MediaUsageActivationWriteFenceError {
 	code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" | "MEDIA_USAGE_ACTIVATION_CHECK_FAILED";
@@ -10,31 +9,11 @@ export interface MediaUsageActivationWriteFenceError {
 	status: 503;
 }
 
-export class MediaUsageActivationWriteBlockedError extends Error {
-	constructor(
-		readonly code: MediaUsageActivationWriteFenceError["code"],
-		message: string,
-		readonly status: 503,
-	) {
-		super(message);
-		this.name = code;
-	}
-}
-
-export async function checkMediaUsageActivationWriteFence(
-	db: Kysely<Database>,
-): Promise<Response | null> {
-	const error = await findMediaUsageActivationWriteFenceError(db);
-	return error ? apiError(error.code, error.message, error.status) : null;
-}
-
-export async function assertMediaUsageActivationWriteAllowed(db: Kysely<Database>): Promise<void> {
-	const error = await findMediaUsageActivationWriteFenceError(db);
-	if (error) {
-		throw new MediaUsageActivationWriteBlockedError(error.code, error.message, error.status);
-	}
-}
-
+/**
+ * The media usage activation fence alone. Write paths use the unified site
+ * write fence in `transfer/fence.ts`, which falls back to this before the
+ * transfer tables exist.
+ */
 export async function findMediaUsageActivationWriteFenceError(
 	db: Kysely<Database>,
 ): Promise<MediaUsageActivationWriteFenceError | null> {

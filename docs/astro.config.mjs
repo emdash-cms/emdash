@@ -1,18 +1,24 @@
 import cloudflare from "@astrojs/cloudflare";
 import starlight from "@astrojs/starlight";
 // @ts-check
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
 	site: "https://docs.emdashcms.com",
+	redirects: {
+		"/": "/getting-started/",
+		"/introduction": "/why-emdash",
+	},
+	session: false,
 	integrations: [
 		starlight({
 			title: "EmDash",
-			tagline: "The Astro-native CMS",
 			disable404Route: true,
 			components: {
+				Head: "./src/components/Head.astro",
 				SkipLink: "./src/components/SkipLink.astro",
+				PageFrame: "./src/components/PageFrame.astro",
 			},
 			logo: {
 				light: "./src/assets/logo-light.svg",
@@ -34,11 +40,12 @@ export default defineConfig({
 				{
 					label: "Start Here",
 					items: [
-						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Add to an Existing Project", slug: "existing-project" },
+						{ label: "Upgrade to EmDash 1.0", slug: "upgrade-to-v1" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
 						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
+						{ label: "Agent Skills", slug: "agent-skills" },
 					],
 				},
 				{
@@ -68,18 +75,26 @@ export default defineConfig({
 						},
 						{ label: "Querying Content", slug: "guides/querying-content" },
 						{ label: "Media Library", slug: "guides/media-library" },
+						{ label: "Dark Mode", slug: "guides/dark-mode" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
+						{ label: "Relations", slug: "guides/relations" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
 						{ label: "Page Layouts", slug: "guides/page-layouts" },
+						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
+						{ label: "Move to a New Domain", slug: "guides/change-domain" },
+						{ label: "Built-in SEO Features", slug: "guides/seo" },
+						{ label: "Google AdSense", slug: "guides/google-adsense" },
 						{ label: "Authentication", slug: "guides/authentication" },
+						{ label: "Email Setup", slug: "guides/email" },
 						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
 						{ label: "Backups", slug: "guides/backups" },
+						{ label: "Site Transfer", slug: "guides/site-transfer" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",
@@ -92,6 +107,10 @@ export default defineConfig({
 						{ label: "Plugin Overview", slug: "plugins/overview" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
 						{ label: "Plugin Registry", slug: "plugins/registry" },
+						{
+							label: "Migrate from Marketplace",
+							slug: "plugins/migrate-from-marketplace",
+						},
 						{ label: "Upgrading Plugins", slug: "plugins/upgrading-sites" },
 					],
 				},
@@ -146,6 +165,10 @@ export default defineConfig({
 									slug: "plugins/creating-plugins/publishing",
 								},
 								{
+									label: "Automated Releases",
+									slug: "plugins/creating-plugins/delegated-releases",
+								},
+								{
 									label: "Migrating to the CLI",
 									slug: "plugins/creating-plugins/migrating-to-the-cli",
 								},
@@ -182,6 +205,7 @@ export default defineConfig({
 							slug: "plugins/registry-client",
 						},
 						{ label: "Field Kit", slug: "plugins/field-kit" },
+						{ label: "AI Search", slug: "plugins/ai-search" },
 					],
 				},
 				{
@@ -220,11 +244,14 @@ export default defineConfig({
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
+						{ label: "Update EmDash", slug: "deployment/updating" },
 						{ label: "Core Database Migrations", slug: "deployment/core-migrations" },
 						{ label: "Evolving a Deployed Site", slug: "deployment/schema-evolution" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Route Caching", slug: "deployment/route-caching" },
+						{ label: "Plugin Sandbox", slug: "deployment/plugin-sandbox" },
 						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],
 				},
@@ -243,6 +270,7 @@ export default defineConfig({
 					items: [
 						{ label: "Configuration", slug: "reference/configuration" },
 						{ label: "CLI Commands", slug: "reference/cli" },
+						{ label: "Content Lifecycle", slug: "reference/content-lifecycle" },
 						{ label: "API Reference", slug: "reference/api" },
 						{ label: "Field Types", slug: "reference/field-types" },
 						{ label: "Hook Reference", slug: "reference/hooks" },
@@ -252,6 +280,16 @@ export default defineConfig({
 				},
 			],
 		}),
+	],
+
+	fonts: [
+		{
+			provider: fontProviders.google(),
+			name: "Inter",
+			cssVariable: "--font-inter",
+			weights: [400, 500, 600, 700],
+			fallbacks: ["sans-serif"],
+		},
 	],
 
 	adapter: cloudflare({ remoteBindings: false, prerenderEnvironment: "node" }),

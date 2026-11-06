@@ -13,23 +13,32 @@
  * - Faster startup
  */
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
 import type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
+	ContentActionCallbacks,
 	SandboxEmailSendCallback,
+	SandboxCommentModerateCallback,
+	SandboxContentCreateCallback,
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
-import { createSandboxRouteError, getI18nConfig, getSandboxRouteErrorEnvelope } from "emdash";
+import {
+	createSandboxRouteError,
+	getI18nConfig,
+	getSandboxRouteErrorEnvelope,
+	SandboxUnavailableError,
+} from "emdash";
 
 const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
 
 import { createBridgeHandler } from "./bridge-handler.js";
-import { generatePluginWrapper } from "./wrapper.js";
+import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -59,6 +68,10 @@ export class MiniflareDevRunner implements SandboxRunner {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private commentModerateCallback: SandboxCommentModerateCallback | null = null;
+	private contentCreateCallback: SandboxContentCreateCallback | null = null;
+	private contentActionsCallback: ContentActionCallbacks | null = null;
+	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Miniflare instance (lazily created) */
 	private mf: InstanceType<typeof import("miniflare").Miniflare> | null = null;
@@ -82,6 +95,8 @@ export class MiniflareDevRunner implements SandboxRunner {
 		this.options = options;
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+		this.commentModerateCallback = options.commentModerate ?? null;
+		this.contentActionsCallback = options.contentActions ?? null;
 		this.devInvokeToken = randomBytes(32).toString("hex");
 	}
 
@@ -108,8 +123,35 @@ export class MiniflareDevRunner implements SandboxRunner {
 		return this.running;
 	}
 
+	/** Wait for Miniflare to finish starting, outside a hook lifecycle timeout. */
+	async ensureRunning(): Promise<void> {
+		if (this.mf) {
+			await this.mf.ready;
+		}
+	}
+
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
+		this.commentModerateCallback = callback;
+	}
+
+	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		this.contentCreateCallback = callback;
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActionsCallback = callback;
+	}
+
+	get contentActions(): ContentActionCallbacks | null {
+		return this.contentActionsCallback;
+	}
+
+	setCronReschedule(callback: (() => void) | null): void {
+		this.cronRescheduleCallback = callback;
 	}
 
 	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
@@ -174,10 +216,19 @@ export class MiniflareDevRunner implements SandboxRunner {
 				allowedHosts: manifest.allowedHosts || [],
 				storageCollections: Object.keys(manifest.storage || {}),
 				storageConfig: manifest.storage,
+				settingsSchema: manifest.admin?.settingsSchema,
 				i18nConfig: getI18nConfig(),
+				siteInfo: this.siteInfo,
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
+				contentCreateProvider: () => this.contentCreateCallback,
+				taxonomyWrite: this.options.taxonomyWrite,
+				contentActions: () => this.contentActionsCallback,
 				emailSend: () => this.emailSendCallback,
+				commentModerate: () => this.commentModerateCallback,
+				cronReschedule: () => this.cronRescheduleCallback?.(),
+				now: this.options.now,
+				httpFetch: this.options.httpFetch,
 				storage: this.options.mediaStorage,
 			});
 
@@ -190,7 +241,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 
 			// outboundService intercepts all fetch() calls from this worker.
 			// Calls to http://bridge/... go to the Node bridge handler.
-			// Other calls pass through for network:fetch.
+			// Other calls pass through for network:request.
 			workerConfigs.push({
 				name: pluginId.replace(SAFE_ID_RE, "_"),
 				// The wrapper imports "sandbox-plugin.js", so we provide both
@@ -207,13 +258,13 @@ export class MiniflareDevRunner implements SandboxRunner {
 					// Only allow bridge calls. Any other outbound fetch is blocked
 					// to enforce that all network access goes through ctx.http.fetch
 					// (which routes via the bridge with capability + host validation).
-					// Without this, plugins could bypass network:fetch / allowedHosts
+					// Without this, plugins could bypass network:request / allowedHosts
 					// by calling plain fetch() directly.
 					if (url.hostname === "bridge") {
 						return bridgeHandler(request);
 					}
 					return new Response(
-						`Direct fetch() blocked in sandbox. Plugin "${manifest.id}" must use ctx.http.fetch() (requires network:fetch capability).`,
+						`Direct fetch() blocked in sandbox. Plugin "${manifest.id}" must use ctx.http.fetch() (requires network:request capability).`,
 						{ status: 403 },
 					);
 				},
@@ -259,17 +310,24 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		if (!this.runner.isHealthy()) {
-			throw new Error(`Dev sandbox unavailable for ${this.id}`);
+			throw new SandboxUnavailableError(this.id, "development sandbox is not running");
 		}
-		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
-			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ event }),
-			});
+		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
+			const res = await this.runner
+				.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: JSON.stringify({ event, invocationId }),
+				})
+				.catch((error: unknown) => {
+					throw new SandboxUnavailableError(
+						this.id,
+						error instanceof Error ? error.message : "hook transport failed",
+					);
+				});
 			if (!res.ok) {
 				const text = await res.text();
 				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
@@ -286,42 +344,62 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 		routeName: string,
 		input: unknown,
 		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
 	): Promise<unknown> {
 		if (!this.runner.isHealthy()) {
 			throw new Error(`Dev sandbox unavailable for ${this.id}`);
 		}
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
-			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/route/${routeName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ input, request }),
-			});
-			if (!res.ok) {
-				const text = await res.text();
-				let envelope = null;
-				try {
-					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
-				} catch {
-					// The generic route error below preserves non-protocol failures.
+		return this.withWallTimeLimit(
+			`route:${routeName}`,
+			async (invocationId) => {
+				const res = await this.runner.dispatchToPlugin(
+					this.id,
+					`http://plugin/route/${routeName}`,
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+						},
+						body: stringifyRouteTransport({ input, request, invocationId }),
+					},
+				);
+				if (!res.ok) {
+					const text = await res.text();
+					let envelope = null;
+					try {
+						envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+					} catch {
+						// The generic route error below preserves non-protocol failures.
+					}
+					if (envelope) {
+						throw createSandboxRouteError(envelope.error.code);
+					}
+					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 				}
-				if (envelope) {
-					throw createSandboxRouteError(envelope.error.code);
-				}
-				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
-			}
-			return res.json();
-		});
+				return parseRouteTransport(await res.text());
+			},
+			options,
+		);
 	}
 
-	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+	private async withWallTimeLimit<T>(
+		operation: string,
+		fn: (invocationId: string) => Promise<T>,
+		options?: SandboxInvocationOptions,
+	): Promise<T> {
 		const wallTimeMs = this.runner.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		const invocationId = randomUUID();
+		this.runner.contentActions?.begin?.(
+			this.manifest.id,
+			invocationId,
+			options?.invalidateContentCache,
+		);
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
+				void this.runner.contentActions?.flush(this.manifest.id, invocationId, false);
 				reject(
 					new Error(
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
@@ -330,8 +408,13 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 			}, wallTimeMs);
 		});
 
+		const invocation = fn(invocationId);
+		void invocation.then(
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+		);
 		try {
-			return await Promise.race([fn(), timeout]);
+			return await Promise.race([invocation, timeout]);
 		} finally {
 			if (timer !== undefined) clearTimeout(timer);
 		}

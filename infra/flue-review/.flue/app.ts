@@ -4,34 +4,32 @@
 // public path, so the workflow/agent HTTP endpoints are not externally
 // reachable; the workflow is admitted only via an internal request from this
 // handler. The handler does no long-running work itself (a webhook must ack
-// within seconds, and waitUntil caps at 30s): it verifies, gates, admits the
-// durable workflow run, and returns. The review and the GitHub post happen
-// inside the workflow's Durable Object, which is not bound by that budget.
+// within seconds, and waitUntil caps at 30s): it verifies, gates, reserves a
+// durable attempt, and returns. The watchdog creates the check and admits the
+// workflow from an alarm; the review and GitHub post happen in durable state.
 
 import { getRun, listRuns, registerProvider } from "@flue/runtime";
+import { flue } from "@flue/runtime/routing";
 import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 
 import { createAiPayloadGuard } from "./lib/ai-payload-budget.js";
-import {
-	completeReviewCheck,
-	createReviewCheck,
-	findReviewCheck,
-	mintInstallationToken,
-	readAppCreds,
-} from "./lib/github.js";
+import { githubRateLimitGate } from "./lib/github.js";
+import { getRereviewScheduler } from "./lib/rereview.js";
+import { registerGatewayProviders } from "./lib/review-model.js";
+import { approvalRefreshTarget, refreshApprovalState } from "./lib/review-state.js";
 import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
 import {
 	verifyWebhookSignature,
 	gatePullRequestEvent,
 	getWebhookDeliveryId,
 } from "./lib/webhook.js";
-import { admitReviewWorkflow } from "./lib/workflow-admission.js";
 
 registerProvider("cloudflare", {
 	api: "cloudflare-ai-binding",
 	binding: createAiPayloadGuard(env.AI),
 });
+registerGatewayProviders(env);
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.
@@ -53,7 +51,8 @@ const app = new Hono<{ Bindings: Env }>();
 // webhook secret. Note: the FlueRegistry DO was reset 2026-06-21, so history
 // only goes back to then.
 app.get("/webhook/admin/runs", async (c) => {
-	if (c.req.header("x-admin-token") !== c.env.GITHUB_WEBHOOK_SECRET) {
+	const secret = c.env.GITHUB_WEBHOOK_SECRET;
+	if (!secret || c.req.header("x-admin-token") !== secret) {
 		return c.text("unauthorized", 401);
 	}
 	const statusParam = c.req.query("status");
@@ -124,6 +123,8 @@ app.post("/webhook/github", async (c) => {
 		delivery: c.req.header("x-github-delivery"),
 	});
 	if (eventType === "ping") return c.text("pong", 200);
+	if (eventType === "pull_request_review")
+		return refreshReviewLabel(c.env, raw, c.req.header("x-github-delivery"));
 	if (eventType !== "pull_request") return c.text(`ignored event: ${eventType}`, 202);
 
 	let event: Parameters<typeof gatePullRequestEvent>[0];
@@ -140,6 +141,10 @@ app.post("/webhook/github", async (c) => {
 		review: decision.review,
 		reason: decision.review ? undefined : decision.reason,
 	});
+	if (!decision.review && decision.rereview) {
+		await getRereviewScheduler(c.env, decision.rereview).schedule(decision.rereview);
+		return c.text(`re-review scheduled for PR #${decision.rereview.prNumber}`, 202);
+	}
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
 	const deliveryId = getWebhookDeliveryId(c.req.header("x-github-delivery"));
@@ -161,197 +166,59 @@ app.post("/webhook/github", async (c) => {
 	};
 	const reservation = await watchdog.reserve(reservedAttempt, setupLease);
 	if (reservation.status === "busy") {
-		return c.text("review setup already in progress", 503);
+		return c.text("review setup already in progress", 202);
 	}
 	if (reservation.status === "complete") {
 		return c.text("duplicate delivery", 200);
 	}
-
-	const creds = readAppCreds(c.env);
-	if (!creds) {
-		return c.text("GitHub App credentials not configured", 500);
-	}
-
-	let token: string;
-	let checkRunId = reservation.attempt.checkRunId;
-	try {
-		token = await mintInstallationToken(creds);
-		if (checkRunId === undefined) {
-			checkRunId = await findReviewCheck(
-				token,
-				decision.pr.owner,
-				decision.pr.repo,
-				decision.pr.headSha,
-				attemptId,
-			);
-		}
-		if (checkRunId === undefined) {
-			try {
-				checkRunId = await createReviewCheck(token, decision.pr.owner, decision.pr.repo, {
-					headSha: decision.pr.headSha,
-					attemptId,
-					prNumber: decision.pr.prNumber,
-				});
-			} catch (error) {
-				checkRunId = await findReviewCheck(
-					token,
-					decision.pr.owner,
-					decision.pr.repo,
-					decision.pr.headSha,
-					attemptId,
-				);
-				if (checkRunId === undefined) throw error;
-			}
-		}
-	} catch (error) {
-		console.error(
-			JSON.stringify({
-				message: "review check creation failed",
-				error: error instanceof Error ? error.message : String(error),
-				attemptId,
-				deliveryId,
-				prNumber: decision.pr.prNumber,
-				headSha: decision.pr.headSha,
-			}),
-		);
-		return c.text("failed to create review check", 502);
-	}
-
-	try {
-		await watchdog.arm({ ...reservedAttempt, checkRunId }, setupLease);
-	} catch (error) {
-		console.error(
-			JSON.stringify({
-				message: "review watchdog arm failed",
-				error: error instanceof Error ? error.message : String(error),
-				attemptId,
-				deliveryId,
-				prNumber: decision.pr.prNumber,
-				checkRunId,
-			}),
-		);
-		await completeReviewCheck(token, decision.pr.owner, decision.pr.repo, checkRunId, {
-			conclusion: "failure",
-			prNumber: decision.pr.prNumber,
-			runId: attemptId,
-			summary: "The review watchdog could not be armed. Reapply the `bot:review` label to retry.",
-		})
-			.then(() => watchdog.complete(attemptId))
-			.catch(() => undefined);
-		return c.text("failed to arm review watchdog", 502);
-	}
-	if (!(await watchdog.beginAdmission(attemptId, setupLease))) {
-		return c.text("duplicate delivery", 200);
-	}
-
-	// Admit the durable workflow run (fast). The review + post run in the
-	// workflow DO independently of this request. No ?wait=result: we don't
-	// block the webhook on the (minutes-long) review.
-	let admit: Response;
-	try {
-		admit = await admitReviewWorkflow(
-			{ ...decision.pr, attemptId, expectedRunId: attemptId, deliveryId, checkRunId },
-			c.env,
-			c.executionCtx,
-		);
-	} catch (error) {
-		console.error(
-			JSON.stringify({
-				message: "review workflow admission threw",
-				error: error instanceof Error ? error.message : String(error),
-				attemptId,
-				deliveryId,
-				prNumber: decision.pr.prNumber,
-				headSha: decision.pr.headSha,
-				checkRunId,
-			}),
-		);
-		await watchdog
-			.finish(attemptId, attemptId, {
-				conclusion: "failure",
-				summary: "The review could not be admitted. Reapply the `bot:review` label to retry.",
-			})
-			.catch(() => undefined);
-		return c.text("failed to admit review", 502);
-	}
-	if (!admit.ok) {
-		const admissionError = await admit.text();
-		console.error(
-			JSON.stringify({
-				message: "review workflow admission failed",
-				status: admit.status,
-				error: admissionError,
-				attemptId,
-				deliveryId,
-				prNumber: decision.pr.prNumber,
-				headSha: decision.pr.headSha,
-				checkRunId,
-			}),
-		);
-		await watchdog
-			.finish(attemptId, attemptId, {
-				conclusion: "failure",
-				summary: "The review could not be admitted. Reapply the `bot:review` label to retry.",
-			})
-			.catch((error) => {
-				console.error(
-					JSON.stringify({
-						message: "review admission failure check update failed",
-						error: error instanceof Error ? error.message : String(error),
-						attemptId,
-						checkRunId,
-					}),
-				);
-			});
-		return c.text("failed to admit review", 502);
-	}
-
-	let admission: { runId?: string } = {};
-	try {
-		admission = await admit.json<{ runId?: string }>();
-	} catch {
-		// The workflow is already admitted; report the missing correlation below.
-	}
-	const runId = admission.runId;
-	if (!runId) {
-		console.error(
-			JSON.stringify({
-				message: "review workflow admission returned no run id",
-				attemptId,
-				deliveryId,
-				prNumber: decision.pr.prNumber,
-				checkRunId,
-			}),
-		);
-	} else {
-		await watchdog.identify(attemptId, attemptId, runId).catch((error) => {
-			console.error(
-				JSON.stringify({
-					message: "review watchdog correlation failed",
-					error: error instanceof Error ? error.message : String(error),
-					attemptId,
-					runId,
-					checkRunId,
-				}),
-			);
-		});
-	}
-
-	console.log(
-		JSON.stringify({
-			message: "review workflow admitted",
-			attemptId,
-			runId,
-			deliveryId,
-			prNumber: decision.pr.prNumber,
-			headSha: decision.pr.headSha,
-			checkRunId,
-		}),
-	);
-	return c.json(
-		{ message: `review queued for PR #${decision.pr.prNumber}`, attemptId, runId },
-		202,
-	);
+	return c.json({ message: `review setup queued for PR #${decision.pr.prNumber}`, attemptId }, 202);
 });
+
+const REVIEW_LABEL_TIMEOUT_MS = 8_000;
+
+async function refreshReviewLabel(
+	workerEnv: Env,
+	raw: string,
+	deliveryId: string | undefined,
+): Promise<Response> {
+	let event: Parameters<typeof approvalRefreshTarget>[0];
+	try {
+		event = JSON.parse(raw);
+	} catch {
+		return new Response("invalid JSON", { status: 400 });
+	}
+	const target = approvalRefreshTarget(event);
+	if (!target) return new Response("skipped: review does not change approval", { status: 202 });
+	try {
+		const gate = githubRateLimitGate(workerEnv);
+		const token = {
+			token: await gate.getInstallationToken(),
+			gate,
+			consumer: `webhook-review-state:${deliveryId ?? target.prNumber}`,
+		};
+		const label = await refreshApprovalState(
+			token,
+			target,
+			AbortSignal.timeout(REVIEW_LABEL_TIMEOUT_MS),
+		);
+		console.log("[webhook] review state", {
+			delivery: deliveryId,
+			prNumber: target.prNumber,
+			label,
+		});
+		return new Response(`review label refreshed for PR #${target.prNumber}`, { status: 202 });
+	} catch (error) {
+		console.error("[webhook] review state update failed", {
+			delivery: deliveryId,
+			prNumber: target.prNumber,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return new Response("review label refresh failed", { status: 202 });
+	}
+}
+
+// Local model evaluation only (see eval/README.md): exposes workflow
+// invocation and run reads, which production must never serve.
+if (env.REVIEW_EVAL === "1") app.mount("/eval", flue().fetch);
 
 export default app;

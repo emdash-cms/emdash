@@ -13,9 +13,9 @@ export const bylineSummarySchema = z
 		bio: z.string().nullable(),
 		avatarMediaId: z.string().nullable(),
 		/**
-		 * Avatar media storage key + alt, folded in by the media join during
-		 * content byline hydration. Null on the plain byline finders, which
-		 * don't join media.
+		 * Avatar media storage key + alt, folded in by the media join on the
+		 * content byline hydration path and the single-row byline finders.
+		 * Null on `findMany`, which doesn't join media.
 		 */
 		avatarStorageKey: z.string().nullish(),
 		avatarAlt: z.string().nullish(),
@@ -105,7 +105,9 @@ export const bylineCreateBody = z
 		locale: localeCode.optional(),
 		/**
 		 * When set, the new row joins the source byline's translation_group
-		 * rather than minting a fresh one. Requires `locale`.
+		 * rather than minting a fresh one. Requires `locale`. The new row keeps
+		 * the source's `userId` unless the body sets one; `null` leaves it
+		 * unlinked.
 		 */
 		translationOf: z.string().min(1).optional(),
 		/**

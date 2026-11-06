@@ -21,30 +21,32 @@
  * Error policy:
  *   - Verification failure (signature, MST, lexicon, structural): write a
  *     `dead_letters` row with the structured reason + payload, ack the message.
- *     Never retry — these are malicious or broken upstream.
+ *     Never retry — these are malicious or broken upstream. A failure to fetch
+ *     or verify the record at the PDS is first checked once more against a
+ *     freshly resolved identity, since the cached PDS and signing key go stale
+ *     when the publisher migrates PDS or rotates keys.
  *   - Transient PDS failure (network, timeout, 5xx): `retry()` so Cloudflare
  *     Queues backs off and retries. After `max_retries` (5) it lands in the
  *     configured DLQ.
+ *   - Identity resolution failure (PLC directory or did:web host down):
+ *     `retry()`, same path as a transient PDS failure.
  *   - Unexpected programming errors: log loud, write a `dead_letters` row,
  *     ack the message. Never crash the worker — that would block the queue.
  */
 
-import {
-	AtprotoWebDidDocumentResolver,
-	CompositeDidDocumentResolver,
-	PlcDidDocumentResolver,
-} from "@atcute/identity-resolver";
 import { safeParse } from "@atcute/lexicons/validations";
 import {
 	NSID,
 	PackageProfile,
+	PackageProfileExtension,
 	PackageRelease,
 	PackageReleaseExtension,
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification/repository";
 
-import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
+import { createProductionDidResolver, DidResolver, type ResolvedDidDoc } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
 import {
 	fetchAndVerifyRecord,
@@ -61,7 +63,7 @@ import { boundFetch, isPlainObject, parseSignatureMetadataCid } from "./utils.js
  */
 export interface ConsumerDeps {
 	db: D1Database;
-	resolver: DidResolver;
+	resolver: Pick<DidResolver, "resolve" | "resolveFresh">;
 	fetch?: typeof fetch;
 	now?: () => Date;
 	/**
@@ -122,6 +124,10 @@ export class MissingDependencyError extends Error {
 	override readonly name = "MissingDependencyError";
 }
 
+class IdentityResolutionError extends Error {
+	override readonly name = "IdentityResolutionError";
+}
+
 /** Thrown by writers and structural checks. Carries the reason for the
  * `dead_letters` row plus an optional human-readable detail. */
 export class IngestError extends Error {
@@ -134,6 +140,12 @@ export class IngestError extends Error {
 		super(message);
 	}
 }
+
+export type ProfileInstallabilityError = "PROFILE_EXTENSION_INVALID";
+
+export type ProfileInstallability =
+	| { status: "valid"; extension: string | null; error: null }
+	| { status: "invalid"; extension: null; error: ProfileInstallabilityError };
 
 export async function processBatch(
 	batch: MessageBatchLike<RecordsJob>,
@@ -281,6 +293,16 @@ export async function processMessage(
 			controller.retry();
 			return;
 		}
+		if (err instanceof IdentityResolutionError) {
+			console.warn("[aggregator] publisher identity resolution failed, retrying", {
+				did: job.did,
+				collection: job.collection,
+				rkey: job.rkey,
+				reason: err.message,
+			});
+			controller.retry();
+			return;
+		}
 		// Unexpected — log loud, dead-letter, ack so the queue isn't blocked.
 		// We don't retry because we have no evidence the next attempt will
 		// succeed and unbounded retries on a poison message stall the slot.
@@ -302,16 +324,13 @@ export async function processMessage(
 }
 
 async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<void> {
-	const resolved = await deps.resolver.resolve(job.did);
-	const verifyFn = deps.verify ?? fetchAndVerifyRecord;
-	const verified = await verifyFn({
-		pds: resolved.pds,
-		did: job.did,
-		collection: job.collection,
-		rkey: job.rkey,
-		publicKey: resolved.publicKey,
-		fetch: deps.fetch,
-	});
+	let verified: VerifiedPdsRecord;
+	try {
+		verified = await resolveAndVerify(job, deps, false);
+	} catch (err) {
+		if (!(err instanceof PdsVerificationError) || isTransient(err.reason, err.status)) throw err;
+		verified = await resolveAndVerify(job, deps, true);
+	}
 
 	// Cross-check vs Jetstream copy intentionally omitted: the verified PDS
 	// copy is canonical and always wins, so the comparison is a monitoring
@@ -324,7 +343,8 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 
 	switch (job.collection) {
 		case NSID.packageProfile:
-			return ingestPackageProfile(deps.db, job, verified, now);
+			await ingestPackageProfile(deps.db, job, verified, now);
+			return;
 		case NSID.packageRelease:
 			return ingestPackageRelease(deps.db, job, verified, now);
 		case NSID.publisherProfile:
@@ -340,6 +360,32 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 	}
 }
 
+async function resolveAndVerify(
+	job: RecordsJob,
+	deps: ConsumerDeps,
+	refreshIdentity: boolean,
+): Promise<VerifiedPdsRecord> {
+	let resolved: ResolvedDidDoc;
+	try {
+		resolved = await (refreshIdentity
+			? deps.resolver.resolveFresh(job.did)
+			: deps.resolver.resolve(job.did));
+	} catch (err) {
+		throw new IdentityResolutionError(
+			`could not resolve ${job.did}: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
+	const verifyFn = deps.verify ?? fetchAndVerifyRecord;
+	return await verifyFn({
+		pds: resolved.pds,
+		did: job.did,
+		collection: job.collection,
+		rkey: job.rkey,
+		publicKey: resolved.publicKey,
+		fetch: deps.fetch,
+	});
+}
+
 // ─── Writers ────────────────────────────────────────────────────────────────
 
 export async function ingestPackageProfile(
@@ -347,7 +393,7 @@ export async function ingestPackageProfile(
 	job: RecordsJob,
 	verified: VerifiedPdsRecord,
 	now: Date,
-): Promise<void> {
+): Promise<ProfileInstallability> {
 	const validation = safeParse(PackageProfile.mainSchema, verified.record);
 	if (!validation.ok) {
 		throw new IngestError(
@@ -390,6 +436,38 @@ export async function ingestPackageProfile(
 			);
 		}
 	}
+	let installability: ProfileInstallability = { status: "valid", extension: null, error: null };
+	if (
+		isPlainObject(record.extensions) &&
+		record.extensions[NSID.packageProfileExtension] !== undefined
+	) {
+		installability = {
+			status: "invalid",
+			extension: null,
+			error: "PROFILE_EXTENSION_INVALID",
+		};
+		const rawExtension = record.extensions[NSID.packageProfileExtension];
+		const extensionValidation = safeParse(PackageProfileExtension.mainSchema, rawExtension);
+		if (extensionValidation.ok) {
+			const extension = extensionValidation.value;
+			const repository = canonicalizeRepositoryUrl(extension.repository);
+			const confirmation = extension.releasePolicy?.confirmation;
+			const approvers = extension.releasePolicy?.approvers ?? [];
+			if (
+				repository === extension.repository &&
+				(confirmation === undefined ||
+					confirmation === "always" ||
+					confirmation === "escalation-only") &&
+				new Set(approvers).size === approvers.length
+			) {
+				installability = {
+					status: "valid",
+					extension: JSON.stringify(extension),
+					error: null,
+				};
+			}
+		}
+	}
 	const slug = record.slug ?? job.rkey;
 	const sigMeta = JSON.stringify({ cid: verified.cid });
 	const nowIso = now.toISOString();
@@ -397,10 +475,14 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO package_profile_revisions
 			   (did, slug, cid, type, name, description, license, authors, security,
-			    keywords, sections, last_updated, record_blob, signature_metadata,
-			    observed_at, last_verified_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    keywords, sections, last_updated, emdash_extension, installability_status,
+			    installability_error, record_blob, signature_metadata, observed_at,
+			    last_verified_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug, cid) DO UPDATE SET
+			   emdash_extension = excluded.emdash_extension,
+			   installability_status = excluded.installability_status,
+			   installability_error = excluded.installability_error,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   last_verified_at = excluded.last_verified_at`,
@@ -418,6 +500,9 @@ export async function ingestPackageProfile(
 			record.keywords ? JSON.stringify(record.keywords) : null,
 			record.sections ? JSON.stringify(record.sections) : null,
 			record.lastUpdated ?? null,
+			installability.extension,
+			installability.status,
+			installability.error,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -427,8 +512,9 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO packages
 			   (did, slug, type, name, description, license, authors, security, keywords, sections,
-			    last_updated, latest_version, capabilities, record_blob, signature_metadata, verified_at, indexed_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    last_updated, latest_version, capabilities, emdash_extension, installability_status,
+			    installability_error, record_blob, signature_metadata, verified_at, indexed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug) DO UPDATE SET
 			   type = excluded.type,
 			   name = excluded.name,
@@ -439,6 +525,9 @@ export async function ingestPackageProfile(
 			   keywords = excluded.keywords,
 			   sections = excluded.sections,
 			   last_updated = excluded.last_updated,
+			   emdash_extension = excluded.emdash_extension,
+			   installability_status = excluded.installability_status,
+			   installability_error = excluded.installability_error,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   verified_at = excluded.verified_at`,
@@ -461,6 +550,9 @@ export async function ingestPackageProfile(
 			record.lastUpdated ?? null,
 			null, // latest_version — populated by release writer, not the profile writer
 			null, // capabilities — populated by release writer
+			installability.extension,
+			installability.status,
+			installability.error,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -477,11 +569,26 @@ export async function ingestPackageProfile(
 			   updated_at = excluded.updated_at`,
 		)
 		.bind(job.did, slug, verified.cid, nowIso);
+	const retainReleaseHistory = db
+		.prepare(
+			`INSERT INTO package_release_history
+			   (did, package, release_history_complete, first_observed_at, first_observed_source)
+			 VALUES (?, ?, ?, ?, ?)
+			 ON CONFLICT(did, package) DO NOTHING`,
+		)
+		.bind(
+			job.did,
+			slug,
+			job.source === "jetstream" && job.operation === "create" ? 1 : 0,
+			nowIso,
+			job.source ?? "unknown",
+		);
 
 	// The revision must exist before the current pointer moves. D1 batches are
 	// transactional, so a failure leaves both the old pointer and old mutable
 	// compatibility row intact.
-	await db.batch([retainRevision, updateCurrentPackage, moveCurrentPointer]);
+	await db.batch([retainRevision, updateCurrentPackage, retainReleaseHistory, moveCurrentPointer]);
+	return installability;
 }
 
 export async function ingestPackageRelease(
@@ -618,10 +725,21 @@ export async function ingestPackageRelease(
 	// roll back together and the message retries to a clean state. Without
 	// the batch, an insert-success / refresh-failure could leave
 	// `packages.latest_version` permanently stale.
-	const batchResults = await db.batch([
-		insertStmt,
-		refreshPackageLatestStmt(db, job.did, record.package),
-	]);
+	const batchStatements = [insertStmt, refreshPackageLatestStmt(db, job.did, record.package)];
+	if (job.source !== "jetstream") {
+		// A release first encountered outside the cursor-backed stream proves
+		// that the aggregator cannot claim continuous history for this package.
+		batchStatements.push(
+			db
+				.prepare(
+					`UPDATE package_release_history
+					 SET release_history_complete = 0
+					 WHERE did = ? AND package = ?`,
+				)
+				.bind(job.did, record.package),
+		);
+	}
+	const batchResults = await db.batch(batchStatements);
 	const insertResult = batchResults[0];
 	if (!insertResult) {
 		// Defensive: D1.batch() guarantees one result per statement; if it
@@ -1053,31 +1171,37 @@ async function writeDeadLetter(
 	// envelope of operation+cid so the row is still inspectable.
 	const payload = JSON.stringify(job.jetstreamRecord ?? { operation: job.operation, cid: job.cid });
 	const payloadBytes = new TextEncoder().encode(payload);
-	await db
+	const retainDeadLetter = db
 		.prepare(
 			`INSERT INTO dead_letters
 			   (did, collection, rkey, reason, detail, payload, received_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		)
-		.bind(job.did, job.collection, job.rkey, reason, detail, payloadBytes, now.toISOString())
-		.run();
+		.bind(job.did, job.collection, job.rkey, reason, detail, payloadBytes, now.toISOString());
+	const releaseIdentity =
+		job.collection === NSID.packageRelease ? parseReleaseRkey(job.rkey) : null;
+	if (!releaseIdentity) {
+		await retainDeadLetter.run();
+		return;
+	}
+	const markHistoryIncomplete = db
+		.prepare(
+			`INSERT INTO package_release_history
+			   (did, package, release_history_complete, first_observed_at, first_observed_source)
+			 VALUES (?, ?, 0, ?, ?)
+			 ON CONFLICT(did, package) DO UPDATE SET
+			   release_history_complete = 0`,
+		)
+		.bind(job.did, releaseIdentity.pkg, now.toISOString(), job.source ?? "unknown");
+	await db.batch([retainDeadLetter, markHistoryIncomplete]);
 }
 
 // ─── Production wiring ─────────────────────────────────────────────────────
 
 function createProductionDeps(env: Env): ConsumerDeps {
-	const composite = new CompositeDidDocumentResolver({
-		methods: {
-			plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
-			web: new AtprotoWebDidDocumentResolver({ fetch: boundFetch }),
-		},
-	});
 	return {
 		db: env.DB,
-		resolver: new DidResolver({
-			cache: createD1DidDocCache(env.DB),
-			resolver: composite,
-		}),
+		resolver: createProductionDidResolver(env),
 		// PDS verify uses this fetch for the CAR fetch. workerd's `fetch`
 		// rejects calls made through a stored reference, so we hand off
 		// the bound wrapper rather than letting `pds-verify.ts` fall

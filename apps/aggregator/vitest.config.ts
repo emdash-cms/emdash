@@ -1,7 +1,7 @@
 /**
  * Aggregator test config.
  *
- * Uses `@cloudflare/vitest-pool-workers` (v0.16+) so tests run inside a real
+ * Uses `@cloudflare/vitest-plugin` so tests run inside a real
  * workerd isolate with real D1, real DOs, and real Queues. The
  * `cloudflareTest` plugin reads `wrangler.jsonc` for binding shape, so the
  * test environment matches dev/prod by construction.
@@ -22,7 +22,7 @@
 
 import { fileURLToPath } from "node:url";
 
-import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 const migrationsPath = fileURLToPath(new URL("./migrations", import.meta.url));
@@ -33,6 +33,9 @@ export default defineConfig({
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.jsonc" },
 			miniflare: {
+				// Every outbound request from the worker gets this stub, so no test
+				// waits on DNS or on the live atproto relay, Jetstream or PLC directory.
+				outboundService: () => new Response("no network in tests", { status: 503 }),
 				bindings: {
 					TEST_MIGRATIONS: migrations,
 					// Stub admin auth token so tests can exercise the auth-gated
@@ -41,6 +44,7 @@ export default defineConfig({
 					// `wrangler secret put ADMIN_TOKEN`; the value below only
 					// applies inside the workers test pool.
 					ADMIN_TOKEN: "test-admin-token",
+					RECONCILIATION_TOKEN: "test-reconciliation-token",
 					LISTING_POLICY_MODE: "open",
 					LISTING_ALLOWLIST: "[]",
 					LISTING_MODERATION_POLICY: "",

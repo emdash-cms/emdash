@@ -278,6 +278,20 @@ describe("Invite", () => {
 			expect(user.emailVerified).toBe(true);
 		});
 
+		it("redeems an invite token only once when completed twice at the same time", async () => {
+			const token = await createTestInvite("race@example.com");
+
+			const results = await Promise.allSettled([
+				completeInvite(adapter, token, { name: "First" }),
+				completeInvite(adapter, token, { name: "Second" }),
+			]);
+
+			expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+			expect(results.filter((r) => r.status === "rejected")).toMatchObject([
+				{ reason: { code: "invalid_token" } },
+			]);
+		});
+
 		it("should delete token after use (single-use)", async () => {
 			const token = await createTestInvite("oneuse@example.com");
 

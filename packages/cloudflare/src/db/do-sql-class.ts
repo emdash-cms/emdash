@@ -188,7 +188,16 @@ export class EmDashDB extends DurableObject {
 		if (!wrote) {
 			return { rows };
 		}
-		return { rows, changes: cursor.rowsWritten, bookmark: await this.#currentBookmark() };
+		return { rows, changes: this.#changes(), bookmark: await this.#currentBookmark() };
+	}
+
+	/**
+	 * Rows changed by the last INSERT, UPDATE, or DELETE. `cursor.rowsWritten`
+	 * cannot be used as an affected-row count: it also counts index entries, so
+	 * a one-row write to an indexed table reports more than one row.
+	 */
+	#changes(): number {
+		return Number(this.ctx.storage.sql.exec("SELECT changes() AS changes").one().changes);
 	}
 
 	async executeCollectionDeletionGuard(
@@ -225,7 +234,7 @@ export class EmDashDB extends DurableObject {
 					);
 					if (content.toArray().length > 0) return { outcome: "has_content" };
 				}
-				const updated = this.ctx.storage.sql.exec(
+				this.ctx.storage.sql.exec(
 					`UPDATE _emdash_media_usage_index_status
 					 SET capture_state = 'deleting',
 					     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
@@ -243,7 +252,7 @@ export class EmDashDB extends DurableObject {
 					input.collectionId,
 					input.collectionSlug,
 				);
-				return updated.rowsWritten === 1 ? { outcome: "fenced" } : { outcome: "stale" };
+				return this.#changes() === 1 ? { outcome: "fenced" } : { outcome: "stale" };
 			}
 
 			const ftsTable = `_emdash_fts_${input.collectionSlug}`;

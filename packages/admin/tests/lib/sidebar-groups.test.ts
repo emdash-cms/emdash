@@ -1,0 +1,98 @@
+import { describe, expect, it } from "vitest";
+
+import { groupNavItems, joinsContentFolder, taxonomyGroup } from "../../src/lib/sidebar-groups";
+
+describe("groupNavItems", () => {
+	it("folds items sharing a group into one folder at the first member's position", () => {
+		const entries = groupNavItems([
+			{ id: "pages" },
+			{ id: "events", group: "Calendar" },
+			{ id: "team" },
+			{ id: "series", group: "Calendar" },
+		]);
+
+		expect(entries.map((e) => (e.kind === "item" ? e.item.id : `[${e.label}]`))).toEqual([
+			"pages",
+			"[Calendar]",
+			"team",
+		]);
+		const folder = entries[1];
+		expect(folder?.kind === "folder" && folder.items.map((i) => i.id)).toEqual([
+			"events",
+			"series",
+		]);
+	});
+
+	it("orders folder members by rank before input order", () => {
+		const [folder] = groupNavItems([
+			{ id: "sync", group: "Calendar", groupRank: 2 },
+			{ id: "events", group: "Calendar", groupRank: 0 },
+			{ id: "season", group: "Calendar", groupRank: 1 },
+			{ id: "series", group: "Calendar", groupRank: 0 },
+		]);
+
+		expect(folder?.kind === "folder" && folder.items.map((i) => i.id)).toEqual([
+			"events",
+			"series",
+			"season",
+			"sync",
+		]);
+	});
+
+	it("treats blank and padded group labels as the same folder or none", () => {
+		const entries = groupNavItems([
+			{ id: "a", group: "  Calendar " },
+			{ id: "b", group: "Calendar" },
+			{ id: "c", group: "   " },
+		]);
+
+		expect(entries).toHaveLength(2);
+		expect(entries[0]?.kind === "folder" && entries[0].items.map((i) => i.id)).toEqual(["a", "b"]);
+		expect(entries[1]?.kind).toBe("item");
+	});
+
+	it("inherits the first declared member icon for the folder", () => {
+		const [folder] = groupNavItems([
+			{ id: "a", group: "Calendar" },
+			{ id: "b", group: "Calendar", iconName: "calendar" },
+			{ id: "c", group: "Calendar", iconName: "trophy" },
+		]);
+
+		expect(folder?.kind === "folder" && folder.iconName).toBe("calendar");
+	});
+});
+
+describe("taxonomyGroup", () => {
+	const groups = new Map([
+		["events", "Calendar"],
+		["series", "Calendar"],
+		["news", undefined],
+		["team", "Club"],
+	]);
+
+	it("joins the folder when every assigned collection shares it", () => {
+		expect(taxonomyGroup(["events", "series"], groups)).toBe("Calendar");
+	});
+
+	it("stays global when assignments span groups, ungrouped, or unknown collections", () => {
+		expect(taxonomyGroup(["events", "team"], groups)).toBeUndefined();
+		expect(taxonomyGroup(["events", "news"], groups)).toBeUndefined();
+		expect(taxonomyGroup(["events", "missing"], groups)).toBeUndefined();
+		expect(taxonomyGroup([], groups)).toBeUndefined();
+	});
+});
+
+describe("joinsContentFolder", () => {
+	const contentGroups = new Set(["Calendar"]);
+
+	it("sends a page whose group a visible collection uses into that folder", () => {
+		expect(joinsContentFolder("Calendar", contentGroups)).toBe(true);
+		expect(joinsContentFolder("  Calendar ", contentGroups)).toBe(true);
+	});
+
+	it("keeps other pages in the Plugins section", () => {
+		expect(joinsContentFolder("calendar", contentGroups)).toBe(false);
+		expect(joinsContentFolder("Sync", contentGroups)).toBe(false);
+		expect(joinsContentFolder(undefined, contentGroups)).toBe(false);
+	});
+});

@@ -1,8 +1,10 @@
-import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "./ai/prompts.js";
+import { CLEF_IMAGE_PROMPT_HASH, CLEF_TEXT_PROMPT_HASH, isClefModelId } from "./ai/clef.js";
 import type { AssessmentVersionSet } from "./assessment/types.js";
 
 const DID_WEB_HOST_RE = /^did:web:([^:]+)$/;
 const VERSION_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+export const LABELER_POLICY_EFFECTIVE_AT = "2026-09-09T00:00:00.000Z";
 
 export interface LabelerRuntimeConfig {
 	labelerDid: string;
@@ -37,9 +39,9 @@ export function readAssessmentVersions(env: object): AssessmentVersionSet {
 		policyVersion: readVersion(env, "LABELER_POLICY_VERSION"),
 		parserVersion: readVersion(env, "LABELER_PARSER_VERSION"),
 		textModelId: readModelId(env, "LABELER_TEXT_MODEL_ID"),
-		textPromptHash: TEXT_PROMPT_HASH,
+		textPromptHash: CLEF_TEXT_PROMPT_HASH,
 		imageModelId: readModelId(env, "LABELER_IMAGE_MODEL_ID"),
-		imagePromptHash: IMAGE_PROMPT_HASH,
+		imagePromptHash: CLEF_IMAGE_PROMPT_HASH,
 	} satisfies AssessmentVersionSet;
 }
 
@@ -59,12 +61,7 @@ function readVersion(env: object, name: string): string {
 
 function readModelId(env: object, name: string): string {
 	const value = readString(env, name);
-	for (const character of value) {
-		const codePoint = character.codePointAt(0);
-		if (codePoint !== undefined && codePoint <= 0x20) {
-			throw new TypeError(`${name} is invalid`);
-		}
-	}
+	if (!isClefModelId(value)) throw new TypeError(`${name} must be a Clef model`);
 	return value;
 }
 

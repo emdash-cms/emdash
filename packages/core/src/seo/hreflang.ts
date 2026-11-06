@@ -24,15 +24,15 @@
 
 import type { Kysely } from "kysely";
 
+import { withBasePath } from "../api/public-url.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import type { Database } from "../database/types.js";
 import { getI18nConfig, isI18nEnabled } from "../i18n/config.js";
-import { interpolateUrlPattern, localizePath } from "../i18n/resolve.js";
+import { resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
 import { requestCached } from "../request-cache.js";
 import { getCollectionInfoWithDb } from "../schema/query.js";
 import { getSiteSettingsWithDb } from "../settings/index.js";
 
-const TRAILING_SLASH_RE = /\/$/;
 const ABSOLUTE_URL_RE = /^https?:\/\//i;
 
 /**
@@ -68,11 +68,14 @@ export interface HreflangAlternate {
 export interface HreflangOptions {
 	/**
 	 * Absolute site origin (e.g. `https://example.com`) used to build
-	 * the alternate URLs. Falls back to the site settings URL; when
+	 * the alternate URLs. Astro's `base` is appended unless the URL
+	 * already ends with it. Falls back to the site settings URL; when
 	 * neither is available the result is empty, since hreflang
 	 * requires fully-qualified URLs.
 	 */
 	siteUrl?: string;
+	/** Astro's route trailing-slash policy. */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -98,7 +101,7 @@ export async function getHreflangAlternates(
 	options: HreflangOptions = {},
 ): Promise<HreflangAlternate[]> {
 	if (!isI18nEnabled()) return [];
-	const key = `hreflang:${collection}:${entryId}:${options.siteUrl ?? ""}`;
+	const key = `hreflang:${collection}:${entryId}:${options.siteUrl ?? ""}:${options.trailingSlash ?? "ignore"}`;
 	return requestCached(key, async () => {
 		const { getDb } = await import("../loader.js");
 		const db = await getDb();
@@ -127,8 +130,8 @@ export async function getHreflangAlternatesWithDb(
 	}
 	// hreflang requires fully-qualified URLs; a relative site URL would
 	// produce invalid output (and EmDashHead's isSafeHref would drop it).
-	if (!siteUrl || !ABSOLUTE_URL_RE.test(siteUrl)) return [];
-	siteUrl = siteUrl.replace(TRAILING_SLASH_RE, "");
+	if (!siteUrl || !ABSOLUTE_URL_RE.test(siteUrl) || !URL.canParse(siteUrl)) return [];
+	siteUrl = withBasePath(siteUrl, import.meta.env.BASE_URL);
 
 	const repo = new ContentRepository(db);
 	const item = await repo.findByIdOrSlug(collection, entryId);
@@ -162,15 +165,17 @@ export async function getHreflangAlternatesWithDb(
 	const resolved: Array<{ locale: string; href: string }> = [];
 	for (const variant of published) {
 		const locale = variant.locale || "en";
-		const path = interpolateUrlPattern({
+		const path = await resolveLocalizedContentRoutePath({
 			pattern: urlPattern,
 			collection,
 			slug: variant.slug || variant.id,
 			id: variant.id,
+			date: variant.publishedAt,
+			locale,
+			trailingSlash: options.trailingSlash,
 		});
-		const localized = await localizePath(path, locale);
-		if (localized === null) continue;
-		resolved.push({ locale, href: `${siteUrl}${localized}` });
+		if (path === null) continue;
+		resolved.push({ locale, href: `${siteUrl}${path}` });
 	}
 	if (resolved.length === 0) return [];
 

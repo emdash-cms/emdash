@@ -1,3 +1,4 @@
+import { LiveEntryNotFoundError } from "astro/content/runtime";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,21 +10,25 @@ vi.mock("astro:content", () => ({
 
 import { getLiveCollection, getLiveEntry } from "astro:content";
 
+import { handleContentCreate } from "../../src/api/index.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
-import { CURSOR_RAW_VALUES } from "../../src/loader.js";
+import { CURSOR_RAW_VALUES, emdashLoader } from "../../src/loader.js";
 import { encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
 	cachedQuery,
+	contentNamespaces,
 	invalidateCollectionCache,
-	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
+import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
+import { getSeoMeta } from "../../src/seo/index.js";
+import { setEntryTitleField } from "../../src/seo/title-field.js";
 import { createPostFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -43,7 +48,7 @@ function spyBackend(): ObjectCacheBackend {
 }
 
 function backendWithCachedValue(value: unknown): ObjectCacheBackend {
-	const encoded = encode({ e: [0, 0, 0, 0], v: value });
+	const encoded = encode({ e: [0, 0, 0], v: value });
 	return {
 		get: (key) => Promise.resolve(key.includes(":epoch:") ? null : encoded),
 		set: () => Promise.resolve(),
@@ -139,6 +144,97 @@ describe("object cache: content read-through", () => {
 		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
 	});
 
+	it("primes the SEO panel cache when an entry is served from the object cache", async () => {
+		const [entry] = mockEntries();
+		(entry!.data as Record<string, unknown>).seo = { title: "Panel Title", noIndex: true };
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		// Cold request populates the cache.
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "hello"));
+		await flush();
+
+		// Warm request: the loader never runs, so <EmDashHead>'s overlay
+		// depends on the revive path priming from the snapshot data.
+		await runWithContext({ editMode: false, db }, async () => {
+			await getEmDashEntry("post", "hello");
+			expect(await peekSeoPanel("post", "db-1")).toMatchObject({
+				title: "Panel Title",
+				noIndex: true,
+			});
+		});
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the getSeoMeta title-field fallback when an entry is served from the object cache", async () => {
+		const [entry] = mockEntries();
+		const data = entry!.data as Record<string, unknown>;
+		data.name = "Ada Lovelace";
+		setEntryTitleField(data, "name");
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "hello"));
+		await flush();
+		const warm = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+		expect(getSeoMeta(warm.entry!).title).toBe("Ada Lovelace");
+	});
+
+	it("reloads a cached entry's getSeoMeta title when the collection's titleField changes", async () => {
+		const { handleSchemaCollectionUpdate, handleSchemaFieldCreate } =
+			await import("../../src/api/handlers/schema.js");
+		const field = await handleSchemaFieldCreate(db, "post", {
+			slug: "name",
+			label: "Name",
+			type: "string",
+		});
+		expect(field.success).toBe(true);
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Senior Engineer", name: "Ada Lovelace" },
+			status: "published",
+		});
+		if (!created.success) throw new Error("create failed");
+		const id = created.data!.item.id;
+		vi.mocked(getLiveEntry).mockImplementation(async (_collection, filter) => {
+			const entry = await emdashLoader().loadEntry!({ filter } as never);
+			// eslint-disable-next-line typescript/no-explicit-any -- loader result in the live entry shape
+			return { entry, error: undefined, cacheHint: {} } as any;
+		});
+		async function seoTitle() {
+			const { entry } = await runWithContext({ editMode: false, db }, () =>
+				getEmDashEntry("post", id),
+			);
+			await flush();
+			return getSeoMeta(entry!).title;
+		}
+
+		expect(await seoTitle()).toBe("Senior Engineer");
+		expect(await seoTitle()).toBe("Senior Engineer");
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+
+		expect((await handleSchemaCollectionUpdate(db, "post", { titleField: "name" })).success).toBe(
+			true,
+		);
+		expect(await seoTitle()).toBe("Ada Lovelace");
+
+		expect((await handleSchemaCollectionUpdate(db, "post", { titleField: null })).success).toBe(
+			true,
+		);
+		expect(await seoTitle()).toBe("Senior Engineer");
+	});
+
 	it("omits revision metadata from anonymous entry results", async () => {
 		const [entry] = mockEntries();
 		vi.mocked(getLiveEntry).mockResolvedValue({
@@ -154,6 +250,35 @@ describe("object cache: content read-through", () => {
 
 		expect(result.entry!.data).not.toHaveProperty("liveRevisionId");
 		expect(result.entry!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("does not reuse a legacy collection snapshot with an automatic validator", async () => {
+		const [stale] = mockEntries();
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: [{ ...stale!, data: { ...stale!.data, title: "Current title" } }],
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await cachedQuery({
+			namespace: contentNamespaces("post"),
+			key: "collection:collection:post:|loc=",
+			load: async () => ({
+				ok: true,
+				value: {
+					entries: [{ ...stale!, data: { ...stale!.data, title: "Legacy title" } }],
+					cacheHint: { lastModified: new Date("2020-01-01T00:00:00.000Z") },
+				},
+			}),
+		});
+
+		await flush();
+		const result = await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+		expect(result.entries[0]!.data.title).toBe("Current title");
+		expect(result.cacheHint.lastModified).toBeUndefined();
 	});
 
 	it("sanitizes anonymous collection snapshots written by earlier releases", async () => {
@@ -173,6 +298,38 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).not.toHaveBeenCalled();
 		expect(result.entries[0]!.data).not.toHaveProperty("liveRevisionId");
 		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("does not reuse a legacy entry snapshot with an automatic validator", async () => {
+		const [entry] = mockEntries();
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry: { ...entry!, data: { ...entry!.data, title: "Current title" } },
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await cachedQuery({
+			namespace: contentNamespaces("post"),
+			key: "entry:hello|loc=",
+			load: async () => ({
+				ok: true,
+				value: {
+					entry: { ...entry!, data: { ...entry!.data, title: "Legacy title" } },
+					isPreview: false,
+					cacheHint: { lastModified: new Date("2020-01-01T00:00:00.000Z") },
+				},
+			}),
+		});
+
+		await flush();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+		expect(result.entry!.data.title).toBe("Current title");
+		expect(result.cacheHint.lastModified).toBeUndefined();
 	});
 
 	it("sanitizes anonymous entry snapshots written by earlier releases", async () => {
@@ -295,26 +452,6 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
 	});
 
-	it("reloads new content caches after a legacy publisher invalidates the collection", async () => {
-		vi.mocked(getLiveCollection).mockResolvedValue({
-			entries: mockEntries(),
-			error: undefined,
-			cacheHint: {},
-			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
-		} as any);
-
-		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
-		await flush();
-		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
-		expect(getLiveCollection).toHaveBeenCalledTimes(1);
-
-		invalidateObjectCache("content:post");
-		await flush();
-
-		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
-		expect(getLiveCollection).toHaveBeenCalledTimes(2);
-	});
-
 	it("invalidates legacy content caches after a current publisher writes", async () => {
 		let loads = 0;
 		const readLegacy = () =>
@@ -354,6 +491,37 @@ describe("object cache: content read-through", () => {
 
 		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
 		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not fetch the retired legacy content epoch", async () => {
+		const store = new Map<string, string>();
+		const get = vi.fn((key: string) => Promise.resolve(store.get(key) ?? null));
+		__setObjectCacheBackendForTests({
+			get,
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		});
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		const epochReads = get.mock.calls.map(([key]) => key).filter((key) => key.includes(":epoch:"));
+		expect(epochReads).toEqual([
+			"em:epoch:content:v2:post",
+			"em:epoch:bylines",
+			"em:epoch:taxonomies",
+		]);
 	});
 
 	it("keeps cached public content when a draft revision is staged or discarded", async () => {
@@ -505,5 +673,31 @@ describe("object cache: content read-through", () => {
 		expect(first.entry).toBeNull();
 		expect(second.entry).toBeNull();
 		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+	});
+
+	it("caches a missing entry until the collection changes", async () => {
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			error: new LiveEntryNotFoundError("_emdash", { type: "post", id: "missing" }),
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const first = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "missing"),
+		);
+		await flush();
+		const second = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "missing"),
+		);
+		invalidateCollectionCache("post");
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "missing"));
+
+		expect([first.entry, first.error, second.entry, second.error]).toEqual([
+			null,
+			undefined,
+			null,
+			undefined,
+		]);
+		expect(getLiveEntry).toHaveBeenCalledTimes(2);
 	});
 });

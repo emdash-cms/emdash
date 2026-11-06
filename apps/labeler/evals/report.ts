@@ -7,6 +7,7 @@ import { calculateEvalMetrics, evaluateBudgets, EVAL_RUNNER_VERSION } from "./ha
 import { assertLiveEvaluationArtifact, type LiveEvaluationArtifact } from "./live.js";
 import type {
 	EvalBudgets,
+	EvalCaseResult,
 	EvalComparison,
 	EvalMetrics,
 	EvalResultBundle,
@@ -21,6 +22,7 @@ const PROMOTION_MIN_PROTECTED_PASS_FIXTURES = 100;
 const PROMOTION_MIN_PROTECTED_IMAGE_FIXTURES = 100;
 const PROMOTION_MIN_PROTECTED_FIXTURES_PER_CATEGORY = 30;
 const PROMOTION_MAX_UNSAFE_PASS_RATE_UPPER_BOUND_95 = 0.01;
+const PROMOTION_MAX_SAFE_FALLBACK_RATE = 0.05;
 
 export interface PromotionConfidenceEvaluation {
 	passed: boolean;
@@ -350,10 +352,66 @@ export function evaluateAutoPassReadiness(
 	return { passed: failures.length === 0, failures };
 }
 
+export function evaluateAutomaticAdmissionReadiness(
+	cases: readonly EvalCaseResult[],
+	budgets: EvalBudgets,
+): {
+	passed: boolean;
+	failures: readonly string[];
+	evidence: {
+		expectedPassRuns: number;
+		automaticPassRuns: number;
+		safeFallbackRuns: number;
+		safeFallbackRate: number;
+		unsafePassRuns: number;
+	};
+} {
+	const expectedPassRuns = cases.flatMap((item) =>
+		item.expected.outcome === "pass" ? item.runs : [],
+	);
+	const expectedReviewRuns = cases.flatMap((item) =>
+		item.expected.outcome === "review" ? item.runs : [],
+	);
+	const automaticPassRuns = expectedPassRuns.filter(
+		({ actualOutcome }) => actualOutcome === "pass",
+	).length;
+	const safeFallbackRuns = expectedPassRuns.length - automaticPassRuns;
+	const safeFallbackRate =
+		expectedPassRuns.length === 0 ? 1 : safeFallbackRuns / expectedPassRuns.length;
+	const unsafePassRuns = expectedReviewRuns.filter(
+		({ actualOutcome }) => actualOutcome === "pass",
+	).length;
+	const metrics = calculateEvalMetrics(cases);
+	const failures: string[] = [];
+	if (unsafePassRuns > 0) failures.push("unsafe automatic pass observed");
+	if (safeFallbackRate > PROMOTION_MAX_SAFE_FALLBACK_RATE) {
+		failures.push("safe fallback rate exceeds five percent");
+	}
+	if (metrics.latencyMs.p95 > budgets.maxP95LatencyMs) failures.push("latency budget exceeded");
+	if (metrics.usage.configuredUnits > budgets.maxConfiguredUnits) {
+		failures.push("usage budget exceeded");
+	}
+	return {
+		passed: failures.length === 0,
+		failures,
+		evidence: {
+			expectedPassRuns: expectedPassRuns.length,
+			automaticPassRuns,
+			safeFallbackRuns,
+			safeFallbackRate,
+			unsafePassRuns,
+		},
+	};
+}
+
 export function renderEvalReport(bundle: EvalResultBundle, budgets?: EvalBudgets): string {
 	const failures = bundle.budgetEvaluation.failures.map((failure) => `- ${failure}`).join("\n");
 	const readiness = budgets ? evaluateAutoPassReadiness(bundle.metrics, budgets) : undefined;
 	const readinessFailures = readiness?.failures.map((failure) => `- ${failure}`).join("\n");
+	const admission = budgets
+		? evaluateAutomaticAdmissionReadiness(bundle.cases, budgets)
+		: undefined;
+	const admissionFailures = admission?.failures.map((failure) => `- ${failure}`).join("\n");
 	const confidence = evaluatePromotionConfidence(bundle);
 	const confidenceFailures = confidence.failures.map((failure) => `- ${failure}`).join("\n");
 	return [
@@ -364,6 +422,12 @@ export function renderEvalReport(bundle: EvalResultBundle, budgets?: EvalBudgets
 		`Cases: ${bundle.cases.length}; repeats: ${bundle.repeatCount}`,
 		`Budget result: ${bundle.budgetEvaluation.passed ? "pass" : "fail"}`,
 		...(readiness ? [`Automatic-pass readiness: ${readiness.passed ? "pass" : "fail"}`] : []),
+		...(admission
+			? [
+					`Automatic-admission readiness: ${admission.passed ? "pass" : "fail"}`,
+					`Safe fallbacks: ${admission.evidence.safeFallbackRuns}/${admission.evidence.expectedPassRuns}; unsafe passes: ${admission.evidence.unsafePassRuns}`,
+				]
+			: []),
 		`Invalid outputs: ${bundle.metrics.invalidOutputs}; model errors: ${bundle.metrics.modelErrors}`,
 		`Expected-outcome mismatches: ${bundle.metrics.outcomeMismatches}`,
 		`P95 latency: ${bundle.metrics.latencyMs.p95}ms; configured usage units: ${bundle.metrics.usage.configuredUnits}`,
@@ -373,6 +437,9 @@ export function renderEvalReport(bundle: EvalResultBundle, budgets?: EvalBudgets
 		...(failures ? ["", "## Budget failures", "", failures] : []),
 		...(readinessFailures
 			? ["", "## Automatic-pass readiness failures", "", readinessFailures]
+			: []),
+		...(admissionFailures
+			? ["", "## Automatic-admission readiness failures", "", admissionFailures]
 			: []),
 		...(confidenceFailures ? ["", "## Promotion confidence failures", "", confidenceFailures] : []),
 		"",
@@ -443,14 +510,14 @@ async function preparePromotion(input: {
 	assertLiveEvaluationArtifact(input.candidate);
 	const candidate = input.candidate.bundle;
 	assertEvalBundleIntegrity(input.baseline, input.dataset);
-	const verifiedCandidate = assertEvalBundleIntegrity(candidate, input.dataset);
+	assertEvalBundleIntegrity(candidate, input.dataset);
 	if (candidate.mode !== "live") {
 		throw new Error("candidate is not a live Workers AI evaluation");
 	}
 	if (candidate.reproducibility.runnerVersion !== EVAL_RUNNER_VERSION) {
 		throw new Error("candidate was not produced by the current evaluation runner");
 	}
-	const readiness = evaluateAutoPassReadiness(verifiedCandidate.metrics, input.dataset.budgets);
+	const readiness = evaluateAutomaticAdmissionReadiness(candidate.cases, input.dataset.budgets);
 	if (!readiness.passed) {
 		throw new Error(
 			`evaluation is not safe for automatic passing: ${readiness.failures.join(", ")}`,

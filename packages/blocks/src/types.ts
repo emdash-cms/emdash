@@ -19,6 +19,31 @@ export interface ButtonElement {
 	confirm?: ConfirmDialog;
 }
 
+export type LinkTarget =
+	| { kind: "content"; collection: string; id: string; locale?: string }
+	| { kind: "plugin-page"; path: string }
+	| { kind: "plugin-settings" }
+	| { kind: "external"; url: string };
+
+/** Host-resolved navigation that never dispatches a block action. */
+export interface LinkElement {
+	type: "link";
+	label: string;
+	target: LinkTarget;
+	appearance?: "inline" | "primary" | "secondary";
+}
+
+export type NavigationElement = LinkElement;
+
+/** A button that opens a list of choices; picking one dispatches `action_id` with the item's value. */
+export interface MenuElement {
+	type: "menu";
+	action_id: string;
+	label: string;
+	items: Array<{ label: string; value: string }>;
+	style?: "primary" | "secondary";
+}
+
 export interface TextInputElement {
 	type: "text_input";
 	action_id: string;
@@ -164,6 +189,8 @@ export type Element =
 	| RepeaterElement
 	| MediaPickerElement;
 
+export type ActionElement = Element | NavigationElement | MenuElement;
+
 // ── Form Fields (elements + optional condition) ──────────────────────────────
 
 export type FieldCondition =
@@ -190,7 +217,8 @@ export type FormField = (
 export interface TableColumn {
 	key: string;
 	label: string;
-	format?: "text" | "badge" | "relative_time" | "number" | "code";
+	/** `element`: each row holds a button, link, or menu element under this column's key. */
+	format?: "text" | "badge" | "relative_time" | "number" | "code" | "element";
 	sortable?: boolean;
 }
 
@@ -256,7 +284,7 @@ export interface HeaderBlock extends BlockBase {
 export interface SectionBlock extends BlockBase {
 	type: "section";
 	text: string;
-	accessory?: Element;
+	accessory?: ActionElement;
 }
 
 export interface DividerBlock extends BlockBase {
@@ -279,7 +307,7 @@ export interface TableBlock extends BlockBase {
 
 export interface ActionsBlock extends BlockBase {
 	type: "actions";
-	elements: Element[];
+	elements: ActionElement[];
 }
 
 export interface StatsBlock extends BlockBase {
@@ -354,7 +382,7 @@ export interface EmptyBlock extends BlockBase {
 	description?: string;
 	command_line?: string;
 	size?: "sm" | "base" | "lg";
-	actions?: Element[];
+	actions?: ActionElement[];
 }
 
 export interface AccordionBlock extends BlockBase {
@@ -391,6 +419,8 @@ export interface BlockAction {
 	action_id: string;
 	block_id?: string;
 	value?: unknown;
+	/** Admin page or widget that originated the interaction. */
+	page?: string;
 }
 
 export interface FormSubmit {
@@ -398,6 +428,8 @@ export interface FormSubmit {
 	action_id: string;
 	block_id?: string;
 	values: Record<string, unknown>;
+	/** Admin page or widget that originated the interaction. */
+	page?: string;
 }
 
 export interface PageLoad {
@@ -405,11 +437,100 @@ export interface PageLoad {
 	page: string;
 }
 
+interface PluginUiContextBase {
+	locale: string;
+	direction: "ltr" | "rtl";
+	contentLocale?: string;
+}
+
+/** Context derived and attached by the EmDash host for Block Kit requests. */
+export type PluginUiContext = PluginUiContextBase &
+	(
+		| {
+				surface: "admin-page" | "dashboard-widget";
+				entry?: never;
+				extensionId?: never;
+		  }
+		| {
+				surface: "content-editor-panel" | "content-editor-action";
+				/** Saved entry identity resolved by the host for this invocation. */
+				entry: {
+					collection: string;
+					id: string;
+					locale: string | null;
+					version: number;
+				};
+				/** Manifest-declared panel or action selected by the host. */
+				extensionId: string;
+		  }
+	);
+
+export type LinkTargetResolver = (target: LinkTarget) => string | null;
+
 export type BlockInteraction = BlockAction | FormSubmit | PageLoad;
+
+export type ContentEditorPanelInteraction =
+	| { type: "panel_load" }
+	| (Omit<BlockAction, "page"> & { draft?: EditorDraftSnapshot })
+	| (Omit<FormSubmit, "page"> & { draft?: EditorDraftSnapshot });
+
+export interface ContentEditorActionInvocation {
+	type: "editor_action";
+	draft?: EditorDraftSnapshot;
+}
+
+export interface EditorDraftFieldDefinition {
+	slug: string;
+	label: string;
+	type: string;
+	required: boolean;
+	translatable: boolean;
+	validation?: Record<string, unknown>;
+	options?: unknown;
+}
+
+export interface EditorDraftSnapshot {
+	collection: string;
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	invocationId: string;
+	fields: Record<string, unknown>;
+	fieldDefinitions: EditorDraftFieldDefinition[];
+}
+
+export type EditorDraftPatchOperation =
+	| { op: "set"; field: string; value: unknown }
+	| { op: "clear"; field: string };
+
+export interface EditorDraftPatchEffect {
+	type: "editor-draft-patch";
+	operations: EditorDraftPatchOperation[];
+}
+
+export interface EditorDraftInvocationReceipt {
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	generation: number;
+	invocationId: string;
+	fieldDefinitions: EditorDraftFieldDefinition[];
+}
 
 // ── Response ─────────────────────────────────────────────────────────────────
 
 export interface BlockResponse {
 	blocks: Block[];
 	toast?: { message: string; type: "success" | "error" | "info" };
+	patch?: EditorDraftPatchEffect;
+	refresh?: true;
+	navigate?: LinkTarget;
+}
+
+/** Bounded host effects returned by a content-editor action route. */
+export interface ContentEditorActionResponse {
+	toast?: { message: string; type: "success" | "error" | "info" };
+	refresh?: true;
+	navigate?: LinkTarget;
+	patch?: EditorDraftPatchEffect;
 }

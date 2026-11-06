@@ -12,6 +12,7 @@ export type {
 	MigrationExecutorFactory,
 	MigrationExecutorFactoryContext,
 	MigrationExecutorModule,
+	MigrationLockReport,
 	MigrationReport,
 	MigrationRequest,
 	MigrationTarget,

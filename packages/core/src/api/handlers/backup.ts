@@ -55,12 +55,17 @@ export const BACKUP_RETENTION_MAX = 30;
 const BACKUP_RETENTION_DEFAULT = 7;
 
 /**
- * Options-table key prefixes included in backups. Site settings plus the
- * site-identity keys (`emdash:site_title`, `emdash:site_tagline`,
- * `emdash:site_url`). Never widen this to a prefix that can match secrets
- * (`emdash:preview_secret`, `plugin:`, `emdash:passkey_pending:`).
+ * Options-table key prefixes included in backups. Never widen this to a
+ * prefix that can match secrets (`emdash:preview_secret`, `plugin:`,
+ * `emdash:passkey_pending:`).
  */
-const BACKUP_OPTION_PREFIXES = ["site:", "emdash:site_", "emdash:locale"];
+const BACKUP_OPTION_PREFIXES = ["site:"];
+
+/**
+ * Exact `emdash:*` keys included in backups. Do not add `emdash:site_url`: it
+ * is the origin of the deployment that took the backup, not portable site data.
+ */
+const BACKUP_OPTION_KEYS = ["emdash:site_title", "emdash:site_tagline", "emdash:locale"];
 
 /**
  * Archive filename shape. Strict allowlist — the download/delete routes
@@ -117,6 +122,7 @@ export async function generateBackupJson(db: Kysely<Database>): Promise<string> 
 		includeDrafts: true,
 		includeTrashed: true,
 		optionPrefixes: BACKUP_OPTION_PREFIXES,
+		optionKeys: BACKUP_OPTION_KEYS,
 	});
 
 	return JSON.stringify({

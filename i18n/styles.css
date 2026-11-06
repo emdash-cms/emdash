@@ -1,0 +1,177 @@
+:root {
+	--bg: #fff;
+	--fg: #111;
+	--muted: #666;
+	--border: #e5e5e5;
+	--bar-bg: #eee;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #111;
+		--fg: #eee;
+		--muted: #999;
+		--border: #333;
+		--bar-bg: #222;
+	}
+}
+
+html {
+	background: var(--bg);
+	scrollbar-gutter: auto;
+}
+
+body {
+	display: block;
+	max-width: 640px;
+	margin: 0 auto;
+	padding: 2rem 1rem;
+	font-family:
+		system-ui,
+		-apple-system,
+		sans-serif;
+	color: var(--fg);
+}
+
+main,
+.limit-to-viewport {
+	max-width: none;
+	margin: 0;
+}
+
+h1 {
+	max-width: none;
+	font-size: 1.5rem;
+	font-weight: bold;
+	line-height: inherit;
+	margin-bottom: 0.25rem;
+}
+
+.subtitle {
+	color: var(--muted);
+	margin-bottom: 2rem;
+}
+
+a,
+a:hover {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.locale {
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	margin-bottom: 0.75rem;
+	padding: 0;
+}
+
+.locale summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 1rem;
+	cursor: pointer;
+	list-style: none;
+	user-select: auto;
+}
+
+.locale summary::-webkit-details-marker {
+	display: none;
+}
+
+.locale summary:hover strong {
+	color: inherit;
+}
+
+.locale summary strong {
+	flex: 1;
+}
+
+.locale > :last-child {
+	margin-bottom: 0;
+}
+
+.lang {
+	font-weight: 400;
+	color: var(--muted);
+	font-size: 0.875rem;
+}
+
+.stats {
+	font-size: 0.875rem;
+	color: var(--muted);
+}
+
+.bar {
+	width: 100%;
+	height: 6px;
+	background: var(--bar-bg);
+	border-radius: 3px;
+	overflow: hidden;
+	flex-basis: 100%;
+}
+
+.fill {
+	height: 100%;
+	border-radius: 3px;
+	transition: width 0.3s;
+}
+
+.completed {
+	background: #22c55e;
+}
+
+.very-good {
+	background: #84cc16;
+}
+
+.good {
+	background: #f59e0b;
+}
+
+.help-needed {
+	background: #ef4444;
+}
+
+.basic {
+	background: #991b1b;
+}
+
+.links,
+.missing,
+.done {
+	margin: 0;
+	padding: 0.5rem 1rem 0.75rem;
+}
+
+.links {
+	font-size: 0.875rem;
+}
+
+.missing summary {
+	font-size: 0.875rem;
+	color: var(--muted);
+}
+
+.missing ul {
+	margin-top: 0.5rem;
+	padding-left: 1.5rem;
+	font-size: 0.8rem;
+	font-family: ui-monospace, monospace;
+}
+
+.missing li {
+	margin-bottom: 0.125rem;
+}
+
+.done {
+	color: var(--muted);
+	font-size: 0.875rem;
+}
+
+.footer {
+	margin-top: 2rem;
+	font-size: 0.75rem;
+	color: var(--muted);
+}
