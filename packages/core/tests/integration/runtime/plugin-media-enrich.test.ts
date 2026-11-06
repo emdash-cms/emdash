@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
-import { createMediaAccessWithWrite } from "../../../src/plugins/context.js";
+import { PluginContextFactory, createMediaAccessWithWrite } from "../../../src/plugins/context.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import type { Storage } from "../../../src/storage/types.js";
 import { JPEG_4x4 } from "../../utils/image-fixtures.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -47,6 +48,19 @@ function fakeStorage(): Storage {
 	};
 }
 
+function pluginWithMediaWrite(): ResolvedPlugin {
+	return {
+		id: "media-enrich-test",
+		version: "1.0.0",
+		capabilities: ["media:write"],
+		allowedHosts: [],
+		storage: {},
+		admin: { pages: [], widgets: [], fieldWidgets: {} },
+		hooks: {},
+		routes: {},
+	};
+}
+
 describe("plugin ctx.media.upload — metadata enrichment", () => {
 	let db: Kysely<Database>;
 
@@ -68,6 +82,36 @@ describe("plugin ctx.media.upload — metadata enrichment", () => {
 		expect(row?.height).toBe(4);
 		expect(row?.blurhash).toBeTruthy();
 		expect(row?.dominantColor).toMatch(/^rgb\(/);
+	});
+
+	it("preserves dimensions when placeholders are disabled", async () => {
+		const media = createMediaAccessWithWrite(db, undefined, fakeStorage(), false);
+		const result = await media.upload("derived.jpg", "image/jpeg", JPEG_4x4.slice().buffer);
+
+		const row = await new MediaRepository(db).findById(result.mediaId);
+		expect(row?.width).toBe(4);
+		expect(row?.height).toBe(4);
+		expect(row?.blurhash).toBeNull();
+		expect(row?.dominantColor).toBeNull();
+	});
+
+	it("threads disabled placeholders through the real plugin context", async () => {
+		const media = new PluginContextFactory({
+			db,
+			storage: fakeStorage(),
+			imagePlaceholders: false,
+		}).createContext(pluginWithMediaWrite()).media;
+		if (!media || !("upload" in media)) throw new Error("media upload capability is unavailable");
+
+		const result = await media.upload("derived.jpg", "image/jpeg", JPEG_4x4.slice().buffer);
+		const row = await new MediaRepository(db).findById(result.mediaId);
+
+		expect(row).toMatchObject({
+			width: 4,
+			height: 4,
+			blurhash: null,
+			dominantColor: null,
+		});
 	});
 
 	it("leaves metadata null for a non-image upload without throwing", async () => {

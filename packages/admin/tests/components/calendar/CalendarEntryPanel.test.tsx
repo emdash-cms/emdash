@@ -1,5 +1,6 @@
 import { Toast } from "@cloudflare/kumo";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 
 import type { CalendarEntry } from "../../../src/lib/api/calendar";
 import {
@@ -10,7 +11,10 @@ import {
 } from "../../../src/lib/api/content";
 import type { CurrentUser } from "../../../src/lib/api/current-user";
 import { createCalendarDisplay, toCalendarItems } from "../../../src/lib/calendar";
+
+import "../../../dist/styles.css";
 import { render } from "../../utils/render.tsx";
+import { swipeDown } from "../../utils/touch.ts";
 
 vi.mock("@tanstack/react-router", async () => ({
 	...(await vi.importActual("@tanstack/react-router")),
@@ -87,14 +91,18 @@ function details(authorId: string): ContentItem {
 	};
 }
 
-function renderPanel(item: ReturnType<typeof scheduledItem>, user: CurrentUser) {
+function renderPanel(
+	item: ReturnType<typeof scheduledItem>,
+	user: CurrentUser,
+	{ compact = false } = {},
+) {
 	const onClose = vi.fn();
 	const screen = render(
 		<CalendarEntryPanel
 			item={item}
 			display={display}
 			now={now}
-			compact={false}
+			compact={compact}
 			i18n={undefined}
 			urlPatterns={{}}
 			user={user}
@@ -109,6 +117,10 @@ function renderPanel(item: ReturnType<typeof scheduledItem>, user: CurrentUser) 
 const editor: CurrentUser = { id: "editor", email: "editor@example.com", role: 40 };
 
 describe("CalendarEntryPanel", () => {
+	afterEach(async () => {
+		await page.viewport(1280, 800);
+	});
+
 	beforeEach(() => {
 		vi.mocked(fetchContent).mockResolvedValue(details("someone-else"));
 		vi.mocked(publishContent).mockResolvedValue(details("someone-else"));
@@ -141,6 +153,21 @@ describe("CalendarEntryPanel", () => {
 		await expect
 			.poll(() => vi.mocked(publishContent).mock.calls[0])
 			.toEqual(["posts", "launch", { locale: "en", _rev: "rev-1" }]);
+	});
+
+	it("closes the phone sheet when it is swiped down", async () => {
+		await page.viewport(390, 700);
+		vi.mocked(fetchContent).mockResolvedValue(details("editor"));
+		const { screen, onClose } = renderPanel(scheduledItem("2026-10-20T09:00:00.000Z"), editor, {
+			compact: true,
+		});
+		const sheet = (await screen).getByRole("dialog", { name: "Launch" });
+		await expect.element(sheet).toBeVisible();
+		await expect.poll(() => sheet.element().getAnimations().length).toBe(0);
+
+		await swipeDown(sheet.getByRole("heading", { name: "Launch" }).element());
+
+		await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
 
 	it("keeps publishing actions from roles that can't publish the entry", async () => {

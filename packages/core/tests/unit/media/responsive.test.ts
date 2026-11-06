@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
 	RESPONSIVE_BREAKPOINTS,
 	buildResponsiveImage,
+	formatContentType,
 	gallerySizes,
 	responsiveSizes,
 	responsiveWidths,
@@ -148,6 +149,20 @@ describe("buildResponsiveImage", () => {
 		expect(getImage).toHaveBeenCalledWith(expect.objectContaining({ widths: [400] }));
 	});
 
+	it("passes a requested output format through to getImage", async () => {
+		const getImage: GetImage = vi.fn(async (opts) => ({
+			src: `/_image?href=${encodeURIComponent(opts.src)}&w=1200&f=${opts.format}`,
+			srcSet: { attribute: "/_image?href=a&w=640&f=avif 640w" },
+		}));
+		await buildResponsiveImage(getImage, {
+			src: ABS,
+			width: 800,
+			height: 600,
+			format: "avif",
+		});
+		expect(getImage).toHaveBeenCalledWith(expect.objectContaining({ format: "avif" }));
+	});
+
 	it("returns null when the service passes the URL through unchanged (unauthorized host)", async () => {
 		// baseService.getURL returns options.src verbatim for unauthorized hosts.
 		const getImage: GetImage = async (opts) => ({ src: opts.src });
@@ -159,6 +174,16 @@ describe("buildResponsiveImage", () => {
 			throw new Error("no image service");
 		};
 		expect(await buildResponsiveImage(getImage, { src: ABS, width: 800, height: 600 })).toBeNull();
+	});
+});
+
+describe("formatContentType", () => {
+	it("maps transform formats to their MIME types", () => {
+		expect(formatContentType("avif")).toBe("image/avif");
+		expect(formatContentType("webp")).toBe("image/webp");
+		expect(formatContentType("jpeg")).toBe("image/jpeg");
+		expect(formatContentType("jpg")).toBe("image/jpeg");
+		expect(formatContentType("png")).toBe("image/png");
 	});
 });
 

@@ -1,6 +1,7 @@
 import { isPortableTextVideoBlock } from "../../content/converters/video.js";
 import { normalizeMime } from "../mime.js";
 import { INTERNAL_MEDIA_PREFIX } from "../normalize.js";
+import { storageKeyFromLocalMediaFileUrl } from "../url.js";
 import type {
 	ExtractedMediaUsageOccurrence,
 	ExtractMediaUsageOccurrencesInput,
@@ -17,6 +18,7 @@ interface MediaRef {
 	providerAssetId: string;
 	mediaKind: MediaKind | null;
 	mimeType: string | null;
+	storageKey?: string;
 }
 
 interface AddOccurrenceInput {
@@ -252,19 +254,35 @@ function addPortableTextAssetOccurrence(
 	if (!isRecord(asset)) return;
 
 	const provider = normalizeProvider(asset.provider);
+	const fieldPath = (key: string) => `${pathPrefix}.asset.${key}`;
+	const referenceType = kind === "video" ? "portable_text_video" : "portable_text_image";
+	const mimeType = normalizeMimeValue(asset.mimeType);
 	const ref = readPortableTextAssetRef(asset, provider);
-	if (!ref) return;
+	if (ref) {
+		addRefOccurrence(occurrences, seen, {
+			fieldSlug,
+			fieldPath: fieldPath(ref.key),
+			referenceType,
+			ref: buildMediaRef({ id: ref.id, provider, mimeType, fallbackKind: kind }),
+		});
+		return;
+	}
 
+	if (provider !== "local") return;
+	const fileUrl = readPortableTextAssetFileUrl(asset);
+	if (!fileUrl) return;
 	addRefOccurrence(occurrences, seen, {
 		fieldSlug,
-		fieldPath: `${pathPrefix}.asset.${ref.key}`,
-		referenceType: kind === "video" ? "portable_text_video" : "portable_text_image",
-		ref: buildMediaRef({
-			id: ref.id,
+		fieldPath: fieldPath(fileUrl.key),
+		referenceType,
+		ref: {
+			mediaId: null,
 			provider,
-			mimeType: normalizeMimeValue(asset.mimeType),
-			fallbackKind: kind,
-		}),
+			providerAssetId: fileUrl.storageKey,
+			mediaKind: mediaKindFromMime(mimeType) ?? kind,
+			mimeType,
+			storageKey: fileUrl.storageKey,
+		},
 	});
 }
 
@@ -306,6 +324,7 @@ function addRefOccurrence(
 		providerAssetId: input.ref.providerAssetId,
 		mediaKind: input.ref.mediaKind,
 		mimeType: input.ref.mimeType,
+		...(input.ref.storageKey === undefined ? {} : { storageKey: input.ref.storageKey }),
 	};
 
 	const key = [
@@ -372,6 +391,21 @@ function readPortableTextAssetRef(
 	const id = normalizeId(asset.id);
 	if (id) return { key: "id", id };
 
+	return null;
+}
+
+/**
+ * The storage key of an asset that names a local file by its URL instead of
+ * its media id, as Markdown images and URL-only blocks do.
+ */
+function readPortableTextAssetFileUrl(
+	asset: Record<string, unknown>,
+): { key: "_ref" | "url"; storageKey: string } | null {
+	for (const key of ["_ref", "url"] as const) {
+		const value = asset[key];
+		const storageKey = typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value) : null;
+		if (storageKey) return { key, storageKey };
+	}
 	return null;
 }
 

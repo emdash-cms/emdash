@@ -37,6 +37,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Catalogs on a pull request branch lack its new strings until they are
+      # extracted on main. Without them, the production admin in a preview
+      # renders interpolated and plural messages as raw ICU source.
+      - run: pnpm locale:extract
       - run: pnpm build
       # Publish a preview for every public package via globs rather than a
       # hardcoded list. This keeps preview installs self-consistent: when

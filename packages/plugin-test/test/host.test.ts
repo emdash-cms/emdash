@@ -696,7 +696,7 @@ describe("runtime plugin test host", () => {
 			runtimeHost.inspect.storage
 				.list<{ type: string }>("lifecycle")
 				.then((entries) => entries.map((entry) => entry.data.type)),
-		).resolves.toEqual(["deactivate", "activate"]);
+		).resolves.toEqual(["install", "activate", "deactivate", "activate"]);
 
 		const media = await runtimeHost.actions.media.upload({
 			filename: "pixel.png",

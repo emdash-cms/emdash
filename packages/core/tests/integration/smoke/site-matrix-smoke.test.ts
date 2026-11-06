@@ -100,12 +100,24 @@ const SITE_MATRIX: SiteCase[] = [
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio"),
 		port: 4616,
 		startupTimeoutMs: 90_000,
+		frontendExpectations: [
+			{ path: "/", text: "Full index" },
+			{ path: "/", text: "Have a project in mind?" },
+			{ path: "/contact", text: "hello@norma.example" },
+		],
+		sitemapPath: "/sitemap-pages.xml",
 	},
 	{
 		name: "templates/portfolio-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/portfolio-cloudflare"),
 		port: 4617,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [
+			{ path: "/", text: "Full index" },
+			{ path: "/", text: "Have a project in mind?" },
+			{ path: "/contact", text: "hello@norma.example" },
+		],
+		sitemapPath: "/sitemap-pages.xml",
 	},
 	{
 		name: "templates/starter-cloudflare",
@@ -252,7 +264,15 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 	});
 
 	const waitPath = site.waitPath ?? "/_emdash/admin/";
-	await waitForServer(`${baseUrl}${waitPath}`, site.startupTimeoutMs);
+	try {
+		await waitForServer(`${baseUrl}${waitPath}`, site.startupTimeoutMs);
+	} catch (error) {
+		await killServer(serverProcess);
+		throw new Error(
+			`${error instanceof Error ? error.message : String(error)}\n\nServer output:\n${output.slice(-3000)}`,
+			{ cause: error },
+		);
+	}
 
 	return {
 		baseUrl,
