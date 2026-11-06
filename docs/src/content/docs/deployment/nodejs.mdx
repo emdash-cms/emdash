@@ -5,12 +5,21 @@ description: Deploy EmDash to a long-running Node.js server with persistent data
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash runs on Node.js 22.16 or later. This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
+This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
 
 ## Prerequisites
 
-- Node.js v22.16.0 or higher
+- Node.js v22.23.4 or higher (v22.16.0 is enough on Astro 7.3 or earlier)
 - A Node.js hosting provider or VPS
+- SQLite FTS5 support in the Node.js build when using the built-in SQLite adapter
+
+Search requires FTS5. Its availability depends on how Node.js was compiled, not just the Node.js or SQLite version. Check the exact Node binary used by your server:
+
+```sh
+node --input-type=module -e 'import { DatabaseSync } from "node:sqlite"; const db = new DatabaseSync(":memory:"); db.exec("CREATE VIRTUAL TABLE probe USING fts5(x)"); db.close(); console.log("FTS5 available");'
+```
+
+If the command reports `no such module: fts5`, switch to a Node.js build with FTS5 support. Search requests return `503 SEARCH_UNAVAILABLE` until FTS5 is available. After switching builds, [enable search](/reference/rest-api/#search) for collections whose search setup failed.
 
 <Aside>
 	Node.js 22 prints `ExperimentalWarning: SQLite is an experimental feature` when a site uses the
@@ -42,6 +51,16 @@ export default defineConfig({
 	],
 });
 ```
+
+## Reverse proxies and HTTPS
+
+When the Node process sits behind a reverse proxy that terminates TLS, internal requests arrive over HTTP while visitors reach the site over HTTPS. Set the public origin with `EMDASH_SITE_URL` or `SITE_URL` so EmDash builds correct absolute URLs:
+
+```bash
+export EMDASH_SITE_URL=https://example.com
+```
+
+Set the variable both where `npm run build` runs and where the server runs. The build uses it to enable image optimization for locally stored media. If it is missing at build time, images are served as unoptimized originals instead of through Astro's `/_image` endpoint. See [`siteUrl`](/reference/configuration/#siteurl) for how EmDash resolves the public origin.
 
 ## Build and run
 
@@ -202,6 +221,7 @@ See [Secrets and key management](/deployment/secrets/) for the key format, every
 
 | Variable               | Description             | Example                    |
 | ---------------------- | ----------------------- | -------------------------- |
+| `EMDASH_SITE_URL`      | Public site origin      | `https://example.com`      |
 | `DATABASE_PATH`        | Path to SQLite database | `/data/emdash.db`        |
 | `HOST`                 | Server host             | `0.0.0.0`                  |
 | `PORT`                 | Server port             | `4321`                     |
@@ -224,7 +244,7 @@ SQLite requires persistent disk storage. Ensure your hosting platform provides:
 - Write access to the database directory
 - Backup mechanisms for the database file
 
-Back up both the SQLite file and the upload directory. Stop the process before replacing either during recovery. See [Backups](/guides/backups/#sqlite-backup-and-recovery).
+Back up both the SQLite file and the upload directory. Stop the process before replacing either during recovery. See [Backups](/guides/backups/#back-up-sqlite-and-local-libsql).
 
 <Aside type="caution">
 	Ephemeral filesystems will lose your database on restart. Use libSQL with a remote database or persistent storage.
@@ -253,3 +273,5 @@ After starting a new build, verify the same runtime services that production req
 5. If the site uses sandboxed plugins, invoke one plugin route or hook and confirm that the server log has no sandbox-unavailable or `workerd` startup error.
 
 Keep the new instance out of the load balancer until every applicable check passes.
+
+A site created through the setup wizard starts in staging, hidden from search engines. When it's ready to be found, [go live](/guides/seo/#hide-a-site-until-it-goes-live).

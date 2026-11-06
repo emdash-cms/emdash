@@ -30,7 +30,7 @@ export interface ShellProps {
 			string,
 			{
 				package?: string;
-				adminPages?: Array<{ path: string; label?: string; icon?: string }>;
+				adminPages?: Array<{ path: string; label?: string; icon?: string; group?: string }>;
 			}
 		>;
 		taxonomies: Array<{
@@ -42,7 +42,9 @@ export interface ShellProps {
 		}>;
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
+		admin?: AdminManifest["admin"];
 		registryConfigurationError?: AdminManifest["registryConfigurationError"];
+		staging?: boolean;
 	};
 }
 
@@ -113,16 +115,19 @@ export function Shell({ children, manifest }: ShellProps) {
 
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
-				<Header />
+				<Header staging={manifest.staging} />
 				{manifest.registryConfigurationError && (
 					<div className="space-y-3 px-6 pt-6">
 						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
 					</div>
 				)}
+				{/* Full-bleed clips because scrollIntoView() and focus() can still scroll
+				    an overflow-hidden box, pushing the page up under the header. A
+				    clipping box isn't a scroll container, so it also needs min-h-0. */}
 				<main
 					className={
 						fullBleed
-							? "flex-1 overflow-hidden bg-kumo-elevated"
+							? "min-h-0 flex-1 overflow-clip bg-kumo-elevated"
 							: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
 					}
 				>

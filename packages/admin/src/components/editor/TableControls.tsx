@@ -5,17 +5,13 @@ import { useLingui } from "@lingui/react/macro";
 import * as Icons from "@phosphor-icons/react";
 import type { Editor, Range } from "@tiptap/core";
 import { closeHistory } from "@tiptap/pm/history";
-import {
-	NodeSelection,
-	TextSelection,
-	type SelectionBookmark,
-	type Transaction,
-} from "@tiptap/pm/state";
+import { NodeSelection, type SelectionBookmark, type Transaction } from "@tiptap/pm/state";
 import { CellSelection, cellAround } from "@tiptap/pm/tables";
 import { useEditorState } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils.js";
+import { prepareBlockInsert } from "./blockTypes.js";
 import { getTableControlState, runTableAction, type TableActionId } from "./TableActions.js";
 import { selectionIsContainedInTableCells } from "./TableExtensions.js";
 
@@ -37,7 +33,7 @@ const GROUPS: ReadonlyArray<readonly [MessageDescriptor, readonly Action[]]> = [
 const SIZES = Array.from({ length: 10 }, (_, index) => index + 1);
 const SIZE_ITEMS = Object.fromEntries(SIZES.map((size) => [String(size), size]));
 const MENU_CLASS =
-	"emdash-table-menu max-h-[min(28rem,50dvh)] max-w-[calc(100vw-1rem)] overflow-y-auto text-sm motion-reduce:animate-none motion-reduce:transition-none";
+	"emdash-table-menu max-h-[min(28rem,50dvh)] max-w-[calc(100vw-1rem)] overflow-y-auto text-sm data-ending-style:duration-0 motion-reduce:animate-none motion-reduce:transition-none";
 
 export function insertTable(
 	editor: Editor,
@@ -45,7 +41,6 @@ export function insertTable(
 	columns: number,
 	withHeaderRow: boolean,
 	range?: Range,
-	insertPosition?: number,
 ): boolean {
 	const chain = editor
 		.chain()
@@ -54,23 +49,8 @@ export function insertTable(
 			closeHistory(tr);
 			return true;
 		});
-	if (insertPosition !== undefined)
-		chain
-			.insertContentAt(insertPosition, { type: "paragraph" })
-			.setTextSelection(insertPosition + 1);
-	else if (range) chain.deleteRange(range);
-	chain.command(({ tr }) => {
-		const nested = Array.from(
-			{ length: tr.selection.$from.depth },
-			(_, index) => tr.selection.$from.node(index + 1).type.name,
-		).some((name) => name === "blockquote" || name === "listItem");
-		if (nested) {
-			const position = tr.selection.$from.after(1);
-			tr.insert(position, tr.doc.type.schema.nodes.paragraph!.create());
-			tr.setSelection(TextSelection.create(tr.doc, position + 1));
-		}
-		return true;
-	});
+	if (range) chain.deleteRange(range);
+	chain.command(({ tr }) => prepareBlockInsert(tr));
 	return chain
 		.insertTable({ rows, cols: columns, withHeaderRow })
 		.command(({ tr }) => {
@@ -263,7 +243,7 @@ function ActionMenu({
 				<React.Fragment key={group.id}>
 					{groupIndex > 0 && <DropdownMenu.Separator />}
 					<DropdownMenu.Group>
-						<DropdownMenu.Label className="text-xs">{t(group)}</DropdownMenu.Label>
+						<DropdownMenu.Label className="px-2! text-xs">{t(group)}</DropdownMenu.Label>
 						{actions.map((action) => {
 							const [id, descriptor, Icon, , rtl] = action;
 							const label =
@@ -286,13 +266,13 @@ function ActionMenu({
 								const checked = id === "header-row" ? state.headerRow : state.headerColumn;
 								if (checked === "mixed") {
 									// prettier-ignore
-									return <DropdownMenu.Item key={id} {...itemProps} role="menuitemcheckbox" aria-checked="mixed" className={`${itemProps.className} relative ps-8 pe-2`}><span className="absolute start-2 flex h-3.5 w-3.5 items-center justify-center"><Icons.Minus className="h-3 w-3" aria-hidden="true" /></span>{label}<span className="ms-auto text-xs text-kumo-subtle">{t`Mixed`}</span></DropdownMenu.Item>;
+									return <DropdownMenu.Item key={id} {...itemProps} role="menuitemcheckbox" aria-checked="mixed" className={`${itemProps.className} relative ps-8! pe-2!`}><span className="absolute start-2 flex h-3.5 w-3.5 items-center justify-center"><Icons.Minus className="h-3 w-3" aria-hidden="true" /></span>{label}<span className="ms-auto text-xs text-kumo-subtle">{t`Mixed`}</span></DropdownMenu.Item>;
 								}
 								// prettier-ignore
 								return <DropdownMenu.CheckboxItem key={id} {...itemProps} checked={checked} data-emdash-header-checkbox>{label}</DropdownMenu.CheckboxItem>;
 							}
 							// prettier-ignore
-							return <DropdownMenu.Item key={id} {...itemProps} icon={<Icon className={cn("me-2 h-4 w-4", rtl && "rtl:-scale-x-100")} aria-hidden="true" />} variant={id === "delete-table" ? "danger" : "default"}>{label}</DropdownMenu.Item>;
+							return <DropdownMenu.Item key={id} {...itemProps} icon={<Icon className={cn("h-4 w-4", rtl && "rtl:-scale-x-100")} aria-hidden="true" />} variant={id === "delete-table" ? "danger" : "default"}>{label}</DropdownMenu.Item>;
 						})}
 					</DropdownMenu.Group>
 				</React.Fragment>
@@ -406,7 +386,7 @@ function TableMenu({
 				onOpenChangeComplete={(open) => !open && finishMenu()}
 			>
 				{/* prettier-ignore */}
-				<DropdownMenu.Trigger render={<Button ref={triggerRef} type="button" variant="ghost" shape={more ? "square" : undefined} className={more ? "h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11" : "h-8 min-w-11 flex-none gap-0.5 px-2 hover:bg-kumo-interact/50 pointer-coarse:min-h-11"} onMouseDown={more ? undefined : (event) => event.preventDefault()} onBlur={() => { shortcutReturnRef.current = false; }} aria-label={title} aria-expanded={menuOpen} aria-keyshortcuts={more ? undefined : "Alt+F10"} title={title} data-emdash-table-trigger={more ? undefined : ""}>{more ? <Icons.DotsThree className="h-4 w-4" aria-hidden="true" /> : <><Icons.Table className="h-4 w-4" aria-hidden="true" /><Icons.CaretDown className="h-3 w-3" aria-hidden="true" /></>}</Button>} />
+				<DropdownMenu.Trigger render={more ? <Button ref={triggerRef} type="button" variant="ghost" shape="square" className="h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11" onBlur={() => { shortcutReturnRef.current = false; }} aria-label={title} aria-expanded={menuOpen} title={title}><Icons.DotsThree className="h-4 w-4" aria-hidden="true" /></Button> : <Button ref={triggerRef} type="button" variant="ghost" className="h-8 min-w-10 flex-none gap-0.5 rounded-lg px-1.5 text-kumo-subtle hover:bg-kumo-interact/50 hover:text-kumo-default data-popup-open:bg-kumo-interact/50 data-popup-open:text-kumo-default pointer-coarse:min-h-11 pointer-coarse:min-w-11" onMouseDown={(event) => event.preventDefault()} onBlur={() => { shortcutReturnRef.current = false; }} aria-label={title} aria-expanded={menuOpen} aria-keyshortcuts="Alt+F10" title={title} data-emdash-table-trigger=""><Icons.Table className="h-4 w-4" aria-hidden="true" /><Icons.CaretDown className="h-3 w-3" aria-hidden="true" /></Button>} />
 				<DropdownMenu.Content
 					align="start"
 					positionMethod="fixed"
@@ -414,7 +394,7 @@ function TableMenu({
 					className={cn(MENU_CLASS, more ? "min-w-56" : "min-w-48")}
 				>
 					{/* prettier-ignore */}
-					{more || state.inTable ? state.controls && <ActionMenu editor={editor} state={state.controls} onRun={(label) => { intentRef.current = "focus"; if (label) onRun?.(label); }} /> : <DropdownMenu.Item icon={<Icons.Table className="me-2 h-4 w-4" aria-hidden="true" />} onClick={() => { intentRef.current = "picker"; }} className="text-sm pointer-coarse:min-h-11">{t`Insert table`}</DropdownMenu.Item>}
+					{more || state.inTable ? state.controls && <ActionMenu editor={editor} state={state.controls} onRun={(label) => { intentRef.current = "focus"; if (label) onRun?.(label); }} /> : <DropdownMenu.Item icon={<Icons.Table className="h-4 w-4" aria-hidden="true" />} onClick={() => { intentRef.current = "picker"; }} className="text-sm pointer-coarse:min-h-11">{t`Insert table`}</DropdownMenu.Item>}
 				</DropdownMenu.Content>
 			</DropdownMenu>
 			{/* prettier-ignore */}

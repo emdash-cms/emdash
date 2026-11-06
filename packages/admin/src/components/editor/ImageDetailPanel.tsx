@@ -30,7 +30,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
+import { canonicalMediaProviderId, dropsDisplayHeight, metaString } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { FieldHelpLabel } from "../FieldHelpLabel.js";
@@ -219,6 +219,7 @@ export function ImageDetailPanel({
 			// Clear caption/title since it's a new image
 			caption: undefined,
 			title: undefined,
+			...(dropsDisplayHeight(asset, item) ? { displayHeight: undefined } : {}),
 		});
 		setShowMediaPicker(false);
 		onClose();
@@ -540,6 +541,7 @@ export function ImageDetailPanel({
 
 					<div className="space-y-2">
 						<Input
+							dir="ltr"
 							label={t`Link URL`}
 							type="text"
 							value={linkHref}
@@ -561,6 +563,7 @@ export function ImageDetailPanel({
 							<Label htmlFor={sourceInputId}>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
 								<Input
+									dir="ltr"
 									id={sourceInputId}
 									aria-label={t`Source`}
 									value={asset.src}
@@ -765,6 +768,7 @@ export function ImageDetailPanel({
 
 					<div className="space-y-2">
 						<Input
+							dir="ltr"
 							label={t`Link URL`}
 							type="text"
 							value={linkHref}
@@ -785,7 +789,12 @@ export function ImageDetailPanel({
 						<div>
 							<Label>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
-								<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-base" />
+								<Input
+									dir="ltr"
+									value={asset.src}
+									readOnly
+									className="min-w-0 flex-1 font-mono text-base"
+								/>
 								<LinkButton
 									variant="outline"
 									shape="square"

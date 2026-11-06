@@ -458,6 +458,14 @@ export const InlineCodeBlockExtension = CodeBlockLowlight.extend({
 
 		return {
 			...shortcuts,
+			"Mod-a": () => {
+				if (!selectionIsInCodeBlock()) return false;
+				const { $from } = this.editor.state.selection;
+				return this.editor.commands.setTextSelection({
+					from: $from.start(),
+					to: $from.end(),
+				});
+			},
 			Tab: (props) => (selectionIsInCodeBlock() ? (shortcuts.Tab?.(props) ?? false) : false),
 			"Shift-Tab": (props) =>
 				selectionIsInCodeBlock() ? (shortcuts["Shift-Tab"]?.(props) ?? false) : false,

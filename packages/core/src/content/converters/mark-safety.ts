@@ -1,4 +1,4 @@
-import type { PortableTextBlock, ProseMirrorDocument, ProseMirrorNode } from "./types.js";
+import type { ProseMirrorDocument, ProseMirrorNode } from "./types.js";
 
 const SUPPORTED_PORTABLE_TEXT_DECORATORS = new Set([
 	"strong",
@@ -93,7 +93,7 @@ export class UnsupportedPortableTextMarksError extends Error {
 	}
 }
 
-export function findUnsupportedPortableTextMarks(blocks: PortableTextBlock[]): string[] {
+export function findUnsupportedPortableTextMarks(blocks: readonly { _type: string }[]): string[] {
 	const unsupported = new Set<string>();
 	for (const block of blocks) {
 		if (block._type === "block" || block._type === "table") {
@@ -103,7 +103,7 @@ export function findUnsupportedPortableTextMarks(blocks: PortableTextBlock[]): s
 	return [...unsupported].toSorted();
 }
 
-export function assertPortableTextMarksSupported(blocks: PortableTextBlock[]): void {
+export function assertPortableTextMarksSupported(blocks: readonly { _type: string }[]): void {
 	const unsupported = findUnsupportedPortableTextMarks(blocks);
 	if (unsupported.length > 0) {
 		throw new UnsupportedPortableTextMarksError(unsupported);

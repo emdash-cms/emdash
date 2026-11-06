@@ -1,5 +1,24 @@
 # @emdash-cms/plugin-types
 
+## 0.6.0
+
+### Minor Changes
+
+- [#3732](https://github.com/emdash-cms/emdash/pull/3732) [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `describeCapability()` and `CAPABILITY_DESCRIPTIONS`, which give an English label and description for every plugin capability so tools that list a plugin's permissions can show the same wording.
+  
+  ```ts
+  import { describeCapability } from "@emdash-cms/plugin-types";
+  
+  describeCapability("content:read");
+  // { label: "Read content", description: "Read entries from your site’s content collections." }
+  ```
+  
+  Deprecated capability names return the description of their replacement. A string that is not a known capability returns `undefined`.
+
+### Patch Changes
+
+- [#3546](https://github.com/emdash-cms/emdash/pull/3546) [`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6) Thanks [@swissky](https://github.com/swissky)! - Adds `group` to plugin admin pages, in native plugin descriptors and in `admin.pages` of `emdash-plugin.jsonc`, to place them in collapsible admin sidebar folders. A page whose group matches the group of a collection shown in the sidebar appears inside that folder, after its collections and taxonomies. Pages that share any other group, from one plugin or several, fold into one folder in the Plugins section. Pages without a group stay where they are.
+
 ## 0.5.0
 
 ### Minor Changes

@@ -34,7 +34,7 @@ export function RelationImpact({
 	if (relations.length === 0) return null;
 
 	return (
-		<ul className="mt-3 space-y-3 text-sm">
+		<ul className="space-y-3 text-sm">
 			{relations.map((relation) => {
 				const fields = relation.boundFields.filter(
 					(bound) =>
@@ -45,7 +45,9 @@ export function RelationImpact({
 				return (
 					<li key={relation.id}>
 						{nameRelations && (
-							<code className="bg-kumo-tint px-1.5 py-0.5 rounded me-2">{relation.slug}</code>
+							<code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded me-2">
+								{relation.slug}
+							</code>
 						)}
 						<span className="text-kumo-subtle">
 							{plural(relation.linkCount, { one: "# link", other: "# links" })}

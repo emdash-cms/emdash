@@ -15,7 +15,7 @@
 
 import type { APIContext, AstroCookies } from "astro";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as postAdminVerify } from "../../../src/astro/routes/api/setup/admin-verify.js";
 import { POST as postAdmin } from "../../../src/astro/routes/api/setup/admin.js";
@@ -67,12 +67,18 @@ function buildRequest(path: string, body: unknown): Request {
 	});
 }
 
-function buildContext(db: Kysely<Database>, request: Request, cookies: AstroCookies): APIContext {
+function buildContext(
+	db: Kysely<Database>,
+	request: Request,
+	cookies: AstroCookies,
+	session: { set: ReturnType<typeof vi.fn> } = { set: vi.fn() },
+): APIContext {
 	return {
 		params: {},
 		url: new URL(request.url),
 		request,
 		cookies,
+		session: session as APIContext["session"],
 		locals: {
 			emdash: {
 				db,

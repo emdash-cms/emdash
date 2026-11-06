@@ -1,9 +1,11 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import { ApiResponseError } from "../../../src/lib/api";
 import type {
 	AdminManifest,
 	EmailSettings,
@@ -23,6 +25,7 @@ const mockFetchManifest = vi.fn<() => Promise<Partial<AdminManifest>>>();
 const mockCreateSignInHandover = vi.fn<() => Promise<{ url: string }>>();
 const mockFetchEmailSettings = vi.fn<() => Promise<Partial<EmailSettings>>>();
 const mockNotifyUsersOfDomain = vi.fn<() => Promise<{ sent: number; failed: number }>>();
+const mockUseCurrentUser = vi.hoisted(() => vi.fn());
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -50,6 +53,8 @@ vi.mock("../../../src/lib/api", async () => {
 		notifyUsersOfDomain: () => mockNotifyUsersOfDomain(),
 	};
 });
+
+vi.mock("../../../src/lib/api/current-user.js", () => ({ useCurrentUser: mockUseCurrentUser }));
 
 vi.mock("../../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: ({
@@ -109,6 +114,14 @@ async function renderGeneralSettings() {
 	return render(<GeneralSettings />, { wrapper: Wrapper });
 }
 
+const manifest = {
+	version: "test",
+	hash: "test",
+	collections: {},
+	plugins: {},
+	authMode: "passkey",
+} as AdminManifest;
+
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockFetchSettings.mockResolvedValue(defaultSettings);
@@ -116,11 +129,17 @@ beforeEach(() => {
 		configuredUrl: null,
 		siteOrigin: window.location.origin,
 	});
-	mockFetchManifest.mockResolvedValue({ authMode: "passkey" });
+	mockFetchManifest.mockResolvedValue(manifest);
+	mockUseCurrentUser.mockReturnValue({
+		data: { id: "admin", email: "admin@example.com", role: 50 },
+	});
 	mockCreateSignInHandover.mockReturnValue(new Promise(() => undefined));
 	mockFetchEmailSettings.mockResolvedValue({ available: true });
 	mockUpdateSettings.mockImplementation(async (settings) => {
 		mockFetchSettings.mockResolvedValue(settings);
+		if (settings.staging !== undefined) {
+			mockFetchManifest.mockResolvedValue({ ...manifest, staging: settings.staging });
+		}
 		return settings;
 	});
 });
@@ -382,6 +401,110 @@ describe("GeneralSettings", () => {
 		expect(mockUpdateSettings.mock.lastCall?.[0]).not.toHaveProperty("url");
 	});
 
+	it("shows the hint for an invalid domain in the admin language", async () => {
+		const hint = msg`Enter a domain such as example.com, without a path or port`;
+		const previousLocale = i18n.locale;
+		i18n.load("de", { [hint.id]: "Gib eine Domain wie example.com ohne Pfad oder Port ein." });
+		i18n.activate("de");
+		mockChangeSiteDomain.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"VALIDATION_ERROR",
+				"Enter a domain such as example.com, without a path or port",
+			),
+		);
+
+		try {
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("example.com/path");
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(screen.getByLabelText("New domain"))
+				.toHaveAccessibleDescription("Gib eine Domain wie example.com ohne Pfad oder Port ein.");
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	const host = "new.example";
+	const origin = "https://new.example";
+	const target = "https://www.new.example";
+	it.each([
+		{
+			case: "a host without a public address",
+			details: { reason: "NO_PUBLIC_ADDRESS", host },
+			message: msg`${host} does not resolve to a public address`,
+			translation: "{host} hat keine öffentliche Adresse.",
+			shown: "new.example hat keine öffentliche Adresse.",
+		},
+		{
+			case: "an unreachable domain",
+			details: { reason: "UNREACHABLE", origin },
+			message: msg`Could not reach ${origin}`,
+			translation: "{origin} ist nicht erreichbar.",
+			shown: "https://new.example ist nicht erreichbar.",
+		},
+		{
+			case: "a redirect to another address",
+			details: { reason: "REDIRECT", origin, target },
+			message: msg`${origin} redirects to ${target}. Enter that address instead.`,
+			translation: "{origin} leitet auf {target} um. Gib stattdessen diese Adresse ein.",
+			shown:
+				"https://new.example leitet auf https://www.new.example um. Gib stattdessen diese Adresse ein.",
+		},
+		{
+			case: "a redirect without a location",
+			details: { reason: "REDIRECT", origin },
+			message: msg`${origin} redirects elsewhere`,
+			translation: "{origin} leitet auf eine andere Adresse um.",
+			shown: "https://new.example leitet auf eine andere Adresse um.",
+		},
+		{
+			case: "a domain the check could not verify",
+			details: { reason: "NOT_SERVING", origin },
+			message: msg`Could not verify that ${origin} serves this site`,
+			translation: "Es konnte nicht bestätigt werden, dass {origin} diese Website ausliefert.",
+			shown: "Es konnte nicht bestätigt werden, dass https://new.example diese Website ausliefert.",
+		},
+	])(
+		"shows the failed domain check for $case in the admin language",
+		async ({ details, message, translation, shown }) => {
+			const previousLocale = i18n.locale;
+			i18n.load("de", { [message.id]: translation });
+			i18n.activate("de");
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "English server message", details),
+			);
+
+			try {
+				const screen = await renderGeneralSettings();
+				await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+				await screen.getByLabelText("New domain").fill("new.example");
+				await userEvent.keyboard("{Enter}");
+				await expect
+					.element(screen.getByLabelText("New domain"))
+					.toHaveAccessibleDescription(shown);
+			} finally {
+				i18n.activate(previousLocale);
+			}
+		},
+	);
+
+	it("shows the server's message when a failed domain check has no known reason", async () => {
+		mockChangeSiteDomain.mockRejectedValue(
+			new ApiResponseError(400, "DOMAIN_CHECK_FAILED", "Could not reach https://example.com"),
+		);
+		const screen = await renderGeneralSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+		await screen.getByLabelText("New domain").fill("example.com");
+		await userEvent.keyboard("{Enter}");
+		await expect
+			.element(screen.getByLabelText("New domain"))
+			.toHaveAccessibleDescription("Could not reach https://example.com");
+	});
+
 	it("offers to use an address without the check when the check fails", async () => {
 		mockChangeSiteDomain.mockRejectedValue(new Error("Enter a domain such as example.com"));
 		const screen = await renderGeneralSettings();
@@ -399,6 +522,58 @@ describe("GeneralSettings", () => {
 			.element(screen.getByText("Site URL set to http://localhost:4321"))
 			.toBeInTheDocument();
 	});
+
+	it.each(["NOT_SERVING", "UNREACHABLE"])(
+		"explains the Workers limitation and allows a browser-confirmed domain after %s",
+		async (reason) => {
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "Check failed", {
+					reason,
+					origin: "https://new.example",
+				}),
+			);
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("new.example");
+			await userEvent.keyboard("{Enter}");
+
+			await expect
+				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
+				.toHaveAccessibleDescription(/confirm it stays on that address and shows this site/);
+			screen.getByRole("button", { name: "Use https://new.example anyway" }).element().focus();
+			await userEvent.keyboard("{Enter}");
+			await vi.waitFor(() =>
+				expect(mockUpdateSettings).toHaveBeenCalledWith({ url: "https://new.example" }),
+			);
+			await expect
+				.element(screen.getByText("Site URL set to https://new.example"))
+				.toBeInTheDocument();
+		},
+	);
+
+	it.each(["REDIRECT", "NO_PUBLIC_ADDRESS"])(
+		"does not suggest the Workers workaround for %s",
+		async (reason) => {
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "Check failed", {
+					reason,
+					origin: "https://new.example",
+					host: "new.example",
+					target: "https://www.new.example",
+				}),
+			);
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("new.example");
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText(/On Cloudflare Workers, the check can fail/))
+				.not.toBeInTheDocument();
+		},
+	);
 
 	it("names the configured address that emails use while keeping the Site URL changeable", async () => {
 		mockFetchSiteDomain.mockResolvedValue({
@@ -499,5 +674,39 @@ describe("GeneralSettings", () => {
 		await mockFetchManifest.mock.results[0]?.value;
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		expect(screen.getByRole("button", { name: "Email users" }).query()).toBeNull();
+	});
+
+	it("shows a site without the staging setting as live", async () => {
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Switch back to staging" }))
+			.toBeInTheDocument();
+	});
+
+	it("goes live without saving or discarding unsaved form edits", async () => {
+		mockFetchManifest.mockResolvedValue({ ...manifest, staging: true });
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText("Hidden from search engines")).toBeInTheDocument();
+		await screen.getByLabelText("Tagline").fill("Not saved yet");
+
+		await screen.getByRole("button", { name: "Go live" }).click();
+
+		await expect.element(screen.getByText("Your site is live")).toBeInTheDocument();
+		await expect.element(screen.getByText("Visible to search engines")).toBeInTheDocument();
+		expect(mockUpdateSettings).toHaveBeenCalledExactlyOnceWith({ staging: false });
+		await expect.element(screen.getByLabelText("Tagline")).toHaveValue("Not saved yet");
+	});
+
+	it("shows the site status to editors without the go-live button", async () => {
+		mockUseCurrentUser.mockReturnValue({
+			data: { id: "editor", email: "e@example.com", role: 40 },
+		});
+		mockFetchManifest.mockResolvedValue({ ...manifest, staging: true });
+		const screen = await renderGeneralSettings();
+
+		await expect.element(screen.getByText("Hidden from search engines")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Go live" }).query()).toBeNull();
 	});
 });

@@ -1,0 +1,230 @@
+---
+import type { ContentBylineCredit } from "emdash";
+
+interface Props {
+	bylines: ContentBylineCredit[];
+	/** inline: stacked avatars + names on one line. list: one row per author with role. */
+	layout?: "inline" | "list";
+	/** How many names the inline layout spells out before collapsing the rest into "+N" */
+	max?: number;
+	size?: "xs" | "sm" | "md" | "lg";
+	class?: string;
+}
+
+const {
+	bylines,
+	layout = "inline",
+	max = 1,
+	size = layout === "list" ? "lg" : "xs",
+	class: className,
+} = Astro.props;
+
+const WHITESPACE = /\s+/;
+
+const people = bylines.map(({ byline, roleLabel }) => ({
+	name: byline.displayName,
+	role: roleLabel,
+	src: byline.avatarStorageKey
+		? (Astro.locals.emdash?.getPublicMediaUrl?.(byline.avatarStorageKey) ??
+			`/_emdash/api/media/file/${byline.avatarStorageKey.split("/").map(encodeURIComponent).join("/")}`)
+		: null,
+	initials: byline.displayName
+		.split(WHITESPACE)
+		.filter(Boolean)
+		.slice(0, layout === "list" ? 2 : 1)
+		.map((word) => [...word][0]?.toUpperCase() ?? "")
+		.join(""),
+}));
+const shown = people.slice(0, max).map((person) => person.name);
+const hidden = people.slice(max).map((person) => person.name);
+---
+
+{
+	people.length > 0 && layout === "list" && (
+		<ul class:list={["byline-list", `byline--${size}`, className]}>
+			{people.map((person) => (
+				<li class="byline-list__item">
+					{person.src ? (
+						<img
+							src={person.src}
+							alt=""
+							class="byline__avatar"
+							loading="lazy"
+							decoding="async"
+						/>
+					) : (
+						<span
+							class="byline__avatar byline__avatar--initials"
+							aria-hidden="true"
+						>
+							{person.initials}
+						</span>
+					)}
+					<span class="byline-list__text">
+						<span class="byline-list__name">{person.name}</span>
+						{person.role && (
+							<span class="byline-list__role">{person.role}</span>
+						)}
+					</span>
+				</li>
+			))}
+		</ul>
+	)
+}
+{
+	people.length > 0 && layout === "inline" && (
+		<span class:list={["byline", `byline--${size}`, className]}>
+			<span class="byline__avatars" aria-hidden="true">
+				{people
+					.slice(0, 3)
+					.map((person) =>
+						person.src ? (
+							<img
+								src={person.src}
+								alt=""
+								class="byline__avatar"
+								loading="lazy"
+								decoding="async"
+							/>
+						) : (
+							<span class="byline__avatar byline__avatar--initials">
+								{person.initials}
+							</span>
+						),
+					)}
+			</span>
+			<span class="byline__names">
+				{shown.map((name, index) => (
+					<>
+						{index > 0 &&
+							(index === shown.length - 1 && hidden.length === 0
+								? " and "
+								: ", ")}
+						{name}
+					</>
+				))}
+				{hidden.length > 0 && (
+					<>
+						<span
+							class="byline__more"
+							aria-hidden="true"
+							title={hidden.join(", ")}
+						>
+							+{hidden.length}
+						</span>
+						<span class="sr-only">and {hidden.join(", ")}</span>
+					</>
+				)}
+			</span>
+		</span>
+	)
+}
+
+<style>
+	.byline,
+	.byline-list {
+		--avatar-size: var(--avatar-size-xs);
+	}
+
+	.byline--sm {
+		--avatar-size: var(--avatar-size-sm);
+	}
+
+	.byline--md {
+		--avatar-size: var(--avatar-size-md);
+		gap: var(--spacing-3);
+		color: var(--color-text);
+	}
+
+	.byline--lg {
+		--avatar-size: var(--avatar-size-lg);
+	}
+
+	.byline {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		min-width: 0;
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		color: var(--color-text-secondary);
+	}
+
+	.byline__avatars {
+		display: inline-flex;
+		flex-shrink: 0;
+	}
+
+	.byline__avatar {
+		flex-shrink: 0;
+		width: var(--avatar-size);
+		height: var(--avatar-size);
+		border-radius: var(--radius-full);
+		object-fit: cover;
+		background: var(--color-fill);
+		box-shadow: 0 0 0 2px var(--avatar-ring, var(--color-surface));
+		outline: 1px solid var(--color-media-outline);
+		outline-offset: -1px;
+	}
+
+	.byline__avatar + .byline__avatar {
+		margin-inline-start: calc(var(--avatar-size) * -0.3);
+	}
+
+	.byline__avatar--initials {
+		display: grid;
+		place-items: center;
+		font-size: calc(var(--avatar-size) * 0.38);
+		font-weight: 600;
+		letter-spacing: 0;
+		line-height: 1;
+		color: var(--color-text-secondary);
+	}
+
+	.byline__names {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.byline__more {
+		margin-inline-start: var(--spacing-1);
+		color: var(--color-muted);
+	}
+
+	.byline-list {
+		display: grid;
+		gap: var(--spacing-3);
+		list-style: none;
+		padding: 0;
+	}
+
+	.byline-list__item {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+		min-width: 0;
+	}
+
+	.byline-list .byline__avatar {
+		box-shadow: none;
+	}
+
+	.byline-list__text {
+		display: grid;
+		min-width: 0;
+	}
+
+	.byline-list__name {
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		line-height: var(--leading-snug);
+		color: var(--color-text);
+	}
+
+	.byline-list__role {
+		font-size: var(--font-size-xs);
+		line-height: var(--leading-snug);
+		color: var(--color-muted);
+	}
+</style>

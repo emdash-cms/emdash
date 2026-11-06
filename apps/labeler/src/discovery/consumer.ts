@@ -40,6 +40,7 @@ export async function consumeDiscoveryItems(
 	const dispatchedRunKeys: string[] = [];
 	const quarantinedCursors: string[] = [];
 	const now = dependencies.now ?? (() => new Date());
+	let unadvancedCursor: string | null = null;
 
 	const flushWorkflows = async (): Promise<void> => {
 		if (pending.length > 0) {
@@ -54,6 +55,7 @@ export async function consumeDiscoveryItems(
 			throw new Error("discovery cursor changed concurrently");
 		}
 		cursor = nextCursor;
+		unadvancedCursor = null;
 	};
 
 	for (const item of items) {
@@ -98,16 +100,20 @@ export async function consumeDiscoveryItems(
 			versions: dependencies.versions,
 			logicalTriggerId: `event:${item.cursor}`,
 		});
-		await dependencies.lifecycle.observeRun({ params, observedAt: now().toISOString() });
-		pending.push(params);
+		const run = await dependencies.lifecycle.observeRun({
+			params,
+			observedAt: now().toISOString(),
+		});
+		if (run) pending.push(params);
+		unadvancedCursor = item.cursor;
 		if (pending.length === MAX_WORKFLOW_BATCH) {
 			await flushWorkflows();
 			await advance(item.cursor);
 		}
 	}
-	if (pending.length > 0) {
+	if (unadvancedCursor !== null) {
 		await flushWorkflows();
-		await advance(items.at(-1)!.cursor);
+		await advance(unadvancedCursor);
 	}
 	return { cursor, dispatchedRunKeys, quarantinedCursors };
 }
@@ -144,17 +150,18 @@ export async function createReconciliationRun(
 	subject: { uri: string; cid: string; kind: "profile" | "release" },
 	logicalTriggerId: string,
 	dependencies: DiscoveryConsumerDependencies,
-): Promise<string> {
+): Promise<string | null> {
 	const params = await createAssessmentWorkflowParams({
 		subject,
 		versions: dependencies.versions,
 		logicalTriggerId,
 	});
-	await dependencies.lifecycle.observeRun({
+	const run = await dependencies.lifecycle.observeRun({
 		params,
 		observedAt: (dependencies.now ?? (() => new Date()))().toISOString(),
 		makeCurrent: false,
 	});
+	if (!run) return null;
 	await dispatchAssessmentRuns(dependencies.workflow, [params]);
 	return params.runKey;
 }

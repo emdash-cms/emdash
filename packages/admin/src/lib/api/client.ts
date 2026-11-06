@@ -108,12 +108,7 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 		if (typeof error.code === "string") code = error.code;
 		if (isRecord(error.details)) details = error.details;
 	}
-	throw new ApiResponseError(
-		res.status,
-		code,
-		message || `${fallback}: ${res.statusText}`,
-		details,
-	);
+	throw new ApiResponseError(res.status, code, message || fallback, details);
 }
 
 /**
@@ -177,6 +172,10 @@ export interface AdminManifest {
 					unsupportedType?: { type: string; path: string };
 					blockTypes?: import("./schema.js").BlockType[];
 					blockTypeFingerprint?: string;
+					/** Value a new entry starts with. */
+					defaultValue?: unknown;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}
@@ -201,6 +200,7 @@ export interface AdminManifest {
 				path: string;
 				label?: string;
 				icon?: string;
+				group?: string;
 			}>;
 			dashboardWidgets?: Array<{
 				id: string;
@@ -251,10 +251,17 @@ export interface AdminManifest {
 	 */
 	authMode: string;
 	/**
+	 * Whether the external auth provider replaces user names on every
+	 * authenticated request, so names cannot be edited in the admin.
+	 */
+	providerManagedName?: boolean;
+	/**
 	 * Whether self-signup is enabled (at least one allowed domain is active).
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
@@ -322,6 +329,8 @@ export interface AdminManifest {
 		logo?: string;
 		siteName?: string;
 		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

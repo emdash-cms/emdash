@@ -72,10 +72,11 @@ test.describe("Editor image toolbar", () => {
 		const editor = page.locator(EDITOR);
 		await editor.getByRole("img", { name: "editor-toolbar.png" }).click();
 
-		const toolbar = page.getByRole("group", { name: "Image controls" });
+		const toolbar = page.getByRole("toolbar", { name: "Image controls" });
 		await toolbar.getByRole("button", { name: "Alt text" }).click();
 		await toolbar.getByRole("textbox", { name: "Alt text" }).fill("A grey test card");
 		await page.keyboard.press("Enter");
+		await toolbar.getByRole("button", { name: "Add caption" }).click();
 		await editor.getByRole("textbox", { name: "Caption" }).fill("Seen from the harbour");
 
 		await expect

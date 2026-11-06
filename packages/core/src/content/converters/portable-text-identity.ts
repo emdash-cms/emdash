@@ -72,6 +72,7 @@ export const PortableTextIdentityExtension = Extension.create({
 					"htmlBlock",
 					"iframeBlock",
 					"image",
+					"videoBlock",
 					"horizontalRule",
 					"gallery",
 					PORTABLE_TEXT_BLOCK_NODE,

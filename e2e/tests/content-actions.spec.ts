@@ -25,8 +25,6 @@ const PERMANENT_DELETE_API_PATTERN = /\/api\/content\/posts\/[A-Z0-9]+\/permanen
 
 // Button/tab label patterns
 const TRASH_TAB_LABEL = /Trash/i;
-const RESTORE_LABEL = /Restore/i;
-const PERM_DELETE_LABEL = /Permanently delete/i;
 
 // ---------- helpers ----------
 
@@ -196,10 +194,10 @@ test.describe("Schedule content", () => {
 
 		await page.setViewportSize({ width: 320, height: 576 });
 		await page.getByRole("button", { name: "Enter distraction-free mode" }).click();
-		const distractionFreeHeader = page
-			.getByRole("heading", { name: "Edit Post" })
-			.locator("..")
-			.locator("..");
+		const distractionFreeHeader = page.locator("[data-emdash-editor-bar]");
+		await expect(
+			distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }),
+		).toBeVisible();
 		const headerBox = await distractionFreeHeader.boundingBox();
 		expect(headerBox).not.toBeNull();
 		for (const action of [
@@ -240,21 +238,31 @@ test.describe("Schedule content", () => {
 		await expect(publishButton).not.toHaveAttribute("aria-haspopup", "menu");
 		await page.getByRole("button", { name: "Settings" }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
+		// Below lg the panel is a sheet that slides in; measure it where it stops.
+		await settingsPanel.evaluate(async (element) => {
+			await Promise.all(element.getAnimations().map((animation) => animation.finished));
+		});
 		const publishingSummary = settingsPanel.getByRole("group", { name: "Publishing summary" });
 		const scheduleButton = settingsPanel.getByRole("button", { name: "Schedule" });
 		await expect(publishingSummary).toBeVisible();
 		await expect(scheduleButton).toBeVisible();
-		for (const element of [publishingSummary, scheduleButton]) {
-			const box = await element.boundingBox();
-			expect(box).not.toBeNull();
-			expect(box!.x).toBeGreaterThanOrEqual(0);
-			expect(box!.x + box!.width).toBeLessThanOrEqual(320);
-		}
+		await expect(async () => {
+			for (const element of [publishingSummary, scheduleButton]) {
+				const box = await element.boundingBox();
+				expect(box).not.toBeNull();
+				expect(box!.x).toBeGreaterThanOrEqual(0);
+				expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+			}
+		}).toPass({ timeout: 5_000 });
 		expect(
 			await settingsPanel.evaluate((element) => element.scrollWidth <= element.clientWidth),
 		).toBe(true);
 		await scheduleButton.click();
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		await expect(dialog).toBeVisible();
+		// On a phone the dialog slides up from the bottom edge.
+		await expect(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 		const dialogBox = await dialog.boundingBox();
 		expect(dialogBox).not.toBeNull();
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
@@ -406,7 +414,7 @@ test.describe("Schedule content", () => {
 		await page.getByRole("button", { name: "Schedule" }).click();
 		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
 		await expect(
-			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }),
 		).toBeVisible();
 		await selectTomorrow(dialog);
 		await fillTime(page, dialog, "09:00");
@@ -441,10 +449,10 @@ test.describe("Schedule content", () => {
 		await admin.waitForLoading();
 		await page.getByRole("button", { name: "Entrar no modo sem distrações" }).click();
 
-		const distractionFreeHeader = page
-			.getByRole("heading", { name: "Editar Post" })
-			.locator("..")
-			.locator("..");
+		const distractionFreeHeader = page.locator("[data-emdash-editor-bar]");
+		await expect(
+			distractionFreeHeader.getByRole("button", { name: "Sair do modo sem distrações" }),
+		).toBeVisible();
 		const headerBox = await distractionFreeHeader.boundingBox();
 		expect(headerBox).not.toBeNull();
 		const headerActions = distractionFreeHeader.locator("button, a");
@@ -535,7 +543,6 @@ test.describe("Duplicate content", () => {
 		await admin.goToContent("posts");
 		await admin.waitForLoading();
 
-		// Find the row for our post and click the duplicate button
 		const row = page.locator("tr", { hasText: "Duplicate Source Post" });
 		await expect(row).toBeVisible({ timeout: 5000 });
 
@@ -547,7 +554,8 @@ test.describe("Duplicate content", () => {
 			{ timeout: 10000 },
 		);
 
-		await row.getByRole("button", { name: "Duplicate Duplicate Source Post" }).click();
+		await row.getByRole("button", { name: "Actions for Duplicate Source Post" }).click();
+		await page.getByRole("menuitem", { name: "Duplicate" }).click();
 		const response = await duplicateResponse;
 		const body = await response.json();
 		duplicateId = body.data?.item?.id ?? body.data?.id;
@@ -595,10 +603,10 @@ test.describe("Trash and restore content", () => {
 		await admin.goToContent("posts");
 		await admin.waitForLoading();
 
-		// Find the row and click the trash button
 		const row = page.locator("tr", { hasText: "Trash Test Post" });
 		await expect(row).toBeVisible({ timeout: 5000 });
-		await row.getByRole("button", { name: "Move Trash Test Post to trash" }).click();
+		await row.getByRole("button", { name: "Actions for Trash Test Post" }).click();
+		await page.getByRole("menuitem", { name: "Move to trash" }).click();
 
 		// A confirmation dialog should appear
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Move to Trash?" });
@@ -645,7 +653,6 @@ test.describe("Trash and restore content", () => {
 		const trashedRow = page.locator("tr", { hasText: "Trash Test Post" });
 		await expect(trashedRow).toBeVisible({ timeout: 10000 });
 
-		// Click the restore button
 		const restoreResponse = page.waitForResponse(
 			(res) =>
 				RESTORE_API_PATTERN.test(res.url()) &&
@@ -653,7 +660,8 @@ test.describe("Trash and restore content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await trashedRow.getByRole("button", { name: RESTORE_LABEL }).click();
+		await trashedRow.getByRole("button", { name: "Actions for Trash Test Post" }).click();
+		await page.getByRole("menuitem", { name: "Restore" }).click();
 		await restoreResponse;
 
 		// Wait for the list to refresh
@@ -703,8 +711,8 @@ test.describe("Permanent delete", () => {
 		const trashedRow = page.locator("tr", { hasText: "Permanent Delete Post" });
 		await expect(trashedRow).toBeVisible({ timeout: 10000 });
 
-		// Click the permanent delete button (trash icon in trash view)
-		await trashedRow.getByRole("button", { name: PERM_DELETE_LABEL }).click();
+		await trashedRow.getByRole("button", { name: "Actions for Permanent Delete Post" }).click();
+		await page.getByRole("menuitem", { name: "Delete permanently" }).click();
 
 		// A confirmation dialog should appear
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Delete Permanently?" });

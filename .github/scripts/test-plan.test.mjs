@@ -13,6 +13,24 @@ describe("test plan", () => {
 		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
 	});
 
+	it("does not run test lanes for issue and Discussion form changes", () => {
+		const plan = createTestPlan([
+			".github/ISSUE_TEMPLATE/bug_report.yml",
+			".github/DISCUSSION_TEMPLATE/ideas.yml",
+		]);
+
+		assert.equal(plan.full, false);
+		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
+	});
+
+	it("identifies proposal-only design changes", () => {
+		const design = createTestPlan(["proposals/content-locking.md", "proposals/README.md"]);
+		assert.equal(design.design_only, true);
+
+		const mixed = createTestPlan(["proposals/content-locking.md", "packages/core/src/index.ts"]);
+		assert.equal(mixed.design_only, false);
+	});
+
 	it("selects focused admin UI coverage", () => {
 		const plan = createTestPlan(["packages/admin/src/components/Editor.tsx"]);
 
@@ -25,6 +43,34 @@ describe("test plan", () => {
 		assert.equal(plan.visual, true);
 		assert.equal(plan.e2e_cloudflare, false);
 		assert.equal(plan.d1, false);
+	});
+
+	it("runs no browser coverage for translation catalog changes", () => {
+		const plan = createTestPlan([
+			"packages/admin/src/locales/de/messages.po",
+			".changeset/german-admin-translations.md",
+		]);
+
+		for (const lane of TEST_LANES) assert.equal(plan[lane], false, lane);
+		assert.equal(plan.browser_admin, false);
+	});
+
+	it("runs visual coverage for the Arabic catalog, which the RTL snapshots render", () => {
+		const plan = createTestPlan(["packages/admin/src/locales/ar/messages.po"]);
+
+		assert.equal(plan.visual, true);
+		assert.equal(plan.browser, false);
+		assert.equal(plan.e2e_node, false);
+	});
+
+	it("keeps admin UI coverage when a catalog changes alongside admin code", () => {
+		const plan = createTestPlan([
+			"packages/admin/src/locales/de/messages.po",
+			"packages/admin/src/locales/locales.ts",
+		]);
+
+		assert.equal(plan.browser_admin, true);
+		assert.equal(plan.e2e_node, true);
 	});
 
 	it("selects runtime and database boundaries for core changes", () => {
@@ -76,6 +122,19 @@ describe("test plan", () => {
 		assert.equal(plan.e2e_node, true);
 		assert.equal(plan.e2e_cloudflare, true);
 		assert.equal(plan.visual, false);
+	});
+
+	it("runs cross-browser image coverage for marketplace fixture changes", () => {
+		const plan = createTestPlan(["packages/plugins/marketplace-test/src/plugin.ts"]);
+
+		assert.equal(plan.unit, true);
+		assert.equal(plan.integration, true);
+		assert.equal(plan.e2e_table, true);
+		assert.equal(plan.unit_mode, "full");
+		assert.equal(plan.full, false);
+
+		const otherFixture = createTestPlan(["packages/plugins/sandboxed-test/src/plugin.ts"]);
+		assert.equal(otherFixture.e2e_table, false);
 	});
 
 	it("identifies changed package roots for focused unit tests", () => {
@@ -172,6 +231,7 @@ describe("test plan", () => {
 		assert.ok(output.includes("e2e_playground=false\n"));
 		assert.ok(output.includes("browser_admin=true\n"));
 		assert.ok(output.includes("browser_release=false\n"));
+		assert.ok(output.includes("design_only=false\n"));
 		assert.ok(output.includes("unit_mode=none\n"));
 		assert.ok(output.includes("unit_packages=[]\n"));
 		assert.ok(output.includes("unknown_paths=[]\n"));

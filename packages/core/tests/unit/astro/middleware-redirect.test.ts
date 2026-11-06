@@ -32,9 +32,10 @@ type MiddlewareContext = Parameters<typeof onRequest>[0];
 interface BuildContextOpts {
 	pathname: string;
 	emdashDb?: unknown;
+	cache?: { set: ReturnType<typeof vi.fn> };
 }
 
-function buildContext({ pathname, emdashDb }: BuildContextOpts): {
+function buildContext({ pathname, emdashDb, cache = { set: vi.fn() } }: BuildContextOpts): {
 	context: MiddlewareContext;
 	redirect: ReturnType<typeof vi.fn>;
 	cache: { set: ReturnType<typeof vi.fn> };
@@ -45,7 +46,6 @@ function buildContext({ pathname, emdashDb }: BuildContextOpts): {
 	);
 	const url = new URL(`https://example.com${pathname}`);
 	const locals = emdashDb !== undefined ? { emdash: { db: emdashDb } } : {};
-	const cache = { set: vi.fn() };
 	const ctx = {
 		url,
 		request: new Request(url.toString()),
@@ -264,7 +264,7 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 
 		expect(log404).toHaveBeenCalledTimes(1);
 		expect(log404).toHaveBeenCalledWith(expect.objectContaining({ path: "/no-such-page" }));
-		// Await the fire-and-forget write before reading the table.
+		// Await the deferred write before reading the table.
 		await log404.mock.results[0]!.value;
 		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
 		expect(rows.map((r) => r.path)).toEqual(["/no-such-page"]);
@@ -514,6 +514,361 @@ describe("redirect middleware — only redirects to site-relative paths", () => 
 
 		const { context, redirect } = buildContext({ pathname: "/abc" });
 		const next = vi.fn(async () => new Response("ok"));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+	});
+});
+
+/**
+ * Astro's per-request route cache: a response is stored when a max age or a
+ * tag is set by the time the middleware chain returns it.
+ */
+describe("redirect middleware — does not rerun route when next() throws (issue #4158)", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("calls next() exactly once and rethrows when the route throws", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/old", destination: "/new", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/unmatched" });
+		const thrown = new Error("the real failure");
+		const next = vi.fn(async () => {
+			throw thrown;
+		});
+
+		await expect(onRequest(context, next)).rejects.toBe(thrown);
+		expect(next).toHaveBeenCalledTimes(1);
+	});
+
+	it("still swallows redirect-table errors and skips redirects", async () => {
+		getDbMock.mockResolvedValue(db);
+		const spy = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+		spy.mockRejectedValueOnce(new Error("redirects table missing"));
+
+		const { context } = buildContext({ pathname: "/page" });
+		const next = vi.fn(async () => new Response("ok"));
+		const response = await onRequest(context, next);
+
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+		spy.mockRestore();
+	});
+});
+
+function storingRouteCache(initial: { maxAge?: number } = {}) {
+	let options: { maxAge?: number; tags: string[] } = { ...initial, tags: [] };
+	return {
+		enabled: true,
+		get options() {
+			return options;
+		},
+		set: vi.fn((input: false | { maxAge?: number; tags?: string[] }) => {
+			options =
+				input === false
+					? { tags: [] }
+					: { ...options, ...input, tags: [...options.tags, ...(input.tags ?? [])] };
+		}),
+	};
+}
+
+describe("redirect middleware — responses the route cache stores", () => {
+	let db: Kysely<Database>;
+	let repo: RedirectRepository;
+	let selects: number;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		repo = new RedirectRepository(db);
+		await publishRedirectArtifacts(db);
+		selects = 0;
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(
+			db.withPlugin({
+				transformQuery(args) {
+					if (args.node.kind === "SelectQueryNode") selects++;
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			}),
+		);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	/** Loads the published rules into this isolate's cache. */
+	async function warm(): Promise<void> {
+		const { context } = buildContext({ pathname: "/warm" });
+		await runMiddleware(context, async () => new Response("warm"));
+		await waitForDeferredTasks();
+		selects = 0;
+	}
+
+	/** A page render that asks the route cache to store it, as `Astro.cache.set(cacheHint)` does. */
+	function storedPage(cache: ReturnType<typeof storingRouteCache>) {
+		return async () => {
+			cache.set({ tags: ["posts", "post-1"] });
+			return new Response("page");
+		};
+	}
+
+	it("redirects a stored render when another isolate has added a redirect for its path", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+	});
+
+	it("lets a render it replaces with a redirect run to completion", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		let rendered = false;
+		let cancelled = false;
+		const body = new ReadableStream<Uint8Array>({
+			pull(controller) {
+				controller.enqueue(new TextEncoder().encode("page"));
+				rendered = true;
+				controller.close();
+			},
+			cancel() {
+				cancelled = true;
+			},
+		});
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, async () => {
+			cache.set({ tags: ["posts"] });
+			return new Response(body);
+		});
+		await waitForDeferredTasks();
+
+		expect(response.status).toBe(301);
+		expect(cancelled).toBe(false);
+		expect(rendered).toBe(true);
+	});
+
+	it("redirects a stored render for a redirect written before its rules were published", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+	});
+
+	it("renders the page rather than store a redirect another isolate has deleted", async () => {
+		const rule = await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+		await warm();
+		await repo.delete(rule.id);
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache({ maxAge: 300 });
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("page");
+	});
+
+	it("checks current rules with one read before a render is stored", async () => {
+		await warm();
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, storedPage(cache));
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("page");
+		expect(selects).toBe(1);
+	});
+
+	it("does not read the database for a render the route cache will not store", async () => {
+		await warm();
+		await repo.create({ source: "/page", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/page", cache });
+		const response = await runMiddleware(context, async () => new Response("page"));
+
+		expect(response.status).toBe(200);
+		expect(selects).toBe(0);
+	});
+});
+
+describe("redirect middleware: non-ASCII source paths", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	it("fires for a redirect whose stored source is raw Unicode", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/domácí-zvířata",
+			destination: "/stitek/domaci-zvirata",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		// The browser sends the path percent-encoded, so `context.url.pathname`
+		// arrives encoded while the stored source is raw Unicode.
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí-zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/stitek/domaci-zvirata");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("still fires when the stored source is already percent-encoded", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/dom%C3%A1c%C3%AD-zv%C3%AD%C5%99ata",
+			destination: "/stitek/domaci-zvirata",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí-zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
+	});
+
+	it("fires when the stored source uses lowercase percent-escapes", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/dom%c3%a1c%c3%ad",
+			destination: "/stitek/domaci",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci", 301);
+	});
+
+	it("percent-encodes a non-ASCII destination for the Location header", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/stitek/zvířata", destination: "/štítek/zvířata", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/stitek/zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/%C5%A1t%C3%ADtek/zv%C3%AD%C5%99ata");
+	});
+
+	it("percent-encodes a non-ASCII pattern destination", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/clanky/[...slug]",
+			destination: "/články/[...slug]",
+			type: 301,
+			isPattern: true,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/clanky/hello" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.headers.get("Location")).toBe("/%C4%8Dl%C3%A1nky/hello");
+	});
+
+	it("matches a pattern whose literal segment contains non-ASCII characters", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/články/[...slug]",
+			destination: "/articles/[...slug]",
+			type: 301,
+			isPattern: true,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/články/hello" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/articles/hello", 301);
+	});
+	it("does not let a source with a query string redirect its bare path", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/?p=123", destination: "/hello-world", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/" });
+		const next = vi.fn(async () => new Response("home", { status: 200 }));
 		const response = await runMiddleware(context, next);
 
 		expect(redirect).not.toHaveBeenCalled();

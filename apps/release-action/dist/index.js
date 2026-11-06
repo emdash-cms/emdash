@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
-import { appendFile, readFile, readdir, realpath, stat } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { appendFile, open, readFile, readdir, realpath, stat } from "node:fs/promises";
+import { isAbsolute, join, relative, resolve, sep, win32 } from "node:path";
 import { Buffer as Buffer$1 } from "node:buffer";
 import { spawn } from "node:child_process";
 
@@ -280,7 +280,7 @@ const lazy = /* @__NO_SIDE_EFFECTS__ */ (getter) => {
 	} };
 };
 const isArray = Array.isArray;
-const isObject$1 = /* @__NO_SIDE_EFFECTS__ */ (input) => {
+const isObject$2 = /* @__NO_SIDE_EFFECTS__ */ (input) => {
 	return typeof input === "object" && input !== null && !isArray(input);
 };
 const allowsEval$1 = /* @__PURE__ */ lazy(() => {
@@ -596,7 +596,7 @@ const STRING_SINGLETON = {
 		return /* @__PURE__ */ lazyProperty(this, "~standard", toStandardSchema(this));
 	}
 };
-const string$2 = /* @__NO_SIDE_EFFECTS__ */ () => {
+const string$1 = /* @__NO_SIDE_EFFECTS__ */ () => {
 	return STRING_SINGLETON;
 };
 const _formattedString = /* @__NO_SIDE_EFFECTS__ */ (format, validate) => {
@@ -901,13 +901,13 @@ const object$1 = /* @__NO_SIDE_EFFECTS__ */ (shape) => {
 			if (allowsEval$1.value) {
 				const fastpass = generateFastpass();
 				const matcher = (input, flags) => {
-					if (!/* @__PURE__ */ isObject$1(input)) return ISSUE_TYPE_OBJECT;
+					if (!/* @__PURE__ */ isObject$2(input)) return ISSUE_TYPE_OBJECT;
 					return fastpass(input, flags);
 				};
 				return /* @__PURE__ */ lazyProperty(this, "~run", matcher);
 			}
 			const matcher = (input, flags) => {
-				if (!/* @__PURE__ */ isObject$1(input)) return ISSUE_TYPE_OBJECT;
+				if (!/* @__PURE__ */ isObject$2(input)) return ISSUE_TYPE_OBJECT;
 				let issues;
 				let output;
 				for (let idx = 0; idx < len; idx++) {
@@ -991,7 +991,7 @@ const variant = /* @__NO_SIDE_EFFECTS__ */ (members, closed = false) => {
 				}
 			};
 			const matcher = (input, flags) => {
-				if (!/* @__PURE__ */ isObject$1(input)) return ISSUE_TYPE_OBJECT;
+				if (!/* @__PURE__ */ isObject$2(input)) return ISSUE_TYPE_OBJECT;
 				const type = input.$type;
 				if (type === void 0 && !("$type" in input)) return ISSUE_VARIANT_MISSING;
 				if (typeof type !== "string") return closed ? issue : ISSUE_VARIANT_TYPE;
@@ -1039,14 +1039,14 @@ var release_exports = /* @__PURE__ */ __exportAll({
 const _artifactSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.release#artifact")),
 	blob: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ blob(), [/* @__PURE__ */ blobSize(262144), /* @__PURE__ */ blobAccept(["application/gzip"])])),
-	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)]),
-	contentType: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)])),
+	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)]),
+	contentType: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)])),
 	height: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ integer$1(), [/* @__PURE__ */ integerRange(1, 8192)])),
-	id: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 128)])),
+	id: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 128)])),
 	lang: /* @__PURE__ */ optional$1(/* @__PURE__ */ languageCodeString()),
 	releaseAsset: /* @__PURE__ */ optional$1(/* @__PURE__ */ boolean$2()),
 	requiresAuth: /* @__PURE__ */ optional$1(/* @__PURE__ */ boolean$2()),
-	signature: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 1024)])),
+	signature: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 1024)])),
 	url: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])),
 	width: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ integer$1(), [/* @__PURE__ */ integerRange(1, 8192)]))
 });
@@ -1072,18 +1072,18 @@ const _imageArtifactSchema = /* @__PURE__ */ object$1({
 		"image/jpeg",
 		"image/webp"
 	])])),
-	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)]),
-	contentType: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)])),
+	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)]),
+	contentType: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)])),
 	height: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ integer$1(), [/* @__PURE__ */ integerRange(1, 8192)])),
-	id: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 128)])),
+	id: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 128)])),
 	lang: /* @__PURE__ */ optional$1(/* @__PURE__ */ languageCodeString()),
 	releaseAsset: /* @__PURE__ */ optional$1(/* @__PURE__ */ boolean$2()),
 	requiresAuth: /* @__PURE__ */ optional$1(/* @__PURE__ */ boolean$2()),
-	signature: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 1024)])),
+	signature: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 1024)])),
 	url: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])),
 	width: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ integer$1(), [/* @__PURE__ */ integerRange(1, 8192)]))
 });
-const _mainSchema$1 = /* @__PURE__ */ record$1(/* @__PURE__ */ string$2(), /* @__PURE__ */ object$1({
+const _mainSchema$1 = /* @__PURE__ */ record$1(/* @__PURE__ */ string$1(), /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ literal$1("com.emdashcms.experimental.package.release"),
 	get artifacts() {
 		return artifactsSchema;
@@ -1092,7 +1092,7 @@ const _mainSchema$1 = /* @__PURE__ */ record$1(/* @__PURE__ */ string$2(), /* @_
 		return /* @__PURE__ */ optional$1(/* @__PURE__ */ variant([]));
 	},
 	extensions: /* @__PURE__ */ optional$1(/* @__PURE__ */ unknown$1()),
-	package: /* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(1, 64)]),
+	package: /* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(1, 64)]),
 	provides: /* @__PURE__ */ optional$1(/* @__PURE__ */ unknown$1()),
 	repo: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)])),
 	requires: /* @__PURE__ */ optional$1(/* @__PURE__ */ unknown$1()),
@@ -1100,12 +1100,12 @@ const _mainSchema$1 = /* @__PURE__ */ record$1(/* @__PURE__ */ string$2(), /* @_
 		return /* @__PURE__ */ optional$1(sbomSchema);
 	},
 	suggests: /* @__PURE__ */ optional$1(/* @__PURE__ */ unknown$1()),
-	version: /* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(1, 64)])
+	version: /* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(1, 64)])
 }));
 const _sbomSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.release#sbom")),
-	checksum: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)])),
-	format: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 32)])),
+	checksum: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)])),
+	format: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 32)])),
 	url: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)]))
 });
 const artifactSchema = _artifactSchema;
@@ -1305,7 +1305,7 @@ const _networkAccessSchema = /* @__PURE__ */ object$1({
 });
 const _networkRequestConstraintsSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#networkRequestConstraints")),
-	allowedHosts: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ array$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)])), [/* @__PURE__ */ arrayLength(1, 64)]))
+	allowedHosts: /* @__PURE__ */ optional$1(/* @__PURE__ */ constrain(/* @__PURE__ */ array$1(/* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)])), [/* @__PURE__ */ arrayLength(1, 64)]))
 });
 const _pageAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#pageAccess")),
@@ -1317,8 +1317,8 @@ const _pageFragmentsConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__
 const _provenanceSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#provenance")),
 	builderId: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)]),
-	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 256)]),
-	predicateType: /* @__PURE__ */ constrain(/* @__PURE__ */ string$2(), [/* @__PURE__ */ stringLength(0, 1024)]),
+	checksum: /* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 256)]),
+	predicateType: /* @__PURE__ */ constrain(/* @__PURE__ */ string$1(), [/* @__PURE__ */ stringLength(0, 1024)]),
 	sourceRepository: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)]),
 	url: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])
 });
@@ -1802,13 +1802,14 @@ function parseIntent(value, serviceUrl) {
 	const state = value["state"];
 	const stateGeneration = safeInteger(value, "stateGeneration");
 	const reasonCode = nullableString(value, "reasonCode");
+	const reasonMessage = value["reasonMessage"] === void 0 ? null : nullableString(value, "reasonMessage");
 	const workflowId = nullableString(value, "workflowId");
 	const expiresAt = safeInteger(value, "expiresAt");
 	const createdAt = safeInteger(value, "createdAt");
 	const updatedAt = safeInteger(value, "updatedAt");
 	const result = parseIntentResult(value["result"]);
 	const approvalUrl = nullableString(value, "approvalUrl");
-	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
+	if (!id || !ULID_PATTERN.test(id) || !publisherDid || !DID_PATTERN.test(publisherDid) || !packageSlug || !PACKAGE_SLUG_PATTERN.test(packageSlug) || !version || !VERSION_PATTERN.test(version) || !isIntentState(state) || stateGeneration === null || stateGeneration < 1 || reasonCode === void 0 || reasonMessage === void 0 || reasonMessage !== null && reasonMessage.length > 2048 || workflowId === void 0 || expiresAt === null || createdAt === null || updatedAt === null || result === void 0 || approvalUrl === void 0 || workflowId !== null && !ULID_PATTERN.test(workflowId) || createdAt > updatedAt || result !== null && (result.uri !== `at://${publisherDid}/com.emdashcms.experimental.package.release/${packageSlug}:${version}` || !CID_PATTERN.test(result.cid))) throw invalidResponse();
 	if (approvalUrl !== null && serviceUrl) {
 		let parsedApproval;
 		try {
@@ -1826,6 +1827,7 @@ function parseIntent(value, serviceUrl) {
 		state,
 		stateGeneration,
 		reasonCode,
+		...value["reasonMessage"] === void 0 ? {} : { reasonMessage },
 		workflowId,
 		expiresAt,
 		createdAt,
@@ -2509,7 +2511,2089 @@ function parsePage(value, parseItem) {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/util.js
+//#region ../../packages/registry-verification/dist/errors-D3_zxvwe.js
+function verificationError(code, message, details) {
+	return {
+		success: false,
+		error: {
+			code,
+			message,
+			...details === void 0 ? {} : { details }
+		}
+	};
+}
+
+//#endregion
+//#region ../../packages/registry-verification/dist/checksum.js
+const SHA2_256_CODE = 18;
+const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+async function computeMultihash(bytes, algorithm = "sha2-256") {
+	if (algorithm !== "sha2-256") return verificationError("UNSUPPORTED_MULTIHASH", "The multihash algorithm is not supported.");
+	try {
+		const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
+		const multihash = new Uint8Array(2 + digest.length);
+		multihash[0] = SHA2_256_CODE;
+		multihash[1] = digest.length;
+		multihash.set(digest, 2);
+		return {
+			success: true,
+			value: `b${encodeBase32(multihash)}`
+		};
+	} catch {
+		return verificationError("UNSUPPORTED_MULTIHASH", "The sha2-256 algorithm is unavailable.");
+	}
+}
+function encodeBase32(bytes) {
+	let result = "";
+	let buffer = 0;
+	let bits = 0;
+	for (const byte of bytes) {
+		buffer = buffer << 8 | byte;
+		bits += 8;
+		while (bits >= 5) {
+			result += BASE32_ALPHABET[buffer >>> bits - 5 & 31] ?? "";
+			bits -= 5;
+		}
+	}
+	if (bits > 0) result += BASE32_ALPHABET[buffer << 5 - bits & 31] ?? "";
+	return result;
+}
+
+//#endregion
+//#region ../../node_modules/.pnpm/image-size@2.0.2_patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595/node_modules/image-size/dist/index.mjs
+var decoder$3 = new TextDecoder();
+var toUTF8String = (input, start = 0, end = input.length) => decoder$3.decode(input.slice(start, end));
+var toHexString = (input, start = 0, end = input.length) => input.slice(start, end).reduce((memo, i) => memo + `0${i.toString(16)}`.slice(-2), "");
+var getView = (input, offset) => new DataView(input.buffer, input.byteOffset + offset);
+var readInt16LE = (input, offset = 0) => getView(input, offset).getInt16(0, true);
+var readUInt16BE = (input, offset = 0) => getView(input, offset).getUint16(0, false);
+var readUInt16LE = (input, offset = 0) => getView(input, offset).getUint16(0, true);
+var readUInt24LE = (input, offset = 0) => {
+	const view = getView(input, offset);
+	return view.getUint16(0, true) + (view.getUint8(2) << 16);
+};
+var readInt32LE = (input, offset = 0) => getView(input, offset).getInt32(0, true);
+var readUInt32BE = (input, offset = 0) => getView(input, offset).getUint32(0, false);
+var readUInt32LE = (input, offset = 0) => getView(input, offset).getUint32(0, true);
+var readUInt64 = (input, offset, isBigEndian) => getView(input, offset).getBigUint64(0, !isBigEndian);
+var methods = {
+	readUInt16BE,
+	readUInt16LE,
+	readUInt32BE,
+	readUInt32LE
+};
+function readUInt(input, bits, offset = 0, isBigEndian = false) {
+	return methods[`readUInt${bits}${isBigEndian ? "BE" : "LE"}`](input, offset);
+}
+function readBox(input, offset) {
+	if (input.length - offset < 4) return;
+	const boxSize = readUInt32BE(input, offset);
+	if (input.length - offset < boxSize) return;
+	return {
+		name: toUTF8String(input, 4 + offset, 8 + offset),
+		offset,
+		size: boxSize
+	};
+}
+function findBox(input, boxName, currentOffset) {
+	while (currentOffset < input.length) {
+		const box = readBox(input, currentOffset);
+		if (!box) break;
+		if (box.name === boxName) return box;
+		currentOffset += box.size > 0 ? box.size : 8;
+	}
+}
+var BMP = {
+	validate: (input) => toUTF8String(input, 0, 2) === "BM",
+	calculate: (input) => ({
+		height: Math.abs(readInt32LE(input, 22)),
+		width: readUInt32LE(input, 18)
+	})
+};
+var TYPE_ICON = 1;
+var SIZE_HEADER = 6;
+var SIZE_IMAGE_ENTRY = 16;
+function getSizeFromOffset(input, offset) {
+	const value = input[offset];
+	return value === 0 ? 256 : value;
+}
+function getImageSize(input, imageIndex) {
+	const offset = SIZE_HEADER + imageIndex * SIZE_IMAGE_ENTRY;
+	return {
+		height: getSizeFromOffset(input, offset + 1),
+		width: getSizeFromOffset(input, offset)
+	};
+}
+var ICO = {
+	validate(input) {
+		const reserved = readUInt16LE(input, 0);
+		const imageCount = readUInt16LE(input, 4);
+		if (reserved !== 0 || imageCount === 0) return false;
+		return readUInt16LE(input, 2) === TYPE_ICON;
+	},
+	calculate(input) {
+		const nbImages = readUInt16LE(input, 4);
+		const imageSize2 = getImageSize(input, 0);
+		if (nbImages === 1) return imageSize2;
+		const images = [];
+		for (let imageIndex = 0; imageIndex < nbImages; imageIndex += 1) images.push(getImageSize(input, imageIndex));
+		return {
+			width: imageSize2.width,
+			height: imageSize2.height,
+			images
+		};
+	}
+};
+var TYPE_CURSOR = 2;
+var CUR = {
+	validate(input) {
+		const reserved = readUInt16LE(input, 0);
+		const imageCount = readUInt16LE(input, 4);
+		if (reserved !== 0 || imageCount === 0) return false;
+		return readUInt16LE(input, 2) === TYPE_CURSOR;
+	},
+	calculate: (input) => ICO.calculate(input)
+};
+var DDS = {
+	validate: (input) => readUInt32LE(input, 0) === 542327876,
+	calculate: (input) => ({
+		height: readUInt32LE(input, 12),
+		width: readUInt32LE(input, 16)
+	})
+};
+var gifRegexp = /^GIF8[79]a/;
+var GIF = {
+	validate: (input) => gifRegexp.test(toUTF8String(input, 0, 6)),
+	calculate: (input) => ({
+		height: readUInt16LE(input, 8),
+		width: readUInt16LE(input, 6)
+	})
+};
+var brandMap = {
+	avif: "avif",
+	mif1: "heif",
+	msf1: "heif",
+	heic: "heic",
+	heix: "heic",
+	hevc: "heic",
+	hevx: "heic"
+};
+var HEIF = {
+	validate(input) {
+		if (toUTF8String(input, 4, 8) !== "ftyp") return false;
+		const ftypBox = findBox(input, "ftyp", 0);
+		if (!ftypBox) return false;
+		return toUTF8String(input, ftypBox.offset + 8, ftypBox.offset + 12) in brandMap;
+	},
+	calculate(input) {
+		const metaBox = findBox(input, "meta", 0);
+		const iprpBox = metaBox && findBox(input, "iprp", metaBox.offset + 12);
+		const ipcoBox = iprpBox && findBox(input, "ipco", iprpBox.offset + 8);
+		if (!ipcoBox) throw new TypeError("Invalid HEIF, no ipco box found");
+		const type = toUTF8String(input, 8, 12);
+		const images = [];
+		let currentOffset = ipcoBox.offset + 8;
+		while (currentOffset < ipcoBox.offset + ipcoBox.size) {
+			const ispeBox = findBox(input, "ispe", currentOffset);
+			if (!ispeBox) break;
+			const rawWidth = readUInt32BE(input, ispeBox.offset + 12);
+			const rawHeight = readUInt32BE(input, ispeBox.offset + 16);
+			const clapBox = findBox(input, "clap", currentOffset);
+			let width = rawWidth;
+			let height = rawHeight;
+			if (clapBox && clapBox.offset < ipcoBox.offset + ipcoBox.size) width = rawWidth - readUInt32BE(input, clapBox.offset + 12);
+			images.push({
+				height,
+				width
+			});
+			currentOffset = ispeBox.offset + (ispeBox.size > 0 ? ispeBox.size : 8);
+		}
+		if (images.length === 0) throw new TypeError("Invalid HEIF, no sizes found");
+		return {
+			width: images[0].width,
+			height: images[0].height,
+			type,
+			...images.length > 1 ? { images } : {}
+		};
+	}
+};
+var SIZE_HEADER2 = 8;
+var FILE_LENGTH_OFFSET = 4;
+var ENTRY_LENGTH_OFFSET = 4;
+var ICON_TYPE_SIZE = {
+	ICON: 32,
+	"ICN#": 32,
+	"icm#": 16,
+	icm4: 16,
+	icm8: 16,
+	"ics#": 16,
+	ics4: 16,
+	ics8: 16,
+	is32: 16,
+	s8mk: 16,
+	icp4: 16,
+	icl4: 32,
+	icl8: 32,
+	il32: 32,
+	l8mk: 32,
+	icp5: 32,
+	ic11: 32,
+	ich4: 48,
+	ich8: 48,
+	ih32: 48,
+	h8mk: 48,
+	icp6: 64,
+	ic12: 32,
+	it32: 128,
+	t8mk: 128,
+	ic07: 128,
+	ic08: 256,
+	ic13: 256,
+	ic09: 512,
+	ic14: 512,
+	ic10: 1024
+};
+function readImageHeader(input, imageOffset) {
+	const imageLengthOffset = imageOffset + ENTRY_LENGTH_OFFSET;
+	return [toUTF8String(input, imageOffset, imageLengthOffset), readUInt32BE(input, imageLengthOffset)];
+}
+function getImageSize2(type) {
+	const size = ICON_TYPE_SIZE[type];
+	return {
+		width: size,
+		height: size,
+		type
+	};
+}
+var ICNS = {
+	validate: (input) => toUTF8String(input, 0, 4) === "icns",
+	calculate(input) {
+		const inputLength = input.length;
+		const fileLength = readUInt32BE(input, FILE_LENGTH_OFFSET);
+		let imageOffset = SIZE_HEADER2;
+		const images = [];
+		while (imageOffset < fileLength && imageOffset < inputLength) {
+			const imageHeader = readImageHeader(input, imageOffset);
+			const imageSize2 = getImageSize2(imageHeader[0]);
+			images.push(imageSize2);
+			imageOffset += imageHeader[1] > 0 ? imageHeader[1] : 8;
+		}
+		if (images.length === 0) throw new TypeError("Invalid ICNS, no sizes found");
+		return {
+			width: images[0].width,
+			height: images[0].height,
+			...images.length > 1 ? { images } : {}
+		};
+	}
+};
+var J2C = {
+	validate: (input) => readUInt32BE(input, 0) === 4283432785,
+	calculate: (input) => ({
+		height: readUInt32BE(input, 12),
+		width: readUInt32BE(input, 8)
+	})
+};
+var JP2 = {
+	validate(input) {
+		if (toUTF8String(input, 4, 8) !== "jP  ") return false;
+		const ftypBox = findBox(input, "ftyp", 0);
+		if (!ftypBox) return false;
+		return toUTF8String(input, ftypBox.offset + 8, ftypBox.offset + 12) === "jp2 ";
+	},
+	calculate(input) {
+		const jp2hBox = findBox(input, "jp2h", 0);
+		const ihdrBox = jp2hBox && findBox(input, "ihdr", jp2hBox.offset + 8);
+		if (ihdrBox) return {
+			height: readUInt32BE(input, ihdrBox.offset + 8),
+			width: readUInt32BE(input, ihdrBox.offset + 12)
+		};
+		throw new TypeError("Unsupported JPEG 2000 format");
+	}
+};
+var EXIF_MARKER = "45786966";
+var APP1_DATA_SIZE_BYTES = 2;
+var EXIF_HEADER_BYTES = 6;
+var TIFF_BYTE_ALIGN_BYTES = 2;
+var BIG_ENDIAN_BYTE_ALIGN = "4d4d";
+var LITTLE_ENDIAN_BYTE_ALIGN = "4949";
+var IDF_ENTRY_BYTES = 12;
+var NUM_DIRECTORY_ENTRIES_BYTES = 2;
+function isEXIF(input) {
+	return toHexString(input, 2, 6) === EXIF_MARKER;
+}
+function extractSize(input, index) {
+	return {
+		height: readUInt16BE(input, index),
+		width: readUInt16BE(input, index + 2)
+	};
+}
+function extractOrientation(exifBlock, isBigEndian) {
+	const offset = EXIF_HEADER_BYTES + 8;
+	const idfDirectoryEntries = readUInt(exifBlock, 16, offset, isBigEndian);
+	for (let directoryEntryNumber = 0; directoryEntryNumber < idfDirectoryEntries; directoryEntryNumber++) {
+		const start = offset + NUM_DIRECTORY_ENTRIES_BYTES + directoryEntryNumber * IDF_ENTRY_BYTES;
+		const end = start + IDF_ENTRY_BYTES;
+		if (start > exifBlock.length) return;
+		const block = exifBlock.slice(start, end);
+		if (readUInt(block, 16, 0, isBigEndian) === 274) {
+			if (readUInt(block, 16, 2, isBigEndian) !== 3) return;
+			if (readUInt(block, 32, 4, isBigEndian) !== 1) return;
+			return readUInt(block, 16, 8, isBigEndian);
+		}
+	}
+}
+function validateExifBlock(input, index) {
+	const exifBlock = input.slice(APP1_DATA_SIZE_BYTES, index);
+	const byteAlign = toHexString(exifBlock, EXIF_HEADER_BYTES, EXIF_HEADER_BYTES + TIFF_BYTE_ALIGN_BYTES);
+	const isBigEndian = byteAlign === BIG_ENDIAN_BYTE_ALIGN;
+	if (isBigEndian || byteAlign === LITTLE_ENDIAN_BYTE_ALIGN) return extractOrientation(exifBlock, isBigEndian);
+}
+function validateInput(input, index) {
+	if (index > input.length) throw new TypeError("Corrupt JPG, exceeded buffer limits");
+}
+var JPG = {
+	validate: (input) => toHexString(input, 0, 2) === "ffd8",
+	calculate(_input) {
+		let input = _input.slice(4);
+		let orientation;
+		let next;
+		while (input.length) {
+			const i = readUInt16BE(input, 0);
+			validateInput(input, i);
+			if (input[i] !== 255) {
+				input = input.slice(1);
+				continue;
+			}
+			if (isEXIF(input)) orientation = validateExifBlock(input, i);
+			next = input[i + 1];
+			if (next === 192 || next === 193 || next === 194) {
+				const size = extractSize(input, i + 5);
+				if (!orientation) return size;
+				return {
+					height: size.height,
+					orientation,
+					width: size.width
+				};
+			}
+			input = input.slice(i + 2);
+		}
+		throw new TypeError("Invalid JPG, no size found");
+	}
+};
+var BitReader = class {
+	constructor(input, endianness) {
+		this.input = input;
+		this.endianness = endianness;
+		this.byteOffset = 2;
+		this.bitOffset = 0;
+	}
+	/** Reads a specified number of bits, and move the offset */
+	getBits(length = 1) {
+		let result = 0;
+		let bitsRead = 0;
+		while (bitsRead < length) {
+			if (this.byteOffset >= this.input.length) throw new Error("Reached end of input");
+			const currentByte = this.input[this.byteOffset];
+			const bitsLeft = 8 - this.bitOffset;
+			const bitsToRead = Math.min(length - bitsRead, bitsLeft);
+			if (this.endianness === "little-endian") {
+				const mask = (1 << bitsToRead) - 1;
+				const bits = currentByte >> this.bitOffset & mask;
+				result |= bits << bitsRead;
+			} else {
+				const bits = (currentByte & (1 << bitsToRead) - 1 << 8 - this.bitOffset - bitsToRead) >> 8 - this.bitOffset - bitsToRead;
+				result = result << bitsToRead | bits;
+			}
+			bitsRead += bitsToRead;
+			this.bitOffset += bitsToRead;
+			if (this.bitOffset === 8) {
+				this.byteOffset++;
+				this.bitOffset = 0;
+			}
+		}
+		return result;
+	}
+};
+function calculateImageDimension(reader, isSmallImage) {
+	if (isSmallImage) return 8 * (1 + reader.getBits(5));
+	const extraBits = [
+		9,
+		13,
+		18,
+		30
+	][reader.getBits(2)];
+	return 1 + reader.getBits(extraBits);
+}
+function calculateImageWidth(reader, isSmallImage, widthMode, height) {
+	if (isSmallImage && widthMode === 0) return 8 * (1 + reader.getBits(5));
+	if (widthMode === 0) return calculateImageDimension(reader, false);
+	return Math.floor(height * [
+		1,
+		1.2,
+		4 / 3,
+		1.5,
+		16 / 9,
+		5 / 4,
+		2
+	][widthMode - 1]);
+}
+var JXLStream = {
+	validate: (input) => {
+		return toHexString(input, 0, 2) === "ff0a";
+	},
+	calculate(input) {
+		const reader = new BitReader(input, "little-endian");
+		const isSmallImage = reader.getBits(1) === 1;
+		const height = calculateImageDimension(reader, isSmallImage);
+		return {
+			width: calculateImageWidth(reader, isSmallImage, reader.getBits(3), height),
+			height
+		};
+	}
+};
+function extractCodestream(input) {
+	const jxlcBox = findBox(input, "jxlc", 0);
+	if (jxlcBox) return input.slice(jxlcBox.offset + 8, jxlcBox.offset + jxlcBox.size);
+	const partialStreams = extractPartialStreams(input);
+	if (partialStreams.length > 0) return concatenateCodestreams(partialStreams);
+}
+function extractPartialStreams(input) {
+	const partialStreams = [];
+	let offset = 0;
+	while (offset < input.length) {
+		const jxlpBox = findBox(input, "jxlp", offset);
+		if (!jxlpBox) break;
+		partialStreams.push(input.slice(jxlpBox.offset + 12, jxlpBox.offset + jxlpBox.size));
+		offset = jxlpBox.offset + (jxlpBox.size > 0 ? jxlpBox.size : 8);
+	}
+	return partialStreams;
+}
+function concatenateCodestreams(partialCodestreams) {
+	const totalLength = partialCodestreams.reduce((acc, curr) => acc + curr.length, 0);
+	const codestream = new Uint8Array(totalLength);
+	let position = 0;
+	for (const partial of partialCodestreams) {
+		codestream.set(partial, position);
+		position += partial.length;
+	}
+	return codestream;
+}
+var JXL = {
+	validate: (input) => {
+		if (toUTF8String(input, 4, 8) !== "JXL ") return false;
+		const ftypBox = findBox(input, "ftyp", 0);
+		if (!ftypBox) return false;
+		return toUTF8String(input, ftypBox.offset + 8, ftypBox.offset + 12) === "jxl ";
+	},
+	calculate(input) {
+		const codestream = extractCodestream(input);
+		if (codestream) return JXLStream.calculate(codestream);
+		throw new Error("No codestream found in JXL container");
+	}
+};
+var KTX = {
+	validate: (input) => {
+		const signature = toUTF8String(input, 1, 7);
+		return ["KTX 11", "KTX 20"].includes(signature);
+	},
+	calculate: (input) => {
+		const type = input[5] === 49 ? "ktx" : "ktx2";
+		const offset = type === "ktx" ? 36 : 20;
+		return {
+			height: readUInt32LE(input, offset + 4),
+			width: readUInt32LE(input, offset),
+			type
+		};
+	}
+};
+var pngSignature = "PNG\r\n\n";
+var pngImageHeaderChunkName = "IHDR";
+var pngFriedChunkName = "CgBI";
+var PNG = {
+	validate(input) {
+		if (pngSignature === toUTF8String(input, 1, 8)) {
+			let chunkName = toUTF8String(input, 12, 16);
+			if (chunkName === pngFriedChunkName) chunkName = toUTF8String(input, 28, 32);
+			if (chunkName !== pngImageHeaderChunkName) throw new TypeError("Invalid PNG");
+			return true;
+		}
+		return false;
+	},
+	calculate(input) {
+		if (toUTF8String(input, 12, 16) === pngFriedChunkName) return {
+			height: readUInt32BE(input, 36),
+			width: readUInt32BE(input, 32)
+		};
+		return {
+			height: readUInt32BE(input, 20),
+			width: readUInt32BE(input, 16)
+		};
+	}
+};
+var PNMTypes = {
+	P1: "pbm/ascii",
+	P2: "pgm/ascii",
+	P3: "ppm/ascii",
+	P4: "pbm",
+	P5: "pgm",
+	P6: "ppm",
+	P7: "pam",
+	PF: "pfm"
+};
+var handlers = {
+	default: (lines) => {
+		let dimensions = [];
+		while (lines.length > 0) {
+			const line = lines.shift();
+			if (line[0] === "#") continue;
+			dimensions = line.split(" ");
+			break;
+		}
+		if (dimensions.length === 2) return {
+			height: Number.parseInt(dimensions[1], 10),
+			width: Number.parseInt(dimensions[0], 10)
+		};
+		throw new TypeError("Invalid PNM");
+	},
+	pam: (lines) => {
+		const size = {};
+		while (lines.length > 0) {
+			const line = lines.shift();
+			if (line.length > 16 || line.charCodeAt(0) > 128) continue;
+			const [key, value] = line.split(" ");
+			if (key && value) size[key.toLowerCase()] = Number.parseInt(value, 10);
+			if (size.height && size.width) break;
+		}
+		if (size.height && size.width) return {
+			height: size.height,
+			width: size.width
+		};
+		throw new TypeError("Invalid PAM");
+	}
+};
+var PNM = {
+	validate: (input) => toUTF8String(input, 0, 2) in PNMTypes,
+	calculate(input) {
+		const type = PNMTypes[toUTF8String(input, 0, 2)];
+		const lines = toUTF8String(input, 3).split(/[\r\n]+/);
+		return (handlers[type] || handlers.default)(lines);
+	}
+};
+var PSD = {
+	validate: (input) => toUTF8String(input, 0, 4) === "8BPS",
+	calculate: (input) => ({
+		height: readUInt32BE(input, 14),
+		width: readUInt32BE(input, 18)
+	})
+};
+var svgReg = /<svg\s([^>"']|"[^"]*"|'[^']*')*>/;
+var extractorRegExps = {
+	height: /\sheight=(['"])([^%]+?)\1/,
+	root: svgReg,
+	viewbox: /\sviewBox=(['"])(.+?)\1/i,
+	width: /\swidth=(['"])([^%]+?)\1/
+};
+var INCH_CM = 2.54;
+var units = {
+	in: 96,
+	cm: 96 / INCH_CM,
+	em: 16,
+	ex: 8,
+	m: 96 / INCH_CM * 100,
+	mm: 96 / INCH_CM / 10,
+	pc: 96 / 72 / 12,
+	pt: 96 / 72,
+	px: 1
+};
+var unitsReg = new RegExp(`^([0-9.]+(?:e\\d+)?)(${Object.keys(units).join("|")})?$`);
+function parseLength(len) {
+	const m = unitsReg.exec(len);
+	if (!m) return;
+	return Math.round(Number(m[1]) * (units[m[2]] || 1));
+}
+function parseViewbox(viewbox) {
+	const bounds = viewbox.split(" ");
+	return {
+		height: parseLength(bounds[3]),
+		width: parseLength(bounds[2])
+	};
+}
+function parseAttributes(root) {
+	const width = root.match(extractorRegExps.width);
+	const height = root.match(extractorRegExps.height);
+	const viewbox = root.match(extractorRegExps.viewbox);
+	return {
+		height: height && parseLength(height[2]),
+		viewbox: viewbox && parseViewbox(viewbox[2]),
+		width: width && parseLength(width[2])
+	};
+}
+function calculateByDimensions(attrs) {
+	return {
+		height: attrs.height,
+		width: attrs.width
+	};
+}
+function calculateByViewbox(attrs, viewbox) {
+	const ratio = viewbox.width / viewbox.height;
+	if (attrs.width) return {
+		height: Math.floor(attrs.width / ratio),
+		width: attrs.width
+	};
+	if (attrs.height) return {
+		height: attrs.height,
+		width: Math.floor(attrs.height * ratio)
+	};
+	return {
+		height: viewbox.height,
+		width: viewbox.width
+	};
+}
+var SVG = {
+	validate: (input) => svgReg.test(toUTF8String(input, 0, 1e3)),
+	calculate(input) {
+		const root = toUTF8String(input).match(extractorRegExps.root);
+		if (root) {
+			const attrs = parseAttributes(root[0]);
+			if (attrs.width && attrs.height) return calculateByDimensions(attrs);
+			if (attrs.viewbox) return calculateByViewbox(attrs, attrs.viewbox);
+		}
+		throw new TypeError("Invalid SVG");
+	}
+};
+var TGA = {
+	validate(input) {
+		return readUInt16LE(input, 0) === 0 && readUInt16LE(input, 4) === 0;
+	},
+	calculate(input) {
+		return {
+			height: readUInt16LE(input, 14),
+			width: readUInt16LE(input, 12)
+		};
+	}
+};
+var CONSTANTS = {
+	TAG: {
+		WIDTH: 256,
+		HEIGHT: 257,
+		COMPRESSION: 259
+	},
+	TYPE: {
+		SHORT: 3,
+		LONG: 4,
+		LONG8: 16
+	},
+	ENTRY_SIZE: {
+		STANDARD: 12,
+		BIG: 20
+	},
+	COUNT_SIZE: {
+		STANDARD: 2,
+		BIG: 8
+	}
+};
+function readIFD(input, { isBigEndian, isBigTiff }) {
+	const ifdOffset = isBigTiff ? Number(readUInt64(input, 8, isBigEndian)) : readUInt(input, 32, 4, isBigEndian);
+	const entryCountSize = isBigTiff ? CONSTANTS.COUNT_SIZE.BIG : CONSTANTS.COUNT_SIZE.STANDARD;
+	return input.slice(ifdOffset + entryCountSize);
+}
+function readTagValue(input, type, offset, isBigEndian) {
+	switch (type) {
+		case CONSTANTS.TYPE.SHORT: return readUInt(input, 16, offset, isBigEndian);
+		case CONSTANTS.TYPE.LONG: return readUInt(input, 32, offset, isBigEndian);
+		case CONSTANTS.TYPE.LONG8: {
+			const value = Number(readUInt64(input, offset, isBigEndian));
+			if (value > Number.MAX_SAFE_INTEGER) throw new TypeError("Value too large");
+			return value;
+		}
+		default: return 0;
+	}
+}
+function nextTag(input, isBigTiff) {
+	const entrySize = isBigTiff ? CONSTANTS.ENTRY_SIZE.BIG : CONSTANTS.ENTRY_SIZE.STANDARD;
+	if (input.length > entrySize) return input.slice(entrySize);
+}
+function extractTags(input, { isBigEndian, isBigTiff }) {
+	const tags = {};
+	let temp = input;
+	while (temp?.length) {
+		const code = readUInt(temp, 16, 0, isBigEndian);
+		const type = readUInt(temp, 16, 2, isBigEndian);
+		const length = isBigTiff ? Number(readUInt64(temp, 4, isBigEndian)) : readUInt(temp, 32, 4, isBigEndian);
+		if (code === 0) break;
+		if (length === 1 && (type === CONSTANTS.TYPE.SHORT || type === CONSTANTS.TYPE.LONG || isBigTiff && type === CONSTANTS.TYPE.LONG8)) tags[code] = readTagValue(temp, type, isBigTiff ? 12 : 8, isBigEndian);
+		temp = nextTag(temp, isBigTiff);
+	}
+	return tags;
+}
+function determineFormat(input) {
+	const signature = toUTF8String(input, 0, 2);
+	const version = readUInt(input, 16, 2, signature === "MM");
+	return {
+		isBigEndian: signature === "MM",
+		isBigTiff: version === 43
+	};
+}
+function validateBigTIFFHeader(input, isBigEndian) {
+	const byteSize = readUInt(input, 16, 4, isBigEndian);
+	const reserved = readUInt(input, 16, 6, isBigEndian);
+	if (byteSize !== 8 || reserved !== 0) throw new TypeError("Invalid BigTIFF header");
+}
+var signatures = /* @__PURE__ */ new Set([
+	"49492a00",
+	"4d4d002a",
+	"49492b00",
+	"4d4d002b"
+]);
+var TIFF = {
+	validate: (input) => {
+		const signature = toHexString(input, 0, 4);
+		return signatures.has(signature);
+	},
+	calculate(input) {
+		const format = determineFormat(input);
+		if (format.isBigTiff) validateBigTIFFHeader(input, format.isBigEndian);
+		const tags = extractTags(readIFD(input, format), format);
+		const info = {
+			height: tags[CONSTANTS.TAG.HEIGHT],
+			width: tags[CONSTANTS.TAG.WIDTH],
+			type: format.isBigTiff ? "bigtiff" : "tiff"
+		};
+		if (tags[CONSTANTS.TAG.COMPRESSION]) info.compression = tags[CONSTANTS.TAG.COMPRESSION];
+		if (!info.width || !info.height) throw new TypeError("Invalid Tiff. Missing tags");
+		return info;
+	}
+};
+function calculateExtended(input) {
+	return {
+		height: 1 + readUInt24LE(input, 7),
+		width: 1 + readUInt24LE(input, 4)
+	};
+}
+function calculateLossless(input) {
+	return {
+		height: 1 + ((input[4] & 15) << 10 | input[3] << 2 | (input[2] & 192) >> 6),
+		width: 1 + ((input[2] & 63) << 8 | input[1])
+	};
+}
+function calculateLossy(input) {
+	return {
+		height: readInt16LE(input, 8) & 16383,
+		width: readInt16LE(input, 6) & 16383
+	};
+}
+var typeHandlers = /* @__PURE__ */ new Map([
+	["bmp", BMP],
+	["cur", CUR],
+	["dds", DDS],
+	["gif", GIF],
+	["heif", HEIF],
+	["icns", ICNS],
+	["ico", ICO],
+	["j2c", J2C],
+	["jp2", JP2],
+	["jpg", JPG],
+	["jxl", JXL],
+	["jxl-stream", JXLStream],
+	["ktx", KTX],
+	["png", PNG],
+	["pnm", PNM],
+	["psd", PSD],
+	["svg", SVG],
+	["tga", TGA],
+	["tiff", TIFF],
+	["webp", {
+		validate(input) {
+			const riffHeader = "RIFF" === toUTF8String(input, 0, 4);
+			const webpHeader = "WEBP" === toUTF8String(input, 8, 12);
+			const vp8Header = "VP8" === toUTF8String(input, 12, 15);
+			return riffHeader && webpHeader && vp8Header;
+		},
+		calculate(_input) {
+			const chunkHeader = toUTF8String(_input, 12, 16);
+			const input = _input.slice(20, 30);
+			if (chunkHeader === "VP8X") {
+				const extendedHeader = input[0];
+				const validStart = (extendedHeader & 192) === 0;
+				const validEnd = (extendedHeader & 1) === 0;
+				if (validStart && validEnd) return calculateExtended(input);
+				throw new TypeError("Invalid WebP");
+			}
+			if (chunkHeader === "VP8 " && input[0] !== 47) return calculateLossy(input);
+			const signature = toHexString(input, 3, 6);
+			if (chunkHeader === "VP8L" && signature !== "9d012a") return calculateLossless(input);
+			throw new TypeError("Invalid WebP");
+		}
+	}]
+]);
+var types = Array.from(typeHandlers.keys());
+var firstBytes = /* @__PURE__ */ new Map([
+	[0, "heif"],
+	[56, "psd"],
+	[66, "bmp"],
+	[68, "dds"],
+	[71, "gif"],
+	[73, "tiff"],
+	[77, "tiff"],
+	[82, "webp"],
+	[105, "icns"],
+	[137, "png"],
+	[255, "jpg"]
+]);
+function detector(input) {
+	const byte = input[0];
+	const type = firstBytes.get(byte);
+	if (type && typeHandlers.get(type).validate(input)) return type;
+	return types.find((type2) => typeHandlers.get(type2).validate(input));
+}
+var globalOptions = { disabledTypes: [] };
+function imageSize(input) {
+	const type = detector(input);
+	if (typeof type !== "undefined") {
+		if (globalOptions.disabledTypes.indexOf(type) > -1) throw new TypeError(`disabled file type: ${type}`);
+		const size = typeHandlers.get(type).calculate(input);
+		if (size !== void 0) {
+			size.type = size.type ?? type;
+			if (size.images && size.images.length > 1) {
+				const largestImage = size.images.reduce((largest, current) => {
+					return current.width * current.height > largest.width * largest.height ? current : largest;
+				}, size.images[0]);
+				size.width = largestImage.width;
+				size.height = largestImage.height;
+			}
+			return size;
+		}
+	}
+	throw new TypeError(`unsupported file type: ${type}`);
+}
+
+//#endregion
+//#region ../../node_modules/.pnpm/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/scanner.js
+/**
+* Creates a JSON scanner on the given text.
+* If ignoreTrivia is set, whitespaces or comments are ignored.
+*/
+function createScanner$1(text, ignoreTrivia = false) {
+	const len = text.length;
+	let pos = 0, value = "", tokenOffset = 0, token = 16, lineNumber = 0, lineStartOffset = 0, tokenLineStartOffset = 0, prevTokenLineStartOffset = 0, scanError = 0;
+	function scanHexDigits(count, exact) {
+		let digits = 0;
+		let value = 0;
+		while (digits < count || !exact) {
+			let ch = text.charCodeAt(pos);
+			if (ch >= 48 && ch <= 57) value = value * 16 + ch - 48;
+			else if (ch >= 65 && ch <= 70) value = value * 16 + ch - 65 + 10;
+			else if (ch >= 97 && ch <= 102) value = value * 16 + ch - 97 + 10;
+			else break;
+			pos++;
+			digits++;
+		}
+		if (digits < count) value = -1;
+		return value;
+	}
+	function setPosition(newPosition) {
+		pos = newPosition;
+		value = "";
+		tokenOffset = 0;
+		token = 16;
+		scanError = 0;
+	}
+	function scanNumber() {
+		let start = pos;
+		if (text.charCodeAt(pos) === 48) pos++;
+		else {
+			pos++;
+			while (pos < text.length && isDigit(text.charCodeAt(pos))) pos++;
+		}
+		if (pos < text.length && text.charCodeAt(pos) === 46) {
+			pos++;
+			if (pos < text.length && isDigit(text.charCodeAt(pos))) {
+				pos++;
+				while (pos < text.length && isDigit(text.charCodeAt(pos))) pos++;
+			} else {
+				scanError = 3;
+				return text.substring(start, pos);
+			}
+		}
+		let end = pos;
+		if (pos < text.length && (text.charCodeAt(pos) === 69 || text.charCodeAt(pos) === 101)) {
+			pos++;
+			if (pos < text.length && text.charCodeAt(pos) === 43 || text.charCodeAt(pos) === 45) pos++;
+			if (pos < text.length && isDigit(text.charCodeAt(pos))) {
+				pos++;
+				while (pos < text.length && isDigit(text.charCodeAt(pos))) pos++;
+				end = pos;
+			} else scanError = 3;
+		}
+		return text.substring(start, end);
+	}
+	function scanString() {
+		let result = "", start = pos;
+		while (true) {
+			if (pos >= len) {
+				result += text.substring(start, pos);
+				scanError = 2;
+				break;
+			}
+			const ch = text.charCodeAt(pos);
+			if (ch === 34) {
+				result += text.substring(start, pos);
+				pos++;
+				break;
+			}
+			if (ch === 92) {
+				result += text.substring(start, pos);
+				pos++;
+				if (pos >= len) {
+					scanError = 2;
+					break;
+				}
+				switch (text.charCodeAt(pos++)) {
+					case 34:
+						result += "\"";
+						break;
+					case 92:
+						result += "\\";
+						break;
+					case 47:
+						result += "/";
+						break;
+					case 98:
+						result += "\b";
+						break;
+					case 102:
+						result += "\f";
+						break;
+					case 110:
+						result += "\n";
+						break;
+					case 114:
+						result += "\r";
+						break;
+					case 116:
+						result += "	";
+						break;
+					case 117:
+						const ch3 = scanHexDigits(4, true);
+						if (ch3 >= 0) result += String.fromCharCode(ch3);
+						else scanError = 4;
+						break;
+					default: scanError = 5;
+				}
+				start = pos;
+				continue;
+			}
+			if (ch >= 0 && ch <= 31) if (isLineBreak(ch)) {
+				result += text.substring(start, pos);
+				scanError = 2;
+				break;
+			} else scanError = 6;
+			pos++;
+		}
+		return result;
+	}
+	function scanNext() {
+		value = "";
+		scanError = 0;
+		tokenOffset = pos;
+		lineStartOffset = lineNumber;
+		prevTokenLineStartOffset = tokenLineStartOffset;
+		if (pos >= len) {
+			tokenOffset = len;
+			return token = 17;
+		}
+		let code = text.charCodeAt(pos);
+		if (isWhiteSpace(code)) {
+			do {
+				pos++;
+				value += String.fromCharCode(code);
+				code = text.charCodeAt(pos);
+			} while (isWhiteSpace(code));
+			return token = 15;
+		}
+		if (isLineBreak(code)) {
+			pos++;
+			value += String.fromCharCode(code);
+			if (code === 13 && text.charCodeAt(pos) === 10) {
+				pos++;
+				value += "\n";
+			}
+			lineNumber++;
+			tokenLineStartOffset = pos;
+			return token = 14;
+		}
+		switch (code) {
+			case 123:
+				pos++;
+				return token = 1;
+			case 125:
+				pos++;
+				return token = 2;
+			case 91:
+				pos++;
+				return token = 3;
+			case 93:
+				pos++;
+				return token = 4;
+			case 58:
+				pos++;
+				return token = 6;
+			case 44:
+				pos++;
+				return token = 5;
+			case 34:
+				pos++;
+				value = scanString();
+				return token = 10;
+			case 47:
+				const start = pos - 1;
+				if (text.charCodeAt(pos + 1) === 47) {
+					pos += 2;
+					while (pos < len) {
+						if (isLineBreak(text.charCodeAt(pos))) break;
+						pos++;
+					}
+					value = text.substring(start, pos);
+					return token = 12;
+				}
+				if (text.charCodeAt(pos + 1) === 42) {
+					pos += 2;
+					const safeLength = len - 1;
+					let commentClosed = false;
+					while (pos < safeLength) {
+						const ch = text.charCodeAt(pos);
+						if (ch === 42 && text.charCodeAt(pos + 1) === 47) {
+							pos += 2;
+							commentClosed = true;
+							break;
+						}
+						pos++;
+						if (isLineBreak(ch)) {
+							if (ch === 13 && text.charCodeAt(pos) === 10) pos++;
+							lineNumber++;
+							tokenLineStartOffset = pos;
+						}
+					}
+					if (!commentClosed) {
+						pos++;
+						scanError = 1;
+					}
+					value = text.substring(start, pos);
+					return token = 13;
+				}
+				value += String.fromCharCode(code);
+				pos++;
+				return token = 16;
+			case 45:
+				value += String.fromCharCode(code);
+				pos++;
+				if (pos === len || !isDigit(text.charCodeAt(pos))) return token = 16;
+			case 48:
+			case 49:
+			case 50:
+			case 51:
+			case 52:
+			case 53:
+			case 54:
+			case 55:
+			case 56:
+			case 57:
+				value += scanNumber();
+				return token = 11;
+			default:
+				while (pos < len && isUnknownContentCharacter(code)) {
+					pos++;
+					code = text.charCodeAt(pos);
+				}
+				if (tokenOffset !== pos) {
+					value = text.substring(tokenOffset, pos);
+					switch (value) {
+						case "true": return token = 8;
+						case "false": return token = 9;
+						case "null": return token = 7;
+					}
+					return token = 16;
+				}
+				value += String.fromCharCode(code);
+				pos++;
+				return token = 16;
+		}
+	}
+	function isUnknownContentCharacter(code) {
+		if (isWhiteSpace(code) || isLineBreak(code)) return false;
+		switch (code) {
+			case 125:
+			case 93:
+			case 123:
+			case 91:
+			case 34:
+			case 58:
+			case 44:
+			case 47: return false;
+		}
+		return true;
+	}
+	function scanNextNonTrivia() {
+		let result;
+		do
+			result = scanNext();
+		while (result >= 12 && result <= 15);
+		return result;
+	}
+	return {
+		setPosition,
+		getPosition: () => pos,
+		scan: ignoreTrivia ? scanNextNonTrivia : scanNext,
+		getToken: () => token,
+		getTokenValue: () => value,
+		getTokenOffset: () => tokenOffset,
+		getTokenLength: () => pos - tokenOffset,
+		getTokenStartLine: () => lineStartOffset,
+		getTokenStartCharacter: () => tokenOffset - prevTokenLineStartOffset,
+		getTokenError: () => scanError
+	};
+}
+function isWhiteSpace(ch) {
+	return ch === 32 || ch === 9;
+}
+function isLineBreak(ch) {
+	return ch === 10 || ch === 13;
+}
+function isDigit(ch) {
+	return ch >= 48 && ch <= 57;
+}
+var CharacterCodes;
+(function(CharacterCodes) {
+	CharacterCodes[CharacterCodes["lineFeed"] = 10] = "lineFeed";
+	CharacterCodes[CharacterCodes["carriageReturn"] = 13] = "carriageReturn";
+	CharacterCodes[CharacterCodes["space"] = 32] = "space";
+	CharacterCodes[CharacterCodes["_0"] = 48] = "_0";
+	CharacterCodes[CharacterCodes["_1"] = 49] = "_1";
+	CharacterCodes[CharacterCodes["_2"] = 50] = "_2";
+	CharacterCodes[CharacterCodes["_3"] = 51] = "_3";
+	CharacterCodes[CharacterCodes["_4"] = 52] = "_4";
+	CharacterCodes[CharacterCodes["_5"] = 53] = "_5";
+	CharacterCodes[CharacterCodes["_6"] = 54] = "_6";
+	CharacterCodes[CharacterCodes["_7"] = 55] = "_7";
+	CharacterCodes[CharacterCodes["_8"] = 56] = "_8";
+	CharacterCodes[CharacterCodes["_9"] = 57] = "_9";
+	CharacterCodes[CharacterCodes["a"] = 97] = "a";
+	CharacterCodes[CharacterCodes["b"] = 98] = "b";
+	CharacterCodes[CharacterCodes["c"] = 99] = "c";
+	CharacterCodes[CharacterCodes["d"] = 100] = "d";
+	CharacterCodes[CharacterCodes["e"] = 101] = "e";
+	CharacterCodes[CharacterCodes["f"] = 102] = "f";
+	CharacterCodes[CharacterCodes["g"] = 103] = "g";
+	CharacterCodes[CharacterCodes["h"] = 104] = "h";
+	CharacterCodes[CharacterCodes["i"] = 105] = "i";
+	CharacterCodes[CharacterCodes["j"] = 106] = "j";
+	CharacterCodes[CharacterCodes["k"] = 107] = "k";
+	CharacterCodes[CharacterCodes["l"] = 108] = "l";
+	CharacterCodes[CharacterCodes["m"] = 109] = "m";
+	CharacterCodes[CharacterCodes["n"] = 110] = "n";
+	CharacterCodes[CharacterCodes["o"] = 111] = "o";
+	CharacterCodes[CharacterCodes["p"] = 112] = "p";
+	CharacterCodes[CharacterCodes["q"] = 113] = "q";
+	CharacterCodes[CharacterCodes["r"] = 114] = "r";
+	CharacterCodes[CharacterCodes["s"] = 115] = "s";
+	CharacterCodes[CharacterCodes["t"] = 116] = "t";
+	CharacterCodes[CharacterCodes["u"] = 117] = "u";
+	CharacterCodes[CharacterCodes["v"] = 118] = "v";
+	CharacterCodes[CharacterCodes["w"] = 119] = "w";
+	CharacterCodes[CharacterCodes["x"] = 120] = "x";
+	CharacterCodes[CharacterCodes["y"] = 121] = "y";
+	CharacterCodes[CharacterCodes["z"] = 122] = "z";
+	CharacterCodes[CharacterCodes["A"] = 65] = "A";
+	CharacterCodes[CharacterCodes["B"] = 66] = "B";
+	CharacterCodes[CharacterCodes["C"] = 67] = "C";
+	CharacterCodes[CharacterCodes["D"] = 68] = "D";
+	CharacterCodes[CharacterCodes["E"] = 69] = "E";
+	CharacterCodes[CharacterCodes["F"] = 70] = "F";
+	CharacterCodes[CharacterCodes["G"] = 71] = "G";
+	CharacterCodes[CharacterCodes["H"] = 72] = "H";
+	CharacterCodes[CharacterCodes["I"] = 73] = "I";
+	CharacterCodes[CharacterCodes["J"] = 74] = "J";
+	CharacterCodes[CharacterCodes["K"] = 75] = "K";
+	CharacterCodes[CharacterCodes["L"] = 76] = "L";
+	CharacterCodes[CharacterCodes["M"] = 77] = "M";
+	CharacterCodes[CharacterCodes["N"] = 78] = "N";
+	CharacterCodes[CharacterCodes["O"] = 79] = "O";
+	CharacterCodes[CharacterCodes["P"] = 80] = "P";
+	CharacterCodes[CharacterCodes["Q"] = 81] = "Q";
+	CharacterCodes[CharacterCodes["R"] = 82] = "R";
+	CharacterCodes[CharacterCodes["S"] = 83] = "S";
+	CharacterCodes[CharacterCodes["T"] = 84] = "T";
+	CharacterCodes[CharacterCodes["U"] = 85] = "U";
+	CharacterCodes[CharacterCodes["V"] = 86] = "V";
+	CharacterCodes[CharacterCodes["W"] = 87] = "W";
+	CharacterCodes[CharacterCodes["X"] = 88] = "X";
+	CharacterCodes[CharacterCodes["Y"] = 89] = "Y";
+	CharacterCodes[CharacterCodes["Z"] = 90] = "Z";
+	CharacterCodes[CharacterCodes["asterisk"] = 42] = "asterisk";
+	CharacterCodes[CharacterCodes["backslash"] = 92] = "backslash";
+	CharacterCodes[CharacterCodes["closeBrace"] = 125] = "closeBrace";
+	CharacterCodes[CharacterCodes["closeBracket"] = 93] = "closeBracket";
+	CharacterCodes[CharacterCodes["colon"] = 58] = "colon";
+	CharacterCodes[CharacterCodes["comma"] = 44] = "comma";
+	CharacterCodes[CharacterCodes["dot"] = 46] = "dot";
+	CharacterCodes[CharacterCodes["doubleQuote"] = 34] = "doubleQuote";
+	CharacterCodes[CharacterCodes["minus"] = 45] = "minus";
+	CharacterCodes[CharacterCodes["openBrace"] = 123] = "openBrace";
+	CharacterCodes[CharacterCodes["openBracket"] = 91] = "openBracket";
+	CharacterCodes[CharacterCodes["plus"] = 43] = "plus";
+	CharacterCodes[CharacterCodes["slash"] = 47] = "slash";
+	CharacterCodes[CharacterCodes["formFeed"] = 12] = "formFeed";
+	CharacterCodes[CharacterCodes["tab"] = 9] = "tab";
+})(CharacterCodes || (CharacterCodes = {}));
+
+//#endregion
+//#region ../../node_modules/.pnpm/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/string-intern.js
+const cachedSpaces = new Array(20).fill(0).map((_, index) => {
+	return " ".repeat(index);
+});
+const maxCachedValues = 200;
+const cachedBreakLinesWithSpaces = {
+	" ": {
+		"\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+			return "\n" + " ".repeat(index);
+		}),
+		"\r": new Array(maxCachedValues).fill(0).map((_, index) => {
+			return "\r" + " ".repeat(index);
+		}),
+		"\r\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+			return "\r\n" + " ".repeat(index);
+		})
+	},
+	"	": {
+		"\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+			return "\n" + "	".repeat(index);
+		}),
+		"\r": new Array(maxCachedValues).fill(0).map((_, index) => {
+			return "\r" + "	".repeat(index);
+		}),
+		"\r\n": new Array(maxCachedValues).fill(0).map((_, index) => {
+			return "\r\n" + "	".repeat(index);
+		})
+	}
+};
+
+//#endregion
+//#region ../../node_modules/.pnpm/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/impl/parser.js
+var ParseOptions;
+(function(ParseOptions) {
+	ParseOptions.DEFAULT = { allowTrailingComma: false };
+})(ParseOptions || (ParseOptions = {}));
+/**
+* For a given offset, evaluate the location in the JSON document. Each segment in the location path is either a property name or an array index.
+*/
+function getLocation$1(text, position) {
+	const segments = [];
+	const earlyReturnException = /* @__PURE__ */ new Object();
+	let previousNode = void 0;
+	const previousNodeInst = {
+		value: {},
+		offset: 0,
+		length: 0,
+		type: "object",
+		parent: void 0
+	};
+	let isAtPropertyKey = false;
+	function setPreviousNode(value, offset, length, type) {
+		previousNodeInst.value = value;
+		previousNodeInst.offset = offset;
+		previousNodeInst.length = length;
+		previousNodeInst.type = type;
+		previousNodeInst.colonOffset = void 0;
+		previousNode = previousNodeInst;
+	}
+	try {
+		visit$1(text, {
+			onObjectBegin: (offset, length) => {
+				if (position <= offset) throw earlyReturnException;
+				previousNode = void 0;
+				isAtPropertyKey = position > offset;
+				segments.push("");
+			},
+			onObjectProperty: (name, offset, length) => {
+				if (position < offset) throw earlyReturnException;
+				setPreviousNode(name, offset, length, "property");
+				segments[segments.length - 1] = name;
+				if (position <= offset + length) throw earlyReturnException;
+			},
+			onObjectEnd: (offset, length) => {
+				if (position <= offset) throw earlyReturnException;
+				previousNode = void 0;
+				segments.pop();
+			},
+			onArrayBegin: (offset, length) => {
+				if (position <= offset) throw earlyReturnException;
+				previousNode = void 0;
+				segments.push(0);
+			},
+			onArrayEnd: (offset, length) => {
+				if (position <= offset) throw earlyReturnException;
+				previousNode = void 0;
+				segments.pop();
+			},
+			onLiteralValue: (value, offset, length) => {
+				if (position < offset) throw earlyReturnException;
+				setPreviousNode(value, offset, length, getNodeType(value));
+				if (position <= offset + length) throw earlyReturnException;
+			},
+			onSeparator: (sep, offset, length) => {
+				if (position <= offset) throw earlyReturnException;
+				if (sep === ":" && previousNode && previousNode.type === "property") {
+					previousNode.colonOffset = offset;
+					isAtPropertyKey = false;
+					previousNode = void 0;
+				} else if (sep === ",") {
+					const last = segments[segments.length - 1];
+					if (typeof last === "number") segments[segments.length - 1] = last + 1;
+					else {
+						isAtPropertyKey = true;
+						segments[segments.length - 1] = "";
+					}
+					previousNode = void 0;
+				}
+			}
+		});
+	} catch (e) {
+		if (e !== earlyReturnException) throw e;
+	}
+	return {
+		path: segments,
+		previousNode,
+		isAtPropertyKey,
+		matches: (pattern) => {
+			let k = 0;
+			for (let i = 0; k < pattern.length && i < segments.length; i++) if (pattern[k] === segments[i] || pattern[k] === "*") k++;
+			else if (pattern[k] !== "**") return false;
+			return k === pattern.length;
+		}
+	};
+}
+/**
+* Parses the given text and returns the object the JSON content represents. On invalid input, the parser tries to be as fault tolerant as possible, but still return a result.
+* Therefore always check the errors list to find out if the input was valid.
+*/
+function parse$3(text, errors = [], options = ParseOptions.DEFAULT) {
+	let currentProperty = null;
+	let currentParent = [];
+	const previousParents = [];
+	function onValue(value) {
+		if (Array.isArray(currentParent)) currentParent.push(value);
+		else if (currentProperty !== null) currentParent[currentProperty] = value;
+	}
+	visit$1(text, {
+		onObjectBegin: () => {
+			const object = {};
+			onValue(object);
+			previousParents.push(currentParent);
+			currentParent = object;
+			currentProperty = null;
+		},
+		onObjectProperty: (name) => {
+			currentProperty = name;
+		},
+		onObjectEnd: () => {
+			currentParent = previousParents.pop();
+		},
+		onArrayBegin: () => {
+			const array = [];
+			onValue(array);
+			previousParents.push(currentParent);
+			currentParent = array;
+			currentProperty = null;
+		},
+		onArrayEnd: () => {
+			currentParent = previousParents.pop();
+		},
+		onLiteralValue: onValue,
+		onError: (error, offset, length) => {
+			errors.push({
+				error,
+				offset,
+				length
+			});
+		}
+	}, options);
+	return currentParent[0];
+}
+/**
+* Parses the given text and returns a tree representation the JSON content. On invalid input, the parser tries to be as fault tolerant as possible, but still return a result.
+*/
+function parseTree$1(text, errors = [], options = ParseOptions.DEFAULT) {
+	let currentParent = {
+		type: "array",
+		offset: -1,
+		length: -1,
+		children: [],
+		parent: void 0
+	};
+	function ensurePropertyComplete(endOffset) {
+		if (currentParent.type === "property") {
+			currentParent.length = endOffset - currentParent.offset;
+			currentParent = currentParent.parent;
+		}
+	}
+	function onValue(valueNode) {
+		currentParent.children.push(valueNode);
+		return valueNode;
+	}
+	visit$1(text, {
+		onObjectBegin: (offset) => {
+			currentParent = onValue({
+				type: "object",
+				offset,
+				length: -1,
+				parent: currentParent,
+				children: []
+			});
+		},
+		onObjectProperty: (name, offset, length) => {
+			currentParent = onValue({
+				type: "property",
+				offset,
+				length: -1,
+				parent: currentParent,
+				children: []
+			});
+			currentParent.children.push({
+				type: "string",
+				value: name,
+				offset,
+				length,
+				parent: currentParent
+			});
+		},
+		onObjectEnd: (offset, length) => {
+			ensurePropertyComplete(offset + length);
+			currentParent.length = offset + length - currentParent.offset;
+			currentParent = currentParent.parent;
+			ensurePropertyComplete(offset + length);
+		},
+		onArrayBegin: (offset, length) => {
+			currentParent = onValue({
+				type: "array",
+				offset,
+				length: -1,
+				parent: currentParent,
+				children: []
+			});
+		},
+		onArrayEnd: (offset, length) => {
+			currentParent.length = offset + length - currentParent.offset;
+			currentParent = currentParent.parent;
+			ensurePropertyComplete(offset + length);
+		},
+		onLiteralValue: (value, offset, length) => {
+			onValue({
+				type: getNodeType(value),
+				offset,
+				length,
+				parent: currentParent,
+				value
+			});
+			ensurePropertyComplete(offset + length);
+		},
+		onSeparator: (sep, offset, length) => {
+			if (currentParent.type === "property") {
+				if (sep === ":") currentParent.colonOffset = offset;
+				else if (sep === ",") ensurePropertyComplete(offset);
+			}
+		},
+		onError: (error, offset, length) => {
+			errors.push({
+				error,
+				offset,
+				length
+			});
+		}
+	}, options);
+	const result = currentParent.children[0];
+	if (result) delete result.parent;
+	return result;
+}
+/**
+* Finds the node at the given path in a JSON DOM.
+*/
+function findNodeAtLocation$1(root, path) {
+	if (!root) return;
+	let node = root;
+	for (let segment of path) if (typeof segment === "string") {
+		if (node.type !== "object" || !Array.isArray(node.children)) return;
+		let found = false;
+		for (const propertyNode of node.children) if (Array.isArray(propertyNode.children) && propertyNode.children[0].value === segment && propertyNode.children.length === 2) {
+			node = propertyNode.children[1];
+			found = true;
+			break;
+		}
+		if (!found) return;
+	} else {
+		const index = segment;
+		if (node.type !== "array" || index < 0 || !Array.isArray(node.children) || index >= node.children.length) return;
+		node = node.children[index];
+	}
+	return node;
+}
+/**
+* Gets the JSON path of the given JSON DOM node
+*/
+function getNodePath$1(node) {
+	if (!node.parent || !node.parent.children) return [];
+	const path = getNodePath$1(node.parent);
+	if (node.parent.type === "property") {
+		const key = node.parent.children[0].value;
+		path.push(key);
+	} else if (node.parent.type === "array") {
+		const index = node.parent.children.indexOf(node);
+		if (index !== -1) path.push(index);
+	}
+	return path;
+}
+/**
+* Evaluates the JavaScript object of the given JSON DOM node
+*/
+function getNodeValue$1(node) {
+	switch (node.type) {
+		case "array": return node.children.map(getNodeValue$1);
+		case "object":
+			const obj = Object.create(null);
+			for (let prop of node.children) {
+				const valueNode = prop.children[1];
+				if (valueNode) obj[prop.children[0].value] = getNodeValue$1(valueNode);
+			}
+			return obj;
+		case "null":
+		case "string":
+		case "number":
+		case "boolean": return node.value;
+		default: return;
+	}
+}
+function contains(node, offset, includeRightBound = false) {
+	return offset >= node.offset && offset < node.offset + node.length || includeRightBound && offset === node.offset + node.length;
+}
+/**
+* Finds the most inner node at the given offset. If includeRightBound is set, also finds nodes that end at the given offset.
+*/
+function findNodeAtOffset$1(node, offset, includeRightBound = false) {
+	if (contains(node, offset, includeRightBound)) {
+		const children = node.children;
+		if (Array.isArray(children)) for (let i = 0; i < children.length && children[i].offset <= offset; i++) {
+			const item = findNodeAtOffset$1(children[i], offset, includeRightBound);
+			if (item) return item;
+		}
+		return node;
+	}
+}
+/**
+* Parses the given text and invokes the visitor functions for each object, array and literal reached.
+*/
+function visit$1(text, visitor, options = ParseOptions.DEFAULT) {
+	const _scanner = createScanner$1(text, false);
+	const _jsonPath = [];
+	let suppressedCallbacks = 0;
+	function toNoArgVisit(visitFunction) {
+		return visitFunction ? () => suppressedCallbacks === 0 && visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter()) : () => true;
+	}
+	function toOneArgVisit(visitFunction) {
+		return visitFunction ? (arg) => suppressedCallbacks === 0 && visitFunction(arg, _scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter()) : () => true;
+	}
+	function toOneArgVisitWithPath(visitFunction) {
+		return visitFunction ? (arg) => suppressedCallbacks === 0 && visitFunction(arg, _scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter(), () => _jsonPath.slice()) : () => true;
+	}
+	function toBeginVisit(visitFunction) {
+		return visitFunction ? () => {
+			if (suppressedCallbacks > 0) suppressedCallbacks++;
+			else if (visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter(), () => _jsonPath.slice()) === false) suppressedCallbacks = 1;
+		} : () => true;
+	}
+	function toEndVisit(visitFunction) {
+		return visitFunction ? () => {
+			if (suppressedCallbacks > 0) suppressedCallbacks--;
+			if (suppressedCallbacks === 0) visitFunction(_scanner.getTokenOffset(), _scanner.getTokenLength(), _scanner.getTokenStartLine(), _scanner.getTokenStartCharacter());
+		} : () => true;
+	}
+	const onObjectBegin = toBeginVisit(visitor.onObjectBegin), onObjectProperty = toOneArgVisitWithPath(visitor.onObjectProperty), onObjectEnd = toEndVisit(visitor.onObjectEnd), onArrayBegin = toBeginVisit(visitor.onArrayBegin), onArrayEnd = toEndVisit(visitor.onArrayEnd), onLiteralValue = toOneArgVisitWithPath(visitor.onLiteralValue), onSeparator = toOneArgVisit(visitor.onSeparator), onComment = toNoArgVisit(visitor.onComment), onError = toOneArgVisit(visitor.onError);
+	const disallowComments = options && options.disallowComments;
+	const allowTrailingComma = options && options.allowTrailingComma;
+	function scanNext() {
+		while (true) {
+			const token = _scanner.scan();
+			switch (_scanner.getTokenError()) {
+				case 4:
+					handleError(14);
+					break;
+				case 5:
+					handleError(15);
+					break;
+				case 3:
+					handleError(13);
+					break;
+				case 1:
+					if (!disallowComments) handleError(11);
+					break;
+				case 2:
+					handleError(12);
+					break;
+				case 6:
+					handleError(16);
+					break;
+			}
+			switch (token) {
+				case 12:
+				case 13:
+					if (disallowComments) handleError(10);
+					else onComment();
+					break;
+				case 16:
+					handleError(1);
+					break;
+				case 15:
+				case 14: break;
+				default: return token;
+			}
+		}
+	}
+	function handleError(error, skipUntilAfter = [], skipUntil = []) {
+		onError(error);
+		if (skipUntilAfter.length + skipUntil.length > 0) {
+			let token = _scanner.getToken();
+			while (token !== 17) {
+				if (skipUntilAfter.indexOf(token) !== -1) {
+					scanNext();
+					break;
+				} else if (skipUntil.indexOf(token) !== -1) break;
+				token = scanNext();
+			}
+		}
+	}
+	function parseString(isValue) {
+		const value = _scanner.getTokenValue();
+		if (isValue) onLiteralValue(value);
+		else {
+			onObjectProperty(value);
+			_jsonPath.push(value);
+		}
+		scanNext();
+		return true;
+	}
+	function parseLiteral() {
+		switch (_scanner.getToken()) {
+			case 11:
+				const tokenValue = _scanner.getTokenValue();
+				let value = Number(tokenValue);
+				if (isNaN(value)) {
+					handleError(2);
+					value = 0;
+				}
+				onLiteralValue(value);
+				break;
+			case 7:
+				onLiteralValue(null);
+				break;
+			case 8:
+				onLiteralValue(true);
+				break;
+			case 9:
+				onLiteralValue(false);
+				break;
+			default: return false;
+		}
+		scanNext();
+		return true;
+	}
+	function parseProperty() {
+		if (_scanner.getToken() !== 10) {
+			handleError(3, [], [2, 5]);
+			return false;
+		}
+		parseString(false);
+		if (_scanner.getToken() === 6) {
+			onSeparator(":");
+			scanNext();
+			if (!parseValue()) handleError(4, [], [2, 5]);
+		} else handleError(5, [], [2, 5]);
+		_jsonPath.pop();
+		return true;
+	}
+	function parseObject() {
+		onObjectBegin();
+		scanNext();
+		let needsComma = false;
+		while (_scanner.getToken() !== 2 && _scanner.getToken() !== 17) {
+			if (_scanner.getToken() === 5) {
+				if (!needsComma) handleError(4, [], []);
+				onSeparator(",");
+				scanNext();
+				if (_scanner.getToken() === 2 && allowTrailingComma) break;
+			} else if (needsComma) handleError(6, [], []);
+			if (!parseProperty()) handleError(4, [], [2, 5]);
+			needsComma = true;
+		}
+		onObjectEnd();
+		if (_scanner.getToken() !== 2) handleError(7, [2], []);
+		else scanNext();
+		return true;
+	}
+	function parseArray() {
+		onArrayBegin();
+		scanNext();
+		let isFirstElement = true;
+		let needsComma = false;
+		while (_scanner.getToken() !== 4 && _scanner.getToken() !== 17) {
+			if (_scanner.getToken() === 5) {
+				if (!needsComma) handleError(4, [], []);
+				onSeparator(",");
+				scanNext();
+				if (_scanner.getToken() === 4 && allowTrailingComma) break;
+			} else if (needsComma) handleError(6, [], []);
+			if (isFirstElement) {
+				_jsonPath.push(0);
+				isFirstElement = false;
+			} else _jsonPath[_jsonPath.length - 1]++;
+			if (!parseValue()) handleError(4, [], [4, 5]);
+			needsComma = true;
+		}
+		onArrayEnd();
+		if (!isFirstElement) _jsonPath.pop();
+		if (_scanner.getToken() !== 4) handleError(8, [4], []);
+		else scanNext();
+		return true;
+	}
+	function parseValue() {
+		switch (_scanner.getToken()) {
+			case 3: return parseArray();
+			case 1: return parseObject();
+			case 10: return parseString(true);
+			default: return parseLiteral();
+		}
+	}
+	scanNext();
+	if (_scanner.getToken() === 17) {
+		if (options.allowEmptyContent) return true;
+		handleError(4, [], []);
+		return false;
+	}
+	if (!parseValue()) {
+		handleError(4, [], []);
+		return false;
+	}
+	if (_scanner.getToken() !== 17) handleError(9, [], []);
+	return true;
+}
+/**
+* Takes JSON with JavaScript-style comments and remove
+* them. Optionally replaces every none-newline character
+* of comments with a replaceCharacter
+*/
+function stripComments$1(text, replaceCh) {
+	let _scanner = createScanner$1(text), parts = [], kind, offset = 0, pos;
+	do {
+		pos = _scanner.getPosition();
+		kind = _scanner.scan();
+		switch (kind) {
+			case 12:
+			case 13:
+			case 17:
+				if (offset !== pos) parts.push(text.substring(offset, pos));
+				if (replaceCh !== void 0) parts.push(_scanner.getTokenValue().replace(/[^\r\n]/g, replaceCh));
+				offset = _scanner.getPosition();
+				break;
+		}
+	} while (kind !== 17);
+	return parts.join("");
+}
+function getNodeType(value) {
+	switch (typeof value) {
+		case "boolean": return "boolean";
+		case "number": return "number";
+		case "string": return "string";
+		case "object":
+			if (!value) return "null";
+			else if (Array.isArray(value)) return "array";
+			return "object";
+		default: return "null";
+	}
+}
+
+//#endregion
+//#region ../../node_modules/.pnpm/jsonc-parser@3.3.1/node_modules/jsonc-parser/lib/esm/main.js
+/**
+* Creates a JSON scanner on the given text.
+* If ignoreTrivia is set, whitespaces or comments are ignored.
+*/
+const createScanner = createScanner$1;
+var ScanError;
+(function(ScanError) {
+	ScanError[ScanError["None"] = 0] = "None";
+	ScanError[ScanError["UnexpectedEndOfComment"] = 1] = "UnexpectedEndOfComment";
+	ScanError[ScanError["UnexpectedEndOfString"] = 2] = "UnexpectedEndOfString";
+	ScanError[ScanError["UnexpectedEndOfNumber"] = 3] = "UnexpectedEndOfNumber";
+	ScanError[ScanError["InvalidUnicode"] = 4] = "InvalidUnicode";
+	ScanError[ScanError["InvalidEscapeCharacter"] = 5] = "InvalidEscapeCharacter";
+	ScanError[ScanError["InvalidCharacter"] = 6] = "InvalidCharacter";
+})(ScanError || (ScanError = {}));
+var SyntaxKind;
+(function(SyntaxKind) {
+	SyntaxKind[SyntaxKind["OpenBraceToken"] = 1] = "OpenBraceToken";
+	SyntaxKind[SyntaxKind["CloseBraceToken"] = 2] = "CloseBraceToken";
+	SyntaxKind[SyntaxKind["OpenBracketToken"] = 3] = "OpenBracketToken";
+	SyntaxKind[SyntaxKind["CloseBracketToken"] = 4] = "CloseBracketToken";
+	SyntaxKind[SyntaxKind["CommaToken"] = 5] = "CommaToken";
+	SyntaxKind[SyntaxKind["ColonToken"] = 6] = "ColonToken";
+	SyntaxKind[SyntaxKind["NullKeyword"] = 7] = "NullKeyword";
+	SyntaxKind[SyntaxKind["TrueKeyword"] = 8] = "TrueKeyword";
+	SyntaxKind[SyntaxKind["FalseKeyword"] = 9] = "FalseKeyword";
+	SyntaxKind[SyntaxKind["StringLiteral"] = 10] = "StringLiteral";
+	SyntaxKind[SyntaxKind["NumericLiteral"] = 11] = "NumericLiteral";
+	SyntaxKind[SyntaxKind["LineCommentTrivia"] = 12] = "LineCommentTrivia";
+	SyntaxKind[SyntaxKind["BlockCommentTrivia"] = 13] = "BlockCommentTrivia";
+	SyntaxKind[SyntaxKind["LineBreakTrivia"] = 14] = "LineBreakTrivia";
+	SyntaxKind[SyntaxKind["Trivia"] = 15] = "Trivia";
+	SyntaxKind[SyntaxKind["Unknown"] = 16] = "Unknown";
+	SyntaxKind[SyntaxKind["EOF"] = 17] = "EOF";
+})(SyntaxKind || (SyntaxKind = {}));
+/**
+* For a given offset, evaluate the location in the JSON document. Each segment in the location path is either a property name or an array index.
+*/
+const getLocation = getLocation$1;
+/**
+* Parses the given text and returns the object the JSON content represents. On invalid input, the parser tries to be as fault tolerant as possible, but still return a result.
+* Therefore, always check the errors list to find out if the input was valid.
+*/
+const parse$2 = parse$3;
+/**
+* Parses the given text and returns a tree representation the JSON content. On invalid input, the parser tries to be as fault tolerant as possible, but still return a result.
+*/
+const parseTree = parseTree$1;
+/**
+* Finds the node at the given path in a JSON DOM.
+*/
+const findNodeAtLocation = findNodeAtLocation$1;
+/**
+* Finds the innermost node at the given offset. If includeRightBound is set, also finds nodes that end at the given offset.
+*/
+const findNodeAtOffset = findNodeAtOffset$1;
+/**
+* Gets the JSON path of the given JSON DOM node
+*/
+const getNodePath = getNodePath$1;
+/**
+* Evaluates the JavaScript object of the given JSON DOM node
+*/
+const getNodeValue = getNodeValue$1;
+/**
+* Parses the given text and invokes the visitor functions for each object, array and literal reached.
+*/
+const visit = visit$1;
+/**
+* Takes JSON with JavaScript-style comments and remove
+* them. Optionally replaces every none-newline character
+* of comments with a replaceCharacter
+*/
+const stripComments = stripComments$1;
+var ParseErrorCode;
+(function(ParseErrorCode) {
+	ParseErrorCode[ParseErrorCode["InvalidSymbol"] = 1] = "InvalidSymbol";
+	ParseErrorCode[ParseErrorCode["InvalidNumberFormat"] = 2] = "InvalidNumberFormat";
+	ParseErrorCode[ParseErrorCode["PropertyNameExpected"] = 3] = "PropertyNameExpected";
+	ParseErrorCode[ParseErrorCode["ValueExpected"] = 4] = "ValueExpected";
+	ParseErrorCode[ParseErrorCode["ColonExpected"] = 5] = "ColonExpected";
+	ParseErrorCode[ParseErrorCode["CommaExpected"] = 6] = "CommaExpected";
+	ParseErrorCode[ParseErrorCode["CloseBraceExpected"] = 7] = "CloseBraceExpected";
+	ParseErrorCode[ParseErrorCode["CloseBracketExpected"] = 8] = "CloseBracketExpected";
+	ParseErrorCode[ParseErrorCode["EndOfFileExpected"] = 9] = "EndOfFileExpected";
+	ParseErrorCode[ParseErrorCode["InvalidCommentToken"] = 10] = "InvalidCommentToken";
+	ParseErrorCode[ParseErrorCode["UnexpectedEndOfComment"] = 11] = "UnexpectedEndOfComment";
+	ParseErrorCode[ParseErrorCode["UnexpectedEndOfString"] = 12] = "UnexpectedEndOfString";
+	ParseErrorCode[ParseErrorCode["UnexpectedEndOfNumber"] = 13] = "UnexpectedEndOfNumber";
+	ParseErrorCode[ParseErrorCode["InvalidUnicode"] = 14] = "InvalidUnicode";
+	ParseErrorCode[ParseErrorCode["InvalidEscapeCharacter"] = 15] = "InvalidEscapeCharacter";
+	ParseErrorCode[ParseErrorCode["InvalidCharacter"] = 16] = "InvalidCharacter";
+})(ParseErrorCode || (ParseErrorCode = {}));
+
+//#endregion
+//#region src/media.ts
+const MANIFEST_FILENAME = "emdash-plugin.jsonc";
+const MAX_MANIFEST_BYTES = 1024 * 1024;
+const MAX_IMAGE_BYTES = 1024 * 1024;
+const MAX_PATH_LENGTH = 1024;
+const MAX_LANG_LENGTH = 64;
+const MAX_SCREENSHOTS = 8;
+const MAX_DIMENSION = 8192;
+const PATH_SEPARATOR_PATTERN = /[\\/]+/;
+var ReleaseMediaPreparationError = class extends Error {
+	name = "ReleaseMediaPreparationError";
+};
+async function prepareReleaseMedia(options) {
+	const workspace = await directoryRealpath(options.workspace, "Workspace");
+	const pluginDirectory = await directoryRealpath(resolve(workspace, options.pluginDirectory), "Plugin directory");
+	if (!within(workspace, pluginDirectory)) throw new ReleaseMediaPreparationError("Plugin directory is outside the workspace");
+	const manifestPath = join(pluginDirectory, MANIFEST_FILENAME);
+	let manifestBytes;
+	try {
+		manifestBytes = await boundedFile$1(manifestPath, MAX_MANIFEST_BYTES, "Manifest", pluginDirectory);
+	} catch (error) {
+		if (error instanceof MissingFileError) {
+			options.info?.("No emdash-plugin.jsonc in plugin-directory, so the release has no listing images");
+			return {};
+		}
+		throw error;
+	}
+	const manifest = parseManifest(manifestBytes);
+	if (options.ignoreUnrelatedManifest && isObject$1(manifest) && manifest.slug !== options.packageSlug) {
+		options.info?.(`emdash-plugin.jsonc in plugin-directory belongs to another plugin, so the release has no listing images. Set plugin-directory to the directory of ${options.packageSlug}.`);
+		return {};
+	}
+	validateManifest(manifest, options.packageSlug, options.version);
+	const artifacts = getArtifacts(manifest);
+	const result = {};
+	if (artifacts.icon !== void 0) result.icon = await prepareImage(pluginDirectory, artifacts.icon, "Icon");
+	if (artifacts.banner !== void 0) result.banner = await prepareImage(pluginDirectory, artifacts.banner, "Banner");
+	if (artifacts.screenshots !== void 0) {
+		result.screenshots = [];
+		for (const [index, image] of artifacts.screenshots.entries()) result.screenshots.push(await prepareImage(pluginDirectory, image, `Screenshot ${index + 1}`));
+	}
+	return result;
+}
+var MissingFileError = class extends Error {};
+async function directoryRealpath(path, label) {
+	try {
+		const trusted = await realpath(path);
+		if (!(await stat(trusted)).isDirectory()) throw new Error();
+		return trusted;
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} could not be read`);
+	}
+}
+function within(root, candidate) {
+	const rel = relative(root, candidate);
+	return rel === "" || rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
+}
+async function boundedFile$1(path, maximum, label, root) {
+	let trusted;
+	try {
+		trusted = await realpath(path);
+	} catch (error) {
+		if (isNotFound(error)) throw new MissingFileError();
+		throw new ReleaseMediaPreparationError(`${label} could not be read`);
+	}
+	try {
+		if (root !== void 0 && !within(root, trusted)) throw new Error();
+		if (!(await stat(trusted)).isFile()) throw new Error();
+		const handle = await open(trusted, "r");
+		try {
+			const buffer = Buffer.allocUnsafe(maximum + 1);
+			const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+			if (bytesRead === 0) throw new Error("empty");
+			if (bytesRead > maximum) throw new Error("large");
+			return new Uint8Array(buffer.subarray(0, bytesRead));
+		} finally {
+			await handle.close();
+		}
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} is missing, not a file, unreadable, or too large`);
+	}
+}
+function isNotFound(error) {
+	return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+function parseManifest(bytes) {
+	const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+	const valueErrors = [];
+	const value = parse$2(text, valueErrors, {
+		allowTrailingComma: true,
+		disallowComments: false
+	});
+	if (valueErrors.length > 0) throw new ReleaseMediaPreparationError("Manifest contains invalid JSONC");
+	return value;
+}
+function validateManifest(value, packageSlug, version) {
+	if (!isObject$1(value)) throw new ReleaseMediaPreparationError("Manifest must be an object");
+	if (value.slug !== packageSlug) throw new ReleaseMediaPreparationError("Manifest slug does not match the bundle");
+	if (value.version !== void 0 && value.version !== version) throw new ReleaseMediaPreparationError("Manifest version does not match the bundle");
+	if (value.release !== void 0 && !isObject$1(value.release)) throw new ReleaseMediaPreparationError("Manifest release must be an object");
+	if (isObject$1(value.release) && value.release.artifacts !== void 0 && !isObject$1(value.release.artifacts)) throw new ReleaseMediaPreparationError("Manifest release.artifacts must be an object");
+}
+function getArtifacts(manifest) {
+	const release = isObject$1(manifest.release) ? manifest.release : void 0;
+	const artifacts = release && isObject$1(release.artifacts) ? release.artifacts : void 0;
+	if (!artifacts) return {};
+	for (const key of Object.keys(artifacts)) if (key !== "icon" && key !== "banner" && key !== "screenshots") throw new ReleaseMediaPreparationError(`Manifest release.artifacts has unsupported key ${key}`);
+	const result = {};
+	for (const key of ["icon", "banner"]) if (artifacts[key] !== void 0) result[key] = descriptor(artifacts[key], key);
+	if (artifacts.screenshots !== void 0) {
+		if (!Array.isArray(artifacts.screenshots) || artifacts.screenshots.length < 1 || artifacts.screenshots.length > MAX_SCREENSHOTS) throw new ReleaseMediaPreparationError("Manifest screenshots must contain 1 to 8 images");
+		result.screenshots = artifacts.screenshots.map((item, index) => descriptor(item, `screenshots[${index}]`));
+	}
+	return result;
+}
+function descriptor(value, label) {
+	if (!isObject$1(value)) throw new ReleaseMediaPreparationError(`Manifest ${label} must be an object`);
+	for (const key of Object.keys(value)) if (key !== "file" && key !== "lang") throw new ReleaseMediaPreparationError(`Manifest ${label} has unsupported key ${key}`);
+	if (typeof value.file !== "string" || value.file.length === 0 || value.file.length > MAX_PATH_LENGTH) throw new ReleaseMediaPreparationError(`Manifest ${label}.file is invalid`);
+	if (typeof value.lang === "string" && (value.lang.length < 2 || value.lang.length > MAX_LANG_LENGTH)) throw new ReleaseMediaPreparationError(`Manifest ${label}.lang is invalid`);
+	if (value.lang !== void 0 && typeof value.lang !== "string") throw new ReleaseMediaPreparationError(`Manifest ${label}.lang is invalid`);
+	return {
+		file: value.file,
+		...value.lang === void 0 ? {} : { lang: value.lang }
+	};
+}
+async function prepareImage(root, input, label) {
+	if (!safeRelativePath(input.file)) throw new ReleaseMediaPreparationError(`${label} path is invalid`);
+	const path = resolve(root, input.file);
+	let trusted;
+	try {
+		trusted = await realpath(path);
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} could not be read`);
+	}
+	if (!within(root, trusted)) throw new ReleaseMediaPreparationError(`${label} path is outside the plugin directory`);
+	const bytes = await boundedFile$1(trusted, MAX_IMAGE_BYTES, label);
+	let measured;
+	try {
+		measured = imageSize(bytes);
+	} catch {
+		throw new ReleaseMediaPreparationError(`${label} is not a readable PNG, JPEG, or WebP image`);
+	}
+	const contentType = {
+		png: "image/png",
+		jpg: "image/jpeg",
+		jpeg: "image/jpeg",
+		webp: "image/webp"
+	}[measured.type ?? ""];
+	const width = measured.width;
+	const height = measured.height;
+	if (!contentType || typeof width !== "number" || typeof height !== "number" || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > MAX_DIMENSION || height > MAX_DIMENSION) throw new ReleaseMediaPreparationError(`${label} is not a supported image or has invalid dimensions`);
+	const checksum = await computeMultihash(bytes);
+	if (!checksum.success) throw new ReleaseMediaPreparationError(`${label} checksum could not be computed`);
+	return {
+		bytes,
+		checksum: checksum.value,
+		contentType,
+		width,
+		height,
+		...input.lang === void 0 ? {} : { lang: input.lang }
+	};
+}
+function safeRelativePath(value) {
+	if (isAbsolute(value) || win32.isAbsolute(value)) return false;
+	let depth = 0;
+	for (const part of value.split(PATH_SEPARATOR_PATTERN)) {
+		if (part === "" || part === ".") continue;
+		if (part === ".." && depth-- === 0) return false;
+		if (part !== "..") depth++;
+	}
+	return true;
+}
+function isObject$1(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+//#endregion
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/util.js
 function getEnumValues(entries) {
 	const numericValues = Object.values(entries).filter((v) => typeof v === "number");
 	return Object.entries(entries).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
@@ -2521,15 +4605,22 @@ function jsonStringifyReplacer(_, value) {
 	if (typeof value === "bigint") return value.toString();
 	return value;
 }
-function cached(getter) {
-	return { get value() {
-		{
-			const value = getter();
-			Object.defineProperty(this, "value", { value });
-			return value;
+var Cached = class {
+	constructor(getter) {
+		this._getter = getter;
+		this._value = void 0;
+	}
+	get value() {
+		const getter = this._getter;
+		if (getter !== void 0) {
+			this._value = getter();
+			this._getter = void 0;
 		}
-		throw new Error("cached value already set");
-	} };
+		return this._value;
+	}
+};
+function cached(getter) {
+	return new Cached(getter);
 }
 function nullish(input) {
 	return input === null || input === void 0;
@@ -2553,6 +4644,58 @@ function assignProp(target, prop, value) {
 		enumerable: true,
 		configurable: true
 	});
+}
+/**
+* Whichever object a def's `shape` currently answers from: the one the caller passed until the first read, the frozen copy after it.
+*
+* Its keys and descriptors read without invoking anything, which is what lets a discriminated union check its discriminator, and the cycle walk read a shape, without resolving a getter that references the schema being constructed. A def that answers `shape` from an accessor of its own has none.
+*/
+function rawShape(def) {
+	const desc = Object.getOwnPropertyDescriptor(def, "shape");
+	return desc?.get ? desc.get.raw : desc?.value;
+}
+function sourceShape(schema) {
+	return rawShape(schema._zod.def) ?? schema._zod.def.shape;
+}
+function deferProp(target, key, getter) {
+	Object.defineProperty(target, key, {
+		get() {
+			const value = getter();
+			assignProp(this, key, value);
+			return value;
+		},
+		enumerable: true,
+		configurable: true
+	});
+}
+function putProp(target, key, value) {
+	if (key in target) assignProp(target, key, value);
+	else target[key] = value;
+}
+/**
+* Copies `keys` of `source`'s shape onto `target`, each value passed through `wrap`.
+*
+* A key the source has resolved is copied through now, so the derived shape states it outright and nothing has to resolve it to learn what it holds. A key the source still defers stays deferred, and reads back through the source's own `shape`, so it resolves once and both shapes get that one schema.
+*/
+function mirrorShape(target, source, keys, wrap) {
+	const raw = sourceShape(source);
+	for (const key of keys) {
+		const desc = Object.getOwnPropertyDescriptor(raw, key);
+		if (!desc.enumerable) continue;
+		if (desc.get) deferProp(target, key, () => {
+			const value = source._zod.def.shape[key];
+			return wrap ? wrap(value, key) : value;
+		});
+		else putProp(target, key, wrap ? wrap(desc.value, key) : desc.value);
+	}
+}
+function mirrorProps(target, source) {
+	for (const key of Reflect.ownKeys(source)) {
+		const desc = Object.getOwnPropertyDescriptor(source, key);
+		if (!desc.enumerable) continue;
+		if (desc.get) deferProp(target, key, () => source[key]);
+		else putProp(target, key, desc.value);
+	}
 }
 function mergeDefs(...defs) {
 	const mergedDescriptors = {};
@@ -2644,39 +4787,39 @@ const NUMBER_FORMAT_RANGES = {
 	float32: [-34028234663852886e22, 34028234663852886e22],
 	float64: [-Number.MAX_VALUE, Number.MAX_VALUE]
 };
+const BIGINT_FORMAT_RANGES = {
+	int64: [/* @__PURE__ */ BigInt("-9223372036854775808"), /* @__PURE__ */ BigInt("9223372036854775807")],
+	uint64: [/* @__PURE__ */ BigInt(0), /* @__PURE__ */ BigInt("18446744073709551615")]
+};
 function pick(schema, mask) {
 	const currDef = schema._zod.def;
 	const checks = currDef.checks;
 	if (checks && checks.length > 0) throw new Error(".pick() cannot be used on object schemas containing refinements");
-	return clone(schema, mergeDefs(schema._zod.def, {
-		get shape() {
-			const newShape = {};
-			for (const key of Reflect.ownKeys(mask)) {
-				if (!Object.prototype.hasOwnProperty.call(currDef.shape, key)) throw new Error(`Unrecognized key: "${String(key)}"`);
-				if (!mask[key]) continue;
-				assignProp(newShape, key, currDef.shape[key]);
-			}
-			assignProp(this, "shape", newShape);
-			return newShape;
-		},
+	const newShape = {};
+	mirrorShape(newShape, schema, maskedKeys(schema, mask));
+	return clone(schema, mergeDefs(currDef, {
+		shape: newShape,
 		checks: []
 	}));
+}
+function maskedKeys(schema, mask) {
+	const raw = sourceShape(schema);
+	const keys = [];
+	for (const key of Reflect.ownKeys(mask)) {
+		if (!Object.getOwnPropertyDescriptor(raw, key)?.enumerable) throw new Error(`Unrecognized key: "${String(key)}"`);
+		if (mask[key]) keys.push(key);
+	}
+	return keys;
 }
 function omit(schema, mask) {
 	const currDef = schema._zod.def;
 	const checks = currDef.checks;
 	if (checks && checks.length > 0) throw new Error(".omit() cannot be used on object schemas containing refinements");
-	return clone(schema, mergeDefs(schema._zod.def, {
-		get shape() {
-			const newShape = { ...schema._zod.def.shape };
-			for (const key of Reflect.ownKeys(mask)) {
-				if (!Object.prototype.hasOwnProperty.call(currDef.shape, key)) throw new Error(`Unrecognized key: "${String(key)}"`);
-				if (!mask[key]) continue;
-				delete newShape[key];
-			}
-			assignProp(this, "shape", newShape);
-			return newShape;
-		},
+	const omitted = new Set(maskedKeys(schema, mask));
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)).filter((key) => !omitted.has(key)));
+	return clone(schema, mergeDefs(currDef, {
+		shape: newShape,
 		checks: []
 	}));
 }
@@ -2684,41 +4827,29 @@ function extend(schema, shape) {
 	if (!isPlainObject(shape)) throw new Error("Invalid input to extend: expected a plain object");
 	const checks = schema._zod.def.checks;
 	if (checks && checks.length > 0) {
-		const existingShape = schema._zod.def.shape;
+		const existingShape = sourceShape(schema);
 		for (const key of Reflect.ownKeys(shape)) if (Object.getOwnPropertyDescriptor(existingShape, key) !== void 0) throw new Error("Cannot overwrite keys on object schemas containing refinements. Use `.safeExtend()` instead.");
 	}
-	return clone(schema, mergeDefs(schema._zod.def, { get shape() {
-		const _shape = {
-			...schema._zod.def.shape,
-			...shape
-		};
-		assignProp(this, "shape", _shape);
-		return _shape;
-	} }));
+	return clone(schema, mergeDefs(schema._zod.def, { shape: extended(schema, shape) }));
+}
+function extended(schema, shape) {
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)));
+	mirrorProps(newShape, shape);
+	return newShape;
 }
 function safeExtend(schema, shape) {
 	if (!isPlainObject(shape)) throw new Error("Invalid input to safeExtend: expected a plain object");
-	return clone(schema, mergeDefs(schema._zod.def, { get shape() {
-		const _shape = {
-			...schema._zod.def.shape,
-			...shape
-		};
-		assignProp(this, "shape", _shape);
-		return _shape;
-	} }));
+	return clone(schema, mergeDefs(schema._zod.def, { shape: extended(schema, shape) }));
 }
 function merge(a, b) {
 	if (!b?._zod?.def) throw new Error("Invalid input to merge: expected an object schema. To merge a plain shape, use `.extend()`.");
 	if (a._zod.def.checks?.length) throw new Error(".merge() cannot be used on object schemas containing refinements. Use .safeExtend() instead.");
+	const newShape = {};
+	mirrorShape(newShape, a, Reflect.ownKeys(sourceShape(a)));
+	mirrorShape(newShape, b, Reflect.ownKeys(sourceShape(b)));
 	return clone(a, mergeDefs(a._zod.def, {
-		get shape() {
-			const _shape = {
-				...a._zod.def.shape,
-				...b._zod.def.shape
-			};
-			assignProp(this, "shape", _shape);
-			return _shape;
-		},
+		shape: newShape,
 		get catchall() {
 			return b._zod.def.catchall;
 		},
@@ -2728,47 +4859,25 @@ function merge(a, b) {
 function partial(Class, schema, mask, name = "partial") {
 	const checks = schema._zod.def.checks;
 	if (checks && checks.length > 0) throw new Error(`.${name}() cannot be used on object schemas containing refinements`);
+	const selected = mask ? new Set(maskedKeys(schema, mask)) : void 0;
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)), Class && ((value, key) => selected && !selected.has(key) ? value : new Class({
+		type: "optional",
+		innerType: value
+	})));
 	return clone(schema, mergeDefs(schema._zod.def, {
-		get shape() {
-			const oldShape = schema._zod.def.shape;
-			const shape = { ...oldShape };
-			if (mask) for (const key of Reflect.ownKeys(mask)) {
-				if (!Object.prototype.hasOwnProperty.call(oldShape, key)) throw new Error(`Unrecognized key: "${String(key)}"`);
-				if (!mask[key]) continue;
-				shape[key] = Class ? new Class({
-					type: "optional",
-					innerType: oldShape[key]
-				}) : oldShape[key];
-			}
-			else for (const key of Reflect.ownKeys(oldShape)) shape[key] = Class ? new Class({
-				type: "optional",
-				innerType: oldShape[key]
-			}) : oldShape[key];
-			assignProp(this, "shape", shape);
-			return shape;
-		},
+		shape: newShape,
 		checks: []
 	}));
 }
 function required(Class, schema, mask) {
-	return clone(schema, mergeDefs(schema._zod.def, { get shape() {
-		const oldShape = schema._zod.def.shape;
-		const shape = { ...oldShape };
-		if (mask) for (const key of Reflect.ownKeys(mask)) {
-			if (!Object.prototype.hasOwnProperty.call(shape, key)) throw new Error(`Unrecognized key: "${String(key)}"`);
-			if (!mask[key]) continue;
-			shape[key] = new Class({
-				type: "nonoptional",
-				innerType: oldShape[key]
-			});
-		}
-		else for (const key of Reflect.ownKeys(oldShape)) shape[key] = new Class({
-			type: "nonoptional",
-			innerType: oldShape[key]
-		});
-		assignProp(this, "shape", shape);
-		return shape;
-	} }));
+	const selected = mask ? new Set(maskedKeys(schema, mask)) : void 0;
+	const newShape = {};
+	mirrorShape(newShape, schema, Reflect.ownKeys(sourceShape(schema)), (value, key) => selected && !selected.has(key) ? value : new Class({
+		type: "nonoptional",
+		innerType: value
+	}));
+	return clone(schema, mergeDefs(schema._zod.def, { shape: newShape }));
 }
 function aborted(x, startIndex = 0) {
 	if (x.aborted === true) return true;
@@ -2791,6 +4900,17 @@ function prefixIssues(path, issues) {
 function unwrapMessage(message) {
 	return typeof message === "string" ? message : message?.message;
 }
+/** The leading size checks of `defChecks` that set an upper bound, each paired with it. */
+function sizeCaps(defChecks) {
+	const caps = [];
+	for (const ch of defChecks ?? []) {
+		const d = ch._zod.def;
+		if (!/_(length|size)$|_equals$/.test(d.check)) break;
+		const max = d.maximum ?? d.length ?? d.size;
+		if (max >= 0) caps.push([max, ch]);
+	}
+	return caps;
+}
 function attachSchema(issues, start, inst) {
 	var _a;
 	for (let i = start; i < issues.length; i++) (_a = issues[i]).schema ?? (_a.schema = inst);
@@ -2802,11 +4922,15 @@ function finalizeIssue(iss, ctx, config) {
 	else iss.schema = iss.inst;
 	const schemaError = iss.schema !== iss.inst ? iss.schema?._zod.def?.error : void 0;
 	const message = iss.message ? iss.message : unwrapMessage(iss.inst?._zod.def?.error?.(iss)) ?? unwrapMessage(schemaError?.(iss)) ?? unwrapMessage(ctx?.error?.(iss)) ?? unwrapMessage(config.customError?.(iss)) ?? unwrapMessage(config.localeError?.(iss)) ?? "Invalid input";
-	const { inst: _inst, schema: _schema, continue: _continue, input: _input, ...rest } = iss;
-	rest.path ?? (rest.path = []);
-	rest.message = message;
-	if (ctx?.reportInput) rest.input = _input;
-	return rest;
+	const full = {};
+	for (const k of Object.keys(iss)) {
+		if (k === "inst" || k === "schema" || k === "continue" || k === "input" || k === "__proto__") continue;
+		full[k] = iss[k];
+	}
+	full.path ?? (full.path = []);
+	full.message = message;
+	if (ctx?.reportInput) full.input = iss.input;
+	return full;
 }
 const highSurrogate = /[\uD800-\uDBFF]/;
 function codePointLength(str) {
@@ -2875,6 +4999,23 @@ function own(inst, key, value, enumerable = true) {
 /** Like {@link own}, for a member that was never an own data property and has to stay out of `Object.keys`. */
 function hide(inst, key, value) {
 	return own(inst, key, value, false);
+}
+/** Adds members a table derives from the instance: each builds on first read and shadows as own data, and assignment shadows the same way, as when these were own properties. */
+function derived(computes, table) {
+	for (const key in computes) {
+		const compute = computes[key];
+		Object.defineProperty(table, key, {
+			configurable: true,
+			enumerable: true,
+			get() {
+				return own(this, key, compute(this));
+			},
+			set(value) {
+				own(this, key, value);
+			}
+		});
+	}
+	return table;
 }
 function defineBound(proto, key, fn) {
 	Object.defineProperty(proto, key, {
@@ -2985,9 +5126,9 @@ function constantCatch(value) {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/core.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/core.js
 var _a$1;
-const _zodDesc$1 = {
+const _zodDesc = {
 	value: void 0,
 	enumerable: false
 };
@@ -3024,14 +5165,13 @@ function $constructor(name, initializer, proto, params) {
 	const initialized = protoMembers && /* @__PURE__ */ new WeakSet();
 	function init(inst, def) {
 		if (!inst._zod) {
-			_zodDesc$1.value = new Internals(def);
+			_zodDesc.value = new Internals(def);
 			try {
-				Object.defineProperty(inst, "_zod", _zodDesc$1);
+				Object.defineProperty(inst, "_zod", _zodDesc);
 			} finally {
-				_zodDesc$1.value = void 0;
+				_zodDesc.value = void 0;
 			}
-		}
-		if (inst._zod.traits.has(name)) return;
+		} else if (inst._zod.traits.has(name)) return;
 		inst._zod.traits.add(name);
 		initializer(inst, def);
 		if (initialized) {
@@ -3093,7 +5233,7 @@ function config(newConfig) {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/errors.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/errors.js
 function _getMessage() {
 	const internals = this._zod;
 	internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
@@ -3108,10 +5248,6 @@ const _messageDesc = {
 	enumerable: true,
 	configurable: true
 };
-const _zodDesc = {
-	value: void 0,
-	enumerable: false
-};
 const _issuesDesc = {
 	value: void 0,
 	enumerable: false
@@ -3119,11 +5255,8 @@ const _issuesDesc = {
 const _installedToString = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 const initializer$1 = (inst, def) => {
 	inst.name = "$ZodError";
-	_zodDesc.value = inst._zod;
-	Object.defineProperty(inst, "_zod", _zodDesc);
 	_issuesDesc.value = def;
 	Object.defineProperty(inst, "issues", _issuesDesc);
-	_zodDesc.value = void 0;
 	_issuesDesc.value = void 0;
 	Object.defineProperty(inst, "message", _messageDesc);
 	const proto = Object.getPrototypeOf(inst);
@@ -3215,7 +5348,7 @@ function formatError(error, mapper = (issue) => issue.message) {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/parse.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/parse.js
 function finalizeParams(callee, params) {
 	return {
 		callee: params?.callee ?? callee,
@@ -3274,15 +5407,31 @@ const _safeParse = (_Err) => (schema, value, _ctx) => {
 		issues: []
 	}, ctx);
 	if (result instanceof Promise) throw new $ZodAsyncError();
-	return result.issues.length ? {
-		success: false,
-		error: new (_Err ?? $ZodError)(result.issues.map((iss) => finalizeIssue(iss, ctx, config())))
-	} : {
+	return result.issues.length ? failure(_Err, result.issues, ctx) : {
 		success: true,
 		data: result.value
 	};
 };
 const safeParse$1 = /* @__PURE__ */ _safeParse($ZodRealError);
+function failure(Err, issues, ctx) {
+	let error;
+	return {
+		success: false,
+		get error() {
+			if (!error) {
+				error = new Err(issues.map((iss) => finalizeIssue(iss, ctx, config())));
+				issues = void 0;
+				ctx = void 0;
+			}
+			return error;
+		},
+		set error(e) {
+			error = e;
+			issues = void 0;
+			ctx = void 0;
+		}
+	};
+}
 const _safeParseAsync = (_Err) => async (schema, value, _ctx) => {
 	const ctx = _ctx ? {
 		..._ctx,
@@ -3293,15 +5442,62 @@ const _safeParseAsync = (_Err) => async (schema, value, _ctx) => {
 		issues: []
 	}, ctx);
 	if (result instanceof Promise) result = await result;
-	return result.issues.length ? {
-		success: false,
-		error: new _Err(result.issues.map((iss) => finalizeIssue(iss, ctx, config())))
-	} : {
+	return result.issues.length ? failure(_Err, result.issues, ctx) : {
 		success: true,
 		data: result.value
 	};
 };
 const safeParseAsync$1 = /* @__PURE__ */ _safeParseAsync($ZodRealError);
+const COMPILE_INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
+const COMPILE_FALLBACK = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
+const validate = ((schema, value, _ctx) => {
+	const validator = schema._zod.bag.validator;
+	if (validator !== void 0) {
+		if (validator(value) !== COMPILE_INVALID) return true;
+		if (validator.definite === true && _ctx === void 0) return false;
+	}
+	return validateFallback(schema, value, _ctx);
+});
+function validateFallback(schema, value, _ctx) {
+	const ctx = _ctx ? {
+		..._ctx,
+		async: false,
+		abortEarly: true
+	} : {
+		async: false,
+		abortEarly: true
+	};
+	const fallbackRun = schema._zod.bag.fallbackRun;
+	let result;
+	if (fallbackRun) {
+		ctx[COMPILE_FALLBACK] = true;
+		result = fallbackRun({
+			value,
+			issues: []
+		}, ctx);
+	} else result = schema._zod.run({
+		value,
+		issues: []
+	}, ctx);
+	if (result instanceof Promise) throw new $ZodAsyncError();
+	return result.issues.length === 0;
+}
+const validateAsync$1 = async (schema, value, _ctx) => {
+	const ctx = _ctx ? {
+		..._ctx,
+		async: true,
+		abortEarly: true
+	} : {
+		async: true,
+		abortEarly: true
+	};
+	let result = schema._zod.run({
+		value,
+		issues: []
+	}, ctx);
+	if (result instanceof Promise) result = await result;
+	return result.issues.length === 0;
+};
 const _encode = (_Err) => {
 	const parse = _parse(_Err);
 	const fn = (schema, value, _ctx, _params) => {
@@ -3366,7 +5562,7 @@ const _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
 const safeDecodeAsync$1 = /* @__PURE__ */ _safeDecodeAsync($ZodRealError);
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/regexes.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/regexes.js
 /**
 * @deprecated CUID v1 is deprecated by its authors due to information leakage
 * (timestamps embedded in the id). Use {@link cuid2} instead.
@@ -3393,8 +5589,8 @@ const uuid = (version) => {
 	return new RegExp(`^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-${version}[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$`);
 };
 /** Practical email validation */
-const email = /^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
-const _emoji$1 = `^[\\p{Extended_Pictographic}\\p{Emoji_Component}]+$`;
+const email = /^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$/;
+const _emoji$1 = `^(?=[\\s\\S]*[\\p{Extended_Pictographic}\\p{Regional_Indicator}\\u20E3])[\\p{Extended_Pictographic}\\p{Emoji_Component}]+$`;
 function emoji() {
 	return new RegExp(_emoji$1, "u");
 }
@@ -3403,7 +5599,7 @@ const ipv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:
 const cidrv4 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
 const cidrv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
 const base64 = /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/;
-const base64url = /^[A-Za-z0-9_-]*$/;
+const base64url = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/;
 const httpProtocol = /^https?$/;
 const e164 = /^\+[1-9]\d{6,14}$/;
 const dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))`;
@@ -3431,10 +5627,7 @@ function datetime(args) {
 	const timeRegex = args.local ? `${qualified}|${timeSource({ precision: args.precision })}` : qualified;
 	return new RegExp(`^${dateSource}T(?:${timeRegex})$`);
 }
-const string$1 = (params) => {
-	const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
-	return new RegExp(`^${regex}$`);
-};
+const anyString = /^[\s\S]{0,}$/;
 const integer = /^-?\d+$/;
 const number$1 = /^-?\d+(?:\.\d+)?$/;
 const boolean$1 = /^(?:true|false)$/i;
@@ -3442,7 +5635,7 @@ const lowercase = /^[^A-Z]*$/;
 const uppercase = /^[^a-z]*$/;
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/checks.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/checks.js
 const $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
 	var _a;
 	inst._zod ?? (inst._zod = {});
@@ -3462,12 +5655,6 @@ const numericOriginMap = {
 const $ZodCheckLessThan = /* @__PURE__ */ $constructor("$ZodCheckLessThan", (inst, def) => {
 	$ZodCheck.init(inst, def);
 	const origin = numericOriginMap[typeof def.value];
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		const curr = (def.inclusive ? bag.maximum : bag.exclusiveMaximum) ?? Number.POSITIVE_INFINITY;
-		if (def.value < curr) if (def.inclusive) bag.maximum = def.value;
-		else bag.exclusiveMaximum = def.value;
-	});
 	inst._zod.check = (payload) => {
 		if (def.inclusive ? payload.value <= def.value : payload.value < def.value) return;
 		payload.issues.push({
@@ -3484,12 +5671,6 @@ const $ZodCheckLessThan = /* @__PURE__ */ $constructor("$ZodCheckLessThan", (ins
 const $ZodCheckGreaterThan = /* @__PURE__ */ $constructor("$ZodCheckGreaterThan", (inst, def) => {
 	$ZodCheck.init(inst, def);
 	const origin = numericOriginMap[typeof def.value];
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		const curr = (def.inclusive ? bag.minimum : bag.exclusiveMinimum) ?? Number.NEGATIVE_INFINITY;
-		if (def.value > curr) if (def.inclusive) bag.minimum = def.value;
-		else bag.exclusiveMinimum = def.value;
-	});
 	inst._zod.check = (payload) => {
 		if (def.inclusive ? payload.value >= def.value : payload.value > def.value) return;
 		payload.issues.push({
@@ -3505,10 +5686,6 @@ const $ZodCheckGreaterThan = /* @__PURE__ */ $constructor("$ZodCheckGreaterThan"
 });
 const $ZodCheckMultipleOf = /* @__PURE__ */ $constructor("$ZodCheckMultipleOf", (inst, def) => {
 	$ZodCheck.init(inst, def);
-	inst._zod.onattach.push((inst) => {
-		var _a;
-		(_a = inst._zod.bag).multipleOf ?? (_a.multipleOf = def.value);
-	});
 	inst._zod.check = (payload) => {
 		if (typeof payload.value !== typeof def.value) throw new Error("Cannot mix number and bigint in multiple_of check.");
 		if (typeof payload.value === "bigint" ? def.value !== BigInt(0) && payload.value % def.value === BigInt(0) : floatSafeRemainder(payload.value, def.value) === 0) return;
@@ -3528,13 +5705,6 @@ const $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberForma
 	const isInt = def.format?.includes("int");
 	const origin = isInt ? "int" : "number";
 	const [minimum, maximum] = NUMBER_FORMAT_RANGES[def.format];
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		bag.format = def.format;
-		bag.minimum = minimum;
-		bag.maximum = maximum;
-		if (isInt) bag.pattern = integer;
-	});
 	inst._zod.check = (payload) => {
 		const input = payload.value;
 		if (isInt) {
@@ -3597,10 +5767,6 @@ const $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (i
 	var _a;
 	$ZodCheck.init(inst, def);
 	(_a = inst._zod.def).when ?? (_a.when = _whenHasLength);
-	inst._zod.onattach.push((inst) => {
-		const curr = inst._zod.bag.maximum ?? Number.POSITIVE_INFINITY;
-		if (def.maximum < curr) inst._zod.bag.maximum = def.maximum;
-	});
 	inst._zod.check = (payload) => {
 		const input = payload.value;
 		const units = input.length;
@@ -3621,10 +5787,6 @@ const $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (i
 	var _a;
 	$ZodCheck.init(inst, def);
 	(_a = inst._zod.def).when ?? (_a.when = _whenHasLength);
-	inst._zod.onattach.push((inst) => {
-		const curr = inst._zod.bag.minimum ?? Number.NEGATIVE_INFINITY;
-		if (def.minimum > curr) inst._zod.bag.minimum = def.minimum;
-	});
 	inst._zod.check = (payload) => {
 		const input = payload.value;
 		const units = input.length;
@@ -3645,12 +5807,6 @@ const $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEqual
 	var _a;
 	$ZodCheck.init(inst, def);
 	(_a = inst._zod.def).when ?? (_a.when = _whenHasLength);
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		bag.minimum = def.length;
-		bag.maximum = def.length;
-		bag.length = def.length;
-	});
 	inst._zod.check = (payload) => {
 		const input = payload.value;
 		const units = input.length;
@@ -3678,14 +5834,6 @@ const $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEqual
 const $ZodCheckStringFormat = /* @__PURE__ */ $constructor("$ZodCheckStringFormat", (inst, def) => {
 	var _a, _b;
 	$ZodCheck.init(inst, def);
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		bag.format = def.format;
-		if (def.pattern) {
-			bag.patterns ?? (bag.patterns = /* @__PURE__ */ new Set());
-			bag.patterns.add(def.pattern);
-		}
-	});
 	if (def.pattern) (_a = inst._zod).check ?? (_a.check = (payload) => {
 		def.pattern.lastIndex = 0;
 		if (def.pattern.test(payload.value)) return;
@@ -3728,13 +5876,7 @@ const $ZodCheckUpperCase = /* @__PURE__ */ $constructor("$ZodCheckUpperCase", (i
 const $ZodCheckIncludes = /* @__PURE__ */ $constructor("$ZodCheckIncludes", (inst, def) => {
 	$ZodCheck.init(inst, def);
 	const escapedRegex = escapeRegex(def.includes);
-	const pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position},}${escapedRegex}` : escapedRegex);
-	def.pattern = pattern;
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		bag.patterns ?? (bag.patterns = /* @__PURE__ */ new Set());
-		bag.patterns.add(pattern);
-	});
+	def.pattern = new RegExp(typeof def.position === "number" ? `^.{${def.position},}${escapedRegex}` : escapedRegex);
 	inst._zod.check = (payload) => {
 		if (payload.value.includes(def.includes, def.position)) return;
 		payload.issues.push({
@@ -3752,11 +5894,6 @@ const $ZodCheckStartsWith = /* @__PURE__ */ $constructor("$ZodCheckStartsWith", 
 	$ZodCheck.init(inst, def);
 	const pattern = new RegExp(`^${escapeRegex(def.prefix)}.*`);
 	def.pattern ?? (def.pattern = pattern);
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		bag.patterns ?? (bag.patterns = /* @__PURE__ */ new Set());
-		bag.patterns.add(pattern);
-	});
 	inst._zod.check = (payload) => {
 		if (payload.value.startsWith(def.prefix)) return;
 		payload.issues.push({
@@ -3774,11 +5911,6 @@ const $ZodCheckEndsWith = /* @__PURE__ */ $constructor("$ZodCheckEndsWith", (ins
 	$ZodCheck.init(inst, def);
 	const pattern = new RegExp(`.*${escapeRegex(def.suffix)}$`);
 	def.pattern ?? (def.pattern = pattern);
-	inst._zod.onattach.push((inst) => {
-		const bag = inst._zod.bag;
-		bag.patterns ?? (bag.patterns = /* @__PURE__ */ new Set());
-		bag.patterns.add(pattern);
-	});
 	inst._zod.check = (payload) => {
 		if (payload.value.endsWith(def.suffix)) return;
 		payload.issues.push({
@@ -3800,7 +5932,7 @@ const $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (i
 });
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/doc.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/doc.js
 var Doc = class {
 	constructor(args = [], closed = {}) {
 		this.content = [];
@@ -3810,8 +5942,11 @@ var Doc = class {
 	}
 	indented(fn) {
 		this.indent += 1;
-		fn(this);
-		this.indent -= 1;
+		try {
+			fn(this);
+		} finally {
+			this.indent -= 1;
+		}
 	}
 	write(arg) {
 		if (typeof arg === "function") {
@@ -3832,15 +5967,15 @@ var Doc = class {
 };
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/versions.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/versions.js
 const version = {
 	major: 4,
-	minor: 5,
-	patch: 4
+	minor: 6,
+	patch: 7
 };
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/schemas.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/schemas.js
 const $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
 	var _a;
 	inst ?? (inst = {});
@@ -3929,15 +6064,26 @@ const $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
 	}
 });
 /** The Standard Schema surface for `inst`. Shared so wrappers can extend it without forcing it. */
-const toStandardResult = (r) => r.success ? { value: r.data } : { issues: r.error?.issues };
+const toStandardResult = (r, ctx) => r.issues.length ? { issues: r.issues.map((iss) => finalizeIssue(iss, ctx, config())) } : { value: r.value };
+async function validateAsync(inst, value) {
+	const ctx = { async: true };
+	return toStandardResult(await inst._zod.run({
+		value,
+		issues: []
+	}, ctx), ctx);
+}
 function standardProps(inst) {
 	return {
 		validate: (value) => {
+			const ctx = { async: false };
 			try {
-				return toStandardResult(safeParse$1(inst, value));
-			} catch (_) {
-				return safeParseAsync$1(inst, value).then(toStandardResult);
-			}
+				const r = inst._zod.run({
+					value,
+					issues: []
+				}, ctx);
+				if (!(r instanceof Promise)) return toStandardResult(r, ctx);
+			} catch (_) {}
+			return validateAsync(inst, value);
 		},
 		vendor: "zod",
 		version: 1
@@ -3945,7 +6091,7 @@ function standardProps(inst) {
 }
 const $ZodString = /* @__PURE__ */ $constructor("$ZodString", (inst, def) => {
 	$ZodType.init(inst, def);
-	inst._zod.pattern = [...inst?._zod.bag?.patterns ?? []].pop() ?? string$1(inst._zod.bag);
+	inst._zod.pattern = def.pattern ?? anyString;
 	inst._zod.parse = (payload, _) => {
 		if (def.coerce) try {
 			payload.value = String(payload.value);
@@ -3991,12 +6137,29 @@ const $ZodEmail = /* @__PURE__ */ $constructor("$ZodEmail", (inst, def) => {
 });
 /** The `://` guard rejected the input before the URL constructor saw it. */
 const URL_BAD_FORMAT = 1;
-/** The URL constructor rejected the input. */
+/** The URL parser rejected the input. */
 const URL_UNPARSEABLE = 2;
-/** Parses a URL for `$ZodURL`, applying the one guard the URL constructor cannot express. Returns the parsed URL, or a code naming the stage that rejected it — the runtime needs that distinction to pick an issue note, and compiled code only needs to know it is not a URL. */
+function canParseURL(input) {
+	try {
+		if (typeof URL !== "undefined" && typeof URL.canParse === "function") return URL.canParse(input);
+		new URL(input);
+		return true;
+	} catch {
+		return false;
+	}
+}
+function validateURL(trimmed, def) {
+	if (!("normalize" in def) && !("hostname" in def) && !("protocol" in def)) return canParseURL(trimmed) || URL_UNPARSEABLE;
+	return parseURLObject(trimmed, def);
+}
+/** Parses a URL while preserving the non-normalizing HTTP guard. */
 function parseURLObject(trimmed, def) {
 	if (!def.normalize && def.protocol?.source === httpProtocol.source && !/^https?:\/\//i.test(trimmed)) return URL_BAD_FORMAT;
 	try {
+		if (typeof URL !== "undefined") {
+			const URLStatic = URL;
+			if (typeof URLStatic.parse === "function") return URLStatic.parse(trimmed) ?? URL_UNPARSEABLE;
+		}
 		return new URL(trimmed);
 	} catch {
 		return URL_UNPARSEABLE;
@@ -4020,7 +6183,7 @@ const $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
 	inst._zod.check = (payload) => {
 		try {
 			const trimmed = payload.value.trim();
-			const url = parseURLObject(trimmed, def);
+			const url = validateURL(trimmed, def);
 			if (url === URL_BAD_FORMAT) {
 				payload.issues.push({
 					code: "invalid_format",
@@ -4040,6 +6203,10 @@ const $ZodURL = /* @__PURE__ */ $constructor("$ZodURL", (inst, def) => {
 					inst,
 					continue: !def.abort
 				});
+				return;
+			}
+			if (url === true) {
+				payload.value = stripTabAndNewline(trimmed);
 				return;
 			}
 			if (def.hostname && !urlHostnameOk(url, def.hostname)) payload.issues.push({
@@ -4110,12 +6277,6 @@ const $ZodKSUID = /* @__PURE__ */ $constructor("$ZodKSUID", (inst, def) => {
 const $ZodISODateTime = /* @__PURE__ */ $constructor("$ZodISODateTime", (inst, def) => {
 	def.pattern ?? (def.pattern = datetime(def));
 	$ZodStringFormat.init(inst, def);
-	if (def.local || def.precision === -1) {
-		inst._zod.bag.laxFormat = true;
-		inst._zod.onattach.push((s) => {
-			s._zod.bag.laxFormat = true;
-		});
-	}
 });
 const $ZodISODate = /* @__PURE__ */ $constructor("$ZodISODate", (inst, def) => {
 	def.pattern ?? (def.pattern = date);
@@ -4132,23 +6293,16 @@ const $ZodISODuration = /* @__PURE__ */ $constructor("$ZodISODuration", (inst, d
 const $ZodIPv4 = /* @__PURE__ */ $constructor("$ZodIPv4", (inst, def) => {
 	def.pattern ?? (def.pattern = ipv4);
 	$ZodStringFormat.init(inst, def);
-	inst._zod.bag.format = `ipv4`;
 });
 /** An IPv6 address is written with hex digits, colons and dots, and nothing else. The guard is what makes the check below an IPv6 check: `new URL("http://[...]")` parses an authority, not an address, so `@` and `\` re-delimit it and `"::@1\\"` validates against the host `0.0.0.1`. The URL parser also deletes ASCII tab, LF and CR rather than failing, which is how `"::1\n"` validated as `::1`. */
 const ipv6Alphabet = /^[0-9a-fA-F:.]+$/;
 function isValidIPv6(value) {
 	if (!ipv6Alphabet.test(value)) return false;
-	try {
-		new URL(`http://[${value}]`);
-		return true;
-	} catch {
-		return false;
-	}
+	return canParseURL(`http://[${value}]`);
 }
 const $ZodIPv6 = /* @__PURE__ */ $constructor("$ZodIPv6", (inst, def) => {
 	def.pattern ?? (def.pattern = ipv6);
 	$ZodStringFormat.init(inst, def);
-	inst._zod.bag.format = `ipv6`;
 	inst._zod.check = (payload) => {
 		if (!isValidIPv6(payload.value)) payload.issues.push({
 			code: "invalid_format",
@@ -4197,10 +6351,10 @@ function isValidBase64(data) {
 		return false;
 	}
 }
+const base64Charset = /^[0-9a-zA-Z+/]*={0,2}$/;
 const $ZodBase64 = /* @__PURE__ */ $constructor("$ZodBase64", (inst, def) => {
-	def.pattern ?? (def.pattern = base64);
+	def.pattern ?? (def.pattern = base64Charset);
 	$ZodStringFormat.init(inst, def);
-	inst._zod.bag.contentEncoding = "base64";
 	inst._zod.check = (payload) => {
 		if (isValidBase64(payload.value)) return;
 		payload.issues.push({
@@ -4212,15 +6366,15 @@ const $ZodBase64 = /* @__PURE__ */ $constructor("$ZodBase64", (inst, def) => {
 		});
 	};
 });
+const base64urlCharset = /^[A-Za-z0-9_-]*$/;
 function isValidBase64URL(data) {
-	if (!base64url.test(data)) return false;
+	if (!base64urlCharset.test(data)) return false;
 	const base64 = data.replace(/[-_]/g, (c) => c === "-" ? "+" : "/");
 	return isValidBase64(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
 }
 const $ZodBase64URL = /* @__PURE__ */ $constructor("$ZodBase64URL", (inst, def) => {
-	def.pattern ?? (def.pattern = base64url);
+	def.pattern ?? (def.pattern = base64urlCharset);
 	$ZodStringFormat.init(inst, def);
-	inst._zod.bag.contentEncoding = "base64url";
 	inst._zod.check = (payload) => {
 		if (isValidBase64URL(payload.value)) return;
 		payload.issues.push({
@@ -4266,7 +6420,7 @@ const $ZodJWT = /* @__PURE__ */ $constructor("$ZodJWT", (inst, def) => {
 });
 const $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
 	$ZodType.init(inst, def);
-	inst._zod.pattern = inst._zod.bag.pattern ?? number$1;
+	inst._zod.pattern = number$1;
 	inst._zod.parse = (payload, _ctx) => {
 		if (def.coerce) try {
 			payload.value = Number(payload.value);
@@ -4322,6 +6476,26 @@ const $ZodNever = /* @__PURE__ */ $constructor("$ZodNever", (inst, def) => {
 		return payload;
 	};
 });
+function capSize(inst, size) {
+	const caps = sizeCaps(inst._zod.def.checks);
+	if (!caps.length) return;
+	const cap = Math.min(...caps.map((c) => c[0]));
+	const parse = inst._zod.parse;
+	inst._zod.parse = (payload, ctx) => {
+		const n = size(payload.value);
+		if (n > cap && !ctx?.skipChecks && ctx?.direction !== "backward") {
+			for (const [max, ch] of sizeCaps(inst._zod.def.checks)) if (n > max && ch._zod.def.when(payload)) {
+				const start = payload.issues.length;
+				ch._zod.check(payload);
+				payload.issues[start].continue = false;
+				attachSchema(payload.issues, start, inst);
+				return payload;
+			}
+		}
+		return parse(payload, ctx);
+	};
+}
+const arraySize = (input) => Array.isArray(input) ? input.length : -1;
 function handleArrayResult(result, final, index) {
 	if (result.issues.length) final.issues.push(...prefixIssues(index, result.issues));
 	final.value[index] = result.value;
@@ -4343,6 +6517,7 @@ const $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
 		}
 		payload.value = memo ? memo.alloc(inst, payload, Array(input.length), ctx) : Array(input.length);
 		const proms = [];
+		const abortEarly = ctx?.abortEarly;
 		for (let i = 0; i < input.length; i++) {
 			const item = input[i];
 			const result = def.element._zod.run({
@@ -4350,11 +6525,15 @@ const $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
 				issues: []
 			}, ctx);
 			if (result instanceof Promise) proms.push(result.then((result) => handleArrayResult(result, payload, i)));
-			else handleArrayResult(result, payload, i);
+			else {
+				handleArrayResult(result, payload, i);
+				if (abortEarly && result.issues.length !== 0 && aborted(result)) break;
+			}
 		}
 		if (proms.length) return Promise.all(proms).then(() => payload);
 		return payload;
 	};
+	capSize(inst, arraySize);
 });
 function handlePropertyResult(result, final, key, input, optin, optout) {
 	const isPresent = key in input;
@@ -4374,7 +6553,7 @@ function handlePropertyResult(result, final, key, input, optin, optout) {
 		return;
 	}
 	if (result.value === void 0) {
-		if (isPresent) final.value[key] = void 0;
+		if (isPresent || optin === "defaulted" && !isOptionalOut) final.value[key] = void 0;
 	} else final.value[key] = result.value;
 }
 const NO_SYMBOL_KEYS = [];
@@ -4394,14 +6573,19 @@ function normalizeDef(def) {
 		optionalKeys: new Set(okeys)
 	};
 }
-function handleCatchall(proms, input, payload, ctx, def, inst) {
+function handleCatchall(proms, input, payload, ctx, def, inst, abortEarly) {
 	const unrecognized = [];
 	const keySet = def.keySet;
 	const _catchall = def.catchall._zod;
 	const t = _catchall.def.type;
 	const optin = _catchall.optin;
 	const optout = _catchall.optout;
+	let seen = 0;
 	for (const key in input) {
+		if (abortEarly && payload.issues.length !== seen) {
+			if (aborted(payload, seen)) break;
+			seen = payload.issues.length;
+		}
 		if (keySet.has(key)) continue;
 		if (key === "__proto__") {
 			if (t === "never") unrecognized.push(key);
@@ -4430,18 +6614,19 @@ function handleCatchall(proms, input, payload, ctx, def, inst) {
 		return payload;
 	});
 }
-const propShapes = /* @__PURE__ */ new WeakMap();
 const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 	$ZodType.init(inst, def);
-	if (!Object.getOwnPropertyDescriptor(def, "shape")?.get) {
-		const sh = def.shape;
-		propShapes.set(def, sh);
-		Object.defineProperty(def, "shape", { get: () => {
+	const desc = Object.getOwnPropertyDescriptor(def, "shape");
+	const sh = desc?.get ? desc.get.raw : def.shape ?? {};
+	if (sh) {
+		const get = () => {
 			const newSh = { ...sh };
 			Object.defineProperty(def, "shape", { value: newSh });
-			propShapes.set(def, newSh);
+			get.raw = newSh;
 			return newSh;
-		} });
+		};
+		get.raw = sh;
+		Object.defineProperty(def, "shape", { get });
 	}
 	const _normalized = cached(() => normalizeDef(def));
 	defineLazyInternal(inst, "propValues", (zod) => {
@@ -4457,7 +6642,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 		}
 		return propValues;
 	});
-	const isObject$2 = isObject;
+	const isObject$3 = isObject;
 	const catchall = def.catchall;
 	let value;
 	const memo = globalConfig.memoizer;
@@ -4465,7 +6650,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$2(input)) {
+		if (!isObject$3(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -4477,7 +6662,13 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 		payload.value = memo ? memo.alloc(inst, payload, {}, ctx) : {};
 		const proms = [];
 		const shape = value.shape;
+		const abortEarly = ctx?.abortEarly;
+		let seen = payload.issues.length;
 		for (const key of value.allKeys) {
+			if (abortEarly && payload.issues.length !== seen) {
+				if (aborted(payload, seen)) break;
+				seen = payload.issues.length;
+			}
 			if (key === "__proto__") continue;
 			const el = shape[key];
 			const optin = el._zod.optin;
@@ -4490,7 +6681,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
 			else handlePropertyResult(r, payload, key, input, optin, optout);
 		}
 		if (!catchall) return proms.length ? Promise.all(proms).then(() => payload) : payload;
-		return handleCatchall(proms, input, payload, ctx, _normalized.value, inst);
+		return handleCatchall(proms, input, payload, ctx, _normalized.value, inst, abortEarly === true);
 	};
 });
 const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) => {
@@ -4509,10 +6700,16 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
 		});
 		const parseStr = (k) => `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
 		const prefixStr = (id, k) => `
+          let ${id}_ab = false;
           for (let i = 0; i < ${id}.issues.length; i++) {
             const iss = ${id}.issues[i];
             iss.path = iss.path ? [${k}, ...iss.path] : [${k}];
             payload.issues.push(iss);
+            if (iss.continue !== true) ${id}_ab = true;
+          }
+          if (${id}_ab && ctx && ctx.abortEarly) {
+            payload.value = newResult;
+            return payload;
           }`;
 		doc.write(`const input = payload.value;`);
 		const ids = Object.create(null);
@@ -4554,6 +6751,10 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
             input: undefined,
             path: [${k}]
           });
+          if (ctx && ctx.abortEarly) {
+            payload.value = newResult;
+            return payload;
+          }
         }
 
         if (${id}_present) {
@@ -4561,26 +6762,25 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
         }
 
       `);
-			else doc.write(`
+			else {
+				doc.write(`
         if (${id}.issues.length) {${prefixStr(id, k)}
         }
-
-        if (${id}.value === undefined) {
-          if (${isPresent}) {
-            newResult[${k}] = undefined;
-          }
-        } else {
+      `);
+				if (optin === "defaulted") doc.write(`newResult[${k}] = ${id}.value;`);
+				else doc.write(`
+        if (${id}.value !== undefined || ${isPresent}) {
           newResult[${k}] = ${id}.value;
         }
-
       `);
+			}
 		}
 		doc.write(`payload.value = newResult;`);
 		doc.write(`return payload;`);
 		return doc.compile();
 	};
 	let fastpass;
-	const isObject$3 = isObject;
+	const isObject$4 = isObject;
 	const jit = !globalConfig.jitless;
 	const allowsEval$2 = allowsEval;
 	const fastEnabled = jit && allowsEval$2.value;
@@ -4589,7 +6789,7 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$3(input)) {
+		if (!isObject$4(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -4602,7 +6802,7 @@ const $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) 
 			if (!fastpass) fastpass = generateFastpass(def.shape);
 			payload = fastpass(payload, ctx);
 			if (!catchall) return payload;
-			return handleCatchall([], input, payload, ctx, value, inst);
+			return handleCatchall([], input, payload, ctx, value, inst, ctx?.abortEarly === true);
 		}
 		return superParse(payload, ctx);
 	};
@@ -4662,39 +6862,42 @@ const $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
 		});
 	};
 });
+function discriminatorMap(def) {
+	const map = /* @__PURE__ */ new Map();
+	for (const option of def.options) {
+		const values = option._zod.propValues?.[def.discriminator];
+		if (!values || values.size === 0) throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(option)}"`);
+		for (const value of values) if (map.has(value)) {
+			if (value !== void 0) throw new Error(`Duplicate discriminator value "${String(value)}"`);
+			map.set(value, null);
+		} else map.set(value, option);
+	}
+	return map;
+}
 const $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnion", (inst, def) => {
 	def.inclusive = false;
 	$ZodUnion.init(inst, def);
 	const _super = inst._zod.parse;
 	defineLazyInternal(inst, "propValues", (zod) => {
 		const propValues = {};
+		let undefinedCount = 0;
 		for (const option of zod.def.options) {
 			const pv = option._zod.propValues;
 			if (!pv || Object.keys(pv).length === 0) throw new Error(`Invalid discriminated union option at index "${zod.def.options.indexOf(option)}"`);
+			if (pv[zod.def.discriminator]?.has(void 0)) undefinedCount++;
 			for (const [k, v] of Object.entries(pv)) {
 				if (!Object.prototype.hasOwnProperty.call(propValues, k)) assignProp(propValues, k, /* @__PURE__ */ new Set());
 				for (const val of v) propValues[k].add(val);
 			}
 		}
+		if (!zod.def.unionFallback && undefinedCount > 1) propValues[zod.def.discriminator]?.delete(void 0);
 		return propValues;
 	});
 	def.options.forEach((option, i) => {
-		const propShape = propShapes.get(option._zod.def);
+		const propShape = rawShape(option._zod.def);
 		if (propShape && !Object.prototype.hasOwnProperty.call(propShape, def.discriminator)) throw new Error(`Invalid discriminated union option at index "${i}"`);
 	});
-	const disc = cached(() => {
-		const opts = def.options;
-		const map = /* @__PURE__ */ new Map();
-		for (const o of opts) {
-			const values = o._zod.propValues?.[def.discriminator];
-			if (!values || values.size === 0) throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(o)}"`);
-			for (const v of values) {
-				if (map.has(v)) throw new Error(`Duplicate discriminator value "${String(v)}"`);
-				map.set(v, o);
-			}
-		}
-		return map;
-	});
+	const disc = cached(() => discriminatorMap(def));
 	inst._zod.parse = (payload, ctx) => {
 		const input = payload.value;
 		if (!isObject(input)) {
@@ -4706,15 +6909,16 @@ const $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUn
 			});
 			return payload;
 		}
-		const opt = disc.value.get(input?.[def.discriminator]);
-		if (opt) return opt._zod.run(payload, ctx);
+		const value = input?.[def.discriminator];
+		const opt = disc.value.get(value);
+		if (opt && (value !== void 0 || ctx.direction !== "backward")) return opt._zod.run(payload, ctx);
 		if (def.unionFallback || ctx.direction === "backward") return _super(payload, ctx);
 		payload.issues.push({
 			code: "invalid_union",
 			errors: [],
 			note: "No matching discriminator",
 			discriminator: def.discriminator,
-			options: Array.from(disc.value.keys()),
+			options: Array.from(disc.value.keys()).filter((value) => disc.value.get(value) !== null),
 			input,
 			path: [def.discriminator],
 			inst
@@ -4971,8 +7175,10 @@ const $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def) => {
 	const values = getEnumValues(def.entries);
 	const valuesSet = new Set(values);
 	inst._zod.values = valuesSet;
-	const patternValues = values.filter((k) => propertyKeyTypes.has(typeof k));
-	inst._zod.pattern = new RegExp(patternValues.length ? `^(${patternValues.map((o) => escapeRegex(o.toString())).join("|")})$` : "^[^\\s\\S]$");
+	defineLazyInternal(inst, "pattern", (zod) => {
+		const patternValues = getEnumValues(zod.def.entries).filter((k) => propertyKeyTypes.has(typeof k));
+		return new RegExp(patternValues.length ? `^(${patternValues.map((o) => escapeRegex(o.toString())).join("|")})$` : "^[^\\s\\S]$");
+	});
 	inst._zod.parse = (payload, _ctx) => {
 		const input = payload.value;
 		if (valuesSet.has(input)) return payload;
@@ -4989,7 +7195,10 @@ const $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
 	$ZodType.init(inst, def);
 	const values = new Set(def.values);
 	inst._zod.values = values;
-	inst._zod.pattern = new RegExp(def.values.length ? `^(${def.values.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$` : "^[^\\s\\S]$");
+	defineLazyInternal(inst, "pattern", (zod) => {
+		const vals = zod.def.values;
+		return new RegExp(vals.length ? `^(${vals.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$` : "^[^\\s\\S]$");
+	});
 	inst._zod.parse = (payload, _ctx) => {
 		const input = payload.value;
 		if (values.has(input)) return payload;
@@ -5225,7 +7434,7 @@ function handleRefineResult(result, payload, input, inst) {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/memoizer.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/memoizer.js
 var $ZodCyclicError = class extends Error {
 	constructor() {
 		super(`Cannot parse a reference cycle that closes through a transform`);
@@ -5235,6 +7444,9 @@ var $ZodCyclicError = class extends Error {
 /** Keyed off the context object every schema in one parse call already shares. */
 const STATE = "~memo";
 const NO_ISSUES = [];
+function isRef(value) {
+	return value !== null && typeof value === "object";
+}
 function cloneIssues(issues) {
 	return issues.map((iss) => iss.path ? {
 		...iss,
@@ -5242,22 +7454,44 @@ function cloneIssues(issues) {
 	} : { ...iss });
 }
 const recursive = /* @__PURE__ */ new WeakMap();
+/** What the walk established, in order of certainty: ordered so the strongest answer among children wins. */
+const NONE = 0;
+const ASSUMED = 1;
+const PROVEN = 2;
 /** Whether this schema's subtree contains a cycle, so one parse can re-enter it. */
-function isRecursive(inst, stack) {
+function isRecursive(inst, stack, resolve) {
 	const cached = recursive.get(inst);
-	if (cached !== void 0) return cached;
-	if (stack.has(inst)) return true;
+	if (cached !== void 0) return cached ? PROVEN : NONE;
+	if (stack.has(inst)) return PROVEN;
 	stack.add(inst);
-	let result = false;
+	let result = NONE;
 	const check = (child) => {
-		if (!result && child?._zod && isRecursive(child, stack)) result = true;
+		if (result !== PROVEN && child?._zod) {
+			const answer = isRecursive(child, stack, resolve);
+			if (answer > result) result = answer;
+		}
+	};
+	const shape = (sh, spread) => {
+		let answer = NONE;
+		for (const key of Reflect.ownKeys(sh)) {
+			const desc = Object.getOwnPropertyDescriptor(sh, key);
+			if (spread && !desc.enumerable) continue;
+			const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve) : NONE;
+			if (child > answer) answer = child;
+		}
+		return answer;
+	};
+	const merge = (answer) => {
+		if (answer > result) result = answer;
 	};
 	const def = inst._zod.def;
 	switch (def.type) {
-		case "object":
-			for (const key of Reflect.ownKeys(def.shape)) check(def.shape[key]);
+		case "object": {
+			const raw = rawShape(def);
+			merge(raw ? shape(raw, true) : ASSUMED);
 			check(def.catchall);
 			break;
+		}
 		case "array":
 			check(def.element);
 			break;
@@ -5299,9 +7533,11 @@ function isRecursive(inst, stack) {
 			check(def.input);
 			check(def.output);
 			break;
-		case "lazy":
-			check(inst._zod.innerType);
+		case "lazy": {
+			const inner = def._cachedInner ?? (resolve ? inst._zod.innerType : void 0);
+			merge(inner ? isRecursive(inner, stack, false) : ASSUMED);
 			break;
+		}
 		case "template_literal":
 		case "string":
 		case "number":
@@ -5332,19 +7568,23 @@ function isRecursive(inst, stack) {
 		}
 	}
 	stack.delete(inst);
-	recursive.set(inst, result);
-	return result;
+	return settle(inst, result);
+}
+/** An assumed answer must not outlive the resolution that settles it, so only a certain one is cached. */
+function settle(inst, answer) {
+	if (answer !== ASSUMED) recursive.set(inst, answer === PROVEN);
+	return answer;
 }
 function bucketFor(state, inst) {
 	let bucket = state.buckets.get(inst);
 	if (!bucket) {
-		bucket = /* @__PURE__ */ new Map();
+		bucket = /* @__PURE__ */ new WeakMap();
 		state.buckets.set(inst, bucket);
 	}
 	return bucket;
 }
 let handoff;
-const open = [];
+const open$1 = [];
 const memo = {
 	alloc(_inst, payload, empty) {
 		const bucket = handoff;
@@ -5355,7 +7595,7 @@ const memo = {
 			issues: null
 		};
 		bucket.set(payload.value, entry);
-		open.push(entry);
+		open$1.push(entry);
 		return empty;
 	},
 	guard(inst) {
@@ -5374,6 +7614,7 @@ const memo = {
 	attach(inst) {
 		var _a;
 		let isRecursiveInst;
+		let rechecked = false;
 		let lastCtx;
 		let lastBucket;
 		(_a = inst._zod).deferred ?? (_a.deferred = []);
@@ -5381,19 +7622,21 @@ const memo = {
 			const base = inst._zod.parse;
 			const wrapped = (payload, ctx) => {
 				if (isRecursiveInst === void 0) {
-					isRecursiveInst = isRecursive(inst, /* @__PURE__ */ new Set());
-					if (!isRecursiveInst) {
+					const walked = isRecursive(inst, /* @__PURE__ */ new Set(), false);
+					if (walked === NONE) {
 						inst._zod.parse = base;
 						if (inst._zod.run === wrapped) inst._zod.run = base;
 						return base(payload, ctx);
 					}
+					if (walked === PROVEN || rechecked) isRecursiveInst = true;
+					else rechecked = true;
 				}
 				const input = payload.value;
-				if (input === null || typeof input !== "object") return base(payload, ctx);
+				if (!isRef(input)) return base(payload, ctx);
 				let state = ctx[STATE];
 				if (!state) {
 					state = {
-						buckets: /* @__PURE__ */ new Map(),
+						buckets: /* @__PURE__ */ new WeakMap(),
 						backEdges: void 0
 					};
 					ctx[STATE] = state;
@@ -5412,16 +7655,16 @@ const memo = {
 						if (hit.issues.length) payload.issues.push(...cloneIssues(hit.issues));
 					} else {
 						payload.memo = true;
-						state.backEdges ?? (state.backEdges = /* @__PURE__ */ new Set());
+						state.backEdges ?? (state.backEdges = /* @__PURE__ */ new WeakSet());
 						state.backEdges.add(hit.value);
 					}
 					return payload;
 				}
 				handoff = bucket;
-				const depth = open.length;
+				const depth = open$1.length;
 				const result = base(payload, ctx);
 				handoff = void 0;
-				const entry = open.length > depth ? open.pop() : void 0;
+				const entry = open$1.length > depth ? open$1.pop() : void 0;
 				if (result instanceof Promise) return result.then((r) => {
 					if (entry) entry.issues = r.issues.length ? cloneIssues(r.issues) : NO_ISSUES;
 					return r;
@@ -5441,11 +7684,11 @@ function memoizer() {
 /** Whether this value is a node a back-edge resolved to before it finished. */
 function isBackEdge(ctx, value) {
 	const backEdges = ctx[STATE]?.backEdges;
-	return backEdges !== void 0 && value !== null && typeof value === "object" && backEdges.has(value);
+	return backEdges !== void 0 && isRef(value) && backEdges.has(value);
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/locales/en.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/locales/en.js
 const error = () => {
 	const Sizable = {
 		string: {
@@ -5500,7 +7743,9 @@ const error = () => {
 		base64url: "base64url-encoded string",
 		json_string: "JSON string",
 		e164: "E.164 number",
+		currency_code: "currency code",
 		credit_card: "credit card number",
+		iban: "IBAN",
 		jwt: "JWT",
 		template_literal: "input"
 	};
@@ -5552,7 +7797,7 @@ function en_default() {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/registries.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/registries.js
 var _a;
 var $ZodRegistry = class {
 	constructor() {
@@ -5600,13 +7845,17 @@ function registry() {
 const globalRegistry = globalThis.__zod_globalRegistry;
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/api.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/api.js
+function snapshotChecks(def) {
+	if (def.checks) def.checks = [...def.checks];
+	return def;
+}
 /* @__NO_SIDE_EFFECTS__ */
 function _string(Class, params) {
-	return new Class({
+	return new Class(snapshotChecks({
 		type: "string",
 		...normalizeParams(params)
-	});
+	}));
 }
 /* @__NO_SIDE_EFFECTS__ */
 function _email(Class, params) {
@@ -5878,11 +8127,11 @@ function _isoDuration(Class, params) {
 }
 /* @__NO_SIDE_EFFECTS__ */
 function _number(Class, params) {
-	return new Class({
+	return new Class(snapshotChecks({
 		type: "number",
 		checks: [],
 		...normalizeParams(params)
-	});
+	}));
 }
 /* @__NO_SIDE_EFFECTS__ */
 function _int(Class, params) {
@@ -6132,7 +8381,7 @@ function meta$1(metadata) {
 }
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/to-json-schema.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
 	for (const source of sources) for (const key of Reflect.ownKeys(source)) if (Object.prototype.propertyIsEnumerable.call(source, key)) assignProp(target, key, source[key]);
 	return target;
@@ -6175,7 +8424,7 @@ function handleUnrepresentable(schema, ctx, json, params, message) {
 	Object.assign(json, result);
 	return true;
 }
-function process$1(schema, ctx, _params = {
+function processSchema(schema, ctx, _params = {
 	path: [],
 	schemaPath: []
 }) {
@@ -6214,7 +8463,7 @@ function process$1(schema, ctx, _params = {
 		const parent = schema._zod.parent;
 		if (parent) {
 			if (!result.ref) result.ref = parent;
-			process$1(parent, ctx, params);
+			processSchema(parent, ctx, params);
 			ctx.seen.get(parent).isParent = true;
 		}
 	}
@@ -6304,10 +8553,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
 			continue;
 		}
 		if (seen.count > 1) {
-			if (ctx.reused === "ref") {
-				extractToDef(entry);
-				continue;
-			}
+			if (ctx.reused === "ref") extractToDef(entry);
 		}
 	}
 	if (ctx.external) ctx.sharedDefsExtractedFor = ctx.external;
@@ -6560,7 +8806,7 @@ const createToJSONSchemaMethod = (schema, processors = {}) => (params) => {
 		...params,
 		processors
 	});
-	process$1(schema, ctx);
+	processSchema(schema, ctx);
 	extractDefs(ctx, schema);
 	return finalize(ctx, schema);
 };
@@ -6572,13 +8818,85 @@ const createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params)
 		io,
 		processors
 	});
-	process$1(schema, ctx);
+	processSchema(schema, ctx);
 	extractDefs(ctx, schema);
 	return finalize(ctx, schema);
 };
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/core/json-schema-processors.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/core/json-schema-processors.js
+const narrowMin = (agg, key, value) => {
+	if (agg[key] === void 0 || value > agg[key]) agg[key] = value;
+};
+const narrowMax = (agg, key, value) => {
+	if (agg[key] === void 0 || value < agg[key]) agg[key] = value;
+};
+const narrowBoth = (agg, value) => {
+	narrowMin(agg, "minimum", value);
+	narrowMax(agg, "maximum", value);
+};
+const addDivisor = (agg, value) => {
+	agg.multipleOf ?? (agg.multipleOf = []);
+	if (!agg.multipleOf.includes(value)) agg.multipleOf.push(value);
+};
+const addPattern = (agg, pattern) => {
+	agg.patterns ?? (agg.patterns = /* @__PURE__ */ new Set());
+	agg.patterns.add(pattern);
+};
+const intersectMime = (agg, mime) => {
+	agg.mime = agg.mime ? agg.mime.filter((m) => mime.includes(m)) : [...mime];
+};
+const setFormat = (agg, format) => {
+	agg.format = format;
+	if (format.includes("int")) agg.isInt = true;
+};
+const minContributor = (agg, def) => narrowMin(agg, "minimum", def.minimum);
+const maxContributor = (agg, def) => narrowMax(agg, "maximum", def.maximum);
+const formatContributor = (ranges) => (agg, def) => {
+	setFormat(agg, def.format);
+	const [minimum, maximum] = ranges[def.format];
+	narrowMin(agg, "minimum", minimum);
+	narrowMax(agg, "maximum", maximum);
+};
+const contributors = {
+	greater_than: (agg, def) => narrowMin(agg, def.inclusive ? "minimum" : "exclusiveMinimum", def.value),
+	less_than: (agg, def) => narrowMax(agg, def.inclusive ? "maximum" : "exclusiveMaximum", def.value),
+	multiple_of: (agg, def) => addDivisor(agg, def.value),
+	number_format: formatContributor(NUMBER_FORMAT_RANGES),
+	bigint_format: formatContributor(BIGINT_FORMAT_RANGES),
+	min_length: minContributor,
+	max_length: maxContributor,
+	length_equals: (agg, def) => narrowBoth(agg, def.length),
+	min_size: minContributor,
+	max_size: maxContributor,
+	size_equals: (agg, def) => narrowBoth(agg, def.size),
+	string_format: (agg, def) => {
+		setFormat(agg, def.format);
+		if (def.pattern) addPattern(agg, def.pattern);
+		if (def.format === "base64" || def.format === "base64url") agg.contentEncoding = def.format;
+		if (def.local || def.precision === -1) agg.laxFormat = true;
+	},
+	mime_type: (agg, def) => intersectMime(agg, def.mime)
+};
+function aggregateChecks(schema) {
+	const agg = {};
+	const def = schema._zod.def;
+	const list = schema._zod.traits.has("$ZodCheck") ? [schema, ...def.checks ?? []] : def.checks ?? [];
+	for (const ch of list) contributors[ch._zod.def.check]?.(agg, ch._zod.def);
+	const bag = schema._zod.bag;
+	if (bag.minimum !== void 0) narrowMin(agg, "minimum", bag.minimum);
+	if (bag.exclusiveMinimum !== void 0) narrowMin(agg, "exclusiveMinimum", bag.exclusiveMinimum);
+	if (bag.maximum !== void 0) narrowMax(agg, "maximum", bag.maximum);
+	if (bag.exclusiveMaximum !== void 0) narrowMax(agg, "exclusiveMaximum", bag.exclusiveMaximum);
+	if (bag.multipleOf !== void 0) addDivisor(agg, bag.multipleOf);
+	if (bag.format !== void 0) {
+		agg.format ?? (agg.format = bag.format);
+		if (bag.format.includes("int")) agg.isInt = true;
+	}
+	if (bag.mime) intersectMime(agg, bag.mime);
+	for (const pattern of bag.patterns ?? []) addPattern(agg, pattern);
+	return agg;
+}
 const formatMap = {
 	guid: "uuid",
 	url: "uri",
@@ -6586,10 +8904,12 @@ const formatMap = {
 	json_string: "json-string",
 	regex: ""
 };
+const exactPatterns = new Map([[base64Charset, base64], [base64urlCharset, base64url]]);
+const exactPattern = (p) => exactPatterns.get(p) ?? p;
 const stringProcessor = (schema, ctx, _json, _params) => {
 	const json = _json;
 	json.type = "string";
-	const { minimum, maximum, format, patterns, contentEncoding, laxFormat } = schema._zod.bag;
+	const { minimum, maximum, format, patterns, contentEncoding, laxFormat } = aggregateChecks(schema);
 	if (typeof minimum === "number") json.minLength = minimum;
 	if (typeof maximum === "number") json.maxLength = maximum;
 	if (format) {
@@ -6599,7 +8919,7 @@ const stringProcessor = (schema, ctx, _json, _params) => {
 	}
 	if (contentEncoding) json.contentEncoding = contentEncoding;
 	if (patterns && patterns.size > 0) {
-		const patternList = [...patterns];
+		const patternList = [...patterns].map(exactPattern);
 		if (patternList.length === 1) json.pattern = patternList[0].source;
 		else if (patternList.length > 1) json.allOf = [...patternList.map((regex) => ({
 			...ctx.target === "draft-07" || ctx.target === "draft-04" || ctx.target === "openapi-3.0" ? { type: "string" } : {},
@@ -6609,9 +8929,8 @@ const stringProcessor = (schema, ctx, _json, _params) => {
 };
 const numberProcessor = (schema, ctx, _json, params) => {
 	const json = _json;
-	const { minimum, maximum, format, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
-	if (typeof format === "string" && format.includes("int")) json.type = "integer";
-	else json.type = "number";
+	const { minimum, maximum, multipleOf, exclusiveMaximum, exclusiveMinimum, isInt } = aggregateChecks(schema);
+	json.type = isInt ? "integer" : "number";
 	const exMin = typeof exclusiveMinimum === "number" && exclusiveMinimum >= (minimum ?? Number.NEGATIVE_INFINITY);
 	const exMax = typeof exclusiveMaximum === "number" && exclusiveMaximum <= (maximum ?? Number.POSITIVE_INFINITY);
 	const legacy = ctx.target === "draft-04" || ctx.target === "openapi-3.0";
@@ -6625,8 +8944,14 @@ const numberProcessor = (schema, ctx, _json, params) => {
 		json.exclusiveMaximum = true;
 	} else json.exclusiveMaximum = exclusiveMaximum;
 	else if (typeof maximum === "number") json.maximum = maximum;
-	if (typeof multipleOf === "number") if (Number.isFinite(multipleOf) && multipleOf !== 0) json.multipleOf = Math.abs(multipleOf);
-	else handleUnrepresentable(schema, ctx, json, params, `A multipleOf divisor of ${multipleOf} cannot be represented in JSON Schema`);
+	if (multipleOf) {
+		const divisors = /* @__PURE__ */ new Set();
+		for (const divisor of multipleOf) if (Number.isFinite(divisor) && divisor !== 0) divisors.add(Math.abs(divisor));
+		else handleUnrepresentable(schema, ctx, json, params, `A multipleOf divisor of ${divisor} cannot be represented in JSON Schema`);
+		const [first, ...rest] = divisors;
+		if (first !== void 0) json.multipleOf = first;
+		if (rest.length) json.allOf = [...json.allOf ?? [], ...rest.map((m) => ({ multipleOf: m }))];
+	}
 };
 const booleanProcessor = (_schema, _ctx, json, _params) => {
 	json.type = "boolean";
@@ -6681,11 +9006,11 @@ const transformProcessor = (schema, ctx, json, params) => {
 const arrayProcessor = (schema, ctx, _json, params) => {
 	const json = _json;
 	const def = schema._zod.def;
-	const { minimum, maximum } = schema._zod.bag;
+	const { minimum, maximum } = aggregateChecks(schema);
 	if (typeof minimum === "number") json.minItems = minimum;
 	if (typeof maximum === "number") json.maxItems = maximum;
 	json.type = "array";
-	json.items = process$1(def.element, ctx, {
+	json.items = processSchema(def.element, ctx, {
 		...params,
 		path: [...params.path, "items"]
 	});
@@ -6703,7 +9028,7 @@ const objectProcessor = (schema, ctx, _json, params) => {
 	if (Object.getOwnPropertySymbols(shape).length && handleUnrepresentable(schema, ctx, json, params, "Symbol keys cannot be represented in JSON Schema")) return;
 	json.type = "object";
 	json.properties = {};
-	for (const key in shape) assignProp(json.properties, key, process$1(shape[key], ctx, {
+	for (const key in shape) assignProp(json.properties, key, processSchema(shape[key], ctx, {
 		...params,
 		path: [
 			...params.path,
@@ -6711,17 +9036,16 @@ const objectProcessor = (schema, ctx, _json, params) => {
 			key
 		]
 	}));
-	const allKeys = new Set(Object.keys(shape));
-	const requiredKeys = new Set([...allKeys].filter((key) => {
+	const requiredKeys = [];
+	for (const key of Object.keys(shape)) {
 		const field = def.shape[key];
-		if (ctx.io === "input") return inputOptin(field) === void 0;
-		else return field._zod.optout === void 0;
-	}));
-	if (requiredKeys.size > 0) json.required = Array.from(requiredKeys);
+		if (ctx.io === "input" ? inputOptin(field) === void 0 : field._zod.optout === void 0) requiredKeys.push(key);
+	}
+	if (requiredKeys.length > 0) json.required = requiredKeys;
 	if (def.catchall?._zod.def.type === "never") json.additionalProperties = false;
 	else if (!def.catchall) {
 		if (ctx.io === "output") json.additionalProperties = false;
-	} else if (def.catchall) json.additionalProperties = process$1(def.catchall, ctx, {
+	} else if (def.catchall) json.additionalProperties = processSchema(def.catchall, ctx, {
 		...params,
 		path: [...params.path, "additionalProperties"]
 	});
@@ -6729,7 +9053,7 @@ const objectProcessor = (schema, ctx, _json, params) => {
 const unionProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
 	const isExclusive = def.inclusive === false;
-	const options = def.options.map((x, i) => process$1(x, ctx, {
+	const options = def.options.map((x, i) => processSchema(x, ctx, {
 		...params,
 		path: [
 			...params.path,
@@ -6742,7 +9066,7 @@ const unionProcessor = (schema, ctx, json, params) => {
 };
 const intersectionProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
-	const a = process$1(def.left, ctx, {
+	const a = processSchema(def.left, ctx, {
 		...params,
 		path: [
 			...params.path,
@@ -6750,7 +9074,7 @@ const intersectionProcessor = (schema, ctx, json, params) => {
 			0
 		]
 	});
-	const b = process$1(def.right, ctx, {
+	const b = processSchema(def.right, ctx, {
 		...params,
 		path: [
 			...params.path,
@@ -6826,9 +9150,9 @@ const recordProcessor = (schema, ctx, _json, params) => {
 	const def = schema._zod.def;
 	json.type = "object";
 	const keyType = def.keyType;
-	const patterns = keyType._zod.bag?.patterns;
+	const patterns = aggregateChecks(keyType).patterns;
 	if (def.mode === "loose" && patterns && patterns.size > 0) {
-		const valueSchema = process$1(def.valueType, ctx, {
+		const valueSchema = processSchema(def.valueType, ctx, {
 			...params,
 			path: [
 				...params.path,
@@ -6837,10 +9161,10 @@ const recordProcessor = (schema, ctx, _json, params) => {
 			]
 		});
 		json.patternProperties = {};
-		for (const pattern of patterns) assignProp(json.patternProperties, pattern.source, valueSchema);
+		for (const pattern of patterns) assignProp(json.patternProperties, exactPattern(pattern).source, valueSchema);
 	} else {
 		if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
-			json.propertyNames = process$1(def.keyType, ctx, {
+			json.propertyNames = processSchema(def.keyType, ctx, {
 				...params,
 				path: [...params.path, "propertyNames"]
 			});
@@ -6852,7 +9176,7 @@ const recordProcessor = (schema, ctx, _json, params) => {
 			}
 			pending.push(schema);
 		}
-		json.additionalProperties = process$1(def.valueType, ctx, {
+		json.additionalProperties = processSchema(def.valueType, ctx, {
 			...params,
 			path: [...params.path, "additionalProperties"]
 		});
@@ -6866,7 +9190,7 @@ const recordProcessor = (schema, ctx, _json, params) => {
 };
 const nullableProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
-	const inner = process$1(def.innerType, ctx, params);
+	const inner = processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	if (ctx.target === "openapi-3.0") {
 		seen.ref = def.innerType;
@@ -6875,7 +9199,7 @@ const nullableProcessor = (schema, ctx, json, params) => {
 };
 const nonoptionalProcessor = (schema, ctx, _json, params) => {
 	const def = schema._zod.def;
-	process$1(def.innerType, ctx, params);
+	processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = def.innerType;
 };
@@ -6896,7 +9220,7 @@ function serializeDefaultValue(value, schema, ctx, json, params) {
 }
 const defaultProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
-	process$1(def.innerType, ctx, params);
+	processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = def.innerType;
 	const value = serializeDefaultValue(def.defaultValue, schema, ctx, json, params);
@@ -6904,7 +9228,7 @@ const defaultProcessor = (schema, ctx, json, params) => {
 };
 const prefaultProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
-	process$1(def.innerType, ctx, params);
+	processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = def.innerType;
 	if (ctx.io !== "input") return;
@@ -6913,7 +9237,7 @@ const prefaultProcessor = (schema, ctx, json, params) => {
 };
 const catchProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
-	process$1(def.innerType, ctx, params);
+	processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = def.innerType;
 	let catchValue;
@@ -6929,26 +9253,26 @@ const pipeProcessor = (schema, ctx, _json, params) => {
 	const def = schema._zod.def;
 	const inIsTransform = def.in._zod.traits.has("$ZodTransform");
 	const innerType = ctx.io === "input" ? inIsTransform ? def.out : def.in : def.out;
-	process$1(innerType, ctx, params);
+	processSchema(innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = innerType;
 };
 const readonlyProcessor = (schema, ctx, json, params) => {
 	const def = schema._zod.def;
-	process$1(def.innerType, ctx, params);
+	processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = def.innerType;
 	json.readOnly = true;
 };
 const optionalProcessor = (schema, ctx, _json, params) => {
 	const def = schema._zod.def;
-	process$1(def.innerType, ctx, params);
+	processSchema(def.innerType, ctx, params);
 	const seen = ctx.seen.get(schema);
 	seen.ref = def.innerType;
 };
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/classic/errors.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/errors.js
 const _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
 	Object.defineProperty(proto, key, {
@@ -6999,7 +9323,7 @@ const initializer = (inst, issues) => {
 const ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer, void 0, { Parent: Error });
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/classic/parse.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/parse.js
 const parse = /* @__PURE__ */ _parse(ZodRealError);
 const parseAsync = /* @__PURE__ */ _parseAsync(ZodRealError);
 const safeParse = /* @__PURE__ */ _safeParse(ZodRealError);
@@ -7014,7 +9338,7 @@ const safeEncodeAsync = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
 const safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
 //#endregion
-//#region ../../node_modules/.pnpm/zod@4.5.4/node_modules/zod/v4/classic/schemas.js
+//#region ../../node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/schemas.js
 function _ensureDefaultLocale() {
 	if (!globalConfig.localeError) config(en_default());
 }
@@ -7150,6 +9474,12 @@ const ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
 	set spa(value) {
 		own(this, "spa", value);
 	},
+	validate(data, params) {
+		return validate(this, data, params);
+	},
+	validateAsync(data, params) {
+		return validateAsync$1(this, data, params);
+	},
 	encode: function _encode(data, params) {
 		return encode(this, data, params, { callee: _encode });
 	},
@@ -7189,10 +9519,10 @@ const _ZodString = /* @__PURE__ */ $constructor("_ZodString", (inst, def) => {
 	$ZodString.init(inst, def);
 	ZodType.init(inst, def);
 	inst._zod.processJSONSchema = (ctx, json, params) => stringProcessor(inst, ctx, json, params);
-	const bag = inst._zod.bag;
-	inst.format = bag.format ?? null;
-	inst.minLength = bag.minimum ?? null;
-	inst.maxLength = bag.maximum ?? null;
+}, /* @__PURE__ */ derived({
+	format: (inst) => aggregateChecks(inst).format ?? null,
+	minLength: (inst) => aggregateChecks(inst).minimum ?? null,
+	maxLength: (inst) => aggregateChecks(inst).maximum ?? null
 }, {
 	regex(...args) {
 		return this.check(_regex(...args));
@@ -7239,7 +9569,7 @@ const _ZodString = /* @__PURE__ */ $constructor("_ZodString", (inst, def) => {
 	slugify() {
 		return this.check(_slugify());
 	}
-});
+}));
 const ZodString = /* @__PURE__ */ $constructor("ZodString", (inst, def) => {
 	$ZodString.init(inst, def);
 	_ZodString.init(inst, def);
@@ -7431,12 +9761,21 @@ const ZodNumber = /* @__PURE__ */ $constructor("ZodNumber", (inst, def) => {
 	$ZodNumber.init(inst, def);
 	ZodType.init(inst, def);
 	inst._zod.processJSONSchema = (ctx, json, params) => numberProcessor(inst, ctx, json, params);
-	const bag = inst._zod.bag;
-	inst.minValue = Math.max(bag.minimum ?? Number.NEGATIVE_INFINITY, bag.exclusiveMinimum ?? Number.NEGATIVE_INFINITY) ?? null;
-	inst.maxValue = Math.min(bag.maximum ?? Number.POSITIVE_INFINITY, bag.exclusiveMaximum ?? Number.POSITIVE_INFINITY) ?? null;
-	inst.isInt = (bag.format ?? "").includes("int") || Number.isSafeInteger(bag.multipleOf ?? .5);
 	inst.isFinite = true;
-	inst.format = bag.format ?? null;
+}, /* @__PURE__ */ derived({
+	minValue: (inst) => {
+		const { minimum, exclusiveMinimum } = aggregateChecks(inst);
+		return Math.max(minimum ?? Number.NEGATIVE_INFINITY, exclusiveMinimum ?? Number.NEGATIVE_INFINITY);
+	},
+	maxValue: (inst) => {
+		const { maximum, exclusiveMaximum } = aggregateChecks(inst);
+		return Math.min(maximum ?? Number.POSITIVE_INFINITY, exclusiveMaximum ?? Number.POSITIVE_INFINITY);
+	},
+	isInt: (inst) => {
+		const { isInt, multipleOf } = aggregateChecks(inst);
+		return !!isInt || !!multipleOf?.some(Number.isSafeInteger);
+	},
+	format: (inst) => aggregateChecks(inst).format ?? null
 }, {
 	gt(value, params) {
 		return this.check(_gt(value, params));
@@ -7483,7 +9822,7 @@ const ZodNumber = /* @__PURE__ */ $constructor("ZodNumber", (inst, def) => {
 	finite() {
 		return this;
 	}
-});
+}));
 function number(params) {
 	return _number(ZodNumber, params);
 }
@@ -7555,34 +9894,19 @@ const ZodObject = /* @__PURE__ */ $constructor("ZodObject", (inst, def) => {
 		return _enum(Object.keys(this._zod.def.shape));
 	},
 	catchall(catchall) {
-		return this.clone({
-			...this._zod.def,
-			catchall
-		});
+		return this.clone(mergeDefs(this._zod.def, { catchall }));
 	},
 	passthrough() {
-		return this.clone({
-			...this._zod.def,
-			catchall: unknown()
-		});
+		return this.clone(mergeDefs(this._zod.def, { catchall: unknown() }));
 	},
 	loose() {
-		return this.clone({
-			...this._zod.def,
-			catchall: unknown()
-		});
+		return this.clone(mergeDefs(this._zod.def, { catchall: unknown() }));
 	},
 	strict() {
-		return this.clone({
-			...this._zod.def,
-			catchall: never()
-		});
+		return this.clone(mergeDefs(this._zod.def, { catchall: never() }));
 	},
 	strip() {
-		return this.clone({
-			...this._zod.def,
-			catchall: void 0
-		});
+		return this.clone(mergeDefs(this._zod.def, { catchall: void 0 }));
 	},
 	extend(incoming) {
 		return extend(this, incoming);
@@ -7680,7 +10004,7 @@ const ZodEnum = /* @__PURE__ */ $constructor("ZodEnum", (inst, def) => {
 	ZodType.init(inst, def);
 	inst._zod.processJSONSchema = (ctx, json, params) => enumProcessor(inst, ctx, json, params);
 	inst.enum = def.entries;
-	inst.options = Object.values(def.entries);
+	inst.options = [...inst._zod.values];
 	const keys = new Set(Object.keys(def.entries));
 	inst.extract = (values, params) => {
 		const newEntries = {};
@@ -8177,7 +10501,8 @@ const settingFieldSchema = discriminatedUnion("type", [
 const adminPageSchema = object({
 	path: string(),
 	label: string(),
-	icon: string().optional()
+	icon: string().optional(),
+	group: string().trim().min(1).max(100).optional()
 });
 const dashboardWidgetSchema = object({
 	id: string(),
@@ -12837,19 +15162,6 @@ const verifier = new import_dist$2.Verifier((0, import_dist$2.toTrustMaterial)(i
 });
 
 //#endregion
-//#region ../../packages/registry-verification/dist/errors-D3_zxvwe.js
-function verificationError(code, message, details) {
-	return {
-		success: false,
-		error: {
-			code,
-			message,
-			...details === void 0 ? {} : { details }
-		}
-	};
-}
-
-//#endregion
 //#region ../../packages/registry-verification/dist/bundle.js
 /** Maximum accepted gzip payload size. */
 const MAX_BUNDLE_COMPRESSED_BYTES = 384 * 1024;
@@ -13066,42 +15378,6 @@ function invalidArchive() {
 }
 
 //#endregion
-//#region ../../packages/registry-verification/dist/checksum.js
-const SHA2_256_CODE = 18;
-const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
-async function computeMultihash(bytes, algorithm = "sha2-256") {
-	if (algorithm !== "sha2-256") return verificationError("UNSUPPORTED_MULTIHASH", "The multihash algorithm is not supported.");
-	try {
-		const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
-		const multihash = new Uint8Array(2 + digest.length);
-		multihash[0] = SHA2_256_CODE;
-		multihash[1] = digest.length;
-		multihash.set(digest, 2);
-		return {
-			success: true,
-			value: `b${encodeBase32(multihash)}`
-		};
-	} catch {
-		return verificationError("UNSUPPORTED_MULTIHASH", "The sha2-256 algorithm is unavailable.");
-	}
-}
-function encodeBase32(bytes) {
-	let result = "";
-	let buffer = 0;
-	let bits = 0;
-	for (const byte of bytes) {
-		buffer = buffer << 8 | byte;
-		bits += 8;
-		while (bits >= 5) {
-			result += BASE32_ALPHABET[buffer >>> bits - 5 & 31] ?? "";
-			bits -= 5;
-		}
-	}
-	if (bits > 0) result += BASE32_ALPHABET[buffer << 5 - bits & 31] ?? "";
-	return result;
-}
-
-//#endregion
 //#region src/prepare.ts
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -13199,6 +15475,14 @@ async function prepareReleaseFiles(options, dependencies = {}) {
 	if (!bundle.success) throw new ReleasePreparationError(`Plugin bundle is invalid (${bundle.code})`);
 	const computeChecksum = dependencies.computeChecksum ?? checksum;
 	return {
+		media: await prepareReleaseMedia({
+			workspace: options.workspace,
+			pluginDirectory: resolve(options.workspace, options.pluginDirectory ?? "."),
+			packageSlug: bundle.value.packageSlug,
+			version: bundle.value.version,
+			ignoreUnrelatedManifest: Boolean(options.bundleFile) && (options.pluginDirectory ?? ".") === ".",
+			info: options.info
+		}),
 		packageSlug: bundle.value.packageSlug,
 		version: bundle.value.version,
 		packageBytes,
@@ -13266,16 +15550,19 @@ async function setIntentOutputs(runtime, intent) {
 	await runtime.setOutput("release-cid", intent.result?.cid ?? "");
 	await runtime.setOutput("reason-code", intent.reasonCode ?? "");
 }
-function sourceReleaseFromPrepared(prepared, packageUrl, provenanceUrl) {
+function sourceReleaseFromPrepared(prepared, packageUrl, provenanceUrl, media) {
 	const release = parseDelegatedReleaseSourceRecord({
 		$type: NSID.packageRelease,
 		package: prepared.packageSlug,
 		version: prepared.version,
-		artifacts: { package: {
-			url: packageUrl,
-			checksum: prepared.packageChecksum,
-			contentType: "application/gzip"
-		} },
+		artifacts: {
+			...media,
+			package: {
+				url: packageUrl,
+				checksum: prepared.packageChecksum,
+				contentType: "application/gzip"
+			}
+		},
 		extensions: { [NSID.packageReleaseExtension]: {
 			$type: NSID.packageReleaseExtension,
 			declaredAccess: prepared.declaredAccess,
@@ -13321,7 +15608,8 @@ async function runAction(runtime, dependencies = {}) {
 			provenanceFile,
 			repository,
 			workflowRef,
-			repositoryVisibility
+			repositoryVisibility,
+			info: (message) => runtime.info(message)
 		});
 	}
 	const packageSlug = prepared?.packageSlug ?? release.package;
@@ -13380,7 +15668,30 @@ async function runAction(runtime, dependencies = {}) {
 			contentType: "application/json",
 			bytes: prepared.provenanceBytes
 		}, { idempotencyKey: `github-upload-${runId}-${packageSlug}-provenance` });
-		release = sourceReleaseFromPrepared(prepared, packageUpload.artifact.sourceUrl, provenanceUpload.artifact.sourceUrl);
+		const media = {};
+		const uploadImage = async (slot, image) => {
+			const { bytes, ...descriptor } = image;
+			const uploaded = await client.uploadReleaseArtifact({
+				publisherDid,
+				packageSlug,
+				version,
+				slot,
+				checksum: image.checksum,
+				contentType: image.contentType,
+				bytes
+			}, { idempotencyKey: `github-upload-${runId}-${packageSlug}-${slot.replaceAll("[", "-").replaceAll("]", "")}` });
+			return {
+				...descriptor,
+				url: uploaded.artifact.sourceUrl
+			};
+		};
+		if (prepared.media?.icon) media.icon = await uploadImage("icon", prepared.media.icon);
+		if (prepared.media?.banner) media.banner = await uploadImage("banner", prepared.media.banner);
+		if (prepared.media?.screenshots) {
+			media.screenshots = [];
+			for (const [index, image] of prepared.media.screenshots.entries()) media.screenshots.push(await uploadImage(`screenshots[${index}]`, image));
+		}
+		release = sourceReleaseFromPrepared(prepared, packageUpload.artifact.sourceUrl, provenanceUpload.artifact.sourceUrl, media);
 	}
 	if (!release) throw new ActionConfigurationError("Release input is unavailable");
 	const submitted = await client.submitIntent({
@@ -13412,14 +15723,14 @@ async function runAction(runtime, dependencies = {}) {
 		runtime.info(`Published ${intent.result.uri} (${intent.result.cid})`);
 		return intent;
 	}
-	if (FAILURE_STATES.has(intent.state)) throw new ActionConfigurationError(`Release intent ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}`);
+	if (FAILURE_STATES.has(intent.state)) throw new ActionConfigurationError(`Release intent ${intent.id} ended in ${intent.state}${intent.reasonCode ? ` (${intent.reasonCode})` : ""}${intent.reasonMessage ? `: ${intent.reasonMessage}` : ""}`);
 	throw new ActionConfigurationError(`Release intent stopped in unexpected state ${intent.state}`);
 }
 async function executeAction(runtime, dependencies = {}) {
 	try {
 		await runAction(runtime, dependencies);
 	} catch (error) {
-		if (error instanceof ReleaseServiceError || error instanceof ActionConfigurationError || error instanceof ReleasePreparationError) {
+		if (error instanceof ReleaseServiceError || error instanceof ActionConfigurationError || error instanceof ReleasePreparationError || error instanceof ReleaseMediaPreparationError) {
 			runtime.setFailed(error instanceof ReleaseServiceError ? `${error.code}: ${error.message}` : error.message);
 			return;
 		}

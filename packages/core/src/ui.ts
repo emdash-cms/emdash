@@ -36,20 +36,24 @@
  * ```
  */
 
-// Re-export types and utilities from astro-portabletext
-export {
-	type PortableTextProps,
-	type TypedObject,
-	type SomePortableTextComponents,
-	type Block,
-	type ArbitraryTypedObject,
-	type PortableTextBlock,
-	type PortableTextMarkDefinition,
-	type PortableTextSpan,
-	type PortableTextListItemBlock,
-	usePortableText,
-	mergeComponents,
-} from "astro-portabletext";
+import type { Block as PortableTextStyledBlock } from "astro-portabletext/types";
+
+import { Block as BlockStyleComponent } from "./components/index.js";
+
+export type { PortableTextProps, SomePortableTextComponents } from "astro-portabletext/types";
+export type {
+	TypedObject,
+	ArbitraryTypedObject,
+	PortableTextBlock,
+	PortableTextMarkDefinition,
+	PortableTextSpan,
+	PortableTextListItemBlock,
+} from "@portabletext/types";
+export { usePortableText, mergeComponents } from "astro-portabletext";
+
+// Local declarations share the name across the type and value namespaces.
+export type Block = PortableTextStyledBlock;
+export const Block = BlockStyleComponent;
 
 // EmDash PortableText wrapper and components
 export {
@@ -61,11 +65,6 @@ export {
 	PortableText,
 	Blocks,
 	defineBlockComponents,
-	// Block style override (paragraph/heading/blockquote — emits
-	// `has-text-align-*` class when the block carries `textAlign`).
-	// Shares the name with the `type Block` re-export above; the
-	// type and the component live in different namespaces.
-	Block,
 	// Widget components
 	WidgetArea,
 	// Components object for manual use
@@ -79,6 +78,7 @@ export {
 	Break,
 	HtmlBlock,
 	Iframe,
+	Video,
 	// Marks
 	Superscript,
 	Subscript,

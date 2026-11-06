@@ -20,6 +20,9 @@ on:
     paths:
       - "packages/admin/**"
       - "!packages/admin/tests/**"
+      - "!packages/admin/src/locales/*/messages.po"
+      # The RTL snapshots render the Arabic catalog.
+      - "packages/admin/src/locales/ar/messages.po"
       - "packages/core/**"
       - "!packages/core/tests/**"
       - "e2e/**"

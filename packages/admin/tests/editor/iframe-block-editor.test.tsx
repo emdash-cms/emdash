@@ -81,6 +81,23 @@ describe("Iframe block editor", () => {
 		);
 	});
 
+	it("highlights a new block's selected tab and moves between tabs with the arrow keys", async () => {
+		const { screen, pm } = await renderEditor();
+		await insertFromSlashMenu(pm);
+
+		await vi.waitFor(() => {
+			const indicator = document.querySelector<HTMLElement>(
+				".iframe-block [role='tablist'] > [role='presentation']",
+			);
+			expect(indicator?.checkVisibility()).toBe(true);
+		});
+		screen.getByRole("tab", { name: "Code" }).element().focus();
+		await userEvent.keyboard("{ArrowRight}");
+		await expect
+			.element(screen.getByRole("tab", { name: "Preview" }))
+			.toHaveAttribute("aria-selected", "true");
+	});
+
 	it("turns a pasted YouTube link into the player and shows it in Preview", async () => {
 		const { screen, pm, latest } = await renderEditor();
 		await insertFromSlashMenu(pm);

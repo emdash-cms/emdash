@@ -185,11 +185,6 @@ import { Image } from "emdash/ui";
 
 {/* Correct -- passes the image object */}
 <Image image={post.data.featured_image} />
-
-{/* Also works with explicit props */}
-{post.data.featured_image?.src && (
-	<img src={post.data.featured_image.src} alt={post.data.featured_image.alt || ""} />
-)}
 ```
 
 **Common mistake:**
@@ -197,6 +192,24 @@ import { Image } from "emdash/ui";
 ```astro
 {/* WRONG -- image is an object, not a string */}
 <img src={post.data.featured_image} />
+```
+
+## File fields
+
+File field values from the Media Library have no `src`. Resolve the URL from `meta.storageKey`. Files added by URL (stored with `provider: "external"`) keep it in `src`. For a registered media provider such as Cloudflare Stream, `src` is only a preview image, so this does not apply.
+
+```astro
+---
+const file = entry.data.video;
+const storageKey = typeof file?.meta?.storageKey === "string" ? file.meta.storageKey : undefined;
+const url = storageKey
+	? Astro.locals.emdash?.getPublicMediaUrl?.(storageKey)
+	: file?.provider === "external"
+		? file.src
+		: file?.url;
+---
+
+{url && <video src={url} controls preload="metadata" />}
 ```
 
 ## Visual Editing Attributes

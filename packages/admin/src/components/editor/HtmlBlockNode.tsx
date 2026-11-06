@@ -87,7 +87,7 @@ const PREVIEW_TAB: EmbedBlockTab = { value: "preview", label: PREVIEW_LABEL, Ico
 const isEmpty = (attrs: Record<string, unknown>) =>
 	FIELDS.every((field) => !fieldValue(attrs, field));
 
-function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }: NodeViewProps) {
+function HtmlBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const editable = editor.isEditable;
 	const isolated = node.attrs.isolated === true;
@@ -175,7 +175,6 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 	return (
 		<EmbedBlockCard
 			className="html-block"
-			selected={selected}
 			editable={editable}
 			tabs={tabs}
 			activeTab={activeTab}
@@ -183,12 +182,12 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 			menuLabel={t`HTML block options`}
 			menu={
 				<DropdownMenu.Group>
-					<DropdownMenu.Label>{t`On the site`}</DropdownMenu.Label>
+					<DropdownMenu.Label className="px-2!">{t`On the site`}</DropdownMenu.Label>
 					<DropdownMenu.RadioGroup
 						value={isolated ? "isolated" : "inline"}
 						onValueChange={setIsolated}
 					>
-						<DropdownMenu.RadioItem value="isolated" closeOnClick>
+						<DropdownMenu.RadioItem value="isolated" closeOnClick className="px-2!">
 							<span className="flex flex-col">
 								{t`Isolated frame`}
 								<span className="text-xs text-kumo-subtle">
@@ -196,7 +195,7 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 								</span>
 							</span>
 						</DropdownMenu.RadioItem>
-						<DropdownMenu.RadioItem value="inline" closeOnClick>
+						<DropdownMenu.RadioItem value="inline" closeOnClick className="px-2!">
 							<span className="flex flex-col">
 								{t`Inline`}
 								<span className="text-xs text-kumo-subtle">

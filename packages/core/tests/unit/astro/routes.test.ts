@@ -51,6 +51,7 @@ function mockMediaContext(key: string | undefined, contentType = "image/png") {
 					storage: { download },
 				},
 			},
+			request: new Request(`https://example.com/_emdash/api/media/file/${key}`),
 		} as Parameters<typeof getMediaFile>[0],
 		download,
 	};
@@ -209,6 +210,25 @@ describe("core media route injection", () => {
 		expect(folder).toBeLessThan(mediaItem);
 	});
 
+	it("injects the maintenance bridge only when Cloudflare dev requests it", () => {
+		const defaultRoutes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => defaultRoutes.push(route));
+		expect(defaultRoutes).not.toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/dev/scheduled-tasks" }),
+		);
+
+		const cloudflareDevRoutes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => cloudflareDevRoutes.push(route), {
+			cloudflareDevScheduler: true,
+		});
+		expect(cloudflareDevRoutes).toContainEqual(
+			expect.objectContaining({
+				pattern: "/_emdash/api/dev/scheduled-tasks",
+				entrypoint: expect.stringContaining("api/dev/scheduled-tasks"),
+			}),
+		);
+	});
+
 	it("injects default root SEO routes when the site does not define them", () => {
 		const routes = collectRoutePatterns();
 
@@ -316,5 +336,21 @@ describe("media file catch-all route", () => {
 		const response = await getMediaFile(context);
 
 		expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+	});
+
+	it("serves image/bmp inline, same as the other safe raster types", async () => {
+		const { context } = mockMediaContext("photo.bmp", "image/bmp");
+
+		const response = await getMediaFile(context);
+
+		expect(response.headers.get("Content-Disposition")).toBe("inline");
+	});
+
+	it("forces attachment for a type outside SAFE_INLINE_TYPES", async () => {
+		const { context } = mockMediaContext("icon.svg", "image/svg+xml");
+
+		const response = await getMediaFile(context);
+
+		expect(response.headers.get("Content-Disposition")).toBe("attachment");
 	});
 });

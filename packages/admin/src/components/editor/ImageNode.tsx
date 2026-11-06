@@ -18,6 +18,7 @@ import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
+import { useCaptionField, useCaptionText } from "./useCaptionField.js";
 
 // Extend the Commands interface to include setImage
 declare module "@tiptap/react" {
@@ -99,15 +100,25 @@ function ImageNodeView({
 		}
 	};
 
-	const handlePointerDown = (event: React.PointerEvent) => {
-		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+	const selectFromPointer = (event: React.MouseEvent) => {
+		if (!editor.isEditable) return;
 		// The caption selects the image once it has focus, so the toolbar sees that focus.
 		if ((event.target as HTMLElement).closest("figcaption")) return;
 		selectImage();
 	};
 
+	const handlePointerDown = (event: React.PointerEvent) => {
+		// A finger pressing on the image may be scrolling the page, so a tap selects it on click.
+		if (event.pointerType !== "mouse" || !event.isPrimary || event.button !== 0) return;
+		selectFromPointer(event);
+	};
+
 	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
 	const captionRef = React.useRef<HTMLTextAreaElement>(null);
+	const captionField = useCaptionField(caption);
+	const captionText = useCaptionText(caption, (value) => {
+		if (editor.isEditable) updateAttributes({ caption: value });
+	});
 	// ProseMirror would take text dragged over or dropped on the caption into the document.
 	React.useEffect(() => {
 		const textarea = captionRef.current;
@@ -265,6 +276,7 @@ function ImageNodeView({
 		<NodeViewWrapper
 			style={alignmentStyle}
 			onPointerDown={handlePointerDown}
+			onClick={selectFromPointer}
 			className={cn(
 				"relative my-4 max-w-full",
 				(alignment === "left" || alignment === "right") &&
@@ -278,12 +290,7 @@ function ImageNodeView({
 					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className={cn(
-						"rounded-lg max-w-full h-auto object-cover",
-						// Shown only while focus is inside this editor, as the toolbar is.
-						selected &&
-							"group-focus-within/editor:ring-2 ring-kumo-brand ring-offset-2 ring-offset-kumo-base",
-					)}
+					className="rounded-lg max-w-full h-auto object-cover"
 					width={renderWidth}
 					height={renderHeight}
 					style={{
@@ -296,7 +303,9 @@ function ImageNodeView({
 				{/* Show the caption, never the alt text, as the published renderer (Image.astro) does */}
 				{editor.isEditable ? (
 					// Inline-size containment keeps the placeholder from widening a small image.
-					<figcaption className="mt-2 [contain:inline-size]">
+					<figcaption
+						className={cn("mt-2 [contain:inline-size]", !captionField.shown && "sr-only")}
+					>
 						<textarea
 							ref={captionRef}
 							aria-label={t`Caption`}
@@ -304,11 +313,13 @@ function ImageNodeView({
 							rows={1}
 							tabIndex={-1}
 							dir="auto"
-							value={caption}
-							onChange={(event) => {
-								if (editor.isEditable) updateAttributes({ caption: event.target.value });
+							value={captionText.value}
+							onChange={captionText.onChange}
+							onFocus={() => {
+								captionField.onFocus();
+								selectImage();
 							}}
-							onFocus={selectImage}
+							onBlur={captionField.onBlur}
 							onPointerEnter={(event) => setNodeViewDraggable(event, false)}
 							onPointerLeave={(event) => setNodeViewDraggable(event, true)}
 							onKeyDown={handleCaptionKeyDown}

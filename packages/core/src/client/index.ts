@@ -20,6 +20,7 @@
 import mime from "mime/lite";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type { MediaItem as StoredMediaItem } from "../database/repositories/media.js";
 import type {
 	BlockType,
 	CreateBlockTypeInput,
@@ -185,7 +186,12 @@ export interface MediaUsageOccurrenceDetail {
 	fieldSlug: string;
 	fieldPath: string;
 	occurrenceIndex: number;
-	referenceType: "image_field" | "file_field" | "portable_text_image" | "unknown";
+	referenceType:
+		| "image_field"
+		| "file_field"
+		| "portable_text_image"
+		| "portable_text_video"
+		| "unknown";
 }
 
 /** Indexed references from one visible content source */
@@ -221,22 +227,13 @@ export interface MediaUsageDetailsResponse {
 }
 
 /** Media item */
-export interface MediaItem {
-	id: string;
-	filename: string;
-	key: string;
-	mimeType: string;
-	size: number;
-	width?: number;
-	height?: number;
-	focalX?: number | null;
-	focalY?: number | null;
-	alt?: string;
-	caption?: string;
-	createdAt: string;
-	updatedAt: string;
-	folderId?: string | null;
+export interface MediaItem extends StoredMediaItem {
 	usage?: MediaUsageSummary;
+}
+
+/** Media item with the URL that serves its file, as returned by list and upload */
+export interface MediaItemWithUrl extends MediaItem {
+	url: string;
 }
 
 /** Result of assigning local media to a folder or the Main library */
@@ -615,6 +612,7 @@ export class EmDashClient {
 								options.onTokenRefresh!(accessToken, expiresIn);
 							}
 						: undefined,
+					fetch: createTransport({ interceptors: options.interceptors }).fetch,
 				}),
 			);
 		}
@@ -647,7 +645,12 @@ export class EmDashClient {
 		if (col.fields) {
 			this.fieldSchemaCache.set(
 				slug,
-				col.fields.map((f) => ({ slug: f.slug, type: f.type, blockTypes: f.blockTypes })),
+				col.fields.map((field) => ({
+					slug: field.slug,
+					type: field.type,
+					blockTypes: field.blockTypes,
+					validation: field.validation,
+				})),
 			);
 		}
 		return col;
@@ -706,9 +709,16 @@ export class EmDashClient {
 		return data.item;
 	}
 
-	/** Delete a collection */
-	async deleteCollection(slug: string): Promise<void> {
-		await this.request<unknown>("DELETE", `/schema/collections/${encodeURIComponent(slug)}`);
+	/**
+	 * Delete a collection. A collection that still has content is refused
+	 * unless `force` is set, which the route reads as `?force=true`.
+	 */
+	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
+		const query = options?.force ? "?force=true" : "";
+		await this.request<unknown>(
+			"DELETE",
+			`/schema/collections/${encodeURIComponent(slug)}${query}`,
+		);
 	}
 
 	/** Create a field on a collection */
@@ -867,6 +877,10 @@ export class EmDashClient {
 			status?: string;
 			locale?: string;
 			translationOf?: string;
+			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			publishedAt?: string | null;
+			/** ISO 8601 creation date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			createdAt?: string | null;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 		},
@@ -897,6 +911,8 @@ export class EmDashClient {
 			status?: string;
 			_rev?: string;
 			locale?: string;
+			/** ISO 8601 publication date to record, or `null` to clear it. Requires `content:publish_any`. */
+			publishedAt?: string | null;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			/** Write even though another editor holds this entry's edit lock. */
@@ -914,6 +930,7 @@ export class EmDashClient {
 			data,
 			slug: input.slug,
 			status: input.status,
+			publishedAt: input.publishedAt,
 			migrateBlocks: input.migrateBlocks,
 			replaceBlocks: input.replaceBlocks,
 			...(input._rev ? { _rev: input._rev } : {}),
@@ -951,12 +968,20 @@ export class EmDashClient {
 	async publish(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: {
+			overrideLock?: boolean;
+			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			publishedAt?: string;
+		} = {},
 	): Promise<void> {
+		const body = {
+			...(options.overrideLock ? { overrideLock: true } : {}),
+			...(options.publishedAt !== undefined ? { publishedAt: options.publishedAt } : {}),
+		};
 		await this.request<unknown>(
 			"POST",
 			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish`,
-			options.overrideLock ? { overrideLock: true } : undefined,
+			Object.keys(body).length > 0 ? body : undefined,
 		);
 	}
 
@@ -1058,7 +1083,7 @@ export class EmDashClient {
 		page?: number;
 		includeUsage?: boolean;
 		folderId?: string | null;
-	}): Promise<ListResult<MediaItem> & { totalCount?: number }> {
+	}): Promise<ListResult<MediaItemWithUrl> & { totalCount?: number }> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
@@ -1072,7 +1097,7 @@ export class EmDashClient {
 		}
 
 		const qs = params.toString();
-		return this.request<ListResult<MediaItem> & { totalCount?: number }>(
+		return this.request<ListResult<MediaItemWithUrl> & { totalCount?: number }>(
 			"GET",
 			`/media${qs ? `?${qs}` : ""}`,
 		);
@@ -1164,7 +1189,7 @@ export class EmDashClient {
 		file: Uint8Array | Blob,
 		filename: string,
 		options?: { alt?: string; caption?: string; contentType?: string },
-	): Promise<MediaItem> {
+	): Promise<MediaItemWithUrl> {
 		const formData = new FormData();
 
 		// Handle different file types
@@ -1187,7 +1212,7 @@ export class EmDashClient {
 		const response = await this.transport.fetch(request);
 		await this.assertOk(response);
 
-		const raw = (await response.json()) as { data: { item: MediaItem } };
+		const raw = (await response.json()) as { data: { item: MediaItemWithUrl } };
 		return raw.data.item;
 	}
 
@@ -1643,7 +1668,12 @@ export class EmDashClient {
 
 		try {
 			const col = await this.collection(collection);
-			cached = col.fields.map((f) => ({ slug: f.slug, type: f.type, blockTypes: f.blockTypes }));
+			cached = col.fields.map((field) => ({
+				slug: field.slug,
+				type: field.type,
+				blockTypes: field.blockTypes,
+				validation: field.validation,
+			}));
 			this.fieldSchemaCache.set(collection, cached);
 			return cached;
 		} catch {

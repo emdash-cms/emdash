@@ -2,14 +2,7 @@ name: Preview Releases
 
 on:
   push:
-    # `bot/fix-*` branches are pushed by the emdash-bot worker's fix loop
-    # before the bot asks the reporter to verify a candidate fix. The
-    # ask comment includes an `npm i https://pkg.pr.new/emdash@bot/fix-<n>`
-    # install URL (the full branch name -- pkg.pr.new resolves branches by
-    # their full ref) that only resolves once pkg.pr.new has actually
-    # published a preview release on the branch -- hence the explicit
-    # branch pattern here.
-    branches: [main, "bot/fix-*"]
+    branches: [main]
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +10,7 @@ on:
       - "!packages/**/test/**"
       - "!packages/**/tests/**"
       - "!packages/**/__tests__/**"
+      - "!packages/admin/src/locales/*/messages.po"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -43,6 +37,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Catalogs on a pull request branch lack its new strings until they are
+      # extracted on main. Without them, the production admin in a preview
+      # renders interpolated and plural messages as raw ICU source.
+      - run: pnpm locale:extract
       - run: pnpm build
       # Publish a preview for every public package via globs rather than a
       # hardcoded list. This keeps preview installs self-consistent: when

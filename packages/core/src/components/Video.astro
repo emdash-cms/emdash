@@ -1,0 +1,100 @@
+---
+/**
+ * Portable Text video block component
+ *
+ * Plays a Media Library video in the browser's own player, or a media
+ * provider's video from the provider's embed. An empty block, and a `video`
+ * block of another shape, which belongs to a plugin, render nothing.
+ */
+import { isPortableTextVideoBlock } from "../content/converters/video.js";
+import { getMediaProvider } from "../media/provider-loader.js";
+import type { VideoEmbed } from "../media/types.js";
+import { buildRenderMediaUrl } from "../media/url.js";
+
+export interface Props {
+	node: {
+		_type: "video";
+		_key: string;
+		asset?: { _ref: string; url?: string; provider?: string };
+		caption?: string;
+		width?: number;
+		height?: number;
+	};
+}
+
+const { node } = Astro.props;
+
+const asset = isPortableTextVideoBlock(node) ? node.asset : undefined;
+if (!asset) {
+	return null;
+}
+
+const { caption, width, height } = node;
+const providerId = asset.provider && asset.provider !== "local" ? asset.provider : undefined;
+
+let embed: VideoEmbed | undefined;
+if (providerId) {
+	try {
+		const provider = await getMediaProvider(providerId);
+		const result = await provider?.getEmbed(
+			{ provider: providerId, id: asset._ref, width, height },
+			{ width, height },
+		);
+		if (result?.type === "video" && (result.src || result.sources?.length)) embed = result;
+	} catch (error) {
+		console.warn(`Failed to get embed for video ${asset._ref}:`, error);
+	}
+} else {
+	// Only the file URL can play: the file route takes a storage key, not the
+	// media id in `_ref`.
+	const src = buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, { url: asset.url });
+	if (src) embed = { type: "video", src, width, height, controls: true, preload: "metadata" };
+}
+
+if (!embed) {
+	return null;
+}
+
+// Astro leaves `<` and `>` unescaped in attributes. Middleware that finds
+// `</body>` by searching the page's text could then match one in a URL.
+// Browsers percent-encode them in URLs anyway, so this changes no address.
+const url = (value: string | undefined) => value?.replaceAll("<", "%3C").replaceAll(">", "%3E");
+---
+
+<figure class="emdash-video">
+	<video
+		src={embed.sources?.length ? undefined : url(embed.src)}
+		poster={url(embed.poster)}
+		width={embed.width ?? width}
+		height={embed.height ?? height}
+		controls={embed.controls ?? true}
+		autoplay={embed.autoplay}
+		muted={embed.muted}
+		loop={embed.loop}
+		playsinline={embed.playsinline ?? true}
+		preload={embed.preload ?? "metadata"}
+		crossorigin={embed.crossorigin}
+	>
+		{embed.src && embed.sources?.length ? <source src={url(embed.src)} /> : null}
+		{embed.sources?.map((source) => <source src={url(source.src)} type={source.type} />)}
+	</video>
+	{caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+	.emdash-video {
+		margin: 1.5rem 0;
+	}
+	.emdash-video video {
+		display: block;
+		width: 100%;
+		height: auto;
+		max-height: 70vh;
+	}
+	.emdash-video figcaption {
+		font-size: 0.875rem;
+		color: var(--emdash-caption-color, var(--color-muted, #666));
+		margin-top: 0.5rem;
+		text-align: center;
+	}
+</style>

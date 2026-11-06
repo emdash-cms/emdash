@@ -168,9 +168,9 @@ describe("ImageDetailPanel", () => {
 
 	it("reveals field help by pointer and keyboard focus", async () => {
 		const { screen } = await renderPanel();
-		const altHelp = screen.getByText(
-			"Describe the image's purpose and relevant details for people who cannot see it.",
-		);
+		const altHelp = screen.getByRole("tooltip", {
+			name: "Describe the image's purpose and relevant details for people who cannot see it.",
+		});
 		const altTrigger = screen.getByRole("button", { name: "More information about Alt text" });
 
 		await userEvent.hover(altTrigger.element());
@@ -178,9 +178,9 @@ describe("ImageDetailPanel", () => {
 		await userEvent.hover(document.body);
 		await vi.waitFor(() => expect(altHelp.query()).toBeNull());
 
-		const sizeHelp = screen.getByText(
-			"Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged.",
-		);
+		const sizeHelp = screen.getByRole("tooltip", {
+			name: "Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged.",
+		});
 		screen.getByRole("button", { name: "More information about Display size" }).element().focus();
 		await expect.element(sizeHelp).toBeVisible();
 	});

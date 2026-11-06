@@ -28,6 +28,9 @@ Confirm the non-secret values in `apps/labeler/wrangler.jsonc`:
 - Confirm the policy, parser, and model versions. Prompt identities are computed from the
   embedded prompts. These values are written into assessment records and published in the
   policy document.
+- Changing a version applies only to listing versions that have no decision yet. A listing version
+  that has passed, is held for review, is blocked, or has an operator decision keeps its outcome,
+  and no automated trigger assesses it again. To re-check one, use the operator rerun action.
 
 Confirm the deployed policy in `apps/aggregator/wrangler.jsonc`:
 

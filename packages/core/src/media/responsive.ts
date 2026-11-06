@@ -9,6 +9,8 @@
  * resolves inside an Astro project, not in this precompiled package).
  */
 
+import type { EmbedOptions } from "./types.js";
+
 /** Standard responsive breakpoints. Matches CDN-provider srcset generation. */
 export const RESPONSIVE_BREAKPOINTS = [640, 750, 828, 960, 1080, 1280, 1600, 1920];
 
@@ -18,12 +20,19 @@ const ABSOLUTE_HTTP_URL = /^https?:\/\//i;
 /**
  * Pick the srcset widths to generate for an image rendered at `maxWidth`.
  * Includes breakpoints up to 2x (retina) plus the rendered width itself, so the
- * browser always has an exact-fit candidate.
+ * browser always has an exact-fit candidate. A known `originalWidth` below 2x
+ * lowers that limit, so the source is never upscaled for a high-density
+ * candidate. The limit itself is a candidate up to the largest breakpoint, so
+ * images narrower than the first breakpoint still get one.
  */
-export function responsiveWidths(maxWidth: number): number[] {
-	const cap = maxWidth * 2;
+export function responsiveWidths(maxWidth: number, originalWidth?: number): number[] {
+	const width = Math.round(maxWidth);
+	if (!(width >= 1)) return [];
+	const original = Math.round(originalWidth ?? 0);
+	const cap = original >= 1 && original < width * 2 ? original : width * 2;
 	const widths = new Set(RESPONSIVE_BREAKPOINTS.filter((w) => w <= cap));
-	widths.add(maxWidth);
+	widths.add(width);
+	if (cap <= Math.max(...RESPONSIVE_BREAKPOINTS)) widths.add(cap);
 	return [...widths].toSorted((a, b) => a - b);
 }
 
@@ -93,7 +102,34 @@ export type GetImage = (options: {
 	height?: number;
 	widths?: number[];
 	sizes?: string;
+	format?: string;
+	quality?: EmbedOptions["quality"];
 }) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
+
+/** MIME type for a transform output format, for `<source type>`. */
+export function formatContentType(format: string): string {
+	return `image/${format === "jpg" ? "jpeg" : format}`;
+}
+
+/** Return whether the image service rewrites the URL for this transform. */
+export async function canOptimizeImage(
+	getImage: GetImage,
+	opts: {
+		src: string;
+		width: number;
+		height: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	},
+): Promise<boolean> {
+	if (!ABSOLUTE_HTTP_URL.test(opts.src)) return false;
+	try {
+		const result = await getImage(opts);
+		return Boolean(result.src && result.src !== opts.src);
+	} catch {
+		return false;
+	}
+}
 
 export interface ResponsiveImage {
 	src: string;
@@ -120,9 +156,16 @@ export interface ResponsiveImage {
  */
 export async function buildResponsiveImage(
 	getImage: GetImage,
-	opts: { src: string; width?: number; height?: number },
+	opts: {
+		src: string;
+		width?: number;
+		height?: number;
+		originalWidth?: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	},
 ): Promise<ResponsiveImage | null> {
-	const { src, width, height } = opts;
+	const { src, width, height, originalWidth, format, quality } = opts;
 	if (!src || !width || !height) return null;
 	if (!ABSOLUTE_HTTP_URL.test(src)) return null;
 	try {
@@ -131,8 +174,10 @@ export async function buildResponsiveImage(
 			src,
 			width,
 			height,
-			widths: responsiveWidths(width),
+			widths: responsiveWidths(width, originalWidth),
 			sizes,
+			format,
+			...(quality !== undefined ? { quality } : {}),
 		});
 		// Passthrough: the service returned the source unchanged (unauthorized
 		// host or no optimization available). Don't emit a no-op srcset.

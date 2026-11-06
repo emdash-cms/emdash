@@ -4,6 +4,7 @@ import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import {
 	invalidateRedirectCache,
 	loadCachedRedirects,
+	matchCachedPatterns,
 	type RedirectRuleSet,
 	type RedirectSource,
 } from "../../../src/redirects/cache.js";
@@ -252,5 +253,71 @@ describe("redirect cache", () => {
 		await waitForDeferredTasks();
 
 		await expect(destinationOf(source)).resolves.toBe("/newest");
+	});
+
+	describe("matchCachedPatterns", () => {
+		it("matches parameterized rules with and without a trailing slash", async () => {
+			const source = new FakeSource({
+				version: "v1",
+				exact: [],
+				patterns: [
+					{
+						id: "feed",
+						source: "/category/[slug]/feed",
+						destination: "/tags/[slug]/feed",
+						type: 301,
+					},
+				],
+			});
+
+			const cached = await loadCachedRedirects(source);
+
+			expect(matchCachedPatterns(cached.patterns, "/category/arts/feed")?.destination).toBe(
+				"/tags/arts/feed",
+			);
+			expect(matchCachedPatterns(cached.patterns, "/category/arts/feed/")?.destination).toBe(
+				"/tags/arts/feed",
+			);
+		});
+	});
+
+	describe("verify", () => {
+		it("reloads stale rules before answering and keeps them for later requests", async () => {
+			const source = new FakeSource(ruleSet("v1", "/new"));
+			await destinationOf(source);
+			source.current = ruleSet("v2", "/newer");
+
+			expect(await destinationOf(source)).toBe("/new");
+			const verified = await loadCachedRedirects(source, { verify: true });
+
+			expect(verified.exact.get("/old")?.destination).toBe("/newer");
+			expect(await destinationOf(source)).toBe("/newer");
+			expect(source.loads).toBe(2);
+		});
+
+		it("costs one version check and no load when the rules are current", async () => {
+			const source = new FakeSource(ruleSet("v1", "/new"));
+			await destinationOf(source);
+
+			const verified = await loadCachedRedirects(source, { verify: true });
+
+			expect(verified.exact.get("/old")?.destination).toBe("/new");
+			expect(source.checks).toBe(1);
+			expect(source.loads).toBe(1);
+		});
+
+		it("serves the cached rules when the check fails", async () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => {});
+			const source = new FakeSource(ruleSet("v1", "/new"));
+			await destinationOf(source);
+			source.current = ruleSet("v2", "/newer");
+			source.checkError = new Error("db down");
+
+			const verified = await loadCachedRedirects(source, { verify: true });
+
+			expect(verified.exact.get("/old")?.destination).toBe("/new");
+			expect(error).toHaveBeenCalled();
+			error.mockRestore();
+		});
 	});
 });

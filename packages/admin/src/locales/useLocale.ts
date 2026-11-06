@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react";
 import * as React from "react";
 
 import { SUPPORTED_LOCALE_CODES } from "./config.js";
+import { loadDateLocale } from "./date-locale.js";
 import { loadMessages } from "./loadMessages.js";
 
 function setCookie(code: string) {
@@ -21,8 +22,8 @@ export function useLocale() {
 		(code: string) => {
 			if (code === i18n.locale || !SUPPORTED_LOCALE_CODES.has(code)) return;
 			setCookie(code);
-			void loadMessages(code)
-				.then((messages) => i18n.loadAndActivate({ locale: code, messages }))
+			void Promise.all([loadMessages(code), loadDateLocale(code)])
+				.then(([messages]) => i18n.loadAndActivate({ locale: code, messages }))
 				.catch(() => {
 					setCookie(i18n.locale);
 				});

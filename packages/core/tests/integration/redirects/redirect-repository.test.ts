@@ -3,7 +3,46 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	type DialectTestContext,
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
+
+describeEachDialect("RedirectRepository write fence", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: RedirectRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new RedirectRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("rejects a stale writer's create after the lock row is recreated", async () => {
+		const staleFence = await repo.withWriteLock(async (fence) => fence);
+		await ctx.db.deleteFrom("_emdash_redirect_write_lock").where("id", "=", 1).execute();
+
+		await repo.withWriteLock(async (fence, current) => {
+			expect(fence.generation).toBe(staleFence.generation);
+			await current.create({ source: "/current", destination: "/target" }, fence);
+			await expect(
+				current.create({ source: "/stale", destination: "/target" }, staleFence),
+			).rejects.toThrow("redirect write lease expired");
+		});
+
+		await expect(repo.findBySource("/stale")).resolves.toBeNull();
+		await expect(repo.findBySource("/current")).resolves.toMatchObject({
+			destination: "/target",
+		});
+	});
+});
 
 describe("RedirectRepository", () => {
 	let db: Kysely<Database>;
@@ -363,6 +402,37 @@ describe("RedirectRepository", () => {
 
 			const match = await repo.matchPath("/blog/special");
 			expect(match!.resolvedDestination).toBe("/special-page");
+		});
+
+		it("matches [param] pattern redirects with a trailing slash", async () => {
+			await repo.create({
+				source: "/category/[slug]/feed",
+				destination: "/tags/[slug]/feed",
+			});
+
+			const withSlash = await repo.matchPath("/category/arts/feed/");
+			expect(withSlash).not.toBeNull();
+			expect(withSlash!.resolvedDestination).toBe("/tags/arts/feed");
+
+			const withoutSlash = await repo.matchPath("/category/arts/feed");
+			expect(withoutSlash).not.toBeNull();
+			expect(withoutSlash!.resolvedDestination).toBe("/tags/arts/feed");
+		});
+
+		it("matches exact redirects with a trailing slash", async () => {
+			await repo.create({ source: "/old", destination: "/new" });
+
+			const match = await repo.matchPath("/old/");
+			expect(match).not.toBeNull();
+			expect(match!.resolvedDestination).toBe("/new");
+		});
+
+		it("matches exact redirects when the source has a trailing slash and the request omits it", async () => {
+			await repo.create({ source: "/old/", destination: "/new" });
+
+			const match = await repo.matchPath("/old");
+			expect(match).not.toBeNull();
+			expect(match!.resolvedDestination).toBe("/new");
 		});
 
 		it("matches [param] in single segment", async () => {

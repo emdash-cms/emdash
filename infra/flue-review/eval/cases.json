@@ -1,0 +1,224 @@
+{
+	"owner": "emdash-cms",
+	"repo": "emdash",
+	"cases": [
+		{
+			"pr": 4226,
+			"headSha": "f96406316cc196c3fb5e40e85415e97ae9315b5f",
+			"origin": "bot",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "K1",
+					"severity": "blocker",
+					"description": "The route-cache fresh read only runs with an object cache (request-context.ts gates routeCacheFill on objectCacheEnabled); without one the fix reduces to a 30 s TTL."
+				},
+				{
+					"id": "K2",
+					"severity": "should-fix",
+					"description": "Tests set routeCacheFill directly, so they cannot catch K1."
+				},
+				{
+					"id": "K3",
+					"severity": "should-fix",
+					"description": "Hard expiry instead of stale-while-revalidate, unlike the redirect cache: blocking refresh and outage sensitivity."
+				}
+			]
+		},
+		{
+			"pr": 4225,
+			"headSha": "95b4e2fc852a96e2fe296d7134089d87262babca",
+			"origin": "bot",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "K4",
+					"severity": "should-fix",
+					"description": "Widget areas have the identical delete-then-reinsert race, and the Cloudflare templates seed widgets (concurrent creation of the same widget area also throws on the unique name)."
+				},
+				{
+					"id": "K5",
+					"severity": "should-fix",
+					"description": "Not atomic on the Durable Object SQL backend (no batch or transaction); the changeset's atomicity claim is false there."
+				},
+				{
+					"id": "K15",
+					"severity": "should-fix",
+					"description": "The overlap test pauses the first apply before its batch, so the delete/insert interleaving that matters is never driven; nothing exercises the Durable Object SQL path."
+				},
+				{
+					"id": "K16",
+					"severity": "nit",
+					"description": "The reported 409 from POST /schema/collections is unchanged for unmarked orphans; the PR says so but still claims to close the issue."
+				}
+			]
+		},
+		{
+			"pr": 4224,
+			"headSha": "e6afdd627ac413534864cbcbe0c7c3eda6514063",
+			"origin": "bot",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "K6",
+					"severity": "should-fix",
+					"description": "Rows already stored under a locale code become unreachable after upgrade; \"no migration needed\" is false (borderline blocker)."
+				},
+				{
+					"id": "K7",
+					"severity": "nit",
+					"description": "String-only configs change case behaviour, undocumented."
+				},
+				{
+					"id": "K14",
+					"severity": "should-fix",
+					"description": "Re-seeding duplicates rows stored under a locale code (en-US now resolves to en, the lookup misses the old row and inserts a second); same missing repair step as K6."
+				}
+			]
+		},
+		{
+			"pr": 4221,
+			"headSha": "6abf820eee612511b16d7586981d1fa57e31529f",
+			"origin": "bot",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "K8",
+					"severity": "should-fix",
+					"description": "Presets or fractional/out-of-range quality make the Cloudflare image endpoint serve full-size originals (borderline blocker)."
+				},
+				{
+					"id": "K9",
+					"severity": "should-fix",
+					"description": "Quality is ignored in most render paths and leaks onto <img>."
+				}
+			]
+		},
+		{
+			"pr": 4201,
+			"headSha": "e9bd0f2a04e464cfe55b291b1b1af88c9899176e",
+			"origin": "bot",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "K10",
+					"severity": "should-fix",
+					"description": "Conflicts with the existing meta.caption; the per-use override is ignored by sites reading meta.caption."
+				},
+				{
+					"id": "K11",
+					"severity": "should-fix",
+					"description": "Generated site types (emdash-env.d.ts) omit caption."
+				},
+				{
+					"id": "K12",
+					"severity": "should-fix",
+					"description": "Edit asset overwrites the per-use caption the PR claims to protect."
+				},
+				{
+					"id": "K13",
+					"severity": "should-fix",
+					"description": "Seed and export paths skip or mishandle caption."
+				}
+			]
+		},
+		{
+			"pr": 4208,
+			"headSha": "2e947be6427cb3624d1874e281384a1926b4e0ba",
+			"origin": "human",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "H1",
+					"severity": "should-fix",
+					"description": "Media-usage discovery (content-fields.ts around lines 132-136) has the same storage-less title/name bug the PR fixes elsewhere."
+				}
+			]
+		},
+		{
+			"pr": 4128,
+			"headSha": "2b0bb98bd7b93cc71dd3f5f0512683d676546402",
+			"origin": "human",
+			"clean": false,
+			"expectedVerdict": "not_approve",
+			"key": [
+				{
+					"id": "H2",
+					"severity": "should-fix",
+					"description": "A draft translation with taxonomies rewrites the published source's group-level terms; the cache purge was removed; the PR's \"no public page\" claim is false."
+				}
+			]
+		},
+		{
+			"pr": 4167,
+			"headSha": "77f051b8015d26a9a99327922917eb50a41121de",
+			"origin": "human",
+			"clean": false,
+			"expectedVerdict": "any",
+			"key": [
+				{
+					"id": "H3",
+					"severity": "nit",
+					"description": "A code comment references an issue number, against the AGENTS.md comment rule."
+				}
+			]
+		},
+		{
+			"pr": 4150,
+			"headSha": "e77d762d8447fd640e263a6599c2a16481f610cf",
+			"origin": "human",
+			"clean": false,
+			"expectedVerdict": "any",
+			"key": [
+				{
+					"id": "H4",
+					"severity": "nit",
+					"description": "The changeset omits comments from what the change covers."
+				}
+			]
+		},
+		{
+			"pr": 4203,
+			"headSha": "75dd383530d0306c0859ab98010f90d954bca578",
+			"origin": "human",
+			"clean": true,
+			"expectedVerdict": "approve",
+			"key": []
+		},
+		{
+			"pr": 4186,
+			"headSha": "b060f123b65242a666d34fcc8491fbd3404fb976",
+			"origin": "human",
+			"clean": true,
+			"expectedVerdict": "approve",
+			"key": [],
+			"notes": "A non-blocking note that Node/core endpoints lack cancellation is only partly valid: the core asset route always streams."
+		},
+		{
+			"pr": 4172,
+			"headSha": "7a93cf9614659ff554e1dbc8137a19ad448ed4ad",
+			"origin": "human",
+			"clean": true,
+			"expectedVerdict": "approve",
+			"key": [],
+			"knownFalseClaims": [
+				"Awaiting the folded reads can mask the root error: false at this head, every cold-start read catches and swallows its error, so the await cannot reject."
+			],
+			"notes": "A changeset wording nit is fair and not penalised."
+		},
+		{
+			"pr": 4157,
+			"headSha": "d90cef34177743afba744b504853353623ab750a",
+			"origin": "human",
+			"clean": true,
+			"expectedVerdict": "approve",
+			"key": []
+		}
+	]
+}

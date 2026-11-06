@@ -5,13 +5,20 @@
  * (posts per page, date format, timezone).
  */
 
-import { Autocomplete, Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import {
+	Autocomplete,
+	Badge,
+	Banner,
+	Button,
+	Input,
+	Loader,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowSquareOut, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, type Locale } from "date-fns";
-import { enUS } from "date-fns/locale/en-US";
 import * as React from "react";
 
 import {
@@ -26,46 +33,18 @@ import {
 	type SiteSettings,
 	type SiteSettingsUpdate,
 } from "../../lib/api";
+import { useCurrentUser } from "../../lib/api/current-user.js";
+import { useDateLocale } from "../../locales/date-locale.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { ChangeDomainDialog } from "./ChangeDomainDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
+const ROLE_ADMIN = 50;
+
 const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
 const exampleDate = new Date(2026, 0, 23);
-const previewLocaleLoaders: Record<string, () => Promise<Locale>> = {
-	ar: () => import("date-fns/locale/ar").then(({ ar }) => ar),
-	eu: () => import("date-fns/locale/eu").then(({ eu }) => eu),
-	bn: () => import("date-fns/locale/bn").then(({ bn }) => bn),
-	ca: () => import("date-fns/locale/ca").then(({ ca }) => ca),
-	"zh-CN": () => import("date-fns/locale/zh-CN").then(({ zhCN }) => zhCN),
-	"zh-TW": () => import("date-fns/locale/zh-TW").then(({ zhTW }) => zhTW),
-	cs: () => import("date-fns/locale/cs").then(({ cs }) => cs),
-	da: () => import("date-fns/locale/da").then(({ da }) => da),
-	nl: () => import("date-fns/locale/nl").then(({ nl }) => nl),
-	"en-GB": () => import("date-fns/locale/en-GB").then(({ enGB }) => enGB),
-	fa: () => import("date-fns/locale/fa-IR").then(({ faIR }) => faIR),
-	fr: () => import("date-fns/locale/fr").then(({ fr }) => fr),
-	ka: () => import("date-fns/locale/ka").then(({ ka }) => ka),
-	de: () => import("date-fns/locale/de").then(({ de }) => de),
-	hi: () => import("date-fns/locale/hi").then(({ hi }) => hi),
-	hu: () => import("date-fns/locale/hu").then(({ hu }) => hu),
-	id: () => import("date-fns/locale/id").then(({ id }) => id),
-	ja: () => import("date-fns/locale/ja").then(({ ja }) => ja),
-	nb: () => import("date-fns/locale/nb").then(({ nb }) => nb),
-	pl: () => import("date-fns/locale/pl").then(({ pl }) => pl),
-	"pt-BR": () => import("date-fns/locale/pt-BR").then(({ ptBR }) => ptBR),
-	"pt-PT": () => import("date-fns/locale/pt").then(({ pt }) => pt),
-	"sr-Latn": () => import("date-fns/locale/sr-Latn").then(({ srLatn }) => srLatn),
-	"es-419": () => import("date-fns/locale/es").then(({ es }) => es),
-	"es-ES": () => import("date-fns/locale/es").then(({ es }) => es),
-	sv: () => import("date-fns/locale/sv").then(({ sv }) => sv),
-	th: () => import("date-fns/locale/th").then(({ th }) => th),
-	tr: () => import("date-fns/locale/tr").then(({ tr }) => tr),
-	uk: () => import("date-fns/locale/uk").then(({ uk }) => uk),
-};
-
 function datePreview(pattern: string, locale: Locale): string | null {
 	try {
 		return pattern.trim() ? format(exampleDate, pattern, { locale }) : null;
@@ -95,8 +74,73 @@ function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 	});
 }
 
+function SiteStatusSection() {
+	const { t } = useLingui();
+	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
+	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
+	const { data: currentUser } = useCurrentUser();
+	const staging = manifest?.staging === true;
+	const isAdmin = !!currentUser && currentUser.role >= ROLE_ADMIN;
+
+	const stagingMutation = useMutation({
+		mutationFn: (next: boolean) => updateSettings({ staging: next }),
+		onSuccess: (_savedSettings, next) => {
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			toastManager.add({
+				title: next ? t`Site switched to staging` : t`Your site is live`,
+				variant: "success",
+				timeout: 3000,
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save settings`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
+			});
+		},
+	});
+
+	if (!manifest) return null;
+
+	return (
+		<SettingsSection title={t`Site Status`}>
+			<SettingRow>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="grid gap-1">
+						<div className="flex items-center gap-2 text-base font-medium">
+							{staging ? t`Staging` : t`Live`}
+							<Badge variant={staging ? "warning" : "success"}>
+								{staging ? t`Hidden from search engines` : t`Visible to search engines`}
+							</Badge>
+						</div>
+						<p className="max-w-xl text-sm leading-5 text-pretty text-kumo-subtle">
+							{staging
+								? t`Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found.`
+								: t`Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch.`}
+						</p>
+					</div>
+					{isAdmin && (
+						<Button
+							type="button"
+							variant={staging ? "primary" : "outline"}
+							className="shrink-0"
+							loading={stagingMutation.isPending}
+							onClick={() => stagingMutation.mutate(!staging)}
+						>
+							{staging ? t`Go live` : t`Switch back to staging`}
+						</Button>
+					)}
+				</div>
+			</SettingRow>
+		</SettingsSection>
+	);
+}
+
 export function GeneralSettings() {
-	const { t, i18n } = useLingui();
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
 
@@ -134,31 +178,7 @@ export function GeneralSettings() {
 	const [domainDialogOpen, setDomainDialogOpen] = React.useState(false);
 	const [notifyDialogOpen, setNotifyDialogOpen] = React.useState(false);
 	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
-	const [previewLocale, setPreviewLocale] = React.useState<{ code: string; value: Locale | null }>({
-		code: "en",
-		value: enUS,
-	});
-
-	React.useEffect(() => {
-		const code = i18n.locale;
-		const load = previewLocaleLoaders[code];
-		if (!load) {
-			setPreviewLocale({ code, value: enUS });
-			return;
-		}
-		let active = true;
-		void (async () => {
-			try {
-				const value = await load();
-				if (active) setPreviewLocale({ code, value });
-			} catch {
-				if (active) setPreviewLocale({ code, value: null });
-			}
-		})();
-		return () => {
-			active = false;
-		};
-	}, [i18n.locale]);
+	const dateLocale = useDateLocale();
 
 	React.useEffect(() => {
 		if (settings) {
@@ -227,9 +247,7 @@ export function GeneralSettings() {
 	});
 
 	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
-	const previewLoading = previewLocale.code !== i18n.locale;
-	const preview =
-		previewLoading || !previewLocale.value ? null : datePreview(pattern, previewLocale.value);
+	const preview = datePreview(pattern, dateLocale);
 	const timezone = formData.timezone ?? "UTC";
 	const recognizedTimezone = isValidTimezone(timezone);
 	const savedTimezoneUnchanged = timezone === savedFormData.timezone;
@@ -330,6 +348,8 @@ export function GeneralSettings() {
 			}
 		>
 			<form id="general-settings-form" onSubmit={handleSubmit} className="grid gap-8">
+				<SiteStatusSection />
+
 				<SettingsSection title={t`Site Identity`}>
 					<SettingRow>
 						<Input
@@ -550,15 +570,14 @@ export function GeneralSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Date Format`}
 							value={pattern}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
 							description={
-								previewLoading
-									? t`Loading preview…`
-									: preview === null
-										? t`Preview unavailable for this format`
-										: t`Example: ${pattern} → ${preview}`
+								preview === null
+									? t`Preview unavailable for this format`
+									: t`Example: ${pattern} → ${preview}`
 							}
 						/>
 					</SettingRow>
@@ -641,7 +660,6 @@ export function GeneralSettings() {
 					description={t`Every other user with an active account gets an email saying the site is now at ${siteHost}, with a link to sign in there. Passkeys from another address don't work at ${siteHost}, so users sign in with an email link and add a new passkey.`}
 					confirmLabel={t`Send emails`}
 					pendingLabel={t`Sending...`}
-					preventCloseWhilePending
 					isPending={notifyMutation.isPending}
 					error={notifyMutation.error}
 					onConfirm={() => notifyMutation.mutate()}

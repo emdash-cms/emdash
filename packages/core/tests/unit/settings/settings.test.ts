@@ -5,8 +5,13 @@ import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/secrets.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import { createPublicMediaUrlResolver } from "../../../src/media/url.js";
+import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
+import { createObjectCache } from "../../../src/object-cache/memory.js";
 import { encryptPluginSetting } from "../../../src/plugins/settings.js";
 import { runWithContext } from "../../../src/request-context.js";
 import {
@@ -19,7 +24,9 @@ import {
 	invalidateSiteSettingsCache,
 	setSiteSettings,
 } from "../../../src/settings/index.js";
-import { setupTestDatabase } from "../../utils/test-db.js";
+import { LocalStorage } from "../../../src/storage/local.js";
+import { createTestRuntime } from "../../utils/mcp-runtime.js";
+import { setupTestDatabase, setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("Site Settings", () => {
 	let db: Kysely<Database>;
@@ -513,7 +520,166 @@ async function setupCountingDb(): Promise<{
 
 describe("Site Settings caching", () => {
 	beforeEach(() => {
+		__setObjectCacheBackendForTests(null);
 		invalidateSiteSettingsCache();
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		__setObjectCacheBackendForTests(null);
+		vi.restoreAllMocks();
+	});
+
+	it("refreshes settings changed by another isolate after 30 seconds", async () => {
+		const { db, queries, reset } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		await setSiteSettings({ seo: { googleVerification: "old" } }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).seo?.googleVerification).toBe("old");
+
+		// A write in another isolate does not invalidate this isolate's cache.
+		await new OptionsRepository(db).set("site:seo", { googleVerification: "new" });
+		reset();
+		clock.mockReturnValue(now + 29_999);
+		expect((await read()).seo?.googleVerification).toBe("old");
+		expect(queries).toEqual([]);
+
+		clock.mockReturnValue(now + 30_000);
+		const refreshed = await Promise.all([read(), read(), read()]);
+		expect(refreshed.map((settings) => settings.seo?.googleVerification)).toEqual([
+			"old",
+			"old",
+			"old",
+		]);
+		await waitForDeferredTasks();
+		expect((await read()).seo?.googleVerification).toBe("new");
+		expect(queries.filter((q) => q.includes("LIKE") && q.includes("options"))).toHaveLength(1);
+
+		reset();
+		clock.mockReturnValue(now + 59_999);
+		expect((await read()).seo?.googleVerification).toBe("new");
+		expect(queries).toEqual([]);
+	});
+
+	it("serves stale settings while revalidating and fences an invalidated reload", async () => {
+		const { db } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		await setSiteSettings({ title: "Old" }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).title).toBe("Old");
+
+		await new OptionsRepository(db).set("site:title", "Remote");
+
+		let releaseReload!: () => void;
+		const reloadGate = new Promise<void>((resolve) => {
+			releaseReload = resolve;
+		});
+		let reloadReached!: () => void;
+		const reloadStarted = new Promise<void>((resolve) => {
+			reloadReached = resolve;
+		});
+		const originalGetVersionedByPrefix = OptionsRepository.prototype.getVersionedByPrefix;
+		let calls = 0;
+		vi.spyOn(OptionsRepository.prototype, "getVersionedByPrefix").mockImplementation(
+			async function (this: OptionsRepository, prefix, options) {
+				const result = await originalGetVersionedByPrefix.call(this, prefix, options);
+				calls++;
+				if (calls === 1) {
+					reloadReached();
+					await reloadGate;
+				}
+				return result;
+			},
+		);
+
+		try {
+			clock.mockReturnValue(now + 30_000);
+			expect((await read()).title).toBe("Old");
+			await reloadStarted;
+
+			const warmReads = await Promise.all([read(), read(), read()]);
+			expect(warmReads.map((settings) => settings.title)).toEqual(["Old", "Old", "Old"]);
+			expect(calls).toBe(1);
+
+			await setSiteSettings({ title: "Local" }, db);
+			expect((await read()).title).toBe("Local");
+
+			releaseReload();
+			await waitForDeferredTasks();
+			expect((await read()).title).toBe("Local");
+		} finally {
+			releaseReload();
+		}
+	});
+
+	it("renews the isolate TTL on object-cache hits without repeated backend reads", async () => {
+		const backend = createObjectCache({});
+		const backendReads = vi.spyOn(backend, "get");
+		__setObjectCacheBackendForTests(backend, {
+			keyPrefix: "settings-ttl-test",
+			defaultTtl: 3600,
+			revalidate: 1000,
+		});
+		const { db, queries, reset } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		await setSiteSettings({ title: "Cached Site" }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).title).toBe("Cached Site");
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		reset();
+		backendReads.mockClear();
+		clock.mockReturnValue(now + 30_000);
+		expect((await read()).title).toBe("Cached Site");
+		await waitForDeferredTasks();
+		expect(backendReads).toHaveBeenCalled();
+		expect(queries).toEqual([]);
+
+		backendReads.mockClear();
+		for (const elapsed of [30_001, 45_000, 59_999]) {
+			clock.mockReturnValue(now + elapsed);
+			expect((await read()).title).toBe("Cached Site");
+		}
+		expect(backendReads).not.toHaveBeenCalled();
+		expect(queries).toEqual([]);
+
+		clock.mockReturnValue(now + 60_000);
+		expect((await read()).title).toBe("Cached Site");
+		await waitForDeferredTasks();
+		expect(backendReads).toHaveBeenCalled();
+		expect(queries).toEqual([]);
+	});
+
+	it("keeps the last good settings after a failed background reload and retries later", async () => {
+		const { db } = await setupCountingDb();
+		const now = Date.now();
+		const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+		const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+		await setSiteSettings({ title: "Last good" }, db);
+		const read = () => runWithContext({ editMode: false, db }, () => getSiteSettings());
+		expect((await read()).title).toBe("Last good");
+
+		await db.schema.alterTable("options").renameTo("unavailable_options").execute();
+		try {
+			clock.mockReturnValue(now + 30_000);
+			expect((await read()).title).toBe("Last good");
+			await waitForDeferredTasks();
+			expect(errorLog).toHaveBeenCalledWith(
+				"[emdash:settings] revalidating site settings failed:",
+				expect.any(Error),
+			);
+			expect((await read()).title).toBe("Last good");
+		} finally {
+			await db.schema.alterTable("unavailable_options").renameTo("options").execute();
+		}
+		await new OptionsRepository(db).set("site:title", "Recovered");
+		clock.mockReturnValue(now + 60_000);
+		expect((await read()).title).toBe("Last good");
+		await waitForDeferredTasks();
+		expect((await read()).title).toBe("Recovered");
 	});
 
 	it("getSiteSetting() does not hit the DB after getSiteSettings() in the same request", async () => {
@@ -661,9 +827,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaDelete invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 
@@ -701,9 +864,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaUpdate invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 
@@ -740,9 +900,6 @@ describe("Media mutations invalidate site settings cache", () => {
 	});
 
 	it("EmDashRuntime.handleMediaReplaceMetadata invalidates the cache on success", async () => {
-		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
-		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
-
 		const db = await setupTestDatabaseWithCollections();
 		const runtime = createTestRuntime(db);
 		const mediaId = "med_invalidation_replace";
@@ -779,5 +936,83 @@ describe("Media mutations invalidate site settings cache", () => {
 			expect(after.seo?.defaultOgImage?.width).toBe(400);
 			expect(after.seo?.defaultOgImage?.height).toBe(300);
 		});
+	});
+});
+
+describe("Site settings public media URLs", () => {
+	const cdn = new LocalStorage({ directory: "./uploads", baseUrl: "https://media.example.com" });
+	const publicMediaUrl = createPublicMediaUrlResolver(cdn);
+	let db: Kysely<Database>;
+	let logoKey: string;
+
+	beforeEach(async () => {
+		__setObjectCacheBackendForTests(null);
+		invalidateSiteSettingsCache();
+		db = await setupTestDatabase();
+		const repo = new MediaRepository(db);
+		const logo = await repo.create({
+			filename: "logo.png",
+			mimeType: "image/png",
+			storageKey: "01KTRTJ55S65SADEH9P9TSY89H.png",
+		});
+		const favicon = await repo.create({
+			filename: "favicon.svg",
+			mimeType: "image/svg+xml",
+			storageKey: "01KTRTJ5QSVC3TB57387DX445P.svg",
+		});
+		const og = await repo.create({
+			filename: "og.png",
+			mimeType: "image/png",
+			storageKey: "01KTRTJ6A1B2C3D4E5F6G7H8J9.png",
+		});
+		logoKey = logo.storageKey;
+		await setSiteSettings(
+			{
+				logo: { mediaId: logo.id, alt: "Logo" },
+				favicon: { mediaId: favicon.id },
+				seo: { defaultOgImage: { mediaId: og.id }, titleSeparator: " | " },
+			},
+			db,
+		);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("serves logo, favicon, and default OG image from the storage public URL", async () => {
+		const settings = await runWithContext({ editMode: false, db, publicMediaUrl }, () =>
+			getSiteSettings(),
+		);
+
+		expect(settings.logo?.url).toBe(`https://media.example.com/${logoKey}`);
+		expect(settings.logo?.alt).toBe("Logo");
+		expect(settings.favicon?.url).toBe("https://media.example.com/01KTRTJ5QSVC3TB57387DX445P.svg");
+		expect(settings.seo?.defaultOgImage?.url).toBe(
+			"https://media.example.com/01KTRTJ6A1B2C3D4E5F6G7H8J9.png",
+		);
+		expect(settings.seo?.titleSeparator).toBe(" | ");
+	});
+
+	it("serves a single media setting from the storage public URL", async () => {
+		const logo = await runWithContext({ editMode: false, db, publicMediaUrl }, () =>
+			getSiteSetting("logo"),
+		);
+		const seo = await runWithContext({ editMode: false, db, publicMediaUrl }, () =>
+			getSiteSetting("seo"),
+		);
+
+		expect(logo?.url).toBe(`https://media.example.com/${logoKey}`);
+		expect(seo?.defaultOgImage?.url).toBe(
+			"https://media.example.com/01KTRTJ6A1B2C3D4E5F6G7H8J9.png",
+		);
+	});
+
+	it("keeps the cached settings on the internal media route", async () => {
+		await runWithContext({ editMode: false, db, publicMediaUrl }, () => getSiteSettings());
+		const withoutResolver = await runWithContext({ editMode: false, db }, () => getSiteSettings());
+
+		expect(withoutResolver.logo?.url).toBe(`/_emdash/api/media/file/${logoKey}`);
 	});
 });

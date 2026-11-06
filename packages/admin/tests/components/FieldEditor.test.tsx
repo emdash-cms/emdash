@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { page, userEvent } from "vitest/browser";
 
 import { FieldEditor } from "../../src/components/FieldEditor";
 import { fetchCollections, fetchRelations } from "../../src/lib/api";
@@ -52,6 +53,7 @@ const SHORT_TEXT_REGEX = /Short Text/;
 const LONG_TEXT_REGEX = /Long Text/;
 const BOOLEAN_REGEX = /Boolean/;
 const RICH_TEXT_REGEX = /Rich Text Rich text editor/;
+const DUPLICATE_SUB_FIELD_SLUG = "Another sub-field already uses this slug. Enter a different one.";
 
 function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 	return {
@@ -102,6 +104,9 @@ describe("FieldEditor", () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} />);
 			await expect.element(screen.getByText("Add Field")).toBeInTheDocument();
 			await expect
+				.element(screen.getByRole("dialog", { name: "Add Field" }))
+				.toHaveAccessibleDescription("Choose what kind of content the field holds.");
+			await expect
 				.element(screen.getByRole("button", { name: SHORT_TEXT_REGEX }))
 				.toBeInTheDocument();
 			await expect
@@ -150,7 +155,7 @@ describe("FieldEditor", () => {
 		it("shows label and slug inputs", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByLabelText("Label")).toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeInTheDocument();
 		});
 
 		it("shows searchable checkbox for string type", async () => {
@@ -286,14 +291,17 @@ describe("FieldEditor", () => {
 
 		it("disables slug input in edit mode", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
-			await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeDisabled();
 		});
 
-		it("shows hint about slug immutability", async () => {
+		it("explains slug immutability in a tooltip", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
+			await screen.getByRole("button", { name: "More information about Slug" }).hover();
 			await expect
-				.element(screen.getByText("Field slugs cannot be changed after creation"))
-				.toBeInTheDocument();
+				.element(
+					page.getByRole("tooltip", { name: "Field slugs cannot be changed after creation" }),
+				)
+				.toBeVisible();
 		});
 
 		it("does not show Change button in edit mode", async () => {
@@ -315,7 +323,7 @@ describe("FieldEditor", () => {
 
 		it("pre-populates slug value", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
-			await expect.element(screen.getByLabelText("Slug")).toHaveValue("title");
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toHaveValue("title");
 		});
 
 		it("pre-populates required checkbox", async () => {
@@ -328,7 +336,7 @@ describe("FieldEditor", () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
 			await screen.getByLabelText("Label").fill("New Label");
 			// Slug should remain "title", not change to "new_label"
-			await expect.element(screen.getByLabelText("Slug")).toHaveValue("title");
+			await expect.element(screen.getByLabelText("Slug", { exact: true })).toHaveValue("title");
 		});
 
 		it("shows type indicator with field type info", async () => {
@@ -362,13 +370,39 @@ describe("FieldEditor", () => {
 			);
 			await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
 		});
+
+		it("ignores close attempts while saving, via the cancel button or escape", async () => {
+			const onOpenChange = vi.fn();
+			const field = makeField();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} onOpenChange={onOpenChange} isSaving={true} field={field} />,
+			);
+
+			const cancel = screen.getByRole("button", { name: "Cancel" });
+			await expect.element(cancel).toBeDisabled();
+			cancel.element().click();
+			await userEvent.keyboard("{Escape}");
+
+			expect(onOpenChange).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("button state", () => {
-		it("disables save button when label is empty", async () => {
+		it("keeps the save button enabled with an empty label, and says what is missing on save", async () => {
+			const onSave = vi.fn();
 			const field = makeField({ slug: "test", label: "" });
-			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={field} />);
-			await expect.element(screen.getByRole("button", { name: "Update Field" })).toBeDisabled();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			const button = screen.getByRole("button", { name: "Update Field" });
+			await expect.element(button).toBeEnabled();
+			expect(screen.getByText("Enter a label.").query()).toBeNull();
+
+			button.element().click();
+
+			await expect.element(screen.getByText("Enter a label.")).toBeVisible();
+			await expect.element(screen.getByLabelText("Label", { exact: true })).toHaveFocus();
+			expect(onSave).not.toHaveBeenCalled();
 		});
 
 		it("enables save button when label and slug are filled", async () => {
@@ -466,11 +500,14 @@ describe("FieldEditor", () => {
 			await expect
 				.element(screen.getByRole("combobox", { name: "Referenced collection" }))
 				.toBeDisabled();
+			await screen.getByRole("button", { name: "More information about Relationship" }).hover();
 			await expect
 				.element(
-					screen.getByText(/The relationship and the referenced collection cannot be changed/),
+					page.getByRole("tooltip", {
+						name: /The relationship and the referenced collection cannot be changed/,
+					}),
 				)
-				.toBeInTheDocument();
+				.toBeVisible();
 		});
 
 		it("sends the collection on save so the server can bind the field", async () => {
@@ -920,37 +957,222 @@ describe("FieldEditor", () => {
 				.toHaveTextContent("chapters_lessons");
 			await expect.element(screen.getByLabelText("Label")).toHaveValue("Lessons");
 		});
+
+		it("goes back to the field without creating the relationship", async () => {
+			const onCreateRelation = vi.fn(async () => relation());
+			const onOpenChange = vi.fn();
+			const screen = await openReferenceField([], { onCreateRelation, onOpenChange });
+
+			await choose(screen, "Relationship", "Create relation");
+			screen.getByRole("button", { name: "Next" }).element().click();
+			const relationDialog = screen.getByRole("dialog", { name: "New Relation" });
+			await expect.element(relationDialog).toBeInTheDocument();
+			relationDialog.getByRole("button", { name: "Back" }).element().click();
+
+			await expect.element(relationDialog).not.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("dialog", { name: "Configure Field" }))
+				.toBeInTheDocument();
+			expect(onCreateRelation).not.toHaveBeenCalled();
+			expect(onOpenChange).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("repeater sub-field identifiers", () => {
+		const repeaterField = makeField({
+			slug: "sections",
+			label: "Sections",
+			type: "repeater",
+			validation: {
+				subFields: [{ slug: "title", label: "Title", type: "string" }],
+			} as SchemaField["validation"],
+		});
+
+		it("preserves the stored key when an existing sub-field is relabeled", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={repeaterField} onSave={onSave} />,
+			);
+			await expect.element(screen.getByLabelText("Slug", { exact: true }).nth(1)).toBeDisabled();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Heading");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{ slug: "title", label: "Heading", type: "string", required: undefined },
+			]);
+		});
+
+		it("allows a new sub-field in an existing repeater to use a manual key", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={repeaterField} onSave={onSave} />,
+			);
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(2).fill("Subtitle");
+			await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("deck");
+			await screen.getByLabelText("Label", { exact: true }).nth(2).fill("Summary");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{ slug: "title", label: "Title", type: "string", required: undefined },
+				{ slug: "deck", label: "Summary", type: "string", required: undefined },
+			]);
+		});
+
+		it.each(["generated", "manual"])("points at %s key collisions until resolved", async (mode) => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
+			screen
+				.getByRole("button", { name: /^Repeater/ })
+				.element()
+				.click();
+			await screen.getByLabelText("Label", { exact: true }).fill("Sections");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Größe");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen
+				.getByLabelText("Label", { exact: true })
+				.nth(2)
+				.fill(mode === "generated" ? "Groesse" : "Summary");
+			if (mode === "manual") {
+				await screen.getByLabelText("Slug", { exact: true }).nth(2).fill("groesse");
+			}
+			const duplicate = screen.getByLabelText("Slug", { exact: true }).nth(2);
+			expect(screen.getByText(DUPLICATE_SUB_FIELD_SLUG).query()).toBeNull();
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			await expect.element(screen.getByText(DUPLICATE_SUB_FIELD_SLUG)).toBeVisible();
+			await expect.element(duplicate).toHaveAttribute("aria-invalid", "true");
+			await expect.element(duplicate).toHaveFocus();
+			expect(onSave).not.toHaveBeenCalled();
+			await duplicate.fill("summary");
+			await expect.element(screen.getByText(DUPLICATE_SUB_FIELD_SLUG)).not.toBeInTheDocument();
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			expect(
+				onSave.mock.calls[0]?.[0].validation.subFields.map((sf: { slug: string }) => sf.slug),
+			).toEqual(["groesse", "summary"]);
+		});
+	});
+
+	describe("repeater select sub-field options", () => {
+		it("saves the options typed for a new select sub-field", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
+			screen
+				.getByRole("button", { name: /^Repeater/ })
+				.element()
+				.click();
+			await screen.getByLabelText("Label", { exact: true }).fill("Gallery");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Layout");
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Select" }).click();
+			await screen.getByLabelText("Options (one per line)").fill("Grid\n Masonry \n\nCarousel");
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{
+					slug: "layout",
+					label: "Layout",
+					type: "select",
+					required: undefined,
+					options: ["Grid", "Masonry", "Carousel"],
+				},
+			]);
+		});
+
+		it("asks for an option before a new select sub-field can be saved", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
+			screen
+				.getByRole("button", { name: /^Repeater/ })
+				.element()
+				.click();
+			await screen.getByLabelText("Label", { exact: true }).fill("Gallery");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Layout");
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Select" }).click();
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			const options = screen.getByLabelText("Options (one per line)");
+			await expect.element(options).toHaveAttribute("aria-invalid", "true");
+			await expect.element(options).toHaveFocus();
+			expect(onSave).not.toHaveBeenCalled();
+		});
+
+		it("keeps and edits the options of an existing select sub-field", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				validation: {
+					subFields: [
+						{ slug: "layout", label: "Layout", type: "select", options: ["Grid", "Masonry"] },
+					],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			const options = screen.getByLabelText("Options (one per line)");
+			await expect.element(options).toHaveValue("Grid\nMasonry");
+			await options.fill("Grid\nMasonry\nCarousel");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{
+					slug: "layout",
+					label: "Layout",
+					type: "select",
+					required: undefined,
+					options: ["Grid", "Masonry", "Carousel"],
+				},
+			]);
+		});
+		it("asks for an option when a saved sub-field is switched to select", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "layout", label: "Layout", type: "string" }],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Select" }).click();
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			await expect
+				.element(screen.getByLabelText("Options (one per line)"))
+				.toHaveAttribute("aria-invalid", "true");
+			expect(onSave).not.toHaveBeenCalled();
+		});
+
+		it("drops the options of a sub-field switched away from select", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "layout", label: "Layout", type: "select", options: ["Grid"] }],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Short Text" }).click();
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{ slug: "layout", label: "Layout", type: "string", required: undefined },
+			]);
+		});
 	});
 
 	describe("dialog closed", () => {
 		it("renders nothing visible when open is false", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} open={false} />);
 			expect(screen.getByText("Add Field").query()).toBeNull();
-		});
-	});
-
-	describe("scrollable config dialog", () => {
-		it("bounds the config content so save actions remain reachable with many repeater sub-fields", async () => {
-			const subFields = Array.from({ length: 20 }, (_, i) => ({
-				slug: `item_${i}`,
-				type: "string",
-				label: `Item ${i}`,
-				required: false,
-			}));
-			const field = makeField({
-				type: "repeater",
-				validation: { subFields } as SchemaField["validation"],
-			});
-
-			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={field} />);
-			const content = document.querySelector('[data-testid="field-editor-config-content"]');
-
-			expect(content).not.toBeNull();
-			expect(content!.classList.contains("max-h-[60vh]")).toBe(true);
-			expect(content!.classList.contains("overflow-y-auto")).toBe(true);
-			expect(
-				content!.contains(screen.getByRole("button", { name: "Update Field" }).element()),
-			).toBe(false);
 		});
 	});
 });

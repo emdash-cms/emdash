@@ -83,7 +83,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
 
-    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
+    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </a>
 
@@ -750,7 +750,11 @@ export function renderToolbar(config: ToolbarConfig): string {
   });
 
   // --- Entry status ---
-  var entryRef = null;
+  var pendingEntries = new Map();
+
+  function entryKey(collection, id) {
+    return JSON.stringify([collection, id]);
+  }
 
   function updateStatus() {
     if (!isEditMode) {
@@ -759,65 +763,85 @@ export function renderToolbar(config: ToolbarConfig): string {
       return;
     }
 
-    var first = document.querySelector("[data-emdash-ref]");
-    if (!first) {
+    var hasDraft = false;
+    var hasPublished = false;
+    var adminRef = null;
+    document.querySelectorAll("[data-emdash-ref]").forEach(function(element) {
+      try {
+        var ref = JSON.parse(element.getAttribute("data-emdash-ref"));
+        if (!ref || !ref.collection || !ref.id || !ref.status) return;
+        if (!adminRef) adminRef = ref;
+        if (ref.status === "draft" || (ref.status === "published" && ref.hasDraft)) {
+          pendingEntries.set(entryKey(ref.collection, ref.id), ref);
+        }
+        if (ref.status === "draft") hasDraft = true;
+        if (ref.status === "published") hasPublished = true;
+      } catch (e) {
+        // ignore parse errors
+      }
+    });
+
+    var adminLink = document.getElementById("emdash-tb-admin");
+    if (adminLink && adminRef) {
+      adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(adminRef.collection) + "/" + encodeURIComponent(adminRef.id);
+      adminLink.target = adminWindowName(adminRef.collection, adminRef.id);
+      adminLink.style.display = "";
+    }
+
+    if (hasDraft) {
+      statusEl.innerHTML = badgeHtml("draft", toolbarLabels.draft);
+    } else if (pendingEntries.size) {
+      statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
+    } else if (hasPublished) {
+      statusEl.innerHTML = badgeHtml("published", toolbarLabels.published);
+    } else {
       statusEl.innerHTML = "";
-      publishBtn.style.display = "none";
-      return;
     }
-
-    try {
-      var ref = JSON.parse(first.getAttribute("data-emdash-ref"));
-      entryRef = ref;
-      if (!ref.status) return;
-
-      // Show admin link
-      var adminLink = document.getElementById("emdash-tb-admin");
-      if (adminLink) {
-        adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(ref.collection) + "/" + encodeURIComponent(ref.id);
-        adminLink.style.display = "";
-      }
-
-      if (ref.status === "draft") {
-        statusEl.innerHTML = badgeHtml("draft", toolbarLabels.draft);
-        publishBtn.style.display = "";
-        publishBtn.onclick = function() { publish(ref.collection, ref.id); };
-      } else if (ref.status === "published" && ref.hasDraft) {
-        statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
-        publishBtn.style.display = "";
-        publishBtn.onclick = function() { publish(ref.collection, ref.id); };
-      } else if (ref.status === "published") {
-        statusEl.innerHTML = badgeHtml("published", toolbarLabels.published);
-        publishBtn.style.display = "none";
-      }
-    } catch (e) {
-      // ignore parse errors
-    }
+    publishBtn.style.display = pendingEntries.size ? "" : "none";
   }
 
+  publishBtn.onclick = function() { publish(); };
+
   // Publish action
-  function publish(collection, id) {
+  function publish(failedEntries, publishError) {
+    failedEntries = failedEntries || new Set();
     waitingForPublish = true;
     publishBtn.disabled = true;
     publishBtn.textContent = toolbarLabels.publishing;
 
     if (pendingSaves.length) {
-      Promise.all(pendingSaves).then(function() { publish(collection, id); });
+      Promise.all(pendingSaves).then(function() { publish(failedEntries, publishError); });
       return;
     }
 
-    ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
+    var next = Array.from(pendingEntries.entries()).find(function(entry) {
+      return !failedEntries.has(entry[0]);
+    });
+    if (!next) {
+      if (failedEntries.size) {
+        showPublishError(publishError);
+        return;
+      }
+      if (document.startViewTransition) {
+        document.startViewTransition(function() { location.reload(); });
+      } else {
+        location.reload();
+      }
+      return;
+    }
+
+    var key = next[0];
+    var ref = next[1];
+    ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(ref.collection) + "/" + encodeURIComponent(ref.id) + "/publish", {
       method: "POST",
       credentials: "same-origin",
       headers: { "X-EmDash-Visual-Action": visualActionToken },
     })
     .then(function(res) {
       if (res.ok) {
-        if (document.startViewTransition) {
-          document.startViewTransition(function() { location.reload(); });
-        } else {
-          location.reload();
-        }
+        // A save during the request replaces the ref and still needs publishing.
+        if (pendingEntries.get(key) === ref) pendingEntries.delete(key);
+        publish(failedEntries, publishError);
       } else {
         if (res.status === 401) {
           showVisualActionRecovery();
@@ -828,16 +852,16 @@ export function renderToolbar(config: ToolbarConfig): string {
             showVisualActionRecovery();
             return;
           }
-          showPublishError(body && body.error && body.error.message);
+          failedEntries.add(key);
           console.error("Publish failed:", res.status);
+          publish(failedEntries, publishError || (body && body.error && body.error.message) || toolbarLabels.publishFailed);
         });
       }
     })
     .catch(function(err) {
-      waitingForPublish = false;
-      publishBtn.disabled = false;
-      publishBtn.textContent = toolbarLabels.publish;
+      failedEntries.add(key);
       console.error("Publish failed:", err);
+      publish(failedEntries, publishError || toolbarLabels.publishFailed);
     });
   }
 
@@ -919,13 +943,13 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   function showUnpublishedChanges(collection, id) {
+    pendingEntries.set(entryKey(collection, id), { collection: collection, id: id });
     statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
     publishBtn.style.display = "";
     if (!waitingForPublish) {
       publishBtn.disabled = false;
       publishBtn.textContent = toolbarLabels.publish;
     }
-    publishBtn.onclick = function() { publish(collection, id); };
   }
 
   // Plain text inline editing (contenteditable)
@@ -950,7 +974,37 @@ export function renderToolbar(config: ToolbarConfig): string {
     return text;
   }
 
-  function startTextEdit(element, annotation, multiline) {
+  function caretRangeAt(x, y) {
+    if (document.caretPositionFromPoint) {
+      var position = document.caretPositionFromPoint(x, y);
+      // Over a text input the offset counts into its value, which a range can't hold.
+      if (!position || position.offsetNode.nodeType !== Node.TEXT_NODE) return null;
+      var range = document.createRange();
+      range.setStart(position.offsetNode, position.offset);
+      return range;
+    }
+    return document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+  }
+
+  function selectionPoints() {
+    var selection = window.getSelection();
+    return [selection.anchorNode, selection.anchorOffset, selection.focusNode, selection.focusOffset];
+  }
+
+  // A click on text moves the selection to where it landed (a caret, or the
+  // end of a drag), and focusing the field keeps it there. A click on a link
+  // leaves the selection where it was.
+  var selectionAtMousedown = null;
+
+  // Where to put the caret for a click, or null when the click placed it.
+  function caretForClick(e) {
+    var moved = !selectionAtMousedown || selectionPoints().some(function(point, i) {
+      return point !== selectionAtMousedown[i];
+    });
+    return moved ? null : caretRangeAt(e.clientX, e.clientY);
+  }
+
+  function startTextEdit(element, annotation, caret, multiline) {
     if (currentlyEditing === element) return;
     if (currentlyEditing) endCurrentEdit();
 
@@ -965,13 +1019,9 @@ export function renderToolbar(config: ToolbarConfig): string {
     element.setAttribute("data-emdash-editing", "");
     element.contentEditable = "plaintext-only";
     element.focus();
-
-    // Select all text
-    var range = document.createRange();
-    range.selectNodeContents(element);
-    var sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+    if (caret && element.contains(caret.startContainer)) {
+      window.getSelection().collapse(caret.startContainer, caret.startOffset);
+    }
 
     // Track dirty state via input events
     function handleInput() {
@@ -1025,7 +1075,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   // Text fields are often rendered transformed (Markdown to HTML, truncated
   // excerpts). Saving the page text over the stored value would lose content,
   // so they are edited in place only when the page shows the stored text.
-  function startTextEditIfShownAsStored(element, annotation) {
+  function startTextEditIfShownAsStored(element, annotation, caret) {
     // Rendered markup means the text was transformed. Open the admin before the
     // lookup, while the click still lets popup blockers allow window.open().
     if (element.children.length > 0) {
@@ -1040,7 +1090,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       var item = body && body.data && body.data.item;
       var stored = item && item.data ? item.data[annotation.field] : null;
       if (typeof stored === "string" && stored.trim() === (element.textContent || "").trim()) {
-        startTextEdit(element, annotation, true);
+        startTextEdit(element, annotation, caret, true);
       } else {
         openAdmin(annotation);
       }
@@ -1050,13 +1100,17 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
   }
 
+  function adminWindowName(collection, id) {
+    return "emdash-admin-" + encodeURIComponent(collection) + "/" + encodeURIComponent(id);
+  }
+
   // Fallback: open admin
   function openAdmin(annotation) {
     var url = "/_emdash/admin/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id);
     if (annotation.field) {
       url += "?field=" + encodeURIComponent(annotation.field);
     }
-    window.open(url, "emdash-admin");
+    window.open(url, adminWindowName(annotation.collection, annotation.id));
   }
 
   // --- Inline image editing ---
@@ -1432,12 +1486,11 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
 
     dimPromise.then(function(dims) {
-      // Generate a thumbnail for large images to avoid OOM in server-side
-      // blurhash generation on memory-constrained runtimes (Workers).
-      // Thumbnail fits within a 64x64 box (scale by max dimension) so that
-      // extreme aspect ratios don't explode into a huge canvas client-side.
+      // Generate a small thumbnail for server-side blurhash generation.
+      // Thumbnail fits within a 64x64 box so extreme aspect ratios do not
+      // create a large canvas client-side.
       var thumbPromise;
-      if (dims.width && dims.height && dims.width * dims.height * 4 > 32 * 1024 * 1024) {
+      if (dims.width && dims.height) {
         thumbPromise = new Promise(function(resolve) {
           try {
             var maxDim = Math.max(dims.width, dims.height);
@@ -1507,6 +1560,10 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Click handler for edit mode
   if (isEditMode) {
+    document.addEventListener("mousedown", function() {
+      selectionAtMousedown = selectionPoints();
+    }, true);
+
     document.addEventListener("click", function(e) {
       var target = e.target;
 
@@ -1530,6 +1587,10 @@ export function renderToolbar(config: ToolbarConfig): string {
               continue;
             }
 
+            // Read now: editing may only start once the manifest or the stored
+            // value has loaded, and the page can scroll in the meantime.
+            var caret = caretForClick(e);
+
             function dispatchInline(kind) {
               closeImagePopover();
               // Portable Text is edited in-page by InlinePortableTextEditor — do not open admin
@@ -1539,9 +1600,9 @@ export function renderToolbar(config: ToolbarConfig): string {
               e.preventDefault();
               e.stopPropagation();
               if (kind === "string" || kind === "text") {
-                startTextEdit(target, annotation);
+                startTextEdit(target, annotation, caret);
               } else if (kind === "richText") {
-                startTextEditIfShownAsStored(target, annotation);
+                startTextEditIfShownAsStored(target, annotation, caret);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {
