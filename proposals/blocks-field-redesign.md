@@ -1,7 +1,7 @@
 ---
 title: "Blocks field redesign"
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null
@@ -60,7 +60,7 @@ Two terms are used throughout:
 
 - Blocks sit on one sheet, split by hairlines, instead of in separate cards.
 - Existing blocks start closed when the edit screen opens. A closed block shows its icon, name and a one-line summary, plus a small thumbnail when the block has a photo.
-- The summary is the block's first filled `string` or `text` field, preferring required fields. It skips link fields, the section ID (`anchor_id`), and text that only repeats the block's name. A block without such text lists the titles of its first list's items instead: a Clients block whose heading is just "Clients" reads "Hotel Wilde, Het Bouwhuis, Ola Ceramics +3".
+- The summary is the block's first filled `string` or `text` field, preferring required fields. It skips link fields, the section ID (`anchor_id`), and text that only repeats the block's name. A block without such text shows the first non-empty paragraph, heading or list item of its rich text, and a block with neither lists the titles of its first list's items instead: a Clients block whose heading is just "Clients" reads "Hotel Wilde, Het Bouwhuis, Ola Ceramics +3".
 - "Collapse all" and "Expand all" sit next to the field's label.
 - An open block's header stays pinned to the top of the screen while you scroll through that block, so you can always see which block you're in and close it.
 - A block you add opens with its first field focused. A duplicated block appears below the original, open.
@@ -90,12 +90,12 @@ Two terms are used throughout:
 An open block shows its content first, then its settings, then an Advanced row.
 
 1. **Content.** One-line text (`string`), text areas (`text`), rich text, photos and lists run full width, each under a small label.
-   - The block's headline reads as a heading, in larger semibold text. It's the first `string` or `text` field whose slug or label contains the word headline, heading, title or statement. A field whose slug or label contains the word label, eyebrow, kicker or tag is never the headline. Words match whole, with slugs split at underscores and labels at spaces and punctuation, so "subheadline" and "subtitle" don't count. When no field matches, the block's first `string` or `text` field is the headline, unless it's one of the excluded fields.
+   - The block's headline reads as a heading, in larger semibold text. It's the first `string` or `text` field whose slug contains the word headline, heading, title or statement. A field whose slug contains the word label, eyebrow, kicker or tag is never the headline. Words match whole, with slugs split at underscores, so `subheadline` and `subtitle` don't count. When no field matches, the block's first `string` or `text` field is the headline, unless it's one of the excluded fields.
    - Two or three `string` fields in a row share a line, such as a pricing plan's Price and Period. They stack on narrow screens.
    - Photos span the block, with Replace and Remove on hover. A field named `{image}_caption` sits under its photo as the caption.
    - Text areas start one line tall and grow as you type.
 2. **Settings.** Rows under a thin divider, each with its label at the start and its value at the end.
-   - A button's text and its link share one row. Fields pair by name: `{base}_label`, `{base}_text` or `{base}` with `{base}_url`, `{base}_link` or `{base}_href`. The row is labelled with the text field's label minus a trailing "text", so "Primary button text" becomes "Primary button".
+   - A button's text and its link share one row. Fields pair by name: `{base}_label`, `{base}_text` or `{base}` with `{base}_url`, `{base}_link` or `{base}_href`. The row is labelled with the text field's label as written, such as "Primary button text".
    - Switches, choices, numbers, dates, files, and link fields that aren't in a button row get one row each.
    - When the field is narrower than 440 px, each settings row puts its label above its value.
 3. **Advanced.** A closed row at the end holds the section ID (`anchor_id`) and shows its value while closed.
@@ -119,15 +119,9 @@ Values stay quiet until you reach for them: no box at rest, a light fill on hove
 
 The mockup's sample pages don't use `multiSelect`, `datetime` or `file` fields, so those rows aren't shown there.
 
-#### Hints from labels
+#### Labels
 
-When a label ends in parentheses that contain a space, or in ", for example …", that part becomes the field's hint. "Primary button link (starts with /, https://, mailto:, tel: or #)" becomes the label "Primary button link" with the hint "Starts with /, https://, mailto:, tel: or #". Parentheses without a space stay in the label, so "Price (USD)" and "Size (px)" keep their units.
-
-A hint shows:
-
-- as the placeholder of an empty optional field, so "Checklist (one item per line)" reads "One item per line" until you type. The two halves of a button row keep their "Text" and "Link" placeholders instead;
-- under the field while you type in it;
-- as the error under a field whose value doesn't match the field's pattern.
+Labels show as written, and the layout never reads them, so it works the same in every language. A label too long for its line wraps. On a label's line, a problem or count that the label leaves too little room for goes on a line under it.
 
 #### Validation
 
@@ -139,7 +133,7 @@ A hint shows:
 - These are checks on the data, so they cover every field, however it's drawn. They never reject a value the server accepts: a value made only of spaces counts as filled, as it does on the server.
 - A new block's switches start off, so a required switch is never missing.
 - An empty required field reads "Required". After you leave it, or when you save or publish, it turns red. An empty required photo shows its empty state in red.
-- A field whose value doesn't match its pattern shows its hint, or "Check the format" when it has none, as an error under the field.
+- A field whose value doesn't match its pattern shows "Invalid link" in a link field, or "Check the format" elsewhere, as an error under the field.
 - A list with too few or too many items shows the error under its label. The mockup doesn't show this error.
 - A closed block or list item with an invalid field gets a red dot. Save and Publish open the first such block and focus the field.
 - While a block field is invalid, autosave waits, as it does today for invalid URLs. A notice says autosave is paused and names the block and field. Clicking it opens the block and focuses the field, as Save does. Autosave resumes once the field is fixed, so a newly added block with an empty required field holds autosave until it's filled in.
@@ -185,7 +179,6 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 - Related fields sit together: a button's text with its link, and a photo with its caption.
 - Short lists are as compact as what they hold, a line per name or a row per stat, and long items stay scannable when closed.
 - An editor can add a block anywhere, and move, duplicate or delete blocks and list items without dragging. A deletion made by mistake can be undone on the spot.
-- Instructions appear where they're needed: in the empty field, and under the field while typing.
 - Invalid block fields, including list sizes and list items, are caught before autosave sends them, with the field and block marked. Typing into a list never saves an accidental blank item.
 - Every existing block type works without a schema or template change. Fields that don't follow the naming conventions fall back to plain rows.
 - Everything works with a keyboard, a screen reader, right-to-left languages, phone screens and dark mode.
@@ -195,7 +188,7 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 - A live preview beside the form, or clicking a block on the site to open it.
 - Copy and paste between pages, saved presets, hiding a block without deleting it, and remembering which blocks were open after a reload.
 - Preview images in the picker. That needs a new stored field on block types.
-- Explicit layout settings on block fields, such as help text, groups or widths. They would change the block type schema and the API, so they need an RFC. The name-based rules in this plan would stay as the fallback for fields without settings.
+- Explicit layout settings on block fields, such as help text, groups or widths. They would change the block type schema and the API, so they need an RFC. The name-based rules in this plan would stay as the fallback for fields without settings. Until then, labels show as written, so instructions a seed writes into a label stay in the label.
 - Letting drafts save blocks with empty required fields. The server rejects them on every save, and changing that is an API change for its own proposal.
 - Top-level collection fields, including top-level `repeater` fields, which keep their current look.
 - Lists inside list items, and new sub-field types such as a list of strings inside an item. Pricing plan features stay one per line in a text area.
@@ -207,7 +200,7 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 - No changes to stored data, the API, the block type schema, or how sites render blocks. Moving a block keeps its `_key`, `_type` and `_version`. List values keep their shape: repeater items are stored without `_key`, as today, and the admin keeps its own keys while editing, for drag, undo and focus.
 - Undo adds a block back with the same `_key`, `_type`, `_version` and values. If autosave has already saved the deletion, the server treats the block as new, and it accepts new blocks only for allowed block types on their active version. That's why retired, inactive-version and unsupported blocks get a confirmation instead of Undo.
 - `icon`, `description` and `category` already exist on block types. The admin resolves `icon` with the same Phosphor lookup it uses for collection and plugin icons (`resolveNavIcon`).
-- The layout comes from each field's existing `type`, `slug`, `label`, `required` and `validation`. Field names and label words become layout signals: the pairing suffixes, `{image}_caption`, `anchor_id`, the headline words and label hints. The blocks guide (`docs/src/content/docs/guides/blocks.mdx`) gets a short section listing them as best-effort layout hints that may change, so developers can choose names that lay out well without treating them as a contract.
+- The layout comes from each field's existing `type` and `slug`. Field names become layout signals: the pairing suffixes, `{image}_caption`, `anchor_id` and the headline words. Labels show as written and never change the layout. The blocks guide (`docs/src/content/docs/guides/blocks.mdx`) gets a short section listing them as best-effort layout hints that may change, so developers can choose names that lay out well without treating them as a contract.
 - A list's presentation comes from its sub-field definitions, so adding a fourth sub-field, or a `text` sub-field, to a table's block type turns that list into expandable items.
 - Inside blocks, `BlocksField` places each nested field (content, settings row or Advanced) and asks the editor's field renderer for a quiet control without its own label. Lists inside blocks get a new presentation of the repeater editor. Top-level fields and top-level repeaters keep their current look. The `renderField` callback between `ContentEditor` and `BlocksField` is internal to `@emdash-cms/admin`.
 - Quiet controls are the existing Kumo components and field controls with token-based class overrides: transparent border and background at rest, a fill on hover and a ring on focus. Kumo has no borderless input variant; the overrides can go if it gets one.
@@ -220,10 +213,10 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 
 ### The block list
 
-- **Read-only:** no gutter, menu or Add block. Blocks still open and close.
+- **Read-only:** no gutter, menu or Add block. Every block shows open, with no toggle: a read-only entry disables every control, so a closed block couldn't be opened.
 - **At `maxItems`:** every add action and Duplicate are disabled, and a tooltip gives the limit. Today Duplicate stays enabled at the limit.
 - **Below `minItems`:** the existing "Add at least N blocks." message stays.
-- **Retired, inactive-version and unsupported blocks:** Duplicate stays disabled for retired and unsupported blocks, as today. Moving and adding next to any of them still work. Deleting one asks for confirmation and offers no Undo. An unsupported block opens to the existing "This block cannot be edited" message instead of fields.
+- **Retired, inactive-version and unsupported blocks:** Duplicate stays disabled for retired and unsupported blocks, as today, and is also disabled for inactive-version blocks, because the server accepts new blocks only on their type's active version. Moving and adding next to any of them still work. Deleting one asks for confirmation and offers no Undo. An unsupported block opens to the existing "This block cannot be edited" message instead of fields.
 - **First and last block:** Move up is disabled on the first block and Move down on the last.
 - **Undo:** only the latest deletion, of a block or a list item, can be undone, while its toast is showing. The toast is announced to screen readers and stays for 6 seconds. It pauses while the pointer is over it or focus is inside it, and it closes when you delete something else or leave the page. After that, restoring an older revision is the way back.
 - **Site toolbar links:** `?field=content` still scrolls to the blocks field.
@@ -233,21 +226,21 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 ### Fields inside a block
 
 - **Names that match no convention:** no button row, caption or Advanced row. Each field gets its own row, and nothing is hidden.
-- **A unit or code in parentheses:** only parentheses that contain a space are split, so "Price (USD)", "Size (px)" and "Aspect ratio (16:9)" stay whole.
-- **Labels in other languages:** parentheses split the same way. ", for example" and the headline words are only recognized in English. In other languages that text stays in the label, and the first-field rule picks the headline.
-- **No headline candidate:** a block that starts with "Section label", such as Testimonials, has no field styled as a heading.
+- **A section label stored as `headline`:** Testimonials and Logo wall keep their small section label in a field named `headline`, so it's drawn as the headline, whatever its label says.
+- **Long labels:** labels such as "Primary button link (starts with /, https://, mailto:, tel: or #)" show whole and wrap.
 - **Half-filled button row:** the empty half shows its placeholder, "Text" or "Link".
 - **Long values in settings rows:** cut off with an ellipsis until focused.
 - **Unsupported field types:** keep the existing unsupported message.
+- **No fields:** an open block whose type has no fields says "This block has no fields."
 - **Narrow fields:** below 440 px, settings rows stack their labels above their values, and side-by-side `string` fields stack too.
 - **Read-only:** the same layout with controls disabled, and no validation markers.
 
 ### Lists inside blocks
 
-- **Read-only:** the same presentation with nothing editable: no menus, drag handles or Add item, no Enter or Backspace handling, and no blank-line removal.
+- **Read-only:** the same presentation with nothing editable: no menus, drag handles or Add item, no Enter or Backspace handling, and no blank-line removal. Expandable items all show open, as blocks do, because a closed item couldn't be opened.
 - **At `maxItems`:** Add item is hidden, as it is today. Enter in a type-in list adds nothing, and Duplicate is disabled.
 - **At `minItems`:** Delete is disabled. Today the trash icon is hidden instead. Blank lines that would leave a type-in list short of `minItems` still aren't saved, and validation reports the missing items.
-- **No `string` sub-field that can be the title:** the title is the item's first `text` sub-field, shown as the start of its text in the closed row. The row has no editable title, and every sub-field is edited in the item's body.
+- **No `string` sub-field that can be the title:** the title is the item's first `text` sub-field, shown as the start of its text in the closed row. The row has no editable title, and every sub-field is edited in the item's body. An item with no `text` sub-field either reads "Item 1", "Item 2" and so on when closed.
 - **Empty title:** a closed item reads "Untitled", and the editable title shows the sub-field's label as its placeholder.
 - **Required sub-fields:** an invalid sub-field turns red where it is, in a table cell or an open item, and a closed item gets a red dot.
 - **Narrow fields:** tables keep their columns down to phone width. Expandable items stack their side-by-side fields.
@@ -260,19 +253,19 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 Browser tests in `packages/admin/tests/components/BlocksField.test.tsx`:
 
 - Blocks start closed. An added block opens with its first field focused, and a duplicated block opens below the original. Collapse all and Expand all change every block.
-- The summary prefers a required headline. It skips link fields, the section ID and text equal to the block name, and falls back to item titles from the first list.
+- The summary prefers a required headline. It skips link fields, the section ID and text equal to the block name, and falls back to rich text, then to item titles from the first list.
 - Add block above and Add block below insert at the right position. Add block at the end appends.
 - Enter or Space on the drag handle opens the menu. Move up and Move down keep each block's values and `_key`, and are disabled at the ends. The existing test that reorders from the keyboard drag handle changes to use the menu.
 - Delete, then Undo, restores the block at the same position with the same `_key`. Deleting an inactive-version or retired block asks for confirmation and offers no Undo.
 - At `maxItems`, every add action and Duplicate are disabled.
 - Rows and the picker show the block type's icon, with the generic icon for a missing or unknown name.
-- Read-only mode hides the gutter, the menu and Add block.
+- Read-only mode hides the gutter, the menu and Add block, and shows every block open.
 
 In `packages/admin/tests/components/BlocksField.layout.test.tsx`, the summary moves onto the block name's row, so the test that aligns it under the name changes. The long-name wrapping test still applies.
 
 ### Fields inside a block
 
-Unit tests for the layout rules: button pairs for every suffix combination, captions, the Advanced row, headline selection with whole-word matching ("subheadline" isn't a headline, "Section label" is excluded), and hint splitting, including "(USD)" staying whole.
+Unit tests for the layout rules: button pairs for every suffix combination, captions, the Advanced row, headline selection with whole-word matching on slugs (`subheadline` isn't a headline, `section_label` is excluded), and labels that change neither the layout nor a button row's label.
 
 Unit tests for the client checks: a missing and an empty required value for each field type, patterns, list `minItems` and `maxItems`, required sub-fields, and a value made only of spaces passing.
 
@@ -280,7 +273,7 @@ Browser tests, extending `packages/admin/tests/components/BlocksField.layout.tes
 
 - An open Hero shows the headline as a heading, then the subheadline, then the photo and its caption, then the settings rows, and the section ID inside a closed Advanced row.
 - Fields whose names match no convention render as separate rows.
-- A hint shows as the placeholder of an empty optional field, under the field while focused, and as the error when the field fails its pattern. Button rows keep "Text" and "Link".
+- A label shows as written, and a field that fails its pattern says only "Invalid link" or "Check the format". Button rows keep the "Text" and "Link" placeholders.
 - Text areas grow with their content.
 - A required field turns red after blur and on Save, and a fresh block shows no errors.
 - An invalid block field holds autosave and shows a notice naming the block and field. Clicking the notice opens the block and focuses the field, and fixing the field resumes autosave.
@@ -300,7 +293,7 @@ Browser tests for lists inside a block, using a test block type with a one-sub-f
 - An open item's title edits its title sub-field and updates the closed summary.
 - Move up, Move down, Duplicate and Delete with Undo keep item values and order.
 - `maxItems` and `minItems` disable the right actions.
-- Read-only lists ignore Enter and Backspace and offer no menus.
+- Read-only lists show every expandable item open, ignore Enter and Backspace, and offer no menus.
 
 ### Manual checks
 
@@ -310,7 +303,7 @@ On the marketing template's Home and Pricing pages, and on a block type with a o
 - Arabic;
 - dark mode;
 - keyboard only: open a block's menu, move a block, add a block in place, edit a list and reach Undo;
-- a screen reader, checking that quiet controls keep their labels and that hints and errors are announced through `aria-describedby`.
+- a screen reader, checking that quiet controls keep their labels and that errors are announced through `aria-describedby`.
 
 ## Implementation
 

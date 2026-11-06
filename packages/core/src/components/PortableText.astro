@@ -12,10 +12,7 @@
  * a `componentsEntry`. Plugin components are merged between EmDash defaults
  * and user overrides, so users can still override individual block types.
  */
-import {
-	PortableText as BasePortableText,
-	mergeComponents,
-} from "astro-portabletext";
+import { PortableText as BasePortableText, mergeComponents } from "astro-portabletext";
 import type { PortableTextProps } from "astro-portabletext/types";
 import {
 	buildPortableTextListTree,
@@ -35,7 +32,7 @@ export interface Props extends Omit<PortableTextProps, "value"> {
 }
 
 const {
-	value,
+	value = [],
 	components: userComponents,
 	listNestingMode = "html",
 	tablePlaceholder,
@@ -67,7 +64,7 @@ if (!editMeta) {
 
 {editMeta ? (
 	<InlineEditor
-		value={value}
+		value={Array.isArray(value) ? value : [value]}
 		collection={editMeta.collection}
 		entryId={editMeta.id}
 		field={editMeta.field}

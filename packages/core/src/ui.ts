@@ -36,6 +36,10 @@
  * ```
  */
 
+import type { Block as PortableTextStyledBlock } from "astro-portabletext/types";
+
+import { Block as BlockStyleComponent } from "./components/index.js";
+
 export type { PortableTextProps, SomePortableTextComponents } from "astro-portabletext/types";
 export type {
 	TypedObject,
@@ -47,12 +51,9 @@ export type {
 } from "@portabletext/types";
 export { usePortableText, mergeComponents } from "astro-portabletext";
 
-import type { Block as PortableTextBlockType } from "astro-portabletext/types";
-
-import { Block as BlockRenderer } from "./components/index.js";
-
-export type Block = PortableTextBlockType;
-export const Block = BlockRenderer;
+// Local declarations share the name across the type and value namespaces.
+export type Block = PortableTextStyledBlock;
+export const Block = BlockStyleComponent;
 
 // EmDash PortableText wrapper and components
 export {
