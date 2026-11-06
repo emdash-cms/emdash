@@ -14,13 +14,10 @@ import { fileURLToPath } from "node:url";
 import { parse as parseJsonc } from "jsonc-parser";
 import { describe, expect, it } from "vitest";
 
-import { version } from "../package.json";
-
 const MANIFEST_PATH = fileURLToPath(new URL("../emdash-plugin.jsonc", import.meta.url));
 
 interface Manifest {
 	slug: string;
-	version: string;
 	publisher: string;
 	capabilities: string[];
 	allowedHosts: string[];
@@ -48,12 +45,12 @@ describe("atproto plugin manifest", () => {
 	it("declares the expected identity", async () => {
 		const manifest = await loadManifest();
 		expect(manifest.slug).toBe("atproto");
-		expect(manifest.version).toBe(version);
 	});
 
 	it("declares the required capabilities", async () => {
 		const manifest = await loadManifest();
 		expect(manifest.capabilities).toContain("content:read");
+		expect(manifest.capabilities).toContain("media:bytes:read");
 		expect(manifest.capabilities).toContain("network:request:unrestricted");
 	});
 
