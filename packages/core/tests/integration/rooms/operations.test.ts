@@ -1,3 +1,9 @@
+import {
+	decodeMessage,
+	encodeSyncStep1,
+	encodeSyncStep2,
+	encodeUpdate,
+} from "@emdash-cms/admin/co-editing";
 import { Role } from "@emdash-cms/auth";
 import type { APIContext, APIRoute } from "astro";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -13,12 +19,6 @@ import { RevisionRepository } from "../../../src/database/repositories/revision.
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { runInFreshRequestContext } from "../../../src/request-context.js";
 import { RoomRegistry, type AcceptedConnection } from "../../../src/rooms/node/registry.js";
-import {
-	decodeMessage,
-	encodeSyncStep1,
-	encodeSyncStep2,
-	encodeUpdate,
-} from "../../../src/rooms/protocol.js";
 import { createRoomSite } from "../../../src/rooms/site.js";
 import { CLOSE_CODES, roomId, type RoomConnection } from "../../../src/rooms/types.js";
 import {

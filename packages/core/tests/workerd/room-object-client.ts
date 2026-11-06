@@ -3,14 +3,8 @@
  * Worker does, with bare `Y.Doc` replicas that speak the room protocol.
  */
 
-import { env } from "cloudflare:workers";
-import { COMMIT, VERSION } from "emdash/internal/co-editing";
-import { expect, vi } from "vitest";
-import * as Y from "yjs";
-
-import type { EmDashRoom } from "../../../cloudflare/src/rooms/object.js";
-import { readField, type DocumentField } from "../../src/rooms/document.js";
 import {
+	readField,
 	decodeMessage,
 	encodeAwareness,
 	encodeSyncStep1,
@@ -18,7 +12,14 @@ import {
 	encodeUpdate,
 	type AwarenessEntry,
 	type Message,
-} from "../../src/rooms/protocol.js";
+} from "@emdash-cms/admin/co-editing";
+import { env } from "cloudflare:workers";
+import { COMMIT, VERSION } from "emdash/internal/co-editing";
+import { expect, vi } from "vitest";
+import * as Y from "yjs";
+
+import type { EmDashRoom } from "../../../cloudflare/src/rooms/object.js";
+import { type DocumentField } from "../../src/rooms/document.js";
 import { roomId, type EntryRef, type TokenClaims } from "../../src/rooms/types.js";
 import { FakeSite } from "../unit/rooms/fake-site.js";
 import { setRoomSite } from "./fixtures/plugin-storage-worker.js";

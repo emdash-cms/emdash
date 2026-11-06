@@ -3,8 +3,13 @@
  * internal and can change until co-editing is stable.
  */
 
+import type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/co-editing/types";
+
 import type { ContentWrite } from "../api/content-save.js";
 import type { FieldType } from "../schema/types.js";
+
+export { CLOSE_CODES } from "@emdash-cms/admin/co-editing/types";
+export type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/co-editing/types";
 
 export type EntryRef = { collection: string; id: string };
 
@@ -51,21 +56,6 @@ export interface Build {
 	version: string;
 	commit: string;
 }
-
-export type RoomAccess = "edit" | "view";
-
-export const CLOSE_CODES = {
-	/** Join again for a fresh token. */
-	rejoin: 4400,
-	/** Discard the replica, then join again. */
-	reset: 4401,
-	/** The entry is in Trash or gone. */
-	deleted: 4402,
-	/** The room can't take the socket here. Join again in 5 s. */
-	busy: 4403,
-} as const;
-
-export type CloseCode = (typeof CLOSE_CODES)[keyof typeof CLOSE_CODES];
 
 /** Called by routes and the write path. */
 export interface RoomHost {
@@ -127,9 +117,6 @@ export interface TokenClaims {
 	status: string;
 	authorId: string | null;
 }
-
-/** A value outside the shared document, which saves on its own. */
-export type OutsideValue = "seo" | "author" | "publishedAt" | "terms" | "bylines" | "references";
 
 /** Called by a room. */
 export interface RoomSite {

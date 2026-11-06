@@ -1,8 +1,12 @@
+import {
+	readField,
+	encodeRoomMessage,
+	encodeSyncStep2,
+	encodeUpdate,
+} from "@emdash-cms/admin/co-editing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import { readField } from "../../../src/rooms/document.js";
-import { encodeRoomMessage, encodeSyncStep2, encodeUpdate } from "../../../src/rooms/protocol.js";
 import { CLOSE_CODES } from "../../../src/rooms/types.js";
 import { advance, BODY, settle, TestRoom, useRoomTimers, type TestClient } from "./test-room.js";
 

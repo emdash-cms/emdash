@@ -1,10 +1,10 @@
 import { once } from "node:events";
 
+import { decodeMessage, encodeSyncStep1, encodeUpdate } from "@emdash-cms/admin/co-editing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 import { MAX_UPDATE_BYTES } from "../../src/rooms/limits.js";
-import { decodeMessage, encodeSyncStep1, encodeUpdate } from "../../src/rooms/protocol.js";
 import { CLOSE_CODES } from "../../src/rooms/types.js";
 import { openSocket, type OpenedSocket } from "./helpers.js";
 import { useRoomHost } from "./room-host.js";

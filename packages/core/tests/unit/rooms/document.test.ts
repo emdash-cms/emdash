@@ -1,17 +1,19 @@
+import {
+	ENTRY_SLUG,
+	readField,
+	readFields,
+	readSlug,
+	touchedFields,
+	writeField,
+} from "@emdash-cms/admin/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import {
 	buildDocument,
 	documentFields,
-	ENTRY_SLUG,
 	layoutFields,
-	readField,
-	readFields,
-	readSlug,
 	storedValues,
-	touchedFields,
-	writeField,
 	type DocumentField,
 } from "../../../src/rooms/document.js";
 import {

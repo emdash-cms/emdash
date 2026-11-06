@@ -380,9 +380,6 @@ const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
  */
 const ROOM_ENGINE_DEPS = [
 	"emdash > yjs",
-	"emdash > lib0/decoding",
-	"emdash > lib0/encoding",
-	"emdash > y-protocols/sync",
 	"emdash > @tiptap/y-tiptap",
 	"emdash > @tiptap/starter-kit",
 	"emdash > @tiptap/extension-code",
@@ -396,6 +393,9 @@ const ROOM_ENGINE_DEPS = [
 	"emdash > @tiptap/pm/state",
 	"emdash > @tiptap/pm/tables",
 	"emdash > @tiptap/pm/transform",
+	"emdash > @emdash-cms/admin > lib0/decoding",
+	"emdash > @emdash-cms/admin > lib0/encoding",
+	"emdash > @emdash-cms/admin > y-protocols/sync",
 	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-cell",

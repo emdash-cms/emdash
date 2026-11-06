@@ -42,6 +42,14 @@
       "types": "./dist/portable-text.d.ts",
       "default": "./dist/portable-text.js"
     },
+    "./co-editing": {
+      "types": "./dist/co-editing.d.ts",
+      "default": "./dist/co-editing.js"
+    },
+    "./co-editing/types": {
+      "types": "./dist/co-editing/types.d.ts",
+      "default": "./dist/co-editing/types.js"
+    },
     "./html-block": {
       "types": "./dist/html-block.d.ts",
       "default": "./dist/html-block.js"
@@ -119,6 +127,7 @@
     "clsx": "^2.1.1",
     "dompurify": "^3.3.2",
     "highlight.js": "catalog:",
+    "lib0": "catalog:",
     "lowlight": "catalog:",
     "marked": "^17.0.3",
     "modern-tar": "^0.7.5",

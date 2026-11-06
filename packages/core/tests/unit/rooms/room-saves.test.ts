@@ -1,8 +1,7 @@
+import { readField, snapshotContains } from "@emdash-cms/admin/co-editing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import { readField } from "../../../src/rooms/document.js";
-import { snapshotContains } from "../../../src/rooms/snapshot.js";
 import { CLOSE_CODES } from "../../../src/rooms/types.js";
 import {
 	advance,

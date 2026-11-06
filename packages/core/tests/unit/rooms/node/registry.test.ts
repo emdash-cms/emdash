@@ -1,3 +1,9 @@
+import {
+	decodeMessage,
+	encodeSyncStep1,
+	encodeSyncStep2,
+	encodeUpdate,
+} from "@emdash-cms/admin/co-editing";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
@@ -14,12 +20,6 @@ import {
 import { createRoomHost } from "../../../../src/rooms/node/index.js";
 import { RoomRegistry, type AcceptedConnection } from "../../../../src/rooms/node/registry.js";
 import { hasRoomNotifier } from "../../../../src/rooms/notifications.js";
-import {
-	decodeMessage,
-	encodeSyncStep1,
-	encodeSyncStep2,
-	encodeUpdate,
-} from "../../../../src/rooms/protocol.js";
 import {
 	CLOSE_CODES,
 	roomId,

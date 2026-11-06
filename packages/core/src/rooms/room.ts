@@ -4,6 +4,22 @@
  * and operations run one at a time through a serial queue; client updates apply at once.
  */
 
+import {
+	decodeMessage,
+	encodeAwareness,
+	encodeRoomMessage,
+	encodeSyncStep1,
+	encodeSyncStep2,
+	encodeUpdate,
+	ENTRY_SLUG,
+	readField,
+	readFields,
+	snapshotContains,
+	touchedFields,
+	writeField,
+	type AwarenessEntry,
+	type Notice,
+} from "@emdash-cms/admin/co-editing";
 import { findUnsupportedPortableTextMarks } from "@emdash-cms/admin/portable-text";
 import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import * as Y from "yjs";
@@ -11,13 +27,8 @@ import * as Y from "yjs";
 import {
 	buildDocument,
 	documentFields,
-	ENTRY_SLUG,
 	layoutFields,
-	readField,
-	readFields,
 	storedValues,
-	touchedFields,
-	writeField,
 	type DocumentField,
 } from "./document.js";
 import { hashValue } from "./hash.js";
@@ -48,17 +59,7 @@ import {
 	mergeBaseAfterSave,
 	type FieldDecision,
 } from "./merge.js";
-import {
-	decodeMessage,
-	encodeAwareness,
-	encodeRoomMessage,
-	encodeSyncStep1,
-	encodeSyncStep2,
-	encodeUpdate,
-	type AwarenessEntry,
-	type Notice,
-} from "./protocol.js";
-import { decodeCheckpoint, encodeCheckpoint, snapshotContains } from "./snapshot.js";
+import { decodeCheckpoint, encodeCheckpoint } from "./snapshot.js";
 import {
 	CLOSE_CODES,
 	RoomClaimLostError,
