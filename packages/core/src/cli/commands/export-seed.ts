@@ -26,6 +26,7 @@ import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { getMediaCaption } from "../../media/caption.js";
 import { BlockTypeRegistry } from "../../schema/block-type-registry.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { FieldType } from "../../schema/types.js";
@@ -1044,9 +1045,10 @@ function referenceTargets(
  * `$ref` into a collection further down resolves to nothing and is stored
  * verbatim.
  *
- * Depth-first, with the caller's order as the tie-break so an export without
- * references keeps the collection order it had. A cycle has no valid order;
- * the collections on it stay where they were rather than failing the export.
+ * Depth-first post-order, with the caller's order as the tie-break so an
+ * export without references keeps the collection order it had. A cycle has no
+ * valid order; the algorithm still terminates and emits a deterministic order
+ * rather than failing the export.
  */
 function orderByReferenceTargets(slugs: string[], targets: Map<string, Set<string>>): string[] {
 	const exported = new Set(slugs);
@@ -1076,7 +1078,7 @@ interface MediaInfo {
 	url: string;
 	filename: string;
 	alt?: string;
-	caption?: string;
+	caption?: string | null;
 }
 
 interface ExportedContent {
@@ -1118,7 +1120,7 @@ async function exportContent(
 					url: `${mediaUrlPrefix}${media.storageKey}`,
 					filename: media.filename,
 					alt: media.alt || undefined,
-					caption: media.caption || undefined,
+					caption: typeof media.caption === "string" ? media.caption : null,
 				});
 			}
 			cursor = result.nextCursor;
@@ -1374,7 +1376,7 @@ function toSeedMedia(
 	mediaCounter: { count: number },
 ): unknown {
 	if (!value || typeof value !== "object") return value;
-	const mediaValue = value as { id?: unknown; alt?: unknown };
+	const mediaValue = value as { id?: unknown; alt?: unknown; caption?: unknown; meta?: unknown };
 	const mediaInfo = typeof mediaValue.id === "string" ? mediaMap.get(mediaValue.id) : undefined;
 	if (!mediaInfo) return value;
 
@@ -1384,7 +1386,8 @@ function toSeedMedia(
 			url: mediaInfo.url,
 			filename: mediaInfo.filename,
 			alt: (typeof mediaValue.alt === "string" && mediaValue.alt) || mediaInfo.alt,
-			caption: mediaInfo.caption,
+			caption: getMediaCaption(mediaValue) ?? mediaInfo.caption,
+			libraryCaption: mediaInfo.caption ?? null,
 		},
 	};
 }

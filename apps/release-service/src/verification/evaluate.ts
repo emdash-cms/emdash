@@ -21,16 +21,14 @@ import {
 } from "@emdash-cms/registry-verification/records";
 import { base64url } from "jose";
 
-import type {
-	ReleaseVerificationReport,
-	VerifyReleaseInput,
-} from "../../../release-verifier/src/verify.js";
+import type { VerifyReleaseInput } from "../../../release-verifier/src/verify.js";
 import type { ApprovalEvidence } from "../approvals/digest.js";
 import type { StoredIntent } from "../publisher-do/publisher-do.js";
 import type { StoredWorkloadPolicy } from "../publisher-do/workload-policy.js";
 import { evaluateWorkloadPolicy } from "../workload/policy.js";
 import { parseStoredWorkloadIdentity } from "../workload/stored-identity.js";
 import type { PublisherVerificationSnapshot } from "./pds.js";
+import type { StagedReleaseVerificationReport } from "./staged-input.js";
 
 const SLSA_PROVENANCE_V1 = "https://slsa.dev/provenance/v1";
 
@@ -111,7 +109,7 @@ function numberField(value: unknown): number | null {
 }
 
 export function normalizeVerifierReport(
-	report: ReleaseVerificationReport,
+	report: StagedReleaseVerificationReport,
 ): NormalizedVerifierReport {
 	if (!report.success) {
 		return { success: false, error: { code: report.error.code, message: report.error.message } };

@@ -12,6 +12,7 @@
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 
+import { ACCESS_TOKEN_TTL_SECONDS } from "./auth/api-tokens.js";
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
 import { MediaRepository } from "./database/repositories/media.js";
 import { RedirectRepository } from "./database/repositories/redirect.js";
@@ -28,6 +29,9 @@ import type { Storage } from "./storage/types.js";
 export interface CleanupResult {
 	challenges: number;
 	expiredTokens: number;
+	oauthTokens: number;
+	authorizationCodes: number;
+	deviceCodes: number;
 	pendingUploads: number;
 	pendingUploadFiles: number;
 	uploadAttempts: number;
@@ -41,6 +45,13 @@ export interface CleanupResult {
 
 const REVISION_KEEP_COUNT = 50;
 const REVISION_PRUNE_BATCH_SIZE = 10;
+
+/**
+ * Revoking a refresh token finds the access tokens issued from it through its
+ * row, and those can outlive it by one access token lifetime. A device code's
+ * row is what lets a client that is still polling get `expired_token`.
+ */
+const OAUTH_EXPIRY_GRACE_MS = ACCESS_TOKEN_TTL_SECONDS * 1000;
 
 /** Target cadence for full system cleanup. */
 export const SYSTEM_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -86,6 +97,9 @@ export async function runSystemCleanup(
 	const result: CleanupResult = {
 		challenges: -1,
 		expiredTokens: -1,
+		oauthTokens: -1,
+		authorizationCodes: -1,
+		deviceCodes: -1,
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
@@ -160,6 +174,36 @@ export async function runSystemCleanup(
 		}
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media upload attempts:", error);
+	}
+
+	const oauthCutoff = new Date(Date.now() - OAUTH_EXPIRY_GRACE_MS).toISOString();
+
+	try {
+		const deleted = await db
+			.deleteFrom("_emdash_oauth_tokens")
+			.where("expires_at", "<", oauthCutoff)
+			.executeTakeFirst();
+		result.oauthTokens = Number(deleted.numDeletedRows);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired OAuth tokens:", error);
+	}
+
+	try {
+		const { cleanupExpiredAuthorizationCodes } =
+			await import("./api/handlers/oauth-authorization.js");
+		result.authorizationCodes = await cleanupExpiredAuthorizationCodes(db);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired authorization codes:", error);
+	}
+
+	try {
+		const deleted = await db
+			.deleteFrom("_emdash_device_codes")
+			.where("expires_at", "<", oauthCutoff)
+			.executeTakeFirst();
+		result.deviceCodes = Number(deleted.numDeletedRows);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired device codes:", error);
 	}
 
 	try {

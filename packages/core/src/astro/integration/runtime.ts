@@ -25,6 +25,7 @@ import type {
 } from "../../plugins/types.js";
 import type { RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
+import type { HideableAdminNavItem } from "./admin-nav.js";
 
 export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
 
@@ -322,7 +323,8 @@ export interface EmDashConfig {
 	 *     audience: "abc123...",
 	 *     roleMapping: {
 	 *       "Admins": 50,
-	 *       "Editors": 30,
+	 *       "Editors": 40, // Editor
+	 *       "Authors": 30, // Author
 	 *     },
 	 *   }),
 	 * })
@@ -434,6 +436,14 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	maxUploadSize?: number;
+
+	/**
+	 * Generate blurhash and dominant-color placeholders during image upload.
+	 *
+	 * Defaults to `true`. Set to `false` to skip server-side LQIP generation
+	 * while preserving dimensions, validation, and content hashing.
+	 */
+	imagePlaceholders?: boolean;
 
 	/**
 	 * Public browser-facing origin for the site.
@@ -667,6 +677,19 @@ export interface EmDashConfig {
 		 * ```
 		 */
 		locales?: string[];
+		/**
+		 * Built-in sidebar and command palette entries to hide, for sites that
+		 * don't use those features. The pages stay reachable by URL. Unknown
+		 * names fail the build.
+		 *
+		 * @example
+		 * ```ts
+		 * emdash({
+		 *   admin: { hiddenNavItems: ["comments", "redirects", "widgets"] },
+		 * })
+		 * ```
+		 */
+		hiddenNavItems?: HideableAdminNavItem[];
 	};
 
 	/**

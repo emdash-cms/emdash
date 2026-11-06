@@ -2,15 +2,14 @@ import {
 	Badge,
 	Button,
 	Collapsible,
-	Dialog,
 	Input,
 	Label,
 	LayerCard,
+	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
 	Text,
-	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -21,7 +20,6 @@ import {
 	CaretDown,
 	Eye,
 	EyeSlash,
-	Info,
 	Trash,
 	Upload,
 	X,
@@ -29,6 +27,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import type {
 	AdminManifest,
@@ -47,15 +46,19 @@ import {
 	getContentPublishingState,
 	type ContentPublishingState,
 } from "../lib/content-publishing-state.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { getSeoFallbackTitle } from "../lib/entryTitle.js";
 import { usePluginAdmins } from "../lib/plugin-context";
 import {
 	formatPublishingInstant,
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
 import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
-import { cn } from "../lib/utils";
+import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
+import type { BylineFormValues } from "./BylineFormDialog.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -63,9 +66,11 @@ import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
+import { useRevisionViewContext } from "./revisions/revision-view-context.js";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import type {
 	BrowserEditorDraftRequest,
@@ -73,6 +78,7 @@ import type {
 } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
+import { declaredLabelTranslator } from "./Sidebar.js";
 import {
 	SortableContentSettingsSection,
 	SortableContentSettingsSections,
@@ -121,16 +127,20 @@ function PublishingVersionRow({
 
 function PublishingVersionRelationship({
 	publishingState,
+	isNew,
 	supportsDrafts,
 	scheduledAt,
 	locale,
 	onDiscardDraft,
+	discardDisabled,
 }: {
 	publishingState: ContentPublishingState;
+	isNew?: boolean;
 	supportsDrafts: boolean;
 	scheduledAt?: string | null;
 	locale: string;
-	onDiscardDraft?: () => void;
+	onDiscardDraft?: () => Promise<unknown> | void;
+	discardDisabled?: boolean;
 }) {
 	const { t } = useLingui();
 	const formattedSchedule = scheduledAt
@@ -138,7 +148,7 @@ function PublishingVersionRelationship({
 		: null;
 	const scheduledSummary =
 		scheduledAt && formattedSchedule ? (
-			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
+			<time dateTime={scheduledAt}>{t`Scheduled for ${isolate(formattedSchedule)}`}</time>
 		) : null;
 
 	if (!supportsDrafts) {
@@ -160,7 +170,11 @@ function PublishingVersionRelationship({
 				<PublishingVersionRow
 					iconState="draft"
 					title={t`Draft version`}
-					description={t`This version is not visible on the site`}
+					description={
+						isNew
+							? t`Saving creates a draft that stays off the site. You can publish it after the first save.`
+							: t`This version is not visible on the site`
+					}
 				/>
 			);
 			break;
@@ -197,7 +211,11 @@ function PublishingVersionRelationship({
 						description={t`Ready to publish now or schedule for later`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
 							) : undefined
 						}
 					/>
@@ -219,7 +237,11 @@ function PublishingVersionRelationship({
 						description={scheduledSummary ?? t`A publication time has not been selected`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+								<DiscardDraftDialog
+									onDiscard={onDiscardDraft}
+									triggerSize="sm"
+									disabled={discardDisabled}
+								/>
 							) : undefined
 						}
 					/>
@@ -259,7 +281,7 @@ function TimestampValue({
 	return (
 		<time dateTime={value}>
 			<Text as="span" size={size}>
-				{formatPublishingInstant(value, locale)}
+				<bdi>{formatPublishingInstant(value, locale)}</bdi>
 			</Text>
 		</time>
 	);
@@ -303,61 +325,48 @@ export function DiscardDraftDialog({
 	triggerVariant = "ghost",
 	triggerSize,
 	compact,
+	disabled,
 }: {
-	onDiscard?: () => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscard?: () => Promise<unknown> | void;
 	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
 	/** Shows only the icon on small screens, for the editor bar. */
 	compact?: boolean;
+	disabled?: boolean;
 }) {
 	const { t } = useLingui();
+	const discard = useConfirmedRequest(onDiscard);
 	return (
-		<Dialog.Root>
-			<Dialog.Trigger
-				render={(p) => (
-					<Button
-						{...p}
-						type="button"
-						variant={triggerVariant}
-						size={triggerSize}
-						className={compact ? compactBarExtraButtonClassName : undefined}
-						icon={<X />}
-					>
-						<span className={compact ? compactBarExtraLabelClassName : undefined}>
-							{t`Discard changes`}
-						</span>
-					</Button>
-				)}
+		<>
+			<Button
+				type="button"
+				variant={triggerVariant}
+				size={triggerSize}
+				disabled={disabled}
+				className={compact ? compactBarExtraButtonClassName : undefined}
+				icon={<X />}
+				onClick={discard.show}
+			>
+				<span className={compact ? compactBarExtraLabelClassName : undefined}>
+					{t`Discard changes`}
+				</span>
+			</Button>
+			<ConfirmDialog
+				{...discard.dialog}
+				title={t`Discard draft changes?`}
+				description={t`This will revert to the published version. Your draft changes will be lost.`}
+				confirmLabel={t`Discard changes`}
+				pendingLabel={t`Discarding...`}
 			/>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{t`Discard draft changes?`}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{t`This will revert to the published version. Your draft changes will be lost.`}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="secondary">
-								{t`Cancel`}
-							</Button>
-						)}
-					/>
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="destructive" onClick={onDiscard}>
-								{t`Discard changes`}
-							</Button>
-						)}
-					/>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+		</>
 	);
 }
 
 export interface EditorActionsProps {
 	collectionLabel?: string;
 	isNew?: boolean;
+	supportsDrafts?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
 	/** Autosave in flight — reported by the save button's busy state. */
@@ -498,8 +507,8 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<Dialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<Dialog.Trigger
+		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+			<LayerDialog.Trigger
 				disabled={disabled}
 				render={
 					<Button
@@ -521,18 +530,13 @@ export function PublishActions({
 				) : (
 					publishLabel
 				)}
-			</Dialog.Trigger>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{confirmationDescription}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close render={(props) => <Button {...props} variant="secondary" />}>
-						{t`Cancel`}
-					</Dialog.Close>
-					<Button
-						variant="primary"
+			</LayerDialog.Trigger>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
+				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
+				<LayerDialog.Body>{null}</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
 						loading={isPending}
 						disabled={disabled}
 						aria-label={publishLabel}
@@ -542,10 +546,10 @@ export function PublishActions({
 						}}
 					>
 						{publishLabel}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -641,6 +645,7 @@ export function ScheduleActions({
 export function EditorActions({
 	collectionLabel,
 	isNew,
+	supportsDrafts,
 	isDirty,
 	isSaving,
 	isAutosaving,
@@ -661,6 +666,7 @@ export function EditorActions({
 }: EditorActionsProps) {
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
+	const savesFirstDraft = isNew && supportsDrafts;
 	// Saved reads as a quiet status; unsaved work becomes a button again.
 	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
 
@@ -670,11 +676,12 @@ export function EditorActions({
 				type="submit"
 				size="sm"
 				variant={saveVariant}
-				className={cn("min-w-0", compactBarButtonClassName)}
-				labelClassName="@max-2xl/editor-bar:hidden"
+				className={cn("min-w-0", !savesFirstDraft && compactBarButtonClassName)}
+				labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
 				isDirty={isDirty}
 				isSaving={busy}
 				disabled={saveDisabled}
+				saveLabel={savesFirstDraft ? t`Save draft` : undefined}
 			/>
 			{liveViewUrl && (
 				<LinkButton
@@ -742,9 +749,10 @@ export interface ContentSettingsPanelProps {
 	supportsRevisions: boolean;
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
-	onDiscardDraft?: () => void;
-	onRevisionRestored?: (item: ContentItem) => void;
-	onDelete?: () => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscardDraft?: () => Promise<unknown> | void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: () => Promise<unknown> | void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
 	users?: UserListItem[];
@@ -754,11 +762,8 @@ export interface ContentSettingsPanelProps {
 	availableBylines?: BylineSummary[];
 	availableBylinesLoaded?: boolean;
 	onBylinesChange: (next: BylineCreditInput[]) => void;
-	onQuickCreateByline?: (input: { slug: string; displayName: string }) => Promise<BylineSummary>;
-	onQuickEditByline?: (
-		bylineId: string,
-		input: { slug: string; displayName: string },
-	) => Promise<BylineSummary>;
+	onQuickCreateByline?: (input: BylineFormValues) => Promise<BylineSummary>;
+	onQuickEditByline?: (bylineId: string, input: BylineFormValues) => Promise<BylineSummary>;
 	i18n?: { defaultLocale: string; locales: string[] };
 	translations?: TranslationSummary[];
 	onTranslate?: (locale: string) => void;
@@ -810,7 +815,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	onDiscardDraft,
-	onRevisionRestored,
 	onDelete,
 	isDeleting,
 	currentUser,
@@ -839,6 +843,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
 	const pluginAdmins = usePluginAdmins();
+	const revisionView = useRevisionViewContext();
+	const viewingRevision = Boolean(revisionView?.viewingId);
 	const trustedExtensionPanels = React.useMemo(
 		() =>
 			!isNew && item
@@ -881,6 +887,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const [datesOpen, setDatesOpen] = React.useState(false);
+	const trash = useConfirmedRequest(onDelete);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -933,10 +940,15 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
 			<SortableContentSettingsSections
 				collection={collection}
-				userId={currentUser?.id}
+				// A new entry shows fewer sections, and saving its order would drop the rest.
+				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
-				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
+				<SortableContentSettingsSection
+					id="publish"
+					label={t`Publish`}
+					hidden={isNew && !supportsDrafts}
+				>
 					<div className="p-4">
 						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 							{t`Publish`}
@@ -949,10 +961,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								{showPublishingRelationship ? (
 									<PublishingVersionRelationship
 										publishingState={resolvedPublishingState}
+										isNew={isNew}
 										supportsDrafts={supportsDrafts}
 										scheduledAt={item?.scheduledAt}
 										locale={lingui.locale}
 										onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+										discardDisabled={viewingRevision}
 									/>
 								) : null}
 
@@ -1016,13 +1030,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												/>
 											</Collapsible.Trigger>
 											<Collapsible.Panel
-												className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 												style={({ transitionStatus }) => ({
 													height:
 														transitionStatus === "starting" || transitionStatus === "ending"
 															? 0
 															: "var(--collapsible-panel-height)",
-													transitionProperty: "height",
 												})}
 											>
 												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
@@ -1066,6 +1079,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Text>
 						<div className="grid gap-4">
 							<Input
+								dir="ltr"
 								label={t`Slug`}
 								value={slug}
 								onChange={(event) => onSlugChange(event.target.value)}
@@ -1076,25 +1090,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<div className="flex items-center gap-1.5">
 										<Label>{t`Content language`}</Label>
 										{usesImplicitEnglish ? (
-											<Tooltip
-												content={
-													<span className="block max-w-64 text-pretty">
-														{t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
-													</span>
-												}
-												delay={0}
-												closeDelay={0}
-												render={
-													<Button
-														type="button"
-														variant="ghost"
-														shape="square"
-														size="xs"
-														icon={<Info aria-hidden="true" />}
-														className="text-kumo-subtle hover:text-kumo-default"
-														aria-label={t`Why English is used`}
-													/>
-												}
+											<HelpTooltip
+												help={t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
+												ariaLabel={t`Why English is used`}
 											/>
 										) : null}
 									</div>
@@ -1130,25 +1128,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
 								</Text>
-								<Tooltip
-									content={
-										<span className="block max-w-64 text-pretty">
-											{t`Shown to readers in this order.`}
-										</span>
-									}
-									delay={0}
-									closeDelay={0}
-									render={
-										<Button
-											type="button"
-											variant="ghost"
-											shape="square"
-											size="xs"
-											icon={<Info aria-hidden="true" />}
-											className="text-kumo-subtle hover:text-kumo-default"
-											aria-label={t`Why are bylines shown in this order?`}
-										/>
-									}
+								<HelpTooltip
+									help={t`Shown to readers in this order.`}
+									ariaLabel={t`Why are bylines shown in this order?`}
 								/>
 							</div>
 							<BylineCreditsEditor
@@ -1217,7 +1199,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
-								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultTitle={
+									item
+										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
+										: null
+								}
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}
@@ -1229,10 +1215,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{item &&
 					extensionPanels.map(({ kind, pluginId, panel }) => {
 						const sectionId = `${kind === "trusted" ? "plugin" : "sandbox-plugin"}:${pluginId}:${panel.extension.id}`;
-						const title = lingui._({
-							id: panel.extension.title,
-							message: panel.extension.title,
-						});
+						const title = declaredLabelTranslator(lingui, (id) => lingui._(id))(
+							panel.extension.title,
+						);
 						if (kind === "sandboxed") {
 							const extension = panel.extension;
 							return (
@@ -1296,7 +1281,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 				{portableTextEditor && (
 					<SortableContentSettingsSection id="outline" label={t`Outline`} disclosure>
-						<div className="p-4">
+						<div
+							className="p-4"
+							// A heading moves the caret in the editor, so the editor has to be back on screen
+							// before the outline handles the click. The section toggle stays in the view.
+							onClickCapture={
+								viewingRevision && revisionView
+									? (event) => {
+											if (
+												event.target instanceof Element &&
+												event.target.closest("button:not([aria-expanded])")
+											) {
+												flushSync(revisionView.exit);
+											}
+										}
+									: undefined
+							}
+						>
 							<DocumentOutline editor={portableTextEditor} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
@@ -1305,12 +1306,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{!isNew && item && supportsRevisions && (
 					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
 						<div className="p-4">
-							<RevisionHistory
-								collection={collection}
-								entryId={item.id}
-								onRestored={onRevisionRestored}
-								reserveHeaderEnd
-							/>
+							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
 						</div>
 					</SortableContentSettingsSection>
 				)}
@@ -1325,44 +1321,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						isReorderingSections && "invisible pointer-events-none",
 					)}
 				>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									type="button"
-									variant="ghost"
-									className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
-									disabled={isDeleting}
-									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-								>
-									{t`Move to Trash`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`This will move the item to trash. You can restore it later from the trash.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={onDelete}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+					<Button
+						type="button"
+						variant="ghost"
+						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
+						disabled={isDeleting}
+						icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+						onClick={trash.show}
+					>
+						{t`Move to Trash`}
+					</Button>
+					<ConfirmDialog
+						{...trash.dialog}
+						title={t`Move to Trash?`}
+						description={t`This will move the item to trash. You can restore it later from the trash.`}
+						confirmLabel={t`Move to Trash`}
+						pendingLabel={t`Moving to trash...`}
+					/>
 				</div>
 			)}
 		</div>
@@ -1402,12 +1377,20 @@ function AuthorSelector({ authorId, users, onChange }: AuthorSelectorProps) {
 					<Select.Option key={user.id} value={user.id}>
 						<span className="flex items-center gap-2">
 							{user.name || user.email}
-							{user.name && <span className="text-xs text-kumo-subtle">({user.email})</span>}
+							{user.name && (
+								<span className="text-xs text-kumo-subtle">
+									(<bdi dir="ltr">{user.email}</bdi>)
+								</span>
+							)}
 						</span>
 					</Select.Option>
 				))}
 			</Select>
-			{currentAuthor && <p className="text-xs text-kumo-subtle">{currentAuthor.email}</p>}
+			{currentAuthor && (
+				<p className="text-xs text-kumo-subtle">
+					<bdi dir="ltr">{currentAuthor.email}</bdi>
+				</p>
+			)}
 		</div>
 	);
 }

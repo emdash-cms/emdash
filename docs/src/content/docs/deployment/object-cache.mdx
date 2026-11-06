@@ -111,21 +111,25 @@ export default defineConfig({
 The object cache covers the reads that run on a typical page render:
 
 - Content queries: `getEmDashCollection`, `getEmDashEntry`, and `resolveEmDashPath`.
-- Site settings, navigation menus, and taxonomy terms.
+- Site settings, navigation menus, widget areas, and taxonomy terms.
 
-Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
+Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML, see [Route Caching](/deployment/route-caching/).
 
 The object cache and an HTML edge cache solve different problems. A hit in the HTML layer does not run EmDash. A miss runs the Worker, and a response that may fill Astro's route cache bypasses the object cache. Its content queries read from the database, which prevents a page purged after a content change from being rebuilt with an older KV snapshot.
 
 ## Freshness
 
-Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
+Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection, including navigation menus that link to entries in it; changing a byline or taxonomy term clears the entries and menus that display it.
+
+Widget changes made in the admin, by seeding, or by a site transfer clear the cached widget areas. Code that writes the widget tables directly must call `invalidateWidgetObjectCache()` from `emdash` afterwards.
 
 <Aside type="note">
 Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.
 </Aside>
 
 For requests that are not route-cache fills, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
+
+Every change other than to comments also rewrites a single site-wide change marker. When an isolate's epochs are older than `revalidate`, it can check that marker instead: if nothing has changed, it keeps all of its epochs, so a render past the window costs one epoch read instead of one per collection and shared namespace. An isolate still re-reads its epochs for two minutes after each change, which keeps the KV propagation bound above, and at least every ten minutes. The comments epoch is always read directly. With `revalidate: 0`, every query reads its epochs directly.
 
 ### Scheduled content
 

@@ -178,6 +178,37 @@ describe("BylinesPage — editing while the byline loads", () => {
 		expect(body.customFields).toEqual({ job_title: "Editor" });
 	});
 
+	it("takes the fields not yet edited from the full byline record when it arrives", async () => {
+		const byline = makeByline({ bio: "Bio from the list" });
+		vi.mocked(fetchManifest).mockResolvedValue(manifest(["en"]));
+		vi.mocked(fetchBylines).mockResolvedValue({ items: [byline], nextCursor: undefined });
+		const remote = deferred<BylineSummary>();
+		vi.mocked(fetchByline).mockReturnValue(remote.promise);
+		vi.mocked(updateByline).mockResolvedValue(byline);
+
+		const screen = await render(
+			<TestWrapper>
+				<BylinesPage />
+			</TestWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Edit Jane Doe" }).click();
+		await userEvent.fill(screen.getByLabelText("Display name"), "Jane Q. Doe");
+		remote.resolve({ ...byline, bio: "Bio updated elsewhere", websiteUrl: "https://jane.example" });
+
+		await expect.element(screen.getByLabelText("Bio")).toHaveValue("Bio updated elsewhere");
+		await expect.element(screen.getByLabelText("Display name")).toHaveValue("Jane Q. Doe");
+		await screen.getByRole("button", { name: "Save" }).click();
+
+		await vi.waitFor(() => expect(vi.mocked(updateByline)).toHaveBeenCalledTimes(1));
+		const [, body] = vi.mocked(updateByline).mock.calls[0]!;
+		expect(body).toMatchObject({
+			displayName: "Jane Q. Doe",
+			bio: "Bio updated elsewhere",
+			websiteUrl: "https://jane.example",
+		});
+	});
+
 	it("fills an unedited form from the full byline record when it arrives", async () => {
 		const byline = makeByline();
 		vi.mocked(fetchManifest).mockResolvedValue(manifest(["en"]));

@@ -115,6 +115,84 @@ describe("core migrations on D1", () => {
 			.executeTakeFirstOrThrow();
 		expect(JSON.parse(revision.data)).toEqual({ starts_at: "2026-08-21T16:00:00.000Z" });
 	});
+
+	it("normalizes a large legacy site in far fewer D1 calls than changed rows", async () => {
+		const count = 500;
+		await runMigrations(db);
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "events",
+			label: "Events",
+			supports: ["revisions", "search"],
+		});
+		await registry.createField("events", {
+			slug: "starts_at",
+			label: "Starts at",
+			type: "datetime",
+		});
+		await registry.createField("events", {
+			slug: "sessions",
+			label: "Sessions",
+			type: "repeater",
+			validation: { subFields: [{ slug: "begins_at", label: "Begins at", type: "datetime" }] },
+		});
+		await new OptionsRepository(db).set("site:timezone", "Asia/Tokyo");
+		const ids = Array.from(
+			{ length: count },
+			(_, index) => `event-${String(index).padStart(4, "0")}`,
+		);
+		for (let offset = 0; offset < count; offset += 8) {
+			const values = ids.slice(offset, offset + 8).map(
+				(id) => sql`(
+					${id}, ${id}, 'draft', '2026-01-01T00:00', '2026-01-01T00:00', 1, 'en', ${id},
+					'2026-08-22T01:00', ${JSON.stringify([{ begins_at: "2026-01-15T10:00" }])}
+				)`,
+			);
+			await sql`
+				INSERT INTO ec_events (
+					id, slug, status, created_at, updated_at, version, locale, translation_group,
+					starts_at, sessions
+				) VALUES ${sql.join(values)}
+			`.execute(db);
+		}
+		for (let offset = 0; offset < count; offset += 15) {
+			await db
+				.insertInto("revisions")
+				.values(
+					ids.slice(offset, offset + 15).map((id) => ({
+						id: `revision-${id}`,
+						collection: "events",
+						entry_id: id,
+						data: JSON.stringify({ starts_at: "2026-08-22T01:00" }),
+						author_id: null,
+						created_at: "2026-01-01T00:00:00.000Z",
+					})),
+				)
+				.execute();
+		}
+		let calls = 0;
+		const countedDb = new Kysely<Database>({
+			dialect: new RawBindingD1Dialect({ database: env.DB }),
+			log: () => {
+				calls++;
+			},
+		});
+
+		await normalizeDatetimeStorage(countedDb);
+
+		expect(calls).toBeGreaterThan(0);
+		expect(calls * 5).toBeLessThan(count * 2);
+		const normalized = await sql<{ events: number; revisions: number }>`
+			SELECT
+				(SELECT COUNT(*) FROM ec_events
+					WHERE starts_at = '2026-08-21T16:00:00.000Z'
+					AND created_at = '2025-12-31T15:00:00.000Z'
+					AND sessions = '[{"begins_at":"2026-01-15T01:00:00.000Z"}]') AS events,
+				(SELECT COUNT(*) FROM revisions
+					WHERE data = '{"starts_at":"2026-08-21T16:00:00.000Z"}') AS revisions
+		`.execute(db);
+		expect(normalized.rows[0]).toEqual({ events: count, revisions: count });
+	});
 });
 
 describe("retry after a partial run on D1", () => {

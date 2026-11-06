@@ -557,17 +557,97 @@ describe("table cell paste safety", () => {
 		expect(editor.getJSON()).toEqual(before);
 	});
 
-	it("rejects paragraph alignment that would diverge from the cell attribute", () => {
+	it("accepts paragraph alignment that would diverge from the cell attribute", () => {
 		const { editor, onRejected } = createEditor();
 		selectCellText(editor);
-		const before = editor.getJSON();
-		const invalid = tableWithCellContent(editor, [
+		const aligned = tableWithCellContent(editor, [
 			editor.schema.nodes.paragraph.create({ textAlign: "center" }, editor.schema.text("Centered")),
 		]);
 
-		expect(handlePaste(editor, new Slice(Fragment.from(invalid.table), 0, 0))).toBe(true);
-		expect(onRejected).toHaveBeenCalledWith("invalid-table");
-		expect(editor.getJSON()).toEqual(before);
+		expect(handlePaste(editor, new Slice(Fragment.from(aligned.table), 0, 0))).toBe(false);
+		expect(onRejected).not.toHaveBeenCalled();
+	});
+
+	function pasteAtTopLevel(editor: Editor, slice: Slice) {
+		const handled = handlePaste(editor, slice);
+		if (!handled) {
+			editor.view.dispatch(editor.state.tr.replaceSelection(slice));
+		}
+		return handled;
+	}
+
+	it("accepts a Google Docs-style table with centred header cells and preceding content", () => {
+		const { editor, onRejected } = createEditor(vi.fn(), {
+			type: "doc",
+			content: [{ type: "paragraph" }],
+		});
+		editor.commands.setTextSelection(1);
+		const { schema } = editor;
+		const heading = schema.nodes.heading.create({ level: 1 }, schema.text("Heading"));
+		const intro = schema.nodes.paragraph.create(null, [
+			schema.text("Intro with "),
+			schema.text("bold", [schema.marks.bold.create()]),
+			schema.text(" text."),
+		]);
+		const table = schema.nodes.table.create(null, [
+			schema.nodes.tableRow.create(null, [
+				schema.nodes.tableCell.create(null, [
+					schema.nodes.paragraph.create({ textAlign: "center" }, schema.text("Header A")),
+				]),
+				schema.nodes.tableCell.create(null, [
+					schema.nodes.paragraph.create({ textAlign: "center" }, schema.text("Header B")),
+				]),
+			]),
+			schema.nodes.tableRow.create(null, [
+				schema.nodes.tableCell.create(null, [
+					schema.nodes.paragraph.create(null, schema.text("Row1 A")),
+				]),
+				schema.nodes.tableCell.create(null, [
+					schema.nodes.paragraph.create(null, schema.text("Row1 B")),
+				]),
+			]),
+		]);
+		const slice = new Slice(Fragment.fromArray([heading, intro, table]), 0, 0);
+
+		expect(pasteAtTopLevel(editor, slice)).toBe(false);
+		expect(onRejected).not.toHaveBeenCalled();
+
+		const json = editor.getJSON();
+		const types = json.content?.map((node) => node?.type);
+		expect(types?.slice(0, 3)).toEqual(["heading", "paragraph", "table"]);
+		expect(json.content?.[types?.indexOf("table") ?? -1]?.content?.length).toBe(2);
+	});
+
+	it("accepts a merged cell whose colwidth is shorter than its colspan", () => {
+		const { editor, onRejected } = createEditor(vi.fn(), {
+			type: "doc",
+			content: [{ type: "paragraph" }],
+		});
+		editor.commands.setTextSelection(1);
+		const { schema } = editor;
+		const table = schema.nodes.table.create(null, [
+			schema.nodes.tableRow.create(null, [
+				schema.nodes.tableCell.create({ colspan: 2, colwidth: [208] }, [
+					schema.nodes.paragraph.create(null, schema.text("Merged header")),
+				]),
+			]),
+			schema.nodes.tableRow.create(null, [
+				schema.nodes.tableCell.create(null, [
+					schema.nodes.paragraph.create(null, schema.text("A")),
+				]),
+				schema.nodes.tableCell.create(null, [
+					schema.nodes.paragraph.create(null, schema.text("B")),
+				]),
+			]),
+		]);
+		const slice = new Slice(Fragment.from(table), 0, 0);
+
+		expect(pasteAtTopLevel(editor, slice)).toBe(false);
+		expect(onRejected).not.toHaveBeenCalled();
+
+		const pastedTable = editor.getJSON().content?.[0];
+		expect(pastedTable?.type).toBe("table");
+		expect(pastedTable?.content?.[0]?.content?.[0]?.attrs?.colspan).toBe(2);
 	});
 
 	it("preserves attributes from a real partial CellSelection slice", () => {
@@ -834,7 +914,7 @@ describe("table cell paste safety", () => {
 		["fractional width", { colwidth: [12.5] }],
 		["non-finite width", { colwidth: [Number.NaN] }],
 		["oversized width", { colwidth: [MAX_TABLE_COLUMN_WIDTH + 1] }],
-		["mismatched widths", { colspan: 2, colwidth: [144] }],
+		["colwidth array longer than colspan", { colspan: 2, colwidth: [144, 144, 144] }],
 	])("rejects %s", (_label, attrs) => {
 		const { editor, onRejected } = createEditor();
 		selectCellText(editor);

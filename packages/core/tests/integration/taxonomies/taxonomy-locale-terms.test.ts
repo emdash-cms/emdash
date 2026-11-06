@@ -104,9 +104,17 @@ const adminUser = {
 	role: Role.ADMIN as RoleLevel,
 };
 
+const subscriberUser = {
+	id: "u-subscriber",
+	email: "s@example.com",
+	name: "Subscriber",
+	role: Role.SUBSCRIBER as RoleLevel,
+};
+
 function buildGetContext(
 	db: Kysely<Database>,
 	params: { collection: string; id: string; taxonomy: string },
+	user: { id: string; role: RoleLevel } = adminUser,
 ): APIContext {
 	const url = new URL(
 		`http://localhost/_emdash/api/content/${params.collection}/${params.id}/terms/${params.taxonomy}`,
@@ -121,7 +129,7 @@ function buildGetContext(
 				handleContentGet: (collection: string, id: string, locale?: string) =>
 					handleContentGet(db, collection, id, locale),
 			},
-			user: adminUser,
+			user,
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for tests
 	} as unknown as APIContext;
@@ -387,6 +395,38 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		const frOnly = await taxRepo.getTermsForEntry("post", fx.frContentId, "tags", "fr");
 		expect(frOnly).toHaveLength(1);
 		expect(frOnly[0]!.id).toBe(fx.frTagId);
+	});
+
+	it("updates description only when provided, and clears it on empty string", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en"] });
+		await unwrap(
+			handleTaxonomyCreate(ctx.db, {
+				name: "tags",
+				label: "Tags",
+				hierarchical: false,
+			}),
+		);
+		const created = await unwrap(
+			handleTermCreate(ctx.db, "tags", {
+				slug: "news",
+				label: "News",
+				description: "Original description",
+			}),
+		);
+		expect(created.description).toBe("Original description");
+
+		// Omitting description preserves the stored value.
+		const labelOnly = await unwrap(
+			handleTermUpdate(ctx.db, "tags", "news", { label: "Latest news" }),
+		);
+		expect(labelOnly.description).toBe("Original description");
+
+		// Empty string clears it.
+		const cleared = await unwrap(handleTermUpdate(ctx.db, "tags", "news", { description: "" }));
+		expect(cleared.description).toBe("");
+
+		const fetched = await unwrap(handleTermGet(ctx.db, "tags", "news"));
+		expect(fetched.description).toBe("");
 	});
 
 	it("GET returns only the FR variant for the FR entry", async () => {
@@ -736,6 +776,32 @@ function findInTree(terms: TermWithCount[], slug: string): TermWithCount | undef
 	}
 	return undefined;
 }
+
+describeEachDialect("content terms route without draft access", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("GET answers 404 to a Subscriber until the entry is published", async () => {
+		const fx = await seedLocalizedTags(ctx.db);
+		const params = { collection: "post", id: fx.enContentId, taxonomy: "tags" };
+
+		const draft = await getTerms(buildGetContext(ctx.db, params, subscriberUser));
+		expect(draft.status, await draft.clone().text()).toBe(404);
+
+		await new ContentRepository(ctx.db).update("post", fx.enContentId, { status: "published" });
+		const published = await getTerms(buildGetContext(ctx.db, params, subscriberUser));
+		expect(published.status).toBe(200);
+		const body = (await published.json()) as TermsResponse;
+		expect((body.data?.terms ?? []).map((t) => t.id)).toEqual([fx.enTagId]);
+	});
+});
 
 describeEachDialect("taxonomy parent stays nested across locales (#1347)", (dialect) => {
 	let ctx: DialectTestContext;

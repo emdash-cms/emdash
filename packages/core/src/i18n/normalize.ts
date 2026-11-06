@@ -1,4 +1,4 @@
-import type { I18nConfig } from "./config.js";
+import { resolveConfiguredLocale, type I18nConfig } from "./config.js";
 
 export interface AstroLocaleObject {
 	path: string;
@@ -15,7 +15,11 @@ export interface AstroI18nInput {
 export function normalizeAstroI18n(config: AstroI18nInput | null | undefined): I18nConfig | null {
 	if (!config) return null;
 
-	return {
+	const aliases = config.locales.flatMap((locale) =>
+		typeof locale === "string" ? [] : locale.codes.map((code) => [code, locale.path]),
+	);
+	const normalized: I18nConfig = {
+		...(aliases.length > 0 ? { localeAliases: Object.fromEntries(aliases) } : {}),
 		defaultLocale: config.defaultLocale,
 		locales: config.locales.map((locale) => (typeof locale === "string" ? locale : locale.path)),
 		fallback: config.fallback
@@ -28,4 +32,14 @@ export function normalizeAstroI18n(config: AstroI18nInput | null | undefined): I
 		prefixDefaultLocale:
 			typeof config.routing === "object" ? (config.routing.prefixDefaultLocale ?? false) : false,
 	};
+	normalized.defaultLocale = resolveConfiguredLocale(config.defaultLocale, normalized);
+	if (normalized.fallback) {
+		normalized.fallback = Object.fromEntries(
+			Object.entries(normalized.fallback).map(([from, to]) => [
+				resolveConfiguredLocale(from, normalized),
+				resolveConfiguredLocale(to, normalized),
+			]),
+		);
+	}
+	return normalized;
 }

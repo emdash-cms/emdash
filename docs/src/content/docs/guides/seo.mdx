@@ -14,6 +14,7 @@ EmDash provides search engine optimization (SEO) features for content entries, p
 | [Structured data](#structured-data) | JSON-LD `BlogPosting` or `WebSite` | `<EmDashHead>` in the page head |
 | [Sitemaps](#sitemaps) | `/sitemap.xml` and `/sitemap-{collection}.xml` | SEO enabled on the collection |
 | [`robots.txt`](#robotstxt) | `/robots.txt` with a sitemap reference | Nothing |
+| [Staging](#hide-a-site-until-it-goes-live) | `noindex` on every page | A site created with the setup wizard; `<EmDashHead>` for the tag |
 | [Site-wide settings](#site-wide-seo-settings) | Verification tags, default social image, title separator | Values in **Settings > SEO** |
 | [Translations](#translated-content) | `hreflang` links in the head and the sitemap | Astro i18n configured |
 | [Redirects and 404 log](#redirects-and-the-404-log) | Redirect and gone rules, a log of missed URLs | Nothing |
@@ -49,7 +50,9 @@ The **SEO** panel in the entry editor holds these fields:
 - **Canonical URL** points search engines to the original version of a page that is duplicated from another URL.
 - **Hide from search engines** adds `noindex, nofollow` to the page and removes the entry from the sitemap and from `hreflang` alternates.
 
-Empty fields fall back to the values the page passes to `createPublicPageContext()`. `getSeoMeta()` falls back to the entry's `title` and `excerpt` fields.
+Empty fields fall back to the values the page passes to `createPublicPageContext()`. `getSeoMeta()` falls back to the entry's title and its `excerpt` field. For an entry from `getEmDashEntry()` or `resolveEmDashPath()`, the title comes from the field named by the collection's [`titleField`](/themes/seed-files/#collection-properties), or from the `title` field when the collection sets no `titleField` or the entry leaves that field empty. For entries from other queries, the title comes from the `title` field.
+
+Imported or programmatically written SEO data can store a bare media ID. The editor can show that image while shared links still point to a missing file. When **Sharing image needs a URL** appears below the loaded preview, choose **Save image URL** to replace the ID with the file URL used for social previews and sitemap images. Viewing the preview alone does not change the saved value. If you see **Image not found**, check that the media is available and try reloading the editor before replacing the image.
 
 ## Render SEO metadata on a content page
 
@@ -150,10 +153,46 @@ Sitemap: https://example.com/sitemap.xml
 
 To replace the default, enter custom content in **Settings > SEO > robots.txt**. EmDash appends the `Sitemap:` line when the custom content has none.
 
+### AI training
+
+Turn on **Settings > SEO > Disallow AI training** to ask AI crawlers not to use the site for training. EmDash adds a block of rules before the `Sitemap:` line of the default `robots.txt`. In a custom `robots.txt`, the block goes after your content: if your file has no `Sitemap:` line, EmDash appends one after the block; if it has one, the file keeps it, since a `Sitemap:` line applies to the whole file wherever it appears. The block starts like this, with one `Disallow: /` group per crawler:
+
+```txt title="/robots.txt"
+# Disallow AI training
+User-agent: *
+Content-Signal: search=yes, ai-train=no
+Disallow:
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+```
+
+The rules list the AI training crawlers and opt-out tokens from Cloudflare's [managed `robots.txt`](https://developers.cloudflare.com/bots/additional-configurations/managed-robots-txt/): `Amazonbot`, `Applebot-Extended`, `Bytespider`, `CCBot`, `ClaudeBot`, `Google-Extended`, `GPTBot`, and `meta-externalagent`. `Google-Extended` and `Applebot-Extended` are tokens rather than crawlers: Googlebot and Applebot keep crawling for search, and the tokens tell Google and Apple not to use the content for AI training. The `Content-Signal` line states the preference in the [Content Signals](https://contentsignals.org/) format.
+
+Search engines keep the access your other rules give them. If a custom `robots.txt` already has a group for one of these crawlers, crawlers merge it with the added group, and an `Allow` rule there can still let that crawler in. A `robots.txt` route in your own project, described below, replaces EmDash's route and ignores this option. Crawlers follow `robots.txt` voluntarily; it does not block requests.
+
 `robots.txt` and the sitemaps build absolute URLs from the **Site URL** in **Settings > General**, then the [`siteUrl`](/reference/configuration/#siteurl) option or the `EMDASH_SITE_URL` environment variable, then the request origin. Set one of these so the URLs match the public domain. Browsers and shared caches may keep `robots.txt` for up to a day and sitemaps for up to an hour.
 
 <Aside>
 To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others. Collections with more than 2,000 entries span several child sitemaps: a custom `sitemap.xml` must list `/sitemap-{collection}-{n}.xml` for each further page, and a custom `sitemap-[collection].xml` receives those paged names, such as `post-2`.
+</Aside>
+
+## Hide a site until it goes live
+
+A site created with the setup wizard starts in staging. Visitors can open it, but search engines are asked not to index it:
+
+- `<EmDashHead>` renders `<meta name="robots" content="noindex, nofollow">` on every page, overriding robots values from the SEO panel and plugin metadata contributions.
+- `/robots.txt` keeps its usual content, so crawlers can fetch the pages and see the tag. A `robots.txt` that blocks a page would hide its `noindex` tag, and search engines would keep a page they had already indexed. While the site is in staging, `robots.txt` isn't cached, so changes to it apply on the next request.
+
+The admin header shows a **Staging** badge while the site is in staging. When the site is ready, an administrator opens **Settings > General** and selects **Go live** under **Site Status**. Without the admin UI, an administrator can send `{ "staging": false }` to `POST /_emdash/api/settings` or use the MCP `settings_update` tool. **Switch back to staging** hides the site again, for example during a relaunch. Edge-cached pages show the previous state until they expire. Search engines drop a page that is already indexed the next time they crawl it.
+
+Sites set up before staging existed, and sites without the setting, are live. Site transfer and `emdash export-seed` don't copy the staging status: an import target keeps its own status, so select **Go live** after importing into a new site.
+
+<Aside type="caution">
+Staging is not access control. Anyone with the address can still open the site, and crawlers that ignore `noindex` can still index it. To keep a site private, put it behind a login such as [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/configure-apps/self-hosted-public-app/). Pages that don't render `<EmDashHead>` don't get the `noindex` tag. A custom `robots.txt` route replaces EmDash's and is cached as that route sets it.
 </Aside>
 
 ## Site-wide SEO settings
@@ -164,6 +203,7 @@ To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `
 - **Default Social Image** is the `og:image` for pages without their own image. `<EmDashHead>` applies it.
 - **Google Verification** and **Bing Verification** add the `google-site-verification` and `msvalidate.01` meta tags that prove site ownership to Google Search Console and Bing Webmaster Tools. `<EmDashHead>` adds them to every page.
 - **robots.txt** replaces the default [`robots.txt`](#robotstxt).
+- **Disallow AI training** adds [rules for AI training crawlers](#ai-training) to `robots.txt`.
 
 ## Translated content
 

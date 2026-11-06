@@ -6,13 +6,25 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
+import {
+	handleDeviceTokenExchange,
+	handleTokenRevoke,
+} from "../../src/api/handlers/device-flow.js";
+import { ACCESS_TOKEN_TTL_SECONDS, hashApiToken } from "../../src/auth/api-tokens.js";
 import { runSystemCleanup, shouldRunSystemCleanup } from "../../src/cleanup.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaRepository } from "../../src/database/repositories/media.js";
 import { MAX_404_LOG_ROWS } from "../../src/database/repositories/redirect.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
-import { setupTestDatabase, setupTestDatabaseWithCollections } from "../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	setupTestDatabaseWithCollections,
+	teardownForDialect,
+	type DialectTestContext,
+} from "../utils/test-db.js";
 
 describe("Revision Pruning", () => {
 	let db: Kysely<Database>;
@@ -479,6 +491,154 @@ describe("Expired token cleanup", () => {
 
 		expect(remaining).toHaveLength(5);
 		expect(remaining.every((r) => r.hash.startsWith("valid-"))).toBe(true);
+	});
+});
+
+describeEachDialect("Expired OAuth login cleanup", (dialect) => {
+	let ctx: DialectTestContext;
+	const userId = "oauth-user";
+	const minutesFromNow = (minutes: number) =>
+		new Date(Date.now() + minutes * 60 * 1000).toISOString();
+	const oauthToken = (token_hash: string, token_type: string, expires_at: string) => ({
+		token_hash,
+		token_type,
+		user_id: userId,
+		scopes: "[]",
+		client_type: "cli",
+		expires_at,
+	});
+	const deviceCode = (device_code: string, expires_at: string) => ({
+		device_code,
+		user_code: device_code,
+		scopes: "[]",
+		status: "pending",
+		expires_at,
+		interval: 5,
+	});
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		const now = new Date().toISOString();
+		await ctx.db
+			.insertInto("users")
+			.values({
+				id: userId,
+				email: "oauth@example.com",
+				name: "OAuth",
+				avatar_url: null,
+				role: 50,
+				email_verified: 1,
+				disabled: 0,
+				data: null,
+				created_at: now,
+				updated_at: now,
+			})
+			.execute();
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("deletes OAuth tokens that expired more than an hour ago", async () => {
+		await ctx.db
+			.insertInto("_emdash_oauth_tokens")
+			.values([
+				oauthToken("expired-access", "access", minutesFromNow(-120)),
+				oauthToken("expired-refresh", "refresh", minutesFromNow(-120)),
+				oauthToken("live-access", "access", minutesFromNow(60)),
+				oauthToken("live-refresh", "refresh", minutesFromNow(60)),
+			])
+			.execute();
+
+		await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_oauth_tokens")
+			.select("token_hash")
+			.orderBy("token_hash")
+			.execute();
+		expect(remaining.map((row) => row.token_hash)).toEqual(["live-access", "live-refresh"]);
+	});
+
+	it("keeps an expired refresh token while an access token issued from it is still valid", async () => {
+		const refreshToken = "ec_ort_expired";
+		const refreshHash = hashApiToken(refreshToken);
+		await ctx.db
+			.insertInto("_emdash_oauth_tokens")
+			.values([
+				oauthToken(refreshHash, "refresh", minutesFromNow(5 - ACCESS_TOKEN_TTL_SECONDS / 60)),
+				{
+					...oauthToken("live-access", "access", minutesFromNow(5)),
+					refresh_token_hash: refreshHash,
+				},
+			])
+			.execute();
+
+		await runSystemCleanup(ctx.db);
+		await handleTokenRevoke(ctx.db, { token: refreshToken });
+
+		expect(await ctx.db.selectFrom("_emdash_oauth_tokens").select("token_hash").execute()).toEqual(
+			[],
+		);
+	});
+
+	it("deletes expired authorization codes and keeps unexpired ones", async () => {
+		const code = (code_hash: string, expires_at: string) => ({
+			code_hash,
+			client_id: "https://client.example/metadata.json",
+			redirect_uri: "https://client.example/callback",
+			user_id: userId,
+			scopes: "[]",
+			code_challenge: "challenge",
+			code_challenge_method: "S256",
+			expires_at,
+		});
+		await ctx.db
+			.insertInto("_emdash_authorization_codes")
+			.values([code("expired-code", minutesFromNow(-1)), code("live-code", minutesFromNow(10))])
+			.execute();
+
+		await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_authorization_codes")
+			.select("code_hash")
+			.execute();
+		expect(remaining.map((row) => row.code_hash)).toEqual(["live-code"]);
+	});
+
+	it("deletes device codes that expired more than an hour ago", async () => {
+		await ctx.db
+			.insertInto("_emdash_device_codes")
+			.values([
+				deviceCode("abandoned", minutesFromNow(-120)),
+				deviceCode("waiting", minutesFromNow(10)),
+			])
+			.execute();
+
+		await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_device_codes")
+			.select("device_code")
+			.execute();
+		expect(remaining.map((row) => row.device_code)).toEqual(["waiting"]);
+	});
+
+	it("keeps a just-expired device code so a polling client still gets expired_token", async () => {
+		await ctx.db
+			.insertInto("_emdash_device_codes")
+			.values(deviceCode("just-expired", minutesFromNow(-1)))
+			.execute();
+
+		await runSystemCleanup(ctx.db);
+
+		const poll = await handleDeviceTokenExchange(ctx.db, {
+			device_code: "just-expired",
+			grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+		});
+		expect(poll.deviceFlowError).toBe("expired_token");
 	});
 });
 

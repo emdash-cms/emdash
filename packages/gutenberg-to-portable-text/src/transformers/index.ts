@@ -68,9 +68,16 @@ export const fallbackTransformer: BlockTransformer = (
 	_options,
 	context,
 ): PortableTextBlock[] => {
-	// Skip completely empty blocks
-	if (!block.innerHTML.trim() && block.innerBlocks.length === 0) {
-		return [];
+	let html = block.innerHTML;
+
+	if (!html.trim() && block.innerBlocks.length === 0) {
+		// Whitespace between blocks parses as a block without a name
+		if (!block.blockName) {
+			return [];
+		}
+		// A dynamic block has no saved markup because WordPress renders it
+		// on the server, so keep its block comment as a placeholder.
+		html = serializeBlockComment(block.blockName, block.attrs);
 	}
 
 	// If it has inner blocks, try to transform those
@@ -83,12 +90,30 @@ export const fallbackTransformer: BlockTransformer = (
 		{
 			_type: "htmlBlock",
 			_key: context.generateKey(),
-			html: block.innerHTML,
+			html,
 			originalBlockName: block.blockName,
 			originalAttrs: Object.keys(block.attrs).length > 0 ? block.attrs : undefined,
 		},
 	];
 };
+
+/**
+ * Serialize a block as a self-closing block comment, escaping the attributes
+ * the same way WordPress does so the JSON cannot end the HTML comment.
+ */
+function serializeBlockComment(blockName: string, attrs: Record<string, unknown>): string {
+	const name = blockName.startsWith("core/") ? blockName.slice("core/".length) : blockName;
+	const json =
+		Object.keys(attrs).length > 0
+			? JSON.stringify(attrs)
+					.replaceAll("--", "\\u002d\\u002d")
+					.replaceAll("<", "\\u003c")
+					.replaceAll(">", "\\u003e")
+					.replaceAll("&", "\\u0026")
+					.replaceAll('\\"', "\\u0022")
+			: "";
+	return `<!-- wp:${name} ${json ? `${json} ` : ""}/-->`;
+}
 
 /**
  * Get transformer for a block

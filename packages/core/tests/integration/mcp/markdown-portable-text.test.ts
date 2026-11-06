@@ -13,6 +13,7 @@ import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
@@ -34,6 +35,11 @@ interface PtBlock {
 	_type: string;
 	style?: string;
 	children?: PtSpan[];
+}
+interface PtImage {
+	_type: string;
+	alt?: string;
+	asset?: Record<string, unknown>;
 }
 
 describe("MCP markdown -> Portable Text on write", () => {
@@ -146,6 +152,66 @@ describe("MCP markdown -> Portable Text on write", () => {
 		const withContent = items.find((i) => i.data.content != null);
 		expect(typeof withContent?.data.content).toBe("string");
 		expect(withContent?.data.content).toContain("# Listed body");
+	});
+
+	it("links Markdown images of library files to their media items", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "slash-menu.png",
+			mimeType: "image/png",
+			storageKey: "01K0SLASHMENU.png",
+		});
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "post",
+				data: {
+					title: "Release notes",
+					content:
+						"![Slash menu](/_emdash/api/media/file/01K0SLASHMENU.png)\n\n" +
+						"![Gone](/_emdash/api/media/file/01K0DELETED.png)",
+				},
+			},
+		});
+		expect(created.isError, extractText(created)).toBeFalsy();
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+
+		const readImages = async () => {
+			const got = await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "post", id },
+			});
+			return extractJson<{ item: { data: { content: PtImage[] } } }>(got).item.data.content;
+		};
+		const expected = [
+			expect.objectContaining({
+				_type: "image",
+				alt: "Slash menu",
+				asset: { _ref: media.id, url: "/_emdash/api/media/file/01K0SLASHMENU.png" },
+			}),
+			expect.objectContaining({
+				_type: "image",
+				asset: { url: "/_emdash/api/media/file/01K0DELETED.png" },
+			}),
+		];
+		expect(await readImages()).toEqual(expected);
+
+		const asMarkdown = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id, markdown: true },
+		});
+		const markdown = extractJson<{ item: { data: { content: string } } }>(asMarkdown).item.data
+			.content;
+		const updated = await harness.client.callTool({
+			name: "content_update",
+			arguments: {
+				collection: "post",
+				id,
+				data: { content: markdown },
+				_rev: await currentRev(harness.client, "post", id),
+			},
+		});
+		expect(updated.isError, extractText(updated)).toBeFalsy();
+		expect(await readImages()).toEqual(expected);
 	});
 
 	it("content_update converts a Markdown string for a portableText field", async () => {

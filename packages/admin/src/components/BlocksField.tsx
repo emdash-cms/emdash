@@ -38,6 +38,10 @@ interface NestedFieldDescriptor {
 	required?: boolean;
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	validation?: Record<string, unknown>;
+	blockType?: string;
+	blockVersion?: number;
+	/** Set on `integer` fields, which share the `number` kind. */
+	integer?: boolean;
 }
 
 interface NestedFieldRenderInput {
@@ -49,6 +53,7 @@ interface NestedFieldRenderInput {
 
 export interface BlocksFieldProps {
 	id: string;
+	fieldId?: string;
 	fieldPath: string;
 	label: string;
 	value: unknown;
@@ -81,6 +86,8 @@ const NESTED_KIND: Record<string, string> = {
 function nestedDescriptor(
 	outerId: string,
 	blockKey: string,
+	blockType: string,
+	blockVersion: number,
 	field: BlockFieldDefinition,
 ): NestedFieldDescriptor {
 	const options = Array.isArray(field.validation?.options)
@@ -94,7 +101,10 @@ function nestedDescriptor(
 		label: field.label,
 		required: field.required,
 		validation: field.validation,
+		blockType,
+		blockVersion,
 		options,
+		...(field.type === "integer" ? { integer: true } : {}),
 	};
 }
 
@@ -108,6 +118,7 @@ function summary(block: StoredBlockValue, fields: readonly BlockFieldDefinition[
 
 export function BlocksField({
 	id,
+	fieldId,
 	fieldPath,
 	label,
 	value,
@@ -159,7 +170,7 @@ export function BlocksField({
 	};
 
 	return (
-		<div id={id} className="grid gap-3">
+		<div id={id} className="grid grid-cols-[minmax(0,1fr)] gap-3">
 			<div className="flex items-center justify-between gap-3">
 				<Label>{label}</Label>
 				{!readOnly && (
@@ -235,7 +246,7 @@ export function BlocksField({
 							{blocks.map((block, index) => (
 								<BlockCard
 									key={block._key}
-									outerId={id}
+									outerId={fieldId ?? id}
 									fieldPath={fieldPath}
 									block={block}
 									index={index}
@@ -354,13 +365,19 @@ function BlockCard({
 				</Button>
 				<div className="min-w-0 flex-1">
 					<div className="flex flex-wrap items-center gap-2">
-						<span className="font-medium">{blockType?.label ?? block._type}</span>
+						<span className="min-w-0 wrap-break-word font-medium">
+							{blockType?.label ?? block._type}
+						</span>
 						<Badge variant="secondary">{t`Version ${block._version}`}</Badge>
 						{inactive && <Badge variant="secondary">{t`Inactive version`}</Badge>}
 						{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
 						{unsupported && <Badge variant="secondary">{t`Unsupported`}</Badge>}
 					</div>
-					{blockSummary && <p className="truncate text-xs text-kumo-subtle">{blockSummary}</p>}
+					{blockSummary && (
+						<p dir="auto" className="w-fit max-w-full truncate text-xs text-kumo-subtle">
+							{blockSummary}
+						</p>
+					)}
 				</div>
 				{!readOnly && (
 					<div className="flex items-center gap-1">
@@ -397,7 +414,7 @@ function BlockCard({
 						version?.fields.map((field) =>
 							renderField({
 								name: `${fieldPath}.${block._key}.${field.slug}`,
-								field: nestedDescriptor(outerId, block._key, field),
+								field: nestedDescriptor(outerId, block._key, block._type, block._version, field),
 								value: block[field.slug],
 								onChange: (nextValue) => onChange(field.slug, nextValue),
 							}),

@@ -37,6 +37,7 @@ export interface SiteSettings {
 		titleSeparator?: string;
 		defaultOgImage?: { mediaId: string; alt?: string; url?: string };
 		robotsTxt?: string;
+		disallowAiTraining?: boolean;
 		googleVerification?: string;
 		bingVerification?: string;
 	};
@@ -50,6 +51,8 @@ export interface SiteSettingsUpdate extends Omit<
 	seo?: Omit<NonNullable<SiteSettings["seo"]>, "defaultOgImage"> & {
 		defaultOgImage?: NonNullable<SiteSettings["seo"]>["defaultOgImage"] | null;
 	};
+	/** Hidden from search engines until the site goes live. */
+	staging?: boolean;
 }
 
 /**
@@ -57,7 +60,13 @@ export interface SiteSettingsUpdate extends Omit<
  */
 export async function fetchSettings(): Promise<Partial<SiteSettings>> {
 	const response = await apiFetch(`${API_BASE}/settings`);
-	return parseApiResponse<Partial<SiteSettings>>(response, i18n._(msg`Failed to fetch settings`));
+	// The settings forms save their whole state. Staging is read from the
+	// manifest and changed on its own, so leaving it out here keeps a form
+	// save from writing back a stale value.
+	const { staging: _staging, ...settings } = await parseApiResponse<
+		Partial<SiteSettings> & { staging?: boolean }
+	>(response, i18n._(msg`Failed to fetch settings`));
+	return settings;
 }
 
 /**

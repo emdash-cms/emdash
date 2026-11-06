@@ -1,4 +1,6 @@
-import { i18n } from "@lingui/core";
+import { Toasty } from "@cloudflare/kumo";
+import { i18n, setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -20,6 +22,7 @@ import {
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
 } from "../../src/lib/publishing-datetime.js";
+import { messages as enMessages } from "../../src/locales/en/messages.mjs";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -43,10 +46,6 @@ vi.mock("../../src/components/editor/DocumentOutline", () => ({
 
 vi.mock("../../src/components/editor/ImageDetailPanel", () => ({
 	ImageDetailPanel: () => <div data-testid="image-detail-panel">Image details</div>,
-}));
-
-vi.mock("../../src/components/SeoPanel", () => ({
-	SeoPanel: () => <div data-testid="seo-panel">SEO fields</div>,
 }));
 
 vi.mock("@tanstack/react-router", async () => {
@@ -233,6 +232,34 @@ describe("ContentSettingsPanel", () => {
 		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
 	});
 
+	it("shows the collection's titleField value as the SEO Title placeholder", async () => {
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			collections: {
+				posts: {
+					label: "Posts",
+					labelSingular: "Post",
+					supports: ["seo"],
+					hasSeo: true,
+					titleField: "headline",
+					fields: {},
+				},
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest,
+					item: makeItem({ data: { title: "Senior Engineer", headline: "Ada Lovelace" } }),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "Ada Lovelace");
+	});
+
 	it("keeps URL and language fields outside the Publish section", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ item: makeItem({ locale: "en" }) })} />,
@@ -290,7 +317,9 @@ describe("ContentSettingsPanel", () => {
 		trigger.element().scrollIntoView();
 		await userEvent.keyboard("{Tab}");
 		trigger.element().focus();
-		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
+		await expect
+			.element(screen.getByRole("tooltip", { name: "Shown to readers in this order." }))
+			.toBeVisible();
 	});
 
 	it("omits the redundant lifecycle badge and distinguishes live and draft versions", async () => {
@@ -410,12 +439,14 @@ describe("ContentSettingsPanel", () => {
 				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
 			/>,
 		);
-		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(
+			screen.getByRole("tooltip", { name: /stored with the entry and is separate/ }).query(),
+		).toBeNull();
 		const trigger = screen.getByRole("button", { name: "Why English is used" });
 		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
 		const explanation =
 			"English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.";
-		const help = screen.getByText(explanation);
+		const help = screen.getByRole("tooltip", { name: explanation });
 		trigger.element().scrollIntoView();
 		await userEvent.hover(trigger.element());
 		await expect.element(help).toBeVisible();
@@ -586,6 +617,97 @@ describe("ContentSettingsPanel", () => {
 		} finally {
 			i18n.activate(previousLocale);
 		}
+	});
+
+	it("renders trusted and sandboxed panel titles without invoking Lingui's compiler", async () => {
+		const localI18n = setupI18n({ locale: "en", messages: { en: enMessages } });
+		localI18n.setMessagesCompiler(undefined as never);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+
+		try {
+			const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+				wrapper: ({ children }) => (
+					<I18nProvider i18n={localI18n}>
+						<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+					</I18nProvider>
+				),
+			});
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Content insights" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Sandbox insights", exact: true }))
+				.toBeInTheDocument();
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Content insights"));
+			expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Sandbox insights"));
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("translates trusted and sandboxed panel titles found in the active catalog", async () => {
+		const localI18n = setupI18n({
+			locale: "en",
+			messages: {
+				en: {
+					...enMessages,
+					"Content insights": ["Inhaltsansicht"],
+					"Sandbox insights": ["Sandboxansicht"],
+				},
+			},
+		});
+		localI18n.setMessagesCompiler(undefined as never);
+		const pluginAdmins: PluginAdmins = {
+			"trusted-insights": {
+				contentEditorPanels: [
+					{ id: "trusted", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: {
+				"trusted-insights": { enabled: true },
+				"sandbox-insights": {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "sandboxed", title: "Sandbox insights", route: "/insights" }],
+				},
+			},
+		};
+		const screen = await render(<ContentSettingsPanel {...makePanelProps({ manifest })} />, {
+			wrapper: ({ children }) => (
+				<I18nProvider i18n={localI18n}>
+					<Toasty>{pluginWrapper(pluginAdmins)({ children })}</Toasty>
+				</I18nProvider>
+			),
+		});
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Inhaltsansicht" }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Sandboxansicht", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("omits panels when their plugin is disabled or the entry is new", async () => {
@@ -887,7 +1009,9 @@ describe("ContentSettingsPanel", () => {
 		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect
+			.element(screen.getByRole("alert").filter({ hasText: "Date update failed" }))
+			.toBeVisible();
 		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
 		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();
@@ -1005,7 +1129,7 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="doc-outline"]')).toBeNull();
 		expect(screen.container.textContent).not.toContain("Translations");
@@ -1013,7 +1137,9 @@ describe("ContentSettingsPanel", () => {
 
 	it("hides item-dependent sections for new entries", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, supportsDrafts: false })}
+			/>,
 		);
 
 		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
@@ -1023,8 +1149,65 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.textContent).not.toContain("Move to Trash");
 		expect(screen.container.textContent).not.toContain("Translations");
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
+	});
+
+	it("explains that saving a new entry keeps it as a draft", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+		);
+
+		const summary = screen.getByRole("group", { name: "Publishing summary" });
+		await expect.element(summary).toBeVisible();
+		await expect
+			.element(summary)
+			.toHaveTextContent(
+				"Saving creates a draft that stays off the site. You can publish it after the first save.",
+			);
+		expect(screen.container.textContent).not.toContain("Move to Trash");
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
+	});
+
+	it("keeps the saved section order when sections are reordered on a new entry", async () => {
+		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
+		const savedLayout = JSON.stringify({
+			version: 1,
+			order: ["seo", "taxonomies", "url-language", "ownership", "bylines"],
+		});
+		window.localStorage.setItem(storageKey, savedLayout);
+		try {
+			const screen = await render(
+				<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			);
+			const headings = () =>
+				Array.from(
+					screen.container.querySelectorAll("section h3"),
+					(heading) => heading.textContent,
+				);
+			await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
+			expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership"));
+
+			const handle = screen.getByRole("button", { name: "Drag to reorder Bylines" }).element();
+			handle.focus();
+			for (const [target, key, code] of [
+				[handle, " ", "Space"],
+				[document, "ArrowUp", "ArrowUp"],
+				[document, " ", "Space"],
+			] as const) {
+				await act(async () => {
+					fireEvent.keyDown(target, { key, code });
+					await new Promise((resolve) => setTimeout(resolve, 0));
+				});
+			}
+
+			await vi.waitFor(() =>
+				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
+			);
+			expect(window.localStorage.getItem(storageKey)).toBe(savedLayout);
+		} finally {
+			window.localStorage.removeItem(storageKey);
+		}
 	});
 
 	it("does not render an empty publishing summary for a new collection without drafts", async () => {
@@ -1179,6 +1362,31 @@ describe("EditorActions", () => {
 
 		await preview.click();
 		expect(props.onPreview).toHaveBeenCalled();
+	});
+
+	it("labels the first save of a draft-enabled entry as Save draft", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save draft", exact: true }))
+			.toBeEnabled();
+
+		await screen.rerender(
+			<EditorActions {...makeBarProps({ isNew: false, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("keeps the Save label for new entries in collections without drafts", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: false, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("hides the publish cluster for new items", async () => {

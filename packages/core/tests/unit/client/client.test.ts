@@ -1,7 +1,12 @@
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+
 import { Role } from "@emdash-cms/auth";
 import { describe, it, expect } from "vitest";
 
 import { GET as schemaGET } from "../../../src/astro/routes/api/schema/index.js";
+import { customHeadersInterceptor } from "../../../src/client/cf-access.js";
 import { EmDashClient, EmDashApiError } from "../../../src/client/index.js";
 import type { Interceptor } from "../../../src/client/transport.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
@@ -325,6 +330,61 @@ describe("EmDashClient", () => {
 		});
 	});
 
+	describe("content dates", () => {
+		function captureBodies() {
+			const bodies: Array<{ path: string; body: unknown }> = [];
+			const backend: Interceptor = async (req) => {
+				const path = new URL(req.url).pathname;
+				const text = await req.text();
+				bodies.push({ path, body: text ? JSON.parse(text) : undefined });
+				return jsonResponse({ item: { id: "abc" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+			return { client, bodies };
+		}
+
+		it("sends publishedAt when updating, including null to clear it", async () => {
+			const { client, bodies } = captureBodies();
+
+			await client.update("posts", "abc", { publishedAt: "2019-04-01T00:00:00.000Z" });
+			await client.update("posts", "abc", { publishedAt: null });
+			await client.update("posts", "abc", { slug: "renamed" });
+
+			expect(bodies.map(({ body }) => body)).toEqual([
+				{ publishedAt: "2019-04-01T00:00:00.000Z" },
+				{ publishedAt: null },
+				{ slug: "renamed" },
+			]);
+		});
+
+		it("sends publishedAt when publishing", async () => {
+			const { client, bodies } = captureBodies();
+
+			await client.publish("posts", "abc", { publishedAt: "2019-04-01T00:00:00.000Z" });
+			await client.publish("posts", "abc", {
+				publishedAt: "2019-04-01T00:00:00.000Z",
+				overrideLock: true,
+			});
+			await client.publish("posts", "abc");
+
+			expect(bodies).toEqual([
+				{
+					path: "/_emdash/api/content/posts/abc/publish",
+					body: { publishedAt: "2019-04-01T00:00:00.000Z" },
+				},
+				{
+					path: "/_emdash/api/content/posts/abc/publish",
+					body: { publishedAt: "2019-04-01T00:00:00.000Z", overrideLock: true },
+				},
+				{ path: "/_emdash/api/content/posts/abc/publish", body: undefined },
+			]);
+		});
+	});
+
 	describe("API error handling", () => {
 		it("throws EmDashApiError on 4xx responses", async () => {
 			const backend = createMockBackend([
@@ -532,6 +592,30 @@ describe("EmDashClient", () => {
 	});
 
 	describe("schema methods", () => {
+		it("deleteCollection sends force to the API as a query parameter", async () => {
+			const calledPaths: string[] = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				calledPaths.push(`${req.method} ${url.pathname}${url.search}`);
+				return jsonResponse({});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.deleteCollection("posts");
+			await client.deleteCollection("posts", { force: false });
+			await client.deleteCollection("posts", { force: true });
+
+			expect(calledPaths).toEqual([
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts?force=true",
+			]);
+		});
+
 		it("schema route wraps JSON exports in the API data envelope", async () => {
 			const db = await setupTestDatabaseWithCollections();
 
@@ -1581,6 +1665,62 @@ describe("EmDashClient", () => {
 			expect(capturedData!.title).toBe("Hello");
 			expect(Array.isArray(capturedData!.body)).toBe(true);
 		});
+
+		it.each([false, true])(
+			"converts nested Markdown for a single-type block with a preloaded schema: %s",
+			async (preloadSchema) => {
+				let capturedData: Record<string, unknown> | undefined;
+				const backend = createMockBackend([
+					{
+						method: "GET",
+						path: "/schema/collections/posts",
+						handler: () =>
+							jsonResponse({
+								item: {
+									slug: "posts",
+									fields: [
+										{
+											slug: "layout",
+											type: "blocks",
+											validation: { allowedTypes: ["hero"] },
+											blockTypes: [
+												{
+													slug: "hero",
+													currentVersion: 1,
+													versions: [
+														{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+													],
+												},
+											],
+										},
+									],
+								},
+							}),
+					},
+					{
+						method: "POST",
+						path: "/content/posts",
+						handler: async (request) => {
+							const body = (await request.json()) as { data: Record<string, unknown> };
+							capturedData = body.data;
+							return jsonResponse({ item: { id: "new1", data: {} } });
+						},
+					},
+				]);
+				const client = new EmDashClient({
+					baseUrl: "http://localhost:4321",
+					token: "test",
+					interceptors: [backend],
+				});
+				if (preloadSchema) await client.collection("posts");
+				await client.create("posts", { data: { layout: [{ body: "**Welcome**" }] } });
+				expect(capturedData).toBeDefined();
+				const block = (capturedData!.layout as Array<Record<string, unknown>>)[0]!;
+				expect(block.body).toMatchObject([
+					{ _type: "block", children: [{ text: "Welcome", marks: ["strong"] }] },
+				]);
+			},
+		);
 	});
 
 	// -----------------------------------------------------------------------
@@ -1809,6 +1949,43 @@ describe("EmDashClient", () => {
 			expect(Array.isArray(result)).toBe(true);
 			expect(result.length).toBe(1);
 			expect(result[0]!.name).toBe("primary");
+		});
+	});
+
+	describe("token refresh", () => {
+		it("refreshes an expired token behind a proxy that requires custom headers", async () => {
+			const server = createServer((req, res) => {
+				const json = (status: number, body: unknown) => {
+					res.writeHead(status, { "Content-Type": "application/json" });
+					res.end(JSON.stringify(body));
+				};
+				if (req.headers["cf-access-client-id"] !== "access-id") {
+					json(403, { error: "blocked by proxy" });
+				} else if (req.method === "POST" && req.url === "/_emdash/api/oauth/token/refresh") {
+					json(200, { success: true, data: { access_token: "ec_oat_new", expires_in: 3600 } });
+				} else if (req.headers.authorization === "Bearer ec_oat_new") {
+					json(200, { success: true, data: { items: [{ slug: "posts" }] } });
+				} else {
+					json(401, { success: false, error: { code: "UNAUTHORIZED", message: "Expired" } });
+				}
+			});
+			server.listen(0, "127.0.0.1");
+			await once(server, "listening");
+			const { port } = server.address() as AddressInfo;
+
+			try {
+				const client = new EmDashClient({
+					baseUrl: `http://127.0.0.1:${port}`,
+					token: "ec_oat_expired",
+					refreshToken: "ec_ort_valid",
+					interceptors: [customHeadersInterceptor({ "CF-Access-Client-Id": "access-id" })],
+				});
+
+				const collections = await client.collections();
+				expect(collections.map((c) => c.slug)).toEqual(["posts"]);
+			} finally {
+				await new Promise<void>((done) => server.close(() => done()));
+			}
 		});
 	});
 });

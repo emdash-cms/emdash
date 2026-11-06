@@ -300,7 +300,7 @@ Open any content entry in the editor. The sidebar displays a **Translations** pa
 - **"Edit"** appears for locales with an existing translation — click to navigate to it
 - The current locale is marked with a checkmark
 
-When creating a translation, the new entry is pre-filled with data from the source locale and assigned a default slug of `{source-slug}-{locale}`. Adjust the slug and content as needed, then save.
+Selecting **Translate** creates the translation as a draft and opens it. The draft starts with the source entry's data and the same slug, which is allowed because slugs are unique within each locale. If the translation needs a localized slug, such as `mon-article` for `my-post`, edit the slug. Adjust the content, then save.
 
 ### Per-locale publishing
 
@@ -490,7 +490,7 @@ Behaviour matches the sitemap:
 - **Untranslated entries** still get a self-referencing alternate and `x-default` when i18n is enabled, mirroring the sitemap.
 - With **i18n disabled**, the result is empty and no queries run.
 
-URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute.
+URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute. When Astro's `base` is set, it is appended to the site URL unless that URL already ends with it.
 
 ## Import multilingual content
 

@@ -68,8 +68,9 @@ describe("applySeed with skipMediaDownload", () => {
 			skipMediaDownload: true,
 		});
 
-		// Media should be "created" (resolved) but not downloaded
-		expect(result.media.created).toBe(1);
+		// Media should be skipped (resolved to an external reference) and not downloaded
+		expect(result.media.created).toBe(0);
+		expect(result.media.skipped).toBe(1);
 		expect(result.content.created).toBe(1);
 
 		// fetch should NOT have been called
@@ -118,7 +119,8 @@ describe("applySeed with skipMediaDownload", () => {
 			// Intentionally no storage
 		});
 
-		expect(result.media.created).toBe(1);
+		expect(result.media.created).toBe(0);
+		expect(result.media.skipped).toBe(1);
 		expect(result.content.created).toBe(1);
 		expect(mockFetch).not.toHaveBeenCalled();
 	});
@@ -163,9 +165,9 @@ describe("applySeed with skipMediaDownload", () => {
 			skipMediaDownload: true,
 		});
 
-		// First occurrence created, second from cache (skipped)
-		expect(result.media.created).toBe(1);
-		expect(result.media.skipped).toBe(1);
+		// Both references are resolved to external references; the second is served from cache
+		expect(result.media.created).toBe(0);
+		expect(result.media.skipped).toBe(2);
 		expect(result.content.created).toBe(2);
 
 		// Second entry should use the cached alt override

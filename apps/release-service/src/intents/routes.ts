@@ -25,6 +25,7 @@ import {
 	evaluateWorkloadPolicy,
 } from "../workload/policy.js";
 import { WorkloadIdentityError, type VerifiedWorkloadIdentity } from "../workload/types.js";
+import { intentReasonMessage } from "./reason-message.js";
 
 const ULID_PATTERN = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
@@ -191,6 +192,11 @@ export async function serializeIntentResource(
 		state: intent.state,
 		stateGeneration: intent.stateGeneration,
 		reasonCode: latest?.reasonCode ?? null,
+		reasonMessage: intentReasonMessage(
+			intent.state,
+			latest?.reasonCode ?? null,
+			intent.stateDataJson,
+		),
 		workflowId: intent.workflowId,
 		expiresAt: intent.expiresAt,
 		createdAt: intent.createdAt,

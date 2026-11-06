@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { publishDueContent } from "../../../src/scheduled-publish.js";
@@ -181,6 +182,47 @@ describeEachDialect("schedules across unpublish, trash, and restore", (dialect) 
 			}),
 		);
 
+		expect(ok(await runtime.handleContentGet("post", item.id)).item.data.title).toBe("Edited");
+	});
+
+	it("shows edits saved after unpublishing an entry in a collection without revisions", async () => {
+		await new SchemaRegistry(db).updateCollection("post", { supports: [] });
+		const { item } = await createPublished("Live");
+		const unpublished = ok(
+			await runtime.handleContentUnpublish("post", item.id, { _rev: await currentRev(item.id) }),
+		);
+		expect(unpublished.item.draftRevisionId).toBeNull();
+
+		const saved = ok(
+			await runtime.handleContentUpdate("post", item.id, {
+				data: { title: "Edited" },
+				_rev: await currentRev(item.id),
+			}),
+		);
+
+		expect(saved.item.data.title).toBe("Edited");
+		expect(ok(await runtime.handleContentGet("post", item.id)).item.data.title).toBe("Edited");
+	});
+
+	it("shows edits saved to an entry that still has a draft copy of its published version", async () => {
+		await new SchemaRegistry(db).updateCollection("post", { supports: [] });
+		const { item } = await createPublished("Live");
+		ok(await runtime.handleContentUnpublish("post", item.id, { _rev: await currentRev(item.id) }));
+		const copy = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: item.id,
+			data: { title: "Live" },
+		});
+		await repo.setDraftRevision("post", item.id, copy.id);
+
+		const saved = ok(
+			await runtime.handleContentUpdate("post", item.id, {
+				data: { title: "Edited" },
+				_rev: await currentRev(item.id),
+			}),
+		);
+
+		expect(saved.item.data.title).toBe("Edited");
 		expect(ok(await runtime.handleContentGet("post", item.id)).item.data.title).toBe("Edited");
 	});
 

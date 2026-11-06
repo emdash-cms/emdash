@@ -61,6 +61,31 @@ it("ignores an incomplete content focal point", async () => {
 	expect(html).not.toContain("object-position");
 });
 
+it("keeps both the blurhash placeholder and the focal point as separate declarations", async () => {
+	const container = await AstroContainer.create();
+	const html = await container.renderToString(EmDashImage, {
+		props: {
+			image: {
+				id: "media-1",
+				src: "https://example.com/portrait.jpg",
+				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+				focalX: 0.35,
+				focalY: 0.65,
+			},
+		},
+		locals,
+	});
+
+	const styleMatch = html.match(/\bstyle="([^"]*)"/);
+	expect(styleMatch).toBeTruthy();
+	const style = styleMatch?.[1].replaceAll("&quot;", '"') ?? "";
+
+	expect(style).toContain("background:");
+	expect(style).toContain("object-position: 35% 65%");
+	expect(style).toMatch(/cover\s*;\s*object-position:/);
+	expect(style).not.toContain("cover object-position");
+});
+
 it("applies each gallery image focal point to its square crop", async () => {
 	const container = await AstroContainer.create();
 	const html = await container.renderToString(Gallery, {

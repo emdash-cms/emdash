@@ -189,9 +189,10 @@ async function focusAndSelectAll(screen: Awaited<ReturnType<typeof render>>) {
  *
  * The bubble menu (which appears when text is selected) renders buttons with
  * the same accessible names as some toolbar buttons (Bold, Italic, Underline,
- * Strikethrough). An unscoped `getByRole("button", { name: "Bold" })` after
- * selecting text races with the bubble menu and produces a strict-mode
- * violation in CI. Scoping to the toolbar via its aria-label avoids the race.
+ * Strikethrough, Inline Code, Add link, Edit link). An unscoped
+ * `getByRole("button", { name: "Bold" })` after selecting text races with the
+ * bubble menu and produces a strict-mode violation in CI. Scoping to the
+ * toolbar via its aria-label avoids the race.
  */
 function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: string) {
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
@@ -1833,7 +1834,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		const linkBtn = screen.getByRole("button", { name: "Add link" });
+		const linkBtn = getToolbarButton(screen, "Add link");
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
@@ -1846,7 +1847,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 
 		await vi.waitFor(() => {
 			expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
@@ -1858,7 +1859,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 
 		await vi.waitFor(() => {
 			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
@@ -1894,7 +1895,7 @@ describe("Link Insertion", () => {
 			.setTextSelection(editor.state.doc.content.size - 1)
 			.run();
 
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 		await vi.waitFor(() => {
 			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
@@ -1923,7 +1924,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 		await typeLink("example.com/docs");
 		screen.getByRole("button", { name: "Apply" }).element().click();
 
@@ -1937,7 +1938,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 		await typeLink("javascript:alert(1)");
 		screen.getByRole("button", { name: "Apply" }).element().click();
 
@@ -1969,7 +1970,7 @@ describe("Link Insertion", () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 
 		await vi.waitFor(() => {
 			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
@@ -1998,7 +1999,7 @@ describe("Link Insertion", () => {
 		const modUp = navigator.platform.includes("Mac") ? "{/Meta}" : "{/Control}";
 		await userEvent.keyboard(`${mod}{a}${modUp}`);
 
-		screen.getByRole("button", { name: "Edit link" }).element().click();
+		getToolbarButton(screen, "Edit link").element().click();
 
 		await vi.waitFor(() => {
 			expect(screen.getByRole("button", { name: "Remove" })).toBeTruthy();

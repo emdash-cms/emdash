@@ -34,6 +34,7 @@ export function BlockKitMediaPickerField({
 	onChange,
 }: BlockKitMediaPickerFieldProps) {
 	const { t } = useLingui();
+	const labelId = React.useId();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const url = typeof value === "string" && value.length > 0 ? value : "";
@@ -57,8 +58,10 @@ export function BlockKitMediaPickerField({
 	};
 
 	return (
-		<div>
-			<label className="mb-1.5 block text-base font-medium text-kumo-default">{label}</label>
+		<div role="group" aria-labelledby={labelId}>
+			<span id={labelId} className="mb-1.5 block text-base font-medium text-kumo-default">
+				{label}
+			</span>
 			{canPreview ? (
 				imageBroken ? (
 					<div className="relative group min-h-20">

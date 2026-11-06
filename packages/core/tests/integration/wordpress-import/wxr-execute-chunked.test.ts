@@ -77,7 +77,7 @@ function makeWxrWithReusableBlock(): string {
 
 function buildFormData(
 	wxrText: string,
-	extra: { phase?: string; cursor?: string; chunk?: string } = {},
+	extra: { phase?: string; cursor?: string; chunk?: string; skipExisting?: boolean } = {},
 ): FormData {
 	const formData = new FormData();
 	formData.append("file", new File([wxrText], "test.xml", { type: "text/xml" }));
@@ -85,7 +85,7 @@ function buildFormData(
 		"config",
 		JSON.stringify({
 			postTypeMappings: { post: { collection: "post", enabled: true } },
-			skipExisting: false,
+			skipExisting: extra.skipExisting ?? false,
 		}),
 	);
 	if (extra.phase) formData.append("phase", extra.phase);
@@ -168,6 +168,57 @@ describe("WXR execute chunked import", () => {
 		expect(rows.length).toBe(35);
 	});
 
+	it("credits an unmapped author's posts to one byline across chunks", async () => {
+		const wxr = makeWxr(35)
+			.replace(
+				"<channel>",
+				`<channel>
+		<wp:author>
+			<wp:author_id>1</wp:author_id>
+			<wp:author_login><![CDATA[author.one]]></wp:author_login>
+			<wp:author_display_name><![CDATA[Author One]]></wp:author_display_name>
+		</wp:author>`,
+			)
+			.replaceAll(
+				"<wp:post_type>post</wp:post_type>",
+				"<wp:post_type>post</wp:post_type>\n\t\t\t<dc:creator><![CDATA[author.one]]></dc:creator>",
+			);
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
+
+		let state = prepared.data;
+		do {
+			// oxlint-disable-next-line no-await-in-loop -- each chunk continues from the previous cursor
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(
+					buildFormData(wxr, {
+						phase: "content",
+						cursor: JSON.stringify(state.cursor),
+						chunk: JSON.stringify(state.chunk),
+					}),
+					harness.emdash,
+				) as any,
+			);
+			expect(response.status).toBe(200);
+			// oxlint-disable-next-line no-await-in-loop -- sequential chunks
+			state = (await response.json()).data;
+		} while (!state.done);
+
+		const bylines = await harness.db
+			.selectFrom("_emdash_bylines")
+			.select(["id", "slug", "display_name"])
+			.execute();
+		expect(bylines).toEqual([
+			{ id: expect.any(String), slug: "authorone", display_name: "Author One" },
+		]);
+		const credits = await harness.db
+			.selectFrom("_emdash_content_bylines")
+			.select("byline_id")
+			.execute();
+		expect(credits).toHaveLength(35);
+		expect(new Set(credits.map((credit) => credit.byline_id))).toEqual(new Set([bylines[0]!.id]));
+	});
+
 	it("imports reusable blocks during finalization", async () => {
 		const wxr = makeWxrWithReusableBlock();
 		const prepared = await prepareChunkedImport(wxr, harness.emdash);
@@ -204,6 +255,35 @@ describe("WXR execute chunked import", () => {
 		expect(sections).toEqual([{ slug: "call-to-action" }]);
 	});
 
+	it("counts only existing content as skipped, not post types left out of the import", async () => {
+		const wxr = makeWxrWithReusableBlock().replace(
+			"</channel>",
+			`<item>
+			<title>Home</title>
+			<wp:post_id>200</wp:post_id>
+			<wp:post_type>nav_menu_item</wp:post_type>
+			<wp:status>publish</wp:status>
+			<wp:post_name>home</wp:post_name>
+		</item>
+		${makeWxr(1).match(/<item>[\s\S]*<\/item>/)?.[0]}
+	</channel>`,
+		);
+		const runImport = async () => {
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(buildFormData(wxr, { skipExisting: true }), harness.emdash) as any,
+			);
+			expect(response.status).toBe(200);
+			return (await response.json()).data;
+		};
+
+		const first = await runImport();
+		expect(first).toMatchObject({ imported: 1, skipped: 0 });
+
+		const second = await runImport();
+		expect(second).toMatchObject({ imported: 0, skipped: 1 });
+	});
+
 	it("schedules future posts and keeps missed schedules as drafts", async () => {
 		const wxr = makeWxr(2)
 			.replace(
@@ -231,6 +311,51 @@ describe("WXR execute chunked import", () => {
 			{ slug: "post-1", status: "scheduled", scheduled_at: "2099-06-01T09:30:00.000Z" },
 			{ slug: "post-2", status: "draft", scheduled_at: null },
 		]);
+	});
+
+	it("makes links to the source site relative", async () => {
+		const wxr = makeWxr(1).replace(
+			"<p>Content 1</p>",
+			'<p><a href="https://example.com/2008/09/01/sample-page/">Sample</a> and <a href="https://other.example/">other</a></p>',
+		);
+
+		for (const phase of [undefined, "content"]) {
+			// oxlint-disable-next-line no-await-in-loop -- each phase imports into a fresh table
+			await harness.db.deleteFrom("ec_post").execute();
+			// oxlint-disable-next-line no-await-in-loop -- sequential import phases
+			const prepared = phase ? await prepareChunkedImport(wxr, harness.emdash) : undefined;
+			// oxlint-disable-next-line no-await-in-loop -- sequential import phases
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(
+					buildFormData(
+						wxr,
+						prepared
+							? {
+									phase,
+									cursor: JSON.stringify(prepared.data.cursor),
+									chunk: JSON.stringify(prepared.data.chunk),
+								}
+							: {},
+					),
+					harness.emdash,
+				) as any,
+			);
+			expect(response.status).toBe(200);
+
+			// oxlint-disable-next-line no-await-in-loop -- sequential import phases
+			const row = await harness.db
+				.selectFrom("ec_post")
+				.select("content")
+				.executeTakeFirstOrThrow();
+			const hrefs = JSON.parse(String(row.content))
+				.flatMap((block: { markDefs?: { href?: string }[] }) => block.markDefs ?? [])
+				.map((def: { href?: string }) => def.href);
+			expect(hrefs, phase ?? "single request").toEqual([
+				"/2008/09/01/sample-page/",
+				"https://other.example/",
+			]);
+		}
 	});
 
 	it("rejects a cursor when the WXR file changes", async () => {
