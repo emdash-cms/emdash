@@ -34,6 +34,11 @@ function jsonResponse(data: unknown, status = 200): Response {
 	});
 }
 
+function parseRequestBody(init?: RequestInit): Record<string, unknown> {
+	if (typeof init?.body !== "string") throw new Error("Expected a JSON string request body");
+	return JSON.parse(init.body) as Record<string, unknown>;
+}
+
 function setupExistingSync({
 	document,
 	bskyFailure = false,
@@ -69,7 +74,7 @@ function setupExistingSync({
 	};
 	ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
 		const url = String(input);
-		const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
+		const body = parseRequestBody(init);
 		if (url.endsWith("com.atproto.repo.putRecord")) {
 			if (body.collection === "app.bsky.feed.post") {
 				pds.documentAtPostWrite = pds.document;
@@ -242,7 +247,7 @@ describe("sandbox hooks", () => {
 			const { ctx } = setupExistingSync({ document: null });
 			ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
 				if (input.endsWith("com.atproto.repo.putRecord")) {
-					expect(JSON.parse(String(init?.body)).collection).toBe("site.standard.document");
+					expect(parseRequestBody(init).collection).toBe("site.standard.document");
 					return jsonResponse({ error: "failed" }, 500);
 				}
 				throw new Error(`Unexpected PDS request: ${input}`);
@@ -269,7 +274,7 @@ describe("sandbox hooks", () => {
 			const { ctx, pds } = setupExistingSync({ document: null });
 			const fetch = ctx.http.fetch.getMockImplementation()!;
 			ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
-				const body = JSON.parse(String(init?.body));
+				const body = parseRequestBody(init);
 				if (body.collection === "site.standard.document" && pds.documentWrites === 1) {
 					return jsonResponse({ error: "failed" }, 500);
 				}
