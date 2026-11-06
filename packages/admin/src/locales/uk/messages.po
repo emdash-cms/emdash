@@ -895,10 +895,6 @@ msgstr "{needsNewCollections, plural, one {# нову колекцію буде 
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Поля буде додано до # наявної колекції} few {Поля буде додано до # наявних колекцій} many {Поля буде додано до # наявних колекцій} other {Поля буде додано до # наявних колекцій}}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "За адресою {origin} цей сайт ще не відкривається"
-
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
 msgstr "{origin} перенаправляє на іншу адресу"
@@ -2888,7 +2884,7 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "Змінити"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "Змінити <0>{0}</0> з <1>{1}</1> на <2>{2}</2>? Користувач втратить доступ до функцій вищого рівня."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "Змінити домен"
@@ -3139,7 +3135,7 @@ msgstr "Зміни збережено, але кешовані сторінки 
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Символ між заголовком сторінки та назвою сайту (напр., \"Мій допис | Мій сайт\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "Перевірити й перемкнути"
 
@@ -3230,7 +3226,7 @@ msgstr "Перевірка підтримки ключів доступу на �
 msgid "Checking this site"
 msgstr "Перевірка цього сайту"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "Перевірка…"
 
@@ -3986,6 +3982,10 @@ msgstr "Не вдалося скасувати планування"
 #: packages/admin/src/components/BulkTagDialog.tsx:194
 msgid "Could not review posts"
 msgstr "Не вдалося перевірити записи"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
@@ -5766,7 +5766,7 @@ msgstr "Введіть шлях призначення."
 msgid "Enter a display name."
 msgstr "Введіть відображуване ім'я."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "Введіть домен, наприклад example.com, без шляху та порту"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "Введіть код із вашого терміналу"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "Введіть домен нижче. Перш ніж перемкнутися, EmDash перевірить, що за цим доменом відкривається цей сайт."
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "Приклад: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Якщо обліковий запис для <0>{email}</0> існує, ми надіслали посилання для входу."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "Якщо сайт ще недоступний з інтернету (наприклад, працює на localhost або відкривається лише після входу), можна використати адресу без перевірки."
 
@@ -8806,7 +8806,7 @@ msgstr "Посилання з"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Посилання в листах і плагінах використовують {0} — так задано в конфігурації розгортання."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "Посилання в листах і плагінах, карти сайту та абсолютні URL у метаданих для пошуковиків і соцмереж використовуватимуть новий домен."
 
@@ -9853,7 +9853,7 @@ msgstr "Нова колекція"
 msgid "New Content Type"
 msgstr "Новий тип вмісту"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "Новий домен"
 
@@ -10493,6 +10493,10 @@ msgstr "Старіша версія"
 msgid "On"
 msgstr "Увімкнено"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "На сайті"
@@ -10854,7 +10858,7 @@ msgstr "Ключі доступу працюють лише за адресою,
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "Ключі доступу працюють лише за адресою, на якій їх створено. Додайте ключ тут, щоб наступного разу входити за цією адресою."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Ключі доступу працюють лише за адресою, на якій їх створено. Після перемикання входьте, як і раніше, за поточною адресою, а за новою — через посилання для входу з листа."
 
@@ -11153,7 +11157,7 @@ msgstr "Помилка віджета плагіна"
 msgid "Plugins"
 msgstr "Плагіни"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "Спрямуйте домен на цей сайт. У Cloudflare відкрийте свій Worker у розділі Workers & Pages, перейдіть на вкладку Domains і додайте домен."
 
@@ -13706,7 +13710,7 @@ msgstr "URL сайту"
 msgid "Site URL set to {url}"
 msgstr "URL сайту встановлено: {url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "Карти сайту та абсолютні URL у метаданих для пошуковиків і соцмереж використовуватимуть новий домен. Посилання в листах і плагінах і надалі використовуватимуть {configuredUrl} — так задано в конфігурації розгортання."
 
@@ -16014,7 +16018,7 @@ msgstr "Дані про використання можуть бути заст�
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Використовуйте [param] або [...rest] у шляхах для зіставлення з шаблоном."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "Усе одно використати {fallbackUrl}"
 
@@ -16893,7 +16897,7 @@ msgstr "Ваша роль не дозволяє редагувати цей за
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "Ваша роль не дає жодного з дозволів, які запитує цей пристрій."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "Зараз ваш сайт доступний за адресою {currentUrl}."
 

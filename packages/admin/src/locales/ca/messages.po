@@ -895,10 +895,6 @@ msgstr "{needsNewCollections, plural, one {Es crearà # col·lecció nova} other
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {S'afegiran camps a # col·lecció existent} other {S'afegiran camps a # col·leccions existents}}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr ""
-
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
 msgstr ""
@@ -2888,7 +2884,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "Canvia"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "Vols canviar <0>{0}</0> de <1>{1}</1> a <2>{2}</2>? Perdrà l'accés a les funcions de nivell superior."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "Canvia el domini"
@@ -3139,7 +3135,7 @@ msgstr "S'han desat els canvis, però les pàgines en memòria cau encara poden 
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Caràcter entre el títol de la pàgina i el nom del lloc (p. ex. \"La meva entrada | El meu lloc\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "Comprova i canvia"
 
@@ -3230,7 +3226,7 @@ msgstr "S'està comprovant si aquest dispositiu admet claus d'accés..."
 msgid "Checking this site"
 msgstr "S'està comprovant aquest lloc"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "S'està comprovant…"
 
@@ -3986,6 +3982,10 @@ msgstr "No s'ha pogut treure la programació"
 #: packages/admin/src/components/BulkTagDialog.tsx:194
 msgid "Could not review posts"
 msgstr "No s'han pogut revisar les entrades"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr ""
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "Introdueix el codi del teu terminal"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "Introdueix el domini a sota. EmDash comprova que serveixi aquest lloc abans de canviar."
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "Exemple: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "exemple.com"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Si existeix un compte per a <0>{email}</0>, t'hem enviat un enllaç d'inici de sessió."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "Si encara no es pot accedir al lloc des d'internet, per exemple a localhost o darrere d'un inici de sessió, pots fer servir l'adreça sense la comprovació."
 
@@ -8806,7 +8806,7 @@ msgstr "Enllaços des de"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Els enllaços en correus i connectors utilitzen {0}, definit per la configuració del desplegament."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "Els enllaços en correus i connectors, els mapes del lloc i les URL absolutes a les metadades de cerca i socials utilitzaran el domini nou."
 
@@ -9853,7 +9853,7 @@ msgstr "Col·lecció nova"
 msgid "New Content Type"
 msgstr "Tipus de contingut nou"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "Domini nou"
 
@@ -10493,6 +10493,10 @@ msgstr ""
 msgid "On"
 msgstr ""
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "Al lloc"
@@ -10854,7 +10858,7 @@ msgstr "Les claus d'accés només funcionen a l'adreça on es van crear."
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "Les claus d'accés només funcionen a l'adreça on es van crear. Afegeix-ne una aquí per poder iniciar la sessió en aquesta adreça la propera vegada."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Les claus d'accés només funcionen a l'adreça on es van crear. Després de canviar, continua iniciant la sessió a l'adreça actual o fes servir un enllaç d'inici de sessió per correu a l'adreça nova."
 
@@ -11153,7 +11157,7 @@ msgstr "Error del giny del connector"
 msgid "Plugins"
 msgstr "Connectors"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "Apunta el domini a aquest lloc. A Cloudflare, obre el teu Worker a Workers i pàgines, ves a la pestanya Dominis i afegeix el domini."
 
@@ -13706,7 +13710,7 @@ msgstr "URL del lloc"
 msgid "Site URL set to {url}"
 msgstr "URL del lloc definida com a {url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "Els mapes del lloc i les URL absolutes a les metadades de cerca i socials utilitzaran el domini nou. Els enllaços en correus i connectors segueixen utilitzant {configuredUrl}, definit per la configuració del desplegament."
 
@@ -16014,7 +16018,7 @@ msgstr "L'ús pot estar desactualitzat."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Utilitza [param] o [...rest] a les rutes per fer coincidència de patrons."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "Fes servir {fallbackUrl} igualment"
 
@@ -16893,7 +16897,7 @@ msgstr ""
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "El teu rol no permet cap dels permisos que ha sol·licitat aquest dispositiu."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "El teu lloc actualment és a {currentUrl}."
 

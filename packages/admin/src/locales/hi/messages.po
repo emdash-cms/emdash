@@ -895,10 +895,6 @@ msgstr "{needsNewCollections, plural, one {# नया संग्रह बन
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {फ़ील्ड्स को # मौजूदा संग्रह में जोड़ा जाएगा} other {फ़ील्ड्स को # मौजूदा संग्रह में जोड़ा जाएगा}}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} पर यह साइट अभी उपलब्ध नहीं है"
-
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
 msgstr "{origin} किसी दूसरे एड्रेस पर रीडायरेक्ट करता है"
@@ -2888,7 +2884,7 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "परिवर्तन"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0> को <1>{1}</1> से <2>{2}</2> में बदलें? वे उच्च-स्तरीय सुविधाओं तक पहुंच खो देंगे."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "डोमेन बदलें"
@@ -3139,7 +3135,7 @@ msgstr "परिवर्तन सहेजे गए, लेकिन कै�
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "पृष्ठ शीर्षक और साइट नाम के बीच वर्ण (उदाहरण के लिए, \"मेरी पोस्ट | मेरी साइट\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "जाँचें और बदलें"
 
@@ -3230,7 +3226,7 @@ msgstr "इस डिवाइस पर पासकी समर्थन ज�
 msgid "Checking this site"
 msgstr "यह साइट जाँची जा रही है"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "जाँचा जा रहा है…"
 
@@ -3986,6 +3982,10 @@ msgstr "शेड्यूल हटाया नहीं जा सका"
 #: packages/admin/src/components/BulkTagDialog.tsx:194
 msgid "Could not review posts"
 msgstr "पोस्ट की समीक्षा नहीं की जा सकी"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr "डिस्प्ले नेम दर्ज करें।"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "example.com जैसा डोमेन दर्ज करें, बिना पथ या पोर्ट के"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "अपने टर्मिनल से कोड दर्ज करें"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "नीचे डोमेन दर्ज करें। स्विच करने से पहले EmDash जाँचता है कि वह डोमेन यही साइट सर्व करता है।"
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "उदाहरण: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -7939,7 +7939,7 @@ msgstr "पहचान"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "यदि कोई खाता <0>{email}</0> के लिए मौजूद है, तो हमने एक साइन-इन लिंक भेजा है।"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr ""
 
@@ -8806,7 +8806,7 @@ msgstr ""
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "ईमेल और प्लगइन के लिंक, साइटमैप, और सर्च व सोशल मेटाडेटा के एब्सोल्यूट URL नए डोमेन का उपयोग करेंगे।"
 
@@ -9853,7 +9853,7 @@ msgstr "नया संग्रह"
 msgid "New Content Type"
 msgstr "नई सामग्री प्रकार"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "नया डोमेन"
 
@@ -10493,6 +10493,10 @@ msgstr ""
 msgid "On"
 msgstr ""
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr ""
@@ -10854,7 +10858,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
@@ -11153,7 +11157,7 @@ msgstr "प्लगइन विजेट एरर"
 msgid "Plugins"
 msgstr "प्लग-इन"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "डोमेन को इस साइट पर पॉइंट करें। Cloudflare पर, Workers & Pages में अपना Worker खोलें, Domains टैब पर जाएँ, और डोमेन जोड़ें।"
 
@@ -13706,7 +13710,7 @@ msgstr "साइट URL"
 msgid "Site URL set to {url}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "साइटमैप और सर्च व सोशल मेटाडेटा के एब्सोल्यूट URL नए डोमेन का उपयोग करेंगे। ईमेल और प्लगइन के लिंक {configuredUrl} का ही उपयोग करते रहेंगे, जो डिप्लॉयमेंट कॉन्फ़िगरेशन में सेट है।"
 
@@ -16014,7 +16018,7 @@ msgstr ""
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "पैटर्न मिलान के लिए पथों में [param] या [...rest] का उपयोग करें।"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr ""
 
@@ -16893,7 +16897,7 @@ msgstr ""
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr ""
 

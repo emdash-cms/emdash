@@ -895,10 +895,6 @@ msgstr "{needsNewCollections, plural, one {# nieuwe collectie wordt aangemaakt} 
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Velden worden toegevoegd aan # bestaande collectie} other {Velden worden toegevoegd aan # bestaande collecties}}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} biedt deze site nog niet aan"
-
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
 msgstr "{origin} verwijst door naar een ander adres"
@@ -2888,7 +2884,7 @@ msgstr "Kan content bekijken"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "Wijzigen"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0> wijzigen van <1>{1}</1> naar <2>{2}</2>? Deze gebruiker verliest toegang tot functies op een hoger niveau."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "Domein wijzigen"
@@ -3139,7 +3135,7 @@ msgstr "De wijzigingen zijn opgeslagen, maar pagina's in de cache kunnen nog oud
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Teken tussen de paginatitel en de sitenaam (bijv. \"Mijn bericht | Mijn site\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "Controleren en overschakelen"
 
@@ -3230,7 +3226,7 @@ msgstr "Controleren of dit apparaat passkeys ondersteunt..."
 msgid "Checking this site"
 msgstr "Deze site controleren"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "Controleren…"
 
@@ -3986,6 +3982,10 @@ msgstr "De planning kon niet worden verwijderd"
 #: packages/admin/src/components/BulkTagDialog.tsx:194
 msgid "Could not review posts"
 msgstr "Berichten konden niet worden gecontroleerd"
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr "Voer een weergavenaam in."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "Voer een domein in, zoals example.com, zonder pad of poort"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "Voer de code uit je terminal in"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "Voer hieronder het domein in. EmDash controleert vóór het overschakelen of deze site erop beschikbaar is."
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "Voorbeeld: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Als er een account bestaat voor <0>{email}</0>, hebben we een inloglink gestuurd."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "Als de site nog niet via internet bereikbaar is, bijvoorbeeld op localhost of achter een inlogscherm, kun je het adres zonder controle gebruiken."
 
@@ -8806,7 +8806,7 @@ msgstr "Links vanuit"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Links in e-mails en plugins gebruiken {0}, zoals ingesteld in de implementatieconfiguratie."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "Links in e-mails en plugins, sitemaps en absolute URL's in metadata voor zoekmachines en sociale media gaan het nieuwe domein gebruiken."
 
@@ -9853,7 +9853,7 @@ msgstr "Nieuwe collectie"
 msgid "New Content Type"
 msgstr "Nieuw contenttype"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "Nieuw domein"
 
@@ -10493,6 +10493,10 @@ msgstr "Oudere versie"
 msgid "On"
 msgstr "Aan"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "Op de site"
@@ -10854,7 +10858,7 @@ msgstr "Passkeys werken alleen op het adres waar ze zijn aangemaakt."
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "Passkeys werken alleen op het adres waar ze zijn aangemaakt. Voeg hier een passkey toe om de volgende keer op dit adres in te loggen."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Passkeys werken alleen op het adres waar ze zijn aangemaakt. Log na het overschakelen nog steeds in op het huidige adres of gebruik een inloglink per e-mail op het nieuwe adres."
 
@@ -11153,7 +11157,7 @@ msgstr "Fout in plugin-widget"
 msgid "Plugins"
 msgstr "Plugins"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "Laat het domein naar deze site verwijzen. Open op Cloudflare je Worker in Workers & Pages, ga naar het tabblad Domains en voeg het domein toe."
 
@@ -13706,7 +13710,7 @@ msgstr "Site-URL"
 msgid "Site URL set to {url}"
 msgstr "Site-URL ingesteld op {url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "Sitemaps en absolute URL's in metadata voor zoekmachines en sociale media gaan het nieuwe domein gebruiken. Links in e-mails en plugins blijven {configuredUrl} gebruiken, zoals ingesteld in de implementatieconfiguratie."
 
@@ -16014,7 +16018,7 @@ msgstr "Gebruiksgegevens zijn mogelijk verouderd."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Gebruik [param] of [...rest] in paden voor patroonherkenning."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "Toch {fallbackUrl} gebruiken"
 
@@ -16893,7 +16897,7 @@ msgstr "Met je rol kun je dit item niet bewerken."
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "Met je rol zijn geen van de door dit apparaat aangevraagde rechten beschikbaar."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "Je site staat momenteel op {currentUrl}."
 
