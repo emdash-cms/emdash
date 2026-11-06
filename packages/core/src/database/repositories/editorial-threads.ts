@@ -1,7 +1,7 @@
-import type { Kysely } from "kysely";
-import { ulid } from "ulidx";
+import type { Kysely, Selectable, SelectQueryBuilder } from "kysely";
+import { monotonicFactory } from "ulidx";
 
-import type { Database } from "../types.js";
+import type { Database, EditorialThreadTable } from "../types.js";
 import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
 
 export type EditorialAnchor =
@@ -87,6 +87,12 @@ interface ThreadRow {
 	updated_at: string;
 }
 
+/**
+ * Threads and comments are ordered by `(created_at, id)`. Monotonic IDs keep
+ * rows written in the same millisecond in the order they were written.
+ */
+const ulid = monotonicFactory();
+
 function parseAnchor(raw: string): EditorialAnchor {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- anchors are validated before they are stored
 	return JSON.parse(raw) as EditorialAnchor;
@@ -153,8 +159,34 @@ export class EditorialThreadRepository {
 			.orderBy("id", "asc")
 			.limit(options.limit + 1);
 
+		const items = await this.withComments(pageQuery);
+		if (items.length <= options.limit) return { items };
+		items.length = options.limit;
+		const last = items.at(-1)!;
+		return { items, nextCursor: encodeCursor(last.createdAt, last.id) };
+	}
+
+	/** Thread with comments, or `null` when it doesn't exist. */
+	async getThread(id: string): Promise<EditorialThread | null> {
+		const [thread] = await this.withComments(
+			this.db.selectFrom("_emdash_editorial_threads").selectAll().where("id", "=", id),
+		);
+		return thread ?? null;
+	}
+
+	/**
+	 * Joins each thread from `threadQuery` to its comments and the people on
+	 * them in one query, keeping `threadQuery`'s order.
+	 */
+	private async withComments(
+		threadQuery: SelectQueryBuilder<
+			Database,
+			"_emdash_editorial_threads",
+			Selectable<EditorialThreadTable>
+		>,
+	): Promise<EditorialThread[]> {
 		const rows = await this.db
-			.selectFrom(pageQuery.as("t"))
+			.selectFrom(threadQuery.as("t"))
 			.leftJoin("_emdash_editorial_comments as c", "c.thread_id", "t.id")
 			.leftJoin("users as ca", "ca.id", "c.author_id")
 			.leftJoin("users as ru", "ru.id", "t.resolved_by")
@@ -218,11 +250,7 @@ export class EditorialThreadRepository {
 			}
 		}
 
-		const items = [...threads.values()];
-		if (items.length <= options.limit) return { items };
-		items.length = options.limit;
-		const last = items.at(-1)!;
-		return { items, nextCursor: encodeCursor(last.createdAt, last.id) };
+		return [...threads.values()];
 	}
 
 	async findThread(id: string): Promise<EditorialThreadHead | null> {
@@ -392,17 +420,18 @@ export class EditorialThreadRepository {
 
 	/**
 	 * Stores new anchors for threads on one entry. Updates naming a thread on
-	 * another entry are ignored.
+	 * another entry are ignored. Returns how many threads changed.
 	 */
 	async updateAnchors(input: {
 		collection: string;
 		entryId: string;
 		updates: EditorialAnchorUpdate[];
 		now: string;
-	}): Promise<void> {
+	}): Promise<number> {
+		let updated = 0;
 		for (const update of input.updates) {
 			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
-			await this.db
+			const result = await this.db
 				.updateTable("_emdash_editorial_threads")
 				.set({
 					anchor: JSON.stringify(update.anchor),
@@ -412,8 +441,10 @@ export class EditorialThreadRepository {
 				.where("id", "=", update.threadId)
 				.where("collection", "=", input.collection)
 				.where("entry_id", "=", input.entryId)
-				.execute();
+				.executeTakeFirst();
+			updated += Number(result.numUpdatedRows);
 		}
+		return updated;
 	}
 
 	async deleteThread(threadId: string): Promise<void> {
