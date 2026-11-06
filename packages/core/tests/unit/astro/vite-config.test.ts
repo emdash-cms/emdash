@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { runInNewContext } from "node:vm";
 
 import type { AstroConfig } from "astro";
 import { build, createServer, type Plugin } from "vite";
@@ -33,8 +34,7 @@ function evaluateBuildModule(
 		.replaceAll("import.meta.hot", "hot")
 		.replaceAll("export const ", "const ")
 		.replaceAll("export function ", "function ");
-	// eslint-disable-next-line no-new-func -- tests the generated virtual module in isolation.
-	return new Function("hot", `${source}; return onBeforeFullReload;`)(hot) as (
+	return runInNewContext(`${source}; onBeforeFullReload;`, { hot, console }) as (
 		callback: () => unknown,
 	) => void;
 }
@@ -507,7 +507,7 @@ describe("createViteConfig Cloudflare optimizer selection", () => {
 		["Vite 8", "8.0.0", true],
 		["missing Vite", undefined, false],
 		["invalid Vite", "not-a-version", false],
-	] as const)("uses Astro's nested Vite version for %s", (_name, viteVersion, optimized) => {
+	] as const)("uses Astro's nested Vite version for %s", async (_name, viteVersion, optimized) => {
 		const config = buildConfig(writeFixture({ astroVersion: "7.3.8", viteVersion }));
 		expect(isOptimized(config)).toBe(optimized);
 		const virtualPlugin = config.plugins?.find(
@@ -518,8 +518,11 @@ describe("createViteConfig Cloudflare optimizer selection", () => {
 				plugin.name === "emdash-virtual-modules",
 		);
 		if (!virtualPlugin) throw new Error("Virtual modules plugin is missing");
-		unwrapHook(virtualPlugin.configResolved)({ command: "serve" } as never);
-		const buildModule = unwrapHook(virtualPlugin.load).call({} as never, "\0virtual:emdash/build");
+		await unwrapHook(virtualPlugin.configResolved)({ command: "serve" } as never);
+		const buildModule = await unwrapHook(virtualPlugin.load).call(
+			{} as never,
+			"\0virtual:emdash/build",
+		);
 		if (typeof buildModule !== "string") throw new Error("Build module is missing");
 		const hot = { on: vi.fn() };
 		evaluateBuildModule(buildModule, hot)(vi.fn());
