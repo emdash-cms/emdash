@@ -1,5 +1,6 @@
 import {
 	Browser,
+	CalendarBlank,
 	CardsThree,
 	Chats,
 	Database,
@@ -17,6 +18,7 @@ import {
 	Signature,
 	SquaresFour,
 	Tag,
+	Trophy,
 } from "@phosphor-icons/react";
 import { describe, expect, it } from "vitest";
 
@@ -30,6 +32,7 @@ describe("ADMIN_NAV_ICONS", () => {
 	it("keeps shared admin navigation surfaces on the approved icon set", () => {
 		expect(ADMIN_NAV_ICONS).toEqual({
 			dashboard: SquaresFour,
+			calendar: CalendarBlank,
 			collection: Files,
 			pages: Browser,
 			posts: Newspaper,
@@ -59,6 +62,20 @@ describe("getCollectionNavIcon", () => {
 
 	it("uses files for custom collections", () => {
 		expect(getCollectionNavIcon("products")).toBe(Files);
+	});
+
+	it("prefers a declared icon over the slug defaults", () => {
+		expect(getCollectionNavIcon("pages", "calendar")).toBe(CalendarBlank);
+		expect(getCollectionNavIcon("products", "trophy")).toBe(Trophy);
+	});
+
+	it("never treats object prototype members as icons", () => {
+		for (const name of ["constructor", "valueOf", "__proto__", "hasOwnProperty"]) {
+			expect(getCollectionNavIcon(name)).toBe(ADMIN_NAV_ICONS.collection);
+			const declared = getCollectionNavIcon("pages", name);
+			expect(declared).not.toBe(Object.prototype);
+			expect(declared).not.toBe((Object.prototype as Record<string, unknown>)[name]);
+		}
 	});
 });
 

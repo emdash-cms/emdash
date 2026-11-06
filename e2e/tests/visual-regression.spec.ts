@@ -17,6 +17,9 @@
  *   EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots
  *   # subsequent runs diff against them
  *   EMDASH_VISUAL=1 pnpm exec playwright test visual-regression
+ *
+ * CI regenerates baselines for the failed tests only, so a test's screenshot
+ * must not depend on data that an earlier test in the run wrote.
  */
 
 import { test, expect, type AdminPage, type ServerInfo } from "../fixtures";
@@ -231,7 +234,7 @@ async function openTableVisual(
 	}
 	await page.locator("#field-body [data-emdash-table-trigger]").click();
 	await page.locator('[role="menu"]:visible').getByRole("menuitem").first().click();
-	if (!header) await page.getByRole("switch").click();
+	if (!header) await page.getByRole("dialog").getByRole("switch").click();
 	await page
 		.getByRole("gridcell")
 		.nth((rows - 1) * 10 + columns - 1)
@@ -288,6 +291,17 @@ test.describe("visual regression", () => {
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
 				await pageCase.prepare?.(admin);
+				if (pageCase.name === "content-editor") {
+					const settingsScroller = admin.page
+						.locator("div.flex-1.overflow-y-auto.overflow-x-hidden.bg-kumo-base")
+						.last();
+					await settingsScroller.evaluate((element) => {
+						element.scrollTop = 0;
+					});
+					await expect
+						.poll(() => settingsScroller.evaluate((element) => element.scrollTop))
+						.toBe(0);
+				}
 
 				await expect(admin.page).toHaveScreenshot(`${pageCase.name}-${locale.name}.png`, {
 					fullPage: true,
@@ -323,7 +337,7 @@ test.describe("visual regression", () => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		view = await openTableVisual(admin, 3, 3, false);
 		await view.table.locator("td").first().locator("p").click();
-		await expect(page.getByRole("group", { name: "Table controls" })).toHaveScreenshot(
+		await expect(page.getByRole("toolbar", { name: "Table controls" })).toHaveScreenshot(
 			"table-c-contextual-toolbar.png",
 			tableShot,
 		);
@@ -341,9 +355,9 @@ test.describe("visual regression", () => {
 			tableShot,
 		);
 		await page.keyboard.press("Escape");
-		await visualAction(admin, "Select table");
+		await visualAction(admin, "تحديد الجدول");
 		await page.locator("#field-body [data-emdash-table-trigger]").click();
-		await expect(page.getByRole("menuitem", { name: /Delete.*rows/ })).toBeDisabled();
+		await expect(page.getByRole("menuitem", { name: "حذف الصفوف", exact: true })).toBeDisabled();
 		await expect(page.locator('[role="menu"]:visible')).toHaveScreenshot(
 			"table-d-delete-disabled.png",
 			tableShot,
@@ -393,11 +407,11 @@ test.describe("visual regression", () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		view = await openTableVisual(admin, 3, 3, false, LOCALES[1], "dark");
 		await visualAction(admin, "تبديل صف الرأس");
-		await visualAction(admin, "Toggle header column");
+		await visualAction(admin, "تبديل عمود الرأس");
 		await settleTableGeometry(admin);
 		await expect(view.table).toHaveScreenshot("table-h-header-row-column.png", tableShot);
 		await visualAction(admin, "تبديل صف الرأس");
-		await visualAction(admin, "Toggle header column");
+		await visualAction(admin, "تبديل عمود الرأس");
 		await settleTableGeometry(admin);
 		await expect(view.table).toHaveScreenshot("table-h-body-only.png", tableShot);
 

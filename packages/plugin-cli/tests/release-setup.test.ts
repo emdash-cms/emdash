@@ -76,6 +76,7 @@ describe("setupReleaseWorkflow", () => {
 		expect(workflow).not.toContain("connection-invitation:");
 		expect(workflow).not.toContain("EMDASH_CONNECTION_INVITATION");
 		expect(workflow).toContain("bundle-file: ${{ steps.prepare.outputs.bundle-file }}");
+		expect(workflow).toContain("plugin-directory: ${{ steps.prepare.outputs.plugin-directory }}");
 		expect(workflow).toContain("provenance-file: ${{ steps.attest.outputs.bundle-path }}");
 		expect(workflow).not.toMatch(/git push|gh pr|gh repo/i);
 	});
@@ -274,6 +275,27 @@ describe("setupReleaseWorkflow", () => {
 		await expect(readFile(join(dir, RELEASE_WORKFLOW_PATH))).rejects.toMatchObject({
 			code: "ENOENT",
 		});
+	});
+
+	it("names a manifest field over the registry profile limit before profile setup", async () => {
+		await writeFile(
+			join(dir, "emdash-plugin.jsonc"),
+			JSON.stringify({
+				slug: "fixture-minimal",
+				publisher: PUBLISHER_DID,
+				license: "MIT",
+				author: { name: "Test Author" },
+				security: { email: "security@example.com" },
+				description: "d".repeat(141),
+			}),
+			"utf8",
+		);
+		const beforeWrite = vi.fn(async () => undefined);
+
+		await expect(
+			setupReleaseWorkflow({ dir, resolvePublisherDid: async () => PUBLISHER_DID, beforeWrite }),
+		).rejects.toThrow("description: description must be <= 140 graphemes");
+		expect(beforeWrite).not.toHaveBeenCalled();
 	});
 
 	it("supports an alternate service origin and Action ref", async () => {

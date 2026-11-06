@@ -24,6 +24,31 @@ export interface ParsedPinnedHttpResponse {
 
 export type SocketConnect = typeof import("cloudflare:sockets").connect;
 
+export function createTrustedOriginServiceBindingTransport(
+	trustedOrigin: string,
+	binding: Fetcher,
+	fallback: GuardedMediaTransport,
+): GuardedMediaTransport {
+	const origin = new URL(trustedOrigin).origin;
+	return {
+		async fetch(input) {
+			const url = new URL(input.url);
+			if (url.origin !== origin) return fallback.fetch(input);
+			if (input.signal.aborted || Date.now() >= input.deadline) {
+				throw new Error("display media connection deadline exceeded");
+			}
+			return {
+				response: await binding.fetch(url, {
+					headers: input.headers,
+					redirect: "manual",
+					signal: input.signal,
+				}),
+				connectedAddress: null,
+			};
+		},
+	};
+}
+
 export function createWorkersSocketPinnedTransport(connect: SocketConnect): GuardedMediaTransport {
 	return {
 		async fetch(input) {

@@ -210,4 +210,4 @@ The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route
 
 Fields declared as `secret` use a versioned AES-GCM envelope with the plugin ID and setting key as authenticated data. `EMDASH_ENCRYPTION_KEY` may contain a comma-separated rotation list: the first key encrypts new values and the envelope's `kid` selects a key for reads. Missing, wrong, and tampered keys fail closed without exposing plaintext. Existing plaintext secrets remain readable and become encrypted when saved again.
 
-Keep the full encryption-key list with operational backups. Restoring the database without every key referenced by its encrypted settings leaves those values unreadable. `ctx.kv.get("settings:<key>")` remains a compatibility alias throughout EmDash 0.x; new plugins should use `ctx.settings`.
+Keep the full encryption-key list with operational backups. Restoring the database without every key referenced by its encrypted settings leaves those values unreadable. `ctx.kv.get("settings:<key>")` remains a compatibility alias throughout EmDash 1.x; new plugins should use `ctx.settings`.

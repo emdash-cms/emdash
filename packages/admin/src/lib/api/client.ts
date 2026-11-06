@@ -10,14 +10,34 @@ import type { EditorDraftAccessDeclaration } from "../sandboxed-editor-extension
 
 export const API_BASE = "/_emdash/api";
 
+const forbiddenResponseListeners = new Set<() => void>();
+
 /**
  * Fetch wrapper that adds the X-EmDash-Request CSRF protection header
  * to all requests. All API calls should use this instead of raw fetch().
  */
-export function apiFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+export async function apiFetch(
+	input: string | URL | Request,
+	init?: RequestInit,
+): Promise<Response> {
 	const headers = new Headers(init?.headers);
 	headers.set("X-EmDash-Request", "1");
-	return fetch(input, { ...init, headers });
+	const response = await fetch(input, { ...init, headers });
+	if (response.status === 403) {
+		for (const listener of forbiddenResponseListeners) listener();
+	}
+	return response;
+}
+
+/**
+ * Calls `listener` after every `apiFetch` request the server refuses with 403.
+ * Returns a function that removes the listener.
+ */
+export function onForbiddenResponse(listener: () => void): () => void {
+	forbiddenResponseListeners.add(listener);
+	return () => {
+		forbiddenResponseListeners.delete(listener);
+	};
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -108,12 +128,7 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 		if (typeof error.code === "string") code = error.code;
 		if (isRecord(error.details)) details = error.details;
 	}
-	throw new ApiResponseError(
-		res.status,
-		code,
-		message || `${fallback}: ${res.statusText}`,
-		details,
-	);
+	throw new ApiResponseError(res.status, code, message || fallback, details);
 }
 
 /**
@@ -151,8 +166,12 @@ export interface AdminManifest {
 			titleField?: string;
 			dateField?: string;
 			hidden?: boolean;
+			/** Phosphor icon name for the sidebar entry */
+			icon?: string;
 			/** Sidebar folder shared with other collections of the same group */
 			group?: string;
+			/** `false` omits the dashboard's "new entry" quick action */
+			quickCreate?: boolean;
 			listColumns?: string[];
 			fields: Record<
 				string,
@@ -171,6 +190,12 @@ export interface AdminManifest {
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 					unsupportedType?: { type: string; path: string };
+					blockTypes?: import("./schema.js").BlockType[];
+					blockTypeFingerprint?: string;
+					/** Value a new entry starts with. */
+					defaultValue?: unknown;
+					/** Set on `integer` fields, which share the `number` kind. */
+					integer?: boolean;
 				}
 			>;
 		}
@@ -195,6 +220,7 @@ export interface AdminManifest {
 				path: string;
 				label?: string;
 				icon?: string;
+				group?: string;
 			}>;
 			dashboardWidgets?: Array<{
 				id: string;
@@ -245,10 +271,17 @@ export interface AdminManifest {
 	 */
 	authMode: string;
 	/**
+	 * Whether the external auth provider replaces user names on every
+	 * authenticated request, so names cannot be edited in the admin.
+	 */
+	providerManagedName?: boolean;
+	/**
 	 * Whether self-signup is enabled (at least one allowed domain is active).
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
@@ -281,6 +314,8 @@ export interface AdminManifest {
 	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry. Defaults to the hosted aggregator when
 	 * the plugin sandbox is enabled, or reflects an explicit registry config.
@@ -304,10 +339,7 @@ export interface AdminManifest {
 		field:
 			| "registry.aggregatorUrl"
 			| "registry.policy.minimumReleaseAge"
-			| "registry.policy.minimumReleaseAgeExclude"
-			| "experimental.registry.aggregatorUrl"
-			| "experimental.registry.policy.minimumReleaseAge"
-			| "experimental.registry.policy.minimumReleaseAgeExclude";
+			| "registry.policy.minimumReleaseAgeExclude";
 	};
 	/**
 	 * Admin branding overrides for white-labeling.
@@ -316,6 +348,9 @@ export interface AdminManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

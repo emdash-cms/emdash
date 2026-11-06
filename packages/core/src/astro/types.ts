@@ -9,6 +9,7 @@ import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
 	PluginEditorExtensionDispatch,
 	ResolvedPluginEditorExtension,
@@ -48,16 +49,20 @@ export interface ManifestCollection {
 	titleField?: string;
 	dateField?: string;
 	/**
-	 * Omit the auto-generated sidebar entry and dashboard quick action in the
-	 * admin. The collection is still listed in the manifest so its routes,
-	 * editor, and API keep working.
+	 * Omit the auto-generated sidebar entry, dashboard quick action, and
+	 * dashboard Content card row in the admin. The collection is still listed
+	 * in the manifest so its routes, editor, and API keep working.
 	 */
 	hidden?: boolean;
+	/** Phosphor icon name for the sidebar entry (kebab-case, e.g. `calendar-blank`). */
+	icon?: string;
 	/**
 	 * Sidebar folder. Collections sharing a group render under one collapsible
 	 * entry labelled with the group.
 	 */
 	group?: string;
+	/** `false` omits the dashboard's "new entry" quick action. */
+	quickCreate?: boolean;
 	/** Valid custom field slugs to render in the admin content list. */
 	listColumns?: string[];
 	fields: Record<
@@ -79,6 +84,8 @@ export interface ManifestCollection {
 			id?: string;
 			/** Validation config for the field (e.g. `allowedMimeTypes` for file/image fields, subFields for repeater). */
 			validation?: Record<string, unknown>;
+			/** Value a new entry starts with in the admin editor. */
+			defaultValue?: unknown;
 		}
 	>;
 }
@@ -103,6 +110,7 @@ export interface ManifestPlugin {
 		path: string;
 		label?: string;
 		icon?: string;
+		group?: string;
 	}>;
 	dashboardWidgets?: Array<{
 		id: string;
@@ -160,10 +168,18 @@ export interface EmDashManifest {
 	 */
 	authMode: ManifestAuthMode;
 	/**
+	 * Whether the external auth provider replaces user names on every
+	 * authenticated request (`syncName` is not `false`). The admin shows the
+	 * name as managed by the identity provider instead of editable.
+	 */
+	providerManagedName?: boolean;
+	/**
 	 * Whether self-signup is enabled (at least one allowed domain is active).
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration from Astro config.
 	 * Only present when i18n is enabled (multiple locales configured).
@@ -197,6 +213,8 @@ export interface EmDashManifest {
 	 * browse or install flows.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry configuration.
 	 *
@@ -237,7 +255,9 @@ export interface EmDashManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
 		favicon?: string;
+		hiddenNavItems?: string[];
 	};
 }
 
@@ -281,6 +301,7 @@ export interface EmDashHandlers {
 		collection: string,
 		params: {
 			cursor?: string;
+			page?: number;
 			limit?: number;
 			status?: string;
 			orderBy?: string;
@@ -304,6 +325,8 @@ export interface EmDashHandlers {
 		collection: string,
 		id: string,
 		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
+		draftOptions?: { includeStagedSlug?: boolean },
 	) => Promise<
 		HandlerResponse<{
 			item: {
@@ -325,9 +348,13 @@ export interface EmDashHandlers {
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			seo?: ContentSeoInput;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
@@ -350,8 +377,11 @@ export interface EmDashHandlers {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
@@ -361,7 +391,7 @@ export interface EmDashHandlers {
 	// Trash handlers
 	handleContentListTrashed: (
 		collection: string,
-		params?: { cursor?: string; limit?: number; locale?: string },
+		params?: { cursor?: string; page?: number; limit?: number; locale?: string },
 	) => Promise<HandlerResponse>;
 
 	handleContentRestore: (collection: string, id: string) => Promise<HandlerResponse>;
@@ -444,6 +474,7 @@ export interface EmDashHandlers {
 		url?: string;
 		contentType?: string;
 		alt?: string;
+		caption?: string;
 		authorId?: string;
 		maxUploadSize?: number;
 	}) => Promise<HandlerResponse>;
@@ -454,12 +485,19 @@ export interface EmDashHandlers {
 		size?: number;
 		width?: number;
 		height?: number;
+		alt?: string;
+		caption?: string;
 		storageKey: string;
 		contentHash?: string;
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
 		folderId?: string | null;
+	}) => Promise<HandlerResponse>;
+
+	handleMediaRegisterUpload: (input: {
+		storageKey: string;
+		authorId?: string;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaUpdate: (
@@ -531,7 +569,14 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth/caching decisions before dispatch)
+	// Public-only plugin route metadata for SSR page components.
+	// Public routes return their meta. Private and unknown routes return null.
+	// Present on both anonymous and signed-in locals so the result does not
+	// change when a visitor logs in.
+	getPublicPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
+
+	// Plugin route metadata (for auth/caching decisions before dispatch).
+	// Signed-in locals only. Private routes return `{ public: false }`.
 	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
 	getEnabledPluginMcpTools: () => Promise<
 		Array<{

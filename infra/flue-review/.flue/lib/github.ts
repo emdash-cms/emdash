@@ -7,13 +7,15 @@
 // installation access token (valid ~1h, scoped to the installation's repos and
 // the app's permissions), and use that token for reads and for posting the
 // review. The app needs `pull_requests: write`, `checks: write`, and
-// `contents: read`.
+// `contents: read`, and `issues: read` for linked issues.
 
 import { limitUtf8Text } from "./byte-budget.js";
 import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";
+import { MAX_LINKED_ISSUES, type LinkedIssue } from "./review-linked-issues.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
+const GITHUB_CODELOAD = "codeload.github.com";
 const USER_AGENT = "emdash-flue-review";
 const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
 const REVIEW_RATE_LIMIT_RETRIES = 3;
@@ -21,6 +23,7 @@ const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
 const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
 const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
 const INLINE_PERMIT_WAIT_MS = 5_000;
+export const POST_MODEL_PERMIT_WAIT_MS = REVIEW_RATE_LIMIT_MAX_DELAY_MS;
 const RATE_LIMIT_ERROR = /\brate limit\b/i;
 const AUTO_FORMAT_MESSAGE = "style: format";
 const EMDASH_BOT_LOGIN = "emdashbot[bot]";
@@ -49,7 +52,7 @@ export interface GitHubRateLimitGate {
 	): Promise<void>;
 }
 
-class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
+class StubGitHubRateLimitGate implements GitHubRateLimitGate {
 	constructor(private readonly stub: DurableObjectStub) {}
 
 	async permit(category: string, consumer: string) {
@@ -98,14 +101,19 @@ class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
 }
 
 export function githubRateLimitGate(env: Env): GitHubRateLimitGate {
-	return new ExternalGitHubRateLimitGate(
+	return new StubGitHubRateLimitGate(
 		env.GITHUB_RATE_LIMIT.getByName(`installation:${env.GITHUB_APP_INSTALLATION_ID}`),
 	);
 }
 
 export type GitHubToken =
 	| string
-	| { readonly token: string; readonly gate: GitHubRateLimitGate; readonly consumer: string };
+	| {
+			readonly token: string;
+			readonly gate: GitHubRateLimitGate;
+			readonly consumer: string;
+			readonly maxPermitWaitMs?: number;
+	  };
 
 function tokenValue(token: GitHubToken): string {
 	return typeof token === "string" ? token : token.token;
@@ -139,8 +147,13 @@ function responseMetadata(response: Response, now = Date.now()) {
 	};
 }
 
-async function acquireGitHubPermit(gate: GitHubRateLimitGate, category: string, consumer: string) {
-	const deadline = Date.now() + INLINE_PERMIT_WAIT_MS;
+async function acquireGitHubPermit(
+	gate: GitHubRateLimitGate,
+	category: string,
+	consumer: string,
+	maxWaitMs = INLINE_PERMIT_WAIT_MS,
+) {
+	const deadline = Date.now() + maxWaitMs;
 	for (;;) {
 		const permit = await gate.permit(category, consumer);
 		if (permit.allowed) return permit;
@@ -158,7 +171,12 @@ async function githubFetch(
 	const coordinated = token && typeof token !== "string" ? token : null;
 	const category = new URL(input).pathname === "/graphql" ? "graphql" : "review-rest";
 	if (coordinated) {
-		const permit = await acquireGitHubPermit(coordinated.gate, category, coordinated.consumer);
+		const permit = await acquireGitHubPermit(
+			coordinated.gate,
+			category,
+			coordinated.consumer,
+			coordinated.maxPermitWaitMs,
+		);
 		if (!permit.allowed) {
 			throw new GitHubRateLimitError(
 				`GitHub request suppressed until ${new Date(permit.retryAt).toISOString()}`,
@@ -366,6 +384,14 @@ export async function mintInstallationToken(
 
 function installationHeaders(token: GitHubToken): Record<string, string> {
 	return { ...GITHUB_HEADERS, authorization: `Bearer ${tokenValue(token)}` };
+}
+
+function codeloadHeaders(token: GitHubToken): Record<string, string> {
+	return {
+		accept: "application/octet-stream",
+		authorization: `Basic ${btoa(`x-access-token:${tokenValue(token)}`)}`,
+		"user-agent": USER_AGENT,
+	};
 }
 
 function pullRequestUrl(owner: string, repo: string, prNumber: number, files = false): string {
@@ -586,6 +612,7 @@ export async function removePullRequestLabel(
 	repo: string,
 	prNumber: number,
 	label: string,
+	signal?: AbortSignal,
 ): Promise<void> {
 	const res = await coordinatedFetch(
 		token,
@@ -593,9 +620,103 @@ export async function removePullRequestLabel(
 		{
 			method: "DELETE",
 			headers: installationHeaders(token),
+			signal,
 		},
 	);
 	if (res.status !== 404) await requireGitHubResponse(res, "remove pull request label");
+}
+
+export async function getPullRequestLabels(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	signal?: AbortSignal,
+): Promise<string[]> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels?per_page=100`,
+		{ headers: installationHeaders(token), signal },
+	);
+	await requireGitHubResponse(res, "get pull request labels");
+	const labels = await res.json<Array<{ name?: string }>>();
+	return labels.flatMap((label) => (label.name ? [label.name] : []));
+}
+
+export async function addPullRequestLabel(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+	label: string,
+	signal?: AbortSignal,
+): Promise<void> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels`,
+		{
+			method: "POST",
+			headers: installationHeaders(token),
+			body: JSON.stringify({ labels: [label] }),
+			signal,
+		},
+	);
+	await requireGitHubResponse(res, "add pull request label");
+}
+
+export async function fetchRepositoryTarball(
+	owner: string,
+	repo: string,
+	ref: string,
+	token?: GitHubToken,
+): Promise<ReadableStream<Uint8Array>> {
+	const apiUrl = `${GITHUB_API}/repos/${owner}/${repo}/tarball/${encodeURIComponent(ref)}`;
+	const apiHeaders = token
+		? installationHeaders(token)
+		: {
+				accept: "application/vnd.github+json",
+				"user-agent": USER_AGENT,
+				"x-github-api-version": "2022-11-28",
+			};
+	const archive = token
+		? await coordinatedFetch(token, apiUrl, { headers: apiHeaders, redirect: "manual" })
+		: await githubFetch(apiUrl, { headers: apiHeaders, redirect: "manual" });
+	if (archive.ok) {
+		if (!archive.body) throw new Error("repository tarball response had no body");
+		return archive.body;
+	}
+	if (![301, 302, 303, 307, 308].includes(archive.status)) {
+		await requireGitHubResponse(archive, "repository tarball request");
+	}
+
+	const location = archive.headers.get("location");
+	if (!location) throw new Error("repository tarball response had no redirect location");
+	const downloadUrl = new URL(location, apiUrl);
+	const repositoryPath = `/${owner}/${repo}/`.toLowerCase();
+	if (
+		downloadUrl.protocol !== "https:" ||
+		downloadUrl.hostname !== GITHUB_CODELOAD ||
+		downloadUrl.port !== "" ||
+		downloadUrl.username !== "" ||
+		downloadUrl.password !== "" ||
+		!downloadUrl.pathname.toLowerCase().startsWith(repositoryPath)
+	) {
+		throw new Error("repository tarball response had an unsafe redirect location");
+	}
+
+	await archive.body?.cancel();
+	const download = token
+		? await coordinatedFetch(token, downloadUrl.toString(), {
+				headers: codeloadHeaders(token),
+				redirect: "manual",
+			})
+		: await githubFetch(downloadUrl.toString(), {
+				headers: { accept: "application/octet-stream", "user-agent": USER_AGENT },
+				redirect: "manual",
+			});
+	await requireGitHubResponse(download, "repository tarball download");
+	if (!download.body) throw new Error("repository tarball download had no body");
+	return download.body;
 }
 
 /**
@@ -700,6 +821,189 @@ export async function classifyPullRequestHeadMove(
 }
 
 const REVIEWER_LOGIN = "emdashbot[bot]";
+
+export type RereviewMove = ReviewHeadMove | "base_merge_only";
+
+const COMPARE_FILES_LIMIT = 300;
+
+async function pullRequestPatches(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	baseSha: string,
+	headSha: string,
+): Promise<Map<string, string> | undefined> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/compare/${encodeURIComponent(baseSha)}...${encodeURIComponent(headSha)}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "compare pull request changes");
+	const comparison = await res.json<{ files?: Array<{ filename?: string; patch?: string }> }>();
+	const files = comparison.files ?? [];
+	if (files.length >= COMPARE_FILES_LIMIT) return undefined;
+	const patches = new Map<string, string>();
+	for (const file of files) {
+		if (!file.filename || file.patch === undefined) return undefined;
+		patches.set(file.filename, file.patch);
+	}
+	return patches;
+}
+
+/**
+ * How the PR moved since the last reviewed head: only the bot's auto-format
+ * commits, only a merge of the base branch (the PR's own changes against its
+ * base are identical at both heads), or anything else.
+ */
+export async function classifyRereviewMove(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	baseSha: string,
+	fromHeadSha: string,
+	toHeadSha: string,
+): Promise<RereviewMove> {
+	if (
+		(await classifyPullRequestHeadMove(token, owner, repo, fromHeadSha, toHeadSha)) ===
+		"format_only"
+	) {
+		return "format_only";
+	}
+	const [before, after] = await Promise.all([
+		pullRequestPatches(token, owner, repo, baseSha, fromHeadSha),
+		pullRequestPatches(token, owner, repo, baseSha, toHeadSha),
+	]);
+	if (!before || !after || before.size !== after.size) return "substantive";
+	for (const [filename, patch] of after) {
+		if (before.get(filename) !== patch) return "substantive";
+	}
+	return "base_merge_only";
+}
+
+export interface PullRequestState {
+	state: string;
+	draft: boolean;
+	title: string;
+	body: string;
+	authorLogin: string;
+	headRef: string;
+	headSha: string;
+	baseRef: string;
+	baseSha: string;
+}
+
+export async function fetchPullRequestState(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<PullRequestState> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`,
+		{
+			headers: installationHeaders(token),
+		},
+	);
+	await requireGitHubResponse(res, "fetch pull request state");
+	const pull = await res.json<{
+		state?: string;
+		draft?: boolean;
+		title?: string;
+		body?: string | null;
+		user?: { login?: string };
+		head?: { ref?: string; sha?: string };
+		base?: { ref?: string; sha?: string };
+	}>();
+	if (!pull.head?.sha || !pull.head.ref || !pull.base?.sha || !pull.base.ref) {
+		throw new Error("Pull request response did not include base and head refs");
+	}
+	return {
+		state: pull.state ?? "unknown",
+		draft: pull.draft === true,
+		title: pull.title ?? "",
+		body: pull.body ?? "",
+		authorLogin: pull.user?.login ?? "",
+		headRef: pull.head.ref,
+		headSha: pull.head.sha,
+		baseRef: pull.base.ref,
+		baseSha: pull.base.sha,
+	};
+}
+
+const REVIEW_CHECK_NAME = "EmDashBot review";
+
+export interface HeadChecks {
+	/** Check runs on the head, other than this bot's own review checks. */
+	total: number;
+	incomplete: number;
+}
+
+export async function fetchHeadChecks(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	headSha: string,
+): Promise<HeadChecks> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/check-runs?filter=latest&per_page=100`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "list head check runs");
+	const body = await res.json<{ check_runs?: Array<{ name?: string; status?: string }> }>();
+	const runs = (body.check_runs ?? []).filter((run) => run.name !== REVIEW_CHECK_NAME);
+	return {
+		total: runs.length,
+		incomplete: runs.filter((run) => run.status !== "completed").length,
+	};
+}
+
+/** Whether any review of this head has been started, by any trigger. */
+export async function hasReviewCheck(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	headSha: string,
+): Promise<boolean> {
+	const query = new URLSearchParams({
+		check_name: REVIEW_CHECK_NAME,
+		filter: "all",
+		per_page: "1",
+	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/check-runs?${query.toString()}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "find review checks");
+	const body = await res.json<{ total_count?: number }>();
+	return (body.total_count ?? 0) > 0;
+}
+
+/** The head SHA of the bot's most recent review of the PR, if it has reviewed it. */
+export async function fetchLastReviewedHead(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<string | undefined> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "list pull request reviews");
+	const reviews =
+		await res.json<
+			Array<{ user?: { login?: string }; commit_id?: string; submitted_at?: string }>
+		>();
+	return reviews
+		.filter((review) => review.user?.login === REVIEWER_LOGIN && review.commit_id)
+		.toSorted((a, b) => (a.submitted_at ?? "").localeCompare(b.submitted_at ?? ""))
+		.at(-1)?.commit_id;
+}
+
 const PRIOR_FINDINGS_MAX_CHARS = 30_000;
 const PRIOR_COMMENT_MAX_BYTES = 4_000;
 const REVIEW_COMMENTS_PAGE_SIZE = 100;
@@ -844,6 +1148,122 @@ export async function fetchPriorReview(
 		return `Your previous review (state: ${latest.state ?? "unknown"}):\n\n${latest.body}${findings}`;
 	} catch {
 		return undefined;
+	}
+}
+
+const DESIGN_PR_LINK =
+	/New features link to their merged design PR:\s*https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/pull\/(\d+)/i;
+const PROPOSAL_PATH = /^proposals\/(?!README\.md$)(?!.*-template\.md$)[^/]+\.md$/;
+
+export interface AcceptedDesign {
+	prNumber: number;
+	proposals: string[];
+}
+
+/**
+ * The proposals accepted by the merged design PR that a feature PR links in its
+ * template checklist. Undefined when there is no link to a merged design PR in
+ * this repository or the lookup fails: the review proceeds without it.
+ */
+export async function fetchAcceptedDesign(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prBody: string,
+): Promise<AcceptedDesign | undefined> {
+	const link = prBody.match(DESIGN_PR_LINK);
+	if (
+		!link ||
+		link[1]?.toLowerCase() !== owner.toLowerCase() ||
+		link[2]?.toLowerCase() !== repo.toLowerCase()
+	) {
+		return undefined;
+	}
+	const prNumber = Number(link[3]);
+	const pullApiUrl = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`;
+	try {
+		const pullRes = await coordinatedFetch(token, pullApiUrl, {
+			headers: installationHeaders(token),
+		});
+		if (!pullRes.ok) return undefined;
+		const pull = await pullRes.json<{ merged_at?: string | null }>();
+		if (!pull.merged_at) return undefined;
+
+		const filesRes = await coordinatedFetch(token, `${pullApiUrl}/files?per_page=100`, {
+			headers: installationHeaders(token),
+		});
+		if (!filesRes.ok) return undefined;
+		const files = await filesRes.json<Array<{ filename: string; status: string }>>();
+		const proposals = files
+			.filter((file) => file.status !== "removed" && PROPOSAL_PATH.test(file.filename))
+			.map((file) => file.filename);
+		return proposals.length > 0 ? { prNumber, proposals } : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+const LINKED_ISSUES_QUERY = `query($owner: String!, $repo: String!, $number: Int!, $first: Int!) {
+	repository(owner: $owner, name: $repo) {
+		pullRequest(number: $number) {
+			closingIssuesReferences(first: $first) {
+				nodes { number title body repository { nameWithOwner } }
+			}
+		}
+	}
+}`;
+
+interface ClosingIssuesResponse {
+	data?: {
+		repository?: {
+			pullRequest?: {
+				closingIssuesReferences?: {
+					nodes?: Array<{
+						number?: number;
+						title?: string;
+						body?: string | null;
+						repository?: { nameWithOwner?: string };
+					} | null>;
+				};
+			};
+		};
+	};
+}
+
+/**
+ * Title and body (no comments) of the issues in this repository that the PR
+ * says it closes. Empty when there are none or the lookup fails: the review
+ * proceeds without them.
+ */
+export async function fetchLinkedIssues(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<LinkedIssue[]> {
+	try {
+		const res = await coordinatedFetch(token, `${GITHUB_API}/graphql`, {
+			method: "POST",
+			headers: installationHeaders(token),
+			body: JSON.stringify({
+				query: LINKED_ISSUES_QUERY,
+				variables: { owner, repo, number: prNumber, first: MAX_LINKED_ISSUES },
+			}),
+		});
+		if (!res.ok) return [];
+		const body = await res.json<ClosingIssuesResponse>();
+		const nodes = body.data?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+		const sameRepo = `${owner}/${repo}`.toLowerCase();
+		return nodes.flatMap((node) =>
+			node &&
+			typeof node.number === "number" &&
+			typeof node.title === "string" &&
+			node.repository?.nameWithOwner?.toLowerCase() === sameRepo
+				? [{ number: node.number, title: node.title, body: node.body ?? "" }]
+				: [],
+		);
+	} catch {
+		return [];
 	}
 }
 

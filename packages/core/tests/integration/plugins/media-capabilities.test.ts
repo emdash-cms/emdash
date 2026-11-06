@@ -2,9 +2,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaFolderRepository } from "../../../src/database/repositories/media-folders.js";
@@ -35,7 +36,7 @@ function plugin(capabilities: ResolvedPlugin["capabilities"]): ResolvedPlugin {
 }
 
 describe("sandbox media capabilities", () => {
-	let sqlite: BetterSqlite3.Database;
+	let sqlite: BetterSqlite3;
 	let db: Kysely<Database>;
 	let directory: string;
 	let storage: LocalStorage;

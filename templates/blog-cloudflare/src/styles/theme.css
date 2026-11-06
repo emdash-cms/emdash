@@ -11,6 +11,9 @@
   changes light and dark mode at once; use light-dark(<light>, <dark>)
   to set different values per mode.
 
+  Set the three brand tokens together, as in the example below:
+  --color-on-brand defaults to near-black in dark mode.
+
   Webfonts are loaded in astro.config.mjs (--font-body, --font-mono).
   Swap the loaded font there; use overrides here for system fonts or a
   separate heading face.
@@ -19,14 +22,13 @@
 
   :root {
     --color-brand: light-dark(#0f766e, #2dd4bf);
+    --color-brand-hover: light-dark(#115e59, #5eead4);
+    --color-on-brand: light-dark(#ffffff, #0a0a0a);
     --font-heading: "Iowan Old Style", Georgia, serif;
-    --radius: 8px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
   }
 */
 
 :root {
-}
-
-.nav-admin {
-	margin-inline-start: var(--spacing-5);
 }

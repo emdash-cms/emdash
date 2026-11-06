@@ -41,7 +41,7 @@ const plugin: SandboxedPlugin = {
 export default plugin;
 ```
 
-Import authoring types from `emdash/plugin` with `import type`. Value imports are limited to lightweight helpers such as `pluginRoute()` and `pluginResponse()`, which the CLI bundles. Sandboxed runtime code can use Web APIs but not Node.js built-ins.
+Import authoring types from `emdash/plugin` with `import type`. The CLI bundles value imports such as `pluginRoute()` and `pluginResponse()` from `emdash/plugin` and `portableTextToMarkdown()` from `emdash/client`. Sandboxed runtime code can use Web APIs but not Node.js built-ins.
 
 ## Declare access
 
@@ -60,6 +60,7 @@ Declare every host API in `emdash-plugin.jsonc`. Adding authority, exposing a ro
 | `hooks.content-policy:register`  | Pre-publish, pre-schedule, and pre-unpublish policy hooks                  |
 | `taxonomies:read`                | Taxonomy definitions, terms, and entry assignments                         |
 | `taxonomies:write`               | Term creation and assignment deltas; implies read                          |
+| `bylines:read`                   | Public byline profiles and single or batched entry credits                 |
 | `redirects:read`                 | Versioned redirect inspection                                              |
 | `redirects:write`                | Versioned redirect creation, update, and deletion; implies read            |
 | `comments:read`                  | Stored non-trashed comments and their personal data                        |

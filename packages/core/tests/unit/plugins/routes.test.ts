@@ -389,6 +389,68 @@ describe("PluginRouteHandler", () => {
 			expect(result.error?.message).toBe("No access");
 		});
 
+		it("handles a PluginRouteError from a separate copy of the module", async () => {
+			// Under `astro dev`, a plugin's `emdash` import can resolve to a separate
+			// module instance, so the class it throws is not this module's PluginRouteError.
+			class ForeignPluginRouteError extends Error {
+				constructor(
+					public code: string,
+					message: string,
+					public status: number,
+					public details?: unknown,
+				) {
+					super(message);
+					this.name = "PluginRouteError";
+				}
+			}
+			const plugin = createTestPlugin({
+				routes: {
+					fail: {
+						handler: async () => {
+							throw new ForeignPluginRouteError("BAD_REQUEST", "Invalid URL", 400, {
+								field: "url",
+							});
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("fail", {
+				request: new Request("http://test.com"),
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.status).toBe(400);
+			expect(result.error).toEqual({
+				code: "BAD_REQUEST",
+				message: "Invalid URL",
+				details: { field: "url" },
+			});
+		});
+
+		it("treats an error that only borrows the PluginRouteError name as unknown", async () => {
+			const plugin = createTestPlugin({
+				routes: {
+					crash: {
+						handler: async () => {
+							const error = new Error("Not a route error");
+							error.name = "PluginRouteError";
+							throw error;
+						},
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			const result = await handler.invoke("crash", {
+				request: new Request("http://test.com"),
+			});
+
+			expect(result.status).toBe(500);
+			expect(result.error?.code).toBe("INTERNAL_ERROR");
+		});
+
 		it("handles unknown errors from handler", async () => {
 			const plugin = createTestPlugin({
 				routes: {

@@ -87,6 +87,16 @@ describe("detectLoops", () => {
 		const result = detectLoops([]);
 		expect(result).toHaveLength(0);
 	});
+
+	it("skips malformed stored patterns", () => {
+		const edges = [
+			edge("invalid", "/[a][b][c]", "/ignored", true, true),
+			edge("1", "/a", "/b"),
+			edge("2", "/b", "/a"),
+		];
+
+		expect(detectLoops(edges)).toEqual(expect.arrayContaining(["1", "2"]));
+	});
 });
 
 describe("wouldCreateLoop", () => {
@@ -190,5 +200,27 @@ describe("wouldCreateLoop", () => {
 		];
 		const result = wouldCreateLoop("/news/[slug]", "/blog/[slug]", edges);
 		expect(result).not.toBeNull();
+	});
+
+	it("does not compile an ambiguous destination template", () => {
+		const edges = [edge("1", "/target", "/source")];
+
+		expect(wouldCreateLoop("/source", "/[a][b][c]", edges)).toBeNull();
+	});
+});
+
+describe("loop detection across source encodings", () => {
+	it("detects a loop between a raw Unicode source and its percent-encoded destination", () => {
+		const edges = [edge("1", "/café", "/b"), edge("2", "/b", "/caf%C3%A9")];
+		expect(detectLoops(edges).toSorted()).toEqual(["1", "2"]);
+	});
+
+	it("rejects a redirect whose source and destination are the same path in different encodings", () => {
+		expect(wouldCreateLoop("/café", "/caf%C3%A9", [])).not.toBeNull();
+	});
+
+	it("rejects a new redirect that closes a mixed-encoding loop", () => {
+		const edges = [edge("1", "/café", "/b")];
+		expect(wouldCreateLoop("/b", "/caf%c3%a9", edges)).not.toBeNull();
 	});
 });

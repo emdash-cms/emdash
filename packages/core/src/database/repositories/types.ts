@@ -10,7 +10,7 @@ import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
  * REST schemas also clamp at 2048 — this 4096 cap is a defense-in-depth
  * floor inside the repository helpers.
  */
-const MAX_CURSOR_LENGTH = 4096;
+export const MAX_CURSOR_LENGTH = 4096;
 
 export interface CreateContentInput {
 	/** Explicit content ID for stable seed imports. Omit to generate a ULID. */
@@ -31,6 +31,8 @@ export interface CreateContentInput {
 }
 
 export interface UpdateContentInput {
+	/** Stored locale, supplied by the content handler for alias-aware slug checks. */
+	locale?: string;
 	data?: Record<string, unknown>;
 	status?: string;
 	slug?: string | null;
@@ -41,6 +43,8 @@ export interface UpdateContentInput {
 	/** Revision author, separate from entry ownership. */
 	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
+	/** `null` drops the entry's draft revision pointer. */
+	draftRevisionId?: null;
 }
 
 /** SEO fields for content items */
@@ -191,9 +195,9 @@ export interface FindManyOptions {
 		q?: string;
 		/**
 		 * Columns the `q` substring filter is applied to (OR'd together).
-		 * Resolved by the handler from the collection's display fields, slug,
-		 * and any field marked searchable. Each name is validated as a SQL
-		 * identifier.
+		 * Resolved by the handler from the slug and the collection's display
+		 * fields and fields marked searchable, keeping only fields that have a
+		 * column. Each name is validated as a SQL identifier.
 		 */
 		searchColumns?: string[];
 		/**
@@ -223,6 +227,8 @@ export interface FindManyOptions {
 	sortableExtras?: string[];
 	limit?: number;
 	cursor?: string; // Base64-encoded JSON: {orderValue: string, id: string}
+	/** Rows to skip before the page, for numbered pages. Cannot be combined with `cursor`. */
+	offset?: number;
 }
 
 export interface FindManyResult<T> {
@@ -236,9 +242,45 @@ export interface FindManyResult<T> {
 	total?: number;
 }
 
-/** Encode a cursor from order value + id */
-export function encodeCursor(orderValue: string, id: string): string {
-	return encodeBase64(JSON.stringify({ orderValue, id }));
+/**
+ * Order value stamped into a cursor over a *staged* reference selection, whose
+ * anchor is a translation group rather than a row in the link table.
+ *
+ * A preview and a public render page the same field from different places, so a
+ * cursor can cross that boundary in either direction — the draft publishes, or
+ * the preview session ends, mid-pagination. Both sides recognise this marker so
+ * they can tell a foreign cursor from a malformed one and restart the field's
+ * page rather than failing or silently emptying it.
+ */
+export const STAGED_CURSOR_MARKER = "staged";
+
+/**
+ * Boundary for a single ordered field inside a cursor.
+ *
+ * `missing` distinguishes "the document has no value for this field" from
+ * "the document stores JSON `null`". SQLite can only tell these apart at the
+ * SQL layer, but PostgreSQL orders `data::jsonb->'field'` differently for the
+ * two cases, so the seek boundary must carry both possibilities.
+ */
+export interface SortFieldBoundary {
+	value?: unknown;
+	missing?: boolean;
+}
+
+/** Encode a cursor from order value + id, optionally carrying the ordered field values. */
+export function encodeCursor(
+	orderValue: string,
+	id: string,
+	sortValues?: SortFieldBoundary[],
+): string {
+	const payload: { orderValue: string; id: string; sortValues?: SortFieldBoundary[] } = {
+		orderValue,
+		id,
+	};
+	if (sortValues !== undefined && sortValues.length > 0) {
+		payload.sortValues = sortValues;
+	}
+	return encodeBase64(JSON.stringify(payload));
 }
 
 /**
@@ -257,13 +299,36 @@ export class InvalidCursorError extends Error {
 	}
 }
 
+function isSortFieldBoundary(item: unknown): item is SortFieldBoundary {
+	if (item === null || typeof item !== "object") {
+		return false;
+	}
+	const candidate = item as { value?: unknown; missing?: unknown };
+	if (candidate.missing !== undefined && typeof candidate.missing !== "boolean") {
+		return false;
+	}
+	return true;
+}
+
+function normalizeSortBoundary(item: unknown): SortFieldBoundary {
+	if (isSortFieldBoundary(item)) {
+		return { value: item.value, missing: item.missing };
+	}
+	// Fall back for plain values that predate the structured boundary format.
+	return { value: item, missing: false };
+}
+
 /**
  * Decode a cursor to order value + id.
  *
  * Throws `InvalidCursorError` if the cursor is empty, not valid base64,
  * not valid JSON, or doesn't contain string `orderValue` and `id` fields.
  */
-export function decodeCursor(cursor: string): { orderValue: string; id: string } {
+export function decodeCursor(cursor: string): {
+	orderValue: string;
+	id: string;
+	sortValues?: SortFieldBoundary[];
+} {
 	if (!cursor) throw new InvalidCursorError(cursor);
 	if (cursor.length > MAX_CURSOR_LENGTH) throw new InvalidCursorError(cursor);
 	let parsed: unknown;
@@ -275,11 +340,22 @@ export function decodeCursor(cursor: string): { orderValue: string; id: string }
 	if (parsed === null || typeof parsed !== "object") {
 		throw new InvalidCursorError(cursor);
 	}
-	const candidate = parsed as { orderValue?: unknown; id?: unknown };
+	const candidate = parsed as { orderValue?: unknown; id?: unknown; sortValues?: unknown };
 	if (typeof candidate.orderValue !== "string" || typeof candidate.id !== "string") {
 		throw new InvalidCursorError(cursor);
 	}
-	return { orderValue: candidate.orderValue, id: candidate.id };
+	let sortValues: SortFieldBoundary[] | undefined;
+	if (candidate.sortValues !== undefined) {
+		if (!Array.isArray(candidate.sortValues)) {
+			throw new InvalidCursorError(cursor);
+		}
+		sortValues = candidate.sortValues.map(normalizeSortBoundary);
+	}
+	return {
+		orderValue: candidate.orderValue,
+		id: candidate.id,
+		sortValues,
+	};
 }
 
 export interface ContentItem {
@@ -314,6 +390,32 @@ export interface ContentItem {
 	 * revision history.
 	 */
 	liveData?: Record<string, unknown>;
+	/**
+	 * First page of each reference field's resolved selection, keyed by field
+	 * slug. Only populated when the caller opts in via `handleContentGet`'s
+	 * `referenceOptions` param (see content.ts) — hydration is never
+	 * unconditional because it can leak draft ids/slugs to callers without
+	 * `content:read_drafts`.
+	 *
+	 * Shape mirrors `EntryRef` from `api/handlers/relations.ts`, duplicated
+	 * here (rather than imported) so the database layer doesn't depend on
+	 * the api/handlers layer.
+	 */
+	references?: Record<
+		string,
+		{
+			children: Array<{
+				id: string;
+				slug: string | null;
+				collection: string;
+				title: string | null;
+				locale: string | null;
+				translationGroup: string | null;
+				sortOrder?: number;
+			}>;
+			nextCursor?: string;
+		}
+	>;
 }
 
 export class EmDashValidationError extends Error {
@@ -350,5 +452,12 @@ export class ContentMutationConflictError extends Error {
 	constructor(message = "Content changed while the operation was in progress") {
 		super(message);
 		this.name = "ContentMutationConflictError";
+	}
+}
+
+export class ContentSlugConflictError extends Error {
+	constructor() {
+		super("The slug is already used by another content entry");
+		this.name = "ContentSlugConflictError";
 	}
 }

@@ -1,7 +1,8 @@
-import BetterSqlite3 from "better-sqlite3";
 import type { Kysely } from "kysely";
 import { Kysely as KyselyCtor, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { createDatabase } from "../../../../src/database/connection.js";
 import { down, up } from "../../../../src/database/migrations/036_i18n_menus_and_taxonomies.js";
@@ -10,7 +11,7 @@ import { setI18nConfig } from "../../../../src/i18n/config.js";
 import { seedPreI18nSchema } from "../../../utils/pre-i18n-schema.js";
 
 /**
- * Build a Kysely instance backed by better-sqlite3 with foreign keys ON and
+ * Build a Kysely instance backed by Node SQLite with foreign keys ON and
  * `PRAGMA foreign_keys = OFF` made into a no-op. This simulates Cloudflare
  * D1's behavior, where FKs are always enforced and the standard escape hatch
  * is silently ignored. Used to verify regressions for #1021 — bugs that only
@@ -18,7 +19,7 @@ import { seedPreI18nSchema } from "../../../utils/pre-i18n-schema.js";
  */
 function createD1LikeDatabase(): Kysely<Database> {
 	const sqlite = new BetterSqlite3(":memory:");
-	sqlite.pragma("foreign_keys = ON");
+	sqlite.exec("PRAGMA foreign_keys = ON");
 	const originalPrepare = sqlite.prepare.bind(sqlite);
 	sqlite.prepare = ((source: string) => {
 		// Make `PRAGMA foreign_keys = OFF/ON` a no-op like D1 does. `defer_foreign_keys`
@@ -120,6 +121,83 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			`.execute(db);
 			const names = new Set(indexes.rows.map((r) => r.name));
 			expect(names).toContain("idx_content_taxonomies_term");
+		});
+
+		it.each([
+			"_emdash_menus",
+			"_emdash_menu_items",
+			"taxonomies",
+			"_emdash_taxonomy_defs",
+			"content_taxonomies",
+		])("finishes when a run stopped between dropping %s and renaming its copy", async (table) => {
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('m1', 'main', 'Main')`.execute(
+				db,
+			);
+			await sql`INSERT INTO _emdash_menu_items (id, menu_id, type, label) VALUES ('mi1', 'm1', 'custom', 'Home')`.execute(
+				db,
+			);
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('t1', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 't1')`.execute(
+				db,
+			);
+			await up(db);
+
+			const listIndexes = async (tbl: string) =>
+				(
+					await sql<{ name: string }>`
+						SELECT name FROM sqlite_master
+						WHERE type = 'index' AND tbl_name = ${tbl} AND sql IS NOT NULL
+						ORDER BY name
+					`.execute(db)
+				).rows.map((r) => r.name);
+			const indexes = await listIndexes(table);
+			const rows = await sql`SELECT * FROM ${sql.ref(table)} ORDER BY 1`.execute(db);
+
+			// The state after the drop: only the staged copy, without the indexes
+			// the rebuild creates after the rename.
+			await sql`ALTER TABLE ${sql.ref(table)} RENAME TO ${sql.ref(`${table}_new`)}`.execute(db);
+			for (const name of indexes) await sql`DROP INDEX ${sql.ref(name)}`.execute(db);
+
+			await up(db);
+
+			expect(await listIndexes(table)).toEqual(indexes);
+			expect((await sql`SELECT * FROM ${sql.ref(table)} ORDER BY 1`.execute(db)).rows).toEqual(
+				rows.rows,
+			);
+			const staged = await sql`
+				SELECT name FROM sqlite_master WHERE type = 'table' AND name = ${`${table}_new`}
+			`.execute(db);
+			expect(staged.rows).toEqual([]);
+		});
+
+		it("migrates the remaining tables after resuming the first rebuild", async () => {
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('t1', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 't1')`.execute(
+				db,
+			);
+			await sql`
+				CREATE TABLE content_taxonomies_new (
+					collection TEXT NOT NULL,
+					entry_id TEXT NOT NULL,
+					taxonomy_id TEXT NOT NULL,
+					PRIMARY KEY (collection, entry_id, taxonomy_id)
+				)
+			`.execute(db);
+			await sql`INSERT INTO content_taxonomies_new SELECT * FROM content_taxonomies`.execute(db);
+			await sql`DROP TABLE content_taxonomies`.execute(db);
+
+			await up(db);
+
+			const rows = await sql`SELECT entry_id, taxonomy_id FROM content_taxonomies`.execute(db);
+			expect(rows.rows).toEqual([{ entry_id: "p1", taxonomy_id: "t1" }]);
+			const cols = await sql<{ name: string }>`PRAGMA table_info(_emdash_taxonomy_defs)`.execute(
+				db,
+			);
+			expect(cols.rows.map((c) => c.name)).toContain("locale");
 		});
 
 		it("backfills translation_group = id for pre-existing rows", async () => {

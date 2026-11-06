@@ -13,12 +13,17 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import type { Database } from "../database/types.js";
+import { isMissingTableError } from "../utils/db-errors.js";
 import type { CronAccess, CronEvent, CronTaskInfo } from "./types.js";
+
+/** Matches the Workers runtime, which always runs in UTC, so Node hosts fire at the same instant. */
+const CRON_TIMEZONE = "UTC";
 
 /** Stale lock threshold in minutes */
 const STALE_LOCK_MINUTES = 10;
 const ISO_DATETIME_PATTERN =
-	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+	/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+const ISO_TIMEZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/;
 
 /**
  * Callback to invoke a plugin's cron hook.
@@ -111,7 +116,7 @@ export class CronExecutor {
 					);
 					await sql`
 						UPDATE _emdash_cron_tasks
-						SET status = 'idle', locked_at = NULL
+						SET status = 'idle', locked_at = NULL, enabled = 0
 						WHERE id = ${task.id}
 					`.execute(this.db);
 					continue;
@@ -174,7 +179,22 @@ export class CronExecutor {
 				}
 			} else {
 				// Recurring: compute next run and reset
-				const nextRun = nextCronTime(task.schedule, currentTime);
+				let nextRun: string;
+				try {
+					nextRun = nextCronTime(task.schedule, currentTime);
+				} catch (error) {
+					console.error(
+						`[cron] Disabling unsatisfiable schedule for ${task.plugin_id}:${task.task_name}:`,
+						error,
+					);
+					await sql`
+						UPDATE _emdash_cron_tasks
+						SET status = 'idle', locked_at = NULL, last_run_at = ${now}, enabled = 0
+						WHERE id = ${task.id}
+					`.execute(this.db);
+					processed++;
+					continue;
+				}
 				await sql`
 					UPDATE _emdash_cron_tasks
 					SET status = 'idle',
@@ -245,7 +265,7 @@ export class CronAccessImpl implements CronAccess {
 		validateSchedule(opts.schedule);
 
 		const oneshot = isOneShot(opts.schedule);
-		const nextRun = oneshot ? opts.schedule : nextCronTime(opts.schedule, this.now());
+		const nextRun = oneshot ? oneShotTime(opts.schedule) : nextCronTime(opts.schedule, this.now());
 		const dataJson = opts.data ? JSON.stringify(opts.data) : null;
 		const id = ulid();
 
@@ -303,12 +323,14 @@ export class CronAccessImpl implements CronAccess {
 /**
  * Enable or disable all cron tasks for a plugin.
  * Called by admin disable/enable endpoints and PluginManager lifecycle.
- * Gracefully handles the cron table not existing yet (pre-migration).
+ * Best-effort by default. With throwOnError, only missing-table errors
+ * (pre-migration) are tolerated; other database errors propagate to the caller.
  */
 export async function setCronTasksEnabled(
 	db: Kysely<Database>,
 	pluginId: string,
 	enabled: boolean,
+	options: { throwOnError?: boolean } = {},
 ): Promise<void> {
 	try {
 		await sql`
@@ -316,20 +338,20 @@ export async function setCronTasksEnabled(
 			SET enabled = ${enabled ? 1 : 0}
 			WHERE plugin_id = ${pluginId}
 		`.execute(db);
-	} catch {
-		// Cron table may not exist yet (pre-migration). Non-fatal.
+	} catch (error) {
+		if (options.throwOnError && !isMissingTableError(error)) throw error;
 	}
 }
 
 // ─── Cron utilities ────────────────────────────────────────────────────────
 
 /**
- * Compute the next fire time for a cron expression.
+ * Compute the next fire time for a cron expression, resolved in UTC.
  * Supports standard cron (5-field), extended (6-field with seconds), and
  * aliases like @daily, @weekly, @hourly, @monthly, @yearly.
  */
 export function nextCronTime(expression: string, currentTime: Date = new Date()): string {
-	const job = new Cron(expression);
+	const job = new Cron(expression, { timezone: CRON_TIMEZONE });
 	const next = job.nextRun(currentTime);
 	if (!next) {
 		throw new Error(`Invalid cron expression or no future run: "${expression}"`);
@@ -342,8 +364,7 @@ export function nextCronTime(expression: string, currentTime: Date = new Date())
  */
 function isCronExpression(schedule: string): boolean {
 	try {
-		// Cron constructor validates; we discard the instance immediately.
-		const _cron = new Cron(schedule);
+		const _cron = new Cron(schedule, { timezone: CRON_TIMEZONE });
 		void _cron;
 		return true;
 	} catch {
@@ -366,6 +387,13 @@ export function isOneShot(schedule: string): boolean {
 	}
 	if (isCronExpression(schedule)) return false;
 	return !isNaN(Date.parse(schedule));
+}
+
+function oneShotTime(schedule: string): string {
+	const withoutZone = ISO_DATETIME_PATTERN.test(schedule) && !ISO_TIMEZONE_PATTERN.test(schedule);
+	const normalized = ISO_DATETIME_PATTERN.test(schedule) ? schedule.replace(" ", "T") : schedule;
+	const input = withoutZone ? `${normalized}Z` : normalized;
+	return new Date(input).toISOString();
 }
 
 /** Max length for a task name */

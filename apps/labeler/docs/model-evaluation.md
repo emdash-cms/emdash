@@ -6,17 +6,109 @@ hidden for operator review.
 
 ## Selected models
 
-The automatic moderation bundle uses the following Workers AI catalog models:
+The automatic moderation bundle uses one Workers AI catalog model, `@cf/cloudflare/clef`, for both
+lanes:
 
-- Text: unanimous results from `@cf/meta/llama-3.3-70b-instruct-fp8-fast` and
-  `@cf/zai-org/glm-5.3-flash`
-- Images: `@cf/zai-org/glm-5.3-flash`, with thinking disabled and a 512-pixel WebP derivative
+- Text: one request that asks nine yes-or-no questions, one for each finding category.
+- Images: a 512-pixel WebP derivative, with one request for each of eight finding categories. The
+  image lane does not ask about `malicious-or-deceptive-link`; listing links are assessed as text.
 
-The text prompt is `listing-text-v9`, with content hash
-`aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5`. The image prompt is
-`listing-image-v7`, with content hash
-`7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`. The runtime computes
-these hashes from the embedded prompts; operators do not configure separate prompt-hash values.
+Clef returns a probability for each question. A probability of 0.45 or higher produces a finding
+for that category. Clef does not attribute a finding to a field, so each finding cites every
+evidence reference in the request. A missing or out-of-range answer is invalid output and keeps the
+listing out of automatic discovery.
+
+Clef discards request state beyond about 2,000 tokens and still returns an answer. A request padded
+past that point scored a credential request at its end at 0.006 instead of 0.99. The text lane
+therefore splits a listing into requests of at most 5,000 characters, measures each request's state
+from the reported input tokens, and splits again any request that measures above 1,800 tokens. Each
+category takes its highest probability across the requests, and a finding cites the fields in the
+requests that reached the threshold. A field that cannot be split to fit, or a listing that needs
+more than 96 requests, is invalid output.
+
+The question sets are `clef-listing-text-v1` and `clef-listing-image-v1` in `src/ai/clef.ts`. The
+runtime computes each lane's hash from its questions, its threshold, whether it sends the questions
+separately, and the text splitting limits; operators do not configure separate hash values. `LABELER_TEXT_MODEL_ID` and
+`LABELER_IMAGE_MODEL_ID` must name a Clef model.
+
+## Clef evaluation
+
+Questions sent in the same request influence each other's probabilities. Rewording the image
+question for graphic violence moved the hateful-content probability for an unrelated image from
+0.64 to 0.47. Re-run every evaluation in this section after changing any question, the threshold,
+or the request mode.
+
+### Text
+
+Three repeats of the 21 public text fixtures matched the expected pass or review outcome in all 63
+runs, with no invalid output, model error, or repeated-run disagreement. Probabilities were
+identical across repeats. The highest probability on an expected-pass fixture was 0.393 and the
+lowest top probability on an expected-review fixture was 0.647, so the 0.45 threshold gives the
+same outcomes as the 0.5 used for the run. P95 latency was 1.64 seconds. Seven expected-review
+fixtures gained an adjacent category, most often `scam-or-spam`, and `unicode-confusable-login`
+missed `material-impersonation`.
+
+All 37 profiles published in the registry on 2 October 2026 passed at 0.45. The highest probability
+was 0.42, for `malicious-or-deceptive-link`. Two profiles of 9 to 10 kilobytes needed three
+requests each. Median latency was 1.2 seconds and the slowest profile took 2.9 seconds.
+
+A listing with a credential request placed after 15, 136, and 238 kilobytes of benign text went to
+review each time, with a probability of 0.98.
+
+Sending each text question in its own request timed out at the 20-second deadline for two of those
+37 profiles, so the text lane sends all nine questions together.
+
+A protected-corpus run informed the threshold. Its results are held privately.
+
+`@cf/cloudflare/clef-flash` passed `gold-hateful-text` in all three repeats with a probability of
+0.418, below a benign fixture at 0.433. No threshold separates the two, so it is not a candidate.
+
+### Images
+
+The image questions are broader than the text questions in three categories:
+
+- `explicit-sexual-content` covers nudity, partial nudity, and sexually suggestive imagery.
+- `graphic-violence` covers gore, blood, exposed tissue, surgery, and dead bodies, whether real,
+  medical, staged, or fictional.
+- `hateful-or-dehumanizing-content` covers hate symbols and extremist iconography shown without
+  text.
+
+All 43 icons, banners, and screenshots published in the registry on 2 October 2026 passed. The
+highest probability was 0.36. Before `malicious-or-deceptive-link` was removed from the image lane,
+that question sent four of these screenshots to review. Each showed a spam filter or link checker
+displaying sample comments, blocked words, or link warnings.
+
+Eight of nine private prohibited images went to review: four with nudity or suggestive content, two
+with graphic injury or surgery, and two hate symbols. Probabilities ranged from 0.55 to 0.99. The
+ninth, the insignia of an SS unit, passed with a probability of 0.03. Sending the image questions
+together missed a second hate symbol at 0.48, so the image lane sends each question separately.
+Median latency was about one second for each image.
+
+Five of the six public image fixtures matched their expected outcome. `image-password-form`, an
+expected-pass fixture, went to review for `scam-or-spam` at 0.56.
+
+On the same images, `@cf/zai-org/glm-5.3-flash` returned invalid JSON in 11 of 27 runs over the
+private prohibited images and in 14 of 43 runs over the registry images. It sent six registry
+images to review and passed the SS unit insignia in its one valid run.
+
+### Limits
+
+- The public text corpus and the registry content do not meet the evaluation acceptance criteria
+  below on their own.
+- The private image set has nine prohibited images and no protected expected-pass images.
+- Neither model recognized the SS unit insignia. Obscure hate symbols need operator review or
+  another control.
+- The public corpus has two `moderation-manipulation` text fixtures.
+- The highest probability on a published profile, 0.42, is 0.03 below the threshold.
+- The token limit that requires splitting is observed behavior. It is not documented by the model
+  provider and may change.
+
+## Earlier evaluations
+
+The remaining sections, up to the evaluation acceptance criteria, record the evaluations of the
+bundle that Clef replaced: unanimous text results from `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
+and `@cf/zai-org/glm-5.3-flash`, and `@cf/zai-org/glm-5.3-flash` for images. Their prompts,
+`listing-text-v10` and `listing-image-v7`, remain in `src/ai/prompts.ts` for comparison sweeps.
 
 ## Moderation-manipulation evaluation
 

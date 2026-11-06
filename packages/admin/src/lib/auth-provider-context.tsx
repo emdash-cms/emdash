@@ -21,6 +21,8 @@ export interface AuthProviderModule {
 	LoginButton?: React.ComponentType<{ inviteToken?: string }>;
 	/** Full form if the provider needs custom input (e.g., handle field) */
 	LoginForm?: React.ComponentType;
+	/** Optional help text shown below the provider's LoginForm */
+	loginHelp?: string | React.ComponentType;
 	/** Component for the setup wizard admin creation step */
 	SetupStep?: React.ComponentType<{ onComplete: () => void }>;
 }

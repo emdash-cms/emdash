@@ -9,9 +9,10 @@ import {
 } from "@emdash-cms/atproto-test-utils";
 import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import { DirectPdsClient } from "@emdash-cms/registry-client/direct-pds";
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { buildPlugin } from "../../../../plugin-cli/src/build/api.js";
 import {
@@ -173,6 +174,17 @@ async function mockAggregator(
 		indexedAt?: string;
 		historicalReleaseCount?: number;
 		releaseHistoryComplete?: boolean;
+		displayProfile?: { name: string; description: string };
+		profileCid?: string;
+		profileUri?: string;
+		releaseCid?: string;
+		profileLabels?: Array<{
+			val?: string;
+			uri?: string;
+			cid?: string;
+			neg?: boolean;
+			exp?: string;
+		}>;
 	} = {},
 ): Promise<void> {
 	const direct = new DirectPdsClient({
@@ -186,7 +198,7 @@ async function mockAggregator(
 	]);
 	const releaseView = {
 		uri: release.uri,
-		cid: release.cid,
+		cid: opts.releaseCid ?? release.cid,
 		did: fixture.publisherDid,
 		package: fixture.packageSlug,
 		version: fixture.version,
@@ -205,12 +217,12 @@ async function mockAggregator(
 		},
 	};
 	getPackage.mockResolvedValue({
-		uri: profile.uri,
-		cid: profile.cid,
+		uri: opts.profileUri ?? profile.uri,
+		cid: opts.profileCid ?? profile.cid,
 		did: fixture.publisherDid,
 		slug: fixture.packageSlug,
-		labels: [],
-		profile: { name: "Aggregator substitution" },
+		labels: opts.profileLabels ?? [],
+		profile: opts.displayProfile ?? { name: "Aggregator substitution" },
 		...(opts.historicalReleaseCount === undefined
 			? {}
 			: { historicalReleaseCount: opts.historicalReleaseCount }),
@@ -261,6 +273,368 @@ describe("registry delegated-release conformance", () => {
 		vi.unstubAllGlobals();
 		await db.destroy();
 	});
+
+	it("allows a metadata-only profile revision while the aggregator projects the approved profile", async () => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(fixture);
+		const direct = new DirectPdsClient({
+			did: fixture.publisherDid,
+			fetch: context.options.fetch,
+			didDocumentResolver: context.options.didDocumentResolver,
+		});
+		const oldProfile = await direct.getPackageProfile(fixture.packageSlug);
+		await context.publisher.repo.updateRecord(
+			"com.emdashcms.experimental.package.profile",
+			fixture.packageSlug,
+			{ ...fixture.profile, name: "Gallery renamed", description: "Unreviewed description" },
+		);
+		const currentProfile = await direct.getPackageProfile(fixture.packageSlug);
+		await mockAggregator(fixture, context, {
+			profileCid: oldProfile.cid,
+			displayProfile: { name: "Gallery", description: "Reviewed description" },
+		});
+		artifactFetch(fixture.artifactBytes);
+
+		const preview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		expect(preview).toMatchObject({
+			success: true,
+			data: { verification: { profileCid: currentProfile.cid } },
+		});
+		if (!preview.success) return;
+
+		const oldConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: oldProfile.cid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(oldConsent).toMatchObject({
+			success: false,
+			error: { code: "RECORD_VERIFICATION_DRIFT" },
+		});
+
+		const installed = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: currentProfile.cid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(installed).toMatchObject({
+			success: true,
+			data: {
+				verification: {
+					profileCid: currentProfile.cid,
+					releaseCid: preview.data.verification.releaseCid,
+				},
+			},
+		});
+		if (!installed.success) return;
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: fixture.version,
+			displayName: "Gallery",
+			description: "Reviewed description",
+		});
+	});
+
+	it.each([
+		{ name: "success", expected: { success: true } },
+		{
+			name: "release CID mismatch",
+			aggregator: { releaseCid: "bafyreirelease-mismatch" },
+			expected: { code: "AGGREGATOR_RECORD_MISMATCH" },
+		},
+		{
+			name: "profile URI mismatch",
+			aggregator: {
+				profileUri: "at://did:plc:other/com.emdashcms.experimental.package.profile/gallery",
+			},
+			expected: { code: "AGGREGATOR_RECORD_MISMATCH" },
+		},
+		{ name: "yank on projected CID", yank: "old", expected: { code: "YANKED" } },
+		{ name: "yank on current CID", yank: "current", expected: { code: "YANKED" } },
+		{
+			name: "stale profile consent",
+			staleConsent: true,
+			expected: { code: "RECORD_VERIFICATION_DRIFT" },
+		},
+	] as const)(
+		"updates a release when only the current PDS profile changed: $name",
+		async (scenario) => {
+			const initial = await createDelegatedReleaseConformanceFixture();
+			const context = await createContext(initial);
+			const direct = new DirectPdsClient({
+				did: initial.publisherDid,
+				fetch: context.options.fetch,
+				didDocumentResolver: context.options.didDocumentResolver,
+			});
+			const oldProfile = await direct.getPackageProfile(initial.packageSlug);
+			await mockAggregator(initial, context);
+			artifactFetch(initial.artifactBytes);
+			const preview = await handleRegistryInstall(
+				db,
+				storage,
+				sandbox,
+				registryConfig,
+				{ did: initial.publisherDid, slug: initial.packageSlug, version: initial.version },
+				{ verifyOnly: true, authoritativeRecords: context.options },
+			);
+			if (!preview.success) throw new Error(preview.error.message);
+			const installed = await handleRegistryInstall(
+				db,
+				storage,
+				sandbox,
+				registryConfig,
+				{
+					did: initial.publisherDid,
+					slug: initial.packageSlug,
+					version: initial.version,
+					acknowledgedDeclaredAccess: preview.data.capabilities,
+					acknowledgedMcpTools: preview.data.mcpTools,
+					acknowledgedProfileCid: preview.data.verification.profileCid,
+					acknowledgedReleaseCid: preview.data.verification.releaseCid,
+				},
+				{ authoritativeRecords: context.options },
+			);
+			if (!installed.success) throw new Error(installed.error.message);
+			const pluginId = installed.data.pluginId;
+			const before = await new PluginStateRepository(db).get(pluginId);
+
+			await context.publisher.repo.updateRecord(
+				"com.emdashcms.experimental.package.profile",
+				initial.packageSlug,
+				{ ...initial.profile, name: "Gallery renamed", description: "Unreviewed description" },
+			);
+			const currentProfile = await direct.getPackageProfile(initial.packageSlug);
+			const next = await createDelegatedReleaseConformanceFixture({ version: "1.2.4" });
+			await context.publisher.repo.putRecord(
+				"com.emdashcms.experimental.package.release",
+				next.packageSlug + ":" + next.version,
+				next.release,
+			);
+			const nextRelease = await direct.getPackageRelease(next.packageSlug, next.version);
+			const nextOptions: AuthoritativeRecordReadOptions = {
+				...context.options,
+				provenanceFetch: async () => new Response(next.provenanceDocument),
+				provenanceVerifier: next.provenanceVerifier,
+			};
+			await mockAggregator(next, context, {
+				profileCid: oldProfile.cid,
+				displayProfile: { name: "Gallery", description: "Reviewed description" },
+				...("aggregator" in scenario ? scenario.aggregator : {}),
+				...("yank" in scenario
+					? {
+							profileLabels: [
+								{
+									val: "security:yanked",
+									uri: initial.profile.id,
+									cid: scenario.yank === "old" ? oldProfile.cid : currentProfile.cid,
+								},
+							],
+						}
+					: {}),
+			});
+			artifactFetch(next.artifactBytes);
+			const updated = await handleRegistryUpdate(db, storage, sandbox, registryConfig, pluginId, {
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: "staleConsent" in scenario ? oldProfile.cid : currentProfile.cid,
+				acknowledgedReleaseCid: nextRelease.cid,
+			});
+			if ("success" in scenario.expected) {
+				expect(updated).toMatchObject({
+					success: true,
+					data: {
+						newVersion: next.version,
+						verification: { profileCid: currentProfile.cid, releaseCid: nextRelease.cid },
+					},
+				});
+				expect(await new PluginStateRepository(db).get(pluginId)).toMatchObject({
+					version: next.version,
+					displayName: "Gallery",
+					description: "Reviewed description",
+				});
+			} else {
+				expect(updated).toMatchObject({ success: false, error: { code: scenario.expected.code } });
+				expect(await new PluginStateRepository(db).get(pluginId)).toMatchObject({
+					version: before?.version,
+				});
+			}
+		},
+	);
+
+	it.each([
+		["release CID", { releaseCid: "bafyreirelease-mismatch" }],
+		[
+			"profile URI",
+			{ profileUri: "at://did:plc:other/com.emdashcms.experimental.package.profile/gallery" },
+		],
+	] as const)("rejects an aggregator %s mismatch", async (_name, opts) => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(fixture);
+		await mockAggregator(fixture, context, opts);
+		artifactFetch(fixture.artifactBytes);
+		const result = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		expect(result).toMatchObject({
+			success: false,
+			error: { code: "AGGREGATOR_RECORD_MISMATCH" },
+		});
+	});
+
+	it.each(["old", "current"] as const)(
+		"rejects a package yank on the %s profile CID",
+		async (which) => {
+			const fixture = await createDelegatedReleaseConformanceFixture();
+			const context = await createContext(fixture);
+			const direct = new DirectPdsClient({
+				did: fixture.publisherDid,
+				fetch: context.options.fetch,
+				didDocumentResolver: context.options.didDocumentResolver,
+			});
+			const oldProfile = await direct.getPackageProfile(fixture.packageSlug);
+			await context.publisher.repo.updateRecord(
+				"com.emdashcms.experimental.package.profile",
+				fixture.packageSlug,
+				{ ...fixture.profile, name: "Gallery renamed" },
+			);
+			const currentProfile = await direct.getPackageProfile(fixture.packageSlug);
+			await mockAggregator(fixture, context, {
+				profileCid: oldProfile.cid,
+				profileLabels: [
+					{
+						val: "security:yanked",
+						uri: fixture.profile.id,
+						cid: which === "old" ? oldProfile.cid : currentProfile.cid,
+					},
+				],
+			});
+			artifactFetch(fixture.artifactBytes);
+			const result = await handleRegistryInstall(
+				db,
+				storage,
+				sandbox,
+				registryConfig,
+				{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+				{ verifyOnly: true, authoritativeRecords: context.options },
+			);
+			expect(result).toMatchObject({ success: false, error: { code: "RELEASE_YANKED" } });
+		},
+	);
+
+	it.each([true, false])(
+		"enforces current requireProvenance=%s when the aggregator projects an old CID",
+		async (requireProvenance) => {
+			const fixture = await createDelegatedReleaseConformanceFixture();
+			const profileExtension =
+				fixture.profile.extensions["com.emdashcms.experimental.package.profileExtension"];
+			fixture.profile = {
+				...fixture.profile,
+				extensions: {
+					...fixture.profile.extensions,
+					"com.emdashcms.experimental.package.profileExtension": {
+						...profileExtension,
+						releasePolicy: {
+							...profileExtension.releasePolicy,
+							requireProvenance: !requireProvenance,
+						},
+					},
+				},
+			};
+			const releaseExtension =
+				fixture.release.extensions["com.emdashcms.experimental.package.releaseExtension"];
+			fixture.release = {
+				...fixture.release,
+				extensions: {
+					...fixture.release.extensions,
+					"com.emdashcms.experimental.package.releaseExtension": (() => {
+						const extension = { ...releaseExtension };
+						delete extension.provenance;
+						return extension;
+					})(),
+				},
+			};
+			const context = await createContext(fixture);
+			const direct = new DirectPdsClient({
+				did: fixture.publisherDid,
+				fetch: context.options.fetch,
+				didDocumentResolver: context.options.didDocumentResolver,
+			});
+			const oldProfile = await direct.getPackageProfile(fixture.packageSlug);
+			await context.publisher.repo.updateRecord(
+				"com.emdashcms.experimental.package.profile",
+				fixture.packageSlug,
+				{
+					...fixture.profile,
+					extensions: {
+						...fixture.profile.extensions,
+						"com.emdashcms.experimental.package.profileExtension": {
+							...profileExtension,
+							releasePolicy: { ...profileExtension.releasePolicy, requireProvenance },
+						},
+					},
+				},
+			);
+			await mockAggregator(fixture, context, { profileCid: oldProfile.cid });
+			artifactFetch(fixture.artifactBytes);
+			const result = await handleRegistryInstall(
+				db,
+				storage,
+				sandbox,
+				registryConfig,
+				{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+				{ verifyOnly: true, authoritativeRecords: context.options },
+			);
+			if (requireProvenance) {
+				expect(result).toMatchObject({
+					success: false,
+					error: {
+						code: "RECORD_VERIFICATION_FAILED",
+						details: { verificationCode: "PROVENANCE_REQUIRED" },
+					},
+				});
+			} else {
+				expect(result).toMatchObject({
+					success: true,
+					data: {
+						verification: { provenance: "absent-optional", policy: { requireProvenance: false } },
+					},
+				});
+			}
+		},
+	);
 
 	it("previews and installs one valid delegated release without trusting aggregator records", async () => {
 		const fixture = await createDelegatedReleaseConformanceFixture({
@@ -767,6 +1141,169 @@ describe("registry delegated-release conformance", () => {
 		expect(result).toMatchObject({
 			success: false,
 			error: { code: "RELEASE_TOO_NEW" },
+		});
+	});
+
+	it("holds back an update to a release newer than the configured minimum age", async () => {
+		const initial = await createDelegatedReleaseConformanceFixture();
+		const next = await createDelegatedReleaseConformanceFixture({ version: "1.2.4" });
+		const context = await createContext(initial);
+		await context.publisher.repo.putRecord(
+			"com.emdashcms.experimental.package.release",
+			next.packageSlug + ":" + next.version,
+			next.release,
+		);
+		const nextOptions: AuthoritativeRecordReadOptions = {
+			...context.options,
+			provenanceFetch: async () => new Response(next.provenanceDocument),
+			provenanceVerifier: next.provenanceVerifier,
+		};
+		await mockAggregator(next, context);
+		artifactFetch(next.artifactBytes);
+		const nextPreview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: next.publisherDid, slug: next.packageSlug, version: next.version },
+			{ verifyOnly: true, authoritativeRecords: nextOptions },
+		);
+		if (!nextPreview.success) throw new Error(nextPreview.error.message);
+
+		await mockAggregator(initial, context);
+		artifactFetch(initial.artifactBytes);
+		const preview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: initial.publisherDid, slug: initial.packageSlug, version: initial.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		if (!preview.success) throw new Error(preview.error.message);
+		const installed = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: initial.publisherDid,
+				slug: initial.packageSlug,
+				version: initial.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		if (!installed.success) throw new Error(installed.error.message);
+
+		await mockAggregator(next, context, {
+			indexedAt: new Date().toISOString(),
+			historicalReleaseCount: 2,
+			releaseHistoryComplete: true,
+		});
+		artifactFetch(next.artifactBytes);
+		const result = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			{ ...registryConfig, policy: { minimumReleaseAge: "48h" } },
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: nextPreview.data.verification.profileCid,
+				acknowledgedReleaseCid: nextPreview.data.verification.releaseCid,
+			},
+		);
+
+		expect(result).toMatchObject({ success: false, error: { code: "RELEASE_TOO_NEW" } });
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: "1.2.3",
+		});
+	});
+
+	it("refuses an explicit update to a version older than the installed one", async () => {
+		const installedFixture = await createDelegatedReleaseConformanceFixture({ version: "2.0.0" });
+		const older = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(installedFixture);
+		await context.publisher.repo.putRecord(
+			"com.emdashcms.experimental.package.release",
+			older.packageSlug + ":" + older.version,
+			older.release,
+		);
+		const olderOptions: AuthoritativeRecordReadOptions = {
+			...context.options,
+			provenanceFetch: async () => new Response(older.provenanceDocument),
+			provenanceVerifier: older.provenanceVerifier,
+		};
+		await mockAggregator(older, context);
+		artifactFetch(older.artifactBytes);
+		const olderPreview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: older.publisherDid, slug: older.packageSlug, version: older.version },
+			{ verifyOnly: true, authoritativeRecords: olderOptions },
+		);
+		if (!olderPreview.success) throw new Error(olderPreview.error.message);
+
+		await mockAggregator(installedFixture, context);
+		artifactFetch(installedFixture.artifactBytes);
+		const preview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: installedFixture.publisherDid,
+				slug: installedFixture.packageSlug,
+				version: installedFixture.version,
+			},
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		if (!preview.success) throw new Error(preview.error.message);
+		const installed = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: installedFixture.publisherDid,
+				slug: installedFixture.packageSlug,
+				version: installedFixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		if (!installed.success) throw new Error(installed.error.message);
+
+		await mockAggregator(older, context);
+		artifactFetch(older.artifactBytes);
+		const result = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				version: older.version,
+				authoritativeRecords: olderOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: olderPreview.data.verification.profileCid,
+				acknowledgedReleaseCid: olderPreview.data.verification.releaseCid,
+			},
+		);
+
+		expect(result).toMatchObject({ success: false, error: { code: "DOWNGRADE_NOT_ALLOWED" } });
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: "2.0.0",
 		});
 	});
 

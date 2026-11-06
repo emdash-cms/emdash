@@ -710,6 +710,23 @@ describe("adaptSandboxEntry", () => {
 			const readCount = result.capabilities.filter((c) => c === "content:read").length;
 			expect(readCount).toBe(1);
 		});
+
+		it("warns that a descriptor declares deprecated capability names", () => {
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			try {
+				adaptSandboxEntry(
+					{},
+					createDescriptor({ id: "legacy-sandboxed-entry", capabilities: ["page:inject"] }),
+				);
+
+				expect(warn).toHaveBeenCalledOnce();
+				const message = String(warn.mock.calls[0]?.[0]);
+				expect(message).toContain('"legacy-sandboxed-entry"');
+				expect(message).toContain("page:inject → hooks.page-fragments:register");
+			} finally {
+				warn.mockRestore();
+			}
+		});
 	});
 
 	describe("integration with HookPipeline", () => {

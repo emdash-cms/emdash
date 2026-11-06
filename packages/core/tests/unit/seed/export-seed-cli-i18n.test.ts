@@ -159,6 +159,51 @@ describe("exportSeed: CLI (no runtime i18n config) stays locale-aware (#1330)", 
 		expect(result.valid).toBe(true);
 	});
 
+	it("writes a taxonomy's structure once, on the entry its translations point at", async () => {
+		db = await setupTestDatabase();
+		const group = ulid();
+		await insertTaxonomyDef(db, { id: group, name: "genre", label: "Genres", locale: "en", group });
+		await insertTaxonomyDef(db, {
+			id: ulid(),
+			name: "genre",
+			label: "Géneros",
+			locale: "es",
+			group,
+		});
+
+		const seed = await exportSeed(db);
+
+		const genres = seed.taxonomies?.filter((t) => t.name === "genre") ?? [];
+		expect(
+			genres.map(({ locale, hierarchical, collections }) => ({
+				locale,
+				hierarchical,
+				collections,
+			})),
+		).toEqual([
+			{ locale: "en", hierarchical: false, collections: ["post"] },
+			{ locale: "es", hierarchical: undefined, collections: undefined },
+		]);
+		expect(validateSeed(seed).errors).toEqual([]);
+	});
+
+	it("writes each taxonomy's structure when two taxonomies share a translation group", async () => {
+		db = await setupTestDatabase();
+		const group = ulid();
+		await insertTaxonomyDef(db, { id: group, name: "genre", label: "Genres", locale: "en", group });
+		await insertTaxonomyDef(db, {
+			id: ulid(),
+			name: "mood",
+			label: "Estados",
+			locale: "es",
+			group,
+		});
+
+		const seed = await exportSeed(db);
+
+		expect(validateSeed(seed).errors).toEqual([]);
+	});
+
 	it("suffixes menu ids per locale instead of colliding", async () => {
 		db = await setupTestDatabase();
 

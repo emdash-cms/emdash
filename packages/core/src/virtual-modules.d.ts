@@ -22,10 +22,15 @@ declare module "virtual:emdash/config" {
 		authProviders?: AuthProviderDescriptor[];
 		i18n?: I18nConfig | null;
 		toolbar?: "server" | "client" | false;
+		/** Whether an object-cache adapter was configured at build time. */
+		objectCacheEnabled?: boolean;
+		updateCheck?: boolean | { minimumReleaseAge?: string | number };
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
+		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
+		imageEndpointRoute?: string;
 	}
 
 	const config: VirtualConfig;
@@ -78,6 +83,7 @@ declare module "virtual:emdash/dialect" {
 		lastContentWriteAt?: number;
 	}
 	export interface RequestScopedDb {
+		/** A per-request handle on the configured database, never a different one. */
 		db: Kysely<unknown>;
 		commit: () => void;
 		/**
@@ -136,7 +142,7 @@ declare module "virtual:emdash/auth" {
 declare module "virtual:emdash/plugins" {
 	import type { ResolvedPlugin } from "./plugins/types.js";
 
-	export const plugins: ResolvedPlugin[];
+	export const plugins: ResolvedPlugin[] | (() => ResolvedPlugin[]);
 }
 
 declare module "virtual:emdash/sandbox-runner" {
@@ -164,6 +170,7 @@ declare module "virtual:emdash/auth-providers" {
 		label: string;
 		LoginButton?: ComponentType;
 		LoginForm?: ComponentType;
+		loginHelp?: string | ComponentType;
 		SetupStep?: ComponentType<{ onComplete: () => void }>;
 	}
 
@@ -207,6 +214,10 @@ declare module "virtual:emdash/scheduler" {
 	 * Trigger drives scheduled work instead.
 	 */
 	export const createScheduler: CreateSchedulerFn | null;
+}
+
+declare module "virtual:emdash/admin-loader" {
+	export function loadPluginAdmins(): Promise<typeof import("virtual:emdash/admin-registry")>;
 }
 
 declare module "virtual:emdash/admin-registry" {

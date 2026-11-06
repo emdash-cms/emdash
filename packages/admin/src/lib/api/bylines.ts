@@ -107,12 +107,15 @@ export async function fetchBylines(options?: {
 
 	const url = `${API_BASE}/admin/bylines${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<BylineSummary>>(response, "Failed to fetch bylines");
+	return parseApiResponse<FindManyResult<BylineSummary>>(
+		response,
+		i18n._(msg`Failed to fetch bylines`),
+	);
 }
 
 export async function fetchByline(id: string): Promise<BylineSummary> {
 	const response = await apiFetch(`${API_BASE}/admin/bylines/${id}`);
-	return parseApiResponse<BylineSummary>(response, "Failed to fetch byline");
+	return parseApiResponse<BylineSummary>(response, i18n._(msg`Failed to fetch byline`));
 }
 
 export async function createByline(input: BylineInput): Promise<BylineSummary> {
@@ -121,7 +124,7 @@ export async function createByline(input: BylineInput): Promise<BylineSummary> {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<BylineSummary>(response, "Failed to create byline");
+	return parseApiResponse<BylineSummary>(response, i18n._(msg`Failed to create byline`));
 }
 
 export async function updateByline(
@@ -133,7 +136,7 @@ export async function updateByline(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<BylineSummary>(response, "Failed to update byline");
+	return parseApiResponse<BylineSummary>(response, i18n._(msg`Failed to update byline`));
 }
 
 export async function deleteByline(id: string): Promise<void> {
@@ -151,7 +154,7 @@ export async function fetchBylineTranslations(id: string): Promise<{ items: Byli
 	const response = await apiFetch(`${API_BASE}/admin/bylines/${id}/translations`);
 	return parseApiResponse<{ items: BylineSummary[] }>(
 		response,
-		"Failed to fetch byline translations",
+		i18n._(msg`Failed to fetch byline translations`),
 	);
 }
 
@@ -170,5 +173,8 @@ export async function createBylineTranslation(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	return parseApiResponse<BylineSummary>(response, "Failed to create byline translation");
+	return parseApiResponse<BylineSummary>(
+		response,
+		i18n._(msg`Failed to create byline translation`),
+	);
 }

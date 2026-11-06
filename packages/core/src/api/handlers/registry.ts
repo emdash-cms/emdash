@@ -11,9 +11,14 @@ import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
 import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
-import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
+import {
+	checkEnvCompatibility,
+	compareVersions,
+	findSkippedEnvConstraints,
+} from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
+import type { ReleaseHistoryEvidence } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
@@ -22,6 +27,7 @@ import {
 } from "@emdash-cms/registry-verification/artifact";
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
@@ -55,7 +61,7 @@ import {
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import { hasCurrentRecordLabel } from "../../registry/record-labels.js";
-import type { RegistryConfigInput } from "../../registry/types.js";
+import type { RegistryConfig, RegistryConfigInput } from "../../registry/types.js";
 import { resolveAndValidateExternalUrlTarget } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -258,7 +264,7 @@ function recordVerificationSummary(
 /**
  * Bytes-per-artifact cap on the gzipped tarball we'll download before
  * decompression. RFC 0001 caps a sandboxed plugin bundle at 256 KiB
- * decompressed (see `MAX_BUNDLE_SIZE` in cli/commands/bundle-utils.ts);
+ * decompressed (see `MAX_BUNDLE_SIZE` in @emdash-cms/plugin-cli);
  * gzip on a mix of JSON manifest + JS code typically gives 0.3-0.6
  * ratio, so compressed bundles are well under 200 KiB in practice.
  * 512 KiB leaves margin for unusual file mixes that compress poorly
@@ -390,6 +396,80 @@ interface EnvIncompatibleError {
 	code: "ENV_INCOMPATIBLE";
 	message: string;
 	details: { requires: Record<string, string>; host: HostEnv };
+}
+
+/**
+ * Returns an error when the release is younger than `policy.minimumReleaseAge`,
+ * unless its publisher or package is in `minimumReleaseAgeExclude` or it is a
+ * proven first release.
+ *
+ * `releaseView.indexedAt` is aggregator operational data, not part of the
+ * signed release. The release schema has no publication timestamp, so minimum
+ * age remains a local discovery holdback rather than a cryptographic property.
+ * A missing or malformed timestamp fails closed.
+ */
+function checkMinimumReleaseAge(
+	registryConfig: RegistryConfig,
+	publisherDid: string,
+	slug: string,
+	packageView: ReleaseHistoryEvidence,
+	releaseView: { indexedAt: string },
+): ApiResult<never> | null {
+	const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
+	let minimumReleaseAgeSeconds = 0;
+	if (minimumReleaseAge !== undefined) {
+		// Normally rejected by `normalizeRegistryConfig`, but a config-mutation
+		// path could re-enter with a bad value; surface it as a structured error
+		// rather than a generic 500.
+		try {
+			minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
+		} catch (err) {
+			return {
+				success: false,
+				error: {
+					code: "REGISTRY_POLICY_INVALID",
+					message:
+						err instanceof Error
+							? err.message
+							: "Invalid minimumReleaseAge value in registry config",
+				},
+			};
+		}
+	}
+	if (minimumReleaseAgeSeconds > 0) {
+		const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
+			e.trim().toLowerCase(),
+		);
+		const exempt =
+			releaseExemptFromMinimumAge(exclude, publisherDid, slug) || isProvenFirstRelease(packageView);
+		if (!exempt) {
+			const indexedAt = Date.parse(releaseView.indexedAt);
+			if (!Number.isFinite(indexedAt)) {
+				return {
+					success: false,
+					error: {
+						code: "RELEASE_TIMESTAMP_INVALID",
+						message:
+							"Release record is missing a valid indexed-at timestamp; cannot evaluate minimum release age policy.",
+					},
+				};
+			}
+			const ageSeconds = (Date.now() - indexedAt) / 1000;
+			if (ageSeconds < minimumReleaseAgeSeconds) {
+				const remaining = Math.ceil(minimumReleaseAgeSeconds - ageSeconds);
+				return {
+					success: false,
+					error: {
+						code: "RELEASE_TOO_NEW",
+						message:
+							`This release does not meet the configured minimum release age of ` +
+							`${minimumReleaseAgeSeconds}s. It will be installable in ~${remaining}s.`,
+					},
+				};
+			}
+		}
+	}
+	return null;
 }
 
 /**
@@ -645,9 +725,11 @@ export async function handleRegistryInstall(
 		}
 		const records = authoritative.value;
 		const { profile, release } = records.inspection.value;
+		// The public listing may retain an older approved profile during metadata
+		// review. Release identity must still match; policy and consent use the
+		// current, independently verified PDS profile rather than the listing.
 		if (
 			packageView.uri !== records.profile.uri ||
-			packageView.cid !== records.profile.cid ||
 			releaseView.uri !== records.release.uri ||
 			releaseView.cid !== records.release.cid
 		) {
@@ -670,9 +752,11 @@ export async function handleRegistryInstall(
 			if (consentError) return consentError;
 		}
 
-		const packageYanked =
-			hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", records.profile) ||
-			hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", records.profile);
+		const packageYanked = [packageView, records.profile].some(
+			(record) =>
+				hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", record) ||
+				hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", record),
+		);
 		if (packageYanked) {
 			return {
 				success: false,
@@ -698,73 +782,15 @@ export async function handleRegistryInstall(
 		// Step 3a: enforce the configured minimum release age. The browser
 		// applies the same check up front for UX, but the gate lives here
 		// -- a stale browser tab, a deep link, or a non-admin-UI caller
-		// must still hit the holdback. The `minimumReleaseAgeExclude`
-		// allowlist short-circuits the check for trusted publisher DIDs.
-		//
-		// `releaseView.indexedAt` is aggregator operational data, not part
-		// of the signed release. The release schema has no publication
-		// timestamp, so minimum age remains a local discovery holdback
-		// rather than a cryptographic property. A missing or malformed
-		// timestamp fails closed.
-		// `registryConfig` is the user-supplied integration option, not
-		// the normalized manifest shape, so the duration parse runs once
-		// per install. Catch a malformed value here -- normally caught at
-		// `normalizeRegistryConfig` time, but a future config-mutation
-		// path could re-enter with a bad value -- and surface it as a
-		// structured error rather than letting it bubble out as a generic
-		// 500.
-		const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
-		let minimumReleaseAgeSeconds = 0;
-		if (minimumReleaseAge !== undefined) {
-			try {
-				minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
-			} catch (err) {
-				return {
-					success: false,
-					error: {
-						code: "REGISTRY_POLICY_INVALID",
-						message:
-							err instanceof Error
-								? err.message
-								: "Invalid minimumReleaseAge value in registry config",
-					},
-				};
-			}
-		}
-		if (minimumReleaseAgeSeconds > 0) {
-			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
-				e.trim().toLowerCase(),
-			);
-			const exempt =
-				releaseExemptFromMinimumAge(exclude, publisherDid, slug) ||
-				isProvenFirstRelease(packageView);
-			if (!exempt) {
-				const indexedAt = Date.parse(releaseView.indexedAt);
-				if (!Number.isFinite(indexedAt)) {
-					return {
-						success: false,
-						error: {
-							code: "RELEASE_TIMESTAMP_INVALID",
-							message:
-								"Release record is missing a valid indexed-at timestamp; cannot evaluate minimum release age policy.",
-						},
-					};
-				}
-				const ageSeconds = (Date.now() - indexedAt) / 1000;
-				if (ageSeconds < minimumReleaseAgeSeconds) {
-					const remaining = Math.ceil(minimumReleaseAgeSeconds - ageSeconds);
-					return {
-						success: false,
-						error: {
-							code: "RELEASE_TOO_NEW",
-							message:
-								`This release does not meet the configured minimum release age of ` +
-								`${minimumReleaseAgeSeconds}s. It will be installable in ~${remaining}s.`,
-						},
-					};
-				}
-			}
-		}
+		// must still hit the holdback.
+		const releaseAgeError = checkMinimumReleaseAge(
+			registryConfig,
+			publisherDid,
+			slug,
+			packageView,
+			releaseView,
+		);
+		if (releaseAgeError) return releaseAgeError;
 
 		// Derive the normalized opaque plugin id we'll use as the
 		// runtime-wide identifier from here on. The publisher_did + slug
@@ -1012,11 +1038,8 @@ export async function handleRegistryInstall(
 		// Step 7: store in R2 under the registry prefix.
 		await storeBundleInR2(storage, pluginId, version, bundle, "registry");
 
-		// Step 8: write plugin state.
-		// Display name and description come from the *package profile*
-		// (the signed record from the publisher's repo), not from the
-		// bundle manifest -- the manifest carries the trust contract,
-		// the profile carries the marketing copy.
+		// Step 8: write plugin state. Display text follows the approved listing
+		// when the current signed profile is not yet projected.
 		//
 		// On failure, we may need to clean up the R2 bundle we just
 		// wrote. But two parallel installs of the same (did, slug,
@@ -1041,11 +1064,12 @@ export async function handleRegistryInstall(
 		// Cleanup is best-effort; if it also fails, the row failure
 		// still surfaces to the caller and the orphan R2 bundle costs
 		// only the storage of a single checksum-verified zip.
+		const displayProfile = packageView.cid === records.profile.cid ? profile : packageView.profile;
 		try {
 			await stateRepo.upsert(pluginId, version, "active", {
 				source: "registry",
-				displayName: profile.name ?? slug,
-				description: profile.description ?? undefined,
+				displayName: displayProfile?.name ?? slug,
+				description: displayProfile?.description ?? undefined,
 				registryPublisherDid: publisherDid,
 				registrySlug: slug,
 			});
@@ -1150,7 +1174,11 @@ export async function handleRegistryUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
+	opts?: {
+		deleteData?: boolean;
+		rollbackInstall?: boolean;
+		beforeDelete?: () => Promise<void>;
+	},
 ): Promise<ApiResult<RegistryUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -1176,8 +1204,9 @@ export async function handleRegistryUninstall(
 		// idempotent bundle delete, leaving the state row and bundle intact if a
 		// transient database error makes the uninstall retryable.
 		let dataDeleted = false;
-		if (opts?.deleteData) {
+		if (opts?.deleteData && !opts.rollbackInstall) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 			dataDeleted = true;
 		}
 
@@ -1401,6 +1430,38 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
+		// Only an explicitly requested version is order-checked: on the latest
+		// path the aggregator selects the version, and a publisher yanking the
+		// newest release is how a rollback reaches installed sites.
+		if (opts?.version !== undefined) {
+			const order = compareVersions(newVersion, oldVersion);
+			if (order === null) {
+				return {
+					success: false,
+					error: {
+						code: "INVALID_VERSION",
+						message: "Installed or requested version is not valid semver",
+					},
+				};
+			}
+			if (order < 0) {
+				return {
+					success: false,
+					error: {
+						code: "DOWNGRADE_NOT_ALLOWED",
+						message: "An update cannot target a version older than the installed one",
+					},
+				};
+			}
+		}
+		const releaseAgeError = checkMinimumReleaseAge(
+			registryConfig,
+			publisherDid,
+			slug,
+			packageView,
+			releaseView,
+		);
+		if (releaseAgeError) return releaseAgeError;
 		const authoritative = await (opts?.readAuthoritativeRecords ?? readAuthoritativePackageRelease)(
 			publisherDid,
 			slug,
@@ -1412,9 +1473,11 @@ export async function handleRegistryUpdate(
 		}
 		const records = authoritative.value;
 		const { profile, release } = records.inspection.value;
+		// The public listing may retain an older approved profile during metadata
+		// review. Release identity must still match; policy and consent use the
+		// current, independently verified PDS profile rather than the listing.
 		if (
 			packageView.uri !== records.profile.uri ||
-			packageView.cid !== records.profile.cid ||
 			releaseView.uri !== records.release.uri ||
 			releaseView.cid !== records.release.cid
 		) {
@@ -1426,9 +1489,11 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
-		const packageYanked =
-			hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", records.profile) ||
-			hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", records.profile);
+		const packageYanked = [packageView, records.profile].some(
+			(record) =>
+				hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", record) ||
+				hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", record),
+		);
 		if (packageYanked) {
 			return {
 				success: false,
@@ -1603,14 +1668,14 @@ export async function handleRegistryUpdate(
 		// so a retry of the same update is idempotent.
 		await storeBundleInR2(storage, pluginId, newVersion, bundle, "registry");
 
-		// Refresh display metadata from the same signed profile used for
-		// release-policy verification.
+		// Keep unreviewed profile text out of the installed listing metadata.
+		const displayProfile = packageView.cid === records.profile.cid ? profile : packageView.profile;
 		await stateRepo.upsert(pluginId, newVersion, "active", {
 			source: "registry",
 			registryPublisherDid: publisherDid,
 			registrySlug: slug,
-			displayName: profile.name ?? slug,
-			description: profile.description ?? undefined,
+			displayName: displayProfile?.name ?? slug,
+			description: displayProfile?.description ?? undefined,
 			mcpToolsEnabled: false,
 			mcpToolsConsent: null,
 		});

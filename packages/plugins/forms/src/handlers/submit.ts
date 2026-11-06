@@ -5,6 +5,7 @@
  * Handles spam protection, validation, file uploads, notifications, and webhooks.
  */
 
+import { z } from "astro/zod";
 import type { RouteContext, StorageCollection } from "emdash";
 import { after, PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
@@ -14,7 +15,7 @@ import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
 import type { FormDefinition, Submission, SubmissionFile } from "../types.js";
 import { getFormFields } from "../types.js";
-import { validateSubmission } from "../validation.js";
+import { evaluateCondition, validateSubmission } from "../validation.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -116,7 +117,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 3. Validate submission data
 	const allFields = getFormFields(form);
-	const result = validateSubmission(allFields, input.data);
+	const result = validateSubmission(allFields, input.data, new Set(Object.keys(input.files ?? {})));
 
 	if (!result.valid) {
 		return { success: false, errors: result.errors };
@@ -124,19 +125,26 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 4. Upload files
 	const files: SubmissionFile[] = [];
-	if (input.files && ctx.media && "upload" in ctx.media) {
+	const pending = allFields.flatMap((field) => {
+		if (field.type !== "file") return [];
+		if (field.condition && !evaluateCondition(field.condition, input.data)) return [];
+		const fileData = input.files?.[field.name];
+		return fileData ? [{ field, fileData }] : [];
+	});
+	if (pending.length > 0 && !(ctx.media && "upload" in ctx.media)) {
+		throw PluginRouteError.internal("File uploads are not configured");
+	}
+	if (pending.length > 0) {
 		const mediaWithWrite = ctx.media as {
 			upload(
 				filename: string,
 				contentType: string,
 				bytes: ArrayBuffer,
 			): Promise<{ mediaId: string; storageKey: string; url: string }>;
+			delete(id: string): Promise<boolean>;
 		};
 
-		for (const field of allFields.filter((f) => f.type === "file")) {
-			const fileData = input.files[field.name];
-			if (!fileData) continue;
-
+		for (const { field, fileData } of pending) {
 			// Validate file type
 			if (field.validation?.accept) {
 				const allowed = field.validation.accept.split(",").map((s) => s.trim().toLowerCase());
@@ -161,20 +169,27 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
 				);
 			}
+		}
 
-			const uploaded = await mediaWithWrite.upload(
-				fileData.filename,
-				fileData.contentType,
-				fileData.bytes,
-			);
+		try {
+			for (const { field, fileData } of pending) {
+				const uploaded = await mediaWithWrite.upload(
+					fileData.filename,
+					fileData.contentType,
+					fileData.bytes.buffer,
+				);
 
-			files.push({
-				fieldName: field.name,
-				filename: fileData.filename,
-				contentType: fileData.contentType,
-				size: fileData.bytes.byteLength,
-				mediaId: uploaded.mediaId,
-			});
+				files.push({
+					fieldName: field.name,
+					filename: fileData.filename,
+					contentType: fileData.contentType,
+					size: fileData.bytes.byteLength,
+					mediaId: uploaded.mediaId,
+				});
+			}
+		} catch (error) {
+			await Promise.allSettled(files.map((file) => mediaWithWrite.delete(file.mediaId)));
+			throw error;
 		}
 	}
 
@@ -206,6 +221,24 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
+	// The submitter's address (already validated): the recipient of the autoresponder. A required
+	// email field wins over an optional one before it, such as a business's public address, and an
+	// email field left empty is skipped rather than ending the search.
+	const filledEmail = (f: (typeof allFields)[number]) => {
+		const value = result.data[f.name];
+		return f.type === "email" && typeof value === "string" && value ? value : undefined;
+	};
+	const submitterEmail =
+		allFields
+			.filter((f) => f.required)
+			.map(filledEmail)
+			.find(Boolean) ?? allFields.map(filledEmail).find(Boolean);
+	// The reply address of the notifications, only when it's a plain address. The field's own check
+	// lets through values like `"IT-Support"<someone@example.com>` or `jane@example.com,`, which
+	// would show the team a made-up name or get the notification rejected.
+	const replyTo =
+		submitterEmail && z.email().safeParse(submitterEmail).success ? submitterEmail : undefined;
+
 	// 7. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
 		const text = formatSubmissionText(form, result.data, files);
@@ -215,6 +248,8 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					to: email,
 					subject: `New submission: ${form.name}`,
 					text,
+					// Replying to the notification reaches the submitter, not the site's sender address.
+					...(replyTo ? { replyTo } : {}),
 				})
 				.catch((err: unknown) => {
 					ctx.log.error("Failed to send notification email", {
@@ -226,20 +261,16 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 	}
 
 	// 8. Autoresponder
-	if (settings.autoresponder && ctx.email) {
-		const emailField = allFields.find((f) => f.type === "email");
-		const submitterEmail = emailField ? result.data[emailField.name] : null;
-		if (typeof submitterEmail === "string" && submitterEmail) {
-			await ctx.email
-				.send({
-					to: submitterEmail,
-					subject: settings.autoresponder.subject,
-					text: settings.autoresponder.body,
-				})
-				.catch((err: unknown) => {
-					ctx.log.error("Failed to send autoresponder", { error: String(err) });
-				});
-		}
+	if (settings.autoresponder && ctx.email && submitterEmail) {
+		await ctx.email
+			.send({
+				to: submitterEmail,
+				subject: settings.autoresponder.subject,
+				text: settings.autoresponder.body,
+			})
+			.catch((err: unknown) => {
+				ctx.log.error("Failed to send autoresponder", { error: String(err) });
+			});
 	}
 
 	// 9. Webhook, deferred past the response rather than dropped.

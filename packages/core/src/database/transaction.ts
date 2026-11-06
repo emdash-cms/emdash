@@ -16,11 +16,22 @@
 
 import type { Kysely, Transaction } from "kysely";
 
+import { deferObjectCacheInvalidations } from "../object-cache/index.js";
+
 /**
  * Run a callback inside a transaction if supported, or directly if not.
  *
  * Probes the database once on first call to determine if transactions work.
  * The result is cached for the lifetime of the process/worker.
+ *
+ * Where a real transaction is used, object-cache invalidations made by `fn`
+ * are held until it commits or rolls back: an epoch bumped mid-transaction
+ * would let a concurrent read cache the pre-write rows under the new epoch,
+ * where they keep matching and are served as a HIT. Backends without
+ * transactions commit each statement as it runs, so no such window exists;
+ * deferring there would only add risk, since a callback cancelled mid-flight
+ * (a client disconnect on workerd) would never run the release and would
+ * leave a committed write without its bump.
  */
 let transactionsSupported: boolean | null = null;
 const TRANSACTIONS_NOT_SUPPORTED_RE = /transactions are not supported/i;
@@ -29,10 +40,21 @@ export async function withTransaction<DB, T>(
 	db: Kysely<DB>,
 	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
 ): Promise<T> {
-	if (db.isTransaction) return fn(db);
+	// Nested call: `db` is already a transaction. Kysely rejects calling
+	// `.transaction()` on a `Transaction` outright (a hard error, not the
+	// "transactions are not supported" message the probe below expects), so a
+	// naive nested `withTransaction(trx, ...)` call would always throw on any
+	// dialect that supports real transactions. Running `fn` directly against
+	// the existing transaction makes the nested work part of the enclosing
+	// one — exactly what nested callers (e.g. a handler composing two
+	// repositories that each self-wrap in `withTransaction`) want: the whole
+	// chain commits or rolls back together.
+	if (db.isTransaction) {
+		return fn(db);
+	}
 	// Fast path: we already know transactions work
 	if (transactionsSupported === true) {
-		return db.transaction().execute(fn);
+		return deferObjectCacheInvalidations(() => db.transaction().execute(fn));
 	}
 
 	// Fast path: we already know they don't
@@ -42,7 +64,7 @@ export async function withTransaction<DB, T>(
 
 	// First call: probe
 	try {
-		const result = await db.transaction().execute(fn);
+		const result = await deferObjectCacheInvalidations(() => db.transaction().execute(fn));
 		transactionsSupported = true;
 		return result;
 	} catch (error) {

@@ -4,6 +4,8 @@
 
 const DEFAULT_REDIRECT = "/_emdash/admin";
 const LEADING_SLASHES = /^\/+/;
+// eslint-disable-next-line no-control-regex -- rejecting control characters is the whole point of this regex
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 export interface ContentUrlOptions {
 	locale?: string | null;
@@ -22,13 +24,19 @@ export interface ContentUrlOptions {
  * Sanitize a redirect URL to prevent open-redirect and javascript: XSS attacks.
  *
  * Only allows relative paths starting with `/`. Rejects protocol-relative
- * URLs (`//evil.com`), backslash tricks (`/\evil.com`), and non-path schemes
- * like `javascript:`.
+ * URLs (`//evil.com`), backslash tricks (`/\evil.com`), control characters
+ * (`/\t/evil.com` — browsers strip tab/CR/LF), and non-path schemes like
+ * `javascript:`.
  *
  * Returns the default admin URL when the input is unsafe.
  */
 export function sanitizeRedirectUrl(raw: string): string {
-	if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("\\")) {
+	if (
+		raw.startsWith("/") &&
+		!raw.startsWith("//") &&
+		!raw.includes("\\") &&
+		!CONTROL_CHARACTERS.test(raw)
+	) {
 		return raw;
 	}
 	return DEFAULT_REDIRECT;
@@ -86,6 +94,22 @@ export function contentUrl(
 		locale && i18n && (locale !== i18n.defaultLocale || i18n.prefixDefaultLocale === true);
 
 	return shouldPrefix ? `/${locale}/${path.replace(LEADING_SLASHES, "")}` : path;
+}
+
+const SAFE_HREF_SCHEME_RE = /^(https?:|mailto:|tel:)/i;
+const SITE_RELATIVE_HREF_RE = /^(\/(?![/\\])|#)/;
+const HREF_BASE = new URL("https://emdash.invalid/");
+
+/** Mirrors the API's rule for menu links, so a form refuses exactly what the server refuses. */
+export function isSafeHref(url: string): boolean {
+	if (CONTROL_CHARACTERS.test(url)) return false;
+	if (SAFE_HREF_SCHEME_RE.test(url)) return URL.canParse(url);
+	if (!SITE_RELATIVE_HREF_RE.test(url)) return false;
+	try {
+		return new URL(url, HREF_BASE).origin === HREF_BASE.origin;
+	} catch {
+		return false;
+	}
 }
 
 /** Matches http:// or https:// URLs */

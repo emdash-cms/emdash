@@ -63,7 +63,7 @@
 import { env, waitUntil } from "cloudflare:workers";
 import { EmDashConfigurationError } from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
-import { FailFastPostgresDialect } from "emdash/database/pg-migration-lock";
+import { FailFastPostgresDialect } from "emdash/internal/database/pg-migration-lock";
 import { type Dialect, Kysely, PostgresDialect } from "kysely";
 // `pg` is provided by the consuming site (an optional peer of `emdash`); it is
 // kept external from this package's bundle.

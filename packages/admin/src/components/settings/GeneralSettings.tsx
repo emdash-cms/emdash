@@ -5,28 +5,138 @@
  * (posts per page, date format, timezone).
  */
 
-import { Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import {
+	Autocomplete,
+	Badge,
+	Banner,
+	Button,
+	Input,
+	Loader,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { WarningCircle, Upload, X } from "@phosphor-icons/react";
+import { ArrowSquareOut, WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, type Locale } from "date-fns";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import {
+	createSignInHandover,
+	fetchEmailSettings,
+	fetchManifest,
+	fetchSettings,
+	fetchSiteDomain,
+	notifyUsersOfDomain,
+	updateSettings,
+	type MediaItem,
+	type SiteSettings,
+	type SiteSettingsUpdate,
+} from "../../lib/api";
+import { useCurrentUser } from "../../lib/api/current-user.js";
+import { useDateLocale } from "../../locales/date-locale.js";
+import { ConfirmDialog } from "../ConfirmDialog.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
+import { ChangeDomainDialog } from "./ChangeDomainDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-function generalSettingsSnapshot(settings: Partial<SiteSettings>) {
+const ROLE_ADMIN = 50;
+
+const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
+const exampleDate = new Date(2026, 0, 23);
+function datePreview(pattern: string, locale: Locale): string | null {
+	try {
+		return pattern.trim() ? format(exampleDate, pattern, { locale }) : null;
+	} catch {
+		return null;
+	}
+}
+
+function isValidTimezone(timezone: string): boolean {
+	try {
+		Intl.DateTimeFormat("en", { timeZone: timezone });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
 		title: settings.title ?? "",
 		tagline: settings.tagline ?? "",
-		url: settings.url ?? "",
 		logo: settings.logo ?? null,
 		favicon: settings.favicon ?? null,
 		postsPerPage: settings.postsPerPage ?? 10,
 		dateFormat: settings.dateFormat ?? "MMMM d, yyyy",
 		timezone: settings.timezone ?? "UTC",
 	});
+}
+
+function SiteStatusSection() {
+	const { t } = useLingui();
+	const queryClient = useQueryClient();
+	const toastManager = useKumoToastManager();
+	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
+	const { data: currentUser } = useCurrentUser();
+	const staging = manifest?.staging === true;
+	const isAdmin = !!currentUser && currentUser.role >= ROLE_ADMIN;
+
+	const stagingMutation = useMutation({
+		mutationFn: (next: boolean) => updateSettings({ staging: next }),
+		onSuccess: (_savedSettings, next) => {
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			toastManager.add({
+				title: next ? t`Site switched to staging` : t`Your site is live`,
+				variant: "success",
+				timeout: 3000,
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save settings`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
+			});
+		},
+	});
+
+	if (!manifest) return null;
+
+	return (
+		<SettingsSection title={t`Site Status`}>
+			<SettingRow>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="grid gap-1">
+						<div className="flex items-center gap-2 text-base font-medium">
+							{staging ? t`Staging` : t`Live`}
+							<Badge variant={staging ? "warning" : "success"}>
+								{staging ? t`Hidden from search engines` : t`Visible to search engines`}
+							</Badge>
+						</div>
+						<p className="max-w-xl text-sm leading-5 text-pretty text-kumo-subtle">
+							{staging
+								? t`Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found.`
+								: t`Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch.`}
+						</p>
+					</div>
+					{isAdmin && (
+						<Button
+							type="button"
+							variant={staging ? "primary" : "outline"}
+							className="shrink-0"
+							loading={stagingMutation.isPending}
+							onClick={() => stagingMutation.mutate(!staging)}
+						>
+							{staging ? t`Go live` : t`Switch back to staging`}
+						</Button>
+					)}
+				</div>
+			</SettingRow>
+		</SettingsSection>
+	);
 }
 
 export function GeneralSettings() {
@@ -43,11 +153,32 @@ export function GeneralSettings() {
 		queryFn: fetchSettings,
 		staleTime: Infinity,
 	});
+	const { data: siteDomain } = useQuery({
+		queryKey: ["site-domain"],
+		queryFn: fetchSiteDomain,
+	});
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	const { data: emailSettings } = useQuery({
+		queryKey: ["email-settings"],
+		queryFn: fetchEmailSettings,
+	});
+	const siteHost =
+		siteDomain?.siteOrigin && manifest && (!manifest.authMode || manifest.authMode === "passkey")
+			? new URL(siteDomain.siteOrigin).host
+			: null;
+	const handoverHost = siteDomain?.siteOrigin !== window.location.origin ? siteHost : null;
 
-	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
+	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
+	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
+	const [domainDialogOpen, setDomainDialogOpen] = React.useState(false);
+	const [notifyDialogOpen, setNotifyDialogOpen] = React.useState(false);
+	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
+	const dateLocale = useDateLocale();
 
 	React.useEffect(() => {
 		if (settings) {
@@ -62,7 +193,7 @@ export function GeneralSettings() {
 	);
 
 	const saveMutation = useMutation({
-		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
+		mutationFn: (data: SiteSettingsUpdate) => updateSettings(data),
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -83,9 +214,52 @@ export function GeneralSettings() {
 		},
 	});
 
+	const handoverMutation = useMutation({
+		mutationFn: createSignInHandover,
+		onSuccess: ({ url }) => window.location.assign(url),
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to create a sign-in link`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
+				timeout: 3000,
+			});
+		},
+	});
+
+	const notifyMutation = useMutation({
+		mutationFn: notifyUsersOfDomain,
+		onSuccess: ({ sent, failed }) => {
+			setNotifyDialogOpen(false);
+			toastManager.add({
+				title: plural(sent, { one: "Emailed # user", other: "Emailed # users" }),
+				description:
+					failed > 0
+						? plural(failed, {
+								one: "# email could not be sent. Check the email provider.",
+								other: "# emails could not be sent. Check the email provider.",
+							})
+						: undefined,
+				variant: failed > 0 ? "warning" : "success",
+				timeout: 8000,
+			});
+		},
+	});
+
+	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
+	const preview = datePreview(pattern, dateLocale);
+	const timezone = formData.timezone ?? "UTC";
+	const recognizedTimezone = isValidTimezone(timezone);
+	const savedTimezoneUnchanged = timezone === savedFormData.timezone;
+	const canSaveTimezone = recognizedTimezone || savedTimezoneUnchanged;
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		saveMutation.mutate(formData);
+		setShowTimezoneError(true);
+		if (!canSaveTimezone) return;
+		// The Change domain dialog owns the Site URL.
+		const { url: _url, ...withoutUrl } = formData;
+		saveMutation.mutate(withoutUrl);
 	};
 
 	const handleChange = (key: keyof SiteSettings, value: unknown) => {
@@ -108,12 +282,26 @@ export function GeneralSettings() {
 		setFaviconPickerOpen(false);
 	};
 
+	const handleDomainChanged = (url: string, checked: boolean) => {
+		setDomainDialogOpen(false);
+		setFormData((prev) => ({ ...prev, url }));
+		// Refetching now would reset unsaved edits in this form.
+		void queryClient.invalidateQueries({ queryKey: ["settings"], refetchType: "none" });
+		void queryClient.invalidateQueries({ queryKey: ["site-domain"] });
+		toastManager.add({
+			title: checked ? t`Domain changed to ${url}` : t`Site URL set to ${url}`,
+			description: t`Passkeys only work at the address where they were created.`,
+			variant: "success",
+			timeout: 8000,
+		});
+	};
+
 	const handleLogoRemove = () => {
-		setFormData((prev) => ({ ...prev, logo: undefined }));
+		setFormData((prev) => ({ ...prev, logo: null }));
 	};
 
 	const handleFaviconRemove = () => {
-		setFormData((prev) => ({ ...prev, favicon: undefined }));
+		setFormData((prev) => ({ ...prev, favicon: null }));
 	};
 
 	const title = t`General Settings`;
@@ -160,6 +348,8 @@ export function GeneralSettings() {
 			}
 		>
 			<form id="general-settings-form" onSubmit={handleSubmit} className="grid gap-8">
+				<SiteStatusSection />
+
 				<SettingsSection title={t`Site Identity`}>
 					<SettingRow>
 						<Input
@@ -178,13 +368,71 @@ export function GeneralSettings() {
 						/>
 					</SettingRow>
 					<SettingRow>
-						<Input
-							label={t`Site URL`}
-							type="url"
-							value={formData.url ?? ""}
-							onChange={(e) => handleChange("url", e.target.value)}
-							description={t`The public URL of your site (used for canonical links and sitemaps)`}
-						/>
+						<div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+							<div className="grid gap-1">
+								<div className="text-base font-medium">{t`Site URL`}</div>
+								<p className="text-sm text-kumo-subtle">
+									{t`The public address of your site, used for links in emails and plugins, sitemaps, and absolute URLs in search and social metadata`}
+								</p>
+								{siteDomain?.configuredUrl && (
+									<p className="text-sm text-kumo-subtle">
+										{t`Links in emails and plugins use ${siteDomain.configuredUrl}, set by the deployment configuration.`}
+									</p>
+								)}
+							</div>
+							<div className="flex min-w-0 flex-wrap items-center gap-3 sm:justify-end">
+								<span className="min-w-0 break-all font-mono text-sm" dir="ltr" translate="no">
+									{formData.url || t`Not set`}
+								</span>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => setDomainDialogOpen(true)}
+								>
+									{t`Change domain`}
+								</Button>
+							</div>
+						</div>
+						{handoverHost && (
+							<Banner
+								className="mt-4"
+								title={t`You're signed in at ${window.location.host}`}
+								description={t`Passkeys only work at the address where they were created. Continue on ${handoverHost} to sign in there without a passkey, then add one for that address.`}
+								action={
+									<Button
+										type="button"
+										size="sm"
+										icon={<ArrowSquareOut />}
+										loading={handoverMutation.isPending || handoverMutation.isSuccess}
+										onClick={() => handoverMutation.mutate()}
+									>
+										{t`Continue on ${handoverHost}`}
+									</Button>
+								}
+							/>
+						)}
+						{siteHost && (
+							<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-kumo-line pt-4">
+								<div className="grid min-w-0 gap-1">
+									<div className="text-sm font-medium">{t`Tell users where to sign in`}</div>
+									<p className="text-sm text-kumo-subtle">
+										{emailSettings?.available === false
+											? t`Set up an email provider in Email settings to email users.`
+											: t`Email every other user a link to the sign-in page at ${siteHost}.`}
+									</p>
+								</div>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled={!emailSettings?.available}
+									onClick={() => setNotifyDialogOpen(true)}
+								>
+									{t`Email users`}
+								</Button>
+							</div>
+						)}
 					</SettingRow>
 
 					<SettingRow>
@@ -322,19 +570,48 @@ export function GeneralSettings() {
 					</SettingRow>
 					<SettingRow>
 						<Input
+							dir="ltr"
 							label={t`Date Format`}
-							value={formData.dateFormat ?? "MMMM d, yyyy"}
+							value={pattern}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
-							description={t`Example: ${formData.dateFormat ?? "MMMM d, yyyy"} → January 23, 2026`}
+							description={
+								preview === null
+									? t`Preview unavailable for this format`
+									: t`Example: ${pattern} → ${preview}`
+							}
 						/>
 					</SettingRow>
 					<SettingRow>
-						<Input
+						<Autocomplete
 							label={t`Timezone`}
-							value={formData.timezone ?? "UTC"}
-							onChange={(e) => handleChange("timezone", e.target.value)}
-							description={t`Timezone for displaying dates (e.g., America/New_York)`}
-						/>
+							items={timezones}
+							value={timezone}
+							onValueChange={(value: string) => handleChange("timezone", value)}
+							description={
+								recognizedTimezone
+									? t`Search for an IANA timezone (e.g., Europe/London)`
+									: savedTimezoneUnchanged
+										? t`This saved timezone isn't recognized. Choose a suggestion for reliable date display.`
+										: t`Choose a recognized timezone for reliable date display.`
+							}
+							error={
+								showTimezoneError && !canSaveTimezone
+									? t`Enter a recognized timezone to save`
+									: undefined
+							}
+						>
+							<Autocomplete.InputGroup placeholder={t`Search timezones…`} />
+							<Autocomplete.Content>
+								<Autocomplete.List className="max-h-64 overflow-y-auto">
+									{(item: string) => (
+										<Autocomplete.Item key={item} value={item}>
+											{item}
+										</Autocomplete.Item>
+									)}
+								</Autocomplete.List>
+								<Autocomplete.Empty>{t`No matching timezones`}</Autocomplete.Empty>
+							</Autocomplete.Content>
+						</Autocomplete>
 					</SettingRow>
 				</SettingsSection>
 
@@ -364,6 +641,30 @@ export function GeneralSettings() {
 				localOnly
 				title={t`Select favicon`}
 			/>
+			<ChangeDomainDialog
+				open={domainDialogOpen}
+				currentUrl={formData.url || undefined}
+				configuredUrl={siteDomain?.configuredUrl ?? undefined}
+				onClose={() => setDomainDialogOpen(false)}
+				onChanged={handleDomainChanged}
+			/>
+			{siteHost && (
+				<ConfirmDialog
+					open={notifyDialogOpen}
+					onClose={() => {
+						setNotifyDialogOpen(false);
+						notifyMutation.reset();
+					}}
+					variant="primary"
+					title={t`Email all users?`}
+					description={t`Every other user with an active account gets an email saying the site is now at ${siteHost}, with a link to sign in there. Passkeys from another address don't work at ${siteHost}, so users sign in with an email link and add a new passkey.`}
+					confirmLabel={t`Send emails`}
+					pendingLabel={t`Sending...`}
+					isPending={notifyMutation.isPending}
+					error={notifyMutation.error}
+					onConfirm={() => notifyMutation.mutate()}
+				/>
+			)}
 		</SettingsFrame>
 	);
 }

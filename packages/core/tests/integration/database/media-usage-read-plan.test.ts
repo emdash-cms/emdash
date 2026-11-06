@@ -5,13 +5,15 @@
  * planner. Dialect result parity is covered by media-usage-read-repository.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
+import { MEDIA_USAGE_SITE_SETTING_OPTIONS } from "../../../src/media/usage/site-settings.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 
@@ -20,7 +22,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let repo: MediaUsageRepository;
 let captured: CapturedQuery[];
@@ -97,10 +99,10 @@ it("seeks batched counts through the media/source/generation index", async () =>
 });
 
 it("loads coverage and one grouped page in one statement each", async () => {
-	await repo.findCollectionIndexStatusScopes({
-		adapterId: "content-media",
-		scopeType: "collection",
-	});
+	await repo.findCoverageWithOptions(
+		{ adapterId: "content-media", scopeType: "collection" },
+		MEDIA_USAGE_SITE_SETTING_OPTIONS,
+	);
 	await repo.findCurrentEntryUsagePageByMediaId("media-shared", { limit: 1 });
 
 	const coverageQueries = captured.filter(
@@ -170,7 +172,7 @@ it("keeps a high-cardinality grouped read to one indexed statement", async () =>
 	expect(plan).not.toContain("SCAN u");
 });
 
-/** better-sqlite3 only binds primitives; coerce values captured from Kysely. */
+/** Normalize application values captured from Kysely for direct driver binding. */
 function bindable(parameter: unknown): unknown {
 	if (typeof parameter === "boolean") return parameter ? 1 : 0;
 	if (parameter instanceof Date) return parameter.toISOString();

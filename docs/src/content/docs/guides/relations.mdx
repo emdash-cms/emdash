@@ -1,0 +1,168 @@
+---
+title: Relations
+description: Link entries across content types with relations and reference fields, pick entries in the editor, and read the links in a template.
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+A relation joins two collections and owns the links between their entries: a post's author, a
+lesson's chapters, a product's related products. A [`reference` field](/reference/field-types/#reference)
+views one relation from one end and gives editors a picker for it.
+
+Because the relation owns the links, both of its collections can edit one set of them. The slug, the
+name each side goes by, and the limit on how many entries each side may link belong to the relation,
+so a field on posts and a field on authors cannot disagree about the same links. EmDash stores the
+links outside both collection tables, keyed by each entry's translation group, so every translation
+of an entry shares one selection.
+
+The ends are the linking side and the linked side. In a relation from posts to authors, a field on
+posts picks the authors a post links to, and a field on authors lists the posts that link to it.
+
+## Add a relation
+
+Both content types must exist before you can join them.
+
+<Steps>
+
+1. Open **Content Types** in the admin, then **Relations**.
+
+2. Click **New Relation**, then choose the two content types. **Links from** is the side that picks;
+   **Links to** is the side that is picked.
+
+3. Under **Roles**, name each side in the plural and the singular. The names are filled in from the
+   content types and can be edited. A reference field takes the name of the side it picks from.
+
+4. Check the **Slug**. It follows the names, and reference fields store it.
+
+5. Under **How many**, set each side's limit: **One**, **Any number**, or **At most** with a
+   **Maximum** you give. Both fields bound to the relation share these limits.
+
+6. Create the relation.
+
+</Steps>
+
+The two content types and the slug are fixed once the relation exists. Every link is keyed by the
+relation, so moving an end would point stored links at content of the wrong type. To join different
+content types, create another relation.
+
+The names and the limits stay editable. Lowering a limit leaves existing links in place, and saving
+an entry whose selection exceeds the new limit is refused until the selection fits.
+
+A content type's own page lists the relations it is an end of, in a **Relations** panel under its
+fields. New, edit, and delete work the same way there.
+
+## Add a reference field
+
+<Steps>
+
+1. Open the content type under **Content Types** and click **Add Field**.
+
+2. Choose **Reference**.
+
+3. Select the relationship to bind to. The last choice, **Create relation**, opens the relationship
+   form in the same dialog and returns with the new relationship selected; on a site with no
+   relations yet it is the only choice.
+
+4. For a relationship whose two ends are the same content type, set **This field picks** to
+   **Entries this one links to** or **Entries that link to this one**. Anywhere else the field's own
+   content type decides the end, and the field picks entries from the other one.
+
+5. Check the label and slug. The label comes from the side the field picks, and renaming the field
+   later renames that side of the relationship.
+
+6. Add the field.
+
+</Steps>
+
+One relation takes one field per end, so a second field over the same end is refused: two pickers
+writing the same links have no defined result. To let both content types edit one set of links, add
+a field on each end of the same relation.
+
+A reference field cannot be marked searchable or indexed, because it stores no column of its own.
+Content-list filters and site search do not cover it.
+
+## Pick entries in the editor
+
+The field renders as a picker in the entry editor. **Add reference** opens a search over the
+referenced content type; a field limited to one entry offers **Replace reference** once it holds
+one. Each picked entry can be opened in a new tab, removed, or, on a field that picks the linked
+side, moved up and down to set the order a template reads them in. A field that picks the linking
+side lists the entries that link to this one, which carry no order of their own.
+
+Selections save with the entry, in one request. On a collection that keeps revisions, changing a
+selection on a published entry stages it in the draft with the entry's other pending edits: it goes
+live when the entry is published, and is discarded with the draft. A preview of the entry shows the
+staged selection.
+
+## See what links to an entry
+
+Add a reference field on the other end of the relationship. A field that picks the linking side
+lists the entries that link to this one, so an author editing a page sees the posts that point at
+it, and can change that set from either end.
+
+## Read links in a template
+
+Reference fields are not part of an entry's `data`. Name the fields a page renders in the
+`references` option, and each comes back as a page of entries:
+
+```astro title="src/pages/posts/[slug].astro"
+---
+import { getEmDashEntry } from "emdash";
+
+const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
+  references: { author: true },
+});
+
+const author = post?.references?.author.entries[0];
+---
+
+<h1>{post?.data.title}</h1>
+{author && <p>By {author.data.name}</p>}
+```
+
+[Read reference fields](/guides/querying-content/#read-reference-fields) covers pagination, preview
+behavior, generated types, and what each call costs in queries.
+
+## Declare a relation in a seed
+
+A [seed file](/themes/seed-files/#relations) declares relations in a top-level `relations` array, and
+a reference field binds to one by slug. A field that names a `targetCollection` instead has a
+relation created for it. `emdash export-seed` emits a site's relations, and `--with-content` emits
+each entry's links, so a site's selections survive an export and re-apply.
+
+## Delete a field or a relation
+
+Deleting a reference field offers to delete the relationship it uses as well, and names what that
+takes with it: the relationship, the links stored under it, and the field on the other content type.
+Clear the checkbox to keep the relationship and its links, for example when the field on its other
+end still uses them.
+
+Deleting a relationship always removes its links and the fields bound to it. Deleting a content type
+removes every relationship it is an end of, along with the fields on the other content types that
+view them; the confirmation lists them.
+
+## Bind a field that has no relation
+
+A reference field with no relation holds one entry ID in a text box instead of picking entries. Give
+it a relation to turn it into a picker.
+
+<Steps>
+
+1. Open the content type under **Content Types** and click the edit action on the field's row.
+
+2. Choose a **Referenced collection**, and set **Allow multiple references** if the field should
+   hold more than one entry.
+
+3. Save the field.
+
+</Steps>
+
+EmDash creates a relation named after the field and its content type, copies the entry IDs the
+field's column holds in as links, and clears the field's searchable and indexed flags, so
+content-list filters and site search stop covering it. The relation takes no limit on how many
+entries link back the other way. The column is left in place and stops being written; edit the
+relation on the **Relations** page to rename its sides or set the second limit.
+
+A site updated from an earlier release can hold fields in this state. See
+[Reference fields bind to relations](/deployment/updating/#changed-reference-fields-bind-to-relations)
+for what the update binds and what it leaves for you.

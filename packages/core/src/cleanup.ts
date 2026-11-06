@@ -12,8 +12,10 @@
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 
+import { ACCESS_TOKEN_TTL_SECONDS } from "./auth/api-tokens.js";
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
 import { MediaRepository } from "./database/repositories/media.js";
+import { RedirectRepository } from "./database/repositories/redirect.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
@@ -27,15 +29,55 @@ import type { Storage } from "./storage/types.js";
 export interface CleanupResult {
 	challenges: number;
 	expiredTokens: number;
+	oauthTokens: number;
+	authorizationCodes: number;
+	deviceCodes: number;
 	pendingUploads: number;
 	pendingUploadFiles: number;
 	uploadAttempts: number;
 	revisionsPruned: number;
 	mediaUsage: number;
+	/** Oldest 404-log rows deleted to restore the hard cap. */
+	notFoundLog: number;
+	/** Transfer operations whose staging area was collected. */
+	transferStaging: number;
 }
 
 const REVISION_KEEP_COUNT = 50;
 const REVISION_PRUNE_BATCH_SIZE = 10;
+
+/**
+ * Revoking a refresh token finds the access tokens issued from it through its
+ * row, and those can outlive it by one access token lifetime. A device code's
+ * row is what lets a client that is still polling get `expired_token`.
+ */
+const OAUTH_EXPIRY_GRACE_MS = ACCESS_TOKEN_TTL_SECONDS * 1000;
+
+/** Target cadence for full system cleanup. */
+export const SYSTEM_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * Tolerance when comparing the last cleanup time to the interval. Allows
+ * a tick that fires slightly before the exact hour to still be treated as
+ * the hourly cleanup when the previous one ran at the start of the hour.
+ */
+const SYSTEM_CLEANUP_INTERVAL_TOLERANCE_MS = 5 * 60 * 1000;
+
+/**
+ * Decide whether the full system cleanup should run for this tick.
+ *
+ * Bookkeeping cleanup is expensive on serverless free tiers with tight CPU
+ * budgets, so it runs once per hour on the top of the hour. The per-minute
+ * path keeps only scheduled publishing, cron tasks, and the heartbeat.
+ */
+export function shouldRunSystemCleanup(currentTime: Date, lastRunAt?: Date | null): boolean {
+	if (currentTime.getUTCMinutes() !== 0) return false;
+	if (!lastRunAt) return true;
+	return (
+		currentTime.getTime() - lastRunAt.getTime() >=
+		SYSTEM_CLEANUP_INTERVAL_MS - SYSTEM_CLEANUP_INTERVAL_TOLERANCE_MS
+	);
+}
 
 /**
  * Run all system cleanup tasks.
@@ -55,11 +97,16 @@ export async function runSystemCleanup(
 	const result: CleanupResult = {
 		challenges: -1,
 		expiredTokens: -1,
+		oauthTokens: -1,
+		authorizationCodes: -1,
+		deviceCodes: -1,
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
 		revisionsPruned: -1,
 		mediaUsage: -1,
+		notFoundLog: -1,
+		transferStaging: -1,
 	};
 
 	// 1. Passkey challenges (expire after 60s, clean anything past 5 min)
@@ -129,6 +176,36 @@ export async function runSystemCleanup(
 		console.error("[cleanup] Failed to clean media upload attempts:", error);
 	}
 
+	const oauthCutoff = new Date(Date.now() - OAUTH_EXPIRY_GRACE_MS).toISOString();
+
+	try {
+		const deleted = await db
+			.deleteFrom("_emdash_oauth_tokens")
+			.where("expires_at", "<", oauthCutoff)
+			.executeTakeFirst();
+		result.oauthTokens = Number(deleted.numDeletedRows);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired OAuth tokens:", error);
+	}
+
+	try {
+		const { cleanupExpiredAuthorizationCodes } =
+			await import("./api/handlers/oauth-authorization.js");
+		result.authorizationCodes = await cleanupExpiredAuthorizationCodes(db);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired authorization codes:", error);
+	}
+
+	try {
+		const deleted = await db
+			.deleteFrom("_emdash_device_codes")
+			.where("expires_at", "<", oauthCutoff)
+			.executeTakeFirst();
+		result.deviceCodes = Number(deleted.numDeletedRows);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired device codes:", error);
+	}
+
 	try {
 		result.revisionsPruned = await pruneQueuedRevisions(db);
 	} catch (error) {
@@ -140,6 +217,23 @@ export async function runSystemCleanup(
 		result.mediaUsage = mediaUsage.status === "failed" ? -1 : mediaUsage.deletedRows;
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media usage:", error);
+	}
+
+	try {
+		result.notFoundLog = await new RedirectRepository(db).cleanup404Log();
+	} catch (error) {
+		console.error("[cleanup] Failed to cap the 404 log:", error);
+	}
+
+	if (storage) {
+		try {
+			const { collectTransferStaging } = await import("./transfer/gc.js");
+			result.transferStaging = (await collectTransferStaging(db, storage)).collected;
+		} catch (error) {
+			console.error("[transfer] Failed to collect transfer staging:", error);
+		}
+	} else {
+		result.transferStaging = 0;
 	}
 
 	return result;

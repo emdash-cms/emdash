@@ -5,14 +5,26 @@ import {
 	type AuthoritativeRecordReader,
 } from "./authoritative-records.js";
 
-export interface RegistryAuthoritativeFixture {
+interface RegistryAuthoritativeFixtureBase {
 	publisherDid: string;
 	packageSlug: string;
-	version: string;
 	profileCid: string;
-	releaseCid: string;
 	profile: unknown;
-	release: unknown;
+}
+
+export type RegistryAuthoritativeFixture = RegistryAuthoritativeFixtureBase &
+	(
+		| { version: string; releaseCid: string; release: unknown; releases?: never }
+		| {
+				releases: Array<{ version: string; releaseCid: string; release: unknown }>;
+				version?: never;
+				releaseCid?: never;
+				release?: never;
+		  }
+	);
+
+interface NormalizedRegistryAuthoritativeFixture extends RegistryAuthoritativeFixtureBase {
+	releases: Array<{ version: string; releaseCid: string; release: unknown }>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -24,28 +36,61 @@ export function installRegistryAuthoritativeFixture(input: unknown): void {
 		!isRecord(input) ||
 		typeof input.publisherDid !== "string" ||
 		typeof input.packageSlug !== "string" ||
-		typeof input.version !== "string" ||
 		typeof input.profileCid !== "string" ||
-		typeof input.releaseCid !== "string" ||
 		!("profile" in input) ||
-		!("release" in input)
+		(!("releases" in input) &&
+			!(
+				typeof input.version === "string" &&
+				typeof input.releaseCid === "string" &&
+				"release" in input
+			))
 	) {
 		throw new TypeError("Registry authoritative fixture is invalid");
 	}
-	const fixture: RegistryAuthoritativeFixture = {
+	let releases: Array<{ version: string; releaseCid: string; release: unknown }>;
+	if (Array.isArray(input.releases)) {
+		releases = input.releases.filter(
+			(value): value is { version: string; releaseCid: string; release: unknown } =>
+				isRecord(value) &&
+				typeof value.version === "string" &&
+				typeof value.releaseCid === "string" &&
+				"release" in value,
+		);
+	} else {
+		if (
+			typeof input.version !== "string" ||
+			typeof input.releaseCid !== "string" ||
+			!("release" in input)
+		) {
+			throw new TypeError("Registry authoritative fixture release is invalid");
+		}
+		releases = [
+			{
+				version: input.version,
+				releaseCid: input.releaseCid,
+				release: input.release,
+			},
+		];
+	}
+	if (
+		releases.length === 0 ||
+		(Array.isArray(input.releases) && releases.length !== input.releases.length)
+	) {
+		throw new TypeError("Registry authoritative fixture releases are invalid");
+	}
+	const fixture: NormalizedRegistryAuthoritativeFixture = {
 		publisherDid: input.publisherDid,
 		packageSlug: input.packageSlug,
-		version: input.version,
 		profileCid: input.profileCid,
-		releaseCid: input.releaseCid,
 		profile: input.profile,
-		release: input.release,
+		releases,
 	};
 	const reader: AuthoritativeRecordReader = async (publisherDid, packageSlug, version) => {
+		const fixtureRelease = fixture.releases.find((release) => release.version === version);
 		if (
 			publisherDid !== fixture.publisherDid ||
 			packageSlug !== fixture.packageSlug ||
-			version !== fixture.version
+			!fixtureRelease
 		) {
 			return {
 				success: false,
@@ -63,7 +108,7 @@ export function installRegistryAuthoritativeFixture(input: unknown): void {
 			rkey,
 			profileCid: fixture.profileCid,
 			profile: fixture.profile,
-			release: fixture.release,
+			release: fixtureRelease.release,
 		});
 		if (!inspection.success) {
 			return {
@@ -88,7 +133,7 @@ export function installRegistryAuthoritativeFixture(input: unknown): void {
 				},
 				release: {
 					uri: `at://${publisherDid}/com.emdashcms.experimental.package.release/${rkey}`,
-					cid: fixture.releaseCid,
+					cid: fixtureRelease.releaseCid,
 					rkey,
 					value: inspection.value.release,
 				},

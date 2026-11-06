@@ -24,22 +24,36 @@
  * ```astro
  * <PortableText value={content} components={{ type: { image: MyImage } }} />
  * ```
+ *
+ * Render a blocks field with a component map:
+ *
+ * ```astro
+ * ---
+ * import { Blocks } from "emdash/ui";
+ * import Hero from "./Hero.astro";
+ * ---
+ * <Blocks value={page.data.layout} components={{ hero: Hero }} />
+ * ```
  */
 
-// Re-export types and utilities from astro-portabletext
-export {
-	type PortableTextProps,
-	type TypedObject,
-	type SomePortableTextComponents,
-	type Block,
-	type ArbitraryTypedObject,
-	type PortableTextBlock,
-	type PortableTextMarkDefinition,
-	type PortableTextSpan,
-	type PortableTextListItemBlock,
-	usePortableText,
-	mergeComponents,
-} from "astro-portabletext";
+import type { Block as PortableTextStyledBlock } from "astro-portabletext/types";
+
+import { Block as BlockStyleComponent } from "./components/index.js";
+
+export type { PortableTextProps, SomePortableTextComponents } from "astro-portabletext/types";
+export type {
+	TypedObject,
+	ArbitraryTypedObject,
+	PortableTextBlock,
+	PortableTextMarkDefinition,
+	PortableTextSpan,
+	PortableTextListItemBlock,
+} from "@portabletext/types";
+export { usePortableText, mergeComponents } from "astro-portabletext";
+
+// Local declarations share the name across the type and value namespaces.
+export type Block = PortableTextStyledBlock;
+export const Block = BlockStyleComponent;
 
 // EmDash PortableText wrapper and components
 export {
@@ -49,11 +63,8 @@ export {
 	EmDashMedia as Media,
 	// Main component (wrapper with EmDash defaults)
 	PortableText,
-	// Block style override (paragraph/heading/blockquote — emits
-	// `has-text-align-*` class when the block carries `textAlign`).
-	// Shares the name with the `type Block` re-export above; the
-	// type and the component live in different namespaces.
-	Block,
+	Blocks,
+	defineBlockComponents,
 	// Widget components
 	WidgetArea,
 	// Components object for manual use
@@ -66,6 +77,8 @@ export {
 	Columns,
 	Break,
 	HtmlBlock,
+	Iframe,
+	Video,
 	// Marks
 	Superscript,
 	Subscript,
@@ -78,13 +91,9 @@ export {
 	EmDashBodyEnd,
 } from "./components/index.js";
 
-/**
- * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
- * comment CSS into every page that imports `emdash/ui` (#2039). Will be removed in 1.0.
- */
-export { Comments } from "./components/index.js";
-/**
- * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
- * comment CSS into every page that imports `emdash/ui` (#2039). Will be removed in 1.0.
- */
-export { CommentForm } from "./components/index.js";
+export type {
+	BlockComponent,
+	BlockComponentProps,
+	BlockComponents,
+	BlockValue,
+} from "./components/index.js";

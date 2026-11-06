@@ -3,6 +3,14 @@ name: Lunaria
 on:
   pull_request_target:
     types: [opened, synchronize]
+    paths:
+      - "packages/admin/src/locales/**"
+      - "i18n/**"
+      - "lingui.config.ts"
+      - "lunaria.config.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/lunaria.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}

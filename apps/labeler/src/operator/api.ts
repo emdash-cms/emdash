@@ -19,6 +19,7 @@ import { createD1AssessmentLifecycleStore } from "../assessment/lifecycle.js";
 import { createAssessmentWorkflowParams, parseSubjectUri } from "../assessment/run-key.js";
 import {
 	createProductionListingLabelIssuer,
+	resolveProductionHandleDid,
 	resolveProductionPublisherHandle,
 } from "../assessment/runtime.js";
 import type { AssessmentRunSnapshot } from "../assessment/types.js";
@@ -30,6 +31,7 @@ import {
 	type AssessmentWorkflowControlBinding,
 } from "../reconciliation/workflows.js";
 import { readAssessmentVersions } from "../runtime-config.js";
+import { resolveTakedownSubject } from "./takedown-subject.js";
 
 const ASSESSMENT_ACTION_RE =
 	/^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})\/(approve|block|rerun)$/;
@@ -131,6 +133,7 @@ export interface OperatorApiDependencies {
 		subject: AssessmentRunSnapshot["subject"],
 	): Promise<OperatorManualDecisionSummary | null>;
 	resolvePublisherHandle?(publisherDid: string): Promise<string | null>;
+	resolveHandleDid?(handle: string): Promise<string | null>;
 	issuer: Pick<ListingLabelIssuer, "approve" | "block" | "issue">;
 	rerun(input: {
 		run: AssessmentRunSnapshot;
@@ -320,10 +323,19 @@ export async function handleOperatorApi(
 			return mutationResponse({ action: "rerun", runKey: rerunKey, subject: run.subject });
 		}
 
-		const uri = body["uri"];
-		if (typeof uri !== "string" || (!uri.startsWith("at://") && !uri.startsWith("did:"))) {
+		if (typeof body["uri"] !== "string") {
 			return apiError("INVALID_REQUEST", "Takedown subject URI is invalid", 400);
 		}
+		const subject = await resolveTakedownSubject(
+			body["uri"],
+			dependencies?.resolveHandleDid ?? resolveProductionHandleDid,
+		);
+		if (!subject.success) {
+			return subject.code === "HANDLE_NOT_RESOLVED"
+				? apiError("HANDLE_NOT_RESOLVED", "Takedown subject handle could not be resolved", 400)
+				: apiError("INVALID_REQUEST", "Takedown subject URI is invalid", 400);
+		}
+		const { uri } = subject;
 		const issued = await issuer.issue(
 			{
 				actorDid,
@@ -754,6 +766,7 @@ async function productionRerun(
 		params,
 		observedAt: now.toISOString(),
 		makeCurrent: false,
+		origin: { kind: "operator" },
 	});
 	await ensureOperatorRerunWorkflow(env.ASSESSMENT_WORKFLOW, params);
 	return params.runKey;

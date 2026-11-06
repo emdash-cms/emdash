@@ -78,8 +78,6 @@ export async function getCommentsWithDb(
 ): Promise<GetCommentsResult> {
 	const repo = new CommentRepository(db);
 
-	const total = await repo.countByContent(options.collection, options.contentId, "approved");
-
 	// Server-rendered: fetch all comments (capped for safety).
 	// The API route handles paginated access; this is for full-page renders.
 	const MAX_COMMENTS = 500;
@@ -88,6 +86,14 @@ export async function getCommentsWithDb(
 		status: "approved",
 		limit: MAX_COMMENTS,
 	});
+
+	// When the list is not truncated, the total is available from the page
+	// itself and we can skip the separate COUNT query. Fall back only when
+	// cursor pagination signals there are more rows.
+	const total =
+		result.nextCursor === undefined
+			? result.items.length
+			: await repo.countByContent(options.collection, options.contentId, "approved");
 
 	const items: PublicComment[] = options.threaded
 		? CommentRepository.assembleThreads(result.items).map((c) =>

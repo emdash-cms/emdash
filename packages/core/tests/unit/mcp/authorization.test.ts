@@ -12,12 +12,15 @@ import { Role } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Kysely } from "kysely";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import type { EmDashHandlers } from "../../../src/astro/types.js";
+import type { Database } from "../../../src/database/types.js";
 import { createMcpServer, type PluginMcpRegistration } from "../../../src/mcp/server.js";
 import type { RouteCallerInput } from "../../../src/plugins/routes.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // ---------------------------------------------------------------------------
 // Test constants
@@ -40,6 +43,16 @@ const MEDIA_ID = "01MEDIA";
 // Mock EmDashHandlers
 // ---------------------------------------------------------------------------
 
+let db: Kysely<Database>;
+
+beforeAll(async () => {
+	db = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(db);
+});
+
 /** Create a minimal mock EmDashHandlers that returns content owned by `ownerId`. */
 function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	const contentItem = {
@@ -61,7 +74,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	};
 
 	return {
-		db: {} as EmDashHandlers["db"],
+		db,
 		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
 			success: true,
@@ -226,6 +239,17 @@ function createAuthenticatedPair(authInfo: {
 // Test setup
 // ---------------------------------------------------------------------------
 
+/** Write tools read the site write fence, so the handlers need a migrated database. */
+let fenceDb: Kysely<Database>;
+
+beforeAll(async () => {
+	fenceDb = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(fenceDb);
+});
+
 async function setupMcpPair(opts: {
 	userId: string;
 	userRole: RoleLevel;
@@ -235,7 +259,7 @@ async function setupMcpPair(opts: {
 	user?: RouteCallerInput;
 	cache?: { enabled: boolean; invalidate: (options: { tags: string[] }) => Promise<void> };
 }): Promise<{ client: Client; cleanup: () => Promise<void> }> {
-	const handlers = opts.handlers ?? createMockHandlers();
+	const handlers = { ...(opts.handlers ?? createMockHandlers()), db: fenceDb };
 	const server = createMcpServer(
 		opts.pluginTools,
 		new Request("https://example.com/_emdash/api/mcp", { method: "POST" }),
@@ -292,6 +316,44 @@ describe("MCP Authorization", () => {
 			inputSchema: z.object({ title: z.string() }),
 			outputSchema: z.object({ id: z.string() }),
 		};
+
+		it("normalizes scoped plugin IDs into valid, stable tool names", async () => {
+			({ client, cleanup } = await setupMcpPair({
+				userId: ADMIN_USER_ID,
+				userRole: Role.ADMIN,
+				pluginTools: [{ ...pluginTool, pluginId: "@emdash-cms/calendar" }],
+			}));
+
+			const { tools } = await client.listTools();
+			const toolNames = tools.map((tool) => tool.name);
+
+			expect(toolNames).toContain("emdash_cms__calendar__createEvent");
+			expect(toolNames).not.toContain("@emdash-cms/calendar__createEvent");
+		});
+
+		it("skips colliding names without losing the first tool or unrelated tools", async () => {
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+			try {
+				({ client, cleanup } = await setupMcpPair({
+					userId: ADMIN_USER_ID,
+					userRole: Role.ADMIN,
+					pluginTools: [
+						{ ...pluginTool, pluginId: "@acme/forms", name: "submit", description: "First tool" },
+						{ ...pluginTool, pluginId: "acme", name: "forms__submit", description: "Collision" },
+						pluginTool,
+					],
+				}));
+
+				const { tools } = await client.listTools();
+				expect(tools.filter((tool) => tool.name === "acme__forms__submit")).toMatchObject([
+					{ description: "First tool" },
+				]);
+				expect(tools.map((tool) => tool.name)).toContain("calendar__createEvent");
+				expect(warn).toHaveBeenCalledWith(expect.stringContaining("acme__forms__submit"));
+			} finally {
+				warn.mockRestore();
+			}
+		});
 
 		it("does not let the legacy admin scope bypass plugin-tool scope", async () => {
 			const handlers = createMockHandlers();
@@ -526,6 +588,84 @@ describe("MCP Authorization", () => {
 
 			expect(result.isError).toBe(true);
 			expect(handlers.handleContentDelete).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("content_duplicate ownership", () => {
+		it("CONTRIBUTOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR duplicates their own content as its author", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				AUTHOR_USER_ID,
+			);
+		});
+
+		it("EDITOR can duplicate any user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.EDITOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				OTHER_USER_ID,
+			);
 		});
 	});
 
@@ -1275,7 +1415,7 @@ describe("MCP Authorization", () => {
 			expect(handlers.handleRevisionList).not.toHaveBeenCalled();
 		});
 
-		it("filters non-published translations for SUBSCRIBER", async () => {
+		it.each(["t-en", "p"])("filters non-published translations for SUBSCRIBER (%s)", async (id) => {
 			const handlers = createMockHandlers();
 			handlers.handleContentTranslations = vi.fn().mockResolvedValue({
 				success: true,
@@ -1295,13 +1435,42 @@ describe("MCP Authorization", () => {
 
 			const result = await client.callTool({
 				name: "content_translations",
-				arguments: { collection: "post", id: CONTENT_ID },
+				arguments: { collection: "post", id },
 			});
 
 			expect(result.isError).toBeFalsy();
 			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
 			expect(text).toContain("t-en");
 			expect(text).not.toContain("t-fr");
+		});
+
+		it("reports a non-published entry's translations as not found to SUBSCRIBER", async () => {
+			const handlers = createMockHandlers();
+			handlers.handleContentTranslations = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					translationGroup: "tg-1",
+					translations: [
+						{ id: "t-en", locale: "en", slug: "p", status: "published", updatedAt: "" },
+						{ id: "t-fr", locale: "fr", slug: "p-fr", status: "draft", updatedAt: "" },
+					],
+				},
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_translations",
+				arguments: { collection: "post", id: "p-fr" },
+			});
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(/not found/i);
+			expect(text).not.toContain("tg-1");
 		});
 
 		it("allows CONTRIBUTOR to see all translations", async () => {

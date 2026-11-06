@@ -1,10 +1,7 @@
 /**
  * Bundle utility functions.
  *
- * COPIED from `packages/core/src/cli/commands/bundle-utils.ts`. Kept in sync
- * with the legacy core copy until phase 1 cutover, when the legacy copy
- * goes away. Logic is unchanged; only the type imports point at the local
- * `./types.js` instead of core's plugin types.
+ * Builds and validates the tarball format published by `emdash-plugin`.
  */
 
 import { createWriteStream } from "node:fs";

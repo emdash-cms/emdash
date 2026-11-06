@@ -7,7 +7,7 @@
  */
 
 import type { CompoundSelectLimitedAdapter } from "emdash";
-import { LockingSqliteAdapter } from "emdash/database/migration-lock";
+import { LockingSqliteAdapter } from "emdash/internal/database/migration-lock";
 import type {
 	CompiledQuery,
 	DatabaseIntrospector,

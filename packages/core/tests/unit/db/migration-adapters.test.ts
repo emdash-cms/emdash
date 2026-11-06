@@ -12,7 +12,7 @@ describe("database adapter migration descriptors", () => {
 			config: { url: "file:./data.db" },
 			type: "sqlite",
 			migrations: {
-				entrypoint: "emdash/db/sqlite-migrations",
+				entrypoint: "emdash/internal/db/sqlite-migrations",
 				manifestConfig: { url: "file:./data.db" },
 			},
 		});
@@ -32,7 +32,7 @@ describe("database adapter migration descriptors", () => {
 			authToken: "runtime-secret",
 		});
 		expect(descriptor.migrations).toEqual({
-			entrypoint: "emdash/db/libsql-migrations",
+			entrypoint: "emdash/internal/db/libsql-migrations",
 			manifestConfig: {
 				url: "libsql://example.turso.io",
 				authTokenEnv: "DEPLOY_TURSO_TOKEN",
@@ -72,7 +72,7 @@ describe("database adapter migration descriptors", () => {
 			pool: { min: 2, max: 20 },
 		});
 		expect(descriptor.migrations).toEqual({
-			entrypoint: "emdash/db/postgres-migrations",
+			entrypoint: "emdash/internal/db/postgres-migrations",
 			manifestConfig: { connectionStringEnv: "DEPLOY_DATABASE_URL" },
 		});
 		expect(JSON.stringify(descriptor.migrations)).not.toContain("runtime:secret");

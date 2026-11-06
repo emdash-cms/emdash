@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Block 1.x releases (we are in 0.x)
+      - name: Check package versions
         run: node .github/scripts/check-no-major.mjs
 
       - name: Select release mode
@@ -199,6 +199,19 @@ jobs:
     uses: ./.github/workflows/sync-templates.yml
     # Pass only the secrets sync-templates actually uses, not the full set
     # available to this release workflow.
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+
+  sync-skills:
+    name: Sync Skills
+    needs: publish
+    if: >-
+      needs.publish.outputs.published == 'true' ||
+      inputs.publish-only
+    permissions:
+      contents: read
+    uses: ./.github/workflows/sync-skills.yml
     secrets:
       APP_ID: ${{ secrets.APP_ID }}
       APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

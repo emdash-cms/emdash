@@ -57,7 +57,9 @@ test.describe("Device Authorization", () => {
 			await expect(codeInput).toHaveAttribute("placeholder", "XXXX-XXXX");
 		});
 
-		test("Authorize button is disabled until 8 characters are entered", async ({ admin }) => {
+		test("Authorize button is disabled until a valid pending code is entered", async ({
+			admin,
+		}) => {
 			await admin.page.goto("/_emdash/admin/device");
 			await admin.waitForHydration();
 
@@ -74,9 +76,14 @@ test.describe("Device Authorization", () => {
 			await codeInput.fill("ABCD");
 			await expect(authorizeBtn).toBeDisabled();
 
-			// Type a full 8-character code -- buttons should enable
-			await codeInput.fill("ABCD-1234");
-			await expect(authorizeBtn).toBeEnabled();
+			// A full code that matches no pending request can be denied but not approved
+			await codeInput.fill("ZZZZ-9999");
+			await expect(
+				admin.page.getByText("This code is invalid or has already been used."),
+			).toBeVisible({
+				timeout: 10000,
+			});
+			await expect(authorizeBtn).toBeDisabled();
 			await expect(denyBtn).toBeEnabled();
 		});
 
@@ -95,36 +102,45 @@ test.describe("Device Authorization", () => {
 		});
 	});
 
-	test.describe("Invalid code submission", () => {
-		test("submitting an invalid code shows error", async ({ admin }) => {
-			await admin.page.goto("/_emdash/admin/device");
+	test.describe("Requested scopes", () => {
+		test("lists the requested scopes before approval and approves the code", async ({
+			admin,
+			serverInfo,
+		}) => {
+			const res = await fetch(`${serverInfo.baseUrl}/_emdash/api/oauth/device/code`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-EmDash-Request": "1",
+					Origin: serverInfo.baseUrl,
+				},
+				body: JSON.stringify({ client_id: "emdash-cli", scope: "content:read admin" }),
+			});
+			expect(res.ok).toBe(true);
+			const { data }: any = await res.json();
+
+			await admin.page.goto(`/_emdash/admin/device?code=${data.user_code}`);
 			await admin.waitForHydration();
 
-			const codeInput = admin.page.locator("#user-code");
-			await expect(codeInput).toBeVisible({ timeout: 15000 });
+			const granted = admin.page.getByRole("region", {
+				name: "This device is requesting permission to use:",
+			});
+			await expect(granted.getByText("Content Read", { exact: true })).toBeVisible({
+				timeout: 15000,
+			});
+			await expect(granted.getByText("Admin", { exact: true })).toBeVisible();
 
-			// Enter a valid-format but non-existent code
-			await codeInput.fill("ZZZZ-9999");
-
-			// Submit the form
 			const authorizeBtn = admin.page.getByRole("button", { name: "Authorize" });
 			await expect(authorizeBtn).toBeEnabled();
 
-			// Wait for the API response (should be an error)
 			const authResponse = admin.page.waitForResponse(
-				(res) => DEVICE_AUTHORIZE_PATTERN.test(res.url()) && res.request().method() === "POST",
+				(r) => DEVICE_AUTHORIZE_PATTERN.test(r.url()) && r.request().method() === "POST",
 				{ timeout: 15000 },
 			);
-
 			await authorizeBtn.click();
 			await authResponse;
 
-			// Error message should appear
-			await expect(
-				admin.page
-					.locator("text=Invalid or expired code")
-					.or(admin.page.locator(".text-destructive")),
-			).toBeVisible({ timeout: 10000 });
+			await expect(admin.page.getByText("Device authorized")).toBeVisible({ timeout: 10000 });
 		});
 	});
 

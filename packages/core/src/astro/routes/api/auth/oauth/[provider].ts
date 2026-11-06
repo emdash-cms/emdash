@@ -8,14 +8,18 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { createAuthorizationUrl, type OAuthConsumerConfig } from "@emdash-cms/auth";
+import {
+	createAuthorizationUrl,
+	isValidMicrosoftTenant,
+	type OAuthConsumerConfig,
+} from "@emdash-cms/auth";
 
 import { getPublicOrigin } from "#api/public-url.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 
-type ProviderName = "github" | "google";
+type ProviderName = "github" | "google" | "microsoft";
 
-const VALID_PROVIDERS = new Set<string>(["github", "google"]);
+const VALID_PROVIDERS = new Set<string>(["github", "google", "microsoft"]);
 
 /** Invite tokens are base64url; clamp shape and length before persisting to state. */
 const INVITE_TOKEN_REGEX = /^[A-Za-z0-9_-]{1,256}$/;
@@ -67,6 +71,31 @@ function getOAuthConfig(env: Record<string, unknown>): OAuthConsumerConfig["prov
 		};
 	}
 
+	// Microsoft
+	const microsoftClientId = envString(
+		env,
+		"EMDASH_OAUTH_MICROSOFT_CLIENT_ID",
+		"MICROSOFT_CLIENT_ID",
+	);
+	const microsoftClientSecret = envString(
+		env,
+		"EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET",
+		"MICROSOFT_CLIENT_SECRET",
+	);
+	const microsoftTenant = envString(env, "EMDASH_OAUTH_MICROSOFT_TENANT_ID", "MICROSOFT_TENANT_ID");
+	if (
+		microsoftClientId &&
+		microsoftClientSecret &&
+		microsoftTenant &&
+		isValidMicrosoftTenant(microsoftTenant)
+	) {
+		providers.microsoft = {
+			clientId: microsoftClientId,
+			clientSecret: microsoftClientSecret,
+			tenant: microsoftTenant,
+		};
+	}
+
 	return providers;
 }
 
@@ -110,8 +139,12 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 		const providers = getOAuthConfig(env);
 
 		if (!providers[provider]) {
+			const tenantHint =
+				provider === "microsoft"
+					? " Microsoft also needs EMDASH_OAUTH_MICROSOFT_TENANT_ID or MICROSOFT_TENANT_ID: a directory (tenant) ID, or common, organizations or consumers."
+					: "";
 			return redirect(
-				`${errorRedirectBase}?error=provider_not_configured&message=${encodeURIComponent(`OAuth provider ${provider} is not configured. Set either EMDASH_OAUTH_${provider.toUpperCase()}_CLIENT_ID and EMDASH_OAUTH_${provider.toUpperCase()}_CLIENT_SECRET, or ${provider.toUpperCase()}_CLIENT_ID and ${provider.toUpperCase()}_CLIENT_SECRET.`)}`,
+				`${errorRedirectBase}?error=provider_not_configured&message=${encodeURIComponent(`OAuth provider ${provider} is not configured. Set either EMDASH_OAUTH_${provider.toUpperCase()}_CLIENT_ID and EMDASH_OAUTH_${provider.toUpperCase()}_CLIENT_SECRET, or ${provider.toUpperCase()}_CLIENT_ID and ${provider.toUpperCase()}_CLIENT_SECRET.${tenantHint}`)}`,
 			);
 		}
 

@@ -11,7 +11,7 @@ Use the native format when the plugin needs an in-process feature such as React 
 
 ## Prerequisites
 
-Start with an EmDash site that uses pnpm and can run its development server. The site must already depend on `emdash`, which provides the `emdash` command used below.
+Start with an EmDash site that uses pnpm and can run its development server.
 
 The commands call the site directory `my-emdash-site` and create `plugin-activity` beside it. Replace `my-emdash-site` with your site's directory name.
 
@@ -19,22 +19,72 @@ The commands call the site directory `my-emdash-site` and create `plugin-activit
 
 <Steps>
 
-1. Scaffold a native package next to the site.
+1. Create a native package directory next to the site.
 
    ```bash
-   pnpm exec emdash plugin init --native --name @example/plugin-activity --dir ../plugin-activity
+   mkdir -p ../plugin-activity/src
+   cd ../plugin-activity
    ```
 
-   The command removes the npm scope when it creates the plugin ID. The package name is `@example/plugin-activity`, while the plugin ID is `plugin-activity`.
+2. Add the package metadata and build scripts.
 
-2. Install the package dependencies.
+   ```json title="package.json"
+   {
+       "name": "@example/plugin-activity",
+       "version": "0.1.0",
+       "type": "module",
+       "main": "./dist/index.mjs",
+       "exports": {
+           ".": {
+               "types": "./dist/index.d.mts",
+               "import": "./dist/index.mjs"
+           }
+       },
+       "files": ["dist"],
+       "scripts": {
+           "build": "tsdown src/index.ts --format esm --dts --clean",
+           "dev": "tsdown src/index.ts --format esm --dts --watch",
+           "typecheck": "tsc --noEmit"
+       },
+       "peerDependencies": {
+           "emdash": "*"
+       },
+       "devDependencies": {
+           "emdash": "*",
+           "tsdown": "^0.20.0",
+           "typescript": "^5.9.0"
+       }
+   }
+   ```
+
+   The npm package name is `@example/plugin-activity`. The runtime code below uses the unscoped plugin ID `plugin-activity` so it fits in plugin API route URLs.
+
+3. Add the TypeScript configuration.
+
+   ```json title="tsconfig.json"
+   {
+       "compilerOptions": {
+           "target": "ES2022",
+           "module": "preserve",
+           "moduleResolution": "bundler",
+           "strict": true,
+           "esModuleInterop": true,
+           "declaration": true,
+           "outDir": "./dist",
+           "rootDir": "./src"
+       },
+       "include": ["src/**/*"],
+       "exclude": ["node_modules", "dist"]
+   }
+   ```
+
+4. Install the package dependencies.
 
    ```bash
-   cd ../plugin-activity
    pnpm install
    ```
 
-3. Replace the generated `src/index.ts` with a content-save hook.
+5. Create `src/index.ts` with a content-save hook.
 
    ```typescript title="src/index.ts"
    import { definePlugin } from "emdash";
@@ -80,20 +130,20 @@ The commands call the site directory `my-emdash-site` and create `plugin-activit
 
    `content:afterSave` requires the `content:read` capability. EmDash skips the hook when that capability is missing.
 
-4. Build the package.
+6. Build the package.
 
    ```bash
    pnpm build
    ```
 
-5. Install the local package in the site.
+7. Install the local package in the site.
 
    ```bash
    cd ../my-emdash-site
    pnpm add ../plugin-activity
    ```
 
-6. Register the descriptor factory in the EmDash integration.
+8. Register the descriptor factory in the EmDash integration.
 
    ```typescript title="astro.config.mjs"
    import { defineConfig } from "astro/config";
@@ -111,7 +161,7 @@ The commands call the site directory `my-emdash-site` and create `plugin-activit
 
    Native descriptors belong in `plugins`, not `sandboxed`. EmDash rejects a native descriptor in the `sandboxed` array.
 
-7. Start the site and save an entry in the admin panel.
+9. Start the site and save an entry in the admin panel.
 
    ```bash
    pnpm dev
@@ -170,9 +220,40 @@ policy, and compatibility defaults.
 	Capabilities gate the APIs exposed through `ctx`, but a native plugin has no isolation boundary. It can import host packages, access environment variables, call `fetch()` directly, and affect the host process. Install native packages only from publishers you trust.
 </Aside>
 
+## Read secrets and bindings
+
+Hook and route handlers in a native plugin receive the plugin context, not the Astro context, so `Astro.locals` is not available in them. Read secrets and platform bindings from the runtime environment.
+
+Read deployment secrets from `process.env`. On Node.js, the hosting platform's secret manager supplies them. On Cloudflare Workers, secrets set with `wrangler secret put` reach `process.env` through the `nodejs_compat` flag with a compatibility date of 2025-04-01 or later, as described in [Worker secrets](/deployment/cloudflare/#worker-secrets).
+
+For a credential that a site administrator enters, declare a `secret` field in the [generated settings form](/plugins/creating-native-plugins/react-admin/#generated-settings-form) instead. EmDash encrypts the value with [`EMDASH_ENCRYPTION_KEY`](/deployment/secrets/#the-encryption-key) before storing it, so set that key before an administrator saves the field. The plugin reads the value with `ctx.settings.get()`.
+
+On Cloudflare Workers, bindings such as a queue, an R2 bucket, or `send_email` are objects on `env` from `cloudflare:workers`. Astro loads `astro.config.mjs` in Node.js, and that file imports the plugin package for the descriptor factory. Node.js cannot load `cloudflare:workers`, so import it inside the handler rather than at the top of the module. The following hook sends each saved entry's ID to a queue bound as `ACTIVITY_QUEUE`:
+
+```typescript title="src/index.ts"
+hooks: {
+	"content:afterSave": async (event) => {
+		const { env } = await import("cloudflare:workers");
+		await env.ACTIVITY_QUEUE.send({ contentId: event.content.id });
+	},
+},
+```
+
+The `cloudflare:workers` module resolves only in the Workers runtime, so a plugin that imports it works only on sites that use the Cloudflare adapter.
+
+To type-check the import, add [`@cloudflare/workers-types`](https://developers.cloudflare.com/workers/languages/typescript/) to the package's `devDependencies` and to `compilerOptions.types` in `tsconfig.json`. Then declare each binding the plugin reads on the `Cloudflare.Env` interface. The following declaration types the queue from the previous example:
+
+```typescript title="src/env.d.ts"
+declare namespace Cloudflare {
+	interface Env {
+		ACTIVITY_QUEUE: Queue;
+	}
+}
+```
+
 ## Add another surface
 
-- [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) covers settings, custom pages, dashboard widgets, editor panels, and list columns.
+- [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) covers settings, custom pages, dashboard widgets, field widgets, editor panels, and list columns.
 - [Portable Text rendering components](/plugins/creating-native-plugins/portable-text-components/) registers Astro components for plugin blocks.
 - [Page fragments](/plugins/creating-native-plugins/page-fragments/) adds trusted scripts or HTML to public pages.
 - [Distributing native plugins](/plugins/creating-native-plugins/distributing/) packages the build and source entrypoints for npm.

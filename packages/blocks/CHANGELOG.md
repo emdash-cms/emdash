@@ -1,5 +1,77 @@
 # @emdash-cms/blocks
 
+## 1.4.0
+
+### Patch Changes
+
+- [#4183](https://github.com/emdash-cms/emdash/pull/4183) [`190022c`](https://github.com/emdash-cms/emdash/commit/190022cbd71a20d06c856cf5673acb0b2d2d9f1f) Thanks [@masonjames](https://github.com/masonjames)! - Fixes nested HTML forms in the content editor by rendering Block Kit form blocks as groups of fields instead of native `<form>` elements. This also applies to form blocks on plugin pages.
+
+## 1.3.1
+
+### Patch Changes
+
+- [#4219](https://github.com/emdash-cms/emdash/pull/4219) [`9e74ea3`](https://github.com/emdash-cms/emdash/commit/9e74ea36b88509ba3e6b61f718aabe4dda26784a) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes Block Kit button confirmation dialogs displaying content flush against the edges, matching the padding and small size of admin confirmation dialogs.
+
+## 1.3.0
+
+No changes in this release.
+
+## 1.2.0
+
+No changes in this release.
+
+## 1.1.0
+
+### Patch Changes
+
+- [#3675](https://github.com/emdash-cms/emdash/pull/3675) [`85ab50c`](https://github.com/emdash-cms/emdash/commit/85ab50c60e325b564b427d2d7ffde7e903c2dbf7) Thanks [@masonjames](https://github.com/masonjames)! - Fixes a Block Kit form in a plugin's content editor panel reloading the editor when submitted, instead of sending its values to the plugin.
+
+- [#3673](https://github.com/emdash-cms/emdash/pull/3673) [`3a00448`](https://github.com/emdash-cms/emdash/commit/3a00448c05604eab26c4ad2b851d33b2de8bc605) Thanks [@masonjames](https://github.com/masonjames)! - Fixes Block Kit `select` elements showing the selected option's value instead of its label, so a plugin page, form or editor panel that offers `{ value: "eip155:84532", label: "Base Sepolia" }` now displays "Base Sepolia". The value sent to the plugin is unchanged.
+
+## 1.0.1
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. Before upgrading from 0.42, read the [upgrade guide](https://docs.emdashcms.com/upgrade-to-v1/), which lists each change and how to migrate.
+  
+  From this release, breaking changes ship only in a new major version.
+
+## 1.0.1-rc.1
+
+No changes in this release.
+
+## 1.0.1-rc.0
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. The other entries for this version describe each one and how to migrate; check them before upgrading from 0.42.
+  
+  From this release, breaking changes ship only in a new major version.
+  
+  The first 1.x version is 1.0.1. npm also lists a deprecated `emdash@1.0.0`, published by mistake from 0.7-era code; do not install it.
+
+## 0.42.0
+
+### Minor Changes
+
+- [#3483](https://github.com/emdash-cms/emdash/pull/3483) [`2e943ff`](https://github.com/emdash-cms/emdash/commit/2e943ff35fcffc5a4e35dd658ef73cf098030e3b) Thanks [@swissky](https://github.com/swissky)! - Adds row actions to Block Kit tables and a new `menu` element. Set a table column's `format` to `"element"` to place a `button`, `link`, or `menu` in each row under that column's key. A `menu` is a button that opens a list of choices; choosing one sends a `block_action` with the menu's `action_id` and the choice's `value`. Menus also work in `actions` blocks, section accessories, and empty-state actions, but not as form fields. Build one with `elements.menu(actionId, label, items, { style })`; the `MenuElement` type is exported. Existing tables and elements are unchanged.
+
+### Patch Changes
+
+- [#3480](https://github.com/emdash-cms/emdash/pull/3480) [`f2f9119`](https://github.com/emdash-cms/emdash/commit/f2f9119738ba360d02e3fd00e1cf7d1d49b52fda) Thanks [@swissky](https://github.com/swissky)! - Fixes Block Kit table column headings being centered instead of aligned with their column's content. Headings in plugin admin pages, dashboard widgets, and content editor panels now line up at the start of each column, on the right in right-to-left admin languages.
+
+## 0.41.0
+
+No changes in this release.
+
+## 0.40.1
+
+No changes in this release.
+
+## 0.40.0
+
+No changes in this release.
+
 ## 0.39.1
 
 No changes in this release.

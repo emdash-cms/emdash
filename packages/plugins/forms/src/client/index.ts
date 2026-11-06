@@ -12,7 +12,7 @@
  * - Conditional field visibility
  * - Session persistence (survives page refreshes)
  * - Turnstile widget injection
- * - File upload with FormData
+ * - File upload
  */
 
 const STORAGE_PREFIX = "ec-form:";
@@ -47,6 +47,8 @@ export function initForms() {
 		document.querySelectorAll<HTMLFormElement>("[data-ec-form]").forEach((form) => {
 			if (form.dataset.ecInitialized) return;
 			form.dataset.ecInitialized = "1";
+			// Set here, not in the markup, so a reader without JavaScript keeps native validation.
+			form.noValidate = true;
 			restoreState(form);
 			initMultiPage(form);
 			initConditions(form);
@@ -104,46 +106,10 @@ async function handleSubmit(e: Event) {
 	clearStatus(form);
 
 	try {
-		const hasFiles = form.querySelector<HTMLInputElement>('input[type="file"]');
-		let body: BodyInit;
-		const headers: Record<string, string> = {};
-
-		if (hasFiles) {
-			body = new FormData(form);
-		} else {
-			headers["Content-Type"] = "application/json";
-			const formData = new FormData(form);
-			let formId = "";
-			const data: Record<string, unknown> = {};
-			// Track keys we've seen to detect multi-value fields (checkbox-group)
-			const seen = new Set<string>();
-			for (const [key, val] of formData) {
-				if (typeof val !== "string") continue;
-				if (key === "formId") {
-					formId = val;
-				} else if (key === "_hp" || key === "cf-turnstile-response") {
-					// Include spam fields at top level for server-side checks
-					data[key] = val;
-				} else if (seen.has(key)) {
-					// Multi-value field (checkbox-group) — collect into array
-					const existing = data[key];
-					if (Array.isArray(existing)) {
-						existing.push(val);
-					} else {
-						data[key] = [existing, val];
-					}
-				} else {
-					seen.add(key);
-					data[key] = val;
-				}
-			}
-			body = JSON.stringify({ formId, data });
-		}
-
 		const res = await fetch(form.action, {
 			method: "POST",
-			headers,
-			body,
+			headers: { "Content-Type": "application/json" },
+			body: await serializeSubmission(new FormData(form)),
 		});
 
 		const result = parseSubmitResponse(await res.json());
@@ -175,6 +141,60 @@ async function handleSubmit(e: Event) {
 			submitBtn.textContent = form.dataset.submitLabel || "Submit";
 		}
 	}
+}
+
+function toBase64(bytes: Uint8Array): string {
+	let binary = "";
+	// Chunked so String.fromCharCode never receives more arguments than the engine allows
+	for (let i = 0; i < bytes.length; i += 0x8000) {
+		binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	}
+	return btoa(binary);
+}
+
+/**
+ * Build the JSON body the submit route accepts. Chosen files travel as
+ * base64 under `files`, keyed by field name.
+ *
+ * @internal
+ */
+export async function serializeSubmission(formData: FormData): Promise<string> {
+	let formId = "";
+	const data: Record<string, unknown> = {};
+	const files: Record<string, { filename: string; contentType: string; bytes: string }> = {};
+	// Track keys we've seen to detect multi-value fields (checkbox-group)
+	const seen = new Set<string>();
+	for (const [key, val] of formData) {
+		if (typeof val !== "string") {
+			// An empty file input still submits a nameless, zero-byte File
+			if (val.size > 0) {
+				files[key] = {
+					filename: val.name,
+					contentType: val.type || "application/octet-stream",
+					bytes: toBase64(new Uint8Array(await val.arrayBuffer())),
+				};
+			}
+			continue;
+		}
+		if (key === "formId") {
+			formId = val;
+		} else if (key === "_hp" || key === "cf-turnstile-response") {
+			// Include spam fields at top level for server-side checks
+			data[key] = val;
+		} else if (seen.has(key)) {
+			// Multi-value field (checkbox-group) — collect into array
+			const existing = data[key];
+			if (Array.isArray(existing)) {
+				existing.push(val);
+			} else {
+				data[key] = [existing, val];
+			}
+		} else {
+			seen.add(key);
+			data[key] = val;
+		}
+	}
+	return JSON.stringify(Object.keys(files).length > 0 ? { formId, data, files } : { formId, data });
 }
 
 /** validates that a redirect url uses a safe protocol */
@@ -423,7 +443,12 @@ function evaluateConditions(form: HTMLFormElement) {
 			const input = form.elements.namedItem(condition.field) as HTMLInputElement | null;
 			if (!input) return;
 
-			const value = input.value;
+			const value =
+				input instanceof HTMLInputElement &&
+				(input.type === "checkbox" || input.type === "radio") &&
+				!input.checked
+					? ""
+					: input.value;
 			let visible = true;
 
 			switch (condition.op) {
@@ -509,6 +534,12 @@ function restoreState(form: HTMLFormElement) {
 function clearSavedState(form: HTMLFormElement) {
 	const formId = form.dataset.formId;
 	if (formId) {
+		// A save still pending from the last keystroke would write the state back
+		const pending = saveTimers.get(formId);
+		if (pending) {
+			clearTimeout(pending);
+			saveTimers.delete(formId);
+		}
 		try {
 			sessionStorage.removeItem(STORAGE_PREFIX + formId);
 		} catch {

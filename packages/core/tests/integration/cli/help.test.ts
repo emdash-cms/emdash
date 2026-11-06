@@ -17,26 +17,22 @@ describe("CLI help", () => {
 		expect(output).not.toMatch(/^\s+dev\s+/m);
 	});
 
-	it("keeps dev invokable with a warning before database work", () => {
-		const result = spawnSync(
-			"node",
-			[CLI_BIN, "dev", "--cwd", resolve(import.meta.dirname, "missing-site")],
-			{
-				encoding: "utf8",
-				env: CLI_ENV,
-			},
-		);
-		const output = `${result.stdout}${result.stderr}`;
+	it("does not offer the removed marketplace plugin commands", () => {
+		const output = execFileSync("node", [CLI_BIN, "--help"], {
+			encoding: "utf8",
+			env: CLI_ENV,
+		});
 
-		expect(result.error).toBeUndefined();
-		expect(result.status).toBe(1);
-		expect(output).toContain("DEPRECATED COMMAND");
-		expect(output).toContain("pnpm dev");
-		expect(output).toContain("astro dev");
-		expect(output).toContain("No package.json found");
-		expect(output.indexOf("DEPRECATED COMMAND")).toBeLessThan(
-			output.indexOf("No package.json found"),
-		);
-		expect(output).not.toContain("Starting Astro dev server");
+		expect(output).not.toMatch(/^\s+plugin\s+/m);
 	});
+
+	it.each([["dev"], ["auth", "secret"]])(
+		"fails scripts that call the removed `%s` command",
+		(...args) => {
+			const result = spawnSync("node", [CLI_BIN, ...args], { encoding: "utf8", env: CLI_ENV });
+
+			expect(result.status).toBe(1);
+			expect(`${result.stdout}${result.stderr}`).toContain(`Unknown command ${args[0]}`);
+		},
+	);
 });

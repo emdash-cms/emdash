@@ -49,8 +49,10 @@ import {
 
 import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
-import { generateCapnpConfig } from "./capnp.js";
+import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
+import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
+import { waitForWorkerdReady } from "./workerd-startup.js";
 import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
 /** Replace non-alphanumeric chars for safe file/worker names */
@@ -149,18 +151,6 @@ function resolveLimits(limits?: SandboxOptions["limits"]): ResolvedLimits {
 		subrequests: limits?.subrequests ?? DEFAULT_LIMITS.subrequests,
 		wallTimeMs: limits?.wallTimeMs ?? DEFAULT_LIMITS.wallTimeMs,
 	};
-}
-
-/**
- * State for a loaded plugin in the workerd process.
- */
-interface LoadedPlugin {
-	manifest: PluginManifest;
-	code: string;
-	/** Port the plugin's nanoservice listens on inside workerd */
-	port: number;
-	/** Auth token for this plugin's backing service requests */
-	token: string;
 }
 
 /**
@@ -266,6 +256,7 @@ export function waitForProcessExit(proc: ChildProcess, timeoutMs = 5000): Promis
 export interface PluginTokenClaims {
 	pluginId: string;
 	version: string;
+	nonce: string;
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
@@ -284,6 +275,7 @@ function isTokenClaims(value: unknown): value is PluginTokenClaims {
 	return (
 		typeof value.pluginId === "string" &&
 		typeof value.version === "string" &&
+		typeof value.nonce === "string" &&
 		isStringArray(value.capabilities) &&
 		isStringArray(value.allowedHosts) &&
 		isStringArray(value.storageCollections)
@@ -309,6 +301,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Loaded plugins indexed by pluginId (manifest.id:manifest.version) */
 	private plugins = new Map<string, LoadedPlugin>();
+	private configurationVersion = 0;
 
 	/** Backing service HTTP server (runs in Node) */
 	private backingServer: Server | null = null;
@@ -344,16 +337,6 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Epoch counter, incremented on each workerd restart */
 	private epoch = 0;
 
-	/** Next available port for plugin nanoservices */
-	private nextPluginPort = 18788;
-
-	/**
-	 * Ports freed by unloadPlugin(), preferred over nextPluginPort on the
-	 * next load() so install/uninstall churn (marketplace updates, dev
-	 * watcher reloads) doesn't leak the port range upward toward 65535.
-	 */
-	private freePorts: number[] = [];
-
 	/** Whether workerd is currently healthy */
 	private healthy = false;
 
@@ -368,13 +351,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private crashCount = 0;
 	private crashWindowStart = 0;
 	private restartTimer: ReturnType<typeof setTimeout> | null = null;
+	private restartWaiters = new Set<() => void>();
 	private shuttingDown = false;
 
-	/**
-	 * True once the crash budget is spent and scheduleRestart() stopped
-	 * scheduling retries. Giving up leaves needsRestart false, which at the
-	 * invocation site looks identical to a runner that has not started yet.
-	 */
+	/** True once the crash budget is spent; invocations cannot restart workerd. */
 	private gaveUp = false;
 
 	/** True when the last isAvailable() call could not run the workerd binary. */
@@ -474,9 +454,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * could not run, or why an invocation cannot reach workerd, the message
 	 * SandboxUnavailableError carries.
 	 *
-	 * Giving up is the one state no invocation retries out of: needsRestart
-	 * stays false, so ensureRunning() returns without starting anything and
-	 * workerd waits for a server restart, an install or an update.
+	 * Once the crash budget is spent, invocations leave workerd stopped until
+	 * a configuration change or server restart resets the budget.
 	 */
 	unavailableReason(): string {
 		if (this.binaryFailed) {
@@ -493,30 +472,50 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Batches plugin loading: all plugins are registered via load(),
 	 * then workerd starts once on the first hook/route call.
 	 */
-	async ensureRunning(): Promise<void> {
+	async ensureRunning(options?: { waitForPendingRestart?: boolean }): Promise<void> {
+		if (this.shuttingDown || this.gaveUp || this.plugins.size === 0) return;
+		if (this.restartTimer) {
+			if (!options?.waitForPendingRestart) return;
+			await new Promise<void>((resolve) => {
+				this.restartWaiters.add(resolve);
+			});
+			return this.ensureRunning(options);
+		}
 		// If a startup is already in progress, wait for it
 		if (this.startupPromise) {
 			await this.startupPromise;
-			return;
+			return this.ensureRunning(options);
 		}
 		if (!this.needsRestart) return;
 
 		// Serialize: concurrent callers await the same promise.
 		// Don't clear needsRestart until startup succeeds, so a transient
-		// failure (waitForReady timeout, spawn error) can be retried by
-		// the next invocation.
+		// failure (readiness timeout, spawn error) can be retried by
+		// an invocation after the restart backoff.
+		const configurationVersion = this.configurationVersion;
 		this.startupPromise = this.restart();
+		let restartSucceeded = false;
 		try {
 			await this.startupPromise;
-			this.needsRestart = false;
-			// A repeat load returns the cached instance without marking a
-			// restart, so it never drives the start that clears this.
-			this.gaveUp = false;
+			this.needsRestart = configurationVersion !== this.configurationVersion;
+			restartSucceeded = true;
+		} catch (error) {
+			console.error("[emdash:workerd] startup failed:", error);
+			if (!this.restartTimer && !this.gaveUp) this.scheduleRestart();
+			throw error;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
 			// subsequent retries. needsRestart stays true on failure (set above
 			// only after the await succeeds), enabling automatic retry.
 			this.startupPromise = null;
+		}
+		if (this.needsRestart && restartSucceeded) {
+			if (this.plugins.size === 0) {
+				this.needsRestart = false;
+				await this.stopWorkerd();
+			} else {
+				await this.ensureRunning(options);
+			}
 		}
 	}
 
@@ -555,23 +554,40 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// Return cached plugin if already loaded
 		const existing = this.plugins.get(pluginId);
 		if (existing) {
-			return new WorkerdSandboxedPlugin(pluginId, manifest, existing.port, this.limits, this);
+			return new WorkerdSandboxedPlugin(pluginId, manifest, this.limits, this);
 		}
 
-		// Assign port and generate auth token. Reuse a freed port if one is
-		// available, otherwise allocate the next sequential port.
-		const port = this.freePorts.pop() ?? this.nextPluginPort++;
 		const token = this.generatePluginToken(manifest);
 
-		this.plugins.set(pluginId, { manifest, code, port, token });
+		this.plugins.set(pluginId, { manifest, code, port: 0, token, active: true });
+		this.configurationVersion++;
 
 		// Defer workerd start: collect all plugins first, start once.
 		// The runtime loads plugins sequentially, so we batch by deferring
 		// the actual workerd spawn until the first hook/route invocation.
 		this.needsRestart = true;
+		this.gaveUp = false;
+		this.crashCount = 0;
+		this.crashWindowStart = 0;
 		this.scheduleEagerStart();
 
-		return new WorkerdSandboxedPlugin(pluginId, manifest, port, this.limits, this);
+		return new WorkerdSandboxedPlugin(pluginId, manifest, this.limits, this);
+	}
+
+	setPluginActive(pluginId: string, active: boolean): void {
+		const entry = this.plugins.get(pluginId);
+		if (!entry || entry.active === active) return;
+		entry.active = active;
+		this.backingService?.removePlugin(entry.manifest.id, entry.manifest.version);
+		if (active) {
+			entry.token = this.generatePluginToken(entry.manifest);
+			this.configurationVersion++;
+			this.needsRestart = true;
+			this.gaveUp = false;
+			this.crashCount = 0;
+			this.crashWindowStart = 0;
+			this.scheduleEagerStart();
+		}
 	}
 
 	/**
@@ -583,17 +599,18 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * before loading the new version, and back-to-back restarts are wasteful.
 	 */
 	unloadPlugin(pluginId: string): void {
-		// Read the entry before delete() -- Map.delete returns a boolean,
-		// not the removed value, so we need the port for the free-port pool.
 		const entry = this.plugins.get(pluginId);
 		if (!entry) return;
 		this.plugins.delete(pluginId);
-		this.freePorts.push(entry.port);
+		this.configurationVersion++;
 		this.backingService?.removePlugin(entry.manifest.id, entry.manifest.version);
 		if (this.plugins.size === 0) {
 			void this.stopWorkerd();
 		} else {
 			this.needsRestart = true;
+			this.gaveUp = false;
+			this.crashCount = 0;
+			this.crashWindowStart = 0;
 			this.scheduleEagerStart();
 		}
 	}
@@ -606,10 +623,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		if (this.eagerStartTimer) clearTimeout(this.eagerStartTimer);
 		this.eagerStartTimer = setTimeout(() => {
 			this.eagerStartTimer = null;
-			this.ensureRunning().catch((err) => {
-				console.error("[emdash:workerd] eager start failed:", err);
-				this.scheduleRestart();
-			});
+			this.ensureRunning().catch(() => {});
 		}, 50);
 	}
 
@@ -622,18 +636,25 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			clearTimeout(this.restartTimer);
 			this.restartTimer = null;
 		}
+		this.resolveRestartWaiters();
 		if (this.eagerStartTimer) {
 			clearTimeout(this.eagerStartTimer);
 			this.eagerStartTimer = null;
 		}
 		unregisterSigHandler(this);
 		this.plugins.clear();
+		this.configurationVersion++;
 		await this.stopWorkerd();
 		await this.stopBackingServer();
 		if (this.configDir) {
 			await rm(this.configDir, { recursive: true, force: true }).catch(() => {});
 			this.configDir = null;
 		}
+	}
+
+	private resolveRestartWaiters(): void {
+		for (const resolve of this.restartWaiters) resolve();
+		this.restartWaiters.clear();
 	}
 
 	/**
@@ -644,6 +665,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private scheduleRestart(): void {
 		if (this.shuttingDown || this.plugins.size === 0) return;
 
+		if (this.restartTimer) {
+			clearTimeout(this.restartTimer);
+			this.restartTimer = null;
+		}
 		const now = Date.now();
 
 		// Reset crash window if it's been more than 60 seconds
@@ -656,6 +681,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		if (this.crashCount > 5) {
 			this.gaveUp = true;
+			this.resolveRestartWaiters();
 			console.error(
 				"[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up. " +
 					"Sandboxed plugin hooks and routes now fail with SandboxUnavailableError. " +
@@ -681,6 +707,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			// If no plugin invocations happen after a crash, there's nothing
 			// to recover for, so deferring restart until next use is fine.
 			this.needsRestart = true;
+			this.resolveRestartWaiters();
 		}, delayMs);
 	}
 
@@ -692,6 +719,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const payload = JSON.stringify({
 			pluginId: manifest.id,
 			version: manifest.version,
+			nonce: randomBytes(16).toString("base64url"),
 			capabilities: manifest.capabilities || [],
 			allowedHosts: manifest.allowedHosts || [],
 			storageCollections: Object.keys(manifest.storage || {}),
@@ -705,13 +733,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Validate a plugin auth token and extract its claims.
 	 * Returns null if invalid.
 	 */
-	validateToken(token: string): {
-		pluginId: string;
-		version: string;
-		capabilities: string[];
-		allowedHosts: string[];
-		storageCollections: string[];
-	} | null {
+	validateToken(token: string): PluginTokenClaims | null {
 		const parts = token.split(".");
 		if (parts.length !== 2) return null;
 
@@ -735,6 +757,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			return null;
 		}
 		if (!isTokenClaims(parsed)) return null;
+		const plugin = this.plugins.get(`${parsed.pluginId}:${parsed.version}`);
+		if (!plugin?.active || plugin.token !== token) return null;
 		return parsed;
 	}
 
@@ -742,6 +766,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * Start or restart workerd with current plugin configuration.
 	 */
 	private async restart(): Promise<void> {
+		const plugins = new Map<string, LoadedPlugin>();
+		for (const [pluginId, plugin] of this.plugins) {
+			plugins.set(pluginId, { ...plugin });
+		}
 		await this.stopWorkerd();
 
 		// Ensure backing server is running
@@ -751,7 +779,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		// Create temp directory for config files
 		if (!this.configDir) {
-			this.configDir = join(tmpdir(), `emdash-workerd-${process.pid}-${Date.now()}`);
+			this.configDir = join(
+				tmpdir(),
+				`emdash-workerd-${process.pid}-${randomBytes(8).toString("hex")}`,
+			);
 			await mkdir(this.configDir, { recursive: true });
 		}
 
@@ -760,7 +791,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		await writeFile(join(this.configDir, EMDASH_SHIM_FILE), EMDASH_SHIM);
 
 		// Write plugin code files to disk (workerd needs file paths)
-		for (const [pluginId, plugin] of this.plugins) {
+		for (const [pluginId, plugin] of plugins) {
 			const safeId = pluginId.replace(SAFE_ID_RE, "_");
 			const wrapperCode = generatePluginWrapper(plugin.manifest, {
 				site: this.siteInfo,
@@ -777,7 +808,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// support per-worker enforcement of those limits (Cloudflare-only).
 		// Only wallTimeMs is enforced (via Promise.race in invokeHook/invokeRoute).
 		const capnpConfig = generateCapnpConfig({
-			plugins: this.plugins,
+			plugins,
 			backingServiceAddress: this.backingServiceAddress,
 			configDir: this.configDir,
 			emdashShimFile: EMDASH_SHIM_FILE,
@@ -791,8 +822,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// and ignore late exits from a previous workerd if another restart()
 		// has already reassigned this.workerdProcess.
 		const workerdBin = this.resolveWorkerdBinary();
-		const proc = spawn(workerdBin, ["serve", configPath], {
-			stdio: ["ignore", "pipe", "pipe"],
+		const proc = spawn(workerdBin, ["serve", configPath, "--control-fd=3"], {
+			stdio: ["ignore", "pipe", "pipe", "pipe"],
 			env: minimalWorkerdEnv(),
 		});
 		this.workerdProcess = proc;
@@ -812,31 +843,29 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- runner satisfies ExitHandlerHost structurally; cast bypasses TS's nominal handling of private members
 		proc.on("exit", makeWorkerdExitHandler(this as unknown as ExitHandlerHost, proc));
 
-		// Wait for workerd to be ready
-		await this.waitForReady();
+		const sockets = new Map(Array.from(plugins, ([id, plugin]) => [pluginSocketName(id), plugin]));
+		try {
+			await waitForWorkerdReady(proc, sockets, () =>
+				probeAllReady(plugins.values(), this.invokeToken),
+			);
+		} catch (error) {
+			// A failed spawn emits error/close but never exit.
+			if (proc.pid === undefined && this.workerdProcess === proc) this.workerdProcess = null;
+			await this.stopWorkerd();
+			throw error;
+		}
+		for (const [id, plugin] of plugins) {
+			const current = this.plugins.get(id);
+			if (current?.token === plugin.token) current.port = plugin.port;
+		}
 		this.healthy = true;
 	}
 
-	/**
-	 * Wait for workerd to be ready by polling every plugin port.
-	 */
-	private async waitForReady(): Promise<void> {
-		const startTime = Date.now();
-		const timeout = 10_000;
-
-		if (this.plugins.size === 0) {
-			this.healthy = true;
-			return;
-		}
-
-		while (Date.now() - startTime < timeout) {
-			if (await probeAllReady(this.plugins.values(), this.invokeToken)) {
-				return;
-			}
-			await new Promise((r) => setTimeout(r, 100));
-		}
-
-		throw new Error("[emdash:workerd] workerd failed to start within 10 seconds");
+	/** Resolve the current listener after ensureRunning(), including after restarts. */
+	getPluginPort(pluginId: string): number {
+		const port = this.plugins.get(pluginId)?.port;
+		if (!port) throw new SandboxUnavailableError(pluginId, "plugin listener is not running");
+		return port;
 	}
 
 	/**
@@ -876,7 +905,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.backingServer = createServer(this.backingService!.handler);
 
 			if (USE_UNIX_SOCKET) {
-				const socketPath = join(tmpdir(), `emdash-sandbox-${process.pid}-${Date.now()}.sock`);
+				const socketPath = join(
+					tmpdir(),
+					`emdash-sandbox-${process.pid}-${randomBytes(8).toString("hex")}.sock`,
+				);
 				this.backingSocketPath = socketPath;
 				this.backingServer.listen(socketPath, () => {
 					resolve();
@@ -1022,19 +1054,16 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	readonly id: string;
 	private manifest: PluginManifest;
-	private port: number;
 	private limits: ResolvedLimits;
 	private runner: WorkerdSandboxRunner;
 	constructor(
 		id: string,
 		manifest: PluginManifest,
-		port: number,
 		limits: ResolvedLimits,
 		runner: WorkerdSandboxRunner,
 	) {
 		this.id = id;
 		this.manifest = manifest;
-		this.port = port;
 		this.limits = limits;
 		this.runner = runner;
 	}
@@ -1045,7 +1074,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 * all plugins registered via load() into a single workerd start).
 	 */
 	private async ensureReady(): Promise<void> {
-		await this.runner.ensureRunning();
+		try {
+			await this.runner.ensureRunning();
+		} catch {
+			throw new SandboxUnavailableError(this.id, "workerd failed to start");
+		}
 		if (!this.runner.isHealthy()) {
 			throw new SandboxUnavailableError(this.id, this.runner.unavailableReason());
 		}
@@ -1057,13 +1090,21 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		await this.ensureReady();
 		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
-			const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+			const res = await fetch(
+				`http://127.0.0.1:${this.runner.getPluginPort(this.id)}/hook/${hookName}`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: JSON.stringify({ event, invocationId }),
 				},
-				body: JSON.stringify({ event, invocationId }),
+			).catch((error: unknown) => {
+				throw new SandboxUnavailableError(
+					this.id,
+					error instanceof Error ? error.message : "hook transport failed",
+				);
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -1090,14 +1131,17 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		return this.withWallTimeLimit(
 			`route:${routeName}`,
 			async (invocationId) => {
-				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+				const res = await fetch(
+					`http://127.0.0.1:${this.runner.getPluginPort(this.id)}/route/${routeName}`,
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+						},
+						body: stringifyRouteTransport({ input, request, invocationId }),
 					},
-					body: stringifyRouteTransport({ input, request, invocationId }),
-				});
+				);
 				if (!res.ok) {
 					const text = await res.text();
 					let envelope = null;
@@ -1127,6 +1171,10 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 */
 	async terminate(): Promise<void> {
 		this.runner.unloadPlugin(this.id);
+	}
+
+	setActive(active: boolean): void {
+		this.runner.setPluginActive(this.id, active);
 	}
 
 	/**

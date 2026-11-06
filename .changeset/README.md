@@ -17,7 +17,7 @@ Create a changeset with the following command, then edit the generated Markdown 
 pnpm changeset
 ```
 
-The pull request author selects the affected packages and bump type in the changeset frontmatter. Use `patch` for bug fixes and small improvements, and `minor` for new backwards-compatible features. EmDash does not currently accept `major` bumps while it is pre-1.0. A breaking change or significant default change requires prior maintainer approval; use the package and bump strategy agreed with the maintainers.
+The pull request author selects the affected packages and bump type in the changeset frontmatter. Use `patch` for bug fixes and small improvements, and `minor` for new backwards-compatible features. A breaking change or significant default change requires prior maintainer approval. On a package that is 1.x or later, a breaking change needs a new major version, which the CI version check blocks until maintainers update it; use the package and bump strategy agreed with the maintainers.
 
 ## Lead with the released behavior
 

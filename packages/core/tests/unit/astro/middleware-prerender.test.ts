@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
@@ -21,7 +21,6 @@ const { DB_CONFIG_MARKER, DB_DESCRIPTOR_MARKER, mockGetLastContentWriteAt } = vi
 
 const {
 	MOCK_RUNTIME,
-	PUBLIC_PLUGIN_RESULT,
 	mockGetPluginRouteMeta,
 	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
@@ -36,11 +35,15 @@ const {
 	const getPublicUrl = vi.fn((key: string) => `https://media.example.com/${key}`);
 	const getPluginRouteMeta = vi.fn((pluginId: string, path: string) => {
 		if (pluginId !== "emdash-forms") return null;
-		if (path === "/definition") return { public: true };
+		if (path === "/definition") return { public: true, methods: ["POST"] as const };
+		if (path === "/catalog") return { public: true, methods: ["GET"] as const };
 		if (path === "/private") return { public: false };
 		return null;
 	});
-	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const handlePluginApiRoute = vi.fn(async (_pluginId: string, method: string, _path: string) => {
+		if (method === "GET") return { success: true, data: { catalog: ["public"] } };
+		return publicPluginResult;
+	});
 	const handleMediaUpload = vi.fn(ok);
 	const runPluginInstallLifecycle = vi.fn(async () => undefined);
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
@@ -77,6 +80,7 @@ const {
 			handleMediaGet: ok,
 			handleMediaUpload,
 			handleMediaCreate: ok,
+			handleMediaRegisterUpload: ok,
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
 			handleRevisionList: ok,
@@ -107,7 +111,6 @@ const {
 			getRuntimePluginSettingsSchema,
 			setPluginStatus: async () => undefined,
 		},
-		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
 		mockHandleMediaUpload: handleMediaUpload,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
@@ -207,6 +210,10 @@ beforeEach(() => {
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
 	mockRunPluginUninstallLifecycle.mockClear();
+});
+
+afterEach(() => {
+	vi.unstubAllEnvs();
 });
 
 /** A getDb stub whose migrations-probe query throws `error`. */
@@ -376,6 +383,85 @@ describe("astro middleware prerendered routes", () => {
 		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
+	it.each(["/field-notes", "/field-notes/"])(
+		"initializes the runtime for public SEO routes under base %s",
+		async (base) => {
+			vi.stubEnv("BASE_URL", base);
+			for (const path of [
+				"/sitemap.xml",
+				"/sitemap-post.xml",
+				"/sitemap-post-2.xml",
+				"/robots.txt",
+			]) {
+				resetSetupVerified();
+				mockCreateRuntime.mockClear();
+				const { context } = createRequestContext({ url: `https://example.com/field-notes${path}` });
+				await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+					expect((context.locals.emdash as Record<string, unknown>)?.db).toBe(MOCK_RUNTIME.db);
+					return new Response("ok");
+				});
+				expect(mockCreateRuntime).toHaveBeenCalledOnce();
+			}
+		},
+	);
+
+	it.each([
+		"/field-notes-other/sitemap.xml",
+		"/field-notes/article",
+		"/field-notes/sitemap-Post.xml",
+	])("keeps anonymous requests to %s on the fast path", async (path) => {
+		vi.stubEnv("BASE_URL", "/field-notes");
+		const { context } = createRequestContext({ url: `https://example.com${path}` });
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+		expect((context.locals.emdash as Record<string, unknown>)?.db).toBeUndefined();
+	});
+
+	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml", `/sitemap-${"a".repeat(63)}.xml`])(
+		"initializes the runtime for collection sitemap %s",
+		async (path) => {
+			const locals: Record<string, unknown> = {};
+			const context = {
+				request: new Request(`https://example.com${path}`),
+				url: new URL(`https://example.com${path}`),
+				cookies: { get: vi.fn(() => undefined) },
+				locals,
+				redirect: vi.fn(),
+				isPrerendered: true,
+			};
+
+			await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+			expect(typeof (locals.emdash as Record<string, unknown>)?.handlePluginApiRoute).toBe(
+				"function",
+			);
+		},
+	);
+
+	it.each([
+		"/sitemap-0.xml",
+		"/sitemap-Post.xml",
+		"/sitemap-a.b.xml",
+		"/sitemap-.xml",
+		"/sitemap-post-1.xml",
+		`/sitemap-${"a".repeat(64)}.xml`,
+	])("skips runtime setup for %s, which no collection can have", async (path) => {
+		const locals: Record<string, unknown> = {};
+		const context = {
+			request: new Request(`https://example.com${path}`),
+			url: new URL(`https://example.com${path}`),
+			cookies: { get: vi.fn(() => undefined) },
+			locals,
+			redirect: vi.fn(),
+			isPrerendered: true,
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(
+			(locals.emdash as Record<string, unknown> | undefined)?.handlePluginApiRoute,
+		).toBeUndefined();
+	});
+
 	it("does not access context.session when prerendering public pages", async () => {
 		const cookies = {
 			get: vi.fn(() => undefined),
@@ -473,21 +559,26 @@ describe("astro middleware anonymous session reads", () => {
 		expect(mockGetPublicUrl).toHaveBeenCalledWith("01ABC.jpg");
 		expect("handlePluginApiRoute" in emdash).toBe(false);
 		expect("getPluginRouteMeta" in emdash).toBe(false);
+		expect(typeof emdash.getPublicPluginRouteMeta).toBe("function");
 		expect("handleContentList" in emdash).toBe(false);
 		expect("db" in emdash).toBe(false);
 		expect("config" in emdash).toBe(false);
 	});
 
-	it("dispatches public plugin API routes through the anonymous public-page helper", async () => {
+	it("exposes public metadata and dispatches an anonymous public GET", async () => {
 		const locals: Record<string, unknown> = {};
 		const { context } = createAnonymousPublicPageContext(locals);
 
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
-		const request = new Request("https://example.com/_emdash/api/plugins/emdash-forms/definition", {
-			method: "POST",
-			body: "{}",
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
+			public: true,
+			methods: ["GET"],
 		});
 
 		await expect(
@@ -498,25 +589,38 @@ describe("astro middleware anonymous session reads", () => {
 					path: string,
 					request: Request,
 				) => Promise<unknown>
-			)("emdash-forms", "POST", "/definition", request),
-		).resolves.toBe(PUBLIC_PLUGIN_RESULT);
+			)(
+				"emdash-forms",
+				"GET",
+				"/catalog",
+				new Request("https://example.com/_emdash/api/plugins/emdash-forms/catalog", {
+					method: "GET",
+				}),
+			),
+		).resolves.toEqual({ success: true, data: { catalog: ["public"] } });
 
-		expect(mockGetPluginRouteMeta).toHaveBeenCalledWith("emdash-forms", "/definition");
+		expect(mockGetPluginRouteMeta).toHaveBeenCalledWith("emdash-forms", "/catalog");
 		expect(mockHandlePluginApiRoute).toHaveBeenCalledWith(
 			"emdash-forms",
-			"POST",
-			"/definition",
-			request,
+			"GET",
+			"/catalog",
+			expect.any(Request),
 		);
 	});
 
-	it("does not dispatch private plugin API routes through the anonymous public-page helper", async () => {
+	it("hides private and unknown metadata and does not dispatch them anonymously", async () => {
 		const locals: Record<string, unknown> = {};
 		const { context } = createAnonymousPublicPageContext(locals);
 
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
 		const emdash = locals.emdash as Record<string, unknown>;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPublicPluginRouteMeta("emdash-forms", "/private")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/missing")).toBeNull();
 
 		await expect(
 			(
@@ -539,6 +643,68 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(mockGetPluginRouteMeta).toHaveBeenCalledWith("emdash-forms", "/private");
 		expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
+	it("rechecks public access at dispatch after metadata was inspected", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createAnonymousPublicPageContext(locals);
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toMatchObject({ public: true });
+		mockGetPluginRouteMeta.mockReturnValueOnce({ public: false });
+		await expect(
+			(
+				emdash.handlePublicPluginApiRoute as (
+					pluginId: string,
+					method: string,
+					path: string,
+					request: Request,
+				) => Promise<unknown>
+			)(
+				"emdash-forms",
+				"GET",
+				"/catalog",
+				new Request("https://example.com/_emdash/api/plugins/emdash-forms/catalog", {
+					method: "GET",
+				}),
+			),
+		).resolves.toEqual({
+			success: false,
+			error: { code: "NOT_FOUND", message: "Plugin route not found" },
+		});
+		expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
+	it("keeps private route metadata available through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+		const emdash = locals.emdash as Record<string, unknown>;
+		const getPluginRouteMeta = emdash.getPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		const getPublicPluginRouteMeta = emdash.getPublicPluginRouteMeta as (
+			pluginId: string,
+			path: string,
+		) => unknown;
+		expect(getPluginRouteMeta("emdash-forms", "/private")).toEqual({ public: false });
+		expect(getPublicPluginRouteMeta("emdash-forms", "/private")).toBeNull();
+		expect(getPublicPluginRouteMeta("emdash-forms", "/catalog")).toEqual({
+			public: true,
+			methods: ["GET"],
+		});
 	});
 
 	it("reads the Astro session when an astro-session cookie is present", async () => {
@@ -624,6 +790,34 @@ describe("astro middleware anonymous session reads", () => {
 			input,
 		);
 		expect(mockHandleMediaUpload).toHaveBeenCalledWith(input);
+	});
+
+	it("gives anonymous page renders the storage public media URL resolver", async () => {
+		const { context } = createAnonymousPublicPageContext();
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
+	});
+
+	it("gives authenticated page renders the storage public media URL resolver", async () => {
+		const { context } = createRequestContext({
+			url: "https://example.com/",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+		});
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
 	});
 });
 
@@ -758,6 +952,22 @@ describe("astro middleware request-scoped db", () => {
 		expect(getRequestContext()).toBeUndefined();
 	});
 
+	it("keeps the public media URL resolver in the scoped db context", async () => {
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit: vi.fn(),
+		});
+		const { context } = createAnonymousPublicPageContext();
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
+	});
+
 	it("marks an API-token (Bearer) request as authenticated even without a session cookie", async () => {
 		// API tokens (ec_pat_*) and OAuth tokens (ec_oat_*) authenticate via the
 		// Authorization header, not the astro-session cookie, so sessionUser is
@@ -864,7 +1074,7 @@ describe("astro middleware setup probe", () => {
 		};
 	}
 
-	it("redirects to setup when the migrations table is genuinely missing", async () => {
+	it("migrates and renders a public page when the migrations table is genuinely missing", async () => {
 		// Fresh, un-migrated database: the probe query reports a missing table.
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
@@ -875,10 +1085,28 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(redirect).toHaveBeenCalledWith("/_emdash/admin/setup");
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/_emdash/admin/setup");
+		expect(redirect).not.toHaveBeenCalled();
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("answers with an uncached 503 when an un-migrated database cannot be initialized", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+		mockCreateRuntime.mockRejectedValue(new Error("migration 001 failed"));
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
 		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(503);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect(await response.text()).toContain('href="/_emdash/admin/setup"');
 	});
 
 	it("does NOT redirect to setup on a transient DB error (regression)", async () => {
@@ -897,6 +1125,100 @@ describe("astro middleware setup probe", () => {
 		expect(redirect).not.toHaveBeenCalled();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
+	});
+
+	it("starts runtime init without waiting for the probe", async () => {
+		let releaseProbe = () => {};
+		const probeHeld = new Promise<void>((resolve) => {
+			releaseProbe = resolve;
+		});
+		vi.mocked(getDb).mockResolvedValue({
+			selectFrom: () => ({
+				selectAll: () => ({
+					limit: () => ({
+						execute: async () => {
+							await probeHeld;
+							return [];
+						},
+					}),
+				}),
+			}),
+		} as never);
+
+		const { context } = anonymousCategoryPageContext();
+		const pending = onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () => new Response("page"),
+		);
+		await vi.waitFor(() => expect(mockCreateRuntime).toHaveBeenCalledTimes(1));
+
+		releaseProbe();
+		expect((await pending).status).toBe(200);
+		expect(typeof (context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
+	it("does not wait for runtime init after the probe failed to reach the database", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+		let releaseInit = () => {};
+		mockCreateRuntime.mockReturnValue(
+			new Promise((resolve) => {
+				releaseInit = () => resolve(MOCK_RUNTIME);
+			}),
+		);
+
+		const { context } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		try {
+			expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
+			expect(next).toHaveBeenCalledTimes(1);
+			expect(response.status).toBe(200);
+		} finally {
+			releaseInit();
+		}
+	});
+
+	it("still uses an already-running runtime when the probe fails", async () => {
+		vi.mocked(getDb).mockResolvedValueOnce({
+			selectFrom: () => ({
+				selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+			}),
+		} as never);
+		const first = anonymousCategoryPageContext();
+		await onRequest(first.context as Parameters<typeof onRequest>[0], async () => new Response());
+		delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+
+		const second = anonymousCategoryPageContext();
+		await onRequest(second.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
+	it("serves the next request from the runtime a failed-probe request started", async () => {
+		vi.mocked(getDb).mockResolvedValueOnce(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+		const first = anonymousCategoryPageContext();
+		await onRequest(first.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		vi.mocked(getDb).mockResolvedValue({
+			selectFrom: () => ({
+				selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+			}),
+		} as never);
+		const second = anonymousCategoryPageContext();
+		await onRequest(second.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
 	});
 
 	it("does NOT redirect to setup during prerender even when migrations are missing (regression)", async () => {

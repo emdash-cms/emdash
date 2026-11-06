@@ -6,12 +6,10 @@
  * 2. Triggers browser's WebAuthn credential assertion
  * 3. Sends assertion back to server for verification
  *
- * Supports:
- * - Discoverable credentials (passkey autofill)
- * - Non-discoverable credentials (email-first flow)
+ * Uses discoverable credentials, so no email or username is needed.
  */
 
-import { Button, Input } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -68,7 +66,7 @@ export interface PasskeyLoginProps {
 	onSuccess: (response: unknown) => void;
 	/** Called on error */
 	onError?: (error: Error) => void;
-	/** Show email input for non-discoverable flow */
+	/** @deprecated Ignored. Sign-in always uses discoverable credentials. */
 	showEmailInput?: boolean;
 	/** Button text */
 	buttonText?: string;
@@ -130,13 +128,11 @@ export function PasskeyLogin({
 	verifyEndpoint,
 	onSuccess,
 	onError,
-	showEmailInput = false,
 	buttonText,
 }: PasskeyLoginProps) {
 	const { t } = useLingui();
 	const resolvedButtonText = buttonText ?? t`Sign in with Passkey`;
 	const [state, setState] = React.useState<LoginState>({ status: "idle" });
-	const [email, setEmail] = React.useState("");
 	const [supportsConditional, setSupportsConditional] = React.useState(false);
 
 	const isSupported = React.useMemo(() => isPasskeyEnvironmentUsable(), []);
@@ -169,7 +165,7 @@ export function PasskeyLogin({
 				const optionsResponse = await apiFetch(optionsEndpoint, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ email: email || undefined }),
+					body: JSON.stringify({}),
 				});
 
 				const optionsData = await parseApiResponse<{
@@ -288,7 +284,6 @@ export function PasskeyLogin({
 			insecureContext,
 			optionsEndpoint,
 			verifyEndpoint,
-			email,
 			supportsConditional,
 			onSuccess,
 			onError,
@@ -315,24 +310,6 @@ export function PasskeyLogin({
 
 	return (
 		<div className="space-y-4">
-			{/* Email input (optional - for non-discoverable credentials) */}
-			{showEmailInput && (
-				<div>
-					<Input
-						label={t`Email (optional)`}
-						type="email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						placeholder={t`you@example.com`}
-						disabled={state.status === "loading"}
-						autoComplete="username webauthn"
-					/>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						{t`Leave blank to use a discoverable passkey.`}
-					</p>
-				</div>
-			)}
-
 			{/* Error message */}
 			{state.status === "error" && (
 				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">

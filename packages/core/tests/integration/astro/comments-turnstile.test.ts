@@ -115,6 +115,21 @@ describe("POST /comments — Turnstile verification", () => {
 		expect(await commentCount()).toBe(0);
 	});
 
+	it("does not count rejected submissions toward the shared rate limit", async () => {
+		vi.stubEnv("EMDASH_TURNSTILE_SECRET_KEY", "test-secret");
+		stubSiteverify(true);
+
+		for (let i = 0; i < 25; i++) {
+			const rejected = await postComment(buildContext(db, buildRequest(VALID_BODY)));
+			expect(rejected.status).toBe(403);
+		}
+
+		const res = await postComment(
+			buildContext(db, buildRequest({ ...VALID_BODY, turnstileToken: "good-token" })),
+		);
+		expect(res.status).toBe(201);
+	});
+
 	it("rejects a submission whose token fails siteverify", async () => {
 		vi.stubEnv("EMDASH_TURNSTILE_SECRET_KEY", "test-secret");
 		const fetchSpy = stubSiteverify(false);

@@ -90,6 +90,19 @@ import * as m079 from "./079_datetime_normalization.js";
 import * as m080 from "./080_content_translation_locale_unique.js";
 import * as m081 from "./081_redirect_write_guards.js";
 import * as m082 from "./082_taxonomy_translation_locale_unique.js";
+import * as m083 from "./083_block_types.js";
+import * as m084 from "./084_site_transfer.js";
+import * as m085 from "./085_taxonomy_def_groups.js";
+import * as m086 from "./086_relations_structural.js";
+import * as m087 from "./087_reference_field_relations.js";
+import * as m088 from "./088_cron_oneshot_utc.js";
+import * as m089 from "./089_auto_seed_completion.js";
+import * as m090 from "./090_redirect_enable_loop_guard.js";
+import * as m091 from "./091_redirect_artifacts.js";
+import * as m092 from "./092_plugin_kv_options.js";
+import * as m093 from "./093_menu_item_orphans.js";
+import * as m094 from "./094_media_usage_file_url_reindex.js";
+import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -173,6 +186,18 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"080_content_translation_locale_unique": m080,
 	"081_redirect_write_guards": m081,
 	"082_taxonomy_translation_locale_unique": m082,
+	"083_block_types": m083,
+	"084_site_transfer": m084,
+	"085_taxonomy_def_groups": m085,
+	"086_relations_structural": m086,
+	"087_reference_field_relations": m087,
+	"088_cron_oneshot_utc": m088,
+	"089_auto_seed_completion": m089,
+	"090_redirect_enable_loop_guard": m090,
+	"091_redirect_artifacts": m091,
+	"092_plugin_kv_options": m092,
+	"093_menu_item_orphans": m093,
+	"094_media_usage_file_url_reindex": m094,
 });
 
 /** Ordered names from the statically registered migration set. */
@@ -235,6 +260,39 @@ export class MigrationLockHeldError extends Error {
 	}
 }
 
+/**
+ * Thrown when the migrator reports an error while applying pending migrations.
+ * Callers with failure backoff apply it. Errors from the applied-migration
+ * count check before the migrator runs are not wrapped and stay retryable.
+ */
+export class MigrationFailedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MigrationFailedError";
+	}
+}
+
+/**
+ * Thrown before the migration lock is taken when the pending content-sized
+ * migrations process more rows than the caller's `contentRowLimit`. Nothing
+ * has been applied; `emdash migrate` applies them outside a request.
+ */
+export class MigrationRowLimitError extends Error {
+	readonly migrations: string[];
+	readonly rowLimit: number;
+
+	constructor(migrations: readonly string[], rowLimit: number) {
+		super(
+			`Pending migration ${migrations.join(", ")} processes more than ${rowLimit} content rows, ` +
+				"too many to apply while serving a request. Apply it with `emdash migrate`: " +
+				"https://docs.emdashcms.com/deployment/core-migrations/#apply-large-content-migrations-from-the-cli",
+		);
+		this.name = "MigrationRowLimitError";
+		this.migrations = [...migrations];
+		this.rowLimit = rowLimit;
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 
@@ -246,6 +304,17 @@ export interface MigrationOptions {
 	 * give-up path doesn't take 10 seconds per case.
 	 */
 	raceWaitMs?: number;
+	/**
+	 * Refuse with MigrationRowLimitError, before taking the migration lock, when
+	 * the pending content-sized migrations process more rows than this.
+	 */
+	contentRowLimit?: number;
+	/**
+	 * An applied-migration count the caller already read from this database
+	 * (`getAppliedMigrationCount`). The fast path uses it instead of reading
+	 * its own. Leave it undefined to have runMigrations read the count.
+	 */
+	appliedCount?: number | null;
 }
 
 export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
@@ -361,7 +430,7 @@ const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
  * permission errors, or other unexpected driver problems behind a 10s wait
  * and a bogus "we're done" verdict.
  */
-async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
+export async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | null> {
 	try {
 		const result = await sql<{ count: number }>`
 			SELECT COUNT(*) as count FROM ${sql.ref(MIGRATION_TABLE)}
@@ -373,6 +442,17 @@ async function getAppliedMigrationCount(db: Kysely<Database>): Promise<number | 
 		}
 		throw error;
 	}
+}
+
+/**
+ * Whether an applied-migration count (from `getAppliedMigrationCount`) covers
+ * every migration this build knows about. `>=` rather than `===` so a
+ * database with extra rows from a newer build (e.g. mid-deploy old isolate,
+ * or downgrade) still counts as current, instead of falling through to the
+ * migrator's race-recovery path unnecessarily.
+ */
+export function isMigrationCountCurrent(count: number | null | undefined): boolean {
+	return count != null && count >= MIGRATION_COUNT;
 }
 
 /**
@@ -456,6 +536,23 @@ export async function getExactMigrationStatus(
 	return { knownApplied, pending, unknownApplied };
 }
 
+async function assertWithinContentRowLimit(
+	db: Kysely<Database>,
+	rowLimit: number,
+	options: MigrationOptions | undefined,
+): Promise<void> {
+	const { pending } = await getExactMigrationStatus(db, options);
+	const sized = pending.filter((name) => CONTENT_SIZED_MIGRATIONS.has(name));
+	let rows = 0;
+	for (const name of sized) {
+		const migration = CONTENT_SIZED_MIGRATIONS.get(name);
+		if (!migration) continue;
+		// oxlint-disable-next-line no-await-in-loop -- each count is capped by what the previous ones left
+		rows += await migration.countRows(db, rowLimit + 1 - rows);
+		if (rows > rowLimit) throw new MigrationRowLimitError(sized, rowLimit);
+	}
+}
+
 /**
  * Run all pending migrations.
  *
@@ -482,16 +579,20 @@ export async function runMigrations(
 	options?: MigrationOptions,
 ): Promise<{ applied: string[] }> {
 	// Fast path: check if all migrations are already applied.
-	// A single cheap query vs the Migrator's full schema introspection.
-	// We use `>=` rather than `===` so a database with extra rows from a
-	// newer build (e.g. mid-deploy old isolate, or downgrade) still skips
-	// the migrator instead of falling through to the race-recovery path
-	// unnecessarily.
+	// A single cheap query vs the Migrator's full schema introspection, or
+	// none when the caller already read the count.
 	if (!options?.migrationTableSchema) {
-		const initialCount = await getAppliedMigrationCount(db);
-		if (initialCount !== null && initialCount >= MIGRATION_COUNT) {
+		const initialCount =
+			options?.appliedCount !== undefined
+				? options.appliedCount
+				: await getAppliedMigrationCount(db);
+		if (isMigrationCountCurrent(initialCount)) {
 			return { applied: [] };
 		}
+	}
+
+	if (options?.contentRowLimit !== undefined) {
+		await assertWithinContentRowLimit(db, options.contentRowLimit, options);
 	}
 
 	const migrator = createMigrator(db, options);
@@ -533,7 +634,7 @@ export async function runMigrations(
 		}
 
 		const failedSuffix = failedMigration ? ` (migration: ${failedMigration.migrationName})` : "";
-		throw new Error(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
+		throw new MigrationFailedError(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
 	}
 
 	return { applied };

@@ -13,6 +13,7 @@ import {
 	throwResponseError,
 	type FindManyResult,
 } from "./client.js";
+import type { EntryRef } from "./relations.js";
 
 /**
  * Derive draft status from a content item's revision pointers
@@ -60,6 +61,13 @@ export interface ContentItem {
 	draftRevisionId: string | null;
 	seo?: ContentSeo;
 	/**
+	 * First page of reference-field edges, keyed by field slug.
+	 * Only present when the server opts into hydration (the editor GET route).
+	 * Each field's entries are stored solely in `_emdash_content_references`;
+	 * the admin sends the desired id lists back in the `references` save key.
+	 */
+	references?: Record<string, { children: EntryRef[]; nextCursor?: string }>;
+	/**
 	 * Opaque optimistic-concurrency token returned by the content API on
 	 * reads. Echo it back on writes so the server can reject a save that is
 	 * based on a stale read (#2121). Undefined if the server didn't send one.
@@ -75,6 +83,8 @@ export interface CreateContentInput {
 	bylines?: BylineCreditInput[];
 	locale?: string;
 	translationOf?: string;
+	/** Reference-field edges to write atomically, keyed by field slug. */
+	references?: Record<string, string[]>;
 }
 
 export interface TranslationSummary {
@@ -98,7 +108,10 @@ export async function fetchTranslations(
 	id: string,
 ): Promise<TranslationsResponse> {
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/translations`);
-	return parseApiResponse<TranslationsResponse>(response, "Failed to fetch translations");
+	return parseApiResponse<TranslationsResponse>(
+		response,
+		i18n._(msg`Failed to fetch translations`),
+	);
 }
 
 /** Input for updating SEO fields on content */
@@ -120,6 +133,8 @@ export interface UpdateContentInput {
 	/** Skip revision creation (used by autosave) */
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/** Reference-field edges to replace atomically, keyed by field slug. */
+	references?: Record<string, string[]>;
 	/**
 	 * Optimistic-concurrency token from the last read. When present, the
 	 * server rejects the write with 409 if the entry changed since that read,
@@ -154,6 +169,8 @@ export async function fetchContentList(
 	collection: string,
 	options?: {
 		cursor?: string;
+		/** 1-based page number; use instead of `cursor` for numbered pages with a `total`. */
+		page?: number;
 		limit?: number;
 		status?: string;
 		locale?: string;
@@ -187,6 +204,7 @@ export async function fetchContentList(
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
+	if (options?.page !== undefined) params.set("page", String(options.page));
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.status) params.set("status", options.status);
 	if (options?.locale) params.set("locale", options.locale);
@@ -214,7 +232,10 @@ export async function fetchContentList(
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
-	return parseApiResponse<FindManyResult<ContentItem>>(response, "Failed to fetch content");
+	return parseApiResponse<FindManyResult<ContentItem>>(
+		response,
+		i18n._(msg`Failed to fetch content`),
+	);
 }
 
 /** A distinct content author, for the admin author filter. */
@@ -234,7 +255,7 @@ export async function fetchContentAuthors(collection: string): Promise<ContentAu
 	const response = await apiFetch(`${API_BASE}/content/${collection}/authors`);
 	const data = await parseApiResponse<{ items: ContentAuthor[] }>(
 		response,
-		"Failed to fetch content authors",
+		i18n._(msg`Failed to fetch content authors`),
 	);
 	return data.items;
 }
@@ -253,7 +274,7 @@ export async function fetchContent(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`);
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to fetch content",
+		i18n._(msg`Failed to fetch content`),
 	);
 	// The server returns `_rev` at the envelope level, not inside `item`.
 	// Lift it onto the item so the editor can echo it back on save (#2121).
@@ -277,11 +298,12 @@ export async function createContent(
 			bylines: input.bylines,
 			locale: input.locale,
 			translationOf: input.translationOf,
+			references: input.references,
 		}),
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to create content",
+		i18n._(msg`Failed to create content`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -305,7 +327,7 @@ export async function updateContent(
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to update content",
+		i18n._(msg`Failed to update content`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -334,12 +356,15 @@ export async function fetchTrashedContent(
 	collection: string,
 	options?: {
 		cursor?: string;
+		/** 1-based page number; use instead of `cursor` for numbered pages with a `total`. */
+		page?: number;
 		limit?: number;
 		locale?: string;
 	},
 ): Promise<FindManyResult<TrashedContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
+	if (options?.page !== undefined) params.set("page", String(options.page));
 	if (options?.limit) params.set("limit", String(options.limit));
 	if (options?.locale) params.set("locale", options.locale);
 
@@ -347,7 +372,7 @@ export async function fetchTrashedContent(
 	const response = await apiFetch(url);
 	return parseApiResponse<FindManyResult<TrashedContentItem>>(
 		response,
-		"Failed to fetch trashed content",
+		i18n._(msg`Failed to fetch trashed content`),
 	);
 }
 
@@ -381,7 +406,7 @@ export async function duplicateContent(collection: string, id: string): Promise<
 	});
 	const data = await parseApiResponse<{ item: ContentItem }>(
 		response,
-		"Failed to duplicate content",
+		i18n._(msg`Failed to duplicate content`),
 	);
 	return data.item;
 }
@@ -405,7 +430,7 @@ export async function scheduleContent(
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to schedule content",
+		i18n._(msg`Failed to schedule content`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -426,7 +451,7 @@ export async function unscheduleContent(
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to unschedule content",
+		i18n._(msg`Failed to unschedule content`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -501,7 +526,7 @@ export async function publishContent(
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to publish content",
+		i18n._(msg`Failed to publish content`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -524,7 +549,7 @@ export async function unpublishContent(
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to unpublish content",
+		i18n._(msg`Failed to unpublish content`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -545,7 +570,7 @@ export async function discardDraft(
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
-		"Failed to discard draft",
+		i18n._(msg`Failed to discard draft`),
 	);
 	return { ...data.item, _rev: data._rev };
 }
@@ -566,7 +591,7 @@ export async function compareRevisions(
 		hasChanges: boolean;
 		live: Record<string, unknown> | null;
 		draft: Record<string, unknown> | null;
-	}>(response, "Failed to compare revisions");
+	}>(response, i18n._(msg`Failed to compare revisions`));
 }
 
 // =============================================================================
@@ -582,8 +607,19 @@ export interface Revision {
 	createdAt: string;
 }
 
+export interface RevisionAuthor {
+	id: string;
+	/** `null` when the account has no display name. */
+	name: string | null;
+}
+
+export interface RevisionListItem extends Revision {
+	/** `null` when no author was recorded or the account no longer exists. */
+	author: RevisionAuthor | null;
+}
+
 export interface RevisionListResponse {
-	items: Revision[];
+	items: RevisionListItem[];
 	total: number;
 }
 
@@ -593,14 +629,14 @@ export interface RevisionListResponse {
 export async function fetchRevisions(
 	collection: string,
 	entryId: string,
-	options?: { limit?: number },
+	options?: { limit?: number; signal?: AbortSignal },
 ): Promise<RevisionListResponse> {
 	const params = new URLSearchParams();
 	if (options?.limit) params.set("limit", String(options.limit));
 
 	const url = `${API_BASE}/content/${collection}/${entryId}/revisions${params.toString() ? `?${params}` : ""}`;
-	const response = await apiFetch(url);
-	return parseApiResponse<RevisionListResponse>(response, "Failed to fetch revisions");
+	const response = await apiFetch(url, { signal: options?.signal });
+	return parseApiResponse<RevisionListResponse>(response, i18n._(msg`Failed to fetch revisions`));
 }
 
 /**
@@ -611,7 +647,7 @@ export async function fetchRevision(revisionId: string): Promise<Revision> {
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch revision`));
 	}
@@ -633,7 +669,7 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}

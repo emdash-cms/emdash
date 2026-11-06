@@ -1,10 +1,10 @@
 ﻿# Security Policy
 
-EmDash is a beta CMS with authentication, content management, plugin execution, and Cloudflare/Node deployment surfaces. Please report suspected vulnerabilities privately so maintainers can triage and coordinate a fix before public disclosure.
+EmDash is a CMS with authentication, content management, plugin execution, and Cloudflare/Node deployment surfaces. Please report suspected vulnerabilities privately so maintainers can triage and coordinate a fix before public disclosure.
 
 ## Supported Versions
 
-EmDash is currently in beta preview. Security reports should target the current `main` branch and the latest published `emdash` / `@emdash-cms/*` packages unless maintainers document additional supported release lines.
+Security reports should target the current `main` branch and the latest published `emdash` / `@emdash-cms/*` packages unless maintainers document additional supported release lines.
 
 ## Reporting a Vulnerability
 
@@ -13,6 +13,8 @@ Use GitHub's private vulnerability reporting flow for this repository:
 1. Open the repository's **Security** tab.
 2. Choose **Report a vulnerability**.
 3. Include enough detail for maintainers to reproduce and assess the issue.
+
+If you can't use GitHub's reporting flow, email [emdash@cloudflare.com](mailto:emdash@cloudflare.com) instead.
 
 If you already submitted a private GitHub security advisory, keep follow-up discussion in that advisory thread. Avoid opening public issues for exploitable details; a public issue may be used only to ask for routing or status without sharing sensitive technical information.
 

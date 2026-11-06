@@ -25,6 +25,10 @@ export const coreWidgetComponents: WidgetComponentDef[] = [
 				label: "Show date",
 				default: true,
 			},
+			urlTemplate: {
+				type: "string",
+				label: "URL template (e.g. /blog/:slug)",
+			},
 		},
 	},
 	{

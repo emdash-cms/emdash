@@ -331,6 +331,8 @@ await ctx.storage.submissions.putMany([
 const deletedCount = await ctx.storage.submissions.deleteMany(["sub_1", "sub_2"]);
 ```
 
+On the Cloudflare sandbox adapter, `putMany()` writes items sequentially. If a write fails, the promise rejects, earlier writes remain committed, and later items are not attempted.
+
 ## Index design
 
 Choose indexes based on actual query patterns:

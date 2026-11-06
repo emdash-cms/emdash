@@ -11,12 +11,7 @@ export const GET: APIRoute = ({ locals }) => {
 	const response = apiSuccess({
 		product: "emdash",
 		version: VERSION,
-		registry: Boolean(
-			getRegistryConfigInput(
-				locals.emdash?.config.registry,
-				locals.emdash?.config.experimental?.registry,
-			),
-		),
+		registry: Boolean(getRegistryConfigInput(locals.emdash?.config.registry)),
 	});
 	response.headers.set("Access-Control-Allow-Origin", "*");
 	return response;

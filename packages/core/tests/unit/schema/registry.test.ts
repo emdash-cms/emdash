@@ -1,12 +1,16 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { setDevTypegenRefresh } from "../../../src/astro/dev-typegen.js";
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
+
+import { refreshDevTypes } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
+import { MAX_SCHEMA_SLUG_LENGTH } from "../../../src/schema/slug.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
+
+vi.mock("../../../src/astro/dev-typegen.js", () => ({ refreshDevTypes: vi.fn() }));
 
 describe("SchemaRegistry", () => {
 	let db: Kysely<EmDashDatabase>;
@@ -97,6 +101,14 @@ describe("SchemaRegistry", () => {
 				.execute();
 
 			expect(result).toBeDefined();
+		});
+
+		it("rejects an unregistered content table with a structured conflict", async () => {
+			await sql`CREATE TABLE ec_orphaned (id TEXT PRIMARY KEY)`.execute(db);
+
+			await expect(
+				registry.createCollection({ slug: "orphaned", label: "Orphaned" }),
+			).rejects.toMatchObject({ code: "COLLECTION_TABLE_ORPHANED" });
 		});
 
 		it("should list collections", async () => {
@@ -303,6 +315,12 @@ describe("SchemaRegistry", () => {
 			expect(blank.group).toBeUndefined();
 		});
 
+		it("clears a collection icon with an empty string", async () => {
+			await registry.createCollection({ slug: "trophies", label: "Trophies", icon: "trophy" });
+			const cleared = await registry.updateCollection("trophies", { icon: "" });
+			expect(cleared.icon).toBeUndefined();
+		});
+
 		it("persists collection admin list columns", async () => {
 			const created = await registry.createCollection({
 				slug: "tickets",
@@ -347,6 +365,20 @@ describe("SchemaRegistry", () => {
 			await expect(registry.createCollection({ slug: "users", label: "Users" })).rejects.toThrow(
 				SchemaError,
 			);
+		});
+
+		it("should cap collection slugs at MAX_SCHEMA_SLUG_LENGTH characters", async () => {
+			const atLimit = "a".repeat(MAX_SCHEMA_SLUG_LENGTH);
+			await expect(
+				registry.createCollection({ slug: atLimit, label: "At limit" }),
+			).resolves.toMatchObject({ slug: atLimit });
+
+			await expect(
+				registry.createCollection({
+					slug: "b".repeat(MAX_SCHEMA_SLUG_LENGTH + 1),
+					label: "Too long",
+				}),
+			).rejects.toThrow(SchemaError);
 		});
 
 		it("should validate collection slug format", async () => {
@@ -1151,12 +1183,8 @@ describe("SchemaRegistry", () => {
 	});
 
 	describe("dev typegen hook", () => {
-		it("triggers the registered refresh callback after a schema mutation", async () => {
-			const originalDev = (import.meta.env as { DEV?: boolean }).DEV;
-			(import.meta.env as { DEV?: boolean }).DEV = true;
-
-			const refresh = vi.fn();
-			setDevTypegenRefresh(refresh);
+		it("signals a dev types refresh after a schema mutation", async () => {
+			vi.mocked(refreshDevTypes).mockClear();
 
 			await registry.createCollection({
 				slug: "typed",
@@ -1164,11 +1192,7 @@ describe("SchemaRegistry", () => {
 				supports: ["drafts", "revisions"],
 			});
 
-			expect(refresh).toHaveBeenCalledTimes(1);
-			expect(refresh).toHaveBeenCalledWith(db);
-
-			setDevTypegenRefresh(() => {});
-			(import.meta.env as { DEV?: boolean }).DEV = originalDev;
+			expect(refreshDevTypes).toHaveBeenCalledTimes(1);
 		});
 	});
 });

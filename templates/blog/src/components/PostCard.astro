@@ -1,279 +1,449 @@
 ---
-import type { MediaValue, ContentBylineCredit } from "emdash";
+import type { ContentEntry, InferCollectionData } from "emdash";
 import { Image } from "emdash/ui";
+import Byline from "./Byline.astro";
+import { formatDate } from "../utils/locale";
+import { formatReadingTime, getReadingTime } from "../utils/reading-time";
 
 interface Props {
-	title: string;
-	excerpt?: string;
-	featuredImage?: MediaValue | string;
-	href: string;
-	date?: Date;
-	readingTime?: number;
+	post: ContentEntry<InferCollectionData<"posts">>;
 	tags?: Array<{ slug: string; label: string }>;
-	bylines?: ContentBylineCredit[];
+	/** card: grid tile. feature: large split card. row: archive list item. */
+	variant?: "card" | "feature" | "row";
+	headingLevel?: 2 | 3;
+	/** Load the image eagerly; use for the largest image above the fold. */
+	priority?: boolean;
 }
 
 const {
-	title,
-	excerpt,
-	featuredImage,
-	href,
-	date,
-	readingTime,
-	tags,
-	bylines,
+	post,
+	tags = [],
+	variant = "card",
+	headingLevel = 2,
+	priority = false,
 } = Astro.props;
 
-const formattedDate = date
-	? date.toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-		})
-	: null;
+const Heading = `h${headingLevel}` as const;
+const href = `/posts/${post.id}`;
+const titleId = `post-${variant}-${post.id}`;
+const title = post.data.title || "Untitled";
+const publishedAt = post.data.publishedAt ?? null;
+const readingTime = formatReadingTime(getReadingTime(post.data.content));
+const bylines = post.data.bylines ?? [];
+const visibleTags = tags.slice(0, variant === "card" ? 2 : 3);
+
+const sizes = {
+	card: "(min-width: 1080px) 360px, (min-width: 700px) 45vw, 100vw",
+	feature: "(min-width: 900px) 640px, 100vw",
+	row: "(min-width: 720px) 240px, 120px",
+}[variant];
 ---
 
-<article class="post-card">
-	<a href={href} class="card-link">
+<article class:list={["post", `post--${variant}`]}>
+	<a href={href} class="post__media" tabindex="-1" aria-hidden="true">
 		{
-			featuredImage ? (
-				<div class="card-image">
-					<Image image={featuredImage} />
+			post.data.featured_image ? (
+				<div class="post__image" {...post.edit.featured_image}>
+					<Image
+						image={post.data.featured_image}
+						sizes={sizes}
+						priority={priority}
+					/>
 				</div>
 			) : (
-				<div class="card-placeholder" />
+				<div class="post__placeholder" />
 			)
 		}
-		<div class="card-body">
-			<div class="card-meta">
+	</a>
+	<div class="post__body">
+		<a href={href} class="post__link" aria-labelledby={titleId}>
+			<span class="post__meta">
 				{
-					bylines && bylines.length > 0 && (
-						<>
-							<div class="card-bylines">
-								{bylines.slice(0, 1).map((credit) => (
-									<span class="card-byline">
-										{credit.byline.avatarMediaId && (
-											<img
-												src={`/_emdash/api/media/file/${credit.byline.avatarMediaId}`}
-												alt={credit.byline.displayName}
-												class="card-byline-avatar"
-											/>
-										)}
-										<span class="card-byline-name">
-											{credit.byline.displayName}
-										</span>
-									</span>
-								))}
-								{bylines.length > 1 && (
-									<span
-										class="byline-more"
-										data-tooltip={bylines
-											.slice(1)
-											.map((c) => c.byline.displayName)
-											.join(", ")}
-										title={bylines
-											.slice(1)
-											.map((c) => c.byline.displayName)
-											.join(", ")}
-										tabindex="0"
-									>
-										+{bylines.length - 1}
-									</span>
-								)}
-							</div>
-							{(formattedDate || readingTime) && <span class="meta-dot" />}
-						</>
+					publishedAt && (
+						<time datetime={publishedAt.toISOString()}>
+							{formatDate(publishedAt, "short")}
+						</time>
 					)
 				}
-				{formattedDate && <time>{formattedDate}</time>}
-				{formattedDate && readingTime && <span class="meta-dot" />}
-				{readingTime && <span>{readingTime} min</span>}
-			</div>
-			<h2 class="card-title">{title}</h2>
-			{excerpt && <p class="card-excerpt">{excerpt}</p>}
-		</div>
-	</a>
-	{
-		tags && tags.length > 0 && (
-			<div class="card-tags">
-				{tags.slice(0, 2).map((tag) => (
-					<a href={`/tag/${tag.slug}`} class="card-tag">
-						{tag.label}
-					</a>
-				))}
-			</div>
-		)
-	}
+				<span>{readingTime}</span>
+			</span>
+			<Heading class="post__title" id={titleId} {...post.edit.title}>
+				{title}
+			</Heading>
+			{
+				post.data.excerpt && (
+					<p class="post__excerpt" {...post.edit.excerpt}>
+						{post.data.excerpt}
+					</p>
+				)
+			}
+			{
+				variant === "feature" && (
+					<span class="post__cta arrow-link" aria-hidden="true">
+						Read article
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.75"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M5 12h14" />
+							<path d="m12 5 7 7-7 7" />
+						</svg>
+					</span>
+				)
+			}
+		</a>
+		{
+			(bylines.length > 0 || visibleTags.length > 0) && (
+				<div class="post__footer">
+					<Byline
+						bylines={bylines}
+						max={variant === "card" ? 1 : 2}
+						size={variant === "feature" ? "sm" : "xs"}
+					/>
+					{visibleTags.length > 0 && (
+						<ul class="chips post__tags" aria-label="Tags">
+							{visibleTags.map((tag) => (
+								<li>
+									<a href={`/tag/${tag.slug}`} class="chip">
+										{tag.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					)}
+				</div>
+			)
+		}
+	</div>
 </article>
 
 <style>
-	.post-card {
+	.post {
+		position: relative;
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
+		transition:
+			box-shadow var(--transition-base),
+			outline-color var(--transition-fast);
 	}
 
-	.card-link {
+	.post:has(.post__link:focus-visible) {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	@supports selector(:has(*)) {
+		.post__link:focus-visible {
+			outline: none;
+		}
+	}
+
+	/* Media */
+	.post__media {
+		position: relative;
 		display: block;
-		text-decoration: none;
-		color: inherit;
-	}
-
-	.card-image {
-		aspect-ratio: 16 / 10;
 		overflow: hidden;
-		border-radius: var(--radius-lg);
-		background: var(--color-surface);
-		margin-bottom: var(--spacing-4);
-	}
-
-	.card-image img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		transition: transform 0.3s ease;
-	}
-
-	.card-link:hover .card-image img {
-		transform: scale(1.03);
-	}
-
-	.card-placeholder {
 		aspect-ratio: 16 / 10;
 		border-radius: var(--radius-lg);
-		background: var(--color-surface);
-		margin-bottom: var(--spacing-4);
+		background: var(--color-fill);
 	}
 
-	.card-body {
-		flex: 1;
+	.post__media::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		outline: 1px solid var(--color-media-outline);
+		outline-offset: -1px;
+		pointer-events: none;
 	}
 
-	.card-meta {
+	.post__image {
+		height: 100%;
+	}
+
+	.post__image :global(img) {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		max-height: none;
+		object-fit: cover;
+		transition: scale 500ms var(--ease-out);
+	}
+
+	.post:has(.post__link:hover, .post__media:hover) .post__image :global(img) {
+		scale: 1.03;
+	}
+
+	.post__placeholder {
+		position: absolute;
+		inset: 0;
+		background-image: radial-gradient(
+			circle,
+			var(--color-border-strong) 1px,
+			transparent 1.5px
+		);
+		background-size: 14px 14px;
+		mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+	}
+
+	/* Text */
+	.post__body {
 		display: flex;
-		align-items: center;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.post__link {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.post__meta {
+		display: flex;
 		flex-wrap: wrap;
-		column-gap: var(--spacing-3);
-		row-gap: 0;
-		font-size: var(--font-size-sm);
+		align-items: center;
+		column-gap: var(--spacing-2);
+		font-size: var(--font-size-xs);
 		color: var(--color-muted);
-		margin-bottom: var(--spacing-2);
+		font-variant-numeric: tabular-nums;
 	}
 
-	.card-meta time,
-	.card-meta span:not(.meta-dot) {
-		white-space: nowrap;
+	/* Trailing separators, so a wrapped line never starts with a dot */
+	.post__meta > :not(:last-child)::after {
+		content: "·";
+		content: "·" / "";
+		margin-inline-start: var(--spacing-2);
 	}
 
-	.meta-dot {
-		width: 3px;
-		height: 3px;
-		border-radius: 50%;
-		background: var(--color-muted);
-	}
-
-	.card-title {
-		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-heading);
+	.post__title {
+		font-size: var(--font-size-lg);
 		line-height: var(--leading-snug);
-		letter-spacing: var(--tracking-snug);
-		margin-bottom: var(--spacing-2);
-		transition: color var(--transition-fast);
+		color: var(--color-text);
+		text-decoration-line: underline;
+		text-decoration-thickness: 1px;
+		text-decoration-color: transparent;
+		text-underline-offset: 0.18em;
+		transition: text-decoration-color var(--transition-fast);
 	}
 
-	.card-link:hover .card-title {
-		color: var(--color-brand);
-	}
-
-	.card-excerpt {
-		font-size: var(--font-size-base);
-		line-height: var(--leading-relaxed);
-		color: var(--color-text-secondary);
+	.post__excerpt {
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-normal);
+		color: var(--color-text-secondary);
 	}
 
-	.card-tags {
+	/* Inline editing needs the whole excerpt, not the clamped preview */
+	.post__excerpt[data-emdash-editing] {
+		display: block;
+		-webkit-line-clamp: unset;
+		overflow: visible;
+	}
+
+	.post__footer {
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--spacing-2);
-		margin-top: var(--spacing-3);
-	}
-
-	.card-tag {
-		display: inline-block;
-		padding: var(--tag-padding-y) var(--spacing-2);
-		font-size: var(--font-size-xs);
-		color: var(--color-text-secondary);
-		background: var(--color-surface);
-		border-radius: var(--radius);
-		text-decoration: none;
-		transition:
-			color var(--transition-fast),
-			background var(--transition-fast);
-	}
-
-	.card-tag:hover {
-		color: var(--color-text);
-		background: var(--color-border);
-	}
-
-	/* Byline styles */
-	.card-bylines {
-		display: flex;
 		align-items: center;
-		gap: 2px;
-		white-space: nowrap;
+		justify-content: space-between;
+		gap: var(--spacing-3);
+		margin-top: auto;
 	}
 
-	.card-byline {
-		display: inline-flex;
-		align-items: center;
+	.post__footer > * {
+		min-width: 0;
+		max-width: 100%;
+	}
+
+	.post__tags {
 		gap: var(--spacing-1);
 	}
 
-	.card-byline-avatar {
-		width: var(--avatar-size-xs);
-		height: var(--avatar-size-xs);
-		border-radius: 50%;
-		object-fit: cover;
+	/* Card: grid tile with inset media */
+	.post--card {
+		padding: var(--card-padding);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
 	}
 
-	.card-byline-name {
-		font-weight: 500;
-		color: var(--color-text-secondary);
+	.post--card:has(.post__link:hover, .post__media:hover) {
+		box-shadow: var(--shadow-card-hover);
 	}
 
-	.byline-more {
-		position: relative;
-		font-size: var(--font-size-xs);
-		color: var(--color-muted);
-		margin-left: 2px;
-		cursor: default;
-		border-radius: var(--radius);
-		outline-offset: 2px;
+	.post--card:has(.post__link:focus-visible) {
+		outline-offset: 3px;
 	}
 
-	.byline-more:focus-visible {
-		outline: 2px solid var(--color-brand);
+	.post--card .post__link {
+		padding: var(--spacing-4) var(--spacing-3) var(--spacing-4);
 	}
 
-	.byline-more[data-tooltip]:hover::after,
-	.byline-more[data-tooltip]:focus-visible::after {
-		content: attr(data-tooltip);
-		position: absolute;
-		bottom: calc(100% + 6px);
-		left: 50%;
-		transform: translateX(-50%);
-		white-space: nowrap;
-		background: var(--color-text);
-		color: var(--color-bg);
-		font-size: var(--font-size-xs);
-		font-weight: 400;
-		padding: var(--spacing-1) var(--spacing-2);
-		border-radius: var(--radius);
-		pointer-events: none;
-		z-index: 10;
+	/* Stacked, so footers line up across a row whatever their content */
+	.post--card .post__footer {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--spacing-3);
+		padding: 0 var(--spacing-3) var(--spacing-3);
+	}
+
+	/* Feature: large split card */
+	.post--feature {
+		display: grid;
+		grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+		padding: var(--card-padding);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
+	}
+
+	.post--feature:has(.post__link:hover, .post__media:hover) {
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.post--feature:has(.post__link:focus-visible) {
+		outline-offset: 3px;
+	}
+
+	.post--feature .post__media {
+		aspect-ratio: 4 / 3;
+	}
+
+	.post--feature .post__body {
+		justify-content: center;
+		gap: var(--spacing-8);
+		padding: clamp(1.5rem, 1rem + 2vw, 3rem);
+	}
+
+	.post--feature .post__link {
+		gap: var(--spacing-4);
+	}
+
+	.post--feature .post__meta {
+		font-size: var(--font-size-sm);
+	}
+
+	.post--feature .post__title {
+		font-size: clamp(1.75rem, 1.2rem + 1.6vw, 2.5rem);
+		line-height: var(--leading-tight);
+		font-weight: var(--font-weight-display);
+		letter-spacing: var(--tracking-tight);
+	}
+
+	.post--feature .post__excerpt {
+		-webkit-line-clamp: 3;
+		font-size: var(--font-size-lg);
+	}
+
+	.post--feature .post__cta {
+		margin-top: var(--spacing-2);
+		color: var(--color-text);
+	}
+
+	.post--feature:has(.post__link:hover) .post__cta :global(svg) {
+		translate: 2px 0;
+	}
+
+	.post--feature:has(.post__link:hover) .post__cta :global(svg:dir(rtl)) {
+		translate: -2px 0;
+	}
+
+	.post--feature .post__footer {
+		margin-top: 0;
+		padding-top: var(--spacing-6);
+		border-top: 1px solid var(--color-border-subtle);
+	}
+
+	/* Row: archive list item with an end-side thumbnail */
+	.post--row {
+		--avatar-ring: var(--color-bg);
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) clamp(7.5rem, 24%, 15rem);
+		align-items: start;
+		gap: var(--spacing-8);
+		padding-block: var(--spacing-8);
+		border-radius: var(--radius-lg);
+	}
+
+	.post--row .post__media {
+		grid-column: 2;
+		grid-row: 1;
+	}
+
+	.post--row .post__body {
+		grid-column: 1;
+		grid-row: 1;
+		gap: var(--spacing-4);
+		max-width: 44rem;
+	}
+
+	.post--row .post__title {
+		font-size: var(--font-size-xl);
+	}
+
+	.post--row .post__excerpt {
+		font-size: var(--font-size-base);
+	}
+
+	.post--row:has(.post__link:hover) .post__title {
+		text-decoration-color: currentColor;
+	}
+
+	.post--row .post__footer {
+		justify-content: flex-start;
+		column-gap: var(--spacing-4);
+	}
+
+	@media (max-width: 900px) {
+		.post--feature {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.post--feature .post__media {
+			aspect-ratio: 16 / 9;
+		}
+
+		.post--feature .post__body {
+			padding: var(--spacing-6) var(--spacing-4) var(--spacing-4);
+		}
+	}
+
+	@media (max-width: 560px) {
+		.post--row {
+			grid-template-columns: minmax(0, 1fr) 6rem;
+			gap: var(--spacing-4);
+			padding-block: var(--spacing-6);
+		}
+
+		.post--row .post__media {
+			aspect-ratio: 1;
+		}
+
+		.post--row .post__title {
+			font-size: var(--font-size-lg);
+		}
+
+		.post--row .post__excerpt {
+			font-size: var(--font-size-sm);
+		}
+	}
+
+	@media (max-width: 400px) {
+		.post--row {
+			grid-template-columns: minmax(0, 1fr) 4.5rem;
+			gap: var(--spacing-3);
+		}
 	}
 </style>

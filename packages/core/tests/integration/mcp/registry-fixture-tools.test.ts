@@ -4,10 +4,11 @@ import { fileURLToPath } from "node:url";
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { buildPlugin } from "../../../../plugin-cli/src/build/api.js";
 import { WorkerdSandboxRunner } from "../../../../workerd/src/sandbox/runner.js";
@@ -57,7 +58,7 @@ describe("registry fixture MCP tools", () => {
 	let server: ReturnType<typeof createMcpServer> | undefined;
 	let runner: WorkerdSandboxRunner | undefined;
 	let db: Kysely<Database> | undefined;
-	let sqlite: BetterSqlite3.Database | undefined;
+	let sqlite: BetterSqlite3 | undefined;
 
 	afterEach(async () => {
 		await client?.close();
@@ -112,6 +113,7 @@ describe("registry fixture MCP tools", () => {
 			}),
 		);
 		const handlers = {
+			db,
 			handlePluginMcpTool,
 			handlePluginMcpDenied: vi.fn().mockResolvedValue(undefined),
 		} as unknown as EmDashHandlers;

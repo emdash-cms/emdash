@@ -62,7 +62,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 /**
  * Submit a comment (public, gated by anti-spam checks)
  */
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { collection, contentId } = params;
 
@@ -72,5 +72,5 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	const dbErr = requireDb(emdash?.db);
 	if (dbErr) return dbErr;
-	return submitPublicComment(emdash, collection, contentId, request, user);
+	return submitPublicComment(emdash, collection, contentId, request, user, cache);
 };

@@ -9,10 +9,15 @@
 // workflow from an alarm; the review and GitHub post happen in durable state.
 
 import { getRun, listRuns, registerProvider } from "@flue/runtime";
+import { flue } from "@flue/runtime/routing";
 import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 
 import { createAiPayloadGuard } from "./lib/ai-payload-budget.js";
+import { githubRateLimitGate } from "./lib/github.js";
+import { getRereviewScheduler } from "./lib/rereview.js";
+import { registerGatewayProviders } from "./lib/review-model.js";
+import { approvalRefreshTarget, refreshApprovalState } from "./lib/review-state.js";
 import { getReviewWatchdog, type ReviewAttempt } from "./lib/review-watchdog.js";
 import {
 	verifyWebhookSignature,
@@ -24,6 +29,7 @@ registerProvider("cloudflare", {
 	api: "cloudflare-ai-binding",
 	binding: createAiPayloadGuard(env.AI),
 });
+registerGatewayProviders(env);
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.
@@ -45,7 +51,8 @@ const app = new Hono<{ Bindings: Env }>();
 // webhook secret. Note: the FlueRegistry DO was reset 2026-06-21, so history
 // only goes back to then.
 app.get("/webhook/admin/runs", async (c) => {
-	if (c.req.header("x-admin-token") !== c.env.GITHUB_WEBHOOK_SECRET) {
+	const secret = c.env.GITHUB_WEBHOOK_SECRET;
+	if (!secret || c.req.header("x-admin-token") !== secret) {
 		return c.text("unauthorized", 401);
 	}
 	const statusParam = c.req.query("status");
@@ -116,6 +123,8 @@ app.post("/webhook/github", async (c) => {
 		delivery: c.req.header("x-github-delivery"),
 	});
 	if (eventType === "ping") return c.text("pong", 200);
+	if (eventType === "pull_request_review")
+		return refreshReviewLabel(c.env, raw, c.req.header("x-github-delivery"));
 	if (eventType !== "pull_request") return c.text(`ignored event: ${eventType}`, 202);
 
 	let event: Parameters<typeof gatePullRequestEvent>[0];
@@ -132,6 +141,10 @@ app.post("/webhook/github", async (c) => {
 		review: decision.review,
 		reason: decision.review ? undefined : decision.reason,
 	});
+	if (!decision.review && decision.rereview) {
+		await getRereviewScheduler(c.env, decision.rereview).schedule(decision.rereview);
+		return c.text(`re-review scheduled for PR #${decision.rereview.prNumber}`, 202);
+	}
 	if (!decision.review) return c.text(`skipped: ${decision.reason}`, 202);
 
 	const deliveryId = getWebhookDeliveryId(c.req.header("x-github-delivery"));
@@ -160,5 +173,52 @@ app.post("/webhook/github", async (c) => {
 	}
 	return c.json({ message: `review setup queued for PR #${decision.pr.prNumber}`, attemptId }, 202);
 });
+
+const REVIEW_LABEL_TIMEOUT_MS = 8_000;
+
+async function refreshReviewLabel(
+	workerEnv: Env,
+	raw: string,
+	deliveryId: string | undefined,
+): Promise<Response> {
+	let event: Parameters<typeof approvalRefreshTarget>[0];
+	try {
+		event = JSON.parse(raw);
+	} catch {
+		return new Response("invalid JSON", { status: 400 });
+	}
+	const target = approvalRefreshTarget(event);
+	if (!target) return new Response("skipped: review does not change approval", { status: 202 });
+	try {
+		const gate = githubRateLimitGate(workerEnv);
+		const token = {
+			token: await gate.getInstallationToken(),
+			gate,
+			consumer: `webhook-review-state:${deliveryId ?? target.prNumber}`,
+		};
+		const label = await refreshApprovalState(
+			token,
+			target,
+			AbortSignal.timeout(REVIEW_LABEL_TIMEOUT_MS),
+		);
+		console.log("[webhook] review state", {
+			delivery: deliveryId,
+			prNumber: target.prNumber,
+			label,
+		});
+		return new Response(`review label refreshed for PR #${target.prNumber}`, { status: 202 });
+	} catch (error) {
+		console.error("[webhook] review state update failed", {
+			delivery: deliveryId,
+			prNumber: target.prNumber,
+			error: error instanceof Error ? error.message : String(error),
+		});
+		return new Response("review label refresh failed", { status: 202 });
+	}
+}
+
+// Local model evaluation only (see eval/README.md): exposes workflow
+// invocation and run reads, which production must never serve.
+if (env.REVIEW_EVAL === "1") app.mount("/eval", flue().fetch);
 
 export default app;

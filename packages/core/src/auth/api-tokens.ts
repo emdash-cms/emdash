@@ -18,9 +18,13 @@ export {
 	hashPrefixedToken,
 	hashPrefixedToken as hashApiToken,
 	VALID_SCOPES,
+	TRANSFER_SCOPES,
 	validateScopes,
 	isValidScope,
 	hasScope,
 	computeS256Challenge,
 	type ApiTokenScope,
 } from "@emdash-cms/auth";
+
+/** OAuth access token TTL: 1 hour */
+export const ACCESS_TOKEN_TTL_SECONDS = 60 * 60;

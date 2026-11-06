@@ -15,9 +15,10 @@ import {
 	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { DownloadSimple, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -197,6 +198,20 @@ export function BackupSettings() {
 							</div>
 						</div>
 					</SettingRow>
+					<SettingRow>
+						<p className="text-sm leading-5 text-pretty text-kumo-subtle">
+							<Trans>
+								To move a site to another EmDash installation, use{" "}
+								<Link
+									to="/settings/transfer"
+									className="font-medium text-kumo-link underline underline-offset-2"
+								>
+									Transfer
+								</Link>
+								.
+							</Trans>
+						</p>
+					</SettingRow>
 				</SettingsSection>
 
 				<form id="automatic-backups-form" onSubmit={handleSave} noValidate>
@@ -287,7 +302,9 @@ export function BackupSettings() {
 							<SettingRow key={archive.name}>
 								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="min-w-0 text-sm">
-										<div className="break-all font-mono text-[0.9em] leading-5">{archive.name}</div>
+										<div className="break-all font-mono text-[0.9em] leading-5">
+											<bdi dir="ltr">{archive.name}</bdi>
+										</div>
 										<div className="leading-5 text-kumo-subtle">
 											{i18n.date(new Date(archive.lastModified), {
 												dateStyle: "medium",

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { mapErrorStatus } from "../../../src/api/errors.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -13,10 +14,7 @@ import { ContentSaveRejectedError } from "../../../src/plugins/save-rejection.js
 import type { ContentBeforeSaveHandler } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
-function createDeps(
-	sqlite: Database.Database,
-	handler: ContentBeforeSaveHandler,
-): RuntimeDependencies {
+function createDeps(sqlite: Database, handler: ContentBeforeSaveHandler): RuntimeDependencies {
 	return {
 		config: {
 			database: {

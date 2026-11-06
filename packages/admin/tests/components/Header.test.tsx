@@ -20,7 +20,6 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
-// Mutable so individual tests can render the header as a non-admin.
 const currentUser = vi.hoisted(() => ({ role: 50 }));
 
 // Mock API
@@ -57,11 +56,6 @@ const { Header } = await import("../../src/components/Header");
 // ---------------------------------------------------------------------------
 
 const THEME_BUTTON_REGEX = /Switch to (light|dark)/;
-const USER_MENU_REGEX = /Matt Kane/;
-
-// Mirror @emdash-cms/auth Role levels (kept inline, matching Header.tsx).
-const ROLE_AUTHOR = 30;
-const ROLE_ADMIN = 50;
 
 function TestWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -78,9 +72,9 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 describe("Header", () => {
 	beforeEach(() => {
+		currentUser.role = 50;
 		localStorage.clear();
 		document.documentElement.removeAttribute("data-mode");
-		currentUser.role = ROLE_ADMIN;
 	});
 
 	it("theme toggle button is present", async () => {
@@ -114,38 +108,34 @@ describe("Header", () => {
 		await expect.element(screen.getByText("View Site")).toBeInTheDocument();
 	});
 
-	describe("user menu role gate", () => {
-		it("shows Settings and Security Settings for an admin", async () => {
-			const screen = await render(
-				<TestWrapper>
-					<Header />
-				</TestWrapper>,
-			);
-			await screen.getByRole("button", { name: USER_MENU_REGEX }).click();
+	it("links a staging site to its status setting and hides the badge once live", async () => {
+		const screen = await render(
+			<TestWrapper>
+				<Header staging />
+			</TestWrapper>,
+		);
+		await expect
+			.element(screen.getByRole("link", { name: "Staging" }))
+			.toHaveAttribute("href", "/settings/general");
 
-			await expect
-				.element(screen.getByRole("link", { name: "Settings", exact: true }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("link", { name: "Security Settings", exact: true }))
-				.toBeInTheDocument();
-		});
+		await screen.rerender(
+			<TestWrapper>
+				<Header />
+			</TestWrapper>,
+		);
+		expect(screen.getByText("Staging").query()).toBeNull();
+	});
 
-		it("hides Settings for a non-admin but keeps Security Settings (own passkeys)", async () => {
-			currentUser.role = ROLE_AUTHOR;
-			const screen = await render(
-				<TestWrapper>
-					<Header />
-				</TestWrapper>,
-			);
-			await screen.getByRole("button", { name: USER_MENU_REGEX }).click();
+	it("shows the staging badge without a settings link to users who cannot change settings", async () => {
+		currentUser.role = 40;
+		const screen = await render(
+			<TestWrapper>
+				<Header staging />
+			</TestWrapper>,
+		);
 
-			await expect
-				.element(screen.getByRole("link", { name: "Security Settings", exact: true }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("link", { name: "Settings", exact: true }))
-				.not.toBeInTheDocument();
-		});
+		await expect.element(screen.getByText("Matt Kane")).toBeInTheDocument();
+		await expect.element(screen.getByText("Staging")).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "Staging" }).query()).toBeNull();
 	});
 });

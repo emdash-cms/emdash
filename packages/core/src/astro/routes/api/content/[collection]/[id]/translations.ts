@@ -23,6 +23,14 @@ function isPublished(t: unknown): boolean {
 	);
 }
 
+function isEntry(t: unknown, idOrSlug: string): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		(("id" in t && t.id === idOrSlug) || ("slug" in t && t.slug === idOrSlug))
+	);
+}
+
 export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	if (!emdash?.handleContentTranslations) {
@@ -36,7 +44,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const result = await emdash.handleContentTranslations(collection, id);
 
 	// Filter out non-published translations for users without read_drafts so a
-	// subscriber can't enumerate locales that aren't yet live.
+	// subscriber can't enumerate locales that aren't yet live. The requested
+	// entry is one of the translations; if it isn't published, return 404 so
+	// its id or slug can't be probed either.
 	if (result.success && !hasPermission(user, "content:read_drafts")) {
 		const data =
 			result.data && typeof result.data === "object"
@@ -45,6 +55,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 				: undefined;
 		const translations = Array.isArray(data?.translations) ? data.translations : [];
 		const filtered = translations.filter(isPublished);
+		if (!filtered.some((t) => isEntry(t, id))) {
+			return apiError("NOT_FOUND", `Content item not found: ${id}`, 404);
+		}
 		return unwrapResult({
 			success: true,
 			data: { ...data, translations: filtered },

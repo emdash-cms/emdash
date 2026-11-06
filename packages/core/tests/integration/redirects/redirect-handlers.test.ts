@@ -10,8 +10,53 @@ import {
 } from "../../../src/api/handlers/redirects.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
-import { invalidateRedirectCache, loadCachedRedirects } from "../../../src/redirects/cache.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import { createRedirectSource } from "../../../src/redirects/artifacts.js";
+import {
+	invalidateRedirectCache,
+	loadCachedRedirects,
+	type RedirectSource,
+} from "../../../src/redirects/cache.js";
+import {
+	type DialectTestContext,
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
+
+describeEachDialect("redirect write lock recovery", (dialect) => {
+	let ctx: DialectTestContext;
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		db = ctx.db;
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("creates redirects when the write lock row is missing without changing existing rules", async () => {
+		const existing = await handleRedirectCreate(db, { source: "/old", destination: "/new" });
+		expect(existing.success).toBe(true);
+		await db.deleteFrom("_emdash_redirect_write_lock").where("id", "=", 1).execute();
+
+		for (const source of ["/first", "/second"]) {
+			await expect(
+				handleRedirectCreate(db, { source, destination: "/target" }),
+			).resolves.toMatchObject({ success: true, data: { source, destination: "/target" } });
+		}
+		await expect(new RedirectRepository(db).findAllEnabled()).resolves.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ source: "/old", destination: "/new" }),
+				expect.objectContaining({ source: "/first", destination: "/target" }),
+				expect.objectContaining({ source: "/second", destination: "/target" }),
+			]),
+		);
+	});
+});
 
 describe("redirect handlers — loop detection", () => {
 	let db: Kysely<Database>;
@@ -69,6 +114,12 @@ describe("redirect handlers — loop detection", () => {
 				expect(result.error.code).toBe("VALIDATION_ERROR");
 				expect(result.error.message).toContain("loop");
 			}
+		});
+
+		it("rejects a redirect to the same path in another encoding", async () => {
+			const result = await handleRedirectCreate(db, { source: "/café", destination: "/caf%C3%A9" });
+			expect(result.success).toBe(false);
+			if (!result.success) expect(result.error.message).toContain("loop");
 		});
 
 		it("allows a redirect that does not create a loop", async () => {
@@ -163,7 +214,7 @@ describe("redirect handlers — loop detection", () => {
 			});
 		});
 
-		it("preserves enabled-only updates for pre-existing redirect loops", async () => {
+		it("rejects enabling a redirect that would close a loop", async () => {
 			await handleRedirectCreate(db, { source: "/a", destination: "/b" });
 			const disabled = await handleRedirectCreate(db, {
 				source: "/b",
@@ -173,7 +224,11 @@ describe("redirect handlers — loop detection", () => {
 			if (!disabled.success) throw new Error(disabled.error.message);
 
 			const result = await handleRedirectUpdate(db, disabled.data.id, { enabled: true });
-			expect(result).toMatchObject({ success: true, data: { enabled: true } });
+			expect(result).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+			await expect(handleRedirectGet(db, disabled.data.id)).resolves.toMatchObject({
+				success: true,
+				data: { enabled: false },
+			});
 		});
 
 		it("uses the expected configuration revision as an atomic mutation precondition", async () => {
@@ -223,23 +278,27 @@ describe("redirect handlers — loop detection", () => {
 	describe("redirect cache invalidation", () => {
 		it("invalidates after successful writes but not rejected writes", async () => {
 			invalidateRedirectCache();
-			const repo = new RedirectRepository(db);
 			const created = await handleRedirectCreate(db, { source: "/a", destination: "/b" });
 			if (!created.success) throw new Error(created.error.message);
+			const published = createRedirectSource(db);
 			let loads = 0;
-			const load = async () => {
-				loads++;
-				return repo.findAllEnabled();
+			const source: RedirectSource = {
+				load: async () => {
+					loads++;
+					return published.load();
+				},
+				isCurrent: (version) => published.isCurrent(version),
 			};
-			await loadCachedRedirects(load);
+			await loadCachedRedirects(source);
 
 			await handleRedirectCreate(db, { source: "/a", destination: "/other" });
-			await loadCachedRedirects(load);
+			await loadCachedRedirects(source);
 			expect(loads).toBe(1);
 
 			await handleRedirectCreate(db, { source: "/c", destination: "/d" });
-			await loadCachedRedirects(load);
+			const cached = await loadCachedRedirects(source);
 			expect(loads).toBe(2);
+			expect(cached.exact.get("/c")?.destination).toBe("/d");
 		});
 	});
 });

@@ -1,12 +1,13 @@
+import { Kysely, SqliteDialect } from "kysely";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
 /**
  * A collection's `titleField`/`dateField` override the admin list's
  * Title and Date columns. Update-only (fields must exist first), so
  * `updateCollection` validates: titleField = a real field, dateField = a
  * `datetime` field; `null`/`""` clears to default; unset stays undefined.
  */
-import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";

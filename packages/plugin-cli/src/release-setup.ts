@@ -396,6 +396,7 @@ jobs:
           service-url: ${input.serviceUrl}
           publisher-did: \${{ steps.prepare.outputs.publisher-did }}
           bundle-file: \${{ steps.prepare.outputs.bundle-file }}
+          plugin-directory: \${{ steps.prepare.outputs.plugin-directory }}
           provenance-file: \${{ steps.attest.outputs.bundle-path }}
 `;
 }
@@ -532,6 +533,7 @@ jobs:
           service-url: ${input.serviceUrl}
           publisher-did: \${{ steps.prepare.outputs.publisher-did }}
           bundle-file: \${{ steps.prepare.outputs.bundle-file }}
+          plugin-directory: \${{ steps.prepare.outputs.plugin-directory }}
           provenance-file: \${{ steps.attest.outputs.bundle-path }}
 `;
 }
@@ -608,7 +610,7 @@ export const releaseSetupCommand = defineCommand({
 					],
 					initialValue: "changesets",
 				});
-				if (clack.isCancel(selected)) {
+				if (clack.isCancel(selected) || typeof selected !== "string") {
 					clack.cancel("Cancelled.");
 					process.exit(0);
 				}

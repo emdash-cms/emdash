@@ -54,6 +54,12 @@ describe("relativizeContentLinks", () => {
 				asset: { _type: "reference", _ref: `${SITE}/wp-content/uploads/a.jpg` },
 				link: `${SITE}/gallery/`,
 			},
+			{
+				_type: "image",
+				_key: "i2",
+				asset: { _type: "reference", _ref: `${SITE}/wp-content/uploads/b.jpg` },
+				link: { href: `${SITE}/gallery/object/`, blank: true },
+			},
 			{ _type: "button", _key: "bt1", text: "Go", url: `${SITE}/pricing/` },
 			{
 				_type: "htmlBlock",
@@ -68,8 +74,12 @@ describe("relativizeContentLinks", () => {
 			asset: { _ref: `${SITE}/wp-content/uploads/a.jpg` }, // untouched
 			link: "/gallery/",
 		});
-		expect(blocks[1]).toMatchObject({ url: "/pricing/" });
-		expect(blocks[2]).toMatchObject({
+		expect(blocks[1]).toMatchObject({
+			asset: { _ref: `${SITE}/wp-content/uploads/b.jpg` }, // untouched
+			link: { href: "/gallery/object/", blank: true },
+		});
+		expect(blocks[2]).toMatchObject({ url: "/pricing/" });
+		expect(blocks[3]).toMatchObject({
 			html: '<a href="/about/">About</a> <a href="https://example.com/">ext</a>',
 		});
 	});
@@ -88,6 +98,15 @@ describe("relativizeContentLinks", () => {
 		expect(blocks[0]).toMatchObject({
 			html: `<a href="/single/">s</a> <a href="/bare/" class="x">b</a> <a href="/upper/">u</a> <a href='https://example.com/keep'>ext</a>`,
 		});
+	});
+
+	it("keeps uploaded file links in raw html absolute", () => {
+		const html = `<a href="${SITE}/wp-content/uploads/report.pdf">pdf</a>`;
+		const blocks: PortableTextBlock[] = [{ _type: "htmlBlock", _key: "h1", html }];
+
+		relativizeContentLinks(blocks, SITE);
+
+		expect(blocks[0]).toMatchObject({ html });
 	});
 
 	it("recurses into columns and rewrites table cell links", () => {

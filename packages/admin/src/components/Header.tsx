@@ -1,4 +1,4 @@
-import { Button, LinkButton, Popover } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Popover } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -11,7 +11,6 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export type { CurrentUser } from "../lib/api/current-user";
 
-// Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 
 async function handleLogout() {
@@ -37,13 +36,11 @@ async function handleLogout() {
  * Admin header with mobile menu toggle and user actions.
  * Uses useSidebar() hook from kumo Sidebar.Provider context.
  */
-export function Header() {
+export function Header({ staging = false }: { staging?: boolean }) {
 	const { t } = useLingui();
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	const { data: user } = useCurrentUser();
-
-	const canManageSettings = (user?.role ?? 0) >= ROLE_ADMIN;
 
 	// Get display name and initials
 	const displayName = user?.name || user?.email || t`User`;
@@ -59,6 +56,17 @@ export function Header() {
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
+				{staging &&
+					((user?.role ?? 0) >= ROLE_ADMIN ? (
+						<Link to="/settings/general" title={t`Hidden from search engines until you go live`}>
+							<Badge variant="warning">{t`Staging`}</Badge>
+						</Link>
+					) : (
+						<span title={t`Hidden from search engines until you go live`}>
+							<Badge variant="warning">{t`Staging`}</Badge>
+						</span>
+					))}
+
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 me-1" />
@@ -87,7 +95,9 @@ export function Header() {
 						{/* User info */}
 						<div className="px-3 py-2 border-b mb-1">
 							<div className="font-medium truncate">{user?.name || t`User`}</div>
-							<div className="text-xs text-kumo-subtle truncate">{user?.email}</div>
+							<div className="text-xs text-kumo-subtle truncate">
+								<bdi dir="ltr">{user?.email}</bdi>
+							</div>
 						</div>
 						<div className="grid gap-1">
 							<Link
@@ -98,16 +108,14 @@ export function Header() {
 								<Shield className="h-4 w-4" />
 								{t`Security Settings`}
 							</Link>
-							{canManageSettings && (
-								<Link
-									to="/settings"
-									onClick={() => setUserMenuOpen(false)}
-									className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
-								>
-									<Gear className="h-4 w-4" />
-									{t`Settings`}
-								</Link>
-							)}
+							<Link
+								to="/settings"
+								onClick={() => setUserMenuOpen(false)}
+								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
+							>
+								<Gear className="h-4 w-4" />
+								{t`Settings`}
+							</Link>
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}

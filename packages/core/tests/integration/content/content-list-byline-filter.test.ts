@@ -143,9 +143,8 @@ describeEachDialect("content list byline filter", (dialect) => {
 	});
 
 	it("resolves inferred credits at the locale the list is scoped to", async () => {
-		// A byline translated into `fr` starts with a null user_id (the
-		// translations route makes linking an explicit step), so the Turing
-		// byline is user-linked at the default locale only. Move `inferred`
+		// The `fr` translation below has no linked user, so the Turing byline
+		// is user-linked at the default locale only. Move `inferred`
 		// to `fr` and the list renders no byline against it — the author
 		// fallback is strict per locale. The filter has to agree, or it
 		// returns an entry the list shows as uncredited.

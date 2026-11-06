@@ -11,9 +11,7 @@
  */
 
 /**
- * Experimental plugin registry configuration.
- *
- * See {@link ExperimentalConfig.registry}.
+ * Plugin registry configuration. See `EmDashConfig.registry`.
  */
 export interface RegistryConfig {
 	/**
@@ -126,20 +124,3 @@ export interface RegistryConfig {
 export type RegistryConfigInput = string | RegistryConfig;
 
 export type RegistryConfigOption = RegistryConfigInput | false;
-
-/**
- * Experimental EmDash features. See `EmDashConfig.experimental`.
- *
- * Each field is independently opt-in. Fields may be promoted out of
- * `experimental` (becoming top-level `EmDashConfig` options) or removed
- * in minor releases; check the changelog when upgrading.
- */
-export interface ExperimentalConfig {
-	/**
-	 * Deprecated location for registry configuration. Use the top-level
-	 * `registry` option instead. A top-level value takes precedence.
-	 *
-	 * @deprecated Use `EmDashConfig.registry`.
-	 */
-	registry?: RegistryConfigInput;
-}

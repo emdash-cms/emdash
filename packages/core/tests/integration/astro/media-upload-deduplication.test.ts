@@ -18,6 +18,7 @@ function uploadRequest(
 	folderId?: string,
 	ensureUniqueFilename?: string,
 	filename = "photo.png",
+	fields: Record<string, string | Blob> = {},
 ): Request {
 	const form = new FormData();
 	form.set("file", new File([bytes], filename, { type: "image/png" }));
@@ -26,6 +27,7 @@ function uploadRequest(
 	if (ensureUniqueFilename !== undefined) {
 		form.set("ensureUniqueFilename", ensureUniqueFilename);
 	}
+	for (const [name, value] of Object.entries(fields)) form.set(name, value);
 	return new Request("http://localhost/_emdash/api/media", {
 		method: "POST",
 		headers: { "X-EmDash-Request": "1" },
@@ -226,6 +228,53 @@ describe("direct media upload deduplication", () => {
 		expect(await repo.findById(body.data.mediaId)).toMatchObject({
 			filename: "crop-square-2.png",
 			status: "pending",
+		});
+	});
+
+	describe("alt text and caption", () => {
+		const metadataUpload = (fields: Record<string, string | Blob>) =>
+			uploadRequest(undefined, undefined, undefined, undefined, fields);
+
+		it("stores the alt text and caption sent with the file", async () => {
+			const upload = vi.fn().mockResolvedValue({ key: "unused", url: "", size: bytes.byteLength });
+
+			const response = await postMedia(
+				buildContext(db, metadataUpload({ alt: "A red bicycle", caption: "Photo: Ana" }), upload),
+			);
+
+			expect(response.status).toBe(201);
+			const body = (await response.json()) as { data: { item: { id: string } } };
+			expect(await new MediaRepository(db).findById(body.data.item.id)).toMatchObject({
+				alt: "A red bicycle",
+				caption: "Photo: Ana",
+			});
+		});
+
+		it("stores empty alt text and caption as null", async () => {
+			const upload = vi.fn().mockResolvedValue({ key: "unused", url: "", size: bytes.byteLength });
+
+			const response = await postMedia(
+				buildContext(db, metadataUpload({ alt: "", caption: "" }), upload),
+			);
+
+			expect(response.status).toBe(201);
+			const body = (await response.json()) as { data: { item: { id: string } } };
+			expect(await new MediaRepository(db).findById(body.data.item.id)).toMatchObject({
+				alt: null,
+				caption: null,
+			});
+		});
+
+		it.each(["alt", "caption"])("rejects a file sent as the %s field", async (field) => {
+			const upload = vi.fn();
+
+			const response = await postMedia(
+				buildContext(db, metadataUpload({ [field]: new Blob(["x"]) }), upload),
+			);
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+			expect(upload).not.toHaveBeenCalled();
 		});
 	});
 

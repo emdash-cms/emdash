@@ -1,9 +1,20 @@
-import { Badge, Banner, Button, LayerCard, SkeletonLine, Tooltip } from "@cloudflare/kumo";
+import {
+	Badge,
+	Banner,
+	Button,
+	LayerCard,
+	Link as KumoLink,
+	SkeletonLine,
+	Tooltip,
+} from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowCounterClockwise,
 	CircleNotch,
 	Clock,
+	Gear,
 	Question,
 	ArrowUpRight,
 	Warning,
@@ -20,10 +31,23 @@ import {
 	type AdminManifest,
 	type MediaUsageCoverageStatus,
 	type MediaUsageEntryDetail,
+	type MediaUsageSiteSettingDetail,
 } from "../lib/api/index.js";
 import { getCollectionNavIcon } from "./admin-navigation-icons.js";
 
 const USAGE_PAGE_SIZE = 50;
+
+const MEDIA_USAGE_DOCS_URL =
+	"https://docs.emdashcms.com/guides/media-library/#see-where-a-file-is-used";
+
+const SITE_SETTING_LABELS: Record<MediaUsageSiteSettingDetail["setting"], MessageDescriptor> = {
+	logo: msg`Logo`,
+	favicon: msg`Favicon`,
+	"seo.defaultOgImage": msg`Default Social Image`,
+};
+
+const USAGE_ROW_CLASS_NAME =
+	"group flex w-full min-w-0 items-center gap-3 rounded-lg bg-kumo-base px-3 py-3 text-start ring ring-kumo-line";
 
 export interface MediaUsedInProps {
 	mediaId: string;
@@ -61,6 +85,7 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 	const accessDenied = usageQuery.error instanceof MediaUsageAccessDeniedError;
 	const pages = usageQuery.data?.pages ?? [];
 	const entries = pages.flatMap((page) => page.items);
+	const siteSettings = pages[0]?.siteSettings ?? [];
 	const coverageStatus = aggregateCoverageStatus(pages.map((page) => page.coverage.status));
 	const coverageComplete = coverageStatus === "complete";
 	const refreshError = usageQuery.isError && pages.length > 0 && !usageQuery.isFetchNextPageError;
@@ -163,8 +188,13 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 				<div className="flex min-h-0 flex-1 flex-col">
 					{refreshError && <UsageError onRetry={() => void usageQuery.refetch()} />}
 
-					{entries.length > 0 ? (
+					{entries.length > 0 || siteSettings.length > 0 ? (
 						<ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto overscroll-contain p-0.5">
+							{siteSettings.length > 0 && (
+								<li>
+									<SiteSettingsUsage settings={siteSettings} />
+								</li>
+							)}
 							{entries.map((entry) => (
 								<li key={`${entry.collection}:${entry.contentId}`}>
 									<UsageEntry
@@ -179,13 +209,24 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 					) : canRenderEmpty ? (
 						<LayerCard className="grid justify-items-center gap-1.5 px-6 py-14 text-center">
 							<p className="text-sm font-medium text-kumo-default">
-								{coverageComplete ? t`No usage` : t`No usage to show yet`}
+								{coverageComplete ? t`No tracked references found` : t`No usage to show yet`}
 							</p>
 							<p className="text-sm text-kumo-subtle">
 								{coverageComplete
-									? t`This file isn’t used in any content.`
+									? t`Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked.`
 									: t`Some content may not appear here yet.`}
 							</p>
+							{coverageComplete && (
+								<KumoLink
+									href={MEDIA_USAGE_DOCS_URL}
+									target="_blank"
+									rel="noreferrer"
+									className="text-sm"
+								>
+									{t`What’s tracked`}
+									<KumoLink.ExternalIcon />
+								</KumoLink>
+							)}
 						</LayerCard>
 					) : null}
 
@@ -237,6 +278,30 @@ function UsageError({ onRetry }: { onRetry: () => void }) {
 				</Button>
 			}
 		/>
+	);
+}
+
+function SiteSettingsUsage({ settings }: { settings: readonly MediaUsageSiteSettingDetail[] }) {
+	const { i18n, t } = useLingui();
+	const settingLabels = new Intl.ListFormat(i18n.locale, {
+		style: "short",
+		type: "conjunction",
+	}).format(settings.map(({ setting }) => t(SITE_SETTING_LABELS[setting])));
+
+	return (
+		<div className={USAGE_ROW_CLASS_NAME}>
+			<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-kumo-tint text-kumo-subtle">
+				<Gear className="h-4 w-4" aria-hidden="true" />
+			</span>
+			<span className="min-w-0 flex-1 space-y-0.5">
+				<span className="block truncate text-sm font-medium text-kumo-default">
+					{t`Site Settings`}
+				</span>
+				<span className="block truncate text-sm text-kumo-subtle" title={settingLabels}>
+					{settingLabels}
+				</span>
+			</span>
+		</div>
 	);
 }
 
@@ -326,17 +391,14 @@ function UsageEntry({
 			)}
 		</>
 	);
-	const rowClassName =
-		"group flex w-full min-w-0 items-center gap-3 rounded-lg bg-kumo-base px-3 py-3 text-start ring ring-kumo-line";
-
-	if (entry.deletedAt) return <div className={rowClassName}>{content}</div>;
+	if (entry.deletedAt) return <div className={USAGE_ROW_CLASS_NAME}>{content}</div>;
 
 	return (
 		<Link
 			to="/content/$collection/$id"
 			params={{ collection: entry.collection, id: entry.contentId }}
 			search={{ locale: entry.locale ?? undefined }}
-			className={`${rowClassName} hover:bg-kumo-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
+			className={`${USAGE_ROW_CLASS_NAME} hover:bg-kumo-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
 			aria-disabled={navigationBlocked || undefined}
 			onClick={(event) => {
 				if (navigationBlocked) {

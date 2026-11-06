@@ -9,10 +9,10 @@
  * - Future: CLI export, backup, site migration
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
-import { listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
+import { isSqlite, listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -80,6 +80,8 @@ export function parsePreviewSignatureHeader(
 // ── Media URL rewriting ─────────────────────────────────────────
 
 const MEDIA_FILE_PREFIX = "/_emdash/api/media/file/";
+const MEDIA_FILE_SUFFIX = /[?#]/;
+const EXTERNAL_OR_ROOT_URL = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
 /**
  * Parse a JSON string value and inject `src` for local media objects.
@@ -166,9 +168,12 @@ export interface Snapshot {
  * Content tables (ec_*) are discovered dynamically.
  */
 const SYSTEM_TABLES = [
+	"_emdash_block_types",
+	"_emdash_block_type_versions",
 	"_emdash_collections",
 	"_emdash_fields",
 	"_emdash_taxonomy_defs",
+	"_emdash_taxonomy_def_groups",
 	"_emdash_menus",
 	"_emdash_menu_items",
 	"_emdash_sections",
@@ -176,12 +181,59 @@ const SYSTEM_TABLES = [
 	"_emdash_widgets",
 	"_emdash_seo",
 	"_emdash_migrations",
-	"taxonomies",
 	"content_taxonomies",
-	"media",
+	"taxonomies",
 	"options",
+	"media",
 	"revisions",
-];
+] as const;
+
+type SystemTable = (typeof SYSTEM_TABLES)[number];
+type PublishedTablePolicy = "full" | "content-linked" | "omit";
+
+/**
+ * Published snapshots are available to preview-signature callers, so every
+ * system table must be classified explicitly. Adding a snapshot table without
+ * choosing a policy is a type error rather than an accidental data export.
+ */
+const PUBLISHED_TABLE_POLICIES: Record<SystemTable, PublishedTablePolicy> = {
+	_emdash_block_types: "full",
+	_emdash_block_type_versions: "full",
+	_emdash_collections: "full",
+	_emdash_fields: "full",
+	_emdash_taxonomy_defs: "full",
+	_emdash_taxonomy_def_groups: "full",
+	_emdash_menus: "full",
+	_emdash_menu_items: "content-linked",
+	_emdash_sections: "full",
+	_emdash_widget_areas: "full",
+	_emdash_widgets: "full",
+	_emdash_seo: "content-linked",
+	_emdash_migrations: "full",
+	content_taxonomies: "content-linked",
+	taxonomies: "content-linked",
+	options: "content-linked",
+	media: "content-linked",
+	revisions: "omit",
+};
+
+const SYSTEM_TABLE_SET: ReadonlySet<string> = new Set(SYSTEM_TABLES);
+
+function isSystemTable(tableName: string): tableName is SystemTable {
+	return SYSTEM_TABLE_SET.has(tableName);
+}
+
+interface PublishedContentReferences {
+	ids: Set<string>;
+	translationGroups: Set<string>;
+}
+
+interface PublishedProjection {
+	content: Map<string, PublishedContentReferences>;
+	taxonomyGroups: Set<string>;
+	mediaIds: Set<string>;
+	mediaStorageKeys: Set<string>;
+}
 
 /**
  * Table name prefixes excluded from snapshots (auth/security data).
@@ -192,6 +244,7 @@ const EXCLUDED_PREFIXES = [
 	"_emdash_authorization_codes",
 	"_emdash_device_codes",
 	"_emdash_migrations_lock",
+	"_emdash_transfer_",
 	"_plugin_",
 	"users",
 	"sessions",
@@ -252,6 +305,269 @@ function normalizeRows(
 	return rows;
 }
 
+function createPublishedProjection(): PublishedProjection {
+	return {
+		content: new Map(),
+		taxonomyGroups: new Set(),
+		mediaIds: new Set(),
+		mediaStorageKeys: new Set(),
+	};
+}
+
+function readString(value: unknown): string | null {
+	return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function recordPublishedContent(
+	projection: PublishedProjection,
+	tableName: string,
+	rows: Record<string, unknown>[],
+): void {
+	const references: PublishedContentReferences = {
+		ids: new Set(),
+		translationGroups: new Set(),
+	};
+	for (const row of rows) {
+		const id = readString(row.id);
+		const translationGroup = readString(row.translation_group);
+		if (id) references.ids.add(id);
+		if (translationGroup) references.translationGroups.add(translationGroup);
+	}
+	projection.content.set(tableName.slice("ec_".length), references);
+}
+
+function isPublishedContentReference(
+	projection: PublishedProjection,
+	collection: unknown,
+	reference: unknown,
+): boolean {
+	const collectionName = readString(collection);
+	const id = readString(reference);
+	if (!collectionName || !id) return false;
+	const references = projection.content.get(collectionName);
+	return references?.ids.has(id) === true || references?.translationGroups.has(id) === true;
+}
+
+function collectMediaReferences(value: unknown, projection: PublishedProjection): void {
+	if (typeof value === "string") {
+		if (value.startsWith(MEDIA_FILE_PREFIX)) {
+			const storageKey = value.slice(MEDIA_FILE_PREFIX.length).split(MEDIA_FILE_SUFFIX, 1)[0];
+			if (storageKey) projection.mediaStorageKeys.add(storageKey);
+			return;
+		}
+		const trimmed = value.trimStart();
+		if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+			try {
+				collectMediaReferences(JSON.parse(value), projection);
+			} catch {
+				// Not structured data.
+			}
+		}
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const item of value) collectMediaReferences(item, projection);
+		return;
+	}
+	if (!isRecord(value)) return;
+
+	const mediaId = readString(value.mediaId);
+	if (mediaId) projection.mediaIds.add(mediaId);
+
+	const provider = readString(value.provider);
+	const meta = isRecord(value.meta) ? value.meta : null;
+	const localMediaId = readString(value.id);
+	if ((provider === "local" || (!provider && meta)) && localMediaId) {
+		projection.mediaIds.add(localMediaId);
+	}
+	const storageKey = readString(value.storageKey) ?? readString(meta?.storageKey);
+	if (storageKey) projection.mediaStorageKeys.add(storageKey);
+
+	const asset = isRecord(value.asset) ? value.asset : null;
+	const assetRef = readString(asset?._ref);
+	if (assetRef) {
+		projection.mediaIds.add(assetRef);
+		projection.mediaStorageKeys.add(assetRef);
+	}
+
+	for (const child of Object.values(value)) collectMediaReferences(child, projection);
+}
+
+function projectTaxonomyRows(
+	rows: Record<string, unknown>[],
+	projection: PublishedProjection,
+): Record<string, unknown>[] {
+	const includedGroups = new Set(projection.taxonomyGroups);
+	const includedIds = new Set(projection.taxonomyGroups);
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const row of rows) {
+			const id = readString(row.id);
+			const group = readString(row.translation_group);
+			if (!id) continue;
+			if (includedIds.has(id) || (group && includedGroups.has(group))) {
+				if (!includedIds.has(id)) {
+					includedIds.add(id);
+					changed = true;
+				}
+				if (group && !includedGroups.has(group)) {
+					includedGroups.add(group);
+					changed = true;
+				}
+				const parentId = readString(row.parent_id);
+				if (parentId && !includedIds.has(parentId)) {
+					includedIds.add(parentId);
+					changed = true;
+				}
+			}
+		}
+	}
+	return rows.filter((row) => {
+		const id = readString(row.id);
+		const group = readString(row.translation_group);
+		return (id && includedIds.has(id)) || (group && includedGroups.has(group));
+	});
+}
+
+function projectPublishedRows(
+	tableName: SystemTable,
+	rows: Record<string, unknown>[],
+	projection: PublishedProjection,
+): Record<string, unknown>[] {
+	switch (tableName) {
+		case "_emdash_seo":
+			return rows.filter((row) => {
+				const published = isPublishedContentReference(projection, row.collection, row.content_id);
+				if (!published) return false;
+				const image = readString(row.seo_image);
+				if (image) {
+					collectMediaReferences(image, projection);
+					if (!EXTERNAL_OR_ROOT_URL.test(image)) {
+						projection.mediaIds.add(image);
+						projection.mediaStorageKeys.add(image);
+					}
+				}
+				return true;
+			});
+		case "content_taxonomies":
+			return rows.filter((row) => {
+				const published = isPublishedContentReference(projection, row.collection, row.entry_id);
+				const taxonomyGroup = readString(row.taxonomy_id);
+				if (published && taxonomyGroup) projection.taxonomyGroups.add(taxonomyGroup);
+				return published;
+			});
+		case "taxonomies":
+			return projectTaxonomyRows(rows, projection);
+		case "_emdash_menu_items":
+			return rows.filter((row) => {
+				const type = readString(row.type);
+				const referenceId = readString(row.reference_id);
+				if (!referenceId || type === "custom") return true;
+				if (type === "taxonomy") {
+					projection.taxonomyGroups.add(referenceId);
+					return true;
+				}
+				if (type === "collection" && !row.reference_id) return true;
+				const collection =
+					readString(row.reference_collection) ??
+					(type === "post" || type === "page" ? `${type}s` : null);
+				return isPublishedContentReference(projection, collection, referenceId);
+			});
+		case "media":
+			return rows.filter((row) => {
+				const id = readString(row.id);
+				const storageKey = readString(row.storage_key);
+				return (
+					(id !== null && projection.mediaIds.has(id)) ||
+					(storageKey !== null && projection.mediaStorageKeys.has(storageKey))
+				);
+			});
+		case "options":
+			return rows;
+		default:
+			return [];
+	}
+}
+
+/**
+ * D1 rejects a query whose result exceeds 50 MB. A page that hits the limit is
+ * retried at half the size, and later pages are sized from the largest row
+ * read so far to aim at a third of the limit.
+ */
+const FIRST_PAGE_ROWS = 500;
+const MAX_PAGE_ROWS = 10_000;
+const PAGE_TARGET_CHARS = 16 * 1024 * 1024;
+const ROWID_ALIAS = "__emdash_snapshot_rowid";
+const ROWID_NAMES = ["rowid", "_rowid_", "oid"];
+
+function isResultTooLargeError(error: unknown): boolean {
+	return error instanceof Error && error.message.includes("maximum response size");
+}
+
+function approximateRowChars(row: Record<string, unknown>): number {
+	let chars = 0;
+	for (const value of Object.values(row)) {
+		if (typeof value === "string") chars += value.length;
+		else if (value instanceof Uint8Array) chars += value.byteLength * 2;
+		else if (Array.isArray(value)) chars += value.length * 4;
+		else chars += 8;
+	}
+	return chars;
+}
+
+/**
+ * Read every row of a table that matches `where`. On SQLite (including D1)
+ * rows are read in rowid-ordered pages so no single result grows past D1's
+ * result size limit. A column named like the rowid shadows it, so the first
+ * rowid name that no column uses is the one paged on.
+ */
+async function readTableRows(
+	db: Kysely<Database>,
+	tableName: string,
+	columns: string[],
+	where: RawBuilder<unknown> = sql`1 = 1`,
+): Promise<Record<string, unknown>[]> {
+	const rowid = ROWID_NAMES.find((name) => !columns.includes(name));
+	if (!isSqlite(db) || !rowid) {
+		return (
+			await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)} WHERE ${where}
+			`.execute(db)
+		).rows;
+	}
+
+	const rows: Record<string, unknown>[] = [];
+	let after: unknown = null;
+	let limit = FIRST_PAGE_ROWS;
+	let largestRowChars = 1;
+	for (;;) {
+		const afterClause = after === null ? sql`1 = 1` : sql`${sql.ref(rowid)} > ${after}`;
+		let page;
+		try {
+			// oxlint-disable-next-line no-await-in-loop -- each page starts after the previous one
+			page = await sql<Record<string, unknown>>`
+				SELECT ${sql.ref(rowid)} AS ${sql.ref(ROWID_ALIAS)}, * FROM ${sql.ref(tableName)}
+				WHERE (${where}) AND ${afterClause}
+				ORDER BY ${sql.ref(rowid)}
+				LIMIT ${limit}
+			`.execute(db);
+		} catch (error) {
+			if (limit === 1 || !isResultTooLargeError(error)) throw error;
+			limit = Math.ceil(limit / 2);
+			continue;
+		}
+		for (const row of page.rows) {
+			after = row[ROWID_ALIAS];
+			delete row[ROWID_ALIAS];
+			largestRowChars = Math.max(largestRowChars, approximateRowChars(row));
+			rows.push(row);
+		}
+		if (page.rows.length < limit) return rows;
+		limit = Math.min(MAX_PAGE_ROWS, Math.max(1, Math.floor(PAGE_TARGET_CHARS / largestRowChars)));
+	}
+}
+
 export interface GenerateSnapshotOptions {
 	/** Include draft and scheduled content (default: false) */
 	includeDrafts?: boolean;
@@ -284,6 +600,8 @@ export async function generateSnapshot(
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
 	const optionKeys = new Set(options?.optionKeys);
+	const publishedOnly = !includeDrafts && !includeTrashed;
+	const publishedProjection = createPublishedProjection();
 
 	const contentTables = await listTablesLike(db, "ec_%");
 
@@ -315,42 +633,42 @@ export async function generateSnapshot(
 
 		if (tableName.startsWith("ec_")) {
 			if (includeTrashed) {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(db, tableName, columns);
 			} else if (includeDrafts) {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(db, tableName, columns, sql`deleted_at IS NULL`);
 			} else {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-						AND status = 'published'
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(
+					db,
+					tableName,
+					columns,
+					sql`deleted_at IS NULL AND status = 'published'`,
+				);
 			}
+		} else if (
+			publishedOnly &&
+			isSystemTable(tableName) &&
+			PUBLISHED_TABLE_POLICIES[tableName] === "omit"
+		) {
+			rows = [];
 		} else if (tableName === "options") {
-			rows = (
-				await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.ref(tableName)}
-				`.execute(db)
-			).rows.filter((row) => {
+			rows = (await readTableRows(db, tableName, columns)).filter((row) => {
 				const name = typeof row.name === "string" ? row.name : "";
 				return optionKeys.has(name) || optionPrefixes.some((prefix) => name.startsWith(prefix));
 			});
 		} else {
-			rows = (
-				await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.ref(tableName)}
-				`.execute(db)
-			).rows;
+			rows = await readTableRows(db, tableName, columns);
+		}
+
+		if (publishedOnly) {
+			if (tableName.startsWith("ec_")) {
+				recordPublishedContent(publishedProjection, tableName, rows);
+			} else if (
+				isSystemTable(tableName) &&
+				PUBLISHED_TABLE_POLICIES[tableName] === "content-linked"
+			) {
+				rows = projectPublishedRows(tableName, rows, publishedProjection);
+			}
+			for (const row of rows) collectMediaReferences(row, publishedProjection);
 		}
 
 		if (rows.length > 0) {

@@ -1,8 +1,10 @@
 import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { page } from "vitest/browser";
 
+import "../../dist/styles.css";
 import type { AdminManifest, Section } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -96,6 +98,39 @@ describe("SectionEditor", () => {
 		mockFetchSection.mockResolvedValue(makeSection());
 		mockFetchManifest.mockResolvedValue(makeManifest());
 	});
+	afterEach(async () => {
+		await page.viewport(1280, 800);
+	});
+
+	it.each(["ltr", "rtl"])(
+		"keeps detail inputs within their panel at a narrow width in %s",
+		async (direction) => {
+			await page.viewport(938, 880);
+			const screen = await render(
+				<div dir={direction} style={{ display: "flex", width: "100vw" }}>
+					<aside style={{ width: 260, flexShrink: 0 }} />
+					<main style={{ flex: 1, minWidth: 0, padding: 24 }}>
+						<SectionEditor />
+					</main>
+				</div>,
+				{ wrapper: Wrapper },
+			);
+			await expect.element(screen.getByRole("textbox", { name: "Keywords" })).toBeInTheDocument();
+
+			const panel = screen
+				.getByRole("heading", { name: "Section Details" })
+				.element().parentElement!;
+			const panelBounds = panel.getBoundingClientRect();
+			const styles = getComputedStyle(panel);
+			const contentStart = panelBounds.left + parseFloat(styles.paddingLeft);
+			const contentEnd = panelBounds.right - parseFloat(styles.paddingRight);
+			for (const name of ["Title", "Slug", "Description", "Keywords"]) {
+				const fieldBounds = screen.getByRole("textbox", { name }).element().getBoundingClientRect();
+				expect(fieldBounds.left).toBeGreaterThanOrEqual(contentStart - 1);
+				expect(fieldBounds.right).toBeLessThanOrEqual(contentEnd + 1);
+			}
+		},
+	);
 
 	it("opens the image settings panel when a block requests the sidebar", async () => {
 		const screen = await render(<SectionEditor />, { wrapper: Wrapper });

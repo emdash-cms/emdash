@@ -83,13 +83,13 @@ describe("Editor image alignment", () => {
 			});
 			const before = host.querySelector("p")!;
 			const after = host.querySelector("p:last-child")!;
-			const figcaption = host.querySelector("figcaption");
+			const figcaption = caption ? host.querySelector("figcaption") : null;
 			const imageBounds = image.getBoundingClientRect();
 
-			expect(imageBounds.top - before.getBoundingClientRect().bottom).toBeCloseTo(16, 0);
+			expect(imageBounds.top - before.getBoundingClientRect().bottom).toBeCloseTo(24, 0);
 			expect(
 				after.getBoundingClientRect().top - (figcaption ?? image).getBoundingClientRect().bottom,
-			).toBeCloseTo(16, 0);
+			).toBeCloseTo(24, 0);
 			if (caption) {
 				expect(figcaption).not.toBeNull();
 				const captionGap = figcaption!.getBoundingClientRect().top - imageBounds.bottom;
@@ -98,6 +98,18 @@ describe("Editor image alignment", () => {
 			}
 		},
 	);
+
+	it("does not render non-finite image dimensions", async () => {
+		const { image } = await renderImage({
+			width: Number.NaN,
+			height: Number.POSITIVE_INFINITY,
+			displayWidth: Number.NaN,
+			displayHeight: Number.POSITIVE_INFINITY,
+		});
+
+		expect(image.outerHTML).not.toContain("NaN");
+		expect(image.outerHTML).not.toContain("Infinity");
+	});
 
 	it.each([
 		{ displayWidth: 1200, displayHeight: 800, ratio: 1.5 },
@@ -174,6 +186,20 @@ describe("Editor image alignment", () => {
 				0,
 			);
 		});
+	});
+
+	it("keeps a centered image's width when the caption placeholder is wider", async () => {
+		const { image } = await renderImage({
+			alignment: "center",
+			displayWidth: 120,
+			displayHeight: 80,
+		});
+		const block = image.closest<HTMLElement>("[data-node-view-wrapper]")!;
+		const caption = block.querySelector("textarea")!;
+		caption.focus();
+		await vi.waitFor(() => expect(caption.getBoundingClientRect().width).toBeGreaterThan(1));
+		expect(block.getBoundingClientRect().width).toBeCloseTo(120, 0);
+		expect(caption.getBoundingClientRect().width).toBeCloseTo(120, 0);
 	});
 
 	it.each(["left", "right"] as const)("unfloats %s images on narrow screens", async (alignment) => {

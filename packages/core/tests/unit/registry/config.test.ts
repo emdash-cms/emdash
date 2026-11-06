@@ -34,7 +34,7 @@ describe("normalizeRegistryConfig", () => {
 		["a malformed URL", "not a URL", "REGISTRY_AGGREGATOR_URL_INVALID"],
 		["a forbidden target", "http://registry.example.com", "REGISTRY_AGGREGATOR_URL_FORBIDDEN"],
 	] as const)("returns a safe manifest diagnostic for %s", (_label, aggregatorUrl, code) => {
-		expect(resolveManifestRegistryConfig({ aggregatorUrl }, { fieldPrefix: "registry" })).toEqual({
+		expect(resolveManifestRegistryConfig({ aggregatorUrl })).toEqual({
 			error: {
 				code,
 				field: "registry.aggregatorUrl",
@@ -51,7 +51,7 @@ describe("normalizeRegistryConfig", () => {
 		).toEqual({
 			error: {
 				code: "REGISTRY_MINIMUM_RELEASE_AGE_INVALID",
-				field: "experimental.registry.policy.minimumReleaseAge",
+				field: "registry.policy.minimumReleaseAge",
 			},
 		});
 	});
@@ -68,7 +68,7 @@ describe("normalizeRegistryConfig", () => {
 		).toEqual({
 			error: {
 				code: "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-				field: "experimental.registry.policy.minimumReleaseAgeExclude",
+				field: "registry.policy.minimumReleaseAgeExclude",
 			},
 		});
 	});

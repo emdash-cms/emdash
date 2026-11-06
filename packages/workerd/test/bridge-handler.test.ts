@@ -9,10 +9,12 @@
  * error handling at the bridge level.
  */
 
-import Database from "better-sqlite3";
+import { OptionsRepository } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
+import { createKVAccess } from "../../core/src/plugins/context.js";
 import {
 	bytesOverLimit,
 	INVALID_PLUGIN_HTTP_BYTES,
@@ -92,7 +94,7 @@ async function setupTables(db: Kysely<any>) {
 
 describe("Bridge Handler Conformance", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 
 	beforeEach(async () => {
 		const ctx = createTestDb();
@@ -113,7 +115,7 @@ describe("Bridge Handler Conformance", () => {
 		capabilities?: string[];
 		allowedHosts?: string[];
 		storageCollections?: string[];
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: BridgeHandlerOptions["beforeContentWrite"];
 		settingsSchema?: Record<string, { type: "secret"; label: string }>;
 		commentModerate?: () => (
 			pluginId: string,
@@ -153,6 +155,51 @@ describe("Bridge Handler Conformance", () => {
 		const response = await handler(request);
 		return response.json() as Promise<{ result?: unknown; error?: string }>;
 	}
+
+	it("shares non-settings KV with in-process plugins across mode switches", async () => {
+		const native = createKVAccess(new OptionsRepository(db), "test-plugin");
+		const sandbox = makeHandler({});
+		await native.set("config", { name: "Acme" });
+		expect(await call(sandbox, "kv/get", { key: "config" })).toEqual({ result: { name: "Acme" } });
+		const initial = await native.getVersioned("config");
+		expect(initial).not.toBeNull();
+		expect(await call(sandbox, "kv/getVersioned", { key: "config" })).toEqual({ result: initial });
+		expect(
+			await call(sandbox, "kv/compareAndSet", {
+				key: "config",
+				expectedRevision: initial!.revision,
+				value: { name: "Updated" },
+			}),
+		).toMatchObject({ result: { applied: true } });
+		expect(await native.get("config")).toEqual({ name: "Updated" });
+		expect(
+			await call(sandbox, "kv/compareAndDelete", {
+				key: "config",
+				expectedRevision: initial!.revision,
+			}),
+		).toEqual({ result: { applied: false } });
+		await call(sandbox, "kv/set", { key: "scan", value: false });
+		expect(await native.get("scan")).toBe(false);
+		expect(await call(sandbox, "kv/list", {})).toEqual({ result: await native.list() });
+		await call(sandbox, "kv/set", { key: "prefix_%:literal", value: null });
+		await call(sandbox, "kv/set", { key: "prefixXYZ:other", value: 1 });
+		expect(await call(sandbox, "kv/list", { prefix: "prefix_%" })).toEqual({
+			result: [{ key: "prefix_%:literal", value: null }],
+		});
+		expect(await call(makeHandler({ pluginId: "other" }), "kv/get", { key: "config" })).toEqual({
+			result: null,
+		});
+		const current = await native.getVersioned("config");
+		expect(
+			await call(sandbox, "kv/compareAndDelete", {
+				key: "config",
+				expectedRevision: current!.revision,
+			}),
+		).toEqual({ result: { applied: true } });
+		expect(await native.get("config")).toBeNull();
+		expect(await call(sandbox, "kv/delete", { key: "scan" })).toEqual({ result: true });
+		expect(await native.get("scan")).toBeNull();
+	});
 
 	describe("publication actions", () => {
 		it("routes capability-gated actions through the host callback", async () => {
@@ -262,6 +309,31 @@ describe("Bridge Handler Conformance", () => {
 			});
 			expect(JSON.stringify(infoLog.mock.calls)).toContain("[REDACTED]");
 			expect(JSON.stringify(infoLog.mock.calls)).not.toContain("workerd-secret");
+		});
+
+		it("lists case-sensitive prefixes without bypassing secret observation", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("plugin:test-plugin:settings:apiKey", "list-only-secret");
+			await options.set("plugin:test-plugin:Stats", "upper");
+			await options.set("plugin:test-plugin:stats", "lower");
+			const handler = makeHandler({
+				settingsSchema: { apiKey: { type: "secret", label: "API key" } },
+			});
+
+			expect(await call(handler, "kv/list", { prefix: "S" })).toEqual({
+				result: [{ key: "Stats", value: "upper" }],
+			});
+			expect(await call(handler, "kv/list", { prefix: "Settings:" })).toEqual({ result: [] });
+			expect(await call(handler, "kv/list", { prefix: "s" })).toEqual({
+				result: [
+					{ key: "stats", value: "lower" },
+					{ key: "settings:apiKey", value: "list-only-secret" },
+				],
+			});
+			const infoLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+			await call(handler, "log", { level: "info", msg: "credential=list-only-secret" });
+			expect(JSON.stringify(infoLog.mock.calls)).not.toContain("list-only-secret");
+			expect(JSON.stringify(infoLog.mock.calls)).toContain("[REDACTED]");
 		});
 
 		it("fails closed without an encryption key and redacts the submitted secret", async () => {
@@ -1077,6 +1149,19 @@ describe("Bridge Handler Conformance", () => {
 			expect((localized.result as unknown[]).length).toBe(1);
 		});
 
+		it("rejects byline reads without bylines:read capability", async () => {
+			const handler = makeHandler({ capabilities: ["content:read", "users:read"] });
+			for (const [method, body] of [
+				["bylines/get", { id: "byline-1" }],
+				["bylines/list", {}],
+				["bylines/entriesBylines", { collection: "posts", entryIds: ["post-1"] }],
+			] as const) {
+				expect((await call(handler, method, body)).error).toContain(
+					"Missing capability: bylines:read",
+				);
+			}
+		});
+
 		it("rejects user read without users:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "users/get", { id: "user-1" });
@@ -1137,6 +1222,37 @@ describe("Bridge Handler Conformance", () => {
 				message: { to: "a@b.com", subject: "hi", text: "hello" },
 			});
 			expect(result.error).toContain("Missing capability: email:send");
+		});
+
+		it("forwards cc and replyTo to the email pipeline", async () => {
+			const send = vi.fn(async () => {});
+			const handler = createBridgeHandler({
+				pluginId: "forms",
+				version: "1.0.0",
+				capabilities: ["email:send"],
+				allowedHosts: [],
+				storageCollections: [],
+				db,
+				emailSend: () => send,
+			});
+			const message = {
+				to: "a@b.com",
+				cc: ["team@b.com"],
+				replyTo: "visitor@b.com",
+				subject: "hi",
+				text: "hello",
+			};
+			const result = await call(handler, "email/send", { message });
+			expect(result.error).toBeUndefined();
+			expect(send).toHaveBeenCalledWith(message, "forms");
+
+			for (const invalid of [{ cc: "team@b.com" }, { cc: [42] }, { replyTo: 42 }]) {
+				const rejected = await call(handler, "email/send", {
+					message: { ...message, ...invalid },
+				});
+				expect(rejected.error).toContain("email/send requires message");
+			}
+			expect(send).toHaveBeenCalledTimes(1);
 		});
 	});
 
@@ -1766,6 +1882,32 @@ describe("Bridge Handler Conformance", () => {
 				.execute();
 			expect(after).toHaveLength(1);
 			expect((after[0] as any).slug).toBe("conflict");
+		});
+
+		it("reports a content write to the guard only once it has succeeded", async () => {
+			const rowsWhenRecorded: number[] = [];
+			const recordWrite = vi.fn(async () => {
+				const rows = await db
+					.selectFrom("ec_atomic_posts" as any)
+					.selectAll()
+					.execute();
+				rowsWhenRecorded.push(rows.length);
+			});
+			const handler = makeHandler({
+				capabilities: ["write:content"],
+				beforeContentWrite: async () => recordWrite,
+			});
+
+			await call(handler, "content/create", {
+				collection: "atomic_posts",
+				data: { slug: "taken", title: "first" },
+			});
+			const refused = await call(handler, "content/createMany", {
+				collection: "atomic_posts",
+				items: [{ slug: "fresh" }, { slug: "taken" }],
+			});
+			expect(refused.error).toBeDefined();
+			expect(rowsWhenRecorded).toEqual([1]);
 		});
 
 		it("contentCreateMany commits all when no item fails", async () => {

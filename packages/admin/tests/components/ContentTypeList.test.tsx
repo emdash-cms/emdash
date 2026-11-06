@@ -1,9 +1,17 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { ContentTypeList, moveCollection } from "../../src/components/ContentTypeList";
+import { fetchRelations } from "../../src/lib/api";
 import type { SchemaCollection, OrphanedTable } from "../../src/lib/api";
+import type { RelationWithUsage } from "../../src/lib/api/relations.js";
 import { render } from "../utils/render.tsx";
+
+vi.mock("../../src/lib/api", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/api")>("../../src/lib/api");
+	return { ...actual, fetchRelations: vi.fn(async () => []) };
+});
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -18,7 +26,7 @@ vi.mock("@tanstack/react-router", async () => {
 		Link: ({
 			children,
 			to,
-			params: _params,
+			params,
 			...props
 		}: {
 			children: React.ReactNode;
@@ -26,7 +34,17 @@ vi.mock("@tanstack/react-router", async () => {
 			params?: Record<string, string>;
 			[key: string]: unknown;
 		}) => (
-			<a href={typeof to === "string" ? to : "#"} {...props}>
+			<a
+				href={
+					typeof to === "string"
+						? Object.entries(params ?? {}).reduce(
+								(path, [name, value]) => path.replace(`$${name}`, value),
+								to,
+							)
+						: "#"
+				}
+				{...props}
+			>
 				{children}
 			</a>
 		),
@@ -68,22 +86,33 @@ describe("ContentTypeList", () => {
 				makeCollection({ id: "2", slug: "landing_pages", label: "Landing Pages" }),
 			];
 			const screen = await render(<ContentTypeList collections={collections} />);
+			await expect
+				.element(screen.getByRole("table", { name: "Content Types" }))
+				.toBeInTheDocument();
 			await expect.element(screen.getByText("Articles", { exact: true })).toBeInTheDocument();
 			await expect.element(screen.getByText("Landing Pages", { exact: true })).toBeInTheDocument();
-			await expect.element(screen.getByText("articles", { exact: true })).toBeInTheDocument();
-			await expect.element(screen.getByText("landing_pages", { exact: true })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "articles", exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "landing_pages", exact: true }))
+				.toBeInTheDocument();
 		});
 
 		it("shows 'Code' badge for code-source collections", async () => {
 			const collections = [makeCollection({ id: "1", source: "code" })];
 			const screen = await render(<ContentTypeList collections={collections} />);
-			await expect.element(screen.getByText("Code")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "Code", exact: true }))
+				.toBeInTheDocument();
 		});
 
 		it("shows 'Dashboard' badge for dashboard-source collections", async () => {
 			const collections = [makeCollection({ id: "1", source: "dashboard" })];
 			const screen = await render(<ContentTypeList collections={collections} />);
-			await expect.element(screen.getByText("Dashboard")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "Dashboard", exact: true }))
+				.toBeInTheDocument();
 		});
 
 		it("shows feature badges from supports array", async () => {
@@ -99,14 +128,26 @@ describe("ContentTypeList", () => {
 			await expect.element(screen.getByText("preview")).toBeInTheDocument();
 			await expect.element(screen.getByText("search")).toBeInTheDocument();
 		});
+
+		it("shows the seo badge from hasSeo, not from supports", async () => {
+			const collections = [
+				makeCollection({ id: "1", slug: "pages", supports: ["drafts"], hasSeo: true }),
+				makeCollection({ id: "2", slug: "posts", supports: ["drafts", "seo"], hasSeo: false }),
+			];
+			const screen = await render(<ContentTypeList collections={collections} />);
+			const seoBadges = screen.getByText("seo", { exact: true }).elements();
+			expect(seoBadges).toHaveLength(1);
+			expect(seoBadges[0]!.closest("tr")?.textContent).toContain("pages");
+		});
 	});
 
 	describe("navigation", () => {
-		it("edit link navigates to /content-types/$slug", async () => {
+		it("links each row's Edit item to that content type's editor", async () => {
 			const collections = [makeCollection({ id: "1", slug: "articles", label: "Articles" })];
 			const screen = await render(<ContentTypeList collections={collections} />);
-			const editLink = screen.getByRole("link", { name: "Edit Articles" });
-			await expect.element(editLink).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Actions for Articles" }).click();
+			const editLink = screen.getByRole("menuitem", { name: "Edit Articles" });
+			await expect.element(editLink).toHaveAttribute("href", "/content-types/articles");
 		});
 
 		it("'New Content Type' link is present", async () => {
@@ -116,7 +157,7 @@ describe("ContentTypeList", () => {
 	});
 
 	describe("delete", () => {
-		it("delete button only shown for non-code-source collections", async () => {
+		it("offers Edit but not Delete for a collection defined in code", async () => {
 			const collections = [
 				makeCollection({ id: "1", slug: "from-code", label: "From Code", source: "code" }),
 				makeCollection({
@@ -127,12 +168,17 @@ describe("ContentTypeList", () => {
 				}),
 			];
 			const screen = await render(<ContentTypeList collections={collections} />);
-			// Code-sourced should have no delete button
-			expect(screen.getByRole("button", { name: "Delete From Code" }).query()).toBeNull();
-			// Dashboard-sourced should have delete button
+
+			await screen.getByRole("button", { name: "Actions for From Code" }).click();
+			await expect.element(screen.getByRole("menuitem", { name: "Edit From Code" })).toBeVisible();
+			expect(screen.getByRole("menuitem", { name: "Delete From Code" }).query()).toBeNull();
+			await userEvent.keyboard("{Escape}");
+			await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+
+			await screen.getByRole("button", { name: "Actions for From Dashboard" }).click();
 			await expect
-				.element(screen.getByRole("button", { name: "Delete From Dashboard" }))
-				.toBeInTheDocument();
+				.element(screen.getByRole("menuitem", { name: "Delete From Dashboard" }))
+				.toBeVisible();
 		});
 
 		it("opens confirm dialog and calls onDelete after confirm", async () => {
@@ -144,7 +190,8 @@ describe("ContentTypeList", () => {
 				<ContentTypeList collections={collections} onDelete={onDelete} />,
 			);
 
-			await screen.getByRole("button", { name: "Delete Posts" }).click();
+			await screen.getByRole("button", { name: "Actions for Posts" }).click();
+			await screen.getByRole("menuitem", { name: "Delete Posts" }).click();
 
 			// ConfirmDialog should appear
 			await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
@@ -164,7 +211,8 @@ describe("ContentTypeList", () => {
 				<ContentTypeList collections={collections} onDelete={onDelete} />,
 			);
 
-			await screen.getByRole("button", { name: "Delete Posts" }).click();
+			await screen.getByRole("button", { name: "Actions for Posts" }).click();
+			await screen.getByRole("menuitem", { name: "Delete Posts" }).click();
 
 			// ConfirmDialog should appear
 			await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
@@ -226,6 +274,33 @@ describe("ContentTypeList", () => {
 		});
 	});
 
+	describe("icon aspect ratio", () => {
+		it("pins the icon width and lets the description wrap in the name cell", async () => {
+			// Long description reproduces the over-constrained Name cell from #3447.
+			const collections = [
+				makeCollection({
+					id: "1",
+					slug: "albums",
+					label: "Albums",
+					description:
+						"A detailed description that is much wider than a squeezed name cell can hold without wrapping.",
+				}),
+			];
+			const screen = await render(<ContentTypeList collections={collections} />);
+
+			// Locate the text wrapper via its description, then select the icon sibling.
+			const description = screen.getByText(/much wider than a squeezed name cell/);
+			const textWrapper = description.element().closest("div")!;
+			const icon = textWrapper.previousElementSibling as HTMLElement;
+			expect(icon).not.toBeNull();
+
+			// The icon stays 32×32 because shrink-0 prevents flex shrinking.
+			expect(icon.classList.contains("shrink-0")).toBe(true);
+			// min-w-0 allows the text wrapper to shrink below its min-content and wrap.
+			expect(textWrapper.classList.contains("min-w-0")).toBe(true);
+		});
+	});
+
 	describe("reordering", () => {
 		const twoCollections = [
 			makeCollection({ id: "1", slug: "posts", label: "Posts" }),
@@ -267,8 +342,8 @@ describe("ContentTypeList", () => {
 				<ContentTypeList collections={twoCollections} onReorder={vi.fn()} />,
 			);
 
-			const rendered = screen.container.querySelectorAll("tbody code");
-			expect(Array.from(rendered, (el) => el.textContent)).toEqual(["posts", "pages"]);
+			const rendered = screen.container.querySelectorAll("tbody a");
+			expect(Array.from(rendered, (el) => el.textContent)).toEqual(["Posts", "Pages"]);
 		});
 	});
 
@@ -289,5 +364,59 @@ describe("ContentTypeList", () => {
 			expect(moveCollection(slugs, "b", "missing")).toBe(slugs);
 			expect(moveCollection(slugs, "missing", "b")).toBe(slugs);
 		});
+	});
+});
+
+describe("ContentTypeList relationship warning", () => {
+	const relation: RelationWithUsage = {
+		id: "rel-1",
+		slug: "posts_authors",
+		parentCollection: "posts",
+		childCollection: "authors",
+		parentLabel: "Posts",
+		parentLabelSingular: "Post",
+		childLabel: "Authors",
+		childLabelSingular: "Author",
+		maxChildrenPerParent: 1,
+		maxParentsPerChild: null,
+		boundFields: [
+			{ collectionSlug: "posts", fieldSlug: "author", side: "parent" },
+			{ collectionSlug: "authors", fieldSlug: "posts", side: "child" },
+		],
+		linkCount: 4,
+	};
+
+	beforeEach(() => {
+		vi.mocked(fetchRelations).mockResolvedValue([relation]);
+	});
+
+	// Deleting a content type cascades through every relationship it is an end
+	// of, which takes reference fields off *other* content types.
+	it("names the relationships and the fields on other content types that go with them", async () => {
+		const screen = await render(
+			<ContentTypeList collections={[makeCollection({ slug: "posts", label: "Posts" })]} />,
+		);
+
+		await screen.getByRole("button", { name: "Actions for Posts" }).click();
+		await screen.getByRole("menuitem", { name: "Delete Posts" }).click();
+		await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
+
+		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText(/the posts field on authors, which lists entries that link to it/))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("4 links")).toBeInTheDocument();
+	});
+
+	it("says nothing about relationships for a content type in none", async () => {
+		const screen = await render(
+			<ContentTypeList collections={[makeCollection({ slug: "pages", label: "Pages" })]} />,
+		);
+
+		await screen.getByRole("button", { name: "Actions for Pages" }).click();
+		await screen.getByRole("menuitem", { name: "Delete Pages" }).click();
+		await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
+
+		expect(screen.getByText("posts_authors").query()).toBeNull();
 	});
 });

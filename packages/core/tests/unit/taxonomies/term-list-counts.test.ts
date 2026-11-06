@@ -10,9 +10,10 @@
 
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { handleTermList } from "../../../src/api/handlers/taxonomies.js";
 import { GET as getTerms } from "../../../src/astro/routes/api/taxonomies/[name]/terms/index.js";
@@ -73,7 +74,7 @@ describe("term list counts are only aggregated on demand", () => {
 			labelSingular: "Post",
 		});
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "=", "category")
 			.execute();

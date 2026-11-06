@@ -1,7 +1,7 @@
 import { sql, type Kysely, type Selectable } from "kysely";
-import { monotonicFactory } from "ulidx";
+import { B32_CHARACTERS, decodeTime, encodeTime, monotonicFactory, ULID_REGEX } from "ulidx";
 
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
@@ -11,6 +11,26 @@ export function createRevisionId(): string {
 	return monotonic();
 }
 
+/**
+ * The id of an entry's starting revision. Every save of the entry derives the same id, so
+ * overlapping first saves write the row once. Its time is just before the entry was created,
+ * so it sorts before every other revision of the entry.
+ */
+export function startingRevisionId(collection: string, entryId: string, createdAt: string): string {
+	const created = ULID_REGEX.test(entryId) ? decodeTime(entryId) : Date.parse(createdAt);
+	const time = Number.isFinite(created) ? Math.max(created - 1, 0) : 0;
+	let hash = 0xcbf29ce484222325n;
+	let suffix = "";
+	for (const char of `${collection}/${entryId}`) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0)!)) * 0x100000001b3n);
+	}
+	for (let i = 0; i < 16; i++) {
+		hash = BigInt.asUintN(64, (hash ^ BigInt(i)) * 0x100000001b3n);
+		suffix += B32_CHARACTERS[Number(hash >> 59n)];
+	}
+	return encodeTime(time, 10) + suffix;
+}
+
 export interface Revision {
 	id: string;
 	collection: string;
@@ -18,6 +38,17 @@ export interface Revision {
 	data: Record<string, unknown>;
 	authorId: string | null;
 	createdAt: string;
+}
+
+export interface RevisionAuthor {
+	id: string;
+	/** `null` when the account has no display name. */
+	name: string | null;
+}
+
+export interface RevisionWithAuthor extends Revision {
+	/** `null` when no author was recorded or the account no longer exists. */
+	author: RevisionAuthor | null;
 }
 
 export interface CreateRevisionInput {
@@ -42,8 +73,11 @@ export function normalizeRevisionLimit(value: unknown): number {
 export class RevisionRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**
@@ -71,6 +105,24 @@ export class RevisionRepository {
 		await this.queuePruning(input.collection, input.entryId, id);
 
 		return revision;
+	}
+
+	/**
+	 * Write a revision under a given id unless one with that id already exists.
+	 */
+	async createIfMissing(input: CreateRevisionInput & { id: string }): Promise<void> {
+		const data = await this.datetimes.normalizeData(input.collection, input.data);
+		await this.db
+			.insertInto("revisions")
+			.values({
+				id: input.id,
+				collection: input.collection,
+				entry_id: input.entryId,
+				data: JSON.stringify(data),
+				author_id: input.authorId ?? null,
+			})
+			.onConflict((conflict) => conflict.column("id").doNothing())
+			.execute();
 	}
 
 	async queuePruning(collection: string, entryId: string, revisionId: string): Promise<void> {
@@ -107,6 +159,22 @@ export class RevisionRepository {
 		return row ? this.normalizeRow(row) : null;
 	}
 
+	/** Shallow-merge `patch` into a stored revision's data. */
+	async mergeData(id: string, patch: Record<string, unknown>): Promise<void> {
+		const row = await this.db
+			.selectFrom("revisions")
+			.select("data")
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return;
+		const data: Record<string, unknown> = { ...JSON.parse(row.data), ...patch };
+		await this.db
+			.updateTable("revisions")
+			.set({ data: JSON.stringify(data) })
+			.where("id", "=", id)
+			.execute();
+	}
+
 	/**
 	 * Get all revisions for an entry (newest first)
 	 *
@@ -117,13 +185,15 @@ export class RevisionRepository {
 		collection: string,
 		entryId: string,
 		options: { limit?: number } = {},
-	): Promise<Revision[]> {
+	): Promise<RevisionWithAuthor[]> {
 		let query = this.db
 			.selectFrom("revisions")
-			.selectAll()
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
-			.orderBy("id", "desc");
+			.leftJoin("users", "users.id", "revisions.author_id")
+			.selectAll("revisions")
+			.select(["users.id as author_user_id", "users.name as author_name"])
+			.where("revisions.collection", "=", collection)
+			.where("revisions.entry_id", "=", entryId)
+			.orderBy("revisions.id", "desc");
 
 		if (options.limit) {
 			query = query.limit(options.limit);
@@ -137,7 +207,12 @@ export class RevisionRepository {
 		return rows.map((row, index) => {
 			const normalized = data[index];
 			if (!normalized) throw new Error("Failed to normalize revision data");
-			return this.rowToRevision(row, normalized);
+			return {
+				...this.rowToRevision(row, normalized),
+				author: row.author_user_id
+					? { id: row.author_user_id, name: row.author_name?.trim() || null }
+					: null,
+			};
 		});
 	}
 

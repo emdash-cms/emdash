@@ -36,6 +36,12 @@ test.describe("Byline custom fields", () => {
 		await admin.goto("/byline-schema");
 		await admin.waitForLoading();
 		await page.getByRole("button", { name: "New field" }).click();
+		// The two boxes are read one after the other, so measuring while the
+		// dialog still animates in reports an offset that is not there.
+		const dialog = page.getByRole("dialog", { name: "New byline field" });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 
 		const requiredBox = await page.getByRole("switch", { name: "Required" }).boundingBox();
 		const translatableBox = await page.getByRole("switch", { name: "Translatable" }).boundingBox();
@@ -91,17 +97,19 @@ test.describe("Byline custom fields", () => {
 
 		await page.getByRole("button", { name: "New" }).click();
 		await page.getByLabel("Display name").fill(bylineDisplayName);
-		await page.getByLabel("Slug").fill(bylineSlug);
+		await page.getByLabel("Slug", { exact: true }).fill(bylineSlug);
 		// Guest byline keeps the form simple — no user-link side quest.
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
 
-		// After create, the form moves to edit mode and the sidebar list
-		// re-renders with the new byline highlighted. Custom-field inputs
-		// are gated on `selected`, so they appear only after create lands.
-		await expect(page.getByRole("button", { name: bylineDisplayName })).toBeVisible({
+		const editByline = page.getByRole("button", {
+			name: `Edit ${bylineDisplayName}`,
+			exact: true,
+		});
+		await expect(editByline).toBeVisible({
 			timeout: 5000,
 		});
+		await editByline.click();
 
 		// ---------------------------------------------------------------
 		// 3. Fill the custom field input and save
@@ -109,15 +117,19 @@ test.describe("Byline custom fields", () => {
 
 		await expect(page.getByLabel(fieldLabel)).toBeVisible();
 		await page.getByLabel(fieldLabel).fill(fieldValue);
+		const saveResponse = page.waitForResponse(
+			(res) =>
+				res.url().includes("/api/admin/bylines/") && res.request().method() === "PUT" && res.ok(),
+			{ timeout: 10000 },
+		);
 		await page.getByRole("button", { name: "Save" }).click();
+		await saveResponse;
 
 		// ---------------------------------------------------------------
 		// 4. Verify the round-trip via the REST API
 		// ---------------------------------------------------------------
 
-		// Find the byline id via the list endpoint (the sidebar's selected
-		// row is keyed by id internally; reading via API is easier than
-		// scraping the DOM). Filter by slug to avoid pagination concerns.
+		// Filter by slug to avoid pagination concerns when fetching the saved byline.
 		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
 		const listResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/admin/bylines?search=${encodeURIComponent(bylineSlug)}`,
