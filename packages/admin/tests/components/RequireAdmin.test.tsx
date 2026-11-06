@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { render } from "../utils/render.tsx";
 
-// Mirror @emdash-cms/auth Role levels (kept inline, matching RequireAdmin.tsx).
+// Role levels from @emdash-cms/auth.
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 const ROLE_ADMIN = 50;

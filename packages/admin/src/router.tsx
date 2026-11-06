@@ -2534,11 +2534,7 @@ function CommentsPage() {
 const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
-	component: () => (
-		<RequireAdmin>
-			<Settings />
-		</RequireAdmin>
-	),
+	component: Settings,
 });
 
 const mediaUsageSettingsRoute = createRoute({

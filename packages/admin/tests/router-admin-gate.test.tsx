@@ -31,9 +31,8 @@ vi.mock("../src/components/PluginSettings", () => ({
 	PluginSettings: () => <div>Plugin settings content</div>,
 }));
 
-// Spread `importOriginal` rather than replacing the module outright: three
-// of these four also export siblings that other modules import, and a bare
-// factory would drop them and break the import graph.
+// Modules that also export siblings other modules import spread `importOriginal`;
+// a bare factory would drop those exports and break the import graph.
 vi.mock("../src/components/ContentTypeList", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../src/components/ContentTypeList")>()),
 	ContentTypeList: () => <div>Content types content</div>,
@@ -52,7 +51,8 @@ vi.mock("../src/components/settings/AllowedDomainsSettings", () => ({
 	AllowedDomainsSettings: () => <div>Allowed domains content</div>,
 }));
 
-vi.mock("../src/components/settings/ApiTokenSettings", () => ({
+vi.mock("../src/components/settings/ApiTokenSettings", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/components/settings/ApiTokenSettings")>()),
 	ApiTokenSettings: () => <div>API tokens content</div>,
 }));
 
@@ -106,7 +106,6 @@ function buildRouter() {
 }
 
 const WRAPPED_ROUTES: Array<[string, string]> = [
-	["/settings", "Settings content"],
 	["/settings/allowed-domains", "Allowed domains content"],
 	["/settings/api-tokens", "API tokens content"],
 	["/settings/email", "Email settings content"],
@@ -121,6 +120,7 @@ const WRAPPED_ROUTES: Array<[string, string]> = [
 
 // Routes that must stay reachable for a non-admin (Editor-tier reads).
 const UNWRAPPED_ROUTES: Array<[string, string]> = [
+	["/settings", "Settings content"],
 	["/content-types", "Content types content"],
 	["/plugins-manager", "Plugin manager content"],
 	["/plugins/marketplace", "Marketplace browsing is no longer available."],
@@ -178,11 +178,10 @@ describe("routes that stay reachable for non-admins", () => {
 		mockFetch
 			.on("GET", "/_emdash/api/manifest", { data: MANIFEST })
 			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 40 } })
-			// `/content-types` treats a failed collections OR orphans query as a
-			// fatal ErrorScreen, which would mask the marker; both are Editor-
-			// readable in production (`schema:read`), so both resolve empty here.
+			// `/content-types` shows an ErrorScreen instead of the marker if any schema query fails.
 			.on("GET", "/_emdash/api/schema/collections", { data: { items: [] } })
-			.on("GET", "/_emdash/api/schema/orphans", { data: { items: [] } });
+			.on("GET", "/_emdash/api/schema/orphans", { data: { items: [] } })
+			.on("GET", "/_emdash/api/schema/block-types", { data: { items: [] } });
 
 		const { router, TestApp } = buildRouter();
 		await router.navigate({ to });
