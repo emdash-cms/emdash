@@ -17,5 +17,12 @@
 		"src/ui-comments.ts",
 		"src/auth/providers/*-admin.tsx"
 	],
-	"exclude": ["**/node_modules", "**/dist", "**/.astro", "**/.emdash"]
+	"exclude": [
+		"**/node_modules",
+		"**/dist",
+		"**/.astro",
+		"**/.emdash",
+		"locals.d.ts",
+		"tests/integration/fixture/emdash-env.d.ts"
+	]
 }
