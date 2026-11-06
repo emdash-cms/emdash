@@ -107,6 +107,16 @@ export const editorialCommentSchema = z
 	})
 	.meta({ id: "EditorialComment" });
 
+export const editorialMentionableQuery = z.object({
+	q: z.string().max(100).optional().default("").meta({
+		description: "Text to match against display names. Empty lists the first users by name.",
+	}),
+});
+
+export const editorialMentionableResponseSchema = z
+	.object({ items: z.array(editorialPersonSchema).max(10) })
+	.meta({ id: "EditorialMentionableResponse" });
+
 export const editorialThreadSchema = z
 	.object({
 		id: z.string(),
@@ -121,6 +131,10 @@ export const editorialThreadSchema = z
 		createdAt: z.string(),
 		updatedAt: z.string(),
 		comments: z.array(editorialCommentSchema),
+		mentions: z.array(editorialPersonSchema).meta({
+			description:
+				"Users the comments mention, with their current names. Render each `<@USER_ID>` token with these; deleted users are left out.",
+		}),
 		can: z.object({ resolve: z.boolean(), delete: z.boolean() }).meta({
 			description: "What the caller may do with this thread",
 		}),
