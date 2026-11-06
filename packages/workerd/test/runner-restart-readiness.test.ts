@@ -79,7 +79,7 @@ describe("workerd crash restart readiness", () => {
 	});
 
 	it.each([false, true])(
-		"restarts immediately after re-enabling during backoff (setup wait: %s)",
+		"does not bypass restart backoff after re-enabling (setup wait: %s)",
 		async (waitForPendingRestart) => {
 			await makeRunner();
 			const restart = vi.fn(async () => {
@@ -97,8 +97,16 @@ describe("workerd crash restart readiness", () => {
 				waitForPendingRestart ? { waitForPendingRestart: true } : undefined,
 			);
 			await vi.advanceTimersByTimeAsync(0);
-			expect(restart).toHaveBeenCalledOnce();
-			await running;
+			expect(restart).not.toHaveBeenCalled();
+
+			if (waitForPendingRestart) {
+				await vi.advanceTimersByTimeAsync(1000);
+				await running;
+			} else {
+				await running;
+				await vi.advanceTimersByTimeAsync(1000);
+				await runner.ensureRunning();
+			}
 			expect(runner.isHealthy()).toBe(true);
 			expect(restart).toHaveBeenCalledOnce();
 		},
