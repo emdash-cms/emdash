@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
  * `getEmDashCollection` from it. Without a `sideEffects` declaration the
  * bundler has to keep every module that barrel reaches, so the first request
  * on each new Worker isolate evaluated the API schemas, the WordPress
- * importer, the seed applier and more before rendering a page (#3313).
+ * importer, the seed applier and more before rendering a page.
  *
  * With the declaration, a module whose exports nobody uses can be dropped,
  * and so can its top-level statements. A module that does real work when it
@@ -19,7 +19,12 @@ import { describe, expect, it } from "vitest";
  * listed, or that work silently disappears from both the package build and
  * the site build. `src/import/index.ts` is the one such module today: it
  * registers the built-in import sources, and without the entry the WordPress
- * importer finds no sources.
+ * importer finds no sources. `tests/unit/import/built-sources.test.ts` checks
+ * that against the built package.
+ *
+ * The guard below only sees top-level calls. A top-level assignment such as
+ * `globalThis[KEY] = ...` or a bare `new X()` passes it unnoticed, so a module
+ * that does its import-time work that way must be added to the list by hand.
  */
 const coreRoot = fileURLToPath(new URL("../../", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(coreRoot, "package.json"), "utf-8")) as {
@@ -64,10 +69,6 @@ describe("package sideEffects", () => {
 			})
 			.map(({ file }) => file);
 		expect(unlisted).toEqual([]);
-	});
-
-	it("keeps the import source registrations", () => {
-		expect(pkg.sideEffects).toContain("./src/import/index.ts");
 	});
 
 	it("keeps the runtime off the main barrel", () => {
