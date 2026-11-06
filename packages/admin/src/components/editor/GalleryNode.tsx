@@ -12,7 +12,6 @@ import { useLingui } from "@lingui/react/macro";
 import { Images, Trash, SlidersHorizontal } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
-import { Node } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
@@ -23,29 +22,10 @@ import {
 	getMediaPreviewUrl,
 	localMediaFileUrl,
 } from "../../lib/media-utils.js";
+import type { GalleryImage } from "../../portable-text/convert.js";
+import { GalleryNode } from "../../portable-text/schema.js";
 
-/** One image inside a gallery block — mirrors the Portable Text shape. */
-export interface GalleryImage {
-	_type: "image";
-	_key: string;
-	asset: {
-		_type?: "reference";
-		_ref: string;
-		url?: string;
-		/** Provider ID for external media (e.g., "cloudflare-images") */
-		provider?: string;
-	};
-	alt?: string;
-	caption?: string;
-	width?: number;
-	height?: number;
-	focalX?: number;
-	focalY?: number;
-	/** LQIP blurhash placeholder (images only) */
-	blurhash?: string;
-	/** LQIP dominant-color placeholder, as a CSS color (images only) */
-	dominantColor?: string;
-}
+export type { GalleryImage };
 
 export interface GalleryAttributes {
 	images: GalleryImage[];
@@ -256,15 +236,7 @@ function GalleryNodeView({
 	);
 }
 
-export const GalleryExtension = Node.create({
-	name: "gallery",
-
-	group: "block",
-
-	atom: true,
-
-	draggable: true,
-
+export const GalleryExtension = GalleryNode.extend({
 	addStorage() {
 		return {
 			/** Callback set by PortableTextEditor to open gallery settings in the content sidebar */
@@ -272,25 +244,6 @@ export const GalleryExtension = Node.create({
 			/** Callback set by PortableTextEditor to close the sidebar */
 			onCloseBlockSidebar: null as (() => void) | null,
 		};
-	},
-
-	addAttributes() {
-		return {
-			images: {
-				default: [],
-			},
-			columns: {
-				default: null,
-			},
-		};
-	},
-
-	parseHTML() {
-		return [{ tag: 'div[data-type="gallery"]' }];
-	},
-
-	renderHTML() {
-		return ["div", { "data-type": "gallery" }];
 	},
 
 	addNodeView() {
