@@ -16,11 +16,10 @@ import {
 	type PortableTextBlock,
 } from "@emdash-cms/admin/portable-text";
 import { Editor, Extension } from "@tiptap/core";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { ContentMatch, type Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { ySyncPlugin, yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
 import type { Kysely } from "kysely";
-import { vi } from "vitest";
 import * as Y from "yjs";
 
 import { timestampOffset } from "../../../src/database/repositories/entry-locks.js";
@@ -154,8 +153,16 @@ class Ledger {
 	/** The room's document, as of the last client update it applied. */
 	roomDoc: Y.Doc | null = null;
 
+	/** What a save stored before each room write, so a merge is judged only on saved words. */
+	readonly #savedBefore = new WeakMap<Y.Transaction, Set<string>>();
+
 	fail(message: string): void {
 		if (this.failures.length < 10) this.failures.push(message);
+	}
+
+	beforeObserve(transaction: Y.Transaction): void {
+		if (typeof transaction.origin !== "symbol" || transaction.beforeState.size === 0) return;
+		this.#savedBefore.set(transaction, new Set(savedWords(transaction.doc)));
 	}
 
 	/**
@@ -177,8 +184,9 @@ class Ledger {
 			return;
 		}
 		if (typeof origin === "symbol" && !fresh && this.overwriting === 0) {
+			const before = this.#savedBefore.get(transaction);
 			for (const word of removedWords(transaction, inserted)) {
-				if (this.removedFromStore.has(word)) continue;
+				if (!before?.has(word) || this.removedFromStore.has(word)) continue;
 				this.fail(`a merge removed ${describe(word)}, which no outside write or restore removed`);
 			}
 		}
@@ -200,8 +208,20 @@ function removedWords(transaction: Y.Transaction, inserted: readonly string[]): 
 	});
 	for (const word of inserted) deleted.delete(word);
 	if (deleted.size === 0) return [];
-	const present = new Set(wordsInJson(documentJson(transaction.doc)));
+	const present = new Set(savedWords(transaction.doc));
 	return [...deleted].filter((word) => !present.has(word));
+}
+
+/**
+ * The words a save of the document would store. y-tiptap can leave a stale block attribute on a
+ * reused plugin block element, which the converter ignores and `documentJson` would count.
+ */
+function savedWords(doc: Y.Doc): string[] {
+	try {
+		return wordsInJson(DOCUMENT_FIELDS.map((field) => readField(doc, field)));
+	} catch {
+		return wordsInJson(documentJson(doc));
+	}
 }
 
 function insertedWords(transaction: Y.Transaction): string[] {
@@ -244,15 +264,19 @@ function installDeterminism(seed: number): () => void {
 			this[CLIENT_ID] = id;
 			if (!observed.has(this)) {
 				observed.add(this);
+				this.on("beforeTransaction", (transaction: Y.Transaction) =>
+					activeLedger?.beforeObserve(transaction),
+				);
 				this.on("afterTransaction", (transaction: Y.Transaction) =>
 					activeLedger?.observe(transaction),
 				);
 			}
 		},
 	});
-	const random = vi.spyOn(Math, "random").mockImplementation(mulberry32(seed ^ 0x27d4eb2f));
+	const random = Math.random;
+	Math.random = mulberry32(seed ^ 0x27d4eb2f);
 	return () => {
-		random.mockRestore();
+		Math.random = random;
 		if (descriptor) Object.defineProperty(Y.Doc.prototype, "clientID", descriptor);
 		else delete (Y.Doc.prototype as { clientID?: number }).clientID;
 	};
@@ -428,7 +452,7 @@ class HarnessStore {
 			return;
 		}
 		const at = Y.createDocFromSnapshot(shadow, checkpoint);
-		for (const word of wordsInJson(documentJson(at))) this.#ledger.covered.add(word);
+		for (const word of savedWords(at)) this.#ledger.covered.add(word);
 		at.destroy();
 	}
 
@@ -1409,15 +1433,18 @@ export async function runSeed(seed: number, options: RunOptions = {}): Promise<R
 	}
 	const restore = installDeterminism(seed);
 	const run = new Run(seed, db);
+	// Swapped by hand, as vitest keeps every spy it creates until the file ends.
+	const { now } = Date;
+	const { error: consoleError, warn: consoleWarn } = console;
 	// The store reads stored times on the process clock, which has to be the run's.
-	const clock = db ? vi.spyOn(Date, "now").mockImplementation(() => run.clock.now) : null;
+	if (db) Date.now = () => run.clock.now;
 	// Nothing in a run makes the site or store fail, so anything the room logs is unexpected.
 	const logged = (...args: unknown[]) => {
 		const message = args.map(String).join(" ");
 		if (message.startsWith("[co-editing]")) run.ledger.fail(`the room logged: ${message}`);
 	};
-	const silence = vi.spyOn(console, "error").mockImplementation(logged);
-	const warn = vi.spyOn(console, "warn").mockImplementation(logged);
+	console.error = logged;
+	console.warn = logged;
 	activeLedger = run.ledger;
 	try {
 		await run.settle();
@@ -1429,10 +1456,14 @@ export async function runSeed(seed: number, options: RunOptions = {}): Promise<R
 	} finally {
 		run.discard();
 		activeLedger = null;
-		silence.mockRestore();
-		warn.mockRestore();
-		clock?.mockRestore();
+		console.error = consoleError;
+		console.warn = consoleWarn;
+		Date.now = now;
 		restore();
+		// ProseMirror caches wrappings on the shared empty content match, keyed by node types, so
+		// every run's schema, editors and documents would stay reachable.
+		const internal = ContentMatch as unknown as { empty: { wrapCache: unknown[] } };
+		internal.empty.wrapCache.length = 0;
 	}
 	return { seed, failures: run.ledger.failures, events: run.events };
 }
