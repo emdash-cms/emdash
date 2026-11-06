@@ -67,6 +67,18 @@ The configured adapter contributes secret-free target information to the manifes
 
 Relative SQLite paths resolve from the project root, not from the installed EmDash package or the shell's current subdirectory. PostgreSQL, libSQL, and Hyperdrive target labels omit credentials and URL parameters.
 
+`emdash migrate` reads the credential variables in the table above from the environment of the shell that runs it. It does not load `.env`, `.env.local`, or `.dev.vars`, so a variable stored only in one of those files is reported as missing.
+
+On D1, the account ID is resolved before the token. If `CLOUDFLARE_ACCOUNT_ID` is stored only in a file and neither `--account-id` nor `account_id` in the selected Wrangler config provides the account, the command fails with `A valid Cloudflare account ID is required for D1 migrations.` If the account resolves but `CLOUDFLARE_API_TOKEN` is stored only in a file, the command fails with `CLOUDFLARE_API_TOKEN is required for D1 migrations.`
+
+To use a local file for one command in a POSIX shell such as bash or zsh, export its variables in a subshell:
+
+```bash
+(set -a && . ./.env.local && set +a && pnpm emdash migrate --status --wrangler-config wrangler.jsonc)
+```
+
+The shell runs the file as a script. Its values replace variables of the same name that are already set, `$` and backticks are expanded, and a line that is not valid shell, such as an unquoted value containing spaces, fails or runs as a command. Source only files you trust. The parentheses keep these variables out of your interactive shell.
+
 ## Provision D1 before migrating it
 
 Creating a D1 database and migrating its schema are separate operations. `emdash migrate` never creates a missing database.
