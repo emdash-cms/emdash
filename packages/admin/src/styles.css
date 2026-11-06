@@ -1696,3 +1696,23 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 		outline: 1px solid CanvasText;
 	}
 }
+
+/* Editorial comment highlights */
+.ProseMirror .emdash-editorial-text {
+	border-bottom: 2px solid color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
+	background-color: color-mix(in srgb, var(--color-kumo-brand) 12%, transparent);
+	cursor: pointer;
+}
+
+.ProseMirror .emdash-editorial-text.emdash-editorial-active {
+	border-bottom-color: var(--color-kumo-brand);
+	background-color: color-mix(in srgb, var(--color-kumo-brand) 24%, transparent);
+}
+
+.ProseMirror .emdash-editorial-block {
+	box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
+}
+
+[dir="rtl"] .ProseMirror .emdash-editorial-block {
+	box-shadow: inset -3px 0 0 color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
+}

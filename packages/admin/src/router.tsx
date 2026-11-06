@@ -1012,6 +1012,7 @@ const contentEditRoute = createRoute({
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
 		...(typeof search.locale === "string" && { locale: search.locale }),
+		...(typeof search.thread === "string" && { thread: search.thread }),
 	}),
 });
 
@@ -2022,6 +2023,7 @@ function ContentEditPage() {
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
+			initialThreadId={searchParams.thread}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}

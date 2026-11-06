@@ -100,6 +100,7 @@ import {
 	PencilSimple,
 	TextT,
 	type Icon,
+	ChatCircleText,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -177,6 +178,10 @@ import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import {
+	createEditorialCommentsExtension,
+	type EditorialCommentsBridge,
+} from "./editor/EditorialCommentsExtension.js";
+import {
 	EditorMenuCheckboxItem,
 	EditorMenuItem,
 	EditorMenuLabel,
@@ -205,7 +210,7 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
-import { PORTABLE_TEXT_BLOCK_ATTR } from "./editor/portableTextIdentity.js";
+import { PORTABLE_TEXT_BLOCK_ATTR, PORTABLE_TEXT_KEY_ATTR } from "./editor/portableTextIdentity.js";
 import { runTableAction } from "./editor/TableActions.js";
 import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
 import { createTableClipboard } from "./editor/TableClipboard.js";
@@ -411,7 +416,6 @@ const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v 
 const attrNum = (v: unknown): number | undefined =>
 	typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
 
-const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
 const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -3534,6 +3538,15 @@ export interface PortableTextEditorProps {
 	 * host can move focus to the field above, such as the page title.
 	 */
 	onArrowUpAtStart?: () => void;
+	/**
+	 * Editorial comments: `onComment` adds a Comment button to the selection
+	 * toolbar and handles the shortcut; `onActivate` fires when the caret lands
+	 * in a commented range.
+	 */
+	editorialComments?: {
+		onComment?: () => void;
+		onActivate?: (threadId: string) => void;
+	};
 }
 
 // For external providers, src is only used for admin preview; the frontend Image
@@ -3603,8 +3616,14 @@ export function PortableTextEditor({
 	onBlockSidebarClose,
 	variant = "boxed",
 	onArrowUpAtStart,
+	editorialComments,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const editorialBridgeRef = React.useRef<EditorialCommentsBridge>({});
+	editorialBridgeRef.current = {
+		onActivate: editorialComments?.onActivate,
+		onCommentShortcut: editorialComments?.onComment,
+	};
 	const onArrowUpAtStartRef = React.useRef(onArrowUpAtStart);
 	onArrowUpAtStartRef.current = onArrowUpAtStart;
 	const isDocument = variant === "document";
@@ -4035,6 +4054,7 @@ export function PortableTextEditor({
 		() => [
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
+			createEditorialCommentsExtension(editorialBridgeRef),
 			LinkBoundaryExit,
 			PortableTextStarterKit.configure({
 				// Replaced with TopBlockDocument so top-level-only blocks can't be nested.
@@ -4786,6 +4806,7 @@ export function PortableTextEditor({
 				editor={editor}
 				appendTo={appendBubbleMenu}
 				getCollisionOptions={getBubbleMenuCollisionOptions}
+				onComment={editorialComments?.onComment}
 			/>
 			<ImageBubbleMenu
 				editor={editor}
@@ -4999,10 +5020,12 @@ function EditorBubbleMenu({
 	editor,
 	appendTo,
 	getCollisionOptions,
+	onComment,
 }: {
 	editor: Editor;
 	appendTo: () => HTMLElement;
 	getCollisionOptions: BubbleMenuCollisionOptions;
+	onComment?: () => void;
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
@@ -5213,6 +5236,11 @@ function EditorBubbleMenu({
 								>
 									<LinkIcon className="h-4 w-4" aria-hidden="true" />
 								</BubbleButton>
+								{onComment && (
+									<BubbleButton onClick={onComment} active={false} title={t`Comment`}>
+										<ChatCircleText className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
 								<BubbleSeparator />
 								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
 									<BubbleButton
