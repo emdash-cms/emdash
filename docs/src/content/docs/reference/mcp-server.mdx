@@ -58,6 +58,7 @@ The following table shows the minimum role for the broad capability. Ownership c
 | --- | --- |
 | Read published content, media, taxonomies, terms, and menus | Subscriber |
 | Read drafts, scheduled content, trash, comparisons, and revisions | Contributor |
+| Read, start, and reply to editorial comment threads | Contributor |
 | Create content, edit owned drafts, or upload media | Contributor |
 | Edit owned published or scheduled content, publish owned content, or register media | Author |
 | Manage bylines, taxonomies, menus, or all users' content | Editor |
@@ -187,6 +188,15 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | `revision_list` | List Revisions | `content:read` |
 | `revision_restore` | Restore Revision | `content:write` |
 
+### Editorial comment tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `editorial_thread_list` | List Editorial Threads | `content:read` |
+| `editorial_thread_create` | Start Editorial Thread | `content:write` |
+| `editorial_comment_create` | Reply to Editorial Thread | `content:write` |
+| `editorial_thread_resolve` | Resolve Editorial Thread | `content:write` |
+
 ### Settings tools
 
 | Tool | Registered title | Required scope |
@@ -252,6 +262,16 @@ Bylines are reusable author or contributor credits. `byline_create` can create a
 While another user holds an entry's [edit lock](/reference/rest-api/#entry-edit-lock) because they have it open in the admin, `content_update`, `content_delete`, `content_publish`, `content_unpublish`, `content_schedule`, `content_unschedule`, `content_discard_draft` and `revision_restore` fail with `ENTRY_LOCKED`, and the error names the holder. Reading the item again does not clear the refusal. Pass `overrideLock: true` to write anyway.
 
 While people [co-edit an entry](/guides/working-with-content/#edit-with-other-people) in the admin, the entry has no edit lock, and these writes appear in their editors. Their saves change `_rev` every few seconds, so a write that sends `_rev` conflicts more often. `content_publish`, `content_unpublish`, `content_schedule` and `content_discard_draft` also conflict while the editors hold edits that aren't saved yet.
+
+## Editorial comments
+
+Editorial comment threads are private review notes on an entry, separate from the public comments visitors post. `editorial_thread_list` returns an entry's threads with all of their comments, open threads by default.
+
+`editorial_thread_create` starts a thread on the whole entry, or on a field when you pass `field`. To comment on specific text, pass `field` and `quote`, where `field` is a rich text (`portableText`) field. The tool looks for the quote in the entry's current draft and fails with `VALIDATION_ERROR` when the quote isn't there. It also fails when the quote appears more than once; pass `prefix` or `suffix`, the text just before or after the quote, to choose one.
+
+Mention a user in a comment body with `<@USER_ID>`. Mentioning a user who can't take part in threads fails with `VALIDATION_ERROR`. When the site has an email provider, a new comment emails mentioned users and the thread's earlier participants.
+
+`editorial_thread_resolve` resolves a thread, or reopens it with `status: "open"`. Editors can resolve any thread. Other users can resolve threads they started and threads on entries they own. Replying to a resolved thread reopens it.
 
 ## Translations
 

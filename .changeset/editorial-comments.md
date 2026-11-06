@@ -19,6 +19,8 @@ Type `@` in a comment to mention someone who can take part in threads. A comment
 
 When the site has an email provider, a new comment emails the people it mentions, the thread's creator and the authors of its earlier comments that weren't deleted, except its own author, anyone who can no longer take part, and users whose email address isn't verified. Editing a comment to mention someone new emails only that person. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved. See [Comment on an entry](https://docs.emdashcms.com/guides/working-with-content/#comment-on-an-entry) for mentions and comment emails.
 
+AI agents can review entries through four MCP tools: `editorial_thread_list`, `editorial_thread_create`, `editorial_comment_create` and `editorial_thread_resolve`. `editorial_thread_create` accepts a `field` and the exact `quote` to comment on, with optional `prefix` and `suffix` to tell repeated text apart, and finds it in the entry's current draft.
+
 #### Permissions
 
 Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs `content:read_drafts`.
