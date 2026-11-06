@@ -6501,7 +6501,7 @@ msgstr "Det gick inte att hämta tillåtna domäner"
 msgid "Failed to fetch API tokens"
 msgstr "Det gick inte att hämta API-tokens"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Det gick inte att hämta autentiseringsläge"
 
@@ -6575,7 +6575,7 @@ msgstr "Det gick inte att hämta termer för posten"
 msgid "Failed to fetch fields"
 msgstr "Det gick inte att hämta fält"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Det gick inte att hämta manifestet"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Tillägget ”{pluginId}” hittades inte"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Tillägget {pluginId} stoppade sparandet: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Kodarkiv"
 msgid "Request a new link"
 msgstr "Begär en ny länk"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Begäran misslyckades"
 

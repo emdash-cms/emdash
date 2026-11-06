@@ -6501,7 +6501,7 @@ msgstr "获取允许的域名失败"
 msgid "Failed to fetch API tokens"
 msgstr "获取 API 令牌失败"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "获取认证模式失败"
 
@@ -6575,7 +6575,7 @@ msgstr "获取条目词条失败"
 msgid "Failed to fetch fields"
 msgstr "获取字段失败"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "获取清单失败"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "插件 \"{pluginId}\" 未找到"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "插件 {pluginId} 拒绝了保存：{reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "仓库"
 msgid "Request a new link"
 msgstr "请求新链接"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "请求失败"
 

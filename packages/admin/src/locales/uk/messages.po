@@ -6501,7 +6501,7 @@ msgstr "Не вдалося отримати дозволені домени"
 msgid "Failed to fetch API tokens"
 msgstr "Не вдалося отримати API-токени"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Не вдалося отримати режим автентифікації"
 
@@ -6575,7 +6575,7 @@ msgstr "Не вдалося отримати терміни запису"
 msgid "Failed to fetch fields"
 msgstr "Не вдалося отримати поля"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Не вдалося отримати маніфест"
 
@@ -11025,7 +11025,7 @@ msgstr "Плагін \"{id}\" не знайдено в маркетплейсі"
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Плагін \"{pluginId}\" не знайдено"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Плагін {pluginId} відхилив збереження: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Репозиторій"
 msgid "Request a new link"
 msgstr "Запросити нове посилання"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Запит не вдався"
 

@@ -6502,7 +6502,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "אחזור מצב האימות נכשל"
 
@@ -6576,7 +6576,7 @@ msgstr "אחזור מונחי הפריט נכשל"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "אחזור manifest נכשל"
 
@@ -11026,7 +11026,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "התוסף \"{pluginId}\" לא נמצא"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "התוסף {pluginId} דחה את השמירה: {reason}"
 
@@ -12137,7 +12137,7 @@ msgstr "מאגר"
 msgid "Request a new link"
 msgstr "בקשת קישור חדש"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "הבקשה נכשלה"
 

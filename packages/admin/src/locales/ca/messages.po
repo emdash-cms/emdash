@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "No s'ha pogut obtenir el mode d'autenticació"
 
@@ -6575,7 +6575,7 @@ msgstr "No s'han pogut obtenir els termes de l'entrada"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "No s'ha pogut obtenir el manifest"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "No s'ha trobat el connector \"{pluginId}\""
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "El connector {pluginId} ha rebutjat el desament: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Dipòsit"
 msgid "Request a new link"
 msgstr "Sol·licita un enllaç nou"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Ha fallat la sol·licitud"
 

@@ -6501,7 +6501,7 @@ msgstr "İzin verilen alan adları alınamadı"
 msgid "Failed to fetch API tokens"
 msgstr "API belirteçleri alınamadı"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Kimlik doğrulama modu getirilemedi"
 
@@ -6575,7 +6575,7 @@ msgstr "Kayıt terimleri getirilemedi"
 msgid "Failed to fetch fields"
 msgstr "Alanlar alınamadı"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Manifest getirilemedi"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "\"{pluginId}\" eklentisi bulunamadı"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "{pluginId} eklentisi kaydetme işlemini reddetti: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Depo"
 msgid "Request a new link"
 msgstr "Yeni bir bağlantı isteyin"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "İstek başarısız oldu"
 

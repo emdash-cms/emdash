@@ -6501,7 +6501,7 @@ msgstr "Falha ao carregar domínios permitidos"
 msgid "Failed to fetch API tokens"
 msgstr "Falha ao carregar tokens de API"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Falha ao carregar modo de autenticação"
 
@@ -6575,7 +6575,7 @@ msgstr "Falha ao carregar termos da entrada"
 msgid "Failed to fetch fields"
 msgstr "Falha ao carregar campos"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Falha ao carregar o manifest"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin \"{pluginId}\" não encontrado"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "O plugin {pluginId} rejeitou o salvamento: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repositório"
 msgid "Request a new link"
 msgstr "Solicitar um novo link"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Falha na solicitação"
 

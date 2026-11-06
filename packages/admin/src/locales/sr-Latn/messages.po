@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Preuzimanje režima autentifikacije nije uspelo"
 
@@ -6575,7 +6575,7 @@ msgstr "Preuzimanje termina unosa nije uspelo"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Preuzimanje manifesta nije uspelo"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Dodatak \"{pluginId}\" nije pronađen"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Dodatak {pluginId} je odbio čuvanje: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repozitorijum"
 msgid "Request a new link"
 msgstr "Zatraži novi link"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Zahtev nije uspeo"
 

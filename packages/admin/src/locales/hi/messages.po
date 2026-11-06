@@ -6501,7 +6501,7 @@ msgstr "अनुमत डोमेन लाने में असफल"
 msgid "Failed to fetch API tokens"
 msgstr "API टोकन लाने में असफल"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "ऑथेंटिकेशन मोड लाने में असफल"
 
@@ -6575,7 +6575,7 @@ msgstr "प्रवेश शर्तें लाने में असफ�
 msgid "Failed to fetch fields"
 msgstr "फ़ील्ड प्राप्त करने में असफल"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "मेनिफ़ेस्ट लाने में असफल"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "प्लगइन \"{pluginId}\" नहीं मिला"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr ""
 
@@ -12136,7 +12136,7 @@ msgstr "कोष"
 msgid "Request a new link"
 msgstr "एक नये लिंक का अनुरोध करें"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "अनुरोध असफल रहा"
 

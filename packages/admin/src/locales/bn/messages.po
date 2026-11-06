@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "প্রমাণীকরণ মোড আনতে ব্যর্থ হয়েছে"
 
@@ -6575,7 +6575,7 @@ msgstr "এন্ট্রির টার্ম আনতে ব্যর্থ
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "ম্যানিফেস্ট আনতে ব্যর্থ হয়েছে"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "প্লাগইন \"{pluginId}\" পাওয়া যায়নি"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "প্লাগইন {pluginId} সংরক্ষণ প্রত্যাখ্যান করেছে: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "রিপোজিটরি"
 msgid "Request a new link"
 msgstr "নতুন লিঙ্কের অনুরোধ করুন"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "অনুরোধ ব্যর্থ হয়েছে"
 
