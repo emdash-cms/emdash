@@ -11,7 +11,7 @@ const ADMIN_URL_PATTERN = /\/_emdash\/admin/;
 const ADMIN_DASHBOARD_PATTERN = /\/_emdash\/admin\/?$/;
 const CONTENT_ID_EXTRACTION_PATTERN = /\/content\/[^/]+\/([^/]+)$/;
 const MENU_URL_PATTERN = /\/_emdash\/admin\/menus\//;
-const SAVE_ACTION_LABEL = /^(Save|Saving\.\.\.)$/;
+const SAVE_ACTION_LABEL = /^(Save|Save draft|Saving\.\.\.)$/;
 const SETUP_PAGE_PATTERN = /\/_emdash\/admin\/setup/;
 
 export class AdminPage {
@@ -347,7 +347,9 @@ export class AdminPage {
 	async waitForSaveComplete(): Promise<void> {
 		// Mobile can hide the save control with CSS while a write is pending, so
 		// wait for it to unmount or change its accessible name, not become hidden.
+		// Scoped to the editor bar: the mobile Settings "Save draft" stays mounted.
 		await this.page
+			.locator("[data-emdash-editor-bar]")
 			.getByRole("button", { name: SAVE_ACTION_LABEL, includeHidden: true })
 			.first()
 			.waitFor({ state: "detached", timeout: 10000 });
