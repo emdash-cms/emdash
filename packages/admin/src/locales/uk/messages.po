@@ -678,7 +678,7 @@ msgstr "{current} з {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {Ще # запис — {date}} few {Ще # запи
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {Ще #} few {Ще #} many {Ще #} other {Ще #}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {Показати ще #} few {Показати ще #} many {Показати ще #} other {Показати ще #}}"
 
@@ -3127,7 +3127,7 @@ msgstr "Зміни застосуються всюди, де використо�
 msgid "Changes discarded"
 msgstr "Зміни скасовано"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "Зміни в цій версії"
 
@@ -4399,7 +4399,7 @@ msgstr "поточний"
 msgid "Current cell"
 msgstr "Поточна клітинка"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "Поточна версія"
@@ -11397,7 +11397,7 @@ msgstr "Опубліковано"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -15637,7 +15637,7 @@ msgstr "Унікальний ідентифікатор (ULID)"
 msgid "Unknown"
 msgstr "Невідомо"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "Невідомий автор"
 
@@ -15659,7 +15659,7 @@ msgstr "Розблокувати пропорції"
 msgid "Unnamed passkey"
 msgstr "Ключ доступу без назви"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "Користувач без імені"
 

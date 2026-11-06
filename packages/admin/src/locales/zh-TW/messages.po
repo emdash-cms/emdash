@@ -678,7 +678,7 @@ msgstr "{current} / {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}，{entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr ""
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date} 還有 # 筆內容} other {{date} 還有 # 
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {還有 +# 筆} other {還有 +# 筆}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
@@ -3127,7 +3127,7 @@ msgstr "變更會套用到所有使用這個署名的地方。"
 msgid "Changes discarded"
 msgstr "已捨棄變更"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr ""
 
@@ -4399,7 +4399,7 @@ msgstr "目前"
 msgid "Current cell"
 msgstr "目前的儲存格"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr ""
@@ -11397,7 +11397,7 @@ msgstr "已發佈"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -15637,7 +15637,7 @@ msgstr "唯一識別碼 (ULID)"
 msgid "Unknown"
 msgstr "未知"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr ""
 
@@ -15659,7 +15659,7 @@ msgstr "解除鎖定長寬比"
 msgid "Unnamed passkey"
 msgstr "未命名的通行密鑰"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr ""
 

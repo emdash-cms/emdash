@@ -678,7 +678,7 @@ msgstr "{current} dari {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, other {# entri lainnya pada {date}}}"
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, other {+# lainnya}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, other {Tampilkan # lainnya}}"
 
@@ -3127,7 +3127,7 @@ msgstr "Perubahan diterapkan di mana pun byline ini muncul."
 msgid "Changes discarded"
 msgstr "Perubahan dibatalkan"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "Perubahan di versi ini"
 
@@ -4399,7 +4399,7 @@ msgstr "saat ini"
 msgid "Current cell"
 msgstr "Sel saat ini"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "Versi saat ini"
@@ -11397,7 +11397,7 @@ msgstr "Dipublikasikan"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -15637,7 +15637,7 @@ msgstr "Pengenal unik (ULID)"
 msgid "Unknown"
 msgstr "Tidak diketahui"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "Penulis tidak diketahui"
 
@@ -15659,7 +15659,7 @@ msgstr "Buka kunci rasio aspek"
 msgid "Unnamed passkey"
 msgstr "Kunci sandi tanpa nama"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "Pengguna tanpa nama"
 

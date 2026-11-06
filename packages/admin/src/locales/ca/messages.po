@@ -678,7 +678,7 @@ msgstr "{current} de {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr ""
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {# entrada més el {date}} other {# entrades més e
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# més} other {+# més}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
@@ -3127,7 +3127,7 @@ msgstr "Els canvis s'apliquen a tots els llocs on apareix aquesta signatura."
 msgid "Changes discarded"
 msgstr "Canvis descartats"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr ""
 
@@ -4399,7 +4399,7 @@ msgstr "actual"
 msgid "Current cell"
 msgstr "Cel·la actual"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr ""
@@ -11397,7 +11397,7 @@ msgstr "visualEditing.published"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -15637,7 +15637,7 @@ msgstr "Identificador únic (ULID)"
 msgid "Unknown"
 msgstr "Desconegut"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr ""
 
@@ -15659,7 +15659,7 @@ msgstr "Desbloqueja la relació d'aspecte"
 msgid "Unnamed passkey"
 msgstr "Clau d'accés sense nom"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr ""
 

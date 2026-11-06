@@ -678,7 +678,7 @@ msgstr "{current}/{total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}、{entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel} {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date}にはさらに#件あります} other {{dat
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {ほか#件} other {ほか#件}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {さらに#件を表示} other {さらに#件を表示}}"
 
@@ -3127,7 +3127,7 @@ msgstr "変更は、この執筆者が表示されるすべての箇所に反映
 msgid "Changes discarded"
 msgstr "変更を破棄しました"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "この版の変更内容"
 
@@ -4399,7 +4399,7 @@ msgstr "現在"
 msgid "Current cell"
 msgstr "現在のセル"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "現在の版"
@@ -11397,7 +11397,7 @@ msgstr "公開済み"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -15637,7 +15637,7 @@ msgstr "一意の識別子（ULID）"
 msgid "Unknown"
 msgstr "不明"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "編集者不明"
 
@@ -15659,7 +15659,7 @@ msgstr "アスペクト比を解除"
 msgid "Unnamed passkey"
 msgstr "名前のないパスキー"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "名前未設定のユーザー"
 
