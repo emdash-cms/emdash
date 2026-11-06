@@ -100,35 +100,143 @@ function renderStandardBlock(block: PortableTextBlock): string {
 	if (block.listItem) {
 		const indent = "  ".repeat(Math.max(0, (block.level ?? 1) - 1));
 		const marker = block.listItem === "number" ? "1." : "-";
-		return `${indent}${marker} ${text}`;
+		return `${indent}${marker} ${renderLinesAfterFirst(text)}`;
 	}
 
 	// Headings
 	if (block.style && block.style.startsWith("h")) {
 		const level = parseInt(block.style.substring(1), 10);
 		if (level >= 1 && level <= 6) {
-			return `${"#".repeat(level)} ${text}`;
+			return `${"#".repeat(level)} ${renderLinesAfterFirst(text)}`;
 		}
 	}
 
 	// Blockquote
 	if (block.style === "blockquote") {
-		return `> ${text}`;
+		return `> ${renderLinesAfterFirst(text)}`;
 	}
 
-	return text;
+	return renderParagraph(text);
 }
 
+/**
+ * markdownToPortableText reads only the first line into a list item, heading or
+ * blockquote, and the lines after it as a paragraph.
+ */
+function renderLinesAfterFirst(text: string): string {
+	const lineBreak = text.indexOf("\n");
+	if (lineBreak === -1) return text;
+	return text.slice(0, lineBreak + 1) + renderParagraph(text.slice(lineBreak + 1));
+}
+
+/**
+ * Ends every line but the last with a backslash hard break, so markdownToPortableText
+ * reads the text back as one paragraph with its line breaks. An empty line becomes a
+ * line holding only the hard break; trailing empty lines cannot be written in a
+ * Markdown paragraph and are dropped.
+ */
+function renderParagraph(text: string): string {
+	const lines = text.split("\n");
+	while (lines.length > 1 && lines.at(-1)?.trim() === "") lines.pop();
+	return lines.map((line, index) => escapeBlockStart(line, index < lines.length - 1)).join("\\\n");
+}
+
+/**
+ * Escapes the start of a line that markdownToPortableText would read as the start
+ * of another block, such as `# `, `> `, `- `, `2. `, a table row or `---`. The check
+ * reads the line with its hard break, because `# \` is a heading where `# ` is not.
+ */
+function escapeBlockStart(line: string, beforeHardBreak: boolean): string {
+	const written = beforeHardBreak ? `${line}\\` : line;
+	// With afterListItem set any `<number>. ` counts as a list item, so the escape
+	// holds wherever the line ends up.
+	if (line.trim() === "" || continuesParagraph(written, true)) return line;
+	if (ORDERED_LIST_PATTERN.test(written)) return line.replace(ORDERED_LIST_NUMBER_PATTERN, "$1\\.");
+	return line.replace(LEADING_WHITESPACE_PATTERN, "$1\\");
+}
+
+/**
+ * Backslash-escapes the characters in span text that parseInline would read as
+ * Markdown. A character is checked against its neighbours inside the span; at
+ * the edge of the span the neighbour is unknown, so the character is escaped.
+ */
+function escapeInlineMarkdown(text: string): string {
+	let escaped = "";
+	for (let index = 0; index < text.length; index++) {
+		const character = text[index];
+		if (needsInlineEscape(character, text[index - 1], text[index + 1])) escaped += "\\";
+		escaped += character;
+	}
+	return escaped;
+}
+
+function needsInlineEscape(
+	character: string,
+	previous: string | undefined,
+	next: string | undefined,
+): boolean {
+	switch (character) {
+		case "\\":
+			return next === undefined || next === "\n" || ASCII_PUNCTUATION_PATTERN.test(next);
+		case "`":
+		case "[":
+		case "]":
+			return true;
+		case "*":
+			return !isWhitespace(previous) || !isWhitespace(next);
+		case "_":
+			return !(
+				(isWordCharacter(previous) && isWordCharacter(next)) ||
+				(isWhitespace(previous) && isWhitespace(next))
+			);
+		case "~":
+			return previous === undefined || next === undefined || previous === "~" || next === "~";
+		default:
+			return false;
+	}
+}
+
+function isWhitespace(character: string | undefined): boolean {
+	return character !== undefined && WHITESPACE_PATTERN.test(character);
+}
+
+function isWordCharacter(character: string | undefined): boolean {
+	return character !== undefined && WORD_CHARACTER_PATTERN.test(character);
+}
+
+const WRAPPING_MARKS = new Set(["strong", "em", "code", "strike-through", "strikethrough"]);
+
 function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
+	// An empty span renders nothing, so it must not stand between a span and its neighbour.
+	const textSpans = spans.filter((span) => span._type === "span" && (span.text ?? "") !== "");
+	const isLink = (mark: string) => markDefs.some((d) => d._key === mark && d._type === "link");
+	// The character next to the span in the output is a letter or digit only when
+	// the neighbour renders without delimiters.
+	const touchesWord = (neighbour: PortableTextSpan | undefined, edge: RegExp) =>
+		neighbour !== undefined &&
+		!(neighbour.marks ?? []).some((mark) => WRAPPING_MARKS.has(mark) || isLink(mark)) &&
+		edge.test(neighbour.text ?? "");
+
 	let result = "";
 
-	for (const span of spans) {
-		if (span._type !== "span") continue;
-
-		let text = span.text ?? "";
+	for (const [index, span] of textSpans.entries()) {
 		const marks = span.marks ?? [];
+		let text = span.text ?? "";
+
+		// `*x*` and `_x_` are not emphasis when whitespace follows the opening or
+		// precedes the closing delimiter, so that whitespace goes outside. Split it
+		// off before escaping, so a character next to a delimiter counts as an edge.
+		let leading = "";
+		let trailing = "";
+		if (marks.includes("em")) {
+			const start = text.length - text.trimStart().length;
+			const end = Math.max(start, text.trimEnd().length);
+			[leading, text, trailing] = [text.slice(0, start), text.slice(start, end), text.slice(end)];
+		}
+		if (!marks.includes("code")) text = escapeInlineMarkdown(text);
 
 		for (const mark of marks) {
+			if (text === "") break;
 			const def = markDefs.find((d) => d._key === mark);
 			if (def) {
 				if (def._type === "link") {
@@ -139,11 +247,23 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 					case "strong":
 						text = `**${text}**`;
 						break;
-					case "em":
-						text = `_${text}_`;
+					case "em": {
+						// An underscore inside a word does not open or close emphasis.
+						const insideWord =
+							(leading === "" &&
+								touchesWord(textSpans[index - 1], WORD_CHARACTER_AT_END_PATTERN)) ||
+							(trailing === "" &&
+								touchesWord(textSpans[index + 1], WORD_CHARACTER_AT_START_PATTERN));
+						text = insideWord ? `*${text}*` : `_${text}_`;
 						break;
+					}
 					case "code":
-						text = `\`${text}\``;
+						// One span per line: a line inside a code span that starts with `# ` or
+						// `- ` would start a new block.
+						text = text
+							.split("\n")
+							.map((line) => (line === "" ? "" : `\`${line}\``))
+							.join("\n");
 						break;
 					case "strike-through":
 					case "strikethrough":
@@ -153,7 +273,7 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 			}
 		}
 
-		result += text;
+		result += leading + text + trailing;
 	}
 
 	return result;
@@ -165,12 +285,36 @@ function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
 
 // Regex patterns for markdown parsing
 const OPAQUE_FENCE_PATTERN = /^<!--ec:block (.+) -->$/;
-const HEADING_PATTERN = /^(#{1,6})\s+(.+)$/;
-const UNORDERED_LIST_PATTERN = /^(\s*)[-*+]\s+(.+)$/;
-const ORDERED_LIST_PATTERN = /^(\s*)\d+\.\s+(.+)$/;
+// The text starts at a non-space: `\s+(.+)` backtracks quadratically on long runs of whitespace.
+const HEADING_PATTERN = /^(#{1,6})\s+(\S.*)$/;
+const UNORDERED_LIST_PATTERN = /^(\s*)[-*+]\s+(\S.*)$/;
+const ORDERED_LIST_PATTERN = /^(\s*)\d+\.\s+(\S.*)$/;
 const IMAGE_PATTERN = /^!\[([^\]]*)\]\(([^)]+)\)$/;
+const CODE_FENCE_PATTERN = /^(```|~~~)/;
+// In CommonMark only an ordered list that starts at 1 can interrupt a paragraph.
+const PARAGRAPH_INTERRUPTING_ORDERED_LIST_PATTERN = /^\s*1\.\s+\S/;
+// Table rows, thematic breaks and setext underlines stay one block per line.
+const UNJOINABLE_LINE_PATTERN =
+	/^\s*\||^ {0,3}(?:-+|=+|\*(?:[ \t]*\*){2,}|_(?:[ \t]*_){2,})[ \t]*$/;
+// An odd number of trailing backslashes ends in a backslash that is not escaped.
+const BACKSLASH_HARD_BREAK_PATTERN = /(?:^|[^\\])(?:\\\\)*\\$/;
+// CommonMark emphasis: `_` does not open or close inside a word, a single `*` next
+// to another `*` does neither, and a `*` with whitespace on both sides is text.
+// Inside `_x_` an underscore is text only between two word characters or two
+// whitespace characters; any other `_` ends the scan, which keeps it linear.
 const INLINE_MARKDOWN_PATTERN =
-	/(\*\*(.+?)\*\*)|(_(.+?)_)|(`(.+?)`)|(\[(.+?)\]\((.+?)\))|(~~(.+?)~~)/g;
+	/(\*\*(.+?)\*\*)|((?<![\p{L}\p{N}])_(?!\s)((?:[^_]|(?<=[\p{L}\p{N}])_(?=[\p{L}\p{N}])|(?<=\s)_(?=\s))+?)(?<!\s)_(?![\p{L}\p{N}]))|(`(.+?)`)|(\[(.+?)\]\((.+?)\))|(~~(.+?)~~)|((?<!\*)\*([^\s*](?:(?:[^*]|(?<=\s)\*(?=\s))*?[^\s*])?)\*(?!\*))/dgsu;
+const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}]/u;
+const WORD_CHARACTER_AT_START_PATTERN = /^[\p{L}\p{N}]/u;
+const WORD_CHARACTER_AT_END_PATTERN = /[\p{L}\p{N}]$/u;
+const WHITESPACE_PATTERN = /\s/;
+const ASCII_PUNCTUATION_PATTERN = /[!-/:-@[-`{-~]/;
+const ORDERED_LIST_NUMBER_PATTERN = /^(\s*\d+)\./;
+const LEADING_WHITESPACE_PATTERN = /^(\s*)/;
+const LINE_BREAK_PATTERN = /\r?\n/;
+const LEADING_SPACES_PATTERN = /^[ \t]+/;
+// Stands in for an escaped character while INLINE_MARKDOWN_PATTERN runs.
+const ESCAPED_CHARACTER = "\uE000";
 
 /**
  * Convert Markdown to Portable Text blocks.
@@ -178,7 +322,7 @@ const INLINE_MARKDOWN_PATTERN =
  */
 export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
-	const lines = markdown.split("\n");
+	const lines = markdown.split(LINE_BREAK_PATTERN);
 	let i = 0;
 
 	while (i < lines.length) {
@@ -197,11 +341,13 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		}
 
 		// Code fence
-		if (line.startsWith("```")) {
+		const fenceMatch = line.match(CODE_FENCE_PATTERN);
+		if (fenceMatch) {
+			const fence = fenceMatch[1];
 			const lang = line.slice(3).trim();
 			const codeLines: string[] = [];
 			i++;
-			while (i < lines.length && !lines[i].startsWith("```")) {
+			while (i < lines.length && !lines[i].startsWith(fence)) {
 				codeLines.push(lines[i]);
 				i++;
 			}
@@ -211,7 +357,7 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 				language: lang || undefined,
 				code: codeLines.join("\n"),
 			});
-			i++; // skip closing ```
+			i++; // skip the closing fence
 			continue;
 		}
 
@@ -268,11 +414,62 @@ export function markdownToPortableText(markdown: string): PortableTextBlock[] {
 		}
 
 		// Paragraph
-		blocks.push(makeBlock(line));
+		const afterListItem = blocks.at(-1)?.listItem != null && lines[i - 1]?.trim() !== "";
+		const paragraph = [line];
 		i++;
+		if (!UNJOINABLE_LINE_PATTERN.test(line)) {
+			while (i < lines.length && continuesParagraph(lines[i], afterListItem)) {
+				joinParagraphLine(paragraph, lines[i]);
+				i++;
+			}
+		}
+		blocks.push(makeBlock(paragraph.join("")));
 	}
 
 	return blocks;
+}
+
+/**
+ * After a list item any number starts the next item, so a wrapped item's
+ * continuation line does not swallow the items that follow it.
+ */
+function continuesParagraph(line: string, afterListItem: boolean): boolean {
+	return (
+		line.trim() !== "" &&
+		!OPAQUE_FENCE_PATTERN.test(line) &&
+		!CODE_FENCE_PATTERN.test(line) &&
+		!HEADING_PATTERN.test(line) &&
+		!line.startsWith("> ") &&
+		!UNORDERED_LIST_PATTERN.test(line) &&
+		!(afterListItem ? ORDERED_LIST_PATTERN : PARAGRAPH_INTERRUPTING_ORDERED_LIST_PATTERN).test(
+			line,
+		) &&
+		!IMAGE_PATTERN.test(line) &&
+		!UNJOINABLE_LINE_PATTERN.test(line)
+	);
+}
+
+// A loop instead of /[ \t]+$/, which is quadratic on long runs of spaces or tabs.
+function trimTrailingSpaces(line: string): string {
+	let end = line.length;
+	while (end > 0 && (line[end - 1] === " " || line[end - 1] === "\t")) end--;
+	return line.slice(0, end);
+}
+
+/**
+ * Appends the next line to a paragraph whose last entry is the line before it.
+ * In CommonMark a line ending in two spaces or a backslash is a hard break; any
+ * other line break inside a paragraph is soft and reads as a space.
+ */
+function joinParagraphLine(paragraph: string[], next: string): void {
+	const line = paragraph.pop() ?? "";
+	const backslashBreak = BACKSLASH_HARD_BREAK_PATTERN.test(line);
+	const hardBreak = backslashBreak || line.endsWith("  ");
+	// Whitespace before a backslash break is text; before a two-space break it is the break.
+	const head = backslashBreak ? line.slice(0, -1) : trimTrailingSpaces(line);
+	// A line holding only the hard break also drops the space before it.
+	if (head === "") paragraph.push(trimTrailingSpaces(paragraph.pop() ?? ""));
+	paragraph.push(head + (hardBreak ? "\n" : " "), next.replace(LEADING_SPACES_PATTERN, ""));
 }
 
 // ---------------------------------------------------------------------------
@@ -300,15 +497,22 @@ function makeListBlock(text: string, listItem: string, level: number): PortableT
 /**
  * Parse inline markdown (bold, italic, code, links, strikethrough) into PT spans + markDefs.
  */
-function parseInline(text: string): ParsedInline {
+function parseInline(markdown: string): ParsedInline {
 	const spans: PortableTextSpan[] = [];
 	const markDefs: MarkDef[] = [];
 	const regex = INLINE_MARKDOWN_PATTERN;
+	const { masked, text } = resolveEscapes(markdown);
 
 	let lastIndex = 0;
 	let match: RegExpExecArray | null;
 
-	while ((match = regex.exec(text)) !== null) {
+	while ((match = regex.exec(masked)) !== null) {
+		const indices = match.indices;
+		const group = (n: number) => {
+			const range = indices?.[n];
+			return range ? text.slice(range[0], range[1]) : undefined;
+		};
+
 		if (match.index > lastIndex) {
 			spans.push({
 				_type: "span",
@@ -319,22 +523,24 @@ function parseInline(text: string): ParsedInline {
 		}
 
 		if (match[2] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[2], marks: ["strong"] });
+			spans.push({ _type: "span", _key: generateKey(), text: group(2), marks: ["strong"] });
 		} else if (match[4] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[4], marks: ["em"] });
+			spans.push({ _type: "span", _key: generateKey(), text: group(4), marks: ["em"] });
 		} else if (match[6] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: match[6], marks: ["code"] });
+			spans.push({ _type: "span", _key: generateKey(), text: group(6), marks: ["code"] });
 		} else if (match[8] != null && match[9] != null) {
 			const key = generateKey();
-			markDefs.push({ _key: key, _type: "link", href: match[9] });
-			spans.push({ _type: "span", _key: generateKey(), text: match[8], marks: [key] });
+			markDefs.push({ _key: key, _type: "link", href: group(9) });
+			spans.push({ _type: "span", _key: generateKey(), text: group(8), marks: [key] });
 		} else if (match[11] != null) {
 			spans.push({
 				_type: "span",
 				_key: generateKey(),
-				text: match[11],
+				text: group(11),
 				marks: ["strike-through"],
 			});
+		} else if (match[13] != null) {
+			spans.push({ _type: "span", _key: generateKey(), text: group(13), marks: ["em"] });
 		}
 
 		lastIndex = match.index + match[0].length;
@@ -349,6 +555,35 @@ function parseInline(text: string): ParsedInline {
 	}
 
 	return { spans, markDefs };
+}
+
+/**
+ * Resolves CommonMark backslash escapes outside code spans. `text` drops the
+ * backslash; `masked` also swaps the escaped character for ESCAPED_CHARACTER, so
+ * INLINE_MARKDOWN_PATTERN never reads it as a delimiter. Both have the same
+ * length, so a match in `masked` slices the same characters out of `text`.
+ */
+function resolveEscapes(markdown: string): { masked: string; text: string } {
+	let masked = "";
+	let text = "";
+	let index = 0;
+	while (index < markdown.length) {
+		const character = markdown[index];
+		const next = markdown[index + 1];
+		if (character === "\\" && next !== undefined && ASCII_PUNCTUATION_PATTERN.test(next)) {
+			masked += ESCAPED_CHARACTER;
+			text += next;
+			index += 2;
+			continue;
+		}
+		// Backslashes inside a code span are literal.
+		const codeEnd = character === "`" ? markdown.indexOf("`", index + 2) : -1;
+		const chunk = codeEnd === -1 ? character : markdown.slice(index, codeEnd + 1);
+		masked += chunk;
+		text += chunk;
+		index += chunk.length;
+	}
+	return { masked, text };
 }
 
 // ---------------------------------------------------------------------------
