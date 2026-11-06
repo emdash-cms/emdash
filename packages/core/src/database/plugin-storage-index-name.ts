@@ -6,7 +6,7 @@ export function storageIndexHash(pluginId: string, collection: string, fields: s
 	return encodeHexLowerCase(sha256(new TextEncoder().encode(identity))).slice(0, 32);
 }
 
-/** Keep short legacy names, but never let PostgreSQL truncate a scope or field list. */
+/** Preserve short lookup names; unique names must distinguish case-sensitive identities. */
 export function generateIndexName(
 	pluginId: string,
 	collection: string,
@@ -15,6 +15,15 @@ export function generateIndexName(
 ): string {
 	const prefix = options?.unique ? "uidx" : "idx";
 	const name = `${prefix}_plugin_${pluginId}_${collection}_${fields.join("_")}`;
-	if (name.length <= 63) return name;
-	return `${name.slice(0, 30)}_${storageIndexHash(pluginId, collection, fields)}`;
+	const parts = [pluginId, collection, ...fields];
+	if (
+		name.length <= 63 &&
+		(!options?.unique ||
+			(name === name.toLowerCase() && parts.every((part) => !part.includes("_"))))
+	) {
+		return name;
+	}
+	// SQLite compares identifiers case-insensitively. The digest preserves case
+	// and tuple boundaries; its suffix has no separators, unlike legacy names.
+	return `${prefix}_plugin_${storageIndexHash(pluginId, collection, fields)}`;
 }

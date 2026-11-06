@@ -93,6 +93,62 @@ async function assertScope(db: Kysely<Database>): Promise<void> {
 }
 
 export function registerPluginStorageIndexMigrationCases(getDb: () => Kysely<Database>): void {
+	it("migrates case-distinct collection and field names without losing either constraint", async () => {
+		const db = getDb();
+		const entries: IndexCase[] = [
+			["Items", "sku"],
+			["Items", "SKU"],
+			["items", "sku"],
+			["items", "SKU"],
+		].map(([collection, field]) => ({
+			plugin: "shop",
+			collection,
+			name: `uidx_plugin_shop_${collection}_${field}`,
+			fields: [field],
+		}));
+		for (const collection of ["Items", "items"]) {
+			await put(db, "shop", collection, "ownerABC", { sku: "ABC", SKU: "ABC" });
+			for (const entry of entries.filter((candidate) => candidate.collection === collection)) {
+				await seedLegacyIndex(db, entry);
+			}
+		}
+
+		await up(db);
+		await up(db);
+		for (const collection of ["Items", "items"]) {
+			await expect(
+				put(db, "shop", collection, "duplicate-sku", { sku: "ABC", SKU: "other" }),
+			).rejects.toThrow();
+			await expect(
+				put(db, "shop", collection, "duplicate-SKU", { sku: "other", SKU: "ABC" }),
+			).rejects.toThrow();
+			await expect(
+				put(db, "stock", collection, "one", { sku: "ABC", SKU: "ABC" }),
+			).resolves.toBeUndefined();
+		}
+		for (const entry of entries) {
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.select("index_name")
+				.where("plugin_id", "=", entry.plugin)
+				.where("collection", "=", entry.collection)
+				.where(
+					"index_name",
+					"=",
+					generateIndexName(entry.plugin, entry.collection, entry.fields, { unique: true }),
+				)
+				.execute();
+			expect(tracked).toHaveLength(1);
+		}
+		const names = entries.map((entry) =>
+			generateIndexName(entry.plugin, entry.collection, entry.fields, { unique: true }),
+		);
+		expect(new Set(names.map((name) => name.toLowerCase())).size).toBe(4);
+		expect((await indexNames(db)).map((name) => name.toLowerCase())).toEqual(
+			expect.arrayContaining(names.map((name) => name.toLowerCase())),
+		);
+	});
+
 	it("converts legacy unique indexes to scoped indexes and preserves lookup tracking", async () => {
 		const db = getDb();
 		const owner: IndexCase = {
@@ -184,7 +240,7 @@ export function registerPluginStorageIndexMigrationCases(getDb: () => Kysely<Dat
 			.where("collection", "=", "old-items")
 			.execute();
 		expect(removedTracking.map((row) => row.index_name)).toContain(
-			"idx_plugin_removed_old-items_orderNumber",
+			generateIndexName("removed", "old-items", ["orderNumber"]),
 		);
 		const expectedUniqueNames = [...entries, ...pagedEntries].map((entry) =>
 			generateIndexName(entry.plugin, entry.collection, entry.fields, { unique: true }),
@@ -375,6 +431,7 @@ export function registerPluginStorageIndexMigrationCases(getDb: () => Kysely<Dat
 			const db = getDb();
 			const owners: IndexCase[] = [
 				{ plugin, collection: "items", name: `uidx_plugin_${plugin}_items_sku`, fields: ["sku"] },
+				{ plugin, collection: "Items", name: `uidx_plugin_${plugin}_Items_sku`, fields: ["sku"] },
 				{
 					plugin,
 					collection: "orders",

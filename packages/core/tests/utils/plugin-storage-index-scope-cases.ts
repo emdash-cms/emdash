@@ -22,6 +22,89 @@ export function registerPluginStorageIndexScopeCases(
 			.execute();
 	};
 
+	it("scopes case-distinct collections independently and keeps sync idempotent", async () => {
+		const db = getDb();
+		const collections = ["Items", "items"];
+		for (const collection of collections) {
+			const result = await syncStorageIndexes(db, "shop", collection, [], {
+				uniqueIndexes: ["sku"],
+			});
+			expect(result.errors).toHaveLength(0);
+			await insert("shop", collection, "owner", { sku: "ABC" });
+			await expect(insert("shop", collection, "duplicate", { sku: "ABC" })).rejects.toThrow();
+			await expect(insert("stock", collection, "one", { sku: "ABC" })).resolves.toBeUndefined();
+			await expect(insert("stock", collection, "two", { sku: "ABC" })).resolves.toBeUndefined();
+			const repeat = await syncStorageIndexes(db, "shop", collection, [], {
+				uniqueIndexes: ["sku"],
+			});
+			expect(repeat.errors).toEqual([]);
+			expect(repeat.removed).toEqual([]);
+		}
+
+		const expected = collections.map((collection) =>
+			generateIndexName("shop", collection, ["sku"], { unique: true }),
+		);
+		expect(new Set(expected.map((name) => name.toLowerCase())).size).toBe(2);
+		const indexes = isPostgres(db)
+			? await sql<{ name: string }>`
+					SELECT indexname AS name FROM pg_indexes
+					WHERE schemaname = current_schema() AND tablename = '_plugin_storage'
+				`.execute(db)
+			: await sql<{ name: string }>`
+					SELECT name FROM sqlite_master
+					WHERE type = 'index' AND tbl_name = '_plugin_storage'
+				`.execute(db);
+		const physical = indexes.rows.map((row) => row.name);
+		expect(physical.map((name) => name.toLowerCase())).toEqual(
+			expect.arrayContaining(expected.map((name) => name.toLowerCase())),
+		);
+	});
+
+	it("keeps case-distinct unique fields independently enforceable", async () => {
+		const db = getDb();
+		const result = await syncStorageIndexes(db, "shop", "items", [], {
+			uniqueIndexes: ["sku", "SKU"],
+		});
+		expect(result.errors).toHaveLength(0);
+		await insert("shop", "items", "owner", { sku: "lower", SKU: "upper" });
+		await expect(
+			insert("shop", "items", "duplicate-lower", { sku: "lower", SKU: "other" }),
+		).rejects.toThrow();
+		await expect(
+			insert("shop", "items", "duplicate-upper", { sku: "other", SKU: "upper" }),
+		).rejects.toThrow();
+		const expected = ["sku", "SKU"].map((field) =>
+			generateIndexName("shop", "items", [field], { unique: true }),
+		);
+		expect(new Set(expected.map((name) => name.toLowerCase())).size).toBe(2);
+	});
+
+	it("distinguishes underscore-separated scope and field tuples", async () => {
+		const db = getDb();
+		for (const [plugin, collection] of [
+			["shop_items", "variants"],
+			["shop", "items_variants"],
+		]) {
+			const result = await syncStorageIndexes(db, plugin, collection, [], {
+				uniqueIndexes: ["sku"],
+			});
+			expect(result.errors).toEqual([]);
+			await insert(plugin, collection, "owner", { sku: "ABC" });
+			await expect(insert(plugin, collection, "duplicate", { sku: "ABC" })).rejects.toThrow();
+		}
+		const result = await syncStorageIndexes(db, "shop", "keys", [], {
+			uniqueIndexes: [["region", "code"], "region_code"],
+		});
+		expect(result.errors).toEqual([]);
+		await insert("shop", "keys", "owner", { region: "us", code: "A", region_code: "B" });
+		await expect(
+			insert("shop", "keys", "compound-duplicate", { region: "us", code: "A", region_code: "C" }),
+		).rejects.toThrow();
+		await expect(
+			insert("shop", "keys", "field-duplicate", { region: "ca", code: "C", region_code: "B" }),
+		).rejects.toThrow();
+	});
+
 	it("scopes long plugin unique indexes independently across fresh collections", async () => {
 		const db = getDb();
 		const plugin = `shop-${"x".repeat(65)}`;

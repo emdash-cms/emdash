@@ -1,17 +1,19 @@
 import { randomUUID } from "node:crypto";
 
-import { SqliteDialect } from "kysely";
+import { sql, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { createRecorder } from "../../../src/database/instrumentation.js";
+import { up as migratePluginStorageUniqueIndexes } from "../../../src/database/migrations/095_plugin_storage_unique_scope.js";
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { dispatchPluginApiRequest } from "../../../src/plugins/http-route-dispatch.js";
 import {
 	generateDropIndexSql,
+	generateIndexName,
 	syncDeclaredStorageIndexes,
 } from "../../../src/plugins/storage-indexes.js";
 import { runWithContext } from "../../../src/request-context.js";
@@ -129,11 +131,13 @@ describe("plugin storage index readiness", () => {
 			.selectFrom("_plugin_indexes")
 			.select("index_name")
 			.execute();
-		expect(afterIndexes.map((r) => r.index_name).toSorted()).toEqual([
-			"idx_plugin_shop_orders_externalId",
-			"idx_plugin_shop_orders_status",
-			"uidx_plugin_shop_orders_externalId",
-		]);
+		expect(afterIndexes.map((r) => r.index_name).toSorted()).toEqual(
+			[
+				generateIndexName("shop", "orders", ["externalId"]),
+				generateIndexName("shop", "orders", ["status"]),
+				generateIndexName("shop", "orders", ["externalId"], { unique: true }),
+			].toSorted(),
+		);
 	});
 
 	it("uses the registry fast path when declared indexes already exist", async () => {
@@ -173,6 +177,41 @@ describe("plugin storage index readiness", () => {
 		expect(ddlQueries(warmRecorder)).toHaveLength(0);
 	});
 
+	it("keeps a legacy regular index on the readiness fast path after the unique-index migration", async () => {
+		const storage: StorageDeclaration = {
+			product_variants: { indexes: ["formId"] },
+		};
+		const runtime = await createRuntime(storage);
+		runtimes.push(runtime);
+
+		const legacyIndexName = "idx_plugin_shop_product_variants_formId";
+		await sql`
+			CREATE INDEX ${sql.ref(legacyIndexName)}
+			ON _plugin_storage(plugin_id, collection, json_extract(data, '$.formId'))
+		`.execute(runtime.db);
+		await runtime.db
+			.insertInto("_plugin_indexes")
+			.values({
+				plugin_id: "shop",
+				collection: "product_variants",
+				index_name: legacyIndexName,
+				fields: '["formId"]',
+			})
+			.execute();
+		await migratePluginStorageUniqueIndexes(runtime.db);
+
+		const recorder = createRecorder("legacy-regular-index", "POST", "cold");
+		const response = await dispatchWithRecorder(runtime, "POST", recorder);
+		expect(response.status).toBe(200);
+		expect(ddlQueries(recorder)).toHaveLength(0);
+		const registryQueries = pluginIndexQueries(recorder);
+		expect(registryQueries).toHaveLength(1);
+		expect(registryQueries[0]?.sql.toLowerCase()).toContain("select");
+		expect(
+			registryQueries.filter((event) => !event.sql.toLowerCase().includes("select")),
+		).toHaveLength(0);
+	});
+
 	it("repairs a missing regular companion before taking the readiness fast path", async () => {
 		const storage: StorageDeclaration = {
 			orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
@@ -180,10 +219,11 @@ describe("plugin storage index readiness", () => {
 		const runtime = await createRuntime(storage);
 		runtimes.push(runtime);
 		await syncDeclaredStorageIndexes(runtime.db, [{ id: "shop", storage }]);
-		await generateDropIndexSql("idx_plugin_shop_orders_externalId").execute(runtime.db);
+		const externalIdIndex = generateIndexName("shop", "orders", ["externalId"]);
+		await generateDropIndexSql(externalIdIndex).execute(runtime.db);
 		await runtime.db
 			.deleteFrom("_plugin_indexes")
-			.where("index_name", "=", "idx_plugin_shop_orders_externalId")
+			.where("index_name", "=", externalIdIndex)
 			.execute();
 
 		const sync = runtime as unknown as IndexSyncAccessor;
@@ -341,12 +381,14 @@ describe("plugin storage index readiness", () => {
 		expect(forumReady).toBe(true);
 
 		const indexes = await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute();
-		expect(indexes.map((r) => r.index_name).toSorted()).toEqual([
-			"idx_plugin_forum_threads_pinned",
-			"idx_plugin_shop_orders_externalId",
-			"idx_plugin_shop_orders_status",
-			"uidx_plugin_shop_orders_externalId",
-		]);
+		expect(indexes.map((r) => r.index_name).toSorted()).toEqual(
+			[
+				generateIndexName("forum", "threads", ["pinned"]),
+				generateIndexName("shop", "orders", ["externalId"]),
+				generateIndexName("shop", "orders", ["status"]),
+				generateIndexName("shop", "orders", ["externalId"], { unique: true }),
+			].toSorted(),
+		);
 	});
 
 	it("shares per-plugin flights between targeted and all-plugin syncs", async () => {
@@ -369,11 +411,13 @@ describe("plugin storage index readiness", () => {
 		expect(ddlQueries(recorder).filter((event) => /create/i.test(event.sql))).toHaveLength(4);
 
 		const indexes = await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute();
-		expect(indexes.map((r) => r.index_name).toSorted()).toEqual([
-			"idx_plugin_forum_threads_pinned",
-			"idx_plugin_shop_orders_externalId",
-			"idx_plugin_shop_orders_status",
-			"uidx_plugin_shop_orders_externalId",
-		]);
+		expect(indexes.map((r) => r.index_name).toSorted()).toEqual(
+			[
+				generateIndexName("forum", "threads", ["pinned"]),
+				generateIndexName("shop", "orders", ["externalId"]),
+				generateIndexName("shop", "orders", ["status"]),
+				generateIndexName("shop", "orders", ["externalId"], { unique: true }),
+			].toSorted(),
+		);
 	});
 });
