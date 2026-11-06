@@ -136,7 +136,7 @@ describe("emdash whoami", () => {
 		expect(result.stderr).toContain(hint);
 		if (status !== 409) expect(result.stderr).toContain("emdash login");
 		if (status === 409) {
-			expect(result.stderr).toContain("/_emdash/api/setup/dev-bypass");
+			expect(result.stderr).toContain("/_emdash/api/setup/dev-bypass?content=0");
 			expect(result.stderr).not.toContain("Failed to fetch user info: 409");
 		}
 	});

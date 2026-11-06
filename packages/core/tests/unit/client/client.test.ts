@@ -137,6 +137,55 @@ describe("EmDashClient", () => {
 		}
 	});
 
+	it("retries dev authentication after setup on the same client and shares concurrent attempts", async () => {
+		const originalFetch = globalThis.fetch;
+		let setupComplete = false;
+		let bypassRequests = 0;
+		const apiCookies: (string | null)[] = [];
+		globalThis.fetch = async (input) => {
+			const request = new Request(input);
+			if (request.url.endsWith("/_emdash/api/auth/dev-bypass")) {
+				bypassRequests++;
+				if (!setupComplete) {
+					return jsonResponse(
+						{ error: { code: "SETUP_REQUIRED", message: "Complete setup first" } },
+						409,
+					);
+				}
+				return new Response("{}", {
+					headers: { "Set-Cookie": "session=dev-session; Path=/; HttpOnly" },
+				});
+			}
+			apiCookies.push(request.headers.get("cookie"));
+			return jsonResponse({ items: [{ slug: "posts", label: "Posts", supports: [] }] });
+		};
+
+		try {
+			const client = new EmDashClient({ baseUrl: "http://localhost:4321", devBypass: true });
+			const failures = await Promise.allSettled([client.collections(), client.collections()]);
+			for (const result of failures) {
+				expect(result.status).toBe("rejected");
+				if (result.status === "rejected") {
+					expect(result.reason).toBeInstanceOf(EmDashApiError);
+					expect(result.reason).toMatchObject({ status: 409, code: "SETUP_REQUIRED" });
+				}
+			}
+			expect(bypassRequests).toBe(1);
+			expect(apiCookies).toEqual([]);
+
+			setupComplete = true;
+			const recovered = await Promise.all([client.collections(), client.collections()]);
+			for (const collections of recovered) {
+				expect(collections).toMatchObject([{ slug: "posts" }]);
+			}
+			await client.collections();
+			expect(bypassRequests).toBe(2);
+			expect(apiCookies).toEqual(Array(3).fill("session=dev-session"));
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	describe("_rev token flow", () => {
 		it("blind update (no _rev) succeeds", async () => {
 			const backend = createMockBackend([

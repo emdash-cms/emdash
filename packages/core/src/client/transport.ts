@@ -90,16 +90,14 @@ export function tokenInterceptor(token: string): Interceptor {
  */
 export function devBypassInterceptor(baseUrl: string): Interceptor {
 	let sessionCookie: string | null = null;
-	let setupRequiredResponse: Response | null = null;
-	let initializing: Promise<void> | null = null;
+	let initializing: Promise<Response | null> | null = null;
 
-	async function init(): Promise<void> {
+	async function init(): Promise<Response | null> {
 		const bypassUrl = new URL("/_emdash/api/auth/dev-bypass", baseUrl);
 		const res = await globalThis.fetch(bypassUrl, { redirect: "manual" });
 
 		if (res.status === 409) {
-			setupRequiredResponse = res;
-			return;
+			return res;
 		}
 
 		// Extract session cookie from Set-Cookie header
@@ -116,19 +114,21 @@ export function devBypassInterceptor(baseUrl: string): Interceptor {
 		if (res.body) {
 			await res.text().catch(() => {});
 		}
+		return null;
 	}
 
 	return async (request, next) => {
-		// Ensure we've initialized (only once, even with concurrent requests)
+		// Concurrent requests share the same authentication attempt.
 		if (!sessionCookie) {
 			if (!initializing) {
 				initializing = init();
 			}
-			await initializing;
-		}
-
-		if (setupRequiredResponse) {
-			return setupRequiredResponse.clone();
+			const attempt = initializing;
+			const setupRequiredResponse = await attempt;
+			if (setupRequiredResponse) {
+				if (initializing === attempt) initializing = null;
+				return setupRequiredResponse.clone();
+			}
 		}
 
 		if (sessionCookie) {

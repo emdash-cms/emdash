@@ -59,7 +59,7 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		if (!isComplete || (requiresUser && !hasUsers)) {
 			return apiError(
 				"SETUP_REQUIRED",
-				"Complete the setup wizard at /_emdash/admin/setup before using dev authentication, or explicitly skip setup via /_emdash/api/setup/dev-bypass.",
+				"Complete the setup wizard at /_emdash/admin/setup before using dev authentication, or explicitly skip setup via /_emdash/api/setup/dev-bypass?content=0.",
 				409,
 			);
 		}
