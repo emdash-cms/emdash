@@ -24,6 +24,7 @@ import {
 } from "../../lib/media-utils.js";
 import type { GalleryImage } from "../../portable-text/convert.js";
 import { GalleryNode } from "../../portable-text/schema.js";
+import { PORTABLE_TEXT_KEY_ATTR } from "./portableTextIdentity.js";
 
 export type { GalleryImage };
 
@@ -38,8 +39,8 @@ export interface GallerySidebarPanel {
 	/**
 	 * `selectedImageKey` is transient UI state (which image's settings card
 	 * is open) and `nodeKey` identifies which gallery node this panel
-	 * instance belongs to (from `getPos()`) — both must never be written
-	 * into node attrs via `updateAttributes`.
+	 * instance belongs to (the block's key, or its position without one) —
+	 * both must never be written into node attrs via `updateAttributes`.
 	 */
 	attrs: GalleryAttributes & { selectedImageKey?: string; nodeKey?: string };
 	onUpdate: (attrs: Partial<GalleryAttributes>) => void;
@@ -120,7 +121,11 @@ function GalleryNodeView({
 				// panel instance is for — used by GalleryDetailPanel to key its resync
 				// effect on node identity rather than attrs object identity. Never
 				// written to node attrs via `updateAttributes`.
-				attrs: { ...getAttrs(), selectedImageKey, nodeKey: String(getPos?.() ?? "") },
+				attrs: {
+					...getAttrs(),
+					selectedImageKey,
+					nodeKey: String(node.attrs[PORTABLE_TEXT_KEY_ATTR] || (getPos?.() ?? "")),
+				},
 				onUpdate: (attrs) => updateAttributes(attrs),
 				onReplace: (attrs) => updateAttributes(attrs),
 				onDelete: () => deleteNode(),

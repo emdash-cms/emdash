@@ -1076,6 +1076,33 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	}
 }
 
+/* Another person's caret and selection, in rich text edited in a room. */
+.ProseMirror .emdash-remote-caret {
+	position: relative;
+	margin-inline: -1px;
+	border-inline-start: 2px solid var(--emdash-author);
+	pointer-events: none;
+}
+
+.ProseMirror .emdash-remote-caret-label {
+	position: absolute;
+	bottom: 100%;
+	inset-inline-start: -2px;
+	padding-inline: 0.25rem;
+	border-radius: 0.25rem;
+	background-color: var(--emdash-author);
+	color: white;
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1.25rem;
+	white-space: nowrap;
+	user-select: none;
+}
+
+.ProseMirror .emdash-remote-selection {
+	background-color: color-mix(in oklab, var(--emdash-author) 25%, transparent);
+}
+
 /*
  * Block rhythm for the boxed editor, over the prose styles. Text blocks sit
  * 1rem apart, framed blocks (quotes, tables, upload placeholders, and node

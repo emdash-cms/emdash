@@ -25,6 +25,7 @@ import type {
 import {
 	RoomSaveError,
 	type DraftCapture,
+	type RichTextBinding,
 	type RoomEditing,
 	type RoomFields,
 	type RoomSaveState,
@@ -32,6 +33,7 @@ import {
 import { Connection } from "./connection.js";
 import { Coverage, type CoverageMark } from "./coverage.js";
 import { FORM, REMOTE } from "./origins.js";
+import { createRichTextBinding } from "./rich-text.js";
 
 /** As long as the room holds saves for an operation, so a save it never checkpoints can't hang one. */
 const WHEN_COVERED_TIMEOUT_MS = 30_000;
@@ -67,6 +69,7 @@ export class Replica implements ReplicaHandle {
 	readonly #fieldSequences = new Map<string, number>();
 	readonly #remoteVersions = new Map<string, number>();
 	readonly #editors = new Map<string, Editor>();
+	readonly #bindings = new Map<string, RichTextBinding>();
 	#lineage: string | null = null;
 	#access: RoomAccess | null = null;
 	#rev: string | null = null;
@@ -104,6 +107,7 @@ export class Replica implements ReplicaHandle {
 			},
 			getSaveState: () => this.#saveState,
 			whenCovered: (request) => this.#whenCovered(request.save),
+			richText: (field) => this.#richTextBinding(field),
 			captureDraft: (names): DraftCapture => ({
 				values: fields.read(names),
 				rev: this.#rev,
@@ -276,6 +280,12 @@ export class Replica implements ReplicaHandle {
 		}
 		this.#saveState = { covered, saving, rev: this.#rev };
 		for (const listener of this.#saveListeners) listener();
+	}
+
+	#richTextBinding(field: string): RichTextBinding {
+		let binding = this.#bindings.get(field);
+		if (!binding) this.#bindings.set(field, (binding = createRichTextBinding(this, field)));
+		return binding;
 	}
 
 	#subscribeField(field: string, listener: () => void): () => void {

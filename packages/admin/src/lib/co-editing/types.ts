@@ -53,6 +53,8 @@ export interface RoomEditing {
 	 * only when `save` is true, which makes a kept checkpoint. Rejects with `RoomSaveError`.
 	 */
 	whenCovered(options: { save: boolean }): Promise<void>;
+	/** The binding the field's rich-text editor mounts with, the same object on every call. */
+	richText(field: string): RichTextBinding;
 	captureDraft(fields: readonly string[]): DraftCapture;
 	/** True when one of `fields` changed after the capture, by anyone, or the capture is another replica's. */
 	changedSince(capture: DraftCapture, fields: readonly string[]): boolean;
