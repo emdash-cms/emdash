@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { expect, it } from "vitest";
 
+import { isPostgres, jsonExtractExpr } from "../../src/database/dialect-helpers.js";
 import type { Database } from "../../src/database/types.js";
 import {
 	createStorageIndexes,
@@ -20,6 +21,26 @@ export function registerPluginStorageIndexScopeCases(
 			.values({ plugin_id: pluginId, collection, id, data: JSON.stringify(data) })
 			.execute();
 	};
+
+	it("scopes long plugin unique indexes independently across fresh collections", async () => {
+		const db = getDb();
+		const plugin = `shop-${"x".repeat(65)}`;
+		for (const collection of ["items", "orders"]) {
+			const result = await syncStorageIndexes(db, plugin, collection, [], {
+				uniqueIndexes: ["sku"],
+			});
+			expect(result.errors).toHaveLength(0);
+			await insert(plugin, collection, "owner", { sku: "A" });
+			await expect(insert(plugin, collection, "duplicate", { sku: "A" })).rejects.toThrow();
+		}
+		await expect(insert(plugin, "items", "other", { sku: "B" })).resolves.toBeUndefined();
+		await expect(insert(plugin, "orders", "other", { sku: "B" })).resolves.toBeUndefined();
+		const names = ["items", "orders"].map((collection) =>
+			generateIndexName(plugin, collection, ["sku"], { unique: true }),
+		);
+		expect(new Set(names).size).toBe(2);
+		expect(names.every((name) => name.length <= 63)).toBe(true);
+	});
 
 	it("scopes single, camelCase, and composite unique indexes to their owner", async () => {
 		const db = getDb();
@@ -98,6 +119,46 @@ export function registerPluginStorageIndexScopeCases(
 		await insert("shop", "other", "two", { sku: "OLD" });
 		await insert("shop", "items", "one", { sku: "OLD" });
 		await expect(insert("shop", "items", "two", { sku: "OLD" })).rejects.toThrow();
+	});
+
+	it("replaces a stale colliding regular index with the declared field", async () => {
+		const db = getDb();
+		const plugin = `shop-${"x".repeat(37)}`;
+		const collection = "items";
+		const expectedName = generateIndexName(plugin, collection, ["sku"]);
+		const legacyName = `idx_plugin_${plugin}_${collection}_skuExtra`;
+		const expression = jsonExtractExpr(db, "data", "skuExtra");
+		const indexedExpression = isPostgres(db) ? `(${expression})` : expression;
+		await sql`CREATE INDEX IF NOT EXISTS ${sql.ref(legacyName)}
+			ON _plugin_storage(plugin_id, collection, ${sql.raw(indexedExpression)})`.execute(db);
+		await db
+			.insertInto("_plugin_indexes")
+			.values({
+				plugin_id: plugin,
+				collection,
+				index_name: legacyName,
+				fields: JSON.stringify(["skuExtra"]),
+			})
+			.execute();
+
+		const result = await syncStorageIndexes(db, plugin, collection, ["sku"]);
+		expect(result.errors).toEqual([]);
+		const definition = isPostgres(db)
+			? await sql<{ name: string; definition: string }>`
+					SELECT indexname AS name, indexdef AS definition
+					FROM pg_indexes
+					WHERE schemaname = current_schema()
+						AND tablename = '_plugin_storage'
+				`.execute(db)
+			: await sql<{ name: string; definition: string }>`
+					SELECT name, sql AS definition
+					FROM sqlite_master
+					WHERE type = 'index' AND tbl_name = '_plugin_storage'
+				`.execute(db);
+		const physical = definition.rows.find((row) => row.name === expectedName);
+		expect(physical).toBeDefined();
+		expect(physical!.definition).toContain("sku");
+		expect(physical!.definition).not.toContain("skuExtra");
 	});
 
 	it("keeps regular lookup indexes alongside unique indexes and uses them for bound lookups", async () => {

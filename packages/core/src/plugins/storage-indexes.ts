@@ -10,6 +10,7 @@ import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import { jsonExtractExpr, isPostgres } from "../database/dialect-helpers.js";
+import { generateIndexName } from "../database/plugin-storage-index-name.js";
 import type { Database } from "../database/types.js";
 import {
 	validateJsonFieldName,
@@ -17,21 +18,7 @@ import {
 	validateStorageCollectionName,
 } from "../database/validate.js";
 
-/**
- * Generate a deterministic index name.
- * Unique indexes use a `uidx_` prefix to avoid collisions with regular indexes on the same fields.
- */
-export function generateIndexName(
-	pluginId: string,
-	collection: string,
-	fields: string[],
-	options?: { unique?: boolean },
-): string {
-	const prefix = options?.unique ? "uidx" : "idx";
-	const fieldPart = fields.join("_");
-	// SQLite index names have no length limit, but keep it reasonable
-	return `${prefix}_plugin_${pluginId}_${collection}_${fieldPart}`.substring(0, 128);
-}
+export { generateIndexName };
 
 /**
  * Generate a Kysely sql expression for creating an expression index.
@@ -247,10 +234,10 @@ export async function syncStorageIndexes(
 	removed: string[];
 	errors: Array<{ index: string; error: string }>;
 }> {
-	const [createResult, removeResult] = await Promise.all([
-		createStorageIndexes(db, pluginId, collection, indexes, options),
-		removeOrphanedIndexes(db, pluginId, collection, indexes, options),
-	]);
+	// A truncated legacy name can equal a new short name on PostgreSQL.
+	// Drop stale indexes first so IF NOT EXISTS cannot reuse the wrong index.
+	const removeResult = await removeOrphanedIndexes(db, pluginId, collection, indexes, options);
+	const createResult = await createStorageIndexes(db, pluginId, collection, indexes, options);
 
 	return {
 		created: createResult.created,

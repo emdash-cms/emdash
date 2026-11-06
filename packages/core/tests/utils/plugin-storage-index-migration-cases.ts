@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import { isPostgres, jsonExtractExpr } from "../../src/database/dialect-helpers.js";
 import { up } from "../../src/database/migrations/095_plugin_storage_unique_scope.js";
 import type { Database } from "../../src/database/types.js";
+import { generateIndexName, syncStorageIndexes } from "../../src/plugins/storage-indexes.js";
 
 const UNIQUE_NAME = "uidx_plugin_shop_product-items_sku";
 const LOOKUP_NAME = "idx_plugin_shop_product-items_sku";
@@ -23,7 +24,7 @@ function oldExpression(db: Kysely<unknown>, fields: string[]): string {
 async function seedLegacyIndex(db: Kysely<Database>, entry: IndexCase): Promise<void> {
 	const expression = oldExpression(db, entry.fields);
 	await sql`
-		CREATE UNIQUE INDEX ${sql.ref(entry.name)}
+		CREATE UNIQUE INDEX IF NOT EXISTS ${sql.ref(entry.name)}
 		ON _plugin_storage(plugin_id, collection, ${sql.raw(expression)})
 	`.execute(db);
 	await db
@@ -142,22 +143,30 @@ export function registerPluginStorageIndexMigrationCases(getDb: () => Kysely<Dat
 			},
 		];
 		for (const entry of entries) await seedLegacyIndex(db, entry);
+		const pagedPlugin = `paged-${"x".repeat(65)}`;
+		const pagedEntries: IndexCase[] = [];
 		for (let i = 0; i < 101; i++) {
 			const collection = `page-${String(i).padStart(3, "0")}`;
-			await seedLegacyIndex(db, {
-				plugin: "paged",
+			const entry = {
+				plugin: pagedPlugin,
 				collection,
-				name: `uidx_plugin_paged_${collection}_sku`,
+				name: `uidx_plugin_${pagedPlugin}_${collection}_sku`.substring(0, 128),
 				fields: ["sku"],
-			});
+			};
+			pagedEntries.push(entry);
+			await seedLegacyIndex(db, entry);
 		}
 		await put(db, "shop", "product-items", "owner", { region: "us", orderNumber: "A" });
 		await up(db);
 		await up(db);
 		await put(db, "stock", "movements", "sku-one", { sku: "ABC" });
 		await put(db, "stock", "movements", "sku-two", { sku: "ABC" });
-		await put(db, "paged", "page-100", "last-owner", { sku: "ABC" });
-		await expect(put(db, "paged", "page-100", "last-duplicate", { sku: "ABC" })).rejects.toThrow();
+		for (const collection of ["page-000", "page-100"]) {
+			await put(db, pagedPlugin, collection, `${collection}-owner`, { sku: "ABC" });
+			await expect(
+				put(db, pagedPlugin, collection, `${collection}-duplicate`, { sku: "ABC" }),
+			).rejects.toThrow();
+		}
 		await put(db, "stock", "movements", "one", { region: "us", orderNumber: "A" });
 		await expect(
 			put(db, "stock", "movements", "two", { region: "us", orderNumber: "A" }),
@@ -168,16 +177,125 @@ export function registerPluginStorageIndexMigrationCases(getDb: () => Kysely<Dat
 		await expect(
 			put(db, "removed", "old-items", "one", { orderNumber: "A" }),
 		).resolves.toBeUndefined();
-		expect(
-			await db
-				.selectFrom("_plugin_state")
-				.select("plugin_id")
-				.where("plugin_id", "=", "removed")
-				.execute(),
-		).toEqual([]);
+		const removedTracking = await db
+			.selectFrom("_plugin_indexes")
+			.select("index_name")
+			.where("plugin_id", "=", "removed")
+			.where("collection", "=", "old-items")
+			.execute();
+		expect(removedTracking.map((row) => row.index_name)).toContain(
+			"idx_plugin_removed_old-items_orderNumber",
+		);
+		const expectedUniqueNames = [...entries, ...pagedEntries].map((entry) =>
+			generateIndexName(entry.plugin, entry.collection, entry.fields, { unique: true }),
+		);
+		const trackedNames = await db
+			.selectFrom("_plugin_indexes")
+			.select("index_name")
+			.where("index_name", "like", "uidx_plugin_%")
+			.execute();
+		expect(trackedNames.map((row) => row.index_name)).toEqual(
+			expect.arrayContaining(expectedUniqueNames),
+		);
 		const indexes = await indexNames(db);
 		expect(indexes.filter((name) => name.startsWith(TEMP_NAME))).toHaveLength(0);
-		expect(indexes).toContain("uidx_plugin_paged_page-100_sku");
+		expect(indexes).toEqual(expect.arrayContaining(expectedUniqueNames));
+	});
+
+	it("separates short legacy names from colliding long legacy names", async () => {
+		const db = getDb();
+		const plugin = `shop-${"x".repeat(36)}`;
+		const entries: IndexCase[] = [
+			{
+				plugin,
+				collection: "items",
+				name: `uidx_plugin_${plugin}_items_sku`,
+				fields: ["sku"],
+			},
+			{
+				plugin,
+				collection: "items",
+				name: `uidx_plugin_${plugin}_items_skuExtra`,
+				fields: ["skuExtra"],
+			},
+		];
+		await put(db, plugin, "items", "owner", { sku: "ABC", skuExtra: "EXTRA" });
+		for (const entry of entries) await seedLegacyIndex(db, entry);
+
+		await up(db);
+
+		await expect(put(db, plugin, "items", "duplicate-sku", { sku: "ABC" })).rejects.toThrow();
+		await expect(
+			put(db, plugin, "items", "duplicate-sku-extra", { skuExtra: "EXTRA" }),
+		).rejects.toThrow();
+		await expect(
+			put(db, "stock", "items", "crossscope-one", { sku: "ABC", skuExtra: "EXTRA" }),
+		).resolves.toBeUndefined();
+		await expect(
+			put(db, "stock", "items", "crossscope-two", { sku: "ABC", skuExtra: "EXTRA" }),
+		).resolves.toBeUndefined();
+		const expectedUniqueNames = entries.map((entry) =>
+			generateIndexName(entry.plugin, entry.collection, entry.fields, { unique: true }),
+		);
+		const indexes = await indexNames(db);
+		expect(indexes).toEqual(expect.arrayContaining(expectedUniqueNames));
+	});
+
+	it("fails closed when a legacy unique field has existing duplicates", async () => {
+		const db = getDb();
+		const plugin = `shop-${"x".repeat(36)}`;
+		const collection = "items";
+		const sku = `uidx_plugin_${plugin}_${collection}_sku`;
+		const skuExtra = `uidx_plugin_${plugin}_${collection}_skuExtra`;
+		await put(db, plugin, collection, "one", { sku: "A", skuExtra: "FIRST" });
+		await put(db, plugin, collection, "two", { sku: "B", skuExtra: "SECOND" });
+		await seedLegacyIndex(db, { plugin, collection, name: sku, fields: ["sku"] });
+		await seedLegacyIndex(db, { plugin, collection, name: skuExtra, fields: ["skuExtra"] });
+		if (!isPostgres(db)) {
+			await sql`DROP INDEX IF EXISTS ${sql.ref(skuExtra)}`.execute(db);
+		}
+		await db
+			.updateTable("_plugin_storage")
+			.set({ data: JSON.stringify({ sku: "B", skuExtra: "FIRST" }) })
+			.where("plugin_id", "=", plugin)
+			.where("collection", "=", collection)
+			.where("id", "=", "two")
+			.execute();
+
+		await expect(up(db)).rejects.toThrow(
+			`Failed to scope plugin storage unique index for ${plugin}/${collection} (skuExtra)`,
+		);
+		const rows = await db
+			.selectFrom("_plugin_storage")
+			.select(["id", "data"])
+			.where("plugin_id", "=", plugin)
+			.where("collection", "=", collection)
+			.orderBy("id")
+			.execute();
+		expect(rows).toEqual([
+			{ id: "one", data: JSON.stringify({ sku: "A", skuExtra: "FIRST" }) },
+			{ id: "two", data: JSON.stringify({ sku: "B", skuExtra: "FIRST" }) },
+		]);
+		await expect(put(db, plugin, collection, "legacy-sku", { sku: "A" })).rejects.toThrow();
+
+		await db
+			.updateTable("_plugin_storage")
+			.set({ data: JSON.stringify({ sku: "B", skuExtra: "FIXED" }) })
+			.where("plugin_id", "=", plugin)
+			.where("collection", "=", collection)
+			.where("id", "=", "two")
+			.execute();
+		await up(db);
+		await expect(put(db, plugin, collection, "duplicate-sku", { sku: "A" })).rejects.toThrow();
+		await expect(
+			put(db, plugin, collection, "duplicate-sku-extra", { skuExtra: "FIXED" }),
+		).rejects.toThrow();
+		await expect(
+			put(db, "stock", "items", "crossscope-one", { sku: "A", skuExtra: "FIXED" }),
+		).resolves.toBeUndefined();
+		await expect(
+			put(db, "stock", "items", "crossscope-two", { sku: "A", skuExtra: "FIXED" }),
+		).resolves.toBeUndefined();
 	});
 
 	it("upgrades a movement log with 10000 rows and several unique fields", async () => {
@@ -210,71 +328,105 @@ export function registerPluginStorageIndexMigrationCases(getDb: () => Kysely<Dat
 		expect(Number(count.n)).toBe(10002);
 	});
 
-	it("repairs indexes whose tracked names exceed PostgreSQL's identifier limit", async () => {
+	it("repairs long legacy names for every collection and keeps runtime sync idempotent", async () => {
 		const db = getDb();
 		const plugin = `shop-${"x".repeat(65)}`;
-		const name = `uidx_plugin_${plugin}_items_sku`;
-		await seedLegacyIndex(db, { plugin, collection: "items", name, fields: ["sku"] });
-		await put(db, plugin, "items", "owner", { sku: "ABC" });
+		const entries: IndexCase[] = [
+			{ plugin, collection: "items", name: `uidx_plugin_${plugin}_items_sku`, fields: ["sku"] },
+			{ plugin, collection: "orders", name: `uidx_plugin_${plugin}_orders_sku`, fields: ["sku"] },
+		];
+		for (const entry of entries) {
+			await put(db, plugin, entry.collection, "owner", { sku: "ABC" });
+			await seedLegacyIndex(db, entry);
+		}
 		await put(db, "stock", "items", "one", { sku: "ABC" });
 		await expect(put(db, "stock", "items", "two", { sku: "ABC" })).rejects.toThrow();
 		await up(db);
 		await up(db);
-		await put(db, "stock", "items", "two", { sku: "ABC" });
-		await expect(put(db, plugin, "items", "duplicate", { sku: "ABC" })).rejects.toThrow();
+		for (const collection of ["items", "orders"]) {
+			await expect(put(db, plugin, collection, "duplicate", { sku: "ABC" })).rejects.toThrow();
+			await expect(
+				put(db, "stock", collection, "crossscope-1", { sku: "ABC" }),
+			).resolves.toBeUndefined();
+			await expect(
+				put(db, "stock", collection, "crossscope-2", { sku: "ABC" }),
+			).resolves.toBeUndefined();
+		}
+		for (const collection of ["items", "orders"]) {
+			const result = await syncStorageIndexes(db, plugin, collection, ["sku"], {
+				uniqueIndexes: ["sku"],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.removed).toEqual([]);
+		}
+		const uniqueNames = entries.map((entry) =>
+			generateIndexName(entry.plugin, entry.collection, ["sku"], { unique: true }),
+		);
+		expect(new Set(uniqueNames).size).toBe(2);
+		expect(uniqueNames.every((name) => name.length <= 63)).toBe(true);
+		const physical = (await indexNames(db)).filter((name) => uniqueNames.includes(name));
+		expect(new Set(physical).size).toBe(2);
 		expect((await indexNames(db)).some((index) => index.startsWith(TEMP_NAME))).toBe(false);
 	});
 
-	it("can resume after every completed statement while retaining enforcement", async () => {
-		const db = getDb();
-		const owner: IndexCase = {
-			plugin: "shop",
-			collection: "items",
-			name: "uidx_plugin_shop_items_sku",
-			fields: ["sku"],
-		};
-		await put(db, "shop", "items", "owner", { sku: "ABC" });
-		await seedLegacyIndex(db, owner);
-		let statements = 0;
-		await up(
-			db.withPlugin({
-				transformQuery: ({ node }) => node,
-				transformResult: ({ result }) => {
-					statements++;
-					return Promise.resolve(result);
+	it.each(["shop", `shop-${"x".repeat(65)}`])(
+		"can resume after every completed statement while retaining enforcement for %s",
+		async (plugin) => {
+			const db = getDb();
+			const owners: IndexCase[] = [
+				{ plugin, collection: "items", name: `uidx_plugin_${plugin}_items_sku`, fields: ["sku"] },
+				{
+					plugin,
+					collection: "orders",
+					name: `uidx_plugin_${plugin}_orders_sku`,
+					fields: ["sku"],
 				},
-			}),
-		);
-		for (let failure = 1; failure <= statements; failure++) {
-			await sql`
-				DELETE FROM _plugin_storage
-				WHERE NOT (plugin_id = 'shop' AND collection = 'items' AND id = 'owner')
-			`.execute(db);
-			for (const name of await indexNames(db)) {
-				if (
-					name === UNIQUE_NAME ||
-					name === "uidx_plugin_shop_items_sku" ||
-					name.startsWith(TEMP_NAME) ||
-					name === "idx_plugin_shop_items_sku"
-				) {
-					await sql`DROP INDEX IF EXISTS ${sql.ref(name)}`.execute(db);
+			];
+			const resetFixture = async () => {
+				for (const name of await indexNames(db)) {
+					if (
+						name.startsWith("uidx_plugin_") ||
+						name.startsWith("idx_plugin_") ||
+						name.startsWith(TEMP_NAME)
+					) {
+						await sql`DROP INDEX IF EXISTS ${sql.ref(name)}`.execute(db);
+					}
+				}
+				await db.deleteFrom("_plugin_indexes").execute();
+				await db.deleteFrom("_plugin_storage").execute();
+				for (const owner of owners) {
+					await put(db, owner.plugin, owner.collection, "owner", { sku: "ABC" });
+					await seedLegacyIndex(db, owner);
+				}
+			};
+			await resetFixture();
+			let statements = 0;
+			await up(
+				db.withPlugin({
+					transformQuery: ({ node }) => node,
+					transformResult: ({ result }) => {
+						statements++;
+						return Promise.resolve(result);
+					},
+				}),
+			);
+			for (let failure = 1; failure <= statements; failure++) {
+				await resetFixture();
+				await expect(up(db.withPlugin(failAfter(failure)))).rejects.toThrow(
+					"lost migration response",
+				);
+				for (const owner of owners) {
+					await expect(
+						put(db, owner.plugin, owner.collection, `duplicate-${failure}`, { sku: "ABC" }),
+					).rejects.toThrow();
+				}
+				await up(db);
+				for (const owner of owners) {
+					await expect(
+						put(db, owner.plugin, owner.collection, `duplicate-after-${failure}`, { sku: "ABC" }),
+					).rejects.toThrow();
 				}
 			}
-			await db.deleteFrom("_plugin_indexes").where("plugin_id", "=", "shop").execute();
-			await seedLegacyIndex(db, owner);
-			await expect(up(db.withPlugin(failAfter(failure)))).rejects.toThrow(
-				"lost migration response",
-			);
-			await expect(
-				put(db, "shop", "items", `duplicate-${failure}`, { sku: "ABC" }),
-			).rejects.toThrow();
-			await up(db);
-			await expect(
-				put(db, "stock", "movements", `same-${failure}`, { sku: "ABC" }),
-			).resolves.toBeUndefined();
-			await expect(
-				put(db, "shop", "items", `duplicate-after-${failure}`, { sku: "ABC" }),
-			).rejects.toThrow();
-		}
-	});
+		},
+	);
 }
