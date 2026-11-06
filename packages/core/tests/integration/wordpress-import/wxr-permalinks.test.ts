@@ -97,6 +97,36 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		]);
 	});
 
+	it("updates an owned redirect when only the trailing slash changes", async () => {
+		const first = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/2004/05/01/example-post/", post(), { trailingSlash: "always" }),
+		]);
+		expect(first).toEqual([]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/2004/05/01/example-post/",
+				destination: "/2004/05/02/example-post/",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+
+		const second = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/2004/05/01/example-post/", post(), { trailingSlash: "never" }),
+		]);
+		expect(second).toEqual([]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/2004/05/01/example-post/",
+				destination: "/2004/05/02/example-post",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+	});
+
 	it("is idempotent and leaves a same-day trailing-slash difference alone", async () => {
 		const first = await importWxrPermalinks(ctx.db, [
 			entry("https://wp.test/2004/05/01/example-post/"),
@@ -166,6 +196,41 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		]);
 	});
 
+	it("preserves an owned enabled non-301 rule as a conflict", async () => {
+		const repo = new RedirectRepository(ctx.db);
+		const rule = await repo.create({
+			source: "/2004/05/01/example-post/",
+			destination: "/existing-target",
+			type: 302,
+			enabled: true,
+			auto: true,
+			groupName: "WordPress import",
+		});
+		const before = await ctx.db
+			.selectFrom("_emdash_redirects")
+			.select(["source", "destination", "type", "enabled", "is_pattern", "config_revision"])
+			.where("id", "=", rule.id)
+			.executeTakeFirstOrThrow();
+		const expected = {
+			title: "example-post",
+			error: "Could not create redirect: an existing rule already uses the WordPress permalink",
+		};
+
+		expect(
+			await importWxrPermalinks(ctx.db, [entry("https://wp.test/2004/05/01/example-post/")]),
+		).toEqual([expected]);
+		expect(
+			await importWxrPermalinks(ctx.db, [entry("https://wp.test/2004/05/01/example-post/")]),
+		).toEqual([expected]);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination", "type", "enabled", "is_pattern", "config_revision"])
+				.where("id", "=", rule.id)
+				.executeTakeFirstOrThrow(),
+		).toEqual(before);
+	});
+
 	it("preserves manual, disabled, and pattern conflicts including encoded Unicode sources", async () => {
 		const item = post({ slug: "café", id: "unicode" });
 		await ctx.db
@@ -214,8 +279,43 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 			entry("https://wp.test/2004/05/01/other/"),
 			entry("https://wp.test/2004/05/01/pattern/"),
 		]);
-		expect(results).toHaveLength(3);
-		expect(await redirects()).toHaveLength(3);
+		expect(results).toEqual([
+			{
+				title: "café",
+				error: "Could not create redirect: an existing rule already uses the WordPress permalink",
+			},
+			{
+				title: "example-post",
+				error: "Could not create redirect: an existing rule already uses the WordPress permalink",
+			},
+			{
+				title: "example-post",
+				error: "Could not create redirect: an existing rule already uses the WordPress permalink",
+			},
+		]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/2004/05/01/caf%C3%A9/",
+				destination: "/manual",
+				type: 302,
+				enabled: 1,
+				isPattern: 0,
+			},
+			{
+				source: "/2004/05/01/other/",
+				destination: "/disabled",
+				type: 301,
+				enabled: 0,
+				isPattern: 0,
+			},
+			{
+				source: "/2004/05/01/pattern/",
+				destination: "/pattern-target",
+				type: 301,
+				enabled: 1,
+				isPattern: 1,
+			},
+		]);
 	});
 
 	it("rejects loops, invalid links, and unresolved dates without writing redirects", async () => {

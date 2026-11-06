@@ -15,6 +15,8 @@ import {
 	type WxrPost,
 	parseWxrDate,
 } from "emdash";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
@@ -502,12 +504,13 @@ export async function importContent(
 	const permalinks: WxrPermalinkEntry[] = [];
 	const queuePermalink = (post: WxrPost, collection: string, item: ContentItem) => {
 		const schema = manifest.collections[collection];
-		if (!post.link || schema?.routable === false) return;
+		if (schema?.routable === false) return;
 		permalinks.push({
 			title: post.title || "Untitled",
 			link: post.link,
 			collection,
 			pattern: schema?.urlPattern ?? null,
+			trailingSlash: virtualConfig?.trailingSlash,
 			item,
 		});
 	};

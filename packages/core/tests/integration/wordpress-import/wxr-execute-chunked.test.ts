@@ -24,6 +24,19 @@ async function setup(): Promise<Harness> {
 		type: "portableText",
 	});
 	await registry.createField("post", { slug: "excerpt", label: "Excerpt", type: "text" });
+	await registry.createCollection({
+		slug: "pages",
+		label: "Pages",
+		labelSingular: "Page",
+		urlPattern: "/{slug}",
+	});
+	await registry.createField("pages", { slug: "title", label: "Title", type: "string" });
+	await registry.createField("pages", {
+		slug: "content",
+		label: "Content",
+		type: "portableText",
+	});
+	await registry.createField("pages", { slug: "excerpt", label: "Excerpt", type: "text" });
 
 	await db
 		.updateTable("_emdash_taxonomy_def_groups")
@@ -157,14 +170,20 @@ function makeWxrWithReusableBlock(): string {
 
 function buildFormData(
 	wxrText: string,
-	extra: { phase?: string; cursor?: string; chunk?: string; skipExisting?: boolean } = {},
+	extra: {
+		phase?: string;
+		cursor?: string;
+		chunk?: string;
+		skipExisting?: boolean;
+		postTypeMappings?: Record<string, { collection: string; enabled: boolean }>;
+	} = {},
 ): FormData {
 	const formData = new FormData();
 	formData.append("file", new File([wxrText], "test.xml", { type: "text/xml" }));
 	formData.append(
 		"config",
 		JSON.stringify({
-			postTypeMappings: { post: { collection: "post", enabled: true } },
+			postTypeMappings: extra.postTypeMappings ?? { post: { collection: "post", enabled: true } },
 			skipExisting: extra.skipExisting ?? false,
 		}),
 	);
@@ -247,6 +266,94 @@ describe("WXR execute chunked import", () => {
 		const rows = await harness.db.selectFrom("ec_post").select("id").execute();
 		expect(rows.length).toBe(35);
 	});
+
+	it.each([true, false])(
+		"cleans up an importer redirect when a later chunk makes its source canonical (page link: %s)",
+		async (pageHasLink) => {
+			const posts = Array.from({ length: 30 }, (_, i) => {
+				const n = i + 1;
+				return `\t<item>
+			<title>Post ${n}</title>
+			<wp:post_id>${n}</wp:post_id>
+			<wp:post_type>post</wp:post_type>
+			<wp:status>publish</wp:status>
+			<wp:post_name>post-${n}</wp:post_name>
+			${n === 1 ? "<link>https://example.com/shared/</link>" : ""}
+			<wp:post_date>2024-01-01 12:00:00</wp:post_date>
+			<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>
+			<content:encoded><![CDATA[<p>Content ${n}</p>]]></content:encoded>
+		</item>`;
+			}).join("\n");
+			const page = `\t<item>
+			<title>Shared</title>
+			<wp:post_id>31</wp:post_id>
+			<wp:post_type>page</wp:post_type>
+			<wp:status>publish</wp:status>
+			<wp:post_name>shared</wp:post_name>
+			${pageHasLink ? "<link>https://example.com/old-shared/</link>" : ""}
+			<wp:post_date>2024-01-01 12:00:00</wp:post_date>
+			<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>
+			<content:encoded><![CDATA[<p>Shared</p>]]></content:encoded>
+		</item>`;
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+	<channel><title>Test Site</title><link>https://example.com</link>${posts}\n${page}</channel>
+</rss>`;
+			const mappings = {
+				post: { collection: "post", enabled: true },
+				page: { collection: "pages", enabled: true },
+			};
+			const prepared = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(
+					buildFormData(wxr, { phase: "taxonomy", postTypeMappings: mappings }),
+					harness.emdash,
+				) as any,
+			);
+			expect(prepared.status).toBe(200);
+			const taxonomy = await prepared.json();
+			const runChunk = async (cursor: unknown, chunk: unknown) =>
+				executePost(
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion
+					buildContext(
+						buildFormData(wxr, {
+							phase: "content",
+							cursor: JSON.stringify(cursor),
+							chunk: JSON.stringify(chunk),
+							postTypeMappings: mappings,
+						}),
+						harness.emdash,
+					) as any,
+				);
+
+			const firstResponse = await runChunk(taxonomy.data.cursor, taxonomy.data.chunk);
+			expect(firstResponse.status).toBe(200);
+			const first = await firstResponse.json();
+			expect(first.data.result).toMatchObject({ imported: 30, errors: [] });
+			expect(first.data.done).toBe(false);
+			expect(
+				await harness.db
+					.selectFrom("_emdash_redirects")
+					.select(["source", "destination", "type"])
+					.where("source", "=", "/shared/")
+					.execute(),
+			).toEqual([{ source: "/shared/", destination: "/blog/post-1", type: 301 }]);
+
+			const secondResponse = await runChunk(first.data.cursor, first.data.chunk);
+			expect(secondResponse.status).toBe(200);
+			const second = await secondResponse.json();
+			expect(second.data.result).toMatchObject({ imported: 1, errors: [] });
+			expect(second.data.done).toBe(true);
+			expect(second.data.cursor.offset).toBe(31);
+			expect(
+				await harness.db
+					.selectFrom("_emdash_redirects")
+					.select(["source", "destination", "type"])
+					.orderBy("source")
+					.execute(),
+			).toEqual(pageHasLink ? [{ source: "/old-shared/", destination: "/shared", type: 301 }] : []);
+		},
+	);
 
 	it("credits an unmapped author's posts to one byline across chunks", async () => {
 		const wxr = makeWxr(35)

@@ -11,6 +11,28 @@ import { compileUrlPattern } from "../schema/url-pattern.js";
 
 const TRAILING_SLASHES = /\/+$/;
 
+const URL_TOKEN = /\{\w+\}/g;
+
+function normalizePatternLiteral(literal: string): string {
+	// Fragments can be suffixes of token-bearing segments. Padding prevents a
+	// literal dot from being resolved as a whole URL dot segment.
+	return literal
+		.split("/")
+		.map((segment) => normalizeSourcePath(`/_${segment}_`).slice(2, -1))
+		.join("/");
+}
+
+function normalizeUrlPattern(pattern: string): string {
+	let normalized = "";
+	let previousIndex = 0;
+	for (const match of pattern.matchAll(URL_TOKEN)) {
+		normalized += normalizePatternLiteral(pattern.slice(previousIndex, match.index));
+		normalized += match[0];
+		previousIndex = match.index + match[0].length;
+	}
+	return normalized + normalizePatternLiteral(pattern.slice(previousIndex));
+}
+
 function pathKey(path: string): string {
 	return normalizeSourcePath(path).replace(TRAILING_SLASHES, "") || "/";
 }
@@ -49,10 +71,12 @@ export async function findLivePermalinkSources(
 				const prefix = await localizePath("/", locale);
 				if (prefix === null) continue;
 				const compiled = compileUrlPattern(
-					`${basePath() === "/" ? "" : basePath()}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
-						TRAILING_SLASHES,
-						"",
-					) || "/",
+					normalizeUrlPattern(
+						`${basePath() === "/" ? "" : basePath()}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
+							TRAILING_SLASHES,
+							"",
+						) || "/",
+					),
 				);
 				patterns.set(`${collection.slug}:${locale}`, { collection, locale, ...compiled });
 			} catch {
