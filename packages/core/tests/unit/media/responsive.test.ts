@@ -5,6 +5,8 @@ import {
 	buildResponsiveImage,
 	formatContentType,
 	gallerySizes,
+	mediaOrigin,
+	optimizableMediaUrl,
 	responsiveSizes,
 	responsiveWidths,
 	toAbsoluteMediaUrl,
@@ -230,5 +232,60 @@ describe("toAbsoluteMediaUrl", () => {
 		// "/\\evil.com" would otherwise resolve to https://evil.com.
 		expect(toAbsoluteMediaUrl("/\\evil.com/x.jpg", ORIGIN)).toBe("/\\evil.com/x.jpg");
 		expect(toAbsoluteMediaUrl("/\\/evil.com/x.jpg", ORIGIN)).toBe("/\\/evil.com/x.jpg");
+	});
+});
+
+describe("optimizableMediaUrl", () => {
+	const ORIGIN = "https://example.com";
+
+	it("resolves this site's media against the origin", () => {
+		expect(optimizableMediaUrl("/_emdash/api/media/file/01ABC.jpg", ORIGIN)).toBe(
+			"https://example.com/_emdash/api/media/file/01ABC.jpg",
+		);
+	});
+
+	it("leaves another site's media URL unoptimized", () => {
+		expect(
+			optimizableMediaUrl("https://other.example/_emdash/api/media/file/01ABC.jpg", ORIGIN),
+		).toBeNull();
+	});
+
+	it("leaves media unoptimized without an origin", () => {
+		expect(optimizableMediaUrl("/_emdash/api/media/file/01ABC.jpg", undefined)).toBeNull();
+		expect(
+			optimizableMediaUrl("https://example.com/_emdash/api/media/file/01ABC.jpg", undefined),
+		).toBeNull();
+	});
+
+	it("passes other absolute URLs to the image service", () => {
+		expect(optimizableMediaUrl("https://cdn.example.com/a.jpg", undefined)).toBe(
+			"https://cdn.example.com/a.jpg",
+		);
+	});
+
+	it("leaves relative non-media and protocol-relative URLs unoptimized", () => {
+		expect(optimizableMediaUrl("/images/a.jpg", undefined)).toBeNull();
+		expect(optimizableMediaUrl("//evil.com/_emdash/api/media/file/x.jpg", ORIGIN)).toBeNull();
+	});
+});
+
+describe("mediaOrigin", () => {
+	const page = (isPrerendered: boolean, siteUrl?: string) => ({
+		url: new URL("http://localhost:4321/post"),
+		isPrerendered,
+		locals: { emdash: { config: siteUrl ? { siteUrl } : {} } },
+	});
+
+	it("uses the request origin for on-demand pages", () => {
+		expect(mediaOrigin(page(false))).toBe("http://localhost:4321");
+	});
+
+	it("has no origin for a prerendered page without a configured site URL", () => {
+		expect(mediaOrigin(page(true))).toBeUndefined();
+	});
+
+	it("prefers the configured site URL", () => {
+		expect(mediaOrigin(page(true, "https://example.com/blog/"))).toBe("https://example.com");
+		expect(mediaOrigin(page(false, "https://example.com"))).toBe("https://example.com");
 	});
 });

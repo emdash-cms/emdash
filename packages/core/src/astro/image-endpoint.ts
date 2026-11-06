@@ -16,6 +16,7 @@ import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
 	getTransformFingerprint,
+	canDelegateImageHref,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -72,12 +73,17 @@ function notModifiedResponse(
 
 export const GET: APIRoute = async (ctx) => {
 	const url = new URL(ctx.request.url);
-	const key = matchInternalMediaKey(url.searchParams.get("href"));
+	const href = url.searchParams.get("href");
+	const key = matchInternalMediaKey(href);
 	const storage = ctx.locals.emdash?.storage;
 
-	// Not EmDash media, or storage unavailable: let the stock endpoint handle it
-	// (bundled assets, allowed remote, `publicUrl` media).
-	if (!key || !storage) return genericGET(ctx);
+	if (!key || !storage) {
+		if (!canDelegateImageHref(href, url.origin)) {
+			return new Response("Not Found", { status: 404 });
+		}
+		// Not EmDash media: bundled assets, allowed remote, `publicUrl` media.
+		return genericGET(ctx);
+	}
 
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
@@ -126,7 +132,18 @@ export const GET: APIRoute = async (ctx) => {
 		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
-		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
+		let output: { data: Uint8Array; format: string };
+		try {
+			output = await service.transform(inputBuffer, transform, imageConfig);
+		} catch (error) {
+			if (!(error instanceof Error && error.name === "MissingSharp")) throw error;
+			console.error("[emdash] sharp is not installed, serving the original image:", error);
+			return new Response(ctx.request.method === "HEAD" ? null : inputBuffer, {
+				status: 200,
+				headers: originalMediaHeaders(source.contentType, source.size, source.lastModified),
+			});
+		}
+		const { data, format } = output;
 
 		return new Response(data, {
 			status: 200,

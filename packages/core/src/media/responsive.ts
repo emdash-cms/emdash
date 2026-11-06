@@ -9,6 +9,8 @@
  * resolves inside an Astro project, not in this precompiled package).
  */
 
+import { getConfiguredOrigin, type SiteUrlConfig } from "../api/public-url.js";
+import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 import type { EmbedOptions } from "./types.js";
 
 /** Standard responsive breakpoints. Matches CDN-provider srcset generation. */
@@ -89,6 +91,48 @@ export function toAbsoluteMediaUrl(src: string, origin: string | undefined): str
 	} catch {
 		return src;
 	}
+}
+
+/**
+ * The origin EmDash media URLs are optimized on: the configured public URL, or
+ * the request's origin when the page is rendered on demand.
+ */
+export function mediaOrigin(astro: {
+	url: URL;
+	isPrerendered: boolean;
+	locals: { emdash?: { config?: SiteUrlConfig } };
+}): string | undefined {
+	const configured = getConfiguredOrigin(astro.locals.emdash?.config);
+	if (configured) {
+		try {
+			return new URL(configured).origin;
+		} catch {
+			return undefined;
+		}
+	}
+	return astro.isPrerendered ? undefined : astro.url.origin;
+}
+
+/**
+ * The absolute URL to hand to Astro's image service for `src`, or `null` when
+ * the image must render unoptimized.
+ *
+ * EmDash media URLs are only optimized on `origin`: the image endpoint reads
+ * them from this site's storage, so another site's media URL would resolve to
+ * the wrong file. Without an `origin` (a prerendered page on a site without a
+ * configured public URL), the build has no server to load them from.
+ */
+export function optimizableMediaUrl(src: string, origin: string | undefined): string | null {
+	const absolute = toAbsoluteMediaUrl(src, origin);
+	if (!ABSOLUTE_HTTP_URL.test(absolute)) return null;
+	let url: URL;
+	try {
+		url = new URL(absolute);
+	} catch {
+		return null;
+	}
+	if (!url.pathname.startsWith(INTERNAL_MEDIA_PREFIX)) return absolute;
+	return origin && url.origin === new URL(origin).origin ? absolute : null;
 }
 
 /**
