@@ -14,6 +14,8 @@ Use GitHub's private vulnerability reporting flow for this repository:
 2. Choose **Report a vulnerability**.
 3. Include enough detail for maintainers to reproduce and assess the issue.
 
+If you can't use GitHub's reporting flow, email [emdash@cloudflare.com](mailto:emdash@cloudflare.com) instead.
+
 If you already submitted a private GitHub security advisory, keep follow-up discussion in that advisory thread. Avoid opening public issues for exploitable details; a public issue may be used only to ask for routing or status without sharing sensitive technical information.
 
 ## What to Include
