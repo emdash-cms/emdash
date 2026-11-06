@@ -34,7 +34,9 @@ const CONFIG = {
 };
 
 function makeWxr(withDates = true): string {
-	const posts = withDates ? ["publish", "draft", "pending", "private", "custom-status"] : ["draft"];
+	const posts = withDates
+		? ["publish", "draft", "pending", "private", "custom-status", "future"]
+		: ["draft"];
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
 	<channel><title>Test</title><link>https://example.com</link>
@@ -128,6 +130,7 @@ describeEachDialect("WordPress import dates", (dialect) => {
 					["post-2", "draft"],
 					["post-3", "draft"],
 					["post-4", "draft"],
+					["post-5", "draft"],
 				] as const) {
 					const item = await repo.findBySlug("post", slug);
 					expect(item).toMatchObject({
@@ -148,11 +151,16 @@ describeEachDialect("WordPress import dates", (dialect) => {
 			},
 		);
 
-		it.each(["reschedule", "publish now"])(
-			`${importer} supports %s for future imports without preserving a stale date`,
+		it.each(["reschedule", "publish now", "schedule missed"])(
+			`${importer} handles %s for WordPress future posts`,
 			async (action) => {
 				const wxr = await parseWxrString(makeWxr(false));
-				const post = { ...wxr.posts[0], status: "future", postDateGmt: "2099-06-15 12:30:00" };
+				const missedSchedule = action === "schedule missed";
+				const post = {
+					...wxr.posts[0],
+					status: "future",
+					postDateGmt: missedSchedule ? "2020-06-15 12:30:00" : "2099-06-15 12:30:00",
+				};
 				if (importer === "wxr") {
 					const result = await importWxrContent(
 						[post],
@@ -178,9 +186,9 @@ describeEachDialect("WordPress import dates", (dialect) => {
 				const repo = new ContentRepository(ctx.db);
 				const item = await repo.findBySlug("post", "post-0");
 				expect(item).toMatchObject({
-					status: "scheduled",
-					scheduledAt: "2099-06-15T12:30:00.000Z",
-					publishedAt: null,
+					status: missedSchedule ? "draft" : "scheduled",
+					scheduledAt: missedSchedule ? null : "2099-06-15T12:30:00.000Z",
+					publishedAt: missedSchedule ? ORIGINAL_DATE : null,
 				});
 				if (action === "publish now") {
 					expect((await emdash.handleContentUnschedule("post", item!.id)).success).toBe(true);
@@ -201,7 +209,9 @@ describeEachDialect("WordPress import dates", (dialect) => {
 						emdash.handleContentPublish(collection, id, options),
 				});
 				expect(published).toEqual([{ collection: "post", id: item!.id }]);
-				expect((await repo.findById("post", item!.id))?.publishedAt).toBe(rescheduledAt);
+				const stored = await repo.findById("post", item!.id);
+				expect(stored?.publishedAt).toBe(missedSchedule ? ORIGINAL_DATE : rescheduledAt);
+				if (missedSchedule) expect(datePath(stored!)).toBe("/2020/06/15/post-0");
 			},
 		);
 	}
