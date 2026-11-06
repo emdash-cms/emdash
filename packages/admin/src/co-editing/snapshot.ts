@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 
-interface DeleteRange {
+export interface DeleteRange {
 	clock: number;
 	len: number;
 }
@@ -23,8 +23,8 @@ export function snapshotContains(a: Y.Snapshot, b: Y.Snapshot): boolean {
 	return true;
 }
 
-/** Sorted, with overlapping and adjacent ranges joined. */
-function mergeRanges(ranges: readonly DeleteRange[]): DeleteRange[] {
+/** New ranges, sorted, with overlapping and adjacent ranges joined. */
+export function mergeRanges(ranges: readonly DeleteRange[]): DeleteRange[] {
 	const sorted = ranges.toSorted((x, y) => x.clock - y.clock);
 	const merged: DeleteRange[] = [];
 	for (const range of sorted) {

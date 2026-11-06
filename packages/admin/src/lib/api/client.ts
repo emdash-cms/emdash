@@ -129,6 +129,8 @@ export interface FindManyResult<T> {
  */
 export interface AdminManifest {
 	version: string;
+	/** The commit EmDash was built from, when known. */
+	commit?: string;
 	/** Version of Astro the host is built with, when resolvable. */
 	astroVersion?: string;
 	/** IANA timezone used to interpret datetime-local editor values. */

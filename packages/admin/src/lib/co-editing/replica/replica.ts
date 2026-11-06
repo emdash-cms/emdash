@@ -1,0 +1,313 @@
+import type { Editor } from "@tiptap/core";
+import { Awareness } from "y-protocols/awareness";
+import * as Y from "yjs";
+
+import {
+	ENTRY_SLUG,
+	FIELDS_MAP,
+	readField,
+	readFields,
+	readSlug,
+	touchedFields,
+	writeField,
+	type LayoutField,
+} from "../../../co-editing/layout.js";
+import type { RoomAccess } from "../../../co-editing/types.js";
+import { equalJsonValues } from "../../../portable-text/convert.js";
+import type { RecoveryInput } from "../../api/rooms.js";
+import type {
+	ConnectionEvents,
+	ConnectionTarget,
+	ReplicaHandle,
+	ReplicaOptions,
+	RoomSocket,
+} from "../session.js";
+import {
+	RoomSaveError,
+	type DraftCapture,
+	type RoomEditing,
+	type RoomFields,
+	type RoomSaveState,
+} from "../types.js";
+import { Connection } from "./connection.js";
+import { Coverage, type CoverageMark } from "./coverage.js";
+import { FORM, REMOTE } from "./origins.js";
+
+/** As long as the room holds saves for an operation, so a save it never checkpoints can't hang one. */
+const WHEN_COVERED_TIMEOUT_MS = 30_000;
+
+/** The synced connection a replica sends `save` through. */
+export interface SaveLink {
+	save(): void;
+}
+
+interface Waiter {
+	readonly target: CoverageMark;
+	readonly save: boolean;
+	readonly resolve: () => void;
+	readonly reject: (error: RoomSaveError) => void;
+	timer: unknown;
+}
+
+/**
+ * The tab's replica of the entry's shared document. It outlives connections: a rejoin keeps it,
+ * with its edits and coverage, and only a reset replaces it.
+ */
+export class Replica implements ReplicaHandle {
+	readonly doc = new Y.Doc();
+	readonly awareness = new Awareness(this.doc);
+	readonly editing: RoomEditing;
+	readonly #options: ReplicaOptions;
+	readonly #richText: ReadonlySet<string>;
+	readonly #coverage = new Coverage(this.doc.clientID);
+	readonly #waiters = new Set<Waiter>();
+	readonly #saveListeners = new Set<() => void>();
+	readonly #fieldListeners = new Map<string, Set<() => void>>();
+	readonly #values = new Map<string, unknown>();
+	readonly #fieldSequences = new Map<string, number>();
+	readonly #remoteVersions = new Map<string, number>();
+	readonly #editors = new Map<string, Editor>();
+	#lineage: string | null = null;
+	#access: RoomAccess | null = null;
+	#rev: string | null = null;
+	#sequence = 0;
+	#link: SaveLink | null = null;
+	#offline = false;
+	#frozen = false;
+	#disposed = false;
+	#saveState: RoomSaveState = { covered: true, saving: false, rev: null };
+
+	constructor(options: ReplicaOptions) {
+		this.#options = options;
+		this.#richText = new Set(options.richTextFields);
+		this.awareness.setLocalState({ field: null });
+		this.doc.on("afterTransaction", (transaction: Y.Transaction) =>
+			this.#afterTransaction(transaction),
+		);
+		const fields: RoomFields = {
+			subscribe: (field, listener) => this.#subscribeField(field, listener),
+			get: (field) => this.#get(field),
+			set: (values) => this.#set(values),
+			read: (names) =>
+				readFields(
+					this.doc,
+					names.map((name) => this.#layoutField(name)),
+				),
+			remoteVersion: (field) => this.#remoteVersions.get(field) ?? 0,
+		};
+		this.editing = {
+			id: this.doc.guid,
+			fields,
+			subscribe: (listener) => {
+				this.#saveListeners.add(listener);
+				return () => this.#saveListeners.delete(listener);
+			},
+			getSaveState: () => this.#saveState,
+			whenCovered: (request) => this.#whenCovered(request.save),
+			captureDraft: (names): DraftCapture => ({
+				values: fields.read(names),
+				rev: this.#rev,
+				sequence: this.#sequence,
+				replica: this.doc.guid,
+			}),
+			changedSince: (capture, names) =>
+				capture.replica !== this.doc.guid ||
+				names.some((name) => (this.#fieldSequences.get(name) ?? 0) > capture.sequence),
+		};
+	}
+
+	/** The lineage of the first room that welcomed this replica. */
+	get lineage(): string | null {
+		return this.#lineage;
+	}
+
+	/** The rich-text editors bound to this replica, by field. */
+	get editors(): ReadonlyMap<string, Editor> {
+		return this.#editors;
+	}
+
+	registerEditor(field: string, editor: Editor): () => void {
+		this.#editors.set(field, editor);
+		return () => {
+			if (this.#editors.get(field) === editor) this.#editors.delete(field);
+		};
+	}
+
+	connect(
+		target: ConnectionTarget,
+		events: ConnectionEvents,
+		openSocket: (url: string) => RoomSocket,
+	): Connection {
+		return new Connection(this, target, events, openSocket);
+	}
+
+	hasUncoveredEdits(): boolean {
+		return this.#coverage.mark !== null;
+	}
+
+	/** The whole document: every value in the fields map, and every pinned rich-text field. */
+	recoveryInput(): RecoveryInput {
+		const data: Record<string, unknown> = {};
+		for (const key of this.doc.getMap(FIELDS_MAP).keys()) {
+			if (key !== ENTRY_SLUG.slug) data[key] = readField(this.doc, { slug: key, type: "json" });
+		}
+		const richText = Array.from(this.#richText, (slug) => ({ slug, type: "portableText" }));
+		Object.assign(data, readFields(this.doc, richText));
+		return { data, slug: readSlug(this.doc) };
+	}
+
+	setOffline(offline: boolean): void {
+		this.#offline = offline;
+		if (offline) this.#rejectWaiters(new RoomSaveError("offline"));
+	}
+
+	freeze(): void {
+		this.#frozen = true;
+		this.#rejectWaiters(new RoomSaveError("gone"));
+	}
+
+	dispose(): void {
+		if (this.#disposed) return;
+		this.#disposed = true;
+		this.#rejectWaiters(new RoomSaveError("gone"));
+		this.awareness.destroy();
+		this.doc.destroy();
+		this.#saveListeners.clear();
+		this.#fieldListeners.clear();
+	}
+
+	/** A welcome from this replica's lineage, or its first. */
+	welcome(lineage: string, access: RoomAccess, snapshot: Uint8Array): void {
+		this.#lineage ??= lineage;
+		this.#access = access;
+		if (access !== "edit") this.#rejectWaiters(new RoomSaveError("access"));
+		this.#checkpoint(snapshot);
+	}
+
+	/** The room answered a connection's sync step 1. */
+	synced(link: SaveLink): void {
+		this.#coverage.start(this.doc);
+		this.#link = link;
+		if ([...this.#waiters].some((waiter) => waiter.save)) link.save();
+	}
+
+	detach(link: SaveLink): void {
+		if (this.#link === link) this.#link = null;
+	}
+
+	checkpoint(snapshot: Uint8Array, rev: string): void {
+		this.#rev = rev;
+		this.#checkpoint(snapshot);
+	}
+
+	refused(code: string, message: string): void {
+		this.#rejectWaiters(new RoomSaveError("refused", code, message));
+	}
+
+	#afterTransaction(transaction: Y.Transaction): void {
+		const remote = transaction.origin === REMOTE;
+		const touched = touchedFields(transaction);
+		if (touched.size > 0) this.#sequence++;
+		for (const field of touched) {
+			this.#fieldSequences.set(field, this.#sequence);
+			if (remote) this.#remoteVersions.set(field, (this.#remoteVersions.get(field) ?? 0) + 1);
+			this.#values.delete(field);
+		}
+		// A checkpoint reaches this replica after every update it holds, so none can contain an
+		// own edit made since it arrived: coverage changes only at the next checkpoint.
+		if (this.#coverage.record(transaction, !remote)) this.#updateSaveState();
+		for (const field of touched) {
+			for (const listener of this.#fieldListeners.get(field) ?? []) listener();
+		}
+	}
+
+	#checkpoint(snapshot: Uint8Array): void {
+		this.#coverage.checkpoint(Y.decodeSnapshot(snapshot));
+		this.#settle();
+	}
+
+	#settle(): void {
+		if (this.#coverage.settle()) {
+			for (const waiter of this.#waiters) this.#finish(waiter).resolve();
+		} else {
+			for (const waiter of this.#waiters) {
+				if (this.#coverage.contains(waiter.target)) this.#finish(waiter).resolve();
+			}
+		}
+		this.#updateSaveState();
+	}
+
+	#whenCovered(save: boolean): Promise<void> {
+		if (this.#disposed || this.#frozen) return Promise.reject(new RoomSaveError("gone"));
+		const target = this.#coverage.mark;
+		if (!target) return Promise.resolve();
+		if (this.#offline) return Promise.reject(new RoomSaveError("offline"));
+		if (this.#access !== "edit") return Promise.reject(new RoomSaveError("access"));
+		return new Promise<void>((resolve, reject) => {
+			const waiter: Waiter = { target, save, resolve, reject, timer: null };
+			waiter.timer = this.#options.clock.setTimeout(
+				() => this.#finish(waiter).reject(new RoomSaveError("timeout")),
+				WHEN_COVERED_TIMEOUT_MS,
+			);
+			this.#waiters.add(waiter);
+			if (save) this.#link?.save();
+			this.#updateSaveState();
+		});
+	}
+
+	/** Removes a waiter, so it settles once, and returns it. */
+	#finish(waiter: Waiter): Waiter {
+		this.#options.clock.clearTimeout(waiter.timer);
+		this.#waiters.delete(waiter);
+		this.#updateSaveState();
+		return waiter;
+	}
+
+	#rejectWaiters(error: RoomSaveError): void {
+		for (const waiter of this.#waiters) this.#finish(waiter).reject(error);
+	}
+
+	#updateSaveState(): void {
+		const covered = this.#coverage.mark === null;
+		const saving = this.#waiters.size > 0;
+		const current = this.#saveState;
+		if (current.covered === covered && current.saving === saving && current.rev === this.#rev) {
+			return;
+		}
+		this.#saveState = { covered, saving, rev: this.#rev };
+		for (const listener of this.#saveListeners) listener();
+	}
+
+	#subscribeField(field: string, listener: () => void): () => void {
+		let listeners = this.#fieldListeners.get(field);
+		if (!listeners) this.#fieldListeners.set(field, (listeners = new Set()));
+		listeners.add(listener);
+		return () => listeners.delete(listener);
+	}
+
+	#get(field: string): unknown {
+		if (this.#values.has(field)) return this.#values.get(field);
+		const value = readField(this.doc, this.#layoutField(field));
+		this.#values.set(field, value);
+		return value;
+	}
+
+	#set(values: Readonly<Record<string, unknown>>): void {
+		const map = this.doc.getMap(FIELDS_MAP);
+		this.doc.transact(() => {
+			for (const [name, value] of Object.entries(values)) {
+				const field = this.#layoutField(name);
+				if (field.type !== "portableText") {
+					const unchanged =
+						value === undefined ? !map.has(name) : equalJsonValues(map.get(name), value);
+					if (unchanged) continue;
+				}
+				writeField(this.doc, field, value, this.#options.pluginBlockTypes, FORM);
+			}
+		}, FORM);
+	}
+
+	#layoutField(name: string): LayoutField {
+		return { slug: name, type: this.#richText.has(name) ? "portableText" : "json" };
+	}
+}
