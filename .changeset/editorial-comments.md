@@ -19,6 +19,8 @@ Type `@` in a comment to mention someone who can take part in threads. A comment
 
 When the site has an email provider, a new comment emails the people it mentions and the thread's earlier participants, except its author and anyone who can no longer take part. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved.
 
+AI agents can review entries through four MCP tools: `editorial_thread_list`, `editorial_thread_create`, `editorial_comment_create` and `editorial_thread_resolve`. `editorial_thread_create` accepts a `field` and the exact `quote` to comment on, with optional `prefix` and `suffix` to tell repeated text apart, and finds it in the entry's current draft.
+
 #### Permissions
 
 Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs `content:read_drafts`.
