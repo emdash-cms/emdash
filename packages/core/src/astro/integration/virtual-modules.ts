@@ -561,14 +561,18 @@ export function createScheduler(executor) {
 }
 
 /**
- * Generates the rooms virtual module: the in-process room host on
- * `@astrojs/node` with co-editing on, and `null` otherwise, which gives every
- * join single-editor mode. Only this module imports the Node.js host, so its
- * code never reaches a Workers bundle.
+ * Generates the rooms virtual module: with co-editing on, the in-process room
+ * host on `@astrojs/node` and the Durable Object host on `@astrojs/cloudflare`,
+ * and `null` otherwise, which gives every join single-editor mode. Only this
+ * module imports either host, so the Node.js host's code never reaches a
+ * Workers bundle.
  */
 export function generateRoomsModule(adapterName: string | undefined, coEditing: boolean): string {
 	if (coEditing && adapterName === "@astrojs/node") {
 		return `export { createRoomHost } from "emdash/internal/co-editing/node";\n`;
+	}
+	if (coEditing && adapterName === "@astrojs/cloudflare") {
+		return `export { createRoomHost } from "@emdash-cms/cloudflare/rooms";\n`;
 	}
 	return `export const createRoomHost = null;\n`;
 }

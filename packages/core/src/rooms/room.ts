@@ -327,6 +327,13 @@ export class Room {
 	receive(connection: RoomConnection, message: Uint8Array): void {
 		if (!this.#connections.has(connection)) return;
 		if (this.#phase.kind === "unloaded") {
+			const decoded = decodeMessage(message);
+			if (decoded?.type === "awareness") {
+				this.#closeOldConnections();
+				const info = this.#connections.get(connection);
+				if (info) this.#receivePresence(connection, info, decoded.entries);
+				return;
+			}
 			void this.#enqueue(() => this.#resume()).then(() => this.receive(connection, message));
 			return;
 		}
@@ -373,8 +380,12 @@ export class Room {
 		if (!renewed && this.#claimed) this.#claimLost();
 	}
 
-	/** The hourly drop, for the host's alarm or cleanup. */
+	/**
+	 * Closes connections past their lifetime, then applies the hourly drop, for the host's alarm or
+	 * cleanup. A host that doesn't ping sockets relies on it to close peers that vanished.
+	 */
 	async expire(): Promise<void> {
+		this.#closeOldConnections();
 		if (this.isOpen() || this.#shuttingDown) return;
 		await this.#enqueue(() => this.#expire());
 		await this.#releaseIfClosed();

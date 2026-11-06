@@ -17,6 +17,12 @@ export default defineConfig({
 		"src/sandbox/index.ts",
 		"src/sandbox/bridge.ts",
 		"src/worker.ts",
+		// Co-editing room host (loaded via virtual:emdash/rooms)
+		"src/rooms/host.ts",
+		// Its own module, so in development `EmDashRoom` stays the same class when Astro re-evaluates
+		// the Worker entry. The Cloudflare Vite plugin replaces a Durable Object's instance, and the
+		// tokens it holds in memory, whenever its class changes.
+		"src/rooms/object.ts",
 		"src/plugins/index.ts",
 		// Standalone entry: cloudflareEmail() descriptors reference this module
 		// as their `entrypoint`, so the astro integration can statically import

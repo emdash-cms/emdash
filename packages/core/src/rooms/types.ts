@@ -13,6 +13,25 @@ export function roomId(entry: EntryRef): string {
 	return `${entry.collection}:${entry.id}`;
 }
 
+const ROOM_PATH = /\/_emdash\/api\/content\/([^/]+)\/([^/]+)\/room$/;
+
+/**
+ * The room ID a room upgrade path is for, `/_emdash/api/content/{collection}/{id}/room` under any
+ * base path, or null when it isn't one.
+ */
+export function roomIdFromPath(pathname: string): string | null {
+	const match = ROOM_PATH.exec(pathname);
+	if (!match) return null;
+	try {
+		return roomId({
+			collection: decodeURIComponent(match[1] ?? ""),
+			id: decodeURIComponent(match[2] ?? ""),
+		});
+	} catch {
+		return null;
+	}
+}
+
 /** The entry a room ID names, or null when it isn't one. */
 export function parseRoomId(id: string): EntryRef | null {
 	const colon = id.indexOf(":");
