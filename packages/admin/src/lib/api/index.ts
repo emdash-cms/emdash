@@ -462,3 +462,21 @@ export {
 	releaseEntryLock,
 	entryLockRefusal,
 } from "./entry-lock.js";
+
+// Editorial comment threads
+export {
+	type EditorialAnchorUpdate,
+	type EditorialComment,
+	type EditorialEntry,
+	type EditorialPerson,
+	type EditorialThread,
+	type EditorialThreadStatus,
+	createEditorialThread,
+	deleteEditorialComment,
+	deleteEditorialThread,
+	editEditorialComment,
+	fetchEditorialThreads,
+	replyToEditorialThread,
+	setEditorialThreadStatus,
+	updateEditorialAnchors,
+} from "./editorial-threads.js";
