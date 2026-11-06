@@ -2135,6 +2135,9 @@ importers:
       '@portabletext/toolkit':
         specifier: ^5.0.1
         version: 5.0.1
+      '@portabletext/types':
+        specifier: ^2.0.15
+        version: 2.0.15
       '@tiptap/core':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/pm@3.20.0)
