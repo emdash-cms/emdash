@@ -1,10 +1,11 @@
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import type { RevisionAuthor, RevisionListItem } from "../../lib/api";
 import type { CurrentUser } from "../../lib/api/current-user.js";
-import { formatDate, parseTimestamp } from "../../lib/utils.js";
+import { formatDate, isolate, parseTimestamp } from "../../lib/utils.js";
 
 export type AuthorColor = "purple" | "teal" | "blue" | "orange" | "neutral";
 
@@ -51,19 +52,61 @@ export function authorColorOf(
 	return (authorId && colors.get(authorId)) || "neutral";
 }
 
-/** Colours for the authors of a loaded revision list, shared by the list dots and the canvas marks. */
+/**
+ * The people a version names: everyone who edited it since the version before it, or its author
+ * when no one is recorded. An entry is `null` for an account that no longer exists.
+ */
+export function revisionNamed(item: RevisionListItem): Array<RevisionAuthor | null> {
+	return item.editedBy ?? [item.author];
+}
+
+function soleNamed(item: RevisionListItem): RevisionAuthor | null {
+	const named = revisionNamed(item);
+	return named.length === 1 ? (named[0] ?? null) : null;
+}
+
+/**
+ * Colours for the people that versions of a loaded list name on their own, shared by the list dots,
+ * the view bar and the canvas marks.
+ */
 export function revisionAuthorColors(
 	items: readonly RevisionListItem[],
 ): ReadonlyMap<string, AuthorColor> {
-	return assignAuthorColors(items.map((item) => item.author?.id));
+	return assignAuthorColors(items.map((item) => soleNamed(item)?.id));
 }
 
-/** A revision's author colour; neutral when the author is unknown or the account is gone. */
+/**
+ * A version's colour: the colour of the one person it names, or neutral when it names several, or
+ * only an unknown or deleted account.
+ */
 export function revisionAuthorColor(
 	colors: ReadonlyMap<string, AuthorColor>,
 	item: RevisionListItem,
 ): AuthorColor {
-	return authorColorOf(colors, item.author?.id);
+	return authorColorOf(colors, soleNamed(item)?.id);
+}
+
+/**
+ * Everyone the versions newer than `revisionId` name, newest first and once each, or everyone in
+ * the list when that version isn't in it. Deleted accounts can't be told apart, so each one stays.
+ * A version that records no one, such as the draft copy an unpublish leaves, names no one here.
+ */
+export function namedSince(
+	items: readonly RevisionListItem[],
+	revisionId: string | null,
+): Array<RevisionAuthor | null> {
+	const people: Array<RevisionAuthor | null> = [];
+	const seen = new Set<string>();
+	for (const item of items) {
+		if (item.id === revisionId) break;
+		if (item.editedBy === null && item.authorId === null) continue;
+		for (const person of revisionNamed(item)) {
+			if (person && seen.has(person.id)) continue;
+			if (person) seen.add(person.id);
+			people.push(person);
+		}
+	}
+	return people;
 }
 
 /** Revision timestamps come from SQLite without a zone and are UTC. */
@@ -94,6 +137,12 @@ export interface RevisionFormat {
 	 * someone else's; "Unknown author" when no author was recorded or the account is gone.
 	 */
 	author(author: RevisionAuthor | null | undefined): string;
+	/**
+	 * The people a version names, such as "Ana", "Ana and Ben", or "Ana, Ben and 3 other people",
+	 * each named as `author` names them. Deleted accounts count among the others; a list of only
+	 * deleted accounts reads "Unknown author". With more than one person, each name is isolated.
+	 */
+	people(named: readonly (RevisionAuthor | null)[]): string;
 }
 
 export function useRevisionFormat(): RevisionFormat {
@@ -128,6 +177,28 @@ export function useRevisionFormat(): RevisionFormat {
 			if (value && me && value.id === me.id) return me.name || me.email;
 			return value ? t`Unnamed user` : t`Unknown author`;
 		};
-		return { day, time, when, author };
+		const people = (named: readonly (RevisionAuthor | null)[]) => {
+			const [first, second] = named
+				.filter((person): person is RevisionAuthor => person !== null)
+				.map((person) => author(person));
+			if (first === undefined) return author(null);
+			const firstName = isolate(first);
+			if (second === undefined) {
+				const others = named.length - 1;
+				if (others === 0) return first;
+				return plural(others, {
+					one: `${firstName} and # other person`,
+					other: `${firstName} and # other people`,
+				});
+			}
+			const secondName = isolate(second);
+			const others = named.length - 2;
+			if (others === 0) return t`${firstName} and ${secondName}`;
+			return plural(others, {
+				one: `${firstName}, ${secondName} and # other person`,
+				other: `${firstName}, ${secondName} and # other people`,
+			});
+		};
+		return { day, time, when, author, people };
 	}, [t, locale, queryClient]);
 }

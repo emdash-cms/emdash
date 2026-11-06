@@ -11,7 +11,7 @@ import {
 	Select,
 	Text,
 } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
 	CalendarDots,
@@ -24,19 +24,21 @@ import {
 	Upload,
 	X,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { flushSync } from "react-dom";
 
-import type {
-	AdminManifest,
-	BylineCreditInput,
-	BylineSummary,
-	ContentItem,
-	ContentSeoInput,
-	TranslationSummary,
-	UserListItem,
+import {
+	fetchRevisions,
+	type AdminManifest,
+	type BylineCreditInput,
+	type BylineSummary,
+	type ContentItem,
+	type ContentSeoInput,
+	type TranslationSummary,
+	type UserListItem,
 } from "../lib/api";
 import {
 	ContentEditorPanelBoundary,
@@ -70,6 +72,8 @@ import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
+import { namedSince, useRevisionFormat } from "./revisions/revision-format.js";
+import { REVISION_LIST_LIMIT_ALL } from "./revisions/revision-query.js";
 import { useRevisionViewContext } from "./revisions/revision-view-context.js";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import type {
@@ -387,6 +391,8 @@ export interface EditorActionsProps {
 	onMenuOpenChange?: (open: boolean) => void;
 	/** Shown before Publish, e.g. scheduling while the settings panel is hidden. */
 	beforePublish?: React.ReactNode;
+	/** Lets the publish confirmation name who edited the entry. Only for collections with revisions. */
+	revisions?: PublishRevisions;
 }
 
 export interface PreviewButtonProps {
@@ -425,6 +431,13 @@ export function PreviewButton({
 	);
 }
 
+/** The entry whose revisions the publish confirmation reads. */
+export interface PublishRevisions {
+	collection: string;
+	entryId: string;
+	liveRevisionId: string | null;
+}
+
 export interface PublishActionsProps {
 	collectionLabel?: string;
 	isNew?: boolean;
@@ -440,6 +453,37 @@ export interface PublishActionsProps {
 	size?: "sm";
 	/** In the editor's bar, which shortens or hides the labels when it's narrow. */
 	compact?: boolean;
+	/** Lets the confirmation name who edited the entry since its live version. */
+	revisions?: PublishRevisions;
+}
+
+/** Who edited the entry since its live version, read when the publish confirmation opens. */
+function PublishEditedBy({ collection, entryId, liveRevisionId }: PublishRevisions) {
+	const format = useRevisionFormat();
+	const query = useQuery({
+		// Outside the `revisions` lists, which an autosave patches with its guess at the newest
+		// version, so this list only ever holds what a read returned.
+		queryKey: ["publishEditedBy", collection, entryId],
+		queryFn: ({ signal }) =>
+			fetchRevisions(collection, entryId, { limit: REVISION_LIST_LIMIT_ALL, signal }),
+		select: (list) => namedSince(list.items, liveRevisionId),
+		staleTime: 0,
+		refetchOnMount: "always",
+	});
+	const named = query.isSuccess && query.isFetchedAfterMount ? query.data : [];
+	const people = named.length > 0 ? format.people(named) : null;
+
+	// One line tall while the list loads and after, so the dialog keeps its size when names arrive.
+	// The line takes its width from the dialog, not from its text, which the scroll area would fit.
+	return (
+		<Text variant="secondary" truncate DANGEROUS_className="min-h-lh contain-inline-size">
+			{people && (
+				<Trans>
+					Edited by <bdi>{people}</bdi>
+				</Trans>
+			)}
+		</Text>
+	);
 }
 
 export function PublishActions({
@@ -455,6 +499,7 @@ export function PublishActions({
 	onMenuOpenChange,
 	size,
 	compact,
+	revisions,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 	const [publishOpen, setPublishOpen] = React.useState(false);
@@ -534,7 +579,7 @@ export function PublishActions({
 			<LayerDialog.Content size="sm">
 				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
 				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
-				<LayerDialog.Body>{null}</LayerDialog.Body>
+				<LayerDialog.Body>{revisions ? <PublishEditedBy {...revisions} /> : null}</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
 					<LayerDialog.Action
 						loading={isPending}
@@ -663,6 +708,7 @@ export function EditorActions({
 	onUnpublish,
 	onMenuOpenChange,
 	beforePublish,
+	revisions,
 }: EditorActionsProps) {
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
@@ -720,6 +766,7 @@ export function EditorActions({
 					onMenuOpenChange={onMenuOpenChange}
 					size="sm"
 					compact
+					revisions={revisions}
 				/>
 			)}
 		</div>

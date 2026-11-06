@@ -616,6 +616,11 @@ export interface RevisionAuthor {
 export interface RevisionListItem extends Revision {
 	/** `null` when no author was recorded or the account no longer exists. */
 	author: RevisionAuthor | null;
+	/**
+	 * Everyone who edited the revision since the one before it, latest first. An entry is `null`
+	 * when the account no longer exists. `null` means its author alone.
+	 */
+	editedBy: Array<RevisionAuthor | null> | null;
 }
 
 export interface RevisionListResponse {

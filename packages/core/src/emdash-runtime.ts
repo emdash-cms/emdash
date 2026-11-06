@@ -22,6 +22,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import type { ContentWrite } from "./api/content-save.js";
 import { ErrorCode } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
@@ -39,7 +40,7 @@ import {
 	type StagedReferenceBaselines,
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
-import { validateRev } from "./api/rev.js";
+import { encodeRev, validateRev } from "./api/rev.js";
 import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
@@ -72,7 +73,11 @@ import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
 import { MediaRepository } from "./database/repositories/media.js";
-import { RevisionRepository } from "./database/repositories/revision.js";
+import {
+	RevisionRepository,
+	type RevisionCredit,
+	type RevisionKind,
+} from "./database/repositories/revision.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
 import type {
@@ -590,6 +595,37 @@ function beforeSaveFailure(error: unknown) {
 			message: "A plugin hook failed while saving content",
 		},
 	};
+}
+
+/**
+ * How a draft save's revision is credited. Only an autosave replaces the draft revision it builds
+ * on, and only when that one is an autosave too. An autosave names the save's editors, then the
+ * names it carries from the replaced autosave (or that revision's author when it names none), once
+ * each and latest first. A kept save names only the editors its caller passed, once each.
+ * `replaced` is the draft revision the save builds on, or null when there is none or it is also
+ * the live revision.
+ */
+function revisionCredit(input: {
+	autosave: boolean;
+	actorId: string | undefined;
+	editedBy: readonly string[] | undefined;
+	replaced: (RevisionCredit & { authorId: string | null }) | null;
+}): { kind: RevisionKind | null; editedBy: string[] | null; replaces: boolean } {
+	const { autosave, actorId, editedBy, replaced } = input;
+	if (!autosave) {
+		return {
+			kind: null,
+			editedBy: editedBy?.length ? [...new Set(editedBy)] : null,
+			replaces: false,
+		};
+	}
+	const replaces = replaced?.kind === "autosave";
+	const own = editedBy ?? (actorId ? [actorId] : []);
+	const carried = replaces
+		? (replaced.editedBy ?? (replaced.authorId ? [replaced.authorId] : []))
+		: [];
+	const names = [...new Set([...own, ...carried])];
+	return { kind: "autosave", editedBy: names.length > 0 ? names : null, replaces };
 }
 
 /**
@@ -3910,6 +3946,7 @@ export class EmDashRuntime {
 		const saveHookDetails = {
 			locale,
 			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+			...(actor ? { editedBy: [actor.id] } : {}),
 		};
 
 		const collectionInfo = await this.schemaRegistry
@@ -4059,6 +4096,8 @@ export class EmDashRuntime {
 			 * passed to content hooks; never changes entry ownership.
 			 */
 			actor?: ActorInfo;
+			/** Users whose edits this save holds, latest first. Defaults to the actor alone. */
+			editedBy?: readonly string[];
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 		},
@@ -4092,11 +4131,16 @@ export class EmDashRuntime {
 		const {
 			_rev: _discardedRev,
 			actor: _discardedActor,
+			editedBy: passedEditors,
 			migrateBlocks,
 			replaceBlocks,
 			...bodyWithoutRev
 		} = body;
+		const editedBy = passedEditors?.length ? [...new Set(passedEditors)] : undefined;
 		const blockWriteOptions = { migrateBlocks, replaceBlocks };
+		const saveHookEditors: ContentSaveHookDetails = {
+			editedBy: editedBy ?? (actor ? [actor.id] : undefined),
+		};
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
@@ -4147,7 +4191,9 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
-						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
+						resolvedItem?.locale
+							? { ...saveHookEditors, locale: resolvedItem.locale }
+							: saveHookEditors,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -4227,6 +4273,7 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
+		let stagedWrite: ContentWrite | undefined;
 		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
@@ -4276,13 +4323,10 @@ export class EmDashRuntime {
 				}
 
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
-					let baseData: Record<string, unknown>;
-					if (existing.draftRevisionId) {
-						const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
-						baseData = draftRevision?.data ?? existing.data;
-					} else {
-						baseData = existing.data;
-					}
+					const draftBase = existing.draftRevisionId
+						? await revisionRepo.findDraftBase(existing.draftRevisionId)
+						: null;
+					const baseData = draftBase?.data ?? existing.data;
 					let attemptData = processedData ?? {};
 					try {
 						attemptData = await normalizeBlocksData(
@@ -4340,16 +4384,24 @@ export class EmDashRuntime {
 					await repo.keepStartingRevision(revisionRepo, collection, existing, () =>
 						liveReferenceData(this.db, collection, entryGroup),
 					);
+					const credit = revisionCredit({
+						autosave: bodyWithoutRev.skipRevision === true,
+						actorId: actor?.id,
+						editedBy,
+						replaced: existing.draftRevisionId === existing.liveRevisionId ? null : draftBase,
+					});
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
 						data: mergedData,
 						authorId: actor?.id,
+						kind: credit.kind,
+						editedBy: credit.editedBy,
 					});
 
-					let staged: boolean;
+					let staged: Pick<ContentItemInternal, "version" | "updatedAt"> | null;
 					try {
-						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
+						staged = await repo.stageDraftRevision(collection, resolvedId, revision.id, existing);
 					} catch (error) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
@@ -4384,8 +4436,19 @@ export class EmDashRuntime {
 
 					draftStorageChanged = true;
 					processedData = attemptData;
+					stagedWrite = {
+						rev: encodeRev({ ...existing, ...staged }),
+						// Read back as a fresh read hydrates it: the live values under the draft's.
+						data: {
+							...existing.data,
+							...Object.fromEntries(
+								Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+							),
+						},
+						slug: typeof revision.data._slug === "string" ? revision.data._slug : existing.slug,
+					};
 
-					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
+					if (credit.replaces && existing.draftRevisionId) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(
 								collection,
@@ -4480,11 +4543,16 @@ export class EmDashRuntime {
 				false,
 				actor,
 				undefined,
-				savedLocale ? { locale: savedLocale } : {},
+				savedLocale ? { ...saveHookEditors, locale: savedLocale } : saveHookEditors,
 			);
 		}
 
 		if (hydrated.success) {
+			// Only the draft path knows its own write: the column handler reads the row again after
+			// writing, outside a transaction on D1, so that read can include another write.
+			if (stagedWrite && !liveMetaTouched) {
+				return { ...hydrated, liveContentChanged, saved: stagedWrite };
+			}
 			return { ...hydrated, liveContentChanged };
 		}
 		return hydrated;
