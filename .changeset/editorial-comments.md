@@ -1,11 +1,14 @@
 ---
 "emdash": minor
 "@emdash-cms/auth": minor
+"@emdash-cms/admin": minor
 ---
 
 Adds editorial comments: threads that staff leave on an entry while reviewing it, separate from the public comments visitors post.
 
 A thread points at the whole entry, a field, a Portable Text block, or a range of text in a block, and holds a conversation that can be resolved and reopened. Threads are private to staff and never appear on the site.
+
+In the entry editor, select text and choose **Comment** in the formatting toolbar, or press ⌘⌥M (Ctrl+Alt+M), to start a thread beside it. The **Comments** button at the end of the editor bar shows or hides the margin and counts open threads. Commented text stays highlighted as you edit, and a thread whose text was deleted is listed as detached with the text it referred to. Links of the form `?thread=<id>` open the editor with that thread selected.
 
 The API lives under each entry, at `/_emdash/api/content/{collection}/{id}/threads`, with routes to list and start threads, reply, edit and delete comments, resolve and reopen threads, and store anchors after the entry's content changes. Each thread and comment in a response carries `can` flags that say what the caller may do with it.
 
