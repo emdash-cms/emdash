@@ -10,13 +10,16 @@
  * to avoid bundling Node.js-only code into the production build.
  */
 
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
 
 import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { unknownOptionWarning, validateConfigShape } from "../../config/options-schema.js";
 import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
 import { normalizeAstroI18n } from "../../i18n/normalize.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
@@ -36,6 +39,7 @@ import {
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
+import { resolveHiddenNavItems } from "./admin-nav.js";
 import { loadDevEnv } from "./dev-env.js";
 import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
@@ -73,6 +77,39 @@ function resolveAstroVersion(): string | undefined {
 	} catch {
 		return undefined;
 	}
+}
+
+/**
+ * `@emdash-cms/cloudflare` requires the exact `emdash` version it was
+ * released with. npm refuses a mismatched install, but pnpm and Yarn only
+ * print a peer dependency warning, so warn when the installed adapter's
+ * version differs from this one.
+ *
+ * @internal Exported for unit testing.
+ */
+export function adapterVersionMismatchWarning(
+	root: URL,
+	version: string = VERSION,
+): string | undefined {
+	if (version === "dev") return undefined;
+	for (let dir = fileURLToPath(root); dir !== dirname(dir); dir = dirname(dir)) {
+		const file = join(dir, "node_modules", "@emdash-cms", "cloudflare", "package.json");
+		if (!existsSync(file)) continue;
+		let pkg: { version?: unknown };
+		try {
+			pkg = JSON.parse(readFileSync(file, "utf8")) as { version?: unknown };
+		} catch {
+			return undefined;
+		}
+		if (typeof pkg.version !== "string" || pkg.version === version) return undefined;
+		return (
+			`@emdash-cms/cloudflare ${pkg.version} requires emdash ${pkg.version}, ` +
+			`but emdash ${version} is installed. ` +
+			`Install the same version of both packages, for example:\n\n` +
+			`  npm install emdash@${version} @emdash-cms/cloudflare@${version}`
+		);
+	}
+	return undefined;
 }
 
 /** Default storage: Local filesystem in .emdash directory */
@@ -197,6 +234,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		imagePlaceholders: resolvedConfig.imagePlaceholders,
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
 		updateCheck: resolvedConfig.updateCheck,
@@ -422,6 +460,7 @@ function assertNoRemovedRegistryOption(config: EmDashConfig): void {
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	assertNoRemovedRegistryOption(config);
+	const unknownOptions = validateConfigShape(config);
 
 	const registry = resolveRegistryConfigForSandbox({
 		registry: config.registry,
@@ -557,6 +596,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			locales: resolveAdminLocales(config.admin.locales, Object.keys(manifest)),
 		};
 	}
+	if (config.admin?.hiddenNavItems !== undefined) {
+		resolvedConfig.admin = {
+			...resolvedConfig.admin,
+			hiddenNavItems: resolveHiddenNavItems(config.admin.hiddenNavItems),
+		};
+	}
 
 	// Resolved plugins (populated at build time by importing entrypoints)
 	let _resolvedPlugins: ResolvedPlugin[] = [];
@@ -593,6 +638,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					allowLocalhost: command === "dev" || command === "sync",
 				});
 				printBanner(logger);
+				for (const key of unknownOptions) logger.warn(unknownOptionWarning(key));
 				if (command === "dev") {
 					// In Node `astro dev`, Vite loads `.env` into `import.meta.env`
 					// but not `process.env`. The plugin-secret encryption key
@@ -762,6 +808,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
+				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);
+				if (adapterWarning) logger.warn(adapterWarning);
 				const sessionWarning = useExternalAuth
 					? undefined
 					: missingSessionDriverWarning(finalConfig.session);

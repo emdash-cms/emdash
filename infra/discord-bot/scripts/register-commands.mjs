@@ -28,6 +28,13 @@ const commands = [
 		integration_types: [0], // 0 = GUILD_INSTALL
 		contexts: [0], // 0 = GUILD (not DM, not group DM)
 	},
+	{
+		name: "unlink",
+		description: "Unlink your GitHub account and remove the Contributor role",
+		type: 1,
+		integration_types: [0],
+		contexts: [0],
+	},
 ];
 
 const url = guildId

@@ -24,7 +24,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { wpPluginExecuteBody } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { importCommentsFromPlugin } from "#import/comments.js";
-import { getSource } from "#import/index.js";
+import { getSource, SiteChallengeError } from "#import/index.js";
 import { importMenusFromPlugin } from "#import/menus.js";
 import { importSiteSettings, parseSiteSettingsFromPlugin } from "#import/settings.js";
 import {
@@ -37,7 +37,7 @@ import {
 } from "#import/sources/wordpress-plugin.js";
 import { resolveAndValidateExternalUrl, SsrfError } from "#import/ssrf.js";
 import type { ImportConfig, ImportResult, NormalizedItem } from "#import/types.js";
-import { resolveImportByline, sanitizeFieldSlug } from "#import/utils.js";
+import { resolveImportByline, sanitizeCollectionSlug, sanitizeFieldSlug } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
 	loadTaxonomyPlanFromDb,
@@ -195,6 +195,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			taxonomyPlan = built.plan;
 			taxonomyDefsCreated = built.defsCreated;
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 		}
 
@@ -211,9 +212,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		);
 
 		// Import navigation menus, resolving item references through the
-		// WP-post-ID -> EmDash-ID map collected during the content pass.
+		// WP-post-ID -> EmDash-ID and -> collection maps collected during the content pass.
 		if (config.importMenus !== false) {
-			await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+			await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 		}
 
 		// Import comments into EmDash's native comments table, preserving
@@ -240,15 +241,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				}
 			}
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Comment import failed:", e);
 		}
 
 		// Apply site identity (title, tagline, logo, favicon) from the source
 		// site's options, replacing the starter template's seed placeholders.
-		// Non-fatal: content is already imported at this point.
+		// Non-fatal unless bot protection challenges the request.
 		try {
 			result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 		} catch (e) {
+			if (e instanceof SiteChallengeError) throw e;
 			console.warn("[WP Plugin Import] Site settings import failed:", e);
 		}
 
@@ -263,13 +266,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			result,
 		});
 	} catch (error) {
+		if (error instanceof SiteChallengeError) {
+			return apiError("WP_SITE_CHALLENGE", error.message, 502);
+		}
 		return handleError(error, "Failed to import from WordPress", "WP_PLUGIN_IMPORT_ERROR");
 	}
 };
 
 /**
  * Import navigation menus into `result`, resolving item references through
- * the WP-post-ID -> EmDash-ID map collected during the content pass.
+ * the WP-post-ID -> EmDash-ID and -> collection maps collected during the content pass.
  * Non-fatal: older plugin versions have no /menus endpoint.
  */
 async function importMenusInto(
@@ -278,11 +284,17 @@ async function importMenusInto(
 	url: string,
 	token: string,
 	contentIdMap: Map<number, string>,
+	collectionByWpId: Map<number, string>,
 ): Promise<void> {
 	try {
 		const menus = await fetchPluginMenus(url, token);
 		if (menus.length > 0) {
-			const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
+			const menuResult = await importMenusFromPlugin(
+				menus,
+				emdash.db,
+				contentIdMap,
+				collectionByWpId,
+			);
 			result.menus = {
 				created: menuResult.menusCreated,
 				items: menuResult.itemsCreated,
@@ -292,6 +304,7 @@ async function importMenusInto(
 			}
 		}
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Menu import failed:", e);
 	}
 }
@@ -351,6 +364,7 @@ async function runContentChunk(
 			taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
 		}
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Taxonomy pre-import failed:", e);
 	}
 
@@ -458,15 +472,16 @@ async function runFinalizePhase(
 	config: WpPluginImportConfig,
 ): Promise<ChunkResponse> {
 	const result = emptyImportResult();
-	const { contentIdMap } = parseIdMap(body.idMap);
+	const { contentIdMap, collectionByWpId } = parseIdMap(body.idMap);
 
 	if (config.importMenus !== false) {
-		await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+		await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 	}
 
 	try {
 		result.siteSettings = await applySiteSettings(emdash, body.url, body.token, config);
 	} catch (e) {
+		if (e instanceof SiteChallengeError) throw e;
 		console.warn("[WP Plugin Import] Site settings import failed:", e);
 	}
 
@@ -656,7 +671,7 @@ export async function ensureCustomTaxonomyDefs(
 		const collections = (taxonomy.post_types ?? [])
 			.map((postType) => config.postTypeMappings[postType])
 			.filter((mapping) => mapping?.enabled)
-			.map((mapping) => mapping.collection);
+			.map((mapping) => sanitizeCollectionSlug(mapping.collection));
 
 		const result = await handleTaxonomyCreate(db, {
 			name: taxonomy.name,
@@ -756,6 +771,7 @@ async function applySiteSettings(
 			emdash.db,
 			emdash.storage,
 			() => {},
+			emdash.config?.imagePlaceholders ?? true,
 		);
 		for (const item of mediaResult.imported) {
 			if (item.originalUrl === parsed.logo?.url) {
@@ -816,7 +832,7 @@ export async function importContent(
 	// WP post ID -> EmDash content ID, used to resolve menu item references
 	const contentIdMap = new Map<number, string>();
 
-	// WP post ID -> EmDash collection slug, used by the comment import
+	// WP post ID -> EmDash collection slug, used by the comment and menu imports
 	const collectionByWpId = new Map<number, string>();
 
 	// Create content repository for checking existing items
@@ -854,13 +870,12 @@ export async function importContent(
 
 		const mapping = config.postTypeMappings[item.postType];
 
-		// Skip if not mapped or disabled
+		// Unmapped or disabled post types are not part of the import.
 		if (!mapping || !mapping.enabled) {
-			result.skipped++;
 			continue;
 		}
 
-		const collection = mapping.collection;
+		const collection = sanitizeCollectionSlug(mapping.collection);
 
 		// Check if collection exists in manifest
 		if (!manifest?.collections[collection]) {

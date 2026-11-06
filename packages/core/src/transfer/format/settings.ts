@@ -29,6 +29,7 @@ const PORTABLE_SETTINGS: ReadonlySet<string> = new Set(PORTABLE_SETTING_NAMES);
 
 const TARGET_LOCAL_SETTING_NAMES: ReadonlySet<string> = new Set([
 	"site:url",
+	"site:staging",
 	"emdash:site_url",
 	"emdash:site_id",
 ]);

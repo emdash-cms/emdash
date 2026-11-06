@@ -18,6 +18,101 @@ function getProvider(
 }
 
 describe("normalizeMediaValue", () => {
+	it.each(["A saved caption", ""])("preserves caller caption %j", async (caption) => {
+		const local = mockProvider({
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			caption: "Library caption",
+		});
+		const result = await normalizeMediaValue({ id: "01ABC", caption }, getProvider({ local }));
+		expect(result?.caption).toBe(caption);
+	});
+
+	it("fills a missing caption during provider enrichment", async () => {
+		const local = mockProvider({
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			caption: "Library caption",
+			meta: { storageKey: "01ABC.jpg" },
+		});
+		const result = await normalizeMediaValue({ id: "01ABC" }, getProvider({ local }));
+		expect(result?.caption).toBe("Library caption");
+	});
+
+	it.each(["Usage credit", ""])(
+		"keeps legacy metadata consistent with caller caption %j",
+		async (caption) => {
+			const local = mockProvider({
+				id: "01ABC",
+				filename: "photo.jpg",
+				mimeType: "image/jpeg",
+				caption: "Library credit",
+				meta: { storageKey: "01ABC.jpg", caption: "Library credit" },
+			});
+			const result = await normalizeMediaValue(
+				{ id: "01ABC", caption, meta: { caption: "Old credit" } },
+				getProvider({ local }),
+			);
+			expect(result).toMatchObject({ caption, meta: { caption, storageKey: "01ABC.jpg" } });
+		},
+	);
+
+	it("promotes legacy metadata captions without a provider lookup", async () => {
+		const value = {
+			id: "01ABC",
+			provider: "local",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			blurhash: "hash",
+			dominantColor: "#112233",
+			meta: { storageKey: "01ABC.jpg", caption: "Legacy credit" },
+		};
+		const lookup = vi.fn();
+		expect(await normalizeMediaValue(value, lookup)).toMatchObject({
+			caption: "Legacy credit",
+			meta: value.meta,
+		});
+		expect(lookup).not.toHaveBeenCalled();
+		expect(value).not.toHaveProperty("caption");
+	});
+
+	it("synchronizes caption metadata in complete snapshots", async () => {
+		const lookup = vi.fn();
+		const result = await normalizeMediaValue(
+			{
+				id: "01ABC",
+				provider: "local",
+				filename: "photo.jpg",
+				mimeType: "image/jpeg",
+				width: 1200,
+				height: 800,
+				blurhash: "hash",
+				dominantColor: "#112233",
+				caption: "",
+				meta: { storageKey: "01ABC.jpg", caption: "Old credit" },
+			},
+			lookup,
+		);
+		expect(result).toMatchObject({ caption: "", meta: { caption: "" } });
+		expect(lookup).not.toHaveBeenCalled();
+	});
+
+	it("keeps external captions without a provider lookup", async () => {
+		const value = {
+			provider: "external",
+			id: "",
+			src: "https://example.com/photo.jpg",
+			caption: "Credit",
+		};
+		expect(await normalizeMediaValue(value, getProvider({}))).toEqual(value);
+	});
+
 	it("returns null for null input", async () => {
 		const result = await normalizeMediaValue(null, getProvider({}));
 		expect(result).toBeNull();
@@ -27,6 +122,16 @@ describe("normalizeMediaValue", () => {
 		const result = await normalizeMediaValue(undefined, getProvider({}));
 		expect(result).toBeNull();
 	});
+
+	it.each(["", "   "])(
+		"returns null for an empty string (%j) without asking a provider",
+		async (value) => {
+			const local = mockProvider();
+			const result = await normalizeMediaValue(value, getProvider({ local }));
+			expect(result).toBeNull();
+			expect(local.get).not.toHaveBeenCalled();
+		},
+	);
 
 	it("converts bare HTTP URL to external MediaValue", async () => {
 		const result = await normalizeMediaValue("https://example.com/photo.jpg", getProvider({}));
@@ -96,6 +201,7 @@ describe("normalizeMediaValue", () => {
 			width: 1024,
 			height: 768,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "uploads/photo.png" },
 		};
 		const local = mockProvider(providerItem);
@@ -111,6 +217,7 @@ describe("normalizeMediaValue", () => {
 			width: 1024,
 			height: 768,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "uploads/photo.png" },
 		});
 	});
@@ -123,6 +230,7 @@ describe("normalizeMediaValue", () => {
 			width: 1200,
 			height: 800,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "01ABC.jpg" },
 		};
 		const local = mockProvider(providerItem);
@@ -141,6 +249,7 @@ describe("normalizeMediaValue", () => {
 			width: 1200,
 			height: 800,
 			alt: "A photo",
+			caption: "Photo credit",
 			meta: { storageKey: "01ABC.jpg" },
 		});
 	});

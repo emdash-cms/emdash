@@ -68,7 +68,11 @@ describeEachDialect("bulk tag posts", (dialect) => {
 	});
 
 	it("matches only canonical published URLs on this origin, including date and locale", async () => {
-		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en", "fr"],
+			localeAliases: { "fr-FR": "fr" },
+		});
 		_resetAstroI18nCacheForTests();
 		await ctx.db
 			.updateTable("_emdash_collections")
@@ -89,6 +93,7 @@ describeEachDialect("bulk tag posts", (dialect) => {
 			locale: "fr",
 			translationOf: en.id,
 		});
+		await ctx.db.updateTable("ec_post").set({ locale: "fr-FR" }).where("id", "=", fr.id).execute();
 		await content.publish("post", en.id, "2026-09-15T00:00:00.000Z");
 		await content.publish("post", fr.id, "2026-09-15T00:00:00.000Z");
 		const urls = [
@@ -107,7 +112,7 @@ describeEachDialect("bulk tag posts", (dialect) => {
 		]);
 		expect(result.success && result.data.results[0]?.entry).toMatchObject({
 			title: "Exemple",
-			locale: "fr",
+			locale: "fr-FR",
 		});
 		expect(
 			(await taxonomy.getTermsForEntry("post", en.id, "tag")).map((term) => term.slug),

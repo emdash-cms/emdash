@@ -98,9 +98,9 @@ export interface SeedCollection {
 	/** Require a slug before an entry can be published. Defaults to true. */
 	routable?: boolean;
 	/**
-	 * Omit this collection from the admin sidebar and the dashboard quick
-	 * actions. It stays reachable through the API, MCP, plugin hooks, and
-	 * direct `/content/:collection` URLs.
+	 * Omit this collection from the admin sidebar, the dashboard quick
+	 * actions, and the dashboard Content card. It stays reachable through the
+	 * API, MCP, plugin hooks, and direct `/content/:collection` URLs.
 	 */
 	hidden?: boolean;
 	/**
@@ -469,7 +469,9 @@ export interface SeedMediaReference {
 		alt?: string;
 		/** Custom filename (defaults to URL basename or generated) */
 		filename?: string;
-		/** Caption for the media */
+		/** Caption for this content use */
 		caption?: string;
+		/** Default caption stored on the library media record */
+		libraryCaption?: string | null;
 	};
 }

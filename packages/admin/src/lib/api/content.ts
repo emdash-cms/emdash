@@ -607,8 +607,19 @@ export interface Revision {
 	createdAt: string;
 }
 
+export interface RevisionAuthor {
+	id: string;
+	/** `null` when the account has no display name. */
+	name: string | null;
+}
+
+export interface RevisionListItem extends Revision {
+	/** `null` when no author was recorded or the account no longer exists. */
+	author: RevisionAuthor | null;
+}
+
 export interface RevisionListResponse {
-	items: Revision[];
+	items: RevisionListItem[];
 	total: number;
 }
 
@@ -618,13 +629,13 @@ export interface RevisionListResponse {
 export async function fetchRevisions(
 	collection: string,
 	entryId: string,
-	options?: { limit?: number },
+	options?: { limit?: number; signal?: AbortSignal },
 ): Promise<RevisionListResponse> {
 	const params = new URLSearchParams();
 	if (options?.limit) params.set("limit", String(options.limit));
 
 	const url = `${API_BASE}/content/${collection}/${entryId}/revisions${params.toString() ? `?${params}` : ""}`;
-	const response = await apiFetch(url);
+	const response = await apiFetch(url, { signal: options?.signal });
 	return parseApiResponse<RevisionListResponse>(response, i18n._(msg`Failed to fetch revisions`));
 }
 
@@ -636,7 +647,7 @@ export async function fetchRevision(revisionId: string): Promise<Revision> {
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch revision`));
 	}
@@ -658,7 +669,7 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}

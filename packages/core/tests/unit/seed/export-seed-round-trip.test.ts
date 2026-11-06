@@ -426,7 +426,9 @@ describe("exportSeed → applySeed round trip", () => {
 	});
 
 	describe("media", () => {
-		async function createMediaSite(): Promise<{ storageKey: string }> {
+		async function createMediaSite(
+			libraryCaption: string | null = "Library caption",
+		): Promise<{ storageKey: string }> {
 			const registry = new SchemaRegistry(db);
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 			await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
@@ -454,6 +456,7 @@ describe("exportSeed → applySeed round trip", () => {
 				mimeType: "image/png",
 				storageKey,
 				alt: "A cover",
+				caption: libraryCaption ?? undefined,
 				status: "ready",
 			});
 			const value = {
@@ -469,8 +472,8 @@ describe("exportSeed → applySeed round trip", () => {
 				status: "published",
 				data: {
 					title: "Hello",
-					cover: value,
-					attachment: value,
+					cover: { ...value, caption: "Per-use cover" },
+					attachment: { ...value, caption: "" },
 					slides: [{ caption: "First", photo: value }],
 				},
 			});
@@ -488,11 +491,62 @@ describe("exportSeed → applySeed round trip", () => {
 				$media: expect.objectContaining({
 					url: `${MEDIA_BASE_URL}/_emdash/api/media/file/${storageKey}`,
 					filename: "cover.png",
+					caption: "Library caption",
+					libraryCaption: "Library caption",
 				}),
 			};
-			expect(post?.data.cover).toEqual(expected);
-			expect(post?.data.attachment).toEqual(expected);
+			expect(post?.data.cover).toEqual({
+				$media: expect.objectContaining({
+					url: `${MEDIA_BASE_URL}/_emdash/api/media/file/${storageKey}`,
+					filename: "cover.png",
+					caption: "Per-use cover",
+					libraryCaption: "Library caption",
+				}),
+			});
+			expect(post?.data.attachment).toEqual({
+				$media: expect.objectContaining({
+					url: `${MEDIA_BASE_URL}/_emdash/api/media/file/${storageKey}`,
+					filename: "cover.png",
+					caption: "",
+					libraryCaption: "Library caption",
+				}),
+			});
 			expect(post?.data.slides).toEqual([{ caption: "First", photo: expected }]);
+		});
+
+		it("exports legacy meta captions, including an explicit empty caption", async () => {
+			const { storageKey } = await createMediaSite();
+			const media = await db
+				.selectFrom("media")
+				.select(["id", "filename"])
+				.where("storage_key", "=", storageKey)
+				.executeTakeFirst();
+			const contentRepo = new ContentRepository(db);
+			const post = await contentRepo.findBySlug("posts", "hello");
+			if (!media || !post) throw new Error("Expected media and post fixtures");
+
+			await contentRepo.update("posts", post.id, {
+				data: {
+					...post.data,
+					cover: {
+						provider: "local",
+						id: media.id,
+						filename: media.filename,
+						meta: { storageKey, caption: "Legacy credit" },
+					},
+					attachment: {
+						provider: "local",
+						id: media.id,
+						filename: media.filename,
+						meta: { storageKey, caption: "" },
+					},
+				},
+			});
+
+			const seed = await exportSeed(db, "all", { mediaBaseUrl: MEDIA_BASE_URL });
+			const exported = seed.content?.posts?.[0];
+			expect(exported?.data.cover).toMatchObject({ $media: { caption: "Legacy credit" } });
+			expect(exported?.data.attachment).toMatchObject({ $media: { caption: "" } });
 		});
 
 		it("re-uploads exported media into the restored site", async () => {
@@ -505,18 +559,49 @@ describe("exportSeed → applySeed round trip", () => {
 				const media = await restored.selectFrom("media").select("id").execute();
 				const restoredIds = new Set(media.map((m) => m.id));
 
-				const cover = post?.data.cover as { id?: string } | null;
-				const attachment = post?.data.attachment as { id?: string } | null;
-				const slides = post?.data.slides as Array<{ photo: { id?: string } | null }>;
+				const cover = post?.data.cover as { id?: string; caption?: string } | null;
+				const attachment = post?.data.attachment as { id?: string; caption?: string } | null;
+				const slides = post?.data.slides as Array<{
+					photo: { id?: string; caption?: string } | null;
+				}>;
 				expect(restoredIds.has(cover?.id ?? "")).toBe(true);
 				expect(restoredIds.has(attachment?.id ?? "")).toBe(true);
 				expect(restoredIds.has(slides[0]?.photo?.id ?? "")).toBe(true);
+				expect(cover?.caption).toBe("Per-use cover");
+				expect(attachment?.caption).toBe("");
+				expect(slides[0]?.photo?.caption).toBe("Library caption");
+				const restoredMedia = await restored
+					.selectFrom("media")
+					.select("caption")
+					.executeTakeFirstOrThrow();
+				expect(restoredMedia.caption).toBe("Library caption");
 			});
 			expect(mockFetch).toHaveBeenCalledWith(
 				`${MEDIA_BASE_URL}/_emdash/api/media/file/${storageKey}`,
 				expect.anything(),
 			);
 		});
+
+		it.each(["", null])(
+			"restores library default %j independently of per-use captions",
+			async (libraryCaption) => {
+				await createMediaSite(libraryCaption);
+				const seed = await exportSeed(db, "all", { mediaBaseUrl: MEDIA_BASE_URL });
+				expect(seed.content?.posts?.[0]?.data.cover).toMatchObject({
+					$media: { caption: "Per-use cover", libraryCaption },
+				});
+				await applyToFreshDatabase(seed, async (restored) => {
+					const media = await restored
+						.selectFrom("media")
+						.select("caption")
+						.executeTakeFirstOrThrow();
+					expect(media.caption).toBe(libraryCaption);
+					const post = await new ContentRepository(restored).findBySlug("posts", "hello");
+					expect(post?.data.cover).toHaveProperty("caption", "Per-use cover");
+					expect(post?.data.attachment).toHaveProperty("caption", "");
+				});
+			},
+		);
 
 		it("warns that site-relative media URLs cannot be imported", async () => {
 			const { storageKey } = await createMediaSite();

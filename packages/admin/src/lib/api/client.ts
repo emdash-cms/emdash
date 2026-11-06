@@ -10,14 +10,34 @@ import type { EditorDraftAccessDeclaration } from "../sandboxed-editor-extension
 
 export const API_BASE = "/_emdash/api";
 
+const forbiddenResponseListeners = new Set<() => void>();
+
 /**
  * Fetch wrapper that adds the X-EmDash-Request CSRF protection header
  * to all requests. All API calls should use this instead of raw fetch().
  */
-export function apiFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
+export async function apiFetch(
+	input: string | URL | Request,
+	init?: RequestInit,
+): Promise<Response> {
 	const headers = new Headers(init?.headers);
 	headers.set("X-EmDash-Request", "1");
-	return fetch(input, { ...init, headers });
+	const response = await fetch(input, { ...init, headers });
+	if (response.status === 403) {
+		for (const listener of forbiddenResponseListeners) listener();
+	}
+	return response;
+}
+
+/**
+ * Calls `listener` after every `apiFetch` request the server refuses with 403.
+ * Returns a function that removes the listener.
+ */
+export function onForbiddenResponse(listener: () => void): () => void {
+	forbiddenResponseListeners.add(listener);
+	return () => {
+		forbiddenResponseListeners.delete(listener);
+	};
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -260,6 +280,8 @@ export interface AdminManifest {
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */
@@ -327,6 +349,8 @@ export interface AdminManifest {
 		logo?: string;
 		siteName?: string;
 		footerLabel?: string | false;
+		/** Built-in navigation entries hidden from the sidebar and command palette. */
+		hiddenNavItems?: string[];
 		favicon?: string;
 	};
 }

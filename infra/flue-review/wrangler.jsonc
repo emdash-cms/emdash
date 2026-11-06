@@ -29,11 +29,14 @@
 			{
 				"name": "GITHUB_RATE_LIMIT",
 				"class_name": "GitHubRateLimitDO",
-				"script_name": "emdash-bot",
 			},
 			{
 				"name": "REVIEW_WATCHDOG",
 				"class_name": "ReviewWatchdog",
+			},
+			{
+				"name": "REREVIEW_SCHEDULER",
+				"class_name": "ReReviewScheduler",
 			},
 		],
 	},
@@ -100,6 +103,14 @@
 			"tag": "v8-reset-registry-new-v2",
 			"new_sqlite_classes": ["FlueRegistry"],
 		},
+		{
+			"tag": "v9-rereview-scheduler",
+			"new_sqlite_classes": ["ReReviewScheduler"],
+		},
+		{
+			"tag": "v10-github-rate-limit",
+			"new_sqlite_classes": ["GitHubRateLimitDO"],
+		},
 	],
 	"vars": {
 		"NODE_OPTIONS": "--max-old-space-size=6144",
@@ -114,6 +125,10 @@
 	// installation token, fetch prior reviews, and post (never by the agent
 	// container). GITHUB_APP_PRIVATE_KEY must be a PKCS#8 PEM (convert GitHub's
 	// download with `openssl pkcs8 -topk8 -nocrypt -in key.pem`).
+	//
+	// AI_GATEWAY_ACCOUNT_ID, AI_GATEWAY_NAME and AI_GATEWAY_TOKEN are optional:
+	// with all three set, Claude Opus and GPT Sol review through AI Gateway and
+	// Claude Sonnet merges their reviews; without them, Kimi reviews alone.
 	"secrets": {
 		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},

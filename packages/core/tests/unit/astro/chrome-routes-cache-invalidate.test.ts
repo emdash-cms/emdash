@@ -7,6 +7,8 @@ import { Role } from "@emdash-cms/auth";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
+
 import { handleMenuCreate, handleMenuItemCreate } from "../../../src/api/handlers/menus.js";
 import { handleTaxonomyCreate, handleTermCreate } from "../../../src/api/handlers/taxonomies.js";
 import {
@@ -40,6 +42,12 @@ import {
 	PUT as putWidget,
 } from "../../../src/astro/routes/api/widget-areas/[name]/widgets/[id].js";
 import { POST as postWidgetAreas } from "../../../src/astro/routes/api/widget-areas/index.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import {
+	__setObjectCacheBackendForTests,
+	CacheNamespace,
+	cachedQuery,
+} from "../../../src/object-cache/index.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("Chrome write routes — edge cache invalidation", () => {
@@ -407,6 +415,41 @@ describe("Chrome write routes — edge cache invalidation", () => {
 			return { areaId, widgetId };
 		}
 
+		beforeEach(async () => {
+			const store = new Map<string, string>();
+			__setObjectCacheBackendForTests(
+				{
+					get: (key) => Promise.resolve(store.get(key) ?? null),
+					set: (key, value) => {
+						store.set(key, value);
+						return Promise.resolve();
+					},
+					delete: (key) => {
+						store.delete(key);
+						return Promise.resolve();
+					},
+				},
+				{ revalidate: 60_000, defaultTtl: 3600 },
+			);
+			await readCachedWidgets("stale");
+			await waitForDeferredTasks();
+		});
+
+		afterEach(async () => {
+			await waitForDeferredTasks();
+			const cached = await readCachedWidgets("fresh");
+			__setObjectCacheBackendForTests(null);
+			expect(cached, "widget object cache not invalidated").toBe("fresh");
+		});
+
+		function readCachedWidgets(value: string) {
+			return cachedQuery({
+				namespace: CacheNamespace.WIDGETS,
+				key: "areas",
+				load: async () => value,
+			});
+		}
+
 		it("invalidates on create", async () => {
 			const { cache, invalidate } = makeContext({});
 			const request = await makeRequest("POST", { name: "sidebar", label: "Sidebar" });
@@ -470,6 +513,59 @@ describe("Chrome write routes — edge cache invalidation", () => {
 
 			expect(response.status).toBe(200);
 			expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:widget-area:sidebar"] });
+		});
+
+		it("invalidates a failed reorder only after every update settles", async () => {
+			const { areaId, widgetId: failingId } = await widgetAreaFixture();
+			const pendingId = ulid();
+			await db
+				.insertInto("_emdash_widgets")
+				.values({ id: pendingId, area_id: areaId, type: "content", sort_order: 1 })
+				.execute();
+
+			let release!: () => void;
+			const gate = new Promise<void>((resolve) => (release = resolve));
+			let reachedPending!: () => void;
+			const pendingStarted = new Promise<void>((resolve) => (reachedPending = resolve));
+			const updateTable = () => ({
+				set: (values: { sort_order: number }) => ({
+					where: (_column: string, _op: string, id: string) => ({
+						execute: async () => {
+							if (id === failingId) throw new Error("update failed");
+							reachedPending();
+							await gate;
+							return db.updateTable("_emdash_widgets").set(values).where("id", "=", id).execute();
+						},
+					}),
+				}),
+			});
+			const flakyDb = new Proxy(db, {
+				get(target, prop) {
+					if (prop === "updateTable") return updateTable;
+					const value = Reflect.get(target, prop, target);
+					return typeof value === "function" ? value.bind(target) : value;
+				},
+			});
+			vi.spyOn(console, "error").mockImplementation(() => {});
+			const { cache } = makeContext({ name: "sidebar" });
+			const request = await makeRequest("POST", { widgetIds: [failingId, pendingId] });
+
+			const responsePromise = reorderWidgets({
+				request,
+				params: { name: "sidebar" },
+				url: new URL(request.url),
+				locals: { emdash: { db: flakyDb, storage: null }, user: admin },
+				cache,
+			} as Parameters<typeof reorderWidgets>[0]);
+
+			await pendingStarted;
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			await readCachedWidgets("partial");
+			await waitForDeferredTasks();
+			release();
+
+			const response = await responsePromise;
+			expect(response.status).toBe(500);
 		});
 
 		it("invalidates on widget delete", async () => {

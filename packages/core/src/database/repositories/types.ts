@@ -31,6 +31,8 @@ export interface CreateContentInput {
 }
 
 export interface UpdateContentInput {
+	/** Stored locale, supplied by the content handler for alias-aware slug checks. */
+	locale?: string;
 	data?: Record<string, unknown>;
 	status?: string;
 	slug?: string | null;
@@ -41,6 +43,8 @@ export interface UpdateContentInput {
 	/** Revision author, separate from entry ownership. */
 	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
+	/** `null` drops the entry's draft revision pointer. */
+	draftRevisionId?: null;
 }
 
 /** SEO fields for content items */
@@ -191,9 +195,9 @@ export interface FindManyOptions {
 		q?: string;
 		/**
 		 * Columns the `q` substring filter is applied to (OR'd together).
-		 * Resolved by the handler from the collection's display fields, slug,
-		 * and any field marked searchable. Each name is validated as a SQL
-		 * identifier.
+		 * Resolved by the handler from the slug and the collection's display
+		 * fields and fields marked searchable, keeping only fields that have a
+		 * column. Each name is validated as a SQL identifier.
 		 */
 		searchColumns?: string[];
 		/**
@@ -448,5 +452,12 @@ export class ContentMutationConflictError extends Error {
 	constructor(message = "Content changed while the operation was in progress") {
 		super(message);
 		this.name = "ContentMutationConflictError";
+	}
+}
+
+export class ContentSlugConflictError extends Error {
+	constructor() {
+		super("The slug is already used by another content entry");
+		this.name = "ContentSlugConflictError";
 	}
 }

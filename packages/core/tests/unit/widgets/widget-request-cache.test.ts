@@ -13,9 +13,15 @@ vi.mock("../../../src/loader.js", () => ({ getDb: vi.fn() }));
 vi.mock("virtual:emdash/object-cache", () => ({ createObjectCache: undefined }));
 
 import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { getDb } from "../../../src/loader.js";
+import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
 import { runWithContext } from "../../../src/request-context.js";
-import { getWidgetArea, getWidgetAreas } from "../../../src/widgets/index.js";
+import {
+	getWidgetArea,
+	getWidgetAreas,
+	invalidateWidgetObjectCache,
+} from "../../../src/widgets/index.js";
 
 afterAll(destroySharedPool);
 
@@ -174,5 +180,48 @@ describeEachDialect("widget area request cache", (dialect) => {
 		const area = await runWithContext({ editMode: false }, () => getWidgetArea("footer"));
 		expect(area?.label).toBe("Updated");
 		expect(queries).toHaveLength(1);
+	});
+
+	it("serves widget areas from the object cache across requests until invalidated", async () => {
+		const store = new Map<string, string>();
+		__setObjectCacheBackendForTests(
+			{
+				get: (key) => Promise.resolve(store.get(key) ?? null),
+				set: (key, value) => {
+					store.set(key, value);
+					return Promise.resolve();
+				},
+				delete: (key) => {
+					store.delete(key);
+					return Promise.resolve();
+				},
+			},
+			{ revalidate: 60_000, defaultTtl: 3600 },
+		);
+		try {
+			const reads = [
+				() =>
+					runWithContext({ editMode: false }, async () => {
+						await prefetchLayoutData();
+						return getWidgetArea("footer");
+					}),
+				() => runWithContext({ editMode: false }, () => getWidgetArea("footer")),
+			];
+			for (const read of reads) {
+				const cold = await read();
+				await waitForDeferredTasks();
+
+				queries = [];
+				expect(await read()).toEqual(cold);
+				expect(queries).toHaveLength(0);
+
+				invalidateWidgetObjectCache();
+				expect(await read()).toEqual(cold);
+				expect(queries).toHaveLength(1);
+				await waitForDeferredTasks();
+			}
+		} finally {
+			__setObjectCacheBackendForTests(null);
+		}
 	});
 });
