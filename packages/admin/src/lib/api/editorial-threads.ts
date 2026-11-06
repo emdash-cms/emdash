@@ -43,6 +43,8 @@ export interface EditorialThread {
 	createdAt: string;
 	updatedAt: string;
 	comments: EditorialComment[];
+	/** Users the comments mention, with their current names. */
+	mentions: EditorialPerson[];
 	can: { resolve: boolean; delete: boolean };
 }
 
@@ -96,6 +98,19 @@ export async function fetchEditorialThreads(entry: EditorialEntry): Promise<Edit
 		cursor = page.nextCursor;
 	} while (cursor);
 	return threads;
+}
+
+/** Up to 10 users who can be mentioned, matched by display name. */
+export async function fetchEditorialMentionable(
+	entry: EditorialEntry,
+	q: string,
+): Promise<EditorialPerson[]> {
+	const response = await apiFetch(threadsUrl(entry, "/mentionable", { q }));
+	const result = await parseApiResponse<{ items: EditorialPerson[] }>(
+		response,
+		i18n._(msg`Failed to find people to mention`),
+	);
+	return result.items;
 }
 
 export async function createEditorialThread(

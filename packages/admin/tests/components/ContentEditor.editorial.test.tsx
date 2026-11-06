@@ -326,7 +326,7 @@ describe("editorial comments in Portable Text fields", () => {
 		});
 		const margin = screen.getByRole("complementary", { name: "Comments" });
 		const card = margin.element().querySelector.bind(margin.element());
-		await margin.getByRole("textbox", { name: "Reply" }).fill("Still checking");
+		await margin.getByRole("combobox", { name: "Reply" }).fill("Still checking");
 		const { editor } = editorFor("Content");
 
 		selectText(editor, "brown ");
@@ -338,7 +338,7 @@ describe("editorial comments in Portable Text fields", () => {
 			expect(deleted?.checkVisibility({ visibilityProperty: true })).toBe(true);
 		});
 		await expect
-			.element(margin.getByRole("textbox", { name: "Reply" }))
+			.element(margin.getByRole("combobox", { name: "Reply" }))
 			.toHaveValue("Still checking");
 	});
 	it("clears a reply sent before its card moved once the reply is saved", async () => {
@@ -768,7 +768,7 @@ describe("editorial comment drafts", () => {
 		selectText(editor, "brown");
 		await userEvent.keyboard(COMMENT_SHORTCUT);
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		const composer = margin.getByRole("textbox", { name: "Comment" });
+		const composer = margin.getByRole("combobox", { name: "Comment" });
 		await composer.fill("Which shade?");
 		editor.commands.deleteSelection();
 
