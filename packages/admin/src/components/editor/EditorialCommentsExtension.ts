@@ -164,17 +164,23 @@ export function getEditorialHighlights(state: EditorState): EditorialHighlight[]
 
 interface DocTextBlock {
 	key: string;
+	/** The block has no Portable Text key yet, so `key` is a stand-in that is never stored. */
+	unkeyed: boolean;
 	node: PMNode;
 	pos: number;
 }
 
-/** Textblocks that carry a Portable Text key, in document order. */
-function keyedTextblocks(doc: PMNode): DocTextBlock[] {
+/**
+ * Every textblock in document order. Content saved without block keys still
+ * gets stand-in keys, so threads on it can be found by their quote.
+ */
+function documentTextblocks(doc: PMNode): DocTextBlock[] {
 	const blocks: DocTextBlock[] = [];
 	doc.descendants((node, pos) => {
 		if (!node.isTextblock) return true;
 		const key: unknown = node.attrs[PORTABLE_TEXT_KEY_ATTR];
-		if (typeof key === "string" && key) blocks.push({ key, node, pos });
+		if (typeof key === "string" && key) blocks.push({ key, unkeyed: false, node, pos });
+		else blocks.push({ key: `\u0000${pos}`, unkeyed: true, node, pos });
 		return false;
 	});
 	return blocks;
@@ -219,7 +225,7 @@ export function locateAnchor(
 		return found;
 	}
 	if (anchor.type !== "text") return null;
-	const blocks = keyedTextblocks(doc);
+	const blocks = documentTextblocks(doc);
 	const resolved = resolveAnchor(portableTextView(blocks), anchor);
 	if (resolved.state !== "attached" || resolved.anchor.type !== "text") return null;
 	const { blockKey, start, end } = resolved.anchor;
@@ -240,11 +246,11 @@ export function anchorForRange(
 	from: number,
 	to: number,
 ): EditorialTextAnchor | null {
-	const blocks = keyedTextblocks(doc);
+	const blocks = documentTextblocks(doc);
 	const block = blocks.find(
 		(candidate) => from > candidate.pos && to < candidate.pos + candidate.node.nodeSize,
 	);
-	if (!block) return null;
+	if (!block || block.unkeyed) return null;
 	const contentStart = block.pos + 1;
 	return createTextAnchor(
 		portableTextView(blocks),
