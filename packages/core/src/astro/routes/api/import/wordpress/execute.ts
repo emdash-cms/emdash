@@ -611,7 +611,6 @@ export async function importContent(
 			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
 			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
 			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
-			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -623,7 +622,8 @@ export async function importContent(
 				locale: postLocale,
 				translationOf,
 				createdAt,
-				publishedAt,
+				// Future posts get their publication date from the final schedule.
+				publishedAt: post.status === "future" ? undefined : createdAt,
 			});
 
 			if (createResult.success) {

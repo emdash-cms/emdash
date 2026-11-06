@@ -1051,7 +1051,6 @@ export async function importContent(
 				itemDateTime !== undefined && !Number.isNaN(itemDateTime)
 					? item.date.toISOString()
 					: undefined;
-			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -1063,7 +1062,8 @@ export async function importContent(
 				locale: item.locale,
 				translationOf,
 				createdAt,
-				publishedAt,
+				// Future posts get their publication date from the final schedule.
+				publishedAt: item.status === "future" ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
