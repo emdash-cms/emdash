@@ -81,6 +81,11 @@ import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
+import {
+	RequiredFieldMessage,
+	SaveAttemptedContext,
+	useShowRequiredError,
+} from "./RequiredFieldError.js";
 import { RevisionViewProvider } from "./revisions/revision-view-context.js";
 import { RevisionViewBar } from "./revisions/RevisionViewBar.js";
 import { RevisionViewCanvas } from "./revisions/RevisionViewCanvas.js";
@@ -722,6 +727,9 @@ export function ContentEditor({
 	const autosaveSwitchesRef = React.useRef(0);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
+	// Set once the editor has tried to save or publish, so required file, image
+	// and reference fields stay quiet until then.
+	const [saveAttempted, setSaveAttempted] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
 
 	// Synchronously reset form state when the underlying item changes (e.g. a
@@ -760,6 +768,7 @@ export function ContentEditor({
 		entrySwitchesRef.current++;
 		setReferenceState(seedReferenceState(item));
 		setRejectedAutosaveState(null);
+		setSaveAttempted(false);
 		setBylinesTouched(false);
 		setHasAppliedEditorDraftPatch(false);
 	}
@@ -1391,6 +1400,7 @@ export function ContentEditor({
 
 	// Cancel pending autosave on manual save
 	const submitSave = () => {
+		setSaveAttempted(true);
 		if (
 			isContentSaveBlocked ||
 			isPublishingRef.current ||
@@ -1416,6 +1426,7 @@ export function ContentEditor({
 		submitSave();
 	};
 	const handlePublish = React.useCallback(() => {
+		setSaveAttempted(true);
 		if (
 			isPublishingRef.current ||
 			isViewingRef.current ||
@@ -1469,6 +1480,7 @@ export function ContentEditor({
 			invalidFieldsMessage?: string,
 			{ allowUnmodifiedConflict = false }: { allowUnmodifiedConflict?: boolean } = {},
 		) => {
+			if (hasPendingSaveRef.current) setSaveAttempted(true);
 			if (isPublishingRef.current) {
 				return Promise.reject(new Error(t`A publishing action is already in progress`));
 			}
@@ -1843,9 +1855,11 @@ export function ContentEditor({
 		</div>
 	);
 
-	return (
+	const form = (
 		<form
 			onSubmit={handleSubmit}
+			// A save the browser's own check stopped never reaches onSubmit.
+			onInvalidCapture={() => setSaveAttempted(true)}
 			className={cn(
 				"flex h-full flex-col bg-kumo-elevated",
 				isDistractionFree && "fixed inset-0 z-50",
@@ -2145,6 +2159,10 @@ export function ContentEditor({
 				saveBeforeLeaving={isNew ? undefined : saveBeforeLeaving}
 			/>
 		</form>
+	);
+
+	return (
+		<SaveAttemptedContext.Provider value={saveAttempted}>{form}</SaveAttemptedContext.Provider>
 	);
 }
 
@@ -3023,6 +3041,7 @@ function ReferenceFieldRenderer({
 }) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const errorId = React.useId();
 
 	const rows = state?.current ?? [];
 	const nextCursor = state?.nextCursor;
@@ -3078,14 +3097,10 @@ function ReferenceFieldRenderer({
 	// A required field with nothing picked is the one rejection the editor can
 	// make on its own: the save's own message is built server-side in English,
 	// with no code to localize against.
-	const missingRequired = required && rows.length === 0;
+	const missingRequired = useShowRequiredError(required, rows.length === 0);
 
 	return (
-		<Field
-			label={<span className={labelClass}>{label}</span>}
-			required={required}
-			error={missingRequired ? { message: t`Select at least one entry.`, match: true } : undefined}
-		>
+		<Field label={<span className={labelClass}>{label}</span>} required={required}>
 			<div className="space-y-2">
 				{rows.length === 0 ? (
 					<p className="text-sm text-kumo-subtle">{t`No references selected.`}</p>
@@ -3190,9 +3205,14 @@ function ReferenceFieldRenderer({
 					icon={<Plus />}
 					disabled={!fullyLoaded}
 					onClick={() => setPickerOpen(true)}
+					aria-invalid={missingRequired || undefined}
+					aria-describedby={missingRequired ? errorId : undefined}
 				>
 					{multiple ? t`Add reference` : rows.length > 0 ? t`Replace reference` : t`Add reference`}
 				</Button>
+				{missingRequired && (
+					<RequiredFieldMessage id={errorId}>{t`Select at least one entry.`}</RequiredFieldMessage>
+				)}
 			</div>
 
 			<ContentPickerModal
@@ -3503,6 +3523,7 @@ function FileFieldRenderer({
 }: FileFieldRendererProps) {
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const errorId = React.useId();
 
 	// Local snapshots may only reuse internal paths. External providers may link
 	// to HTTP(S) URLs, while unsafe schemes remain plain text.
@@ -3547,6 +3568,8 @@ function FileFieldRenderer({
 	const handleRemove = () => {
 		onChange(null);
 	};
+
+	const showRequiredError = useShowRequiredError(required, !normalized);
 
 	const hasMime = !!normalized?.mimeType;
 	const size = typeof normalized?.size === "number" ? normalized.size : undefined;
@@ -3604,6 +3627,8 @@ function FileFieldRenderer({
 					className="w-full h-32 justify-center border-dashed"
 					onClick={() => setPickerOpen(true)}
 					aria-label={t`Select ${label}`}
+					aria-invalid={showRequiredError || undefined}
+					aria-describedby={showRequiredError ? errorId : undefined}
 				>
 					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
 						<Paperclip className="h-8 w-8" />
@@ -3624,8 +3649,8 @@ function FileFieldRenderer({
 				title={normalized ? t`Replace ${label}` : t`Select ${label}`}
 				confirmLabel={normalized ? t`Replace` : undefined}
 			/>
-			{required && !normalized && (
-				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
+			{showRequiredError && (
+				<RequiredFieldMessage id={errorId}>{t`This field is required`}</RequiredFieldMessage>
 			)}
 		</div>
 	);
