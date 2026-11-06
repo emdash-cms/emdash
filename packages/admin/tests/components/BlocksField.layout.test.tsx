@@ -4,7 +4,6 @@ import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { BlocksField, type BlocksFieldProps } from "../../src/components/BlocksField.js";
-import { RepeaterField } from "../../src/components/RepeaterField.js";
 import type { BlockFieldDefinition, BlockType } from "../../src/lib/api/schema.js";
 import { render } from "../utils/render.js";
 
@@ -64,7 +63,7 @@ function renderField(ui: React.ReactElement) {
  * and can't emulate them.
  */
 function showGutters() {
-	for (const add of document.querySelectorAll<HTMLElement>('[aria-label="Add block below"]')) {
+	for (const add of document.querySelectorAll<HTMLElement>('[aria-label^="Add block below"]')) {
 		add.parentElement!.style.display = "flex";
 	}
 }
@@ -232,6 +231,9 @@ describe("Block row layout", () => {
 
 		const toggle = screen.getByRole("button", { name: "Long", exact: true });
 		await toggle.click();
+		// The fields grow open before there is anything to scroll past.
+		const row = document.querySelector("[data-block-key]")!;
+		await expect.poll(() => row.getAnimations({ subtree: true }).length).toBe(0);
 		const scroller = screen.getByTestId("scroller").element();
 		scroller.scrollTop = 400;
 		await expect
@@ -267,7 +269,7 @@ describe("Block row layout", () => {
 				.element()
 				.getBoundingClientRect();
 			const handle = screen
-				.getByRole("button", { name: "Block actions - drag to reorder, click for menu" })
+				.getByRole("button", { name: "Reorder Statement" })
 				.element()
 				.getBoundingClientRect();
 			const caret = screen
@@ -286,6 +288,69 @@ describe("Block row layout", () => {
 		},
 	);
 
+	it("shows only the hovered block's gutter after a click, and the gutter of a row whose menu the keyboard opened", async () => {
+		const screen = await renderField(
+			<div style={{ width: 480, marginInline: 80 }}>
+				<Field
+					value={[
+						{ _type: "statement", _version: 1, _key: "one", title: "One" },
+						{ _type: "statement", _version: 1, _key: "two", title: "Two" },
+					]}
+					blockTypes={[blockType("statement", "Statement")]}
+				/>
+			</div>,
+		);
+
+		showGutters();
+		const row = (key: string) => document.querySelector(`[data-block-key="${key}"]`)!;
+		const gutterShows = (key: string) =>
+			row(key)
+				.querySelector<HTMLElement>('[aria-label^="Add block below"]')!
+				.checkVisibility({ opacityProperty: true });
+		const toggles = screen.getByRole("button", { name: "Statement", exact: true });
+
+		await toggles.first().click();
+		await userEvent.hover(toggles.last());
+		await expect.poll(() => gutterShows("two")).toBe(true);
+		expect(gutterShows("one")).toBe(false);
+
+		await userEvent.unhover(toggles.last());
+		await expect.poll(() => gutterShows("two")).toBe(false);
+		await userEvent.keyboard("{Tab}{Enter}");
+		await expect.element(screen.getByRole("menu")).toBeVisible();
+		expect(row("one").contains(document.activeElement)).toBe(false);
+		await expect.poll(() => gutterShows("one")).toBe(true);
+		expect(gutterShows("two")).toBe(false);
+	});
+
+	it("hides a block's gutter once the picker its + opened with the pointer closes, but shows it for the keyboard", async () => {
+		const screen = await renderField(
+			<div style={{ width: 480, marginInline: 80 }}>
+				<Field
+					value={[
+						{ _type: "statement", _version: 1, _key: "one", title: "One" },
+						{ _type: "statement", _version: 1, _key: "two", title: "Two" },
+					]}
+					blockTypes={[blockType("statement", "Statement")]}
+				/>
+			</div>,
+		);
+
+		showGutters();
+		const add = screen.getByRole("button", { name: "Add block below" }).first();
+		const gutterShows = () => add.element().checkVisibility({ opacityProperty: true });
+		await add.click();
+		await expect.element(screen.getByRole("dialog", { name: "Add block" })).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(add).toHaveFocus();
+		await userEvent.hover(screen.getByText("Layout", { exact: true }));
+		await expect.poll(gutterShows).toBe(false);
+
+		await userEvent.keyboard("{Shift}");
+		await expect.element(add).toHaveFocus();
+		await expect.poll(gutterShows).toBe(true);
+	});
+
 	it("leaves no gutter on a phone-width screen", async () => {
 		await page.viewport(375, 812);
 		const screen = await renderField(
@@ -300,7 +365,7 @@ describe("Block row layout", () => {
 	});
 
 	it.each(["ltr", "rtl"] as const)(
-		"keeps a long repeater item title from widening the field (%s)",
+		"keeps a long list item title from widening the field (%s)",
 		async (dir) => {
 			const quoteFields = [{ slug: "quote", label: "Quote", type: "text" }];
 			const quote =
@@ -319,14 +384,12 @@ describe("Block row layout", () => {
 								},
 							]),
 						]}
-						renderField={({ name, field, value, onChange }) => (
-							<RepeaterField
-								key={name}
-								id={name}
-								label={field.label ?? name}
-								value={value}
-								onChange={onChange}
-								subFields={quoteFields}
+						renderField={({ name, value, onChange, chrome }) => (
+							<textarea
+								id={`field-${name}`}
+								aria-labelledby={chrome.labelledBy}
+								value={typeof value === "string" ? value : ""}
+								onChange={(event) => onChange(event.target.value)}
 							/>
 						)}
 					/>
@@ -340,8 +403,8 @@ describe("Block row layout", () => {
 			for (const control of [
 				screen.getByRole("button", { name: "Add block", exact: true }),
 				screen.getByRole("button", { name: "Testimonials actions" }),
-				screen.getByRole("button", { name: "Add Item" }),
-				screen.getByRole("button", { name: "Remove item 1" }),
+				screen.getByRole("button", { name: "Add item" }),
+				screen.getByRole("button", { name: `${quote} actions` }),
 			]) {
 				const box = control.element().getBoundingClientRect();
 				expect(box.left).toBeGreaterThanOrEqual(bounds.left);

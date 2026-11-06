@@ -5,7 +5,9 @@ import {
 	createBlockValue,
 	duplicateBlockValue,
 	insertBlockValue,
+	isBlankLine,
 	moveBlockValue,
+	pastedLines,
 	updateBlockFieldValue,
 } from "../../src/lib/block-field-state.js";
 
@@ -48,6 +50,30 @@ describe("block field state", () => {
 			_version: 2,
 			_key: "new-key",
 			heading: "Hello",
+		});
+	});
+
+	it("starts a new block's switches off unless they have a default", () => {
+		const withSwitches: BlockType = {
+			...type,
+			versions: [
+				{
+					...type.versions[1]!,
+					fields: [
+						{ slug: "centered", label: "Center the layout", type: "boolean", required: true },
+						{ slug: "dark", label: "Dark", type: "boolean", defaultValue: true },
+						{ slug: "title", label: "Title", type: "string" },
+					],
+				},
+			],
+		};
+
+		expect(createBlockValue(withSwitches, "new-key")).toEqual({
+			_type: "hero",
+			_version: 2,
+			_key: "new-key",
+			centered: false,
+			dark: true,
 		});
 	});
 
@@ -110,5 +136,27 @@ describe("block field state", () => {
 			"two",
 		]);
 		expect(blocks).toHaveLength(2);
+	});
+});
+
+describe("type-in list lines", () => {
+	it("treats a missing, empty or whitespace-only line as blank", () => {
+		expect([undefined, null, "", "   ", "\t\n"].map(isBlankLine)).toEqual([
+			true,
+			true,
+			true,
+			true,
+			true,
+		]);
+		expect(["Norma", " a "].map(isBlankLine)).toEqual([false, false]);
+	});
+
+	it("splits pasted text into one trimmed entry per line with text", () => {
+		expect(pastedLines("Hotel Wilde\r\n\r\n  Norma  \rArc\n\n")).toEqual([
+			"Hotel Wilde",
+			"Norma",
+			"Arc",
+		]);
+		expect(pastedLines("\n \n")).toEqual([]);
 	});
 });

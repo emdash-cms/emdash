@@ -373,7 +373,7 @@ describe("BlocksField", () => {
 		await expect.element(screen.getByLabelText("Caption")).toHaveFocus();
 	});
 
-	it("duplicates a block below the original and opens the copy", async () => {
+	it("duplicates a block below the original, closed like the original", async () => {
 		const onValue = vi.fn();
 		vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce(
 			"00000000-0000-4000-8000-000000000002",
@@ -383,14 +383,17 @@ describe("BlocksField", () => {
 		await openMenu("one");
 		await screen.getByRole("menuitem", { name: "Duplicate" }).click();
 
-		expect(rowKeys()).toEqual(["one", "00000000-0000-4000-8000-000000000002", "two"]);
+		await expect.poll(rowKeys).toEqual(["one", "00000000-0000-4000-8000-000000000002", "two"]);
 		expect(onValue.mock.lastCall?.[0][1]).toEqual({
 			...heroBlock("one"),
 			_key: "00000000-0000-4000-8000-000000000002",
 		});
+		const copy = row("00000000-0000-4000-8000-000000000002");
 		await expect
-			.element(row("00000000-0000-4000-8000-000000000002").getByLabelText("Title"))
-			.toHaveValue("one");
+			.element(copy.getByRole("button", { name: "Hero", exact: true }))
+			.toHaveAttribute("aria-expanded", "false");
+		await copy.getByRole("button", { name: "Hero", exact: true }).click();
+		await expect.element(copy.getByLabelText("Title")).toHaveValue("one");
 		await expect
 			.element(row("one").getByRole("button", { name: "Hero", exact: true }))
 			.toHaveAttribute("aria-expanded", "false");
@@ -466,9 +469,7 @@ describe("BlocksField", () => {
 
 	it("opens the block menu from the drag handle with Enter or Space", async () => {
 		const screen = await renderField({ initial: [heroBlock("one")] });
-		const handle = row("one").getByRole("button", {
-			name: "Block actions - drag to reorder, click for menu",
-		});
+		const handle = row("one").getByRole("button", { name: "Reorder Hero" });
 
 		for (const key of ["{Enter}", " "]) {
 			(handle.element() as HTMLElement).focus();
@@ -486,14 +487,14 @@ describe("BlocksField", () => {
 		await expect.element(handle).toHaveAttribute("aria-expanded", "false");
 	});
 
-	it("describes each block's actions button with its version", async () => {
+	it("describes a block's actions button with its version only when that's an older one", async () => {
 		await renderField({
 			initial: [heroBlock("current"), { _type: "hero", _version: 1, _key: "old", heading: "Old" }],
 		});
 
 		await expect
 			.element(row("current").getByRole("button", { name: "Hero actions" }))
-			.toHaveAccessibleDescription("Version 2");
+			.not.toHaveAccessibleDescription();
 		await expect
 			.element(row("old").getByRole("button", { name: "Hero actions" }))
 			.toHaveAccessibleDescription("Version 1");
@@ -544,7 +545,7 @@ describe("BlocksField", () => {
 				.query(),
 		).toBeNull();
 		await screen.getByRole("menuitem", { name: "Delete" }).click();
-		expect(rowKeys()).toEqual(["one", "three"]);
+		await expect.poll(rowKeys).toEqual(["one", "three"]);
 		await expect
 			.element(row("three").getByRole("button", { name: "Hero", exact: true }))
 			.toHaveFocus();
@@ -578,6 +579,7 @@ describe("BlocksField", () => {
 
 		await openMenu("middle");
 		await screen.getByRole("menuitem", { name: "Delete" }).click();
+		await expect.element(screen.getByRole("button", { name: "Undo" })).toBeVisible();
 		const undo = screen.getByRole("button", { name: "Undo" }).element() as HTMLElement;
 		undo.click();
 		await Promise.resolve();
@@ -763,6 +765,54 @@ describe("BlocksField", () => {
 			.toBeVisible();
 		expect(screen.getByLabelText("Must not render").query()).toBeNull();
 	});
+
+	it.each([false, true])(
+		"reveals problems on request unless read-only (read-only: %s)",
+		async (readOnly) => {
+			const note = blockType("note", "Note", [
+				{ slug: "title", label: "Title", type: "string", required: true },
+			]);
+			const props = {
+				id: "field-layout",
+				fieldPath: "layout",
+				label: "Layout",
+				value: [{ _type: "note", _version: 1, _key: "note-1", title: "" }],
+				onChange: vi.fn(),
+				blockTypes: [note],
+				allowedTypes: ["note"],
+				retiredTypes: [],
+				readOnly,
+				renderField: ({ name, field, chrome }: Parameters<BlocksFieldProps["renderField"]>[0]) => (
+					<input
+						key={name}
+						id={`field-${name}`}
+						aria-label={field.label}
+						aria-invalid={chrome.invalid || undefined}
+					/>
+				),
+			};
+			const screen = await render(<BlocksField {...props} reveal={{ token: 0 }} />, {
+				wrapper: Toasty,
+			});
+			await screen.rerender(
+				<BlocksField {...props} reveal={{ token: 1, focusId: "field-layout.note-1.title" }} />,
+			);
+
+			if (readOnly) {
+				await expect.element(screen.getByLabelText("Title")).not.toHaveAttribute("aria-invalid");
+				expect(screen.getByRole("img", { name: "Has fields to fix" }).query()).toBeNull();
+			} else {
+				await expect.element(screen.getByLabelText("Title")).toHaveFocus();
+				await expect
+					.element(screen.getByLabelText("Title"))
+					.toHaveAttribute("aria-invalid", "true");
+				await screen.getByRole("button", { name: "Note", exact: true }).click();
+				await expect
+					.element(screen.getByRole("img", { name: "Has fields to fix" }))
+					.toBeInTheDocument();
+			}
+		},
+	);
 
 	it("shows every block open, with no gutter, menu or Add block, when read-only", async () => {
 		const screen = await renderField({
