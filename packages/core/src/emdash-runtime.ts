@@ -30,6 +30,7 @@ import {
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
 import {
+	liveReferenceData,
 	liveReferenceSelection,
 	mergeStagedReferenceBaselines,
 	mergeStagedReferences,
@@ -39,6 +40,7 @@ import {
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
+import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
@@ -69,6 +71,7 @@ import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
+import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
@@ -83,6 +86,7 @@ import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-dia
 import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { pluginToolName } from "./mcp/plugin-tool-name.js";
 import { normalizeMediaValue } from "./media/normalize.js";
+import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
@@ -104,7 +108,7 @@ import {
 	getSandboxSaveRejectionDetails,
 } from "./plugins/sandbox/proxy.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
-import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
+import { getSandboxRouteErrorDetails, SandboxUnavailableError } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -269,11 +273,17 @@ import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
+import {
+	createSmtpEmailDeliverFromDb,
+	isSmtpEnvConfigured,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
 	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
+	HookTimeoutError,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -294,7 +304,12 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
 import type { PluginState } from "./plugins/state.js";
-import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
+import {
+	generateIndexName,
+	normalizeIndexes,
+	syncDeclaredStorageIndexes,
+	type StorageIndexSyncResult,
+} from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
@@ -345,6 +360,8 @@ type ContentPolicyCheck =
  */
 export interface SandboxedPluginEntry {
 	id: string;
+	displayName?: string;
+	description?: string;
 	version: string;
 	options: Record<string, unknown>;
 	code: string;
@@ -831,8 +848,17 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
-	/** Guards the once-per-process plugin storage-index sync. */
-	private storageIndexesSynced = false;
+	/**
+	 * Plugin IDs whose declared storage indexes have been materialized without
+	 * errors. Per-plugin tracking lets retries target only the plugins that
+	 * failed a previous synchronization, and it keeps newly-installed plugins
+	 * from being treated as ready before their own indexes exist.
+	 */
+	private storageIndexesReady = new Set<string>();
+	private storageIndexesSyncPromises = new Map<
+		string,
+		{ declaration: object; promise: Promise<StorageIndexSyncResult> }
+	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
@@ -985,6 +1011,16 @@ export class EmDashRuntime {
 		if (options.invalidateContentCache) {
 			this.pluginContentCacheInvalidator = options.invalidateContentCache;
 		}
+
+		// Try to materialize plugin-declared indexes before any scheduled plugin
+		// work runs. A partial result leaves failed plugins unmarked so the next
+		// tick retries them.
+		try {
+			await this.ensureStorageIndexesSynced();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
@@ -1028,8 +1064,10 @@ export class EmDashRuntime {
 
 		await this.runSystemCleanupIfDue(currentTime);
 
+		// Retry any plugin storage-index sync that did not complete earlier in
+		// this tick or in a previous tick.
 		try {
-			await this.syncPluginStorageIndexesOnce();
+			await this.ensureStorageIndexesSynced();
 		} catch (error) {
 			console.error("[plugins] Storage index sync failed:", error);
 		}
@@ -1058,21 +1096,144 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Materialize plugin-declared storage indexes, once per process.
-	 *
-	 * Called from the scheduler path, not from request handlers — configured
-	 * plugins have no install handler, so the tick is their only sync moment.
+	 * Build the deduplicated set of plugins that may declare storage indexes.
+	 * Includes configured/trusted plugins, adapted sandboxed plugins, and cached
+	 * marketplace/registry manifests for plugins that may not have been loaded
+	 * into the pipeline yet.
 	 */
-	async syncPluginStorageIndexesOnce(): Promise<void> {
-		if (this.storageIndexesSynced) return;
-		this.storageIndexesSynced = true;
-		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
-		// their manifests are cached at bundle load. Without them, plugins
-		// installed before this feature shipped would never get their indexes.
-		await syncDeclaredStorageIndexes(this.db, [
-			...this.allPipelinePlugins,
-			...marketplaceManifestCache.values(),
-		]);
+	private getStorageIndexPlugins(): Map<
+		string,
+		{
+			id: string;
+			storage?: Record<
+				string,
+				{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+			>;
+		}
+	> {
+		const map = new Map<
+			string,
+			{
+				id: string;
+				storage?: Record<
+					string,
+					{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+				>;
+			}
+		>();
+		for (const plugin of this.allPipelinePlugins) {
+			map.set(plugin.id, plugin);
+		}
+		for (const manifest of marketplaceManifestCache.values()) {
+			if (!map.has(manifest.id)) {
+				map.set(manifest.id, manifest);
+			}
+		}
+		return map;
+	}
+
+	private async runStorageIndexSync(pluginId: string): Promise<StorageIndexSyncResult> {
+		const candidates = [...this.getStorageIndexPlugins().values()].filter(
+			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
+		);
+		const errors: StorageIndexSyncResult["errors"] = [];
+
+		for (const plugin of candidates) {
+			try {
+				const stored = await this.db
+					.selectFrom("_plugin_indexes")
+					.select(["collection", "index_name"])
+					.where("plugin_id", "=", plugin.id)
+					.execute();
+				const storage = { ...plugin.storage };
+				const expected = new Map<string, Set<string>>();
+				for (const [collection, config] of Object.entries(storage)) {
+					const unique = normalizeIndexes(config.uniqueIndexes ?? []);
+					const uniqueFields = new Set(unique.map((fields) => JSON.stringify(fields)));
+					expected.set(
+						collection,
+						new Set([
+							...normalizeIndexes(config.indexes)
+								.filter((fields) => !uniqueFields.has(JSON.stringify(fields)))
+								.map((fields) => generateIndexName(plugin.id, collection, fields)),
+							...unique.map((fields) =>
+								generateIndexName(plugin.id, collection, fields, { unique: true }),
+							),
+						]),
+					);
+				}
+				let hasExtra = false;
+				for (const row of stored) {
+					if (!expected.get(row.collection)?.delete(row.index_name)) hasExtra = true;
+					// Removed collections still need their old indexes dropped.
+					if (!Object.hasOwn(storage, row.collection)) storage[row.collection] = { indexes: [] };
+				}
+				const hasMissing = [...expected.values()].some((names) => names.size > 0);
+				if (hasExtra || hasMissing) {
+					const result = await syncDeclaredStorageIndexes(this.db, [{ id: plugin.id, storage }]);
+					errors.push(...result.errors);
+					if (!result.ok) continue;
+				}
+
+				// A version change can invalidate a pass while its database work is in flight.
+				if (this.getStorageIndexPlugins().get(plugin.id) === plugin) {
+					this.storageIndexesReady.add(plugin.id);
+				}
+			} catch (error) {
+				console.error(`[plugins] Failed to check storage indexes for ${plugin.id}:`, error);
+				errors.push({
+					pluginId: plugin.id,
+					collection: "(sync)",
+					index: "(sync)",
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+
+		return { ok: errors.length === 0, errors };
+	}
+
+	private invalidateStorageIndexReadiness(pluginId: string): void {
+		// Keep the flight: its DDL must finish before a replacement version can sync.
+		this.storageIndexesReady.delete(pluginId);
+	}
+
+	/**
+	 * Ensure declared storage indexes are ready before state-changing plugin
+	 * work runs. Returns `true` only when the requested plugin (or all plugins,
+	 * when no ID is given) has been successfully synchronized. Uses a single
+	 * in-flight sync per plugin, shared by targeted and all-plugin callers.
+	 */
+	async ensureStorageIndexesSynced(pluginId?: string): Promise<boolean> {
+		if (!pluginId) {
+			const results = await Promise.all(
+				Array.from(this.getStorageIndexPlugins().keys(), (id) =>
+					this.ensureStorageIndexesSynced(id),
+				),
+			);
+			return results.every(Boolean);
+		}
+		if (this.storageIndexesReady.has(pluginId)) return true;
+
+		const declaration = this.getStorageIndexPlugins().get(pluginId);
+		if (!declaration) return false;
+		let flight = this.storageIndexesSyncPromises.get(pluginId);
+		if (!flight) {
+			const promise = this.runStorageIndexSync(pluginId).finally(() => {
+				if (this.storageIndexesSyncPromises.get(pluginId)?.promise === promise) {
+					this.storageIndexesSyncPromises.delete(pluginId);
+				}
+			});
+			flight = { declaration, promise };
+			this.storageIndexesSyncPromises.set(pluginId, flight);
+		}
+
+		await flight.promise;
+		if (this.getStorageIndexPlugins().get(pluginId) !== declaration) return false;
+		if (flight.declaration !== declaration) {
+			return this.ensureStorageIndexesSynced(pluginId);
+		}
+		return this.storageIndexesReady.has(pluginId);
 	}
 
 	/**
@@ -1181,12 +1342,13 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run install → activate once for each native plugin registered in the
+	 * Run install → activate once for each loaded plugin registered in the
 	 * integration config that has no `_plugin_state` row.
 	 *
 	 * Only the isolate whose insert creates the row runs the hooks. A plugin
-	 * whose hooks fail is recorded as inactive rather than retried on later
-	 * boots; re-enabling it from the admin runs `plugin:activate`.
+	 * whose own hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`. Sandbox
+	 * unavailability leaves no state so the next boot can retry.
 	 */
 	private async installUnrecordedConfigPlugins(
 		configPlugins: ResolvedPlugin[],
@@ -1194,7 +1356,33 @@ export class EmDashRuntime {
 	): Promise<void> {
 		const stateRepo = new PluginStateRepository(this.db);
 		const failed: ResolvedPlugin[] = [];
-		const recordFailure = (plugin: ResolvedPlugin, hook: string, error: Error | undefined) => {
+		let sandboxReadinessFailed = false;
+		let sandboxReadiness: Promise<void> | undefined;
+		const recordFailure = async (
+			plugin: ResolvedPlugin,
+			hook: string,
+			error: Error | undefined,
+		) => {
+			if (
+				this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+				(error?.name === "SandboxUnavailableError" ||
+					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
+			) {
+				sandboxReadiness = undefined;
+				await this.db
+					.deleteFrom("_plugin_state")
+					.where("plugin_id", "=", plugin.id)
+					.where("version", "=", plugin.version)
+					.where("source", "=", "config")
+					.where("status", "=", "active")
+					.execute();
+				this.pluginStates.delete(plugin.id);
+				console.warn(
+					`EmDash: Sandbox unavailable for config plugin "${plugin.id}"; retrying on next boot:`,
+					error,
+				);
+				return;
+			}
 			console.error(
 				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
 				error,
@@ -1206,20 +1394,60 @@ export class EmDashRuntime {
 			if (recordedStates.has(plugin.id)) continue;
 
 			try {
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					(plugin.hooks["plugin:install"] || plugin.hooks["plugin:activate"])
+				) {
+					if (sandboxReadinessFailed) continue;
+					try {
+						// Readiness has its own deadline, not the hook's execution budget.
+						await (sandboxReadiness ??=
+							sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ?? Promise.resolve());
+						if (sandboxRunner && !sandboxRunner.isHealthy()) {
+							throw new SandboxUnavailableError(
+								plugin.id,
+								sandboxRunner.unavailableReason?.() ?? "not ready",
+							);
+						}
+					} catch (error) {
+						sandboxReadinessFailed = true;
+						console.warn(
+							`EmDash: Sandbox not ready for config plugin "${plugin.id}"; retrying on next boot:`,
+							error,
+						);
+						continue;
+					}
+				}
 				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
 				this.pluginStates.set(plugin.id, "active");
 
 				const install = await this._hooks.runPluginInstall(plugin.id);
 				const installFailure = install.find((result) => !result.success);
 				if (installFailure) {
-					recordFailure(plugin, "plugin:install", installFailure.error);
+					await recordFailure(plugin, "plugin:install", installFailure.error);
 					continue;
 				}
 
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					plugin.hooks["plugin:activate"] &&
+					sandboxRunner &&
+					!sandboxRunner.isHealthy()
+				) {
+					await recordFailure(
+						plugin,
+						"plugin:activate",
+						new SandboxUnavailableError(
+							plugin.id,
+							sandboxRunner.unavailableReason?.() ?? "not ready",
+						),
+					);
+					continue;
+				}
 				const activate = await this._hooks.runPluginActivate(plugin.id);
 				const activateFailure = activate.find((result) => !result.success);
 				if (activateFailure) {
-					recordFailure(plugin, "plugin:activate", activateFailure.error);
+					await recordFailure(plugin, "plugin:activate", activateFailure.error);
 				}
 			} catch (error) {
 				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
@@ -1235,6 +1463,7 @@ export class EmDashRuntime {
 				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
 			}
 			this.pluginStates.set(plugin.id, "inactive");
+			this.setSandboxedPluginActive(plugin.id, false);
 			this.enabledPlugins.delete(plugin.id);
 		}
 		await this.rebuildHookPipeline();
@@ -1410,6 +1639,7 @@ export class EmDashRuntime {
 				}
 
 				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+				this.invalidateStorageIndexReadiness(pluginId);
 				sandboxedPluginCache.set(key, loaded);
 				sandboxedManifestCache.set(key, bundle.manifest);
 				this.sandboxedPlugins.set(key, loaded);
@@ -1454,6 +1684,7 @@ export class EmDashRuntime {
 	 * Mutates allPipelinePlugins and configuredPlugins in place.
 	 */
 	private removePluginFromLists(pluginId: string): void {
+		this.invalidateStorageIndexReadiness(pluginId);
 		const allIdx = this.allPipelinePlugins.findIndex((p) => p.id === pluginId);
 		if (allIdx !== -1) this.allPipelinePlugins.splice(allIdx, 1);
 		const configIdx = this.configuredPlugins.findIndex((p) => p.id === pluginId);
@@ -1564,6 +1795,7 @@ export class EmDashRuntime {
 				const existing = this.allPipelinePlugins.find((p) => p.id === pluginId);
 				if (existing && existing.version === bundle.manifest.version) continue;
 
+				this.invalidateStorageIndexReadiness(pluginId);
 				// Remove any older version
 				if (existing) {
 					this.removePluginFromLists(pluginId);
@@ -1706,6 +1938,7 @@ export class EmDashRuntime {
 
 		const readSiteInfo = async (readDb: Kysely<Database>) => {
 			const siteOpts = await new OptionsRepository(readDb).getMany([
+				"site:title",
 				"emdash:site_title",
 				"site:url",
 				"emdash:site_url",
@@ -1714,7 +1947,10 @@ export class EmDashRuntime {
 				AUTO_SEED_COMPLETE_OPTION,
 				SETUP_COMPLETE_OPTION,
 			]);
-			const siteTitle = siteOpts.get("emdash:site_title");
+			const siteTitle = resolveSiteTitle(
+				siteOpts.get("site:title"),
+				siteOpts.get("emdash:site_title"),
+			);
 			const siteUrl = resolveSiteOrigin(
 				deps.config,
 				siteOpts.get("site:url"),
@@ -1724,7 +1960,7 @@ export class EmDashRuntime {
 			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
 				siteInfo: {
-					siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
+					siteName: deps.siteInfo?.name ?? siteTitle,
 					siteUrl: deps.siteInfo?.url ?? siteUrl,
 					locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
 					// trailingSlash is a build-time Astro routing decision, not a
@@ -1780,10 +2016,12 @@ export class EmDashRuntime {
 				phase("rt.hookselections", "Exclusive hook selections", async () => {
 					// Built-in and sandboxed providers register after these reads, so
 					// only configured plugins' hooks and the always-present
-					// comment:moderate are known here. Hook resolution reads the rest.
+					// comment:moderate and email:deliver are known here. Hook
+					// resolution reads the rest.
 					const keys = Array.from(
 						new Set([
 							"comment:moderate",
+							"email:deliver",
 							...deps.plugins.flatMap((plugin) =>
 								Object.entries(plugin.hooks)
 									.filter(([, hook]) => hook?.exclusive)
@@ -2017,6 +2255,34 @@ export class EmDashRuntime {
 			}
 		}
 
+		// Register the built-in SMTP email provider, even unconfigured, so it
+		// appears in the Settings → Email provider list. The handler loads its
+		// config (DB first, env fallback) on every send. Secrets read
+		// process.env only: import.meta.env is inlined at build time.
+		try {
+			const smtpPlugin = definePlugin({
+				id: SMTP_EMAIL_PLUGIN_ID,
+				version: "1.0.0",
+				capabilities: ["hooks.email-transport:register"],
+				hooks: {
+					"email:deliver": {
+						exclusive: true,
+						// EHLO, STARTTLS, AUTH and DATA over the public internet need far
+						// more than the 5s default hook timeout.
+						timeout: 30_000,
+						handler: createSmtpEmailDeliverFromDb(
+							resolveDb,
+							process.env.EMDASH_ENCRYPTION_KEY ?? null,
+						),
+					},
+				},
+			});
+			allPipelinePlugins.push(smtpPlugin);
+			enabledPlugins.add(smtpPlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register SMTP email provider:", error);
+		}
+
 		// Register built-in default comment moderator.
 		// Always present as a fallback: exclusive hook resolution selects a
 		// single plugin moderator (e.g. AI moderation) over it unless the site
@@ -2234,6 +2500,7 @@ export class EmDashRuntime {
 			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
+			imagePlaceholders: deps.config.imagePlaceholders ?? true,
 			siteInfo,
 			commentModerate: (
 				pluginId: string,
@@ -2434,8 +2701,13 @@ export class EmDashRuntime {
 		sandboxRunner?.setContentActions?.(contentActions);
 
 		if (ownsConfiguredDb && pluginStatesRead) {
+			// A sandbox that failed to load must not consume its first-install guard.
+			const configPlugins = [
+				...deps.plugins,
+				...allPipelinePlugins.filter((plugin) => configuredSandboxIds.has(plugin.id)),
+			];
 			await phase("rt.lifecycle", "Config plugin install/activate", () =>
-				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+				runtime.installUnrecordedConfigPlugins(configPlugins, new Map(pluginStates)),
 			);
 		}
 
@@ -3099,6 +3371,7 @@ export class EmDashRuntime {
 
 		// The pipeline was created from only enabled plugins, so all providers
 		// in it are active. The isActive check always returns true.
+		const smtpFromEnv = isSmtpEnvConfigured();
 		await resolveExclusiveHooksShared({
 			pipeline,
 			isActive: () => true,
@@ -3118,7 +3391,14 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
-			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
+			// Env-configured SMTP gives way to an email plugin. Without env config,
+			// SMTP serves email only once selected in Settings → Email.
+			fallbackProviders: new Set([
+				DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+				...(smtpFromEnv ? [SMTP_EMAIL_PLUGIN_ID] : []),
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
+			]),
+			manualProviders: smtpFromEnv ? undefined : new Set([SMTP_EMAIL_PLUGIN_ID]),
 		});
 	}
 
@@ -4058,6 +4338,10 @@ export class EmDashRuntime {
 						);
 					}
 
+					const entryGroup = existing.translationGroup;
+					await repo.keepStartingRevision(revisionRepo, collection, existing, () =>
+						liveReferenceData(this.db, collection, entryGroup),
+					);
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
@@ -4921,12 +5205,17 @@ export class EmDashRuntime {
 				error: { code: "NO_STORAGE", message: "Storage not configured" },
 			};
 		}
-		const result = await uploadMedia(this.db, this.storage, input, {
-			beforeUpload: async (file) => {
-				if (!this.hooks.hasHooks("media:beforeUpload")) return file;
-				return (await this.hooks.runMediaBeforeUpload(file)).file;
+		const result = await uploadMedia(
+			this.db,
+			this.storage,
+			{ ...input, placeholders: input.placeholders ?? this.config.imagePlaceholders ?? true },
+			{
+				beforeUpload: async (file) => {
+					if (!this.hooks.hasHooks("media:beforeUpload")) return file;
+					return (await this.hooks.runMediaBeforeUpload(file)).file;
+				},
 			},
-		});
+		);
 		if (result.success && !result.data.deduplicated && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			await this.hooks.runMediaAfterUpload({
@@ -5732,6 +6021,24 @@ export class EmDashRuntime {
 			};
 		}
 
+		// State-changing plugin routes may rely on declared unique indexes and
+		// other constraints. Block them until those indexes are materialized.
+		// Read-only routes skip this check so ordinary logged-out GET requests
+		// don't pay for index DDL.
+		if (normalizedMethod !== "GET" && normalizedMethod !== "HEAD") {
+			const indexesReady = await this.ensureStorageIndexesSynced(pluginId);
+			if (!indexesReady) {
+				return {
+					success: false,
+					status: 503,
+					error: {
+						code: "STORAGE_INDEXES_NOT_READY",
+						message: "Plugin storage indexes are not ready",
+					},
+				};
+			}
+		}
+
 		// Authenticated caller for `ctx.user`. Undefined for public routes
 		// (the catch-all only forwards the caller after private-route auth)
 		// and for machine tokens with no bound user.
@@ -6069,8 +6376,9 @@ export class EmDashRuntime {
 
 	/**
 	 * Normalize field values in content data before validation.
-	 * Turns a blank string in an array-valued field into `null`, and fills
-	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
+	 * Turns a blank string in an array-valued field into `null`, fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from
+	 * providers, and links rich text media named by file URL to its media item.
 	 */
 	private async normalizeFieldValues(
 		collection: string,
@@ -6109,7 +6417,27 @@ export class EmDashRuntime {
 		const blockFields = includeBlocks
 			? collectionInfo.fields.filter((field) => field.type === "blocks")
 			: [];
+		// Collected across top-level and block fields so linking costs one lookup.
+		const portableTextValues: { owner: Record<string, unknown>; slug: string }[] =
+			collectionInfo.fields
+				.filter((field) => field.type === "portableText" && Array.isArray(result[field.slug]))
+				.map((field) => ({ owner: result, slug: field.slug }));
+		const linkPortableTextValues = async () => {
+			if (portableTextValues.length === 0) return;
+			try {
+				const linked = await linkPortableTextFileUrls(
+					portableTextValues.map(({ owner, slug }) => owner[slug]),
+					(storageKeys) => new MediaRepository(this.db).findIdsByStorageKeys(storageKeys),
+				);
+				for (const [index, { owner, slug }] of portableTextValues.entries()) {
+					owner[slug] = linked[index];
+				}
+			} catch {
+				// Don't fail the save if linking file URLs to media items fails
+			}
+		};
 		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			await linkPortableTextValues();
 			return result;
 		}
 
@@ -6196,6 +6524,8 @@ export class EmDashRuntime {
 									} else if (isBlankString(nestedValue)) {
 										normalizedBlock[nestedField.slug] = null;
 									}
+								} else if (nestedField.type === "portableText" && Array.isArray(nestedValue)) {
+									portableTextValues.push({ owner: normalizedBlock, slug: nestedField.slug });
 								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
 									const imageSlugs = (nestedField.validation?.subFields ?? [])
 										.filter((subField) => subField.type === "image")
@@ -6233,6 +6563,7 @@ export class EmDashRuntime {
 			}
 		}
 
+		await linkPortableTextValues();
 		return result;
 	}
 

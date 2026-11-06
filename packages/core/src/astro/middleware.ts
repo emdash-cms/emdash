@@ -142,6 +142,14 @@ function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
 
+/** Nested request contexts copy this one, so call it before creating them. */
+function providePublicMediaUrl(storage: Storage | null): (storageKey: string) => string {
+	const resolve = createPublicMediaUrlResolver(storage);
+	const ctx = getRequestContext();
+	if (ctx) ctx.publicMediaUrl = resolve;
+	return resolve;
+}
+
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
 
@@ -593,6 +601,8 @@ function pushMetricsTimings(
 	}
 }
 
+const TRAILING_SLASH_RE = /\/$/;
+
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 const SITEMAP_COLLECTION_RE = /^\/sitemap-([^/]+)\.xml$/;
@@ -772,8 +782,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Process /_emdash routes and public routes with an active session
 		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 		const isEmDashRoute = url.pathname.startsWith("/_emdash");
+		const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
+		const publicPath =
+			base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
 		const isPublicRuntimeRoute =
-			PUBLIC_RUNTIME_ROUTES.has(url.pathname) || isCollectionSitemapPath(url.pathname);
+			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath);
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing
@@ -896,6 +909,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						const runtime = await runtimeInit;
 						markSetupVerified();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
+						const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
@@ -903,7 +917,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
-							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							getPublicMediaUrl,
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
@@ -1141,7 +1155,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					get db() {
 						return runtime.db;
 					},
-					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+					getPublicMediaUrl: providePublicMediaUrl(runtime.storage),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,

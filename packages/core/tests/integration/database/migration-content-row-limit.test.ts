@@ -88,7 +88,7 @@ describeEachDialect("content row limit for runtime migrations", (dialect) => {
 
 			await expect(result).rejects.toBeInstanceOf(MigrationRowLimitError);
 			await expect(result).rejects.toMatchObject({
-				migrations: ["079_datetime_normalization"],
+				migrations: ["079_datetime_normalization", "092_plugin_kv_options"],
 				rowLimit: 2,
 			});
 			const status = await getExactMigrationStatus(ctx.db, {
@@ -150,5 +150,150 @@ describeEachDialect("content row limit for runtime migrations", (dialect) => {
 
 			await expect(run(1)).rejects.toBeInstanceOf(MigrationRowLimitError);
 		});
+	});
+});
+
+describeEachDialect("plugin KV options migration row limit", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		ctx = await createForDialect(dialect);
+		const { error } = await createMigrator(ctx.db, {
+			migrationTableSchema: ctx.pgCtx?.schemaName,
+		}).migrateTo("091_redirect_artifacts");
+		if (error) throw error;
+
+		const qualifyingIds = [
+			"one",
+			"two",
+			"SETTINGS:uppercase",
+			...Array.from({ length: 30 }, (_, index) => `padding-${index}`),
+		];
+		for (let offset = 0; offset < qualifyingIds.length; offset += 10) {
+			await ctx.db
+				.insertInto("_plugin_storage")
+				.values(
+					qualifyingIds.slice(offset, offset + 10).map((id, index) => ({
+						plugin_id: "plugin",
+						collection: "__kv",
+						id,
+						data: JSON.stringify({ value: offset + index + 1 }),
+						revision: `revision-${offset + index + 1}`,
+					})),
+				)
+				.execute();
+		}
+		await ctx.db
+			.insertInto("_plugin_storage")
+			.values([
+				{
+					plugin_id: "plugin",
+					collection: "__kv",
+					id: "settings:ignored",
+					data: '{"value":34}',
+					revision: "revision-34",
+				},
+				{
+					plugin_id: "plugin",
+					collection: "other",
+					id: "ignored",
+					data: '{"value":35}',
+					revision: "revision-35",
+				},
+			])
+			.execute();
+		await ctx.db
+			.insertInto("options")
+			.values({ name: "plugin:plugin:one", value: '{"old":true}', revision: "existing" })
+			.execute();
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("allows more than 5,000 KV rows under the runtime limit", async () => {
+		for (let offset = 33; offset < 5001; offset += 10) {
+			await ctx.db
+				.insertInto("_plugin_storage")
+				.values(
+					Array.from({ length: Math.min(10, 5001 - offset) }, (_, index) => ({
+						plugin_id: "plugin",
+						collection: "__kv",
+						id: `large-${offset + index}`,
+						data: JSON.stringify({ value: offset + index }),
+						revision: `large-revision-${offset + index}`,
+					})),
+				)
+				.execute();
+		}
+
+		const { applied } = await runMigrations(ctx.db, {
+			migrationTableSchema: ctx.pgCtx?.schemaName,
+			contentRowLimit: 5000,
+		});
+		expect(applied[0]).toBe("092_plugin_kv_options");
+	});
+
+	it("accepts one batch at two statement units and skips excluded rows", async () => {
+		const { applied } = await runMigrations(ctx.db, {
+			migrationTableSchema: ctx.pgCtx?.schemaName,
+			contentRowLimit: 2,
+		});
+
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		const count = await ctx.db
+			.selectFrom("options")
+			.select(({ fn }) => fn.countAll<number>().as("count"))
+			.where("name", "like", "plugin:plugin:%")
+			.executeTakeFirstOrThrow();
+		expect(Number(count.count)).toBe(33);
+	});
+
+	it("refuses at the next batch boundary", async () => {
+		await ctx.db
+			.insertInto("_plugin_storage")
+			.values({
+				plugin_id: "plugin",
+				collection: "__kv",
+				id: "padding-30-extra",
+				data: '{"value":36}',
+				revision: "revision-36",
+			})
+			.execute();
+
+		await expect(
+			runMigrations(ctx.db, {
+				migrationTableSchema: ctx.pgCtx?.schemaName,
+				contentRowLimit: 2,
+			}),
+		).rejects.toBeInstanceOf(MigrationRowLimitError);
+		expect(
+			await ctx.db
+				.selectFrom("options")
+				.selectAll()
+				.where("name", "like", "plugin:plugin:%")
+				.execute(),
+		).toEqual([{ name: "plugin:plugin:one", value: '{"old":true}', revision: "existing" }]);
+	});
+
+	it("counts rows with existing conflicts and migrates only the KV rows", async () => {
+		const { applied } = await runMigrations(ctx.db, {
+			migrationTableSchema: ctx.pgCtx?.schemaName,
+			contentRowLimit: 2,
+		});
+
+		expect(applied[0]).toBe("092_plugin_kv_options");
+		const migrated = await ctx.db
+			.selectFrom("options")
+			.select(["name", "value"])
+			.where("name", "like", "plugin:plugin:%")
+			.execute();
+		expect(migrated).toHaveLength(33);
+		expect(migrated).toContainEqual({
+			name: "plugin:plugin:SETTINGS:uppercase",
+			value: '{"value":3}',
+		});
+		expect(migrated).toContainEqual({ name: "plugin:plugin:one", value: '{"old":true}' });
 	});
 });

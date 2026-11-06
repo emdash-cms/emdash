@@ -123,7 +123,7 @@ The runner declares Miniflare as an optional dependency. Package managers instal
 
 ### How the `workerd` process runs
 
-EmDash starts `workerd` while it initializes on the first request to the site, once the sandboxed plugins are loaded, and waits up to 10 seconds for the plugin services to answer. Installing or updating a plugin from the admin restarts it. Everything `workerd` writes to stdout or stderr appears in the server's output with the prefix `[emdash:workerd]`.
+EmDash starts `workerd` while it initializes on the first request to the site, once the sandboxed plugins are loaded, and waits up to 10 seconds for the plugin services to answer. Installing or updating a plugin from the admin schedules a restart, subject to any pending restart delay. Everything `workerd` writes to stdout or stderr appears in the server's output with the prefix `[emdash:workerd]`.
 
 Plugin services listen on `127.0.0.1`, and the channel back to the server is a Unix domain socket (a `127.0.0.1` TCP port on Windows). No inbound port needs to be opened.
 
@@ -199,13 +199,17 @@ On Node.js, `workerd is missing or its binary does not run on this platform` mea
 
 On Windows, run `node_modules\\.bin\\workerd.cmd --version`. If the command fails, `workerd` is missing from `node_modules` or the installed binary does not run on this platform. Reinstall on the target platform with optional dependencies enabled.
 
+### "workerd failed to start"
+
+Plugin hook and route calls receive this fixed reason when startup fails. Check the server log entry prefixed `[emdash:workerd] startup failed:` for the cause. Output from `workerd` itself also appears with the prefix `[emdash:workerd]`.
+
 ### "workerd failed to start within 10 seconds"
 
-The child process started, but its plugin services did not answer within 10 seconds. The lines prefixed `[emdash:workerd]` before this message carry the output of `workerd` itself, including configuration and startup errors. The runner retries on the next invocation.
+The child process started, but its plugin services did not answer within 10 seconds. The lines prefixed `[emdash:workerd]` before this message carry the output of `workerd` itself, including configuration and startup errors. The runner retries on the next invocation after the restart delay, while the retry budget remains available.
 
 ### "workerd crashed 5 times in 60 seconds, giving up"
 
-The runner has stopped restarting `workerd`. The `[emdash:workerd] workerd exited with <reason>` lines before this message name the exit code or signal of each crash. Fix the cause, then restart the server.
+The runner has stopped restarting `workerd`. The `[emdash:workerd] workerd exited with <reason>` lines before this message name the exit code or signal of each crash. Fix the cause, then restart the server or install or update a plugin to retry.
 
 ### `SANDBOX_NOT_AVAILABLE` when installing a plugin
 

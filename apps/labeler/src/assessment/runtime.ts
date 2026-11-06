@@ -1,7 +1,10 @@
 import {
 	AtprotoWebDidDocumentResolver,
 	CompositeDidDocumentResolver,
+	CompositeHandleResolver,
+	DohJsonHandleResolver,
 	PlcDidDocumentResolver,
+	WellKnownHandleResolver,
 } from "@atcute/identity-resolver";
 import { isDid, type AtprotoDid } from "@atcute/lexicons/syntax";
 import { REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
@@ -27,11 +30,11 @@ import {
 	readLabelerRuntimeConfig,
 	type LabelerRuntimeConfig,
 } from "../runtime-config.js";
-import { createDohHostnameResolver } from "../runtime-network.js";
+import { createDohHostnameResolver, DOH_ENDPOINT } from "../runtime-network.js";
 import { createLabelPublicationTarget } from "../subscriptions/publisher.js";
 import { createD1AssessmentLifecycleStore } from "./lifecycle.js";
 import { createGuardedMediaAcquirer } from "./media.js";
-import { publisherHandleFromDidDocument } from "./publisher-identity.js";
+import { publisherHandleFromDidDocument, verifiedHandleDid } from "./publisher-identity.js";
 import { createAtprotoExactRecordVerifier } from "./records.js";
 import {
 	createCloudflareImagesDecoder,
@@ -117,6 +120,17 @@ export async function resolveProductionPublisherHandle(
 	const document = await createProductionDidResolver(resolveHostname).resolve(publisherDid);
 	if (document.id !== publisherDid) return null;
 	return publisherHandleFromDidDocument(document);
+}
+
+export async function resolveProductionHandleDid(handle: string): Promise<string | null> {
+	const resolveHostname = createDohHostnameResolver();
+	const handleResolver = new CompositeHandleResolver({
+		methods: {
+			dns: new DohJsonHandleResolver({ dohUrl: DOH_ENDPOINT }),
+			http: new WellKnownHandleResolver({ fetch: createGuardedIdentityFetch(resolveHostname) }),
+		},
+	});
+	return verifiedHandleDid(handle, handleResolver, createProductionDidResolver(resolveHostname));
 }
 
 export async function createProductionListingLabelIssuer(
