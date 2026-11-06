@@ -368,8 +368,9 @@ export interface EditorActionsProps {
 	supportsDrafts?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
-	/** Publishing already flushes autosave; show a mobile save action when a retry is needed. */
+	/** Whether the Save control stays visible on small screens. */
 	showMobileSave?: boolean;
+	/** Called when the focused Save control unmounts and focus would fall to the page body. */
 	onSaveControlRemoved?: () => void;
 	/** Autosave in flight — reported by the save button's busy state. */
 	isAutosaving?: boolean;
