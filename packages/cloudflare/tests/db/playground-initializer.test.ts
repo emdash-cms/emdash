@@ -75,4 +75,35 @@ describe("initializePlayground", () => {
 		}
 		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
 	});
+
+	it("seeds example editorial threads that visitors can reply to and resolve", async () => {
+		const db = createDatabase();
+		databases.push(db);
+
+		await initializePlayground(db, loadPlaygroundSeed());
+
+		const threads = await db
+			.selectFrom("_emdash_editorial_threads")
+			.select(["id", "anchor", "status"])
+			.orderBy("created_at")
+			.orderBy("id")
+			.execute();
+		expect(threads.map((thread) => JSON.parse(thread.anchor))).toMatchObject([
+			{ type: "text", quote: "you spend more time migrating than building" },
+			{ type: "field", field: "excerpt" },
+		]);
+		expect(threads.every((thread) => thread.status === "open")).toBe(true);
+
+		const replies = await db
+			.selectFrom("_emdash_editorial_comments")
+			.select("author_id")
+			.where("thread_id", "=", threads[0]!.id)
+			.orderBy("created_at")
+			.orderBy("id")
+			.execute();
+		expect(replies.map((reply) => reply.author_id)).toEqual([
+			"playground-reviewer",
+			"playground-admin",
+		]);
+	});
 });

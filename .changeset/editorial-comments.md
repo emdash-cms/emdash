@@ -2,6 +2,7 @@
 "emdash": minor
 "@emdash-cms/auth": minor
 "@emdash-cms/admin": minor
+"@emdash-cms/cloudflare": minor
 ---
 
 Adds editorial comments: threads that staff leave on an entry while reviewing it, separate from the public comments visitors post.
@@ -20,6 +21,8 @@ Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs 
 - `editorial:manage` (Editor and above): resolve, reopen and delete any thread, and delete anyone's comment.
 
 A thread's creator and the entry's author may also resolve and reopen it. A creator may delete their own thread until someone else replies, and only a comment's author may edit it.
+
+New playground sessions open with example threads on the "Building for the Long Term" post, from a demo reviewer, so visitors can reply, resolve and add their own.
 
 #### Upgrading
 
