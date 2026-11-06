@@ -3,6 +3,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+	anchorForRange,
 	anchorForSelection,
 	createEditorialCommentsExtension,
 	getEditorialHighlights,
@@ -69,6 +70,25 @@ describe("editorial comment highlights", () => {
 
 		expect(range).not.toBeNull();
 		expect(ed.state.doc.textBetween(range!.from, range!.to)).toBe("line");
+	});
+
+	it("finds a quote in content saved without block keys, without storing a stand-in key", () => {
+		const ed = createEditor([{ key: null, content: [text("The quick brown fox")] }]);
+		const anchor: EditorialTextAnchor = {
+			type: "text",
+			field: "content",
+			blockKey: "gone",
+			start: 4,
+			end: 9,
+			quote: "quick",
+			prefix: "The ",
+			suffix: " brown fox",
+		};
+
+		const range = locateAnchor(ed.state.doc, anchor);
+
+		expect(ed.state.doc.textBetween(range!.from, range!.to)).toBe("quick");
+		expect(anchorForRange(ed.state.doc, "content", range!.from, range!.to)).toBeNull();
 	});
 
 	it("moves a highlight with text typed before it", () => {
