@@ -703,7 +703,7 @@ export function EditorActions({
 					size="sm"
 					variant={saveVariant}
 					className={cn(
-						"min-w-0",
+						"min-w-0 max-sm:w-full",
 						!savesFirstDraft && compactBarButtonClassName,
 						isNew && "max-sm:col-span-2",
 						!showMobileSave && "max-sm:hidden",

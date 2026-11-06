@@ -611,6 +611,7 @@ describe("ContentEditPage rich text body", () => {
 		server.advance({ title: "Saved title", content: textBlocks("Body saved in another tab") });
 		server.resolveRead();
 		await vi.advanceTimersByTimeAsync(2500);
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Body saved in another tab"));
 		expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(1);
 
 		await typeAtEnd("!");
@@ -725,7 +726,9 @@ describe("ContentEditPage rich text body", () => {
 			.element()
 			.click();
 		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Published body"));
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+			.toBeNull();
 	});
 });
 

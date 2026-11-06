@@ -332,7 +332,10 @@ describe("ContentEditPage save error wiring", () => {
 		});
 		await screen.getByRole("combobox", { name: "Author" }).click();
 		await vi.advanceTimersByTimeAsync(150);
-		await page.getByRole("option", { name: /Second author/ }).click();
+		page
+			.getByRole("option", { name: /Second author/ })
+			.element()
+			.click();
 		await vi.advanceTimersByTimeAsync(1000);
 		await vi.waitFor(() =>
 			expect(screen.getByRole("combobox", { name: "Author" }).element().textContent).toContain(
