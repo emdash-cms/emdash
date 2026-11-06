@@ -19,6 +19,7 @@ import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkSendBody } from "#api/schemas.js";
+import { resolveSiteTitle } from "#api/site-title.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
@@ -62,8 +63,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Build magic link config using the configured site URL, stored option as fallback (not request Host header)
 		const options = new OptionsRepository(emdash.db);
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
-		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
-		const siteName = siteOptions.get("emdash:site_title") ?? "EmDash";
+		const siteOptions = await options.getMany<string>([
+			"site:title",
+			"emdash:site_title",
+			"emdash:locale",
+		]);
+		const siteName =
+			resolveSiteTitle(siteOptions.get("site:title"), siteOptions.get("emdash:site_title")) ??
+			"EmDash";
 
 		// Localized copy following the site locale; the locale also
 		// drives lang/dir on the email HTML so RTL copy renders correctly.

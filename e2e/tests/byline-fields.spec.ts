@@ -36,6 +36,12 @@ test.describe("Byline custom fields", () => {
 		await admin.goto("/byline-schema");
 		await admin.waitForLoading();
 		await page.getByRole("button", { name: "New field" }).click();
+		// The two boxes are read one after the other, so measuring while the
+		// dialog still animates in reports an offset that is not there.
+		const dialog = page.getByRole("dialog", { name: "New byline field" });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 
 		const requiredBox = await page.getByRole("switch", { name: "Required" }).boundingBox();
 		const translatableBox = await page.getByRole("switch", { name: "Translatable" }).boundingBox();
