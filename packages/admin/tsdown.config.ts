@@ -63,6 +63,7 @@ export default defineConfig({
 		"src/locales/emails.ts",
 		"src/portable-text-table.ts",
 		"src/html-block.ts",
+		"src/editorial-anchors.ts",
 		"src/slugify.ts",
 	],
 	format: ["esm"],
