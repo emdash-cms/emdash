@@ -10,7 +10,10 @@ import { PluginStorageRepository } from "../../../src/database/repositories/plug
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { dispatchPluginApiRequest } from "../../../src/plugins/http-route-dispatch.js";
-import { syncDeclaredStorageIndexes } from "../../../src/plugins/storage-indexes.js";
+import {
+	generateDropIndexSql,
+	syncDeclaredStorageIndexes,
+} from "../../../src/plugins/storage-indexes.js";
 import { runWithContext } from "../../../src/request-context.js";
 
 const runtimes: EmDashRuntime[] = [];
@@ -127,6 +130,7 @@ describe("plugin storage index readiness", () => {
 			.select("index_name")
 			.execute();
 		expect(afterIndexes.map((r) => r.index_name).toSorted()).toEqual([
+			"idx_plugin_shop_orders_externalId",
 			"idx_plugin_shop_orders_status",
 			"uidx_plugin_shop_orders_externalId",
 		]);
@@ -167,6 +171,35 @@ describe("plugin storage index readiness", () => {
 		expect(warmResponse.status).toBe(200);
 		expect(pluginIndexQueries(warmRecorder)).toHaveLength(0);
 		expect(ddlQueries(warmRecorder)).toHaveLength(0);
+	});
+
+	it("repairs a missing regular companion before taking the readiness fast path", async () => {
+		const storage: StorageDeclaration = {
+			orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
+		};
+		const runtime = await createRuntime(storage);
+		runtimes.push(runtime);
+		await syncDeclaredStorageIndexes(runtime.db, [{ id: "shop", storage }]);
+		await generateDropIndexSql("idx_plugin_shop_orders_externalId").execute(runtime.db);
+		await runtime.db
+			.deleteFrom("_plugin_indexes")
+			.where("index_name", "=", "idx_plugin_shop_orders_externalId")
+			.execute();
+
+		const sync = runtime as unknown as IndexSyncAccessor;
+		const repairRecorder = createRecorder("repair", "POST", "cold");
+		await runWithContext({ editMode: false, queryRecorder: repairRecorder }, () =>
+			sync.ensureStorageIndexesSynced("shop"),
+		);
+		expect(ddlQueries(repairRecorder).some((event) => /create\s+index/i.test(event.sql))).toBe(
+			true,
+		);
+
+		const fastPathRecorder = createRecorder("recheck", "POST", "warm");
+		await runWithContext({ editMode: false, queryRecorder: fastPathRecorder }, () =>
+			sync.ensureStorageIndexesSynced("shop"),
+		);
+		expect(ddlQueries(fastPathRecorder)).toHaveLength(0);
 	});
 
 	it("does not run index DDL for read-only plugin routes", async () => {
@@ -216,14 +249,14 @@ describe("plugin storage index readiness", () => {
 			expect(body.error.code).toBe("STORAGE_INDEXES_NOT_READY");
 			expect(
 				await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute(),
-			).toHaveLength(1);
+			).toHaveLength(2);
 
 			await repo.delete("b");
 			if (retryPath === "scheduled") {
 				await runtime.runScheduledTasks();
 				expect(
 					await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute(),
-				).toHaveLength(2);
+				).toHaveLength(3);
 			}
 
 			const retryResponse = await dispatchPluginApiRequest({
@@ -238,7 +271,7 @@ describe("plugin storage index readiness", () => {
 			expect(retryResponse.status).toBe(200);
 			expect(
 				await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute(),
-			).toHaveLength(2);
+			).toHaveLength(3);
 		},
 	);
 
@@ -310,6 +343,7 @@ describe("plugin storage index readiness", () => {
 		const indexes = await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute();
 		expect(indexes.map((r) => r.index_name).toSorted()).toEqual([
 			"idx_plugin_forum_threads_pinned",
+			"idx_plugin_shop_orders_externalId",
 			"idx_plugin_shop_orders_status",
 			"uidx_plugin_shop_orders_externalId",
 		]);
@@ -332,11 +366,12 @@ describe("plugin storage index readiness", () => {
 
 		expect(shopReady).toBe(true);
 		expect(allReady).toBe(true);
-		expect(ddlQueries(recorder).filter((event) => /create/i.test(event.sql))).toHaveLength(3);
+		expect(ddlQueries(recorder).filter((event) => /create/i.test(event.sql))).toHaveLength(4);
 
 		const indexes = await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute();
 		expect(indexes.map((r) => r.index_name).toSorted()).toEqual([
 			"idx_plugin_forum_threads_pinned",
+			"idx_plugin_shop_orders_externalId",
 			"idx_plugin_shop_orders_status",
 			"uidx_plugin_shop_orders_externalId",
 		]);

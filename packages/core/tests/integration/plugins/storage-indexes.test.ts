@@ -400,6 +400,7 @@ describe("Plugin Storage Indexes Integration", () => {
 				uniqueIndexes: ["slug"],
 			});
 
+			expect(result.created).toContain("idx_plugin_my-plugin_forms_slug");
 			expect(result.created).toContain("uidx_plugin_my-plugin_forms_slug");
 			expect(result.errors).toHaveLength(0);
 
@@ -519,6 +520,7 @@ describe("Plugin Storage Indexes Integration", () => {
 			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
 				"idx_plugin_audit-log_entries_timestamp",
 				"idx_plugin_forms_submissions_formId",
+				"idx_plugin_forms_submissions_token",
 				"uidx_plugin_forms_submissions_token",
 			]);
 		});
@@ -550,7 +552,7 @@ describe("Plugin Storage Indexes Integration", () => {
 				.where("plugin_id", "=", pluginId)
 				.select("index_name")
 				.execute();
-			expect(tracked).toHaveLength(1);
+			expect(tracked).toHaveLength(2);
 		});
 
 		it("retries a previously failed unique index after the conflict is removed", async () => {
@@ -582,6 +584,7 @@ describe("Plugin Storage Indexes Integration", () => {
 				.select("index_name")
 				.execute();
 			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
+				"idx_plugin_retry-plugin_records_externalId",
 				"idx_plugin_retry-plugin_records_status",
 				"uidx_plugin_retry-plugin_records_externalId",
 			]);

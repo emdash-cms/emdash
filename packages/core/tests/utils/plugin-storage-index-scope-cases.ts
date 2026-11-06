@@ -1,0 +1,159 @@
+import type { Kysely } from "kysely";
+import { sql } from "kysely";
+import { expect, it } from "vitest";
+
+import type { Database } from "../../src/database/types.js";
+import {
+	createStorageIndexes,
+	generateIndexName,
+	removeOrphanedIndexes,
+	syncStorageIndexes,
+} from "../../src/plugins/storage-indexes.js";
+
+export function registerPluginStorageIndexScopeCases(
+	getDb: () => Kysely<Database>,
+	options: { sqlite?: boolean } = {},
+): void {
+	const insert = async (pluginId: string, collection: string, id: string, data: unknown) => {
+		await getDb()
+			.insertInto("_plugin_storage")
+			.values({ plugin_id: pluginId, collection, id, data: JSON.stringify(data) })
+			.execute();
+	};
+
+	it("scopes single, camelCase, and composite unique indexes to their owner", async () => {
+		const db = getDb();
+		const scopeResult = await syncStorageIndexes(
+			db,
+			"shop",
+			"variants",
+			["sku", "orderNumber", ["region", "code"]],
+			{ uniqueIndexes: ["sku", "orderNumber", ["region", "code"]] },
+		);
+		expect(scopeResult.errors).toHaveLength(0);
+
+		await expect(
+			insert("stock", "movements", "m1", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+		await expect(
+			insert("stock", "movements", "m2", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+		await expect(
+			insert("shop", "other", "o1", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+		await expect(
+			insert("shop", "other", "o2", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+		await expect(
+			insert("other", "variants", "v1", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+		await expect(
+			insert("other", "variants", "v2", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+		await expect(
+			insert("shop", "variants", "v1", { sku: "A", orderNumber: "O", region: "r", code: "c" }),
+		).resolves.toBeUndefined();
+
+		await expect(
+			insert("shop", "variants", "v2", { sku: "A", orderNumber: "O2", region: "r", code: "c2" }),
+		).rejects.toThrow();
+		await expect(
+			insert("shop", "variants", "v3", { sku: "A3", orderNumber: "O", region: "r", code: "c3" }),
+		).rejects.toThrow();
+		await expect(
+			insert("shop", "variants", "v4", { sku: "A4", orderNumber: "O4", region: "r", code: "c" }),
+		).rejects.toThrow();
+	});
+
+	it("allows missing and null indexed values and rejects an update into the owner duplicate", async () => {
+		const db = getDb();
+		const createResult = await createStorageIndexes(db, "shop", "items", ["sku"], {
+			uniqueIndexes: ["sku"],
+		});
+		expect(createResult.errors).toHaveLength(0);
+		await insert("shop", "items", "missing", {});
+		await insert("shop", "items", "null", { sku: null });
+		await insert("shop", "items", "one", { sku: "ONE" });
+		await insert("shop", "items", "two", { sku: "TWO" });
+
+		await expect(
+			db
+				.updateTable("_plugin_storage")
+				.set({ data: JSON.stringify({ sku: "ONE" }) })
+				.where("id", "=", "two")
+				.execute(),
+		).rejects.toThrow();
+	});
+
+	it("permits duplicate values that existed in other scopes before declaration", async () => {
+		const db = getDb();
+		await insert("other", "items", "one", { sku: "OLD" });
+		await insert("other", "items", "two", { sku: "OLD" });
+		await insert("shop", "other", "one", { sku: "OLD" });
+		const createResult = await createStorageIndexes(db, "shop", "items", ["sku"], {
+			uniqueIndexes: ["sku"],
+		});
+		expect(createResult.errors).toHaveLength(0);
+		await insert("other", "items", "three", { sku: "OLD" });
+		await insert("shop", "other", "two", { sku: "OLD" });
+		await insert("shop", "items", "one", { sku: "OLD" });
+		await expect(insert("shop", "items", "two", { sku: "OLD" })).rejects.toThrow();
+	});
+
+	it("keeps regular lookup indexes alongside unique indexes and uses them for bound lookups", async () => {
+		const db = getDb();
+		const syncResult = await syncStorageIndexes(db, "shop", "items", [], {
+			uniqueIndexes: ["sku"],
+		});
+		expect(syncResult.errors).toHaveLength(0);
+		if (options.sqlite) {
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_plugin_shop_items_sku%'
+			`.execute(db);
+			expect(indexes.rows.length).toBeGreaterThan(0);
+			const plan = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN SELECT * FROM _plugin_storage
+				WHERE plugin_id = ${"shop"} AND collection = ${"items"}
+				AND json_extract(data, '$.sku') = ${"A"}
+				ORDER BY json_extract(data, '$.sku')
+			`.execute(db);
+			expect(plan.rows.some((row) => row.detail.includes("idx_plugin_shop_items_sku"))).toBe(true);
+			expect(plan.rows.some((row) => row.detail.includes("TEMP B-TREE"))).toBe(false);
+		}
+	});
+
+	it("is idempotent, retains overlapping indexes, and removes only no-longer-declared indexes", async () => {
+		const db = getDb();
+		const initial = await syncStorageIndexes(db, "shop", "items", [], { uniqueIndexes: ["sku"] });
+		expect(initial.errors).toHaveLength(0);
+		const overlapping = await syncStorageIndexes(db, "shop", "items", ["sku"], {
+			uniqueIndexes: ["sku"],
+		});
+		expect(overlapping.errors).toHaveLength(0);
+		expect(overlapping.removed).toHaveLength(0);
+		const again = await syncStorageIndexes(db, "shop", "items", ["sku"], {
+			uniqueIndexes: ["sku"],
+		});
+		expect(again.errors).toHaveLength(0);
+		expect(again.removed).toHaveLength(0);
+		const regular = generateIndexName("shop", "items", ["sku"]);
+		const unique = generateIndexName("shop", "items", ["sku"], { unique: true });
+		const rows = await db
+			.selectFrom("_plugin_indexes")
+			.select("index_name")
+			.where("plugin_id", "=", "shop")
+			.execute();
+		expect(rows.map((row) => row.index_name)).toEqual(expect.arrayContaining([regular, unique]));
+
+		await removeOrphanedIndexes(db, "shop", "items", ["sku"]);
+		const remaining = await db
+			.selectFrom("_plugin_indexes")
+			.select("index_name")
+			.where("plugin_id", "=", "shop")
+			.execute();
+		expect(remaining.map((row) => row.index_name)).toContain(regular);
+		expect(remaining.map((row) => row.index_name)).not.toContain(unique);
+		await insert("shop", "items", "one", { sku: "DUP" });
+		await insert("shop", "items", "two", { sku: "DUP" });
+	});
+}
