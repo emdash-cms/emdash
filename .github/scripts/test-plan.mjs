@@ -32,6 +32,7 @@ const LINE_BREAK_PATTERN = /\r?\n/;
 const UNIT_PACKAGE_BY_PATH = new Map([
 	["packages/auth/", "@emdash-cms/auth"],
 	["packages/blocks/", "@emdash-cms/blocks"],
+	["packages/cloudflare/", "@emdash-cms/cloudflare"],
 	["packages/gutenberg-to-portable-text/", "@emdash-cms/gutenberg-to-portable-text"],
 	["packages/marketplace/", "@emdash-cms/marketplace"],
 	["packages/plugin-cli/", "@emdash-cms/plugin-cli"],
