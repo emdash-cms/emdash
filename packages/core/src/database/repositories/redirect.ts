@@ -121,6 +121,12 @@ const REDIRECT_WRITE_LEASE_MS = 30_000;
 const REDIRECT_WRITE_LOCK_ATTEMPTS = 5;
 const POSTGRES_REDIRECT_LOCK_KEY = 1_168_624_763;
 
+/** The forms of `path` the redirect middleware treats as the same request path. */
+export function redirectPathVariants(path: string): string[] {
+	const bare = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+	return bare === "/" ? [bare] : [bare, `${bare}/`];
+}
+
 // ---------------------------------------------------------------------------
 // Row mapping
 // ---------------------------------------------------------------------------
@@ -571,21 +577,27 @@ export class RedirectRepository {
 		oldPublishedAt?: string | null,
 		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
+		const withPatternSlash = (path: string) =>
+			urlPattern?.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
 		return this.withWriteLock(async (fence, repository) => {
-			const oldUrl = interpolateUrlPattern({
-				pattern: urlPattern,
-				collection,
-				slug: oldSlug,
-				id: contentId,
-				date: oldPublishedAt,
-			});
-			const newUrl = interpolateUrlPattern({
-				pattern: urlPattern,
-				collection,
-				slug: newSlug,
-				id: contentId,
-				date: newPublishedAt,
-			});
+			const oldUrl = withPatternSlash(
+				interpolateUrlPattern({
+					pattern: urlPattern,
+					collection,
+					slug: oldSlug,
+					id: contentId,
+					date: oldPublishedAt,
+				}),
+			);
+			const newUrl = withPatternSlash(
+				interpolateUrlPattern({
+					pattern: urlPattern,
+					collection,
+					slug: newSlug,
+					id: contentId,
+					date: newPublishedAt,
+				}),
+			);
 
 			// A redirect from a URL to itself would make the page unreachable
 			if (oldUrl === newUrl) return null;
@@ -593,7 +605,7 @@ export class RedirectRepository {
 			// The new URL serves live content again — any redirect from it would
 			await repository.db
 				.deleteFrom("_emdash_redirects")
-				.where("source", "=", newUrl)
+				.where("source", "in", redirectPathVariants(newUrl))
 				.where((eb) =>
 					eb.exists(
 						eb
@@ -609,12 +621,19 @@ export class RedirectRepository {
 			// Collapse chains: update any existing redirects pointing to the old URL
 			await repository.collapseChains(oldUrl, newUrl, fence);
 
-			// Check if a redirect from this source already exists
-			const existing = await repository.findBySource(oldUrl);
-			if (existing) {
-				// Update the existing redirect to point to the new URL
-				return (await repository.update(existing.id, { destination: newUrl }, undefined, fence))!;
+			const existing = await repository.db
+				.selectFrom("_emdash_redirects")
+				.select("id")
+				.where("source", "in", redirectPathVariants(oldUrl))
+				.orderBy("id")
+				.execute();
+			let updated: Redirect | null = null;
+			for (const { id } of existing) {
+				// oxlint-disable-next-line no-await-in-loop -- at most two rows, under the write lock
+				const redirect = await repository.update(id, { destination: newUrl }, undefined, fence);
+				updated ??= redirect;
 			}
+			if (existing.length > 0) return updated;
 
 			return repository.create(
 				{
@@ -653,7 +672,7 @@ export class RedirectRepository {
 				config_revision: ulid(),
 				...(fence ? { write_generation: fence.generation } : {}),
 			})
-			.where("destination", "=", oldDestination);
+			.where("destination", "in", redirectPathVariants(oldDestination));
 		if (fence) {
 			query = query.where((eb) =>
 				eb.exists(
