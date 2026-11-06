@@ -18,4 +18,5 @@ export * from "./redirects.js";
 export * from "./bylines.js";
 export * from "./byline-fields.js";
 export * from "./relations.js";
+export * from "./editorial-comments.js";
 export * from "./entry-lock.js";
