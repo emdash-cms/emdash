@@ -678,7 +678,7 @@ msgstr "{total}'in {current}'i"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date} tarihinde # kayıt daha} other {{date} tari
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# daha} other {+# daha}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {# tane daha göster} other {# tane daha göster}}"
 
@@ -3127,7 +3127,7 @@ msgstr "Değişiklikler bu yazar bilgisinin göründüğü her yere uygulanır."
 msgid "Changes discarded"
 msgstr "Değişikliklerden vazgeçildi"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "Bu sürümdeki değişiklikler"
 
@@ -4399,7 +4399,7 @@ msgstr "geçerli"
 msgid "Current cell"
 msgstr "Geçerli hücre"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "Geçerli sürüm"
@@ -11397,7 +11397,7 @@ msgstr "Yayınlandı"
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
@@ -15637,7 +15637,7 @@ msgstr "Benzersiz tanımlayıcı (ULID)"
 msgid "Unknown"
 msgstr "Bilinmiyor"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "Bilinmeyen yazar"
 
@@ -15659,7 +15659,7 @@ msgstr "En boy oranının kilidini aç"
 msgid "Unnamed passkey"
 msgstr "Adsız geçiş anahtarı"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "Adsız kullanıcı"
 
