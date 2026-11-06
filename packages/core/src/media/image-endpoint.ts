@@ -228,15 +228,15 @@ export function matchInternalMediaKey(href: string | null | undefined): string |
  * Whether the stock endpoint may load `href`, given the request's `origin`.
  *
  * `image.remotePatterns` allows the internal media route on every host, so the
- * stock endpoint would fetch such an `href` from whatever host it names. Only
- * the request's own origin may be fetched for that route; other images are
- * left to the stock endpoint's own checks.
+ * stock endpoint would fetch such an `href` from whatever host it names, and
+ * the request's own origin comes from a client-supplied `Host` header. EmDash
+ * media is only ever served from storage, so the internal media route is never
+ * delegated; other images are left to the stock endpoint's own checks.
  */
 export function canDelegateImageHref(href: string | null | undefined, origin: string): boolean {
 	if (!href) return true;
 	const target = parseUrl(href, origin);
 	if (!target) return false;
-	if (target.origin === origin) return true;
 	// Astro matches `remotePatterns` against `href` parsed on its own, but fetches
 	// it resolved against the request origin. These differ for forms such as
 	// `http:host/path` on an https origin, so both readings are checked.

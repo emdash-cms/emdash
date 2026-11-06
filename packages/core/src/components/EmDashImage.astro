@@ -38,7 +38,6 @@ import {
 	responsiveSizes,
 	responsiveWidths,
 } from "../media/responsive.js";
-import { getPublicOrigin } from "../api/public-url.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
 
 interface Props extends Omit<
@@ -170,9 +169,9 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 
 	if (providerId === "local" || img.src) {
 		src = img.src || buildLocalImageUrl(img);
-		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
-		const absoluteSrc = optimizableMediaUrl(src, mediaOrigin(Astro));
-		if (absoluteSrc && finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
+		const origin = mediaOrigin(Astro);
+		const absoluteSrc = optimizableMediaUrl(src, origin);
+		if (absoluteSrc && finalWidth && finalHeight && origin && absoluteSrc.startsWith(`${origin}/`)) {
 			const optimizedFormats = await Promise.all(
 				outputFormats.map((format) =>
 					canOptimizeImage(getImage, {

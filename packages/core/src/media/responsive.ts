@@ -9,7 +9,11 @@
  * resolves inside an Astro project, not in this precompiled package).
  */
 
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
+
 import { getConfiguredOrigin, type SiteUrlConfig } from "../api/public-url.js";
+import { matchInternalMediaKey } from "./image-endpoint.js";
 import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 import type { EmbedOptions } from "./types.js";
 
@@ -96,13 +100,16 @@ export function toAbsoluteMediaUrl(src: string, origin: string | undefined): str
 /**
  * The origin EmDash media URLs are optimized on: the configured public URL, or
  * the request's origin when the page is rendered on demand.
+ *
+ * Anonymous requests get `locals.emdash` without `config`, so the build-time
+ * configuration is the fallback for `siteUrl`.
  */
 export function mediaOrigin(astro: {
 	url: URL;
 	isPrerendered: boolean;
 	locals: { emdash?: { config?: SiteUrlConfig } };
 }): string | undefined {
-	const configured = getConfiguredOrigin(astro.locals.emdash?.config);
+	const configured = getConfiguredOrigin(astro.locals.emdash?.config ?? virtualConfig ?? undefined);
 	if (configured) {
 		try {
 			return new URL(configured).origin;
@@ -132,7 +139,10 @@ export function optimizableMediaUrl(src: string, origin: string | undefined): st
 		return null;
 	}
 	if (!url.pathname.startsWith(INTERNAL_MEDIA_PREFIX)) return absolute;
-	return origin && url.origin === new URL(origin).origin ? absolute : null;
+	if (!origin || url.origin !== new URL(origin).origin) return null;
+	// Keys the image endpoint won't read (e.g. an extension with spaces from the
+	// original filename) are still served by the file route as a plain `<img>`.
+	return matchInternalMediaKey(absolute) ? absolute : null;
 }
 
 /**

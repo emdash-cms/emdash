@@ -35,6 +35,14 @@ const FORMAT_MIME: Record<string, string> = {
 	gif: "image/gif",
 };
 
+const MISSING_SHARP_KEY = Symbol.for("emdash:image-endpoint:missing-sharp");
+/** Validator suffix for originals served in place of a rendition. */
+const ORIGINAL_FALLBACK_SUFFIX = "original";
+
+function sharpMissing(): boolean {
+	return (globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] === true;
+}
+
 function isNotFound(error: unknown): boolean {
 	return (
 		error instanceof Error &&
@@ -126,6 +134,28 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
+		const serveFallbackOriginal = (body: ReadableStream<Uint8Array> | Uint8Array): Response => {
+			const headers = {
+				...originalMediaHeaders(source.contentType, source.size, source.lastModified),
+				...validatorHeaders(source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX),
+			};
+			return new Response(ctx.request.method === "HEAD" ? null : body, { status: 200, headers });
+		};
+
+		if (sharpMissing()) {
+			if (isNotModified(ctx.request, source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX)) {
+				return notModifiedResponse(
+					source.contentType,
+					source.size,
+					source.lastModified,
+					ORIGINAL_FALLBACK_SUFFIX,
+				);
+			}
+			if (ctx.request.method === "HEAD") return serveFallbackOriginal(new Uint8Array());
+			unusedBody = undefined;
+			return serveFallbackOriginal(source.body);
+		}
+
 		const fingerprint = getTransformFingerprint(url.searchParams);
 		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
 			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
@@ -137,11 +167,9 @@ export const GET: APIRoute = async (ctx) => {
 			output = await service.transform(inputBuffer, transform, imageConfig);
 		} catch (error) {
 			if (!(error instanceof Error && error.name === "MissingSharp")) throw error;
-			console.error("[emdash] sharp is not installed, serving the original image:", error);
-			return new Response(ctx.request.method === "HEAD" ? null : inputBuffer, {
-				status: 200,
-				headers: originalMediaHeaders(source.contentType, source.size, source.lastModified),
-			});
+			(globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] = true;
+			console.error("[emdash] sharp is not installed, serving original images:", error);
+			return serveFallbackOriginal(inputBuffer);
 		}
 		const { data, format } = output;
 

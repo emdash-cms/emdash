@@ -304,12 +304,20 @@ describe("Cloudflare image endpoint outside EmDash storage", () => {
 	it.each([
 		"/_emdash/api/media/file/nested/photo.jpg",
 		"https://example.test/_emdash/api/media/file/nested/photo.jpg",
-		"https://cdn.example.com/photo.jpg",
-		"/_astro/logo.png",
-	])("delegates other sources to the adapter endpoint (%s)", async (href) => {
+	])("does not fetch internal media it cannot read from storage (%s)", async (href) => {
 		const response = await GET(imageContext(href) as never);
 
-		expect(response.status).toBe(418);
-		expect(adapterGET).toHaveBeenCalledOnce();
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
 	});
+
+	it.each(["https://cdn.example.com/photo.jpg", "/_astro/logo.png"])(
+		"delegates other sources to the adapter endpoint (%s)",
+		async (href) => {
+			const response = await GET(imageContext(href) as never);
+
+			expect(response.status).toBe(418);
+			expect(adapterGET).toHaveBeenCalledOnce();
+		},
+	);
 });

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
+const virtualConfig = vi.hoisted((): { siteUrl?: string } => ({}));
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
+
 import {
 	RESPONSIVE_BREAKPOINTS,
 	buildResponsiveImage,
@@ -250,6 +253,11 @@ describe("optimizableMediaUrl", () => {
 		).toBeNull();
 	});
 
+	it("leaves this site's media unoptimized when the image endpoint can't read its key", () => {
+		expect(optimizableMediaUrl("/_emdash/api/media/file/01ABC.jpg%20(1)", ORIGIN)).toBeNull();
+		expect(optimizableMediaUrl("/_emdash/api/media/file/01ABC.j%C3%A9pg", ORIGIN)).toBeNull();
+	});
+
 	it("leaves media unoptimized without an origin", () => {
 		expect(optimizableMediaUrl("/_emdash/api/media/file/01ABC.jpg", undefined)).toBeNull();
 		expect(
@@ -287,5 +295,16 @@ describe("mediaOrigin", () => {
 	it("prefers the configured site URL", () => {
 		expect(mediaOrigin(page(true, "https://example.com/blog/"))).toBe("https://example.com");
 		expect(mediaOrigin(page(false, "https://example.com"))).toBe("https://example.com");
+	});
+
+	it("uses the build-time site URL when the request's locals carry no config", () => {
+		virtualConfig.siteUrl = "https://example.com";
+		try {
+			const anonymous = { url: new URL("http://localhost:4321/post"), locals: { emdash: {} } };
+			expect(mediaOrigin({ ...anonymous, isPrerendered: true })).toBe("https://example.com");
+			expect(mediaOrigin({ ...anonymous, isPrerendered: false })).toBe("https://example.com");
+		} finally {
+			delete virtualConfig.siteUrl;
+		}
 	});
 });
