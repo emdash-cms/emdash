@@ -153,7 +153,7 @@ The request in #2332 becomes a role with the ten Subscriber permissions and `byl
 - **Locale scope.** A grant names collections, not locales, so a translator who may edit only the Spanish rows of a collection needs a later proposal. That role also needs a different translation check, because creating a translation requires edit access to the source entry. The grant format lets such a proposal add a restriction that older code denies instead of ignoring ([Check](#check)).
 - **Plugin-defined permissions.** Core owns the set of permission names. A plugin route keeps naming a core permission ([#1587](https://github.com/emdash-cms/emdash/discussions/1587)).
 - **Approval workflows.** A role without a publish permission cannot publish, which the existing permissions already express.
-- **Changing the built-in roles.** They cannot be edited or removed, because every user keeps one of their five levels in `users.role`, which rollback, `minRole` and plugins read as that role's permissions ([Compatibility level](#compatibility-level)), and the last-admin guard counts users with the built-in Admin role. No permission is renamed.
+- **Changing the built-in roles.** They cannot be edited or removed, because every user keeps one of their five levels in `users.role`, which rollback, `minRole` and plugins read as that role's permissions ([Compatibility level](#compatibility-level)), and the last-admin guard counts users with the built-in Admin role. A later setting could hide a built-in role a site doesn't use from the role pickers without changing its permissions. No permission is renamed.
 - **Deny rules.** Roles only grant.
 
 ## Detailed design
