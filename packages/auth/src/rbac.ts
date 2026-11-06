@@ -49,6 +49,12 @@ export const Permissions = {
 	"comments:delete": Role.ADMIN,
 	"comments:settings": Role.ADMIN,
 
+	// Editorial comments: threads staff leave on entries while reviewing them.
+	// Every editorial route also needs content:read_drafts, because threads
+	// discuss unpublished content.
+	"editorial:comment": Role.CONTRIBUTOR,
+	"editorial:manage": Role.EDITOR,
+
 	// Menus
 	"menus:read": Role.SUBSCRIBER,
 	"menus:manage": Role.EDITOR,
