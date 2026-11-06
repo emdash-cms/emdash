@@ -12,7 +12,7 @@
  */
 
 import type { LiveLoader } from "astro/loaders";
-import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
+import { Kysely, type RawBuilder, sql, type Dialect, type SqlBool } from "kysely";
 
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
@@ -34,6 +34,7 @@ import {
 import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
+import { setEntryTitleField } from "./seo/title-field.js";
 import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
 import {
 	isMissingColumnError,
@@ -1267,6 +1268,13 @@ function isIndexedPivotSort(orderBy: OrderBySpec | undefined): boolean {
  * {@link LARGE_TERM_ASSIGNMENTS} pivot rows in that collection. The capped
  * probe rides in this query; a query of its own would add a round trip to
  * every listing.
+ *
+ * With `countCollection`, `assignments` is the number of pivot rows the
+ * resolved terms have in that collection, each term counted up to
+ * {@link LARGE_TERM_ASSIGNMENTS}. It rides in this query so ordering several
+ * taxonomy filters by size costs no extra round trip, and the cap keeps a large
+ * term from costing more to count than the ordering saves: the sort only has
+ * to tell a few dozen assignments from thousands.
  */
 async function resolveTermGroups(
 	db: Kysely<Database>,
@@ -1274,13 +1282,14 @@ async function resolveTermGroups(
 	slugs: string[],
 	locale: string | undefined,
 	probeCollection?: string,
-): Promise<{ groups: string[]; large: boolean }> {
+	countCollection?: string,
+): Promise<{ groups: string[]; large: boolean; assignments: number }> {
 	let query = db
 		.selectFrom("taxonomies")
 		.select("translation_group")
 		.distinct()
 		.where("name", "=", name)
-		.where("slug", "in", slugs)
+		.where(taxonomyValuesCondition(db, "slug", slugs))
 		.$if(probeCollection !== undefined, (qb) =>
 			qb.select((eb) =>
 				eb
@@ -1292,22 +1301,47 @@ async function resolveTermGroups(
 					.offset(LARGE_TERM_ASSIGNMENTS - 1)
 					.as("large"),
 			),
+		)
+		.$if(countCollection !== undefined, (qb) =>
+			qb.select((eb) =>
+				eb
+					.selectFrom(
+						eb
+							.selectFrom("content_taxonomies")
+							.select(sql<number>`1`.as("hit"))
+							.where("content_taxonomies.collection", "=", countCollection!)
+							.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
+							.limit(LARGE_TERM_ASSIGNMENTS)
+							.as("capped"),
+					)
+					.select((inner) => inner.fn.countAll<number>().as("n"))
+					.as("assignments"),
+			),
 		);
 	if (locale) query = query.where(localeMatches("locale", locale));
 	const rows = await query.execute();
-	const groups = new Set<string>();
+	const counts = new Map<string, number>();
 	let large = false;
 	for (const row of rows) {
-		if (row.translation_group) groups.add(row.translation_group);
+		if (row.translation_group) counts.set(row.translation_group, Number(row.assignments ?? 0));
 		if (row.large != null) large = true;
 	}
-	return { groups: [...groups], large };
+	let assignments = 0;
+	for (const n of counts.values()) assignments += n;
+	return { groups: [...counts.keys()], large, assignments };
 }
 
-/** Equality (single) or `IN` (multiple) condition on a pivot group column. */
-function pivotGroupCondition(ref: string, groups: string[]): ReturnType<typeof sql> {
-	if (groups.length === 1) return sql`${sql.ref(ref)} = ${groups[0]}`;
-	return sql`${sql.ref(ref)} IN (${sql.join(groups.map((g) => sql`${g}`))})`;
+/** Single-term equality preserves the pivot index's early-LIMIT seek. */
+function taxonomyValuesCondition(
+	db: Kysely<Database>,
+	ref: string,
+	values: string[],
+	asJson = values.length > SQL_BATCH_SIZE,
+): RawBuilder<SqlBool> {
+	if (values.length === 1) return sql<SqlBool>`${sql.ref(ref)} = ${values[0]}`;
+	return asJson
+		? sql<SqlBool>`${sql.ref(ref)} IN (${jsonTextValues(db, values)})`
+		: sql<SqlBool>`${sql.ref(ref)} IN (${sql.join(values.map((value) => sql`${value}`))})`;
 }
 
 /** LIMIT/OFFSET fragment matching the loader's single-table variant. */
@@ -1415,6 +1449,7 @@ export function buildTaxonomyPivotQuery(
 	const firstGroups = groupSets[0] ?? [];
 	const restGroups = groupSets.slice(1);
 	const multiGroup = firstGroups.length > 1;
+	const groupsAsJson = groupSets.reduce((sum, groups) => sum + groups.length, 0) > SQL_BATCH_SIZE;
 
 	// Multi-term AND: one residual pivot-PK EXISTS per additional taxonomy.
 	const residual =
@@ -1425,7 +1460,7 @@ export function buildTaxonomyPivotQuery(
 						SELECT 1 FROM content_taxonomies ct2
 						WHERE ct2.collection = ${collection}
 							AND ct2.entry_id = ct.entry_id
-							AND ${pivotGroupCondition("ct2.taxonomy_id", g)}
+							AND ${taxonomyValuesCondition(db, "ct2.taxonomy_id", g, groupsAsJson)}
 					)`,
 					),
 					sql` `,
@@ -1442,7 +1477,7 @@ export function buildTaxonomyPivotQuery(
 			)`
 		: sql``;
 
-	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
+	const firstGroupCond = taxonomyValuesCondition(db, "ct.taxonomy_id", firstGroups, groupsAsJson);
 	// `CROSS JOIN` keeps the pivot as the outer table. A plain `JOIN` lets the
 	// planner walk the `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`
 	// whatever the term's size, which reads most of the collection for a
@@ -1886,22 +1921,32 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 						isIndexedPivotSort(orderBy)
 							? type
 							: undefined;
+					// With two or more taxonomies, each resolution also counts its terms'
+					// pivot rows, so the smallest set can drive the pivot query.
+					const countCollection = taxonomyFilters.length > 1 ? type : undefined;
+					const sized: Array<{ groups: string[]; assignments: number }> = [];
 					let driveFromContent = false;
 					for (const taxFilter of taxonomyFilters) {
-						const { groups, large } = await resolveTermGroups(
+						const { groups, large, assignments } = await resolveTermGroups(
 							db,
 							taxFilter.name,
 							taxFilter.slugs,
 							locale,
 							probeCollection,
+							countCollection,
 						);
 						// A slug that resolves to no term matches nothing; since taxonomy
 						// filters AND together, one empty set empties the whole result.
 						if (groups.length === 0) {
 							return { entries: [], cacheHint: { tags: [type] } };
 						}
-						groupSets.push(groups);
+						sized.push({ groups, assignments });
 						driveFromContent = large && groups.length === 1;
+					}
+					// The pivot query walks the first set through `content_taxonomies` and checks the rest with a
+					// correlated EXISTS per candidate row, so the smallest set drives.
+					for (const { groups } of sized.toSorted((a, b) => a.assignments - b.assignments)) {
+						groupSets.push(groups);
 					}
 
 					result = await buildTaxonomyPivotQuery({
@@ -1932,9 +1977,29 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					// table `SELECT *`, so all field/status/locale/cursor/order
 					// conditions reference unprefixed columns as before.
 					const orderByClause = buildOrderByClause(orderBy);
-					const statusCondition = buildStatusCondition(db, status);
-					const localeFilter = locale ? sql`AND ${localeMatches("locale", locale)}` : sql``;
+					// A caller naming its entries by id wants a primary-key seek,
+					// but SQLite's ANALYZE averages `deleted_at` over its distinct
+					// values. Every trashed row has its own timestamp, so the
+					// statistics put `deleted_at IS NULL` at a handful of rows and
+					// the planner walks a `deleted_at` index over the whole live
+					// table instead. A unary `+` keeps a column out of index
+					// selection without changing what it matches. SQLite only:
+					// Postgres has no unary `+` for text.
+					const idPinned =
+						!isPostgres(db) && Array.isArray(fieldFilters.id) && fieldFilters.id.length > 0;
+					const pin = idPinned ? sql`+` : sql``;
+					const statusCondition = idPinned
+						? sql`+${sql.ref("status")} = ${status}`
+						: buildStatusCondition(db, status);
+					const localeFilter = locale ? sql`AND ${pin}${localeMatches("locale", locale)}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
+					const taxonomySlugsAsJson =
+						taxonomyFilters.reduce((sum, taxFilter) => sum + taxFilter.slugs.length, 0) +
+							Object.values(fieldFilters).reduce<number>(
+								(sum, value) => sum + (Array.isArray(value) ? value.length : 0),
+								0,
+							) >
+						SQL_BATCH_SIZE;
 					const fieldConds = buildFieldConditions(db, fieldFilters);
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
@@ -1953,7 +2018,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 							WHERE ct.collection = ${type}
 								AND ct.entry_id = ${sql.ref(tableName)}.translation_group
 								AND t.name = ${f.name}
-								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
+								AND ${taxonomyValuesCondition(db, "t.slug", f.slugs, taxonomySlugsAsJson)}
 							${locale ? sql`AND ${localeMatches("t.locale", locale)}` : sql``}
 						)`,
 									),
@@ -1996,7 +2061,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					}
 					result = await sql<Record<string, unknown>>`
 						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect} FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
+						WHERE ${pin}deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
 						${cursorCond}
@@ -2124,12 +2189,16 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 				const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
 				// Keep collection-wide metadata in one result column for wide D1 collections.
 				const jsonObject = isPostgres(db) ? sql`json_build_object` : sql`json_object`;
+				const titleFieldSelect = sql`(
+					SELECT title_field FROM ${sql.ref("_emdash_collections")} WHERE slug = ${type}
+				) AS _emdash_title_field`;
 				const metadataSelect = sql`(
 					SELECT ${jsonObject}(
 						'bylinesExist', _emdash_bylines_exist,
-						'booleanFields', _emdash_boolean_fields
+						'booleanFields', _emdash_boolean_fields,
+						'titleField', _emdash_title_field
 					)
-					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}) AS metadata
+					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}, ${titleFieldSelect}) AS metadata
 				) AS _emdash_entry_metadata`;
 				const slugVisibility = filter?.publishedOnly ? sql`AND c.status = ${"published"}` : sql``;
 				const result = locale
@@ -2158,9 +2227,11 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 				const metadata: unknown =
 					typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
 				delete row._emdash_entry_metadata;
+				let titleField: string | undefined;
 				if (isPlainObject(metadata)) {
 					row._emdash_bylines_exist = metadata.bylinesExist;
 					row[BOOLEAN_FIELDS_FOLDED_COLUMN] = metadata.booleanFields;
+					if (typeof metadata.titleField === "string") titleField = metadata.titleField;
 				}
 
 				// Expand the folded SEO JSON column onto SEO_COLUMN_ALIASES so
@@ -2197,6 +2268,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 							primeSeoPanel(type, rowStr(row, "id"), revSeo);
 						}
 						stashFolded(revEntry.data, row);
+						if (titleField) setEntryTitleField(revEntry.data, titleField);
 						return revEntry;
 					}
 				}
@@ -2212,6 +2284,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 					primeSeoPanel(type, rowStr(row, "id"), entrySeo);
 				}
 				stashFolded(entryData, row);
+				if (titleField) setEntryTitleField(entryData, titleField);
 				return {
 					id: entryId,
 					slug: rowStr(row, "slug"),
