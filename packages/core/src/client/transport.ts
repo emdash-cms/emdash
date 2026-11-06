@@ -90,11 +90,17 @@ export function tokenInterceptor(token: string): Interceptor {
  */
 export function devBypassInterceptor(baseUrl: string): Interceptor {
 	let sessionCookie: string | null = null;
+	let setupRequiredResponse: Response | null = null;
 	let initializing: Promise<void> | null = null;
 
 	async function init(): Promise<void> {
 		const bypassUrl = new URL("/_emdash/api/auth/dev-bypass", baseUrl);
 		const res = await globalThis.fetch(bypassUrl, { redirect: "manual" });
+
+		if (res.status === 409) {
+			setupRequiredResponse = res;
+			return;
+		}
 
 		// Extract session cookie from Set-Cookie header
 		const setCookie = res.headers.get("set-cookie");
@@ -119,6 +125,10 @@ export function devBypassInterceptor(baseUrl: string): Interceptor {
 				initializing = init();
 			}
 			await initializing;
+		}
+
+		if (setupRequiredResponse) {
+			return setupRequiredResponse.clone();
 		}
 
 		if (sessionCookie) {

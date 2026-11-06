@@ -104,6 +104,39 @@ function mediaUsageRepairResponse(
 // ---------------------------------------------------------------------------
 
 describe("EmDashClient", () => {
+	it("surfaces setup-required dev bypass errors without calling the API", async () => {
+		const originalFetch = globalThis.fetch;
+		let apiRequestCalled = false;
+		globalThis.fetch = async (input) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.endsWith("/_emdash/api/auth/dev-bypass")) {
+				return new Response(
+					JSON.stringify({
+						error: {
+							code: "SETUP_REQUIRED",
+							message: "Complete setup before using the dev bypass",
+						},
+					}),
+					{ status: 409, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			apiRequestCalled = true;
+			return new Response("unexpected API request", { status: 500 });
+		};
+
+		try {
+			const client = new EmDashClient({ baseUrl: "http://localhost:4321", devBypass: true });
+			await expect(client.collections()).rejects.toMatchObject({
+				status: 409,
+				code: "SETUP_REQUIRED",
+				message: "Complete setup before using the dev bypass",
+			});
+			expect(apiRequestCalled).toBe(false);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	describe("_rev token flow", () => {
 		it("blind update (no _rev) succeeds", async () => {
 			const backend = createMockBackend([
