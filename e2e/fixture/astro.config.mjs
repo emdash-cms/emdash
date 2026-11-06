@@ -115,7 +115,6 @@ export default defineConfig({
 			marketplace: marketplaceUrl,
 			registry: registryUrl,
 			sandboxRunner: "@emdash-cms/sandbox-workerd",
-			coEditing: true,
 		}),
 	],
 	i18n: {

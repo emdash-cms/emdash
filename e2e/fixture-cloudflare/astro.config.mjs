@@ -88,7 +88,6 @@ export default defineConfig({
 			marketplace: marketplaceUrl,
 			registry: registryUrl,
 			sandboxRunner: sandbox(),
-			coEditing: true,
 		}),
 	],
 	i18n: {

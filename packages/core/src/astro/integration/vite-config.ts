@@ -356,7 +356,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			if (id === RESOLVED_VIRTUAL_ROOMS_ID) {
 				const adapterName = astroConfig.adapter?.name;
-				const coEditing = resolvedConfig.coEditing ?? false;
+				const coEditing = resolvedConfig.coEditing !== false;
 				const cloudflareRoomsResolves =
 					coEditing &&
 					adapterName === "@astrojs/cloudflare" &&
@@ -703,7 +703,7 @@ export function createViteConfig(
 							// Only imported by the /_image route, so the first image
 							// request would otherwise discover it.
 							"@astrojs/cloudflare/image-transform-endpoint",
-							...(options.resolvedConfig.coEditing ? ROOM_ENGINE_DEPS : []),
+							...(options.resolvedConfig.coEditing !== false ? ROOM_ENGINE_DEPS : []),
 						],
 					},
 				}
@@ -736,7 +736,7 @@ export function createViteConfig(
 						"emdash > @emdash-cms/admin > @lezer/highlight",
 						// Each admin language loads its date locale on first use.
 						"emdash > @emdash-cms/admin > react-day-picker/locale/*",
-						...(options.resolvedConfig.coEditing ? ROOM_CLIENT_DEPS : []),
+						...(options.resolvedConfig.coEditing !== false ? ROOM_CLIENT_DEPS : []),
 					]
 				: [
 						"@emdash-cms/admin",
