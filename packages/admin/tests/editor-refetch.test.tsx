@@ -778,13 +778,22 @@ describe("ContentEditPage rich text in blocks", () => {
 	});
 
 	it("saves the next block text edit on top of a block a background read brought in", async () => {
-		const { queryClient } = await renderEditPage();
+		const { screen, queryClient } = await renderEditPage();
+		const openCallout = async () => {
+			const toggle = screen.getByRole("button", { name: "Callout", exact: true });
+			if (toggle.element().getAttribute("aria-expanded") !== "true") await toggle.click();
+		};
+		await openCallout();
 		await vi.waitFor(() => expect(calloutEditor()?.textContent).toBe("Draft callout"));
 		server.advance({ title: "Draft title", layout: calloutBlocks("Callout saved in another tab") });
 		await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
 		await vi.advanceTimersByTimeAsync(2500);
 		expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(0);
 
+		await openCallout();
+		await vi.waitFor(() =>
+			expect(calloutEditor()?.textContent).toBe("Callout saved in another tab"),
+		);
 		await typeAtEnd("!", calloutEditor()!);
 		await vi.advanceTimersByTimeAsync(2500);
 		const sent = server.requests.find((r) => r.method === "PUT")?.body as

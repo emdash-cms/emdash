@@ -259,7 +259,10 @@ function VersionRow({
 			</span>
 			<span aria-hidden="true" className="grid min-w-0">
 				<span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-					<time dateTime={date.toISOString()} className="text-base font-medium tabular-nums">
+					<time
+						dateTime={Number.isNaN(date.getTime()) ? undefined : date.toISOString()}
+						className="text-base font-medium tabular-nums"
+					>
 						<bdi>{format.time(date)}</bdi>
 					</time>
 					{isCurrent && <Badge variant="secondary">{t`Current version`}</Badge>}
