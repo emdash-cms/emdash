@@ -28,26 +28,26 @@ A post is imported from its Elementor data when its `_elementor_edit_mode` meta 
 
 A new package, `@emdash-cms/elementor-to-portable-text`, walks the element tree in document order and writes each widget as WordPress block markup, which `gutenbergToPortableText` then converts. Images, galleries, embeds, columns, lists, quotes and links therefore import exactly as they do from the block editor, media mapping included, and the importers keep a single conversion to Portable Text.
 
-| Elementor widget                                       | Imported as                                                                     |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Heading                                                | A heading, at least `h2`, since the page title is the `h1`                      |
-| Text Editor                                            | Paragraphs, headings, lists, quotes, tables and images, each a block of its own |
-| Image                                                  | An image, with its link when it has one                                         |
-| Gallery, Basic Gallery, Image Carousel                 | A gallery                                                                       |
-| Video                                                  | An embed for YouTube and Vimeo, a video block for a file                        |
-| Google Maps                                            | A paragraph linking to the address on Google Maps                               |
-| Button                                                 | A paragraph with the link                                                       |
-| Icon List                                              | A list; an item with only an icon shows its link's address                      |
-| Icon Box, Image Box                                    | The image, heading and text                                                     |
-| Counter                                                | The final number, with thousands grouped as Elementor shows them, and the title |
-| Tabs, Accordion, Toggle, Nested Tabs, Nested Accordion | Each section as a heading followed by its content                               |
-| Testimonial, Testimonial Carousel                      | A quote with the person's name and title                                        |
-| Slides                                                 | The heading and text of each slide                                              |
-| Post Info                                              | Its dates as text; other items are reported                                     |
-| Spacer, Divider, Menu Anchor                           | Nothing: they only lay out the page                                             |
-| HTML                                                   | See the open questions                                                          |
+| Elementor widget                                        | Imported as                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Heading                                                 | A heading, at least `h2`, since the page title is the `h1`                      |
+| Text Editor                                             | Paragraphs, headings, lists, quotes, tables and images, each a block of its own |
+| Image                                                   | An image, with its link when it has one                                         |
+| Gallery, Basic Gallery, Image Carousel                  | A gallery                                                                       |
+| Video                                                   | An embed for YouTube and Vimeo, a video block for a file                        |
+| Google Maps                                             | A paragraph linking to the address on Google Maps                               |
+| Button                                                  | A paragraph with the link                                                       |
+| Icon List                                               | A list; an item with only an icon shows its link's address                      |
+| Icon Box, Image Box                                     | The image, heading and text                                                     |
+| Counter                                                 | The final number, with thousands grouped as Elementor shows them, and the title |
+| Tabs, Accordion, Toggle, Nested Tabs, Nested Accordion  | Each section as a heading followed by its content                               |
+| Testimonial, Testimonial Carousel                       | A quote with the person's name and title                                        |
+| Slides                                                  | The heading and text of each slide                                              |
+| Post Info                                               | Its dates as text; other items are reported                                     |
+| Spacer, Divider, Menu Anchor                            | Nothing: they only lay out the page                                             |
+| HTML                                                    | See the open questions                                                          |
 | Posts, Loop Grid, Form, Nav Menu, Search, Share Buttons | Reported and not imported: the site's own templates provide them                |
-| Any other widget, including add-ons                    | Reported with its widget type                                                   |
+| Any other widget, including add-ons                     | Reported with its widget type                                                   |
 
 ### Layout
 
