@@ -60,7 +60,7 @@ Two terms are used throughout:
 
 - Blocks sit on one sheet, split by hairlines, instead of in separate cards.
 - Existing blocks start closed when the edit screen opens. A closed block shows its icon, name and a one-line summary, plus a small thumbnail when the block has a photo.
-- The summary is the block's first filled `string` or `text` field, preferring required fields. It skips link fields, the section ID (`anchor_id`), and text that only repeats the block's name. A block without such text lists the titles of its first list's items instead: a Clients block whose heading is just "Clients" reads "Hotel Wilde, Het Bouwhuis, Ola Ceramics +3".
+- The summary is the block's first filled `string` or `text` field, preferring required fields. It skips link fields, the section ID (`anchor_id`), and text that only repeats the block's name. A block without such text shows the first non-empty paragraph, heading or list item of its rich text, and a block with neither lists the titles of its first list's items instead: a Clients block whose heading is just "Clients" reads "Hotel Wilde, Het Bouwhuis, Ola Ceramics +3".
 - "Collapse all" and "Expand all" sit next to the field's label.
 - An open block's header stays pinned to the top of the screen while you scroll through that block, so you can always see which block you're in and close it.
 - A block you add opens with its first field focused. A duplicated block appears below the original, open.
@@ -220,10 +220,10 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 
 ### The block list
 
-- **Read-only:** no gutter, menu or Add block. Blocks still open and close.
+- **Read-only:** no gutter, menu or Add block. Every block shows open, with no toggle: a read-only entry disables every control, so a closed block couldn't be opened.
 - **At `maxItems`:** every add action and Duplicate are disabled, and a tooltip gives the limit. Today Duplicate stays enabled at the limit.
 - **Below `minItems`:** the existing "Add at least N blocks." message stays.
-- **Retired, inactive-version and unsupported blocks:** Duplicate stays disabled for retired and unsupported blocks, as today. Moving and adding next to any of them still work. Deleting one asks for confirmation and offers no Undo. An unsupported block opens to the existing "This block cannot be edited" message instead of fields.
+- **Retired, inactive-version and unsupported blocks:** Duplicate stays disabled for retired and unsupported blocks, as today, and is also disabled for inactive-version blocks, because the server accepts new blocks only on their type's active version. Moving and adding next to any of them still work. Deleting one asks for confirmation and offers no Undo. An unsupported block opens to the existing "This block cannot be edited" message instead of fields.
 - **First and last block:** Move up is disabled on the first block and Move down on the last.
 - **Undo:** only the latest deletion, of a block or a list item, can be undone, while its toast is showing. The toast is announced to screen readers and stays for 6 seconds. It pauses while the pointer is over it or focus is inside it, and it closes when you delete something else or leave the page. After that, restoring an older revision is the way back.
 - **Site toolbar links:** `?field=content` still scrolls to the blocks field.
@@ -260,13 +260,13 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 Browser tests in `packages/admin/tests/components/BlocksField.test.tsx`:
 
 - Blocks start closed. An added block opens with its first field focused, and a duplicated block opens below the original. Collapse all and Expand all change every block.
-- The summary prefers a required headline. It skips link fields, the section ID and text equal to the block name, and falls back to item titles from the first list.
+- The summary prefers a required headline. It skips link fields, the section ID and text equal to the block name, and falls back to rich text, then to item titles from the first list.
 - Add block above and Add block below insert at the right position. Add block at the end appends.
 - Enter or Space on the drag handle opens the menu. Move up and Move down keep each block's values and `_key`, and are disabled at the ends. The existing test that reorders from the keyboard drag handle changes to use the menu.
 - Delete, then Undo, restores the block at the same position with the same `_key`. Deleting an inactive-version or retired block asks for confirmation and offers no Undo.
 - At `maxItems`, every add action and Duplicate are disabled.
 - Rows and the picker show the block type's icon, with the generic icon for a missing or unknown name.
-- Read-only mode hides the gutter, the menu and Add block.
+- Read-only mode hides the gutter, the menu and Add block, and shows every block open.
 
 In `packages/admin/tests/components/BlocksField.layout.test.tsx`, the summary moves onto the block name's row, so the test that aligns it under the name changes. The long-name wrapping test still applies.
 
