@@ -4,7 +4,7 @@ import { msg } from "@lingui/core/macro";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import {
 	getAvailableParentTerms,
@@ -15,6 +15,7 @@ import {
 import type { TaxonomyTerm } from "../../src/lib/api/taxonomies.js";
 
 import "../../dist/styles.css";
+import { pressOutside } from "../utils/mouse.ts";
 import { render } from "../utils/render.tsx";
 
 const taxonomyResponse = JSON.stringify({
@@ -127,6 +128,22 @@ const termsResponse = JSON.stringify({
 				parentId: null,
 				children: [],
 				count: 3,
+			},
+		],
+	},
+});
+
+const singleTermResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "1",
+				name: "tech",
+				slug: "tech",
+				label: "Technology",
+				parentId: null,
+				children: [],
+				count: 5,
 			},
 		],
 	},
@@ -298,6 +315,44 @@ const untranslatedParentTermsResponse = JSON.stringify({
 	},
 });
 
+const clothingTermsResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "men",
+				name: "categories",
+				slug: "men",
+				label: "Men",
+				parentId: null,
+				translationGroup: "men-group",
+				children: [
+					{
+						id: "men-accessories",
+						name: "categories",
+						slug: "accessories",
+						label: "Accessories",
+						parentId: "men-group",
+						translationGroup: "men-accessories-group",
+						children: [],
+						count: 0,
+					},
+				],
+				count: 0,
+			},
+			{
+				id: "women",
+				name: "categories",
+				slug: "women",
+				label: "Women",
+				parentId: null,
+				translationGroup: "women-group",
+				children: [],
+				count: 0,
+			},
+		],
+	},
+});
+
 vi.mock("../../src/lib/api/client.js", async () => {
 	const actual = await vi.importActual("../../src/lib/api/client.js");
 	return {
@@ -389,6 +444,26 @@ const PARENT_SELECTOR_REGEX = /Parent/;
 const NO_CATEGORIES_REGEX = /No categories yet/;
 const DELETE_CATEGORY_HEADING_REGEX = /Delete Category/i;
 const DELETE_TECHNOLOGY_DESC_REGEX = /permanently delete "Technology"/;
+const TAKEN_TERM_SLUG = "Another term already uses this slug. Enter a different one.";
+const TAKEN_TAXONOMY_NAME = "Another taxonomy already uses this name. Enter a different one.";
+const NAME_NOT_GENERATED =
+	"A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.";
+
+function conflictResponse(message: string) {
+	return new Response(JSON.stringify({ error: { code: "CONFLICT", message } }), {
+		status: 409,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+function requestsWith(method: string, path: string) {
+	return vi
+		.mocked(apiFetch)
+		.mock.calls.filter(
+			([url, init]) => typeof url === "string" && url.includes(path) && init?.method === method,
+		);
+}
+const EDIT_TERM_REGEX = /^Edit /;
 
 describe("TaxonomyManager", () => {
 	beforeEach(() => {
@@ -403,19 +478,6 @@ describe("TaxonomyManager", () => {
 		});
 
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
-	});
-
-	it("wraps the hierarchical term list in a horizontally scrollable container", async () => {
-		mockApiFetch(hierarchicalTermsResponse);
-		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
-			wrapper: Wrapper,
-		});
-
-		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
-
-		const container = document.querySelector(".border.rounded-lg.overflow-x-auto");
-		expect(container).not.toBeNull();
-		expect(container!.firstElementChild).toHaveClass("min-w-[560px]");
 	});
 
 	it("keeps the two tag actions together and moves taxonomy creation into More", async () => {
@@ -467,10 +529,13 @@ describe("TaxonomyManager", () => {
 		const slugInput = screen.getByRole("textbox", { name: "Slug" });
 		await expect.element(nameInput).toBeInTheDocument();
 		await expect.element(slugInput).toBeInTheDocument();
-		expect(screen.getByText("Auto-generated from name (you can edit)").query()).toBeNull();
+		const slugHelp = screen.getByRole("tooltip", {
+			name: "Auto-generated from name (you can edit)",
+		});
+		expect(slugHelp.query()).toBeNull();
 
 		await screen.getByRole("button", { name: "How is the slug generated?" }).hover();
-		await expect.element(screen.getByText("Auto-generated from name (you can edit)")).toBeVisible();
+		await expect.element(slugHelp).toBeVisible();
 		await screen.getByText("Slug", { exact: true }).click();
 		await expect.element(slugInput).toHaveFocus();
 	});
@@ -493,9 +558,12 @@ describe("TaxonomyManager", () => {
 				);
 			expect(call).toBeDefined();
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
-			expect(body).toMatchObject({ label: "Internship Experience" });
-			expect(body).not.toHaveProperty("slug");
+			expect(body).toMatchObject({
+				label: "Internship Experience",
+				slug: "internship-experience",
+			});
 		});
+		await expect.element(screen.getByText("Term created")).toBeVisible();
 	});
 
 	it("opens an empty form after creating a tag without leaving the page", async () => {
@@ -514,38 +582,35 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
 	});
 
-	it.each(["Create", "Cancel", "Close", "Escape"])(
-		"resets every create field after %s",
-		async (action) => {
-			const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
-				wrapper: Wrapper,
-			});
-			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
-			await screen.getByRole("textbox", { name: "Name" }).fill("Music");
-			await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
-			await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
-			await screen.getByRole("combobox", { name: "Parent" }).click();
-			await screen.getByRole("option", { name: "Technology" }).click();
-			if (action === "Escape") {
-				await userEvent.keyboard("{Escape}");
-			} else {
-				await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
-			}
-			await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+	it.each(["Create", "Cancel", "Escape"])("resets every create field after %s", async (action) => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Music");
+		await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
+		await screen.getByRole("textbox", { name: "Description (optional)" }).fill("Music news");
+		await screen.getByRole("combobox", { name: "Parent" }).click();
+		await screen.getByRole("option", { name: "Technology" }).click();
+		if (action === "Escape") {
+			await userEvent.keyboard("{Escape}");
+		} else {
+			await screen.getByRole("dialog").getByRole("button", { name: action, exact: true }).click();
+		}
+		await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 
-			await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
-			await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
-			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
-			await expect
-				.element(screen.getByRole("textbox", { name: "Description (optional)" }))
-				.toHaveValue("");
-			await expect
-				.element(screen.getByRole("combobox", { name: "Parent" }))
-				.toHaveTextContent("None (top level)");
-			await screen.getByRole("textbox", { name: "Name" }).fill("New term");
-			await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
-		},
-	);
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Description (optional)" }))
+			.toHaveValue("");
+		await expect
+			.element(screen.getByRole("combobox", { name: "Parent" }))
+			.toHaveTextContent("None (top level)");
+		await screen.getByRole("textbox", { name: "Name" }).fill("New term");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("new-term");
+	});
 
 	it("preserves a failed create for retry but clears its values and error on reopening", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
@@ -597,22 +662,18 @@ describe("TaxonomyManager", () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		const search = screen.getByRole("searchbox", { name: "Search tags" });
-		const visibleOrder = () =>
-			Array.from(
-				document.querySelectorAll("tbody tr"),
-				(row) => row.querySelector("td span")?.textContent,
-			);
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByText("Count", { exact: true })).toBeInTheDocument();
-		expect(visibleOrder()).toEqual(["Technology", "Science"]);
+		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 		expect(screen.getByText("2 tags").query()).toBeNull();
 		await search.fill("sci");
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
 		expect(screen.getByText("Technology", { exact: true }).query()).toBeNull();
 		expect(screen.getByText("1 of 2 tags").query()).toBeNull();
-		await screen.getByRole("button", { name: "More actions for Science" }).click();
-		expect(screen.getByRole("menuitem", { name: "Move up Science" }).query()).toBeNull();
+		const menu = await openRowMenu("Science");
+		expect(menu.getByRole("menuitem", { name: "Move up" }).query()).toBeNull();
+		expect(menu.getByRole("menuitem", { name: "Move down" }).query()).toBeNull();
 		await userEvent.keyboard("{Escape}");
 		await search.fill("tech");
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
@@ -625,7 +686,7 @@ describe("TaxonomyManager", () => {
 		await userEvent.keyboard("{Enter}");
 		await expect.element(search).toHaveFocus();
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
-		expect(visibleOrder()).toEqual(["Technology", "Science"]);
+		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 		expect(screen.getByText("2 tags").query()).toBeNull();
 	});
 
@@ -695,13 +756,11 @@ describe("TaxonomyManager", () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		await expect
-			.element(screen.getByRole("button", { name: "Edit Technology" }))
-			.toBeInTheDocument();
-		await screen.getByRole("button", { name: "More actions for Technology" }).click();
-		await expect
-			.element(screen.getByRole("menuitem", { name: "Move up Technology" }))
-			.toBeDisabled();
-		await screen.getByRole("menuitem", { name: "Move down Technology" }).click();
+			.element(screen.getByRole("button", { name: "Edit Technology", exact: true }))
+			.toHaveTextContent("Technology");
+		const menu = await openRowMenu("Technology");
+		await expect.element(menu.getByRole("menuitem", { name: "Move up" })).toBeDisabled();
+		await menu.getByRole("menuitem", { name: "Move down" }).click();
 		expect(reorderRequestBody()).toEqual({ parentId: null, ids: ["2", "1"] });
 	});
 
@@ -710,8 +769,7 @@ describe("TaxonomyManager", () => {
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "More actions for Technology" }).click();
-		await screen.getByRole("menuitem", { name: "Delete tag Technology" }).click();
+		await deleteFromRowMenu("Technology");
 		await expect.element(screen.getByText(DELETE_TECHNOLOGY_DESC_REGEX)).toBeInTheDocument();
 	});
 
@@ -720,19 +778,26 @@ describe("TaxonomyManager", () => {
 			wrapper: Wrapper,
 		});
 
-		// Use locators that target the specific label spans (font-medium class)
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
-		// "Science" also appears in "(science)" slug, so target the font-medium span
-		await expect.element(screen.getByText("(science)")).toBeInTheDocument();
+		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
 	});
 
-	it("shows term slugs in parentheses", async () => {
+	it("shows each term's slug under its name", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
 		});
 
-		await expect.element(screen.getByText("(tech)")).toBeInTheDocument();
-		await expect.element(screen.getByText("(science)")).toBeInTheDocument();
+		for (const [label, slug] of [
+			["Technology", "/tech"],
+			["Science", "/science"],
+		] as const) {
+			const slugText = screen.getByText(slug, { exact: true });
+			await expect.element(slugText).toBeVisible();
+			const name = screen.getByRole("button", { name: `Edit ${label}`, exact: true }).element();
+			expect(slugText.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(
+				name.getBoundingClientRect().bottom,
+			);
+		}
 	});
 
 	it("add button opens create dialog", async () => {
@@ -766,7 +831,7 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Description (optional)")).toBeInTheDocument();
 	});
 
-	it("lets the server derive an auto-generated term slug", async () => {
+	it("sends the auto-generated term slug the form shows", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
 		});
@@ -780,8 +845,7 @@ describe("TaxonomyManager", () => {
 			const call = vi.mocked(apiFetch).mock.calls.find(([, init]) => init?.method === "POST");
 			expect(call).toBeDefined();
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
-			expect(body).toMatchObject({ label: "音楽" });
-			expect(body).not.toHaveProperty("slug");
+			expect(body).toMatchObject({ label: "音楽", slug: "音楽" });
 		});
 	});
 
@@ -800,6 +864,309 @@ describe("TaxonomyManager", () => {
 			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
 			expect(body).toMatchObject({ label: "Music", slug: "custom-music" });
 		});
+	});
+
+	it("shows and sends a free slug when a name repeats under another parent", async () => {
+		mockApiFetch(clothingTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Accessories");
+		await dialog.getByRole("combobox", { name: "Parent" }).click();
+		await screen.getByRole("option", { name: "Women", exact: true }).click();
+
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug", exact: true }))
+			.toHaveValue("accessories-1");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({
+				label: "Accessories",
+				slug: "accessories-1",
+				parentId: "women-group",
+			});
+		});
+	});
+
+	it("sends a typed slug longer than a generated one", async () => {
+		const longSlug = `${"long-".repeat(17)}slug`;
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Long");
+		await dialog.getByRole("textbox", { name: "Slug", exact: true }).fill(longSlug);
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Long", slug: longSlug });
+		});
+	});
+
+	it("points at a missing term name when submitted, and sends nothing", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await expect.element(dialog.getByText("Enter a name.")).toBeVisible();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveFocus();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Slug", exact: true }))
+			.not.toHaveAttribute("aria-invalid");
+		expect(requestsWith("POST", "/terms")).toHaveLength(0);
+
+		await name.fill("Music");
+		await expect.element(dialog.getByText("Enter a name.")).not.toBeInTheDocument();
+	});
+
+	it("points at a cleared slug when editing a term, and sends nothing", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "Edit Technology", exact: true }).click();
+		const dialog = screen.getByRole("dialog");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await slug.fill("");
+		await dialog.getByRole("button", { name: "Update" }).click();
+
+		await expect.element(dialog.getByText("Enter a slug.")).toBeVisible();
+		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
+		await expect.element(slug).toHaveFocus();
+		expect(requestsWith("PUT", "/terms/")).toHaveLength(0);
+	});
+
+	it("sends a typed slug as typed, even one the form would not generate", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Archive");
+		await dialog.getByRole("textbox", { name: "Slug", exact: true }).fill("Archive_2024");
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("POST", "/terms")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Archive", slug: "Archive_2024" });
+		});
+	});
+
+	it("still saves a term whose stored slug the form would not generate", async () => {
+		mockApiFetch(turkishTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "Edit Music", exact: true }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Indie music");
+		await dialog.getByRole("button", { name: "Update" }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("PUT", "/terms/INDIE")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ slug: "INDIE", label: "Indie music" });
+		});
+	});
+
+	it("shows a slug another term uses on the Slug field", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Tech");
+		await slug.fill("tech");
+		vi.mocked(apiFetch).mockResolvedValueOnce(
+			conflictResponse("Term 'tech' already exists in 'categories' (en)"),
+		);
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+
+		await expect.element(dialog.getByText(TAKEN_TERM_SLUG)).toBeVisible();
+		await expect.element(slug).toHaveFocus();
+		await expect.element(slug).toHaveAttribute("aria-invalid", "true");
+		expect(dialog.getByText("Term 'tech' already exists in 'categories' (en)").query()).toBeNull();
+
+		await slug.fill("tech-news");
+		await expect.element(dialog.getByText(TAKEN_TERM_SLUG)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused slug in the banner when the slug changed during the save", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		const slug = dialog.getByRole("textbox", { name: "Slug", exact: true });
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Tech");
+		await slug.fill("tech");
+		let refuse!: () => void;
+		vi.mocked(apiFetch).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					refuse = () =>
+						resolve(conflictResponse("Term 'tech' already exists in 'categories' (en)"));
+				}),
+		);
+		await dialog.getByRole("button", { name: "Create", exact: true }).click();
+		await expect.element(dialog.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await slug.fill("tech-news");
+		refuse();
+
+		await expect
+			.element(dialog.getByText("Term 'tech' already exists in 'categories' (en)"))
+			.toBeVisible();
+		await expect.element(slug).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("keeps a typed term through a press outside, and closes an untouched form", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		const dialog = screen.getByRole("dialog");
+		await expect.element(dialog).toBeVisible();
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Music");
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Name", exact: true }))
+			.toHaveValue("Music");
+	});
+
+	it("points at a missing taxonomy label when submitted, and sends nothing", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const label = dialog.getByRole("textbox", { name: "Label", exact: true });
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+
+		await expect.element(dialog.getByText("Enter a label.")).toBeVisible();
+		await expect.element(label).toHaveAttribute("aria-invalid", "true");
+		await expect.element(label).toHaveFocus();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Name", exact: true }))
+			.not.toHaveAttribute("aria-invalid");
+		expect(requestsWith("POST", "/taxonomies")).toHaveLength(0);
+	});
+
+	it("explains a taxonomy name it cannot generate, then points at it on submit", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("أنواع");
+
+		await expect.element(dialog.getByText(NAME_NOT_GENERATED)).toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+		await expect.element(name).toHaveAttribute("aria-invalid", "true");
+		await expect.element(name).toHaveFocus();
+		await expect.element(dialog.getByText(NAME_NOT_GENERATED)).toBeVisible();
+
+		await name.fill("Kinds");
+		await expect
+			.element(
+				dialog.getByText(
+					"Use lowercase letters, numbers, and underscores, starting with a letter.",
+				),
+			)
+			.toBeVisible();
+		expect(requestsWith("POST", "/taxonomies")).toHaveLength(0);
+	});
+
+	it("shows a name another taxonomy uses on the Name field", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Categories");
+		await expect.element(name).toHaveValue("categories");
+		vi.mocked(apiFetch).mockResolvedValueOnce(
+			conflictResponse("Taxonomy 'categories' already exists in locale 'en'"),
+		);
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+
+		await expect.element(dialog.getByText(TAKEN_TAXONOMY_NAME)).toBeVisible();
+		await expect.element(name).toHaveFocus();
+		expect(
+			dialog.getByText("Taxonomy 'categories' already exists in locale 'en'").query(),
+		).toBeNull();
+
+		await name.fill("genres");
+		await expect.element(dialog.getByText(TAKEN_TAXONOMY_NAME)).not.toBeInTheDocument();
+	});
+
+	it("reports a refused name in the banner when the name changed during the save", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		const name = dialog.getByRole("textbox", { name: "Name", exact: true });
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Categories");
+		await expect.element(name).toHaveValue("categories");
+		let refuse!: () => void;
+		vi.mocked(apiFetch).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					refuse = () =>
+						resolve(conflictResponse("Taxonomy 'categories' already exists in locale 'en'"));
+				}),
+		);
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+		await expect.element(dialog.getByRole("button", { name: "Creating..." })).toBeVisible();
+		await name.fill("genres");
+		refuse();
+
+		await expect
+			.element(dialog.getByText("Taxonomy 'categories' already exists in locale 'en'"))
+			.toBeVisible();
+		await expect.element(name).not.toHaveAttribute("aria-invalid");
+	});
+
+	it("keeps a typed taxonomy through a press outside, and closes an untouched form", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Create Taxonomy" });
+		await expect.element(dialog).toBeVisible();
+		await pressOutside();
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "New Taxonomy" }).click();
+		await dialog.getByRole("textbox", { name: "Label", exact: true }).fill("Genres");
+		await pressOutside();
+		await expect.element(dialog).toBeVisible();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Label", exact: true }))
+			.toHaveValue("Genres");
 	});
 
 	it("shows parent selector for hierarchical taxonomies", async () => {
@@ -855,6 +1222,35 @@ describe("TaxonomyManager", () => {
 			.toBeInTheDocument();
 	});
 
+	it("opens the term editor from the row menu's Edit item", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		const menu = await openRowMenu("Technology");
+		await menu.getByRole("menuitem", { name: "Edit", exact: true }).click();
+
+		await expect
+			.element(screen.getByRole("heading", { name: EDIT_CATEGORY_HEADING_REGEX }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Technology");
+	});
+
+	it("opens the translate dialog from the row menu on a site with two locales", async () => {
+		manifestI18n = { defaultLocale: "en", locales: ["en", "de"] };
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+		await expect.element(screen.getByRole("combobox", { name: "Locale" })).toBeVisible();
+
+		const menu = await openRowMenu("Technology");
+		await menu.getByRole("menuitem", { name: "Translate", exact: true }).click();
+
+		await expect
+			.element(screen.getByRole("heading", { name: 'Translate "Technology"', exact: true }))
+			.toBeInTheDocument();
+	});
+
 	it('sends description: "" when the description field is cleared in the edit dialog', async () => {
 		mockApiFetch(termsWithDescriptionResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
@@ -885,7 +1281,7 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Delete Technology" }).click();
+		await deleteFromRowMenu("Technology");
 
 		// Should open a ConfirmDialog (not window.confirm)
 		await expect
@@ -926,15 +1322,40 @@ describe("TaxonomyManager", () => {
 			).length;
 	}
 
-	/**
-	 * Labels of the rendered rows, top to bottom, read off each row's move
-	 * button rather than the markup around it.
-	 */
+	/** Labels of the rendered rows, top to bottom, read off each term's name button. */
 	function renderedOrder(): string[] {
-		const buttons = document.querySelectorAll<HTMLElement>('button[aria-label$=" up"]');
-		return Array.from(buttons, (button) =>
-			(button.getAttribute("aria-label") ?? "").slice("Move ".length, -" up".length),
-		);
+		return page
+			.getByRole("button", { name: EDIT_TERM_REGEX })
+			.elements()
+			.map((button) => button.textContent ?? "");
+	}
+
+	async function openRowMenu(label: string) {
+		await page.getByRole("button", { name: `Actions for ${label}`, exact: true }).click();
+		const menu = page.getByRole("menu");
+		await expect.element(menu).toBeVisible();
+		return menu;
+	}
+
+	/** Moves a term from the keyboard, which should leave focus on the moved row's menu button. */
+	async function moveFromRowMenu(label: string, item: "Move up" | "Move down") {
+		// A pointer left resting over the menu stops Base UI returning focus to the trigger.
+		await page.getByRole("heading", { level: 1 }).hover();
+		const trigger = page.getByRole("button", { name: `Actions for ${label}`, exact: true });
+		trigger.element().focus();
+		await userEvent.keyboard("{Enter}");
+		const menu = page.getByRole("menu");
+		await expect.element(menu.getByRole("menuitem", { name: "Edit", exact: true })).toHaveFocus();
+		await userEvent.keyboard(item === "Move up" ? "{ArrowDown}" : "{ArrowDown}{ArrowDown}");
+		await expect.element(menu.getByRole("menuitem", { name: item })).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(menu).not.toBeInTheDocument();
+		await expect.element(trigger).toHaveFocus();
+	}
+
+	async function deleteFromRowMenu(label: string) {
+		const menu = await openRowMenu(label);
+		await menu.getByRole("menuitem", { name: `Delete ${label}`, exact: true }).click();
 	}
 
 	it("moving a term sends the whole sibling group in its new order", async () => {
@@ -944,7 +1365,7 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Move Technology down" }).click();
+		await moveFromRowMenu("Technology", "Move down");
 
 		expect(reorderRequestBody()).toEqual({ parentId: null, ids: ["2", "1"] });
 	});
@@ -959,7 +1380,7 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 
-		await screen.getByRole("button", { name: "Move Technology down" }).click();
+		await moveFromRowMenu("Technology", "Move down");
 
 		// Still in flight, and the list has already moved.
 		expect(defer.inFlight).toBe(1);
@@ -978,18 +1399,18 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		const fetchesBefore = termFetchCount();
 
-		// Two clicks before either response lands: down, then back up. The list
+		// Two moves before either response lands: down, then back up. The list
 		// tracks both without waiting for the round trip.
-		await screen.getByRole("button", { name: "Move Technology down" }).click();
+		await moveFromRowMenu("Technology", "Move down");
 		expect(renderedOrder()).toEqual(["Science", "Technology"]);
-		await screen.getByRole("button", { name: "Move Technology up" }).click();
+		await moveFromRowMenu("Technology", "Move up");
 		expect(renderedOrder()).toEqual(["Technology", "Science"]);
 
 		defer.release();
 		await vi.waitFor(() => expect(reorderRequestBodies()).toHaveLength(2));
 
-		// Each body is an absolute order taken from the list at click time, so
-		// applying them in click order is what makes the last one win.
+		// Each body is an absolute order taken from the list at move time, so
+		// applying them in move order is what makes the last one win.
 		expect(reorderRequestBodies()).toEqual([
 			{ parentId: null, ids: ["2", "1"] },
 			{ parentId: null, ids: ["1", "2"] },
@@ -1007,11 +1428,15 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-		await expect.element(screen.getByRole("button", { name: "Move Technology up" })).toBeDisabled();
-		await expect.element(screen.getByRole("button", { name: "Move Science down" })).toBeDisabled();
-		await expect
-			.element(screen.getByRole("button", { name: "Move Technology down" }))
-			.toBeEnabled();
+		const first = await openRowMenu("Technology");
+		await expect.element(first.getByRole("menuitem", { name: "Move up" })).toBeDisabled();
+		await expect.element(first.getByRole("menuitem", { name: "Move down" })).toBeEnabled();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(first).not.toBeInTheDocument();
+
+		const last = await openRowMenu("Science");
+		await expect.element(last.getByRole("menuitem", { name: "Move up" })).toBeEnabled();
+		await expect.element(last.getByRole("menuitem", { name: "Move down" })).toBeDisabled();
 	});
 
 	it("reorders the top level while nested rows are on screen", async () => {
@@ -1022,7 +1447,7 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Test", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Move Design down" }).click();
+		await moveFromRowMenu("Design", "Move down");
 
 		expect(reorderRequestBody()).toEqual({
 			parentId: null,
@@ -1038,12 +1463,25 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Fonts", { exact: true })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Move Fonts down" }).click();
+		await moveFromRowMenu("Fonts", "Move down");
 
 		expect(reorderRequestBody()).toEqual({
 			parentId: "design-group",
 			ids: ["colour-group", "fonts-group"],
 		});
+	});
+
+	it.each([
+		["an only child", hierarchicalTermsResponse, "Test"],
+		["the only root", singleTermResponse, "Technology"],
+	])("leaves Move out of the menu for %s", async (_case, response, label) => {
+		mockApiFetch(response);
+		await render(<TaxonomyManager taxonomyName="categories" />, { wrapper: Wrapper });
+
+		const menu = await openRowMenu(label);
+		await expect.element(menu.getByRole("menuitem", { name: "Edit", exact: true })).toBeVisible();
+		expect(menu.getByRole("menuitem", { name: "Move up" }).query()).toBeNull();
+		expect(menu.getByRole("menuitem", { name: "Move down" }).query()).toBeNull();
 	});
 
 	it("cannot move a term whose parent is untranslated", async () => {
@@ -1054,16 +1492,16 @@ describe("TaxonomyManager", () => {
 
 		await expect.element(screen.getByText("Nino", { exact: true })).toBeInTheDocument();
 
-		// The label carries the reason: a disabled caret with no explanation is
-		// two dead buttons on an arbitrary row.
-		const up = screen.getByRole("button", {
-			name: "Move Nino up — unavailable, its parent has no translation in this locale",
-		});
-		const down = screen.getByRole("button", {
-			name: "Move Nino down — unavailable, its parent has no translation in this locale",
-		});
-		await expect.element(up).toBeDisabled();
-		await expect.element(down).toBeDisabled();
+		const reason =
+			"Nino can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to.";
+		const menu = await openRowMenu("Nino");
+		await expect.element(menu.getByText(reason, { exact: true })).toBeVisible();
+		const moves = menu.getByRole("group", { name: reason });
+		for (const name of ["Move up", "Move down"]) {
+			const item = moves.getByRole("menuitem", { name });
+			await expect.element(item).toBeDisabled();
+			await expect.element(item).toHaveAccessibleDescription(reason);
+		}
 	});
 
 	it("leaves an untranslated-parent term out of the group it is drawn in", async () => {
@@ -1076,7 +1514,7 @@ describe("TaxonomyManager", () => {
 
 		// Beta and Gamma are the only real roots, so Beta's "down" is enabled even
 		// though Nino sits between them, and Nino is not named in the request.
-		await screen.getByRole("button", { name: "Move Beta down" }).click();
+		await moveFromRowMenu("Beta", "Move down");
 
 		expect(reorderRequestBody()).toEqual({
 			parentId: null,
@@ -1161,7 +1599,7 @@ describe("TaxonomyManager", () => {
 			const screen = await render(<TaxonomyManager taxonomyName="topics" />, { wrapper: Wrapper });
 			await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 
-			await screen.getByRole("button", { name: "Delete Technology", exact: true }).click();
+			await deleteFromRowMenu("Technology");
 			await expect
 				.element(screen.getByRole("heading", { name: "Delete Begriff?", exact: true }))
 				.toBeInTheDocument();

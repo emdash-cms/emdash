@@ -85,21 +85,37 @@ Several hooks expose protected data or can change an operation. EmDash registers
 
 Lifecycle hooks, `cron`, and `page:metadata` have no registration capability. Declare the listed capability even when a hook only reads its event and does not call the matching `ctx` API. The declaration gives the operator an accurate consent prompt, gates the `ctx` API, and is required when the plugin runs in process. [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the runtime effect.
 
+<Aside type="caution" title="A missing capability fails silently">
+	An undeclared capability is not an installation error. The plugin installs and activates normally and its
+	other hooks still run. Only the gated hook is dropped. Nothing surfaces in the admin interface, so the
+	symptom is a hook that never fires. EmDash logs this when it registers the hook:
+
+	```
+	[hooks] Plugin "<id>" declares <name> hook without <capability> capability — skipping
+	```
+
+	Check the server log before debugging the handler.
+</Aside>
+
 ## Lifecycle hooks
 
 Run during plugin installation, activation, deactivation, and removal.
 
 ### `plugin:install`
 
-Runs once when the plugin is first added to a site.
+Runs during initial plugin setup. For config-declared sandboxed plugins, sandbox unavailability before activation completes can leave no saved installation state. The next boot runs install again, even if the earlier install hook succeeded. Make initialization idempotent so a retry preserves existing settings and data.
 
-This example assumes the manifest declares an `items` storage collection:
+This example initializes only missing values and assumes the manifest declares an `items` storage collection:
 
 ```typescript
 "plugin:install": async (_event, ctx) => {
 	ctx.log.info("Installing plugin...");
-	await ctx.settings.set("enabled", true);
-	await ctx.storage.items.put("default", { name: "Default Item" });
+	if ((await ctx.settings.get<boolean>("enabled")) === null) {
+		await ctx.settings.set("enabled", true);
+	}
+	if ((await ctx.storage.items.get("default")) === null) {
+		await ctx.storage.items.put("default", { name: "Default Item" });
+	}
 },
 ```
 
@@ -162,9 +178,13 @@ Runs before content is saved. Return modified content, a sandbox hook error resu
 
 To reject a save from the sandbox, return a versioned hook result with a `SAVE_REJECTED` error. Set `reason` to plain text between 1 and 500 characters. EmDash identifies the plugin and shows the reason to the editor. Empty, overlong, malformed, and unknown error results fail the save with a generic hook error.
 
+The following example requires a title on new entries. On an update, `content` holds only the fields the request sends, so the hook checks the title only when an update includes one:
+
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-	const { content } = event;
+	const { content, isNew } = event;
+	if (!isNew && !("title" in content)) return;
+
 	if (typeof content.title !== "string" || content.title.trim() === "") {
 		return {
 			__emdashSandboxHookResult: true,

@@ -16,6 +16,8 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	announce?: boolean;
 	/** Classes for the visible label, e.g. to hide it on small screens and keep only the icon. */
 	labelClassName?: string;
+	/** Replaces the "Save" label, e.g. "Save draft". */
+	saveLabel?: string;
 }
 
 export function SaveButton({
@@ -23,6 +25,7 @@ export function SaveButton({
 	isSaving,
 	announce = true,
 	labelClassName,
+	saveLabel: customSaveLabel,
 	className,
 	disabled,
 	icon,
@@ -32,7 +35,7 @@ export function SaveButton({
 	...props
 }: SaveButtonProps) {
 	const { t } = useLingui();
-	const saveLabel = t`Save`;
+	const saveLabel = customSaveLabel ?? t`Save`;
 	const savingLabel = t`Saving...`;
 	const savedLabel = t`Saved`;
 	const isBusy = isSaving || Boolean(loading);
