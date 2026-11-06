@@ -92,8 +92,9 @@ function useCardLayout(
 			frame = requestAnimationFrame(() => setVersion((value) => value + 1));
 		};
 		editor.on("transaction", bump);
+		// Fields above the editor, such as an image that finishes loading, move the text without resizing it.
 		const observer = new ResizeObserver(bump);
-		observer.observe(editor.view.dom);
+		observer.observe(editor.view.dom.closest(".emdash-editor-page") ?? editor.view.dom);
 		if (gutterRef.current) observer.observe(gutterRef.current);
 		return () => {
 			cancelAnimationFrame(frame);
@@ -254,7 +255,7 @@ export function MarginComments({
 						<div
 							key={thread.id}
 							ref={register(thread.id)}
-							className="absolute inset-x-0 transition-[top] duration-150"
+							className="absolute inset-x-0"
 							style={{
 								top: tops[thread.id] ?? 0,
 								visibility: thread.id in tops ? undefined : "hidden",
