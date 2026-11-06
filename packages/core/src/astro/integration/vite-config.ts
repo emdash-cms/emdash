@@ -355,7 +355,16 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				return generateBuildModule(buildTime);
 			}
 			if (id === RESOLVED_VIRTUAL_ROOMS_ID) {
-				return generateRoomsModule(astroConfig.adapter?.name, resolvedConfig.coEditing ?? false);
+				const adapterName = astroConfig.adapter?.name;
+				const coEditing = resolvedConfig.coEditing ?? false;
+				const cloudflareRoomsResolves =
+					coEditing &&
+					adapterName === "@astrojs/cloudflare" &&
+					canResolveProjectDependency(
+						fileURLToPath(astroConfig.root),
+						"@emdash-cms/cloudflare/rooms",
+					);
+				return generateRoomsModule(adapterName, coEditing, cloudflareRoomsResolves);
 			}
 		},
 	};
