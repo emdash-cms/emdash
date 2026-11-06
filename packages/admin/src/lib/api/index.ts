@@ -475,6 +475,7 @@ export {
 	deleteEditorialComment,
 	deleteEditorialThread,
 	editEditorialComment,
+	fetchEditorialMentionable,
 	fetchEditorialThreads,
 	replyToEditorialThread,
 	setEditorialThreadStatus,
