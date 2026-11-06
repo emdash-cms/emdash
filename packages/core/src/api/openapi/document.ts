@@ -51,6 +51,8 @@ import {
 	editorialAnchorsUpdateResponseSchema,
 	editorialCommentBody,
 	editorialCommentDeleteResponseSchema,
+	editorialMentionableQuery,
+	editorialMentionableResponseSchema,
 	editorialThreadCreateBody,
 	editorialThreadDeleteResponseSchema,
 	editorialThreadListQuery,
@@ -837,6 +839,31 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/threads/mentionable": {
+		get: {
+			operationId: "listEditorialMentionable",
+			summary: "Find users to mention",
+			description:
+				"Up to 10 users who can take part in editorial threads, matched by display name. " +
+				"Never includes email addresses.",
+			tags: ["Editorial comments"],
+			requestParams: {
+				path: entryPathParams,
+				query: editorialMentionableQuery.extend(localeQuery.shape),
+			},
+			responses: {
+				"200": {
+					description: "Matching users",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(editorialMentionableResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
 			},
 		},
 	},

@@ -163,6 +163,7 @@ Private review threads on an entry. Every operation needs the `content:read_draf
 | `GET` | `/_emdash/api/content/{collection}/{id}/threads` | `listEditorialThreads` | List the entry's editorial threads |
 | `POST` | `/_emdash/api/content/{collection}/{id}/threads` | `createEditorialThread` | Start an editorial thread |
 | `PATCH` | `/_emdash/api/content/{collection}/{id}/threads/anchors` | `updateEditorialAnchors` | Store recomputed thread anchors |
+| `GET` | `/_emdash/api/content/{collection}/{id}/threads/mentionable` | `listEditorialMentionable` | Find users to mention |
 | `PATCH` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}` | `updateEditorialThread` | Resolve or reopen a thread |
 | `DELETE` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}` | `deleteEditorialThread` | Delete a thread |
 | `POST` | `/_emdash/api/content/{collection}/{id}/threads/{threadId}/comments` | `createEditorialComment` | Reply to a thread |

@@ -7,12 +7,21 @@ import {
 	type EditorialAnchor,
 	type EditorialAnchorUpdate,
 	type EditorialComment,
+	type EditorialPerson,
 	type EditorialThread,
 	type EditorialThreadHead,
 } from "../../database/repositories/editorial-threads.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
+import {
+	EDITORIAL_MENTION_LIMIT,
+	extractMentions,
+	findEditorialUsers,
+	searchMentionableUsers,
+	type EditorialUser,
+} from "../../editorial/mentions.js";
+import type { EditorialCommentCreated } from "../../editorial/notifications.js";
 import { entryEditAccess } from "../authorize.js";
 import { ErrorCode } from "../errors.js";
 import { validateRev } from "../rev.js";
@@ -29,8 +38,13 @@ export interface EditorialCommentView extends EditorialComment {
 
 export interface EditorialThreadView extends Omit<EditorialThread, "comments"> {
 	comments: EditorialCommentView[];
+	/** Users the comments mention, with their current names. Deleted users are left out. */
+	mentions: EditorialPerson[];
 	can: { resolve: boolean; delete: boolean };
 }
+
+/** Called once a new comment is committed, to send its notifications. */
+export type EditorialCommentCreatedHook = (created: EditorialCommentCreated) => void;
 
 /** Identifies the entry from the route: `id` may be an ID or a slug. */
 export interface EditorialEntryRef {
@@ -152,7 +166,50 @@ function canDeleteThread(
 	return true;
 }
 
-function toView(actor: EditorialActor, entry: Entry, thread: EditorialThread): EditorialThreadView {
+/** Every mentioned user must exist and be allowed to take part in editorial threads. */
+async function checkMentions(db: Kysely<Database>, body: string): Promise<Failure | null> {
+	const ids = extractMentions(body);
+	if (ids.length === 0) return null;
+	if (ids.length > EDITORIAL_MENTION_LIMIT) {
+		return fail(
+			ErrorCode.VALIDATION_ERROR,
+			`A comment can mention at most ${EDITORIAL_MENTION_LIMIT} people`,
+		);
+	}
+	const users = await findEditorialUsers(db, ids);
+	const invalid = ids.find((id) => !users.get(id)?.canComment);
+	if (invalid) {
+		return fail(
+			ErrorCode.VALIDATION_ERROR,
+			`<@${invalid}> can't be mentioned in editorial comments`,
+		);
+	}
+	return null;
+}
+
+function mentionIds(thread: EditorialThread): string[] {
+	return thread.comments.flatMap((comment) => extractMentions(comment.body));
+}
+
+async function mentionedUsers(
+	db: Kysely<Database>,
+	threads: EditorialThread[],
+): Promise<Map<string, EditorialUser>> {
+	const ids = threads.flatMap(mentionIds);
+	return ids.length === 0 ? new Map() : findEditorialUsers(db, ids);
+}
+
+function toView(
+	actor: EditorialActor,
+	entry: Entry,
+	thread: EditorialThread,
+	users: Map<string, EditorialUser>,
+): EditorialThreadView {
+	const mentions: EditorialPerson[] = [];
+	for (const id of new Set(mentionIds(thread))) {
+		const user = users.get(id);
+		if (user) mentions.push({ id: user.id, name: user.name, avatarUrl: user.avatarUrl });
+	}
 	const liveAuthors = thread.comments
 		.filter((comment) => comment.deletedAt === null)
 		.map((comment) => comment.author?.id ?? null);
@@ -166,6 +223,7 @@ function toView(actor: EditorialActor, entry: Entry, thread: EditorialThread): E
 				can: { edit: live && mine, delete: live && (mine || isManager(actor)) },
 			};
 		}),
+		mentions,
 		can: {
 			resolve: canResolve(actor, entry, thread),
 			delete: canDeleteThread(actor, thread, liveAuthors),
@@ -181,7 +239,7 @@ async function threadView(
 ): Promise<ApiResult<EditorialThreadView>> {
 	const thread = await new EditorialThreadRepository(db).getThread(threadId);
 	if (!thread) return threadNotFound();
-	return { success: true, data: toView(actor, entry, thread) };
+	return { success: true, data: toView(actor, entry, thread, await mentionedUsers(db, [thread])) };
 }
 
 async function run<T>(
@@ -216,10 +274,11 @@ export function handleEditorialThreadList(
 				cursor: options.cursor,
 			},
 		);
+		const users = await mentionedUsers(db, page.items);
 		return {
 			success: true,
 			data: {
-				items: page.items.map((thread) => toView(actor, entry, thread)),
+				items: page.items.map((thread) => toView(actor, entry, thread, users)),
 				...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
 			},
 		};
@@ -231,16 +290,20 @@ export function handleEditorialThreadCreate(
 	actor: EditorialActor,
 	ref: EditorialEntryRef,
 	input: { _rev?: string; anchor: EditorialAnchor; body: string },
+	onCreated?: EditorialCommentCreatedHook,
 ): Promise<ApiResult<EditorialThreadView>> {
-	return run("create the editorial thread", () =>
-		withTransaction(db, async (trx) => {
+	return run("create the editorial thread", async () => {
+		const created: { value?: EditorialCommentCreated } = {};
+		const result = await withTransaction(db, async (trx) => {
 			const entry = await loadEntry(trx, ref);
 			if (isFailure(entry)) return entry;
 			const refused =
-				(await checkWritable(trx, entry, input._rev)) ?? checkAnchor(entry, input.anchor);
+				(await checkWritable(trx, entry, input._rev)) ??
+				checkAnchor(entry, input.anchor) ??
+				(await checkMentions(trx, input.body));
 			if (refused) return refused;
 
-			const { threadId } = await new EditorialThreadRepository(trx).createThread({
+			created.value = await new EditorialThreadRepository(trx).createThread({
 				collection: entry.collection,
 				entryId: entry.item.id,
 				anchor: input.anchor,
@@ -248,9 +311,11 @@ export function handleEditorialThreadCreate(
 				body: input.body,
 				now: now(),
 			});
-			return threadView(trx, actor, entry, threadId);
-		}),
-	);
+			return threadView(trx, actor, entry, created.value.threadId);
+		});
+		if (result.success && created.value) onCreated?.(created.value);
+		return result;
+	});
 }
 
 export function handleEditorialThreadUpdate(
@@ -314,25 +379,30 @@ export function handleEditorialCommentCreate(
 	ref: EditorialEntryRef,
 	threadId: string,
 	input: { body: string },
+	onCreated?: EditorialCommentCreatedHook,
 ): Promise<ApiResult<EditorialThreadView>> {
-	return run("add the comment", () =>
-		withTransaction(db, async (trx) => {
+	return run("add the comment", async () => {
+		const created: { value?: EditorialCommentCreated } = {};
+		const result = await withTransaction(db, async (trx) => {
 			const entry = await loadEntry(trx, ref);
 			if (isFailure(entry)) return entry;
 			const thread = await loadThread(trx, entry, threadId);
 			if (isFailure(thread)) return thread;
-			const refused = await checkWritable(trx, entry);
+			const refused = (await checkWritable(trx, entry)) ?? (await checkMentions(trx, input.body));
 			if (refused) return refused;
 
-			await new EditorialThreadRepository(trx).addComment({
+			const commentId = await new EditorialThreadRepository(trx).addComment({
 				threadId,
 				authorId: actor.id,
 				body: input.body,
 				now: now(),
 			});
+			created.value = { threadId, commentId };
 			return threadView(trx, actor, entry, threadId);
-		}),
-	);
+		});
+		if (result.success && created.value) onCreated?.(created.value);
+		return result;
+	});
 }
 
 async function loadComment(
@@ -366,7 +436,7 @@ export function handleEditorialCommentUpdate(
 			if (comment.authorId !== actor.id) {
 				return fail(ErrorCode.FORBIDDEN, "Only its author can edit a comment");
 			}
-			const refused = await checkWritable(trx, entry);
+			const refused = (await checkWritable(trx, entry)) ?? (await checkMentions(trx, input.body));
 			if (refused) return refused;
 
 			await new EditorialThreadRepository(trx).editComment({
@@ -444,4 +514,20 @@ export function handleEditorialAnchorsUpdate(
 			return { success: true, data: { updated } };
 		}),
 	);
+}
+
+/**
+ * Users who may be mentioned on the entry's threads. Per entry, so that a
+ * future collection-scoped permission model can narrow it.
+ */
+export function handleEditorialMentionable(
+	db: Kysely<Database>,
+	ref: EditorialEntryRef,
+	query: string,
+): Promise<ApiResult<{ items: EditorialPerson[] }>> {
+	return run("list mentionable users", async () => {
+		const entry = await loadEntry(db, ref);
+		if (isFailure(entry)) return entry;
+		return { success: true, data: { items: await searchMentionableUsers(db, query) } };
+	});
 }
