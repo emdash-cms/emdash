@@ -2240,6 +2240,9 @@ importers:
       lowlight:
         specifier: 'catalog:'
         version: 3.3.0
+      marked:
+        specifier: ^17.0.3
+        version: 17.0.3
       mime:
         specifier: ^4.1.0
         version: 4.1.0
