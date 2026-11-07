@@ -75,11 +75,13 @@ describeEachDialect("WordPress permalink Unicode route matching", (dialect) => {
 		expect(results).toEqual([
 			{
 				title: "other",
-				error: "Could not create redirect: the WordPress permalink is another entry's live URL",
+				error:
+					"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
 			},
 			{
 				title: "other encoded",
-				error: "Could not create redirect: the WordPress permalink is another entry's live URL",
+				error:
+					"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
 			},
 		]);
 		expect(await ctx.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
@@ -105,7 +107,8 @@ describeEachDialect("WordPress permalink Unicode route matching", (dialect) => {
 		expect(result).toEqual([
 			{
 				title: "other",
-				error: "Could not create redirect: the WordPress permalink is another entry's live URL",
+				error:
+					"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
 			},
 		]);
 		expect(await ctx.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
@@ -142,7 +145,8 @@ describeEachDialect("WordPress permalink Unicode route matching", (dialect) => {
 		expect(result).toEqual([
 			{
 				title: "autre",
-				error: "Could not create redirect: the WordPress permalink is another entry's live URL",
+				error:
+					"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
 			},
 		]);
 		expect(await ctx.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);

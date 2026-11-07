@@ -76,11 +76,24 @@ export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
 export const VIRTUAL_BUILD_ID = "virtual:emdash/build";
 export const RESOLVED_VIRTUAL_BUILD_ID = "\0" + VIRTUAL_BUILD_ID;
 
+export const VIRTUAL_PAGE_ROUTES_ID = "virtual:emdash/page-routes";
+export const RESOLVED_VIRTUAL_PAGE_ROUTES_ID = "\0" + VIRTUAL_PAGE_ROUTES_ID;
+
 /**
  * Generates the config virtual module.
  */
 export function generateConfigModule(serializableConfig: Record<string, unknown>): string {
 	return `export default ${JSON.stringify(serializableConfig)};`;
+}
+
+export interface PageRouteMetadata {
+	source: string;
+	flags: string;
+}
+
+/** Generates route-matching metadata collected from Astro's resolved routes. */
+export function generatePageRoutesModule(pageRoutes: PageRouteMetadata[]): string {
+	return `export const pageRoutes = ${JSON.stringify(pageRoutes)};`;
 }
 
 /**

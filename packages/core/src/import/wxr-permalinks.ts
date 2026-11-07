@@ -3,7 +3,8 @@ import type { Kysely, Selectable } from "kysely";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import type { ContentItem } from "../database/repositories/types.js";
 import type { Database, RedirectTable } from "../database/types.js";
-import { resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
+import { getI18nConfig } from "../i18n/config.js";
+import { localizePath, resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
 import { publishRedirectChanges } from "../redirects/artifacts.js";
 import { isSiteRelativeDestination } from "../redirects/destination.js";
 import { wouldCreateLoop, type RedirectEdge } from "../redirects/loops.js";
@@ -33,6 +34,21 @@ function pathKey(path: string): string {
 	return normalizeSourcePath(path).replace(TRAILING_SLASH, "") || "/";
 }
 
+async function importPermalinkRoots(): Promise<Set<string>> {
+	const base = pathKey(import.meta.env.BASE_URL || "/");
+	const roots = new Set(["/", base]);
+	for (const locale of getI18nConfig()?.locales ?? []) {
+		const localized = await localizePath("/", locale);
+		for (const path of [`/${locale}`, localized]) {
+			if (!path) continue;
+			const root = pathKey(path);
+			roots.add(root);
+			if (base !== "/") roots.add(pathKey(`${base}${root === "/" ? "" : root}`));
+		}
+	}
+	return roots;
+}
+
 async function findCanonicalRedirects(db: Kysely<Database>, canonicalPaths: Set<string>) {
 	const sources = [...canonicalPaths].flatMap((path) =>
 		path === "/" ? [path] : [path, `${path}/`],
@@ -60,6 +76,7 @@ export async function importWxrPermalinks(
 	entries: WxrPermalinkEntry[],
 ): Promise<PermalinkError[]> {
 	const errors: PermalinkError[] = [];
+	const roots = await importPermalinkRoots();
 	const candidates: Array<{ title: string; source: string; destination: string }> = [];
 	const canonicalPaths = new Set<string>();
 	const canonicalTitles = new Map<string, string[]>();
@@ -97,6 +114,12 @@ export async function importWxrPermalinks(
 				});
 				continue;
 			}
+			const source = pathKey(url.pathname);
+			if (roots.has(source)) {
+				canonicalPaths.add(source);
+				canonicalTitles.set(source, [...(canonicalTitles.get(source) ?? []), entry.title]);
+				continue;
+			}
 			if (destination === null || UNRESOLVED_TOKEN.test(destination)) {
 				errors.push({
 					title: entry.title,
@@ -104,7 +127,6 @@ export async function importWxrPermalinks(
 				});
 				continue;
 			}
-			const source = normalizeSourcePath(url.pathname);
 			if (shouldSkipRedirectPath(source)) {
 				if (pathKey(source) !== pathKey(destination)) {
 					errors.push({
@@ -163,7 +185,7 @@ export async function importWxrPermalinks(
 					row.enabled === 1 &&
 					row.is_pattern === 0 &&
 					row.type === 301 &&
-					canonicalPaths.has(pathKey(row.source))
+					(canonicalPaths.has(pathKey(row.source)) || liveSources.has(pathKey(row.source)))
 				) {
 					if (!(await repository.delete(row.id, undefined, fence)))
 						throw new Error("Redirect write fence expired");
@@ -172,11 +194,17 @@ export async function importWxrPermalinks(
 					rows.push(row);
 				}
 			}
+			const sourceCounts = new Map<string, number>();
+			for (const row of rows) {
+				const key = pathKey(row.source);
+				sourceCounts.set(key, (sourceCounts.get(key) ?? 0) + 1);
+			}
 			const sources = new Map(
 				rows.map((row) => [
 					pathKey(row.source),
 					{
 						id: row.id,
+						source: row.source,
 						owned: row.auto === 1 && row.group_name === "WordPress import",
 						destination: row.destination,
 						enabled: row.enabled === 1,
@@ -195,6 +223,14 @@ export async function importWxrPermalinks(
 			for (const candidate of candidates) {
 				const sourceKey = pathKey(candidate.source);
 				const destinationKey = pathKey(candidate.destination);
+				if ((sourceCounts.get(sourceKey) ?? 0) > 1) {
+					errors.push({
+						title: candidate.title,
+						error:
+							"Could not create redirect: an existing rule already uses the WordPress permalink",
+					});
+					continue;
+				}
 				const existing = sources.get(sourceKey);
 				if (sourceKey === destinationKey || liveSources.has(sourceKey)) {
 					if (existing?.owned && existing.enabled && !existing.isPattern && existing.type === 301) {
@@ -208,7 +244,7 @@ export async function importWxrPermalinks(
 						errors.push({
 							title: candidate.title,
 							error:
-								"Could not create redirect: the WordPress permalink is another entry's live URL",
+								"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
 						});
 					continue;
 				}
@@ -230,7 +266,12 @@ export async function importWxrPermalinks(
 					}
 					continue;
 				}
-				if (existing?.type === 301 && existing.destination === candidate.destination) continue;
+				if (
+					existing?.type === 301 &&
+					existing.source === candidate.source &&
+					existing.destination === candidate.destination
+				)
+					continue;
 				const otherEdges = edges.filter((edge) => edge.id !== existing?.id);
 				if (wouldCreateLoop(sourceKey, destinationKey, otherEdges)) {
 					errors.push({
@@ -243,7 +284,7 @@ export async function importWxrPermalinks(
 				const redirect = existing
 					? await repository.update(
 							existing.id,
-							{ destination: candidate.destination },
+							{ source: candidate.source, destination: candidate.destination },
 							undefined,
 							fence,
 						)
@@ -262,6 +303,7 @@ export async function importWxrPermalinks(
 				changed = true;
 				sources.set(sourceKey, {
 					id: redirect.id,
+					source: redirect.source,
 					owned: true,
 					destination: redirect.destination,
 					enabled: true,

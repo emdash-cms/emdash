@@ -619,6 +619,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
 	let usesCloudflareAdapter = false;
 	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
+	const pageRoutes: Array<{ source: string; flags: string }> = [];
+	let invalidatePageRoutes: (() => void) | undefined;
 	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
 
 	const integration: AstroIntegration = {
@@ -765,6 +767,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 							resolvedConfig,
 							pluginDescriptors,
 							astroConfig,
+							getPageRoutes: () => pageRoutes,
+							registerPageRoutesInvalidator: (invalidator) => {
+								invalidatePageRoutes = invalidator;
+							},
 						},
 						command,
 					),
@@ -804,6 +810,22 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Route info is printed with absolute, clickable URLs once the
 				// dev server is listening (see astro:server:setup), since the
 				// port isn't known yet here. Nothing useful to print for build.
+			},
+			"astro:routes:resolved": ({ routes }) => {
+				// Dynamic patterns can match 404s; published content URLs are checked at import time.
+				const resolvedRoutes = routes
+					.filter(
+						(route) =>
+							(route.type === "page" || route.type === "endpoint" || route.type === "redirect") &&
+							route.params.length === 0 &&
+							(route.origin === "project" || route.origin === "external"),
+					)
+					.map((route) => ({
+						source: route.patternRegex.source,
+						flags: route.patternRegex.flags,
+					}));
+				pageRoutes.splice(0, pageRoutes.length, ...resolvedRoutes);
+				invalidatePageRoutes?.();
 			},
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);

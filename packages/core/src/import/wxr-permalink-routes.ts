@@ -50,12 +50,46 @@ type Candidate = {
 	by: "slug" | "id";
 };
 
-/** Find live public routes that would be hidden by imported redirect sources. */
+export function findPageRouteSources(
+	sources: string[],
+	pageRoutes: Array<{ source: string; flags: string }>,
+	base = basePath(),
+): Set<string> {
+	const served = new Set<string>();
+	const patterns = pageRoutes.map((route) => new RegExp(route.source, route.flags));
+	for (const source of sources) {
+		const key = pathKey(source);
+		if (base !== "/" && !key.startsWith(`${base}/`)) continue;
+		const relative = base === "/" ? key : key.slice(base.length);
+		let decoded = relative;
+		try {
+			decoded = decodeURI(relative).normalize();
+		} catch {
+			// Invalid escapes still need to be checked against literal route patterns.
+		}
+		if (
+			patterns.some((pattern) =>
+				[relative, `${relative}/`, decoded, `${decoded}/`].some((path) => {
+					pattern.lastIndex = 0;
+					return pattern.test(path);
+				}),
+			)
+		)
+			served.add(key);
+	}
+	return served;
+}
+
+/** Find public routes that would be hidden by imported redirect sources. */
 export async function findLivePermalinkSources(
 	db: Kysely<Database>,
 	sources: string[],
 ): Promise<Set<string>> {
-	const live = new Set<string>();
+	// @ts-ignore - virtual module
+	const { pageRoutes } = (await import("virtual:emdash/page-routes")) as {
+		pageRoutes: Array<{ source: string; flags: string }>;
+	};
+	const live = findPageRouteSources(sources, pageRoutes);
 	const collections = (await new SchemaRegistry(db).listCollections()).filter(
 		(collection) => collection.routable !== false,
 	);
@@ -88,6 +122,7 @@ export async function findLivePermalinkSources(
 	const candidates = new Map<string, Candidate[]>();
 	for (const source of sources) {
 		const sourceKey = pathKey(source);
+		if (live.has(sourceKey)) continue;
 		const matches: Candidate[] = [];
 		for (const { collection, locale, regex, paramNames } of patterns.values()) {
 			const match = regex.exec(sourceKey);

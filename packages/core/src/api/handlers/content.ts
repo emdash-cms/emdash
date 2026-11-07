@@ -44,13 +44,14 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
-import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { interpolateUrlPattern, resolveLocalizedContentRoutePath } from "../../i18n/resolve.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
 import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { normalizeSourcePath } from "../../redirects/patterns.js";
 import { requestCached } from "../../request-cache.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
@@ -833,6 +834,8 @@ async function createSlugChangeRedirect(
 	return redirect !== null;
 }
 
+const TRAILING_SLASH = /\/$/;
+
 /**
  * Remove any auto-redirect whose source is the URL a newly published entry
  * now occupies. This prevents an earlier slug-change redirect from shadowing
@@ -844,6 +847,7 @@ async function removeShadowingAutoRedirect(
 	slug: string | null | undefined,
 	contentId: string,
 	publishedAt: string | null | undefined,
+	locale?: string | null,
 ): Promise<boolean> {
 	if (!slug) return false;
 	validateIdentifier(collection, "collection slug");
@@ -862,9 +866,34 @@ async function removeShadowingAutoRedirect(
 		date: publishedAt,
 	});
 
+	const sources = new Set<string>();
+	const addSource = (source: string) => {
+		const normalized = normalizeSourcePath(source);
+		for (const path of [source, normalized]) {
+			sources.add(path);
+			if (path !== "/") sources.add(path.endsWith("/") ? path.slice(0, -1) : `${path}/`);
+		}
+	};
+	addSource(url);
+
+	if (locale) {
+		const localized = await resolveLocalizedContentRoutePath({
+			pattern: collectionRow?.url_pattern ?? null,
+			collection,
+			slug,
+			id: contentId,
+			date: publishedAt,
+			locale,
+		});
+		if (localized) {
+			const base = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASH, "");
+			addSource(`${base}${localized}`);
+		}
+	}
+
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "=", url)
+		.where("source", "in", [...sources])
 		.where("auto", "=", 1)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
@@ -1459,6 +1488,7 @@ export async function handleContentCreate(
 					created.slug,
 					created.id,
 					created.publishedAt,
+					created.locale,
 				);
 			}
 
@@ -1789,6 +1819,7 @@ export async function handleContentUpdate(
 						updated.slug,
 						updated.id,
 						updated.publishedAt,
+						updated.locale,
 					)) || redirectChanged;
 			}
 
@@ -2620,6 +2651,7 @@ export async function handleContentPublish(
 					published.slug,
 					published.id,
 					published.publishedAt,
+					published.locale,
 				)) || redirectChanged;
 
 			return published;

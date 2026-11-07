@@ -335,9 +335,9 @@ describe("WXR execute chunked import", () => {
 				await harness.db
 					.selectFrom("_emdash_redirects")
 					.select(["source", "destination", "type"])
-					.where("source", "=", "/shared/")
+					.where("source", "=", "/shared")
 					.execute(),
-			).toEqual([{ source: "/shared/", destination: "/blog/post-1", type: 301 }]);
+			).toEqual([{ source: "/shared", destination: "/blog/post-1", type: 301 }]);
 
 			const secondResponse = await runChunk(first.data.cursor, first.data.chunk);
 			expect(secondResponse.status).toBe(200);
@@ -351,7 +351,7 @@ describe("WXR execute chunked import", () => {
 					.select(["source", "destination", "type"])
 					.orderBy("source")
 					.execute(),
-			).toEqual(pageHasLink ? [{ source: "/old-shared/", destination: "/shared", type: 301 }] : []);
+			).toEqual(pageHasLink ? [{ source: "/old-shared", destination: "/shared", type: 301 }] : []);
 		},
 	);
 
@@ -526,13 +526,13 @@ describe("WXR execute chunked import", () => {
 				.execute(),
 		).toEqual([
 			{ source: "/2004/05/01/conflict/", destination: "/manual-conflict", type: 302 },
-			{ source: "/2004/05/01/post-1/", destination: "/2004/05/02/post-1", type: 301 },
-			{ source: "/2004/06/27/post-2/", destination: "/2004/06/28/post-2", type: 301 },
+			{ source: "/2004/05/01/post-1", destination: "/2004/05/02/post-1", type: 301 },
+			{ source: "/2004/06/27/post-2", destination: "/2004/06/28/post-2", type: 301 },
 		]);
 
 		await harness.db
 			.deleteFrom("_emdash_redirects")
-			.where("source", "=", "/2004/05/01/post-1/")
+			.where("source", "=", "/2004/05/01/post-1")
 			.execute();
 		const retry = await executePost(
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion
@@ -554,8 +554,8 @@ describe("WXR execute chunked import", () => {
 				.execute(),
 		).toEqual([
 			{ source: "/2004/05/01/conflict/", destination: "/manual-conflict", type: 302 },
-			{ source: "/2004/05/01/post-1/", destination: "/2004/05/02/post-1", type: 301 },
-			{ source: "/2004/06/27/post-2/", destination: "/2004/06/28/post-2", type: 301 },
+			{ source: "/2004/05/01/post-1", destination: "/2004/05/02/post-1", type: 301 },
+			{ source: "/2004/06/27/post-2", destination: "/2004/06/28/post-2", type: 301 },
 		]);
 	});
 

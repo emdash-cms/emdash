@@ -88,7 +88,7 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		expect(result).toEqual([]);
 		expect(await redirects()).toEqual([
 			{
-				source: "/2004/05/01/example-post/",
+				source: "/2004/05/01/example-post",
 				destination: "/2004/05/02/example-post",
 				type: 301,
 				enabled: 1,
@@ -104,7 +104,7 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		expect(first).toEqual([]);
 		expect(await redirects()).toEqual([
 			{
-				source: "/2004/05/01/example-post/",
+				source: "/2004/05/01/example-post",
 				destination: "/2004/05/02/example-post/",
 				type: 301,
 				enabled: 1,
@@ -118,13 +118,39 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		expect(second).toEqual([]);
 		expect(await redirects()).toEqual([
 			{
-				source: "/2004/05/01/example-post/",
+				source: "/2004/05/01/example-post",
 				destination: "/2004/05/02/example-post",
 				type: 301,
 				enabled: 1,
 				isPattern: 0,
 			},
 		]);
+	});
+
+	it("normalizes an existing importer redirect source on rerun", async () => {
+		const repo = new RedirectRepository(ctx.db);
+		const rule = await repo.create({
+			source: "/old/",
+			destination: "/canonical",
+			type: 301,
+			enabled: true,
+			auto: true,
+			groupName: "WordPress import",
+		});
+
+		expect(
+			await importWxrPermalinks(ctx.db, [
+				entry("https://wp.test/old/", post({ id: "canonical", slug: "canonical" }), {
+					pattern: "/{slug}",
+				}),
+			]),
+		).toEqual([]);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_redirects")
+				.select(["id", "source", "destination", "type"])
+				.execute(),
+		).toEqual([{ id: rule.id, source: "/old", destination: "/canonical", type: 301 }]);
 	});
 
 	it("is idempotent and leaves a same-day trailing-slash difference alone", async () => {
@@ -194,6 +220,30 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 				isPattern: 1,
 			},
 		]);
+	});
+
+	it("reports slash-alias rule collisions without failing other redirects in the chunk", async () => {
+		const repo = new RedirectRepository(ctx.db);
+		const manual = await repo.create({ source: "/old", destination: "/manual", type: 302 });
+		const owned = await repo.create({
+			source: "/old/",
+			destination: "/prior",
+			auto: true,
+			groupName: "WordPress import",
+		});
+		const errors = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/old/"),
+			entry("https://wp.test/another/", post({ id: "other", slug: "other" })),
+		]);
+		expect(errors).toEqual([
+			{
+				title: "example-post",
+				error: "Could not create redirect: an existing rule already uses the WordPress permalink",
+			},
+		]);
+		expect(await repo.findById(manual.id)).toEqual(manual);
+		expect(await repo.findById(owned.id)).toEqual(owned);
+		expect((await repo.findBySource("/another"))?.destination).toBe("/2004/05/02/other");
 	});
 
 	it("preserves an owned enabled non-301 rule as a conflict", async () => {
@@ -366,7 +416,7 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		]);
 		expect(await redirects()).toEqual([
 			{
-				source: "/2004/05/01/fr/example-post/",
+				source: "/2004/05/01/fr/example-post",
 				destination: "/fr/2004/05/02/example-post",
 				type: 301,
 				enabled: 1,
@@ -400,7 +450,8 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		expect(result).toEqual([
 			{
 				title: "hello",
-				error: "Could not create redirect: the WordPress permalink is another entry's live URL",
+				error:
+					"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
 			},
 		]);
 		expect(await redirects()).toEqual([]);
@@ -415,14 +466,14 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		expect(result).toEqual([]);
 		expect(await redirects()).toEqual([
 			{
-				source: "/archive/2004/05/01/example-post/",
+				source: "/archive/2004/05/01/example-post",
 				destination: "/archive/2004/05/02/example-post",
 				type: 301,
 				enabled: 1,
 				isPattern: 0,
 			},
 			{
-				source: "/2004/05/01/other-post/",
+				source: "/2004/05/01/other-post",
 				destination: "/archive/2004/05/02/other-post",
 				type: 301,
 				enabled: 1,
