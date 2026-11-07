@@ -6,73 +6,73 @@ import { RouterProvider } from "@tanstack/react-router";
 import * as React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-import type { AdminManifest } from "../src/lib/api";
-import { createAdminRouter } from "../src/router";
+import type { AdminManifest } from "../src/lib/api/index.js";
+import { createAdminRouter } from "../src/router.js";
 import { render } from "./utils/render.tsx";
-import { createTestQueryClient, createMockFetch } from "./utils/test-helpers";
+import { createTestQueryClient, createMockFetch } from "./utils/test-helpers.js";
 
-vi.mock("../src/components/Shell", () => ({
+vi.mock("../src/components/Shell.js", () => ({
 	Shell: ({ children }: { children: React.ReactNode }) => <div data-testid="shell">{children}</div>,
 }));
 
-vi.mock("../src/components/AdminCommandPalette", () => ({
+vi.mock("../src/components/AdminCommandPalette.js", () => ({
 	AdminCommandPalette: () => null,
 }));
 
-vi.mock("../src/routes/users", () => ({
+vi.mock("../src/routes/users.js", () => ({
 	UsersPage: () => <div>Users page content</div>,
 }));
 
-vi.mock("../src/components/WordPressImport", () => ({
+vi.mock("../src/components/WordPressImport.js", () => ({
 	WordPressImport: () => <div>WordPress import content</div>,
 }));
 
-vi.mock("../src/components/PluginSettings", () => ({
+vi.mock("../src/components/PluginSettings.js", () => ({
 	PluginSettings: () => <div>Plugin settings content</div>,
 }));
 
 // Modules that also export siblings other modules import spread `importOriginal`;
 // a bare factory would drop those exports and break the import graph.
-vi.mock("../src/components/ContentTypeList", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../src/components/ContentTypeList")>()),
+vi.mock("../src/components/ContentTypeList.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/components/ContentTypeList.js")>()),
 	ContentTypeList: () => <div>Content types content</div>,
 }));
 
-vi.mock("../src/components/PluginManager", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../src/components/PluginManager")>()),
+vi.mock("../src/components/PluginManager.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/components/PluginManager.js")>()),
 	PluginManager: () => <div>Plugin manager content</div>,
 }));
 
-vi.mock("../src/components/Settings", () => ({
+vi.mock("../src/components/Settings.js", () => ({
 	Settings: () => <div>Settings content</div>,
 }));
 
-vi.mock("../src/components/settings/AllowedDomainsSettings", () => ({
+vi.mock("../src/components/settings/AllowedDomainsSettings.js", () => ({
 	AllowedDomainsSettings: () => <div>Allowed domains content</div>,
 }));
 
-vi.mock("../src/components/settings/ApiTokenSettings", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../src/components/settings/ApiTokenSettings")>()),
+vi.mock("../src/components/settings/ApiTokenSettings.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/components/settings/ApiTokenSettings.js")>()),
 	ApiTokenSettings: () => <div>API tokens content</div>,
 }));
 
-vi.mock("../src/components/settings/BackupSettings", () => ({
+vi.mock("../src/components/settings/BackupSettings.js", () => ({
 	BackupSettings: () => <div>Backups content</div>,
 }));
 
-vi.mock("../src/components/settings/EmailSettings", () => ({
+vi.mock("../src/components/settings/EmailSettings.js", () => ({
 	EmailSettings: () => <div>Email settings content</div>,
 }));
 
-vi.mock("../src/components/settings/GeneralSettings", () => ({
+vi.mock("../src/components/settings/GeneralSettings.js", () => ({
 	GeneralSettings: () => <div>General settings content</div>,
 }));
 
-vi.mock("../src/components/settings/SeoSettings", () => ({
+vi.mock("../src/components/settings/SeoSettings.js", () => ({
 	SeoSettings: () => <div>SEO settings content</div>,
 }));
 
-vi.mock("../src/components/settings/SocialSettings", () => ({
+vi.mock("../src/components/settings/SocialSettings.js", () => ({
 	SocialSettings: () => <div>Social settings content</div>,
 }));
 

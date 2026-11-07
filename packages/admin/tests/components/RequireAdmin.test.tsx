@@ -24,7 +24,7 @@ vi.mock("../../src/lib/api/current-user.js", () => ({
 }));
 
 // Import after mocks
-const { RequireAdmin } = await import("../../src/components/RequireAdmin");
+const { RequireAdmin } = await import("../../src/components/RequireAdmin.js");
 
 const CHILD_TEXT = "Protected settings content";
 

@@ -57,7 +57,7 @@ import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
 import { RelationList } from "./components/RelationList";
-import { RequireAdmin } from "./components/RequireAdmin";
+import { RequireAdmin } from "./components/RequireAdmin.js";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
