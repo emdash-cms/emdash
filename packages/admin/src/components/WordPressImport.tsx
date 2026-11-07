@@ -2418,7 +2418,7 @@ function CompleteStep({
 				<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint">
 					<div className="border-b border-kumo-warning/50 p-4">
 						<h3 className="font-medium">
-							{t`Imported as Drafts (${result.passwordProtected.length})`}
+							{t`Password-Protected Entries (${result.passwordProtected.length})`}
 						</h3>
 						<p className="mt-1 text-sm text-kumo-subtle">
 							{t`These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it.`}
