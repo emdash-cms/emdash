@@ -48,6 +48,7 @@ vi.mock("@cloudflare/kumo", () => ({
 
 interface PendingRequest {
 	route: string;
+	body: Record<string, unknown>;
 	resolve: (response: Response) => void;
 	reject: (error: Error) => void;
 }
@@ -61,10 +62,11 @@ beforeEach(() => {
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(
-			(url: string) =>
+			(url: string, init: RequestInit) =>
 				new Promise<Response>((resolve, reject) => {
 					requests.push({
 						route: url.split("/emdash-forms/")[1] ?? url,
+						body: JSON.parse(init.body as string),
 						resolve,
 						reject,
 					});
@@ -200,6 +202,76 @@ describe.each([
 
 		await settle(current, ok({ items: [submission("s2", "Bob")] }));
 		expect(screen.getByText("Bob")).toBeTruthy();
+	});
+});
+
+describe.each([
+	["Submissions page", pages!["/submissions"]!],
+	["Recent Submissions widget", widgets!["recent-submissions"]!],
+])("%s initial form", (_, Component) => {
+	it("shows the latest submitted form instead of a newer empty form", async () => {
+		render(<Component />);
+		await settle(
+			await nextRequest("forms/list"),
+			ok({
+				items: [
+					{ ...form("b", "Empty B"), submissionCount: 0, lastSubmissionAt: null },
+					{ ...form("c", "Older C"), lastSubmissionAt: "2026-09-01T00:00:00.000Z" },
+					{ ...form("a", "Contact A"), lastSubmissionAt: "2026-10-01T00:00:00.000Z" },
+					{ ...form("d", "Older D"), lastSubmissionAt: "2026-08-01T00:00:00.000Z" },
+				],
+			}),
+		);
+		const request = await nextRequest("submissions/list");
+		expect(request.body.formId).toBe("a");
+		await settle(request, ok({ items: [submission("s1", "Alice")] }));
+		expect(screen.getByText("Alice")).toBeTruthy();
+		expect(screen.queryByText("No submissions yet")).toBeNull();
+	});
+
+	it("ignores an empty form with a stale last submission timestamp", async () => {
+		render(<Component />);
+		await settle(
+			await nextRequest("forms/list"),
+			ok({
+				items: [
+					{
+						...form("b", "Deleted submissions"),
+						submissionCount: 0,
+						lastSubmissionAt: "2026-10-02T00:00:00.000Z",
+					},
+					{ ...form("a", "Contact A"), lastSubmissionAt: "2026-10-01T00:00:00.000Z" },
+				],
+			}),
+		);
+		const request = await nextRequest("submissions/list");
+		expect(request.body.formId).toBe("a");
+		await settle(request, ok({ items: [submission("s1", "Alice")] }));
+		expect(screen.getByText("Alice")).toBeTruthy();
+	});
+
+	it("falls back to the first form when no forms have submissions", async () => {
+		render(<Component />);
+		await settle(
+			await nextRequest("forms/list"),
+			ok({
+				items: [
+					{ ...form("b", "Empty B"), submissionCount: 0, lastSubmissionAt: null },
+					{ ...form("a", "Empty A"), submissionCount: 0, lastSubmissionAt: null },
+				],
+			}),
+		);
+		const request = await nextRequest("submissions/list");
+		expect(request.body.formId).toBe("b");
+		await settle(request, ok({ items: [] }));
+		expect(screen.getByText(/No submissions/)).toBeTruthy();
+	});
+
+	it("handles a site without forms", async () => {
+		render(<Component />);
+		await settle(await nextRequest("forms/list"), ok({ items: [] }));
+		expect(screen.getByText(/No forms/)).toBeTruthy();
+		expect(requests).toHaveLength(1);
 	});
 });
 

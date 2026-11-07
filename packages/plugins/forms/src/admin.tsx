@@ -915,7 +915,7 @@ function FieldRow({
 							onChange={(e) => onChange({ name: e.target.value })}
 						/>
 					</div>
-					<div className="flex items-center gap-4">
+					<div className="flex items-end gap-4">
 						<Select
 							label="Type"
 							hideLabel={false}
@@ -930,11 +930,13 @@ function FieldRow({
 							onValueChange={(v) => onChange({ width: v ?? "full" })}
 							items={WIDTH_ITEMS}
 						/>
-						<Checkbox
-							label="Required"
-							checked={field.required}
-							onCheckedChange={(checked) => onChange({ required: checked })}
-						/>
+						<div className="flex h-9 items-center">
+							<Checkbox
+								label="Required"
+								checked={field.required}
+								onCheckedChange={(checked) => onChange({ required: checked })}
+							/>
+						</div>
 					</div>
 				</div>
 				<div className="flex items-center gap-0.5 pt-6">
@@ -1118,6 +1120,17 @@ function OptionsEditor({
 // Submissions Page
 // =============================================================================
 
+function latestSubmittedForm(forms: FormItem[]): FormItem | undefined {
+	let latest: FormItem | undefined;
+	for (const form of forms) {
+		if (form.submissionCount === 0) continue;
+		if (!latest || (form.lastSubmissionAt ?? "") > (latest.lastSubmissionAt ?? "")) {
+			latest = form;
+		}
+	}
+	return latest ?? forms[0];
+}
+
 function SubmissionsPage() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [selectedFormId, setSelectedFormId] = React.useState<string>("");
@@ -1140,8 +1153,9 @@ function SubmissionsPage() {
 				}
 				const data = await parseApiResponse<{ items: FormItem[] }>(res);
 				setForms(data.items);
-				if (data.items.length > 0 && data.items[0]) {
-					setSelectedFormId(data.items[0].id);
+				const initialForm = latestSubmittedForm(data.items);
+				if (initialForm) {
+					setSelectedFormId(initialForm.id);
 				}
 			} catch {
 				setError(FORMS_LOAD_FAILED);
@@ -1549,10 +1563,11 @@ function RecentSubmissionsWidget() {
 				const formsData = await parseApiResponse<{ items: FormItem[] }>(formsRes);
 				setForms(formsData.items);
 
-				if (formsData.items.length > 0 && formsData.items[0]) {
+				const latestForm = latestSubmittedForm(formsData.items);
+				if (latestForm) {
 					failure = SUBMISSIONS_LOAD_FAILED;
 					const subsRes = await apiFetch("submissions/list", {
-						formId: formsData.items[0].id,
+						formId: latestForm.id,
 						limit: 5,
 					});
 					if (!subsRes.ok) {

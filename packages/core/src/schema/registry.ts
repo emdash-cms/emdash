@@ -39,6 +39,7 @@ import {
 	markContentMediaUsageCollectionStaleSafely,
 } from "../media/usage/content-refresh.js";
 import { finishMediaUsageCollectionDeletion } from "../media/usage/maintenance-engine.js";
+import { invalidateCollectionCache } from "../object-cache/index.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { getPortableTableSpec } from "../transfer/format/columns.js";
 import { canonicalDigest } from "../transfer/format/digest.js";
@@ -1077,6 +1078,7 @@ export class SchemaRegistry {
 	 * Update a collection
 	 */
 	async updateCollection(slug: string, input: UpdateCollectionInput): Promise<Collection> {
+		let titleFieldChanged = false;
 		const updated = await withTransaction(this.db, async (trx) => {
 			const existingRow = await trx
 				.selectFrom("_emdash_collections")
@@ -1147,6 +1149,7 @@ export class SchemaRegistry {
 			if (!row) {
 				throw new SchemaError("Failed to update collection", "UPDATE_FAILED");
 			}
+			titleFieldChanged = row.title_field !== existingRow.title_field;
 
 			// Sync FTS state when the supports array changes (e.g. search toggled on/off)
 			if (input.supports !== undefined) {
@@ -1159,6 +1162,8 @@ export class SchemaRegistry {
 
 			return this.mapCollectionRow(row);
 		});
+		// Cached entries carry the collection's titleField, which getSeoMeta() reads.
+		if (titleFieldChanged) invalidateCollectionCache(slug);
 		this.notifyTypegen();
 		return updated;
 	}

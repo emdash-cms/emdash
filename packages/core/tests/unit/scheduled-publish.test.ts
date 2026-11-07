@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type KyselyPlugin } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentPublish } from "../../src/api/handlers/content.js";
@@ -182,6 +182,40 @@ describe("publishDueContent()", () => {
 		// A second sweep finds nothing — publish cleared scheduled_at.
 		const second = await publishDueContent(db);
 		expect(second).toEqual([]);
+	});
+
+	it("queries no collection one by one when nothing is due", async () => {
+		const future = new Date(Date.now() + 86_400_000).toISOString();
+		const post = await repo.create(createPostFixture());
+		await repo.schedule("post", post.id, future);
+		const queries: string[] = [];
+		const recorder: KyselyPlugin = {
+			transformQuery(args) {
+				queries.push(db.getExecutor().compileQuery(args.node, args.queryId).sql);
+				return args.node;
+			},
+			async transformResult(args) {
+				return args.result;
+			},
+		};
+
+		expect(await publishDueContent(db.withPlugin(recorder))).toEqual([]);
+
+		expect(queries.filter((query) => /order by scheduled_at/i.test(query))).toEqual([]);
+		expect(queries.filter((query) => /from "options"/i.test(query))).toEqual([]);
+		expect(queries).toHaveLength(2);
+	});
+
+	it("still publishes when a collection's table is missing", async () => {
+		const post = await repo.create(createPostFixture());
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await sql`DROP TABLE ec_page`.execute(db);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const published = await publishDueContent(db);
+
+		expect(published).toEqual([{ collection: "post", id: post.id }]);
 	});
 
 	it("advances past a bounded window of repeatedly failing entries", async () => {

@@ -12,6 +12,11 @@ import {
 } from "../../src/lib/publishing-datetime.js";
 
 describe("publishing date-time helpers", () => {
+	it.each(["", "not a date", "0000-00-00 00:00:00"])("renders %s as empty", (value) => {
+		expect(formatPublishingInstant(value, "en")).toBe("");
+		expect(formatPublishingInstantWithZone(value, "en")).toBe("");
+	});
+
 	it("round-trips an instant through browser-local minute fields", () => {
 		const fields = publishingInstantToLocalFields("2026-07-01T13:30:00.000Z");
 

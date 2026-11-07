@@ -2,15 +2,14 @@ import {
 	Badge,
 	Button,
 	Collapsible,
-	Dialog,
 	Input,
 	Label,
 	LayerCard,
+	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
 	Text,
-	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -21,7 +20,6 @@ import {
 	CaretDown,
 	Eye,
 	EyeSlash,
-	Info,
 	Trash,
 	Upload,
 	X,
@@ -48,6 +46,8 @@ import {
 	getContentPublishingState,
 	type ContentPublishingState,
 } from "../lib/content-publishing-state.js";
+import { useConfirmedRequest } from "../lib/dialog-form.js";
+import { getSeoFallbackTitle } from "../lib/entryTitle.js";
 import { usePluginAdmins } from "../lib/plugin-context";
 import {
 	formatPublishingInstant,
@@ -58,6 +58,7 @@ import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
@@ -65,6 +66,7 @@ import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
+import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
@@ -125,6 +127,7 @@ function PublishingVersionRow({
 
 function PublishingVersionRelationship({
 	publishingState,
+	isNew,
 	supportsDrafts,
 	scheduledAt,
 	locale,
@@ -132,10 +135,11 @@ function PublishingVersionRelationship({
 	discardDisabled,
 }: {
 	publishingState: ContentPublishingState;
+	isNew?: boolean;
 	supportsDrafts: boolean;
 	scheduledAt?: string | null;
 	locale: string;
-	onDiscardDraft?: () => void;
+	onDiscardDraft?: () => Promise<unknown> | void;
 	discardDisabled?: boolean;
 }) {
 	const { t } = useLingui();
@@ -166,7 +170,11 @@ function PublishingVersionRelationship({
 				<PublishingVersionRow
 					iconState="draft"
 					title={t`Draft version`}
-					description={t`This version is not visible on the site`}
+					description={
+						isNew
+							? t`Saving creates a draft that stays off the site. You can publish it after the first save.`
+							: t`This version is not visible on the site`
+					}
 				/>
 			);
 			break;
@@ -297,15 +305,14 @@ function TimestampRow({
 }
 
 /**
- * When the editor bar is narrow, its secondary buttons keep only their icon so
- * the bar stays on one row. The buttons distraction-free mode adds give up
- * their labels first, at a wider bar.
+ * Secondary actions keep only their icons in narrow editor bars and fill a
+ * grid cell on mobile. Distraction-free actions give up their labels first.
  */
 export const compactBarButtonClassName =
-	"@max-2xl/editor-bar:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0";
+	"@max-2xl/editor-bar:sm:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0 max-sm:w-full";
 export const compactBarLabelClassName = "@max-2xl/editor-bar:sr-only";
 const compactBarExtraButtonClassName =
-	"@max-[60rem]/editor-bar:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0";
+	"@max-[60rem]/editor-bar:sm:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0 max-sm:w-full";
 const compactBarExtraLabelClassName = "@max-[60rem]/editor-bar:sr-only";
 
 /**
@@ -319,7 +326,8 @@ export function DiscardDraftDialog({
 	compact,
 	disabled,
 }: {
-	onDiscard?: () => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscard?: () => Promise<unknown> | void;
 	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
 	/** Shows only the icon on small screens, for the editor bar. */
@@ -327,57 +335,43 @@ export function DiscardDraftDialog({
 	disabled?: boolean;
 }) {
 	const { t } = useLingui();
+	const discard = useConfirmedRequest(onDiscard);
 	return (
-		<Dialog.Root>
-			<Dialog.Trigger
+		<>
+			<Button
+				type="button"
+				variant={triggerVariant}
+				size={triggerSize}
 				disabled={disabled}
-				render={(p) => (
-					<Button
-						{...p}
-						type="button"
-						variant={triggerVariant}
-						size={triggerSize}
-						disabled={disabled}
-						className={compact ? compactBarExtraButtonClassName : undefined}
-						icon={<X />}
-					>
-						<span className={compact ? compactBarExtraLabelClassName : undefined}>
-							{t`Discard changes`}
-						</span>
-					</Button>
-				)}
+				className={compact ? compactBarExtraButtonClassName : undefined}
+				icon={<X />}
+				onClick={discard.show}
+			>
+				<span className={compact ? compactBarExtraLabelClassName : undefined}>
+					{t`Discard changes`}
+				</span>
+			</Button>
+			<ConfirmDialog
+				{...discard.dialog}
+				title={t`Discard draft changes?`}
+				description={t`This will revert to the published version. Your draft changes will be lost.`}
+				confirmLabel={t`Discard changes`}
+				pendingLabel={t`Discarding...`}
 			/>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{t`Discard draft changes?`}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{t`This will revert to the published version. Your draft changes will be lost.`}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="secondary">
-								{t`Cancel`}
-							</Button>
-						)}
-					/>
-					<Dialog.Close
-						render={(p) => (
-							<Button {...p} variant="destructive" onClick={onDiscard}>
-								{t`Discard changes`}
-							</Button>
-						)}
-					/>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+		</>
 	);
 }
 
 export interface EditorActionsProps {
 	collectionLabel?: string;
 	isNew?: boolean;
+	supportsDrafts?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
+	/** Whether the Save control stays visible on small screens. */
+	showMobileSave?: boolean;
+	/** Called when the focused Save control unmounts and focus would fall to the page body. */
+	onSaveControlRemoved?: () => void;
 	/** Autosave in flight — reported by the save button's busy state. */
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
@@ -496,7 +490,7 @@ export function PublishActions({
 				loading={isPending}
 				disabled={disabled}
 				icon={<EyeSlash />}
-				className={compact ? compactBarButtonClassName : undefined}
+				className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
 			>
 				<span className={compact ? compactBarLabelClassName : undefined}>
 					{t`Unpublish ${itemLabel}`}
@@ -516,15 +510,20 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<Dialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<Dialog.Trigger
+		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+			<LayerDialog.Trigger
 				disabled={disabled}
 				render={
 					<Button
 						type="button"
 						variant="primary"
 						size={size}
-						icon={<Upload aria-hidden="true" />}
+						icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
+						className={
+							compact
+								? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
+								: undefined
+						}
 						loading={isPending}
 						disabled={disabled}
 						aria-label={publishLabel}
@@ -534,23 +533,19 @@ export function PublishActions({
 				{compact ? (
 					<>
 						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
-						<span className="hidden @max-2xl/editor-bar:inline">{t`Publish`}</span>
+						<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
+						<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
 					</>
 				) : (
 					publishLabel
 				)}
-			</Dialog.Trigger>
-			<Dialog className="p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
-					{confirmationDescription}
-				</Dialog.Description>
-				<div className="mt-6 flex justify-end gap-2">
-					<Dialog.Close render={(props) => <Button {...props} variant="secondary" />}>
-						{t`Cancel`}
-					</Dialog.Close>
-					<Button
-						variant="primary"
+			</LayerDialog.Trigger>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
+				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
+				<LayerDialog.Body>{null}</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
 						loading={isPending}
 						disabled={disabled}
 						aria-label={publishLabel}
@@ -560,10 +555,10 @@ export function PublishActions({
 						}}
 					>
 						{publishLabel}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 
@@ -659,8 +654,11 @@ export function ScheduleActions({
 export function EditorActions({
 	collectionLabel,
 	isNew,
+	supportsDrafts,
 	isDirty,
 	isSaving,
+	showMobileSave = true,
+	onSaveControlRemoved,
 	isAutosaving,
 	saveDisabled,
 	isLive,
@@ -679,21 +677,45 @@ export function EditorActions({
 }: EditorActionsProps) {
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
-	// Saved reads as a quiet status; unsaved work becomes a button again.
-	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
+	const savesFirstDraft = isNew && supportsDrafts;
+	const saveVariant = isNew ? "primary" : "secondary";
+	const showSave = isDirty || busy;
+	const saveHadFocus = React.useRef(false);
+	React.useLayoutEffect(() => {
+		if (!showSave && saveHadFocus.current) {
+			saveHadFocus.current = false;
+			const active = document.activeElement;
+			if (!active || active === document.body) onSaveControlRemoved?.();
+		}
+	}, [showSave, onSaveControlRemoved]);
 
 	return (
-		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-			<SaveButton
-				type="submit"
-				size="sm"
-				variant={saveVariant}
-				className={cn("min-w-0", compactBarButtonClassName)}
-				labelClassName="@max-2xl/editor-bar:hidden"
-				isDirty={isDirty}
-				isSaving={busy}
-				disabled={saveDisabled}
-			/>
+		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 max-sm:contents">
+			{showSave && (
+				<SaveButton
+					announce={false}
+					onFocus={() => {
+						saveHadFocus.current = true;
+					}}
+					onBlur={(event) => {
+						if (event.relatedTarget) saveHadFocus.current = false;
+					}}
+					type="submit"
+					size="sm"
+					variant={saveVariant}
+					className={cn(
+						"min-w-0 max-sm:w-full",
+						!savesFirstDraft && compactBarButtonClassName,
+						isNew && "max-sm:col-span-2",
+						!showMobileSave && "max-sm:hidden",
+					)}
+					labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
+					isDirty={isDirty}
+					isSaving={busy}
+					disabled={saveDisabled}
+					saveLabel={savesFirstDraft ? t`Save draft` : undefined}
+				/>
+			)}
 			{liveViewUrl && (
 				<LinkButton
 					href={liveViewUrl}
@@ -760,8 +782,10 @@ export interface ContentSettingsPanelProps {
 	supportsRevisions: boolean;
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
-	onDiscardDraft?: () => void;
-	onDelete?: () => void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDiscardDraft?: () => Promise<unknown> | void;
+	/** Return the request's promise to keep the confirmation open until it lands. */
+	onDelete?: () => Promise<unknown> | void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
 	users?: UserListItem[];
@@ -896,6 +920,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const [datesOpen, setDatesOpen] = React.useState(false);
+	const trash = useConfirmedRequest(onDelete);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -952,7 +977,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				userId={isNew ? undefined : currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
-				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
+				<SortableContentSettingsSection
+					id="publish"
+					label={t`Publish`}
+					hidden={isNew && !supportsDrafts}
+				>
 					<div className="p-4">
 						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 							{t`Publish`}
@@ -965,6 +994,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								{showPublishingRelationship ? (
 									<PublishingVersionRelationship
 										publishingState={resolvedPublishingState}
+										isNew={isNew}
 										supportsDrafts={supportsDrafts}
 										scheduledAt={item?.scheduledAt}
 										locale={lingui.locale}
@@ -1033,13 +1063,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												/>
 											</Collapsible.Trigger>
 											<Collapsible.Panel
-												className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 												style={({ transitionStatus }) => ({
 													height:
 														transitionStatus === "starting" || transitionStatus === "ending"
 															? 0
 															: "var(--collapsible-panel-height)",
-													transitionProperty: "height",
 												})}
 											>
 												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
@@ -1094,25 +1123,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<div className="flex items-center gap-1.5">
 										<Label>{t`Content language`}</Label>
 										{usesImplicitEnglish ? (
-											<Tooltip
-												content={
-													<span className="block max-w-64 text-pretty">
-														{t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
-													</span>
-												}
-												delay={0}
-												closeDelay={0}
-												render={
-													<Button
-														type="button"
-														variant="ghost"
-														shape="square"
-														size="xs"
-														icon={<Info aria-hidden="true" />}
-														className="text-kumo-subtle hover:text-kumo-default"
-														aria-label={t`Why English is used`}
-													/>
-												}
+											<HelpTooltip
+												help={t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
+												ariaLabel={t`Why English is used`}
 											/>
 										) : null}
 									</div>
@@ -1148,25 +1161,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
 								</Text>
-								<Tooltip
-									content={
-										<span className="block max-w-64 text-pretty">
-											{t`Shown to readers in this order.`}
-										</span>
-									}
-									delay={0}
-									closeDelay={0}
-									render={
-										<Button
-											type="button"
-											variant="ghost"
-											shape="square"
-											size="xs"
-											icon={<Info aria-hidden="true" />}
-											className="text-kumo-subtle hover:text-kumo-default"
-											aria-label={t`Why are bylines shown in this order?`}
-										/>
-									}
+								<HelpTooltip
+									help={t`Shown to readers in this order.`}
+									ariaLabel={t`Why are bylines shown in this order?`}
 								/>
 							</div>
 							<BylineCreditsEditor
@@ -1235,7 +1232,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
-								defaultTitle={typeof item?.data?.title === "string" ? item.data.title : null}
+								defaultTitle={
+									item
+										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
+										: null
+								}
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}
@@ -1353,44 +1354,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						isReorderingSections && "invisible pointer-events-none",
 					)}
 				>
-					<Dialog.Root disablePointerDismissal>
-						<Dialog.Trigger
-							render={(p) => (
-								<Button
-									{...p}
-									type="button"
-									variant="ghost"
-									className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
-									disabled={isDeleting}
-									icon={isDeleting ? <Loader size="sm" /> : <Trash />}
-								>
-									{t`Move to Trash`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="sm">
-							<Dialog.Title className="text-lg font-semibold">{t`Move to Trash?`}</Dialog.Title>
-							<Dialog.Description className="text-kumo-subtle">
-								{t`This will move the item to trash. You can restore it later from the trash.`}
-							</Dialog.Description>
-							<div className="mt-6 flex justify-end gap-2">
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="secondary">
-											{t`Cancel`}
-										</Button>
-									)}
-								/>
-								<Dialog.Close
-									render={(p) => (
-										<Button {...p} variant="destructive" onClick={onDelete}>
-											{t`Move to Trash`}
-										</Button>
-									)}
-								/>
-							</div>
-						</Dialog>
-					</Dialog.Root>
+					<Button
+						type="button"
+						variant="ghost"
+						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
+						disabled={isDeleting}
+						icon={isDeleting ? <Loader size="sm" /> : <Trash />}
+						onClick={trash.show}
+					>
+						{t`Move to Trash`}
+					</Button>
+					<ConfirmDialog
+						{...trash.dialog}
+						title={t`Move to Trash?`}
+						description={t`This will move the item to trash. You can restore it later from the trash.`}
+						confirmLabel={t`Move to Trash`}
+						pendingLabel={t`Moving to trash...`}
+					/>
 				</div>
 			)}
 		</div>

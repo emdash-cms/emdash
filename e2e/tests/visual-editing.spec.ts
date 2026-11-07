@@ -301,6 +301,10 @@ test.describe("Inline Editor", () => {
 		const editor = page.locator(".emdash-inline-editor");
 		await expect(editor).toBeVisible({ timeout: 15000 });
 
+		await expect(
+			page.getByRole("textbox", { name: "Rich text editor", exact: true }),
+		).toBeEditable();
+
 		// The island failed to hydrate with zero height when highlight.js/lib/core
 		// was served raw as CommonJS, so also assert some static content rendered
 		// inside the editor rather than disappearing.
@@ -876,37 +880,24 @@ test.describe("Inline Editor", () => {
 		// used to be the blur handler, so browser-back lost the edit.
 		await editor.locator("p").last().click();
 		await page.keyboard.press("End");
-		await page.keyboard.type(" Repro1582");
+		const marker = `Repro1582-${Date.now()}`;
+		await page.keyboard.type(` ${marker}`);
 
-		// waitForRequest, not waitForResponse: the keepalive PUT outlives the
-		// page, and Playwright never delivers response events for a page that
-		// has navigated away — waiting for the response times out even when
-		// the save succeeds.
-		const savePromise = page.waitForRequest(
-			(req) => req.url().includes("/api/content/posts/") && req.method() === "PUT",
-			{ timeout: 10000 },
-		);
+		const readPost = async () => (await page.request.get(POST_WITH_IMAGE_PATH)).text();
+		expect(await readPost()).not.toContain(marker);
 
 		// Browser back: no React blur fires, only pagehide.
 		await page.goBack();
 
-		// The pagehide flush must fire a keepalive PUT…
-		await savePromise;
-
-		// …and the server must persist it. Poll the rendered page instead of
-		// reloading immediately: on slow runners the PUT may still be in
-		// flight when the request event fires.
-		await expect
-			.poll(async () => (await page.request.get(POST_WITH_IMAGE_PATH)).text(), {
-				timeout: 10000,
-			})
-			.toContain("Repro1582");
+		// Playwright reports no request events for an unloading page, so poll
+		// the server for what the pagehide flush saved.
+		await expect.poll(readPost, { timeout: 10000 }).toContain(marker);
 
 		// The edit must survive a fresh load of the post.
 		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
 		const reloadedEditor = page.locator(".emdash-inline-editor");
 		await expect(reloadedEditor).toBeVisible({ timeout: 15000 });
-		await expect(reloadedEditor.locator("text=Repro1582")).toBeVisible();
+		await expect(reloadedEditor.getByText(marker)).toBeVisible();
 	});
 
 	test("replaces the selected image from its toolbar, keeping the caption typed under it", async ({

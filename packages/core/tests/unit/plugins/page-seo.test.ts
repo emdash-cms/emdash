@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBlogPostingJsonLd } from "../../../src/page/jsonld.js";
+import { buildBlogPostingJsonLd, buildWebSiteJsonLd } from "../../../src/page/jsonld.js";
 import { generateBaseSeoContributions } from "../../../src/page/seo-contributions.js";
 import type { PublicPageContext } from "../../../src/plugins/types.js";
 
@@ -178,6 +178,60 @@ describe("page SEO metadata", () => {
 			const graph = buildBlogPostingJsonLd(page, defaultOg);
 
 			expect(graph).toMatchObject({ image: "https://example.com/post-hero.png" });
+		});
+	});
+
+	describe("node identity", () => {
+		// Without an `@id` a node is anonymous: nothing can reference it, and a
+		// richer description of the same thing published alongside it stays a
+		// separate entity rather than merging into one.
+		it("gives the article an @id distinct from the WebPage it is on", () => {
+			const graph = buildBlogPostingJsonLd(createPage());
+			expect(graph).not.toBeNull();
+
+			// Not the bare canonical: `mainEntityOfPage` already claims that for
+			// the WebPage, and reusing it would merge the article with the page.
+			expect(graph).toMatchObject({ "@id": "https://example.com/posts/hello#article" });
+			const mainEntity = graph?.mainEntityOfPage as Record<string, unknown>;
+			expect(graph?.["@id"]).not.toBe(mainEntity["@id"]);
+		});
+
+		it("identifies the publisher, so a fuller Organization graph merges with it", () => {
+			const graph = buildBlogPostingJsonLd(createPage({ siteUrl: "https://example.com" }));
+
+			// The trailing slash before the fragment is load-bearing:
+			// `https://example.com#organization` is a different IRI, and a
+			// mismatch publishes two organisations instead of one.
+			expect(graph?.publisher).toEqual({
+				"@type": "Organization",
+				"@id": "https://example.com/#organization",
+				name: "My Site",
+			});
+		});
+
+		it("keeps the publisher self-sufficient when nothing else describes it", () => {
+			const publisher = buildBlogPostingJsonLd(createPage())?.publisher as Record<string, unknown>;
+
+			// A bare `{ "@id": … }` would be a dangling reference on a site with
+			// no Organization graph — worse than the anonymous node it replaces.
+			expect(publisher["@type"]).toBe("Organization");
+			expect(publisher.name).toBe("My Site");
+		});
+
+		it("normalises a configured siteUrl to an origin", () => {
+			// A trailing slash on `page.siteUrl` would otherwise reach the id as
+			// `https://example.com//#organization`, which is a different IRI.
+			const graph = buildBlogPostingJsonLd(createPage({ siteUrl: "https://example.com/" }));
+			expect(graph).not.toBeNull();
+
+			const publisher = graph?.publisher as Record<string, unknown>;
+			expect(publisher["@id"]).toBe("https://example.com/#organization");
+		});
+
+		it("gives the WebSite an @id so a plugin can extend it", () => {
+			const graph = buildWebSiteJsonLd(createPage({ pageType: "website" }));
+
+			expect(graph).toMatchObject({ "@id": "https://example.com/#website" });
 		});
 	});
 });

@@ -11,6 +11,7 @@ const ADMIN_URL_PATTERN = /\/_emdash\/admin/;
 const ADMIN_DASHBOARD_PATTERN = /\/_emdash\/admin\/?$/;
 const CONTENT_ID_EXTRACTION_PATTERN = /\/content\/[^/]+\/([^/]+)$/;
 const MENU_URL_PATTERN = /\/_emdash\/admin\/menus\//;
+const SAVE_ACTION_LABEL = /^(Save|Save draft|Saving\.\.\.)$/;
 const SETUP_PAGE_PATTERN = /\/_emdash\/admin\/setup/;
 
 export class AdminPage {
@@ -334,9 +335,7 @@ export class AdminPage {
 	}
 
 	/**
-	 * Click the save button. Editor pages now render two SaveButtons (one in
-	 * the header, one at the bottom of the main column); both submit the same
-	 * form so we click the first match.
+	 * Click the editor's save button.
 	 */
 	async clickSave(): Promise<void> {
 		await this.page.locator('form button[type="submit"]').first().click();
@@ -346,12 +345,14 @@ export class AdminPage {
 	 * Wait for save to complete
 	 */
 	async waitForSaveComplete(): Promise<void> {
-		// Wait for the save button to show "Saved" or stop showing "Saving..."
+		// Mobile can hide the save control with CSS while a write is pending, so
+		// wait for it to unmount or change its accessible name, not become hidden.
+		// Scoped to the editor bar: the mobile Settings "Save draft" stays mounted.
 		await this.page
-			.getByRole("button", { name: "Saved" })
+			.locator("[data-emdash-editor-bar]")
+			.getByRole("button", { name: SAVE_ACTION_LABEL, includeHidden: true })
 			.first()
-			.waitFor({ timeout: 10000 })
-			.catch(() => {});
+			.waitFor({ state: "detached", timeout: 10000 });
 		await this.waitForLoading();
 	}
 
@@ -422,8 +423,8 @@ export class AdminPage {
 		await this.page.getByRole("button", { name: "Create Menu" }).first().click();
 
 		// Fill form
-		await this.page.getByLabel("Name").fill(name);
-		await this.page.getByLabel("Label").fill(label);
+		await this.page.getByLabel("Name", { exact: true }).fill(name);
+		await this.page.getByLabel("Label", { exact: true }).fill(label);
 
 		// Submit and wait for navigation
 		await Promise.all([
@@ -487,7 +488,7 @@ export class AdminPage {
 	 * Returns empty array if locale column is not shown.
 	 */
 	async getLocaleColumnValues(): Promise<string[]> {
-		const cells = this.page.locator("table tbody tr td span.rounded.bg-kumo-tint");
+		const cells = this.page.locator("table tbody tr td span.rounded.bg-kumo-tint:visible");
 		return cells.allTextContents();
 	}
 

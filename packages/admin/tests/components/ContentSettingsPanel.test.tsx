@@ -48,10 +48,6 @@ vi.mock("../../src/components/editor/ImageDetailPanel", () => ({
 	ImageDetailPanel: () => <div data-testid="image-detail-panel">Image details</div>,
 }));
 
-vi.mock("../../src/components/SeoPanel", () => ({
-	SeoPanel: () => <div data-testid="seo-panel">SEO fields</div>,
-}));
-
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
@@ -236,6 +232,34 @@ describe("ContentSettingsPanel", () => {
 		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
 	});
 
+	it("shows the collection's titleField value as the SEO Title placeholder", async () => {
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			collections: {
+				posts: {
+					label: "Posts",
+					labelSingular: "Post",
+					supports: ["seo"],
+					hasSeo: true,
+					titleField: "headline",
+					fields: {},
+				},
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest,
+					item: makeItem({ data: { title: "Senior Engineer", headline: "Ada Lovelace" } }),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "Ada Lovelace");
+	});
+
 	it("keeps URL and language fields outside the Publish section", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ item: makeItem({ locale: "en" }) })} />,
@@ -293,7 +317,9 @@ describe("ContentSettingsPanel", () => {
 		trigger.element().scrollIntoView();
 		await userEvent.keyboard("{Tab}");
 		trigger.element().focus();
-		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
+		await expect
+			.element(screen.getByRole("tooltip", { name: "Shown to readers in this order." }))
+			.toBeVisible();
 	});
 
 	it("omits the redundant lifecycle badge and distinguishes live and draft versions", async () => {
@@ -413,12 +439,14 @@ describe("ContentSettingsPanel", () => {
 				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
 			/>,
 		);
-		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(
+			screen.getByRole("tooltip", { name: /stored with the entry and is separate/ }).query(),
+		).toBeNull();
 		const trigger = screen.getByRole("button", { name: "Why English is used" });
 		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
 		const explanation =
 			"English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.";
-		const help = screen.getByText(explanation);
+		const help = screen.getByRole("tooltip", { name: explanation });
 		trigger.element().scrollIntoView();
 		await userEvent.hover(trigger.element());
 		await expect.element(help).toBeVisible();
@@ -981,7 +1009,9 @@ describe("ContentSettingsPanel", () => {
 		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
-		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect
+			.element(screen.getByRole("alert").filter({ hasText: "Date update failed" }))
+			.toBeVisible();
 		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
 		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();
@@ -1099,7 +1129,7 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="doc-outline"]')).toBeNull();
 		expect(screen.container.textContent).not.toContain("Translations");
@@ -1107,7 +1137,9 @@ describe("ContentSettingsPanel", () => {
 
 	it("hides item-dependent sections for new entries", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, supportsDrafts: false })}
+			/>,
 		);
 
 		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
@@ -1117,8 +1149,24 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.textContent).not.toContain("Move to Trash");
 		expect(screen.container.textContent).not.toContain("Translations");
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
+	});
+
+	it("explains that saving a new entry keeps it as a draft", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+		);
+
+		const summary = screen.getByRole("group", { name: "Publishing summary" });
+		await expect.element(summary).toBeVisible();
+		await expect
+			.element(summary)
+			.toHaveTextContent(
+				"Saving creates a draft that stays off the site. You can publish it after the first save.",
+			);
+		expect(screen.container.textContent).not.toContain("Move to Trash");
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 	});
 
 	it("keeps the saved section order when sections are reordered on a new entry", async () => {
@@ -1316,8 +1364,35 @@ describe("EditorActions", () => {
 		expect(props.onPreview).toHaveBeenCalled();
 	});
 
+	it("labels the first save of a draft-enabled entry as Save draft", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save draft", exact: true }))
+			.toBeEnabled();
+
+		await screen.rerender(
+			<EditorActions {...makeBarProps({ isNew: false, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("keeps the Save label for new entries in collections without drafts", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: false, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+	});
+
 	it("hides the publish cluster for new items", async () => {
-		const screen = await render(<EditorActions {...makeBarProps({ isNew: true })} />);
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, isDirty: true })} />,
+		);
 
 		expect(screen.container.textContent).not.toContain("Publish");
 		expect(screen.container.textContent).not.toContain("Unpublish");
@@ -1330,7 +1405,6 @@ describe("EditorActions", () => {
 			<EditorActions {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
 	it("marks the Save button dirty state", async () => {

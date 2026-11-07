@@ -34,21 +34,25 @@ describe("Block Kit button confirmation dialog", () => {
 
 		const dialog = screen.getByRole("dialog");
 		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog).toHaveAccessibleName(element.confirm.title);
+		await expect.element(dialog).toHaveAccessibleDescription(element.confirm.text);
 		expect(onAction).not.toHaveBeenCalled();
 
+		await expect.element(dialog).not.toHaveAttribute("data-starting-style");
 		await expect.poll(() => dialog.element().getAnimations().length).toBe(0);
 		const bounds = dialog.element().getBoundingClientRect();
-		for (const content of [
-			screen.getByRole("heading", { name: element.confirm.title }).element(),
-			screen.getByText(element.confirm.text).element(),
-			dialog.getByRole("button", { name: "Delete", exact: true }).element(),
-			dialog.getByRole("button", { name: "Cancel" }).element(),
-		]) {
+		const insets: [Element, number][] = [
+			[screen.getByRole("heading", { name: element.confirm.title }).element(), 16],
+			[screen.getByText(element.confirm.text).element(), 16],
+			[dialog.getByRole("button", { name: "Delete", exact: true }).element(), 4],
+			[dialog.getByRole("button", { name: "Cancel" }).element(), 4],
+		];
+		for (const [content, inset] of insets) {
 			const contentBounds = content.getBoundingClientRect();
-			expect(contentBounds.left - bounds.left).toBeGreaterThanOrEqual(24);
-			expect(bounds.right - contentBounds.right).toBeGreaterThanOrEqual(24);
-			expect(contentBounds.top - bounds.top).toBeGreaterThanOrEqual(24);
-			expect(bounds.bottom - contentBounds.bottom).toBeGreaterThanOrEqual(24);
+			expect(contentBounds.left - bounds.left).toBeGreaterThanOrEqual(inset);
+			expect(bounds.right - contentBounds.right).toBeGreaterThanOrEqual(inset);
+			expect(contentBounds.top - bounds.top).toBeGreaterThanOrEqual(inset);
+			expect(bounds.bottom - contentBounds.bottom).toBeGreaterThanOrEqual(inset);
 		}
 
 		await dialog.getByRole("button", { name: "Cancel" }).click();

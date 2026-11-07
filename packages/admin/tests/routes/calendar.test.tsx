@@ -4,10 +4,12 @@ import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
+import "../../dist/styles.css";
 import { calendarQueryOptions, type CalendarEntry } from "../../src/lib/api/calendar";
 import { fetchRange, monthGridDays } from "../../src/lib/calendar";
 import { CalendarPage } from "../../src/routes/calendar";
 import { render } from "../utils/render.tsx";
+import { swipeDown, tap } from "../utils/touch.ts";
 
 const router = vi.hoisted(() => ({
 	search: {} as Record<string, unknown>,
@@ -67,12 +69,31 @@ function serveCalendar(respond: (request: number) => Response) {
 	);
 }
 
+/**
+ * Waits for running animations that end, after giving transitions that start
+ * on the next frame time to begin. Loading shimmers never end.
+ */
+async function animationsFinished() {
+	for (let frame = 0; frame < 2; frame++) {
+		await new Promise((resolve) => requestAnimationFrame(resolve));
+	}
+	await Promise.allSettled(
+		document
+			.getAnimations()
+			.filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity)
+			.map((animation) => animation.finished),
+	);
+}
+
+/** Renders the page at the window's height, as the admin shell does. */
 function renderPage(wrapper?: React.ComponentType<React.PropsWithChildren>) {
 	const Inner = wrapper ?? React.Fragment;
 	return render(<CalendarPage />, {
 		wrapper: ({ children }) => (
 			<Toast.Provider>
-				<Inner>{children}</Inner>
+				<Inner>
+					<div style={{ height: "100vh" }}>{children}</div>
+				</Inner>
 			</Toast.Provider>
 		),
 	});
@@ -163,6 +184,64 @@ describe("CalendarPage", () => {
 		});
 	});
 
+	it("keeps the month beside the panel on a wide screen", async () => {
+		await page.viewport(1440, 900);
+		router.search = { month: "2020-03", view: "month", entry: "posts:launch:published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+		const screen = await renderPage();
+
+		const panel = screen.getByRole("dialog", { name: "Entry launch" });
+		await expect.element(panel).toBeVisible();
+		await animationsFinished();
+
+		const panelBox = panel.element().getBoundingClientRect();
+		expect(panelBox.left).toBeGreaterThanOrEqual(
+			screen.getByRole("table").element().getBoundingClientRect().right,
+		);
+		expect(panelBox.right).toBeLessThanOrEqual(window.innerWidth);
+		await expect.element(screen.getByRole("button", { name: "Next month" })).toBeVisible();
+	});
+
+	it("keeps the wide-screen panel open while a finger scrolls the page and closes it on a tap", async () => {
+		await page.viewport(1440, 900);
+		router.search = { month: "2020-03", view: "month", entry: "posts:launch:published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+		const screen = await renderPage();
+
+		const panel = screen.getByRole("dialog", { name: "Entry launch" });
+		await expect.element(panel).toBeVisible();
+		const heading = screen.getByRole("heading", { name: "March 2020" }).element();
+
+		await swipeDown(heading);
+		await expect.element(panel).toBeVisible();
+		expect(router.navigate).not.toHaveBeenCalled();
+
+		await tap(heading);
+		await expect
+			.poll(() => navigatedSearch(router.navigate.mock.lastCall))
+			.toMatchObject({ replace: true, search: { entry: undefined } });
+	});
+
+	it("opens the panel over the month when beside it the month would be too narrow", async () => {
+		await page.viewport(1050, 800);
+		router.search = { month: "2020-03", view: "month", entry: "posts:launch:published" };
+		serveCalendar(() =>
+			Response.json({ data: { items: [entry("launch", "2020-03-05T09:00:00.000Z")] } }),
+		);
+		const screen = await renderPage();
+
+		await expect.element(screen.getByRole("dialog", { name: "Entry launch" })).toBeVisible();
+		await animationsFinished();
+
+		expect(
+			screen.getByRole("table").element().getBoundingClientRect().width,
+		).toBeGreaterThanOrEqual(640);
+	});
+
 	it("adds a history entry for the panel and goes back to close it", async () => {
 		router.search = { month: "2020-03", view: "agenda" };
 		serveCalendar(() =>
@@ -181,6 +260,36 @@ describe("CalendarPage", () => {
 			.getByRole("button", { name: "Close" })
 			.click();
 
+		expect(router.back).toHaveBeenCalledTimes(1);
+	});
+
+	it("switches entries from the calendar and closes the panel from empty space", async () => {
+		router.search = { month: "2020-03", view: "agenda" };
+		serveCalendar(() =>
+			Response.json({
+				data: {
+					items: [
+						entry("launch", "2020-03-05T09:00:00.000Z"),
+						entry("recap", "2020-03-06T09:00:00.000Z"),
+					],
+				},
+			}),
+		);
+		const screen = await renderPage();
+
+		await screen.getByRole("link", { name: /Entry launch/ }).click();
+		router.search = navigatedSearch(router.navigate.mock.lastCall).search;
+		await screen.rerender(<CalendarPage />);
+		await expect.element(screen.getByRole("dialog", { name: "Entry launch" })).toBeVisible();
+
+		await screen.getByRole("link", { name: /Entry recap/ }).click();
+		expect(navigatedSearch(router.navigate.mock.lastCall)).toMatchObject({
+			replace: true,
+			search: { entry: "posts:recap:published" },
+		});
+		expect(router.back).not.toHaveBeenCalled();
+
+		await screen.getByRole("heading", { name: "March 2020" }).click();
 		expect(router.back).toHaveBeenCalledTimes(1);
 	});
 
@@ -287,6 +396,18 @@ describe("CalendarPage", () => {
 		await expect
 			.element(screen.getByText("You don't have permission to view the calendar."))
 			.toBeVisible();
+	});
+
+	it("opens the agenda when the page padding leaves the month under 640px", async () => {
+		await page.viewport(660, 800);
+		router.search = { month: "2020-03" };
+		serveCalendar(() => Response.json({ data: { items: [] } }));
+
+		const screen = await renderPage();
+
+		await expect
+			.element(screen.getByRole("tab", { name: "Agenda" }))
+			.toHaveAttribute("aria-selected", "true");
 	});
 
 	it("opens the agenda on a narrow screen", async () => {
