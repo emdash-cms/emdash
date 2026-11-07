@@ -44,66 +44,47 @@ interface Socket {
 export class EmDashRoom extends DurableObject {
 	readonly #store: DurableObjectRoomStore;
 	readonly #sockets = new Map<WebSocket, Socket>();
-	#room!: Room;
+	#room: Room | null = null;
+	#loading: Promise<Room> | null = null;
 
 	constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
 		super(ctx, env);
-		const name = ctx.id.name ?? "";
-		this.#store = new DurableObjectRoomStore(ctx.storage, name);
-		void ctx.blockConcurrencyWhile(async () => {
-			const entry = parseRoomId(name);
-			if (!entry) throw new Error(`[co-editing] ${name} isn't a room ID`);
-			const { Room } = await import("emdash/internal/co-editing/room");
-			this.#room = new Room({
-				entry,
-				site: roomSite(),
-				store: this.#store,
-				build: { version: VERSION, commit: COMMIT },
-				timers: {
-					now: () => Date.now(),
-					set(ms, run) {
-						const timer = setTimeout(run, ms);
-						return () => clearTimeout(timer);
-					},
-				},
-			});
-			for (const ws of ctx.getWebSockets()) {
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only this class writes attachments
-				const info = ws.deserializeAttachment() as ConnectionInfo | null;
-				if (!info) continue;
-				const socket = this.#socket(ws, info);
-				this.#room.resume(socket.connection, info);
-			}
-		});
+		this.#store = new DurableObjectRoomStore(ctx.storage, ctx.id.name ?? "");
+		for (const ws of ctx.getWebSockets()) {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only this class writes attachments
+			const info = ws.deserializeAttachment() as ConnectionInfo | null;
+			if (info) this.#socket(ws, info);
+		}
 	}
 
-	issueToken(claims: TokenClaims): ReturnType<Room["issueToken"]> {
-		return this.#room.issueToken(claims);
+	async issueToken(claims: TokenClaims): ReturnType<Room["issueToken"]> {
+		return (await this.#loadRoom()).issueToken(claims);
 	}
 
-	isOpen(): boolean {
-		return this.#room.isOpen();
+	async isOpen(): Promise<boolean> {
+		return (await this.#loadRoom()).isOpen();
 	}
 
 	async save(actorId: string, rev?: string): Promise<RoomSaveReply> {
+		const room = await this.#loadRoom();
 		try {
-			return await this.#room.save(actorId, rev);
+			return await room.save(actorId, rev);
 		} catch (error) {
 			if (!(error instanceof RoomSaveError)) throw error;
 			return { failed: { reason: error.reason, code: error.code, message: error.message } };
 		}
 	}
 
-	release(hold: string, options?: { overwrite?: boolean }): Promise<void> {
-		return this.#room.release(hold, options);
+	async release(hold: string, options?: { overwrite?: boolean }): Promise<void> {
+		return (await this.#loadRoom()).release(hold, options);
 	}
 
-	notify(outside: OutsideValue[]): Promise<void> {
-		return this.#room.notify(outside);
+	async notify(outside: OutsideValue[]): Promise<void> {
+		return (await this.#loadRoom()).notify(outside);
 	}
 
-	forgetTokens(userId: string): Promise<void> {
-		return this.#room.forgetTokens(userId);
+	async forgetTokens(userId: string): Promise<void> {
+		return (await this.#loadRoom()).forgetTokens(userId);
 	}
 
 	override async fetch(request: Request): Promise<Response> {
@@ -113,6 +94,11 @@ export class EmDashRoom extends DurableObject {
 		const token = new URL(request.url).searchParams.get("token") ?? "";
 		const { 0: client, 1: server } = new WebSocketPair();
 		this.ctx.acceptWebSocket(server);
+		// Tokens live only in the room's memory, so an instance that hasn't loaded its room holds none.
+		if (!this.#room) {
+			server.close(CLOSE_CODES.busy, "No valid token");
+			return new Response(null, { status: 101, webSocket: client });
+		}
 		const socket = this.#socket(server, null);
 		const info = this.#room.connect(socket.connection, token);
 		if (info) {
@@ -129,23 +115,24 @@ export class EmDashRoom extends DurableObject {
 		return new Response(null, { status: 101, webSocket: client });
 	}
 
-	override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
+	override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
 		const socket = this.#sockets.get(ws);
 		if (!socket) return;
 		if (messageBytes(message) > MAX_MESSAGE_BYTES) {
 			closeSocket(ws, socket, MESSAGE_TOO_BIG, "The message is too big");
-			this.#forget(ws);
+			await this.#forget(ws);
 			return;
 		}
 		if (typeof message === "string") return;
-		this.#room.receive(socket.connection, new Uint8Array(message));
+		const room = this.#room ?? (await this.#loadRoom());
+		room.receive(socket.connection, new Uint8Array(message));
 		if (!socket.closed && socket.info && socket.info.clientId !== socket.attachedClientId) {
 			this.#attach(ws, socket);
 		}
 	}
 
-	override webSocketClose(ws: WebSocket, code: number): void {
-		this.#forget(ws);
+	override async webSocketClose(ws: WebSocket, code: number): Promise<void> {
+		await this.#forget(ws);
 		try {
 			// 1005 and 1006 report a close without a code, and can't be sent.
 			ws.close(code === 1005 || code === 1006 ? 1000 : code);
@@ -154,13 +141,13 @@ export class EmDashRoom extends DurableObject {
 		}
 	}
 
-	override webSocketError(ws: WebSocket): void {
-		this.#forget(ws);
+	override async webSocketError(ws: WebSocket): Promise<void> {
+		await this.#forget(ws);
 	}
 
 	override async alarm(): Promise<void> {
 		try {
-			await this.#room.expire();
+			await (await this.#loadRoom()).expire();
 		} finally {
 			// An open room, or a drop that failed, keeps its state for the next hour.
 			if (this.#store.holdsState()) {
@@ -195,11 +182,46 @@ export class EmDashRoom extends DurableObject {
 		socket.attachedClientId = socket.info.clientId;
 	}
 
-	#forget(ws: WebSocket): void {
+	/** Loads the room first, so it handles the close of a socket it resumes. */
+	async #forget(ws: WebSocket): Promise<void> {
+		if (!this.#sockets.has(ws)) return;
+		const room = this.#room ?? (await this.#loadRoom());
 		const socket = this.#sockets.get(ws);
 		if (!socket) return;
 		this.#sockets.delete(ws);
-		this.#room.disconnect(socket.connection);
+		room.disconnect(socket.connection);
+	}
+
+	/**
+	 * The room engine, imported and built on first use, which resumes the sockets that outlived
+	 * this instance. Nothing else runs while it loads.
+	 */
+	#loadRoom(): Promise<Room> {
+		this.#loading ??= this.ctx.blockConcurrencyWhile(async () => {
+			const name = this.ctx.id.name ?? "";
+			const entry = parseRoomId(name);
+			if (!entry) throw new Error(`[co-editing] ${name} isn't a room ID`);
+			const { Room } = await import("emdash/internal/co-editing/room");
+			const room = new Room({
+				entry,
+				site: roomSite(),
+				store: this.#store,
+				build: { version: VERSION, commit: COMMIT },
+				timers: {
+					now: () => Date.now(),
+					set(ms, run) {
+						const timer = setTimeout(run, ms);
+						return () => clearTimeout(timer);
+					},
+				},
+			});
+			for (const socket of this.#sockets.values()) {
+				if (socket.info) room.resume(socket.connection, socket.info);
+			}
+			this.#room = room;
+			return room;
+		});
+		return this.#loading;
 	}
 }
 
