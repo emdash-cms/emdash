@@ -11,6 +11,7 @@ import {
 	syncDeclaredStorageIndexes,
 	removeAllPluginIndexes,
 	getPluginIndexStatus,
+	generateIndexName,
 } from "../../../src/plugins/storage-indexes.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -137,7 +138,7 @@ describe("Plugin Storage Indexes Integration", () => {
 		it("should create single-field index", async () => {
 			const result = await createStorageIndexes(db, "my-plugin", "events", ["eventType"]);
 
-			expect(result.created).toContain("idx_plugin_my-plugin_events_eventType");
+			expect(result.created).toContain(generateIndexName("my-plugin", "events", ["eventType"]));
 			expect(result.errors).toHaveLength(0);
 		});
 
@@ -146,7 +147,9 @@ describe("Plugin Storage Indexes Integration", () => {
 				["status", "createdAt"],
 			]);
 
-			expect(result.created).toContain("idx_plugin_my-plugin_events_status_createdAt");
+			expect(result.created).toContain(
+				generateIndexName("my-plugin", "events", ["status", "createdAt"]),
+			);
 			expect(result.errors).toHaveLength(0);
 		});
 
@@ -258,8 +261,8 @@ describe("Plugin Storage Indexes Integration", () => {
 			// Sync to new state
 			const result = await syncStorageIndexes(db, "my-plugin", "events", ["eventType", "newField"]);
 
-			expect(result.created).toContain("idx_plugin_my-plugin_events_newField");
-			expect(result.removed).toContain("idx_plugin_my-plugin_events_oldField");
+			expect(result.created).toContain(generateIndexName("my-plugin", "events", ["newField"]));
+			expect(result.removed).toContain(generateIndexName("my-plugin", "events", ["oldField"]));
 
 			const status = await getPluginIndexStatus(db, "my-plugin");
 			const fields = status.map((s) => s.fields);
@@ -377,7 +380,9 @@ describe("Plugin Storage Indexes Integration", () => {
 				AND name LIKE 'idx_plugin_%'
 			`.execute(db);
 
-			expect(indexes.rows.map((r) => r.name)).toContain("idx_plugin_my-plugin_events_eventType");
+			expect(indexes.rows.map((r) => r.name)).toContain(
+				generateIndexName("my-plugin", "events", ["eventType"]),
+			);
 		});
 
 		it("should drop actual SQLite index on removal", async () => {
@@ -400,6 +405,7 @@ describe("Plugin Storage Indexes Integration", () => {
 				uniqueIndexes: ["slug"],
 			});
 
+			expect(result.created).toContain("idx_plugin_my-plugin_forms_slug");
 			expect(result.created).toContain("uidx_plugin_my-plugin_forms_slug");
 			expect(result.errors).toHaveLength(0);
 
@@ -516,11 +522,14 @@ describe("Plugin Storage Indexes Integration", () => {
 			await syncDeclaredStorageIndexes(db, plugins);
 
 			const tracked = await db.selectFrom("_plugin_indexes").select("index_name").execute();
-			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
-				"idx_plugin_audit-log_entries_timestamp",
-				"idx_plugin_forms_submissions_formId",
-				"uidx_plugin_forms_submissions_token",
-			]);
+			expect(tracked.map((r) => r.index_name).toSorted()).toEqual(
+				[
+					generateIndexName("audit-log", "entries", ["timestamp"]),
+					generateIndexName("forms", "submissions", ["formId"]),
+					generateIndexName("forms", "submissions", ["token"]),
+					generateIndexName("forms", "submissions", ["token"], { unique: true }),
+				].toSorted(),
+			);
 		});
 
 		it("returns an incomplete result when a unique index conflicts with existing data", async () => {
@@ -550,7 +559,7 @@ describe("Plugin Storage Indexes Integration", () => {
 				.where("plugin_id", "=", pluginId)
 				.select("index_name")
 				.execute();
-			expect(tracked).toHaveLength(1);
+			expect(tracked).toHaveLength(2);
 		});
 
 		it("retries a previously failed unique index after the conflict is removed", async () => {
@@ -581,10 +590,13 @@ describe("Plugin Storage Indexes Integration", () => {
 				.where("plugin_id", "=", pluginId)
 				.select("index_name")
 				.execute();
-			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
-				"idx_plugin_retry-plugin_records_status",
-				"uidx_plugin_retry-plugin_records_externalId",
-			]);
+			expect(tracked.map((r) => r.index_name).toSorted()).toEqual(
+				[
+					generateIndexName("retry-plugin", "records", ["externalId"]),
+					generateIndexName("retry-plugin", "records", ["status"]),
+					generateIndexName("retry-plugin", "records", ["externalId"], { unique: true }),
+				].toSorted(),
+			);
 		});
 	});
 

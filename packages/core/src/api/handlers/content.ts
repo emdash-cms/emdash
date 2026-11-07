@@ -1040,6 +1040,28 @@ export async function handleContentList(
 			sortableExtras,
 		});
 
+		// Unpublished entries have no live data to preserve in the list. Keep the
+		// base columns untouched so discarding a draft can still restore them.
+		const unpublishedDrafts = result.items.filter(
+			(item) => item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
+		);
+		const draftIds = unpublishedDrafts.flatMap((item) =>
+			item.draftRevisionId ? [item.draftRevisionId] : [],
+		);
+		if (draftIds.length > 0) {
+			const revisions = await new RevisionRepository(db).findByIds(collection, draftIds);
+			const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+			for (const item of unpublishedDrafts) {
+				if (!item.draftRevisionId) continue;
+				const revision = byId.get(item.draftRevisionId);
+				if (!revision || revision.entryId !== item.id) continue;
+				const fields = Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				);
+				item.data = { ...item.data, ...fields };
+			}
+		}
+
 		// Hydrate SEO data if the collection has SEO enabled
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeoMany(db, collection, result.items, hasSeo);
