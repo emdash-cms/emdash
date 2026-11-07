@@ -6501,7 +6501,7 @@ msgstr "Gagal mengambiil domain yang diizinkan"
 msgid "Failed to fetch API tokens"
 msgstr "Gagal mengambil token API"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Gagal mengambil mode otentikasi"
 
@@ -6575,7 +6575,7 @@ msgstr "Gagal mengambil istilah entri"
 msgid "Failed to fetch fields"
 msgstr "Gagal mengambil kolom"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Gagal mengambil manifes"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Pengaya \"{pluginId}\" tidak ditemukan"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Pengaya {pluginId} menolak simpan: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repositori"
 msgid "Request a new link"
 msgstr "Minta tautan baru"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Permintaan gagal"
 

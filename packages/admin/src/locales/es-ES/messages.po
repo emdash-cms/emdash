@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "No se pudo obtener el modo de autenticación"
 
@@ -6575,7 +6575,7 @@ msgstr "Error al obtener los términos de la entrada"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Error al obtener el manifiesto"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "No se ha encontrado el plugin \"{pluginId}\""
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "El plugin {pluginId} ha rechazado el guardado: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repositorio"
 msgid "Request a new link"
 msgstr "Solicitar un nuevo enlace"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "La solicitud ha fallado"
 

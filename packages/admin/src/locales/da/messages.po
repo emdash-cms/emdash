@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Autentificeringstilstanden kunne ikke hentes"
 
@@ -6575,7 +6575,7 @@ msgstr "Indlæggets termer kunne ikke hentes"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Manifestet kunne ikke hentes"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Pluginet \"{pluginId}\" blev ikke fundet"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Pluginet {pluginId} afviste gemningen: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repository"
 msgid "Request a new link"
 msgstr "Anmod om et nyt link"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Anmodningen mislykkedes"
 

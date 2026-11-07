@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "無法擷取驗證模式"
 
@@ -6575,7 +6575,7 @@ msgstr "無法擷取內容項目的分類項目"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "無法擷取資訊清單"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "找不到外掛「{pluginId}」"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "外掛 {pluginId} 拒絕儲存：{reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "程式碼儲存庫"
 msgid "Request a new link"
 msgstr "索取新連結"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "要求失敗"
 

@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Nepodařilo se načíst režim přihlášení"
 
@@ -6575,7 +6575,7 @@ msgstr "Nepodařilo se načíst položky taxonomie přiřazené k obsahu"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Nepodařilo se načíst manifest"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin „{pluginId}“ nebyl nalezen"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr ""
 
@@ -12136,7 +12136,7 @@ msgstr "Repozitář"
 msgid "Request a new link"
 msgstr "Požádat o nový odkaz"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Požadavek selhal"
 

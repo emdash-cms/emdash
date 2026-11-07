@@ -6501,7 +6501,7 @@ msgstr "許可ドメインの取得に失敗しました"
 msgid "Failed to fetch API tokens"
 msgstr "APIトークンの取得に失敗しました"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "認証モードの取得に失敗しました"
 
@@ -6575,7 +6575,7 @@ msgstr "コンテンツに設定された分類項目の取得に失敗しまし
 msgid "Failed to fetch fields"
 msgstr "フィールドの取得に失敗しました"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "マニフェストの取得に失敗しました"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "プラグイン「{pluginId}」が見つかりません"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "プラグイン{pluginId}が保存を拒否しました: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "リポジトリ"
 msgid "Request a new link"
 msgstr "新しいリンクをリクエスト"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "リクエストに失敗しました"
 

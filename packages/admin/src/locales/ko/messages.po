@@ -6501,7 +6501,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "인증 모드를 가져오지 못했습니다"
 
@@ -6575,7 +6575,7 @@ msgstr "콘텐츠에 지정된 분류 항목을 가져오지 못했습니다."
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "매니페스트를 가져오지 못했습니다"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "플러그인 \"{pluginId}\"을(를) 찾을 수 없습니다."
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "플러그인 {pluginId}에서 저장을 거부했습니다: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "레포지토리"
 msgid "Request a new link"
 msgstr "새 링크 요청"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "요청에 실패했습니다"
 

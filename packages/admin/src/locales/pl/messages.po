@@ -6501,7 +6501,7 @@ msgstr "Nie udało się pobrać dozwolonych domen"
 msgid "Failed to fetch API tokens"
 msgstr "Nie udało się pobrać tokenów API"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Nie udało się pobrać trybu uwierzytelniania"
 
@@ -6575,7 +6575,7 @@ msgstr "Nie udało się pobrać terminów wpisu"
 msgid "Failed to fetch fields"
 msgstr "Nie udało się pobrać pól"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Nie udało się pobrać manifestu"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Nie znaleziono wtyczki „{pluginId}”"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Wtyczka {pluginId} odrzuciła zapis: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repozytorium"
 msgid "Request a new link"
 msgstr "Poproś o nowy link"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Żądanie nie powiodło się"
 

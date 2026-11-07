@@ -6501,7 +6501,7 @@ msgstr "Ophalen van toegestane domeinen mislukt"
 msgid "Failed to fetch API tokens"
 msgstr "Ophalen van API-tokens mislukt"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Ophalen van authenticatiemodus mislukt"
 
@@ -6575,7 +6575,7 @@ msgstr "Ophalen van termen van item mislukt"
 msgid "Failed to fetch fields"
 msgstr "Ophalen van velden mislukt"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Ophalen van manifest mislukt"
 
@@ -11025,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin \"{pluginId}\" niet gevonden"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Plugin {pluginId} heeft het opslaan geweigerd: {reason}"
 
@@ -12136,7 +12136,7 @@ msgstr "Repository"
 msgid "Request a new link"
 msgstr "Nieuwe link aanvragen"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Verzoek mislukt"
 
