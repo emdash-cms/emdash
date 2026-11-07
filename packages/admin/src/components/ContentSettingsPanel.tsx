@@ -41,7 +41,8 @@ import type {
 import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
-} from "../lib/content-editor-panels";
+	useVisibleContentEditorPanels,
+} from "../lib/content-editor-panels.js";
 import {
 	getContentPublishingState,
 	type ContentPublishingState,
@@ -878,7 +879,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const pluginAdmins = usePluginAdmins();
 	const revisionView = useRevisionViewContext();
 	const viewingRevision = Boolean(revisionView?.viewingId);
-	const trustedExtensionPanels = React.useMemo(
+	const trustedPanelCandidates = React.useMemo(
 		() =>
 			!isNew && item
 				? resolveContentEditorPanels(
@@ -890,6 +891,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				: [],
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
 	);
+	const panelContext = React.useMemo(
+		() =>
+			!isNew && item
+				? { collection, entry: item, locale: item.locale ?? entryLocale ?? undefined }
+				: null,
+		[collection, entryLocale, isNew, item],
+	);
+	const trustedExtensionPanels = useVisibleContentEditorPanels(
+		trustedPanelCandidates,
+		panelContext,
+	);
 	const sandboxedExtensionPanels = React.useMemo(
 		() => (!isNew && item ? resolveSandboxedEditorPanels(manifest?.plugins, collection) : []),
 		[collection, isNew, item, manifest?.plugins],
@@ -897,7 +909,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const extensionPanels = React.useMemo(
 		() =>
 			[
-				...trustedExtensionPanels.map((panel) => ({
+				...trustedPanelCandidates.map((panel) => ({
 					kind: "trusted" as const,
 					pluginId: panel.pluginId,
 					id: panel.extension.id,
@@ -915,7 +927,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				(a, b) =>
 					a.order - b.order || a.pluginId.localeCompare(b.pluginId) || a.id.localeCompare(b.id),
 			),
-		[sandboxedExtensionPanels, trustedExtensionPanels],
+		[sandboxedExtensionPanels, trustedPanelCandidates],
 	);
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
@@ -1289,7 +1301,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						const Panel = extension.component;
 
 						return (
-							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>
+							<SortableContentSettingsSection
+								key={sectionId}
+								id={sectionId}
+								label={title}
+								hidden={!trustedExtensionPanels.includes(panel)}
+							>
 								<div className="min-w-0 p-4">
 									<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 										{title}

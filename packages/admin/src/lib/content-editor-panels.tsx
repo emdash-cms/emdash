@@ -20,6 +20,8 @@ export interface ContentEditorPanelExtension {
 	collections?: readonly string[] | ((collection: string) => boolean);
 	/** Minimum numeric admin role required to see this panel. */
 	minRole?: number;
+	/** Show the section only when this check returns true. Hidden while pending or on error. */
+	isVisible?: (ctx: ContentEditorPanelContext) => boolean | Promise<boolean>;
 	/** Lower values render first among contributed panels. */
 	order?: number;
 }
@@ -72,6 +74,10 @@ function isValidPanel(value: unknown, pluginId: string): value is ContentEditorP
 			pluginId,
 			`ignored panel "${value.id}" because collections must be an array of strings or a predicate.`,
 		);
+		return false;
+	}
+	if (value.isVisible !== undefined && typeof value.isVisible !== "function") {
+		warn(pluginId, `ignored panel "${value.id}" because isVisible must be a function.`);
 		return false;
 	}
 	if (value.minRole !== undefined && !Number.isFinite(value.minRole)) {
@@ -151,6 +157,51 @@ export function resolveContentEditorPanels(
 			(a.extension.order ?? 0) - (b.extension.order ?? 0) ||
 			a.pluginId.localeCompare(b.pluginId) ||
 			a.extension.id.localeCompare(b.extension.id),
+	);
+}
+
+export function useVisibleContentEditorPanels(
+	panels: ResolvedContentEditorPanel[],
+	context: ContentEditorPanelContext | null,
+): ResolvedContentEditorPanel[] {
+	const [result, setResult] = React.useState<{
+		panels: ResolvedContentEditorPanel[];
+		context: ContentEditorPanelContext;
+		visible: Set<ResolvedContentEditorPanel>;
+	} | null>(null);
+
+	React.useEffect(() => {
+		if (!context) return;
+		let cancelled = false;
+		const visible = new Set<ResolvedContentEditorPanel>();
+
+		for (const panel of panels) {
+			const isVisible = panel.extension.isVisible;
+			if (!isVisible) continue;
+			void (async () => {
+				try {
+					if ((await isVisible(context)) === true && !cancelled) {
+						visible.add(panel);
+						setResult({ panels, context, visible: new Set(visible) });
+					}
+				} catch (error) {
+					console.error(
+						`Plugin "${panel.pluginId}" failed while checking visibility of content editor panel "${panel.extension.id}".`,
+						error,
+					);
+				}
+			})();
+		}
+
+		return () => {
+			cancelled = true;
+		};
+	}, [panels, context]);
+
+	return panels.filter(
+		(panel) =>
+			!panel.extension.isVisible ||
+			(result?.panels === panels && result.context === context && result.visible.has(panel)),
 	);
 }
 
