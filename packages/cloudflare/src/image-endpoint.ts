@@ -30,6 +30,8 @@ import {
 
 export const prerender = false;
 
+const ORIGINAL_FALLBACK = "original";
+
 const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = {
 	webp: "image/webp",
 	avif: "image/avif",
@@ -45,18 +47,6 @@ function resolveImagesBinding(): ImagesBinding | undefined {
 	// env from cloudflare:workers has no index signature, so a cast is needed.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Images binding accessed from untyped env object
 	return (env as Record<string, unknown>)[name] as ImagesBinding | undefined;
-}
-
-function streamOriginal(
-	body: ReadableStream<Uint8Array>,
-	contentType: string,
-	size: number,
-	lastModified?: Date,
-): Response {
-	return new Response(body, {
-		status: 200,
-		headers: originalMediaHeaders(contentType, size, lastModified),
-	});
 }
 
 function notModifiedResponse(
@@ -102,23 +92,25 @@ export const GET: APIRoute = async (ctx) => {
 
 	// An unread download keeps its storage read open even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
-	const serveOriginal = (source: {
-		body: ReadableStream<Uint8Array>;
-		contentType: string;
-		size: number;
-		lastModified?: Date;
-	}): Response => {
-		if (isNotModified(ctx.request, source.size, source.lastModified)) {
-			return notModifiedResponse(source.contentType, source.size, source.lastModified);
+	const serveOriginal = (
+		source: {
+			body: ReadableStream<Uint8Array>;
+			contentType: string;
+			size: number;
+			lastModified?: Date;
+		},
+		suffix?: string,
+	): Response => {
+		if (isNotModified(ctx.request, source.size, source.lastModified, suffix)) {
+			return notModifiedResponse(source.contentType, source.size, source.lastModified, suffix);
 		}
-		if (ctx.request.method === "HEAD") {
-			return new Response(null, {
-				status: 200,
-				headers: originalMediaHeaders(source.contentType, source.size, source.lastModified),
-			});
-		}
+		const headers = {
+			...originalMediaHeaders(source.contentType, source.size, source.lastModified),
+			...(suffix ? validatorHeaders(source.size, source.lastModified, suffix) : {}),
+		};
+		if (ctx.request.method === "HEAD") return new Response(null, { status: 200, headers });
 		unusedBody = undefined;
-		return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
+		return new Response(source.body, { status: 200, headers });
 	};
 
 	try {
@@ -153,10 +145,21 @@ export const GET: APIRoute = async (ctx) => {
 		const effectiveQuality = resolveTransformQuality(format, quality);
 		if (effectiveQuality !== undefined) output.quality = effectiveQuality;
 
-		const result = await images.input(source.body).transform(transform).output(output);
-		unusedBody = undefined;
-		const response = result.response();
-		if (!response.body) return new Response(null, { status: 500 });
+		let response: Response;
+		try {
+			const result = await images.input(source.body).transform(transform).output(output);
+			unusedBody = undefined;
+			response = result.response();
+			if (!response.body) throw new Error("Images binding returned no body");
+		} catch (error) {
+			// The Images binding fails once a plan's monthly transformations run
+			// out; the full-size original keeps the image visible.
+			console.error("[emdash] image transform failed, serving the original:", error);
+			if (unusedBody && !unusedBody.locked) await unusedBody.cancel().catch(() => undefined);
+			const original = await storage.download(key);
+			unusedBody = original.body;
+			return serveOriginal(original, ORIGINAL_FALLBACK);
+		}
 
 		return new Response(response.body, {
 			status: 200,

@@ -231,7 +231,9 @@ export function matchInternalMediaKey(href: string | null | undefined): string |
  * stock endpoint would fetch such an `href` from whatever host it names, and
  * the request's own origin comes from a client-supplied `Host` header. EmDash
  * media is only ever served from storage, so the internal media route is never
- * delegated; other images are left to the stock endpoint's own checks.
+ * delegated; other images are left to the stock endpoint's own checks. This
+ * checks `href` only: a redirect from an allowed host to a media path on
+ * another host is still followed by the stock endpoint.
  */
 export function canDelegateImageHref(href: string | null | undefined, origin: string): boolean {
 	if (!href) return true;
