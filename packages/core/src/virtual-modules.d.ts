@@ -29,6 +29,7 @@ declare module "virtual:emdash/config" {
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
+		sessionCookieName?: string;
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
 	}
