@@ -94,7 +94,7 @@ function details(authorId: string): ContentItem {
 function renderPanel(
 	item: ReturnType<typeof scheduledItem>,
 	user: CurrentUser,
-	{ compact = false } = {},
+	{ compact = false, supportsScheduling = true } = {},
 ) {
 	const onClose = vi.fn();
 	const screen = render(
@@ -106,6 +106,7 @@ function renderPanel(
 			i18n={undefined}
 			urlPatterns={{}}
 			user={user}
+			supportsScheduling={supportsScheduling}
 			onClose={onClose}
 			onRescheduled={() => {}}
 		/>,
@@ -180,5 +181,26 @@ describe("CalendarEntryPanel", () => {
 		expect(panel.getByRole("button", { name: "Publish now" }).query()).toBeNull();
 		expect(panel.getByRole("button", { name: "Reschedule" }).query()).toBeNull();
 		expect(panel.getByRole("button", { name: "Remove schedule" }).query()).toBeNull();
+	});
+
+	it("keeps removing and publishing an existing schedule available without rescheduling", async () => {
+		const { screen, onClose } = renderPanel(scheduledItem("2026-10-15T11:00:00.000Z"), editor, {
+			supportsScheduling: false,
+		});
+		const panel = (await screen).getByRole("dialog", { name: "Launch" });
+
+		expect(panel.getByRole("button", { name: "Reschedule" }).query()).toBeNull();
+		await expect.element(panel.getByRole("button", { name: "Publish now" })).toBeVisible();
+		await expect.element(panel.getByRole("button", { name: "Remove schedule" })).toBeVisible();
+
+		await panel.getByRole("button", { name: "Publish now" }).click();
+		await expect
+			.poll(() => vi.mocked(publishContent).mock.calls[0])
+			.toEqual(["posts", "launch", { locale: "en", _rev: "rev-1" }]);
+
+		await panel.getByRole("button", { name: "Remove schedule" }).click();
+
+		await expect.poll(() => onClose.mock.calls.length).toBe(2);
+		expect(unscheduleContent).toHaveBeenCalledWith("posts", "launch", { locale: "en" });
 	});
 });

@@ -2824,6 +2824,41 @@ describe("ContentEditor", () => {
 	});
 
 	describe("scheduler", () => {
+		it("hides scheduling actions when the collection does not support scheduling", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onSchedule: vi.fn(),
+				supportsScheduling: false,
+			});
+
+			expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
+		});
+
+		it("allows removing an existing schedule without scheduling support", async () => {
+			const onUnschedule = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				onSchedule: vi.fn(),
+				onUnschedule,
+				supportsScheduling: false,
+			});
+
+			expect(screen.getByRole("button", { name: "Change schedule" }).query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Remove schedule" })).toBeVisible();
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			expect(screen.getByRole("button", { name: "Change schedule" }).query()).toBeNull();
+			const removeSchedule = [
+				...(getEditorBar().lastElementChild?.querySelectorAll("button") ?? []),
+			].find((action) => action.textContent?.trim() === "Remove schedule");
+			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
+			removeSchedule?.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
+		});
+
 		it("keeps draft scheduling separate from confirmed publishing", async () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({

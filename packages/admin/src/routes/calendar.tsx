@@ -389,6 +389,11 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 					i18n={manifest.i18n}
 					urlPatterns={urlPatterns}
 					user={user}
+					supportsScheduling={
+						!manifest.collections[selectedItem?.collection ?? ""]?.supports?.includes(
+							"no-scheduling",
+						)
+					}
 					returnFocus={returnFocusRef}
 					onClose={closeEntry}
 					onRescheduled={(_item, scheduledAt) => {
