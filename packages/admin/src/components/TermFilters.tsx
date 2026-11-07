@@ -94,7 +94,7 @@ function TaxonomyTermFilter({
 	// The same request the entry editor's picker makes: the list's locale with
 	// default-locale fallback, and no usage counts.
 	const { data: terms = [] } = useQuery({
-		queryKey: ["taxonomy-terms", name, locale],
+		queryKey: ["taxonomy-terms", name, locale, { includeCounts: false }],
 		queryFn: () => fetchTerms(name, locale),
 	});
 

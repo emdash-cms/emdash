@@ -676,6 +676,63 @@ describe("ContentRepository", () => {
 				expect(result.total).toBe(3);
 			});
 
+			it("returns an entry carrying two picked terms once, on every page", async () => {
+				const seeded = await seedTerms();
+				await db
+					.insertInto("content_taxonomies")
+					.values({
+						collection: "post",
+						entry_id: seeded.items[0]!.translationGroup ?? seeded.items[0]!.id,
+						taxonomy_id: "t-polo",
+					})
+					.execute();
+
+				const all = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo", "polo"] } },
+				});
+				expect(all.items.map((item) => item.slug)).toEqual(["post-0", "post-1", "post-2"]);
+
+				const slugs: string[] = [];
+				let cursor: string | undefined;
+				do {
+					const page = await repo.findMany("post", {
+						limit: 1,
+						cursor,
+						orderBy: { field: "slug", direction: "asc" },
+						where: { termFilters: { topics: ["rodeo", "polo"] } },
+					});
+					expect(page.total).toBe(3);
+					slugs.push(...page.items.map((item) => item.slug ?? ""));
+					cursor = page.nextCursor;
+				} while (cursor);
+
+				expect(slugs).toEqual(["post-0", "post-1", "post-2"]);
+			});
+
+			// A custom field may be named like a column of the joined term set.
+			it("combines with a field filter on a field named entry_id", async () => {
+				await seedTerms();
+				await registry.createField("post", {
+					slug: "entry_id",
+					label: "Entry id",
+					type: "string",
+					indexed: true,
+				});
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				await repo.update("post", seeded.items[0]!.id, { data: { entry_id: "a" } });
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "entry_id", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"] }, fieldFilters: { entry_id: "a" } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(result.total).toBe(1);
+			});
+
 			it("ANDs across taxonomies", async () => {
 				await seedTerms();
 

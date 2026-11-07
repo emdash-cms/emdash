@@ -963,11 +963,11 @@ export class ContentRepository {
 		let query = this.selectLiveRows(tableName);
 		if (termGroups) {
 			query = this.db
-				.selectFrom(this.termEntries(termGroups, type).as("terms"))
-				.crossJoin(tableName as "terms")
-				.selectAll(tableName as "terms")
+				.selectFrom(this.termEntries(termGroups, type).as("_term_entries"))
+				.crossJoin(tableName as "_term_entries")
+				.selectAll(tableName as "_term_entries")
 				.where(
-					sql<boolean>`${sql.ref(`${tableName}.translation_group`)} = ${sql.ref("terms.entry_id")}`,
+					sql<boolean>`${sql.ref(`${tableName}.translation_group`)} = ${sql.ref("_term_entries._term_entry")}`,
 				)
 				.where(
 					sql<boolean>`${sql.ref(`${tableName}.deleted_at`)} IS NULL`,
@@ -2168,17 +2168,33 @@ export class ContentRepository {
 	 * and test every row, which reads the whole collection for a narrow term.
 	 * Starting from the pivot instead (`CROSS JOIN` keeps SQLite from
 	 * reordering) reads the terms' assignments and seeks each entry by
-	 * `translation_group`. `INTERSECT` keeps one row per entry and applies AND
-	 * across taxonomies without depending on key order.
+	 * `translation_group`. `DISTINCT` keeps one row per entry when it carries
+	 * several of a taxonomy's picked terms, and `INTERSECT` applies AND across
+	 * taxonomies without depending on key order.
+	 *
+	 * The primary key is (collection, entry_id, taxonomy_id), so SQLite would
+	 * answer `DISTINCT entry_id` by walking the collection's whole key range in
+	 * order rather than looking up the picked terms by `taxonomy_id` and
+	 * sorting the few rows found. A unary `+` keeps `collection` out of index
+	 * selection without changing what it matches. SQLite only: Postgres has no
+	 * unary `+` for text.
+	 *
+	 * The column is named `_term_entry` because the page query's field filters
+	 * and ordering refer to content columns unqualified, and a field slug
+	 * cannot start with an underscore.
 	 */
 	private termEntries(termGroups: string[][], type: string) {
+		const collection = isPostgres(this.db)
+			? sql.ref("collection")
+			: sql`+${sql.ref("collection")}`;
 		const sets = termGroups.map(
 			(groups) =>
-				sql`SELECT ${sql.ref("entry_id")} FROM ${sql.table("content_taxonomies")}
-					WHERE ${sql.ref("collection")} = ${type}
+				sql`SELECT DISTINCT ${sql.ref("entry_id")} AS ${sql.ref("_term_entry")}
+					FROM ${sql.table("content_taxonomies")}
+					WHERE ${collection} = ${type}
 						AND ${sql.ref("taxonomy_id")} IN (${jsonTextValues(this.db, groups)})`,
 		);
-		return sql<{ entry_id: string }>`(${sql.join(sets, sql` INTERSECT `)})`;
+		return sql<{ _term_entry: string }>`(${sql.join(sets, sql` INTERSECT `)})`;
 	}
 
 	/**
