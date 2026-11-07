@@ -127,11 +127,20 @@ describe("Embed HTML with an iframe from a host the sanitizer blocks", () => {
 		expect(attribute(rendered, "a", "href")).toBe(url);
 	});
 
-	it("keeps iframes from allowed hosts", async () => {
+	it("keeps iframes from allowed hosts without adding a link", async () => {
 		const src = "https://player.vimeo.com/video/123";
 		const rendered = await render("https://example.com/page", {
 			html: `<iframe src="${src}"></iframe>`,
 		});
 		expect(attribute(rendered, "iframe", "src")).toBe(src);
+		expect(rendered).not.toContain("<a ");
+	});
+
+	it("renders provider HTML without an iframe without adding a link", async () => {
+		const rendered = await render("https://twitter.com/user/status/1", {
+			html: `<blockquote class="twitter-tweet"><p>Hello</p></blockquote>`,
+		});
+		expect(rendered).toContain("<p>Hello</p>");
+		expect(rendered).not.toContain('href="https://twitter.com/user/status/1"');
 	});
 });
