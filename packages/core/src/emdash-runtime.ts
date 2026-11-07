@@ -6280,7 +6280,7 @@ export class EmDashRuntime {
 		const headers = new Headers(request.headers);
 		headers.delete("content-length");
 		headers.delete("content-encoding");
-		const internalRequest = new Request(request.url, {
+		const internalRequest = new Request(request, {
 			method: "POST",
 			headers,
 			body: JSON.stringify(input),
