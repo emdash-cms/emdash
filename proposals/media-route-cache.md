@@ -30,13 +30,13 @@ When the site configures an Astro cache provider (`cacheCloudflare()`, `memoryCa
 
 A prototype ran on a throwaway Cloudflare Worker with its own D1 database and R2 bucket, using a 1.4 MB PNG and `cacheCloudflare()`. The requests came from one client and were few, so the numbers are indicative:
 
-| Request                            | EmDash 1.4.0                       | Prototype                                                                  |
-| ---------------------------------- | ---------------------------------- | -------------------------------------------------------------------------- |
-| Original file, repeated            | `BYPASS` every time, 150 to 230 ms | `HIT`, 45 to 130 ms                                                        |
-| `/_image` variant, `w=400`, WebP   | not measured                       | first `MISS` 350 ms, then `HIT` 45 to 55 ms; `If-None-Match` returns `304` |
+| Request                            | EmDash 1.4.0                       | Prototype                                                                              |
+| ---------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------- |
+| Original file, repeated            | `BYPASS` every time, 150 to 230 ms | `HIT`, 45 to 130 ms                                                                    |
+| `/_image` variant, `w=400`, WebP   | not measured                       | first `MISS` 350 ms, then `HIT` 45 to 55 ms; `If-None-Match` returns `304`             |
 | After replace                      |                                    | immediate `MISS` with the new bytes (checked by MD5), then `HIT`; same for the variant |
-| After delete                       |                                    | `404` for the file and the variant                                         |
-| `Range` request for a cached image |                                    | `206` with the requested bytes                                             |
+| After delete                       |                                    | `404` for the file and the variant                                                     |
+| `Range` request for a cached image |                                    | `206` with the requested bytes                                                         |
 
 The baseline numbers come from a different image on a different Worker (our stock demo site). On Node with `memoryCache()`, the prototype showed the same hit, replace and delete behavior for original files. The prototype is commit [`aa90da5`](https://github.com/swissky/emdash/commit/aa90da512) on the fork branch [`proto/4498-media-edge-cache`](https://github.com/swissky/emdash/tree/proto/4498-media-edge-cache).
 
