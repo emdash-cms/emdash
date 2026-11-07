@@ -15835,7 +15835,7 @@ msgstr "Toto pole vyberá záznamy, na ktoré tento záznam odkazuje."
 #. placeholder {0}: relation.childLabel
 #: packages/admin/src/components/FieldEditor.tsx:1860
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
-msgstr "V tomto poli sa zobrazí <0>{0}<0> odkaz na tento {linkingSide}"
+msgstr "V tomto poli sa zobrazí <0>{0}</0> odkaz na tento {linkingSide}"
 
 #: packages/admin/src/components/FieldEditor.tsx:1865
 msgid ""
