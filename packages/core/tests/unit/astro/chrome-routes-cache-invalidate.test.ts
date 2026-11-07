@@ -150,7 +150,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on update", async () => {
 			await menuFixture();
 			const { cache, invalidate } = makeContext({ name: "primary" });
-			const request = await makeRequest("PUT", { label: "Updated" }, "http://localhost/");
+			const request = await makeRequest(
+				"PUT",
+				{ label: "Updated" },
+				"http://localhost/_emdash/api/menus/primary",
+			);
 
 			const response = await putMenu({
 				request,
@@ -167,11 +171,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on item create", async () => {
 			await menuFixture();
 			const { cache, invalidate } = makeContext({ name: "primary" });
-			const request = await makeRequest("POST", {
-				type: "custom",
-				label: "Blog",
-				customUrl: "/blog",
-			});
+			const request = await makeRequest(
+				"POST",
+				{ type: "custom", label: "Blog", customUrl: "/blog" },
+				"http://localhost/_emdash/api/menus/primary/items",
+			);
 
 			const response = await postMenuItem({
 				request,
@@ -188,7 +192,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on item update", async () => {
 			const { itemId } = await menuFixture();
 			const { cache, invalidate } = makeContext({ name: "primary", id: itemId });
-			const request = await makeRequest("PUT", { label: "Updated" });
+			const request = await makeRequest(
+				"PUT",
+				{ label: "Updated" },
+				`http://localhost/_emdash/api/menus/primary/items/${itemId}`,
+			);
 
 			const response = await putMenuItem({
 				request,
@@ -205,9 +213,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on item reorder", async () => {
 			const { itemId } = await menuFixture();
 			const { cache, invalidate } = makeContext({ name: "primary" });
-			const request = await makeRequest("POST", {
-				items: [{ id: itemId, parentId: null, sortOrder: 0 }],
-			});
+			const request = await makeRequest(
+				"POST",
+				{ items: [{ id: itemId, parentId: null, sortOrder: 0 }] },
+				"http://localhost/_emdash/api/menus/primary/reorder",
+			);
 
 			const response = await reorderMenuItems({
 				request,
@@ -224,7 +234,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on item delete", async () => {
 			const { itemId } = await menuFixture();
 			const { cache, invalidate } = makeContext({ name: "primary", id: itemId });
-			const request = await makeRequest("DELETE", {});
+			const request = await makeRequest(
+				"DELETE",
+				{},
+				`http://localhost/_emdash/api/menus/primary/items/${itemId}`,
+			);
 
 			const response = await deleteMenuItem({
 				request,
@@ -241,7 +255,7 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on menu delete", async () => {
 			await menuFixture();
 			const { cache, invalidate } = makeContext({ name: "primary" });
-			const request = await makeRequest("DELETE", {});
+			const request = await makeRequest("DELETE", {}, "http://localhost/_emdash/api/menus/primary");
 
 			const response = await deleteMenu({
 				request,
