@@ -251,7 +251,7 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 		onSave: vi.fn(),
 		...props,
 	};
-	return render(<ContentEditor {...defaultProps} />);
+	return render(<ContentEditor {...defaultProps} />, { wrapper: Toasty });
 }
 
 type SavedBylineCredit = NonNullable<ContentItem["bylines"]>[number];
@@ -402,6 +402,7 @@ describe("ContentEditor", () => {
 			},
 		});
 
+		await screen.getByRole("button", { name: "Attachment", exact: true }).click();
 		await screen.getByRole("button", { name: "Select File" }).click();
 		expect(mediaPickerProps.current).toMatchObject({
 			fieldId: "database-field:block-key:file",
@@ -486,7 +487,9 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByRole("alert")).toHaveTextContent("future_blocks");
 			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
 			expect(screen.getByLabelText("Layout").query()).toBeNull();
-			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 
 			await vi.advanceTimersByTimeAsync(2500);
 			expect(onAutosave).not.toHaveBeenCalled();
@@ -1069,6 +1072,7 @@ describe("ContentEditor", () => {
 				},
 			});
 
+			await screen.getByRole("button", { name: "Event", exact: true }).click();
 			const seats = screen.getByLabelText("Seats", { exact: true });
 			await seats.fill("44.5");
 			await expect.element(seats).not.toBeValid();
@@ -1657,7 +1661,9 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByLabelText("Order", { exact: true })).toHaveValue(0);
 			await expect.element(screen.getByLabelText("Subtitle")).toHaveValue("");
 			await expect.element(screen.getByLabelText("Tagline")).toHaveValue("");
-			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		it("leaves the defaults out of an edit form whose entry did not load", async () => {
@@ -1668,7 +1674,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByRole("switch")).not.toBeChecked();
-			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 	});
 
@@ -1823,12 +1831,12 @@ describe("ContentEditor", () => {
 			await expect.element(saveBtn).toBeEnabled();
 		});
 
-		it("SaveButton is disabled for existing item with no changes", async () => {
+		it("hides the save control for an existing item with no changes", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item });
-			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
-			await expect.element(saveBtn).toBeDisabled();
-			expect(saveBtn.getByRole("status").element().textContent).toBe("Saved");
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		// Strict per-locale hydration (migration 040) can return
@@ -2289,7 +2297,9 @@ describe("ContentEditor", () => {
 				const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn() });
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+					.toBeNull();
 				const publishButtons = screen
 					.getByRole("button", { name: "Publish now", exact: true })
 					.all();
@@ -2552,7 +2562,9 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("button", { name: "Preview" }).first())
 					.toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+					.toBeNull();
 
 				media.setMatches(false);
 				await expect
@@ -2698,7 +2710,6 @@ describe("ContentEditor", () => {
 			);
 
 			expect(actionNames).toEqual([
-				"Saved",
 				"Live View",
 				"Preview",
 				"Unpublish Post",
@@ -3678,7 +3689,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
-			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		it("stops autosaving as soon as the entry is taken away", async () => {
@@ -3770,6 +3783,52 @@ describe("ContentEditor", () => {
 			});
 
 			expect(portableTextProps.current?.editable).toBe(false);
+		});
+
+		it("shows the fields of every block in a read-only entry", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					data: {
+						title: "Test",
+						layout: [{ _type: "event", _version: 1, _key: "first", seats: 40 }],
+					},
+				}),
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					layout: {
+						kind: "blocks",
+						label: "Layout",
+						validation: { allowedTypes: ["event"], retiredTypes: [] },
+						blockTypes: [
+							{
+								id: "event-type",
+								slug: "event",
+								label: "Event",
+								currentVersion: 1,
+								source: "user",
+								createdAt: "2026-01-01T00:00:00.000Z",
+								updatedAt: "2026-01-01T00:00:00.000Z",
+								versions: [
+									{
+										id: "event-v1",
+										blockTypeId: "event-type",
+										version: 1,
+										fields: [{ slug: "seats", label: "Seats", type: "integer" }],
+										fingerprint: "one",
+										active: true,
+										createdAt: "2026-01-01T00:00:00.000Z",
+										updatedAt: "2026-01-01T00:00:00.000Z",
+									},
+								],
+							},
+						],
+					},
+				},
+				readOnly: true,
+			});
+
+			await expect.element(screen.getByLabelText("Seats", { exact: true })).toHaveValue(40);
 		});
 
 		it("can still leave distraction-free mode while the entry is read-only", async () => {
@@ -4006,13 +4065,11 @@ describe("ContentEditor", () => {
 				supportsDrafts: true,
 			});
 
+			await screen.getByRole("button", { name: "Expand all" }).click();
 			const headings = screen.getByRole("textbox", { name: "Heading" }).all();
 			await headings[0]!.fill("First, edited again");
-			const firstHandle = screen.getByRole("button", { name: "Reorder Hero" }).first().element();
-			firstHandle.focus();
-			await userEvent.keyboard("{Space}");
-			await userEvent.keyboard("{ArrowDown}");
-			await userEvent.keyboard("{Space}");
+			await screen.getByRole("button", { name: "Hero actions" }).first().click();
+			await screen.getByRole("menuitem", { name: "Move down" }).click();
 
 			await screen.rerender(
 				<ContentEditor
@@ -4034,7 +4091,7 @@ describe("ContentEditor", () => {
 			expect(
 				Array.from(document.querySelectorAll<HTMLElement>("[data-block-key]"), (element) => [
 					element.dataset.blockKey,
-					element.textContent?.includes("Version 2") ? 2 : 1,
+					element.textContent?.includes("Inactive version") ? 1 : 2,
 				]),
 			).toEqual([
 				["second", 2],
