@@ -10,11 +10,11 @@
  * admin UI (stored encrypted in the database).
  *
  * Env vars:
- *   EMAIL_SMTP_HOST        smtp-relay.brevo.com
+ *   EMAIL_SMTP_HOST        smtp.example.com
  *   EMAIL_SMTP_PORT        587 (STARTTLS) or 465 (implicit TLS)
  *   EMAIL_SMTP_SECURE      "starttls" | "tls"  (default: inferred from port)
  *   EMAIL_SMTP_USER        you@example.com
- *   EMAIL_SMTP_PASS        xsmtpsib-…
+ *   EMAIL_SMTP_PASS        your-smtp-password
  *   EMAIL_SMTP_FROM        Site <noreply@example.com>  (optional default sender)
  *   EMAIL_SMTP_FROM_NAME   Site  (optional, with EMAIL_SMTP_FROM_EMAIL)
  *   EMAIL_SMTP_FROM_EMAIL  noreply@example.com  (optional, overrides EMAIL_SMTP_FROM)
