@@ -545,7 +545,7 @@ describe("typing", () => {
 			],
 			[
 				"table-delete-row",
-				'doc(table#k-t{emdashData={}}(tr#k-r1{emdashData={}}(td#k-A{colspan=1 rowspan=1 emdashData={}}(p("A"~k-A-s)), td#k-B{colspan=1 rowspan=1 emdashData={}}(p("B"~k-B-s)))), p)@15',
+				'doc(table#k-t{emdashData={}}(tr#k-r1{emdashData={}}(td#k-A{colspan=1 rowspan=1 emdashData={}}(p("A"~k-A-s)), td#k-B{colspan=1 rowspan=1 emdashData={}}(p("B"~k-B-s)))), p)@10',
 				[table],
 				async (editor) => {
 					select(editor, textPosition(editor, "C", "start"));
@@ -788,7 +788,7 @@ describe("typing", () => {
 		sectionPicker.select!({ content: [item("k-s1", "One"), item("k-s2", "Two")] } as Section);
 		expectShape(
 			editor,
-			'doc(p#k-a("Before"~k-a-s), ul(li(p#k-s1("One"~k-s1-s)), li(p#k-s2("Two"~k-s2-s))), p#k-z("After"~k-z-s))@25',
+			'doc(p#k-a("Before"~k-a-s), ul(li(p#k-s1("One"~k-s1-s)), li(p#k-s2("Two"~k-s2-s))), p#k-z("After"~k-z-s))@21',
 		);
 	});
 });
