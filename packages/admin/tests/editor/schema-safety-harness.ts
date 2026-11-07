@@ -422,8 +422,9 @@ function attachDetectors(ctx: RunContext, doc: Y.Doc, client: number) {
 	doc.on("afterTransaction", (tr) => recordDeletions(ctx, tr, client));
 	doc.on("beforeTransaction", (tr) => {
 		if (tr.origin !== ySyncPluginKey) return;
-		const stack = (new Error().stack ?? "").split("\n").slice(1, 8).join("\n");
-		if (SCHEMA_DELETE_FRAMES.test(stack)) tr.meta.set(SCHEMA_DELETE, true);
+		const frames = (new Error().stack ?? "").split("\n").slice(1);
+		const stack = frames.slice(0, 7).join("\n");
+		if (SCHEMA_DELETE_FRAMES.test(frames.join("\n"))) tr.meta.set(SCHEMA_DELETE, true);
 		else if (!ctx.local && !ctx.flush) {
 			ctx.unexpected++;
 			ctx.unexpectedStack ??= stack;
