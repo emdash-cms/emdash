@@ -159,7 +159,7 @@ catalog:
   "@tiptap/react": 3.32.0
   "@tiptap/starter-kit": 3.32.0
   "@tiptap/suggestion": 3.32.0
-  "@tiptap/y-tiptap": ^3.0.7
+  "@tiptap/y-tiptap": 3.2.0
   "@types/node": 24.10.13
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
