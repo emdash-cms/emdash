@@ -5,7 +5,7 @@
  * Vite-specific configuration for EmDash.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -188,7 +188,10 @@ export interface VitePluginOptions {
 /**
  * Creates the EmDash virtual modules Vite plugin.
  */
-export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
+export function createVirtualModulesPlugin(
+	options: VitePluginOptions,
+	optimizeRuntime = false,
+): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
@@ -402,7 +405,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				return generateEnvModule(astroConfig.adapter?.name);
 			}
 			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
-				return generateBuildModule(buildTime);
+				return generateBuildModule(buildTime, viteCommand === "serve" && optimizeRuntime);
 			}
 		},
 	};
@@ -448,6 +451,54 @@ function createWorkersBuiltinsExternalPlugin(): Plugin {
 	};
 }
 
+function createCloudflareOptimizerReloadPlugin(): Plugin {
+	return {
+		name: "emdash-cloudflare-optimizer-reload",
+		configEnvironment(name, config) {
+			if (config.consumer !== "server" && !["ssr", "astro", "prerender"].includes(name)) return;
+			let graphHash: string | undefined;
+			const lazyImportsPlugin: Pick<Plugin, "name" | "buildStart" | "augmentChunkHash"> = {
+				name: "emdash-optimizer-graph-hash",
+				buildStart() {
+					graphHash = undefined;
+				},
+				augmentChunkHash() {
+					// Vite compares static imports when deciding whether optimization
+					// needs a reload. Bind shared chunks to the whole graph so adding
+					// an entry cannot silently replace chunks used by lazy imports.
+					return (graphHash ??= [...this.getModuleIds()].toSorted().join("\n"));
+				},
+			};
+			return {
+				optimizeDeps: {
+					include: [],
+					rolldownOptions: { plugins: [lazyImportsPlugin] },
+				},
+			};
+		},
+	};
+}
+
+function hasRolldownOptimizer(projectRoot: string): boolean {
+	try {
+		// Resolve through Astro, not core's own Vite dependency or a hoisted copy.
+		const projectRequire = createRequire(resolve(projectRoot, "package.json"));
+		const astroRequire = createRequire(projectRequire.resolve("astro/package.json"));
+		const vitePackage: unknown = JSON.parse(
+			readFileSync(astroRequire.resolve("vite/package.json"), "utf8"),
+		);
+		return (
+			typeof vitePackage === "object" &&
+			vitePackage !== null &&
+			"version" in vitePackage &&
+			typeof vitePackage.version === "string" &&
+			Number.parseInt(vitePackage.version, 10) >= 8
+		);
+	} catch {
+		return false;
+	}
+}
+
 function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
 	try {
 		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
@@ -475,6 +526,7 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
+	const optimizeRuntime = cloudflare && isDev && !useSource && hasRolldownOptimizer(projectRoot);
 	const adminLocales = options.resolvedConfig.admin?.locales;
 	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
@@ -549,7 +601,8 @@ export function createViteConfig(
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
-			createVirtualModulesPlugin(options),
+			createVirtualModulesPlugin(options, optimizeRuntime),
+			...(optimizeRuntime ? [createCloudflareOptimizerReloadPlugin()] : []),
 			...(isDev && !cloudflare
 				? [{ name: "emdash-runtime-shutdown", apply: "serve", closeBundle: shutdownRuntime }]
 				: []),
@@ -593,19 +646,42 @@ export function createViteConfig(
 						// during pre-bundling and can't resolve them. Vite's exclude
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
-						//
-						// First-party packages must also stay excluded. In a
-						// real install (unlike the workspace symlink, which Vite never
-						// optimizes), the optimizer bundles their dist and code-splits
-						// lazily-executed dynamic imports (MCP tools, content
-						// validation) into hashed chunks. A mid-session re-optimization
-						// deletes those chunks while loaded modules still reference
-						// them, so every content write fails with "The file does not
-						// exist at .../deps_ssr/..." until the dev server restarts.
-						// Their CJS deps are still pre-bundled via the "parent > dep"
-						// include entries below, which resolve through excluded parents.
-						exclude: ["virtual:emdash", "emdash", "@emdash-cms/admin", "@emdash-cms/cloudflare"],
+						exclude: [
+							"virtual:emdash",
+							"@emdash-cms/cloudflare",
+							...(!optimizeRuntime ? ["emdash", "@emdash-cms/admin"] : []),
+						],
 						include: [
+							// Cache the runtime graph across workerd program reloads.
+							// These entrypoints are otherwise discovered serially on startup.
+							...(optimizeRuntime
+								? [
+										"emdash",
+										"@emdash-cms/admin",
+										"emdash/middleware",
+										"emdash/internal/middleware/setup",
+										"emdash/internal/middleware/auth",
+										"emdash/internal/middleware/media-usage-write-fence",
+										"emdash/internal/middleware/redirect",
+										"emdash/internal/middleware/request-context",
+										"emdash/runtime",
+										"emdash/ui",
+										"emdash/page",
+										"emdash/internal/media/local-runtime",
+										"emdash/internal/plugins/adapt-sandbox-entry",
+										...[
+											options.resolvedConfig.database?.entrypoint,
+											options.resolvedConfig.storage?.entrypoint,
+											options.resolvedConfig.objectCache?.entrypoint,
+											...(options.resolvedConfig.mediaProviders?.map(
+												(provider) => provider.entrypoint,
+											) ?? []),
+										].filter(
+											(entry): entry is string =>
+												typeof entry === "string" && entry.startsWith("emdash/"),
+										),
+									]
+								: []),
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
 							"emdash > @unpic/placeholder",

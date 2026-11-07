@@ -18,7 +18,7 @@ const virtualStubs: Record<string, string> = {
 	"virtual:emdash/env": "export const env = undefined;",
 	// Nothing was built under test, so there is no build dimension to fold
 	// into cache validators. Tests that need one still `vi.mock(...)`.
-	"virtual:emdash/build": "export const buildTime = 0;",
+	"virtual:emdash/build": "export const buildTime = 0; export const onBeforeFullReload = () => {};",
 };
 
 export default defineConfig({

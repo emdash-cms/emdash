@@ -579,7 +579,9 @@ describe.sequential("Isolated template installs", () => {
 					try {
 						await waitForReady(serverProcess, readOutput);
 						const setup = await waitForInjectedRoute(
-							`http://localhost:${platform.port}/_emdash/api/setup/dev-bypass?redirect=/`,
+							`http://localhost:${platform.port}/_emdash/api/setup/dev-bypass${
+								platform.id === "cloudflare" ? "?token=1" : "?redirect=/"
+							}`,
 							readOutput,
 							{
 								requestTimeoutMs: INJECTED_ROUTE_TIMEOUT_MS,
@@ -588,6 +590,10 @@ describe.sequential("Isolated template installs", () => {
 						);
 						const setupBody = await setup.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${setupBody}`).toContain(setup.status);
+						const setupToken =
+							platform.id === "cloudflare"
+								? (JSON.parse(setupBody) as { data?: { token?: string } }).data?.token
+								: undefined;
 
 						const frontend = await fetchWithServerOutput(
 							`http://localhost:${platform.port}/`,
@@ -597,6 +603,84 @@ describe.sequential("Isolated template installs", () => {
 						expect([200, 302, 307, 308], `${readOutput()}\n${frontendBody}`).toContain(
 							frontend.status,
 						);
+
+						if (platform.id === "cloudflare") {
+							const metadataPath = join(projectDir, "node_modules/.vite/deps_ssr/_metadata.json");
+							expect(existsSync(metadataPath)).toBe(true);
+							const readMetadata = () =>
+								JSON.parse(readFileSync(metadataPath, "utf8")) as {
+									browserHash: string;
+									optimized: Record<string, unknown>;
+								};
+							const initialMetadata = readMetadata();
+							expect(initialMetadata.optimized).toHaveProperty("emdash/middleware");
+							expect(initialMetadata.optimized).not.toHaveProperty("react-dom/client");
+							expect(setupToken).toEqual(expect.any(String));
+							if (!setupToken) throw new Error("Setup did not return a dev API token");
+
+							const initialReloads = readOutput().match(/program reload/g)?.length ?? 0;
+							const pagePath = join(projectDir, "src/pages/index.astro");
+							const originalPage = readFileSync(pagePath, "utf8");
+							writeFileSync(
+								pagePath,
+								originalPage
+									.replace("---", '---\nimport "react-dom/client";')
+									.replace("<h1>Recent Posts</h1>", "<h1>Recent Posts 1</h1>"),
+							);
+							try {
+								await expect
+									.poll(
+										async () => {
+											const editedFrontend = await fetchWithServerOutput(
+												`http://localhost:${platform.port}/`,
+												readOutput,
+											);
+											const editedBody = await editedFrontend.text();
+											expect(editedFrontend.status, editedBody).toBe(200);
+											return editedBody;
+										},
+										{ timeout: PAGE_REQUEST_TIMEOUT_MS },
+									)
+									.toContain("Recent Posts 1");
+
+								await expect
+									.poll(() => readMetadata().browserHash, {
+										timeout: PAGE_REQUEST_TIMEOUT_MS,
+									})
+									.not.toBe(initialMetadata.browserHash);
+								expect(readMetadata().optimized).toHaveProperty("react-dom/client");
+								await expect
+									.poll(() => readOutput().match(/program reload/g)?.length ?? 0, {
+										timeout: PAGE_REQUEST_TIMEOUT_MS,
+									})
+									.toBeGreaterThan(initialReloads);
+
+								const contentWrite = await fetch(
+									`http://localhost:${platform.port}/_emdash/api/content/posts`,
+									{
+										method: "POST",
+										headers: {
+											Authorization: `Bearer ${setupToken}`,
+											"Content-Type": "application/json",
+											"X-EmDash-Request": "1",
+										},
+										body: JSON.stringify({
+											slug: "after-page-reload",
+											status: "draft",
+											data: { title: "After page reload", content: [] },
+										}),
+										signal: AbortSignal.timeout(PAGE_REQUEST_TIMEOUT_MS),
+									},
+								);
+								const contentWriteBody = await contentWrite.text();
+								expect(contentWrite.status, `${readOutput()}\n${contentWriteBody}`).toBe(201);
+								expect(JSON.parse(contentWriteBody)).toMatchObject({
+									data: { item: { data: { title: "After page reload" } } },
+								});
+							} finally {
+								writeFileSync(pagePath, originalPage);
+							}
+						}
 
 						const admin = await fetchWithServerOutput(
 							`http://localhost:${platform.port}/_emdash/admin/`,

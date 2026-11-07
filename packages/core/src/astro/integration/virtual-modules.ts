@@ -531,8 +531,24 @@ export function generateEnvModule(adapterName: string | undefined): string {
  * answering conditional requests with 304 while the assets the cached HTML
  * references are already gone.
  */
-export function generateBuildModule(buildTime: number): string {
-	return `export const buildTime = ${buildTime};`;
+export function generateBuildModule(buildTime: number, reloadRuntime = false): string {
+	return `export const buildTime = ${buildTime};
+// This module stays outside the optimizer, which does not inject import.meta.hot.
+export function onBeforeFullReload(callback) {
+  ${
+		reloadRuntime
+			? `if (import.meta.hot) import.meta.hot.on("vite:beforeFullReload", async (payload) => {
+    // File edits retain optimizer chunks; dependency re-optimization does not.
+    if (payload.triggeredBy) return;
+    try {
+      await callback();
+    } catch (error) {
+      console.error("[emdash] Runtime shutdown failed before dependency reload:", error);
+    }
+  });`
+			: ""
+	}
+}`;
 }
 
 /**
