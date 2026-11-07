@@ -1058,6 +1058,15 @@ export function createMcpServer(
 					.string()
 					.optional()
 					.describe("Filter by locale (e.g. 'en', 'fr'). Only relevant when i18n is enabled."),
+				q: z
+					.string()
+					.trim()
+					.min(1)
+					.max(200)
+					.optional()
+					.describe(
+						"Search the collection's title or name, slug, and searchable fields. Case-insensitive; collections with search enabled match word prefixes.",
+					),
 				markdown: z
 					.boolean()
 					.optional()
@@ -1080,6 +1089,7 @@ export function createMcpServer(
 				orderBy: args.orderBy,
 				order: args.order,
 				locale: args.locale,
+				q: args.q,
 			});
 			if (result.success && args.markdown) {
 				const payload = result.data;
