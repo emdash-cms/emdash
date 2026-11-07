@@ -39,5 +39,11 @@ export default defineConfig({
 	// resolve the build-time `virtual:astro:app` module — only available in the
 	// consuming app's Astro build, never here. Keep them external so the bare
 	// imports survive to be resolved downstream.
-	external: ["cloudflare:workers", "cloudflare:email", /^@astrojs\/cloudflare/, /^astro($|\/)/],
+	external: [
+		"cloudflare:workers",
+		"cloudflare:email",
+		/^virtual:emdash\//,
+		/^@astrojs\/cloudflare/,
+		/^astro($|\/)/,
+	],
 });

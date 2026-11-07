@@ -3002,6 +3002,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						database: deps.config.database,
 						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
@@ -3159,6 +3160,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						database: deps.config.database,
 						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,

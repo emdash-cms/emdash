@@ -107,7 +107,12 @@ describe("Cloudflare sandbox route errors", () => {
 
 	it("passes implied capabilities to the bridge binding", async () => {
 		mocks.invokeRoute.mockResolvedValue(undefined);
-		const runner = new CloudflareSandboxRunner({ db: null as never });
+		const database = {
+			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
+			config: { binding: "SITE_DATABASE" },
+			type: "postgres" as const,
+		};
+		const runner = new CloudflareSandboxRunner({ db: null as never, database });
 		const plugin = await runner.load(
 			{
 				id: "redirect-writer",
@@ -135,6 +140,7 @@ describe("Cloudflare sandbox route errors", () => {
 
 		expect(mocks.bridge).toHaveBeenCalledWith({
 			props: expect.objectContaining({
+				database,
 				capabilities: expect.arrayContaining(["redirects:write", "redirects:read"]),
 			}),
 		});
