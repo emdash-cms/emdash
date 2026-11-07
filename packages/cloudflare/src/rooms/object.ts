@@ -131,12 +131,13 @@ export class EmDashRoom extends DurableObject {
 
 	override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
 		const socket = this.#sockets.get(ws);
-		if (!socket || typeof message === "string") return;
-		if (message.byteLength > MAX_MESSAGE_BYTES) {
+		if (!socket) return;
+		if (messageBytes(message) > MAX_MESSAGE_BYTES) {
 			closeSocket(ws, socket, MESSAGE_TOO_BIG, "The message is too big");
 			this.#forget(ws);
 			return;
 		}
+		if (typeof message === "string") return;
 		this.#room.receive(socket.connection, new Uint8Array(message));
 		if (!socket.closed && socket.info && socket.info.clientId !== socket.attachedClientId) {
 			this.#attach(ws, socket);
@@ -200,6 +201,13 @@ export class EmDashRoom extends DurableObject {
 		this.#sockets.delete(ws);
 		this.#room.disconnect(socket.connection);
 	}
+}
+
+/** A message's size as sent, which is UTF-8 for text. */
+function messageBytes(message: string | ArrayBuffer): number {
+	return typeof message === "string"
+		? new TextEncoder().encode(message).byteLength
+		: message.byteLength;
 }
 
 function closeSocket(ws: WebSocket, socket: Socket, code: number, reason: string): void {

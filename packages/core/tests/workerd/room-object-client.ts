@@ -136,8 +136,8 @@ export class RoomClient {
 		this.send(encodeSyncStep1(this.doc));
 	}
 
-	send(bytes: Uint8Array): void {
-		if (!this.closed) this.#ws?.send(bytes);
+	send(message: Uint8Array | string): void {
+		if (!this.closed) this.#ws?.send(message);
 	}
 
 	close(): void {
