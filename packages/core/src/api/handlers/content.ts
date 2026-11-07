@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -864,7 +864,7 @@ async function removeShadowingAutoRedirect(
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "=", url)
+		.where("source", "in", redirectPathVariants(url))
 		.where("auto", "=", 1)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
@@ -1039,6 +1039,28 @@ export async function handleContentList(
 				: undefined,
 			sortableExtras,
 		});
+
+		// Unpublished entries have no live data to preserve in the list. Keep the
+		// base columns untouched so discarding a draft can still restore them.
+		const unpublishedDrafts = result.items.filter(
+			(item) => item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
+		);
+		const draftIds = unpublishedDrafts.flatMap((item) =>
+			item.draftRevisionId ? [item.draftRevisionId] : [],
+		);
+		if (draftIds.length > 0) {
+			const revisions = await new RevisionRepository(db).findByIds(collection, draftIds);
+			const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+			for (const item of unpublishedDrafts) {
+				if (!item.draftRevisionId) continue;
+				const revision = byId.get(item.draftRevisionId);
+				if (!revision || revision.entryId !== item.id) continue;
+				const fields = Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				);
+				item.data = { ...item.data, ...fields };
+			}
+		}
 
 		// Hydrate SEO data if the collection has SEO enabled
 		const hasSeo = await collectionHasSeo(db, collection);

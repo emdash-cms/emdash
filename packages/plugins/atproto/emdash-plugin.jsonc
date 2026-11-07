@@ -12,7 +12,7 @@
 	// Trust contract. Needs unrestricted outbound HTTP because the
 	// publisher's PDS host varies per user — there's no fixed
 	// allow-list. Reads content for syndication.
-	"capabilities": ["content:read", "network:request:unrestricted"],
+	"capabilities": ["content:read", "media:bytes:read", "network:request:unrestricted"],
 	"allowedHosts": [],
 	"storage": {
 		"records": { "indexes": ["contentId", "status", "lastSyncedAt"] },

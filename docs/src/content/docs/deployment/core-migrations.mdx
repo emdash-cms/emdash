@@ -270,6 +270,8 @@ A conservative rollout is `auto` while introducing the deployment job, then `che
 
 Core migrations follow expand/deploy/contract sequencing. A deployment may temporarily run old and new application isolates against the expanded database, and a backfill may still be in progress. Do not contract a schema until every deployed version has stopped using it.
 
+Migration `095_plugin_storage_unique_scope` is an exception: older builds can recreate the constraints it replaces. Follow the [plugin storage uniqueness maintenance-window sequence](/deployment/updating/#fixed-plugin-storage-uniqueness) instead of applying that migration in a pre-deploy job while older code serves traffic.
+
 Unknown applied migration records are tolerated by runtime `check` for this rolling-deployment direction only. The CLI's exact check reports them and apply refuses to mutate, because the database may be newer or may have a divergent migration history.
 
 ## Rollback boundary
