@@ -118,10 +118,11 @@ export function extractPlainText(blocks: PortableTextBlock[] | string | null | u
 
 /**
  * Collect Portable Text prose from anywhere inside a block value. Walks
- * objects and arrays recursively (so repeater rows are covered), skips
- * `_`-prefixed keys, and extracts only Portable Text arrays via
- * `extractPlainText`. Plain string sub-fields are not emitted, which matches
- * the SQL path (see FTSManager.searchValueExpr).
+ * objects and arrays recursively, skips `_`-prefixed keys, and extracts only
+ * Portable Text arrays via `extractPlainText`. This is narrower than the SQL
+ * path (see FTSManager.searchValueExpr), which also indexes any string under
+ * a `text`, `alt`, `caption` or `code` key, so the two can see different text
+ * for the same document.
  */
 function collectBlockText(value: unknown, parts: string[]): void {
 	if (Array.isArray(value)) {

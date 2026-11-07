@@ -41,7 +41,33 @@ describe("blocks field FTS indexing", () => {
 		repo = new ContentRepository(db);
 		ftsManager = new FTSManager(db);
 
-		await new BlockTypeRegistry(db).createBlockType({
+		const blockTypes = new BlockTypeRegistry(db);
+		await blockTypes.createBlockType({
+			slug: "figure",
+			label: "Figure",
+			fields: [
+				{ slug: "caption", label: "Caption", type: "string" },
+				{ slug: "heading", label: "Heading", type: "string" },
+			],
+		});
+		await blockTypes.createBlockType({
+			slug: "gallery",
+			label: "Gallery",
+			fields: [
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "caption", label: "Caption", type: "string" },
+							{ slug: "label", label: "Label", type: "string" },
+						],
+					},
+				},
+			],
+		});
+		await blockTypes.createBlockType({
 			slug: "two_column",
 			label: "Two column",
 			fields: [
@@ -67,7 +93,7 @@ describe("blocks field FTS indexing", () => {
 			label: "Layout",
 			type: "blocks",
 			searchable: true,
-			validation: { allowedTypes: ["two_column"] },
+			validation: { allowedTypes: ["two_column", "figure", "gallery"] },
 		});
 		await registry.createField("pages", {
 			slug: "sidebar",
@@ -186,23 +212,24 @@ describe("blocks field FTS indexing", () => {
 		expect((await search("quietheading")).items).toEqual([]);
 	});
 
-	it("indexes Portable Text inside repeater rows", async () => {
+	it("indexes a string sub-field slugged `caption` inside repeater rows", async () => {
 		await repo.create({
 			type: "pages",
-			slug: "faq",
+			slug: "gallery",
 			status: "published",
 			data: {
-				title: "FAQ",
+				title: "Gallery",
 				layout: [
 					{
-						_type: "faq",
-						_key: "f1",
-						items: [{ _key: "r1", answer: prose("Refunds arrive within fortnight") }],
+						_type: "gallery",
+						_key: "g1",
+						items: [{ _key: "r1", caption: "Tidepool closeup", label: "Quietlabel" }],
 					},
 				],
 			},
 		});
-		expect((await search("refunds")).items).toHaveLength(1);
+		expect((await search("tidepool")).items).toHaveLength(1);
+		expect((await search("quietlabel")).items).toEqual([]);
 	});
 
 	it("does not find text in a non-searchable field", async () => {

@@ -67,19 +67,17 @@ describe("extractSearchableFields with blocks fields", () => {
 		}
 	});
 
-	it("extracts Portable Text inside nested repeater rows", () => {
-		const nested = [
+	it("does not emit string sub-fields inside repeater rows", () => {
+		const withRows = [
 			{
-				_type: "faq",
-				_key: "f",
-				items: [
-					{ _key: "r1", question: "Q one", answer: prose("First answer") },
-					{ _key: "r2", question: "Q two", answer: prose("Second answer") },
-				],
+				_type: "gallery",
+				_key: "g",
+				items: [{ _key: "r1", caption: "Row caption" }],
+				body: prose("Gallery intro"),
 			},
 		];
-		const result = extractSearchableFields({ layout: nested }, ["layout"], { layout: "blocks" });
-		expect(result.layout).toBe("First answer\nSecond answer");
+		const result = extractSearchableFields({ layout: withRows }, ["layout"], { layout: "blocks" });
+		expect(result.layout).toBe("Gallery intro");
 	});
 
 	it("accepts a JSON string value and tolerates empty or invalid values", () => {
