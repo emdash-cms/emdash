@@ -136,6 +136,7 @@ async function createAwaitingIntent(
 		workloadIdentityJson?: string;
 		releaseInputJson?: string;
 		accessDiffJson?: string;
+		workflowId?: string;
 	} = {},
 ) {
 	const stub = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
@@ -178,7 +179,7 @@ async function createAwaitingIntent(
 		actorIdentity: "release-service",
 		reasonCode: null,
 		stateDataJson: "{}",
-		workflowId: "workflow-approval-route",
+		workflowId: overrides.workflowId ?? "workflow-approval-route",
 		now: NOW + 2,
 	});
 	await stub.putVerificationStep({
@@ -345,7 +346,31 @@ async function enrolCredential(approverDid: `did:${string}:${string}` = APPROVER
 	return key;
 }
 
+async function decisionRequestFor(decision: "approve" | "reject") {
+	await createAwaitingIntent({ workflowId: INTENT_ID });
+	const key = await enrolCredential();
+	vi.stubGlobal("fetch", approvalNetwork({ approvers: [APPROVER_DID], cid: PROFILE_CID }));
+	const headers = { ...(await sessionHeaders()), "content-type": "application/json" };
+	const resource = `${ORIGIN}/v1/approvals/${INTENT_ID}?publisher=${encodeURIComponent(PUBLISHER_DID)}`;
+	const optionsResponse = await handleRequest(
+		new Request(resource.replace(`?`, `/options?`), {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ decision }),
+		}),
+		bindings(),
+	);
+	const optionsBody = await optionsResponse.json<{ data: { challenge: string } }>();
+	const body = JSON.stringify({
+		decision,
+		idempotencyKey: "approval-route-idempotency-0001",
+		response: assertion(key.privateKey, optionsBody.data.challenge),
+	});
+	return () => new Request(resource, { method: "POST", headers, body });
+}
+
 afterEach(async () => {
+	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
 	await reset();
 });
@@ -442,6 +467,57 @@ describe("approval decision routes", () => {
 			state: "publishing",
 			stateGeneration: 6,
 		});
+	});
+
+	it.each([
+		["approve", "ready"],
+		["reject", "rejected"],
+	] as const)(
+		"reports a recorded %s decision the release workflow did not receive and resends it on retry",
+		async (decision, state) => {
+			const decisionRequest = await decisionRequestFor(decision);
+			const sendEvent = vi
+				.fn<WorkflowInstance["sendEvent"]>()
+				.mockRejectedValueOnce(new Error("Workflow unavailable"))
+				.mockResolvedValue(undefined);
+			vi.spyOn(env.RELEASE_INTENT_WORKFLOW, "get").mockResolvedValue({
+				sendEvent,
+				status: async () => ({ status: "waiting" }),
+			} as unknown as WorkflowInstance);
+
+			const missed = await handleRequest(decisionRequest(), bindings());
+			expect(missed.status).toBe(503);
+			await expect(missed.json()).resolves.toMatchObject({
+				error: { code: "WORKFLOW_UNAVAILABLE" },
+			});
+			await expect(
+				env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
+			).resolves.toMatchObject({ state });
+
+			const retried = await handleRequest(decisionRequest(), bindings());
+			expect(retried.status).toBe(200);
+			const retriedBody = await retried.json<{ data: { receipt: { approvalDigest: string } } }>();
+			expect(sendEvent).toHaveBeenCalledTimes(2);
+			expect(sendEvent).toHaveBeenLastCalledWith({
+				type: "approval-decision",
+				payload: { decision, approvalDigest: retriedBody.data.receipt.approvalDigest },
+			});
+		},
+	);
+
+	it("accepts a repeated decision once the release workflow has finished", async () => {
+		const decisionRequest = await decisionRequestFor("approve");
+		const workflow = { status: "waiting" };
+		vi.spyOn(env.RELEASE_INTENT_WORKFLOW, "get").mockResolvedValue({
+			sendEvent: async () => {
+				if (workflow.status === "complete") throw new Error("Workflow is not running");
+			},
+			status: async () => workflow,
+		} as unknown as WorkflowInstance);
+
+		expect((await handleRequest(decisionRequest(), bindings())).status).toBe(200);
+		workflow.status = "complete";
+		expect((await handleRequest(decisionRequest(), bindings())).status).toBe(200);
 	});
 
 	it.each([

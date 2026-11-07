@@ -376,6 +376,7 @@ export async function completeApprovalDecision(
 	publisherDid: string,
 	intentId: string,
 	decision: "approve" | "reject",
+	idempotencyKey: string,
 	response: unknown,
 ): Promise<void> {
 	await apiRequest(
@@ -383,11 +384,7 @@ export async function completeApprovalDecision(
 		{
 			method: "POST",
 			headers: mutationHeaders(approverCsrfToken()),
-			body: JSON.stringify({
-				decision,
-				idempotencyKey: `approval-${crypto.randomUUID()}`,
-				response,
-			}),
+			body: JSON.stringify({ decision, idempotencyKey, response }),
 		},
 		() => undefined,
 	);
