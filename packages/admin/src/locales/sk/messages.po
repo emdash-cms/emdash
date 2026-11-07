@@ -294,7 +294,7 @@ msgstr "{0, plural, one {# pole} few {# polia} many {# polí} other {# polí}}"
 msgid "{0, plural, one {# file uploading} other {# files uploading}}"
 msgstr ""
 "{0, plural, one {Nahráva sa # súbor} few {Nahrávajú sa # súbory} other "
-"{Nahráva se # súborov}}"
+"{Nahráva sa # súborov}}"
 
 #. placeholder {0}: uploadQueue.overflowCount
 #: packages/admin/src/components/MediaPickerModal.tsx:1341
