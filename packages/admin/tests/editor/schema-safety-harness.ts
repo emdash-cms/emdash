@@ -295,13 +295,13 @@ const aborted = (ctx: RunContext, error: unknown) =>
 
 const SCHEMA_DELETE = "schemaSafetySchemaDelete";
 const CAPTURED = "schemaSafetyCaptured";
-const SCHEMA_DELETE_FRAMES = /createNodeFromYElement|createTextNodesFromYText/;
+const SCHEMA_DELETE_FRAMES = /\bdeleteYType\b/;
 
 /**
- * y-tiptap deletes a node the schema rejects with `el._item.delete(tr)` or
- * `text._item.delete(tr)` in a transaction whose origin is `ySyncPluginKey`,
- * from `createNodeFromYElement` or `createTextNodesFromYText`. Its own writes
- * share that origin, so the detectors tell them apart by the call stack.
+ * y-tiptap deletes a node the schema rejects in `deleteYType`, called from
+ * `createNodeFromYElement` or `createTextNodesFromYText`, in a transaction
+ * whose origin is `ySyncPluginKey`. Its own writes share that origin, so the
+ * detectors tell them apart by the call stack.
  */
 export function installDetectors(): () => void {
 	const itemDelete = Y.Item.prototype.delete;
