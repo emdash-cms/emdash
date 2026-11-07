@@ -575,7 +575,7 @@ Blocks validation accepts these properties:
 - `minItems` — Minimum number of blocks. Raising it above zero on a populated collection requires a content migration.
 - `maxItems` — Maximum number of blocks, up to 100.
 
-A blocks field is optional and defaults to an empty array. It cannot be required, unique, indexed, or rendered by a custom field widget. It can be `searchable`: Portable Text content inside blocks (including image alt and caption, and code blocks) is added to full-text search. Plain string and text sub-fields such as headings or labels are not indexed unless their sub-field slug happens to be `text`, `alt`, `caption` or `code`; a schema-aware key list is a possible follow-up. Block definitions can use scalar, text, selection, Portable Text, image, file, and repeater fields. They cannot contain references, JSON, slugs, or nested blocks.
+A blocks field is optional and defaults to an empty array. It cannot be required, unique, indexed, or rendered by a custom field widget. It can be `searchable`: Portable Text content inside blocks (including image alt and caption, and code blocks) is added to full-text search. Plain string and text sub-fields such as headings or labels are not indexed unless their sub-field slug happens to be `text`, `alt`, `caption` or `code`. Block definitions can use scalar, text, selection, Portable Text, image, file, and repeater fields. They cannot contain references, JSON, slugs, or nested blocks.
 
 Render the stored array with `<Blocks value components fallback>` from `emdash/ui`. See [Build pages with blocks](/guides/blocks/) for seed, component-map, missing-renderer, activation, and migration examples.
 

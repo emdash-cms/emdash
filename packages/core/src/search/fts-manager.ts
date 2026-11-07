@@ -185,8 +185,7 @@ export class FTSManager {
 	 * blocks (including image alt and caption, and code blocks) is indexed.
 	 * The key list is fixed, so plain string/text sub-fields such as headings
 	 * or labels are indexed only when their sub-field slug happens to be
-	 * `text`, `alt`, `caption` or `code`. A schema-aware key list is a
-	 * possible follow-up.
+	 * `text`, `alt`, `caption` or `code`.
 	 *
 	 * `ref` must be a validated column reference (`NEW.x`, `OLD.x`, `"x"`).
 	 */
@@ -240,12 +239,9 @@ export class FTSManager {
 	 * on one index row per content row instead of failing on the rowid
 	 * constraint.
 	 *
-	 * Migration `064_fts_plain_text.ts` covers the portableText case as
-	 * shipped. Blocks fields were added later without a new migration because
-	 * no pre-existing trigger could include a searchable blocks field (they
-	 * could not be searchable before). If the expression changes for fields
-	 * that already have triggers, add a new migration rather than editing
-	 * shipped ones — migrations are forward-only.
+	 * For fields that already have triggers, the trigger SQL must match
+	 * migration `064_fts_plain_text.ts`. If the expression changes for such
+	 * fields, add a forward migration rather than editing shipped ones.
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		this.validateInputs(collectionSlug, searchableFields);

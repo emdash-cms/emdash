@@ -217,6 +217,6 @@ Block definitions support `string`, `text`, `url`, `number`, `integer`, `boolean
 
 References, JSON, slugs, nested blocks, custom widgets, physical indexes, uniqueness, and per-subfield localization are not supported inside a block definition. A blocks field itself cannot be required, unique, indexed, or assigned a custom field widget.
 
-A blocks field can be marked `searchable`. Full-text search then indexes Portable Text content inside blocks (including image alt and caption, and code blocks). Plain string and text sub-fields such as headings or labels are not indexed unless their sub-field slug happens to be `text`, `alt`, `caption` or `code`; a schema-aware key list is a possible follow-up.
+A blocks field can be marked `searchable`. Full-text search then indexes Portable Text content inside blocks (including image alt and caption, and code blocks). Plain string and text sub-fields such as headings or labels are not indexed unless their sub-field slug happens to be `text`, `alt`, `caption` or `code`.
 
 For exact field validation and stored value rules, see the [`blocks` field reference](/reference/field-types/#blocks). For seed conflict and export behavior, see [Seed files](/themes/seed-files/#block-types).
