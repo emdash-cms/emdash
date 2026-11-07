@@ -1051,7 +1051,10 @@ export async function importContent(
 				itemDateTime !== undefined && !Number.isNaN(itemDateTime)
 					? item.date.toISOString()
 					: undefined;
-			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+			const scheduledAt =
+				item.status === "future" && createdAt && Date.parse(createdAt) > Date.now()
+					? createdAt
+					: undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -1063,7 +1066,8 @@ export async function importContent(
 				locale: item.locale,
 				translationOf,
 				createdAt,
-				publishedAt,
+				// Scheduled posts get their publication date from the final schedule.
+				publishedAt: scheduledAt ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
@@ -1105,13 +1109,8 @@ export async function importContent(
 					translationGroupMap.set(item.translationGroup, createdId);
 				}
 
-				if (
-					createdId &&
-					item.status === "future" &&
-					createdAt &&
-					Date.parse(createdAt) > Date.now()
-				) {
-					const scheduled = await emdash.handleContentSchedule(collection, createdId, createdAt);
+				if (createdId && scheduledAt) {
+					const scheduled = await emdash.handleContentSchedule(collection, createdId, scheduledAt);
 					if (!scheduled.success) {
 						result.errors.push({
 							title: item.title || "Untitled",

@@ -5,6 +5,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 
+import { AdminDocumentTitle } from "../../src/components/AdminDocumentTitle.js";
 import {
 	ContentEditor,
 	type FieldDescriptor,
@@ -487,7 +488,9 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByRole("alert")).toHaveTextContent("future_blocks");
 			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
 			expect(screen.getByLabelText("Layout").query()).toBeNull();
-			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 
 			await vi.advanceTimersByTimeAsync(2500);
 			expect(onAutosave).not.toHaveBeenCalled();
@@ -690,6 +693,48 @@ describe("ContentEditor", () => {
 				media.restore();
 			}
 		});
+	});
+
+	it("uses a custom collection's title field and singular label in the browser tab", async () => {
+		const screen = await render(
+			<AdminDocumentTitle siteName="My Site" pageKey="/content/people/1" pageTitle="People">
+				<ContentEditor
+					collection="people"
+					collectionLabel="Person"
+					fields={{
+						name: { kind: "string", label: "Name" },
+						title: { kind: "string", label: "Job title" },
+					}}
+					item={makeItem({ data: { name: "Jane Smith", title: "Trustee" } })}
+					isNew={false}
+					onSave={vi.fn()}
+					manifest={{
+						version: "1",
+						hash: "hash",
+						authMode: "passkey",
+						collections: {
+							people: {
+								label: "People",
+								labelSingular: "Person",
+								supports: [],
+								hasSeo: false,
+								titleField: "name",
+							},
+						},
+						plugins: {},
+						taxonomies: [],
+					}}
+				/>
+			</AdminDocumentTitle>,
+			{ wrapper: Toasty },
+		);
+		await expect.poll(() => document.title).toBe("Edit Person: Jane Smith · My Site");
+		await screen.getByLabelText("Name").fill("Jane Doe");
+		await expect.poll(() => document.title).toBe("Edit Person: Jane Doe · My Site");
+		await screen.getByLabelText("Name").fill("");
+		await expect.poll(() => document.title).toBe("Edit Person: Trustee · My Site");
+		await screen.getByLabelText("Job title").fill("");
+		await expect.poll(() => document.title).toBe("Edit Person: my-post · My Site");
 	});
 
 	describe("slug generation", () => {
@@ -1659,7 +1704,9 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByLabelText("Order", { exact: true })).toHaveValue(0);
 			await expect.element(screen.getByLabelText("Subtitle")).toHaveValue("");
 			await expect.element(screen.getByLabelText("Tagline")).toHaveValue("");
-			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		it("leaves the defaults out of an edit form whose entry did not load", async () => {
@@ -1670,7 +1717,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByRole("switch")).not.toBeChecked();
-			await expect.element(screen.getByRole("button", { name: "Saved" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 	});
 
@@ -1825,12 +1874,12 @@ describe("ContentEditor", () => {
 			await expect.element(saveBtn).toBeEnabled();
 		});
 
-		it("SaveButton is disabled for existing item with no changes", async () => {
+		it("hides the save control for an existing item with no changes", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item });
-			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
-			await expect.element(saveBtn).toBeDisabled();
-			expect(saveBtn.getByRole("status").element().textContent).toBe("Saved");
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		// Strict per-locale hydration (migration 040) can return
@@ -2291,7 +2340,9 @@ describe("ContentEditor", () => {
 				const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn() });
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+					.toBeNull();
 				const publishButtons = screen
 					.getByRole("button", { name: "Publish now", exact: true })
 					.all();
@@ -2554,7 +2605,9 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("button", { name: "Preview" }).first())
 					.toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+					.toBeNull();
 
 				media.setMatches(false);
 				await expect
@@ -2700,7 +2753,6 @@ describe("ContentEditor", () => {
 			);
 
 			expect(actionNames).toEqual([
-				"Saved",
 				"Live View",
 				"Preview",
 				"Unpublish Post",
@@ -3680,7 +3732,9 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
-			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 		});
 
 		it("stops autosaving as soon as the entry is taken away", async () => {

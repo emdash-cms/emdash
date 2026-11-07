@@ -142,17 +142,17 @@ msgid "\"{0}\" and its nested items will be removed from this menu. This action 
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1894
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "«{0}» будет удалён из {providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1895
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "«{0}» будет удалён у поставщика медиа."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1907
 msgid "\"{0}\" will be permanently deleted."
 msgstr "«{0}» будет удалён безвозвратно."
 
@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# элемент)} few {(# элемента)} many {(# элементов)} other {(# элементов)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3793
+#: packages/admin/src/components/ContentEditor.tsx:3898
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} из # символа, не меньше {min}} few {{counted} из # символов, не меньше {min}} many {{counted} из # символов, не меньше {min}} other {{counted} из # символов, не меньше {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3798
+#: packages/admin/src/components/ContentEditor.tsx:3903
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} из # символа} few {{counted} из # символов} many {{counted} из # символов} other {{counted} из # символов}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# комментарий импортирован} few {# комментария импортировано} many {# комментариев импортировано} other {# комментариев импортировано}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2470
+#: packages/admin/src/router.tsx:2529
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# комментарий обновлён} few {# комментария обновлено} many {# комментариев обновлено} other {# комментариев обновлено}}"
 
@@ -263,7 +263,7 @@ msgstr "{0, plural, one {# файл не добавлен: список загр
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1514
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 #: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# папка загружена} few {# папки загружены} many {# папок загружено} other {# папок загружено}}"
@@ -359,7 +359,7 @@ msgstr "{0, plural, one {# связь с участием этого типа м
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5575
+#: packages/admin/src/components/PortableTextEditor.tsx:5578
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# строка} few {# строки} many {# строк} other {# строк}} × {1, plural, one {# столбец} few {# столбца} many {# столбцов} other {# столбцов}} выбрано"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Добавить # видео} few {Добавить # видео} many {Добавить # видео} other {Добавить # видео}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3803
+#: packages/admin/src/components/ContentEditor.tsx:3908
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Не меньше # символа} few {Не меньше # символов} many {Не меньше # символов} other {Не меньше # символов}}"
 
@@ -558,17 +558,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "Шаги: {0} из {1} · {2} из {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:755
+#: packages/admin/src/router.tsx:782
 msgid "{0} of {total} could not be deleted"
 msgstr "Не удалось удалить {0} из {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:711
+#: packages/admin/src/router.tsx:738
 msgid "{0} of {total} could not be published"
 msgstr "Не удалось опубликовать {0} из {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:761
 msgid "{0} of {total} could not be updated"
 msgstr "Не удалось обновить {0} из {total}"
 
@@ -1153,7 +1153,7 @@ msgstr "1. Войдите в админку WordPress"
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. Войдите в консоль WordPress"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:542
+#: packages/admin/src/components/MediaDetailPanel.tsx:544
 msgid "16:9"
 msgstr "16:9"
 
@@ -1165,7 +1165,7 @@ msgstr "2. Откройте <0>Инструменты → Экспорт</0>"
 msgid "2. Go to Users → Profile"
 msgstr "2. Откройте Пользователи → Профиль"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:541
+#: packages/admin/src/components/MediaDetailPanel.tsx:543
 msgid "3:2"
 msgstr "3:2"
 
@@ -1197,7 +1197,7 @@ msgstr "307 — временно (строго)"
 msgid "308 Permanent (Strict)"
 msgstr "308 — постоянно (строго)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:540
+#: packages/admin/src/components/MediaDetailPanel.tsx:542
 msgid "4:3"
 msgstr "4:3"
 
@@ -1292,7 +1292,7 @@ msgstr "Отсутствует файл пакета"
 msgid "A publication time has not been selected"
 msgstr "Время публикации не выбрано"
 
-#: packages/admin/src/components/ContentEditor.tsx:1697
+#: packages/admin/src/components/ContentEditor.tsx:1708
 msgid "A publishing action is already in progress"
 msgstr "Публикация уже выполняется"
 
@@ -1359,7 +1359,7 @@ msgstr "Прервать этот импорт?"
 msgid "Abandoning…"
 msgstr "Прерывание…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:534
+#: packages/admin/src/components/MediaDetailPanel.tsx:536
 msgid "About focal point"
 msgstr "О точке фокуса"
 
@@ -1375,6 +1375,10 @@ msgstr "Принять и установить"
 msgid "Accept & Update"
 msgstr "Принять и обновить"
 
+#: packages/admin/src/router.tsx:467
+msgid "Accept invitation"
+msgstr ""
+
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
 msgid "Accept Invite"
@@ -1386,7 +1390,7 @@ msgstr "Принять приглашение"
 msgid "Access denied"
 msgstr "Доступ запрещён"
 
-#: packages/admin/src/router.tsx:2492
+#: packages/admin/src/router.tsx:2551
 msgid "Access Denied"
 msgstr "Доступ запрещён"
 
@@ -1562,12 +1566,12 @@ msgstr "Добавить подпись"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:6028
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Add caption"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5588
+#: packages/admin/src/components/PortableTextEditor.tsx:5591
 msgid "Add column after"
 msgstr "Добавить столбец после"
 
@@ -1650,9 +1654,9 @@ msgstr ""
 msgid "Add item to {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5212
-#: packages/admin/src/components/PortableTextEditor.tsx:6021
-#: packages/admin/src/components/PortableTextEditor.tsx:6470
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6473
 msgid "Add link"
 msgstr "Добавить ссылку"
 
@@ -1686,8 +1690,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "Добавить ключ доступа"
 
-#: packages/admin/src/components/ContentEditor.tsx:3707
-#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3812
+#: packages/admin/src/components/ContentEditor.tsx:3812
 msgid "Add reference"
 msgstr "Добавить ссылку"
 
@@ -1700,7 +1704,7 @@ msgid "Add row above"
 msgstr "Добавить строку выше"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5581
+#: packages/admin/src/components/PortableTextEditor.tsx:5584
 msgid "Add row below"
 msgstr "Добавить строку ниже"
 
@@ -1895,25 +1899,25 @@ msgid "Agent-callable MCP tools"
 msgstr "Инструменты MCP, доступные агенту"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5476
+#: packages/admin/src/components/PortableTextEditor.tsx:5479
 msgid "Align"
 msgstr "Выравнивание"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6644
+#: packages/admin/src/components/PortableTextEditor.tsx:6647
 msgid "Align center"
 msgstr "По центру"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6636
+#: packages/admin/src/components/PortableTextEditor.tsx:6639
 msgid "Align left"
 msgstr "По левому краю"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6652
+#: packages/admin/src/components/PortableTextEditor.tsx:6655
 msgid "Align right"
 msgstr "По правому краю"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:6002
+#: packages/admin/src/components/PortableTextEditor.tsx:6005
 msgid "Alignment"
 msgstr "Выравнивание"
 
@@ -1998,6 +2002,7 @@ msgid "Allowed block types"
 msgstr "Разрешённые типы блоков"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
+#: packages/admin/src/router.tsx:2628
 msgid "Allowed Domains"
 msgstr "Разрешённые домены"
 
@@ -2038,14 +2043,14 @@ msgstr "Альтернативный текст"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1176
-#: packages/admin/src/components/PortableTextEditor.tsx:5933
-#: packages/admin/src/components/PortableTextEditor.tsx:5999
+#: packages/admin/src/components/PortableTextEditor.tsx:5936
+#: packages/admin/src/components/PortableTextEditor.tsx:6002
 msgid "Alt text"
 msgstr "Альтернативный текст"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1582
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
+#: packages/admin/src/components/MediaDetailPanel.tsx:1597
 msgid "Alt Text"
 msgstr "Альтернативный текст"
 
@@ -2107,19 +2112,18 @@ msgstr "Зашифрованный цифровой ключ, который в�
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:665
-#: packages/admin/src/router.tsx:686
-#: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1341
-#: packages/admin/src/router.tsx:1464
-#: packages/admin/src/router.tsx:1498
-#: packages/admin/src/router.tsx:1522
-#: packages/admin/src/router.tsx:1606
-#: packages/admin/src/router.tsx:1639
-#: packages/admin/src/router.tsx:2442
-#: packages/admin/src/router.tsx:2478
-#: packages/admin/src/router.tsx:2906
-#: packages/admin/src/router.tsx:3093
+#: packages/admin/src/router.tsx:692
+#: packages/admin/src/router.tsx:713
+#: packages/admin/src/router.tsx:938
+#: packages/admin/src/router.tsx:1396
+#: packages/admin/src/router.tsx:1554
+#: packages/admin/src/router.tsx:1578
+#: packages/admin/src/router.tsx:1662
+#: packages/admin/src/router.tsx:1695
+#: packages/admin/src/router.tsx:2501
+#: packages/admin/src/router.tsx:2537
+#: packages/admin/src/router.tsx:2995
+#: packages/admin/src/router.tsx:3185
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Произошла ошибка"
@@ -2144,7 +2148,7 @@ msgstr "Анализ файла экспорта..."
 msgid "Analyzing WordPress site..."
 msgstr "Анализ сайта WordPress..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1742
+#: packages/admin/src/components/MediaDetailPanel.tsx:1753
 msgid "Animated WebP files become still images when cropped."
 msgstr "Анимированные файлы WebP при обрезке становятся неподвижными."
 
@@ -2218,6 +2222,7 @@ msgstr "Любое количество"
 #: packages/admin/src/components/Settings.tsx:103
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
+#: packages/admin/src/router.tsx:2636
 msgid "API Tokens"
 msgstr "Токены API"
 
@@ -2230,7 +2235,7 @@ msgid "Application Password"
 msgstr "Пароль приложения"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6735
+#: packages/admin/src/components/PortableTextEditor.tsx:6738
 msgid "Apply"
 msgstr "Применить"
 
@@ -2238,8 +2243,8 @@ msgstr "Применить"
 msgid "Apply changes"
 msgstr "Применить изменения"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5186
-#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:5189
+#: packages/admin/src/components/PortableTextEditor.tsx:5977
 msgid "Apply link"
 msgstr "Применить ссылку"
 
@@ -2328,7 +2333,7 @@ msgstr ""
 msgid "Ask an administrator to complete this setup."
 msgstr "Попросите администратора завершить эту настройку."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1682
+#: packages/admin/src/components/MediaDetailPanel.tsx:1693
 msgid "Aspect ratio"
 msgstr "Соотношение сторон"
 
@@ -2344,17 +2349,22 @@ msgstr "Ассистентам, подключённым через MCP, нуж�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3826
+#: packages/admin/src/components/ContentEditor.tsx:3931
 msgid "At least {min}"
 msgstr "Не меньше {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3928
 msgid "At most {max}"
 msgstr "Не больше {max}"
 
 #: packages/admin/src/components/RelationForm.tsx:505
 msgid "At most…"
 msgstr "Не более…"
+
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
@@ -2390,7 +2400,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Вход отменён или истекло время ожидания. Попробуйте ещё раз."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2412,6 +2422,10 @@ msgstr "Не удалось авторизовать"
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:297
 msgid "Authorize"
 msgstr "Авторизовать"
+
+#: packages/admin/src/router.tsx:478
+msgid "Authorize device"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
@@ -2470,11 +2484,11 @@ msgstr "Автоматические резервные копии"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Для автоматических копий нужно хранилище (R2, S3 или локальное). Настройте его в конфигурации EmDash."
 
-#: packages/admin/src/router.tsx:1461
+#: packages/admin/src/router.tsx:1522
 msgid "Autosave failed"
 msgstr "Не удалось автосохранить"
 
-#: packages/admin/src/components/ContentEditor.tsx:228
+#: packages/admin/src/components/ContentEditor.tsx:230
 msgid "Autosave paused"
 msgstr ""
 
@@ -2511,7 +2525,7 @@ msgstr "Назад"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1814
-#: packages/admin/src/components/MediaDetailPanel.tsx:1786
+#: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
@@ -2519,7 +2533,7 @@ msgstr "Назад"
 msgid "Back"
 msgstr "Назад"
 
-#: packages/admin/src/components/ContentEditor.tsx:1941
+#: packages/admin/src/components/ContentEditor.tsx:1964
 msgid "Back to {collectionLabel} list"
 msgstr "К списку «{collectionLabel}»"
 
@@ -2600,6 +2614,7 @@ msgstr "Настройки копий сохранены"
 
 #: packages/admin/src/components/Settings.tsx:118
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
+#: packages/admin/src/router.tsx:2652
 msgid "Backups"
 msgstr "Резервные копии"
 
@@ -2627,7 +2642,7 @@ msgstr "Перед отправкой:"
 msgid "Before you continue:"
 msgstr "Прежде чем продолжить:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3820
+#: packages/admin/src/components/ContentEditor.tsx:3925
 msgid "Between {min} and {max}"
 msgstr "От {min} до {max}"
 
@@ -2679,8 +2694,8 @@ msgstr "Блокирующие проблемы"
 msgid "Blocks"
 msgstr "Блоки"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4963
-#: packages/admin/src/components/PortableTextEditor.tsx:6504
+#: packages/admin/src/components/PortableTextEditor.tsx:4966
+#: packages/admin/src/components/PortableTextEditor.tsx:6507
 msgid "Bold"
 msgstr "Полужирный"
 
@@ -2741,7 +2756,7 @@ msgstr "Происхождение сборки подтверждено"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2054
-#: packages/admin/src/components/PortableTextEditor.tsx:6561
+#: packages/admin/src/components/PortableTextEditor.tsx:6564
 msgid "Bullet List"
 msgstr "Маркированный список"
 
@@ -2797,6 +2812,7 @@ msgid "Byline schema"
 msgstr "Схема подписи"
 
 #: packages/admin/src/components/Sidebar.tsx:552
+#: packages/admin/src/router.tsx:2932
 msgid "Byline Schema"
 msgstr "Схема подписи"
 
@@ -2806,11 +2822,12 @@ msgstr "Подпись обновлена"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
+#: packages/admin/src/router.tsx:2921
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Подписи"
@@ -2830,6 +2847,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
+#: packages/admin/src/router.tsx:545
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "Календарь"
@@ -2858,13 +2876,13 @@ msgstr "Может просматривать материалы"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:538
+#: packages/admin/src/components/ContentSettingsPanel.tsx:547
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
 #: packages/admin/src/components/FieldEditor.tsx:1819
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:575
@@ -2873,9 +2891,9 @@ msgstr "Может просматривать материалы"
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PluginManager.tsx:822
 #: packages/admin/src/components/PortableTextEditor.tsx:2818
-#: packages/admin/src/components/PortableTextEditor.tsx:5945
-#: packages/admin/src/components/PortableTextEditor.tsx:5971
-#: packages/admin/src/components/PortableTextEditor.tsx:6719
+#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:6722
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -2944,7 +2962,7 @@ msgstr "Возможности"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 #: packages/admin/src/components/editor/ImageNode.tsx:311
 #: packages/admin/src/components/editor/VideoNode.tsx:332
-#: packages/admin/src/components/MediaDetailPanel.tsx:1597
+#: packages/admin/src/components/MediaDetailPanel.tsx:1608
 msgid "Caption"
 msgstr "Подпись к медиа"
 
@@ -2984,8 +3002,8 @@ msgstr "Ячейки объединены"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5480
-#: packages/admin/src/components/PortableTextEditor.tsx:5601
+#: packages/admin/src/components/PortableTextEditor.tsx:5483
+#: packages/admin/src/components/PortableTextEditor.tsx:5604
 msgid "Center"
 msgstr "По центру"
 
@@ -3032,7 +3050,7 @@ msgstr "Изменить дату публикации"
 msgid "Change publication date: {0}"
 msgstr "Изменить дату публикации: {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Изменить расписание"
@@ -3119,7 +3137,7 @@ msgstr "История изменений"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Изменения применятся везде, где есть эта подпись."
 
-#: packages/admin/src/router.tsx:1539
+#: packages/admin/src/router.tsx:1595
 msgid "Changes discarded"
 msgstr "Изменения отменены"
 
@@ -3263,7 +3281,7 @@ msgid "Choose a file from the library or upload a new one."
 msgstr "Выберите файл из библиотеки или загрузите новый."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:925
+#: packages/admin/src/components/MediaDetailPanel.tsx:927
 msgid "Choose a non-empty {0} image."
 msgstr "Выберите непустое изображение {0}."
 
@@ -3321,7 +3339,7 @@ msgstr ""
 msgid "Choose package file"
 msgstr "Выбрать файл пакета"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1817
+#: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
 msgstr "Выберите изображение на замену"
 
@@ -3389,7 +3407,7 @@ msgstr "Убрать завершённые"
 msgid "Clear filters"
 msgstr "Сбросить фильтры"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5490
+#: packages/admin/src/components/PortableTextEditor.tsx:5493
 msgid "Clear formatting"
 msgstr "Очистить форматирование"
 
@@ -3444,8 +3462,8 @@ msgstr "Перейдите по этой ссылке, чтобы войти н�
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:627
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:629
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:1134
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1136
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
@@ -3478,7 +3496,7 @@ msgstr "Закрыть настройки изображения"
 msgid "Close panel"
 msgstr "Закрыть панель"
 
-#: packages/admin/src/components/ContentEditor.tsx:2644
+#: packages/admin/src/components/ContentEditor.tsx:2749
 msgid "Close settings"
 msgstr "Закрыть настройки"
 
@@ -3494,7 +3512,7 @@ msgstr "Код"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2084
-#: packages/admin/src/components/PortableTextEditor.tsx:6603
+#: packages/admin/src/components/PortableTextEditor.tsx:6606
 msgid "Code Block"
 msgstr "Блок кода"
 
@@ -3530,9 +3548,9 @@ msgstr "В коллекции «{0}» есть записи"
 msgid "Collection “{0}” was created on this site"
 msgstr "Коллекция «{0}» была создана на этом сайте"
 
-#: packages/admin/src/router.tsx:776
-#: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:803
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:2022
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3558,7 +3576,7 @@ msgid "Collections created:"
 msgstr "Создано коллекций:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5586
+#: packages/admin/src/components/PortableTextEditor.tsx:5589
 msgid "Column added after"
 msgstr "Столбец добавлен после"
 
@@ -3615,6 +3633,7 @@ msgstr "Реакции на комментарии"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/router.tsx:2426
 msgid "Comments"
 msgstr "Комментарии"
 
@@ -3649,6 +3668,10 @@ msgstr ""
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
 msgstr "Подтвердить"
+
+#: packages/admin/src/router.tsx:441
+msgid "Confirm magic link"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -3695,11 +3718,16 @@ msgstr "Подключиться к WordPress"
 msgid "Connected {0}"
 msgstr "Подключено: {0}"
 
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
+
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
 msgstr "Связывает"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:473
+#: packages/admin/src/components/ContentSettingsPanel.tsx:476
 msgid "content"
 msgstr "материал"
 
@@ -3710,6 +3738,7 @@ msgstr "материал"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
+#: packages/admin/src/router.tsx:557
 msgid "Content"
 msgstr "Материал"
 
@@ -3730,7 +3759,7 @@ msgstr "Ошибки материалов ({0})"
 msgid "Content found:"
 msgstr "Найдено материалов:"
 
-#: packages/admin/src/router.tsx:1588
+#: packages/admin/src/router.tsx:1644
 msgid "Content has been scheduled for publishing"
 msgstr "Материал запланирован к публикации"
 
@@ -3738,11 +3767,11 @@ msgstr "Материал запланирован к публикации"
 msgid "Content ID:"
 msgstr "ID материала:"
 
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1548
 msgid "Content is now live"
 msgstr "Материал опубликован"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1091
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1124
 msgid "Content language"
 msgstr "Язык материала"
 
@@ -3763,11 +3792,11 @@ msgstr "Материалы ссылаются на медиа некоррект
 msgid "Content refers to media that is not in the package"
 msgstr "Материалы ссылаются на медиа, которых нет в пакете"
 
-#: packages/admin/src/router.tsx:1516
+#: packages/admin/src/router.tsx:1572
 msgid "Content removed from public view"
 msgstr "Материал скрыт с сайта"
 
-#: packages/admin/src/router.tsx:1599
+#: packages/admin/src/router.tsx:1655
 msgid "Content reverted to draft"
 msgstr "Материал возвращён в черновики"
 
@@ -3790,6 +3819,7 @@ msgstr "Типы материалов"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
+#: packages/admin/src/router.tsx:2940
 msgid "Content Types"
 msgstr "Типы материалов"
 
@@ -3797,7 +3827,7 @@ msgstr "Типы материалов"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "Типы материалов одной группы собраны в сворачиваемую папку на боковой панели"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1912
+#: packages/admin/src/components/MediaDetailPanel.tsx:1923
 msgid "Content using this media item may show a broken reference."
 msgstr "Материалы с этим медиафайлом могут показывать битую ссылку."
 
@@ -3825,7 +3855,7 @@ msgid "Continue Import"
 msgstr "Продолжить импорт"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6578
+#: packages/admin/src/components/PortableTextEditor.tsx:6581
 msgid "Continue numbering"
 msgstr "Продолжить нумерацию"
 
@@ -3907,7 +3937,7 @@ msgstr "Копировать токен"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:335
-#: packages/admin/src/components/MediaDetailPanel.tsx:1385
+#: packages/admin/src/components/MediaDetailPanel.tsx:1396
 msgid "Copy URL"
 msgstr "Копировать URL"
 
@@ -3935,7 +3965,7 @@ msgstr "Не удалось скопировать автоматически. �
 msgid "Could not create {singularLower}"
 msgstr "Не удалось создать: {singularLower}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4758
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 msgid "Could not insert section"
 msgstr "Не удалось вставить раздел"
 
@@ -3991,7 +4021,7 @@ msgstr ""
 msgid "Couldn’t add the menu item"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:828
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "Не удалось проверить, существует ли ещё медиафайл или выбранная папка. Попробуйте снова."
 
@@ -3999,7 +4029,7 @@ msgstr "Не удалось проверить, существует ли ещё
 msgid "Couldn't detect WordPress"
 msgstr "Не удалось обнаружить WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:3684
+#: packages/admin/src/components/ContentEditor.tsx:3789
 msgid "Couldn't load all references."
 msgstr "Не удалось загрузить все ссылки."
 
@@ -4162,7 +4192,7 @@ msgstr "Создать и добавить"
 msgid "Create Content Type"
 msgstr "Создать тип материала"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1849
+#: packages/admin/src/components/MediaDetailPanel.tsx:1860
 msgid "Create cropped copy"
 msgstr "Создать обрезанную копию"
 
@@ -4297,7 +4327,7 @@ msgid "Create, update, delete content"
 msgstr "Создавать, изменять и удалять материалы"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4314,11 +4344,11 @@ msgid "Created {0}"
 msgstr "Создано: {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1631
+#: packages/admin/src/router.tsx:1687
 msgid "Created {0} translation"
 msgstr "Создан перевод {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
 msgid "Created and updated"
 msgstr "Создано и обновлено"
 
@@ -4334,7 +4364,7 @@ msgstr "Создание коллекций и полей"
 msgid "Creating collections and fields..."
 msgstr "Создание коллекций и полей..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
 msgid "Creating cropped copy..."
 msgstr "Создание обрезанной копии..."
 
@@ -4348,7 +4378,7 @@ msgstr "Создание обрезанной копии..."
 msgid "Creating..."
 msgstr "Создание..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
+#: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Crop"
 msgstr "Обрезать"
 
@@ -4358,7 +4388,7 @@ msgstr "Обрезать"
 msgid "Crop area {0} by {1} pixels."
 msgstr "Область обрезки {0} на {1} пикселей."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1715
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Crop output dimensions"
 msgstr "Размер результата обрезки"
 
@@ -4366,7 +4396,7 @@ msgstr "Размер результата обрезки"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "Область обрезки. Перемещайте её стрелками."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:773
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "Обрезанная копия создана."
@@ -4441,8 +4471,10 @@ msgstr "Вариант для тёмной темы"
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Sidebar.tsx:691
+#: packages/admin/src/router.tsx:527
 msgid "Dashboard"
 msgstr "Обзор"
 
@@ -4542,8 +4574,8 @@ msgstr "Задано в коде"
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1899
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
@@ -4676,11 +4708,11 @@ msgstr "Удалить папку"
 msgid "Delete gallery"
 msgstr "Удалить галерею"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6040
+#: packages/admin/src/components/PortableTextEditor.tsx:6043
 msgid "Delete image"
 msgstr "Удалить изображение"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1889
+#: packages/admin/src/components/MediaDetailPanel.tsx:1900
 msgid "Delete media?"
 msgstr "Удалить медиа?"
 
@@ -4783,8 +4815,8 @@ msgstr "Удаление «{0}» также уберёт {1, plural, one {# со
 #: packages/admin/src/components/ContentList.tsx:1787
 #: packages/admin/src/components/ContentTypeEditor.tsx:881
 #: packages/admin/src/components/ContentTypeList.tsx:267
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1900
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
@@ -4841,7 +4873,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "Опишите изображение"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5934
+#: packages/admin/src/components/PortableTextEditor.tsx:5937
 msgid "Describe the image"
 msgstr "Опишите изображение"
 
@@ -4854,7 +4886,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "Опишите назначение изображения и важные детали для тех, кто его не видит."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:748
-#: packages/admin/src/components/MediaDetailPanel.tsx:1589
+#: packages/admin/src/components/MediaDetailPanel.tsx:1600
 msgid "Describe this image for accessibility"
 msgstr "Опишите изображение для доступности"
 
@@ -4887,8 +4919,8 @@ msgstr "Путь назначения"
 msgid "Destructive"
 msgstr "Опасное"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1162
-#: packages/admin/src/components/MediaDetailPanel.tsx:1204
+#: packages/admin/src/components/MediaDetailPanel.tsx:1164
+#: packages/admin/src/components/MediaDetailPanel.tsx:1206
 msgid "Details"
 msgstr "Подробности"
 
@@ -4920,7 +4952,7 @@ msgstr "Различия"
 msgid "Differences from the source site"
 msgstr "Отличия от исходного сайта"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1332
+#: packages/admin/src/components/MediaDetailPanel.tsx:1343
 msgid "Dimensions:"
 msgstr "Размеры:"
 
@@ -4974,25 +5006,25 @@ msgstr "Отключение..."
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1875
+#: packages/admin/src/components/MediaDetailPanel.tsx:1886
 msgid "Discard"
 msgstr "Отменить"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
-#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
 msgid "Discard changes"
 msgstr "Отменить изменения"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1873
+#: packages/admin/src/components/MediaDetailPanel.tsx:1884
 msgid "Discard changes?"
 msgstr "Отменить изменения?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:356
 msgid "Discard draft changes?"
 msgstr "Отменить изменения черновика?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:360
-#: packages/admin/src/components/MediaDetailPanel.tsx:1876
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "Отмена..."
 
@@ -5012,11 +5044,15 @@ msgstr "Скрыть завершённое: {0}"
 msgid "Dismiss import suggestion"
 msgstr "Скрыть предложение импорта"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4779
+#: packages/admin/src/components/ContentEditor.tsx:2709
+msgid "Dismiss save error"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:4782
 msgid "Dismiss section error"
 msgstr "Скрыть ошибку раздела"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4746
+#: packages/admin/src/components/PortableTextEditor.tsx:4749
 msgid "Dismiss table paste error"
 msgstr "Скрыть ошибку вставки таблицы"
 
@@ -5053,7 +5089,7 @@ msgstr "Показать облако меток"
 msgid "Displayed below the image as a visible caption."
 msgstr "Показывается под изображением как видимая подпись."
 
-#: packages/admin/src/components/ContentEditor.tsx:2061
+#: packages/admin/src/components/ContentEditor.tsx:2100
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Режим без отвлечений (⌘⇧\\)"
 
@@ -5332,7 +5368,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5362,9 +5398,14 @@ msgstr "Изменить {0}"
 msgid "Edit {0} field"
 msgstr "Изменить поле {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1796
+#: packages/admin/src/components/ContentEditor.tsx:1807
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "Edit {itemLabel}"
 msgstr "Изменить {itemLabel}"
+
+#: packages/admin/src/components/ContentEditor.tsx:1813
+msgid "Edit {itemLabel}: {tabEntryTitle}"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5393,8 +5434,16 @@ msgstr "Изменить поле подписи"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:6028
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Edit caption"
+msgstr ""
+
+#: packages/admin/src/router.tsx:1048
+msgid "Edit content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3134
+msgid "Edit content type"
 msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
@@ -5419,8 +5468,8 @@ msgstr "Изменить папку"
 msgid "Edit folder {0}"
 msgstr "Изменить папку {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1167
-#: packages/admin/src/components/MediaDetailPanel.tsx:1207
+#: packages/admin/src/components/MediaDetailPanel.tsx:1169
+#: packages/admin/src/components/MediaDetailPanel.tsx:1209
 msgid "Edit image"
 msgstr "Изменить изображение"
 
@@ -5429,10 +5478,10 @@ msgstr "Изменить изображение"
 msgid "Edit image {0}"
 msgstr "Изменить изображение {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5212
-#: packages/admin/src/components/PortableTextEditor.tsx:5321
-#: packages/admin/src/components/PortableTextEditor.tsx:6021
-#: packages/admin/src/components/PortableTextEditor.tsx:6469
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:5324
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Edit link"
 msgstr "Изменить ссылку"
 
@@ -5443,6 +5492,10 @@ msgstr "Блокировка редактирования"
 #: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Изменять альтернативный текст, подписи и точки фокуса медиа"
+
+#: packages/admin/src/router.tsx:2842
+msgid "Edit menu"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
@@ -5469,6 +5522,10 @@ msgstr "Изменить перенаправление {0}"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:727
 msgid "Edit role"
 msgstr "Изменить роль"
+
+#: packages/admin/src/router.tsx:2891
+msgid "Edit section"
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5603,6 +5660,7 @@ msgstr "Поставщик почты активен"
 
 #: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/router.tsx:2644
 msgid "Email Settings"
 msgstr "Настройки почты"
 
@@ -5658,11 +5716,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "Доступна версия EmDash {latest} (у вас {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash не хранит предыдущее изображение."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1985
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash не хранит необрезанное изображение."
 
@@ -5742,7 +5800,7 @@ msgstr "Включите учёт, чтобы проиндексировать �
 msgid "Enabled"
 msgstr "Включено"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1127
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "Используется английский, потому что язык материалов не настроен. Язык материала хранится вместе с записью и не зависит от языка админки."
 
@@ -5884,7 +5942,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3874
+#: packages/admin/src/components/ContentEditor.tsx:3979
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Введите корректный URL (например, https://example.com)"
 
@@ -5913,7 +5971,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Ввести учётные данные вручную"
 
-#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2095
 msgid "Enter distraction-free mode"
 msgstr "Включить режим без отвлечений"
 
@@ -5921,7 +5979,7 @@ msgstr "Включить режим без отвлечений"
 msgid "Enter email"
 msgstr "Введите почту"
 
-#: packages/admin/src/components/ContentEditor.tsx:3137
+#: packages/admin/src/components/ContentEditor.tsx:3242
 msgid "Enter markdown content..."
 msgstr "Введите содержимое Markdown..."
 
@@ -5986,7 +6044,7 @@ msgstr "запись на ссылающейся стороне"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3368
+#: packages/admin/src/router.tsx:3463
 msgid "Error"
 msgstr "Ошибка"
 
@@ -6022,11 +6080,11 @@ msgstr "Каждая импортированная запись и каждый
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "Каждый другой пользователь с активной учётной записью получит письмо о том, что сайт теперь находится по адресу {siteHost}, со ссылкой для входа. Ключи доступа с другого адреса на {siteHost} не работают, поэтому пользователи входят по ссылке из письма и добавляют новый ключ доступа."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1959
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Every place using this image will update to the cropped version."
 msgstr "Везде, где используется это изображение, появится обрезанная версия."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1928
+#: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
 msgstr "Везде, где используется это изображение, появится выбранная версия."
 
@@ -6063,11 +6121,11 @@ msgstr "Существующие материалы проиндексирова
 msgid "Exists"
 msgstr "Существует"
 
-#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2095
 msgid "Exit distraction-free mode"
 msgstr "Выйти из режима без отвлечений"
 
-#: packages/admin/src/components/ContentEditor.tsx:2060
+#: packages/admin/src/components/ContentEditor.tsx:2099
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Выйти из режима без отвлечений (⌘⇧\\)"
 
@@ -6213,7 +6271,7 @@ msgstr "Не удалось связаться с плагином"
 msgid "Failed to compare revisions"
 msgstr "Не удалось сравнить ревизии"
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:391
 msgid "Failed to confirm upload"
 msgstr "Не удалось подтвердить загрузку"
 
@@ -6280,7 +6338,7 @@ msgstr "Не удалось создать материал"
 msgid "Failed to create field"
 msgstr "Не удалось создать поле"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:257
 msgid "Failed to create media folder"
 msgstr "Не удалось создать папку медиа"
 
@@ -6326,7 +6384,7 @@ msgid "Failed to create term translation"
 msgstr "Не удалось создать перевод термина"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1636
+#: packages/admin/src/router.tsx:1692
 msgid "Failed to create translation"
 msgstr "Не удалось создать перевод"
 
@@ -6338,7 +6396,7 @@ msgstr "Не удалось создать виджет"
 msgid "Failed to create widget area"
 msgstr "Не удалось создать область виджетов"
 
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:781
 msgid "Failed to delete"
 msgstr "Не удалось удалить"
 
@@ -6374,15 +6432,15 @@ msgstr "Не удалось удалить материал"
 msgid "Failed to delete field"
 msgstr "Не удалось удалить поле"
 
-#: packages/admin/src/lib/api/media.ts:868
+#: packages/admin/src/lib/api/media.ts:872
 msgid "Failed to delete from provider"
 msgstr "Не удалось удалить у поставщика"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:729
 msgid "Failed to delete media"
 msgstr "Не удалось удалить медиа"
 
-#: packages/admin/src/lib/api/media.ts:277
+#: packages/admin/src/lib/api/media.ts:279
 msgid "Failed to delete media folder"
 msgstr "Не удалось удалить папку медиа"
 
@@ -6460,7 +6518,7 @@ msgstr "Не удалось скрыть приветствие"
 msgid "Failed to download a package file"
 msgstr "Не удалось скачать файл пакета"
 
-#: packages/admin/src/router.tsx:685
+#: packages/admin/src/router.tsx:712
 msgid "Failed to duplicate"
 msgstr "Не удалось дублировать"
 
@@ -6501,7 +6559,7 @@ msgstr "Не удалось получить разрешённые домены
 msgid "Failed to fetch API tokens"
 msgstr "Не удалось получить токены API"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:397
 msgid "Failed to fetch auth mode"
 msgstr "Не удалось получить режим входа"
 
@@ -6575,31 +6633,31 @@ msgstr "Не удалось получить термины записи"
 msgid "Failed to fetch fields"
 msgstr "Не удалось получить поля"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:380
 msgid "Failed to fetch manifest"
 msgstr "Не удалось получить манифест"
 
-#: packages/admin/src/lib/api/media.ts:177
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to fetch media"
 msgstr "Не удалось получить медиа"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:244
 msgid "Failed to fetch media folder"
 msgstr "Не удалось получить папку медиа"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:236
 msgid "Failed to fetch media folders"
 msgstr "Не удалось получить папки медиа"
 
-#: packages/admin/src/lib/api/media.ts:195
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to fetch media item"
 msgstr "Не удалось получить медиафайл"
 
-#: packages/admin/src/lib/api/media.ts:801
+#: packages/admin/src/lib/api/media.ts:805
 msgid "Failed to fetch media providers"
 msgstr "Не удалось получить поставщиков медиа"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:220
 msgid "Failed to fetch media usage details"
 msgstr "Не удалось получить сведения об использовании медиа"
 
@@ -6637,7 +6695,7 @@ msgstr "Не удалось получить настройки плагина"
 msgid "Failed to fetch plugins"
 msgstr "Не удалось получить плагины"
 
-#: packages/admin/src/lib/api/media.ts:831
+#: packages/admin/src/lib/api/media.ts:835
 msgid "Failed to fetch provider media"
 msgstr "Не удалось получить медиа поставщика"
 
@@ -6722,7 +6780,7 @@ msgstr "Не удалось получить статус обновления"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2388
+#: packages/admin/src/router.tsx:2447
 msgid "Failed to fetch user"
 msgstr "Не удалось получить пользователя"
 
@@ -6759,7 +6817,7 @@ msgstr "Не удалось получить параметры входа"
 msgid "Failed to get registration options"
 msgstr "Не удалось получить параметры регистрации"
 
-#: packages/admin/src/lib/api/media.ts:356
+#: packages/admin/src/lib/api/media.ts:358
 msgid "Failed to get upload URL"
 msgstr "Не удалось получить URL загрузки"
 
@@ -6795,7 +6853,7 @@ msgstr "Не удалось получить список полей подпи�
 msgid "Failed to list files to upload"
 msgstr "Не удалось получить список файлов для загрузки"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:511
 msgid "Failed to load admin"
 msgstr "Не удалось загрузить админку"
 
@@ -6911,7 +6969,7 @@ msgid "Failed to lock the entry"
 msgstr "Не удалось заблокировать запись"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2536
 msgid "Failed to perform bulk action"
 msgstr "Не удалось выполнить массовое действие"
 
@@ -6928,8 +6986,8 @@ msgstr "Не удалось подготовить импорт"
 msgid "Failed to probe URL"
 msgstr "Не удалось проверить URL"
 
-#: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:737
+#: packages/admin/src/router.tsx:1553
 msgid "Failed to publish"
 msgstr "Не удалось опубликовать"
 
@@ -6941,7 +6999,7 @@ msgstr "Не удалось опубликовать материал"
 msgid "Failed to read byline field usage"
 msgstr "Не удалось прочитать использование поля подписи"
 
-#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:2994
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6958,7 +7016,7 @@ msgstr "Не удалось снять блокировку записи"
 msgid "Failed to remove passkey"
 msgstr "Не удалось удалить ключ доступа"
 
-#: packages/admin/src/lib/api/media.ts:268
+#: packages/admin/src/lib/api/media.ts:270
 msgid "Failed to rename media folder"
 msgstr "Не удалось переименовать папку медиа"
 
@@ -6992,11 +7050,11 @@ msgstr "Не удалось изменить порядок терминов"
 msgid "Failed to reorder widgets"
 msgstr "Не удалось изменить порядок виджетов"
 
-#: packages/admin/src/lib/api/media.ts:715
+#: packages/admin/src/lib/api/media.ts:717
 msgid "Failed to replace media image"
 msgstr "Не удалось заменить изображение медиа"
 
-#: packages/admin/src/router.tsx:664
+#: packages/admin/src/router.tsx:691
 msgid "Failed to restore"
 msgstr "Не удалось восстановить"
 
@@ -7018,9 +7076,11 @@ msgstr "Не удалось отозвать токен API"
 msgid "Failed to rewrite URLs"
 msgstr "Не удалось переписать URL"
 
-#: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1338
-#: packages/admin/src/router.tsx:3092
+#: packages/admin/src/components/ContentEditor.tsx:2447
+#: packages/admin/src/components/ContentEditor.tsx:2701
+#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:1391
+#: packages/admin/src/router.tsx:3184
 msgid "Failed to save"
 msgstr "Не удалось сохранить"
 
@@ -7067,6 +7127,13 @@ msgstr "Не удалось отправить письмо подтвержде
 msgid "Failed to set entry terms"
 msgstr "Не удалось задать термины записи"
 
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
+
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
 msgstr "Не удалось запустить экспорт"
@@ -7081,7 +7148,7 @@ msgstr "Не удалось запустить импорт"
 msgid "Failed to uninstall plugin"
 msgstr "Не удалось удалить плагин"
 
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1577
 msgid "Failed to unpublish"
 msgstr "Не удалось снять с публикации"
 
@@ -7089,7 +7156,7 @@ msgstr "Не удалось снять с публикации"
 msgid "Failed to unpublish content"
 msgstr "Не удалось снять материал с публикации"
 
-#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1661
 msgid "Failed to unschedule"
 msgstr "Не удалось отменить расписание"
 
@@ -7097,7 +7164,7 @@ msgstr "Не удалось отменить расписание"
 msgid "Failed to unschedule content"
 msgstr "Не удалось снять материал с расписания"
 
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:760
 msgid "Failed to update"
 msgstr "Не удалось обновить"
 
@@ -7146,7 +7213,7 @@ msgstr "Не удалось обновить домен"
 msgid "Failed to update field"
 msgstr "Не удалось обновить поле"
 
-#: packages/admin/src/lib/api/media.ts:751
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to update media"
 msgstr "Не удалось обновить медиа"
 
@@ -7188,7 +7255,7 @@ msgstr "Не удалось обновить раздел"
 msgid "Failed to update settings"
 msgstr "Не удалось обновить настройки"
 
-#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2500
 msgid "Failed to update status"
 msgstr "Не удалось обновить статус"
 
@@ -7208,15 +7275,15 @@ msgstr "Не удалось обновить виджет"
 msgid "Failed to upload a package file"
 msgstr "Не удалось загрузить файл пакета"
 
-#: packages/admin/src/lib/api/media.ts:414
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to upload file"
 msgstr "Не удалось загрузить файл"
 
-#: packages/admin/src/lib/api/media.ts:647
+#: packages/admin/src/lib/api/media.ts:649
 msgid "Failed to upload media"
 msgstr "Не удалось загрузить медиа"
 
-#: packages/admin/src/lib/api/media.ts:856
+#: packages/admin/src/lib/api/media.ts:860
 msgid "Failed to upload to provider"
 msgstr "Не удалось загрузить поставщику"
 
@@ -7314,13 +7381,13 @@ msgstr "Файл {0}"
 msgid "File from media library"
 msgstr "Файл из медиатеки"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1433
-#: packages/admin/src/components/MediaDetailPanel.tsx:1438
+#: packages/admin/src/components/MediaDetailPanel.tsx:1444
+#: packages/admin/src/components/MediaDetailPanel.tsx:1449
 #: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "Имя файла"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:529
+#: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Filename cannot be changed after upload"
 msgstr "Имя файла нельзя изменить после загрузки"
 
@@ -7421,19 +7488,19 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Только для тех, кто комментирует впервые"
 
-#: packages/admin/src/components/ContentEditor.tsx:232
+#: packages/admin/src/components/ContentEditor.tsx:234
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1778
+#: packages/admin/src/components/ContentEditor.tsx:1789
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Исправьте недопустимые поля, прежде чем менять дату публикации"
 
-#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/ContentEditor.tsx:1717
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Исправьте недопустимые поля, прежде чем менять расписание"
 
-#: packages/admin/src/components/ContentEditor.tsx:231
+#: packages/admin/src/components/ContentEditor.tsx:233
 msgid "Fix the {block} block to resume saving."
 msgstr ""
 
@@ -7441,8 +7508,8 @@ msgstr ""
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
+#: packages/admin/src/components/MediaDetailPanel.tsx:1649
 msgid "Focal point"
 msgstr "Точка фокуса"
 
@@ -7458,7 +7525,7 @@ msgstr "Папка"
 msgid "Folder deleted"
 msgstr "Папка удалена"
 
-#: packages/admin/src/router.tsx:2111
+#: packages/admin/src/router.tsx:2169
 msgid "Folder no longer exists"
 msgstr "Папки больше нет"
 
@@ -7483,7 +7550,7 @@ msgstr "Папка недоступна"
 msgid "Folders"
 msgstr "Папки"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1541
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
@@ -7506,15 +7573,15 @@ msgstr "Для полного импорта, включая черновики 
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Для лучшего импорта установите на сайт WordPress плагин <0>EmDash Exporter</0>."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5164
+#: packages/admin/src/components/PortableTextEditor.tsx:5167
 msgid "Format selection"
 msgstr "Форматировать выделение"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1366
+#: packages/admin/src/components/MediaDetailPanel.tsx:1377
 msgid "Format:"
 msgstr "Формат:"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:538
+#: packages/admin/src/components/MediaDetailPanel.tsx:540
 msgid "Freeform"
 msgstr "Свободная форма"
 
@@ -7569,6 +7636,7 @@ msgid "General"
 msgstr "Общие"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/router.tsx:2674
 msgid "General Settings"
 msgstr "Общие настройки"
 
@@ -7600,7 +7668,7 @@ msgstr "Дайте ключу доступа имя, чтобы потом ег�
 msgid "Go"
 msgstr "Перейти"
 
-#: packages/admin/src/components/ContentEditor.tsx:1700
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7613,7 +7681,7 @@ msgid "Go live {countdown}"
 msgstr "Выйдет {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3388
+#: packages/admin/src/router.tsx:3483
 msgid "Go to Dashboard"
 msgstr "К обзору"
 
@@ -7794,7 +7862,7 @@ msgstr "Скрыть токен"
 msgid "visualEditing.hideToolbar"
 msgstr "Скрыть панель"
 
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 msgid "Hide toolbar"
 msgstr "Скрыть панель"
 
@@ -7811,7 +7879,7 @@ msgstr "Переходы"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Удерживать запись, пока её редактируют, и не пускать других"
 
-#: packages/admin/src/components/ContentEditor.tsx:3371
+#: packages/admin/src/components/ContentEditor.tsx:3476
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Хранит ID записи. Чтобы выбирать записи из списка, укажите целевую коллекцию в разделе «Типы материалов»."
 
@@ -7986,7 +8054,7 @@ msgstr "Изображение {0}"
 msgid "Image actions"
 msgstr "Действия с изображением"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5899
+#: packages/admin/src/components/PortableTextEditor.tsx:5902
 msgid "Image controls"
 msgstr "Управление изображением"
 
@@ -7994,7 +8062,7 @@ msgstr "Управление изображением"
 msgid "Image from media library"
 msgstr "Изображение из медиатеки"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6467
+#: packages/admin/src/components/PortableTextEditor.tsx:6470
 msgid "Image link"
 msgstr "Ссылка изображения"
 
@@ -8011,12 +8079,12 @@ msgstr "Изображение не найдено"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:719
 msgid "Image replaced."
 msgstr "Изображение заменено."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:6033
+#: packages/admin/src/components/PortableTextEditor.tsx:6036
 msgid "Image settings"
 msgstr "Настройки изображения"
 
@@ -8107,6 +8175,7 @@ msgid "Import failed"
 msgstr "Импорт не удался"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/router.tsx:2827
 msgid "Import from WordPress"
 msgstr "Импорт из WordPress"
 
@@ -8247,8 +8316,8 @@ msgstr "Встроенный"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Встроенные блоки используют стили вашего сайта. Сайт удаляет скрипты, теги style и атрибуты style и очищает все iframe, кроме YouTube и Vimeo."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4967
-#: packages/admin/src/components/PortableTextEditor.tsx:6536
+#: packages/admin/src/components/PortableTextEditor.tsx:4970
+#: packages/admin/src/components/PortableTextEditor.tsx:6539
 msgid "Inline Code"
 msgstr "Код в строке"
 
@@ -8293,8 +8362,8 @@ msgstr "Вставить галерею изображений"
 msgid "Insert block"
 msgstr "Вставить блок"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6483
-#: packages/admin/src/components/PortableTextEditor.tsx:6493
+#: packages/admin/src/components/PortableTextEditor.tsx:6486
+#: packages/admin/src/components/PortableTextEditor.tsx:6496
 msgid "Insert block after current block"
 msgstr "Вставить блок после текущего"
 
@@ -8302,12 +8371,12 @@ msgstr "Вставить блок после текущего"
 msgid "Insert block below"
 msgstr "Вставить блок ниже"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6617
+#: packages/admin/src/components/PortableTextEditor.tsx:6620
 msgid "Insert HTML"
 msgstr "Вставить HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4873
-#: packages/admin/src/components/PortableTextEditor.tsx:6610
+#: packages/admin/src/components/PortableTextEditor.tsx:4876
+#: packages/admin/src/components/PortableTextEditor.tsx:6613
 msgid "Insert image"
 msgstr "Вставить изображение"
 
@@ -8336,7 +8405,7 @@ msgstr "Вставить раздел"
 msgid "Insert table"
 msgstr "Вставить таблицу"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4887
+#: packages/admin/src/components/PortableTextEditor.tsx:4890
 msgid "Insert video"
 msgstr "Вставить видео"
 
@@ -8398,7 +8467,7 @@ msgstr "НЕДОПУСТИМОЕ ИМЯ"
 msgid "Invalid invite link"
 msgstr "Недействительная ссылка-приглашение"
 
-#: packages/admin/src/components/ContentEditor.tsx:3967
+#: packages/admin/src/components/ContentEditor.tsx:4072
 msgid "Invalid JSON"
 msgstr "Недопустимый JSON"
 
@@ -8464,8 +8533,8 @@ msgstr "Его хранит аутентификатор или менеджер
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Он был запущен в другом месте, поэтому его план больше нельзя изменить. Ход выполнения будет отображаться здесь."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:6512
+#: packages/admin/src/components/PortableTextEditor.tsx:4967
+#: packages/admin/src/components/PortableTextEditor.tsx:6515
 msgid "Italic"
 msgstr "Курсив"
 
@@ -8700,8 +8769,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5479
-#: packages/admin/src/components/PortableTextEditor.tsx:5600
+#: packages/admin/src/components/PortableTextEditor.tsx:5482
+#: packages/admin/src/components/PortableTextEditor.tsx:5603
 msgid "Left"
 msgstr "Слева"
 
@@ -8723,7 +8792,7 @@ msgid "Limit"
 msgstr "Предел"
 
 #: packages/admin/src/components/BlocksField.tsx:2238
-#: packages/admin/src/components/PortableTextEditor.tsx:6696
+#: packages/admin/src/components/PortableTextEditor.tsx:6699
 msgid "Link"
 msgstr "Ссылка"
 
@@ -8731,7 +8800,7 @@ msgstr "Ссылка"
 msgid "Link expired"
 msgstr "Срок ссылки истёк"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5299
+#: packages/admin/src/components/PortableTextEditor.tsx:5302
 msgid "Link options"
 msgstr "Параметры ссылки"
 
@@ -8844,7 +8913,7 @@ msgstr ""
 msgid "Live version"
 msgstr "Опубликованная версия"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:695
+#: packages/admin/src/components/ContentSettingsPanel.tsx:728
 msgid "Live View"
 msgstr "На сайте"
 
@@ -8866,7 +8935,7 @@ msgstr "Загрузить ещё"
 msgid "Load More"
 msgstr "Загрузить ещё"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1560
+#: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
@@ -8878,7 +8947,7 @@ msgid "Load preview"
 msgstr "Загрузить предпросмотр"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3343
+#: packages/admin/src/router.tsx:3438
 msgid "Loading"
 msgstr "Загрузка"
 
@@ -8907,8 +8976,8 @@ msgstr "Загрузка коллекций..."
 msgid "Loading comments..."
 msgstr "Загрузка комментариев..."
 
-#: packages/admin/src/router.tsx:3345
-#: packages/admin/src/router.tsx:3357
+#: packages/admin/src/router.tsx:3440
+#: packages/admin/src/router.tsx:3452
 msgid "Loading configuration..."
 msgstr "Загрузка конфигурации..."
 
@@ -8916,7 +8985,7 @@ msgstr "Загрузка конфигурации..."
 msgid "Loading content..."
 msgstr "Загрузка материалов..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4709
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
 msgid "Loading editor..."
 msgstr "Загрузка редактора..."
 
@@ -8930,7 +8999,7 @@ msgstr "Загрузка экспортов…"
 msgid "Loading folders"
 msgstr "Загрузка папок"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1512
+#: packages/admin/src/components/MediaDetailPanel.tsx:1523
 msgid "Loading folders..."
 msgstr "Загрузка папок..."
 
@@ -8966,7 +9035,7 @@ msgstr "Загрузка плагинов..."
 msgid "Loading redirects..."
 msgstr "Загрузка перенаправлений..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3692
+#: packages/admin/src/components/ContentEditor.tsx:3797
 msgid "Loading references..."
 msgstr "Загрузка ссылок..."
 
@@ -9013,10 +9082,10 @@ msgstr "Загрузка виджетов..."
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaDetailPanel.tsx:605
-#: packages/admin/src/components/MediaDetailPanel.tsx:621
+#: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
-#: packages/admin/src/components/MediaDetailPanel.tsx:1720
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
+#: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
@@ -9065,15 +9134,15 @@ msgstr "Язык"
 msgid "Locales will use this site’s capitalization"
 msgstr "Языки будут использовать регистр букв этого сайта"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1449
-#: packages/admin/src/components/MediaDetailPanel.tsx:1477
-#: packages/admin/src/components/MediaDetailPanel.tsx:1568
-#: packages/admin/src/components/MediaDetailPanel.tsx:1570
+#: packages/admin/src/components/MediaDetailPanel.tsx:1460
+#: packages/admin/src/components/MediaDetailPanel.tsx:1488
+#: packages/admin/src/components/MediaDetailPanel.tsx:1579
+#: packages/admin/src/components/MediaDetailPanel.tsx:1581
 msgid "Location"
 msgstr "Расположение"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:606
-#: packages/admin/src/components/MediaDetailPanel.tsx:623
+#: packages/admin/src/components/MediaDetailPanel.tsx:608
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
 msgid "Location unavailable"
 msgstr "Расположение недоступно"
 
@@ -9086,6 +9155,10 @@ msgstr "Зафиксировать пропорции"
 #: packages/admin/src/components/BylineFieldEditor.tsx:416
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Заблокировано: у поля есть сохранённые значения. Удалите значения или само поле, чтобы это изменить."
+
+#: packages/admin/src/router.tsx:427
+msgid "Log in"
+msgstr ""
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -9118,7 +9191,7 @@ msgstr "Строчные буквы, цифры и подчёркивания. �
 msgid "Lua"
 msgstr "Lua"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:574
+#: packages/admin/src/components/MediaDetailPanel.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Main library"
 msgstr "Основная библиотека"
@@ -9166,11 +9239,11 @@ msgstr "Управляйте перенаправлениями URL и смот�
 msgid "Manage your passkeys and authentication"
 msgstr "Управляйте ключами доступа и входом"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1419
+#: packages/admin/src/components/MediaDetailPanel.tsx:1430
 msgid "Managed by {providerName}"
 msgstr "Управляет {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1431
 msgid "Managed by an external media provider"
 msgstr "Управляет внешний поставщик медиа"
 
@@ -9213,11 +9286,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Каталог"
 
-#: packages/admin/src/router.tsx:2742
+#: packages/admin/src/router.tsx:2819
 msgid "Marketplace browsing is no longer available."
 msgstr "Просмотр каталога больше недоступен."
 
-#: packages/admin/src/router.tsx:2717
+#: packages/admin/src/router.tsx:2792
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Просмотр каталога больше недоступен. Установленными плагинами управляйте в разделе «Плагины»."
 
@@ -9269,10 +9342,11 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/router.tsx:2128
 msgid "Media"
 msgstr "Медиа"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1129
 msgid "Media details"
 msgstr "Сведения о медиа"
 
@@ -9330,6 +9404,10 @@ msgstr "Чтение медиа"
 #: packages/admin/src/components/MediaPickerModal.tsx:1427
 msgid "Media results"
 msgstr "Результаты медиа"
+
+#: packages/admin/src/router.tsx:2603
+msgid "Media Usage"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
@@ -9423,6 +9501,7 @@ msgstr "Меню переименовано"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/router.tsx:2835
 msgid "Menus"
 msgstr "Меню"
 
@@ -9529,7 +9608,7 @@ msgstr "Архивы по месяцам и годам"
 msgid "More actions for {0}"
 msgstr "Другие действия для {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5446
+#: packages/admin/src/components/PortableTextEditor.tsx:5449
 msgid "More formatting"
 msgstr "Ещё форматирование"
 
@@ -9569,7 +9648,7 @@ msgstr "Переместить «{title}» в корзину? Позже мож�
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3659
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "Переместить {0} вниз"
@@ -9586,7 +9665,7 @@ msgstr "Переместить {0} позже"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3648
+#: packages/admin/src/components/ContentEditor.tsx:3753
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "Переместить {0} вверх"
@@ -9599,7 +9678,7 @@ msgstr "Переместить {0} вверх"
 msgid "Move down"
 msgstr "Переместить вниз"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:533
+#: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr "Сдвиньте точку фокуса, чтобы выбрать, что останется видимым при обрезке."
 
@@ -9626,14 +9705,14 @@ msgstr "В корзину"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1332
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
 msgid "Move to Trash"
 msgstr "В корзину"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1336
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1369
 msgid "Move to Trash?"
 msgstr "Переместить в корзину?"
 
@@ -9663,11 +9742,11 @@ msgstr ""
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:730
+#: packages/admin/src/router.tsx:757
 msgid "Moved {total} items to draft"
 msgstr "В черновики перемещено элементов: {total}"
 
-#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:778
 msgid "Moved {total} items to trash"
 msgstr "В корзину перемещено элементов: {total}"
 
@@ -9748,7 +9827,7 @@ msgid "Moving from another EmDash site?"
 msgstr "Переезжаете с другого сайта на EmDash?"
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1339
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9818,7 +9897,7 @@ msgstr "Требует внимания"
 msgid "Never"
 msgstr "Никогда"
 
-#: packages/admin/src/router.tsx:1631
+#: packages/admin/src/router.tsx:1687
 msgid "new"
 msgstr "новое"
 
@@ -9826,7 +9905,8 @@ msgstr "новое"
 msgid "NEW"
 msgstr "НОВОЕ"
 
-#: packages/admin/src/components/ContentEditor.tsx:1796
+#: packages/admin/src/components/ContentEditor.tsx:1807
+#: packages/admin/src/components/ContentEditor.tsx:1811
 msgid "New {itemLabel}"
 msgstr "Новый {itemLabel}"
 
@@ -9847,6 +9927,14 @@ msgstr "Новое поле подписи"
 #: packages/admin/src/components/WordPressImport.tsx:2039
 msgid "New collection"
 msgstr "Новая коллекция"
+
+#: packages/admin/src/router.tsx:886
+msgid "New content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3037
+msgid "New content type"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 #: packages/admin/src/components/ContentTypeList.tsx:159
@@ -10070,7 +10158,7 @@ msgstr "Типов материалов пока нет."
 msgid "No custom fields yet"
 msgstr "Дополнительных полей пока нет"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5995
+#: packages/admin/src/components/PortableTextEditor.tsx:5998
 msgid "No description yet"
 msgstr "Описания пока нет"
 
@@ -10128,7 +10216,7 @@ msgstr "Нет полей"
 msgid "No files added"
 msgstr "Файлы не добавлены"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1520
+#: packages/admin/src/components/MediaDetailPanel.tsx:1531
 msgid "No folders found"
 msgstr "Папки не найдены"
 
@@ -10290,7 +10378,7 @@ msgstr "В этом реестре пока нет опубликованных 
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Нет плагинов по запросу «{debouncedQuery}»."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1388
+#: packages/admin/src/components/MediaDetailPanel.tsx:1399
 msgid "No public URL available"
 msgstr "Публичный URL недоступен"
 
@@ -10306,7 +10394,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "Перенаправлений пока нет"
 
-#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3707
 msgid "No references selected."
 msgstr "Ссылки не выбраны."
 
@@ -10392,7 +10480,7 @@ msgid "Non-guest"
 msgstr "Не гостевые"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5599
+#: packages/admin/src/components/PortableTextEditor.tsx:5602
 msgid "None"
 msgstr "Нет"
 
@@ -10419,6 +10507,10 @@ msgstr "Не сопоставлено"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
 msgid "Not recorded in this version"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:2449
+msgid "Not saved yet"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1641
@@ -10468,7 +10560,7 @@ msgstr "Сколько записей показывать на странице
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2064
-#: packages/admin/src/components/PortableTextEditor.tsx:6569
+#: packages/admin/src/components/PortableTextEditor.tsx:6572
 msgid "Numbered List"
 msgstr "Нумерованный список"
 
@@ -10548,7 +10640,7 @@ msgid "Open"
 msgstr "Открыть"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3637
+#: packages/admin/src/components/ContentEditor.tsx:3742
 msgid "Open {0} in a new tab"
 msgstr "Открыть {0} в новой вкладке"
 
@@ -10625,7 +10717,7 @@ msgstr "Подпись (необязательно)"
 msgid "Optional caption displayed below the image"
 msgstr "Необязательная подпись под изображением"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1600
+#: packages/admin/src/components/MediaDetailPanel.tsx:1611
 msgid "Optional caption for display"
 msgstr "Необязательная подпись для показа"
 
@@ -10685,11 +10777,11 @@ msgstr "Порядок сохранён"
 msgid "Ordered page-building blocks"
 msgstr "Упорядоченные блоки для сборки страницы"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:537
+#: packages/admin/src/components/MediaDetailPanel.tsx:539
 msgid "Original"
 msgstr "Оригинал"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:787
 msgid "Original image cropped."
 msgstr "Исходное изображение обрезано."
 
@@ -10703,7 +10795,7 @@ msgstr "Оригинал:"
 msgid "Other"
 msgstr "Другое"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1283
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "Контур"
@@ -10713,7 +10805,7 @@ msgctxt "button style"
 msgid "Outline"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
 msgstr "Размер результата"
 
@@ -10729,8 +10821,8 @@ msgstr "Просрочено · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Заменяет заголовок страницы в результатах поиска"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
 msgid "Ownership"
 msgstr "Владение"
 
@@ -10748,7 +10840,11 @@ msgstr "Хеш пакета"
 msgid "Package downloaded"
 msgstr "Пакет скачан"
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3351
+msgid "Page not found"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3478
 msgid "Page Not Found"
 msgstr "Страница не найдена"
 
@@ -11014,6 +11110,7 @@ msgid "Please enter a valid URL"
 msgstr "Введите корректный URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/router.tsx:3327
 msgid "Plugin"
 msgstr "Плагин"
 
@@ -11025,7 +11122,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Плагин «{pluginId}» не найден"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Плагин {pluginId} отклонил сохранение: {reason}"
 
@@ -11038,7 +11135,7 @@ msgstr "Действие плагина не удалось"
 msgid "Plugin actions"
 msgstr "Действия плагина"
 
-#: packages/admin/src/components/ContentEditor.tsx:2146
+#: packages/admin/src/components/ContentEditor.tsx:2193
 msgid "Plugin changes were not applied"
 msgstr "Изменения плагина не применены"
 
@@ -11049,6 +11146,11 @@ msgstr "Столбец плагина недоступен"
 #: packages/admin/src/components/RegistryPluginDetail.tsx:855
 msgid "Plugin details"
 msgstr "Сведения о плагине"
+
+#: packages/admin/src/router.tsx:2764
+#: packages/admin/src/router.tsx:2771
+msgid "Plugin Details"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -11070,6 +11172,10 @@ msgstr "Ошибка плагина ({0})"
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
 msgstr "Для установки плагина нужно явное согласие"
+
+#: packages/admin/src/router.tsx:2756
+msgid "Plugin Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:412
 msgid "Plugin MCP access updated"
@@ -11107,6 +11213,7 @@ msgid "Plugin Permissions"
 msgstr "Права плагина"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
+#: packages/admin/src/router.tsx:2713
 msgid "Plugin Registry"
 msgstr "Реестр плагинов"
 
@@ -11115,8 +11222,8 @@ msgstr "Реестр плагинов"
 msgid "Plugin registry configuration error"
 msgstr "Ошибка настройки реестра плагинов"
 
-#: packages/admin/src/router.tsx:2677
-#: packages/admin/src/router.tsx:2708
+#: packages/admin/src/router.tsx:2749
+#: packages/admin/src/router.tsx:2783
 msgid "Plugin registry is not configured."
 msgstr "Реестр плагинов не настроен."
 
@@ -11124,6 +11231,10 @@ msgstr "Реестр плагинов не настроен."
 #: packages/admin/src/components/SandboxedPluginPage.tsx:59
 msgid "Plugin responded with {0}: {text}"
 msgstr "Плагин ответил {0}: {text}"
+
+#: packages/admin/src/router.tsx:3314
+msgid "Plugin Settings"
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -11154,6 +11265,7 @@ msgstr "Ошибка виджета плагина"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
+#: packages/admin/src/router.tsx:2698
 msgid "Plugins"
 msgstr "Плагины"
 
@@ -11243,11 +11355,11 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "Нажмите пробел, чтобы взять изображение. Стрелками переместите его и снова нажмите пробел, чтобы отпустить."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
-#: packages/admin/src/components/ContentSettingsPanel.tsx:422
+#: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1667
+#: packages/admin/src/components/MediaDetailPanel.tsx:1678
 #: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "Предпросмотр"
@@ -11260,7 +11372,7 @@ msgstr "Предпросмотр изменений"
 msgid "Preview content before publishing"
 msgstr "Смотреть материал до публикации"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:422
+#: packages/admin/src/components/ContentSettingsPanel.tsx:425
 msgid "Preview draft"
 msgstr "Предпросмотр черновика"
 
@@ -11341,9 +11453,9 @@ msgstr "Поставщик:"
 msgid "Public routes"
 msgstr "Публичные маршруты"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Дата публикации"
@@ -11358,17 +11470,17 @@ msgid "visualEditing.publish"
 msgstr "Опубликовать"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:528
-#: packages/admin/src/components/ContentSettingsPanel.tsx:949
-#: packages/admin/src/components/ContentSettingsPanel.tsx:954
+#: packages/admin/src/components/ContentSettingsPanel.tsx:536
+#: packages/admin/src/components/ContentSettingsPanel.tsx:982
+#: packages/admin/src/components/ContentSettingsPanel.tsx:987
 msgid "Publish"
 msgstr "Опубликовать"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish changes"
 msgstr "Опубликовать изменения"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:502
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish changes?"
 msgstr "Опубликовать изменения?"
 
@@ -11378,17 +11490,22 @@ msgid "visualEditing.publishFailed"
 msgstr "Не удалось опубликовать. Проверьте права и попробуйте снова."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr "Опубликовать сейчас"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:502
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish now?"
 msgstr "Опубликовать сейчас?"
 
 #: packages/admin/src/lib/api/marketplace.ts:424
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Публиковать, снимать с публикации, планировать и отменять расписание материалов"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Опубликовано"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
@@ -11398,13 +11515,8 @@ msgstr "Публиковать, снимать с публикации, план
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1548
 msgid "Published"
-msgstr "Опубликовано"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Опубликовано"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11416,7 +11528,7 @@ msgstr "Опубликовано {0}"
 msgid "Published {liveSince}"
 msgstr "Опубликовано {liveSince}"
 
-#: packages/admin/src/router.tsx:707
+#: packages/admin/src/router.tsx:734
 msgid "Published {total} items"
 msgstr "Опубликовано элементов: {total}"
 
@@ -11448,7 +11560,7 @@ msgstr "Политика выпусков издателя"
 msgid "Publishing"
 msgstr "Публикация"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:958
+#: packages/admin/src/components/ContentSettingsPanel.tsx:991
 msgid "Publishing summary"
 msgstr "Сводка публикации"
 
@@ -11480,7 +11592,7 @@ msgstr "При быстром создании связь называется �
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2074
 #: packages/admin/src/components/PortableTextEditor.tsx:3623
-#: packages/admin/src/components/PortableTextEditor.tsx:6595
+#: packages/admin/src/components/PortableTextEditor.tsx:6598
 msgid "Quote"
 msgstr "Цитата"
 
@@ -11556,7 +11668,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Читать ваши таксономии и термины"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2043
+#: packages/admin/src/router.tsx:2100
 msgid "Read-only"
 msgstr "Только чтение"
 
@@ -11647,6 +11759,7 @@ msgstr "Переход ко входу..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
+#: packages/admin/src/router.tsx:2877
 msgid "Redirects"
 msgstr "Перенаправления"
 
@@ -11654,7 +11767,7 @@ msgstr "Перенаправления"
 msgid "Redirects that loop will be imported turned off"
 msgstr "Зацикленные перенаправления будут импортированы в отключённом виде"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6758
+#: packages/admin/src/components/PortableTextEditor.tsx:6761
 msgid "Redo"
 msgstr "Повторить"
 
@@ -11725,6 +11838,7 @@ msgstr "Реестр"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
+#: packages/admin/src/router.tsx:3073
 msgid "Relations"
 msgstr "Связи"
 
@@ -11766,8 +11880,8 @@ msgstr "Убрать"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4160
-#: packages/admin/src/components/ContentEditor.tsx:4226
+#: packages/admin/src/components/ContentEditor.tsx:4265
+#: packages/admin/src/components/ContentEditor.tsx:4331
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11776,7 +11890,7 @@ msgstr "Убрать"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:6731
+#: packages/admin/src/components/PortableTextEditor.tsx:6734
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11788,7 +11902,7 @@ msgstr "Убрать"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3672
+#: packages/admin/src/components/ContentEditor.tsx:3777
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11805,8 +11919,8 @@ msgstr "Убрать {0} из выбора"
 msgid "Remove {entry}"
 msgstr "Убрать {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4158
-#: packages/admin/src/components/ContentEditor.tsx:4224
+#: packages/admin/src/components/ContentEditor.tsx:4263
+#: packages/admin/src/components/ContentEditor.tsx:4329
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -11855,9 +11969,9 @@ msgstr "Убрать изображение?"
 msgid "Remove item {0}"
 msgstr "Убрать элемент {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5190
-#: packages/admin/src/components/PortableTextEditor.tsx:5333
-#: packages/admin/src/components/PortableTextEditor.tsx:5967
+#: packages/admin/src/components/PortableTextEditor.tsx:5193
+#: packages/admin/src/components/PortableTextEditor.tsx:5336
+#: packages/admin/src/components/PortableTextEditor.tsx:5970
 msgid "Remove link"
 msgstr "Убрать ссылку"
 
@@ -11870,7 +11984,7 @@ msgid "Remove passkey?"
 msgstr "Удалить ключ доступа?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
-#: packages/admin/src/components/ContentSettingsPanel.tsx:630
+#: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr "Снять расписание"
 
@@ -12023,9 +12137,9 @@ msgstr "Повторяющаяся группа полей"
 msgid "visualEditing.replaceImage"
 msgstr "Заменить"
 
-#: packages/admin/src/components/ContentEditor.tsx:4115
-#: packages/admin/src/components/ContentEditor.tsx:4150
-#: packages/admin/src/components/ContentEditor.tsx:4216
+#: packages/admin/src/components/ContentEditor.tsx:4220
+#: packages/admin/src/components/ContentEditor.tsx:4255
+#: packages/admin/src/components/ContentEditor.tsx:4321
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12038,14 +12152,14 @@ msgstr "Заменить"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:5989
-#: packages/admin/src/components/PortableTextEditor.tsx:6071
+#: packages/admin/src/components/PortableTextEditor.tsx:5992
+#: packages/admin/src/components/PortableTextEditor.tsx:6074
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr "Заменить"
 
-#: packages/admin/src/components/ContentEditor.tsx:4114
+#: packages/admin/src/components/ContentEditor.tsx:4219
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12063,27 +12177,27 @@ msgstr "Заменить вариант тёмной темы для {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1808
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
-#: packages/admin/src/components/PortableTextEditor.tsx:6070
+#: packages/admin/src/components/MediaDetailPanel.tsx:1819
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/PortableTextEditor.tsx:6073
 msgid "Replace image"
 msgstr "Заменить изображение"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaDetailPanel.tsx:1962
+#: packages/admin/src/components/MediaDetailPanel.tsx:1850
+#: packages/admin/src/components/MediaDetailPanel.tsx:1973
 msgid "Replace original"
 msgstr "Заменить оригинал"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
-#: packages/admin/src/components/MediaDetailPanel.tsx:1956
+#: packages/admin/src/components/MediaDetailPanel.tsx:1936
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replace original image?"
 msgstr "Заменить исходное изображение?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Замена оригинала доступна при соотношении сторон «Оригинал»."
 
-#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3812
 msgid "Replace reference"
 msgstr "Заменить ссылку"
 
@@ -12105,14 +12219,14 @@ msgstr "Заменить пустым списком"
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:950
-#: packages/admin/src/components/MediaDetailPanel.tsx:1932
+#: packages/admin/src/components/MediaDetailPanel.tsx:952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replacing image..."
 msgstr "Замена изображения..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
-#: packages/admin/src/components/MediaDetailPanel.tsx:1963
-#: packages/admin/src/components/MediaDetailPanel.tsx:1981
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "Замена оригинала..."
 
@@ -12136,7 +12250,7 @@ msgstr "Репозиторий"
 msgid "Request a new link"
 msgstr "Запросить новую ссылку"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:368
 msgid "Request failed"
 msgstr "Запрос не удался"
 
@@ -12184,8 +12298,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "Отправить снова через {resendCooldown} с"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1659
-#: packages/admin/src/components/MediaDetailPanel.tsx:1709
+#: packages/admin/src/components/MediaDetailPanel.tsx:1670
+#: packages/admin/src/components/MediaDetailPanel.tsx:1720
 msgid "Reset"
 msgstr "Сбросить"
 
@@ -12193,7 +12307,7 @@ msgstr "Сбросить"
 msgid "Reset column widths"
 msgstr "Сбросить ширину столбцов"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1694
+#: packages/admin/src/components/MediaDetailPanel.tsx:1705
 msgid "Reset crop"
 msgstr "Сбросить обрезку"
 
@@ -12233,7 +12347,7 @@ msgstr "Меняйте обрезку от левого верхнего угл�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Меняйте обрезку от правого верхнего угла. Размер — стрелками."
 
-#: packages/admin/src/components/ContentEditor.tsx:2439
+#: packages/admin/src/components/ContentEditor.tsx:2518
 msgid "Resize settings panel"
 msgstr "Изменить размер панели настроек"
 
@@ -12246,7 +12360,7 @@ msgid "Resolving publisher handle..."
 msgstr "Определение имени издателя..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6585
+#: packages/admin/src/components/PortableTextEditor.tsx:6588
 msgid "Restart numbering"
 msgstr "Начать нумерацию заново"
 
@@ -12290,11 +12404,11 @@ msgid "Retired"
 msgstr "Выведен из использования"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3686
+#: packages/admin/src/components/ContentEditor.tsx:3791
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/MediaDetailPanel.tsx:1547
+#: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
@@ -12306,7 +12420,7 @@ msgstr "Выведен из использования"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3371
+#: packages/admin/src/router.tsx:3466
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12357,7 +12471,7 @@ msgstr "Повтор…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Переиспользуемые блоки, которые можно вставить в любой материал"
 
-#: packages/admin/src/router.tsx:1540
+#: packages/admin/src/router.tsx:1596
 msgid "Reverted to published version"
 msgstr "Возвращено к опубликованной версии"
 
@@ -12411,7 +12525,7 @@ msgstr "Проверка…"
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12447,13 +12561,14 @@ msgid "Rich text content"
 msgstr "Форматированное содержимое"
 
 #: packages/admin/src/components/FieldEditor.tsx:705
+#: packages/admin/src/components/PortableTextEditor.tsx:4137
 msgid "Rich text editor"
 msgstr "Редактор форматированного текста"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5481
-#: packages/admin/src/components/PortableTextEditor.tsx:5602
+#: packages/admin/src/components/PortableTextEditor.tsx:5484
+#: packages/admin/src/components/PortableTextEditor.tsx:5605
 msgid "Right"
 msgstr "Справа"
 
@@ -12508,7 +12623,7 @@ msgid "Row added above"
 msgstr "Строка добавлена выше"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5579
+#: packages/admin/src/components/PortableTextEditor.tsx:5582
 msgid "Row added below"
 msgstr "Строка добавлена ниже"
 
@@ -12552,7 +12667,7 @@ msgstr "Демо-материалы"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12568,11 +12683,11 @@ msgstr "Сохранить"
 msgid "Save (Enter)"
 msgstr "Сохранить (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5951
 msgid "Save alt text"
 msgstr "Сохранить альтернативный текст"
 
-#: packages/admin/src/components/ContentEditor.tsx:2174
+#: packages/admin/src/components/ContentEditor.tsx:2221
 msgid "Save anyway"
 msgstr "Всё равно сохранить"
 
@@ -12585,7 +12700,7 @@ msgid "Save Changes"
 msgstr "Сохранить изменения"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:228
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:248
 msgid "Save changes before running plugin actions"
 msgstr "Сохраните изменения, прежде чем запускать действия плагина"
 
@@ -12597,7 +12712,8 @@ msgstr "Сохранять материал как черновик перед �
 msgid "Save date"
 msgstr "Сохранить дату"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+#: packages/admin/src/components/ContentEditor.tsx:2377
+#: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
 
@@ -12614,7 +12730,7 @@ msgstr ""
 msgid "Save name"
 msgstr "Сохранить имя"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1737
+#: packages/admin/src/components/MediaDetailPanel.tsx:1748
 msgid "Save or discard the other changes before cropping."
 msgstr "Сохраните или отмените остальные изменения, прежде чем обрезать."
 
@@ -12637,6 +12753,7 @@ msgstr "Сохранить настройки"
 msgid "visualEditing.saved"
 msgstr "Сохранено"
 
+#: packages/admin/src/components/ContentEditor.tsx:2452
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "Сохранено"
@@ -12659,8 +12776,9 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
+#: packages/admin/src/components/ContentEditor.tsx:2445
 #: packages/admin/src/components/FieldEditor.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12699,7 +12817,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Отсканируйте ближайшим телефоном или планшетом."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Запланировать"
@@ -12725,7 +12843,7 @@ msgstr "Расписание снято"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1587
+#: packages/admin/src/router.tsx:1643
 msgid "Scheduled"
 msgstr "Запланировано"
 
@@ -12903,8 +13021,8 @@ msgstr "Поиск не удался"
 msgid "Search failed. Check your connection and try again."
 msgstr "Поиск не удался. Проверьте соединение и попробуйте снова."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1500
-#: packages/admin/src/components/MediaDetailPanel.tsx:1501
+#: packages/admin/src/components/MediaDetailPanel.tsx:1511
+#: packages/admin/src/components/MediaDetailPanel.tsx:1512
 msgid "Search folders"
 msgstr "Поиск папок"
 
@@ -13045,6 +13163,7 @@ msgstr "Заголовок раздела"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
+#: packages/admin/src/router.tsx:2884
 msgid "Sections"
 msgstr "Разделы"
 
@@ -13101,6 +13220,7 @@ msgstr "Ошибка безопасности. Убедитесь, что сое
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
+#: packages/admin/src/router.tsx:2611
 msgid "Security Settings"
 msgstr "Настройки безопасности"
 
@@ -13117,9 +13237,9 @@ msgid "Select"
 msgstr "Выбрать"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4114
-#: packages/admin/src/components/ContentEditor.tsx:4175
-#: packages/admin/src/components/ContentEditor.tsx:4236
+#: packages/admin/src/components/ContentEditor.tsx:4219
+#: packages/admin/src/components/ContentEditor.tsx:4280
+#: packages/admin/src/components/ContentEditor.tsx:4341
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13143,7 +13263,7 @@ msgstr "Выберите компонент..."
 msgid "Select a content type"
 msgstr "Выберите тип материала"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1490
+#: packages/admin/src/components/MediaDetailPanel.tsx:1501
 msgid "Select a location"
 msgstr "Выберите расположение"
 
@@ -13168,7 +13288,7 @@ msgstr "Выбрать все на этой странице"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3710
+#: packages/admin/src/components/ContentEditor.tsx:3815
 msgid "Select at least one entry."
 msgstr "Выберите хотя бы одну запись."
 
@@ -13201,13 +13321,13 @@ msgstr "Выбрать значок сайта"
 msgid "Select Favicon"
 msgstr "Выбрать значок сайта"
 
-#: packages/admin/src/components/ContentEditor.tsx:4177
-#: packages/admin/src/components/ContentEditor.tsx:4242
+#: packages/admin/src/components/ContentEditor.tsx:4282
+#: packages/admin/src/components/ContentEditor.tsx:4347
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Выбрать файл"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4901
+#: packages/admin/src/components/PortableTextEditor.tsx:4904
 msgid "Select gallery images"
 msgstr "Выбрать изображения галереи"
 
@@ -13215,7 +13335,7 @@ msgstr "Выбрать изображения галереи"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4872
+#: packages/admin/src/components/PortableTextEditor.tsx:4875
 msgid "Select image"
 msgstr "Выбрать изображение"
 
@@ -13248,7 +13368,7 @@ msgid "Select up to 50 posts at a time."
 msgstr "Можно выбрать не более 50 записей за раз."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4886
+#: packages/admin/src/components/PortableTextEditor.tsx:4889
 msgid "Select video"
 msgstr "Выбрать видео"
 
@@ -13352,8 +13472,8 @@ msgstr ""
 msgid "Sending..."
 msgstr "Отправка..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1229
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13366,6 +13486,7 @@ msgid "SEO settings"
 msgstr "Настройки SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/router.tsx:2690
 msgid "SEO Settings"
 msgstr "Настройки SEO"
 
@@ -13438,14 +13559,15 @@ msgid "Setting up..."
 msgstr "Настройка..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2299
-#: packages/admin/src/components/ContentEditor.tsx:2630
+#: packages/admin/src/components/ContentEditor.tsx:2346
+#: packages/admin/src/components/ContentEditor.tsx:2735
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/router.tsx:2596
 msgid "Settings"
 msgstr "Настройки"
 
@@ -13461,6 +13583,10 @@ msgstr "Чтение настроек"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 msgid "Settings saved successfully"
 msgstr "Настройки сохранены"
+
+#: packages/admin/src/router.tsx:419
+msgid "Setup"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13492,7 +13618,7 @@ msgstr "Короткий текст"
 msgid "Short Text"
 msgstr "Короткий текст"
 
-#: packages/admin/src/components/ContentEditor.tsx:237
+#: packages/admin/src/components/ContentEditor.tsx:239
 msgid "Show"
 msgstr ""
 
@@ -13541,7 +13667,7 @@ msgstr "Показано {pageShowingRange} из {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "Показывается в админке. Некоторые темы показывают его и на сайте."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1132
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 msgid "Shown to readers in this order."
 msgstr "Читатели видят их в этом порядке."
 
@@ -13555,6 +13681,8 @@ msgstr "Показывает кнопку создания новой запис
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "Войти"
 
@@ -13595,6 +13723,14 @@ msgstr "Войти по ссылке из письма"
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
 msgstr "Войти с ключом доступа"
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
+
+#: packages/admin/src/router.tsx:459
+msgid "Sign up"
+msgstr ""
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
@@ -13727,7 +13863,7 @@ msgstr "Размер"
 msgid "Size is not applicable to folders"
 msgstr "У папок нет размера"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1319
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Size:"
 msgstr "Размер:"
 
@@ -13745,7 +13881,7 @@ msgstr "Пропущено"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1083
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13811,7 +13947,7 @@ msgid "SMTP Transport"
 msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
-msgid "smtp-relay.brevo.com"
+msgid "smtp.example.com"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:60
@@ -13831,6 +13967,10 @@ msgstr "Ссылки на профили в соцсетях"
 #: packages/admin/src/components/settings/SocialSettings.tsx:134
 msgid "Social Profiles"
 msgstr "Профили в соцсетях"
+
+#: packages/admin/src/router.tsx:2682
+msgid "Social Settings"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
@@ -13947,7 +14087,7 @@ msgstr "SQL"
 msgid "Square"
 msgstr "Квадрат"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:539
+#: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
 msgstr "Квадрат (1:1)"
 
@@ -13986,8 +14126,8 @@ msgstr "Начать с примерами записей и страниц из
 msgid "Start writing with plain text"
 msgstr "Начните писать обычным текстом"
 
-#: packages/admin/src/components/ContentEditor.tsx:3060
-#: packages/admin/src/components/ContentEditor.tsx:3083
+#: packages/admin/src/components/ContentEditor.tsx:3165
+#: packages/admin/src/components/ContentEditor.tsx:3188
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "Начните писать или введите «/» для команд"
@@ -14066,8 +14206,8 @@ msgstr "Сохранённые копии"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Хранится отдельно для каждого языка — у каждого перевода подписи своё значение."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4966
-#: packages/admin/src/components/PortableTextEditor.tsx:6528
+#: packages/admin/src/components/PortableTextEditor.tsx:4969
+#: packages/admin/src/components/PortableTextEditor.tsx:6531
 msgid "Strikethrough"
 msgstr "Зачёркнутый"
 
@@ -14101,11 +14241,11 @@ msgstr "Вложенные поля"
 msgid "Subscriber"
 msgstr "Подписчик"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5460
+#: packages/admin/src/components/PortableTextEditor.tsx:5463
 msgid "Subscript"
 msgstr "Нижний индекс"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5466
+#: packages/admin/src/components/PortableTextEditor.tsx:5469
 msgid "Superscript"
 msgstr "Верхний индекс"
 
@@ -14157,11 +14297,11 @@ msgstr "Системные поля"
 msgid "Table"
 msgstr "Таблица"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4723
+#: packages/admin/src/components/PortableTextEditor.tsx:4726
 msgid "Table cells accept text, links, and formatting only."
 msgstr "В ячейках таблицы допустимы только текст, ссылки и оформление."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5569
+#: packages/admin/src/components/PortableTextEditor.tsx:5572
 msgid "Table controls"
 msgstr "Управление таблицей"
 
@@ -14170,7 +14310,7 @@ msgid "Table deleted"
 msgstr "Таблица удалена"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4613
+#: packages/admin/src/components/PortableTextEditor.tsx:4616
 msgid "Table inserted"
 msgstr "Таблица вставлена"
 
@@ -14178,7 +14318,7 @@ msgstr "Таблица вставлена"
 msgid "Table size"
 msgstr "Размер таблицы"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4720
+#: packages/admin/src/components/PortableTextEditor.tsx:4723
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Таблицу нельзя вставить внутрь списка или цитаты. Вставьте её отдельным абзацем и попробуйте снова."
 
@@ -14217,9 +14357,10 @@ msgstr "Цель"
 msgid "Target locale"
 msgstr "Целевой язык"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
+#: packages/admin/src/router.tsx:2855
 msgid "Taxonomies"
 msgstr "Таксономии"
 
@@ -14323,7 +14464,7 @@ msgstr "test@example.com"
 msgid "Text"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6772
+#: packages/admin/src/components/PortableTextEditor.tsx:6775
 msgid "Text formatting"
 msgstr "Оформление текста"
 
@@ -14399,7 +14540,7 @@ msgstr "Типы материалов и ярлык неизменны. Назв
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "Его сохраняет менеджер учётных данных выбранного телефона или планшета. EmDash ключ доступа не получает."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:834
+#: packages/admin/src/components/MediaDetailPanel.tsx:836
 msgid "The cropped image could not be created."
 msgstr "Не удалось создать обрезанное изображение."
 
@@ -14614,7 +14755,7 @@ msgstr "Материалы пакета записываются на этот �
 msgid "The package’s file index is not valid."
 msgstr "Файловый индекс пакета недействителен."
 
-#: packages/admin/src/router.tsx:3385
+#: packages/admin/src/router.tsx:3480
 msgid "The page you're looking for doesn't exist."
 msgstr "Страница, которую вы ищете, не существует."
 
@@ -14634,8 +14775,8 @@ msgstr "Не удалось отобразить виджет поля плаг�
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Плагин не сохранил эти изменения. Просмотрите их перед обновлением редактора."
 
-#: packages/admin/src/components/ContentEditor.tsx:1312
-#: packages/admin/src/components/ContentEditor.tsx:1328
+#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1339
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Результат плагина устарел: пока он работал, содержимое редактора изменилось."
 
@@ -14681,11 +14822,11 @@ msgstr ""
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Запланированные изменения записи «{title}» остаются черновиком."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:829
+#: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "Выбранной папки больше нет. Выберите другое место и сохраните снова."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:932
+#: packages/admin/src/components/MediaDetailPanel.tsx:934
 msgid "The selected image could not be read."
 msgstr "Не удалось прочитать выбранное изображение."
 
@@ -14761,10 +14902,18 @@ msgstr "Тема"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
+#: packages/admin/src/router.tsx:2810
+msgid "Theme Details"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
 msgstr "ID темы: {0}"
+
+#: packages/admin/src/router.tsx:2802
+msgid "Theme Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -14831,9 +14980,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "Этот браузер держит весь пакет в памяти, пока загрузка не завершится. Для экспорта такого размера используйте браузер на базе Chromium, который сохраняет файл сразу на диск, или выполните emdash site export в CLI."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
+#: packages/admin/src/components/MediaDetailPanel.tsx:1952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "This cannot be undone"
 msgstr "Это нельзя отменить"
 
@@ -14849,11 +14998,11 @@ msgstr "Код недействителен или уже использован
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Эта коллекция задана в коде. Часть настроек здесь изменить нельзя. Чтобы изменить схему, отредактируйте live.config.ts."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4695
+#: packages/admin/src/components/PortableTextEditor.tsx:4698
 msgid "This content cannot be edited safely"
 msgstr "Этот материал нельзя безопасно редактировать"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:507
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "This content will be visible on the site immediately."
 msgstr "Этот материал сразу появится на сайте."
 
@@ -14873,20 +15022,20 @@ msgstr "Это не похоже на действительный ключ пе
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2170
+#: packages/admin/src/components/ContentEditor.tsx:2217
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Эта запись изменилась в другом месте после того, как вы её открыли."
 
-#: packages/admin/src/components/ContentEditor.tsx:1712
-#: packages/admin/src/router.tsx:1142
+#: packages/admin/src/components/ContentEditor.tsx:1723
+#: packages/admin/src/router.tsx:1179
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Эта запись изменилась в другом месте. Сохраните всё равно или перезагрузите, чтобы получить более новую версию."
 
-#: packages/admin/src/router.tsx:1978
+#: packages/admin/src/router.tsx:2034
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Этой записи не существует, или она не опубликована. Ваша роль позволяет просматривать только опубликованные материалы."
 
-#: packages/admin/src/router.tsx:1979
+#: packages/admin/src/router.tsx:2035
 msgid "This entry doesn't exist or was deleted."
 msgstr "Этой записи не существует, или она удалена."
 
@@ -14898,7 +15047,7 @@ msgstr "У этой записи нет URL, пока она не опублик
 msgid "This entry is open somewhere else"
 msgstr "Эта запись открыта в другом месте"
 
-#: packages/admin/src/components/ContentEditor.tsx:2157
+#: packages/admin/src/components/ContentEditor.tsx:2204
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Запись доступна только для чтения: в её схеме есть типы полей, которые эта версия EmDash не поддерживает."
 
@@ -14910,17 +15059,17 @@ msgstr "Срок публикации этой записи: {lateness}, но о
 msgid "This export is large"
 msgstr "Большой объём экспорта"
 
-#: packages/admin/src/components/ContentEditor.tsx:2835
-#: packages/admin/src/components/ContentEditor.tsx:2843
+#: packages/admin/src/components/ContentEditor.tsx:2940
+#: packages/admin/src/components/ContentEditor.tsx:2948
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Эту версию EmDash это поле не умеет редактировать."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4678
+#: packages/admin/src/components/PortableTextEditor.tsx:4681
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "В поле есть таблица, которую редактор не может сохранить. Обновите её через API, прежде чем редактировать или сохранять материал."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4697
+#: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "В поле есть неподдерживаемые пометки Portable Text: <0>{markList}</0>. Уберите их через API, прежде чем редактировать или сохранять материал."
 
@@ -14937,7 +15086,7 @@ msgstr "Это поле не принимает файлы {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Это поле ожидает список. Сохранённое значение не изменится, пока вы не замените его пустым списком — при этом оно будет удалено. Сначала скопируйте из него всё нужное."
 
-#: packages/admin/src/components/ContentEditor.tsx:4248
+#: packages/admin/src/components/ContentEditor.tsx:4353
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Это поле обязательно"
@@ -14980,7 +15129,7 @@ msgstr "Эта папка пуста"
 msgid "This folder is empty."
 msgstr "Эта папка пуста."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1730
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "This image could not be loaded for cropping."
 msgstr "Не удалось загрузить изображение для обрезки."
 
@@ -15025,7 +15174,7 @@ msgid "This media item could not be loaded. Try again."
 msgstr "Не удалось загрузить этот медиафайл. Попробуйте снова."
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
-#: packages/admin/src/components/MediaDetailPanel.tsx:823
+#: packages/admin/src/components/MediaDetailPanel.tsx:825
 msgid "This media item no longer exists."
 msgstr "Этого медиафайла больше нет."
 
@@ -15049,7 +15198,7 @@ msgstr "Этот пакет создан более новой или друго
 msgid "This passkey is already registered on this device."
 msgstr "Этот ключ доступа уже зарегистрирован на устройстве."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4716
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "Вставка слишком большая. Вставляйте меньше ячеек или текста за раз."
 
@@ -15118,7 +15267,7 @@ msgstr "Профиль подписи будет удалён. Ссылки ма
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Будут удалены связь, все сохранённые в ней ссылки и использующие её поля-ссылки:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:507
 msgid "This removes the schedule and publishes immediately."
 msgstr "Расписание будет снято, и материал опубликуется сразу."
 
@@ -15126,12 +15275,12 @@ msgstr "Расписание будет снято, и материал опуб
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Сохранённый часовой пояс не распознан. Выберите вариант из подсказок, чтобы даты отображались верно."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4764
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "В разделе есть таблица, которую редактор не может сохранить. Обновите раздел, прежде чем вставлять его."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4763
+#: packages/admin/src/components/PortableTextEditor.tsx:4766
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "В разделе есть неподдерживаемые пометки Portable Text: <0>{0}</0>. Обновите раздел, прежде чем вставлять его."
 
@@ -15189,15 +15338,15 @@ msgstr "Сайт был создан со стартовыми материал�
 msgid "This slug is reserved. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4721
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "В данных таблицы есть ячейки с неверными кавычками. Исправьте кавычки или уберите разделители табуляции и попробуйте снова."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4676
+#: packages/admin/src/components/PortableTextEditor.tsx:4679
 msgid "This table cannot be edited safely"
 msgstr "Эту таблицу нельзя безопасно редактировать"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4722
+#: packages/admin/src/components/PortableTextEditor.tsx:4725
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "В таблице неподдерживаемое оформление ячеек, объединения или ширина столбцов. Вставьте её как простой текст или упростите и попробуйте снова."
 
@@ -15221,7 +15370,7 @@ msgstr "Это видео не удаётся воспроизвести."
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Область виджетов и все её виджеты будут удалены. Это нельзя отменить."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1370
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Элемент будет перемещён в корзину. Позже его можно восстановить."
 
@@ -15243,7 +15392,7 @@ msgstr "Этот комментарий будет удалён навсегда
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Плагин и его пакет будут удалены с сайта."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:357
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Будет возвращена опубликованная версия. Изменения черновика пропадут."
 
@@ -15361,6 +15510,7 @@ msgstr "Отслеживать, где медиа используется в м
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
+#: packages/admin/src/router.tsx:2659
 msgid "Transfer"
 msgstr "Перенос"
 
@@ -15389,11 +15539,11 @@ msgstr "Перевод..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1630
+#: packages/admin/src/router.tsx:1686
 msgid "Translation created"
 msgstr "Перевод создан"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Переводы"
@@ -15508,9 +15658,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5383
-#: packages/admin/src/components/PortableTextEditor.tsx:5385
-#: packages/admin/src/components/PortableTextEditor.tsx:5402
+#: packages/admin/src/components/PortableTextEditor.tsx:5386
+#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5405
 msgid "Turn into"
 msgstr "Превратить в"
 
@@ -15577,7 +15727,7 @@ msgstr "Несовпадение типа ({0})"
 msgid "Type to filter"
 msgstr "Введите текст для фильтра"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4833
+#: packages/admin/src/components/PortableTextEditor.tsx:4836
 msgid "Type to search"
 msgstr "Введите текст для поиска"
 
@@ -15594,18 +15744,18 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Не удалось связаться с каталогом"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1374
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1407
 msgid "Unassigned"
 msgstr "Не назначено"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4965
-#: packages/admin/src/components/PortableTextEditor.tsx:6520
+#: packages/admin/src/components/PortableTextEditor.tsx:4968
+#: packages/admin/src/components/PortableTextEditor.tsx:6523
 msgid "Underline"
 msgstr "Подчёркнутый"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:6751
+#: packages/admin/src/components/PortableTextEditor.tsx:6754
 msgid "Undo"
 msgstr "Отменить"
 
@@ -15667,11 +15817,11 @@ msgstr "Ключ доступа без имени"
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:496
 msgid "Unpublish {itemLabel}"
 msgstr "Снять с публикации {itemLabel}"
 
-#: packages/admin/src/router.tsx:1516
+#: packages/admin/src/router.tsx:1572
 msgid "Unpublished"
 msgstr "Снято с публикации"
 
@@ -15693,11 +15843,15 @@ msgstr "Назначение не определено"
 msgid "visualEditing.unsaved"
 msgstr "Не сохранено"
 
+#: packages/admin/src/components/ContentEditor.tsx:2451
+msgid "Unsaved changes"
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:126
 msgid "Unsaved content may leave your site"
 msgstr "Несохранённые данные могут покинуть ваш сайт"
 
-#: packages/admin/src/router.tsx:1598
+#: packages/admin/src/router.tsx:1654
 msgid "Unscheduled"
 msgstr "Расписание снято"
 
@@ -15722,7 +15876,7 @@ msgstr "До {0}"
 msgid "Untitled"
 msgstr "Без названия"
 
-#: packages/admin/src/components/ContentEditor.tsx:4074
+#: packages/admin/src/components/ContentEditor.tsx:4179
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Файл без названия"
@@ -15791,7 +15945,7 @@ msgid "Update to v{0}"
 msgstr "Обновить до v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1049
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "Обновлено"
@@ -15921,7 +16075,7 @@ msgstr "Загрузить файл экспорта WordPress"
 msgid "Uploaded"
 msgstr "Загружено"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Uploaded:"
 msgstr "Загружено:"
 
@@ -15960,8 +16114,8 @@ msgstr "Загрузка видео…"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1108
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 msgid "URL & language"
 msgstr "URL и язык"
 
@@ -15978,7 +16132,7 @@ msgstr "Шаблон URL (например, /blog/:slug)"
 msgid "URL-friendly identifier"
 msgstr "Идентификатор для URL"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1378
+#: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "URL:"
 msgstr "URL:"
 
@@ -16098,16 +16252,16 @@ msgstr "Запасное изображение Open Graph, если у стра
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Используется как идентификатор. Только строчные буквы, цифры и подчёркивания."
 
-#: packages/admin/src/components/ContentEditor.tsx:3271
+#: packages/admin/src/components/ContentEditor.tsx:3376
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Главное изображение записи в списках и в начале записи"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:531
+#: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "Used by screen readers and when image fails to load"
 msgstr "Используется программами чтения с экрана и если изображение не загрузилось"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1173
-#: packages/admin/src/components/MediaDetailPanel.tsx:1206
+#: packages/admin/src/components/MediaDetailPanel.tsx:1175
+#: packages/admin/src/components/MediaDetailPanel.tsx:1208
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "Используется в"
@@ -16160,6 +16314,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/router.tsx:2899
 msgid "Users"
 msgstr "Пользователи"
 
@@ -16270,6 +16425,11 @@ msgstr "Видео"
 msgid "Video actions"
 msgstr "Действия с видео"
 
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:1278
+msgid "Video player for {0}"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
 msgid "Video upload failed. Try again."
 msgstr "Не удалось загрузить видео. Попробуйте снова."
@@ -16336,7 +16496,7 @@ msgstr "Посетители видят эту опубликованную ве
 msgid "Visitors still see the published version"
 msgstr "Посетители по-прежнему видят опубликованную версию"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:506
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Visitors will see these changes immediately."
 msgstr "Посетители увидят эти изменения сразу."
 
@@ -16458,7 +16618,7 @@ msgstr "Что будет импортировано"
 msgid "What will happen when you import"
 msgstr "Что произойдёт при импорте"
 
-#: packages/admin/src/components/ContentEditor.tsx:2171
+#: packages/admin/src/components/ContentEditor.tsx:2218
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Набранный текст на месте. Сохранение заменит более новую версию."
 
@@ -16495,15 +16655,15 @@ msgstr "Какие типы материалов могут использова
 msgid "Whole number"
 msgstr "Целое число"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
 msgid "Why are bylines shown in this order?"
 msgstr "Почему подписи показаны в этом порядке?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:530
+#: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "Why can't this be changed?"
 msgstr "Почему это нельзя изменить?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
 msgid "Why English is used"
 msgstr "Почему используется английский"
 
@@ -16527,7 +16687,7 @@ msgstr "Почему это важно для видимости в поиске
 msgid "Why is this important for social sharing?"
 msgstr "Почему это важно для публикаций в соцсетях?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:532
+#: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Why is this important?"
 msgstr "Почему это важно?"
 
@@ -16575,6 +16735,7 @@ msgstr "Виджет обновлён"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/router.tsx:2869
 msgid "Widgets"
 msgstr "Виджеты"
 
@@ -16623,7 +16784,7 @@ msgstr "Имя пользователя WordPress"
 msgid "Working on {selectedCount} items…"
 msgstr "Обработка элементов: {selectedCount}…"
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:284
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:285
 msgid "Working…"
 msgstr "Работа…"
 
@@ -16743,7 +16904,7 @@ msgstr "Для учёта использования медиа нужны пр�
 msgid "You need Admin permissions to transfer this site."
 msgstr "Для переноса этого сайта нужны права администратора."
 
-#: packages/admin/src/router.tsx:2493
+#: packages/admin/src/router.tsx:2552
 msgid "You need Editor permissions to moderate comments."
 msgstr "Для модерации комментариев нужны права редактора."
 
@@ -16885,11 +17046,11 @@ msgstr "Ваше имя (необязательно)"
 msgid "Your Role"
 msgstr "Ваша роль"
 
-#: packages/admin/src/router.tsx:2048
+#: packages/admin/src/router.tsx:2105
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2049
+#: packages/admin/src/router.tsx:2106
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -16924,7 +17085,7 @@ msgstr "Имя в Twitter/X (например, @username)"
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1874
+#: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
 msgstr "Несохранённые изменения медиа пропадут."
 

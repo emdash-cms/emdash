@@ -126,6 +126,7 @@ describe("emdash whoami", () => {
 	it.each([
 		[403, "astro dev"],
 		[404, "not available"],
+		[409, "/_emdash/admin/setup"],
 	])("fails with guidance when the dev bypass answers %i", async (status, hint) => {
 		stub = await startStub(status);
 
@@ -133,6 +134,10 @@ describe("emdash whoami", () => {
 
 		expect(result.code).toBe(1);
 		expect(result.stderr).toContain(hint);
-		expect(result.stderr).toContain("emdash login");
+		if (status !== 409) expect(result.stderr).toContain("emdash login");
+		if (status === 409) {
+			expect(result.stderr).toContain("/_emdash/api/setup/dev-bypass?content=0");
+			expect(result.stderr).not.toContain("Failed to fetch user info: 409");
+		}
 	});
 });
