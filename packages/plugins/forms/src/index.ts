@@ -45,6 +45,7 @@ import {
 	formCreateSchema,
 	formDeleteSchema,
 	formDuplicateSchema,
+	formsListSchema,
 	formUpdateSchema,
 	submissionDeleteSchema,
 	submissionGetSchema,
@@ -139,9 +140,14 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			// --- Admin routes (require auth) ---
 			// Reads are open to editors (plugins:read). Routes without a
 			// `permission` fall back to plugins:manage, so writes stay admin-only.
-
+			// forms/list, submissions/list, submissions/get and submissions/update are
+			// also offered as MCP tools (see `mcp` further down). A tool can only bind
+			// to a route that names its permission, so submissions/update states the
+			// plugins:manage default explicitly; REST access is unchanged.
 			"forms/list": {
 				permission: "plugins:read",
+				// A caller that sends no body at all still gets the first page.
+				input: formsListSchema.prefault({}),
 				handler: formsListHandler,
 			},
 			"forms/create": {
@@ -172,6 +178,7 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 				handler: submissionGetHandler,
 			},
 			"submissions/update": {
+				permission: "plugins:manage",
 				input: submissionUpdateSchema,
 				handler: submissionUpdateHandler,
 			},
@@ -193,6 +200,42 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 						hasSiteKey: !!siteKey,
 						hasSecretKey: !!secretKey,
 					};
+				},
+			},
+		},
+
+		// MCP tools: read forms and submissions, and triage a submission. Deleting
+		// and exporting stay out on purpose, as do the form-editing routes. A site
+		// admin enables these per plugin, and a token needs the plugin MCP scope;
+		// without both, none of this is reachable.
+		mcp: {
+			tools: {
+				forms_list: {
+					description:
+						"List the site's forms with their ids, slugs, names, fields and settings, newest first, up to 100 at a time; page with the returned cursor. Use a form's id with submissions_list.",
+					route: "forms/list",
+					input: formsListSchema,
+					destructive: false,
+				},
+				submissions_list: {
+					description:
+						"List one form's submissions, newest first. Filter by status (new, read, archived) or starred; page with the returned cursor.",
+					route: "submissions/list",
+					input: submissionsListSchema,
+					destructive: false,
+				},
+				submissions_get: {
+					description: "Get one submission by id, with every field the visitor sent.",
+					route: "submissions/get",
+					input: submissionGetSchema,
+					destructive: false,
+				},
+				submissions_update: {
+					description:
+						"Triage a submission: set its status (new, read, archived), star or unstar it, or set its notes. Does not change what the visitor sent.",
+					route: "submissions/update",
+					input: submissionUpdateSchema,
+					destructive: false,
 				},
 			},
 		},
