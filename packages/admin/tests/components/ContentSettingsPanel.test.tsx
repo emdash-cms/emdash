@@ -48,10 +48,6 @@ vi.mock("../../src/components/editor/ImageDetailPanel", () => ({
 	ImageDetailPanel: () => <div data-testid="image-detail-panel">Image details</div>,
 }));
 
-vi.mock("../../src/components/SeoPanel", () => ({
-	SeoPanel: () => <div data-testid="seo-panel">SEO fields</div>,
-}));
-
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
@@ -234,6 +230,34 @@ describe("ContentSettingsPanel", () => {
 		const taxonomySection = screen.getByTestId("taxonomy-sidebar").element().closest("section");
 		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
 		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
+	});
+
+	it("shows the collection's titleField value as the SEO Title placeholder", async () => {
+		const manifest: AdminManifest = {
+			...TEST_MANIFEST,
+			collections: {
+				posts: {
+					label: "Posts",
+					labelSingular: "Post",
+					supports: ["seo"],
+					hasSeo: true,
+					titleField: "headline",
+					fields: {},
+				},
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest,
+					item: makeItem({ data: { title: "Senior Engineer", headline: "Ada Lovelace" } }),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByLabelText("SEO Title"))
+			.toHaveAttribute("placeholder", "Ada Lovelace");
 	});
 
 	it("keeps URL and language fields outside the Publish section", async () => {
@@ -1105,7 +1129,7 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="doc-outline"]')).toBeNull();
 		expect(screen.container.textContent).not.toContain("Translations");
@@ -1113,7 +1137,9 @@ describe("ContentSettingsPanel", () => {
 
 	it("hides item-dependent sections for new entries", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, supportsDrafts: false })}
+			/>,
 		);
 
 		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
@@ -1123,8 +1149,24 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.textContent).not.toContain("Move to Trash");
 		expect(screen.container.textContent).not.toContain("Translations");
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
-		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
+	});
+
+	it("explains that saving a new entry keeps it as a draft", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+		);
+
+		const summary = screen.getByRole("group", { name: "Publishing summary" });
+		await expect.element(summary).toBeVisible();
+		await expect
+			.element(summary)
+			.toHaveTextContent(
+				"Saving creates a draft that stays off the site. You can publish it after the first save.",
+			);
+		expect(screen.container.textContent).not.toContain("Move to Trash");
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 	});
 
 	it("keeps the saved section order when sections are reordered on a new entry", async () => {
@@ -1320,6 +1362,31 @@ describe("EditorActions", () => {
 
 		await preview.click();
 		expect(props.onPreview).toHaveBeenCalled();
+	});
+
+	it("labels the first save of a draft-enabled entry as Save draft", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save draft", exact: true }))
+			.toBeEnabled();
+
+		await screen.rerender(
+			<EditorActions {...makeBarProps({ isNew: false, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("keeps the Save label for new entries in collections without drafts", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: false, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("hides the publish cluster for new items", async () => {

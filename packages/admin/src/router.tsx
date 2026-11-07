@@ -516,6 +516,7 @@ const calendarRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/calendar",
 	component: CalendarPage,
+	staticData: { fullBleed: true },
 	validateSearch: parseCalendarSearch,
 });
 
@@ -983,6 +984,7 @@ function ContentNewPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			fields={collectionConfig.fields}
 			isNew
+			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			entryLocale={pickerLocale}
 			i18n={manifest?.i18n}
 			isSaving={createMutation.isPending}

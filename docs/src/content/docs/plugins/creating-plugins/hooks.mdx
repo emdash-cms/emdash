@@ -85,6 +85,18 @@ Several hooks expose protected data or can change an operation. EmDash registers
 
 Lifecycle hooks, `cron`, and `page:metadata` have no registration capability. Declare the listed capability even when a hook only reads its event and does not call the matching `ctx` API. The declaration gives the operator an accurate consent prompt, gates the `ctx` API, and is required when the plugin runs in process. [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the runtime effect.
 
+<Aside type="caution" title="A missing capability fails silently">
+	An undeclared capability is not an installation error. The plugin installs and activates normally and its
+	other hooks still run. Only the gated hook is dropped. Nothing surfaces in the admin interface, so the
+	symptom is a hook that never fires. EmDash logs this when it registers the hook:
+
+	```
+	[hooks] Plugin "<id>" declares <name> hook without <capability> capability — skipping
+	```
+
+	Check the server log before debugging the handler.
+</Aside>
+
 ## Lifecycle hooks
 
 Run during plugin installation, activation, deactivation, and removal.
