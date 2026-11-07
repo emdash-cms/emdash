@@ -150,11 +150,14 @@ export function resolveBuildTimeSiteUrl(configuredSiteUrl: string | undefined): 
  *     The components absolutize the media URL against this origin; EmDash's
  *     wrapped image endpoint then serves the bytes from storage (so the absolute
  *     URL is never fetched). Only registered when `siteUrl` is known at build.
- *  3. In `astro dev` the dev-server origin isn't known at build time, so we
- *     register a host-agnostic pattern scoped to the media route. Dev-only.
+ *  3. A host-agnostic pattern scoped to the media route, when EmDash installs
+ *     its image endpoint (`storageEndpoint`) or in `astro dev`. That endpoint
+ *     reads media keys from storage and never fetches the `href` host, so the
+ *     public origin doesn't have to be known when `astro build` runs.
  *
- * Returns an empty array when no source is statically known (production build,
- * local storage, no `siteUrl`), in which case media renders as a plain `<img>`.
+ * Returns an empty array when no source is statically known (custom or
+ * disabled image endpoint, no `publicUrl` or `siteUrl`), in which case media
+ * renders as a plain `<img>`.
  *
  * @internal Exported for unit testing.
  */
@@ -162,6 +165,7 @@ export function buildImageRemotePatterns(
 	storage: { config?: unknown } | undefined,
 	siteUrl: string | undefined,
 	command: "dev" | "build" | "preview" | "sync",
+	storageEndpoint = false,
 ): ImageRemotePattern[] {
 	const patterns: ImageRemotePattern[] = [];
 
@@ -207,7 +211,7 @@ export function buildImageRemotePatterns(
 		}
 	}
 
-	if (command === "dev") {
+	if (storageEndpoint || command === "dev") {
 		patterns.push({ pathname: `${INTERNAL_MEDIA_PREFIX}**` });
 	}
 
@@ -725,15 +729,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 								},
 							];
 
-				// Authorize media sources so Astro's image service builds transform
-				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
-				// merges arrays, so user-configured remotePatterns are preserved.
-				const imageRemotePatterns = buildImageRemotePatterns(
-					resolvedConfig.storage,
-					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
-					command,
-				);
-
 				// Wrap Astro's image endpoint so EmDash media bytes load straight from
 				// storage (Access-safe) instead of over HTTP. Skip when the user opts
 				// out or has a custom endpoint we can't delegate back to.
@@ -743,6 +738,16 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					isCloudflare: astroConfig.adapter?.name === "@astrojs/cloudflare",
 				});
 				if (imageEndpointWarning) logger.warn(imageEndpointWarning);
+
+				// Authorize media sources so Astro's image service builds transform
+				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
+				// merges arrays, so user-configured remotePatterns are preserved.
+				const imageRemotePatterns = buildImageRemotePatterns(
+					resolvedConfig.storage,
+					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
+					command,
+					imageEndpoint !== undefined,
+				);
 
 				const imageConfig: Record<string, unknown> = {};
 				if (imageRemotePatterns.length) imageConfig.remotePatterns = imageRemotePatterns;

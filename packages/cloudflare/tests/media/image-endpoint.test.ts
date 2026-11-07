@@ -266,3 +266,58 @@ describe("cloudflare image endpoint storage body", () => {
 		expect(body.cancelled()).toBe(true);
 	});
 });
+
+describe("Cloudflare image endpoint outside EmDash storage", () => {
+	function imageContext(
+		href: string,
+		locals: object = { emdash: { storage: { download: vi.fn() } } },
+	) {
+		return {
+			request: new Request(
+				`https://example.test/_image?href=${encodeURIComponent(href)}&w=120&f=webp`,
+			),
+			locals,
+		};
+	}
+
+	it.each([
+		"https://attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"//attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"http:attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"http:/attacker.example/_emdash/api/media/file/nested/photo.jpg",
+	])("does not load internal media from another host (%s)", async (href) => {
+		const response = await GET(imageContext(href) as never);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it("does not load cross-host internal media when storage is unavailable", async () => {
+		const response = await GET(
+			imageContext("https://attacker.example/_emdash/api/media/file/photo.jpg", {}) as never,
+		);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		"/_emdash/api/media/file/nested/photo.jpg",
+		"https://example.test/_emdash/api/media/file/nested/photo.jpg",
+	])("does not fetch internal media it cannot read from storage (%s)", async (href) => {
+		const response = await GET(imageContext(href) as never);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it.each(["https://cdn.example.com/photo.jpg", "/_astro/logo.png"])(
+		"delegates other sources to the adapter endpoint (%s)",
+		async (href) => {
+			const response = await GET(imageContext(href) as never);
+
+			expect(response.status).toBe(418);
+			expect(adapterGET).toHaveBeenCalledOnce();
+		},
+	);
+});

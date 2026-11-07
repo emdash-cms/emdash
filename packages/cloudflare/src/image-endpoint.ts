@@ -17,6 +17,7 @@ import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
 	getTransformFingerprint,
+	canDelegateImageHref,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -84,15 +85,20 @@ function isNotFound(error: unknown): boolean {
 
 export const GET: APIRoute = async (ctx) => {
 	const url = new URL(ctx.request.url);
-	const key = matchInternalMediaKey(url.searchParams.get("href"));
+	const href = url.searchParams.get("href");
+	const key = matchInternalMediaKey(href);
 	// App.Locals.emdash is augmented by `emdash/locals`, not loaded in this
 	// package's compilation; narrow to the field we need.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- App.Locals augmentation lives in the emdash package
 	const storage = (ctx.locals as { emdash?: { storage?: Storage | null } }).emdash?.storage;
 
-	// Not EmDash media, or storage unavailable: let the adapter's endpoint handle
-	// it (bundled assets via ASSETS, allowed remote via fetch).
-	if (!key || !storage) return adapterGET(ctx);
+	if (!key || !storage) {
+		if (!canDelegateImageHref(href, url.origin)) {
+			return new Response("Not Found", { status: 404 });
+		}
+		// Not EmDash media: bundled assets via ASSETS, allowed remote via fetch.
+		return adapterGET(ctx);
+	}
 
 	// An unread download keeps its storage read open even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;

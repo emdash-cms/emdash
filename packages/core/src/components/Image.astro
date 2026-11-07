@@ -9,8 +9,12 @@ import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-import { canOptimizeImage, toAbsoluteMediaUrl, responsiveWidths } from "../media/responsive.js";
-import { getPublicOrigin } from "../api/public-url.js";
+import {
+	canOptimizeImage,
+	mediaOrigin,
+	optimizableMediaUrl,
+	responsiveWidths,
+} from "../media/responsive.js";
 import { sanitizeHref } from "../utils/url.js";
 import { normalizeImageLink } from "../content/converters/image-link.js";
 import { resolveImageMedia } from "../content/converters/gallery.js";
@@ -170,16 +174,14 @@ if (!src) {
 		id: asset._ref,
 	});
 	if (renderWidth && renderHeight) {
-		const absoluteSrc = toAbsoluteMediaUrl(
-			src,
-			getPublicOrigin(Astro.url, Astro.locals.emdash?.config),
-		);
+		const absoluteSrc = optimizableMediaUrl(src, mediaOrigin(Astro));
 		if (
-			await canOptimizeImage(getImage, {
+			absoluteSrc &&
+			(await canOptimizeImage(getImage, {
 				src: absoluteSrc,
 				width: renderWidth,
 				height: renderHeight,
-			})
+			}))
 		) {
 			astroImageSrc = absoluteSrc;
 		}
