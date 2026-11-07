@@ -9,6 +9,11 @@ import {
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import {
+	createRedirectSource,
+	publishRedirectArtifacts,
+} from "../../../src/redirects/artifacts.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	type DialectTestContext,
@@ -395,6 +400,55 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 				expect.objectContaining({ source: "/whats-on/old", destination: "/whats-on/new/" }),
 				expect.objectContaining({ source: "/whats-on/old/", destination: "/whats-on/new/" }),
 			]);
+		});
+
+		it.each([
+			{ rule: "disabled", input: { destination: "/elsewhere", enabled: false } },
+			{ rule: "410", input: { destination: "", type: 410 } },
+		])("redirects the old URL when its other form has a $rule rule", async ({ input }) => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({ source: "/whats-on/old", ...input });
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old", destination: input.destination }),
+				expect.objectContaining({
+					source: "/whats-on/old/",
+					destination: "/whats-on/new/",
+					auto: 1,
+				}),
+			]);
+		});
+
+		it.each([
+			{ rule: "disabled", input: { destination: "/elsewhere", enabled: false } },
+			{ rule: "410", input: { destination: "", type: 410 } },
+		])("leaves a $rule rule at the exact old URL unchanged", async ({ input }) => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({ source: "/whats-on/old/", ...input });
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old/", destination: input.destination }),
+			]);
+		});
+
+		it("republishes redirects collapsed next to a kept rule at the old URL", async () => {
+			const id = await publishEvent("old");
+			const repo = new RedirectRepository(db);
+			await repo.create({ source: "/whats-on/old/", destination: "", type: 410 });
+			await repo.create({ source: "/somewhere", destination: "/whats-on/old/" });
+			await publishRedirectArtifacts(db);
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+			await waitForDeferredTasks();
+
+			const source = createRedirectSource(db);
+			const { version } = await source.load();
+			expect(version).not.toBeNull();
+			expect(await source.isCurrent(version!)).toBe(true);
 		});
 
 		it("removes the auto-redirect when a new entry is published at the old URL", async () => {

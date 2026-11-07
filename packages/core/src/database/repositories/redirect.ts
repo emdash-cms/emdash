@@ -10,6 +10,7 @@ import {
 	isPattern,
 	validatePattern,
 } from "../../redirects/patterns.js";
+import { REDIRECT_STATUSES } from "../../redirects/status.js";
 import { currentTimestampValue, isPostgres } from "../dialect-helpers.js";
 import type { Database, RedirectTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
@@ -566,7 +567,9 @@ export class RedirectRepository {
 	 * removes redirects that would shadow the now-live new URL, so a
 	 * rename that is later reverted cannot form a loop (#1986).
 	 *
-	 * Returns null when old and new URL are identical (nothing to redirect).
+	 * Returns the redirect now answering the old URL, which is a kept disabled
+	 * or terminal rule when one sits there. Returns null when old and new URL
+	 * are identical (nothing to redirect).
 	 */
 	async createAutoRedirect(
 		collection: string,
@@ -621,19 +624,26 @@ export class RedirectRepository {
 			// Collapse chains: update any existing redirects pointing to the old URL
 			await repository.collapseChains(oldUrl, newUrl, fence);
 
+			// Only active redirects are retargeted. A disabled or terminal rule at
+			// the exact old URL is kept and suppresses the auto-redirect.
 			const existing = await repository.db
 				.selectFrom("_emdash_redirects")
-				.select("id")
+				.select(["id", "source", "enabled", "type"])
 				.where("source", "in", redirectPathVariants(oldUrl))
 				.orderBy("id")
 				.execute();
+			const active = existing.filter(
+				(row) => row.enabled === 1 && REDIRECT_STATUSES.some((status) => status === row.type),
+			);
 			let updated: Redirect | null = null;
-			for (const { id } of existing) {
+			for (const { id } of active) {
 				// oxlint-disable-next-line no-await-in-loop -- at most two rows, under the write lock
 				const redirect = await repository.update(id, { destination: newUrl }, undefined, fence);
 				updated ??= redirect;
 			}
-			if (existing.length > 0) return updated;
+			if (active.length > 0) return updated;
+			const kept = existing.find((row) => row.source === oldUrl);
+			if (kept) return repository.findById(kept.id);
 
 			return repository.create(
 				{
