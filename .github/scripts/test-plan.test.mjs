@@ -1,9 +1,34 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { createTestPlan, formatGitHubOutput, TEST_LANES } from "./test-plan.mjs";
+
+const REPOSITORY_ROOT = new URL("../../", import.meta.url);
+const PACKAGES_OUTSIDE_THE_PACKAGE_JOB = new Map([
+	["emdash", "runs in the core test shards"],
+	["@emdash-cms/admin", "runs in the browser job"],
+	[
+		"@emdash-cms/plugins-site",
+		"its prebuild cleans and rebuilds workspace packages during the job's own build",
+	],
+]);
+
+function workspacePackages() {
+	const packages = [];
+	for (const parent of ["packages/", "packages/plugins/", "apps/"]) {
+		for (const entry of readdirSync(new URL(parent, REPOSITORY_ROOT), { withFileTypes: true })) {
+			const dir = `${parent}${entry.name}/`;
+			const manifestUrl = new URL(`${dir}package.json`, REPOSITORY_ROOT);
+			if (!entry.isDirectory() || !existsSync(manifestUrl)) continue;
+			const manifest = JSON.parse(readFileSync(manifestUrl, "utf8"));
+			packages.push({ dir, name: manifest.name, hasTests: Boolean(manifest.scripts?.test) });
+		}
+	}
+	return packages;
+}
 
 describe("test plan", () => {
 	it("does not run test lanes for documentation-only changes", () => {
@@ -170,6 +195,27 @@ describe("test plan", () => {
 		assert.ok(plan.unit_packages.includes("@emdash-cms/release-service"));
 	});
 
+	it("runs the tests of each package under packages/ and apps/ when a file in it changes, or names why not", () => {
+		const missed = workspacePackages()
+			.filter(({ hasTests, name }) => hasTests && !PACKAGES_OUTSIDE_THE_PACKAGE_JOB.has(name))
+			.filter(({ dir, name }) => {
+				const plan = createTestPlan([`${dir}package.json`]);
+				return !plan.unit || !plan.unit_packages.includes(name);
+			})
+			.map(({ name }) => name);
+
+		assert.deepEqual(missed, []);
+	});
+
+	it("names only packages that exist under packages/ and apps/ for unit tests", () => {
+		// pnpm skips a --filter that matches no package without failing, so a
+		// misspelled name would drop that package's tests silently.
+		const names = new Set(workspacePackages().map(({ name }) => name));
+		const unknown = createTestPlan([]).unit_packages.filter((name) => !names.has(name));
+
+		assert.deepEqual(unknown, []);
+	});
+
 	it("marks a union that selects every lane as full", () => {
 		const plan = createTestPlan([
 			"packages/core/src/index.ts",
@@ -189,6 +235,15 @@ describe("test plan", () => {
 		assert.equal(plan.query_counts, true);
 		assert.equal(plan.preview, false);
 		assert.equal(plan.unit, false);
+	});
+
+	it("runs the Cloudflare package tests for Cloudflare templates", () => {
+		const plan = createTestPlan(["templates/blog-cloudflare/astro.config.mjs"]);
+
+		assert.equal(plan.unit, true);
+		assert.equal(plan.unit_mode, "focused");
+		assert.deepEqual(plan.unit_packages, ["@emdash-cms/cloudflare"]);
+		assert.equal(plan.e2e_cloudflare, true);
 	});
 
 	it("fails closed for unknown paths", () => {

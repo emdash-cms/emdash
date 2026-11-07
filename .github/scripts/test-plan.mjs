@@ -26,23 +26,38 @@ const REPOSITORY_METADATA_PATTERN =
 const UNIT_PACKAGE_PATH_PATTERN =
 	/^packages\/(?:blocks|gutenberg-to-portable-text|plugin-(?:cli|types)|registry-(?:client|lexicons|moderation|verification))\//;
 
+const CLOUDFLARE_TEMPLATE_PATH_PATTERN = /^templates\/[^/]+-cloudflare\//;
 const TABLE_E2E_PATH_PATTERN = /^e2e\/tests\/.*(?:table|data-grid).*\.(?:spec|test)\.[cm]?[jt]sx?$/;
 const LINE_BREAK_PATTERN = /\r?\n/;
 
 const UNIT_PACKAGE_BY_PATH = new Map([
+	["packages/atproto-test-utils/", "@emdash-cms/atproto-test-utils"],
 	["packages/auth/", "@emdash-cms/auth"],
+	["packages/auth-atproto/", "@emdash-cms/auth-atproto"],
 	["packages/blocks/", "@emdash-cms/blocks"],
+	["packages/cloudflare/", "@emdash-cms/cloudflare"],
+	["packages/contentful-to-portable-text/", "@emdash-cms/contentful-to-portable-text"],
+	["packages/create-emdash/", "create-emdash"],
 	["packages/gutenberg-to-portable-text/", "@emdash-cms/gutenberg-to-portable-text"],
 	["packages/marketplace/", "@emdash-cms/marketplace"],
 	["packages/plugin-cli/", "@emdash-cms/plugin-cli"],
+	["packages/plugin-test/", "@emdash-cms/plugin-test"],
 	["packages/plugin-types/", "@emdash-cms/plugin-types"],
+	["packages/plugins/ai-moderation/", "@emdash-cms/plugin-ai-moderation"],
 	["packages/plugins/ai-search/", "@emdash-cms/plugin-ai-search"],
+	["packages/plugins/atproto/", "@emdash-cms/plugin-atproto"],
 	["packages/plugins/embeds/", "@emdash-cms/plugin-embeds"],
+	["packages/plugins/field-kit/", "@emdash-cms/plugin-field-kit"],
 	["packages/plugins/forms/", "@emdash-cms/plugin-forms"],
+	["packages/plugins/webhook-notifier/", "@emdash-cms/plugin-webhook-notifier"],
 	["packages/registry-client/", "@emdash-cms/registry-client"],
 	["packages/registry-lexicons/", "@emdash-cms/registry-lexicons"],
+	["packages/registry-loader/", "@emdash-cms/registry-loader"],
 	["packages/registry-moderation/", "@emdash-cms/registry-moderation"],
 	["packages/registry-verification/", "@emdash-cms/registry-verification"],
+	["packages/upgrade-emdash/", "upgrade-emdash"],
+	["packages/workerd/", "@emdash-cms/sandbox-workerd"],
+	["packages/x402/", "@emdash-cms/x402"],
 	["apps/aggregator/", "@emdash-cms/aggregator"],
 	["apps/labeler/", "@emdash-cms/labeler"],
 	["apps/release-action/", "@emdash-cms/release-action"],
@@ -175,7 +190,22 @@ const RULES = [
 	{
 		name: "package creation",
 		matches: (path) => path.startsWith("packages/create-emdash/"),
-		lanes: ["smoke", "integration", "e2e_node", "e2e_cloudflare", "query_counts", "preview"],
+		lanes: [
+			"unit",
+			"smoke",
+			"integration",
+			"e2e_node",
+			"e2e_cloudflare",
+			"query_counts",
+			"preview",
+		],
+	},
+	{
+		name: "Cloudflare project templates",
+		matches: (path) => CLOUDFLARE_TEMPLATE_PATH_PATTERN.test(path),
+		lanes: ["unit", "smoke", "integration", "e2e_node", "e2e_cloudflare", "query_counts"],
+		// The @emdash-cms/cloudflare tests load these templates' Astro configs.
+		unitPackages: ["@emdash-cms/cloudflare"],
 	},
 	{
 		name: "project templates",
@@ -313,6 +343,7 @@ export function createTestPlan(inputPaths) {
 		for (const lane of rule.lanes) selected.add(lane);
 		if (rule.unitMode === "full") unitMode = "full";
 		if (CORE_UNIT_DEPENDENCIES.some((prefix) => path.startsWith(prefix))) unitMode = "full";
+		for (const packageName of rule.unitPackages ?? []) unitPackages.add(packageName);
 		for (const [prefix, packageName] of UNIT_PACKAGE_BY_PATH) {
 			if (path.startsWith(prefix)) unitPackages.add(packageName);
 		}
