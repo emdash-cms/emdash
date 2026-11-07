@@ -9,6 +9,7 @@ import type {
 	BlockRow,
 	DiffSegment,
 	FieldDiff,
+	ItemRow,
 	MarkAnnotation,
 	NormalizedBlock,
 	RevisionDiff,
@@ -628,5 +629,127 @@ describe("RevisionViewCanvas", () => {
 		expect(layout(documentRoot(screen.container))).toEqual(
 			layout(screen.container.querySelector(".ProseMirror")!),
 		);
+	});
+});
+
+describe("RevisionViewCanvas: blocks and repeater fields", () => {
+	function nestedText(path: string, segments: DiffSegment[]): FieldDiff {
+		const slug = path.split(".").at(-1) ?? path;
+		return { ...stringField(slug, segments), label: "Title", targetId: `f-${path}` };
+	}
+
+	function itemRow(
+		index: number,
+		status: ItemRow["status"],
+		label: string | null,
+		options: Partial<ItemRow> = {},
+	): ItemRow {
+		return {
+			status,
+			targetId: `i-sections-${index}`,
+			type: label?.toLowerCase() ?? "",
+			label,
+			position: index + 1,
+			moved: false,
+			fields: [],
+			descriptors: {},
+			value: {},
+			...options,
+		};
+	}
+
+	function itemsField(slug: string, kind: string, rows: ItemRow[]): FieldDiff {
+		return {
+			type: "items",
+			slug,
+			label: slug,
+			kind,
+			status: "changed",
+			targetId: `f-${slug}`,
+			rows,
+		};
+	}
+
+	const editedTitle = nestedText("sections.2.title", [
+		segment("Our "),
+		segment("work", "removed", { hunk: 0 }),
+		segment("projects", "added", { hunk: 0 }),
+	]);
+
+	const sectionsDiff = revisionDiff([
+		itemsField("sections", "blocks", [
+			itemRow(0, "unchanged", "Hero", {
+				fields: [nestedText("sections.0.title", [segment("Welcome")])],
+				descriptors: { title: { kind: "string", label: "Title" } },
+			}),
+			itemRow(1, "removed", "Banner"),
+			itemRow(2, "changed", "Gallery", {
+				moved: true,
+				fields: [editedTitle],
+				descriptors: { title: { kind: "string", label: "Title" } },
+			}),
+			itemRow(3, "added", "Booking"),
+		]),
+	]);
+
+	function card(container: HTMLElement, index: number): HTMLElement | null {
+		return container.querySelector<HTMLElement>(`#revision-i-sections-${index}`);
+	}
+
+	it("marks removed, moved and added blocks on their cards", async () => {
+		const { container } = await renderCanvas(sectionsDiff);
+
+		expect(card(container, 0)).toBeNull();
+		const removed = card(container, 1)!;
+		expect(removed.hasAttribute("data-revision-dim")).toBe(true);
+		expect(removed.querySelector("del")?.textContent).toBe("Banner");
+		expect(removed.textContent).toContain("Removed");
+
+		const edited = card(container, 2)!;
+		expect(edited.textContent).toContain("Edited");
+		expect(edited.textContent).toContain("Moved");
+
+		const added = card(container, 3)!;
+		expect(added.hasAttribute("data-revision-ring")).toBe(true);
+		expect(added.textContent).toContain("Added");
+	});
+
+	it("shows each block's fields, with edits marked inside the field that changed", async () => {
+		const { container } = await renderCanvas(sectionsDiff);
+		const unchangedTitle = container.querySelector('[role="group"][aria-labelledby]');
+		expect(unchangedTitle?.textContent).toContain("Welcome");
+
+		const target = container.querySelector<HTMLElement>("#revision-f-sections\\.2\\.title")!;
+		expect(target.getAttribute("tabindex")).toBe("-1");
+		expect(card(container, 2)?.contains(target)).toBe(true);
+		expect(target.querySelector("del")?.textContent).toBe("Removed: work");
+		expect(target.querySelector("ins")?.textContent).toBe("Added: projects");
+	});
+
+	it("numbers repeater items the way the editor does", async () => {
+		const { container } = await renderCanvas(
+			revisionDiff([itemsField("facts", "repeater", [itemRow(0, "unchanged", null)])]),
+		);
+		expect(container.querySelector("section")?.textContent).toContain("Item 1");
+	});
+
+	it("labels a changed repeater item as changed rather than edited", async () => {
+		const { container } = await renderCanvas(
+			revisionDiff([itemsField("facts", "repeater", [itemRow(0, "changed", null)])]),
+		);
+		const itemElement = container.querySelector("section");
+		expect(itemElement?.textContent).toContain("Changed");
+		expect(itemElement?.textContent).not.toContain("Edited");
+	});
+
+	it("shows only the version's items when changes are hidden", async () => {
+		const { container } = await renderCanvas(sectionsDiff, false);
+		const article = container.querySelector("article")!;
+
+		expect(article.textContent).not.toContain("Banner");
+		expect(
+			article.querySelectorAll("ins, del, [data-revision-ring], [data-revision-dim]"),
+		).toHaveLength(0);
+		expect(article.textContent).toContain("Our projects");
 	});
 });

@@ -142,6 +142,59 @@ function snippetLabel(i18n: I18n, action: BlockAction, value: Snippet): string {
 	}
 }
 
+function blockItemLabel(i18n: I18n, item: Extract<ChangeItem, { kind: "blockItem" }>): string {
+	const block = isolate(item.label);
+	switch (item.action) {
+		case "added":
+			return i18n._(msg`Added the ${block} block`);
+		case "removed":
+			return i18n._(msg`Removed the ${block} block`);
+		case "moved":
+			return i18n._(msg`Moved the ${block} block`);
+		case "edited": {
+			if (!item.blockField) return i18n._(msg`Edited the ${block} block`);
+			const field = isolate(item.blockField.label);
+			return i18n._(msg`Edited ${field} in the ${block} block`);
+		}
+	}
+}
+
+function repeaterItemLabel(
+	i18n: I18n,
+	item: Extract<ChangeItem, { kind: "repeaterItem" }>,
+): string {
+	const field = isolate(item.field.label);
+	const position = item.position;
+	const itemField = item.itemField ? isolate(item.itemField.label) : null;
+	if (item.block) {
+		const block = isolate(item.block);
+		switch (item.action) {
+			case "added":
+				return i18n._(msg`Added item ${position} to ${field} in the ${block} block`);
+			case "removed":
+				return i18n._(msg`Removed item ${position} from ${field} in the ${block} block`);
+			case "moved":
+				return i18n._(msg`Moved item ${position} in ${field} in the ${block} block`);
+			case "edited":
+				return itemField
+					? i18n._(msg`Edited ${itemField} in item ${position} of ${field} in the ${block} block`)
+					: i18n._(msg`Edited item ${position} of ${field} in the ${block} block`);
+		}
+	}
+	switch (item.action) {
+		case "added":
+			return i18n._(msg`Added item ${position} to ${field}`);
+		case "removed":
+			return i18n._(msg`Removed item ${position} from ${field}`);
+		case "moved":
+			return i18n._(msg`Moved item ${position} in ${field}`);
+		case "edited":
+			return itemField
+				? i18n._(msg`Edited ${itemField} in item ${position} of ${field}`)
+				: i18n._(msg`Edited item ${position} of ${field}`);
+	}
+}
+
 /** One line of a version's change list, such as "Changed the title" or "Edited “Most teams…”". */
 export function changeLabel(
 	i18n: I18n,
@@ -182,6 +235,10 @@ export function changeLabel(
 			const labels = BLOCK_LABELS[item.noun];
 			return i18n._(labels[item.action] ?? labels.edited);
 		}
+		case "blockItem":
+			return blockItemLabel(i18n, item);
+		case "repeaterItem":
+			return repeaterItemLabel(i18n, item);
 		case "image":
 			return i18n._(IMAGE_LABELS[item.action]);
 	}

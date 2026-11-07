@@ -131,6 +131,62 @@ describe("changeLabel", () => {
 		).toBe(`Cleared ${isolate("Excerpt")}`);
 	});
 
+	it("names the block type and the field an edit changed", () => {
+		const sections: FieldRef = { slug: "sections", label: "Sections" };
+		const blockItem = (
+			action: "added" | "removed" | "edited" | "moved",
+			blockField: FieldRef | null = null,
+		): ChangeItem => ({
+			kind: "blockItem",
+			field: sections,
+			action,
+			label: "Hero",
+			blockField,
+			target: "i",
+		});
+		const hero = isolate("Hero");
+		expect(changeLabel(i18n, blockItem("added"))).toBe(`Added the ${hero} block`);
+		expect(changeLabel(i18n, blockItem("removed"))).toBe(`Removed the ${hero} block`);
+		expect(changeLabel(i18n, blockItem("moved"))).toBe(`Moved the ${hero} block`);
+		expect(changeLabel(i18n, blockItem("edited"))).toBe(`Edited the ${hero} block`);
+		expect(changeLabel(i18n, blockItem("edited", { slug: "headline", label: "Headline" }))).toBe(
+			`Edited ${isolate("Headline")} in the ${hero} block`,
+		);
+	});
+
+	it("numbers the repeater item and names the field an edit changed", () => {
+		const faq: FieldRef = { slug: "faq", label: "FAQ" };
+		const repeaterItem = (
+			action: "added" | "removed" | "edited" | "moved",
+			itemField: FieldRef | null = null,
+			blockLabel: string | null = null,
+		): ChangeItem => ({
+			kind: "repeaterItem",
+			field: faq,
+			action,
+			position: 2,
+			itemField,
+			block: blockLabel,
+			target: "i",
+		});
+		const question: FieldRef = { slug: "question", label: "Question" };
+		const field = isolate("FAQ");
+		const hero = isolate("Hero");
+		expect(changeLabel(i18n, repeaterItem("added"))).toBe(`Added item 2 to ${field}`);
+		expect(changeLabel(i18n, repeaterItem("removed"))).toBe(`Removed item 2 from ${field}`);
+		expect(changeLabel(i18n, repeaterItem("moved"))).toBe(`Moved item 2 in ${field}`);
+		expect(changeLabel(i18n, repeaterItem("edited"))).toBe(`Edited item 2 of ${field}`);
+		expect(changeLabel(i18n, repeaterItem("edited", question))).toBe(
+			`Edited ${isolate("Question")} in item 2 of ${field}`,
+		);
+		expect(changeLabel(i18n, repeaterItem("added", null, "Hero"))).toBe(
+			`Added item 2 to ${field} in the ${hero} block`,
+		);
+		expect(changeLabel(i18n, repeaterItem("edited", question, "Hero"))).toBe(
+			`Edited ${isolate("Question")} in item 2 of ${field} in the ${hero} block`,
+		);
+	});
+
 	it("quotes the new slug, or says it was removed", () => {
 		expect(changeLabel(i18n, { kind: "slug", after: "new-post" })).toBe(
 			`Changed the slug to “${isolate("new-post")}”`,
