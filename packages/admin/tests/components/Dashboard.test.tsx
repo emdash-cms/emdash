@@ -61,7 +61,8 @@ vi.mock("../../src/lib/api/transfer.js", async () => {
 	return { ...actual, fetchTransferCapabilities: () => mockFetchTransferCapabilities() };
 });
 
-vi.mock("../../src/lib/api/current-user", () => ({
+vi.mock("../../src/lib/api/current-user", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/lib/api/current-user")>()),
 	useCurrentUser: () => mockUseCurrentUser(),
 }));
 

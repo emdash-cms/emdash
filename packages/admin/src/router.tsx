@@ -69,6 +69,7 @@ import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
+import { SidebarsSettings } from "./components/settings/SidebarsSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
 import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
@@ -146,6 +147,7 @@ import {
 	type RevisionListItem,
 	type RevisionListResponse,
 } from "./lib/api";
+import { useAdminLayout } from "./lib/api/admin-layout.js";
 import {
 	fetchComments,
 	fetchCommentCounts,
@@ -477,8 +479,13 @@ function RootComponent() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	// The navigation follows the user's sidebar layout, so wait for the first
+	// load of the user. Later resets (authorization recovery) must not unmount the admin.
+	const currentUser = useCurrentUser();
+	const [userSettled, setUserSettled] = React.useState(false);
+	if (!userSettled && !currentUser.isLoading) setUserSettled(true);
 
-	if (isLoading) {
+	if (isLoading || !userSettled) {
 		return <ConfigurationLoadingScreen />;
 	}
 
@@ -871,6 +878,7 @@ function ContentNewPage() {
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1007,6 +1015,7 @@ function ContentNewPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -1085,6 +1094,7 @@ function ContentEditPage() {
 			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	// Nothing is withheld until the current user has loaded; the server still
 	// refuses what the role can't do.
@@ -2052,6 +2062,7 @@ function ContentEditPage() {
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}
@@ -2627,6 +2638,19 @@ const transferSettingsRoute = createRoute({
 function TransferSettingsPage() {
 	const { start } = transferSettingsRoute.useSearch();
 	return <TransferSettings focusImport={start === "import"} />;
+}
+
+const sidebarsSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/sidebars",
+	component: SidebarsSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
+		search.tab === "editor" ? { tab: "editor" } : {},
+});
+
+function SidebarsSettingsPage() {
+	const { tab } = sidebarsSettingsRoute.useSearch();
+	return <SidebarsSettings tab={tab ?? "navigation"} />;
 }
 
 // General settings route
@@ -3329,6 +3353,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	emailSettingsRoute,
 	backupSettingsRoute,
 	transferSettingsRoute,
+	sidebarsSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);
