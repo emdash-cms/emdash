@@ -8065,7 +8065,7 @@ msgstr "Spustiť naživo"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
 msgid "Go live {countdown}"
-msgstr "Spustiť naživo {odpočítavanie}"
+msgstr "Spustiť naživo {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
 #: packages/admin/src/router.tsx:3388
