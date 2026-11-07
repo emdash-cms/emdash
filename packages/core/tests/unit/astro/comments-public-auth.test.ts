@@ -114,7 +114,7 @@ describe("session auth on the public comments API", () => {
 			email: "admin@example.com",
 			disabled: false,
 		});
-		const { context, locals, next } = createContext(pathname, method);
+		const { context, locals, next } = createContext(pathname, method, true);
 
 		const response = await onRequest(
 			context as Parameters<AuthMiddlewareModule["onRequest"]>[0],
