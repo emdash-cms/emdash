@@ -92,6 +92,20 @@ For an imported entry:
 
 WXR reruns with `skipExisting` match an existing entry by collection, slug, and locale. A changed slug can therefore create another entry. The exporter path uses the same slug-and-locale check and rebuilds its WordPress-ID relationship map from entries that it skips.
 
+### Preserve WordPress permalinks
+
+The admin WXR importer uses each published, routable entry's original `<link>` from the export to create a 301 redirect to the resolved EmDash URL, honoring Astro's `base` and `trailingSlash` settings. This preserves incoming links when the EmDash `urlPattern` produces a different path. Date tokens continue to resolve from EmDash's UTC publish date; `site:timezone` does not change them. The original WordPress URL redirects to the EmDash canonical URL; it does not become the canonical URL.
+
+Configure the final collection `urlPattern` before importing the WXR file. If the content is already imported, or the pattern changes after the import, rerun the same WXR file with **skip existing** enabled. The importer creates missing redirects, updates its enabled 301 **WordPress import** rules, and removes its rules whose sources now serve published content, including content imported in a later chunk. It leaves manual, disabled, pattern, and non-301 rules unchanged; review reported conflicts manually.
+
+<Aside type="caution">
+  Changing a collection's `urlPattern` does not automatically retarget imported redirects. If you import first and set the final pattern afterwards, rerun the WXR with **skip existing** before serving the migrated site. Until that rerun, some newly canonical paths can still redirect to the previous pattern's URLs, such as `/blog/{slug}`.
+</Aside>
+
+The importer skips drafts, non-routable entries, entries without a link, and links with a query or fragment (including WordPress's plain `?p=123` permalinks). Redirect matching uses pathnames, so query-based permalinks need separate handling at your web server. The middleware also bypasses paths with file extensions, such as `.html`, and internal paths such as `/_emdash`. When one of these WordPress paths needs a redirect, the importer reports it as unsupported rather than saving an ineffective rule. Configure redirects for these paths at your web server. The importer also reports errors for invalid URLs, unresolved paths, conflicts with existing rules or published content URLs, and redirect loops. The importer uses the stored WordPress link rather than converting the GMT date with the current site timezone, which handles historical WordPress local/GMT anomalies. If exact original canonical routes are required, use custom routing that preserves the WordPress local date or permalink data.
+
+This behavior applies to the admin WXR importer only. It does not apply to the WordPress Exporter connection or the `emdash import wordpress` CLI. Redirect sources retain the original WordPress pathname, while destinations include Astro's configured `base`. If the original paths are outside the new site's base or on a different host, set up redirects at the old host or web server instead.
+
 ## Media copy and deduplication
 
 The media stage downloads each attachment URL, computes a SHA-1 hash of the downloaded bytes, and looks for an existing media row with that content hash. Identical bytes reuse the existing media record even when the WordPress URLs differ.

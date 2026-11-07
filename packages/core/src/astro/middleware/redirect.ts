@@ -24,6 +24,7 @@ import { createRedirectSource } from "../../redirects/artifacts.js";
 import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
+import { shouldSkipRedirectPath } from "../../redirects/paths.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { peekRequestCache } from "../../request-cache.js";
 import {
@@ -32,12 +33,6 @@ import {
 	type EmDashRequestContext,
 } from "../../request-context.js";
 import { invalidateSiteSettingsSnapshot, peekSiteSettingsSnapshot } from "../../settings/index.js";
-
-/** Paths that should never be intercepted by redirects */
-const SKIP_PREFIXES = ["/_emdash", "/_image"];
-
-/** Static asset extensions -- don't redirect file requests */
-const ASSET_EXTENSION = /\.\w{1,10}$/;
 
 type RedirectCode = 301 | 302 | 303 | 307 | 308;
 
@@ -119,10 +114,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const { pathname } = context.url;
 
 	// Skip internal paths and static assets
-	if (SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-		return next();
-	}
-	if (ASSET_EXTENSION.test(pathname)) {
+	if (shouldSkipRedirectPath(pathname)) {
 		return next();
 	}
 
