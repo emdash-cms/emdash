@@ -70,6 +70,8 @@ assets/templates/*/[0-9]*
 __screenshots__/
 .vitest-attachments/
 
+vitest-timings/
+
 # AI review artifacts
 *-review.md
 
