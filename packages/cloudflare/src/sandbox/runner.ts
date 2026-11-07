@@ -61,7 +61,10 @@ import { generatePluginWrapper } from "./wrapper.js";
 const DEFAULT_LIMITS = {
 	cpuMs: 50,
 	memoryMb: 128,
-	subrequests: 10,
+	// Every host call a plugin makes (storage read/write, KV, email, content) is one subrequest through the bridge binding, so a
+	// single handler that does a few reads plus a write already passes 10. 32 matches Cloudflare's own per-request Worker
+	// invocation ceiling and still bounds a runaway plugin. Override per deployment with `sandbox({ limits: { subRequests } })`.
+	subrequests: 32,
 	wallTimeMs: 30_000,
 } as const;
 
