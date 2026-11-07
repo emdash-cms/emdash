@@ -142,8 +142,8 @@ export class FTSManager {
 		const columns = ["id UNINDEXED", "locale UNINDEXED", ...searchableFields].join(", ");
 
 		// Create the FTS5 virtual table. The table stores its own copy of the
-		// indexed values (no `content=` option): Portable Text fields are
-		// indexed as extracted plain text — see searchValueExpr — which cannot
+		// indexed values (no `content=` option): Portable Text and blocks
+		// fields are indexed as extracted plain text — see searchValueExpr — which cannot
 		// mirror the raw JSON in the ec_* column, and external-content FTS5
 		// requires the index to exactly mirror the backing table's values
 		// (snippet() reads them, and the 'delete' command must be fed the
@@ -168,7 +168,7 @@ export class FTSManager {
 	/**
 	 * SQL expression producing the indexed value for one searchable field.
 	 *
-	 * Portable Text fields are stored as JSON; indexing the raw JSON pollutes
+	 * Portable Text and blocks fields are stored as JSON; indexing the raw JSON pollutes
 	 * the index with structural tokens (`_type`, style values like `normal`,
 	 * `_key` ULIDs) and makes snippets show JSON fragments. Extract the prose
 	 * instead: every JSON string under a `text`, `alt`, `caption`, or `code`
@@ -181,10 +181,17 @@ export class FTSManager {
 	 * JSON scalar (`Some title`, `2024`) are indexed as-is. Extraction must
 	 * live in SQL because the sync triggers cannot call into JS.
 	 *
+	 * Blocks fields use the same extraction, so Portable Text content inside
+	 * blocks (including image alt and caption, and code blocks) is indexed.
+	 * The key list is fixed, so plain string/text sub-fields such as headings
+	 * or labels are indexed only when their sub-field slug happens to be
+	 * `text`, `alt`, `caption` or `code`. A schema-aware key list is a
+	 * possible follow-up.
+	 *
 	 * `ref` must be a validated column reference (`NEW.x`, `OLD.x`, `"x"`).
 	 */
 	private searchValueExpr(ref: string, fieldType: string | undefined): string {
-		if (fieldType !== "portableText") return ref;
+		if (fieldType !== "portableText" && fieldType !== "blocks") return ref;
 		return (
 			`CASE WHEN ${ref} IS NULL THEN NULL ` +
 			`WHEN json_valid(${ref}) AND json_type(${ref}) IN ('array', 'object') THEN (` +
@@ -233,9 +240,12 @@ export class FTSManager {
 	 * on one index row per content row instead of failing on the rowid
 	 * constraint.
 	 *
-	 * The trigger SQL emitted here MUST stay in lock-step with migration
-	 * `064_fts_plain_text.ts`. If this changes again, add a new migration
-	 * rather than editing shipped ones — migrations are forward-only.
+	 * Migration `064_fts_plain_text.ts` covers the portableText case as
+	 * shipped. Blocks fields were added later without a new migration because
+	 * no pre-existing trigger could include a searchable blocks field (they
+	 * could not be searchable before). If the expression changes for fields
+	 * that already have triggers, add a new migration rather than editing
+	 * shipped ones — migrations are forward-only.
 	 */
 	private async createTriggers(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		this.validateInputs(collectionSlug, searchableFields);
