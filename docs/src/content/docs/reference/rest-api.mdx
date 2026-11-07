@@ -378,6 +378,26 @@ The acquire body can include an opaque `token` that identifies one editing sessi
 
 When another user holds the lease, protected content writes return `409 ENTRY_LOCKED`. The error details identify the holder and expiry. To override the lock, send `"overrideLock": true` in the JSON body for a write that has a body, or `?overrideLock=true` for a `DELETE` operation that has no body.
 
+## Filter a content list by term
+
+`GET /content/{collection}` accepts `termFilters`, a JSON object of term slugs keyed by taxonomy name. URL-encode it as one query parameter:
+
+```http
+GET /_emdash/api/content/posts?termFilters={"topics":["rodeo","polo"],"places":["kentucky"]}
+```
+
+An entry matches when it carries any of a taxonomy's slugs, for every taxonomy named: this example returns posts about rodeo or polo that are also tagged Kentucky. `total`, numbered pages and cursor pages follow the filter, and it combines with the list's other filters.
+
+- A slug matches its term in any locale. A list in one locale also finds entries tagged with a term that exists only in the default locale.
+- A parent term matches only entries that carry it, not entries that carry only one of its children. Name the children too to include them.
+- A slug that matches no term returns an empty list.
+
+Validation returns `400 VALIDATION_ERROR` for:
+
+- a taxonomy that is not applied to the collection, or does not exist;
+- a value that is not valid JSON, or a taxonomy with an empty slug array;
+- more than 10 taxonomies, a taxonomy name that is not lowercase letters, digits and underscores starting with a letter or is longer than 63 characters, a slug longer than 200 characters, or a parameter longer than 8,192 characters.
+
 ## Reference selections
 
 A [`reference` field](/reference/field-types/#reference) links an entry to entries in another collection through a relation. Its value is not part of `data`, and it is keyed by translation group, so every translation of an entry shares one selection.
