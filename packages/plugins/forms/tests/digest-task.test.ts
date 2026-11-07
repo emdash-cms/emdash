@@ -25,6 +25,13 @@ function context(input: unknown, stored = new Map<string, FormDefinition>()) {
 			forms: {
 				get: async (id: string) => stored.get(id) ?? null,
 				put: async (id: string, form: FormDefinition) => void stored.set(id, form),
+				updateIf: async (id: string, { set }: { set: Partial<FormDefinition> }) => {
+					const current = stored.get(id);
+					if (!current) return { applied: false };
+					const data = { ...current, ...set };
+					stored.set(id, data);
+					return { applied: true, data };
+				},
 				query: async () => ({ items: [] }),
 			},
 		},
