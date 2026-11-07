@@ -94,6 +94,16 @@ async function syndicateContent(
 				? { uri: existing.bskyPostUri, cid: existing.bskyPostCid }
 				: undefined;
 
+		const doc = buildDocument({
+			publicationUri,
+			collection,
+			content,
+			coverImageBlob,
+			bskyPostRef,
+		});
+
+		let result = await putRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey, doc);
+
 		const enableCrosspost = (await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ?? true;
 		if (enableCrosspost && existing.bskyPostUri) {
 			try {
@@ -128,23 +138,13 @@ async function syndicateContent(
 			}
 		}
 
-		const doc = buildDocument({
-			publicationUri,
-			collection,
-			content,
-			coverImageBlob,
-			bskyPostRef,
-		});
-
-		const result = await putRecord(
-			ctx,
-			pdsHost,
-			accessJwt,
-			did,
-			"site.standard.document",
-			rkey,
-			doc,
-		);
+		if (
+			bskyPostRef &&
+			(doc.bskyPostRef?.uri !== bskyPostRef.uri || doc.bskyPostRef?.cid !== bskyPostRef.cid)
+		) {
+			doc.bskyPostRef = bskyPostRef;
+			result = await putRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey, doc);
+		}
 
 		await ctx.storage.records!.put(storageKey, {
 			collection: existing.collection,
