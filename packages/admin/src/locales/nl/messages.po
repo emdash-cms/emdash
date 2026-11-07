@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# item)} other {(# items)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3888
+#: packages/admin/src/components/ContentEditor.tsx:3898
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} van # teken, minimaal {min}} other {{counted} van # tekens, minimaal {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3893
+#: packages/admin/src/components/ContentEditor.tsx:3903
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} van # teken} other {{counted} van # tekens}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# reactie geïmporteerd} other {# reacties geïmporteerd}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2529
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# reactie bijgewerkt} other {# reacties bijgewerkt}}"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {# video toevoegen} other {# video's toevoegen}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3898
+#: packages/admin/src/components/ContentEditor.tsx:3908
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Minimaal # teken} other {Minimaal # tekens}}"
 
@@ -558,17 +558,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} van {1} stappen · {2} van {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:755
+#: packages/admin/src/router.tsx:782
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} van {total} konden niet worden verwijderd"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:711
+#: packages/admin/src/router.tsx:738
 msgid "{0} of {total} could not be published"
 msgstr "{0} van {total} konden niet worden gepubliceerd"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:761
 msgid "{0} of {total} could not be updated"
 msgstr "{0} van {total} konden niet worden bijgewerkt"
 
@@ -1292,7 +1292,7 @@ msgstr "Een pakketbestand ontbreekt"
 msgid "A publication time has not been selected"
 msgstr "Er is geen publicatietijd geselecteerd"
 
-#: packages/admin/src/components/ContentEditor.tsx:1707
+#: packages/admin/src/components/ContentEditor.tsx:1708
 msgid "A publishing action is already in progress"
 msgstr "Er is al een publicatieactie bezig"
 
@@ -1375,6 +1375,10 @@ msgstr "Accepteren & installeren"
 msgid "Accept & Update"
 msgstr "Accepteren & bijwerken"
 
+#: packages/admin/src/router.tsx:467
+msgid "Accept invitation"
+msgstr ""
+
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
 msgid "Accept Invite"
@@ -1386,7 +1390,7 @@ msgstr "Uitnodiging accepteren"
 msgid "Access denied"
 msgstr "Toegang geweigerd"
 
-#: packages/admin/src/router.tsx:2522
+#: packages/admin/src/router.tsx:2551
 msgid "Access Denied"
 msgstr "Toegang geweigerd"
 
@@ -1686,8 +1690,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "Passkey toevoegen"
 
-#: packages/admin/src/components/ContentEditor.tsx:3802
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3812
+#: packages/admin/src/components/ContentEditor.tsx:3812
 msgid "Add reference"
 msgstr "Referentie toevoegen"
 
@@ -1998,6 +2002,7 @@ msgid "Allowed block types"
 msgstr "Toegestane bloktypen"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
+#: packages/admin/src/router.tsx:2628
 msgid "Allowed Domains"
 msgstr "Toegestane domeinen"
 
@@ -2107,18 +2112,18 @@ msgstr "Een versleutelde digitale sleutel die je ontgrendelt met je vingerafdruk
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:665
-#: packages/admin/src/router.tsx:686
-#: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1369
-#: packages/admin/src/router.tsx:1527
-#: packages/admin/src/router.tsx:1551
-#: packages/admin/src/router.tsx:1635
-#: packages/admin/src/router.tsx:1668
-#: packages/admin/src/router.tsx:2472
-#: packages/admin/src/router.tsx:2508
-#: packages/admin/src/router.tsx:2936
-#: packages/admin/src/router.tsx:3123
+#: packages/admin/src/router.tsx:692
+#: packages/admin/src/router.tsx:713
+#: packages/admin/src/router.tsx:938
+#: packages/admin/src/router.tsx:1396
+#: packages/admin/src/router.tsx:1554
+#: packages/admin/src/router.tsx:1578
+#: packages/admin/src/router.tsx:1662
+#: packages/admin/src/router.tsx:1695
+#: packages/admin/src/router.tsx:2501
+#: packages/admin/src/router.tsx:2537
+#: packages/admin/src/router.tsx:2995
+#: packages/admin/src/router.tsx:3185
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Er is een fout opgetreden"
@@ -2217,6 +2222,7 @@ msgstr "Onbeperkt aantal"
 #: packages/admin/src/components/Settings.tsx:103
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
+#: packages/admin/src/router.tsx:2636
 msgid "API Tokens"
 msgstr "API-tokens"
 
@@ -2343,11 +2349,11 @@ msgstr "Assistenten die via MCP zijn verbonden, hebben goedkeuring van een behee
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3921
+#: packages/admin/src/components/ContentEditor.tsx:3931
 msgid "At least {min}"
 msgstr "Minimaal {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3918
+#: packages/admin/src/components/ContentEditor.tsx:3928
 msgid "At most {max}"
 msgstr "Maximaal {max}"
 
@@ -2417,6 +2423,10 @@ msgstr "Autorisatie mislukt"
 msgid "Authorize"
 msgstr "Autoriseren"
 
+#: packages/admin/src/router.tsx:478
+msgid "Authorize device"
+msgstr ""
+
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
 msgstr "Apparaat autoriseren"
@@ -2474,11 +2484,11 @@ msgstr "Automatische back-ups"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatische back-ups vereisen een storage-backend (R2, S3 of lokale storage). Configureer storage in je EmDash-config om ze in te schakelen."
 
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:1522
 msgid "Autosave failed"
 msgstr "Automatisch opslaan mislukt"
 
-#: packages/admin/src/components/ContentEditor.tsx:229
+#: packages/admin/src/components/ContentEditor.tsx:230
 msgid "Autosave paused"
 msgstr ""
 
@@ -2523,7 +2533,7 @@ msgstr "Terug"
 msgid "Back"
 msgstr "Terug"
 
-#: packages/admin/src/components/ContentEditor.tsx:1954
+#: packages/admin/src/components/ContentEditor.tsx:1964
 msgid "Back to {collectionLabel} list"
 msgstr "Terug naar de lijst met {collectionLabel}"
 
@@ -2604,6 +2614,7 @@ msgstr "Back-upinstellingen opgeslagen"
 
 #: packages/admin/src/components/Settings.tsx:118
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
+#: packages/admin/src/router.tsx:2652
 msgid "Backups"
 msgstr "Back-ups"
 
@@ -2631,7 +2642,7 @@ msgstr "Voor verzenden:"
 msgid "Before you continue:"
 msgstr "Voordat je doorgaat:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3915
+#: packages/admin/src/components/ContentEditor.tsx:3925
 msgid "Between {min} and {max}"
 msgstr "Tussen {min} en {max}"
 
@@ -2801,6 +2812,7 @@ msgid "Byline schema"
 msgstr "Schema voor auteursvermeldingen"
 
 #: packages/admin/src/components/Sidebar.tsx:552
+#: packages/admin/src/router.tsx:2932
 msgid "Byline Schema"
 msgstr "Schema voor auteursvermeldingen"
 
@@ -2815,6 +2827,7 @@ msgstr "Auteursvermelding bijgewerkt"
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
+#: packages/admin/src/router.tsx:2921
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Auteursvermeldingen"
@@ -2834,6 +2847,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
+#: packages/admin/src/router.tsx:545
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "Kalender"
@@ -3123,7 +3137,7 @@ msgstr "Changelog"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Wijzigingen gelden overal waar deze auteursvermelding voorkomt."
 
-#: packages/admin/src/router.tsx:1568
+#: packages/admin/src/router.tsx:1595
 msgid "Changes discarded"
 msgstr "Wijzigingen verworpen"
 
@@ -3482,7 +3496,7 @@ msgstr "Afbeeldingsinstellingen sluiten"
 msgid "Close panel"
 msgstr "Paneel sluiten"
 
-#: packages/admin/src/components/ContentEditor.tsx:2739
+#: packages/admin/src/components/ContentEditor.tsx:2749
 msgid "Close settings"
 msgstr "Instellingen sluiten"
 
@@ -3534,9 +3548,9 @@ msgstr "Collectie “{0}” bevat items"
 msgid "Collection “{0}” was created on this site"
 msgstr "Collectie “{0}” is op deze site aangemaakt"
 
-#: packages/admin/src/router.tsx:776
-#: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1995
+#: packages/admin/src/router.tsx:803
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:2022
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3619,6 +3633,7 @@ msgstr "Likes en emoji bij reacties"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/router.tsx:2426
 msgid "Comments"
 msgstr "Reacties"
 
@@ -3653,6 +3668,10 @@ msgstr ""
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
 msgstr "Bevestigen"
+
+#: packages/admin/src/router.tsx:441
+msgid "Confirm magic link"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -3719,6 +3738,7 @@ msgstr "content"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
+#: packages/admin/src/router.tsx:557
 msgid "Content"
 msgstr "Content"
 
@@ -3739,7 +3759,7 @@ msgstr "Contentfouten ({0})"
 msgid "Content found:"
 msgstr "Gevonden content:"
 
-#: packages/admin/src/router.tsx:1617
+#: packages/admin/src/router.tsx:1644
 msgid "Content has been scheduled for publishing"
 msgstr "Content is ingepland voor publicatie"
 
@@ -3747,7 +3767,7 @@ msgstr "Content is ingepland voor publicatie"
 msgid "Content ID:"
 msgstr "Content-ID:"
 
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1548
 msgid "Content is now live"
 msgstr "Content is nu live"
 
@@ -3772,11 +3792,11 @@ msgstr "Content verwijst op een ongeldige manier naar media"
 msgid "Content refers to media that is not in the package"
 msgstr "Content verwijst naar media die niet in het pakket staan"
 
-#: packages/admin/src/router.tsx:1545
+#: packages/admin/src/router.tsx:1572
 msgid "Content removed from public view"
 msgstr "Content is niet meer openbaar zichtbaar"
 
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/router.tsx:1655
 msgid "Content reverted to draft"
 msgstr "Content teruggezet naar concept"
 
@@ -3799,6 +3819,7 @@ msgstr "Contenttypes"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
+#: packages/admin/src/router.tsx:2940
 msgid "Content Types"
 msgstr "Contenttypes"
 
@@ -4008,7 +4029,7 @@ msgstr "Kan niet bevestigen of het media-item of de geselecteerde map nog bestaa
 msgid "Couldn't detect WordPress"
 msgstr "Kan WordPress niet detecteren"
 
-#: packages/admin/src/components/ContentEditor.tsx:3779
+#: packages/admin/src/components/ContentEditor.tsx:3789
 msgid "Couldn't load all references."
 msgstr "Kan niet alle referenties laden."
 
@@ -4323,7 +4344,7 @@ msgid "Created {0}"
 msgstr "Aangemaakt op {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1660
+#: packages/admin/src/router.tsx:1687
 msgid "Created {0} translation"
 msgstr "Vertaling {0} aangemaakt"
 
@@ -4450,8 +4471,10 @@ msgstr "Variant voor donkere modus"
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Sidebar.tsx:691
+#: packages/admin/src/router.tsx:527
 msgid "Dashboard"
 msgstr "Dashboard"
 
@@ -5021,7 +5044,7 @@ msgstr "Voltooid bestand {0} verbergen"
 msgid "Dismiss import suggestion"
 msgstr "Importsuggestie sluiten"
 
-#: packages/admin/src/components/ContentEditor.tsx:2699
+#: packages/admin/src/components/ContentEditor.tsx:2709
 msgid "Dismiss save error"
 msgstr ""
 
@@ -5066,7 +5089,7 @@ msgstr "Een tagwolk weergeven"
 msgid "Displayed below the image as a visible caption."
 msgstr "Wordt onder de afbeelding weergegeven als zichtbaar bijschrift."
 
-#: packages/admin/src/components/ContentEditor.tsx:2090
+#: packages/admin/src/components/ContentEditor.tsx:2100
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Afleidingsvrije modus (⌘⇧\\)"
 
@@ -5345,7 +5368,7 @@ msgstr "Vroegste opgeslagen versie"
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5375,9 +5398,14 @@ msgstr "{0} bewerken"
 msgid "Edit {0} field"
 msgstr "Veld {0} bewerken"
 
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1807
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel} bewerken"
+
+#: packages/admin/src/components/ContentEditor.tsx:1813
+msgid "Edit {itemLabel}: {tabEntryTitle}"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5409,6 +5437,14 @@ msgstr "Auteursvermeldingsveld bewerken"
 #: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Edit caption"
 msgstr "Bijschrift bewerken"
+
+#: packages/admin/src/router.tsx:1048
+msgid "Edit content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3134
+msgid "Edit content type"
+msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "Edit dark mode asset"
@@ -5457,6 +5493,10 @@ msgstr "Bewerkvergrendeling"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Alternatieve tekst, bijschriften en focuspunten van media bewerken"
 
+#: packages/admin/src/router.tsx:2842
+msgid "Edit menu"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
 msgstr "Menu-item bewerken"
@@ -5482,6 +5522,10 @@ msgstr "Omleiding {0} bewerken"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:727
 msgid "Edit role"
 msgstr "Rol bewerken"
+
+#: packages/admin/src/router.tsx:2891
+msgid "Edit section"
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5616,6 +5660,7 @@ msgstr "E-mailprovider actief"
 
 #: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/router.tsx:2644
 msgid "Email Settings"
 msgstr "E-mailinstellingen"
 
@@ -5897,7 +5942,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3969
+#: packages/admin/src/components/ContentEditor.tsx:3979
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Voer een geldige URL in (bijv. https://example.com)"
 
@@ -5926,7 +5971,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Inloggegevens handmatig invoeren"
 
-#: packages/admin/src/components/ContentEditor.tsx:2085
+#: packages/admin/src/components/ContentEditor.tsx:2095
 msgid "Enter distraction-free mode"
 msgstr "Afleidingsvrije modus activeren"
 
@@ -5934,7 +5979,7 @@ msgstr "Afleidingsvrije modus activeren"
 msgid "Enter email"
 msgstr "Voer e-mailadres in"
 
-#: packages/admin/src/components/ContentEditor.tsx:3232
+#: packages/admin/src/components/ContentEditor.tsx:3242
 msgid "Enter markdown content..."
 msgstr "Voer Markdown-content in..."
 
@@ -5999,7 +6044,7 @@ msgstr "item aan de verwijzende kant"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3398
+#: packages/admin/src/router.tsx:3463
 msgid "Error"
 msgstr "Fout"
 
@@ -6076,11 +6121,11 @@ msgstr "Bestaande content is geïndexeerd. Nieuwe wijzigingen worden automatisch
 msgid "Exists"
 msgstr "Bestaat al"
 
-#: packages/admin/src/components/ContentEditor.tsx:2085
+#: packages/admin/src/components/ContentEditor.tsx:2095
 msgid "Exit distraction-free mode"
 msgstr "Afleidingsvrije modus verlaten"
 
-#: packages/admin/src/components/ContentEditor.tsx:2089
+#: packages/admin/src/components/ContentEditor.tsx:2099
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Afleidingsvrije modus verlaten (⌘⇧\\)"
 
@@ -6339,7 +6384,7 @@ msgid "Failed to create term translation"
 msgstr "Aanmaken van termvertaling mislukt"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1665
+#: packages/admin/src/router.tsx:1692
 msgid "Failed to create translation"
 msgstr "Aanmaken van vertaling mislukt"
 
@@ -6351,7 +6396,7 @@ msgstr "Aanmaken van widget mislukt"
 msgid "Failed to create widget area"
 msgstr "Aanmaken van widgetgebied mislukt"
 
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:781
 msgid "Failed to delete"
 msgstr "Verwijderen mislukt"
 
@@ -6473,7 +6518,7 @@ msgstr "Verbergen van welkomstscherm mislukt"
 msgid "Failed to download a package file"
 msgstr "Downloaden van pakketbestand mislukt"
 
-#: packages/admin/src/router.tsx:685
+#: packages/admin/src/router.tsx:712
 msgid "Failed to duplicate"
 msgstr "Dupliceren mislukt"
 
@@ -6514,7 +6559,7 @@ msgstr "Ophalen van toegestane domeinen mislukt"
 msgid "Failed to fetch API tokens"
 msgstr "Ophalen van API-tokens mislukt"
 
-#: packages/admin/src/lib/api/client.ts:395
+#: packages/admin/src/lib/api/client.ts:397
 msgid "Failed to fetch auth mode"
 msgstr "Ophalen van authenticatiemodus mislukt"
 
@@ -6588,7 +6633,7 @@ msgstr "Ophalen van termen van item mislukt"
 msgid "Failed to fetch fields"
 msgstr "Ophalen van velden mislukt"
 
-#: packages/admin/src/lib/api/client.ts:378
+#: packages/admin/src/lib/api/client.ts:380
 msgid "Failed to fetch manifest"
 msgstr "Ophalen van manifest mislukt"
 
@@ -6735,7 +6780,7 @@ msgstr "Ophalen van updatestatus mislukt"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2418
+#: packages/admin/src/router.tsx:2447
 msgid "Failed to fetch user"
 msgstr "Ophalen van gebruiker mislukt"
 
@@ -6808,7 +6853,7 @@ msgstr "Ophalen van auteursvermeldingsvelden mislukt"
 msgid "Failed to list files to upload"
 msgstr "Ophalen van te uploaden bestanden mislukt"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:511
 msgid "Failed to load admin"
 msgstr "Laden van admin mislukt"
 
@@ -6924,7 +6969,7 @@ msgid "Failed to lock the entry"
 msgstr "Vergrendelen van item mislukt"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2507
+#: packages/admin/src/router.tsx:2536
 msgid "Failed to perform bulk action"
 msgstr "Uitvoeren van bulkactie mislukt"
 
@@ -6941,8 +6986,8 @@ msgstr "Voorbereiden van import mislukt"
 msgid "Failed to probe URL"
 msgstr "Controleren van URL mislukt"
 
-#: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1526
+#: packages/admin/src/router.tsx:737
+#: packages/admin/src/router.tsx:1553
 msgid "Failed to publish"
 msgstr "Publiceren mislukt"
 
@@ -6954,7 +6999,7 @@ msgstr "Publiceren van content mislukt"
 msgid "Failed to read byline field usage"
 msgstr "Ophalen van gebruik van auteursvermeldingsveld mislukt"
 
-#: packages/admin/src/router.tsx:2935
+#: packages/admin/src/router.tsx:2994
 msgid "Failed to register {slug}"
 msgstr "Registreren van {slug} mislukt"
 
@@ -7009,7 +7054,7 @@ msgstr "Herschikken van widgets mislukt"
 msgid "Failed to replace media image"
 msgstr "Vervangen van media-afbeelding mislukt"
 
-#: packages/admin/src/router.tsx:664
+#: packages/admin/src/router.tsx:691
 msgid "Failed to restore"
 msgstr "Herstellen mislukt"
 
@@ -7031,11 +7076,11 @@ msgstr "Intrekken van API-token mislukt"
 msgid "Failed to rewrite URLs"
 msgstr "Herschrijven van URL's mislukt"
 
-#: packages/admin/src/components/ContentEditor.tsx:2437
-#: packages/admin/src/components/ContentEditor.tsx:2691
-#: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1364
-#: packages/admin/src/router.tsx:3122
+#: packages/admin/src/components/ContentEditor.tsx:2447
+#: packages/admin/src/components/ContentEditor.tsx:2701
+#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:1391
+#: packages/admin/src/router.tsx:3184
 msgid "Failed to save"
 msgstr "Opslaan mislukt"
 
@@ -7103,7 +7148,7 @@ msgstr "Starten van import mislukt"
 msgid "Failed to uninstall plugin"
 msgstr "De-installeren van plugin mislukt"
 
-#: packages/admin/src/router.tsx:1550
+#: packages/admin/src/router.tsx:1577
 msgid "Failed to unpublish"
 msgstr "Depubliceren mislukt"
 
@@ -7111,7 +7156,7 @@ msgstr "Depubliceren mislukt"
 msgid "Failed to unpublish content"
 msgstr "Depubliceren van content mislukt"
 
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/router.tsx:1661
 msgid "Failed to unschedule"
 msgstr "Annuleren van inplanning mislukt"
 
@@ -7119,7 +7164,7 @@ msgstr "Annuleren van inplanning mislukt"
 msgid "Failed to unschedule content"
 msgstr "Annuleren van contentplanning mislukt"
 
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:760
 msgid "Failed to update"
 msgstr "Bijwerken mislukt"
 
@@ -7210,7 +7255,7 @@ msgstr "Bijwerken van sectie mislukt"
 msgid "Failed to update settings"
 msgstr "Bijwerken van instellingen mislukt"
 
-#: packages/admin/src/router.tsx:2471
+#: packages/admin/src/router.tsx:2500
 msgid "Failed to update status"
 msgstr "Bijwerken van status mislukt"
 
@@ -7443,19 +7488,19 @@ msgstr "Eerste versie"
 msgid "First-time commenters only"
 msgstr "Alleen wie voor het eerst reageert"
 
-#: packages/admin/src/components/ContentEditor.tsx:233
+#: packages/admin/src/components/ContentEditor.tsx:234
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1788
+#: packages/admin/src/components/ContentEditor.tsx:1789
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Corrigeer ongeldige velden voordat je de publicatiedatum wijzigt"
 
-#: packages/admin/src/components/ContentEditor.tsx:1716
+#: packages/admin/src/components/ContentEditor.tsx:1717
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Corrigeer ongeldige velden voordat je de planning wijzigt"
 
-#: packages/admin/src/components/ContentEditor.tsx:232
+#: packages/admin/src/components/ContentEditor.tsx:233
 msgid "Fix the {block} block to resume saving."
 msgstr ""
 
@@ -7480,7 +7525,7 @@ msgstr "Map"
 msgid "Folder deleted"
 msgstr "Map verwijderd"
 
-#: packages/admin/src/router.tsx:2141
+#: packages/admin/src/router.tsx:2169
 msgid "Folder no longer exists"
 msgstr "Map bestaat niet meer"
 
@@ -7591,6 +7636,7 @@ msgid "General"
 msgstr "Algemeen"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/router.tsx:2674
 msgid "General Settings"
 msgstr "Algemene instellingen"
 
@@ -7622,7 +7668,7 @@ msgstr "Geef deze passkey een naam zodat je hem later kunt herkennen."
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1710
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "Go back to editing first."
 msgstr "Ga eerst terug naar bewerken."
 
@@ -7635,7 +7681,7 @@ msgid "Go live {countdown}"
 msgstr "Worden gepubliceerd {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3418
+#: packages/admin/src/router.tsx:3483
 msgid "Go to Dashboard"
 msgstr "Ga naar dashboard"
 
@@ -7816,7 +7862,7 @@ msgstr "Token verbergen"
 msgid "visualEditing.hideToolbar"
 msgstr "Werkbalk verbergen"
 
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 msgid "Hide toolbar"
 msgstr "Werkbalk verbergen"
 
@@ -7833,7 +7879,7 @@ msgstr "Hits"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Vergrendel een item terwijl iemand het bewerkt en weiger wijzigingen van anderen"
 
-#: packages/admin/src/components/ContentEditor.tsx:3466
+#: packages/admin/src/components/ContentEditor.tsx:3476
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Bevat een item-ID. Stel onder Contenttypes een doelcollectie in om in plaats daarvan items te kiezen."
 
@@ -8129,6 +8175,7 @@ msgid "Import failed"
 msgstr "Import mislukt"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/router.tsx:2827
 msgid "Import from WordPress"
 msgstr "Importeren vanuit WordPress"
 
@@ -8420,7 +8467,7 @@ msgstr "ONGELDIGE HANDLE"
 msgid "Invalid invite link"
 msgstr "Ongeldige uitnodigingslink"
 
-#: packages/admin/src/components/ContentEditor.tsx:4062
+#: packages/admin/src/components/ContentEditor.tsx:4072
 msgid "Invalid JSON"
 msgstr "Ongeldige JSON"
 
@@ -8900,7 +8947,7 @@ msgid "Load preview"
 msgstr "Voorbeeld laden"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3373
+#: packages/admin/src/router.tsx:3438
 msgid "Loading"
 msgstr "Laden"
 
@@ -8929,8 +8976,8 @@ msgstr "Collecties laden..."
 msgid "Loading comments..."
 msgstr "Reacties laden..."
 
-#: packages/admin/src/router.tsx:3375
-#: packages/admin/src/router.tsx:3387
+#: packages/admin/src/router.tsx:3440
+#: packages/admin/src/router.tsx:3452
 msgid "Loading configuration..."
 msgstr "Configuratie laden..."
 
@@ -8988,7 +9035,7 @@ msgstr "Plugins laden..."
 msgid "Loading redirects..."
 msgstr "Omleidingen laden..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3787
+#: packages/admin/src/components/ContentEditor.tsx:3797
 msgid "Loading references..."
 msgstr "Referenties laden..."
 
@@ -9108,6 +9155,10 @@ msgstr "Beeldverhouding vergrendelen"
 #: packages/admin/src/components/BylineFieldEditor.tsx:416
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Vergrendeld omdat dit veld opgeslagen waarden heeft. Verwijder de waarden (of het veld) om dit te wijzigen."
+
+#: packages/admin/src/router.tsx:427
+msgid "Log in"
+msgstr ""
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -9235,11 +9286,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2772
+#: packages/admin/src/router.tsx:2819
 msgid "Marketplace browsing is no longer available."
 msgstr "Bladeren door de marketplace is niet meer beschikbaar."
 
-#: packages/admin/src/router.tsx:2747
+#: packages/admin/src/router.tsx:2792
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Bladeren door de marketplace is niet meer beschikbaar. Beheer geïnstalleerde plugins via Plugins."
 
@@ -9291,6 +9342,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/router.tsx:2128
 msgid "Media"
 msgstr "Media"
 
@@ -9352,6 +9404,10 @@ msgstr "Media lezen"
 #: packages/admin/src/components/MediaPickerModal.tsx:1427
 msgid "Media results"
 msgstr "Mediaresultaten"
+
+#: packages/admin/src/router.tsx:2603
+msgid "Media Usage"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
@@ -9445,6 +9501,7 @@ msgstr "Menu hernoemd"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/router.tsx:2835
 msgid "Menus"
 msgstr "Menu's"
 
@@ -9591,7 +9648,7 @@ msgstr "\"{title}\" naar de prullenbak verplaatsen? Je kunt het later terugzette
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3754
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "{0} omlaag verplaatsen"
@@ -9608,7 +9665,7 @@ msgstr "{0} naar achteren verplaatsen"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3743
+#: packages/admin/src/components/ContentEditor.tsx:3753
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "{0} omhoog verplaatsen"
@@ -9685,11 +9742,11 @@ msgstr ""
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:730
+#: packages/admin/src/router.tsx:757
 msgid "Moved {total} items to draft"
 msgstr "{total} items naar concept verplaatst"
 
-#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:778
 msgid "Moved {total} items to trash"
 msgstr "{total} items naar de prullenbak verplaatst"
 
@@ -9840,7 +9897,7 @@ msgstr "Vereist aandacht"
 msgid "Never"
 msgstr "Nooit"
 
-#: packages/admin/src/router.tsx:1660
+#: packages/admin/src/router.tsx:1687
 msgid "new"
 msgstr "nieuw"
 
@@ -9848,7 +9905,8 @@ msgstr "nieuw"
 msgid "NEW"
 msgstr "NIEUW"
 
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1807
+#: packages/admin/src/components/ContentEditor.tsx:1811
 msgid "New {itemLabel}"
 msgstr "Nieuw: {itemLabel}"
 
@@ -9869,6 +9927,14 @@ msgstr "Nieuw auteursvermeldingsveld"
 #: packages/admin/src/components/WordPressImport.tsx:2039
 msgid "New collection"
 msgstr "Nieuwe collectie"
+
+#: packages/admin/src/router.tsx:886
+msgid "New content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3037
+msgid "New content type"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 #: packages/admin/src/components/ContentTypeList.tsx:159
@@ -10328,7 +10394,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "Nog geen omleidingen"
 
-#: packages/admin/src/components/ContentEditor.tsx:3697
+#: packages/admin/src/components/ContentEditor.tsx:3707
 msgid "No references selected."
 msgstr "Geen referenties geselecteerd."
 
@@ -10443,7 +10509,7 @@ msgstr "Geen overeenkomst"
 msgid "Not recorded in this version"
 msgstr "Niet vastgelegd in deze versie"
 
-#: packages/admin/src/components/ContentEditor.tsx:2439
+#: packages/admin/src/components/ContentEditor.tsx:2449
 msgid "Not saved yet"
 msgstr ""
 
@@ -10574,7 +10640,7 @@ msgid "Open"
 msgstr "Openen"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3732
+#: packages/admin/src/components/ContentEditor.tsx:3742
 msgid "Open {0} in a new tab"
 msgstr "{0} in een nieuw tabblad openen"
 
@@ -10774,7 +10840,11 @@ msgstr "Hashwaarde van het pakket"
 msgid "Package downloaded"
 msgstr "Pakket gedownload"
 
-#: packages/admin/src/router.tsx:3413
+#: packages/admin/src/router.tsx:3351
+msgid "Page not found"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3478
 msgid "Page Not Found"
 msgstr "Pagina niet gevonden"
 
@@ -11040,6 +11110,7 @@ msgid "Please enter a valid URL"
 msgstr "Voer een geldige URL in"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/router.tsx:3327
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -11064,7 +11135,7 @@ msgstr "Pluginactie mislukt"
 msgid "Plugin actions"
 msgstr "Pluginacties"
 
-#: packages/admin/src/components/ContentEditor.tsx:2183
+#: packages/admin/src/components/ContentEditor.tsx:2193
 msgid "Plugin changes were not applied"
 msgstr "Pluginwijzigingen zijn niet toegepast"
 
@@ -11075,6 +11146,11 @@ msgstr "Pluginkolom niet beschikbaar"
 #: packages/admin/src/components/RegistryPluginDetail.tsx:855
 msgid "Plugin details"
 msgstr "Details van de plugin"
+
+#: packages/admin/src/router.tsx:2764
+#: packages/admin/src/router.tsx:2771
+msgid "Plugin Details"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -11096,6 +11172,10 @@ msgstr "Fout in plugin ({0})"
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
 msgstr "Voor plugininstallatie is expliciete toestemming vereist"
+
+#: packages/admin/src/router.tsx:2756
+msgid "Plugin Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:412
 msgid "Plugin MCP access updated"
@@ -11133,6 +11213,7 @@ msgid "Plugin Permissions"
 msgstr "Rechten van de plugin"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
+#: packages/admin/src/router.tsx:2713
 msgid "Plugin Registry"
 msgstr "Plugin Registry"
 
@@ -11141,8 +11222,8 @@ msgstr "Plugin Registry"
 msgid "Plugin registry configuration error"
 msgstr "Configuratiefout in pluginregistry"
 
-#: packages/admin/src/router.tsx:2707
-#: packages/admin/src/router.tsx:2738
+#: packages/admin/src/router.tsx:2749
+#: packages/admin/src/router.tsx:2783
 msgid "Plugin registry is not configured."
 msgstr "De pluginregistry is niet geconfigureerd."
 
@@ -11150,6 +11231,10 @@ msgstr "De pluginregistry is niet geconfigureerd."
 #: packages/admin/src/components/SandboxedPluginPage.tsx:59
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin antwoordde met {0}: {text}"
+
+#: packages/admin/src/router.tsx:3314
+msgid "Plugin Settings"
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -11180,6 +11265,7 @@ msgstr "Fout in plugin-widget"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
+#: packages/admin/src/router.tsx:2698
 msgid "Plugins"
 msgstr "Plugins"
 
@@ -11429,7 +11515,7 @@ msgstr "Gepubliceerd"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1548
 msgid "Published"
 msgstr "Gepubliceerd"
 
@@ -11442,7 +11528,7 @@ msgstr "Gepubliceerd op {0}"
 msgid "Published {liveSince}"
 msgstr "Gepubliceerd op {liveSince}"
 
-#: packages/admin/src/router.tsx:707
+#: packages/admin/src/router.tsx:734
 msgid "Published {total} items"
 msgstr "{total} items gepubliceerd"
 
@@ -11582,7 +11668,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Je taxonomieën en termen lezen"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2073
+#: packages/admin/src/router.tsx:2100
 msgid "Read-only"
 msgstr "Alleen-lezen"
 
@@ -11673,6 +11759,7 @@ msgstr "Je wordt doorgestuurd naar de inlogpagina..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
+#: packages/admin/src/router.tsx:2877
 msgid "Redirects"
 msgstr "Omleidingen"
 
@@ -11751,6 +11838,7 @@ msgstr "Registry"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
+#: packages/admin/src/router.tsx:3073
 msgid "Relations"
 msgstr "Relaties"
 
@@ -11792,8 +11880,8 @@ msgstr "Verwijderen"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4255
-#: packages/admin/src/components/ContentEditor.tsx:4321
+#: packages/admin/src/components/ContentEditor.tsx:4265
+#: packages/admin/src/components/ContentEditor.tsx:4331
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11814,7 +11902,7 @@ msgstr "Verwijderen"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3767
+#: packages/admin/src/components/ContentEditor.tsx:3777
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11831,8 +11919,8 @@ msgstr "{0} uit selectie verwijderen"
 msgid "Remove {entry}"
 msgstr "{entry} verwijderen"
 
-#: packages/admin/src/components/ContentEditor.tsx:4253
-#: packages/admin/src/components/ContentEditor.tsx:4319
+#: packages/admin/src/components/ContentEditor.tsx:4263
+#: packages/admin/src/components/ContentEditor.tsx:4329
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12049,9 +12137,9 @@ msgstr "Herhalende groep velden"
 msgid "visualEditing.replaceImage"
 msgstr "Vervangen"
 
-#: packages/admin/src/components/ContentEditor.tsx:4210
-#: packages/admin/src/components/ContentEditor.tsx:4245
-#: packages/admin/src/components/ContentEditor.tsx:4311
+#: packages/admin/src/components/ContentEditor.tsx:4220
+#: packages/admin/src/components/ContentEditor.tsx:4255
+#: packages/admin/src/components/ContentEditor.tsx:4321
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12071,7 +12159,7 @@ msgstr "Vervangen"
 msgid "Replace"
 msgstr "Vervangen"
 
-#: packages/admin/src/components/ContentEditor.tsx:4209
+#: packages/admin/src/components/ContentEditor.tsx:4219
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12109,7 +12197,7 @@ msgstr "Originele afbeelding vervangen?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Origineel vervangen is beschikbaar bij de beeldverhouding Origineel."
 
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3812
 msgid "Replace reference"
 msgstr "Referentie vervangen"
 
@@ -12162,7 +12250,7 @@ msgstr "Repository"
 msgid "Request a new link"
 msgstr "Nieuwe link aanvragen"
 
-#: packages/admin/src/lib/api/client.ts:366
+#: packages/admin/src/lib/api/client.ts:368
 msgid "Request failed"
 msgstr "Verzoek mislukt"
 
@@ -12259,7 +12347,7 @@ msgstr "Formaat van bijsnijselectie wijzigen vanaf de linkerbovenhoek. Gebruik d
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Formaat van bijsnijselectie wijzigen vanaf de rechterbovenhoek. Gebruik de pijltoetsen om het formaat te wijzigen."
 
-#: packages/admin/src/components/ContentEditor.tsx:2508
+#: packages/admin/src/components/ContentEditor.tsx:2518
 msgid "Resize settings panel"
 msgstr "Grootte van instellingenpaneel wijzigen"
 
@@ -12316,7 +12404,7 @@ msgid "Retired"
 msgstr "Buiten gebruik"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3781
+#: packages/admin/src/components/ContentEditor.tsx:3791
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12332,7 +12420,7 @@ msgstr "Buiten gebruik"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3401
+#: packages/admin/src/router.tsx:3466
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12383,7 +12471,7 @@ msgstr "Opnieuw proberen…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Herbruikbare contentblokken die je in elke content kunt invoegen"
 
-#: packages/admin/src/router.tsx:1569
+#: packages/admin/src/router.tsx:1596
 msgid "Reverted to published version"
 msgstr "Teruggezet naar gepubliceerde versie"
 
@@ -12599,7 +12687,7 @@ msgstr "Opslaan (Enter)"
 msgid "Save alt text"
 msgstr "Alt-tekst opslaan"
 
-#: packages/admin/src/components/ContentEditor.tsx:2211
+#: packages/admin/src/components/ContentEditor.tsx:2221
 msgid "Save anyway"
 msgstr "Toch opslaan"
 
@@ -12624,7 +12712,7 @@ msgstr "Content als concept opslaan voordat je publiceert"
 msgid "Save date"
 msgstr "Datum opslaan"
 
-#: packages/admin/src/components/ContentEditor.tsx:2367
+#: packages/admin/src/components/ContentEditor.tsx:2377
 #: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
@@ -12665,7 +12753,7 @@ msgstr "Instellingen opslaan"
 msgid "visualEditing.saved"
 msgstr "Opgeslagen"
 
-#: packages/admin/src/components/ContentEditor.tsx:2442
+#: packages/admin/src/components/ContentEditor.tsx:2452
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "Opgeslagen"
@@ -12688,7 +12776,7 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:2435
+#: packages/admin/src/components/ContentEditor.tsx:2445
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -12755,7 +12843,7 @@ msgstr "Planning verwijderd"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1616
+#: packages/admin/src/router.tsx:1643
 msgid "Scheduled"
 msgstr "Ingepland"
 
@@ -13075,6 +13163,7 @@ msgstr "Sectietitel"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
+#: packages/admin/src/router.tsx:2884
 msgid "Sections"
 msgstr "Secties"
 
@@ -13131,6 +13220,7 @@ msgstr "Beveiligingsfout. Zorg dat je een beveiligde verbinding gebruikt."
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
+#: packages/admin/src/router.tsx:2611
 msgid "Security Settings"
 msgstr "Beveiligingsinstellingen"
 
@@ -13147,9 +13237,9 @@ msgid "Select"
 msgstr "Selecteren"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4209
-#: packages/admin/src/components/ContentEditor.tsx:4270
-#: packages/admin/src/components/ContentEditor.tsx:4331
+#: packages/admin/src/components/ContentEditor.tsx:4219
+#: packages/admin/src/components/ContentEditor.tsx:4280
+#: packages/admin/src/components/ContentEditor.tsx:4341
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13198,7 +13288,7 @@ msgstr "Alles op deze pagina selecteren"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3805
+#: packages/admin/src/components/ContentEditor.tsx:3815
 msgid "Select at least one entry."
 msgstr "Selecteer minstens één item."
 
@@ -13231,8 +13321,8 @@ msgstr "Favicon selecteren"
 msgid "Select Favicon"
 msgstr "Favicon selecteren"
 
-#: packages/admin/src/components/ContentEditor.tsx:4272
-#: packages/admin/src/components/ContentEditor.tsx:4337
+#: packages/admin/src/components/ContentEditor.tsx:4282
+#: packages/admin/src/components/ContentEditor.tsx:4347
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Bestand selecteren"
@@ -13396,6 +13486,7 @@ msgid "SEO settings"
 msgstr "SEO-instellingen"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/router.tsx:2690
 msgid "SEO Settings"
 msgstr "SEO-instellingen"
 
@@ -13468,14 +13559,15 @@ msgid "Setting up..."
 msgstr "Instellen..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2336
-#: packages/admin/src/components/ContentEditor.tsx:2725
+#: packages/admin/src/components/ContentEditor.tsx:2346
+#: packages/admin/src/components/ContentEditor.tsx:2735
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/router.tsx:2596
 msgid "Settings"
 msgstr "Instellingen"
 
@@ -13491,6 +13583,10 @@ msgstr "Instellingen lezen"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 msgid "Settings saved successfully"
 msgstr "Instellingen opgeslagen"
+
+#: packages/admin/src/router.tsx:419
+msgid "Setup"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13522,7 +13618,7 @@ msgstr "Korte tekst"
 msgid "Short Text"
 msgstr "Korte tekst"
 
-#: packages/admin/src/components/ContentEditor.tsx:238
+#: packages/admin/src/components/ContentEditor.tsx:239
 msgid "Show"
 msgstr ""
 
@@ -13630,6 +13726,10 @@ msgstr "Inloggen met passkey"
 
 #: packages/auth-atproto/src/admin.tsx:174
 msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
+
+#: packages/admin/src/router.tsx:459
+msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
@@ -13868,6 +13968,10 @@ msgstr "Links naar profielen op sociale media"
 msgid "Social Profiles"
 msgstr "Sociale profielen"
 
+#: packages/admin/src/router.tsx:2682
+msgid "Social Settings"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
 msgstr "Sommige avatars van auteursvermeldingen zijn weggelaten"
@@ -14022,8 +14126,8 @@ msgstr "Begin met de voorbeeldberichten en voorbeeldpagina's van het sjabloon. A
 msgid "Start writing with plain text"
 msgstr "Begin met schrijven in platte tekst"
 
-#: packages/admin/src/components/ContentEditor.tsx:3155
-#: packages/admin/src/components/ContentEditor.tsx:3178
+#: packages/admin/src/components/ContentEditor.tsx:3165
+#: packages/admin/src/components/ContentEditor.tsx:3188
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "Begin met schrijven of typ '/' voor opdrachten"
@@ -14256,6 +14360,7 @@ msgstr "Doeltaal"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
+#: packages/admin/src/router.tsx:2855
 msgid "Taxonomies"
 msgstr "Taxonomieën"
 
@@ -14650,7 +14755,7 @@ msgstr "De content uit het pakket wordt naar deze site geschreven. Zodra de impo
 msgid "The package’s file index is not valid."
 msgstr "De bestandsindex van het pakket is ongeldig."
 
-#: packages/admin/src/router.tsx:3415
+#: packages/admin/src/router.tsx:3480
 msgid "The page you're looking for doesn't exist."
 msgstr "De pagina die je zoekt bestaat niet."
 
@@ -14670,8 +14775,8 @@ msgstr "De veldwidget van de plugin kon niet worden weergegeven."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "De plugin heeft deze wijzigingen niet opgeslagen. Controleer ze voordat je de editor bijwerkt."
 
-#: packages/admin/src/components/ContentEditor.tsx:1322
-#: packages/admin/src/components/ContentEditor.tsx:1338
+#: packages/admin/src/components/ContentEditor.tsx:1323
+#: packages/admin/src/components/ContentEditor.tsx:1339
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Het resultaat van de plugin is verouderd omdat de editor is gewijzigd terwijl de plugin bezig was."
 
@@ -14797,10 +14902,18 @@ msgstr "Thema"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
+#: packages/admin/src/router.tsx:2810
+msgid "Theme Details"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
 msgstr "Thema-ID: {0}"
+
+#: packages/admin/src/router.tsx:2802
+msgid "Theme Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -14909,20 +15022,20 @@ msgstr "Dit lijkt geen geldige migratiesleutel. Genereer een nieuwe in de plugin
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2207
+#: packages/admin/src/components/ContentEditor.tsx:2217
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Dit item is elders gewijzigd nadat je het hebt geopend."
 
-#: packages/admin/src/components/ContentEditor.tsx:1722
-#: packages/admin/src/router.tsx:1152
+#: packages/admin/src/components/ContentEditor.tsx:1723
+#: packages/admin/src/router.tsx:1179
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Dit item is elders gewijzigd. Sla toch op, of laad opnieuw om de nieuwere versie op te halen."
 
-#: packages/admin/src/router.tsx:2007
+#: packages/admin/src/router.tsx:2034
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Dit item bestaat niet of is niet gepubliceerd. Met je rol kun je alleen gepubliceerde content bekijken."
 
-#: packages/admin/src/router.tsx:2008
+#: packages/admin/src/router.tsx:2035
 msgid "This entry doesn't exist or was deleted."
 msgstr "Dit item bestaat niet of is verwijderd."
 
@@ -14934,7 +15047,7 @@ msgstr "Dit item krijgt pas een URL zodra het is gepubliceerd. Plak in plaats da
 msgid "This entry is open somewhere else"
 msgstr "Dit item is elders geopend"
 
-#: packages/admin/src/components/ContentEditor.tsx:2194
+#: packages/admin/src/components/ContentEditor.tsx:2204
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Dit item is alleen-lezen omdat het schema veldtypes gebruikt die deze versie van EmDash niet ondersteunt."
 
@@ -14946,8 +15059,8 @@ msgstr "Dit item had {lateness} gepubliceerd moeten worden, maar is nog niet gep
 msgid "This export is large"
 msgstr "Deze export is groot"
 
-#: packages/admin/src/components/ContentEditor.tsx:2930
-#: packages/admin/src/components/ContentEditor.tsx:2938
+#: packages/admin/src/components/ContentEditor.tsx:2940
+#: packages/admin/src/components/ContentEditor.tsx:2948
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Dit veld kan niet worden bewerkt met deze versie van EmDash."
@@ -14973,7 +15086,7 @@ msgstr "Dit veld accepteert geen bestanden van het type {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Dit veld verwacht een lijst. De opgeslagen waarde blijft ongewijzigd totdat je deze vervangt door een lege lijst, waardoor de waarde wordt verwijderd. Kopieer eerst alles wat je ervan nodig hebt."
 
-#: packages/admin/src/components/ContentEditor.tsx:4343
+#: packages/admin/src/components/ContentEditor.tsx:4353
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Dit veld is verplicht"
@@ -15397,6 +15510,7 @@ msgstr "Houd bij waar media in je content worden gebruikt."
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
+#: packages/admin/src/router.tsx:2659
 msgid "Transfer"
 msgstr "Overdracht"
 
@@ -15425,7 +15539,7 @@ msgstr "Vertalen..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1659
+#: packages/admin/src/router.tsx:1686
 msgid "Translation created"
 msgstr "Vertaling aangemaakt"
 
@@ -15707,7 +15821,7 @@ msgstr "Naamloze gebruiker"
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel} depubliceren"
 
-#: packages/admin/src/router.tsx:1545
+#: packages/admin/src/router.tsx:1572
 msgid "Unpublished"
 msgstr "Gedepubliceerd"
 
@@ -15729,7 +15843,7 @@ msgstr "Toewijzing niet opgelost"
 msgid "visualEditing.unsaved"
 msgstr "Niet opgeslagen"
 
-#: packages/admin/src/components/ContentEditor.tsx:2441
+#: packages/admin/src/components/ContentEditor.tsx:2451
 msgid "Unsaved changes"
 msgstr ""
 
@@ -15737,7 +15851,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "Niet-opgeslagen content kan je site verlaten"
 
-#: packages/admin/src/router.tsx:1627
+#: packages/admin/src/router.tsx:1654
 msgid "Unscheduled"
 msgstr "Planning ongedaan gemaakt"
 
@@ -15762,7 +15876,7 @@ msgstr "Tot {0}"
 msgid "Untitled"
 msgstr "Zonder titel"
 
-#: packages/admin/src/components/ContentEditor.tsx:4169
+#: packages/admin/src/components/ContentEditor.tsx:4179
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Bestand zonder titel"
@@ -16138,7 +16252,7 @@ msgstr "Wordt gebruikt als fallback Open Graph-afbeelding wanneer een pagina er 
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Wordt gebruikt als identifier. Alleen kleine letters, cijfers en underscores."
 
-#: packages/admin/src/components/ContentEditor.tsx:3366
+#: packages/admin/src/components/ContentEditor.tsx:3376
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Wordt gebruikt als hoofdafbeelding voor dit bericht op overzichtspagina's en bovenaan het bericht"
 
@@ -16200,6 +16314,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/router.tsx:2899
 msgid "Users"
 msgstr "Gebruikers"
 
@@ -16503,7 +16618,7 @@ msgstr "Wat wordt geïmporteerd"
 msgid "What will happen when you import"
 msgstr "Wat er gebeurt als je importeert"
 
-#: packages/admin/src/components/ContentEditor.tsx:2208
+#: packages/admin/src/components/ContentEditor.tsx:2218
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Wat je hebt getypt staat er nog. Opslaan vervangt de nieuwere versie."
 
@@ -16620,6 +16735,7 @@ msgstr "Widget bijgewerkt"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/router.tsx:2869
 msgid "Widgets"
 msgstr "Widgets"
 
@@ -16788,7 +16904,7 @@ msgstr "Je hebt admin-rechten nodig om het bijhouden van mediagebruik te beheren
 msgid "You need Admin permissions to transfer this site."
 msgstr "Je hebt Admin-rechten nodig om deze site over te dragen."
 
-#: packages/admin/src/router.tsx:2523
+#: packages/admin/src/router.tsx:2552
 msgid "You need Editor permissions to moderate comments."
 msgstr "Je hebt redacteursrechten nodig om reacties te modereren."
 
@@ -16930,11 +17046,11 @@ msgstr "Je naam (optioneel)"
 msgid "Your Role"
 msgstr "Je rol"
 
-#: packages/admin/src/router.tsx:2078
+#: packages/admin/src/router.tsx:2105
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Met je rol kun je je eigen items alleen bewerken zolang ze concepten zijn."
 
-#: packages/admin/src/router.tsx:2079
+#: packages/admin/src/router.tsx:2106
 msgid "Your role can't edit this entry."
 msgstr "Met je rol kun je dit item niet bewerken."
 
