@@ -13847,8 +13847,8 @@ msgid "SMTP Transport"
 msgstr "SMTP Transport"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
-msgid "smtp-relay.brevo.com"
-msgstr "smtp-relay.brevo.com"
+msgid "smtp.example.com"
+msgstr "smtp.example.com"
 
 #: packages/admin/src/components/Settings.tsx:60
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
