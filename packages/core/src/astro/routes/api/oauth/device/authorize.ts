@@ -7,8 +7,6 @@
  * browser. Both require authentication (the user must be logged in).
  */
 
-/// <reference types="emdash/locals" />
-
 import type { APIRoute } from "astro";
 import { z } from "zod";
 
