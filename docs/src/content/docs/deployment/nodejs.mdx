@@ -244,7 +244,7 @@ SQLite requires persistent disk storage. Ensure your hosting platform provides:
 - Write access to the database directory
 - Backup mechanisms for the database file
 
-Back up both the SQLite file and the upload directory. Stop the process before replacing either during recovery. See [Backups](/guides/backups/#sqlite-backup-and-recovery).
+Back up both the SQLite file and the upload directory. Stop the process before replacing either during recovery. See [Backups](/guides/backups/#back-up-sqlite-and-local-libsql).
 
 <Aside type="caution">
 	Ephemeral filesystems will lose your database on restart. Use libSQL with a remote database or persistent storage.
@@ -273,3 +273,5 @@ After starting a new build, verify the same runtime services that production req
 5. If the site uses sandboxed plugins, invoke one plugin route or hook and confirm that the server log has no sandbox-unavailable or `workerd` startup error.
 
 Keep the new instance out of the load balancer until every applicable check passes.
+
+A site created through the setup wizard starts in staging, hidden from search engines. When it's ready to be found, [go live](/guides/seo/#hide-a-site-until-it-goes-live).

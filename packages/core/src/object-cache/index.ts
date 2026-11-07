@@ -200,6 +200,7 @@ const PENDING_KEY = Symbol.for("emdash:object-cache:pending-bumps");
 const LAST_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:last-content-write");
 const PENDING_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:pending-content-write");
 const WRITE_SCOPE_KEY = Symbol.for("emdash:object-cache:write-scope");
+const INVALIDATION_SCOPE_KEY = Symbol.for("emdash:object-cache:invalidation-scope");
 const CHANGE_MARKER_KEY = Symbol.for("emdash:object-cache:change-marker");
 const MARKER_WRITE_KEY = Symbol.for("emdash:object-cache:marker-write");
 const g = globalThis as Record<symbol, unknown>;
@@ -323,6 +324,21 @@ const writeScopes: AsyncLocalStorage<WriteScope> =
 	(() => {
 		const als = new AsyncLocalStorage<WriteScope>();
 		g[WRITE_SCOPE_KEY] = als;
+		return als;
+	})();
+
+/** Invalidations held by {@link deferObjectCacheInvalidations} until its work ends. */
+interface InvalidationScope {
+	namespaces: Set<string>;
+	closed: boolean;
+}
+
+const invalidationScopes: AsyncLocalStorage<InvalidationScope> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[INVALIDATION_SCOPE_KEY] as AsyncLocalStorage<InvalidationScope> | undefined) ??
+	(() => {
+		const als = new AsyncLocalStorage<InvalidationScope>();
+		g[INVALIDATION_SCOPE_KEY] = als;
 		return als;
 	})();
 
@@ -934,11 +950,18 @@ export async function getLastContentWriteAt(): Promise<number> {
  * via `after`, or held until the work ends inside
  * {@link coalesceObjectCacheWrites}. Other isolates pick up the new epoch
  * within their `revalidate` window after that write. No-ops when the cache is
- * disabled.
+ * disabled. Inside {@link deferObjectCacheInvalidations} the bump waits until
+ * that scope ends.
  *
  * Content namespaces (`content:*`) also stamp {@link getLastContentWriteAt}.
  */
 export function invalidateObjectCache(namespace: string): void {
+	const deferred = invalidationScopes.getStore();
+	if (deferred && !deferred.closed) {
+		deferred.namespaces.add(namespace);
+		return;
+	}
+
 	// Monotonic so two writes in the same millisecond still produce distinct
 	// epochs — otherwise the second write reuses the first's stamp and its
 	// stale entries survive.
@@ -1049,6 +1072,28 @@ export async function coalesceObjectCacheWrites<T>(fn: () => Promise<T>): Promis
 		// it sees the closed scope and writes through.
 		scope.closed = true;
 		for (const write of scope.held.values()) write();
+	}
+}
+
+/**
+ * Run a database transaction with its invalidations held until it settles.
+ *
+ * A bump inside the transaction would land before its writes are visible to
+ * other connections: a concurrent read would capture the new epoch, load the
+ * uncommitted (old) rows and cache them under that epoch, where they stay a
+ * HIT until the next write or the TTL. Bumping once `fn` settles orphans
+ * anything read while it ran. Nested scopes join the outermost one.
+ */
+export async function deferObjectCacheInvalidations<T>(fn: () => Promise<T>): Promise<T> {
+	const outer = invalidationScopes.getStore();
+	if (outer && !outer.closed) return fn();
+
+	const scope: InvalidationScope = { namespaces: new Set(), closed: false };
+	try {
+		return await invalidationScopes.run(scope, fn);
+	} finally {
+		scope.closed = true;
+		for (const namespace of scope.namespaces) invalidateObjectCache(namespace);
 	}
 }
 

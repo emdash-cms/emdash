@@ -147,11 +147,13 @@ export async function rewriteUrls(
 					// Handle Portable Text fields - parse JSON and rewrite URLs in blocks
 					for (const field of portableTextFields) {
 						const value = row[field.slug];
-						if (!value || typeof value !== "string") continue;
+						if (!value) continue;
 
 						try {
-							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns unknown; validated by Array.isArray below
-							const blocks = JSON.parse(value) as PortableTextBlock[];
+							// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON values are validated by Array.isArray below
+							const blocks = (
+								typeof value === "string" ? JSON.parse(value) : value
+							) as PortableTextBlock[];
 							if (!Array.isArray(blocks)) continue;
 
 							const rewriteResult = rewritePortableTextUrls(blocks, urlMap, baseMap);
@@ -163,6 +165,7 @@ export async function rewriteUrls(
 							}
 						} catch {
 							// Not valid JSON, try string replacement as fallback
+							if (typeof value !== "string") continue;
 							const stringResult = rewriteStringUrls(value, urlMap, baseMap);
 							if (stringResult.changed) {
 								updates[field.slug] = stringResult.newValue;
@@ -188,12 +191,13 @@ export async function rewriteUrls(
 					// Handle image/file fields - normalize to MediaValue objects
 					for (const field of mediaFields) {
 						const value = row[field.slug];
-						if (!value || typeof value !== "string") continue;
+						if (!value) continue;
+						const raw = typeof value === "string" ? value : JSON.stringify(value);
 
 						// Values are stored as JSON MediaValue objects (e.g. featured_image from
 						// import normalizes to {"provider":"external","src":"<wp url>"}). Match on the
 						// inner `src`, falling back to the raw value for legacy bare-URL rows.
-						const newUrl = findMatchingUrl(extractMediaUrl(value), urlMap, baseMap);
+						const newUrl = findMatchingUrl(extractMediaUrl(raw), urlMap, baseMap);
 						if (newUrl) {
 							// Normalize into a proper MediaValue instead of storing a bare URL
 							try {
