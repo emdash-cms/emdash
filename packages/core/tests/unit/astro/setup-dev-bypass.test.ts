@@ -197,6 +197,11 @@ describe("setup dev-bypass seed gating", () => {
 		const pending = MIGRATION_NAMES.at(-1)!;
 		await db.deleteFrom("_emdash_migrations").where("name", "=", pending).execute();
 
+		if (_name === "auth dev bypass") {
+			const setup = await GET(makeContext(db, "?content=0"));
+			expect(setup.status).toBe(200);
+		}
+
 		const response = await invoke(db);
 
 		expect(response.status).toBe(200);
