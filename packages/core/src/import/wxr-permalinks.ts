@@ -49,23 +49,25 @@ async function importPermalinkRoots(): Promise<Set<string>> {
 	return roots;
 }
 
-async function findCanonicalRedirects(db: Kysely<Database>, canonicalPaths: Set<string>) {
+async function findCanonicalRedirects(
+	db: Kysely<Database>,
+	canonicalPaths: Set<string>,
+	eligibleOnly = true,
+) {
 	const sources = [...canonicalPaths].flatMap((path) =>
 		path === "/" ? [path] : [path, `${path}/`],
 	);
 	const matches: Selectable<RedirectTable>[] = [];
 	for (const batch of chunks(sources, SQL_BATCH_SIZE)) {
-		const rows = await db
+		let query = db
 			.selectFrom("_emdash_redirects")
 			.selectAll()
 			.where("auto", "=", 1)
 			.where("group_name", "=", "WordPress import")
-			.where("enabled", "=", 1)
-			.where("is_pattern", "=", 0)
-			.where("type", "=", 301)
-			.where("source", "in", batch)
-			.execute();
-		matches.push(...rows);
+			.where("source", "in", batch);
+		if (eligibleOnly)
+			query = query.where("enabled", "=", 1).where("is_pattern", "=", 0).where("type", "=", 301);
+		matches.push(...(await query.execute()));
 	}
 	return matches;
 }
@@ -159,7 +161,28 @@ export async function importWxrPermalinks(
 	let changed = false;
 	const workTitles = new Set(candidates.map((candidate) => candidate.title));
 	try {
-		const cleanup = await findCanonicalRedirects(db, canonicalPaths);
+		const canonicalRules = await findCanonicalRedirects(db, canonicalPaths, false);
+		const cleanup = canonicalRules.filter(
+			(row) => row.enabled === 1 && row.is_pattern === 0 && row.type === 301,
+		);
+		const protectedPaths = new Set(
+			canonicalRules
+				.filter((row) => row.enabled === 1 && (row.is_pattern !== 0 || row.type !== 301))
+				.map((row) => pathKey(row.source)),
+		);
+		for (const path of protectedPaths) {
+			for (const title of canonicalTitles.get(path) ?? [])
+				errors.push({
+					title,
+					error:
+						"Imported content's canonical URL conflicts with a protected WordPress import redirect",
+				});
+		}
+		for (let index = candidates.length - 1; index >= 0; index--) {
+			if (protectedPaths.has(pathKey(candidates[index].destination))) candidates.splice(index, 1);
+		}
+		workTitles.clear();
+		for (const candidate of candidates) workTitles.add(candidate.title);
 		for (const row of cleanup) {
 			for (const title of canonicalTitles.get(pathKey(row.source)) ?? []) workTitles.add(title);
 		}

@@ -1,16 +1,28 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+vi.mock("astro:middleware", () => ({
+	defineMiddleware: (handler: unknown) => handler,
+}));
 
 import { _resetEnvCache } from "../../../src/api/public-url.js";
+import { onRequest } from "../../../src/astro/middleware/redirect.js";
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
+import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { handlersFromRuntime, createTestRuntime } from "../../utils/mcp-runtime.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	teardownForDialect,
+	type DialectName,
+} from "../../utils/test-db.js";
 
-async function setup() {
-	const db = await setupTestDatabase();
+async function setup(dialect: DialectName) {
+	const ctx = await setupForDialect(dialect);
+	const db = ctx.db;
 	const registry = new SchemaRegistry(db);
 	for (const [slug, label, pattern] of [
 		["posts", "Posts", "/posts/{slug}"],
@@ -27,7 +39,7 @@ async function setup() {
 		await registry.createField(slug, { slug: "excerpt", label: "Excerpt", type: "text" });
 	}
 	const runtime = createTestRuntime(db);
-	return { db, runtime, emdash: handlersFromRuntime(runtime) };
+	return { ctx, db, runtime, emdash: handlersFromRuntime(runtime) };
 }
 
 function wxrItem({
@@ -99,11 +111,27 @@ function executeContext(context: unknown) {
 	return context as any;
 }
 
-describe("WordPress permalink roots and publish cleanup", () => {
+type MiddlewareContext = Parameters<typeof onRequest>[0];
+
+function middlewareContext(
+	pathname: string,
+	db: Awaited<ReturnType<typeof setup>>["db"],
+): MiddlewareContext {
+	const url = new URL(`https://example.com${pathname}`);
+	return {
+		url,
+		request: new Request(url),
+		locals: { emdash: { db } },
+		redirect: (destination: string, status: number) =>
+			new Response(null, { status, headers: { Location: destination } }),
+	} as unknown as MiddlewareContext;
+}
+
+describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) => {
 	let harness: Awaited<ReturnType<typeof setup>>;
 
 	beforeEach(async () => {
-		harness = await setup();
+		harness = await setup(dialect);
 	});
 
 	afterEach(async () => {
@@ -111,7 +139,7 @@ describe("WordPress permalink roots and publish cleanup", () => {
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
 		_resetEnvCache();
-		await teardownTestDatabase(harness.db);
+		await teardownForDialect(harness.ctx);
 	});
 
 	it.each(["/", "/archive/", "/fr/", "/archive/fr/"])(
@@ -144,6 +172,139 @@ describe("WordPress permalink roots and publish cleanup", () => {
 		expect(result.data.result).toMatchObject({ imported: 1, errors: [] });
 		expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
 	});
+
+	it.each([
+		{ source: "/archive/contact", enabled: false, isPattern: false, type: 301 },
+		{ source: "/archive/contact", enabled: true, isPattern: true, type: 301 },
+		{ source: "/archive/contact", enabled: true, isPattern: false, type: 302 },
+		{ source: "/archive/contact/", enabled: false, isPattern: false, type: 301 },
+		{ source: "/archive/contact/", enabled: true, isPattern: true, type: 301 },
+		{ source: "/archive/contact/", enabled: true, isPattern: false, type: 302 },
+	])(
+		"preserves a protected importer redirect when a published page uses its canonical path ($source, $type, enabled=$enabled, pattern=$isPattern)",
+		async ({ source, enabled, isPattern, type }) => {
+			vi.stubEnv("BASE_URL", "/archive/");
+			const repository = new RedirectRepository(harness.db);
+			const protectedRedirect = await repository.create({
+				source,
+				destination: "/keep",
+				type,
+				enabled,
+				isPattern,
+				auto: true,
+				groupName: "WordPress import",
+			});
+			const before = await harness.db
+				.selectFrom("_emdash_redirects")
+				.selectAll()
+				.where("id", "=", protectedRedirect.id)
+				.executeTakeFirstOrThrow();
+
+			const result = await executeImport(
+				wxr(wxrItem({ type: "page", id: 1, slug: "contact", link: "/archive/contact/" })),
+				harness.emdash,
+				{ page: { collection: "pages", enabled: true } },
+			);
+			expect(result.data.result).toMatchObject({
+				imported: 1,
+				errors: enabled
+					? [
+							{
+								title: "contact",
+								error:
+									"Imported content's canonical URL conflicts with a protected WordPress import redirect",
+							},
+						]
+					: [],
+			});
+			expect(
+				await harness.db
+					.selectFrom("ec_pages")
+					.select(["slug", "status"])
+					.where("slug", "=", "contact")
+					.executeTakeFirstOrThrow(),
+			).toEqual({ slug: "contact", status: "published" });
+			// Check the persisted rule before middleware hit bookkeeping changes it.
+			expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([
+				before,
+			]);
+
+			const next = vi.fn(async () => new Response("ok", { status: 200 }));
+			try {
+				invalidateRedirectCache();
+				const response = await onRequest(middlewareContext(source, harness.db), next);
+				if (enabled) {
+					expect(response.status).toBe(type);
+					expect(response.headers.get("location")).toBe("/keep");
+					expect(next).not.toHaveBeenCalled();
+				} else {
+					expect(response.status).toBe(200);
+					expect(response.headers.has("location")).toBe(false);
+					expect(next).toHaveBeenCalledOnce();
+				}
+			} finally {
+				invalidateRedirectCache();
+			}
+		},
+	);
+
+	it.each([
+		{ isPattern: false, type: 302 },
+		{ isPattern: true, type: 301 },
+	])(
+		"does not create another redirect to a protected canonical path ($type, pattern=$isPattern)",
+		async ({ isPattern, type }) => {
+			vi.stubEnv("BASE_URL", "/archive/");
+			const repository = new RedirectRepository(harness.db);
+			const rule = await repository.create({
+				source: "/archive/contact",
+				destination: "/keep",
+				auto: true,
+				enabled: true,
+				isPattern,
+				type,
+				groupName: "WordPress import",
+			});
+			const result = await executeImport(
+				wxr(wxrItem({ type: "page", id: 1, slug: "contact", link: "/archive/old-contact/" })),
+				harness.emdash,
+				{ page: { collection: "pages", enabled: true } },
+			);
+			expect(result.data.result).toMatchObject({
+				imported: 1,
+				errors: [
+					{
+						title: "contact",
+						error:
+							"Imported content's canonical URL conflicts with a protected WordPress import redirect",
+					},
+				],
+			});
+			expect(await repository.findById(rule.id)).toEqual(rule);
+			expect(await repository.findBySource("/archive/old-contact")).toBeNull();
+		},
+	);
+
+	it.each([null, "Auto: slug change"])(
+		"keeps legacy automatic cleanup for group %s",
+		async (groupName) => {
+			vi.stubEnv("BASE_URL", "/archive/");
+			await new RedirectRepository(harness.db).create({
+				source: "/archive/contact",
+				destination: "/old",
+				auto: true,
+				enabled: false,
+				groupName,
+			});
+			const result = await executeImport(
+				wxr(wxrItem({ type: "page", id: 1, slug: "contact", link: "/archive/contact/" })),
+				harness.emdash,
+				{ page: { collection: "pages", enabled: true } },
+			);
+			expect(result.data.result).toMatchObject({ imported: 1, errors: [] });
+			expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
+		},
+	);
 
 	it.each([
 		{ base: "/", source: "/contact/", destination: "/posts/contact" },

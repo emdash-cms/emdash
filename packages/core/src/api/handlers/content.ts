@@ -894,6 +894,13 @@ async function removeShadowingAutoRedirect(
 		.deleteFrom("_emdash_redirects")
 		.where("source", "in", [...sources])
 		.where("auto", "=", 1)
+		.where((eb) =>
+			eb.or([
+				eb("group_name", "is", null),
+				eb("group_name", "!=", "WordPress import"),
+				eb.and([eb("enabled", "=", 1), eb("is_pattern", "=", 0), eb("type", "=", 301)]),
+			]),
+		)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
 	if (removed) invalidateRedirectCache();
