@@ -26,10 +26,10 @@ There is no workaround inside EmDash. A site can only avoid the cost by querying
 
 ```ts
 const { entries } = await getEmDashCollection("articles", {
-  status: "published",
-  limit: 12,
-  orderBy: { published_at: "desc" },
-  fields: ["title", "excerpt", "hero_image"],
+	status: "published",
+	limit: 12,
+	orderBy: { published_at: "desc" },
+	fields: ["title", "excerpt", "hero_image"],
 });
 ```
 
