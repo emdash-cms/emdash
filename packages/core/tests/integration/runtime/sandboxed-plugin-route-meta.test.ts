@@ -62,6 +62,20 @@ function createDeps(
 }
 
 describe("EmDashRuntime — config-declared sandboxed plugin route metadata", () => {
+	it("passes the configured adapter to the sandbox runner", async () => {
+		const deps = createDeps();
+		const factory = vi.fn(deps.createSandboxRunner!);
+		deps.createSandboxRunner = factory;
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			expect(factory).toHaveBeenCalledWith(
+				expect.objectContaining({ database: deps.config.database }),
+			);
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+
 	it("honors public: true declared in the sandboxed entry's routes", async () => {
 		const runtime = await EmDashRuntime.create(createDeps());
 		try {

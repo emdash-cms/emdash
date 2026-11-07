@@ -18,6 +18,7 @@ import type {
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
+	DatabaseDescriptor,
 	DownloadResult,
 	I18nConfig,
 	PluginComment,
@@ -49,6 +50,7 @@ import {
 	createPluginSecretRedactor,
 	type PluginSecretRedactor,
 } from "emdash/plugins/secret-redactor";
+import type { Kysely } from "kysely";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
 import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
@@ -62,18 +64,16 @@ function loadBridgeRuntime(): Promise<typeof import("./bridge-runtime.js")> {
 
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
-const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
-const MISSING_TRANSFER_OPERATIONS_TABLE_REGEX = /no such table.*_emdash_transfer_operations/i;
+const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX =
+	/(?:no such table.*_emdash_media_usage_activation|relation "_emdash_media_usage_activation" does not exist)/i;
+const MISSING_TRANSFER_OPERATIONS_TABLE_REGEX =
+	/(?:no such table.*_emdash_transfer_operations|relation "_emdash_transfer_operations" does not exist)/i;
 interface SiteWriteFence {
 	mediaState: string | null;
 	importId: string | null;
 	exportId: string | null;
 }
 
-const SITE_WRITE_FENCE_SQL = `SELECT
-	(SELECT state FROM _emdash_media_usage_activation WHERE task_key = 'incremental_capture') AS media_state,
-	(SELECT id FROM _emdash_transfer_operations WHERE kind = 'import' AND (state IN ('running', 'verifying') OR (state IN ('failed', 'cancelled') AND mutation_started_at IS NOT NULL)) LIMIT 1) AS import_id,
-	(SELECT id FROM _emdash_transfer_operations WHERE kind = 'export' AND state = 'running' LIMIT 1) AS export_id`;
 const SETTINGS_KEY_PREFIX = "settings:";
 
 const SYSTEM_COLUMNS = new Set([
@@ -288,12 +288,12 @@ function rowToContentItem(collection: string, row: Record<string, unknown>) {
 	};
 }
 
-/** Narrow an unknown D1 column value to a string ("" when it isn't one). */
+/** Narrow an unknown column value to a string ("" when it isn't one). */
 function columnString(value: unknown): string {
 	return typeof value === "string" ? value : "";
 }
 
-/** Narrow an unknown, nullable D1 column value to `string | null`. */
+/** Narrow an unknown, nullable column value to `string | null`. */
 function columnNullableString(value: unknown): string | null {
 	return typeof value === "string" ? value : null;
 }
@@ -369,7 +369,7 @@ async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<Redire
  * Environment bindings required by PluginBridge
  */
 export interface PluginBridgeEnv {
-	DB: D1Database;
+	DB?: D1Database;
 	MEDIA?: R2Bucket;
 	EMDASH_ENCRYPTION_KEY?: string;
 }
@@ -380,6 +380,7 @@ export interface PluginBridgeEnv {
 export interface PluginBridgeProps {
 	pluginId: string;
 	pluginVersion: string;
+	database?: DatabaseDescriptor;
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
@@ -417,9 +418,9 @@ export interface PluginBridgeProps {
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
 	private readonly secretRedactor: PluginSecretRedactor = createPluginSecretRedactor();
 
-	private async db() {
-		const { D1Dialect, Kysely } = await loadBridgeRuntime();
-		return new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+	private async withDb<T>(fn: (db: Kysely<Database>) => Promise<T>): Promise<T> {
+		const { withBridgeDb } = await import("./bridge-db.js");
+		return withBridgeDb(this.ctx.props.database, fn, this.env.DB);
 	}
 
 	private requireCapability(capability: string): void {
@@ -440,27 +441,25 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return mediaStorageCallbacks.get(key) ?? null;
 	}
 
-	private async contentAccess() {
+	private async contentAccess(db: Kysely<Database>) {
 		const { createContentAccess } = await loadBridgeRuntime();
-		return createContentAccess(await this.db(), {
+		return createContentAccess(db, {
 			site: this.ctx.props.siteInfo,
 			revisions: this.ctx.props.capabilities.includes("content:revisions:read"),
 		});
 	}
 
-	private async getOptionsRepo(): Promise<OptionsRepository> {
-		const { D1Dialect, Kysely, OptionsRepository } = await loadBridgeRuntime();
-		return new OptionsRepository(
-			new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) }),
-		);
+	private async getOptionsRepo(db: Kysely<Database>): Promise<OptionsRepository> {
+		const { OptionsRepository } = await loadBridgeRuntime();
+		return new OptionsRepository(db);
 	}
 
-	private async getKVAccess() {
+	private async getKVAccess(db: Kysely<Database>) {
 		const { createKVAccess } = await loadBridgeRuntime();
-		return createKVAccess(await this.getOptionsRepo(), this.ctx.props.pluginId);
+		return createKVAccess(await this.getOptionsRepo(db), this.ctx.props.pluginId);
 	}
 
-	private async getSettingsAccess() {
+	private async getSettingsAccess(db: Kysely<Database>) {
 		const { createSettingsAccess, resolvePluginEncryptionKeys } = await loadBridgeRuntime();
 		const keys =
 			this.env.EMDASH_ENCRYPTION_KEY === undefined
@@ -469,7 +468,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 						EMDASH_ENCRYPTION_KEY: this.env.EMDASH_ENCRYPTION_KEY,
 					});
 		return createSettingsAccess(
-			await this.getOptionsRepo(),
+			await this.getOptionsRepo(db),
 			this.ctx.props.pluginId,
 			this.ctx.props.settingsSchema ?? {},
 			keys,
@@ -484,22 +483,31 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 	}
 
-	private async deleteLegacyKV(key: string): Promise<boolean> {
-		const result = await this.env.DB.prepare(
-			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
-		)
-			.bind(this.ctx.props.pluginId, key)
-			.run();
-		return (result.meta?.changes ?? 0) > 0;
+	private async deleteLegacyKV(db: Kysely<Database>, key: string): Promise<boolean> {
+		const result = await db
+			.deleteFrom("_plugin_storage")
+			.where("plugin_id", "=", this.ctx.props.pluginId)
+			.where("collection", "=", "__kv")
+			.where("id", "=", key)
+			.executeTakeFirst();
+		return result.numDeletedRows > 0n;
 	}
 
-	private async readSiteWriteFence(): Promise<SiteWriteFence> {
+	private async readSiteWriteFence(db: Kysely<Database>): Promise<SiteWriteFence> {
+		const { sql } = await loadBridgeRuntime();
 		try {
-			const row = await this.env.DB.prepare(SITE_WRITE_FENCE_SQL).first<{
-				media_state: string | null;
-				import_id: string | null;
-				export_id: string | null;
-			}>();
+			const row = (
+				await sql<{
+					media_state: string | null;
+					import_id: string | null;
+					export_id: string | null;
+				}>`SELECT
+ (SELECT state FROM _emdash_media_usage_activation WHERE task_key = 'incremental_capture') AS media_state,
+ (SELECT id FROM _emdash_transfer_operations WHERE kind = 'import' AND (state IN ('running', 'verifying') OR (state IN ('failed', 'cancelled') AND mutation_started_at IS NOT NULL)) LIMIT 1) AS import_id,
+ (SELECT id FROM _emdash_transfer_operations WHERE kind = 'export' AND state = 'running' LIMIT 1) AS export_id`.execute(
+					db,
+				)
+			).rows[0];
 			return {
 				mediaState: row?.media_state ?? null,
 				importId: row?.import_id ?? null,
@@ -508,11 +516,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (!MISSING_TRANSFER_OPERATIONS_TABLE_REGEX.test(message)) throw error;
-			const activation = await this.env.DB.prepare(
-				"SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1",
-			)
-				.bind("incremental_capture")
-				.first<{ state: string }>();
+			const activation = await db
+				.selectFrom("_emdash_media_usage_activation")
+				.select("state")
+				.where("task_key", "=", "incremental_capture")
+				.executeTakeFirst();
 			return { mediaState: activation?.state ?? null, importId: null, exportId: null };
 		}
 	}
@@ -521,11 +529,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	 * The unified site write fence (media usage activation and transfer
 	 * imports), read with one query. Records the write for running exports.
 	 */
-	private async assertSiteWriteAllowed(): Promise<void> {
-		const { createSandboxRouteError, getSandboxRouteErrorDetails } = await loadBridgeRuntime();
+	private async assertSiteWriteAllowed(db: Kysely<Database>): Promise<void> {
+		const { createSandboxRouteError, getSandboxRouteErrorDetails, sql } = await loadBridgeRuntime();
 		let fence: SiteWriteFence;
 		try {
-			fence = await this.readSiteWriteFence();
+			fence = await this.readSiteWriteFence(db);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX.test(message)) return;
@@ -539,9 +547,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		if (fence.exportId) {
 			try {
-				await this.env.DB.prepare(
-					"UPDATE _emdash_transfer_operations SET write_epoch = write_epoch + 1 WHERE kind = 'export' AND state = 'running'",
-				).run();
+				await db
+					.updateTable("_emdash_transfer_operations")
+					.set({ write_epoch: sql`write_epoch + 1` })
+					.where("kind", "=", "export")
+					.where("state", "=", "running")
+					.execute();
 			} catch (error) {
 				console.error("[transfer] Failed to record a write for running exports:", error);
 			}
@@ -554,8 +565,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	 * query/count operations support WHERE/ORDER BY/cursor pagination
 	 * matching in-process and workerd sandbox plugins.
 	 */
-	private async getStorageRepo(collection: string): Promise<PluginStorageRepository> {
-		const { D1Dialect, Kysely, PluginStorageRepository } = await loadBridgeRuntime();
+	private async getStorageRepo(
+		db: Kysely<Database>,
+		collection: string,
+	): Promise<PluginStorageRepository> {
+		const { PluginStorageRepository } = await loadBridgeRuntime();
 		const { pluginId, storageConfig } = this.ctx.props;
 		const config = storageConfig?.[collection];
 		// Merge unique indexes into the indexes list since both are queryable
@@ -563,11 +577,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			...(config?.indexes ?? []),
 			...(config?.uniqueIndexes ?? []),
 		];
-		const db = new Kysely<unknown>({
-			dialect: new D1Dialect({ database: this.env.DB }),
-		});
-		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Kysely<unknown> is compatible with PluginStorageRepository's expected db
-		return new PluginStorageRepository(db as never, pluginId, collection, allIndexes);
+		return new PluginStorageRepository(db, pluginId, collection, allIndexes);
 	}
 
 	// =========================================================================
@@ -575,48 +585,57 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// =========================================================================
 
 	async kvGet(key: string): Promise<unknown> {
-		if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess()).get(key);
-		const { pluginId } = this.ctx.props;
-		const settingValue = await (
-			await this.getSettingsAccess()
-		).get(key.slice(SETTINGS_KEY_PREFIX.length));
-		if (settingValue !== null) return settingValue;
-		const result = await this.env.DB.prepare(
-			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
-		)
-			.bind(pluginId, key)
-			.first<{ data: string }>();
-		if (!result) return null;
-		try {
-			const value: unknown = JSON.parse(result.data);
-			this.observeSecretSetting(key, value);
-			return value;
-		} catch {
-			this.observeSecretSetting(key, result.data);
-			return result.data;
-		}
+		return this.withDb(async (db) => {
+			if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess(db)).get(key);
+			const { pluginId } = this.ctx.props;
+			const settingValue = await (
+				await this.getSettingsAccess(db)
+			).get(key.slice(SETTINGS_KEY_PREFIX.length));
+			if (settingValue !== null) return settingValue;
+			const result = await db
+				.selectFrom("_plugin_storage")
+				.select("data")
+				.where("plugin_id", "=", pluginId)
+				.where("collection", "=", "__kv")
+				.where("id", "=", key)
+				.executeTakeFirst();
+			if (!result) return null;
+			try {
+				const value: unknown = JSON.parse(result.data);
+				this.observeSecretSetting(key, value);
+				return value;
+			} catch {
+				this.observeSecretSetting(key, result.data);
+				return result.data;
+			}
+		});
 	}
 
 	async kvSet(key: string, value: unknown): Promise<void> {
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			await (await this.getSettingsAccess()).set(key.slice(SETTINGS_KEY_PREFIX.length), value);
-			await this.deleteLegacyKV(key);
-			return;
-		}
-		await (await this.getKVAccess()).set(key, value);
+		return this.withDb(async (db) => {
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+				await (await this.getSettingsAccess(db)).set(key.slice(SETTINGS_KEY_PREFIX.length), value);
+				await this.deleteLegacyKV(db, key);
+				return;
+			}
+			await (await this.getKVAccess(db)).set(key, value);
+		});
 	}
 
 	async kvGetVersioned(key: string): Promise<VersionedValue | null> {
-		if (!key.startsWith(SETTINGS_KEY_PREFIX)) return (await this.getKVAccess()).getVersioned(key);
-		const value = await (
-			await this.getSettingsAccess()
-		).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
-		if (value !== null) return value;
-		const legacy = await (await this.getStorageRepo("__kv")).getVersioned(key);
-		if (legacy) {
-			this.observeSecretSetting(key, legacy.value);
-		}
-		return legacy;
+		return this.withDb(async (db) => {
+			if (!key.startsWith(SETTINGS_KEY_PREFIX))
+				return (await this.getKVAccess(db)).getVersioned(key);
+			const value = await (
+				await this.getSettingsAccess(db)
+			).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
+			if (value !== null) return value;
+			const legacy = await (await this.getStorageRepo(db, "__kv")).getVersioned(key);
+			if (legacy) {
+				this.observeSecretSetting(key, legacy.value);
+			}
+			return legacy;
+		});
 	}
 
 	async kvCompareAndSet(
@@ -624,68 +643,78 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		expectedRevision: string | null,
 		value: unknown,
 	): Promise<ConditionalWriteResult> {
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const result = await (
-				await this.getSettingsAccess()
-			).compareAndSet(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision, value);
-			if (result.applied) await this.deleteLegacyKV(key);
-			return result;
-		}
-		return (await this.getKVAccess()).compareAndSet(key, expectedRevision, value);
+		return this.withDb(async (db) => {
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+				const result = await (
+					await this.getSettingsAccess(db)
+				).compareAndSet(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision, value);
+				if (result.applied) await this.deleteLegacyKV(db, key);
+				return result;
+			}
+			return (await this.getKVAccess(db)).compareAndSet(key, expectedRevision, value);
+		});
 	}
 
 	async kvCompareAndDelete(
 		key: string,
 		expectedRevision: string,
 	): Promise<ConditionalDeleteResult> {
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const result = await (
-				await this.getSettingsAccess()
-			).compareAndDelete(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision);
-			if (result.applied) await this.deleteLegacyKV(key);
-			return result;
-		}
-		return (await this.getKVAccess()).compareAndDelete(key, expectedRevision);
+		return this.withDb(async (db) => {
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+				const result = await (
+					await this.getSettingsAccess(db)
+				).compareAndDelete(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision);
+				if (result.applied) await this.deleteLegacyKV(db, key);
+				return result;
+			}
+			return (await this.getKVAccess(db)).compareAndDelete(key, expectedRevision);
+		});
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
-		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const optionDeleted = await (
-				await this.getSettingsAccess()
-			).delete(key.slice(SETTINGS_KEY_PREFIX.length));
-			const legacyDeleted = await this.deleteLegacyKV(key);
-			return optionDeleted || legacyDeleted;
-		}
-		return (await this.getKVAccess()).delete(key);
+		return this.withDb(async (db) => {
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+				const optionDeleted = await (
+					await this.getSettingsAccess(db)
+				).delete(key.slice(SETTINGS_KEY_PREFIX.length));
+				const legacyDeleted = await this.deleteLegacyKV(db, key);
+				return optionDeleted || legacyDeleted;
+			}
+			return (await this.getKVAccess(db)).delete(key);
+		});
 	}
 
 	async kvList(prefix: string = ""): Promise<Array<{ key: string; value: unknown }>> {
-		const includesSettings =
-			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
-		if (!includesSettings) return (await this.getKVAccess()).list(prefix);
-		const { pluginId } = this.ctx.props;
-		const results = await this.env.DB.prepare(
-			"SELECT id, data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id LIKE 'settings:%'",
-		)
-			.bind(pluginId)
-			.all<{ id: string; data: string }>();
+		return this.withDb(async (db) => {
+			const includesSettings =
+				SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
+			if (!includesSettings) return (await this.getKVAccess(db)).list(prefix);
+			const { pluginId } = this.ctx.props;
+			const results = await db
+				.selectFrom("_plugin_storage")
+				.select(["id", "data"])
+				.where("plugin_id", "=", pluginId)
+				.where("collection", "=", "__kv")
+				.where("id", "like", "settings:%")
+				.execute();
 
-		const entries = new Map(
-			(results.results ?? [])
-				.filter((row) => row.id.startsWith(SETTINGS_KEY_PREFIX) && row.id.startsWith(prefix))
-				.map((row) => [row.id, JSON.parse(row.data) as unknown]),
-		);
-		const { createKVAccess } = await loadBridgeRuntime();
-		const kv = createKVAccess(
-			await this.getOptionsRepo(),
-			pluginId,
-			await this.getSettingsAccess(),
-		);
-		for (const { key, value } of await kv.list(prefix)) entries.set(key, value);
-		for (const [key, value] of entries) {
-			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
-		}
-		return Array.from(entries, ([key, value]) => ({ key, value }));
+			const entries = new Map(
+				results
+					.filter((row) => row.id.startsWith(SETTINGS_KEY_PREFIX) && row.id.startsWith(prefix))
+					.map((row) => [row.id, JSON.parse(row.data) as unknown]),
+			);
+			const { createKVAccess } = await loadBridgeRuntime();
+			const kv = createKVAccess(
+				await this.getOptionsRepo(db),
+				pluginId,
+				await this.getSettingsAccess(db),
+			);
+			for (const { key, value } of await kv.list(prefix)) entries.set(key, value);
+			for (const [key, value] of entries) {
+				if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
+			}
+			return Array.from(entries, ([key, value]) => ({ key, value }));
+		});
 	}
 
 	async settingsGet(key: string): Promise<unknown> {
@@ -721,10 +750,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async settingsList(prefix = ""): Promise<Array<{ key: string; value: unknown }>> {
 		const entries = await this.kvList(`${SETTINGS_KEY_PREFIX}${prefix}`);
-		return entries.map(({ key, value }) => ({
-			key: key.slice(SETTINGS_KEY_PREFIX.length),
-			value,
-		}));
+		return entries.map(({ key, value }) => ({ key: key.slice(SETTINGS_KEY_PREFIX.length), value }));
 	}
 
 	// =========================================================================
@@ -732,36 +758,32 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// =========================================================================
 
 	async storageGet(collection: string, id: string): Promise<unknown> {
-		const { pluginId, storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		const result = await this.env.DB.prepare(
-			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-		)
-			.bind(pluginId, collection, id)
-			.first<{ data: string }>();
-		if (!result) return null;
-		return JSON.parse(result.data);
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			return (await this.getStorageRepo(db, collection)).get(id);
+		});
 	}
 
 	async storagePut(collection: string, id: string, data: unknown): Promise<void> {
-		const { pluginId, storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		await this.env.DB.prepare(
-			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
-		)
-			.bind(pluginId, collection, id, JSON.stringify(data), crypto.randomUUID())
-			.run();
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			await (await this.getStorageRepo(db, collection)).put(id, data);
+		});
 	}
 
 	async storageGetVersioned(collection: string, id: string): Promise<VersionedValue | null> {
-		if (!this.ctx.props.storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		return (await this.getStorageRepo(collection)).getVersioned(id);
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			return (await this.getStorageRepo(db, collection)).getVersioned(id);
+		});
 	}
 
 	async storageCompareAndSet(
@@ -770,10 +792,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		expectedRevision: string | null,
 		data: unknown,
 	): Promise<ConditionalWriteResult> {
-		if (!this.ctx.props.storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		return (await this.getStorageRepo(collection)).compareAndSet(id, expectedRevision, data);
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			return (await this.getStorageRepo(db, collection)).compareAndSet(id, expectedRevision, data);
+		});
 	}
 
 	async storageCompareAndDelete(
@@ -781,10 +805,12 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		id: string,
 		expectedRevision: string,
 	): Promise<ConditionalDeleteResult> {
-		if (!this.ctx.props.storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		return (await this.getStorageRepo(collection)).compareAndDelete(id, expectedRevision);
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			return (await this.getStorageRepo(db, collection)).compareAndDelete(id, expectedRevision);
+		});
 	}
 
 	async storageUpdateIf(
@@ -792,40 +818,39 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		id: string,
 		args: unknown,
 	): Promise<StorageUpdateIfResponse> {
-		if (!this.ctx.props.storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		try {
-			return await (await this.getStorageRepo(collection)).updateIf(id, args);
-		} catch (error) {
-			const { StorageSerializationError } = await loadBridgeRuntime();
-			if (!(error instanceof StorageSerializationError)) throw error;
-			return {
-				__emdashStorageError: {
-					name: "StorageSerializationError",
-					code: "STORAGE_SERIALIZATION_FAILURE",
-					retryable: true,
-					...(error.sqlState === "40001" || error.sqlState === "40P01"
-						? { sqlState: error.sqlState }
-						: {}),
-					message:
-						"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
-				},
-			};
-		}
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			try {
+				return await (await this.getStorageRepo(db, collection)).updateIf(id, args);
+			} catch (error) {
+				const { StorageSerializationError } = await loadBridgeRuntime();
+				if (!(error instanceof StorageSerializationError)) throw error;
+				return {
+					__emdashStorageError: {
+						name: "StorageSerializationError",
+						code: "STORAGE_SERIALIZATION_FAILURE",
+						retryable: true,
+						...(error.sqlState === "40001" || error.sqlState === "40P01"
+							? { sqlState: error.sqlState }
+							: {}),
+						message:
+							"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+					},
+				};
+			}
+		});
 	}
 
 	async storageDelete(collection: string, id: string): Promise<boolean> {
-		const { pluginId, storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		const result = await this.env.DB.prepare(
-			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = ? AND id = ?",
-		)
-			.bind(pluginId, collection, id)
-			.run();
-		return (result.meta?.changes ?? 0) > 0;
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			return (await this.getStorageRepo(db, collection)).delete(id);
+		});
 	}
 
 	async storageQuery(
@@ -841,73 +866,77 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		hasMore: boolean;
 		cursor?: string;
 	}> {
-		const { storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		// Delegate to PluginStorageRepository for proper WHERE/ORDER BY/cursor support
-		const repo = await this.getStorageRepo(collection);
-		const result = await repo.query({
-			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
-			where: opts.where as never,
-			orderBy: opts.orderBy,
-			limit: opts.limit,
-			cursor: opts.cursor,
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			// Delegate to PluginStorageRepository for proper WHERE/ORDER BY/cursor support
+			const repo = await this.getStorageRepo(db, collection);
+			const result = await repo.query({
+				// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+				where: opts.where as never,
+				orderBy: opts.orderBy,
+				limit: opts.limit,
+				cursor: opts.cursor,
+			});
+			return {
+				items: result.items,
+				hasMore: result.hasMore,
+				cursor: result.cursor,
+			};
 		});
-		return {
-			items: result.items,
-			hasMore: result.hasMore,
-			cursor: result.cursor,
-		};
 	}
 
 	async storageCount(collection: string, where?: Record<string, unknown>): Promise<number> {
-		const { storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		const repo = await this.getStorageRepo(collection);
-		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
-		return repo.count(where as never);
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			const repo = await this.getStorageRepo(db, collection);
+			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- WhereClause is structurally Record<string, unknown>
+			return repo.count(where as never);
+		});
 	}
 
 	async storageGetMany(collection: string, ids: string[]): Promise<Map<string, unknown>> {
-		const { storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		if (ids.length === 0) return new Map();
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			if (ids.length === 0) return new Map();
 
-		return (await this.getStorageRepo(collection)).getMany(ids);
+			return (await this.getStorageRepo(db, collection)).getMany(ids);
+		});
 	}
 
 	async storagePutMany(
 		collection: string,
 		items: Array<{ id: string; data: unknown }>,
 	): Promise<void> {
-		const { pluginId, storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		if (items.length === 0) return;
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			if (items.length === 0) return;
 
-		for (const item of items) {
-			await this.env.DB.prepare(
-				"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
-			)
-				.bind(pluginId, collection, item.id, JSON.stringify(item.data), crypto.randomUUID())
-				.run();
-		}
+			await (await this.getStorageRepo(db, collection)).putMany(items);
+		});
 	}
 
 	async storageDeleteMany(collection: string, ids: string[]): Promise<number> {
-		const { storageCollections } = this.ctx.props;
-		if (!storageCollections.includes(collection)) {
-			throw new Error(`Storage collection not declared: ${collection}`);
-		}
-		if (ids.length === 0) return 0;
+		return this.withDb(async (db) => {
+			const { storageCollections } = this.ctx.props;
+			if (!storageCollections.includes(collection)) {
+				throw new Error(`Storage collection not declared: ${collection}`);
+			}
+			if (ids.length === 0) return 0;
 
-		return (await this.getStorageRepo(collection)).deleteMany(ids);
+			return (await this.getStorageRepo(db, collection)).deleteMany(ids);
+		});
 	}
 
 	// =========================================================================
@@ -915,86 +944,102 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// =========================================================================
 
 	async contentGet(collection: string, id: string): Promise<ContentItem | null> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("content:read")) {
-			throw new Error("Missing capability: content:read");
-		}
-		// Validate collection name to prevent SQL injection
-		if (!COLLECTION_NAME_REGEX.test(collection)) {
-			throw new Error(`Invalid collection name: ${collection}`);
-		}
-		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		try {
-			return await createContentAccess(db, {
-				site: this.ctx.props.siteInfo,
-				revisions: capabilities.includes("content:revisions:read"),
-			}).get(collection, id);
-		} catch {
-			const row = await this.env.DB.prepare(
-				`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
-			)
-				.bind(id)
-				.first();
-			return row ? rowToContentItem(collection, row) : null;
-		}
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("content:read")) {
+				throw new Error("Missing capability: content:read");
+			}
+			// Validate collection name to prevent SQL injection
+			if (!COLLECTION_NAME_REGEX.test(collection)) {
+				throw new Error(`Invalid collection name: ${collection}`);
+			}
+			const { createContentAccess, sql } = await loadBridgeRuntime();
+			try {
+				return await createContentAccess(db, {
+					site: this.ctx.props.siteInfo,
+					revisions: capabilities.includes("content:revisions:read"),
+				}).get(collection, id);
+			} catch {
+				const row = (
+					await sql<
+						Record<string, unknown>
+					>`SELECT * FROM ${sql.ref(`ec_${collection}`)} WHERE id = ${id} AND deleted_at IS NULL`.execute(
+						db,
+					)
+				).rows[0];
+				return row ? rowToContentItem(collection, row) : null;
+			}
+		});
 	}
 
 	async contentList(
 		collection: string,
 		opts: ContentListOptions = {},
 	): Promise<PaginatedResult<ContentItem>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("content:read")) {
-			throw new Error("Missing capability: content:read");
-		}
-		// Validate collection name to prevent SQL injection
-		if (!COLLECTION_NAME_REGEX.test(collection)) {
-			throw new Error(`Invalid collection name: ${collection}`);
-		}
-		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createContentAccess(db, {
-			site: this.ctx.props.siteInfo,
-			revisions: capabilities.includes("content:revisions:read"),
-		}).list(collection, opts);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("content:read")) {
+				throw new Error("Missing capability: content:read");
+			}
+			// Validate collection name to prevent SQL injection
+			if (!COLLECTION_NAME_REGEX.test(collection)) {
+				throw new Error(`Invalid collection name: ${collection}`);
+			}
+			const { createContentAccess } = await loadBridgeRuntime();
+			return createContentAccess(db, {
+				site: this.ctx.props.siteInfo,
+				revisions: capabilities.includes("content:revisions:read"),
+			}).list(collection, opts);
+		});
 	}
 
 	async contentTranslations(collection: string, id: string) {
-		this.requireCapability("content:read");
-		this.validateCollection(collection);
-		return (await this.contentAccess()).getTranslations!(collection, id);
+		return this.withDb(async (db) => {
+			this.requireCapability("content:read");
+			this.validateCollection(collection);
+			return (await this.contentAccess(db)).getTranslations!(collection, id);
+		});
 	}
 
 	async contentPublicUrl(collection: string, id: string) {
-		this.requireCapability("content:read");
-		this.validateCollection(collection);
-		return (await this.contentAccess()).getPublicUrl!(collection, id);
+		return this.withDb(async (db) => {
+			this.requireCapability("content:read");
+			this.validateCollection(collection);
+			return (await this.contentAccess(db)).getPublicUrl!(collection, id);
+		});
 	}
 
 	async contentListRevisions(collection: string, id: string, options?: { limit?: number }) {
-		this.requireCapability("content:revisions:read");
-		this.validateCollection(collection);
-		return (await this.contentAccess()).listRevisions!(collection, id, options);
+		return this.withDb(async (db) => {
+			this.requireCapability("content:revisions:read");
+			this.validateCollection(collection);
+			return (await this.contentAccess(db)).listRevisions!(collection, id, options);
+		});
 	}
 
 	async contentGetRevision(collection: string, id: string, revisionId: string) {
-		this.requireCapability("content:revisions:read");
-		this.validateCollection(collection);
-		return (await this.contentAccess()).getRevision!(collection, id, revisionId);
+		return this.withDb(async (db) => {
+			this.requireCapability("content:revisions:read");
+			this.validateCollection(collection);
+			return (await this.contentAccess(db)).getRevision!(collection, id, revisionId);
+		});
 	}
 
 	async schemaListCollections() {
-		this.requireCapability("schema:read");
-		const { createSchemaAccess } = await loadBridgeRuntime();
-		return createSchemaAccess(await this.db()).listCollections();
+		return this.withDb(async (db) => {
+			this.requireCapability("schema:read");
+			const { createSchemaAccess } = await loadBridgeRuntime();
+			return createSchemaAccess(db).listCollections();
+		});
 	}
 
 	async schemaGetCollection(slug: string) {
-		this.requireCapability("schema:read");
-		this.validateCollection(slug);
-		const { createSchemaAccess } = await loadBridgeRuntime();
-		return createSchemaAccess(await this.db()).getCollection(slug);
+		return this.withDb(async (db) => {
+			this.requireCapability("schema:read");
+			this.validateCollection(slug);
+			const { createSchemaAccess } = await loadBridgeRuntime();
+			return createSchemaAccess(db).getCollection(slug);
+		});
 	}
 
 	async contentCreate(
@@ -1012,109 +1057,96 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 				};
 		  }
 	> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("content:write")) {
-			throw new Error("Missing capability: content:write");
-		}
-		if (!COLLECTION_NAME_REGEX.test(collection)) {
-			throw new Error(`Invalid collection name: ${collection}`);
-		}
-		const { resolveContentCreateLocale, ulid } = await loadBridgeRuntime();
-		let locale: string;
-		try {
-			locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : "Invalid locale";
-			return {
-				__emdashContentCreateError: true,
-				error: { code: "VALIDATION_ERROR", message },
-			};
-		}
-		await this.assertSiteWriteAllowed();
-		const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
-			? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
-			: undefined;
-		if (runtimeContentCreate) {
-			const originHook =
-				originHookInput === "content:beforeSave" || originHookInput === "content:afterSave"
-					? originHookInput
-					: undefined;
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("content:write")) {
+				throw new Error("Missing capability: content:write");
+			}
+			if (!COLLECTION_NAME_REGEX.test(collection)) {
+				throw new Error(`Invalid collection name: ${collection}`);
+			}
+			const { resolveContentCreateLocale, ulid } = await loadBridgeRuntime();
+			let locale: string;
 			try {
-				return await runtimeContentCreate(this.ctx.props.pluginId, collection, data, {
-					locale,
-					translationOf: options?.translationOf,
-					originHook,
-					sandboxOrigin: true,
-				});
+				locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
 			} catch (error) {
-				const code =
-					typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
-				if (
-					code === "CONFLICT" ||
-					code === "NOT_FOUND" ||
-					code === "SAVE_REJECTED" ||
-					code === "VALIDATION_ERROR"
-				) {
-					return {
-						__emdashContentCreateError: true,
-						error: {
-							code,
-							message: error instanceof Error ? error.message : "Content create failed",
-						},
-					};
+				const message = error instanceof Error ? error.message : "Invalid locale";
+				return {
+					__emdashContentCreateError: true,
+					error: { code: "VALIDATION_ERROR", message },
+				};
+			}
+			await this.assertSiteWriteAllowed(db);
+			const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
+				? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
+				: undefined;
+			if (runtimeContentCreate) {
+				const originHook =
+					originHookInput === "content:beforeSave" || originHookInput === "content:afterSave"
+						? originHookInput
+						: undefined;
+				try {
+					return await runtimeContentCreate(this.ctx.props.pluginId, collection, data, {
+						locale,
+						translationOf: options?.translationOf,
+						originHook,
+						sandboxOrigin: true,
+					});
+				} catch (error) {
+					const code =
+						typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+					if (
+						code === "CONFLICT" ||
+						code === "NOT_FOUND" ||
+						code === "SAVE_REJECTED" ||
+						code === "VALIDATION_ERROR"
+					) {
+						return {
+							__emdashContentCreateError: true,
+							error: {
+								code,
+								message: error instanceof Error ? error.message : "Content create failed",
+							},
+						};
+					}
+					throw error;
 				}
-				throw error;
 			}
-		}
-		const id = ulid();
-		const now = new Date().toISOString();
-		const columns = [
-			'"id"',
-			'"slug"',
-			'"status"',
-			'"author_id"',
-			'"created_at"',
-			'"updated_at"',
-			'"version"',
-			'"locale"',
-			'"translation_group"',
-		];
-		const values: unknown[] = [
-			id,
-			typeof data.slug === "string" ? data.slug : null,
-			typeof data.status === "string" ? data.status : "draft",
-			null,
-			now,
-			now,
-			1,
-			locale,
-			id,
-		];
-		for (const [key, value] of Object.entries(data)) {
-			if (!SYSTEM_COLUMNS.has(key) && COLLECTION_NAME_REGEX.test(key)) {
-				columns.push(`"${key}"`);
-				values.push(serializeValue(value));
+			const id = ulid();
+			const now = new Date().toISOString();
+			const values: Record<string, unknown> = {
+				id,
+				slug: typeof data.slug === "string" ? data.slug : null,
+				status: typeof data.status === "string" ? data.status : "draft",
+				author_id: null,
+				created_at: now,
+				updated_at: now,
+				version: 1,
+				locale,
+				translation_group: id,
+			};
+			for (const [key, value] of Object.entries(data)) {
+				if (!SYSTEM_COLUMNS.has(key) && COLLECTION_NAME_REGEX.test(key))
+					values[key] = serializeValue(value);
 			}
-		}
-		const placeholders = columns.map(() => "?").join(", ");
-		await this.env.DB.prepare(
-			`INSERT INTO ec_${collection} (${columns.join(", ")}) VALUES (${placeholders})`,
-		)
-			.bind(...values)
-			.run();
-		const created = await this.env.DB.prepare(
-			`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
-		)
-			.bind(id)
-			.first();
-		return created
-			? rowToContentItem(collection, created)
-			: rowToContentItem(collection, {
-					id,
-					locale,
-					created_at: now,
-					updated_at: now,
-				});
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Dynamic content tables have validated identifiers and schema-defined columns.
+			const cdb = db as unknown as Kysely<Record<string, Record<string, unknown>>>;
+			await cdb.insertInto(`ec_${collection}`).values(values).execute();
+			const created = await cdb
+				.selectFrom(`ec_${collection}`)
+				.selectAll()
+				.where("id", "=", id)
+				.where("deleted_at", "is", null)
+				.executeTakeFirst();
+			return created
+				? rowToContentItem(collection, created)
+				: rowToContentItem(collection, {
+						id,
+						locale,
+						created_at: now,
+						updated_at: now,
+					});
+		});
 	}
 
 	async contentUpdate(
@@ -1122,79 +1154,87 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		id: string,
 		data: Record<string, unknown>,
 	): Promise<ReturnType<typeof rowToContentItem>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("content:write")) {
-			throw new Error("Missing capability: content:write");
-		}
-		if (!COLLECTION_NAME_REGEX.test(collection)) {
-			throw new Error(`Invalid collection name: ${collection}`);
-		}
-		const { ContentRepository, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({
-			dialect: new D1Dialect({ database: this.env.DB }),
-		});
-		await this.assertSiteWriteAllowed();
-		const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
-			data,
-			status: typeof data.status === "string" ? data.status : undefined,
-			slug: data.slug === undefined ? undefined : typeof data.slug === "string" ? data.slug : null,
-		});
-		return rowToContentItem(collection, {
-			...updated.data,
-			id: updated.id,
-			slug: updated.slug,
-			status: updated.status,
-			created_at: updated.createdAt,
-			updated_at: updated.updatedAt,
-			published_at: updated.publishedAt,
-			scheduled_at: updated.scheduledAt,
-			locale: updated.locale,
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("content:write")) {
+				throw new Error("Missing capability: content:write");
+			}
+			if (!COLLECTION_NAME_REGEX.test(collection)) {
+				throw new Error(`Invalid collection name: ${collection}`);
+			}
+			const { ContentRepository } = await loadBridgeRuntime();
+			await this.assertSiteWriteAllowed(db);
+			const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
+				data,
+				status: typeof data.status === "string" ? data.status : undefined,
+				slug:
+					data.slug === undefined ? undefined : typeof data.slug === "string" ? data.slug : null,
+			});
+			return rowToContentItem(collection, {
+				...updated.data,
+				id: updated.id,
+				slug: updated.slug,
+				status: updated.status,
+				created_at: updated.createdAt,
+				updated_at: updated.updatedAt,
+				published_at: updated.publishedAt,
+				scheduled_at: updated.scheduledAt,
+				locale: updated.locale,
+			});
 		});
 	}
 
 	async contentDelete(collection: string, id: string): Promise<boolean> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("content:write")) {
-			throw new Error("Missing capability: content:write");
-		}
-		if (!COLLECTION_NAME_REGEX.test(collection)) {
-			throw new Error(`Invalid collection name: ${collection}`);
-		}
-		await this.assertSiteWriteAllowed();
-		const now = new Date().toISOString();
-		const result = await this.env.DB.prepare(
-			`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
-		)
-			.bind(now, now, id)
-			.run();
-		return (result.meta?.changes ?? 0) > 0;
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("content:write")) {
+				throw new Error("Missing capability: content:write");
+			}
+			if (!COLLECTION_NAME_REGEX.test(collection)) {
+				throw new Error(`Invalid collection name: ${collection}`);
+			}
+			await this.assertSiteWriteAllowed(db);
+			const now = new Date().toISOString();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Dynamic content tables have validated identifiers and schema-defined columns.
+			const cdb = db as unknown as Kysely<Record<string, Record<string, unknown>>>;
+			const result = await cdb
+				.updateTable(`ec_${collection}`)
+				.set({ deleted_at: now, updated_at: now })
+				.where("id", "=", id)
+				.where("deleted_at", "is", null)
+				.executeTakeFirst();
+			return result.numUpdatedRows > 0n;
+		});
 	}
 
 	async commentGet(id: string): Promise<PluginComment | null> {
-		if (!this.ctx.props.capabilities.includes("comments:read")) {
-			throw new Error("Missing capability: comments:read");
-		}
-		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createCommentAccess(db).get(id);
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.capabilities.includes("comments:read")) {
+				throw new Error("Missing capability: comments:read");
+			}
+			const { createCommentAccess } = await loadBridgeRuntime();
+			return createCommentAccess(db).get(id);
+		});
 	}
 
 	async commentList(opts: CommentListOptions = {}): Promise<PaginatedResult<PluginComment>> {
-		if (!this.ctx.props.capabilities.includes("comments:read")) {
-			throw new Error("Missing capability: comments:read");
-		}
-		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createCommentAccess(db).list(opts);
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.capabilities.includes("comments:read")) {
+				throw new Error("Missing capability: comments:read");
+			}
+			const { createCommentAccess } = await loadBridgeRuntime();
+			return createCommentAccess(db).list(opts);
+		});
 	}
 
 	async commentCount(opts: CommentCountOptions = {}): Promise<number> {
-		if (!this.ctx.props.capabilities.includes("comments:read")) {
-			throw new Error("Missing capability: comments:read");
-		}
-		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createCommentAccess(db).count(opts);
+		return this.withDb(async (db) => {
+			if (!this.ctx.props.capabilities.includes("comments:read")) {
+				throw new Error("Missing capability: comments:read");
+			}
+			const { createCommentAccess } = await loadBridgeRuntime();
+			return createCommentAccess(db).count(opts);
+		});
 	}
 
 	async commentSetStatus(
@@ -1362,28 +1402,23 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			locale: string;
 		}>
 	> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("taxonomies:read")) {
-			throw new Error("Missing capability: taxonomies:read");
-		}
-		let sql = "SELECT * FROM _emdash_taxonomy_defs";
-		const params: unknown[] = [];
-		if (opts.locale !== undefined) {
-			sql += " WHERE locale = ?";
-			params.push(opts.locale);
-		}
-		sql += " ORDER BY name ASC";
-		const results = await this.env.DB.prepare(sql)
-			.bind(...params)
-			.all();
-		return (results.results ?? []).map((row) => ({
-			name: columnString(row.name),
-			label: columnString(row.label),
-			labelSingular: columnNullableString(row.label_singular),
-			hierarchical: row.hierarchical === 1,
-			collections: columnStringArray(row.collections),
-			locale: columnString(row.locale),
-		}));
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("taxonomies:read")) {
+				throw new Error("Missing capability: taxonomies:read");
+			}
+			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
+			if (opts.locale !== undefined) query = query.where("locale", "=", opts.locale);
+			const results = await query.orderBy("name", "asc").execute();
+			return results.map((row) => ({
+				name: columnString(row.name),
+				label: columnString(row.label),
+				labelSingular: columnNullableString(row.label_singular),
+				hierarchical: row.hierarchical === 1,
+				collections: columnStringArray(row.collections),
+				locale: columnString(row.locale),
+			}));
+		});
 	}
 
 	async taxonomyTerms(
@@ -1401,23 +1436,20 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			translationGroup: string | null;
 		}>
 	> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("taxonomies:read")) {
-			throw new Error("Missing capability: taxonomies:read");
-		}
-		let sql = "SELECT * FROM taxonomies WHERE name = ?";
-		const params: unknown[] = [taxonomy];
-		if (opts.locale !== undefined) {
-			sql += " AND locale = ?";
-			params.push(opts.locale);
-		}
-		// Manual order first, then label with `id ASC` as a stable tiebreaker for
-		// terms sharing both — matching core's TaxonomyRepository.findByName.
-		sql += " ORDER BY sort_order ASC, label ASC, id ASC";
-		const results = await this.env.DB.prepare(sql)
-			.bind(...params)
-			.all();
-		return (results.results ?? []).map(rowToTaxonomyTerm);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("taxonomies:read")) {
+				throw new Error("Missing capability: taxonomies:read");
+			}
+			let query = db.selectFrom("taxonomies").selectAll().where("name", "=", taxonomy);
+			if (opts.locale !== undefined) query = query.where("locale", "=", opts.locale);
+			const results = await query
+				.orderBy("sort_order", "asc")
+				.orderBy("label", "asc")
+				.orderBy("id", "asc")
+				.execute();
+			return results.map(rowToTaxonomyTerm);
+		});
 	}
 
 	async taxonomyEntryTerms(
@@ -1436,57 +1468,57 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			translationGroup: string | null;
 		}>
 	> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("taxonomies:read")) {
-			throw new Error("Missing capability: taxonomies:read");
-		}
-		// The pivot stores the term's translation_group in taxonomy_id, so the
-		// join resolves an assignment into each locale's term row.
-		let sql =
-			"SELECT taxonomies.* FROM content_taxonomies " +
-			"JOIN taxonomies ON taxonomies.translation_group = content_taxonomies.taxonomy_id " +
-			"WHERE content_taxonomies.collection = ? AND content_taxonomies.entry_id = ?";
-		const params: unknown[] = [collection, entryId];
-		if (opts.taxonomy !== undefined) {
-			sql += " AND taxonomies.name = ?";
-			params.push(opts.taxonomy);
-		}
-		if (opts.locale !== undefined) {
-			sql += " AND taxonomies.locale = ?";
-			params.push(opts.locale);
-		}
-		sql += " ORDER BY taxonomies.locale ASC";
-		const results = await this.env.DB.prepare(sql)
-			.bind(...params)
-			.all();
-		return (results.results ?? []).map(rowToTaxonomyTerm);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("taxonomies:read")) {
+				throw new Error("Missing capability: taxonomies:read");
+			}
+			// The pivot stores the term's translation_group in taxonomy_id, so the
+			// join resolves an assignment into each locale's term row.
+			let query = db
+				.selectFrom("content_taxonomies")
+				.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
+				.selectAll("taxonomies")
+				.where("content_taxonomies.collection", "=", collection)
+				.where("content_taxonomies.entry_id", "=", entryId);
+			if (opts.taxonomy !== undefined) query = query.where("taxonomies.name", "=", opts.taxonomy);
+			if (opts.locale !== undefined) query = query.where("taxonomies.locale", "=", opts.locale);
+			const results = await query.orderBy("taxonomies.locale", "asc").execute();
+			return results.map(rowToTaxonomyTerm);
+		});
 	}
 
 	// =========================================================================
 	// Byline Operations - capability-gated
 	// =========================================================================
 
-	private async bylineAccess() {
+	private async bylineAccess(db: Kysely<Database>) {
 		this.requireCapability("bylines:read");
 		const { createBylineAccess } = await loadBridgeRuntime();
-		return createBylineAccess(await this.db());
+		return createBylineAccess(db);
 	}
 
 	async bylineGet(id: string) {
-		return (await this.bylineAccess()).get(id);
+		return this.withDb(async (db) => {
+			return (await this.bylineAccess(db)).get(id);
+		});
 	}
 
 	async bylineList(opts: { locale?: string; limit?: number; cursor?: string } = {}) {
-		return (await this.bylineAccess()).list(opts);
+		return this.withDb(async (db) => {
+			return (await this.bylineAccess(db)).list(opts);
+		});
 	}
 
 	async bylineEntriesBylines(collection: string, entryIds: string[]) {
-		const access = await this.bylineAccess();
-		this.validateCollection(collection);
-		if (!Array.isArray(entryIds) || !entryIds.every((id) => typeof id === "string")) {
-			throw new Error("entryIds must be an array of strings");
-		}
-		return access.getEntriesBylines(collection, entryIds);
+		return this.withDb(async (db) => {
+			const access = await this.bylineAccess(db);
+			this.validateCollection(collection);
+			if (!Array.isArray(entryIds) || !entryIds.every((id) => typeof id === "string")) {
+				throw new Error("entryIds must be an array of strings");
+			}
+			return access.getEntriesBylines(collection, entryIds);
+		});
 	}
 
 	async taxonomyCreateTerm(
@@ -1531,60 +1563,65 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	async redirectList(
 		options: RedirectListOptions = {},
 	): Promise<RedirectBridgeResult<PaginatedResult<RedirectInfo>>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("redirects:read")) {
-			throw new Error("Missing capability: redirects:read");
-		}
-		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return redirectBridgeResult(() => createRedirectAccess(db).list(options));
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("redirects:read")) {
+				throw new Error("Missing capability: redirects:read");
+			}
+			const { createRedirectAccess } = await loadBridgeRuntime();
+			return redirectBridgeResult(() => createRedirectAccess(db).list(options));
+		});
 	}
 
 	async redirectGet(id: string): Promise<RedirectBridgeResult<VersionedRedirect | null>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("redirects:read")) {
-			throw new Error("Missing capability: redirects:read");
-		}
-		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return redirectBridgeResult(() => createRedirectAccess(db).get(id));
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("redirects:read")) {
+				throw new Error("Missing capability: redirects:read");
+			}
+			const { createRedirectAccess } = await loadBridgeRuntime();
+			return redirectBridgeResult(() => createRedirectAccess(db).get(id));
+		});
 	}
 
 	async redirectCreate(
 		input: RedirectCreateInput,
 	): Promise<RedirectBridgeResult<VersionedRedirect>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("redirects:write")) {
-			throw new Error("Missing capability: redirects:write");
-		}
-		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return redirectBridgeResult(() => createRedirectAccess(db, true).create(input));
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("redirects:write")) {
+				throw new Error("Missing capability: redirects:write");
+			}
+			const { createRedirectAccess } = await loadBridgeRuntime();
+			return redirectBridgeResult(() => createRedirectAccess(db, true).create(input));
+		});
 	}
 
 	async redirectUpdate(
 		id: string,
 		input: RedirectUpdateInput & { _rev: string },
 	): Promise<RedirectBridgeResult<VersionedRedirect>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("redirects:write")) {
-			throw new Error("Missing capability: redirects:write");
-		}
-		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return redirectBridgeResult(() => createRedirectAccess(db, true).update(id, input));
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("redirects:write")) {
+				throw new Error("Missing capability: redirects:write");
+			}
+			const { createRedirectAccess } = await loadBridgeRuntime();
+			return redirectBridgeResult(() => createRedirectAccess(db, true).update(id, input));
+		});
 	}
 
 	async redirectDelete(id: string, revision: string): Promise<RedirectBridgeResult<boolean>> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("redirects:write")) {
-			throw new Error("Missing capability: redirects:write");
-		}
-		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return redirectBridgeResult(() =>
-			createRedirectAccess(db, true).delete(id, { _rev: revision }),
-		);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("redirects:write")) {
+				throw new Error("Missing capability: redirects:write");
+			}
+			const { createRedirectAccess } = await loadBridgeRuntime();
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).delete(id, { _rev: revision }),
+			);
+		});
 	}
 
 	// =========================================================================
@@ -1592,72 +1629,76 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// =========================================================================
 
 	async mediaGet(id: string): Promise<PluginMediaItem | null> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("media:read")) {
-			throw new Error("Missing capability: media:read");
-		}
-		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createMediaAccess(db).get(id);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("media:read")) {
+				throw new Error("Missing capability: media:read");
+			}
+			const { createMediaAccess } = await loadBridgeRuntime();
+			return createMediaAccess(db).get(id);
+		});
 	}
 
 	async mediaList(
 		opts: { limit?: number; cursor?: string; mimeType?: string } = {},
 	): Promise<{ items: PluginMediaItem[]; cursor?: string; hasMore: boolean }> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("media:read")) {
-			throw new Error("Missing capability: media:read");
-		}
-		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createMediaAccess(db).list(opts);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("media:read")) {
+				throw new Error("Missing capability: media:read");
+			}
+			const { createMediaAccess } = await loadBridgeRuntime();
+			return createMediaAccess(db).list(opts);
+		});
 	}
 
 	async mediaReadBytes(id: string, maxBytes?: number): Promise<MediaBytes> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("media:bytes:read")) {
-			throw new Error("Missing capability: media:bytes:read");
-		}
-		if (maxBytes !== undefined && typeof maxBytes !== "number") {
-			throw new TypeError("media/readBytes: maxBytes must be a number");
-		}
-		// Worker Loader evaluates the bridge in a fresh isolate/context, so
-		// module-level callbacks registered by the runner are not always
-		// available. Read bytes directly from the R2 binding, matching
-		// mediaUpload and mediaDelete.
-		const bucket = this.env.MEDIA;
-		const storage: Pick<Storage, "download"> | undefined = bucket
-			? {
-					download: async (key: string): Promise<DownloadResult> => {
-						const object = await bucket.get(key);
-						if (!object || !object.body) {
-							throw new Error(`File not found: ${key}`);
-						}
-						return {
-							// @ts-expect-error -- R2Object.body is typed as ReadableStream<any> but the runtime value is ReadableStream<Uint8Array>
-							body: object.body,
-							contentType: object.httpMetadata?.contentType || "application/octet-stream",
-							size: object.size ?? 0,
-						};
-					},
-				}
-			: (this.getMediaStorageCallback() ?? undefined);
-		if (!storage) throw new Error("Media storage is not configured");
-		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return readPluginMediaBytes(db, storage, id, { maxBytes });
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("media:bytes:read")) {
+				throw new Error("Missing capability: media:bytes:read");
+			}
+			if (maxBytes !== undefined && typeof maxBytes !== "number") {
+				throw new TypeError("media/readBytes: maxBytes must be a number");
+			}
+			// Worker Loader evaluates the bridge in a fresh isolate/context, so
+			// module-level callbacks registered by the runner are not always
+			// available. Read bytes directly from the R2 binding, matching
+			// mediaUpload and mediaDelete.
+			const bucket = this.env.MEDIA;
+			const storage: Pick<Storage, "download"> | undefined = bucket
+				? {
+						download: async (key: string): Promise<DownloadResult> => {
+							const object = await bucket.get(key);
+							if (!object || !object.body) {
+								throw new Error(`File not found: ${key}`);
+							}
+							return {
+								// @ts-expect-error -- R2Object.body is typed as ReadableStream<any> but the runtime value is ReadableStream<Uint8Array>
+								body: object.body,
+								contentType: object.httpMetadata?.contentType || "application/octet-stream",
+								size: object.size ?? 0,
+							};
+						},
+					}
+				: (this.getMediaStorageCallback() ?? undefined);
+			if (!storage) throw new Error("Media storage is not configured");
+			const { readPluginMediaBytes } = await loadBridgeRuntime();
+			return readPluginMediaBytes(db, storage, id, { maxBytes });
+		});
 	}
 
 	async mediaUpdateMetadata(id: string, patch: unknown): Promise<PluginMediaItem> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("media:metadata:write")) {
-			throw new Error("Missing capability: media:metadata:write");
-		}
-		const { D1Dialect, Kysely, parsePluginMediaMetadataPatch, updatePluginMediaMetadata } =
-			await loadBridgeRuntime();
-		const parsed: MediaMetadataPatch = parsePluginMediaMetadataPatch(patch);
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return updatePluginMediaMetadata(db, id, parsed);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("media:metadata:write")) {
+				throw new Error("Missing capability: media:metadata:write");
+			}
+			const { parsePluginMediaMetadataPatch, updatePluginMediaMetadata } =
+				await loadBridgeRuntime();
+			const parsed: MediaMetadataPatch = parsePluginMediaMetadataPatch(patch);
+			return updatePluginMediaMetadata(db, id, parsed);
+		});
 	}
 
 	/**
@@ -1675,93 +1716,103 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		contentType: string,
 		bytes: ArrayBuffer,
 	): Promise<{ mediaId: string; storageKey: string; url: string }> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("media:write")) {
-			throw new Error("Missing capability: media:write");
-		}
-
-		if (!this.env.MEDIA) {
-			throw new Error("Media storage (R2) not configured. Add MEDIA binding to wrangler config.");
-		}
-		const { ulid } = await loadBridgeRuntime();
-
-		// Validate MIME type — only allow image, video, audio, and PDF
-		const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/", "application/pdf"];
-		if (!ALLOWED_MIME_PREFIXES.some((prefix) => contentType.startsWith(prefix))) {
-			throw new Error(
-				`Unsupported content type: ${contentType}. Allowed: image/*, video/*, audio/*, application/pdf`,
-			);
-		}
-
-		const mediaId = ulid();
-		// Derive extension from basename only, validate it's a simple extension
-		const basename = filename.includes("/")
-			? filename.slice(filename.lastIndexOf("/") + 1)
-			: filename;
-		const rawExt = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")) : "";
-		const ext = FILE_EXT_REGEX.test(rawExt) ? rawExt : "";
-		// Flat storage key matching core convention: ${ulid}${ext}
-		const storageKey = `${mediaId}${ext}`;
-		const now = new Date().toISOString();
-
-		// Write bytes to R2 first, then create DB record.
-		// If DB insert fails, clean up the R2 object to prevent orphans.
-		await this.env.MEDIA.put(storageKey, bytes, {
-			httpMetadata: { contentType },
-		});
-
-		try {
-			// Create confirmed media record with ISO timestamp (matching core)
-			await this.env.DB.prepare(
-				"INSERT INTO media (id, filename, mime_type, size, storage_key, status, created_at) VALUES (?, ?, ?, ?, ?, 'ready', ?)",
-			)
-				.bind(mediaId, filename, contentType, bytes.byteLength, storageKey, now)
-				.run();
-		} catch (error) {
-			// Clean up R2 object on DB failure to prevent orphans
-			try {
-				await this.env.MEDIA.delete(storageKey);
-			} catch {
-				// Best-effort cleanup — log and continue
-				console.warn(`[plugin-bridge] Failed to clean up orphaned R2 object: ${storageKey}`);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("media:write")) {
+				throw new Error("Missing capability: media:write");
 			}
-			throw error;
-		}
 
-		return {
-			mediaId,
-			storageKey,
-			url: `/_emdash/api/media/file/${storageKey}`,
-		};
+			if (!this.env.MEDIA) {
+				throw new Error("Media storage (R2) not configured. Add MEDIA binding to wrangler config.");
+			}
+			const { ulid } = await loadBridgeRuntime();
+
+			// Validate MIME type — only allow image, video, audio, and PDF
+			const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/", "application/pdf"];
+			if (!ALLOWED_MIME_PREFIXES.some((prefix) => contentType.startsWith(prefix))) {
+				throw new Error(
+					`Unsupported content type: ${contentType}. Allowed: image/*, video/*, audio/*, application/pdf`,
+				);
+			}
+
+			const mediaId = ulid();
+			// Derive extension from basename only, validate it's a simple extension
+			const basename = filename.includes("/")
+				? filename.slice(filename.lastIndexOf("/") + 1)
+				: filename;
+			const rawExt = basename.includes(".") ? basename.slice(basename.lastIndexOf(".")) : "";
+			const ext = FILE_EXT_REGEX.test(rawExt) ? rawExt : "";
+			// Flat storage key matching core convention: ${ulid}${ext}
+			const storageKey = `${mediaId}${ext}`;
+			const now = new Date().toISOString();
+
+			// Write bytes to R2 first, then create DB record.
+			// If DB insert fails, clean up the R2 object to prevent orphans.
+			await this.env.MEDIA.put(storageKey, bytes, {
+				httpMetadata: { contentType },
+			});
+
+			try {
+				// Create confirmed media record with ISO timestamp (matching core)
+				await db
+					.insertInto("media")
+					.values({
+						id: mediaId,
+						filename,
+						mime_type: contentType,
+						size: bytes.byteLength,
+						storage_key: storageKey,
+						status: "ready",
+						created_at: now,
+					})
+					.execute();
+			} catch (error) {
+				// Clean up R2 object on DB failure to prevent orphans
+				try {
+					await this.env.MEDIA.delete(storageKey);
+				} catch {
+					// Best-effort cleanup — log and continue
+					console.warn(`[plugin-bridge] Failed to clean up orphaned R2 object: ${storageKey}`);
+				}
+				throw error;
+			}
+
+			return {
+				mediaId,
+				storageKey,
+				url: `/_emdash/api/media/file/${storageKey}`,
+			};
+		});
 	}
 
 	async mediaDelete(id: string): Promise<boolean> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("media:write")) {
-			throw new Error("Missing capability: media:write");
-		}
-
-		// Look up the storage key before deleting
-		const media = await this.env.DB.prepare("SELECT storage_key FROM media WHERE id = ?")
-			.bind(id)
-			.first<{ storage_key: string }>();
-
-		if (!media) return false;
-
-		// Delete the DB row
-		const result = await this.env.DB.prepare("DELETE FROM media WHERE id = ?").bind(id).run();
-
-		// Delete from R2 if the binding is available
-		if (this.env.MEDIA && media.storage_key) {
-			try {
-				await this.env.MEDIA.delete(media.storage_key);
-			} catch {
-				// Log but don't fail - the DB row is already deleted
-				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("media:write")) {
+				throw new Error("Missing capability: media:write");
 			}
-		}
 
-		return (result.meta?.changes ?? 0) > 0;
+			// Look up the storage key before deleting
+			const media = await db
+				.selectFrom("media")
+				.select("storage_key")
+				.where("id", "=", id)
+				.executeTakeFirst();
+			if (!media) return false;
+			const result = await db.deleteFrom("media").where("id", "=", id).executeTakeFirst();
+
+			// Delete from R2 if the binding is available
+			if (this.env.MEDIA && media.storage_key) {
+				try {
+					await this.env.MEDIA.delete(media.storage_key);
+				} catch {
+					// Log but don't fail - the DB row is already deleted
+					console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
+				}
+			}
+
+			return result.numDeletedRows > 0n;
+		});
 	}
 
 	// =========================================================================
@@ -1788,29 +1839,25 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		role: number;
 		createdAt: string;
 	} | null> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("users:read")) {
-			throw new Error("Missing capability: users:read");
-		}
-		const result = await this.env.DB.prepare(
-			"SELECT id, email, name, role, created_at FROM users WHERE id = ?",
-		)
-			.bind(id)
-			.first<{
-				id: string;
-				email: string;
-				name: string | null;
-				role: number;
-				created_at: string;
-			}>();
-		if (!result) return null;
-		return {
-			id: result.id,
-			email: result.email,
-			name: result.name,
-			role: result.role,
-			createdAt: result.created_at,
-		};
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("users:read")) {
+				throw new Error("Missing capability: users:read");
+			}
+			const result = await db
+				.selectFrom("users")
+				.select(["id", "email", "name", "role", "created_at"])
+				.where("id", "=", id)
+				.executeTakeFirst();
+			if (!result) return null;
+			return {
+				id: result.id,
+				email: result.email,
+				name: result.name,
+				role: result.role,
+				createdAt: result.created_at,
+			};
+		});
 	}
 
 	async userGetByEmail(email: string): Promise<{
@@ -1820,29 +1867,25 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		role: number;
 		createdAt: string;
 	} | null> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("users:read")) {
-			throw new Error("Missing capability: users:read");
-		}
-		const result = await this.env.DB.prepare(
-			"SELECT id, email, name, role, created_at FROM users WHERE email = ?",
-		)
-			.bind(email.toLowerCase())
-			.first<{
-				id: string;
-				email: string;
-				name: string | null;
-				role: number;
-				created_at: string;
-			}>();
-		if (!result) return null;
-		return {
-			id: result.id,
-			email: result.email,
-			name: result.name,
-			role: result.role,
-			createdAt: result.created_at,
-		};
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("users:read")) {
+				throw new Error("Missing capability: users:read");
+			}
+			const result = await db
+				.selectFrom("users")
+				.select(["id", "email", "name", "role", "created_at"])
+				.where("email", "=", email.toLowerCase())
+				.executeTakeFirst();
+			if (!result) return null;
+			return {
+				id: result.id,
+				email: result.email,
+				name: result.name,
+				role: result.role,
+				createdAt: result.created_at,
+			};
+		});
 	}
 
 	async userList(opts?: { role?: number; limit?: number; cursor?: string }): Promise<{
@@ -1855,57 +1898,34 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}>;
 		nextCursor?: string;
 	}> {
-		const { capabilities } = this.ctx.props;
-		if (!capabilities.includes("users:read")) {
-			throw new Error("Missing capability: users:read");
-		}
-		const limit = Math.max(1, Math.min(opts?.limit ?? 50, 100));
-		let sql = "SELECT id, email, name, role, created_at FROM users";
-		const params: unknown[] = [];
-		const conditions: string[] = [];
+		return this.withDb(async (db) => {
+			const { capabilities } = this.ctx.props;
+			if (!capabilities.includes("users:read")) {
+				throw new Error("Missing capability: users:read");
+			}
+			const limit = Math.max(1, Math.min(opts?.limit ?? 50, 100));
+			let query = db.selectFrom("users").select(["id", "email", "name", "role", "created_at"]);
+			if (opts?.role !== undefined) query = query.where("role", "=", opts.role);
+			if (opts?.cursor) query = query.where("id", "<", opts.cursor);
+			const rows = await query
+				.orderBy("id", "desc")
+				.limit(limit + 1)
+				.execute();
+			const pageRows = rows.slice(0, limit);
+			const items = pageRows.map((row) => ({
+				id: row.id,
+				email: row.email,
+				name: row.name,
+				role: row.role,
+				createdAt: row.created_at,
+			}));
+			const hasMore = rows.length > limit;
 
-		if (opts?.role !== undefined) {
-			conditions.push("role = ?");
-			params.push(opts.role);
-		}
-
-		if (opts?.cursor) {
-			conditions.push("id < ?");
-			params.push(opts.cursor);
-		}
-
-		if (conditions.length > 0) {
-			sql += ` WHERE ${conditions.join(" AND ")}`;
-		}
-
-		sql += " ORDER BY id DESC LIMIT ?";
-		params.push(limit + 1);
-
-		const results = await this.env.DB.prepare(sql)
-			.bind(...params)
-			.all<{
-				id: string;
-				email: string;
-				name: string | null;
-				role: number;
-				created_at: string;
-			}>();
-
-		const rows = results.results ?? [];
-		const pageRows = rows.slice(0, limit);
-		const items = pageRows.map((row) => ({
-			id: row.id,
-			email: row.email,
-			name: row.name,
-			role: row.role,
-			createdAt: row.created_at,
-		}));
-		const hasMore = rows.length > limit;
-
-		return {
-			items,
-			nextCursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
-		};
+			return {
+				items,
+				nextCursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
+			};
+		});
 	}
 
 	// =========================================================================
@@ -1942,28 +1962,33 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		name: string,
 		opts: { schedule: string; data?: Record<string, unknown> },
 	): Promise<void> {
-		const { CronAccessImpl, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		await new CronAccessImpl(
-			db,
-			this.ctx.props.pluginId,
-			() => cronRescheduleCallback?.(),
-			cronNowCallback ?? undefined,
-		).schedule(name, opts);
+		return this.withDb(async (db) => {
+			const { CronAccessImpl } = await loadBridgeRuntime();
+			await new CronAccessImpl(
+				db,
+				this.ctx.props.pluginId,
+				() => cronRescheduleCallback?.(),
+				cronNowCallback ?? undefined,
+			).schedule(name, opts);
+		});
 	}
 
 	async cronCancel(name: string): Promise<void> {
-		const { CronAccessImpl, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		await new CronAccessImpl(db, this.ctx.props.pluginId, () => cronRescheduleCallback?.()).cancel(
-			name,
-		);
+		return this.withDb(async (db) => {
+			const { CronAccessImpl } = await loadBridgeRuntime();
+			await new CronAccessImpl(db, this.ctx.props.pluginId, () =>
+				cronRescheduleCallback?.(),
+			).cancel(name);
+		});
 	}
 
 	async cronList(): Promise<CronTaskInfo[]> {
-		const { CronAccessImpl, D1Dialect, Kysely } = await loadBridgeRuntime();
-		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return new CronAccessImpl(db, this.ctx.props.pluginId, () => cronRescheduleCallback?.()).list();
+		return this.withDb(async (db) => {
+			const { CronAccessImpl } = await loadBridgeRuntime();
+			return new CronAccessImpl(db, this.ctx.props.pluginId, () =>
+				cronRescheduleCallback?.(),
+			).list();
+		});
 	}
 
 	// =========================================================================

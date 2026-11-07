@@ -373,12 +373,6 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * the content read/write path, scheduled publishing, plugin cron, and
  * DB-querying plugin hooks are all supported.
  *
- * **Known limitation — sandboxed plugins are D1-only.** The sandbox plugin
- * bridge talks to a D1 binding directly (independent of the configured
- * adapter), so sandboxed plugins aren't available on a Hyperdrive deployment.
- * This is a pre-existing bridge constraint, unrelated to connection scoping;
- * tracked in https://github.com/emdash-cms/emdash/issues/1623.
- *
  * @example
  * ```ts
  * database: hyperdrive({ binding: "HYPERDRIVE" })
