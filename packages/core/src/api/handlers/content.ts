@@ -1042,8 +1042,7 @@ export async function handleContentList(
 		// Unpublished entries have no live data to preserve in the list. Keep the
 		// base columns untouched so discarding a draft can still restore them.
 		const unpublishedDrafts = result.items.filter(
-			(item) =>
-				item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
+			(item) => item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
 		);
 		const draftIds = unpublishedDrafts.flatMap((item) =>
 			item.draftRevisionId ? [item.draftRevisionId] : [],
