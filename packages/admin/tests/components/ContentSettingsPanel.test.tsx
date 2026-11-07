@@ -1585,17 +1585,28 @@ describe("ContentSettingsPanel", () => {
 			const pendingPanelHandle = screen
 				.getByRole("button", { name: "Drag to reorder Bylines" })
 				.element();
+			const bylinesSection = pendingPanelHandle.closest("section")!;
+			const ownershipSection = screen
+				.getByRole("heading", { name: "Ownership" })
+				.element()
+				.closest("section")!;
 			pendingPanelHandle.focus();
-			for (const [target, key, code] of [
-				[pendingPanelHandle, " ", "Space"],
-				[document, "ArrowUp", "ArrowUp"],
-				[document, " ", "Space"],
-			] as const) {
-				await act(async () => {
-					fireEvent.keyDown(target, { key, code });
-					await new Promise((resolve) => setTimeout(resolve, 0));
+			await userEvent.keyboard(" ");
+			await vi.waitFor(() => expect(bylinesSection.dataset.sorting).toBe("true"));
+			// Collapsing the sections changes the geometry used by the keyboard sensor.
+			await act(async () => {
+				await new Promise<void>((resolve) => {
+					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
 				});
-			}
+			});
+			await userEvent.keyboard("{ArrowUp}");
+			await vi.waitFor(() =>
+				expect(bylinesSection.getBoundingClientRect().top).toBeLessThan(
+					ownershipSection.getBoundingClientRect().top,
+				),
+			);
+			await userEvent.keyboard(" ");
+			await vi.waitFor(() => expect(bylinesSection.dataset.sorting).toBe("false"));
 
 			await vi.waitFor(() =>
 				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
