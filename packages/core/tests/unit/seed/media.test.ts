@@ -138,14 +138,16 @@ const MOCK_JPEG = new Uint8Array([
 describe("$media seed resolution", () => {
 	let db: Kysely<Database>;
 	let storage: Storage & { uploads: UploadOptions[] };
+	let testRoot: string;
 	let mediaBasePath: string;
 	let outsidePath: string;
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
-		mediaBasePath = await mkdtemp(join(tmpdir(), "emdash-seed-media-"));
-		await mkdir(join(mediaBasePath, "assets"));
-		outsidePath = join(mediaBasePath, "..", "outside.png");
+		testRoot = await mkdtemp(join(tmpdir(), "emdash-seed-media-"));
+		mediaBasePath = join(testRoot, "base");
+		await mkdir(join(mediaBasePath, "assets"), { recursive: true });
+		outsidePath = join(testRoot, "outside.png");
 		await writeFile(join(mediaBasePath, "assets", "photo.png"), MOCK_PNG);
 		await writeFile(join(mediaBasePath, "assets", "custom.jpg"), MOCK_JPEG);
 		await writeFile(outsidePath, MOCK_PNG);
@@ -169,8 +171,7 @@ describe("$media seed resolution", () => {
 
 	afterEach(async () => {
 		await teardownTestDatabase(db);
-		await rm(mediaBasePath, { recursive: true, force: true });
-		await rm(outsidePath, { force: true });
+		await rm(testRoot, { recursive: true, force: true });
 		vi.restoreAllMocks();
 	});
 

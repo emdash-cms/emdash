@@ -131,8 +131,7 @@ export const seedCommand = defineCommand({
 		},
 		"skip-media": {
 			type: "boolean",
-			description:
-				"Resolve $media references to external URLs instead of downloading and storing files",
+			description: "Keep $media URLs as external references and skip local files without uploading",
 			default: false,
 		},
 	},
