@@ -305,15 +305,14 @@ function TimestampRow({
 }
 
 /**
- * When the editor bar is narrow, its secondary buttons keep only their icon so
- * the bar stays on one row. The buttons distraction-free mode adds give up
- * their labels first, at a wider bar.
+ * Secondary actions keep only their icons in narrow editor bars and fill a
+ * grid cell on mobile. Distraction-free actions give up their labels first.
  */
 export const compactBarButtonClassName =
-	"@max-2xl/editor-bar:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0";
+	"@max-2xl/editor-bar:sm:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0 max-sm:w-full";
 export const compactBarLabelClassName = "@max-2xl/editor-bar:sr-only";
 const compactBarExtraButtonClassName =
-	"@max-[60rem]/editor-bar:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0";
+	"@max-[60rem]/editor-bar:sm:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0 max-sm:w-full";
 const compactBarExtraLabelClassName = "@max-[60rem]/editor-bar:sr-only";
 
 /**
@@ -369,6 +368,10 @@ export interface EditorActionsProps {
 	supportsDrafts?: boolean;
 	isDirty: boolean;
 	isSaving: boolean;
+	/** Whether the Save control stays visible on small screens. */
+	showMobileSave?: boolean;
+	/** Called when the focused Save control unmounts and focus would fall to the page body. */
+	onSaveControlRemoved?: () => void;
 	/** Autosave in flight — reported by the save button's busy state. */
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
@@ -487,7 +490,7 @@ export function PublishActions({
 				loading={isPending}
 				disabled={disabled}
 				icon={<EyeSlash />}
-				className={compact ? compactBarButtonClassName : undefined}
+				className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
 			>
 				<span className={compact ? compactBarLabelClassName : undefined}>
 					{t`Unpublish ${itemLabel}`}
@@ -515,7 +518,12 @@ export function PublishActions({
 						type="button"
 						variant="primary"
 						size={size}
-						icon={<Upload aria-hidden="true" />}
+						icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
+						className={
+							compact
+								? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
+								: undefined
+						}
 						loading={isPending}
 						disabled={disabled}
 						aria-label={publishLabel}
@@ -525,7 +533,8 @@ export function PublishActions({
 				{compact ? (
 					<>
 						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
-						<span className="hidden @max-2xl/editor-bar:inline">{t`Publish`}</span>
+						<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
+						<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
 					</>
 				) : (
 					publishLabel
@@ -648,6 +657,8 @@ export function EditorActions({
 	supportsDrafts,
 	isDirty,
 	isSaving,
+	showMobileSave = true,
+	onSaveControlRemoved,
 	isAutosaving,
 	saveDisabled,
 	isLive,
@@ -667,22 +678,44 @@ export function EditorActions({
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
 	const savesFirstDraft = isNew && supportsDrafts;
-	// Saved reads as a quiet status; unsaved work becomes a button again.
-	const saveVariant = !isDirty && !busy ? "ghost" : isNew ? "primary" : "secondary";
+	const saveVariant = isNew ? "primary" : "secondary";
+	const showSave = isDirty || busy;
+	const saveHadFocus = React.useRef(false);
+	React.useLayoutEffect(() => {
+		if (!showSave && saveHadFocus.current) {
+			saveHadFocus.current = false;
+			const active = document.activeElement;
+			if (!active || active === document.body) onSaveControlRemoved?.();
+		}
+	}, [showSave, onSaveControlRemoved]);
 
 	return (
-		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-			<SaveButton
-				type="submit"
-				size="sm"
-				variant={saveVariant}
-				className={cn("min-w-0", !savesFirstDraft && compactBarButtonClassName)}
-				labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
-				isDirty={isDirty}
-				isSaving={busy}
-				disabled={saveDisabled}
-				saveLabel={savesFirstDraft ? t`Save draft` : undefined}
-			/>
+		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 max-sm:contents">
+			{showSave && (
+				<SaveButton
+					announce={false}
+					onFocus={() => {
+						saveHadFocus.current = true;
+					}}
+					onBlur={(event) => {
+						if (event.relatedTarget) saveHadFocus.current = false;
+					}}
+					type="submit"
+					size="sm"
+					variant={saveVariant}
+					className={cn(
+						"min-w-0 max-sm:w-full",
+						!savesFirstDraft && compactBarButtonClassName,
+						isNew && "max-sm:col-span-2",
+						!showMobileSave && "max-sm:hidden",
+					)}
+					labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
+					isDirty={isDirty}
+					isSaving={busy}
+					disabled={saveDisabled}
+					saveLabel={savesFirstDraft ? t`Save draft` : undefined}
+				/>
+			)}
 			{liveViewUrl && (
 				<LinkButton
 					href={liveViewUrl}

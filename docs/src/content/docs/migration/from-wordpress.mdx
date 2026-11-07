@@ -116,9 +116,27 @@ The importer maps WordPress statuses as follows:
 | `draft` | `draft` |
 | `pending` | `draft` |
 | `private` | `draft` |
-| `future`, `trash`, or an unknown status | `draft` |
+| `future` with a date later than the import | `scheduled` |
+| `future` with a past or missing date, `trash`, or an unknown status | `draft` |
 
-Scheduled dates and WordPress visibility rules are not reconstructed from these statuses. Review every imported draft before publication.
+WordPress visibility rules are not reconstructed from these statuses. Review every imported draft before publication.
+
+### Publication dates
+
+The admin importer preserves the source date for entries imported as drafts as well as published entries. Publishing an imported draft keeps that date, including when the draft came from a WordPress `pending`, `private`, or unrecognized status. This also applies to genuine WordPress drafts: if the source date is an old save date, first publishing the draft in EmDash backdates its publication date and any date-based permalink. Check the date before publishing.
+
+The date source depends on the import method:
+
+- **WXR:** `wp:post_date_gmt` (UTC), then `pubDate` (with its timezone), then `wp:post_date` (site-local time).
+- **EmDash Exporter:** `date_gmt` (UTC), then `date` (site-local time).
+
+The WordPress zero-date sentinel (`0000-00-00 00:00:00`) is skipped for GMT dates. A local date has no timezone information, so that fallback is approximate. If no usable source date exists, the draft has no publication date; publishing it sets the current time.
+
+A WordPress `future` post with a date later than the import is scheduled rather than given a publication date immediately. Its publication date comes from its final schedule, so you can reschedule it or unschedule it and publish immediately. A `future` post with a date already in the past (a missed schedule) remains a draft and keeps that source date when published.
+
+If an imported draft already has a publication date, scheduling it for later also keeps that date and its dated permalink. The schedule controls when it becomes visible, not its stored publication date. Edit the publication date separately if you want it to match the new schedule. This applies to genuine drafts and missed schedules.
+
+These rules apply when creating entries during an import. They do not repair dates on previously imported entries; skipping existing entries on a retry leaves their dates unchanged.
 
 ### Rich text and reusable blocks
 

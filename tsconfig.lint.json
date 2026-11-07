@@ -1,0 +1,36 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"types": ["node"]
+	},
+	"include": [
+		"*.ts",
+		"**/*.config.*",
+		"**/scripts/**/*",
+		".github/scripts/**/*",
+		"**/test/**/*",
+		"**/tests/**/*",
+		"**/e2e/**/*",
+		"e2e/**/*",
+		"**/eval/**/*",
+		"packages/*/fixtures/**/*",
+		"apps/labeler/src/admin/**/*",
+		"apps/release-service/public/**/*",
+		"apps/release-service/src/ui/**/*",
+		"demos/preview/*.ts",
+		"packages/cloudflare/src/plugins/*-admin.tsx",
+		"packages/plugins/*/src/admin.tsx",
+		"packages/plugins/*/src/astro/**/*",
+		"packages/plugins/api-test/src/**/*",
+		"packages/x402/src/middleware.ts"
+	],
+	"exclude": [
+		"**/node_modules",
+		"**/dist",
+		"**/.astro",
+		"packages/core",
+		"packages/admin",
+		"skills/**/scaffold",
+		"scripts/query-dumps"
+	]
+}
