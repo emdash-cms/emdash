@@ -1,11 +1,11 @@
 ---
 title: Public URLs in a plugin's content list
 type: rfc
-status: proposed
+status: accepted
 authors:
   - Daniel Mueller (@danielmlr)
 champion: Daniel Mueller (@danielmlr)
-sponsor: null
+sponsor: Daniel Mueller (@danielmlr)
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/3366
 created: 2026-10-15
