@@ -1377,7 +1377,7 @@ msgstr "Acceptera och uppdatera"
 
 #: packages/admin/src/router.tsx:467
 msgid "Accept invitation"
-msgstr ""
+msgstr "Acceptera inbjudan"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
@@ -2425,7 +2425,7 @@ msgstr "Auktorisera"
 
 #: packages/admin/src/router.tsx:478
 msgid "Authorize device"
-msgstr ""
+msgstr "Auktorisera enhet"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
@@ -3671,7 +3671,7 @@ msgstr "Bekräfta"
 
 #: packages/admin/src/router.tsx:441
 msgid "Confirm magic link"
-msgstr ""
+msgstr "Bekräfta magisk länk"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -5405,7 +5405,7 @@ msgstr "Redigera {itemLabel}"
 
 #: packages/admin/src/components/ContentEditor.tsx:1813
 msgid "Edit {itemLabel}: {tabEntryTitle}"
-msgstr ""
+msgstr "Redigera {itemLabel}: {tabEntryTitle}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5440,11 +5440,11 @@ msgstr "Redigera bildtext"
 
 #: packages/admin/src/router.tsx:1048
 msgid "Edit content"
-msgstr ""
+msgstr "Redigera innehåll"
 
 #: packages/admin/src/router.tsx:3134
 msgid "Edit content type"
-msgstr ""
+msgstr "Redigera innehållstyp"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "Edit dark mode asset"
@@ -5495,7 +5495,7 @@ msgstr "Redigera alt-text, bildtexter och fokuspunkter för media"
 
 #: packages/admin/src/router.tsx:2842
 msgid "Edit menu"
-msgstr ""
+msgstr "Redigera meny"
 
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
@@ -5525,7 +5525,7 @@ msgstr "Redigera roll"
 
 #: packages/admin/src/router.tsx:2891
 msgid "Edit section"
-msgstr ""
+msgstr "Redigera sektion"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -9158,7 +9158,7 @@ msgstr "Låst eftersom fältet har lagrade värden. Ta bort värdena (eller fäl
 
 #: packages/admin/src/router.tsx:427
 msgid "Log in"
-msgstr ""
+msgstr "Logga in"
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -9407,7 +9407,7 @@ msgstr "Medieresultat"
 
 #: packages/admin/src/router.tsx:2603
 msgid "Media Usage"
-msgstr ""
+msgstr "Medieanvändning"
 
 #: packages/admin/src/components/Settings.tsx:76
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
@@ -9930,11 +9930,11 @@ msgstr "Ny samling"
 
 #: packages/admin/src/router.tsx:886
 msgid "New content"
-msgstr ""
+msgstr "Nytt innehåll"
 
 #: packages/admin/src/router.tsx:3037
 msgid "New content type"
-msgstr ""
+msgstr "Ny innehållstyp"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 #: packages/admin/src/components/ContentTypeList.tsx:159
@@ -10842,7 +10842,7 @@ msgstr "Paketet har laddats ner"
 
 #: packages/admin/src/router.tsx:3351
 msgid "Page not found"
-msgstr ""
+msgstr "Sidan hittades inte"
 
 #: packages/admin/src/router.tsx:3478
 msgid "Page Not Found"
@@ -11150,7 +11150,7 @@ msgstr "Tilläggsdetaljer"
 #: packages/admin/src/router.tsx:2764
 #: packages/admin/src/router.tsx:2771
 msgid "Plugin Details"
-msgstr ""
+msgstr "Tilläggsdetaljer"
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -11175,7 +11175,7 @@ msgstr "Installation av tillägg kräver uttryckligt samtycke"
 
 #: packages/admin/src/router.tsx:2756
 msgid "Plugin Marketplace"
-msgstr ""
+msgstr "Marknadsplats för tillägg"
 
 #: packages/admin/src/components/PluginManager.tsx:412
 msgid "Plugin MCP access updated"
@@ -11234,7 +11234,7 @@ msgstr "Tillägget svarade med {0}: {text}"
 
 #: packages/admin/src/router.tsx:3314
 msgid "Plugin Settings"
-msgstr ""
+msgstr "Tilläggsinställningar"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -13586,7 +13586,7 @@ msgstr "Inställningarna sparades"
 
 #: packages/admin/src/router.tsx:419
 msgid "Setup"
-msgstr ""
+msgstr "Konfiguration"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13730,7 +13730,7 @@ msgstr "Logga in med ditt Bluesky/Atmosphere-användarnamn"
 
 #: packages/admin/src/router.tsx:459
 msgid "Sign up"
-msgstr ""
+msgstr "Registrera dig"
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
@@ -13970,7 +13970,7 @@ msgstr "Sociala profiler"
 
 #: packages/admin/src/router.tsx:2682
 msgid "Social Settings"
-msgstr ""
+msgstr "Sociala länkar"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
@@ -14904,7 +14904,7 @@ msgstr "Temat ”{id}” hittades inte"
 
 #: packages/admin/src/router.tsx:2810
 msgid "Theme Details"
-msgstr ""
+msgstr "Temadetaljer"
 
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
@@ -14913,7 +14913,7 @@ msgstr "Tema-ID: {0}"
 
 #: packages/admin/src/router.tsx:2802
 msgid "Theme Marketplace"
-msgstr ""
+msgstr "Marknadsplats för teman"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
