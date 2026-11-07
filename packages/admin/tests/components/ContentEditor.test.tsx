@@ -5,6 +5,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 
+import { AdminDocumentTitle } from "../../src/components/AdminDocumentTitle.js";
 import {
 	ContentEditor,
 	type FieldDescriptor,
@@ -692,6 +693,48 @@ describe("ContentEditor", () => {
 				media.restore();
 			}
 		});
+	});
+
+	it("uses a custom collection's title field and singular label in the browser tab", async () => {
+		const screen = await render(
+			<AdminDocumentTitle siteName="My Site" pageKey="/content/people/1" pageTitle="People">
+				<ContentEditor
+					collection="people"
+					collectionLabel="Person"
+					fields={{
+						name: { kind: "string", label: "Name" },
+						title: { kind: "string", label: "Job title" },
+					}}
+					item={makeItem({ data: { name: "Jane Smith", title: "Trustee" } })}
+					isNew={false}
+					onSave={vi.fn()}
+					manifest={{
+						version: "1",
+						hash: "hash",
+						authMode: "passkey",
+						collections: {
+							people: {
+								label: "People",
+								labelSingular: "Person",
+								supports: [],
+								hasSeo: false,
+								titleField: "name",
+							},
+						},
+						plugins: {},
+						taxonomies: [],
+					}}
+				/>
+			</AdminDocumentTitle>,
+			{ wrapper: Toasty },
+		);
+		await expect.poll(() => document.title).toBe("Edit Person: Jane Smith · My Site");
+		await screen.getByLabelText("Name").fill("Jane Doe");
+		await expect.poll(() => document.title).toBe("Edit Person: Jane Doe · My Site");
+		await screen.getByLabelText("Name").fill("");
+		await expect.poll(() => document.title).toBe("Edit Person: Trustee · My Site");
+		await screen.getByLabelText("Job title").fill("");
+		await expect.poll(() => document.title).toBe("Edit Person: my-post · My Site");
 	});
 
 	describe("slug generation", () => {

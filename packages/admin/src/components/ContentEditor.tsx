@@ -70,6 +70,7 @@ import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
+import { useAdminPageTitle } from "./AdminDocumentTitle.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { TOAST_REGION } from "./block-field-keyboard.js";
 import {
@@ -1804,6 +1805,15 @@ export function ContentEditor({
 	const liveTitleValue = documentTitleField ? formData[documentTitleField] : undefined;
 	const liveTitle = typeof liveTitleValue === "string" ? liveTitleValue.trim() : "";
 	const barTitle = liveTitle || entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
+	const tabEntryTitle = item ? getEntryTitle({ ...item, data: formData }, titleField) : "";
+	useAdminPageTitle(
+		isNew
+			? t`New ${itemLabel}`
+			: tabEntryTitle
+				? t`Edit ${itemLabel}: ${tabEntryTitle}`
+				: t`Edit ${itemLabel}`,
+	);
+
 	const collectionListLabel = manifest?.collections[collection]?.label ?? collectionLabel;
 	const documentTitleRef = React.useRef<HTMLInputElement>(null);
 	const editorHeadingRef = React.useRef<HTMLHeadingElement>(null);
