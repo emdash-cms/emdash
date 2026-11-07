@@ -60,9 +60,12 @@ export interface AttachmentInfo {
 
 /** Navigation menu from WordPress */
 export interface NavMenu {
+	/** Menu slug */
 	name: string;
-	slug: string;
-	count: number;
+	/** The menu's name in WordPress */
+	label: string;
+	/** Number of items in the menu */
+	itemCount: number;
 }
 
 /** Custom taxonomy from WordPress */

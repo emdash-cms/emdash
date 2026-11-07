@@ -13,6 +13,7 @@ import mime from "mime/lite";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import type { NavMenuAnalysis } from "#import/types.js";
 import {
 	isInternalPostType,
 	mapPostTypeToCollection,
@@ -111,6 +112,8 @@ export interface WxrAnalysis {
 		suggestedType: "string" | "number" | "boolean" | "date" | "json";
 		isInternal: boolean;
 	}>;
+	/** Navigation menus in the export, which the import brings in */
+	navMenus?: NavMenuAnalysis[];
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -322,6 +325,14 @@ function analyzeWxr(
 			postCount: a.login ? authorPostCounts.get(a.login) || 0 : 0,
 		})),
 		customFields,
+		navMenus:
+			wxr.navMenus.length > 0
+				? wxr.navMenus.map((menu) => ({
+						name: menu.name,
+						label: menu.label,
+						itemCount: menu.items.length,
+					}))
+				: undefined,
 	};
 }
 
