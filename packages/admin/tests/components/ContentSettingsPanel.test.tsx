@@ -1348,7 +1348,9 @@ describe("EditorActions", () => {
 	});
 
 	it("hides the publish cluster for new items", async () => {
-		const screen = await render(<EditorActions {...makeBarProps({ isNew: true })} />);
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, isDirty: true })} />,
+		);
 
 		expect(screen.container.textContent).not.toContain("Publish");
 		expect(screen.container.textContent).not.toContain("Unpublish");
@@ -1361,7 +1363,6 @@ describe("EditorActions", () => {
 			<EditorActions {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
 	it("marks the Save button dirty state", async () => {

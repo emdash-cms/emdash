@@ -61,6 +61,10 @@ Use the toolbar to format the selected text. To insert a block, select the add-b
 a paragraph or type `/` and search for a block by name. Image and gallery blocks open the same media
 picker used by image fields.
 
+To create a link with a multi-word label, type the label first, select the whole label, then choose
+**Add link** in the toolbar and enter the destination. If you add a link at an empty caret and then
+type its label, the link ends at the first space you type. Text after that space is not linked.
+
 You can also drag image and video files into the editor or paste a copied image or screenshot. Each
 file uploads to the Media Library and appears between the surrounding blocks when the upload
 finishes. If an upload fails, the reason appears where the file would have gone.
@@ -146,14 +150,23 @@ an [HTML block](#add-html-css-and-javascript).
 
 ## Save draft changes
 
-After the first save, the editor autosaves changes two seconds after you stop typing. The **Save**
-button changes through **Saving...** to **Saved** so you can confirm that the server accepted the
-draft. Autosave replaces the current autosave revision instead of filling revision history with a
-checkpoint for every pause.
+After the first save, the editor autosaves changes two seconds after you stop typing. On tablet and
+desktop, the toolbar's **Save** control appears while changes are unsaved, shows **Saving...** while
+the request is in progress, and disappears after a successful save. There is no persistent **Saved**
+label. A screen-reader-only status announces **Saving...** and **Saved**. Autosave replaces the
+current draft revision instead of filling revision history with a checkpoint for every pause.
 
-Select **Save** when you want a point in the editing sequence to remain in revision history. If a
-save fails, the editor keeps the unsaved fields in place and shows the error. Do not leave the page
-until the button returns to **Saved** or you have copied the unsaved work elsewhere.
+On a phone, entries with drafts and revision history offer **Settings** > **Save draft** even after
+autosave finishes. To retain the autosaved version in history, wait for autosave before using this
+action. On tablet and desktop, the toolbar's **Save** action is only offered while there are unsaved
+changes. Both actions retain the preceding draft revision; later autosaves can still replace the
+current draft.
+
+If a save fails, the editor keeps the unsaved fields in place, shows a dismissible error banner below
+the editor header, and displays an error toast. Dismissing the banner does not save the data. Retry
+with the toolbar's **Save** control when it appears, or on a phone use **Settings** > **Save draft**
+when available. Keep the page open until a successful retry clears the banner and the saving control
+settles. If you must leave first, copy the unsaved work elsewhere.
 
 For a published entry, saving changes updates its draft only. Visitors continue to receive the
 previous live revision. Use **Preview draft** to check the pending version, **Live View** to check
