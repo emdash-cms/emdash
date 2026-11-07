@@ -272,7 +272,6 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {
 		const { blurhashToDataUri } = await import("@unpic/placeholder");
-		// Not blurhashToImageCssString: in @unpic/placeholder 0.1.2 it emits `background: url() cover`, which browsers reject.
 		placeholderStyle = `background-image: url("${blurhashToDataUri(blurhash)}"); background-size: cover;`;
 	} else if (placeholder && dominantColor) {
 		placeholderStyle = `background-color: ${dominantColor};`;
