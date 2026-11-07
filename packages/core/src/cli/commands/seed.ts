@@ -5,7 +5,7 @@
  */
 
 import { readFile, access, mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import { defineCommand } from "citty";
 import consola from "consola";
@@ -230,6 +230,7 @@ export const seedCommand = defineCommand({
 		const options: SeedApplyOptions = {
 			includeContent: args.content,
 			onConflict: onConflictRaw,
+			mediaBasePath: dirname(seedPath),
 			storage,
 			skipMediaDownload: args["skip-media"],
 		};
