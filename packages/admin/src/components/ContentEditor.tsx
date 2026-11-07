@@ -2015,6 +2015,15 @@ export function ContentEditor({
 						onPublish={onPublish ? handlePublish : undefined}
 						onUnpublish={onUnpublish ? handleUnpublish : undefined}
 						onMenuOpenChange={setPublishingMenuOpen}
+						revisions={
+							supportsRevisions && item
+								? {
+										collection,
+										entryId: item.id,
+										liveRevisionId: item.liveRevisionId ?? null,
+									}
+								: undefined
+						}
 						beforePublish={
 							// The settings panel holds these outside distraction-free mode.
 							isDistractionFree && !isNew ? (

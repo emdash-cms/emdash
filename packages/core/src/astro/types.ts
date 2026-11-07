@@ -8,6 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { ContentWrite } from "../api/content-save.js";
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
@@ -383,8 +384,15 @@ export interface EmDashHandlers {
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
+			/** Users whose edits this save holds, latest first. Defaults to the actor alone. */
+			editedBy?: readonly string[];
 		},
-	) => Promise<HandlerResponse>;
+	) => Promise<
+		HandlerResponse & {
+			/** This save's own write, when it staged a draft revision and wrote no live metadata. */
+			saved?: ContentWrite;
+		}
+	>;
 
 	handleContentDelete: (collection: string, id: string) => Promise<HandlerResponse>;
 

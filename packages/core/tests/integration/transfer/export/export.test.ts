@@ -282,6 +282,26 @@ describeEachDialect("site export", (dialect) => {
 		expect(transformations["media_not_ready_dropped:media"]).toBe(2);
 	});
 
+	it("leaves out what kind of save wrote a revision and who edited it", async () => {
+		await ctx.db
+			.updateTable("revisions")
+			.set({ kind: "autosave", edited_by: JSON.stringify([site.ids.bob, site.ids.alice]) })
+			.where("id", "=", site.ids.helloDraft)
+			.execute();
+
+		const records = await packageRecords((await runExport(ctx.db, storage)).reader);
+
+		expect(byId(records.get("revision")).get(site.ids.helloDraft)).toEqual({
+			kind: "revision",
+			id: site.ids.helloDraft,
+			collection: "posts",
+			entryId: site.ids.hello,
+			data: expect.objectContaining({ title: "Hello world (edited)" }),
+			authorPrincipal: site.ids.bob,
+			createdAt: expect.any(String),
+		});
+	});
+
 	it("fails when a ready media file is missing", async () => {
 		const logo = site.media.find((item) => item.id === site.ids.logoMedia)!;
 		storage.files.delete(logo.storageKey);
