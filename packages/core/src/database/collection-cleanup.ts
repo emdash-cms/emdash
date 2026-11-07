@@ -1,5 +1,6 @@
 import type { Kysely } from "kysely";
 
+import { EditorialThreadRepository } from "./repositories/editorial-threads.js";
 import type { Database } from "./types.js";
 
 /**
@@ -27,4 +28,5 @@ export async function deleteSharedCollectionRecords(
 		.execute();
 	await db.deleteFrom("content_taxonomies").where("collection", "=", collectionSlug).execute();
 	await db.deleteFrom("_emdash_entry_locks").where("collection", "=", collectionSlug).execute();
+	await new EditorialThreadRepository(db).deleteForCollection(collectionSlug);
 }
