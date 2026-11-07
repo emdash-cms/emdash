@@ -1108,7 +1108,7 @@ describe("WordPress Plugin Source: menu skip reporting", () => {
 			},
 		];
 
-		const result = await importMenusFromPlugin(menus, db, new Map());
+		const result = await importMenusFromPlugin(menus, db, new Map(), new Map());
 
 		expect(result.menusSkipped).toBe(1);
 		expect(result.menusCreated).toBe(1);
