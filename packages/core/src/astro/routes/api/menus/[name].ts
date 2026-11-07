@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { handleError, unwrapResult } from "#api/error.js";
 import { handleMenuDelete, handleMenuGet, handleMenuUpdate } from "#api/handlers/menus.js";
+import { getMenuName } from "#api/menu-name.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, updateMenuBody } from "#api/schemas.js";
 import { menuTag } from "#cache/chrome-tags.js";
@@ -18,9 +19,9 @@ import { invalidateRouteCache } from "#cache/route-cache.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params, request, locals }) => {
+export const GET: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 
 	const denied = requirePerm(user, "menus:read");
 	if (denied) return denied;
@@ -36,9 +37,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
-export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
+export const PUT: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
@@ -59,9 +60,9 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	}
 };
 
-export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
+export const DELETE: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
