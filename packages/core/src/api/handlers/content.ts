@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -864,7 +864,7 @@ async function removeShadowingAutoRedirect(
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "=", url)
+		.where("source", "in", redirectPathVariants(url))
 		.where("auto", "=", 1)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
