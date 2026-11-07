@@ -73,6 +73,8 @@ export interface CalendarEntryPanelProps {
 	/** Each collection's public URL pattern, for View live. */
 	urlPatterns: Readonly<Record<string, string | undefined>>;
 	user: CurrentUser | undefined;
+	/** Whether the collection allows changing an existing schedule. */
+	supportsScheduling?: boolean;
 	/** The entry link to focus when the panel closes, if it is still on the page. */
 	returnFocus?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
@@ -128,6 +130,7 @@ function CalendarEntryPanelContent({
 	i18n,
 	urlPatterns,
 	user,
+	supportsScheduling = true,
 	onClose,
 	onRescheduled,
 }: CalendarEntryPanelProps & { item: CalendarItem }) {
@@ -408,14 +411,16 @@ function CalendarEntryPanelContent({
 										{t`Publish now`}
 									</Button>
 								)}
-								<Button
-									variant="secondary"
-									icon={<CalendarDots aria-hidden="true" />}
-									disabled={publish.isPending || unschedule.isPending}
-									onClick={() => setScheduleOpen(true)}
-								>
-									{t`Reschedule`}
-								</Button>
+								{supportsScheduling && (
+									<Button
+										variant="secondary"
+										icon={<CalendarDots aria-hidden="true" />}
+										disabled={publish.isPending || unschedule.isPending}
+										onClick={() => setScheduleOpen(true)}
+									>
+										{t`Reschedule`}
+									</Button>
+								)}
 								<Button
 									variant="secondary-destructive"
 									loading={unschedule.isPending}
@@ -460,7 +465,7 @@ function CalendarEntryPanelContent({
 				)}
 			</div>
 
-			{scheduled && canPublish && (
+			{scheduled && canPublish && supportsScheduling && (
 				<PublishingScheduleDialog
 					open={scheduleOpen}
 					entryKey={item.key}

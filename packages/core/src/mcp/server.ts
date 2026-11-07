@@ -2391,7 +2391,7 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"preview), 'no-scheduling' (disable timed publishing, enabled by default), 'search' (full-text indexing), " +
 				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z

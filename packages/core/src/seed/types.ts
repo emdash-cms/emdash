@@ -93,7 +93,15 @@ export interface SeedCollection {
 	description?: string;
 	icon?: string;
 	admin?: CollectionAdminConfig;
-	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
+	supports?: (
+		| "drafts"
+		| "revisions"
+		| "preview"
+		| "scheduling"
+		| "no-scheduling"
+		| "search"
+		| "seo"
+	)[];
 	urlPattern?: string;
 	/** Require a slug before an entry can be published. Defaults to true. */
 	routable?: boolean;
