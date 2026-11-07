@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Add Slovak (sk) translation for admin UI
+Adds a Slovak (`sk`) translation of the admin UI, selectable as "Slovenčina" in the admin language picker.
