@@ -759,6 +759,10 @@ if (results.nextCursor) {
 }
 ```
 
+`search()` ranks full-title phrase matches first, then titles matching every term in a plain-term query, then other matches. Title tiers require the result title field to be indexed as searchable. Title matching uses the collection's search tokenizer, including its case folding and prefix matching. Advanced FTS operators still control which entries match, but title tiers do not interpret their full operator semantics. Within each tier, results are ordered by `score`. Scores are normalized to 0–1 per collection, with each collection's strongest match scoring 1 (or 0 if every match has zero weight). This also applies when `collections` contains only one collection. A higher score does not override a stronger title-match tier, so preserve the returned order rather than sorting by `score` alone.
+
+`searchCollection()` keeps raw BM25 score magnitudes and score-based ordering. Scores from the two APIs are not interchangeable.
+
 With `scope: "title"` the query matches only each collection's title field instead of the full indexed text -- useful for pickers and autocomplete where body-text matches would surprise. Collections whose title field is not indexed for search return no results under this scope.
 
 ## Error handling
