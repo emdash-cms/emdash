@@ -169,9 +169,11 @@ describe("typing", () => {
 		expectShape(editor, 'doc(ul(li(p#k-a("One"~k-a-s))), p#new, ul(li(p#k-b("Two"~k-b-s))), p)@10');
 	});
 
-	it("Backspace at the start of a list item", async () => {
+	it("Backspace at the start of a list item lifts it, and again joins it to the item before", async () => {
 		const second = await renderEditor([item("k-a", "One"), item("k-b", "Two")]);
 		await focus(second, textPosition(second, "Two", "start"));
+		await userEvent.keyboard("{Backspace}");
+		expectShape(second, 'doc(ul(li(p#k-a("One"~k-a-s))), p#k-b("Two"~k-b-s), p)@10');
 		await userEvent.keyboard("{Backspace}");
 		expectShape(second, 'doc(ul(li(p#k-a("One"~k-a-s, "Two"~k-b-s))), p)@6');
 	});
@@ -193,7 +195,12 @@ describe("typing", () => {
 		await userEvent.keyboard("{Backspace}");
 		expectShape(
 			editor,
-			'doc(ul(li(p#k-a("One"~k-a-s, "Two"~k-b-s), ul(li(p#k-c("Three"~k-c-s))))), p)@6',
+			'doc(ul(li(p#k-a("One"~k-a-s))), p#k-b("Two"~k-b-s), ul(li(p#k-c("Three"~k-c-s))), p)@10',
+		);
+		await userEvent.keyboard("{Backspace}");
+		expectShape(
+			editor,
+			'doc(ul(li(p#k-a("One"~k-a-s, "Two"~k-b-s))), ul(li(p#k-c("Three"~k-c-s))), p)@6',
 		);
 	});
 
@@ -369,7 +376,7 @@ describe("typing", () => {
 		const cases: Array<[string, string, (editor: Editor) => Promise<void>]> = [
 			[
 				"nested-backspace-twice-at-b",
-				'doc(p#k-before("before"~k-before-s), ul(li(p#k-a("b"~k-b-s), ul(li(p#k-b1("b1"~k-b1-s)), li(p#k-b2("b2"~k-b2-s)))), li(p#k-c("c"~k-c-s))), p#k-after("after"~k-after-s))@11',
+				'doc(p#k-before("before"~k-before-s), ul(li(p#k-a("a"~k-a-s, "b"~k-b-s))), ul(li(p#k-b1("b1"~k-b1-s)), li(p#k-b2("b2"~k-b2-s))), ul(li(p#k-c("c"~k-c-s))), p#k-after("after"~k-after-s))@12',
 				async (editor) => {
 					select(editor, textPosition(editor, "b", "start"));
 					await userEvent.keyboard("{Backspace}{Backspace}");
@@ -377,7 +384,7 @@ describe("typing", () => {
 			],
 			[
 				"nested-empty-b-backspace-twice",
-				'doc(p#k-before("before"~k-before-s), ul(li(p#k-a("a"~k-a-s), ul(li(p#k-b1("b1"~k-b1-s)), li(p#k-b2("b2"~k-b2-s)))), li(p#k-c("c"~k-c-s))), p#k-after("after"~k-after-s))@12',
+				'doc(p#k-before("before"~k-before-s), ul(li(p#k-a("a"~k-a-s))), p#k-b, ul(li(p#k-b1("b1"~k-b1-s)), li(p#k-b2("b2"~k-b2-s))), ul(li(p#k-c("c"~k-c-s))), p#k-after("after"~k-after-s))@16',
 				async (editor) => {
 					select(editor, textPosition(editor, "b", "start"), textPosition(editor, "b", "end"));
 					await userEvent.keyboard("{Backspace}{Backspace}");
@@ -566,11 +573,20 @@ describe("typing", () => {
 			],
 			[
 				"quote-backspace-at-second",
-				'doc(quote(p#k-q1("First"~k-q1-s, "Second"~k-q2-s)), p)@7',
+				'doc(quote(p#k-q1("First"~k-q1-s)), p#k-q2("Second"~k-q2-s), p)@10',
 				quote,
 				async (editor) => {
 					select(editor, textPosition(editor, "Second", "start"));
 					await userEvent.keyboard("{Backspace}");
+				},
+			],
+			[
+				"quote-backspace-twice-at-second",
+				'doc(quote(p#k-q1("First"~k-q1-s, "Second"~k-q2-s)), p)@13',
+				quote,
+				async (editor) => {
+					select(editor, textPosition(editor, "Second", "start"));
+					await userEvent.keyboard("{Backspace}{Backspace}");
 				},
 			],
 			[
