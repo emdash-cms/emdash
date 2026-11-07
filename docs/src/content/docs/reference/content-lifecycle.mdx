@@ -72,6 +72,25 @@ When scheduled publication reaches its due time, it uses the publish hooks. If a
 `content:beforePublish` hook rejects that scheduled attempt, EmDash clears the schedule and runs
 `content:afterUnschedule`.
 
+## Slugs
+
+When the admin panel, REST API, CLI, or MCP tools set a new or changed slug, EmDash cleans it before
+storing it:
+
+- Whitespace at either end of the slug is removed.
+- Each run of whitespace inside the slug, together with any hyphens beside it, becomes one hyphen.
+
+For example, `" launch notes "` and `"launch - notes"` are both stored as `launch-notes`. Letter
+case, dots, underscores, and other hyphens are kept. A slug staged in a draft or a restored revision
+is cleaned the same way before it goes live.
+
+A slug equal to the entry's live slug is stored unchanged, so saving an entry without changing its
+slug keeps its URL. To look an entry up later, use the slug returned by the write, not the value you
+sent.
+
+When the slug of a published entry changes, EmDash
+[redirects the old URL to the new one](/guides/seo/#redirects-and-the-404-log).
+
 ## Conflicts and retries
 
 Use the `_rev` returned by each read or write for the next protected operation. EmDash refuses an
