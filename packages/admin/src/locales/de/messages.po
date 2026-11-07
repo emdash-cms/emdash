@@ -3513,7 +3513,7 @@ msgstr "Details einklappen"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:187
 msgid "colleague@example.com"
-msgstr "max.mustermann@beispiel.de"
+msgstr "max.mustermann@example.com"
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:70
 #: packages/admin/src/components/ContentPickerModal.tsx:261
@@ -5788,7 +5788,7 @@ msgstr "Gib eine vollständige URL ein, die mit https:// oder http:// beginnt."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2674
 msgid "Enter a full URL, such as https://example.com."
-msgstr "Gib eine vollständige URL ein, z. B. https://beispiel.de."
+msgstr "Gib eine vollständige URL ein, z. B. https://example.com."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:119
 #: packages/admin/src/components/FieldEditor.tsx:341
@@ -5873,7 +5873,7 @@ msgstr "Gib eine URL ein."
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:27
 msgid "Enter a valid email address, such as name@example.com."
-msgstr "Gib eine gültige E-Mail-Adresse ein, z. B. name@beispiel.de."
+msgstr "Gib eine gültige E-Mail-Adresse ein, z. B. name@example.com."
 
 #: packages/admin/src/components/FieldEditor.tsx:453
 msgid "Enter a valid regular expression."
@@ -5886,7 +5886,7 @@ msgstr "Gib eine gültige Uhrzeit ein"
 #: packages/admin/src/components/block-field-notes.tsx:51
 #: packages/admin/src/components/ContentEditor.tsx:3874
 msgid "Enter a valid URL (e.g. https://example.com)"
-msgstr "Gib eine gültige URL ein (z. B. https://beispiel.de)"
+msgstr "Gib eine gültige URL ein (z. B. https://example.com)"
 
 #: packages/admin/src/components/block-field-notes.tsx:57
 msgid "Enter a whole number"
@@ -7891,11 +7891,11 @@ msgstr "Nur HTML, bereinigt und mit den Styles deiner Website."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:446
 msgid "https://example.com"
-msgstr "https://beispiel.de"
+msgstr "https://example.com"
 
 #: packages/admin/src/components/MenuEditor.tsx:640
 msgid "https://example.com or /about"
-msgstr "https://beispiel.de oder /ueber"
+msgstr "https://example.com oder /ueber"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:549
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:776
@@ -7908,11 +7908,11 @@ msgstr "https://example.com/blog/mein-beitrag"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1172
 msgid "https://example.com/image.jpg"
-msgstr "https://beispiel.de/bild.jpg"
+msgstr "https://example.com/bild.jpg"
 
 #: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "https://yoursite.com"
-msgstr "https://deine-website.de"
+msgstr "https://example.com"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:602
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
@@ -10403,7 +10403,7 @@ msgstr "Keines (oberste Ebene)"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:301
 msgid "noreply@example.com"
-msgstr "noreply@beispiel.de"
+msgstr "noreply@example.com"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:713
 msgid "Not compatible with this environment"
@@ -13812,7 +13812,7 @@ msgstr "SMTP-Transport"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
 msgid "smtp-relay.brevo.com"
-msgstr "smtp.beispiel.de"
+msgstr "smtp.example.com"
 
 #: packages/admin/src/components/Settings.tsx:60
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
@@ -14111,7 +14111,7 @@ msgstr "Hochgestellt"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:308
 msgid "support@example.com"
-msgstr "support@beispiel.de"
+msgstr "support@example.com"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:53
 msgid "Svelte"
@@ -14316,7 +14316,7 @@ msgstr "Test-E-Mail an {to} gesendet"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:399
 msgid "test@example.com"
-msgstr "test@beispiel.de"
+msgstr "test@example.com"
 
 #: packages/admin/src/components/BlocksField.tsx:2237
 #: packages/admin/src/components/PortableTextEditor.tsx:3800
@@ -15002,7 +15002,7 @@ msgstr "Das ist nicht das Paket, mit dem der Import gestartet wurde. Wähle dies
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
 msgid "This link can't be used. Enter a web address, such as https://example.com."
-msgstr "Dieser Link kann nicht verwendet werden. Gib eine Web-Adresse ein, z. B. https://beispiel.de."
+msgstr "Dieser Link kann nicht verwendet werden. Gib eine Web-Adresse ein, z. B. https://example.com."
 
 #: packages/admin/src/locales/emails.ts:66
 msgid "This link expires in 15 minutes."
@@ -16800,12 +16800,12 @@ msgstr "Du wurdest eingeladen!"
 
 #: packages/admin/src/components/SignupPage.tsx:91
 msgid "you@company.com"
-msgstr "du@unternehmen.de"
+msgstr "du@example.com"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:276
 #: packages/admin/src/components/SetupWizard.tsx:266
 msgid "you@example.com"
-msgstr "du@beispiel.de"
+msgstr "du@example.com"
 
 #: packages/admin/src/components/WelcomeModal.tsx:46
 msgid "Your account has been created successfully."
