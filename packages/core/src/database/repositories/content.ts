@@ -2184,9 +2184,7 @@ export class ContentRepository {
 	 * cannot start with an underscore.
 	 */
 	private termEntries(termGroups: string[][], type: string) {
-		const collection = isPostgres(this.db)
-			? sql.ref("collection")
-			: sql`+${sql.ref("collection")}`;
+		const collection = isPostgres(this.db) ? sql.ref("collection") : sql`+${sql.ref("collection")}`;
 		const sets = termGroups.map(
 			(groups) =>
 				sql`SELECT DISTINCT ${sql.ref("entry_id")} AS ${sql.ref("_term_entry")}
