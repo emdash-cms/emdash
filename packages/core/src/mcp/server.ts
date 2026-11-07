@@ -271,7 +271,7 @@ const schemaUpdateCollectionToolSchema = z.object({
 		"Field slug to use as the Title column in admin lists; pass null to fall back to the default",
 	),
 	dateField: updateCollectionBody.shape.dateField.describe(
-		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+		"Datetime field slug or system timestamp (publishedAt, createdAt, updatedAt) to use as the Date column and default sort in admin lists; pass null to fall back to last-updated",
 	),
 });
 

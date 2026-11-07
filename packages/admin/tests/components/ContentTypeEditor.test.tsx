@@ -753,6 +753,63 @@ describe("ContentTypeEditor", () => {
 			.not.toBeInTheDocument();
 	});
 
+	// ---- Date column source ----
+
+	it("offers system and datetime field date column sources", async () => {
+		const collection = makeCollection({
+			fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+		});
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		const trigger = screen.getByRole("combobox", { name: "Date column source", exact: true });
+		await expect.element(trigger).toHaveTextContent("Last updated (default)");
+		await trigger.click();
+		await expect
+			.element(screen.getByRole("option", { name: "Published", exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("option", { name: "Published on", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it.each([
+		["Published", "publishedAt"],
+		["Created", "createdAt"],
+		["Updated", "updatedAt"],
+	])("saves %s as the date column source", async (label, dateField) => {
+		const onSave = vi.fn();
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={makeCollection()} />,
+		);
+		await screen.getByRole("combobox", { name: "Date column source", exact: true }).click();
+		await screen.getByRole("option", { name: label, exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField }));
+	});
+
+	it("saves and resets the date column source without overriding it when unchanged", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({
+			dateField: "published_on",
+			fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+		});
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(
+			expect.not.objectContaining({ dateField: expect.anything() }),
+		);
+
+		onSave.mockClear();
+		const trigger = screen.getByRole("combobox", { name: "Date column source", exact: true });
+		await trigger.click();
+		await screen.getByRole("option", { name: "Last updated (default)", exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField: null }));
+	});
+
 	// ---- URL Pattern field ----
 
 	it("shows URL Pattern input", async () => {
