@@ -136,6 +136,8 @@ No feature flag. The option is off unless a plugin passes it.
 - **`getPublicUrls(collection, ids)`.** This serves plugins that hold IDs from their own storage. It needs a cap on the number of IDs and a rule for IDs that no longer exist, which are the questions #4153 raises for fetching entries by ID. Settling them once there is better than settling them twice.
 - **A higher subrequest limit (#3383).** This keeps one call per entry, so it postpones the problem instead of removing it.
 - **URLs built by the plugin from the schema.** This drifts from the site: the issue in #4004 found differences for fallback paths, repeated slug tokens, ID and date tokens, unroutable collections and trailing-slash settings.
+- **A list of extras, such as `include: ["publicUrl"]`.** This leaves room for more per-page data that #4153 might want, but nothing needs it yet. If something does, `list()` can accept the list later beside `publicUrl: true` without breaking plugins that use the boolean.
+- **An overload that types `publicUrl` as `string | null` when the option is the literal `true`.** This saves plugins a check for a missing key. It can be added later without breaking anything, while removing it would break plugins, so the optional field comes first.
 
 ## Drawbacks
 
@@ -144,5 +146,4 @@ No feature flag. The option is off unless a plugin passes it.
 
 ## Open questions
 
-1. **Option shape.** `publicUrl: true` is the smallest option. A list of extras, such as `include: ["publicUrl"]`, would leave room for more per-page data that #4153 might want. Which shape should `list()` take?
-2. **Typing.** Should `list()` get an overload so that items have `publicUrl: string | null` when the option is the literal `true`, or is the optional field enough?
+None.
