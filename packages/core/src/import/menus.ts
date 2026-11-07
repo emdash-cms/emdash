@@ -19,6 +19,8 @@ import { mapPostTypeToCollection } from "./utils.js";
 export interface MenuImportResult {
 	/** Number of menus created */
 	menusCreated: number;
+	/** Number of menus skipped because a same-named menu already exists */
+	menusSkipped: number;
 	/** Number of menu items created */
 	itemsCreated: number;
 	/** Mapping from WP menu slug to EmDash menu ID */
@@ -65,6 +67,7 @@ export async function importMenusFromWxr(
 ): Promise<MenuImportResult> {
 	const result: MenuImportResult = {
 		menusCreated: 0,
+		menusSkipped: 0,
 		itemsCreated: 0,
 		menuIdMap: new Map(),
 		errors: [],
@@ -81,7 +84,8 @@ export async function importMenusFromWxr(
 
 			if (existing) {
 				result.menuIdMap.set(menu.name, existing.id);
-				continue; // Skip existing menus
+				result.menusSkipped++;
+				continue;
 			}
 
 			// Create the menu
@@ -130,6 +134,7 @@ export async function importMenusFromPlugin(
 ): Promise<MenuImportResult> {
 	const result: MenuImportResult = {
 		menusCreated: 0,
+		menusSkipped: 0,
 		itemsCreated: 0,
 		menuIdMap: new Map(),
 		errors: [],
@@ -146,6 +151,7 @@ export async function importMenusFromPlugin(
 
 			if (existing) {
 				result.menuIdMap.set(menu.name, existing.id);
+				result.menusSkipped++;
 				continue;
 			}
 
