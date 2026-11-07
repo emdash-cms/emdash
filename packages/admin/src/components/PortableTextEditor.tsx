@@ -163,6 +163,7 @@ import {
 	PortableTextStarterKit,
 	PortableTextTable,
 	PortableTextTextAlign,
+	PortableTextYSync,
 	SubscriptMark,
 	SuperscriptMark,
 	TableIdentity,
@@ -2582,6 +2583,7 @@ export function PortableTextEditor({
 			TableIdentity,
 			PortableTextNormalizers,
 			PortableTextKeys,
+			PortableTextYSync,
 			PortableTextFilledDefaults,
 			BlockFormatShortcuts,
 			BlockSelection.configure({

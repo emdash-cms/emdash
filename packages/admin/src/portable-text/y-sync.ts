@@ -1,0 +1,152 @@
+/**
+ * Keeps y-tiptap from replacing a shared block when a local change adds a
+ * block before it.
+ *
+ * When a change adds a block before a block it also changes, as lifting the
+ * first item out of a list does, y-tiptap pairs the new block with the changed
+ * block's element by position. Their types differ, so it deletes the element
+ * and inserts a copy: another client's concurrent change inside the element
+ * is lost, and content that client moved out of it is duplicated. Before
+ * y-tiptap writes, this updates each such element from the node of the same
+ * type, counting from the end of the changed run, so y-tiptap finds it
+ * unchanged and keeps it.
+ *
+ * Server-safe: nothing here touches the DOM, React or `crypto` when loaded.
+ */
+
+import { Extension } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Plugin, type EditorState } from "@tiptap/pm/state";
+import {
+	type BindingMetadata,
+	type ProsemirrorBinding,
+	updateYFragment,
+	ySyncPluginKey,
+} from "@tiptap/y-tiptap";
+import * as Y from "yjs";
+
+type YChild = ReturnType<Y.XmlFragment["toArray"]>[number];
+
+const sameType = (yChild: YChild | undefined, node: ProseMirrorNode | undefined) =>
+	yChild instanceof Y.XmlElement && node !== undefined && yChild.nodeName === node.type.name;
+
+/**
+ * The children y-tiptap keeps in place: those still mapped to a node of the
+ * new document, in the longest run that keeps their order, as y-tiptap finds
+ * them.
+ */
+function anchors(yChildren: YChild[], nodes: readonly ProseMirrorNode[], meta: BindingMetadata) {
+	const indexOf = new Map<ProseMirrorNode, number>();
+	nodes.forEach((node, index) => {
+		if (!indexOf.has(node)) indexOf.set(node, index);
+	});
+	const candidates: Array<{ y: number; p: number }> = [];
+	yChildren.forEach((yChild, y) => {
+		const mapped = meta.mapping.get(yChild);
+		const p = Array.isArray(mapped) ? undefined : mapped && indexOf.get(mapped);
+		if (p !== undefined) candidates.push({ y, p });
+	});
+	const previous: number[] = [];
+	const tails: number[] = [];
+	candidates.forEach((candidate, index) => {
+		let low = 0;
+		let high = tails.length;
+		while (low < high) {
+			const middle = (low + high) >> 1;
+			if (candidates[tails[middle]!]!.p < candidate.p) low = middle + 1;
+			else high = middle;
+		}
+		previous[index] = low > 0 ? tails[low - 1]! : -1;
+		tails[low] = index;
+	});
+	const run: Array<{ y: number; p: number }> = [];
+	for (let index = tails.at(-1) ?? -1; index !== -1; index = previous[index]!) {
+		run.push(candidates[index]!);
+	}
+	return run.toReversed();
+}
+
+function alignChildren(
+	doc: Y.Doc,
+	yParent: Y.XmlFragment,
+	node: ProseMirrorNode,
+	meta: BindingMetadata,
+) {
+	if (node.inlineContent) return;
+	const yChildren = yParent.toArray();
+	const nodes = node.children;
+	const gaps = [...anchors(yChildren, nodes, meta), { y: yChildren.length, p: nodes.length }];
+	let y = 0;
+	let p = 0;
+	for (const end of gaps) {
+		const paired = Math.min(end.y - y, end.p - p);
+		let left = 0;
+		while (left < paired && sameType(yChildren[y + left], nodes[p + left])) left++;
+		let right = 0;
+		if (end.y - y !== end.p - p) {
+			while (
+				left + right < paired &&
+				sameType(yChildren[end.y - 1 - right], nodes[end.p - 1 - right])
+			) {
+				right++;
+			}
+		}
+		// y-tiptap pairs the rest by position and updates those of the same type.
+		for (let index = 0; index < paired - right; index++) {
+			const yChild = yChildren[y + index];
+			const child = nodes[p + index];
+			if (yChild instanceof Y.XmlElement && child && sameType(yChild, child)) {
+				alignChildren(doc, yChild, child, meta);
+			}
+		}
+		for (let index = 1; index <= right; index++) {
+			const yChild = yChildren[end.y - index];
+			const child = nodes[end.p - index];
+			if (!(yChild instanceof Y.XmlElement) || !child) continue;
+			alignChildren(doc, yChild, child, meta);
+			updateYFragment(doc, yChild, child, meta);
+		}
+		y = end.y + 1;
+		p = end.p + 1;
+	}
+}
+
+const aligned = new WeakSet<ProsemirrorBinding>();
+
+const showsSnapshot = (state: EditorState) => {
+	const sync = ySyncPluginKey.getState(state);
+	return sync?.snapshot != null || sync?.prevSnapshot != null;
+};
+
+function alignBeforeWrites(binding: ProsemirrorBinding) {
+	if (aligned.has(binding)) return;
+	aligned.add(binding);
+	const write = binding._prosemirrorChanged.bind(binding);
+	binding._prosemirrorChanged = (doc) => {
+		const view = binding.prosemirrorView;
+		if (binding.invalidContentError !== null || !view || showsSnapshot(view.state)) {
+			write(doc);
+			return;
+		}
+		binding.doc.transact(() => {
+			alignChildren(binding.doc, binding.type, doc, binding);
+			write(doc);
+		}, ySyncPluginKey);
+	};
+}
+
+export const PortableTextYSync = Extension.create({
+	name: "emdashPortableTextYSync",
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				view(view) {
+					const binding = ySyncPluginKey.getState(view.state)?.binding;
+					if (binding) alignBeforeWrites(binding);
+					return {};
+				},
+			}),
+		];
+	},
+});
