@@ -446,6 +446,32 @@ describe("settings_update when src/pages/robots.txt overrides the injected route
 		expect(settings.seo).toBeUndefined();
 	});
 
+	it("accepts the stored values sent back with another SEO change", async () => {
+		const robotsTxt = "User-agent: *\nDisallow: /nowhere\n";
+		await setSiteSettings({ seo: { robotsTxt, disallowAiTraining: true } }, db);
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt, disallowAiTraining: true, titleSeparator: " | " } },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const { seo } = await storedSettings();
+		expect(seo?.titleSeparator).toBe(" | ");
+	});
+
+	it("rejects a changed robotsTxt even when one is already stored", async () => {
+		await setSiteSettings({ seo: { robotsTxt: "User-agent: *\n" } }, db);
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt: "User-agent: *\nDisallow: /\n" } },
+		});
+		expect(extractText(result)).toContain("ROBOTS_TXT_OVERRIDDEN");
+		const { seo } = await storedSettings();
+		expect(seo?.robotsTxt).toBe("User-agent: *\n");
+	});
+
 	it("still clears both fields and updates other SEO settings", async () => {
 		await setSiteSettings({ seo: { robotsTxt: "User-agent: *\n", disallowAiTraining: true } }, db);
 

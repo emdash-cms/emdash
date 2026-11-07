@@ -181,15 +181,15 @@ const settingsSeoSchema = z.object({
 		.max(5000)
 		.optional()
 		.describe(
-			"Custom robots.txt body. Leave unset for the EmDash default. Rejected when the " +
-				"site serves its own src/pages/robots.txt.",
+			"Custom robots.txt body. Leave unset for the EmDash default. Changes are rejected " +
+				"when the site serves its own src/pages/robots.txt.",
 		),
 	disallowAiTraining: z
 		.boolean()
 		.optional()
 		.describe(
 			"Add robots.txt rules asking AI crawlers not to use the site for training. " +
-				"Rejected when the site serves its own src/pages/robots.txt.",
+				"Changes are rejected when the site serves its own src/pages/robots.txt.",
 		),
 	googleVerification: z
 		.string()
@@ -3836,17 +3836,26 @@ export function createMcpServer(
 			requireScope(extra, "settings:manage");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
-			if (
-				ec.config.robotsTxtOverridden &&
-				(Boolean(args.seo?.robotsTxt) || args.seo?.disallowAiTraining === true)
-			) {
-				return respondError(
-					"ROBOTS_TXT_OVERRIDDEN",
-					"This site serves its own src/pages/robots.txt, so seo.robotsTxt and " +
-						"seo.disallowAiTraining would have no effect. Edit that file instead.",
-				);
-			}
 			try {
+				const seo = args.seo;
+				if (
+					ec.config.robotsTxtOverridden &&
+					seo &&
+					(Boolean(seo.robotsTxt) || seo.disallowAiTraining === true)
+				) {
+					const { getSiteSettingWithDb } = await import("../settings/index.js");
+					const stored = await getSiteSettingWithDb("seo", ec.db);
+					const changesRobotsTxt = Boolean(seo.robotsTxt) && seo.robotsTxt !== stored?.robotsTxt;
+					const enablesAiRule =
+						seo.disallowAiTraining === true && stored?.disallowAiTraining !== true;
+					if (changesRobotsTxt || enablesAiRule) {
+						return respondError(
+							"ROBOTS_TXT_OVERRIDDEN",
+							"This site serves its own src/pages/robots.txt, so seo.robotsTxt and " +
+								"seo.disallowAiTraining would have no effect. Edit that file instead.",
+						);
+					}
+				}
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
 				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
 					siteSettingsTag(),
