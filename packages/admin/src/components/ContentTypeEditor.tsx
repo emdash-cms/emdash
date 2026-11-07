@@ -388,6 +388,18 @@ export function ContentTypeEditor({
 	const isFromCode = collection?.source === "code";
 	const fields = collection?.fields ?? [];
 
+	React.useEffect(() => {
+		if (
+			dateField &&
+			dateField !== "publishedAt" &&
+			dateField !== "createdAt" &&
+			dateField !== "updatedAt" &&
+			!fields.some((field) => field.slug === dateField && field.type === "datetime")
+		) {
+			setDateField(collection?.dateField ?? "");
+		}
+	}, [dateField, fields, collection?.dateField]);
+
 	const { data: relations = [], isLoading: relationsLoading } = useQuery({
 		queryKey: ["relations"],
 		queryFn: () => fetchRelations(),
