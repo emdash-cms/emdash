@@ -97,7 +97,7 @@ test.describe("Content CRUD", () => {
 			await saveDraft.click();
 
 			await expect(admin.page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
-			await expect(admin.page.getByRole("button", { name: "Saved" }).first()).toBeVisible();
+			await expect(admin.page.getByRole("status").filter({ hasText: "Saved" })).toHaveText("Saved");
 			await expect(
 				admin.page.getByRole("button", { name: "Publish now", exact: true }),
 			).toBeVisible();

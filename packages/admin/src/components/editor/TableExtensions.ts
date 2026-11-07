@@ -239,6 +239,10 @@ function handleRtlTableKey(view: EditorView, event: KeyboardEvent): boolean {
 }
 
 export const EmDashTable = Table.extend({
+	addNodeView() {
+		// The resize plugin owns the responsive table view, including in read-only editors.
+		return null;
+	},
 	addProseMirrorPlugins() {
 		return [
 			new Plugin({
