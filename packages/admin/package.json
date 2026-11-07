@@ -41,6 +41,10 @@
     "./html-block": {
       "types": "./dist/html-block.d.ts",
       "default": "./dist/html-block.js"
+    },
+    "./editorial-anchors": {
+      "types": "./dist/editorial-anchors.d.ts",
+      "default": "./dist/editorial-anchors.js"
     }
   },
   "scripts": {
