@@ -137,8 +137,10 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 
 			// --- Admin routes (require auth) ---
-			// Reads are open to editors (plugins:read). Routes without a
-			// `permission` fall back to plugins:manage, so writes stay admin-only.
+			// Reads are open to editors (plugins:read), and so is triaging a submission
+			// (star, status), which needs the same tier as editing content. Routes without
+			// a `permission` fall back to plugins:manage, so every other write and the
+			// export (which carries the submitter details) stay admin-only.
 
 			"forms/list": {
 				permission: "plugins:read",
@@ -172,6 +174,7 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 				handler: submissionGetHandler,
 			},
 			"submissions/update": {
+				permission: "content:edit_any",
 				input: submissionUpdateSchema,
 				handler: submissionUpdateHandler,
 			},

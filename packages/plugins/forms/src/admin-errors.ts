@@ -25,7 +25,8 @@ export function submissionsLoadError(res: { status: number }): string {
 
 /**
  * Message for a failed write (update, duplicate, delete, export).
- * Editors can read forms but the write routes require plugins:manage.
+ * Editors can read forms and triage submissions, but every other write route requires
+ * plugins:manage.
  */
 export function writeError(res: { status: number }, fallback: string): string {
 	return res.status === FORBIDDEN ? "You don't have permission to do this." : fallback;

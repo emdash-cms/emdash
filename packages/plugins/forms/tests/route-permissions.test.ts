@@ -21,12 +21,12 @@ const EDITOR_READS = [
 	"submissions/get",
 	"settings/turnstile-status",
 ];
+const EDITOR_TRIAGE = ["submissions/update"];
 const ADMIN_ONLY = [
 	"forms/create",
 	"forms/update",
 	"forms/delete",
 	"forms/duplicate",
-	"submissions/update",
 	"submissions/delete",
 	"submissions/export",
 ];
@@ -40,13 +40,18 @@ describe("forms plugin route permissions", () => {
 		for (const name of EDITOR_READS) expect(effectivePermission(name), name).toBe("plugins:read");
 	});
 
-	it("keeps writes and the bulk export admin-only", () => {
+	it("lets editors (content:edit_any) triage submissions", () => {
+		for (const name of EDITOR_TRIAGE)
+			expect(effectivePermission(name), name).toBe("content:edit_any");
+	});
+
+	it("keeps form writes, deleting submissions and the bulk export admin-only", () => {
 		for (const name of ADMIN_ONLY) expect(effectivePermission(name), name).toBe("plugins:manage");
 	});
 
 	it("classifies every registered route", () => {
 		expect(Object.keys(routes).toSorted()).toEqual(
-			[...PUBLIC, ...EDITOR_READS, ...ADMIN_ONLY].toSorted(),
+			[...PUBLIC, ...EDITOR_READS, ...EDITOR_TRIAGE, ...ADMIN_ONLY].toSorted(),
 		);
 	});
 });

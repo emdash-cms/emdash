@@ -2,8 +2,9 @@
  * Submission management route handlers.
  *
  * Listing and viewing submissions is open to editors (`plugins:read`), who can see every
- * submission but not the submitter's IP, user agent or referer. Updating, exporting and
- * deleting stay admin-only (`plugins:manage`).
+ * submission but not the submitter's IP, user agent or referer. Updating a submission (star,
+ * status, notes) takes `content:edit_any`, the editor tier, so editors can triage the inbox.
+ * Exporting and deleting stay admin-only (`plugins:manage`).
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
@@ -55,6 +56,8 @@ export async function submissionsListHandler(ctx: RouteContext<SubmissionsListIn
 		items: result.items.map((item) => ({ id: item.id, ...visibleTo(ctx, item.data) })),
 		hasMore: result.hasMore,
 		cursor: result.cursor,
+		// Lets the admin page hide delete and export, which are admin-only, from editors.
+		canManage: (ctx.user?.role ?? 0) >= ADMIN_ROLE,
 	};
 }
 

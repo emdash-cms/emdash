@@ -1142,6 +1142,8 @@ function SubmissionsPage() {
 	const [error, setError] = React.useState<string | null>(null);
 	const [subsError, setSubsError] = React.useState<string | null>(null);
 	const [actionError, setActionError] = React.useState<string | null>(null);
+	// Delete and export are admin-only; submissions/list says whether this user has them.
+	const [canManage, setCanManage] = React.useState(false);
 
 	React.useEffect(() => {
 		void (async () => {
@@ -1186,9 +1188,10 @@ function SubmissionsPage() {
 					setSubsError(submissionsLoadError(res));
 					return;
 				}
-				const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
+				const data = await parseApiResponse<{ items: SubmissionItem[]; canManage?: boolean }>(res);
 				if (stale) return;
 				setSubmissions(data.items);
+				setCanManage(data.canManage === true);
 			} catch {
 				if (stale) return;
 				setSubmissions([]);
@@ -1317,24 +1320,26 @@ function SubmissionsPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold">Submissions</h1>
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						icon={<Export />}
-						onClick={() => void handleExport("csv")}
-						disabled={submissions.length === 0}
-					>
-						CSV
-					</Button>
-					<Button
-						variant="outline"
-						icon={<Export />}
-						onClick={() => void handleExport("json")}
-						disabled={submissions.length === 0}
-					>
-						JSON
-					</Button>
-				</div>
+				{canManage && (
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							icon={<Export />}
+							onClick={() => void handleExport("csv")}
+							disabled={submissions.length === 0}
+						>
+							CSV
+						</Button>
+						<Button
+							variant="outline"
+							icon={<Export />}
+							onClick={() => void handleExport("json")}
+							disabled={submissions.length === 0}
+						>
+							JSON
+						</Button>
+					</div>
+				)}
 			</div>
 
 			{actionError && (
@@ -1473,18 +1478,20 @@ function SubmissionsPage() {
 														>
 															<Eye className="h-4 w-4" />
 														</Button>
-														<Button
-															variant="ghost"
-															shape="square"
-															className="text-destructive"
-															onClick={(e: React.MouseEvent) => {
-																e.stopPropagation();
-																void handleDelete(sub);
-															}}
-															aria-label="Delete"
-														>
-															<Trash className="h-4 w-4" />
-														</Button>
+														{canManage && (
+															<Button
+																variant="ghost"
+																shape="square"
+																className="text-destructive"
+																onClick={(e: React.MouseEvent) => {
+																	e.stopPropagation();
+																	void handleDelete(sub);
+																}}
+																aria-label="Delete"
+															>
+																<Trash className="h-4 w-4" />
+															</Button>
+														)}
 													</div>
 												</td>
 											</tr>
