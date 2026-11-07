@@ -124,7 +124,10 @@ function alignBeforeWrites(binding: ProsemirrorBinding) {
 	const write = binding._prosemirrorChanged.bind(binding);
 	binding._prosemirrorChanged = (doc) => {
 		const view = binding.prosemirrorView;
-		if (binding.invalidContentError !== null || !view || showsSnapshot(view.state)) {
+		// y-tiptap maps the root to each document it writes, and forgets it on remote changes, so
+		// a selection-only update has nothing to align.
+		const unchanged = binding.mapping.get(binding.type) === doc;
+		if (unchanged || binding.invalidContentError !== null || !view || showsSnapshot(view.state)) {
 			write(doc);
 			return;
 		}

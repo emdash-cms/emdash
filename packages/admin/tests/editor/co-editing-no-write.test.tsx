@@ -316,4 +316,39 @@ describe("co-editing", () => {
 		b.destroy();
 		c.destroy();
 	});
+
+	it("keeps another client's edit inside a list when a lift adds a block before it", () => {
+		const net = network(2, [
+			block("k-intro", "Intro"),
+			item("k-first", "First", "number"),
+			item("k-second", "Second", "number"),
+			block("k-after", "After"),
+		]);
+		const [b, c] = net.docs.map(peer) as [HeadlessEditor, HeadlessEditor];
+
+		b.chain()
+			.setTextSelection(position(b, "First", "start"))
+			.liftListItem("listItem")
+			.run();
+		c.chain()
+			.setTextSelection(position(c, "Second", "end"))
+			.insertContent("!!")
+			.run();
+		net.deliver();
+
+		for (const [editor, doc] of [
+			[b, net.docs[0]!],
+			[c, net.docs[1]!],
+		] as const) {
+			expect(
+				editor.state.doc.children.map((node) => `${node.type.name} ${node.textContent}`),
+			).toEqual(["paragraph Intro", "paragraph First", "orderedList Second!!", "paragraph After"]);
+			expect(prosemirrorToPortableText(shared(doc))).toEqual(
+				prosemirrorToPortableText(editor.getJSON()),
+			);
+		}
+
+		b.destroy();
+		c.destroy();
+	});
 });
