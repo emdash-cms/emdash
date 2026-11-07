@@ -121,7 +121,9 @@ export async function fetchMenus(options: LocaleOptions = {}): Promise<Menu[]> {
  * Fetch a single menu with items
  */
 export async function fetchMenu(name: string, options: LocaleOptions = {}): Promise<MenuWithItems> {
-	const response = await apiFetch(withLocale(`${API_BASE}/menus/${name}`, options.locale));
+	const response = await apiFetch(
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(name)}`, options.locale),
+	);
 	return parseApiResponse<MenuWithItems>(response, i18n._(msg`Failed to fetch menu`));
 }
 
@@ -145,11 +147,14 @@ export async function updateMenu(
 	input: UpdateMenuInput,
 	options: LocaleOptions = {},
 ): Promise<Menu> {
-	const response = await apiFetch(withLocale(`${API_BASE}/menus/${name}`, options.locale), {
-		method: "PUT",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify(input),
-	});
+	const response = await apiFetch(
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(name)}`, options.locale),
+		{
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(input),
+		},
+	);
 	return parseApiResponse<Menu>(response, i18n._(msg`Failed to update menu`));
 }
 
@@ -157,9 +162,12 @@ export async function updateMenu(
  * Delete a menu
  */
 export async function deleteMenu(name: string, options: LocaleOptions = {}): Promise<void> {
-	const response = await apiFetch(withLocale(`${API_BASE}/menus/${name}`, options.locale), {
-		method: "DELETE",
-	});
+	const response = await apiFetch(
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(name)}`, options.locale),
+		{
+			method: "DELETE",
+		},
+	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete menu`));
 }
 
@@ -172,7 +180,7 @@ export async function createMenuItem(
 	options: LocaleOptions = {},
 ): Promise<MenuItem> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${menuName}/items`, options.locale),
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(menuName)}/items`, options.locale),
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -192,7 +200,7 @@ export async function updateMenuItem(
 	options: LocaleOptions = {},
 ): Promise<MenuItem> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${menuName}/items/${itemId}`, options.locale),
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(menuName)}/items/${itemId}`, options.locale),
 		{
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -211,7 +219,7 @@ export async function deleteMenuItem(
 	options: LocaleOptions = {},
 ): Promise<void> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${menuName}/items/${itemId}`, options.locale),
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(menuName)}/items/${itemId}`, options.locale),
 		{ method: "DELETE" },
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete menu item`));
@@ -226,7 +234,7 @@ export async function reorderMenuItems(
 	options: LocaleOptions = {},
 ): Promise<MenuItem[]> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${menuName}/reorder`, options.locale),
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(menuName)}/reorder`, options.locale),
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -242,7 +250,7 @@ export async function fetchMenuTranslations(
 	options: LocaleOptions = {},
 ): Promise<MenuTranslationsResponse> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${name}/translations`, options.locale),
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(name)}/translations`, options.locale),
 	);
 	return parseApiResponse<MenuTranslationsResponse>(
 		response,
@@ -260,7 +268,7 @@ export async function createMenuTranslation(
 	options: LocaleOptions = {},
 ): Promise<Menu> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/menus/${name}/translations`, options.locale),
+		withLocale(`${API_BASE}/menus/${encodeURIComponent(name)}/translations`, options.locale),
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

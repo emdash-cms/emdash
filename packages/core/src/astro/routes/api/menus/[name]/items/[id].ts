@@ -10,6 +10,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMenuItemDelete, handleMenuItemUpdate } from "#api/handlers/menus.js";
+import { getMenuName } from "#api/menu-name.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, updateMenuItemBody } from "#api/schemas.js";
 import { menuTag } from "#cache/chrome-tags.js";
@@ -19,7 +20,7 @@ export const prerender = false;
 
 export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 	const itemId = params.id;
 
 	const denied = requirePerm(user, "menus:manage");
@@ -49,7 +50,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 	const itemId = params.id;
 
 	const denied = requirePerm(user, "menus:manage");
