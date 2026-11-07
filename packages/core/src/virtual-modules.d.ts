@@ -189,8 +189,9 @@ declare module "virtual:emdash/wait-until" {
 declare module "virtual:emdash/env" {
 	/**
 	 * Worker bindings/secrets. Resolves to Cloudflare's `env` (from
-	 * `cloudflare:workers`) under @astrojs/cloudflare; `undefined` on Node,
-	 * where callers should fall back to `import.meta.env`.
+	 * `cloudflare:workers`) under @astrojs/cloudflare. `undefined` on Node,
+	 * where callers that need runtime secrets prefer `process.env` over the
+	 * build-time `import.meta.env` snapshot.
 	 */
 	export const env: Record<string, unknown> | undefined;
 }
