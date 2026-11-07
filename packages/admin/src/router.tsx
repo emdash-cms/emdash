@@ -1495,7 +1495,9 @@ function ContentEditPage() {
 			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to publish`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(error, collectionFields) ??
+					(error instanceof Error ? error.message : t`An error occurred`),
 				variant: "error",
 			});
 		},
