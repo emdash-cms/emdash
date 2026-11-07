@@ -1,6 +1,6 @@
 import { test, expect } from "../fixtures";
 
-const EXTERNAL_IMAGE_URL = "http://media.example.test/editor-panel.png";
+const EXTERNAL_IMAGE_URL = "https://media.example.test/editor-panel.png";
 
 test.describe("Editor image panel", () => {
 	test.beforeEach(async ({ admin }) => {

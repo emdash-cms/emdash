@@ -635,7 +635,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				astroCommand = command;
 				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
 				normalizeRegistryConfig(registry, {
-					allowLocalhost: command === "dev" || command === "sync",
+					// `astro build --devOutput` sets NODE_ENV before loading the config and
+					// produces a build whose runtime registry check allows localhost.
+					allowLocalhost:
+						command === "dev" || command === "sync" || process.env.NODE_ENV === "development",
 				});
 				printBanner(logger);
 				for (const key of unknownOptions) logger.warn(unknownOptionWarning(key));
