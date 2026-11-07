@@ -678,7 +678,7 @@ msgstr "{current}/{total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}、{entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel} {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date}にはさらに#件あります} other {{dat
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {ほか#件} other {ほか#件}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {さらに#件を表示} other {さらに#件を表示}}"
 
@@ -894,10 +894,6 @@ msgstr "{needsNewCollections, plural, one {#件のコンテンツタイプが作
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {既存のコンテンツタイプ#件にフィールドを追加します} other {既存のコンテンツタイプ#件にフィールドを追加します}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin}ではまだこのサイトが配信されていません"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -2888,7 +2884,7 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "変更"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0>を<1>{1}</1>から<2>{2}</2>に変更しますか？上位レベルの機能にアクセスできなくなります。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "ドメインを変更"
@@ -3127,7 +3123,7 @@ msgstr "変更は、この執筆者が表示されるすべての箇所に反映
 msgid "Changes discarded"
 msgstr "変更を破棄しました"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "この版の変更内容"
 
@@ -3139,7 +3135,7 @@ msgstr "変更は保存されましたが、キャッシュされたページに
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "ページタイトルとサイト名の間に表示する文字（例：「記事タイトル | サイト名」）"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "確認して切り替え"
 
@@ -3230,7 +3226,7 @@ msgstr "このデバイスがパスキーに対応しているか確認中..."
 msgid "Checking this site"
 msgstr "このサイトを確認中"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "確認中…"
 
@@ -3987,6 +3983,10 @@ msgstr "公開予約を解除できませんでした"
 msgid "Could not review posts"
 msgstr "投稿を確認できませんでした"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr "メニュー項目を追加できませんでした"
@@ -4399,7 +4399,7 @@ msgstr "現在"
 msgid "Current cell"
 msgstr "現在のセル"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "現在の版"
@@ -5766,7 +5766,7 @@ msgstr "転送先パスを入力してください。"
 msgid "Enter a display name."
 msgstr "表示名を入力してください。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "example.comのように、パスやポートを含めずにドメインを入力してください"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "ターミナルに表示されたコードを入力"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "下にドメインを入力してください。EmDashは切り替え前に、そのドメインでこのサイトが配信されているか確認します。"
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "例：{pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -6501,7 +6501,7 @@ msgstr "許可ドメインの取得に失敗しました"
 msgid "Failed to fetch API tokens"
 msgstr "APIトークンの取得に失敗しました"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "認証モードの取得に失敗しました"
 
@@ -6575,7 +6575,7 @@ msgstr "コンテンツに設定された分類項目の取得に失敗しまし
 msgid "Failed to fetch fields"
 msgstr "フィールドの取得に失敗しました"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "マニフェストの取得に失敗しました"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0>のアカウントが存在する場合、ログインリンクを送信しました。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "localhostやログインが必要な環境など、まだインターネットからサイトに接続できない場合は、確認せずにアドレスを使用できます。"
 
@@ -8806,7 +8806,7 @@ msgstr "参照元"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "メールとプラグイン内のリンクには、デプロイ設定で指定された{0}が使用されます。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "メールとプラグイン内のリンク、サイトマップ、検索用・ソーシャル用メタデータの絶対URLには、新しいドメインが使用されます。"
 
@@ -9853,7 +9853,7 @@ msgstr "新しいコンテンツタイプ"
 msgid "New Content Type"
 msgstr "コンテンツタイプを作成"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "新しいドメイン"
 
@@ -10493,6 +10493,10 @@ msgstr "古い版"
 msgid "On"
 msgstr "有効"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "サイトでの表示"
@@ -10854,7 +10858,7 @@ msgstr "パスキーは作成したアドレスでのみ使用できます。"
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "パスキーは作成したアドレスでのみ使用できます。次回このアドレスでログインできるよう、ここでパスキーを追加してください。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "パスキーは作成したアドレスでのみ使用できます。切り替え後も現在のアドレスでログインするか、新しいアドレスではメールのログインリンクを使用してください。"
 
@@ -11021,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "プラグイン「{pluginId}」が見つかりません"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "プラグイン{pluginId}が保存を拒否しました: {reason}"
 
@@ -11153,7 +11157,7 @@ msgstr "プラグインウィジェットエラー"
 msgid "Plugins"
 msgstr "プラグイン"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "ドメインの接続先をこのサイトに設定してください。Cloudflareでは「Workers & Pages」でWorkerを開き、「Domains」タブでドメインを追加します。"
 
@@ -11386,21 +11390,21 @@ msgstr "今すぐ公開しますか？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "コンテンツの公開、非公開化、公開予約、予約取り消し"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "公開済み"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
+msgstr "公開済み"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "公開済み"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12132,7 +12136,7 @@ msgstr "リポジトリ"
 msgid "Request a new link"
 msgstr "新しいリンクをリクエスト"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "リクエストに失敗しました"
 
@@ -13706,7 +13710,7 @@ msgstr "サイトURL"
 msgid "Site URL set to {url}"
 msgstr "サイトURLを{url}に設定しました"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "サイトマップ、検索用・ソーシャル用メタデータの絶対URLには、新しいドメインが使用されます。メールとプラグイン内のリンクには、引き続きデプロイ設定で指定された{configuredUrl}が使用されます。"
 
@@ -15637,7 +15641,7 @@ msgstr "一意の識別子（ULID）"
 msgid "Unknown"
 msgstr "不明"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "編集者不明"
 
@@ -15659,7 +15663,7 @@ msgstr "アスペクト比を解除"
 msgid "Unnamed passkey"
 msgstr "名前のないパスキー"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "名前未設定のユーザー"
 
@@ -16014,7 +16018,7 @@ msgstr "使用状況が最新でない可能性があります。"
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "パスのパターンには[param]や[...rest]を使用できます。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "確認せずに{fallbackUrl}を使用"
 
@@ -16893,7 +16897,7 @@ msgstr "あなたの権限では、このコンテンツを編集できません
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "現在のロールでは、このデバイスが要求した権限をどれも許可できません。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "サイトの現在のアドレスは{currentUrl}です。"
 

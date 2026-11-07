@@ -678,7 +678,7 @@ msgstr "{current} / {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}，{entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date} 还有 # 个条目} other {{date} 还有 # 
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {还有 # 项} other {还有 # 项}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {再显示 # 个} other {再显示 # 个}}"
 
@@ -894,10 +894,6 @@ msgstr "{needsNewCollections, plural, one {将创建 # 个新合集} other {将�
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {字段将添加到 # 个现有合集} other {字段将添加到 # 个现有合集}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} 尚未为此站点提供服务"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -2888,7 +2884,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "更改"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "将 <0>{0}</0> 从 <1>{1}</1> 更改为 <2>{2}</2>？他们将失去对高级功能的访问权限。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "更改域名"
@@ -3127,7 +3123,7 @@ msgstr "更改将应用于此署名出现的所有位置。"
 msgid "Changes discarded"
 msgstr "更改已丢弃"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "此版本的更改"
 
@@ -3139,7 +3135,7 @@ msgstr "更改已保存，但缓存的页面可能仍显示旧的 {pluralLower}�
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "页面标题和网站名称之间的分隔符（例如，\"My Post | My Site\"）"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "检查并切换"
 
@@ -3230,7 +3226,7 @@ msgstr "正在检查此设备的通行密钥支持…"
 msgid "Checking this site"
 msgstr "正在检查此站点"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "正在检查…"
 
@@ -3987,6 +3983,10 @@ msgstr "无法移除定时发布"
 msgid "Could not review posts"
 msgstr "无法审核文章"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr ""
@@ -4399,7 +4399,7 @@ msgstr "当前"
 msgid "Current cell"
 msgstr "当前单元格"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "当前版本"
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr "请输入显示名称。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "输入域名，例如 example.com，不带路径或端口"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "输入终端中的代码"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "在下方输入域名。EmDash 会在切换前确认该域名已指向此站点。"
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "示例：{pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -6501,7 +6501,7 @@ msgstr "获取允许的域名失败"
 msgid "Failed to fetch API tokens"
 msgstr "获取 API 令牌失败"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "获取认证模式失败"
 
@@ -6575,7 +6575,7 @@ msgstr "获取条目词条失败"
 msgid "Failed to fetch fields"
 msgstr "获取字段失败"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "获取清单失败"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "如果存在与 <0>{email}</0> 关联的账号，我们已发送登录链接。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "如果站点暂时无法从互联网访问（例如在 localhost 上或位于登录之后），您可以跳过检查直接使用该地址。"
 
@@ -8806,7 +8806,7 @@ msgstr "链接来源"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "邮件和插件中的链接使用 {0}，由部署配置设定。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "邮件、插件中的链接，站点地图，以及搜索和社交元数据中的绝对 URL 都将使用新域名。"
 
@@ -9853,7 +9853,7 @@ msgstr "新合集"
 msgid "New Content Type"
 msgstr "新内容类型"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "新域名"
 
@@ -10493,6 +10493,10 @@ msgstr "较旧的版本"
 msgid "On"
 msgstr "开"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "在站点上"
@@ -10854,7 +10858,7 @@ msgstr "通行密钥只能在创建时所在的地址使用。"
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "通行密钥只能在创建时所在的地址使用。请在此添加一个，以便下次在此地址登录。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "通行密钥只能在创建时所在的地址使用。切换后，请继续在当前地址登录，或在新地址使用邮件登录链接。"
 
@@ -11021,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "插件 \"{pluginId}\" 未找到"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "插件 {pluginId} 拒绝了保存：{reason}"
 
@@ -11153,7 +11157,7 @@ msgstr "插件组件错误"
 msgid "Plugins"
 msgstr "插件"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "将域名指向此站点。在 Cloudflare 上，打开 Workers & Pages 中的 Worker，转到“域名”选项卡，添加域名。"
 
@@ -11386,21 +11390,21 @@ msgstr "立即发布？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "发布、取消发布、定时发布和取消定时发布内容"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "已发布"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
+msgstr "已发布"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "已发布"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12132,7 +12136,7 @@ msgstr "仓库"
 msgid "Request a new link"
 msgstr "请求新链接"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "请求失败"
 
@@ -13706,7 +13710,7 @@ msgstr "站点 URL"
 msgid "Site URL set to {url}"
 msgstr "站点 URL 已设为 {url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "搜索和社交元数据中的站点地图和绝对 URL 将使用新域名。邮件和插件中的链接将继续使用部署配置中设置的 {configuredUrl}。"
 
@@ -15637,7 +15641,7 @@ msgstr "唯一标识符 (ULID)"
 msgid "Unknown"
 msgstr "未知"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "未知作者"
 
@@ -15659,7 +15663,7 @@ msgstr "解锁宽高比"
 msgid "Unnamed passkey"
 msgstr "未命名通行密钥"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "未命名用户"
 
@@ -16014,7 +16018,7 @@ msgstr "用量可能已过期。"
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "在路径中使用 [param] 或 [...rest] 进行模式匹配。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "仍使用 {fallbackUrl}"
 
@@ -16893,7 +16897,7 @@ msgstr "你的角色无法编辑此条目。"
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "您的角色不允许此设备请求的任何权限。"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "您的站点当前位于 {currentUrl}。"
 

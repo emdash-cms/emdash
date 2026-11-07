@@ -678,7 +678,7 @@ msgstr "{current} de {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {Mais # entrada em {date}} other {Mais # entradas e
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# mais} other {+# mais}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {Exibir mais #} other {Exibir mais #}}"
 
@@ -894,10 +894,6 @@ msgstr "{needsNewCollections, plural, one {# nova coleção será criada} other 
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Campos serão adicionados a # coleção existente} other {Campos serão adicionados a # coleções existentes}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} ainda não está apontando para este site"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -2888,7 +2884,7 @@ msgstr "Pode visualizar conteúdo"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "Alterar"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "Alterar <0>{0}</0> de <1>{1}</1> para <2>{2}</2>? Esse usuário perderá o acesso a recursos de nível superior."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "Alterar domínio"
@@ -3127,7 +3123,7 @@ msgstr "As alterações se aplicam em todos os lugares onde este crédito aparec
 msgid "Changes discarded"
 msgstr "Alterações descartadas"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "Alterações nesta versão"
 
@@ -3139,7 +3135,7 @@ msgstr "As alterações foram salvas, mas as páginas em cache ainda podem mostr
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Caractere entre o título da página e o nome do site (ex.: \"Meu Post | Meu Site\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "Verificar e trocar"
 
@@ -3230,7 +3226,7 @@ msgstr "Verificando se este dispositivo é compatível com chaves de acesso..."
 msgid "Checking this site"
 msgstr "Verificando este site"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "Verificando…"
 
@@ -3987,6 +3983,10 @@ msgstr "Não foi possível remover o agendamento"
 msgid "Could not review posts"
 msgstr "Não foi possível revisar os posts"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr ""
@@ -4399,7 +4399,7 @@ msgstr "atual"
 msgid "Current cell"
 msgstr "Célula atual"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "Versão atual"
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr "Digite um nome de exibição."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "Digite um domínio como example.com, sem caminho nem porta"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "Digite o código do seu terminal"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "Digite o domínio abaixo. O EmDash verifica se ele aponta para este site antes de trocar."
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "Exemplo: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -6501,7 +6501,7 @@ msgstr "Falha ao carregar domínios permitidos"
 msgid "Failed to fetch API tokens"
 msgstr "Falha ao carregar tokens de API"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Falha ao carregar modo de autenticação"
 
@@ -6575,7 +6575,7 @@ msgstr "Falha ao carregar termos da entrada"
 msgid "Failed to fetch fields"
 msgstr "Falha ao carregar campos"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Falha ao carregar o manifest"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Se existir uma conta para <0>{email}</0>, enviamos um link de acesso."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "Se o site ainda não pode ser acessado pela internet, por exemplo em localhost ou atrás de um login, você pode usar o endereço sem a verificação."
 
@@ -8806,7 +8806,7 @@ msgstr "Tipo que referencia"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Os links em e-mails e plugins usam {0}, definido na configuração de implantação."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "Links em e-mails e plugins, sitemaps e URLs absolutas nos metadados de busca e redes sociais usarão o novo domínio."
 
@@ -9853,7 +9853,7 @@ msgstr "Nova coleção"
 msgid "New Content Type"
 msgstr "Novo tipo de conteúdo"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "Novo domínio"
 
@@ -10493,6 +10493,10 @@ msgstr "Versão mais antiga"
 msgid "On"
 msgstr "Ativado"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "No site"
@@ -10854,7 +10858,7 @@ msgstr "As chaves de acesso só funcionam no endereço em que foram criadas."
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "As chaves de acesso só funcionam no endereço em que foram criadas. Adicione uma aqui para poder entrar neste endereço da próxima vez."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "As chaves de acesso só funcionam no endereço em que foram criadas. Depois da troca, continue entrando pelo endereço atual ou use um link de acesso por e-mail no novo."
 
@@ -11021,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Plugin \"{pluginId}\" não encontrado"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "O plugin {pluginId} rejeitou o salvamento: {reason}"
 
@@ -11153,7 +11157,7 @@ msgstr "Erro do widget do plugin"
 msgid "Plugins"
 msgstr "Plugins"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "Aponte o domínio para este site. No Cloudflare, abra seu Worker em Workers & Pages, vá até a aba Domains e adicione o domínio."
 
@@ -11386,21 +11390,21 @@ msgstr "Publicar agora?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publicar, despublicar, agendar e cancelar o agendamento de conteúdo"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Publicado"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
+msgstr "Publicado"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Publicado"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12132,7 +12136,7 @@ msgstr "Repositório"
 msgid "Request a new link"
 msgstr "Solicitar um novo link"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Falha na solicitação"
 
@@ -13706,7 +13710,7 @@ msgstr "URL do site"
 msgid "Site URL set to {url}"
 msgstr "URL do site definida como {url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "Sitemaps e URLs absolutas nos metadados de busca e redes sociais usarão o novo domínio. Links em e-mails e plugins continuam usando {configuredUrl}, definido na configuração de implantação."
 
@@ -15637,7 +15641,7 @@ msgstr "Identificador único (ULID)"
 msgid "Unknown"
 msgstr "Desconhecido"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "Autor desconhecido"
 
@@ -15659,7 +15663,7 @@ msgstr "Desbloquear proporção"
 msgid "Unnamed passkey"
 msgstr "Chave de acesso sem nome"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "Usuário sem nome"
 
@@ -16014,7 +16018,7 @@ msgstr "O uso pode estar desatualizado."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Use [param] ou [...rest] nos caminhos para correspondência de padrão."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "Usar {fallbackUrl} mesmo assim"
 
@@ -16893,7 +16897,7 @@ msgstr ""
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "Sua função não permite nenhuma das permissões que este dispositivo solicitou."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "Seu site está atualmente em {currentUrl}."
 

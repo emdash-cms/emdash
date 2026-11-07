@@ -678,7 +678,7 @@ msgstr "{total}'in {current}'i"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date} tarihinde # kayıt daha} other {{date} tari
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# daha} other {+# daha}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {# tane daha göster} other {# tane daha göster}}"
 
@@ -894,10 +894,6 @@ msgstr "{needsNewCollections, plural, one {# yeni koleksiyon oluşturulacak} oth
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {# mevcut koleksiyona alan eklenecek} other {# mevcut koleksiyona alan eklenecek}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} henüz bu siteyi sunmuyor"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -2888,7 +2884,7 @@ msgstr "İçeriği görüntüleyebilir"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "Değiştir"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0>'i <1>{1}</1>'ten <2>{2}</2>'e değiştirmek ister misiniz? Daha üst düzey özelliklere erişimlerini kaybedecekler."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "Alan adını değiştir"
@@ -3127,7 +3123,7 @@ msgstr "Değişiklikler bu yazar bilgisinin göründüğü her yere uygulanır."
 msgid "Changes discarded"
 msgstr "Değişikliklerden vazgeçildi"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "Bu sürümdeki değişiklikler"
 
@@ -3139,7 +3135,7 @@ msgstr "Değişiklikler kaydedildi, ancak önbelleğe alınmış sayfalarda eski
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Sayfa başlığı ile site adı arasındaki karakter (ör. \"Gönderim | Sitem\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "Kontrol et ve geçiş yap"
 
@@ -3230,7 +3226,7 @@ msgstr "Bu cihazın geçiş anahtarı desteği kontrol ediliyor..."
 msgid "Checking this site"
 msgstr "Bu site kontrol ediliyor"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "Kontrol ediliyor…"
 
@@ -3987,6 +3983,10 @@ msgstr "Zamanlama kaldırılamadı"
 msgid "Could not review posts"
 msgstr "Gönderiler gözden geçirilemedi"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr ""
@@ -4399,7 +4399,7 @@ msgstr "geçerli"
 msgid "Current cell"
 msgstr "Geçerli hücre"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "Geçerli sürüm"
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr "Görünen adı girin."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "Yol veya bağlantı noktası içermeyen example.com gibi bir alan adı girin"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "Kodu terminalinizden girin"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "Alan adını aşağıya girin. EmDash, geçiş yapmadan önce bu adresin siteyi sunduğunu kontrol eder."
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "Örnek: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -6501,7 +6501,7 @@ msgstr "İzin verilen alan adları alınamadı"
 msgid "Failed to fetch API tokens"
 msgstr "API belirteçleri alınamadı"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Kimlik doğrulama modu getirilemedi"
 
@@ -6575,7 +6575,7 @@ msgstr "Kayıt terimleri getirilemedi"
 msgid "Failed to fetch fields"
 msgstr "Alanlar alınamadı"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Manifest getirilemedi"
 
@@ -7939,7 +7939,7 @@ msgstr "İD"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0> için bir hesap mevcutsa, bir oturum açma bağlantısı gönderdik."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "Siteye henüz internetten erişilemiyorsa (örneğin site localhost üzerindeyse veya oturum açmayı gerektiriyorsa) bu adresi kontrol etmeden kullanabilirsiniz."
 
@@ -8806,7 +8806,7 @@ msgstr "Bağlantı kaynağı"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "E-postalardaki ve eklentilerdeki bağlantılar, dağıtım yapılandırmasında belirlenen {0} adresini kullanır."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "E-postalardaki ve eklentilerdeki bağlantılar, site haritaları ile arama ve sosyal medya meta verilerindeki mutlak URL'ler yeni alan adını kullanacak."
 
@@ -9853,7 +9853,7 @@ msgstr "Yeni koleksiyon"
 msgid "New Content Type"
 msgstr "Yeni İçerik Türü"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "Yeni alan adı"
 
@@ -10493,6 +10493,10 @@ msgstr "Daha eski sürüm"
 msgid "On"
 msgstr "Açık"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "Sitede"
@@ -10854,7 +10858,7 @@ msgstr "Geçiş anahtarları yalnızca oluşturuldukları adreste çalışır."
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "Geçiş anahtarları yalnızca oluşturuldukları adreste çalışır. Bir dahaki sefere bu adreste oturum açabilmek için buraya bir geçiş anahtarı ekleyin."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Geçiş anahtarları yalnızca oluşturuldukları adreste çalışır. Geçiş yaptıktan sonra mevcut adreste oturum açmaya devam edin veya yeni adreste e-postayla oturum açma bağlantısını kullanın."
 
@@ -11021,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "\"{pluginId}\" eklentisi bulunamadı"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "{pluginId} eklentisi kaydetme işlemini reddetti: {reason}"
 
@@ -11153,7 +11157,7 @@ msgstr "Eklenti widget'ı hatası"
 msgid "Plugins"
 msgstr "Eklentiler"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "Alan adını bu siteye yönlendirin. Cloudflare'da Workers & Pages bölümünden Worker'ınızı açın, Domains sekmesine gidin ve alan adını ekleyin."
 
@@ -11386,21 +11390,21 @@ msgstr "Şimdi yayınlansın mı?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "İçeriği yayınlayın, yayından kaldırın, zamanlayın ve zamanlamasını kaldırın"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Yayınlandı"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
+msgstr "Yayınlandı"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Yayınlandı"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12132,7 +12136,7 @@ msgstr "Depo"
 msgid "Request a new link"
 msgstr "Yeni bir bağlantı isteyin"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "İstek başarısız oldu"
 
@@ -13706,7 +13710,7 @@ msgstr "Site URL'si"
 msgid "Site URL set to {url}"
 msgstr "Site URL'si {url} olarak ayarlandı"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "Site haritaları ile arama ve sosyal medya meta verilerindeki mutlak URL'ler yeni alan adını kullanacak. E-postalardaki ve eklentilerdeki bağlantılar, dağıtım yapılandırmasında belirlenen {configuredUrl} adresini kullanmaya devam edecek."
 
@@ -15637,7 +15641,7 @@ msgstr "Benzersiz tanımlayıcı (ULID)"
 msgid "Unknown"
 msgstr "Bilinmiyor"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr "Bilinmeyen yazar"
 
@@ -15659,7 +15663,7 @@ msgstr "En boy oranının kilidini aç"
 msgid "Unnamed passkey"
 msgstr "Adsız geçiş anahtarı"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr "Adsız kullanıcı"
 
@@ -16014,7 +16018,7 @@ msgstr "Kullanım bilgileri güncel olmayabilir."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Desen eşleştirme için yollarda [param] veya [...rest] kullanın."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "Yine de {fallbackUrl} adresini kullan"
 
@@ -16893,7 +16897,7 @@ msgstr "Rolünüz bu kaydı düzenlemeye izin vermiyor."
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "Rolünüz bu cihazın istediği izinlerden hiçbirini kapsamıyor."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "Siteniz şu anda {currentUrl} adresinde."
 

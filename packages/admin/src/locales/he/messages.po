@@ -679,7 +679,7 @@ msgstr "{current} מתוך {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr ""
 
@@ -713,7 +713,7 @@ msgstr "{hidden, plural, one {פריט נוסף אחד ב-{date}} two {שני פ
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# נוסף} two {+# נוספים} other {+# נוספים}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
@@ -895,10 +895,6 @@ msgstr "{needsNewCollections, plural, one {אוסף חדש אחד ייווצר} 
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {שדות יתווספו לאוסף קיים אחד} two {שדות יתווספו לשני אוספים קיימים} other {שדות יתווספו ל-# אוספים קיימים}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -2889,7 +2885,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3007,7 +3003,7 @@ msgstr "שינוי"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "האם לשנות את <0>{0}</0> מ-<1>{1}</1> ל-<2>{2}</2>? הם יאבדו גישה לתכונות ברמה גבוהה יותר."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "שינוי דומיין"
@@ -3128,7 +3124,7 @@ msgstr "השינויים חלים בכל מקום שבו הקרדיט הזה מ�
 msgid "Changes discarded"
 msgstr "השינויים בוטלו"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr ""
 
@@ -3140,7 +3136,7 @@ msgstr "השינויים נשמרו, אבל ייתכן שדפים שמורים �
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "תו בין כותרת העמוד לשם האתר (למשל, \"הפוסט שלי | האתר שלי\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "בדיקה ומעבר"
 
@@ -3231,7 +3227,7 @@ msgstr "בדיקת תמיכה במפתח גישה במכשיר זה..."
 msgid "Checking this site"
 msgstr "בדיקת האתר הזה"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "מתבצעת בדיקה…"
 
@@ -3988,6 +3984,10 @@ msgstr "לא ניתן להסיר את התזמון"
 msgid "Could not review posts"
 msgstr "לא ניתן לבדוק את הפוסטים"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr ""
@@ -4400,7 +4400,7 @@ msgstr "נוכחי"
 msgid "Current cell"
 msgstr "תא נוכחי"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr ""
@@ -5767,7 +5767,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr ""
 
@@ -5938,7 +5938,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "הזינו את הקוד מהמסוף שלכם"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "הזינו את הדומיין למטה. EmDash בודק שהוא מגיש את האתר הזה לפני המעבר."
 
@@ -6048,7 +6048,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "דוגמה: {pattern} ← {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "דוגמה: example.com"
 
@@ -6502,7 +6502,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "אחזור מצב האימות נכשל"
 
@@ -6576,7 +6576,7 @@ msgstr "אחזור מונחי הפריט נכשל"
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "אחזור manifest נכשל"
 
@@ -7940,7 +7940,7 @@ msgstr "מזהה"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "אם קיים חשבון עבור <0>{email}</0>, שלחנו קישור התחברות."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "אם עדיין אי אפשר להגיע לאתר מהאינטרנט, למשל ב-localhost או מאחורי התחברות, אפשר להשתמש בכתובת בלי הבדיקה."
 
@@ -8807,7 +8807,7 @@ msgstr "מקור הקישור"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "קישורים באימיילים ובתוספים משתמשים ב-{0}, שנקבע בהגדרות הפריסה."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "קישורים באימיילים ובתוספים, מפות אתר וכתובות URL מלאות במטא-דאטה לחיפוש ולרשתות חברתיות ישתמשו בדומיין החדש."
 
@@ -9854,7 +9854,7 @@ msgstr "אוסף חדש"
 msgid "New Content Type"
 msgstr "סוג תוכן חדש"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "דומיין חדש"
 
@@ -10494,6 +10494,10 @@ msgstr ""
 msgid "On"
 msgstr ""
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "באתר"
@@ -10855,7 +10859,7 @@ msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצ�
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצרו. הוסיפו מפתח כאן כדי שתוכלו להתחבר בכתובת הזו בפעם הבאה."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "מפתחות גישה עובדים רק בכתובת שבה הם נוצרו. אחרי המעבר, המשיכו להתחבר בכתובת הנוכחית, או השתמשו בקישור התחברות באימייל בכתובת החדשה."
 
@@ -11022,7 +11026,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "התוסף \"{pluginId}\" לא נמצא"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "התוסף {pluginId} דחה את השמירה: {reason}"
 
@@ -11154,7 +11158,7 @@ msgstr "שגיאת וידג׳ט של תוסף"
 msgid "Plugins"
 msgstr "תוספים"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "הפנו את הדומיין לאתר הזה. ב-Cloudflare, פתחו את ה-Worker שלכם ב-Workers & Pages, עברו ללשונית Domains והוסיפו את הדומיין."
 
@@ -11387,21 +11391,21 @@ msgstr "לפרסם כעת?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "פרסום, ביטול פרסום, תזמון וביטול תזמון של תוכן"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "פורסם"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
+msgstr "פורסם"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "פורסם"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12133,7 +12137,7 @@ msgstr "מאגר"
 msgid "Request a new link"
 msgstr "בקשת קישור חדש"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "הבקשה נכשלה"
 
@@ -13707,7 +13711,7 @@ msgstr "URL של האתר"
 msgid "Site URL set to {url}"
 msgstr "ה-URL של האתר הוגדר ל-{url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "מפות אתר וכתובות URL מלאות במטא-דאטה לחיפוש ולרשתות חברתיות ישתמשו בדומיין החדש. קישורים באימיילים ובתוספים ימשיכו להשתמש ב-{configuredUrl}, שנקבע בהגדרות הפריסה."
 
@@ -15638,7 +15642,7 @@ msgstr "מזהה ייחודי (ULID)"
 msgid "Unknown"
 msgstr "לא ידוע"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr ""
 
@@ -15660,7 +15664,7 @@ msgstr "ביטול נעילת יחס ממדים"
 msgid "Unnamed passkey"
 msgstr "מפתח גישה ללא שם"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr ""
 
@@ -16015,7 +16019,7 @@ msgstr "ייתכן שנתוני השימוש אינם מעודכנים."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "השתמשו ב-[param] או ב-[...rest] בנתיבים להתאמת תבניות."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "שימוש ב-{fallbackUrl} בכל זאת"
 
@@ -16894,7 +16898,7 @@ msgstr ""
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "התפקיד שלכם אינו מאפשר אף אחת מההרשאות שהמכשיר הזה ביקש."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "האתר שלכם נמצא כרגע ב-{currentUrl}."
 

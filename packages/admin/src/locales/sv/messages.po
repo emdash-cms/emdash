@@ -678,7 +678,7 @@ msgstr "{current} av {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr ""
 
@@ -712,7 +712,7 @@ msgstr "{hidden, plural, one {{date}: # post till} other {{date}: # poster till}
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# till} other {+# till}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr ""
 
@@ -894,10 +894,6 @@ msgstr "{needsNewCollections, plural, one {# ny samling kommer att skapas} other
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Fält kommer att läggas till i # befintlig samling} other {Fält kommer att läggas till i # befintliga samlingar}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} visar inte den här webbplatsen än"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -2888,7 +2884,7 @@ msgstr "Kan visa innehåll"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -3006,7 +3002,7 @@ msgstr "Ändra"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "Ändra <0>{0}</0> från <1>{1}</1> till <2>{2}</2>? Personen förlorar då åtkomst till funktioner på högre nivå."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "Byt domän"
@@ -3127,7 +3123,7 @@ msgstr "Ändringarna gäller överallt där skribenten visas."
 msgid "Changes discarded"
 msgstr "Ändringarna kasserades"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr ""
 
@@ -3139,7 +3135,7 @@ msgstr "Ändringarna sparades, men cachade sidor kan fortfarande visa gamla {plu
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "Tecken mellan sidtitel och webbplatsnamn (t.ex. ”Mitt inlägg | Min webbplats”)"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "Kontrollera och byt"
 
@@ -3230,7 +3226,7 @@ msgstr "Kontrollerar om enheten har stöd för passkeys …"
 msgid "Checking this site"
 msgstr "Kontrollerar den här webbplatsen"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "Kontrollerar …"
 
@@ -3987,6 +3983,10 @@ msgstr "Kunde inte ta bort schemaläggningen"
 msgid "Could not review posts"
 msgstr "Kunde inte granska inläggen"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr ""
@@ -4399,7 +4399,7 @@ msgstr "aktuell"
 msgid "Current cell"
 msgstr "Aktuell cell"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr ""
@@ -5766,7 +5766,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "Ange en domän, till exempel example.com, utan sökväg eller port"
 
@@ -5937,7 +5937,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "Ange koden från din terminal"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "Ange domänen nedan. EmDash kontrollerar att den visar den här webbplatsen innan domänen byts."
 
@@ -6047,7 +6047,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "Exempel: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -6501,7 +6501,7 @@ msgstr "Det gick inte att hämta tillåtna domäner"
 msgid "Failed to fetch API tokens"
 msgstr "Det gick inte att hämta API-tokens"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Det gick inte att hämta autentiseringsläge"
 
@@ -6575,7 +6575,7 @@ msgstr "Det gick inte att hämta termer för posten"
 msgid "Failed to fetch fields"
 msgstr "Det gick inte att hämta fält"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Det gick inte att hämta manifestet"
 
@@ -7939,7 +7939,7 @@ msgstr "ID"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Om det finns ett konto för <0>{email}</0> har vi skickat en inloggningslänk."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr "Om webbplatsen inte kan nås från internet ännu, till exempel på localhost eller bakom en inloggning, kan du använda adressen utan kontrollen."
 
@@ -8806,7 +8806,7 @@ msgstr "Länkar från"
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr "Länkar i e-post och tillägg använder {0} från driftsättningens konfiguration."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "Länkar i e-post och tillägg, webbplatskartor och absoluta URL:er i metadata för sökmotorer och sociala medier använder sedan den nya domänen."
 
@@ -9853,7 +9853,7 @@ msgstr "Ny samling"
 msgid "New Content Type"
 msgstr "Ny innehållstyp"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "Ny domän"
 
@@ -10493,6 +10493,10 @@ msgstr ""
 msgid "On"
 msgstr ""
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
 msgstr "På webbplatsen"
@@ -10854,7 +10858,7 @@ msgstr "Passkeys fungerar bara på den adress där de skapades."
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr "Passkeys fungerar bara på den adress där de skapades. Lägg till en här så att du kan logga in på den här adressen nästa gång."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr "Passkeys fungerar bara på den adress där de skapades. Efter bytet kan du fortsätta logga in på den nuvarande adressen eller använda en inloggningslänk via e-post på den nya."
 
@@ -11021,7 +11025,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Tillägget ”{pluginId}” hittades inte"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Tillägget {pluginId} stoppade sparandet: {reason}"
 
@@ -11153,7 +11157,7 @@ msgstr "Fel i tilläggswidget"
 msgid "Plugins"
 msgstr "Tillägg"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "Låt domänen peka på den här webbplatsen. På Cloudflare öppnar du din Worker under Workers & Pages, går till fliken Domains och lägger till domänen."
 
@@ -11386,21 +11390,21 @@ msgstr "Publicera nu?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publicera, avpublicera, schemalägga och avboka schemaläggning av innehåll"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Publicerad"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
 #: packages/admin/src/router.tsx:1492
 msgid "Published"
+msgstr "Publicerad"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Publicerad"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12132,7 +12136,7 @@ msgstr "Kodarkiv"
 msgid "Request a new link"
 msgstr "Begär en ny länk"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "Begäran misslyckades"
 
@@ -13706,7 +13710,7 @@ msgstr "Webbplats-URL"
 msgid "Site URL set to {url}"
 msgstr "Webbplats-URL satt till {url}"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "Webbplatskartor och absoluta URL:er i metadata för sökmotorer och sociala medier använder sedan den nya domänen. Länkar i e-post och tillägg fortsätter att använda {configuredUrl} från driftsättningens konfiguration."
 
@@ -15637,7 +15641,7 @@ msgstr "Unik identifierare (ULID)"
 msgid "Unknown"
 msgstr "Okänd"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr ""
 
@@ -15659,7 +15663,7 @@ msgstr "Lås upp bildförhållande"
 msgid "Unnamed passkey"
 msgstr "Namnlös passkey"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr ""
 
@@ -16014,7 +16018,7 @@ msgstr "Användningen kan vara inaktuell."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Använd [param] eller [...rest] i sökvägar för mönstermatchning."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr "Använd {fallbackUrl} ändå"
 
@@ -16893,7 +16897,7 @@ msgstr ""
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "Din roll tillåter ingen av de behörigheter som enheten begärde."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr "Webbplatsen finns just nu på {currentUrl}."
 
