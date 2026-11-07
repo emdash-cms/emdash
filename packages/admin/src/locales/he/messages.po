@@ -143,17 +143,17 @@ msgid "\"{0}\" and its nested items will be removed from this menu. This action 
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1894
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "\"{0}\" יימחק מ-{providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1895
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "\"{0}\" יימחק מספק המדיה שלו."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1907
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" יימחק לצמיתות."
 
@@ -264,7 +264,7 @@ msgstr "{0, plural, one {קובץ אחד לא נוסף כי רשימת ההעל�
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1514
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 #: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {תיקייה אחת נטענה} two {שתי תיקיות נטענו} other {# תיקיות נטענו}}"
@@ -1154,7 +1154,7 @@ msgstr "1. התחברו לניהול ה-WordPress שלכם"
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. התחברו ללוח הבקרה של ניהול ה-WordPress שלכם"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:542
+#: packages/admin/src/components/MediaDetailPanel.tsx:544
 msgid "16:9"
 msgstr "יחס 16:9"
 
@@ -1166,7 +1166,7 @@ msgstr "2. עברו אל <0>כלים ← ייצוא</0>"
 msgid "2. Go to Users → Profile"
 msgstr "2. עברו אל משתמשים ← פרופיל"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:541
+#: packages/admin/src/components/MediaDetailPanel.tsx:543
 msgid "3:2"
 msgstr "יחס 3:2"
 
@@ -1198,7 +1198,7 @@ msgstr "307 זמנית (מחמירה)"
 msgid "308 Permanent (Strict)"
 msgstr "308 קבועה (מחמירה)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:540
+#: packages/admin/src/components/MediaDetailPanel.tsx:542
 msgid "4:3"
 msgstr "יחס 4:3"
 
@@ -1360,7 +1360,7 @@ msgstr "לנטוש את הייבוא הזה?"
 msgid "Abandoning…"
 msgstr "בנטישה…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:534
+#: packages/admin/src/components/MediaDetailPanel.tsx:536
 msgid "About focal point"
 msgstr "על נקודת המוקד"
 
@@ -2045,8 +2045,8 @@ msgid "Alt text"
 msgstr "טקסט חלופי"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1582
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
+#: packages/admin/src/components/MediaDetailPanel.tsx:1597
 msgid "Alt Text"
 msgstr "טקסט חלופי"
 
@@ -2144,7 +2144,7 @@ msgstr "קובץ הייצוא מנותח..."
 msgid "Analyzing WordPress site..."
 msgstr "אתר ה-WordPress מנותח..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1742
+#: packages/admin/src/components/MediaDetailPanel.tsx:1753
 msgid "Animated WebP files become still images when cropped."
 msgstr "קובצי WebP מונפשים הופכים לתמונות סטטיות בעת חיתוך."
 
@@ -2328,7 +2328,7 @@ msgstr ""
 msgid "Ask an administrator to complete this setup."
 msgstr "בקשו ממנהל/ת להשלים את ההגדרה הזו."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1682
+#: packages/admin/src/components/MediaDetailPanel.tsx:1693
 msgid "Aspect ratio"
 msgstr "יחס ממדים"
 
@@ -2516,7 +2516,7 @@ msgstr "חזרה"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1814
-#: packages/admin/src/components/MediaDetailPanel.tsx:1786
+#: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
@@ -2869,7 +2869,7 @@ msgstr "יכול/ה להציג תוכן"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
 #: packages/admin/src/components/FieldEditor.tsx:1819
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:575
@@ -2949,7 +2949,7 @@ msgstr "הרשאות"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 #: packages/admin/src/components/editor/ImageNode.tsx:311
 #: packages/admin/src/components/editor/VideoNode.tsx:332
-#: packages/admin/src/components/MediaDetailPanel.tsx:1597
+#: packages/admin/src/components/MediaDetailPanel.tsx:1608
 msgid "Caption"
 msgstr "כיתוב"
 
@@ -3268,7 +3268,7 @@ msgid "Choose a file from the library or upload a new one."
 msgstr "בחרו קובץ מהספרייה או העלו קובץ חדש."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:925
+#: packages/admin/src/components/MediaDetailPanel.tsx:927
 msgid "Choose a non-empty {0} image."
 msgstr "בחרו תמונת {0} שאינה ריקה."
 
@@ -3326,7 +3326,7 @@ msgstr ""
 msgid "Choose package file"
 msgstr "בחירת קובץ חבילה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1817
+#: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
 msgstr "בחירת תמונה חלופית"
 
@@ -3449,8 +3449,8 @@ msgstr "לחצו על הקישור הזה כדי להתחבר אל {siteName}:"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:627
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:629
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:1134
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1136
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
@@ -3807,7 +3807,7 @@ msgstr "סוגי תוכן"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "סוגי תוכן עם אותה קבוצה חולקים תיקייה שניתן לכווץ בסרגל הצד"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1912
+#: packages/admin/src/components/MediaDetailPanel.tsx:1923
 msgid "Content using this media item may show a broken reference."
 msgstr "תוכן המשתמש בפריט מדיה זה עשוי להציג קישור שבור."
 
@@ -3917,7 +3917,7 @@ msgstr "העתקת אסימון"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:335
-#: packages/admin/src/components/MediaDetailPanel.tsx:1385
+#: packages/admin/src/components/MediaDetailPanel.tsx:1396
 msgid "Copy URL"
 msgstr "העתקת URL"
 
@@ -4001,7 +4001,7 @@ msgstr ""
 msgid "Couldn’t add the menu item"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:828
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "לא ניתן לאשר אם פריט המדיה או התיקייה שנבחרה עדיין קיימים. נסו שוב."
 
@@ -4172,7 +4172,7 @@ msgstr "יצירה והוספה"
 msgid "Create Content Type"
 msgstr "יצירת סוג תוכן"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1849
+#: packages/admin/src/components/MediaDetailPanel.tsx:1860
 msgid "Create cropped copy"
 msgstr "יצירת עותק חתוך"
 
@@ -4344,7 +4344,7 @@ msgstr "יצירת אוספים ושדות"
 msgid "Creating collections and fields..."
 msgstr "מתבצעת יצירת אוספים ושדות..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
 msgid "Creating cropped copy..."
 msgstr "מתבצעת יצירת עותק חתוך..."
 
@@ -4358,7 +4358,7 @@ msgstr "מתבצעת יצירת עותק חתוך..."
 msgid "Creating..."
 msgstr "ביצירה..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
+#: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Crop"
 msgstr "חיתוך"
 
@@ -4368,7 +4368,7 @@ msgstr "חיתוך"
 msgid "Crop area {0} by {1} pixels."
 msgstr "אזור חיתוך של {0} על {1} פיקסלים."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1715
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Crop output dimensions"
 msgstr "ממדי פלט החיתוך"
 
@@ -4376,7 +4376,7 @@ msgstr "ממדי פלט החיתוך"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "בחירת חיתוך. השתמשו במקשי החצים כדי להזיז אותה."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:773
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "העותק החתוך נוצר."
@@ -4552,8 +4552,8 @@ msgstr "מוגדר בקוד"
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1899
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
@@ -4690,7 +4690,7 @@ msgstr "מחיקת גלריה"
 msgid "Delete image"
 msgstr "מחיקת תמונה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1889
+#: packages/admin/src/components/MediaDetailPanel.tsx:1900
 msgid "Delete media?"
 msgstr "למחוק מדיה?"
 
@@ -4793,8 +4793,8 @@ msgstr "מחיקת \"{0}\" תסיר גם {1, plural, one {ערך שמור אחד
 #: packages/admin/src/components/ContentList.tsx:1787
 #: packages/admin/src/components/ContentTypeEditor.tsx:881
 #: packages/admin/src/components/ContentTypeList.tsx:267
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1900
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
@@ -4864,7 +4864,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "תארו את מטרת התמונה ואת הפרטים הרלוונטיים לאנשים שאינם יכולים לראות אותה."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:748
-#: packages/admin/src/components/MediaDetailPanel.tsx:1589
+#: packages/admin/src/components/MediaDetailPanel.tsx:1600
 msgid "Describe this image for accessibility"
 msgstr "תיאור תמונה זו לנגישות"
 
@@ -4897,8 +4897,8 @@ msgstr "נתיב יעד"
 msgid "Destructive"
 msgstr "הרסנית"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1162
-#: packages/admin/src/components/MediaDetailPanel.tsx:1204
+#: packages/admin/src/components/MediaDetailPanel.tsx:1164
+#: packages/admin/src/components/MediaDetailPanel.tsx:1206
 msgid "Details"
 msgstr "פרטים"
 
@@ -4930,7 +4930,7 @@ msgstr "הבדלים"
 msgid "Differences from the source site"
 msgstr "הבדלים מאתר המקור"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1332
+#: packages/admin/src/components/MediaDetailPanel.tsx:1343
 msgid "Dimensions:"
 msgstr "ממדים:"
 
@@ -4984,7 +4984,7 @@ msgstr "בהשבתה..."
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1875
+#: packages/admin/src/components/MediaDetailPanel.tsx:1886
 msgid "Discard"
 msgstr "ביטול"
 
@@ -4993,7 +4993,7 @@ msgstr "ביטול"
 msgid "Discard changes"
 msgstr "ביטול שינויים"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1873
+#: packages/admin/src/components/MediaDetailPanel.tsx:1884
 msgid "Discard changes?"
 msgstr "לבטל שינויים?"
 
@@ -5002,7 +5002,7 @@ msgid "Discard draft changes?"
 msgstr "לבטל שינויים בטיוטה?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
-#: packages/admin/src/components/MediaDetailPanel.tsx:1876
+#: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "בביטול..."
 
@@ -5433,8 +5433,8 @@ msgstr "עריכת תיקייה"
 msgid "Edit folder {0}"
 msgstr "עריכת תיקייה {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1167
-#: packages/admin/src/components/MediaDetailPanel.tsx:1207
+#: packages/admin/src/components/MediaDetailPanel.tsx:1169
+#: packages/admin/src/components/MediaDetailPanel.tsx:1209
 msgid "Edit image"
 msgstr "עריכת תמונה"
 
@@ -5672,11 +5672,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} זמין (הגרסה שלכם היא {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash אינו שומר את התמונה הקודמת."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1985
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash אינו שומר את התמונה שלא נחתכה."
 
@@ -6036,11 +6036,11 @@ msgstr "כל רשומה וקובץ מדיה שיובאו נקראו בחזרה �
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "כל שאר המשתמשים עם חשבון פעיל יקבלו אימייל שהאתר נמצא עכשיו ב-{siteHost}, עם קישור להתחברות שם. מפתחות גישה מכתובת אחרת לא עובדים ב-{siteHost}, ולכן המשתמשים מתחברים עם קישור באימייל ומוסיפים מפתח גישה חדש."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1959
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Every place using this image will update to the cropped version."
 msgstr "כל מקום שמשתמש בתמונה זו יתעדכן לגרסה החתוכה."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1928
+#: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
 msgstr "כל מקום שמשתמש בתמונה זו יתעדכן לגרסה שנבחרה."
 
@@ -6227,7 +6227,7 @@ msgstr "התקשורת עם התוסף נכשלה"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:391
 msgid "Failed to confirm upload"
 msgstr "אישור ההעלאה נכשל"
 
@@ -6294,7 +6294,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "יצירת שדה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:257
 msgid "Failed to create media folder"
 msgstr "יצירת תיקיית מדיה נכשלה"
 
@@ -6388,15 +6388,15 @@ msgstr "מחיקת תוכן נכשלה"
 msgid "Failed to delete field"
 msgstr "מחיקת שדה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:868
+#: packages/admin/src/lib/api/media.ts:872
 msgid "Failed to delete from provider"
 msgstr "המחיקה מהספק נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:729
 msgid "Failed to delete media"
 msgstr "מחיקת מדיה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:277
+#: packages/admin/src/lib/api/media.ts:279
 msgid "Failed to delete media folder"
 msgstr "מחיקת תיקיית מדיה נכשלה"
 
@@ -6593,27 +6593,27 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr "אחזור manifest נכשל"
 
-#: packages/admin/src/lib/api/media.ts:177
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to fetch media"
 msgstr "אחזור מדיה נכשל"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:244
 msgid "Failed to fetch media folder"
 msgstr "אחזור תיקיית מדיה נכשל"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:236
 msgid "Failed to fetch media folders"
 msgstr "אחזור תיקיות מדיה נכשל"
 
-#: packages/admin/src/lib/api/media.ts:195
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to fetch media item"
 msgstr "אחזור פריט מדיה נכשל"
 
-#: packages/admin/src/lib/api/media.ts:801
+#: packages/admin/src/lib/api/media.ts:805
 msgid "Failed to fetch media providers"
 msgstr "אחזור ספקי מדיה נכשל"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:220
 msgid "Failed to fetch media usage details"
 msgstr "אחזור פרטי שימוש במדיה נכשל"
 
@@ -6651,7 +6651,7 @@ msgstr "אחזור הגדרות תוסף נכשל"
 msgid "Failed to fetch plugins"
 msgstr "אחזור תוספים נכשל"
 
-#: packages/admin/src/lib/api/media.ts:831
+#: packages/admin/src/lib/api/media.ts:835
 msgid "Failed to fetch provider media"
 msgstr "אחזור מדיה מהספק נכשל"
 
@@ -6773,7 +6773,7 @@ msgstr "קבלת אפשרויות אימות נכשלה"
 msgid "Failed to get registration options"
 msgstr "קבלת אפשרויות הרשמה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:356
+#: packages/admin/src/lib/api/media.ts:358
 msgid "Failed to get upload URL"
 msgstr "קבלת URL להעלאה נכשלה"
 
@@ -6972,7 +6972,7 @@ msgstr "שחרור נעילת הפריט נכשל"
 msgid "Failed to remove passkey"
 msgstr "הסרת מפתח גישה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:268
+#: packages/admin/src/lib/api/media.ts:270
 msgid "Failed to rename media folder"
 msgstr "שינוי שם תיקיית מדיה נכשל"
 
@@ -7006,7 +7006,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "שינוי סדר וידג׳טים נכשל"
 
-#: packages/admin/src/lib/api/media.ts:715
+#: packages/admin/src/lib/api/media.ts:717
 msgid "Failed to replace media image"
 msgstr "החלפת תמונת מדיה נכשלה"
 
@@ -7169,7 +7169,7 @@ msgstr "עדכון דומיין נכשל"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:751
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to update media"
 msgstr "עדכון מדיה נכשל"
 
@@ -7231,15 +7231,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "העלאת קובץ חבילה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:414
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to upload file"
 msgstr "העלאת קובץ נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:647
+#: packages/admin/src/lib/api/media.ts:649
 msgid "Failed to upload media"
 msgstr "העלאת מדיה נכשלה"
 
-#: packages/admin/src/lib/api/media.ts:856
+#: packages/admin/src/lib/api/media.ts:860
 msgid "Failed to upload to provider"
 msgstr "העלאה לספק נכשלה"
 
@@ -7337,13 +7337,13 @@ msgstr "קובץ {0}"
 msgid "File from media library"
 msgstr "קובץ מספריית המדיה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1433
-#: packages/admin/src/components/MediaDetailPanel.tsx:1438
+#: packages/admin/src/components/MediaDetailPanel.tsx:1444
+#: packages/admin/src/components/MediaDetailPanel.tsx:1449
 #: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "שם קובץ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:529
+#: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Filename cannot be changed after upload"
 msgstr "לא ניתן לשנות את שם הקובץ לאחר ההעלאה"
 
@@ -7464,8 +7464,8 @@ msgstr ""
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
+#: packages/admin/src/components/MediaDetailPanel.tsx:1649
 msgid "Focal point"
 msgstr "נקודת מוקד"
 
@@ -7506,7 +7506,7 @@ msgstr "התיקייה אינה זמינה"
 msgid "Folders"
 msgstr "תיקיות"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1541
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
@@ -7533,11 +7533,11 @@ msgstr "לחוויית הייבוא הטובה ביותר, התקינו את ת�
 msgid "Format selection"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1366
+#: packages/admin/src/components/MediaDetailPanel.tsx:1377
 msgid "Format:"
 msgstr "תבנית:"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:538
+#: packages/admin/src/components/MediaDetailPanel.tsx:540
 msgid "Freeform"
 msgstr "חופשי"
 
@@ -8034,7 +8034,7 @@ msgstr "התמונה לא נמצאה"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:719
 msgid "Image replaced."
 msgstr "התמונה הוחלפה."
 
@@ -8889,7 +8889,7 @@ msgstr "טעינת עוד"
 msgid "Load More"
 msgstr "טעינת עוד"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1560
+#: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
@@ -8953,7 +8953,7 @@ msgstr "מתבצעת טעינת ייצואים…"
 msgid "Loading folders"
 msgstr "מתבצעת טעינת תיקיות"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1512
+#: packages/admin/src/components/MediaDetailPanel.tsx:1523
 msgid "Loading folders..."
 msgstr "מתבצעת טעינת תיקיות..."
 
@@ -9036,10 +9036,10 @@ msgstr "מתבצעת טעינת וידג׳טים..."
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaDetailPanel.tsx:605
-#: packages/admin/src/components/MediaDetailPanel.tsx:621
+#: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
-#: packages/admin/src/components/MediaDetailPanel.tsx:1720
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
+#: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
@@ -9088,15 +9088,15 @@ msgstr "שפה"
 msgid "Locales will use this site’s capitalization"
 msgstr "קודי השפות יותאמו לאותיות הגדולות והקטנות של האתר הזה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1449
-#: packages/admin/src/components/MediaDetailPanel.tsx:1477
-#: packages/admin/src/components/MediaDetailPanel.tsx:1568
-#: packages/admin/src/components/MediaDetailPanel.tsx:1570
+#: packages/admin/src/components/MediaDetailPanel.tsx:1460
+#: packages/admin/src/components/MediaDetailPanel.tsx:1488
+#: packages/admin/src/components/MediaDetailPanel.tsx:1579
+#: packages/admin/src/components/MediaDetailPanel.tsx:1581
 msgid "Location"
 msgstr "מיקום"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:606
-#: packages/admin/src/components/MediaDetailPanel.tsx:623
+#: packages/admin/src/components/MediaDetailPanel.tsx:608
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
 msgid "Location unavailable"
 msgstr "המיקום אינו זמין"
 
@@ -9141,7 +9141,7 @@ msgstr "אותיות קטנות באנגלית, ספרות וקווים תחתו
 msgid "Lua"
 msgstr "שפת Lua"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:574
+#: packages/admin/src/components/MediaDetailPanel.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Main library"
 msgstr "ספרייה ראשית"
@@ -9189,11 +9189,11 @@ msgstr "ניהול הפניות URL והצגת שגיאות 404."
 msgid "Manage your passkeys and authentication"
 msgstr "ניהול מפתחות הגישה והאימות שלכם"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1419
+#: packages/admin/src/components/MediaDetailPanel.tsx:1430
 msgid "Managed by {providerName}"
 msgstr "מנוהל על ידי {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1431
 msgid "Managed by an external media provider"
 msgstr "מנוהל על ידי ספק מדיה חיצוני"
 
@@ -9295,7 +9295,7 @@ msgstr "תחביר MDX"
 msgid "Media"
 msgstr "מדיה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1129
 msgid "Media details"
 msgstr "פרטי מדיה"
 
@@ -9622,7 +9622,7 @@ msgstr "העברת {0} למעלה"
 msgid "Move down"
 msgstr "העברה למטה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:533
+#: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr "הזיזו את נקודת המוקד כדי לבחור מה יישאר גלוי בתמונות חתוכות."
 
@@ -10151,7 +10151,7 @@ msgstr "אין שדות"
 msgid "No files added"
 msgstr "לא נוספו קבצים"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1520
+#: packages/admin/src/components/MediaDetailPanel.tsx:1531
 msgid "No folders found"
 msgstr "לא נמצאו תיקיות"
 
@@ -10313,7 +10313,7 @@ msgstr "עדיין לא פורסמו תוספים לרישום זה."
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "אין תוספים התואמים ל-\"{debouncedQuery}\"."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1388
+#: packages/admin/src/components/MediaDetailPanel.tsx:1399
 msgid "No public URL available"
 msgstr "אין URL ציבורי זמין"
 
@@ -10652,7 +10652,7 @@ msgstr "כיתוב אופציונלי"
 msgid "Optional caption displayed below the image"
 msgstr "כיתוב אופציונלי שמוצג מתחת לתמונה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1600
+#: packages/admin/src/components/MediaDetailPanel.tsx:1611
 msgid "Optional caption for display"
 msgstr "כיתוב אופציונלי לתצוגה"
 
@@ -10712,11 +10712,11 @@ msgstr "הסדר נשמר"
 msgid "Ordered page-building blocks"
 msgstr "בלוקים לבניית עמוד, לפי סדר"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:537
+#: packages/admin/src/components/MediaDetailPanel.tsx:539
 msgid "Original"
 msgstr "מקורי"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:787
 msgid "Original image cropped."
 msgstr "התמונה המקורית נחתכה."
 
@@ -10740,7 +10740,7 @@ msgctxt "button style"
 msgid "Outline"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
 msgstr "גודל פלט"
 
@@ -11274,7 +11274,7 @@ msgstr "לחצו על רווח כדי לבחור תמונה. השתמשו במק
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1667
+#: packages/admin/src/components/MediaDetailPanel.tsx:1678
 #: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "תצוגה מקדימה"
@@ -12090,23 +12090,23 @@ msgstr "החלפת גרסה למצב כהה עבור {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1808
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1819
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
 #: packages/admin/src/components/PortableTextEditor.tsx:6073
 msgid "Replace image"
 msgstr "החלפת תמונה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaDetailPanel.tsx:1962
+#: packages/admin/src/components/MediaDetailPanel.tsx:1850
+#: packages/admin/src/components/MediaDetailPanel.tsx:1973
 msgid "Replace original"
 msgstr "החלפת המקור"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
-#: packages/admin/src/components/MediaDetailPanel.tsx:1956
+#: packages/admin/src/components/MediaDetailPanel.tsx:1936
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replace original image?"
 msgstr "להחליף את התמונה המקורית?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "החלפת המקור זמינה ביחס הממדים המקורי."
 
@@ -12132,14 +12132,14 @@ msgstr "החלפה ברשימה ריקה"
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:950
-#: packages/admin/src/components/MediaDetailPanel.tsx:1932
+#: packages/admin/src/components/MediaDetailPanel.tsx:952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replacing image..."
 msgstr "מתבצעת החלפת תמונה..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
-#: packages/admin/src/components/MediaDetailPanel.tsx:1963
-#: packages/admin/src/components/MediaDetailPanel.tsx:1981
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "מתבצעת החלפת המקור..."
 
@@ -12211,8 +12211,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "שליחה מחדש בעוד {resendCooldown} שניות"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1659
-#: packages/admin/src/components/MediaDetailPanel.tsx:1709
+#: packages/admin/src/components/MediaDetailPanel.tsx:1670
+#: packages/admin/src/components/MediaDetailPanel.tsx:1720
 msgid "Reset"
 msgstr "איפוס"
 
@@ -12220,7 +12220,7 @@ msgstr "איפוס"
 msgid "Reset column widths"
 msgstr "איפוס רוחבי עמודות"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1694
+#: packages/admin/src/components/MediaDetailPanel.tsx:1705
 msgid "Reset crop"
 msgstr "איפוס חיתוך"
 
@@ -12321,7 +12321,7 @@ msgstr "הוצא משימוש"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/MediaDetailPanel.tsx:1547
+#: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
@@ -12580,7 +12580,7 @@ msgstr "תוכן לדוגמה"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12643,7 +12643,7 @@ msgstr ""
 msgid "Save name"
 msgstr "שמירת שם"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1737
+#: packages/admin/src/components/MediaDetailPanel.tsx:1748
 msgid "Save or discard the other changes before cropping."
 msgstr "שמרו או בטלו את השינויים האחרים לפני החיתוך."
 
@@ -12691,7 +12691,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:2435
 #: packages/admin/src/components/FieldEditor.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12934,8 +12934,8 @@ msgstr "החיפוש נכשל"
 msgid "Search failed. Check your connection and try again."
 msgstr "החיפוש נכשל. בדקו את החיבור שלכם ונסו שוב."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1500
-#: packages/admin/src/components/MediaDetailPanel.tsx:1501
+#: packages/admin/src/components/MediaDetailPanel.tsx:1511
+#: packages/admin/src/components/MediaDetailPanel.tsx:1512
 msgid "Search folders"
 msgstr "חיפוש תיקיות"
 
@@ -13174,7 +13174,7 @@ msgstr "בחרו רכיב..."
 msgid "Select a content type"
 msgstr "בחרו סוג תוכן"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1490
+#: packages/admin/src/components/MediaDetailPanel.tsx:1501
 msgid "Select a location"
 msgstr "בחרו מיקום"
 
@@ -13764,7 +13764,7 @@ msgstr "גודל"
 msgid "Size is not applicable to folders"
 msgstr "גודל אינו רלוונטי לתיקיות"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1319
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Size:"
 msgstr "גודל:"
 
@@ -13984,7 +13984,7 @@ msgstr "SQL"
 msgid "Square"
 msgstr "ריבוע"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:539
+#: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
 msgstr "ריבוע (1:1)"
 
@@ -14436,7 +14436,7 @@ msgstr "סוגי התוכן וה-slug קבועים. השם של כל צד ומס
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "מנהל האישורים בטלפון או בטאבלט שתבחרו שומר אותו. EmDash אינו מקבל את מפתח הגישה."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:834
+#: packages/admin/src/components/MediaDetailPanel.tsx:836
 msgid "The cropped image could not be created."
 msgstr "לא ניתן ליצור את התמונה החתוכה."
 
@@ -14718,11 +14718,11 @@ msgstr ""
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "השינויים המתוזמנים ב{title} נשארים כטיוטה."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:829
+#: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "התיקייה שנבחרה אינה קיימת עוד. בחרו מיקום אחר ושמרו שוב."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:932
+#: packages/admin/src/components/MediaDetailPanel.tsx:934
 msgid "The selected image could not be read."
 msgstr "לא ניתן לקרוא את התמונה שנבחרה."
 
@@ -14868,9 +14868,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "דפדפן זה שומר את כל החבילה בזיכרון עד שההורדה מסתיימת. לייצוא בגודל כזה השתמשו בדפדפן מבוסס Chromium, ששומר ישירות לדיסק, או הריצו emdash site export משורת הפקודה."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
+#: packages/admin/src/components/MediaDetailPanel.tsx:1952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "This cannot be undone"
 msgstr "לא ניתן לבטל פעולה זו"
 
@@ -15017,7 +15017,7 @@ msgstr "תיקייה זו ריקה"
 msgid "This folder is empty."
 msgstr "תיקייה זו ריקה."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1730
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "This image could not be loaded for cropping."
 msgstr "לא ניתן לטעון תמונה זו לחיתוך."
 
@@ -15062,7 +15062,7 @@ msgid "This media item could not be loaded. Try again."
 msgstr "לא ניתן לטעון פריט מדיה זה. נסו שוב."
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
-#: packages/admin/src/components/MediaDetailPanel.tsx:823
+#: packages/admin/src/components/MediaDetailPanel.tsx:825
 msgid "This media item no longer exists."
 msgstr "פריט מדיה זה אינו קיים עוד."
 
@@ -15962,7 +15962,7 @@ msgstr "העלאת קובץ ייצוא מ-WordPress"
 msgid "Uploaded"
 msgstr "הועלה"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Uploaded:"
 msgstr "הועלה:"
 
@@ -16019,7 +16019,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "מזהה ידידותי ל-URL"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1378
+#: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "URL:"
 msgstr "URL:"
 
@@ -16143,12 +16143,12 @@ msgstr "משמש כמזהה. אותיות קטנות, מספרים וקווים 
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "משמש כחזות הראשית של פוסט זה בעמודי רשימה ובראש הפוסט"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:531
+#: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "Used by screen readers and when image fails to load"
 msgstr "משמש קוראי מסך וכשטעינת תמונה נכשלת"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1173
-#: packages/admin/src/components/MediaDetailPanel.tsx:1206
+#: packages/admin/src/components/MediaDetailPanel.tsx:1175
+#: packages/admin/src/components/MediaDetailPanel.tsx:1208
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "בשימוש ב"
@@ -16309,6 +16309,11 @@ msgstr "סרטון"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:358
 msgid "Video actions"
+msgstr ""
+
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:1278
+msgid "Video player for {0}"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
@@ -16540,7 +16545,7 @@ msgstr "מספר שלם"
 msgid "Why are bylines shown in this order?"
 msgstr "מדוע קרדיטים מוצגים בסדר זה?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:530
+#: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "Why can't this be changed?"
 msgstr "מדוע לא ניתן לשנות זאת?"
 
@@ -16568,7 +16573,7 @@ msgstr "מדוע זה חשוב לנראות בחיפוש?"
 msgid "Why is this important for social sharing?"
 msgstr "מדוע זה חשוב לשיתוף חברתי?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:532
+#: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Why is this important?"
 msgstr "מדוע זה חשוב?"
 
@@ -16965,7 +16970,7 @@ msgstr "הכינוי שלכם ב-Twitter/X (למשל, @username)"
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1874
+#: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
 msgstr "שינויי המדיה שלא נשמרו יאבדו."
 

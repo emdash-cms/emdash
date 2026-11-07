@@ -142,17 +142,17 @@ msgid "\"{0}\" and its nested items will be removed from this menu. This action 
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1894
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "\"{0}\" s'eliminarà de {providerName}."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1895
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "\"{0}\" s'eliminarà del seu proveïdor multimèdia."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1907
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" s'eliminarà permanentment."
 
@@ -263,7 +263,7 @@ msgstr "{0, plural, one {No s'ha afegit # fitxer perquè la llista de pujades é
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1514
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 #: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# carpeta carregada} other {# carpetes carregades}}"
@@ -1153,7 +1153,7 @@ msgstr "1. Inicia la sessió a l'administració de WordPress"
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. Inicia la sessió al tauler d'administració de WordPress"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:542
+#: packages/admin/src/components/MediaDetailPanel.tsx:544
 msgid "16:9"
 msgstr "16:9"
 
@@ -1165,7 +1165,7 @@ msgstr "2. Ves a <0>Eines → Exporta</0>"
 msgid "2. Go to Users → Profile"
 msgstr "2. Ves a Usuaris → Perfil"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:541
+#: packages/admin/src/components/MediaDetailPanel.tsx:543
 msgid "3:2"
 msgstr "3:2"
 
@@ -1197,7 +1197,7 @@ msgstr "307 Temporal (estricte)"
 msgid "308 Permanent (Strict)"
 msgstr "308 Permanent (estricte)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:540
+#: packages/admin/src/components/MediaDetailPanel.tsx:542
 msgid "4:3"
 msgstr "4:3"
 
@@ -1359,7 +1359,7 @@ msgstr "Vols abandonar aquesta importació?"
 msgid "Abandoning…"
 msgstr "S'està abandonant…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:534
+#: packages/admin/src/components/MediaDetailPanel.tsx:536
 msgid "About focal point"
 msgstr "Sobre el punt focal"
 
@@ -2044,8 +2044,8 @@ msgid "Alt text"
 msgstr "Text alternatiu"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1582
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
+#: packages/admin/src/components/MediaDetailPanel.tsx:1597
 msgid "Alt Text"
 msgstr "Text alternatiu"
 
@@ -2143,7 +2143,7 @@ msgstr "S'està analitzant el fitxer d'exportació..."
 msgid "Analyzing WordPress site..."
 msgstr "S'està analitzant el lloc de WordPress..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1742
+#: packages/admin/src/components/MediaDetailPanel.tsx:1753
 msgid "Animated WebP files become still images when cropped."
 msgstr "Els fitxers WebP animats es converteixen en imatges fixes quan es retallen."
 
@@ -2327,7 +2327,7 @@ msgstr ""
 msgid "Ask an administrator to complete this setup."
 msgstr "Demana a un administrador que completi aquesta configuració."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1682
+#: packages/admin/src/components/MediaDetailPanel.tsx:1693
 msgid "Aspect ratio"
 msgstr "Relació d'aspecte"
 
@@ -2515,7 +2515,7 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1814
-#: packages/admin/src/components/MediaDetailPanel.tsx:1786
+#: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
@@ -2868,7 +2868,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
 #: packages/admin/src/components/FieldEditor.tsx:1819
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:575
@@ -2948,7 +2948,7 @@ msgstr "Capacitats"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 #: packages/admin/src/components/editor/ImageNode.tsx:311
 #: packages/admin/src/components/editor/VideoNode.tsx:332
-#: packages/admin/src/components/MediaDetailPanel.tsx:1597
+#: packages/admin/src/components/MediaDetailPanel.tsx:1608
 msgid "Caption"
 msgstr "Llegenda"
 
@@ -3267,7 +3267,7 @@ msgid "Choose a file from the library or upload a new one."
 msgstr "Tria un fitxer de la biblioteca o puja'n un de nou."
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:925
+#: packages/admin/src/components/MediaDetailPanel.tsx:927
 msgid "Choose a non-empty {0} image."
 msgstr "Tria una imatge {0} no buida."
 
@@ -3325,7 +3325,7 @@ msgstr ""
 msgid "Choose package file"
 msgstr "Tria el fitxer del paquet"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1817
+#: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
 msgstr "Tria una imatge de substitució"
 
@@ -3448,8 +3448,8 @@ msgstr "Fes clic en aquest enllaç per iniciar la sessió a {siteName}:"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:627
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:629
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:1134
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1136
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
@@ -3806,7 +3806,7 @@ msgstr "Tipus de contingut"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "Els tipus de contingut amb el mateix grup comparteixen una carpeta plegable a la barra lateral"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1912
+#: packages/admin/src/components/MediaDetailPanel.tsx:1923
 msgid "Content using this media item may show a broken reference."
 msgstr "El contingut que utilitza aquest element multimèdia pot mostrar una referència trencada."
 
@@ -3916,7 +3916,7 @@ msgstr "Copia el token"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:335
-#: packages/admin/src/components/MediaDetailPanel.tsx:1385
+#: packages/admin/src/components/MediaDetailPanel.tsx:1396
 msgid "Copy URL"
 msgstr "Copia l'URL"
 
@@ -4000,7 +4000,7 @@ msgstr ""
 msgid "Couldn’t add the menu item"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:828
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "No s'ha pogut confirmar si l'element multimèdia o la carpeta seleccionada encara existeixen. Torna-ho a provar."
 
@@ -4171,7 +4171,7 @@ msgstr "Crea i afegeix"
 msgid "Create Content Type"
 msgstr "Crea un tipus de contingut"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1849
+#: packages/admin/src/components/MediaDetailPanel.tsx:1860
 msgid "Create cropped copy"
 msgstr "Crea una còpia retallada"
 
@@ -4343,7 +4343,7 @@ msgstr "S'estan creant les col·leccions i els camps"
 msgid "Creating collections and fields..."
 msgstr "S'estan creant les col·leccions i els camps..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
 msgid "Creating cropped copy..."
 msgstr "S'està creant la còpia retallada..."
 
@@ -4357,7 +4357,7 @@ msgstr "S'està creant la còpia retallada..."
 msgid "Creating..."
 msgstr "S'està creant..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
+#: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Crop"
 msgstr "Retalla"
 
@@ -4367,7 +4367,7 @@ msgstr "Retalla"
 msgid "Crop area {0} by {1} pixels."
 msgstr "Retalla una àrea de {0} per {1} píxels."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1715
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Crop output dimensions"
 msgstr "Dimensions de sortida del retall"
 
@@ -4375,7 +4375,7 @@ msgstr "Dimensions de sortida del retall"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "Selecció del retall. Fes servir les tecles de fletxa per moure-la."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:773
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "Còpia retallada creada."
@@ -4551,8 +4551,8 @@ msgstr "Definit al codi"
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1899
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
@@ -4689,7 +4689,7 @@ msgstr "Elimina la galeria"
 msgid "Delete image"
 msgstr "Elimina la imatge"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1889
+#: packages/admin/src/components/MediaDetailPanel.tsx:1900
 msgid "Delete media?"
 msgstr "Vols eliminar el multimèdia?"
 
@@ -4792,8 +4792,8 @@ msgstr "En eliminar \"{0}\" també se suprimirà {1, plural, one {# valor emmaga
 #: packages/admin/src/components/ContentList.tsx:1787
 #: packages/admin/src/components/ContentTypeEditor.tsx:881
 #: packages/admin/src/components/ContentTypeList.tsx:267
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1900
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
@@ -4863,7 +4863,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "Descriu el propòsit de la imatge i els detalls rellevants per a les persones que no la poden veure."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:748
-#: packages/admin/src/components/MediaDetailPanel.tsx:1589
+#: packages/admin/src/components/MediaDetailPanel.tsx:1600
 msgid "Describe this image for accessibility"
 msgstr "Descriu aquesta imatge per a l'accessibilitat"
 
@@ -4896,8 +4896,8 @@ msgstr "Ruta de destinació"
 msgid "Destructive"
 msgstr "Destructiu"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1162
-#: packages/admin/src/components/MediaDetailPanel.tsx:1204
+#: packages/admin/src/components/MediaDetailPanel.tsx:1164
+#: packages/admin/src/components/MediaDetailPanel.tsx:1206
 msgid "Details"
 msgstr "Detalls"
 
@@ -4929,7 +4929,7 @@ msgstr "Diferències"
 msgid "Differences from the source site"
 msgstr "Diferències respecte del lloc d'origen"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1332
+#: packages/admin/src/components/MediaDetailPanel.tsx:1343
 msgid "Dimensions:"
 msgstr "Dimensions:"
 
@@ -4983,7 +4983,7 @@ msgstr "S'està desactivant..."
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1875
+#: packages/admin/src/components/MediaDetailPanel.tsx:1886
 msgid "Discard"
 msgstr "Descarta"
 
@@ -4992,7 +4992,7 @@ msgstr "Descarta"
 msgid "Discard changes"
 msgstr "Descarta els canvis"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1873
+#: packages/admin/src/components/MediaDetailPanel.tsx:1884
 msgid "Discard changes?"
 msgstr "Vols descartar els canvis?"
 
@@ -5001,7 +5001,7 @@ msgid "Discard draft changes?"
 msgstr "Vols descartar els canvis de l'esborrany?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
-#: packages/admin/src/components/MediaDetailPanel.tsx:1876
+#: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "S'està descartant..."
 
@@ -5432,8 +5432,8 @@ msgstr "Edita la carpeta"
 msgid "Edit folder {0}"
 msgstr "Edita la carpeta {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1167
-#: packages/admin/src/components/MediaDetailPanel.tsx:1207
+#: packages/admin/src/components/MediaDetailPanel.tsx:1169
+#: packages/admin/src/components/MediaDetailPanel.tsx:1209
 msgid "Edit image"
 msgstr "Edita la imatge"
 
@@ -5671,11 +5671,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} ja està disponible (estàs executant la {0})"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash no conserva la imatge anterior."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1985
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash no conserva la imatge sense retallar."
 
@@ -6035,11 +6035,11 @@ msgstr "Cada registre i fitxer multimèdia importat s'ha tornat a llegir i coinc
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "Tots els altres usuaris amb un compte actiu reben un correu que diu que el lloc ara és a {siteHost}, amb un enllaç per iniciar la sessió allà. Les claus d'accés d'una altra adreça no funcionen a {siteHost}, així que els usuaris inicien la sessió amb un enllaç per correu i afegeixen una clau d'accés nova."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1959
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Every place using this image will update to the cropped version."
 msgstr "Tots els llocs que utilitzen aquesta imatge s'actualitzaran a la versió retallada."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1928
+#: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
 msgstr "Tots els llocs que utilitzen aquesta imatge s'actualitzaran a la versió seleccionada."
 
@@ -6226,7 +6226,7 @@ msgstr "No s'ha pogut comunicar amb el connector"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:391
 msgid "Failed to confirm upload"
 msgstr "No s'ha pogut confirmar la pujada"
 
@@ -6293,7 +6293,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "No s'ha pogut crear el camp"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:257
 msgid "Failed to create media folder"
 msgstr "No s'ha pogut crear la carpeta multimèdia"
 
@@ -6387,15 +6387,15 @@ msgstr "No s'ha pogut eliminar el contingut"
 msgid "Failed to delete field"
 msgstr "No s'ha pogut eliminar el camp"
 
-#: packages/admin/src/lib/api/media.ts:868
+#: packages/admin/src/lib/api/media.ts:872
 msgid "Failed to delete from provider"
 msgstr "No s'ha pogut eliminar del proveïdor"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:729
 msgid "Failed to delete media"
 msgstr "No s'ha pogut eliminar el fitxer multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:277
+#: packages/admin/src/lib/api/media.ts:279
 msgid "Failed to delete media folder"
 msgstr "No s'ha pogut eliminar la carpeta multimèdia"
 
@@ -6592,27 +6592,27 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr "No s'ha pogut obtenir el manifest"
 
-#: packages/admin/src/lib/api/media.ts:177
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to fetch media"
 msgstr "No s'han pogut obtenir els fitxers multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:244
 msgid "Failed to fetch media folder"
 msgstr "No s'ha pogut obtenir la carpeta multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:236
 msgid "Failed to fetch media folders"
 msgstr "No s'han pogut obtenir les carpetes multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:195
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to fetch media item"
 msgstr "No s'ha pogut obtenir l'element multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:801
+#: packages/admin/src/lib/api/media.ts:805
 msgid "Failed to fetch media providers"
 msgstr "No s'han pogut obtenir els proveïdors multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:220
 msgid "Failed to fetch media usage details"
 msgstr "No s'han pogut obtenir els detalls d'ús del multimèdia"
 
@@ -6650,7 +6650,7 @@ msgstr "No s'ha pogut obtenir la configuració del connector"
 msgid "Failed to fetch plugins"
 msgstr "No s'han pogut obtenir els connectors"
 
-#: packages/admin/src/lib/api/media.ts:831
+#: packages/admin/src/lib/api/media.ts:835
 msgid "Failed to fetch provider media"
 msgstr "No s'han pogut obtenir els fitxers multimèdia del proveïdor"
 
@@ -6772,7 +6772,7 @@ msgstr "No s'han pogut obtenir les opcions d'autenticació"
 msgid "Failed to get registration options"
 msgstr "No s'han pogut obtenir les opcions de registre"
 
-#: packages/admin/src/lib/api/media.ts:356
+#: packages/admin/src/lib/api/media.ts:358
 msgid "Failed to get upload URL"
 msgstr "No s'ha pogut obtenir l'URL de pujada"
 
@@ -6971,7 +6971,7 @@ msgstr "No s'ha pogut alliberar el blocatge de l'entrada"
 msgid "Failed to remove passkey"
 msgstr "No s'ha pogut eliminar la clau d'accés"
 
-#: packages/admin/src/lib/api/media.ts:268
+#: packages/admin/src/lib/api/media.ts:270
 msgid "Failed to rename media folder"
 msgstr "No s'ha pogut canviar el nom de la carpeta multimèdia"
 
@@ -7005,7 +7005,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "No s'han pogut reordenar els ginys"
 
-#: packages/admin/src/lib/api/media.ts:715
+#: packages/admin/src/lib/api/media.ts:717
 msgid "Failed to replace media image"
 msgstr "No s'ha pogut substituir la imatge multimèdia"
 
@@ -7168,7 +7168,7 @@ msgstr "No s'ha pogut actualitzar el domini"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:751
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to update media"
 msgstr "No s'ha pogut actualitzar el fitxer multimèdia"
 
@@ -7230,15 +7230,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "No s'ha pogut pujar un fitxer del paquet"
 
-#: packages/admin/src/lib/api/media.ts:414
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to upload file"
 msgstr "No s'ha pogut pujar el fitxer"
 
-#: packages/admin/src/lib/api/media.ts:647
+#: packages/admin/src/lib/api/media.ts:649
 msgid "Failed to upload media"
 msgstr "No s'han pogut pujar els fitxers multimèdia"
 
-#: packages/admin/src/lib/api/media.ts:856
+#: packages/admin/src/lib/api/media.ts:860
 msgid "Failed to upload to provider"
 msgstr "No s'ha pogut pujar al proveïdor"
 
@@ -7336,13 +7336,13 @@ msgstr "Fitxer {0}"
 msgid "File from media library"
 msgstr "Fitxer de la biblioteca multimèdia"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1433
-#: packages/admin/src/components/MediaDetailPanel.tsx:1438
+#: packages/admin/src/components/MediaDetailPanel.tsx:1444
+#: packages/admin/src/components/MediaDetailPanel.tsx:1449
 #: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "Nom del fitxer"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:529
+#: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Filename cannot be changed after upload"
 msgstr "El nom del fitxer no es pot canviar després de la pujada"
 
@@ -7463,8 +7463,8 @@ msgstr ""
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
+#: packages/admin/src/components/MediaDetailPanel.tsx:1649
 msgid "Focal point"
 msgstr "Punt focal"
 
@@ -7505,7 +7505,7 @@ msgstr "Carpeta no disponible"
 msgid "Folders"
 msgstr "Carpetes"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1541
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
@@ -7532,11 +7532,11 @@ msgstr "Per obtenir la millor experiència d'importació, instal·la el connecto
 msgid "Format selection"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1366
+#: packages/admin/src/components/MediaDetailPanel.tsx:1377
 msgid "Format:"
 msgstr "Format:"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:538
+#: packages/admin/src/components/MediaDetailPanel.tsx:540
 msgid "Freeform"
 msgstr "Lliure"
 
@@ -8033,7 +8033,7 @@ msgstr "No s'ha trobat la imatge"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:719
 msgid "Image replaced."
 msgstr "Imatge substituïda."
 
@@ -8888,7 +8888,7 @@ msgstr "Carrega'n més"
 msgid "Load More"
 msgstr "Carrega'n més"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1560
+#: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
@@ -8952,7 +8952,7 @@ msgstr "S'estan carregant les exportacions…"
 msgid "Loading folders"
 msgstr "S'estan carregant les carpetes"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1512
+#: packages/admin/src/components/MediaDetailPanel.tsx:1523
 msgid "Loading folders..."
 msgstr "S'estan carregant les carpetes..."
 
@@ -9035,10 +9035,10 @@ msgstr "S'estan carregant els ginys..."
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaDetailPanel.tsx:605
-#: packages/admin/src/components/MediaDetailPanel.tsx:621
+#: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
-#: packages/admin/src/components/MediaDetailPanel.tsx:1720
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
+#: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
@@ -9087,15 +9087,15 @@ msgstr "Idioma"
 msgid "Locales will use this site’s capitalization"
 msgstr "Els idiomes utilitzaran les majúscules d'aquest lloc"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1449
-#: packages/admin/src/components/MediaDetailPanel.tsx:1477
-#: packages/admin/src/components/MediaDetailPanel.tsx:1568
-#: packages/admin/src/components/MediaDetailPanel.tsx:1570
+#: packages/admin/src/components/MediaDetailPanel.tsx:1460
+#: packages/admin/src/components/MediaDetailPanel.tsx:1488
+#: packages/admin/src/components/MediaDetailPanel.tsx:1579
+#: packages/admin/src/components/MediaDetailPanel.tsx:1581
 msgid "Location"
 msgstr "Ubicació"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:606
-#: packages/admin/src/components/MediaDetailPanel.tsx:623
+#: packages/admin/src/components/MediaDetailPanel.tsx:608
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
 msgid "Location unavailable"
 msgstr "Ubicació no disponible"
 
@@ -9140,7 +9140,7 @@ msgstr "Lletres minúscules, nombres i guions baixos. Els camps de referència h
 msgid "Lua"
 msgstr "Lua"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:574
+#: packages/admin/src/components/MediaDetailPanel.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Main library"
 msgstr "Biblioteca principal"
@@ -9188,11 +9188,11 @@ msgstr "Gestiona les redireccions d'URL i consulta els errors 404."
 msgid "Manage your passkeys and authentication"
 msgstr "Gestiona les teves claus d'accés i l'autenticació"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1419
+#: packages/admin/src/components/MediaDetailPanel.tsx:1430
 msgid "Managed by {providerName}"
 msgstr "Gestionat per {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1431
 msgid "Managed by an external media provider"
 msgstr "Gestionat per un proveïdor multimèdia extern"
 
@@ -9294,7 +9294,7 @@ msgstr "MDX"
 msgid "Media"
 msgstr "Multimèdia"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1129
 msgid "Media details"
 msgstr "Detalls del multimèdia"
 
@@ -9621,7 +9621,7 @@ msgstr "Mou {0} amunt"
 msgid "Move down"
 msgstr "Mou avall"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:533
+#: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr "Mou el punt focal per triar què queda visible a les imatges retallades."
 
@@ -10150,7 +10150,7 @@ msgstr "Sense camps"
 msgid "No files added"
 msgstr "No s'ha afegit cap fitxer"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1520
+#: packages/admin/src/components/MediaDetailPanel.tsx:1531
 msgid "No folders found"
 msgstr "No s'ha trobat cap carpeta"
 
@@ -10312,7 +10312,7 @@ msgstr "Encara no s'ha publicat cap connector en aquest registre."
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "Cap connector coincideix amb \"{debouncedQuery}\"."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1388
+#: packages/admin/src/components/MediaDetailPanel.tsx:1399
 msgid "No public URL available"
 msgstr "No hi ha cap URL públic disponible"
 
@@ -10651,7 +10651,7 @@ msgstr "Peu de foto opcional"
 msgid "Optional caption displayed below the image"
 msgstr "Llegenda opcional que es mostra sota la imatge"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1600
+#: packages/admin/src/components/MediaDetailPanel.tsx:1611
 msgid "Optional caption for display"
 msgstr "Llegenda opcional per mostrar"
 
@@ -10711,11 +10711,11 @@ msgstr "S'ha desat l'ordre"
 msgid "Ordered page-building blocks"
 msgstr "Blocs ordenats per construir pàgines"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:537
+#: packages/admin/src/components/MediaDetailPanel.tsx:539
 msgid "Original"
 msgstr "Original"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:787
 msgid "Original image cropped."
 msgstr "Imatge original retallada."
 
@@ -10739,7 +10739,7 @@ msgctxt "button style"
 msgid "Outline"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
 msgstr "Mida de sortida"
 
@@ -11273,7 +11273,7 @@ msgstr "Prem Space per agafar una imatge. Fes servir les tecles de fletxa per mo
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1667
+#: packages/admin/src/components/MediaDetailPanel.tsx:1678
 #: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "Previsualitza"
@@ -12089,23 +12089,23 @@ msgstr "Substitueix la variant de mode fosc de {label}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1808
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
+#: packages/admin/src/components/MediaDetailPanel.tsx:1819
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
 #: packages/admin/src/components/PortableTextEditor.tsx:6073
 msgid "Replace image"
 msgstr "Substitueix la imatge"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaDetailPanel.tsx:1962
+#: packages/admin/src/components/MediaDetailPanel.tsx:1850
+#: packages/admin/src/components/MediaDetailPanel.tsx:1973
 msgid "Replace original"
 msgstr "Substitueix l'original"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
-#: packages/admin/src/components/MediaDetailPanel.tsx:1956
+#: packages/admin/src/components/MediaDetailPanel.tsx:1936
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replace original image?"
 msgstr "Vols substituir la imatge original?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Substituir l'original està disponible amb la relació d'aspecte Original."
 
@@ -12131,14 +12131,14 @@ msgstr "Substitueix per una llista buida"
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:950
-#: packages/admin/src/components/MediaDetailPanel.tsx:1932
+#: packages/admin/src/components/MediaDetailPanel.tsx:952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replacing image..."
 msgstr "S'està substituint la imatge..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
-#: packages/admin/src/components/MediaDetailPanel.tsx:1963
-#: packages/admin/src/components/MediaDetailPanel.tsx:1981
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "S'està substituint l'original..."
 
@@ -12210,8 +12210,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "Torna a enviar-lo d'aquí a {resendCooldown} s"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1659
-#: packages/admin/src/components/MediaDetailPanel.tsx:1709
+#: packages/admin/src/components/MediaDetailPanel.tsx:1670
+#: packages/admin/src/components/MediaDetailPanel.tsx:1720
 msgid "Reset"
 msgstr "Restableix"
 
@@ -12219,7 +12219,7 @@ msgstr "Restableix"
 msgid "Reset column widths"
 msgstr "Restableix les amplades de columna"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1694
+#: packages/admin/src/components/MediaDetailPanel.tsx:1705
 msgid "Reset crop"
 msgstr "Restableix el retall"
 
@@ -12320,7 +12320,7 @@ msgstr "Retirat"
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/MediaDetailPanel.tsx:1547
+#: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
@@ -12579,7 +12579,7 @@ msgstr "Contingut d'exemple"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12642,7 +12642,7 @@ msgstr ""
 msgid "Save name"
 msgstr "Desa el nom"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1737
+#: packages/admin/src/components/MediaDetailPanel.tsx:1748
 msgid "Save or discard the other changes before cropping."
 msgstr "Desa o descarta els altres canvis abans de retallar."
 
@@ -12690,7 +12690,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:2435
 #: packages/admin/src/components/FieldEditor.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12933,8 +12933,8 @@ msgstr "La cerca ha fallat"
 msgid "Search failed. Check your connection and try again."
 msgstr "La cerca ha fallat. Comprova la connexió i torna-ho a provar."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1500
-#: packages/admin/src/components/MediaDetailPanel.tsx:1501
+#: packages/admin/src/components/MediaDetailPanel.tsx:1511
+#: packages/admin/src/components/MediaDetailPanel.tsx:1512
 msgid "Search folders"
 msgstr "Cerca carpetes"
 
@@ -13173,7 +13173,7 @@ msgstr "Selecciona un component..."
 msgid "Select a content type"
 msgstr "Selecciona un tipus de contingut"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1490
+#: packages/admin/src/components/MediaDetailPanel.tsx:1501
 msgid "Select a location"
 msgstr "Selecciona una ubicació"
 
@@ -13763,7 +13763,7 @@ msgstr "Mida"
 msgid "Size is not applicable to folders"
 msgstr "La mida no s'aplica a les carpetes"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1319
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Size:"
 msgstr "Mida:"
 
@@ -13983,7 +13983,7 @@ msgstr "SQL"
 msgid "Square"
 msgstr "Quadrada"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:539
+#: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
 msgstr "Quadrada (1:1)"
 
@@ -14435,7 +14435,7 @@ msgstr "Els tipus de contingut i el slug són fixos. Com s'anomena cada banda i 
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "El gestor de credencials del telèfon o tauleta que triïs el desa. EmDash no rep la clau d'accés."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:834
+#: packages/admin/src/components/MediaDetailPanel.tsx:836
 msgid "The cropped image could not be created."
 msgstr "No s'ha pogut crear la imatge retallada."
 
@@ -14717,11 +14717,11 @@ msgstr ""
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Els canvis programats de {title} es queden com a esborrany."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:829
+#: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "La carpeta seleccionada ja no existeix. Tria una altra ubicació i torna a desar."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:932
+#: packages/admin/src/components/MediaDetailPanel.tsx:934
 msgid "The selected image could not be read."
 msgstr "No s'ha pogut llegir la imatge seleccionada."
 
@@ -14867,9 +14867,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "Aquest navegador manté tot el paquet a la memòria fins que acaba la baixada. Per a una exportació d'aquesta mida, fes servir un navegador basat en Chromium, que desa directament al disc, o executa emdash site export des de la CLI."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
+#: packages/admin/src/components/MediaDetailPanel.tsx:1952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "This cannot be undone"
 msgstr "Això no es pot desfer"
 
@@ -15016,7 +15016,7 @@ msgstr "Aquesta carpeta és buida"
 msgid "This folder is empty."
 msgstr "Aquesta carpeta és buida."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1730
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "This image could not be loaded for cropping."
 msgstr "No s'ha pogut carregar aquesta imatge per retallar-la."
 
@@ -15061,7 +15061,7 @@ msgid "This media item could not be loaded. Try again."
 msgstr "No s'ha pogut carregar aquest element multimèdia. Torna-ho a provar."
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
-#: packages/admin/src/components/MediaDetailPanel.tsx:823
+#: packages/admin/src/components/MediaDetailPanel.tsx:825
 msgid "This media item no longer exists."
 msgstr "Aquest element multimèdia ja no existeix."
 
@@ -15961,7 +15961,7 @@ msgstr "Puja el fitxer d'exportació de WordPress"
 msgid "Uploaded"
 msgstr "Pujat"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Uploaded:"
 msgstr "Pujat:"
 
@@ -16018,7 +16018,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "Identificador apte per a URL"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1378
+#: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "URL:"
 msgstr "URL:"
 
@@ -16142,12 +16142,12 @@ msgstr "S'utilitza com a identificador. Només lletres minúscules, números i g
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "S'utilitza com a element visual principal d'aquesta entrada a les pàgines de llista i a la part superior de l'entrada"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:531
+#: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "Used by screen readers and when image fails to load"
 msgstr "L'utilitzen els lectors de pantalla i quan la imatge no es pot carregar"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1173
-#: packages/admin/src/components/MediaDetailPanel.tsx:1206
+#: packages/admin/src/components/MediaDetailPanel.tsx:1175
+#: packages/admin/src/components/MediaDetailPanel.tsx:1208
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "Utilitzat a"
@@ -16308,6 +16308,11 @@ msgstr "Vídeo"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:358
 msgid "Video actions"
+msgstr ""
+
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:1278
+msgid "Video player for {0}"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
@@ -16539,7 +16544,7 @@ msgstr "Nombre enter"
 msgid "Why are bylines shown in this order?"
 msgstr "Per què es mostren les signatures en aquest ordre?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:530
+#: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "Why can't this be changed?"
 msgstr "Per què no es pot canviar això?"
 
@@ -16567,7 +16572,7 @@ msgstr "Per què és important per a la visibilitat a la cerca?"
 msgid "Why is this important for social sharing?"
 msgstr "Per què és important per a compartir a xarxes socials?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:532
+#: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Why is this important?"
 msgstr "Per què és important això?"
 
@@ -16964,7 +16969,7 @@ msgstr "El teu identificador de Twitter/X (p. ex. @nomusuari)"
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1874
+#: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
 msgstr "Es perdran els canvis multimèdia no desats."
 
