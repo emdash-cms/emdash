@@ -15,6 +15,7 @@ created: 2026-11-07
 EmDash previously stored social media profiles in a static 6-key map (`twitter`, `github`, `facebook`, `instagram`, `linkedin`, `youtube`) containing usernames or URLs.
 
 This static configuration had several limitations:
+
 1. It could not represent modern social and decentralized profiles (e.g. Mastodon, Bluesky, Threads, YouTube channels, custom personal websites, or multiple accounts on the same platform).
 2. It lacked IndieWeb identity verification: publishers could not emit `<link rel="me">` tags for profiles they own.
 3. It did not automatically connect site profiles to Schema.org `sameAs` structured data on the `WebSite` entity.
