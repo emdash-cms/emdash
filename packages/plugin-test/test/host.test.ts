@@ -29,6 +29,20 @@ describe("runtime plugin test host", () => {
 		runtimeHost = undefined;
 	});
 
+	it("supports runtime-host storage through Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await expect(runtimeHost.transport.invokeRoute("storage-exercise")).resolves.toMatchObject({
+			one: { externalId: "ext-one", status: "processing", score: 2 },
+			staleApplied: false,
+			removed: true,
+		});
+		await expect(runtimeHost.inspect.storage.get("records", "one")).resolves.toEqual({
+			externalId: "ext-one",
+			status: "processing",
+			score: 2,
+		});
+	});
+
 	it("exercises declared raw routes through core and Worker Loader", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0xff, 0, 13, 10, 128]);

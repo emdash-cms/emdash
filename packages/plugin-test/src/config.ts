@@ -19,6 +19,8 @@ const runtimeVirtualModules: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
 	"virtual:emdash/config": "export default {};",
+	// Virtual modules have no package directory from which to resolve transitive dependencies.
+	"virtual:emdash/dialect": `export { createDialect, createRequestScopedDb } from ${JSON.stringify(fileURLToPath(import.meta.resolve("@emdash-cms/cloudflare/db/d1")))};`,
 	"virtual:emdash/env": "export const env = undefined;",
 	"virtual:emdash/build": "export const buildTime = 0;",
 	"virtual:emdash/object-cache": "export const createObjectCacheBackend = null;",
