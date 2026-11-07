@@ -79,4 +79,28 @@ describe("FieldEditor blocks configuration", () => {
 			}),
 		);
 	});
+
+	it("offers a searchable switch for blocks and saves it", async () => {
+		const onSave = vi.fn<(input: CreateFieldInput) => void>();
+		const screen = await render(<FieldEditor open onOpenChange={vi.fn()} onSave={onSave} />);
+
+		screen
+			.getByRole("button", { name: /^Blocks/ })
+			.element()
+			.click();
+		await expect.element(screen.getByText("Searchable")).toBeInTheDocument();
+		expect(screen.getByText("Required").query()).toBeNull();
+
+		await screen.getByLabelText("Label").fill("Page layout");
+		screen.getByRole("checkbox", { name: "Hero" }).element().click();
+		screen.getByRole("switch", { name: "Searchable" }).element().click();
+		await expect
+			.element(screen.getByText("Portable Text content inside blocks is indexed."))
+			.toBeInTheDocument();
+		screen.getByRole("button", { name: "Add Field" }).element().click();
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ type: "blocks", searchable: true, indexed: false }),
+		);
+	});
 });
