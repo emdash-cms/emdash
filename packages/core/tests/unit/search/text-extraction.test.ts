@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractPlainText } from "../../../src/search/text-extraction.js";
+import { extractPlainText, extractSearchableFields } from "../../../src/search/text-extraction.js";
 
 describe("extractPlainText", () => {
 	it("includes video captions", () => {
@@ -28,5 +28,76 @@ describe("extractPlainText", () => {
 		]);
 
 		expect(text).toBe("");
+	});
+});
+
+describe("extractSearchableFields with blocks fields", () => {
+	const prose = (text: string) => [
+		{ _type: "block", _key: "p", children: [{ _type: "span", _key: "s", text }] },
+	];
+	const layout = [
+		{
+			_type: "prose",
+			_key: "a",
+			body: prose("Opening paragraph"),
+			admin_label: "Intro",
+			url: "https://example.com/x",
+			variant: "wide",
+			count: 3,
+		},
+		{ _type: "two_column", _key: "b", left: prose("Left column"), right: prose("Right column") },
+	];
+
+	it("extracts Portable Text sub-fields of each block", () => {
+		const result = extractSearchableFields({ layout }, ["layout"], { layout: "blocks" });
+		expect(result.layout).toBe("Opening paragraph\nLeft column\nRight column");
+	});
+
+	it("skips _-prefixed keys and non-text sub-fields", () => {
+		const result = extractSearchableFields({ layout }, ["layout"], { layout: "blocks" });
+		expect(result.layout).not.toContain("prose");
+		expect(result.layout).not.toContain("two_column");
+		expect(result.layout).not.toContain("3");
+	});
+
+	it("does not emit string, select, or url sub-fields", () => {
+		const result = extractSearchableFields({ layout }, ["layout"], { layout: "blocks" });
+		for (const noise of ["Intro", "example.com", "wide"]) {
+			expect(result.layout).not.toContain(noise);
+		}
+	});
+
+	it("extracts Portable Text inside nested repeater rows", () => {
+		const nested = [
+			{
+				_type: "faq",
+				_key: "f",
+				items: [
+					{ _key: "r1", question: "Q one", answer: prose("First answer") },
+					{ _key: "r2", question: "Q two", answer: prose("Second answer") },
+				],
+			},
+		];
+		const result = extractSearchableFields({ layout: nested }, ["layout"], { layout: "blocks" });
+		expect(result.layout).toBe("First answer\nSecond answer");
+	});
+
+	it("accepts a JSON string value and tolerates empty or invalid values", () => {
+		const types = { layout: "blocks" };
+		expect(
+			extractSearchableFields({ layout: JSON.stringify(layout) }, ["layout"], types).layout,
+		).toContain("Left column");
+		expect(extractSearchableFields({ layout: [] }, ["layout"], types).layout).toBe("");
+		expect(extractSearchableFields({ layout: "not json" }, ["layout"], types).layout).toBe("");
+		expect(extractSearchableFields({ layout: null }, ["layout"], types).layout).toBe("");
+	});
+
+	it("keeps Portable Text and plain fields unchanged when types are given", () => {
+		const result = extractSearchableFields(
+			{ title: "Hello", body: prose("World") },
+			["title", "body"],
+			{ title: "string", body: "portableText" },
+		);
+		expect(result).toEqual({ title: "Hello", body: "World" });
 	});
 });
