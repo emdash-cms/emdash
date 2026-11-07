@@ -2358,7 +2358,7 @@ msgstr "Höchstens…"
 #: packages/auth-atproto/src/admin.tsx:97
 #: packages/auth-atproto/src/admin.tsx:179
 msgid "Atmosphere Handle"
-msgstr ""
+msgstr "Atmosphere-Handle"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
@@ -3702,7 +3702,7 @@ msgstr "Verbunden am {0}"
 #: packages/auth-atproto/src/admin.tsx:111
 #: packages/auth-atproto/src/admin.tsx:200
 msgid "Connecting..."
-msgstr ""
+msgstr "Verbindung wird hergestellt..."
 
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
@@ -5023,7 +5023,7 @@ msgstr "Import-Vorschlag ausblenden"
 
 #: packages/admin/src/components/ContentEditor.tsx:2699
 msgid "Dismiss save error"
-msgstr ""
+msgstr "Fehler beim Speichern schließen"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4782
 msgid "Dismiss section error"
@@ -7087,7 +7087,7 @@ msgstr "Zuweisen der Begriffe zum Eintrag fehlgeschlagen"
 #: packages/auth-atproto/src/admin.tsx:152
 #: packages/auth-atproto/src/admin.tsx:163
 msgid "Failed to start AT Protocol login"
-msgstr ""
+msgstr "Starten der Anmeldung über AT Protocol fehlgeschlagen"
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -10445,7 +10445,7 @@ msgstr "In dieser Version nicht enthalten"
 
 #: packages/admin/src/components/ContentEditor.tsx:2439
 msgid "Not saved yet"
-msgstr ""
+msgstr "Noch nicht gespeichert"
 
 #: packages/admin/src/components/ContentList.tsx:1641
 #: packages/admin/src/components/PluginSettings.tsx:342
@@ -13630,7 +13630,7 @@ msgstr "Mit Passkey anmelden"
 
 #: packages/auth-atproto/src/admin.tsx:174
 msgid "Sign in with your Bluesky/Atmosphere handle"
-msgstr ""
+msgstr "Melde dich mit deinem Bluesky-/Atmosphere-Handle an"
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
@@ -15731,7 +15731,7 @@ msgstr "Nicht gespeichert"
 
 #: packages/admin/src/components/ContentEditor.tsx:2441
 msgid "Unsaved changes"
-msgstr ""
+msgstr "Ungespeicherte Änderungen"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:126
 msgid "Unsaved content may leave your site"
@@ -16313,7 +16313,7 @@ msgstr "Videoaktionen"
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1278
 msgid "Video player for {0}"
-msgstr ""
+msgstr "Videoplayer für {0}"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
 msgid "Video upload failed. Try again."
