@@ -27,6 +27,77 @@ function createCtx(kvValues: Record<string, unknown> = {}) {
 	};
 }
 
+function jsonResponse(data: unknown, status = 200): Response {
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+function parseRequestBody(init?: RequestInit): Record<string, unknown> {
+	if (typeof init?.body !== "string") throw new Error("Expected a JSON string request body");
+	return JSON.parse(init.body) as Record<string, unknown>;
+}
+
+function setupExistingSync({
+	document,
+	bskyFailure = false,
+}: {
+	document: Record<string, unknown> | null;
+	bskyFailure?: boolean;
+}) {
+	const ctx = createCtx({
+		"settings:siteUrl": "https://example.com",
+		"state:publicationUri": "at://did:example/site.standard.publication/self",
+		"settings:pdsHost": "bsky.social",
+		"settings:handle": "writer.example.com",
+		"settings:appPassword": "app-password",
+		"state:accessJwt": "access-jwt",
+		"state:did": "did:example",
+	});
+	ctx.storage.records.get.mockResolvedValue({
+		collection: "posts",
+		contentId: "post-1",
+		atUri: "at://did:example/site.standard.document/doc-1",
+		atCid: "old-doc-cid",
+		bskyPostUri: "at://did:example/app.bsky.feed.post/post-1",
+		bskyPostCid: "old-post-cid",
+		publishedAt: "2024-01-01T00:00:00.000Z",
+		status: "synced",
+	});
+
+	const pds = {
+		document,
+		documentAtPostWrite: undefined as Record<string, unknown> | null | undefined,
+		bskyPosts: [] as Record<string, unknown>[],
+		documentWrites: 0,
+	};
+	ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
+		const url = String(input);
+		const body = parseRequestBody(init);
+		if (url.endsWith("com.atproto.repo.putRecord")) {
+			if (body.collection === "app.bsky.feed.post") {
+				pds.documentAtPostWrite = pds.document;
+				pds.bskyPosts.push(body.record as Record<string, unknown>);
+				if (bskyFailure) return jsonResponse({ error: "failed" }, 500);
+				return jsonResponse({
+					uri: "at://did:example/app.bsky.feed.post/post-1",
+					cid: "fresh-post-cid",
+				});
+			}
+			pds.document = body.record as Record<string, unknown>;
+			pds.documentWrites++;
+			return jsonResponse({
+				uri: "at://did:example/site.standard.document/doc-1",
+				cid: pds.documentWrites === 1 ? "initial-doc-cid" : "final-doc-cid",
+			});
+		}
+		throw new Error(`Unexpected PDS request: ${url}`);
+	});
+
+	return { ctx, pds };
+}
+
 describe("sandbox hooks", () => {
 	it("does not create syndication records from afterSave when published content has not been synced", async () => {
 		const { default: plugin } = await import("../src/plugin.js");
@@ -135,5 +206,148 @@ describe("sandbox hooks", () => {
 		expect(result).toBeNull();
 		expect(ctx.kv.get).toHaveBeenCalledWith("settings:collections");
 		expect(ctx.storage.records.get).not.toHaveBeenCalled();
+	});
+
+	describe("existing syndication records", () => {
+		it.each([
+			["missing", null],
+			["stale", { $type: "site.standard.document", title: "Old title" }],
+		])("writes the document before updating the Bluesky post (%s)", async (_case, document) => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx, pds } = setupExistingSync({ document });
+			const handler = (plugin as any).hooks["content:afterSave"].handler;
+
+			await handler(
+				{
+					collection: "posts",
+					isNew: false,
+					content: { id: "post-1", status: "published", title: "Updated title" },
+				},
+				ctx,
+			);
+
+			expect(pds.bskyPosts).toHaveLength(1);
+			expect(pds.documentAtPostWrite).toMatchObject({ title: "Updated title" });
+			expect(pds.document).toMatchObject({
+				title: "Updated title",
+				bskyPostRef: { uri: "at://did:example/app.bsky.feed.post/post-1", cid: "fresh-post-cid" },
+			});
+			expect(ctx.storage.records.put).toHaveBeenLastCalledWith(
+				"posts:post-1",
+				expect.objectContaining({
+					atCid: "final-doc-cid",
+					bskyPostCid: "fresh-post-cid",
+					status: "synced",
+				}),
+			);
+		});
+
+		it("does not update Bluesky when the document write fails", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx } = setupExistingSync({ document: null });
+			ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
+				if (input.endsWith("com.atproto.repo.putRecord")) {
+					expect(parseRequestBody(init).collection).toBe("site.standard.document");
+					return jsonResponse({ error: "failed" }, 500);
+				}
+				throw new Error(`Unexpected PDS request: ${input}`);
+			});
+			await (plugin as any).hooks["content:afterSave"].handler(
+				{
+					collection: "posts",
+					isNew: false,
+					content: { id: "post-1", status: "published", title: "Updated title" },
+				},
+				ctx,
+			);
+
+			expect(ctx.http.fetch).toHaveBeenCalledTimes(1);
+			expect(ctx.storage.records.put).toHaveBeenLastCalledWith(
+				"posts:post-1",
+				expect.objectContaining({ status: "error", atCid: "old-doc-cid" }),
+			);
+			expect(ctx.log.error).toHaveBeenCalled();
+		});
+
+		it("records an error when saving the refreshed post reference fails", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx, pds } = setupExistingSync({ document: null });
+			const fetch = ctx.http.fetch.getMockImplementation()!;
+			ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
+				const body = parseRequestBody(init);
+				if (body.collection === "site.standard.document" && pds.documentWrites === 1) {
+					return jsonResponse({ error: "failed" }, 500);
+				}
+				return fetch(input, init);
+			});
+			await (plugin as any).hooks["content:afterSave"].handler(
+				{
+					collection: "posts",
+					isNew: false,
+					content: { id: "post-1", status: "published", title: "Updated title" },
+				},
+				ctx,
+			);
+
+			expect(pds.bskyPosts).toHaveLength(1);
+			expect(pds.document).toMatchObject({ bskyPostRef: { cid: "old-post-cid" } });
+			expect(ctx.storage.records.put).toHaveBeenLastCalledWith(
+				"posts:post-1",
+				expect.objectContaining({ status: "error", retryCount: 1 }),
+			);
+		});
+
+		it("retains the old post reference when the Bluesky update fails", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx, pds } = setupExistingSync({
+				document: { $type: "site.standard.document", title: "Updated title" },
+				bskyFailure: true,
+			});
+			await (plugin as any).hooks["content:afterSave"].handler(
+				{
+					collection: "posts",
+					isNew: false,
+					content: { id: "post-1", status: "published", title: "Updated title" },
+				},
+				ctx,
+			);
+
+			expect(pds.document).toMatchObject({
+				title: "Updated title",
+				bskyPostRef: { uri: "at://did:example/app.bsky.feed.post/post-1", cid: "old-post-cid" },
+			});
+			expect(ctx.storage.records.put).toHaveBeenLastCalledWith(
+				"posts:post-1",
+				expect.objectContaining({
+					status: "synced",
+					atCid: "initial-doc-cid",
+					bskyPostCid: "old-post-cid",
+				}),
+			);
+		});
+
+		it("writes only the document when crossposting is disabled", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx, pds } = setupExistingSync({ document: null });
+			const getKv = ctx.kv.get.getMockImplementation()!;
+			ctx.kv.get.mockImplementation(async (key: string) =>
+				key === "settings:enableBskyCrosspost" ? false : getKv(key),
+			);
+			await (plugin as any).hooks["content:afterSave"].handler(
+				{
+					collection: "posts",
+					isNew: false,
+					content: { id: "post-1", status: "published", title: "Updated title" },
+				},
+				ctx,
+			);
+
+			expect(ctx.http.fetch).toHaveBeenCalledTimes(1);
+			expect(pds.bskyPosts).toHaveLength(0);
+			expect(pds.document).toMatchObject({
+				title: "Updated title",
+				bskyPostRef: { cid: "old-post-cid" },
+			});
+		});
 	});
 });
