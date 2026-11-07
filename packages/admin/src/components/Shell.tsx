@@ -1,3 +1,4 @@
+import type { MessageDescriptor } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import { useMatches } from "@tanstack/react-router";
 import * as React from "react";
@@ -7,6 +8,7 @@ import { useCurrentUser } from "../lib/api/current-user";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
+import { AdminDocumentTitle } from "./AdminDocumentTitle.js";
 import { Header } from "./Header";
 import { RegistryConfigurationBanner } from "./RegistryConfigurationBanner.js";
 import { Sidebar, SidebarNav } from "./Sidebar";
@@ -19,6 +21,7 @@ declare module "@tanstack/react-router" {
 		 * page scroll, and the route's component manages its own scroll regions.
 		 */
 		fullBleed?: boolean;
+		pageTitle?: MessageDescriptor;
 	}
 }
 
@@ -42,6 +45,7 @@ export interface ShellProps {
 		}>;
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
+		siteTitle?: string;
 		admin?: AdminManifest["admin"];
 		registryConfigurationError?: AdminManifest["registryConfigurationError"];
 		staging?: boolean;
@@ -64,6 +68,21 @@ export function Shell({ children, manifest }: ShellProps) {
 	const fullBleed = useMatches({
 		select: (matches) => matches.some((match) => match.staticData.fullBleed),
 	});
+
+	const match = useMatches({ select: (matches) => matches.at(-1) });
+	const params = (match?.params ?? {}) as Record<string, string>;
+	let pageTitle = match?.staticData.pageTitle ? t(match.staticData.pageTitle) : t`Dashboard`;
+	if (params.collection) {
+		pageTitle = manifest.collections[params.collection]?.label ?? pageTitle;
+	} else if (params.taxonomy) {
+		pageTitle =
+			manifest.taxonomies.find((taxonomy) => taxonomy.name === params.taxonomy)?.label ?? pageTitle;
+	} else if (params.pluginId && params._splat !== undefined) {
+		const pluginPage = manifest.plugins[params.pluginId]?.adminPages?.find(
+			(candidate) => candidate.path === `/${params._splat || ""}`,
+		);
+		pageTitle = pluginPage?.label ?? pageTitle;
+	}
 
 	// Show welcome modal on first login
 	React.useEffect(() => {
@@ -98,55 +117,61 @@ export function Shell({ children, manifest }: ShellProps) {
 	}, [t, user]);
 
 	return (
-		<Sidebar.Provider
-			defaultOpen
-			side={sidebarSide}
-			style={
-				{
-					"--sidebar-bg": "var(--color-kumo-elevated)",
-					height: "100svh",
-					minHeight: "0",
-					overflow: "hidden",
-				} as React.CSSProperties
-			}
+		<AdminDocumentTitle
+			siteName={manifest.siteTitle}
+			pageKey={match?.pathname ?? "/"}
+			pageTitle={pageTitle}
 		>
-			{/* Sidebar navigation */}
-			<SidebarNav manifest={manifest} />
+			<Sidebar.Provider
+				defaultOpen
+				side={sidebarSide}
+				style={
+					{
+						"--sidebar-bg": "var(--color-kumo-elevated)",
+						height: "100svh",
+						minHeight: "0",
+						overflow: "hidden",
+					} as React.CSSProperties
+				}
+			>
+				{/* Sidebar navigation */}
+				<SidebarNav manifest={manifest} />
 
-			{/* Main content area — scrolls independently so sidebar stays full height */}
-			<div className="flex flex-1 flex-col overflow-hidden">
-				<Header staging={manifest.staging} />
-				{manifest.registryConfigurationError && (
-					<div className="space-y-3 px-6 pt-6">
-						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
-					</div>
-				)}
-				{/* Full-bleed clips because scrollIntoView() and focus() can still scroll
+				{/* Main content area — scrolls independently so sidebar stays full height */}
+				<div className="flex flex-1 flex-col overflow-hidden">
+					<Header staging={manifest.staging} />
+					{manifest.registryConfigurationError && (
+						<div className="space-y-3 px-6 pt-6">
+							<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
+						</div>
+					)}
+					{/* Full-bleed clips because scrollIntoView() and focus() can still scroll
 				    an overflow-hidden box, pushing the page up under the header. A
 				    clipping box isn't a scroll container, so it also needs min-h-0. */}
-				<main
-					className={
-						fullBleed
-							? "min-h-0 flex-1 overflow-clip bg-kumo-elevated"
-							: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
-					}
-				>
-					{children}
-				</main>
-			</div>
+					<main
+						className={
+							fullBleed
+								? "min-h-0 flex-1 overflow-clip bg-kumo-elevated"
+								: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
+						}
+					>
+						{children}
+					</main>
+				</div>
 
-			{/* Welcome modal for first-time users */}
-			{user && (
-				<WelcomeModal
-					open={welcomeModalOpen}
-					onClose={() => setWelcomeModalOpen(false)}
-					userName={user.name}
-					userRole={user.role}
-				/>
-			)}
+				{/* Welcome modal for first-time users */}
+				{user && (
+					<WelcomeModal
+						open={welcomeModalOpen}
+						onClose={() => setWelcomeModalOpen(false)}
+						userName={user.name}
+						userRole={user.role}
+					/>
+				)}
 
-			{/* Command palette for quick navigation */}
-			<AdminCommandPalette manifest={manifest} />
-		</Sidebar.Provider>
+				{/* Command palette for quick navigation */}
+				<AdminCommandPalette manifest={manifest} />
+			</Sidebar.Provider>
+		</AdminDocumentTitle>
 	);
 }
