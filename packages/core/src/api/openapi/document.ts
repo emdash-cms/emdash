@@ -47,6 +47,18 @@ import {
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
 import {
+	editorialAnchorsUpdateBody,
+	editorialAnchorsUpdateResponseSchema,
+	editorialCommentBody,
+	editorialCommentDeleteResponseSchema,
+	editorialThreadCreateBody,
+	editorialThreadDeleteResponseSchema,
+	editorialThreadListQuery,
+	editorialThreadListResponseSchema,
+	editorialThreadSchema,
+	editorialThreadUpdateBody,
+} from "../schemas/editorial-comments.js";
+import {
 	entryLockAcquireBody,
 	entryMutationConflictSchema,
 	entryLockReleaseResponseSchema,
@@ -257,6 +269,25 @@ const entryPathParams = z.object({
 	collection: z.string().meta({ description: "Collection slug" }),
 	id: z.string().meta({ description: "Content ID or slug" }),
 });
+
+const localeQuery = z.object({
+	locale: z.string().optional().meta({
+		description: "Locale of the entry, when `id` is a slug",
+	}),
+});
+
+const threadPathParams = entryPathParams.extend({
+	threadId: z.string().meta({ description: "Thread ID" }),
+});
+
+function threadResponse(description: string, status: "200" | "201" = "200") {
+	return {
+		[status]: {
+			description,
+			content: { [JSON_CONTENT]: { schema: successEnvelope(editorialThreadSchema) } },
+		},
+	};
+}
 
 /** 409 for optimistic-concurrency or edit-lock conflicts. */
 const entryMutationConflict = {
@@ -736,6 +767,168 @@ const contentPaths = {
 					description: "Whether a lock was released",
 					content: {
 						[JSON_CONTENT]: { schema: successEnvelope(entryLockReleaseResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/threads": {
+		get: {
+			operationId: "listEditorialThreads",
+			summary: "List the entry's editorial threads",
+			description:
+				"Threads staff left on the entry, oldest first, each with all of its comments. " +
+				"Open threads by default. Each thread and comment carries `can` flags saying " +
+				"what the caller may do with it.",
+			tags: ["Editorial comments"],
+			requestParams: {
+				path: entryPathParams,
+				query: editorialThreadListQuery.extend(localeQuery.shape),
+			},
+			responses: {
+				"200": {
+					description: "A page of threads",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(editorialThreadListResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		post: {
+			operationId: "createEditorialThread",
+			summary: "Start an editorial thread",
+			description:
+				"Creates a thread with its first comment, anchored to the whole entry, a field, " +
+				"a Portable Text block, or a range of text in a block. Fails with 409 when the " +
+				"entry is in the trash or `_rev` is stale.",
+			tags: ["Editorial comments"],
+			requestParams: { path: entryPathParams, query: localeQuery },
+			requestBody: { content: { [JSON_CONTENT]: { schema: editorialThreadCreateBody } } },
+			responses: {
+				...threadResponse("The new thread", "201"),
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/threads/anchors": {
+		patch: {
+			operationId: "updateEditorialAnchors",
+			summary: "Store recomputed thread anchors",
+			description:
+				"Saves anchors the editor recomputed after the entry's content changed, and " +
+				"marks threads whose text is gone as `orphaned`. Threads on other entries are " +
+				"ignored. Fails with 409 when `_rev` is stale.",
+			tags: ["Editorial comments"],
+			requestParams: { path: entryPathParams, query: localeQuery },
+			requestBody: { content: { [JSON_CONTENT]: { schema: editorialAnchorsUpdateBody } } },
+			responses: {
+				"200": {
+					description: "How many threads changed",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(editorialAnchorsUpdateResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/threads/{threadId}": {
+		patch: {
+			operationId: "updateEditorialThread",
+			summary: "Resolve or reopen a thread",
+			description: "Editors, the thread's creator, and the entry's author may change its status.",
+			tags: ["Editorial comments"],
+			requestParams: { path: threadPathParams, query: localeQuery },
+			requestBody: { content: { [JSON_CONTENT]: { schema: editorialThreadUpdateBody } } },
+			responses: {
+				...threadResponse("The updated thread"),
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+		delete: {
+			operationId: "deleteEditorialThread",
+			summary: "Delete a thread",
+			description:
+				"Editors may delete any thread. Its creator may delete it while nobody else " +
+				"has replied.",
+			tags: ["Editorial comments"],
+			requestParams: { path: threadPathParams, query: localeQuery },
+			responses: {
+				"200": {
+					description: "The thread was deleted",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(editorialThreadDeleteResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/threads/{threadId}/comments": {
+		post: {
+			operationId: "createEditorialComment",
+			summary: "Reply to a thread",
+			description: "Adds a comment. Replying to a resolved thread reopens it.",
+			tags: ["Editorial comments"],
+			requestParams: { path: threadPathParams, query: localeQuery },
+			requestBody: { content: { [JSON_CONTENT]: { schema: editorialCommentBody } } },
+			responses: {
+				...threadResponse("The thread with the new comment", "201"),
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/threads/{threadId}/comments/{commentId}": {
+		patch: {
+			operationId: "updateEditorialComment",
+			summary: "Edit a comment",
+			description: "Only the comment's author may edit it.",
+			tags: ["Editorial comments"],
+			requestParams: {
+				path: threadPathParams.extend({
+					commentId: z.string().meta({ description: "Comment ID" }),
+				}),
+				query: localeQuery,
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: editorialCommentBody } } },
+			responses: {
+				...threadResponse("The thread with the edited comment"),
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+		delete: {
+			operationId: "deleteEditorialComment",
+			summary: "Delete a comment",
+			description:
+				"The comment's author or an editor may delete it. The comment stays in the " +
+				"thread with an empty body; deleting the last live comment deletes the thread.",
+			tags: ["Editorial comments"],
+			requestParams: {
+				path: threadPathParams.extend({
+					commentId: z.string().meta({ description: "Comment ID" }),
+				}),
+				query: localeQuery,
+			},
+			responses: {
+				"200": {
+					description: "The comment was deleted",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(editorialCommentDeleteResponseSchema) },
 					},
 				},
 				...authErrors,
@@ -3697,6 +3890,10 @@ export function generateOpenApiDocument(
 			{
 				name: "Comments",
 				description: "Public comments and admin moderation",
+			},
+			{
+				name: "Editorial comments",
+				description: "Threads staff leave on entries while reviewing them",
 			},
 			{
 				name: "Taxonomies",

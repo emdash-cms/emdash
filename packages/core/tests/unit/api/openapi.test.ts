@@ -654,7 +654,7 @@ describe("OpenAPI document generation", () => {
 		expect(schemes).toHaveProperty("bearer");
 	});
 
-	it("tags all 13 domains", () => {
+	it("tags all 14 domains", () => {
 		const doc = generateOpenApiDocument();
 		const tagNames = (doc.tags ?? []).map((t: { name: string }) => t.name);
 
@@ -662,6 +662,7 @@ describe("OpenAPI document generation", () => {
 		expect(tagNames).toContain("Media");
 		expect(tagNames).toContain("Schema");
 		expect(tagNames).toContain("Comments");
+		expect(tagNames).toContain("Editorial comments");
 		expect(tagNames).toContain("Taxonomies");
 		expect(tagNames).toContain("Menus");
 		expect(tagNames).toContain("Sections");
@@ -671,7 +672,7 @@ describe("OpenAPI document generation", () => {
 		expect(tagNames).toContain("Redirects");
 		expect(tagNames).toContain("Users");
 		expect(tagNames).toContain("Transfer");
-		expect(tagNames).toHaveLength(13);
+		expect(tagNames).toHaveLength(14);
 	});
 
 	it("produces valid JSON output", () => {
