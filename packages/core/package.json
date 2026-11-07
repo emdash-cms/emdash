@@ -213,6 +213,14 @@
       "types": "./dist/rooms/index.d.mts",
       "default": "./dist/rooms/index.mjs"
     },
+    "./internal/co-editing/notifications": {
+      "types": "./dist/rooms/notifications.d.mts",
+      "default": "./dist/rooms/notifications.mjs"
+    },
+    "./internal/co-editing/site": {
+      "types": "./dist/rooms/site.d.mts",
+      "default": "./dist/rooms/site.mjs"
+    },
     "./internal/co-editing/room": {
       "types": "./dist/rooms/room.d.mts",
       "default": "./dist/rooms/room.mjs"

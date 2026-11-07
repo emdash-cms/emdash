@@ -5,7 +5,8 @@
  */
 
 import { env } from "cloudflare:workers";
-import { RoomSaveError, setRoomNotifier, type RuntimeRoomHost } from "emdash/internal/co-editing";
+import { RoomSaveError, type RuntimeRoomHost } from "emdash/internal/co-editing";
+import { setRoomNotifier } from "emdash/internal/co-editing/notifications";
 
 import { roomsBinding } from "./binding.js";
 

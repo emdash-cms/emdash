@@ -4,18 +4,20 @@
  */
 
 import { WorkerEntrypoint } from "cloudflare:workers";
-import {
-	createRoomSite,
-	type CheckpointInput,
-	type EntryRef,
-	type LoadedEntry,
-	type RecoveryInput,
-	type SaveResult,
+import type {
+	CheckpointInput,
+	EntryRef,
+	LoadedEntry,
+	RecoveryInput,
+	SaveResult,
 } from "emdash/internal/co-editing";
 
 async function site() {
 	// Loaded on first use, as the plugin bridge loads it.
-	const { withEmDashRuntime } = await import("emdash/middleware");
+	const [{ withEmDashRuntime }, { createRoomSite }] = await Promise.all([
+		import("emdash/middleware"),
+		import("emdash/internal/co-editing/site"),
+	]);
 	return createRoomSite((fn) => withEmDashRuntime(fn));
 }
 
