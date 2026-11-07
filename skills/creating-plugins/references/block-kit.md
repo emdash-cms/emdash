@@ -406,19 +406,21 @@ Use `tab` to group related blocks into labelled panels:
 
 ## Repeater and media picker elements
 
-`repeater` and `media_picker` are admin-authoring elements, not ordinary fields in a sandboxed admin-page `form`.
+`repeater` and `media_picker` are authoring elements for native plugin Portable Text block forms. They are not ordinary fields in a sandboxed admin-page `form`.
 
-`repeater` captures an array of objects. Its nested fields are limited to `text_input`, `number_input`, `select`, and `toggle`:
+`repeater` captures an array of objects. Its nested fields support `text_input`, `number_input`, `select`, `toggle`, and `media_picker`.
+
+The following repeater captures images and captions. Each `image` value is the selected asset's URL string:
 
 ```typescript
 {
 	"type": "repeater",
-	"action_id": "items",
-	"label": "Questions",
-	"item_label": "Question",
+	"action_id": "slides",
+	"label": "Slides",
+	"item_label": "Slide",
 	"fields": [
-		{ "type": "text_input", "action_id": "question", "label": "Question" },
-		{ "type": "text_input", "action_id": "answer", "label": "Answer", "multiline": true }
+		{ "type": "media_picker", "action_id": "image", "label": "Image", "mime_type_filter": "image/" },
+		{ "type": "text_input", "action_id": "caption", "label": "Caption" }
 	]
 }
 ```
