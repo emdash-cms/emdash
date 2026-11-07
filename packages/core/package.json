@@ -10,8 +10,7 @@
   },
   "sideEffects": [
     "**/*.astro",
-    "**/*.css",
-    "./src/import/index.ts"
+    "**/*.css"
   ],
   "files": [
     "dist",

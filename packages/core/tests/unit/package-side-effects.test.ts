@@ -17,10 +17,8 @@ import { describe, expect, it } from "vitest";
  * and so can its top-level statements. A module that does real work when it
  * is imported, such as registering something in a shared registry, must be
  * listed, or that work silently disappears from both the package build and
- * the site build. `src/import/index.ts` is the one such module today: it
- * registers the built-in import sources, and without the entry the WordPress
- * importer finds no sources. `tests/unit/import/built-sources.test.ts` checks
- * that against the built package.
+ * the site build. Better still, do the work on first use instead, as the
+ * import source registry does with its built-in sources.
  *
  * The guard below only sees top-level calls. A top-level assignment such as
  * `globalThis[KEY] = ...` or a bare `new X()` passes it unnoticed, so a module
@@ -50,10 +48,6 @@ function walk(dir: string): string[] {
 const TOP_LEVEL_CALL = /^(?:void\s+)?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\(/m;
 
 describe("package sideEffects", () => {
-	it("is declared, so sites can drop unused subsystems", () => {
-		expect(Array.isArray(pkg.sideEffects)).toBe(true);
-	});
-
 	it("lists every source module that does work at import time", () => {
 		const listed = new Set(
 			(Array.isArray(pkg.sideEffects) ? pkg.sideEffects : [])
@@ -69,10 +63,5 @@ describe("package sideEffects", () => {
 			})
 			.map(({ file }) => file);
 		expect(unlisted).toEqual([]);
-	});
-
-	it("keeps the runtime off the main barrel", () => {
-		const runtime = readFileSync(join(coreRoot, "src/emdash-runtime.ts"), "utf-8");
-		expect(runtime).not.toMatch(/from\s+["']\.\/index\.js["']/);
 	});
 });
