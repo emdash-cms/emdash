@@ -160,7 +160,7 @@ Its `data` value contains `success`, `collectionsCreated`, `fieldsCreated`, and 
 - `file`: the WXR file.
 - `config`: a JSON string containing `postTypeMappings`, `skipExisting`, optional `authorMappings`, optional `importSections`, and an optional import-wide `locale`.
 
-Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries.
+Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries. When the file has password-protected posts, `passwordProtected` lists each one, imported as a draft, as `{ id, collection, title }`.
 
 ### Copy media
 

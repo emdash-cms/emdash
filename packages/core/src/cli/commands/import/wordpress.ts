@@ -150,6 +150,8 @@ export interface ImportResult {
 	}>;
 	/** Errors encountered */
 	errors: Array<{ id?: number; message: string }>;
+	/** Posts converted as drafts because they had a password in WordPress (execute phase) */
+	passwordProtected?: Array<{ id?: number; title: string; path: string }>;
 	/** Next steps for the user/agent */
 	nextSteps: string[];
 }
@@ -684,6 +686,14 @@ export async function executeWordPressImport(
 				}
 			}
 
+			if (post.postPassword) {
+				(result.passwordProtected ??= []).push({
+					id: post.id,
+					title: post.title || "Untitled",
+					path: outputPath,
+				});
+			}
+
 			stats.imported++;
 			stats.byCollection.set(collection, (stats.byCollection.get(collection) || 0) + 1);
 
@@ -825,6 +835,17 @@ export async function executeWordPressImport(
 		log(`  ${collection}: ${count}`);
 	}
 
+	if (result.passwordProtected) {
+		log(
+			pc.bold(
+				`\n${options.dryRun ? "Would convert" : "Converted"} as drafts because they are password-protected in WordPress:`,
+			),
+		);
+		for (const entry of result.passwordProtected) {
+			log(`  ${entry.title} (${entry.path})`);
+		}
+	}
+
 	if (redirects.size > 0 && !options.dryRun) {
 		log(pc.dim(`\nRedirect map written to: ${redirectPath}`));
 	}
@@ -927,7 +948,8 @@ function convertPostWithConfig(
 	// Extract slug
 	const slug = extractSlug(post.link) || slugify(post.title || "untitled");
 
-	const status = mapStatus(post.status);
+	const sourceStatus = mapStatus(post.status);
+	const status = post.postPassword ? "draft" : sourceStatus;
 	const scheduled = status === "scheduled";
 
 	// Build data object
@@ -935,7 +957,8 @@ function convertPostWithConfig(
 		title: post.title,
 		content,
 		status,
-		publishedAt: post.pubDate && !scheduled ? new Date(post.pubDate).toISOString() : null,
+		publishedAt:
+			post.pubDate && sourceStatus !== "scheduled" ? new Date(post.pubDate).toISOString() : null,
 		...(scheduled && {
 			scheduledAt:
 				parseWxrDate(post.postDateGmt, post.pubDate, post.postDate)?.toISOString() ?? null,

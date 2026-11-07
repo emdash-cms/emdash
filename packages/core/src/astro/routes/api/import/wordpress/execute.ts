@@ -88,6 +88,8 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
+	/** Entries imported as drafts because they had a password in WordPress */
+	passwordProtected?: Array<{ id: string; collection: string; title: string }>;
 	/** Sections import results (if enabled) */
 	sections?: {
 		created: number;
@@ -567,8 +569,8 @@ export async function importContent(
 				translationOf = translationGroupMap.get(post.translationGroup);
 			}
 
-			// Map WordPress status to EmDash status
-			const status = mapStatus(post.status);
+			const passwordProtected = Boolean(post.postPassword);
+			const status = passwordProtected ? "draft" : mapStatus(post.status);
 
 			// Build data object with required fields
 			const data: Record<string, unknown> = {
@@ -611,10 +613,9 @@ export async function importContent(
 			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
 			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
 			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
-			const scheduledAt =
-				post.status === "future" && createdAt && Date.parse(createdAt) > Date.now()
-					? createdAt
-					: undefined;
+			const futureDated =
+				post.status === "future" && createdAt !== undefined && Date.parse(createdAt) > Date.now();
+			const scheduledAt = futureDated && !passwordProtected ? createdAt : undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -626,8 +627,8 @@ export async function importContent(
 				locale: postLocale,
 				translationOf,
 				createdAt,
-				// Scheduled posts get their publication date from the final schedule.
-				publishedAt: scheduledAt ? undefined : createdAt,
+				// Future-dated posts get their publication date when they are published.
+				publishedAt: futureDated ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
@@ -650,6 +651,14 @@ export async function importContent(
 					!translationGroupMap.has(post.translationGroup)
 				) {
 					translationGroupMap.set(post.translationGroup, createdItem.id);
+				}
+
+				if (createdItem && passwordProtected) {
+					(result.passwordProtected ??= []).push({
+						id: createdItem.id,
+						collection,
+						title: post.title || "Untitled",
+					});
 				}
 
 				// Attach taxonomy assignments parsed from the WXR's per-item
