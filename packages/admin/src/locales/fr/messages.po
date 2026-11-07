@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# élément)} other {(# éléments)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3793
+#: packages/admin/src/components/ContentEditor.tsx:3888
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} sur # caractère, au moins {min}} other {{counted} sur # caractères, au moins {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3798
+#: packages/admin/src/components/ContentEditor.tsx:3893
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} sur # caractère} other {{counted} sur # caractères}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# commentaire importé} other {# commentaires importés}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2470
+#: packages/admin/src/router.tsx:2500
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# commentaire mis à jour} other {# commentaires mis à jour}}"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Ajouter # vidéo} other {Ajouter # vidéos}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3803
+#: packages/admin/src/components/ContentEditor.tsx:3898
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Au moins # caractère} other {Au moins # caractères}}"
 
@@ -1292,7 +1292,7 @@ msgstr "Un fichier du paquet est manquant"
 msgid "A publication time has not been selected"
 msgstr "Aucune heure de publication n’a été sélectionnée"
 
-#: packages/admin/src/components/ContentEditor.tsx:1697
+#: packages/admin/src/components/ContentEditor.tsx:1707
 msgid "A publishing action is already in progress"
 msgstr "Une action de publication est déjà en cours"
 
@@ -1386,7 +1386,7 @@ msgstr "Accepter l'invitation"
 msgid "Access denied"
 msgstr "Accès refusé"
 
-#: packages/admin/src/router.tsx:2492
+#: packages/admin/src/router.tsx:2522
 msgid "Access Denied"
 msgstr "Accès refusé"
 
@@ -1686,8 +1686,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "Ajouter une clé d'accès"
 
-#: packages/admin/src/components/ContentEditor.tsx:3707
-#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3802
 msgid "Add reference"
 msgstr "Ajouter une référence"
 
@@ -2110,16 +2110,15 @@ msgstr "Une clé numérique chiffrée que vous déverrouillez avec votre emprein
 #: packages/admin/src/router.tsx:665
 #: packages/admin/src/router.tsx:686
 #: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1341
-#: packages/admin/src/router.tsx:1464
-#: packages/admin/src/router.tsx:1498
-#: packages/admin/src/router.tsx:1522
-#: packages/admin/src/router.tsx:1606
-#: packages/admin/src/router.tsx:1639
-#: packages/admin/src/router.tsx:2442
-#: packages/admin/src/router.tsx:2478
-#: packages/admin/src/router.tsx:2906
-#: packages/admin/src/router.tsx:3093
+#: packages/admin/src/router.tsx:1369
+#: packages/admin/src/router.tsx:1527
+#: packages/admin/src/router.tsx:1551
+#: packages/admin/src/router.tsx:1635
+#: packages/admin/src/router.tsx:1668
+#: packages/admin/src/router.tsx:2472
+#: packages/admin/src/router.tsx:2508
+#: packages/admin/src/router.tsx:2936
+#: packages/admin/src/router.tsx:3123
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Une erreur s'est produite"
@@ -2344,11 +2343,11 @@ msgstr "Les assistants connectés via MCP doivent obtenir l’approbation d’un
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3826
+#: packages/admin/src/components/ContentEditor.tsx:3921
 msgid "At least {min}"
 msgstr "Au moins {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3918
 msgid "At most {max}"
 msgstr "Au plus {max}"
 
@@ -2390,7 +2389,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "L'authentification a été annulée ou a expiré. Veuillez réessayer."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2470,11 +2469,11 @@ msgstr "Sauvegardes automatiques"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Les sauvegardes automatiques nécessitent un backend de stockage (R2, S3 ou stockage local). Configurez le stockage dans votre configuration EmDash pour les activer."
 
-#: packages/admin/src/router.tsx:1461
+#: packages/admin/src/router.tsx:1495
 msgid "Autosave failed"
 msgstr "Échec de l'enregistrement automatique"
 
-#: packages/admin/src/components/ContentEditor.tsx:228
+#: packages/admin/src/components/ContentEditor.tsx:229
 msgid "Autosave paused"
 msgstr ""
 
@@ -2519,7 +2518,7 @@ msgstr "Retour"
 msgid "Back"
 msgstr "Retour"
 
-#: packages/admin/src/components/ContentEditor.tsx:1941
+#: packages/admin/src/components/ContentEditor.tsx:1954
 msgid "Back to {collectionLabel} list"
 msgstr "Retour à la liste {collectionLabel}"
 
@@ -2627,7 +2626,7 @@ msgstr "Avant l'envoi :"
 msgid "Before you continue:"
 msgstr "Avant de continuer :"
 
-#: packages/admin/src/components/ContentEditor.tsx:3820
+#: packages/admin/src/components/ContentEditor.tsx:3915
 msgid "Between {min} and {max}"
 msgstr "Entre {min} et {max}"
 
@@ -2806,8 +2805,8 @@ msgstr "Collaborateur mis à jour"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
@@ -2858,7 +2857,7 @@ msgstr "Peut consulter le contenu"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:538
+#: packages/admin/src/components/ContentSettingsPanel.tsx:547
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -3032,7 +3031,7 @@ msgstr "Modifier la date de publication"
 msgid "Change publication date: {0}"
 msgstr "Modifier la date de publication : {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Modifier la programmation"
@@ -3119,7 +3118,7 @@ msgstr "Journal des modifications"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Les modifications s’appliquent partout où ce collaborateur apparaît."
 
-#: packages/admin/src/router.tsx:1539
+#: packages/admin/src/router.tsx:1568
 msgid "Changes discarded"
 msgstr "Modifications rejetées"
 
@@ -3478,7 +3477,7 @@ msgstr "Fermer les paramètres de l’image"
 msgid "Close panel"
 msgstr "Fermer le panneau"
 
-#: packages/admin/src/components/ContentEditor.tsx:2644
+#: packages/admin/src/components/ContentEditor.tsx:2739
 msgid "Close settings"
 msgstr "Fermer les paramètres"
 
@@ -3532,7 +3531,7 @@ msgstr "La collection « {0} » a été créée sur ce site"
 
 #: packages/admin/src/router.tsx:776
 #: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1995
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3699,7 +3698,7 @@ msgstr "Connecté {0}"
 msgid "Connects"
 msgstr "Collections reliées"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:473
+#: packages/admin/src/components/ContentSettingsPanel.tsx:476
 msgid "content"
 msgstr "contenu"
 
@@ -3730,7 +3729,7 @@ msgstr "Erreurs liées au contenu ({0})"
 msgid "Content found:"
 msgstr "Contenu trouvé :"
 
-#: packages/admin/src/router.tsx:1588
+#: packages/admin/src/router.tsx:1617
 msgid "Content has been scheduled for publishing"
 msgstr "La publication du contenu a été programmée"
 
@@ -3738,11 +3737,11 @@ msgstr "La publication du contenu a été programmée"
 msgid "Content ID:"
 msgstr "ID de contenu :"
 
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1521
 msgid "Content is now live"
 msgstr "Le contenu est maintenant en ligne"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1091
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1124
 msgid "Content language"
 msgstr "Langue du contenu"
 
@@ -3763,11 +3762,11 @@ msgstr "Le contenu référence un média de manière invalide"
 msgid "Content refers to media that is not in the package"
 msgstr "Le contenu référence un média absent du paquet"
 
-#: packages/admin/src/router.tsx:1516
+#: packages/admin/src/router.tsx:1545
 msgid "Content removed from public view"
 msgstr "Contenu supprimé de la vue publique"
 
-#: packages/admin/src/router.tsx:1599
+#: packages/admin/src/router.tsx:1628
 msgid "Content reverted to draft"
 msgstr "Contenu rétabli à l'état de brouillon"
 
@@ -3999,7 +3998,7 @@ msgstr "Impossible de vérifier si le média ou le dossier sélectionné existe 
 msgid "Couldn't detect WordPress"
 msgstr "Impossible de détecter WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:3684
+#: packages/admin/src/components/ContentEditor.tsx:3779
 msgid "Couldn't load all references."
 msgstr "Impossible de charger toutes les références."
 
@@ -4297,7 +4296,7 @@ msgid "Create, update, delete content"
 msgstr "Créer, modifier, supprimer du contenu"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4314,11 +4313,11 @@ msgid "Created {0}"
 msgstr "Créé le {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1631
+#: packages/admin/src/router.tsx:1660
 msgid "Created {0} translation"
 msgstr "Création de la traduction {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
 msgid "Created and updated"
 msgstr "Création et modification"
 
@@ -4978,8 +4977,8 @@ msgstr ""
 msgid "Discard"
 msgstr "Abandonner"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
-#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
 msgid "Discard changes"
 msgstr "Ignorer les modifications"
 
@@ -4987,11 +4986,11 @@ msgstr "Ignorer les modifications"
 msgid "Discard changes?"
 msgstr "Abandonner les modifications ?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:356
 msgid "Discard draft changes?"
 msgstr "Supprimer les brouillons de modifications ?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:360
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
 #: packages/admin/src/components/MediaDetailPanel.tsx:1876
 msgid "Discarding..."
 msgstr "En cours d'abandon..."
@@ -5011,6 +5010,10 @@ msgstr "Masquer le téléversement terminé de {0}"
 #: packages/admin/src/components/Dashboard.tsx:298
 msgid "Dismiss import suggestion"
 msgstr "Masquer la suggestion d’importation"
+
+#: packages/admin/src/components/ContentEditor.tsx:2699
+msgid "Dismiss save error"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4779
 msgid "Dismiss section error"
@@ -5053,7 +5056,7 @@ msgstr "Afficher le nuage d'étiquettes"
 msgid "Displayed below the image as a visible caption."
 msgstr "Affiché sous l’image sous forme de légende visible."
 
-#: packages/admin/src/components/ContentEditor.tsx:2061
+#: packages/admin/src/components/ContentEditor.tsx:2090
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Mode sans distraction (⌘⇧\\)"
 
@@ -5362,7 +5365,7 @@ msgstr "Modifier {0}"
 msgid "Edit {0} field"
 msgstr "Modifier le champ {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1796
+#: packages/admin/src/components/ContentEditor.tsx:1806
 msgid "Edit {itemLabel}"
 msgstr "Modifier {itemLabel}"
 
@@ -5742,7 +5745,7 @@ msgstr "Activez le suivi pour indexer le contenu existant et maintenir les réf�
 msgid "Enabled"
 msgstr "Activé"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1127
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "L’anglais est utilisé car aucune langue de contenu n’est configurée. La langue du contenu est enregistrée avec l’entrée et est indépendante de la langue de l’administration."
 
@@ -5884,7 +5887,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3874
+#: packages/admin/src/components/ContentEditor.tsx:3969
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Saisissez une URL valide (par exemple https://example.com)"
 
@@ -5913,7 +5916,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Saisir les informations d'identification manuellement"
 
-#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2085
 msgid "Enter distraction-free mode"
 msgstr "Passez en mode sans distraction"
 
@@ -5921,7 +5924,7 @@ msgstr "Passez en mode sans distraction"
 msgid "Enter email"
 msgstr "Saisissez l'adresse mail"
 
-#: packages/admin/src/components/ContentEditor.tsx:3137
+#: packages/admin/src/components/ContentEditor.tsx:3232
 msgid "Enter markdown content..."
 msgstr "Saisissez du contenu Markdown..."
 
@@ -5986,7 +5989,7 @@ msgstr "entrée du côté référençant"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3368
+#: packages/admin/src/router.tsx:3398
 msgid "Error"
 msgstr "Erreur"
 
@@ -6063,11 +6066,11 @@ msgstr "Le contenu existant est indexé. Les nouvelles modifications sont suivie
 msgid "Exists"
 msgstr "Existe"
 
-#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2085
 msgid "Exit distraction-free mode"
 msgstr "Quitter le mode sans distraction"
 
-#: packages/admin/src/components/ContentEditor.tsx:2060
+#: packages/admin/src/components/ContentEditor.tsx:2089
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Quitter le mode sans distraction (⌘⇧\\)"
 
@@ -6326,7 +6329,7 @@ msgid "Failed to create term translation"
 msgstr "Impossible de créer la traduction du terme"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1636
+#: packages/admin/src/router.tsx:1665
 msgid "Failed to create translation"
 msgstr "Échec lors de la création de la traduction"
 
@@ -6501,7 +6504,7 @@ msgstr "Impossible de récupérer les domaines autorisés"
 msgid "Failed to fetch API tokens"
 msgstr "Impossible de récupérer les jetons API"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:395
 msgid "Failed to fetch auth mode"
 msgstr "Échec lors de la récupération du mode d'authentification"
 
@@ -6575,7 +6578,7 @@ msgstr "Échec lors de la récupération des termes d'entrée"
 msgid "Failed to fetch fields"
 msgstr "Impossible de récupérer les champs"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:378
 msgid "Failed to fetch manifest"
 msgstr "Échec lors de la récupération du manifeste"
 
@@ -6722,7 +6725,7 @@ msgstr "Impossible de récupérer le statut des mises à jour"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2388
+#: packages/admin/src/router.tsx:2418
 msgid "Failed to fetch user"
 msgstr "Échec lors de la récupération de l'utilisateur"
 
@@ -6911,7 +6914,7 @@ msgid "Failed to lock the entry"
 msgstr "Impossible de verrouiller l’entrée"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2507
 msgid "Failed to perform bulk action"
 msgstr "Échec lors de l'exécution d'une action groupée"
 
@@ -6929,7 +6932,7 @@ msgid "Failed to probe URL"
 msgstr "Impossible de vérifier l’URL"
 
 #: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:1526
 msgid "Failed to publish"
 msgstr "Échec lors de la publication"
 
@@ -6941,7 +6944,7 @@ msgstr "Impossible de publier le contenu"
 msgid "Failed to read byline field usage"
 msgstr "Échec lors de la lecture de l'utilisation du champ de collaborateur"
 
-#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:2935
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -7018,9 +7021,11 @@ msgstr "Échec lors de la révocation du jeton API"
 msgid "Failed to rewrite URLs"
 msgstr "Échec lors de la réécriture des URL"
 
+#: packages/admin/src/components/ContentEditor.tsx:2437
+#: packages/admin/src/components/ContentEditor.tsx:2691
 #: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1338
-#: packages/admin/src/router.tsx:3092
+#: packages/admin/src/router.tsx:1364
+#: packages/admin/src/router.tsx:3122
 msgid "Failed to save"
 msgstr "Échec lors de l'enregistrement"
 
@@ -7081,7 +7086,7 @@ msgstr "Impossible de démarrer l’importation"
 msgid "Failed to uninstall plugin"
 msgstr "Échec lors de la désinstallation du module d'extension"
 
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1550
 msgid "Failed to unpublish"
 msgstr "Échec lors de l'annulation de la publication"
 
@@ -7089,7 +7094,7 @@ msgstr "Échec lors de l'annulation de la publication"
 msgid "Failed to unpublish content"
 msgstr "Impossible de dépublier le contenu"
 
-#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1634
 msgid "Failed to unschedule"
 msgstr "Échec lors de la déprogrammation"
 
@@ -7188,7 +7193,7 @@ msgstr "Échec lors de la mise à jour de la section"
 msgid "Failed to update settings"
 msgstr "Échec lors de la mise à jour des paramètres"
 
-#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2471
 msgid "Failed to update status"
 msgstr "Échec lors de la mise à jour du statut"
 
@@ -7421,19 +7426,19 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Réservé aux nouveaux commentateurs"
 
-#: packages/admin/src/components/ContentEditor.tsx:232
+#: packages/admin/src/components/ContentEditor.tsx:233
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1778
+#: packages/admin/src/components/ContentEditor.tsx:1788
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Corrigez les champs invalides avant de modifier la date de publication"
 
-#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/ContentEditor.tsx:1716
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Corrigez les champs invalides avant de modifier la programmation"
 
-#: packages/admin/src/components/ContentEditor.tsx:231
+#: packages/admin/src/components/ContentEditor.tsx:232
 msgid "Fix the {block} block to resume saving."
 msgstr ""
 
@@ -7458,7 +7463,7 @@ msgstr "Dossier"
 msgid "Folder deleted"
 msgstr "Dossier supprimé"
 
-#: packages/admin/src/router.tsx:2111
+#: packages/admin/src/router.tsx:2141
 msgid "Folder no longer exists"
 msgstr "Le dossier n’existe plus"
 
@@ -7600,7 +7605,7 @@ msgstr "Donnez un nom à cette clé d'accès pour vous aider à l'identifier plu
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1700
+#: packages/admin/src/components/ContentEditor.tsx:1710
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7613,7 +7618,7 @@ msgid "Go live {countdown}"
 msgstr "Publication {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3388
+#: packages/admin/src/router.tsx:3418
 msgid "Go to Dashboard"
 msgstr "Aller au tableau de bord"
 
@@ -7811,7 +7816,7 @@ msgstr "Clics"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Verrouiller une entrée pendant son édition et refuser les autres rédacteurs"
 
-#: packages/admin/src/components/ContentEditor.tsx:3371
+#: packages/admin/src/components/ContentEditor.tsx:3466
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Contient l’identifiant d’une entrée. Définissez une collection cible dans Types de contenu pour pouvoir sélectionner des entrées."
 
@@ -8398,7 +8403,7 @@ msgstr "IDENTIFIANT INVALIDE"
 msgid "Invalid invite link"
 msgstr "Lien d'invitation invalide"
 
-#: packages/admin/src/components/ContentEditor.tsx:3967
+#: packages/admin/src/components/ContentEditor.tsx:4062
 msgid "Invalid JSON"
 msgstr "JSON invalide"
 
@@ -8844,7 +8849,7 @@ msgstr ""
 msgid "Live version"
 msgstr "Version en ligne"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:695
+#: packages/admin/src/components/ContentSettingsPanel.tsx:728
 msgid "Live View"
 msgstr "Affichage en direct"
 
@@ -8878,7 +8883,7 @@ msgid "Load preview"
 msgstr "Charger l’aperçu"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3343
+#: packages/admin/src/router.tsx:3373
 msgid "Loading"
 msgstr "Chargement"
 
@@ -8907,8 +8912,8 @@ msgstr "En cours de chargement des collections..."
 msgid "Loading comments..."
 msgstr "En cours de chargement des commentaires..."
 
-#: packages/admin/src/router.tsx:3345
-#: packages/admin/src/router.tsx:3357
+#: packages/admin/src/router.tsx:3375
+#: packages/admin/src/router.tsx:3387
 msgid "Loading configuration..."
 msgstr "Chargement de la configuration en cours..."
 
@@ -8966,7 +8971,7 @@ msgstr "En cours de chargement des modules d'extension..."
 msgid "Loading redirects..."
 msgstr "En cours de chargement des redirections..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3692
+#: packages/admin/src/components/ContentEditor.tsx:3787
 msgid "Loading references..."
 msgstr "Chargement des références..."
 
@@ -9213,11 +9218,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Place de marché"
 
-#: packages/admin/src/router.tsx:2742
+#: packages/admin/src/router.tsx:2772
 msgid "Marketplace browsing is no longer available."
 msgstr "La navigation dans le catalogue n’est plus disponible."
 
-#: packages/admin/src/router.tsx:2717
+#: packages/admin/src/router.tsx:2747
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "La navigation dans le catalogue n’est plus disponible. Gérez les modules d’extension installés depuis Modules d’extension."
 
@@ -9569,7 +9574,7 @@ msgstr "Déplacer « {title} » vers la corbeille ? Vous pourrez le restaurer
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3659
+#: packages/admin/src/components/ContentEditor.tsx:3754
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "Déplacer {0} vers le bas"
@@ -9586,7 +9591,7 @@ msgstr "Déplacer {0} vers la fin"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3648
+#: packages/admin/src/components/ContentEditor.tsx:3743
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "Déplacer {0} vers le haut"
@@ -9626,14 +9631,14 @@ msgstr "Déplacer vers la corbeille"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1332
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
 msgid "Move to Trash"
 msgstr "Déplacer vers la corbeille"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1336
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1369
 msgid "Move to Trash?"
 msgstr "Placer dans la corbeille ?"
 
@@ -9748,7 +9753,7 @@ msgid "Moving from another EmDash site?"
 msgstr "Vous migrez depuis un autre site EmDash ?"
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1339
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9818,7 +9823,7 @@ msgstr "Nécessite votre attention"
 msgid "Never"
 msgstr "Jamais"
 
-#: packages/admin/src/router.tsx:1631
+#: packages/admin/src/router.tsx:1660
 msgid "new"
 msgstr "nouveau"
 
@@ -9826,7 +9831,7 @@ msgstr "nouveau"
 msgid "NEW"
 msgstr "NOUVEAU"
 
-#: packages/admin/src/components/ContentEditor.tsx:1796
+#: packages/admin/src/components/ContentEditor.tsx:1806
 msgid "New {itemLabel}"
 msgstr "Nouveau {itemLabel}"
 
@@ -10306,7 +10311,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "Aucune redirection pour l'instant"
 
-#: packages/admin/src/components/ContentEditor.tsx:3602
+#: packages/admin/src/components/ContentEditor.tsx:3697
 msgid "No references selected."
 msgstr "Aucune référence sélectionnée."
 
@@ -10419,6 +10424,10 @@ msgstr "Non associé"
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
 msgid "Not recorded in this version"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:2439
+msgid "Not saved yet"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1641
@@ -10548,7 +10557,7 @@ msgid "Open"
 msgstr "Ouvrir"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3637
+#: packages/admin/src/components/ContentEditor.tsx:3732
 msgid "Open {0} in a new tab"
 msgstr "Ouvrir {0} dans un nouvel onglet"
 
@@ -10703,7 +10712,7 @@ msgstr "Original :"
 msgid "Other"
 msgstr "Autre"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1283
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "Plan"
@@ -10729,8 +10738,8 @@ msgstr "En retard · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Remplace le titre de la page dans les résultats des moteurs de recherche"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
 msgid "Ownership"
 msgstr "Responsabilité"
 
@@ -10748,7 +10757,7 @@ msgstr "Empreinte du paquet"
 msgid "Package downloaded"
 msgstr "Paquet téléchargé"
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3413
 msgid "Page Not Found"
 msgstr "Page introuvable"
 
@@ -11025,7 +11034,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "Module d’extension « {pluginId} » introuvable"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr "Le module d’extension {pluginId} a refusé l’enregistrement : {reason}"
 
@@ -11038,7 +11047,7 @@ msgstr "L’action du module d’extension a échoué"
 msgid "Plugin actions"
 msgstr "Actions du module d’extension"
 
-#: packages/admin/src/components/ContentEditor.tsx:2146
+#: packages/admin/src/components/ContentEditor.tsx:2183
 msgid "Plugin changes were not applied"
 msgstr "Les modifications du module d’extension n’ont pas été appliquées"
 
@@ -11115,8 +11124,8 @@ msgstr "Registre des modules d'extension"
 msgid "Plugin registry configuration error"
 msgstr "Erreur de configuration du registre de modules d’extension"
 
-#: packages/admin/src/router.tsx:2677
-#: packages/admin/src/router.tsx:2708
+#: packages/admin/src/router.tsx:2707
+#: packages/admin/src/router.tsx:2738
 msgid "Plugin registry is not configured."
 msgstr "Le registre de modules d’extension n’est pas configuré."
 
@@ -11243,7 +11252,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "Appuyez sur Espace pour saisir une image. Déplacez-la avec les touches fléchées, puis appuyez sur Espace pour la déposer."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
-#: packages/admin/src/components/ContentSettingsPanel.tsx:422
+#: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -11260,7 +11269,7 @@ msgstr "Prévisualiser les modifications"
 msgid "Preview content before publishing"
 msgstr "Prévisualiser le contenu avant publication"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:422
+#: packages/admin/src/components/ContentSettingsPanel.tsx:425
 msgid "Preview draft"
 msgstr "Aperçu du brouillon"
 
@@ -11341,9 +11350,9 @@ msgstr "Fournisseur :"
 msgid "Public routes"
 msgstr "Routes publiques"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Date de publication"
@@ -11358,17 +11367,17 @@ msgid "visualEditing.publish"
 msgstr "Publier"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:528
-#: packages/admin/src/components/ContentSettingsPanel.tsx:949
-#: packages/admin/src/components/ContentSettingsPanel.tsx:954
+#: packages/admin/src/components/ContentSettingsPanel.tsx:536
+#: packages/admin/src/components/ContentSettingsPanel.tsx:982
+#: packages/admin/src/components/ContentSettingsPanel.tsx:987
 msgid "Publish"
 msgstr "Publier"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish changes"
 msgstr "Publier les modifications"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:502
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish changes?"
 msgstr "Publier les modifications ?"
 
@@ -11378,17 +11387,22 @@ msgid "visualEditing.publishFailed"
 msgstr "La publication a échoué. Vérifiez vos permissions et réessayez."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr "Publier maintenant"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:502
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish now?"
 msgstr "Publier maintenant ?"
 
 #: packages/admin/src/lib/api/marketplace.ts:424
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publier, dépublier, programmer et annuler la programmation du contenu"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Publié"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
@@ -11398,13 +11412,8 @@ msgstr "Publier, dépublier, programmer et annuler la programmation du contenu"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1521
 msgid "Published"
-msgstr "Publié"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Publié"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -11448,7 +11457,7 @@ msgstr "Politique de publication de l’éditeur"
 msgid "Publishing"
 msgstr "Publication"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:958
+#: packages/admin/src/components/ContentSettingsPanel.tsx:991
 msgid "Publishing summary"
 msgstr "Résumé de publication"
 
@@ -11556,7 +11565,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Lire vos taxonomies et termes"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2043
+#: packages/admin/src/router.tsx:2073
 msgid "Read-only"
 msgstr "Lecture seule"
 
@@ -11766,8 +11775,8 @@ msgstr "Retirer"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4160
-#: packages/admin/src/components/ContentEditor.tsx:4226
+#: packages/admin/src/components/ContentEditor.tsx:4255
+#: packages/admin/src/components/ContentEditor.tsx:4321
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11788,7 +11797,7 @@ msgstr "Supprimer"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3672
+#: packages/admin/src/components/ContentEditor.tsx:3767
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11805,8 +11814,8 @@ msgstr "Retirer {0} de la sélection"
 msgid "Remove {entry}"
 msgstr "Supprimer {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4158
-#: packages/admin/src/components/ContentEditor.tsx:4224
+#: packages/admin/src/components/ContentEditor.tsx:4253
+#: packages/admin/src/components/ContentEditor.tsx:4319
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -11870,7 +11879,7 @@ msgid "Remove passkey?"
 msgstr "Supprimer la clé d'accès ?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
-#: packages/admin/src/components/ContentSettingsPanel.tsx:630
+#: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr "Supprimer la programmation"
 
@@ -12023,9 +12032,9 @@ msgstr "Groupe de champs répétitif"
 msgid "visualEditing.replaceImage"
 msgstr "Remplacer"
 
-#: packages/admin/src/components/ContentEditor.tsx:4115
-#: packages/admin/src/components/ContentEditor.tsx:4150
-#: packages/admin/src/components/ContentEditor.tsx:4216
+#: packages/admin/src/components/ContentEditor.tsx:4210
+#: packages/admin/src/components/ContentEditor.tsx:4245
+#: packages/admin/src/components/ContentEditor.tsx:4311
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12045,7 +12054,7 @@ msgstr "Remplacer"
 msgid "Replace"
 msgstr "Remplacer"
 
-#: packages/admin/src/components/ContentEditor.tsx:4114
+#: packages/admin/src/components/ContentEditor.tsx:4209
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12083,7 +12092,7 @@ msgstr "Remplacer l’image originale ?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Le remplacement de l’original est disponible avec le rapport d’aspect Original."
 
-#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3802
 msgid "Replace reference"
 msgstr "Remplacer la référence"
 
@@ -12136,7 +12145,7 @@ msgstr "Dépôt"
 msgid "Request a new link"
 msgstr "Demander un nouveau lien"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:366
 msgid "Request failed"
 msgstr "La requête a échoué"
 
@@ -12233,7 +12242,7 @@ msgstr "Redimensionner le recadrage depuis le coin supérieur gauche. Utilisez l
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Redimensionner le recadrage depuis le coin supérieur droit. Utilisez les touches fléchées."
 
-#: packages/admin/src/components/ContentEditor.tsx:2439
+#: packages/admin/src/components/ContentEditor.tsx:2508
 msgid "Resize settings panel"
 msgstr "Redimensionner le panneau des paramètres"
 
@@ -12290,7 +12299,7 @@ msgid "Retired"
 msgstr "Retiré"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3686
+#: packages/admin/src/components/ContentEditor.tsx:3781
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12306,7 +12315,7 @@ msgstr "Retiré"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3371
+#: packages/admin/src/router.tsx:3401
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12357,7 +12366,7 @@ msgstr "Nouvelle tentative…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Blocs de contenu réutilisables que vous pouvez insérer dans n'importe quel contenu"
 
-#: packages/admin/src/router.tsx:1540
+#: packages/admin/src/router.tsx:1569
 msgid "Reverted to published version"
 msgstr "Retour à la version publiée"
 
@@ -12411,7 +12420,7 @@ msgstr "Examen…"
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12572,7 +12581,7 @@ msgstr "Enregistrer (Entrée)"
 msgid "Save alt text"
 msgstr "Enregistrer le texte alternatif"
 
-#: packages/admin/src/components/ContentEditor.tsx:2174
+#: packages/admin/src/components/ContentEditor.tsx:2211
 msgid "Save anyway"
 msgstr "Enregistrer quand même"
 
@@ -12585,7 +12594,7 @@ msgid "Save Changes"
 msgstr "Enregistrer les modifications"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:228
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:248
 msgid "Save changes before running plugin actions"
 msgstr "Enregistrez les modifications avant d’exécuter les actions du module d’extension"
 
@@ -12597,7 +12606,8 @@ msgstr "Enregistrer le contenu en brouillon avant publication"
 msgid "Save date"
 msgstr "Enregistrer la date"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+#: packages/admin/src/components/ContentEditor.tsx:2367
+#: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
 
@@ -12637,6 +12647,7 @@ msgstr "Enregistrer les paramètres"
 msgid "visualEditing.saved"
 msgstr "Enregistré"
 
+#: packages/admin/src/components/ContentEditor.tsx:2442
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "Enregistré"
@@ -12659,6 +12670,7 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
+#: packages/admin/src/components/ContentEditor.tsx:2435
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1859
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -12699,7 +12711,7 @@ msgstr "Nomenclature logicielle (SBOM) · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Scannez-le avec un téléphone ou une tablette à proximité."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Programmer"
@@ -12725,7 +12737,7 @@ msgstr "Programmation supprimée"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1587
+#: packages/admin/src/router.tsx:1616
 msgid "Scheduled"
 msgstr "Programmé"
 
@@ -13117,9 +13129,9 @@ msgid "Select"
 msgstr "Liste déroulante"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4114
-#: packages/admin/src/components/ContentEditor.tsx:4175
-#: packages/admin/src/components/ContentEditor.tsx:4236
+#: packages/admin/src/components/ContentEditor.tsx:4209
+#: packages/admin/src/components/ContentEditor.tsx:4270
+#: packages/admin/src/components/ContentEditor.tsx:4331
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13168,7 +13180,7 @@ msgstr "Tout sélectionner sur cette page"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3710
+#: packages/admin/src/components/ContentEditor.tsx:3805
 msgid "Select at least one entry."
 msgstr "Sélectionnez au moins une entrée."
 
@@ -13201,8 +13213,8 @@ msgstr "Sélectionner le favicon"
 msgid "Select Favicon"
 msgstr "Sélectionner la favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:4177
-#: packages/admin/src/components/ContentEditor.tsx:4242
+#: packages/admin/src/components/ContentEditor.tsx:4272
+#: packages/admin/src/components/ContentEditor.tsx:4337
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Sélectionner un fichier"
@@ -13352,8 +13364,8 @@ msgstr ""
 msgid "Sending..."
 msgstr "Envoi en cours..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1229
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13438,8 +13450,8 @@ msgid "Setting up..."
 msgstr "Mise en place en cours..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2299
-#: packages/admin/src/components/ContentEditor.tsx:2630
+#: packages/admin/src/components/ContentEditor.tsx:2336
+#: packages/admin/src/components/ContentEditor.tsx:2725
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
@@ -13492,7 +13504,7 @@ msgstr "Texte court"
 msgid "Short Text"
 msgstr "Texte court"
 
-#: packages/admin/src/components/ContentEditor.tsx:237
+#: packages/admin/src/components/ContentEditor.tsx:238
 msgid "Show"
 msgstr ""
 
@@ -13541,7 +13553,7 @@ msgstr "Affichage de {pageShowingRange} sur {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "Affiché dans l’administration. Certains thèmes l’affichent aussi sur le site."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1132
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 msgid "Shown to readers in this order."
 msgstr "Affichés aux lecteurs dans cet ordre."
 
@@ -13745,7 +13757,7 @@ msgstr "Ignoré"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1083
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13986,8 +13998,8 @@ msgstr "Commencez avec les exemples d’articles et de pages du modèle. Recomma
 msgid "Start writing with plain text"
 msgstr "Commencer à écrire en texte brut"
 
-#: packages/admin/src/components/ContentEditor.tsx:3060
-#: packages/admin/src/components/ContentEditor.tsx:3083
+#: packages/admin/src/components/ContentEditor.tsx:3155
+#: packages/admin/src/components/ContentEditor.tsx:3178
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "Commencez à écrire, ou saisissez « / » pour les commandes"
@@ -14217,7 +14229,7 @@ msgstr "Cible"
 msgid "Target locale"
 msgstr "Paramètres régionaux cibles"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
 msgid "Taxonomies"
@@ -14614,7 +14626,7 @@ msgstr "Le contenu du paquet est écrit sur ce site. L’importation est irréve
 msgid "The package’s file index is not valid."
 msgstr "L’index des fichiers du paquet est invalide."
 
-#: packages/admin/src/router.tsx:3385
+#: packages/admin/src/router.tsx:3415
 msgid "The page you're looking for doesn't exist."
 msgstr "La page que vous recherchez n'existe pas."
 
@@ -14634,8 +14646,8 @@ msgstr "Le widget de champ du module d'extension n'a pas pu s'afficher."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Le module d’extension n’a pas enregistré ces modifications. Examinez-les avant de mettre à jour l’éditeur."
 
-#: packages/admin/src/components/ContentEditor.tsx:1312
-#: packages/admin/src/components/ContentEditor.tsx:1328
+#: packages/admin/src/components/ContentEditor.tsx:1322
+#: packages/admin/src/components/ContentEditor.tsx:1338
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Le résultat du module d’extension est obsolète car le contenu de l’éditeur a changé pendant son exécution."
 
@@ -14853,7 +14865,7 @@ msgstr "Cette collection est définie dans le code. Certains paramètres ne peuv
 msgid "This content cannot be edited safely"
 msgstr "Ce contenu ne peut pas être modifié de manière fiable"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:507
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "This content will be visible on the site immediately."
 msgstr "Ce contenu sera immédiatement visible sur le site."
 
@@ -14873,20 +14885,20 @@ msgstr "Cela ne ressemble pas à une clé de migration valide. Générez-en une 
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2170
+#: packages/admin/src/components/ContentEditor.tsx:2207
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Cette entrée a été modifiée ailleurs depuis que vous l’avez ouverte."
 
-#: packages/admin/src/components/ContentEditor.tsx:1712
-#: packages/admin/src/router.tsx:1142
+#: packages/admin/src/components/ContentEditor.tsx:1722
+#: packages/admin/src/router.tsx:1152
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Cette entrée a été modifiée ailleurs. Enregistrez quand même ou rechargez pour obtenir la version la plus récente."
 
-#: packages/admin/src/router.tsx:1978
+#: packages/admin/src/router.tsx:2007
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Cette entrée n’existe pas ou n’est pas publiée. Votre rôle permet uniquement de voir le contenu publié."
 
-#: packages/admin/src/router.tsx:1979
+#: packages/admin/src/router.tsx:2008
 msgid "This entry doesn't exist or was deleted."
 msgstr "Cette entrée n’existe pas ou a été supprimée."
 
@@ -14898,7 +14910,7 @@ msgstr "Cette entrée n’a pas d’URL avant sa publication. Collez plutôt une
 msgid "This entry is open somewhere else"
 msgstr "Cette entrée est ouverte ailleurs"
 
-#: packages/admin/src/components/ContentEditor.tsx:2157
+#: packages/admin/src/components/ContentEditor.tsx:2194
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Cette entrée est en lecture seule car son schéma utilise des types de champs que cette version d’EmDash ne prend pas en charge."
 
@@ -14910,8 +14922,8 @@ msgstr "Cette entrée devait être publiée {lateness}, mais ne l’est pas. La 
 msgid "This export is large"
 msgstr "Cette exportation est volumineuse"
 
-#: packages/admin/src/components/ContentEditor.tsx:2835
-#: packages/admin/src/components/ContentEditor.tsx:2843
+#: packages/admin/src/components/ContentEditor.tsx:2930
+#: packages/admin/src/components/ContentEditor.tsx:2938
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Ce champ ne peut pas être modifié par cette version d’EmDash."
@@ -14937,7 +14949,7 @@ msgstr "Ce champ n’accepte pas les fichiers {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Ce champ attend une liste. La valeur stockée reste inchangée jusqu’à son remplacement par une liste vide, qui la supprime. Copiez d’abord ce dont vous avez besoin."
 
-#: packages/admin/src/components/ContentEditor.tsx:4248
+#: packages/admin/src/components/ContentEditor.tsx:4343
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Ce champ est obligatoire"
@@ -15118,7 +15130,7 @@ msgstr "Cela supprime le profil du collaborateur. Les liens vers le collaborateu
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Cette action supprime la relation, tous ses liens stockés et les champs de référence qui l’utilisent :"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:507
 msgid "This removes the schedule and publishes immediately."
 msgstr "Cette action supprime la programmation et publie immédiatement."
 
@@ -15221,7 +15233,7 @@ msgstr "Cette vidéo ne peut pas être lue."
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Cela supprimera la zone des widgets et tous ses widgets. Cette action ne peut pas être annulée."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1370
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Cela déplacera l'élément vers la corbeille. Vous pourrez le restaurer plus tard depuis la corbeille."
 
@@ -15243,7 +15255,7 @@ msgstr "Cela supprimera définitivement ce commentaire. Cette action ne peut pas
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Cela supprimera le module d'extension et son paquet de votre site."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:357
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Cela rétablira la version publiée. Vos modifications en cours seront perdues."
 
@@ -15389,11 +15401,11 @@ msgstr "Traduire..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1630
+#: packages/admin/src/router.tsx:1659
 msgid "Translation created"
 msgstr "Traduction créée"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Traductions"
@@ -15594,8 +15606,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Impossible d'accéder à la place de marché"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1374
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1407
 msgid "Unassigned"
 msgstr "Non attribué"
 
@@ -15667,11 +15679,11 @@ msgstr "Clé d'accès sans nom"
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:496
 msgid "Unpublish {itemLabel}"
 msgstr "Annuler la publication de {itemLabel}"
 
-#: packages/admin/src/router.tsx:1516
+#: packages/admin/src/router.tsx:1545
 msgid "Unpublished"
 msgstr "Non publié"
 
@@ -15693,11 +15705,15 @@ msgstr "Attribution non résolue"
 msgid "visualEditing.unsaved"
 msgstr "Non enregistré"
 
+#: packages/admin/src/components/ContentEditor.tsx:2441
+msgid "Unsaved changes"
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:126
 msgid "Unsaved content may leave your site"
 msgstr "Du contenu non enregistré peut quitter votre site"
 
-#: packages/admin/src/router.tsx:1598
+#: packages/admin/src/router.tsx:1627
 msgid "Unscheduled"
 msgstr "Non programmé"
 
@@ -15722,7 +15738,7 @@ msgstr "Jusqu’au {0}"
 msgid "Untitled"
 msgstr "Sans titre"
 
-#: packages/admin/src/components/ContentEditor.tsx:4074
+#: packages/admin/src/components/ContentEditor.tsx:4169
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Fichier sans titre"
@@ -15791,7 +15807,7 @@ msgid "Update to v{0}"
 msgstr "Mise à jour vers v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1049
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "Mis à jour"
@@ -15960,8 +15976,8 @@ msgstr "Téléversement de la vidéo…"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1108
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 msgid "URL & language"
 msgstr "URL et langue"
 
@@ -16098,7 +16114,7 @@ msgstr "Utilisé comme image Open Graph de repli lorsqu'une page n'en a pas. Tai
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Utilisé comme identifiant. Lettres minuscules, chiffres et traits de soulignement uniquement."
 
-#: packages/admin/src/components/ContentEditor.tsx:3271
+#: packages/admin/src/components/ContentEditor.tsx:3366
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Utilisé comme visuel principal de cet article sur les pages contenant des listes et en haut de l'article"
 
@@ -16336,7 +16352,7 @@ msgstr "Les visiteurs voient cette version publiée"
 msgid "Visitors still see the published version"
 msgstr "Les visiteurs voient toujours la version publiée"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:506
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Visitors will see these changes immediately."
 msgstr "Les visiteurs verront ces modifications immédiatement."
 
@@ -16458,7 +16474,7 @@ msgstr "Ce qui sera importé"
 msgid "What will happen when you import"
 msgstr "Ce qu'il se passera lorsque vous importerez"
 
-#: packages/admin/src/components/ContentEditor.tsx:2171
+#: packages/admin/src/components/ContentEditor.tsx:2208
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Votre saisie est toujours présente. L’enregistrement remplace la version la plus récente."
 
@@ -16495,7 +16511,7 @@ msgstr "Quels types de contenu peuvent utiliser cette taxonomie"
 msgid "Whole number"
 msgstr "Nombre entier"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
 msgid "Why are bylines shown in this order?"
 msgstr "Pourquoi les collaborateurs sont-ils affichés dans cet ordre ?"
 
@@ -16503,7 +16519,7 @@ msgstr "Pourquoi les collaborateurs sont-ils affichés dans cet ordre ?"
 msgid "Why can't this be changed?"
 msgstr "Pourquoi cela ne peut-il pas être modifié ?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
 msgid "Why English is used"
 msgstr "Pourquoi l’anglais est utilisé"
 
@@ -16623,7 +16639,7 @@ msgstr "Nom d'utilisateur WordPress"
 msgid "Working on {selectedCount} items…"
 msgstr "Traitement de {selectedCount} éléments en cours…"
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:284
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:285
 msgid "Working…"
 msgstr "Traitement…"
 
@@ -16743,7 +16759,7 @@ msgstr "Les permissions Admin sont nécessaires pour gérer le suivi des utilisa
 msgid "You need Admin permissions to transfer this site."
 msgstr "Les permissions Admin sont nécessaires pour transférer ce site."
 
-#: packages/admin/src/router.tsx:2493
+#: packages/admin/src/router.tsx:2523
 msgid "You need Editor permissions to moderate comments."
 msgstr "Vous avez besoin des autorisations d'éditeur pour modérer les commentaires."
 
@@ -16885,11 +16901,11 @@ msgstr "Votre nom (facultatif)"
 msgid "Your Role"
 msgstr "Votre rôle"
 
-#: packages/admin/src/router.tsx:2048
+#: packages/admin/src/router.tsx:2078
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2049
+#: packages/admin/src/router.tsx:2079
 msgid "Your role can't edit this entry."
 msgstr ""
 
