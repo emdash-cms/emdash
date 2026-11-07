@@ -2355,6 +2355,11 @@ msgstr "Щонайбільше {max}"
 msgid "At most…"
 msgstr "Не більше ніж…"
 
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
+
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
 msgstr "Обліковий запис"
@@ -3693,6 +3698,11 @@ msgstr "Підключитися до WordPress"
 #: packages/admin/src/components/users/UserDetail.tsx:305
 msgid "Connected {0}"
 msgstr "Підключено {0}"
+
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
 
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
@@ -7071,6 +7081,13 @@ msgstr "Не вдалося надіслати email для підтвердже
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
 msgstr "Не вдалося встановити терміни запису"
+
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -13568,6 +13585,8 @@ msgstr "Показує кнопку для створення нового за�
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "Увійти"
 
@@ -13608,6 +13627,10 @@ msgstr "Увійти через посилання на email"
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
 msgstr "Увійти з ключем доступу"
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222

@@ -2355,6 +2355,11 @@ msgstr "Najviše {max}"
 msgid "At most…"
 msgstr "Najviše…"
 
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
+
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
 msgstr "Pripisivanje"
@@ -3693,6 +3698,11 @@ msgstr "Poveži se sa WordPress-om"
 #: packages/admin/src/components/users/UserDetail.tsx:305
 msgid "Connected {0}"
 msgstr "Povezano {0}"
+
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
 
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
@@ -7071,6 +7081,13 @@ msgstr "Slanje verifikacione e-pošte nije uspelo"
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
 msgstr "Postavljanje termina unosa nije uspelo"
+
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -13568,6 +13585,8 @@ msgstr "Prikazuje dugme za pravljenje novog unosa"
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "Prijavi se"
 
@@ -13608,6 +13627,10 @@ msgstr "Prijavi se putem linka u e-pošti"
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
 msgstr "Prijavi se sa pristupnim ključem (passkey)"
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222

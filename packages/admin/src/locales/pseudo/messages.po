@@ -2355,6 +2355,11 @@ msgstr ""
 msgid "At most…"
 msgstr ""
 
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
+
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
 msgstr ""
@@ -3692,6 +3697,11 @@ msgstr ""
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
 #: packages/admin/src/components/users/UserDetail.tsx:305
 msgid "Connected {0}"
+msgstr ""
+
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
 msgstr ""
 
 #: packages/admin/src/components/RelationList.tsx:101
@@ -7067,6 +7077,13 @@ msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
+msgstr ""
+
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
 msgstr ""
 
 #: packages/admin/src/lib/api/transfer.ts:317
@@ -13562,6 +13579,8 @@ msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr ""
 
@@ -13601,6 +13620,10 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:134
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
+msgstr ""
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
 msgstr ""
 
 #. placeholder {0}: user.email

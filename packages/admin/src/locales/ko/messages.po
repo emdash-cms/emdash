@@ -2355,6 +2355,11 @@ msgstr "{max} 이하"
 msgid "At most…"
 msgstr "최대 개수 지정…"
 
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
+
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
 msgstr "사용자 연결"
@@ -3693,6 +3698,11 @@ msgstr "WordPress 연결"
 #: packages/admin/src/components/users/UserDetail.tsx:305
 msgid "Connected {0}"
 msgstr "연결일: {0}"
+
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
 
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
@@ -7071,6 +7081,13 @@ msgstr "인증 이메일을 보내지 못했습니다"
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
 msgstr "콘텐츠에 분류 항목을 지정하지 못했습니다."
+
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -13568,6 +13585,8 @@ msgstr "새 항목을 만드는 버튼을 표시합니다"
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "로그인"
 
@@ -13608,6 +13627,10 @@ msgstr "이메일 링크로 로그인"
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
 msgstr "패스키로 로그인"
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222

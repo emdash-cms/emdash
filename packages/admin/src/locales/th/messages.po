@@ -2355,6 +2355,11 @@ msgstr "ไม่เกิน {max}"
 msgid "At most…"
 msgstr "ไม่เกิน…"
 
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
+
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
 msgstr "การระบุแหล่งที่มา"
@@ -3693,6 +3698,11 @@ msgstr "เชื่อมต่อกับ WordPress"
 #: packages/admin/src/components/users/UserDetail.tsx:305
 msgid "Connected {0}"
 msgstr "เชื่อมต่อ {0} แล้ว"
+
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
 
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
@@ -7071,6 +7081,13 @@ msgstr "ส่งอีเมลยืนยันไม่สำเร็จ"
 #: packages/admin/src/components/TaxonomySidebar.tsx:179
 msgid "Failed to set entry terms"
 msgstr "กำหนดเทอมของรายการไม่สำเร็จ"
+
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -13568,6 +13585,8 @@ msgstr "แสดงปุ่มสำหรับสร้างรายกา
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "เข้าสู่ระบบ"
 
@@ -13608,6 +13627,10 @@ msgstr "เข้าสู่ระบบด้วยลิงก์อีเม
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
 msgstr "เข้าสู่ระบบด้วย Passkey"
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
