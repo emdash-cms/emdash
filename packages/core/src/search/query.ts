@@ -168,14 +168,12 @@ export async function searchWithDb(
 		allResults.push(...collectionResults);
 	}
 
-	const titleLength = (r: RankedSearchResult) => r.title?.length ?? Number.POSITIVE_INFINITY;
-
 	allResults.sort(
 		(a, b) =>
 			b.titleMatchTier - a.titleMatchTier ||
 			b.score - a.score ||
 			b.rawScore - a.rawScore ||
-			titleLength(a) - titleLength(b) ||
+			a.titleLength - b.titleLength ||
 			compareIds(a.id, b.id),
 	);
 
@@ -244,11 +242,13 @@ export async function searchCollection(
 interface RankedSearchResult extends SearchResult {
 	titleMatchTier: number;
 	rawScore: number;
+	titleLength: number;
 }
 
 function toSearchResult({
 	titleMatchTier: _titleMatchTier,
 	rawScore: _rawScore,
+	titleLength: _titleLength,
 	...result
 }: RankedSearchResult): SearchResult {
 	return result;
@@ -385,7 +385,7 @@ async function searchSingleCollection(
 				ORDER BY m.title_match_tier DESC, score DESC, raw_score DESC, m.title_length ASC, m.id COLLATE BINARY
 				LIMIT ${limit}
 			)
-			SELECT ${displayFields}, r.score, r.title_match_tier, r.raw_score
+			SELECT ${displayFields}, r.score, r.title_match_tier, r.raw_score, r.title_length
 			FROM ranked r
 			JOIN "${sql.raw(contentTable)}" c ON c.id = r.id
 			JOIN "${sql.raw(ftsTable)}" f ON f.id = c.id
@@ -424,6 +424,7 @@ async function searchSingleCollection(
 		score: Math.abs(row.score),
 		titleMatchTier: row.title_match_tier,
 		rawScore: row.raw_score,
+		titleLength: row.title_length,
 	}));
 }
 

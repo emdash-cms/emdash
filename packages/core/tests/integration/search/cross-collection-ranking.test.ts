@@ -269,4 +269,48 @@ describe("search cross-collection ranking", () => {
 		expect(merged.items).toHaveLength(10);
 		expect(merged.items.every((item) => item.score === 1)).toBe(true);
 	});
+
+	it.each([
+		{ name: "unindexed", searchable: false, titles: ["Long title", "Longer title", "A"] },
+		{ name: "Unicode", searchable: true, titles: ["😀", "😃", "A"] },
+		{ name: "null", searchable: true, titles: ["😀", "A", null] },
+	])(
+		"paginates tied body matches consistently with $name titles",
+		async ({ searchable, titles }) => {
+			await new SchemaRegistry(db).updateField("page", "title", { searchable });
+			await new FTSManager(db).enableSearch(
+				"page",
+				searchable ? { weights: { title: 0, content: 0 } } : undefined,
+			);
+			const ids: string[] = [];
+			for (const [index, title] of titles.entries()) {
+				const entry = await repo.create(
+					createPageFixture({
+						id: `01ARZ3NDEKTSV4RRFFQ69G5FA${index}`,
+						slug: `unindexed-title-${index}`,
+						status: "published",
+						data: { title, content: portableText("roadmap") },
+					}),
+				);
+				ids.push(entry.id);
+			}
+			const options = { collections: ["page", "post"] };
+			const full = await searchWithDb(db, "roadmap", { ...options, limit: 10 });
+			expect(full.items).toHaveLength(3);
+			expect(new Set(full.items.map((item) => item.score)).size).toBe(1);
+			expect(full.items[0]).not.toHaveProperty("titleLength");
+			expect(full.items[0]).not.toHaveProperty("rawScore");
+			const paged = [];
+			let cursor: string | undefined;
+			for (let page = 0; page < 4; page++) {
+				const response = await searchWithDb(db, "roadmap", { ...options, limit: 1, cursor });
+				paged.push(...response.items);
+				cursor = response.nextCursor;
+				if (!cursor) break;
+			}
+			expect(cursor).toBeUndefined();
+			expect(paged).toEqual(full.items);
+			expect(new Set(paged.map((item) => item.id))).toEqual(new Set(ids));
+		},
+	);
 });
