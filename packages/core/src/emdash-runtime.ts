@@ -306,7 +306,7 @@ import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
 import type { PluginState } from "./plugins/state.js";
 import {
 	generateIndexName,
-	normalizeIndexes,
+	getStorageIndexDefinitions,
 	syncDeclaredStorageIndexes,
 	type StorageIndexSyncResult,
 } from "./plugins/storage-indexes.js";
@@ -1148,18 +1148,15 @@ export class EmDashRuntime {
 				const storage = { ...plugin.storage };
 				const expected = new Map<string, Set<string>>();
 				for (const [collection, config] of Object.entries(storage)) {
-					const unique = normalizeIndexes(config.uniqueIndexes ?? []);
-					const uniqueFields = new Set(unique.map((fields) => JSON.stringify(fields)));
 					expected.set(
 						collection,
-						new Set([
-							...normalizeIndexes(config.indexes)
-								.filter((fields) => !uniqueFields.has(JSON.stringify(fields)))
-								.map((fields) => generateIndexName(plugin.id, collection, fields)),
-							...unique.map((fields) =>
-								generateIndexName(plugin.id, collection, fields, { unique: true }),
+						new Set(
+							getStorageIndexDefinitions(config.indexes, config).map((entry) =>
+								generateIndexName(plugin.id, collection, entry.fields, {
+									unique: entry.unique,
+								}),
 							),
-						]),
+						),
 					);
 				}
 				let hasExtra = false;

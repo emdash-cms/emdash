@@ -97,6 +97,19 @@ After the deploy, open the admin, load at least one public page, edit and publis
 
 Most releases need nothing beyond the steps above. The entries below cover releases that change data EmDash already stored, or cannot repair it, and say when that needs an action from you.
 
+### Fixed: plugin storage uniqueness
+
+Plugin storage `uniqueIndexes` now enforce uniqueness only in the plugin and collection that declares them. Migration `095_plugin_storage_unique_scope` repairs tracked indexes, including those left by plugins removed from configuration, without deleting data.
+
+For a site with plugin storage unique indexes, use these rollout steps when `.emdash/UPGRADE.md` lists `095_plugin_storage_unique_scope` as added or `emdash migrate --status` lists it as pending. Do not run a pre-deploy `emdash migrate` job while older application code is still serving: an older instance can recreate the non-partial indexes and restore the cross-collection constraint. This update requires a maintenance window instead of a rolling or gradual deployment.
+
+- **Node.js:** put the site in maintenance, stop the old application processes, and let their in-flight requests and scheduled tasks finish. Run migrations using the upgraded build, then start only the upgraded processes and reopen traffic. Alternatively, start the upgraded build in `auto` mode after the old processes have stopped and let it apply migrations before reopening traffic.
+- **Cloudflare Workers:** route all traffic to a maintenance response outside the application, pause scheduled and queued work that can invoke it, and wait for older invocations to finish. Build and deploy the upgraded application with [runtime migration mode `check`](/deployment/core-migrations/#adopt-runtime-enforcement-gradually), directing no traffic to older versions. Then run `emdash migrate` with the upgraded build against the production database, verify it with `emdash migrate --check`, and reopen traffic and scheduled work. For D1, [select the production target explicitly](/deployment/core-migrations/#provision-d1-before-migrating-it). `check` mode alone is not a maintenance mechanism and does not stop older invocations.
+
+Do not rely on the first request to an upgraded Worker in `auto` mode to coordinate this update with older in-flight invocations.
+
+If migration fails because an earlier index-name collision or manual index removal allowed duplicate values in a declared unique field, resolve the duplicates in the plugin collection named by the error and retry. Existing constraints remain in place until every declaration can be enforced. Regular lookup indexes with tracked names longer than 63 characters may also be rebuilt during the next plugin write or scheduled sync; allow for that work when planning the update.
+
 ### Changed: reference fields bind to relations
 
 A `reference` field used to hold the target entry's ID in a column on its collection's table, and named its target collection in a field option that the admin panel could not set.

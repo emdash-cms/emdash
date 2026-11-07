@@ -186,16 +186,19 @@ afterEach(() => {
 });
 
 describe("direction-aware table resizing", () => {
-	it("renders a fluid table with a numeric preferred minimum width", () => {
-		const { host } = createEditor("ltr");
-		const table = host.querySelector("table");
+	it.each([true, false])(
+		"renders a fluid table with a numeric preferred minimum width (editable: %s)",
+		(editable) => {
+			const { host } = createEditor("ltr", { editable });
+			const table = host.querySelector("table");
 
-		expect(table).toBeTruthy();
-		expect(table?.style.width).toBe("100%");
-		expect(table?.style.minWidth).toBe("288px");
-		expect(host.querySelector(".tableWrapper")).toBeTruthy();
-		expect(ResponsiveTableView).toBeTypeOf("function");
-	});
+			expect(table).toBeTruthy();
+			expect(table?.style.width).toBe("100%");
+			expect(table?.style.minWidth).toBe("288px");
+			expect(host.querySelector(".tableWrapper")).toBeTruthy();
+			expect(ResponsiveTableView).toBeTypeOf("function");
+		},
+	);
 
 	it("enforces the visual minimum for valid sub-minimum stored widths", () => {
 		const { editor, host } = createEditor("ltr", { content: tableContent(Array(10).fill(1)) });

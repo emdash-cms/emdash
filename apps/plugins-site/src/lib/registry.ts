@@ -91,6 +91,9 @@ export function isRegistryRequestRejected(error: unknown): boolean {
 	);
 }
 
+/** `rel` for links whose target a publisher chose, so the site does not vouch for them. */
+export const PUBLISHER_LINK_REL = "ugc nofollow noopener noreferrer";
+
 export function safeExternalUrl(value: unknown): string | undefined {
 	if (typeof value !== "string") return undefined;
 	try {
@@ -161,7 +164,7 @@ export function renderRegistryMarkdown(markdown: string): string {
 					attribs: {
 						...(href ? { ...attribs, href } : {}),
 						target: "_blank",
-						rel: "noreferrer noopener",
+						rel: PUBLISHER_LINK_REL,
 					},
 				};
 			},
