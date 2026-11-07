@@ -13,21 +13,40 @@ export function splitBytes(bytes: Uint8Array): Uint8Array[] {
 	return parts;
 }
 
-/** Parts of at most `COMPACTION_BYTES` characters, never splitting a surrogate pair. */
+/** Parts of at most `COMPACTION_BYTES` bytes of UTF-8, never splitting a surrogate pair. */
 export function splitText(text: string): string[] {
 	const parts: string[] = [];
 	let start = 0;
-	do {
-		let end = Math.min(start + COMPACTION_BYTES, text.length);
-		if (end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) end--;
-		parts.push(text.slice(start, end));
-		start = end;
-	} while (start < text.length);
+	let bytes = 0;
+	for (let index = 0; index < text.length; index++) {
+		const code = text.charCodeAt(index);
+		const pair = isHighSurrogate(code) && isLowSurrogate(text.charCodeAt(index + 1));
+		const size = pair ? 4 : utf8Length(code);
+		if (bytes + size > COMPACTION_BYTES) {
+			parts.push(text.slice(start, index));
+			start = index;
+			bytes = 0;
+		}
+		bytes += size;
+		if (pair) index++;
+	}
+	parts.push(text.slice(start));
 	return parts;
+}
+
+/** UTF-8 length of a code unit outside a surrogate pair. A lone surrogate encodes as U+FFFD. */
+function utf8Length(code: number): number {
+	if (code < 0x80) return 1;
+	if (code < 0x800) return 2;
+	return 3;
 }
 
 function isHighSurrogate(code: number): boolean {
 	return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+	return code >= 0xdc00 && code <= 0xdfff;
 }
 
 /**

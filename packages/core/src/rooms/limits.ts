@@ -16,7 +16,7 @@ export const MAX_ROOM_CONNECTIONS = 25;
 export const MAX_USER_CONNECTIONS = 5;
 /** A token is single use, and valid this long. */
 export const TOKEN_LIFETIME_MS = MINUTE;
-/** Older connections are closed with `rejoin` at the next message. */
+/** Older connections are closed with `rejoin` at the next message or hourly drop. */
 export const CONNECTION_LIFETIME_MS = 15 * MINUTE;
 /** Updates are stored within this long. */
 export const STORE_DELAY_MS = SECOND;

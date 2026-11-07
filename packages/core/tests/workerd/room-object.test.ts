@@ -126,10 +126,16 @@ describe("EmDashRoom", () => {
 		}
 	});
 
-	it("closes a socket that sends a message over the size limit with 1009", async () => {
+	const LIMIT = 2 * 1024 * 1024;
+	it.each([
+		["binary", new Uint8Array(LIMIT + 1)],
+		["text", "a".repeat(LIMIT + 1)],
+		// Fewer UTF-16 code units than the limit, but more bytes of UTF-8.
+		["multibyte text", "漢".repeat(Math.ceil((LIMIT + 1) / 3))],
+	])("closes a socket that sends %s over the size limit with 1009", async (_kind, message) => {
 		const { site, stub } = newRoom();
 		const ana = await RoomClient.join(stub, site, "ana");
-		ana.send(new Uint8Array(2 * 1024 * 1024 + 1));
+		ana.send(message);
 		await vi.waitFor(() => expect(ana.closed?.code).toBe(1009));
 	});
 
