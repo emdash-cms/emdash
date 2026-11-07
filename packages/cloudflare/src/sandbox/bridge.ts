@@ -51,9 +51,7 @@ import {
 	type PluginSecretRedactor,
 } from "emdash/plugins/secret-redactor";
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
-import { withBridgeDb } from "./bridge-db.js";
 import { sandboxHttpFetch } from "./bridge-http.js";
 import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
 
@@ -420,7 +418,8 @@ export interface PluginBridgeProps {
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
 	private readonly secretRedactor: PluginSecretRedactor = createPluginSecretRedactor();
 
-	private withDb<T>(fn: (db: Kysely<Database>) => Promise<T>): Promise<T> {
+	private async withDb<T>(fn: (db: Kysely<Database>) => Promise<T>): Promise<T> {
+		const { withBridgeDb } = await import("./bridge-db.js");
 		return withBridgeDb(this.ctx.props.database, fn, this.env.DB);
 	}
 
@@ -495,6 +494,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	private async readSiteWriteFence(db: Kysely<Database>): Promise<SiteWriteFence> {
+		const { sql } = await loadBridgeRuntime();
 		try {
 			const row = (
 				await sql<{
@@ -530,7 +530,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	 * imports), read with one query. Records the write for running exports.
 	 */
 	private async assertSiteWriteAllowed(db: Kysely<Database>): Promise<void> {
-		const { createSandboxRouteError, getSandboxRouteErrorDetails } = await loadBridgeRuntime();
+		const { createSandboxRouteError, getSandboxRouteErrorDetails, sql } = await loadBridgeRuntime();
 		let fence: SiteWriteFence;
 		try {
 			fence = await this.readSiteWriteFence(db);
@@ -953,7 +953,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			if (!COLLECTION_NAME_REGEX.test(collection)) {
 				throw new Error(`Invalid collection name: ${collection}`);
 			}
-			const { createContentAccess } = await loadBridgeRuntime();
+			const { createContentAccess, sql } = await loadBridgeRuntime();
 			try {
 				return await createContentAccess(db, {
 					site: this.ctx.props.siteInfo,

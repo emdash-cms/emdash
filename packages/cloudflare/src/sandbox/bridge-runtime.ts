@@ -22,3 +22,4 @@ export {
 	updatePluginMediaMetadata,
 	ulid,
 } from "emdash/internal/plugins/host";
+export { sql } from "kysely";
