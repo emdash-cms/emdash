@@ -1,6 +1,7 @@
+import { normalizePluginPagePath } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
-import { useMatches } from "@tanstack/react-router";
+import { useLocation, useMatches } from "@tanstack/react-router";
 import * as React from "react";
 
 import type { AdminManifest } from "../lib/api/client.js";
@@ -11,7 +12,13 @@ import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminDocumentTitle } from "./AdminDocumentTitle.js";
 import { Header } from "./Header";
 import { RegistryConfigurationBanner } from "./RegistryConfigurationBanner.js";
-import { Sidebar, SidebarNav } from "./Sidebar";
+import {
+	Sidebar,
+	SidebarNav,
+	getSidebarTaxonomies,
+	resolvePluginPageLabel,
+	declaredLabelTranslator,
+} from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
 
 declare module "@tanstack/react-router" {
@@ -60,7 +67,7 @@ export interface ShellProps {
  */
 export function Shell({ children, manifest }: ShellProps) {
 	const [welcomeModalOpen, setWelcomeModalOpen] = React.useState(false);
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	const { data: user } = useCurrentUser();
 	const { locale } = useLocale();
@@ -70,18 +77,30 @@ export function Shell({ children, manifest }: ShellProps) {
 	});
 
 	const match = useMatches({ select: (matches) => matches.at(-1) });
+	const routeLocale = useLocation({
+		select: (location) =>
+			new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined,
+	});
 	const params = (match?.params ?? {}) as Record<string, string>;
 	let pageTitle = match?.staticData.pageTitle ? t(match.staticData.pageTitle) : t`Dashboard`;
 	if (params.collection) {
 		pageTitle = manifest.collections[params.collection]?.label ?? pageTitle;
 	} else if (params.taxonomy) {
 		pageTitle =
-			manifest.taxonomies.find((taxonomy) => taxonomy.name === params.taxonomy)?.label ?? pageTitle;
+			getSidebarTaxonomies(manifest.taxonomies, routeLocale, manifest.i18n?.defaultLocale).find(
+				(taxonomy) => taxonomy.name === params.taxonomy,
+			)?.label ?? pageTitle;
 	} else if (params.pluginId && params._splat !== undefined) {
 		const pluginPage = manifest.plugins[params.pluginId]?.adminPages?.find(
-			(candidate) => candidate.path === `/${params._splat || ""}`,
+			(candidate) => normalizePluginPagePath(candidate.path) === `/${params._splat || ""}`,
 		);
-		pageTitle = pluginPage?.label ?? pageTitle;
+		if (pluginPage) {
+			pageTitle = resolvePluginPageLabel(
+				pluginPage.label,
+				params.pluginId,
+				declaredLabelTranslator(i18n, (id) => i18n._(id)),
+			);
+		}
 	}
 
 	// Show welcome modal on first login

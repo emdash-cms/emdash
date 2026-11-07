@@ -1,5 +1,7 @@
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context.js";
+
 interface PageTitleOverride {
 	pageKey: string;
 	title: string;
@@ -21,12 +23,14 @@ export function AdminDocumentTitle({
 	pageKey: string;
 	pageTitle: string;
 }) {
+	const { siteName: brandName } = useAdminBranding();
+	const siteLabel = siteName?.trim() || brandName?.trim() || "EmDash";
 	const [override, setOverride] = React.useState<PageTitleOverride | null>(null);
 	const context = React.useMemo(() => ({ pageKey, setOverride }), [pageKey]);
 	const title = override?.pageKey === pageKey ? override.title : pageTitle;
 	React.useEffect(() => {
-		document.title = `${title} · ${siteName?.trim() || "EmDash"}`;
-	}, [title, siteName]);
+		document.title = `${title} · ${siteLabel}`;
+	}, [title, siteLabel]);
 	return <PageTitleContext.Provider value={context}>{children}</PageTitleContext.Provider>;
 }
 

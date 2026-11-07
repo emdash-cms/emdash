@@ -78,6 +78,7 @@ import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
+import { useAdminBranding } from "./lib/admin-branding-context.js";
 import {
 	apiFetch,
 	parseApiResponse,
@@ -396,6 +397,8 @@ const baseRootRoute = createRootRouteWithContext<RouterContext>()({
 
 function BaseRootComponent() {
 	const { t } = useLingui();
+	const { siteName } = useAdminBranding();
+	const siteLabel = siteName?.trim() || "EmDash";
 	const standaloneTitle = useMatches({
 		select: (matches) =>
 			matches.some((match) => match.routeId === "/_admin")
@@ -404,8 +407,8 @@ function BaseRootComponent() {
 	});
 	const title = standaloneTitle ? t(standaloneTitle) : undefined;
 	React.useEffect(() => {
-		if (title) document.title = `${title} · EmDash`;
-	}, [title]);
+		if (title) document.title = `${title} · ${siteLabel}`;
+	}, [title, siteLabel]);
 	return <Outlet />;
 }
 
