@@ -3346,7 +3346,7 @@ msgstr "置き換える画像を選択"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:439
 msgid "Choose SMTP above or install an email provider plugin to enable email features like invitations, magic links, and password recovery."
-msgstr ""
+msgstr "上でSMTPを選ぶか、メール送信サービスのプラグインをインストールすると、招待、マジックリンク、パスワードの再設定などのメール機能を利用できます。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:689
 msgid "Choose the date this entry shows as published."
@@ -3664,7 +3664,7 @@ msgstr "フィールドを設定"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:182
 msgid "Configure the email provider, view pipeline status, and send test emails"
-msgstr ""
+msgstr "メール送信サービスの設定、送信処理の状態確認、テストメールの送信"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
@@ -5653,7 +5653,7 @@ msgstr "メール送信の状態"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:220
 msgid "Email Provider"
-msgstr ""
+msgstr "メール送信サービス"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:457
 msgid "Email provider active"
@@ -5667,7 +5667,7 @@ msgstr "メール設定"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:82
 msgid "Email settings saved"
-msgstr ""
+msgstr "メール設定を保存しました"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:432
 msgid "Email users"
@@ -5990,7 +5990,7 @@ msgstr "名前を入力"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:287
 msgid "Enter SMTP password"
-msgstr ""
+msgstr "SMTPパスワードを入力"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Enter the code from your terminal"
@@ -7092,7 +7092,7 @@ msgstr "バックアップ設定を保存できませんでした"
 #: packages/admin/src/components/settings/EmailSettings.tsx:88
 #: packages/admin/src/lib/api/email-settings.ts:90
 msgid "Failed to save email settings"
-msgstr ""
+msgstr "メール設定の保存に失敗しました"
 
 #: packages/admin/src/components/PluginSettings.tsx:74
 #: packages/admin/src/components/settings/GeneralSettings.tsx:98
@@ -7908,11 +7908,11 @@ msgstr "水平方向{0}%、垂直方向{1}%"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:342
 msgid "Host"
-msgstr ""
+msgstr "ホスト"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:117
 msgid "Host and user are required."
-msgstr ""
+msgstr "ホストとユーザー名は必須です。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:233
 msgid "Hour"
@@ -8116,11 +8116,11 @@ msgstr "画像"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:352
 msgid "Implicit TLS"
-msgstr ""
+msgstr "Implicit TLS"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:269
 msgid "Implicit TLS (port 465)"
-msgstr ""
+msgstr "Implicit TLS（ポート465）"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
@@ -8479,7 +8479,7 @@ msgstr "無効なリンク"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:126
 msgid "Invalid port"
-msgstr ""
+msgstr "無効なポート番号"
 
 #: packages/admin/src/routes/users.tsx:132
 msgid "Invitation sent to {email}"
@@ -8758,7 +8758,7 @@ msgstr "移動する"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:286
 msgid "Leave empty to keep current password"
-msgstr ""
+msgstr "現在のパスワードを保持する場合は空欄にしてください"
 
 #: packages/admin/src/components/WordPressImport.tsx:2556
 msgid "Leave unassigned"
@@ -9570,7 +9570,7 @@ msgstr "分"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:116
 msgid "Missing SMTP configuration"
-msgstr ""
+msgstr "SMTPの設定が不足しています"
 
 #: packages/admin/src/components/editor/TableControls.tsx:269
 msgid "Mixed"
@@ -10492,7 +10492,7 @@ msgstr "なし（最上位）"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:301
 msgid "noreply@example.com"
-msgstr ""
+msgstr "noreply@example.com"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:713
 msgid "Not compatible with this environment"
@@ -10973,7 +10973,7 @@ msgstr "パスキーにはHTTPSまたはhttp://localhost（ポート付き）が
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:280
 msgid "Password"
-msgstr ""
+msgstr "パスワード"
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:247
 msgid "Paste an embed code or an https link…"
@@ -11285,15 +11285,15 @@ msgstr "このページが別のURLの複製の場合、検索エンジンにオ
 #: packages/admin/src/components/settings/EmailSettings.tsx:246
 #: packages/admin/src/components/settings/EmailSettings.tsx:346
 msgid "Port"
-msgstr ""
+msgstr "ポート"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:135
 msgid "Port 25 is not supported"
-msgstr ""
+msgstr "ポート25はサポートされていません"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:127
 msgid "Port must be between 1 and 65535."
-msgstr ""
+msgstr "ポート番号は1から65535の範囲で指定してください。"
 
 #: packages/admin/src/components/FocalPointEditor.tsx:50
 msgid "Portrait"
@@ -11444,7 +11444,7 @@ msgstr "ビルド来歴は必須"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:226
 msgid "Provider"
-msgstr ""
+msgstr "送信サービス"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:459
 msgid "Provider:"
@@ -12237,11 +12237,11 @@ msgstr "返信先："
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:367
 msgid "Reply-to"
-msgstr ""
+msgstr "返信先"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:304
 msgid "Reply-to email (optional)"
-msgstr ""
+msgstr "返信先メールアドレス（任意）"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:220
 msgid "Repository"
@@ -13287,7 +13287,7 @@ msgstr "表示中の項目をすべて選択"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:221
 msgid "Select and configure the provider that delivers all outgoing email."
-msgstr ""
+msgstr "すべてのメールの送信に使用するサービスを選択し、設定します。"
 
 #: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "Select at least one entry."
@@ -13453,15 +13453,15 @@ msgstr "テストメールを送信"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:357
 msgid "Sender email"
-msgstr ""
+msgstr "送信元メールアドレス"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:297
 msgid "Sender email (optional)"
-msgstr ""
+msgstr "送信元メールアドレス（任意）"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:291
 msgid "Sender name (optional)"
-msgstr ""
+msgstr "送信者名（任意）"
 
 #: packages/admin/src/components/LoginPage.tsx:153
 #: packages/admin/src/components/settings/EmailSettings.tsx:410
@@ -13798,7 +13798,7 @@ msgstr "サイトのインポート分析"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:294
 msgid "Site Name"
-msgstr ""
+msgstr "サイト名"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:36
 msgid "Site settings"
@@ -13929,27 +13929,27 @@ msgstr "レベル6の見出し"
 #: packages/admin/src/components/settings/EmailSettings.tsx:27
 #: packages/admin/src/components/settings/EmailSettings.tsx:230
 msgid "SMTP"
-msgstr ""
+msgstr "SMTP"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:239
 msgid "SMTP Host"
-msgstr ""
+msgstr "SMTPホスト"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:374
 msgid "SMTP is configured in the admin UI. The password is encrypted in the database."
-msgstr ""
+msgstr "SMTPは管理画面で設定されています。パスワードはデータベース内で暗号化されています。"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:375
 msgid "SMTP is configured via environment variables on the server."
-msgstr ""
+msgstr "SMTPはサーバーの環境変数で設定されています。"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:337
 msgid "SMTP Transport"
-msgstr ""
+msgstr "SMTPの通信方式"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
 msgid "smtp.example.com"
-msgstr ""
+msgstr "smtp.example.com"
 
 #: packages/admin/src/components/Settings.tsx:61
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
@@ -14152,11 +14152,11 @@ msgstr "開始中…"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:352
 msgid "STARTTLS"
-msgstr ""
+msgstr "STARTTLS"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:268
 msgid "STARTTLS (port 587)"
-msgstr ""
+msgstr "STARTTLS（ポート587）"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
@@ -14252,7 +14252,7 @@ msgstr "上付き文字"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:308
 msgid "support@example.com"
-msgstr ""
+msgstr "support@example.com"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:53
 msgid "Svelte"
@@ -14454,7 +14454,7 @@ msgstr "分類項目"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:99
 msgid "Test email sent to {to}"
-msgstr ""
+msgstr "{to}にテストメールを送信しました"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:399
 msgid "test@example.com"
@@ -14849,11 +14849,11 @@ msgstr "サイトのストレージを読み書きできませんでした。"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:314
 msgid "The SMTP password is encrypted before it is stored in the database."
-msgstr ""
+msgstr "SMTPパスワードは暗号化してからデータベースに保存されます。"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:313
 msgid "The SMTP password is encrypted before it is stored in the database. Leave the password empty to keep the saved one."
-msgstr ""
+msgstr "SMTPパスワードは暗号化してからデータベースに保存されます。保存済みのパスワードを保持する場合は空欄にしてください。"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:518
 msgid "The starter content listed above is deleted and replaced with the package’s content. The import can’t be undone once it starts; to go back you would need a backup of this site."
@@ -16190,7 +16190,7 @@ msgstr "選択肢は200個以内にしてください。"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:136
 msgid "Use 587 (STARTTLS) or 465 (implicit TLS)."
-msgstr ""
+msgstr "587（STARTTLS）または465（Implicit TLS）を使用してください。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
 #: packages/admin/src/components/FieldEditor.tsx:351
@@ -16310,7 +16310,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:273
 msgid "Username"
-msgstr ""
+msgstr "ユーザー名"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
