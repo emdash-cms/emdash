@@ -13,13 +13,20 @@ import { compileUrlPattern } from "../schema/url-pattern.js";
 const TRAILING_SLASHES = /\/+$/;
 
 const URL_TOKEN = /\{\w+\}/g;
+const PERCENT_ESCAPE = /%[\da-f]{2}/gi;
+
+function encodedRoutePath(path: string): string {
+	const url = new URL("http://placeholder.invalid");
+	url.pathname = path;
+	return url.pathname.replace(PERCENT_ESCAPE, (escape) => escape.toUpperCase());
+}
 
 function normalizePatternLiteral(literal: string): string {
 	// Fragments can be suffixes of token-bearing segments. Padding prevents a
 	// literal dot from being resolved as a whole URL dot segment.
 	return literal
 		.split("/")
-		.map((segment) => normalizeSourcePath(`/_${segment}_`).slice(2, -1))
+		.map((segment) => encodedRoutePath(`/_${segment}_`).slice(2, -1))
 		.join("/");
 }
 
@@ -121,6 +128,7 @@ export async function findLivePermalinkSources(
 		(collection) => collection.routable !== false,
 	);
 	const locales = getI18nConfig()?.locales ?? ["en"];
+	const routeBase = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASHES, "");
 	const patterns = new Map<
 		string,
 		{ collection: Collection; locale: string; regex: RegExp; paramNames: string[] }
@@ -133,7 +141,7 @@ export async function findLivePermalinkSources(
 				if (prefix === null) continue;
 				const compiled = compileUrlPattern(
 					normalizeUrlPattern(
-						`${basePath() === "/" ? "" : basePath()}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
+						`${routeBase}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
 							TRAILING_SLASHES,
 							"",
 						) || "/",
@@ -150,9 +158,11 @@ export async function findLivePermalinkSources(
 	for (const source of sources) {
 		const sourceKey = pathKey(source);
 		if (live.has(sourceKey)) continue;
-		const matches: Candidate[] = [];
+		const matches: Candidate[] = candidates.get(sourceKey) ?? [];
+		// Comparison keys may have decoded %25; route captures must retain that layer.
+		const routePath = encodedRoutePath(source).replace(TRAILING_SLASHES, "") || "/";
 		for (const { collection, locale, regex, paramNames } of patterns.values()) {
-			const match = regex.exec(sourceKey);
+			const match = regex.exec(routePath);
 			if (!match) continue;
 			const slugIndex = paramNames.indexOf("slug");
 			const idIndex = paramNames.indexOf("id");
@@ -209,8 +219,7 @@ export async function findLivePermalinkSources(
 					locale: i18nEnabled ? candidate.locale : (item.locale ?? "en"),
 				});
 				if (!canonical) continue;
-				const base = basePath();
-				const canonicalWithBase = base === "/" ? canonical : `${base}${canonical}`;
+				const canonicalWithBase = `${routeBase}${canonical}`;
 				if (pathKey(canonicalWithBase) === sourceKey) live.add(sourceKey);
 			}
 		}

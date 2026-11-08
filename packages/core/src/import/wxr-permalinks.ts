@@ -98,7 +98,12 @@ export async function importWxrPermalinks(
 	const exportedSources = countPermalinkSources(sourceLinks);
 	const currentSources = countPermalinkSources(entries.map((entry) => entry.link));
 	const roots = await importPermalinkRoots();
-	const candidates: Array<{ title: string; source: string; destination: string }> = [];
+	const candidates: Array<{
+		title: string;
+		source: string;
+		pathname: string;
+		destination: string;
+	}> = [];
 	const canonicalPaths = new Set<string>();
 	const canonicalTitles = new Map<string, string[]>();
 	for (const entry of entries) {
@@ -173,7 +178,7 @@ export async function importWxrPermalinks(
 				continue;
 			}
 			if (pathKey(source) !== pathKey(destination)) {
-				candidates.push({ title: entry.title, source, destination });
+				candidates.push({ title: entry.title, source, pathname: url.pathname, destination });
 			}
 		} catch {
 			errors.push({
@@ -215,11 +220,16 @@ export async function importWxrPermalinks(
 		if (candidates.length === 0 && cleanup.length === 0) return errors;
 		const repo = new RedirectRepository(db);
 		await repo.withWriteLock(async (fence, repository) => {
+			// Raw paths retain identifier escaping; stored keys also need alias protection.
 			const liveSources =
 				candidates.length > 0
 					? await findLivePermalinkSources(
 							repository.db,
-							candidates.map((candidate) => candidate.source),
+							candidates.flatMap((candidate) =>
+								candidate.pathname === candidate.source
+									? [candidate.pathname]
+									: [candidate.pathname, candidate.source],
+							),
 						)
 					: new Set<string>();
 			const existingRows =
@@ -284,7 +294,9 @@ export async function importWxrPermalinks(
 				if (
 					sourceKey === destinationKey ||
 					canonicalPaths.has(sourceKey) ||
-					liveSources.has(sourceKey)
+					canonicalPaths.has(candidate.source) ||
+					liveSources.has(sourceKey) ||
+					liveSources.has(candidate.source)
 				) {
 					if (existing?.owned && existing.enabled && !existing.isPattern && existing.type === 301) {
 						if (!(await repository.delete(existing.id, undefined, fence)))
