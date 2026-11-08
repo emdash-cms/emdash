@@ -120,6 +120,7 @@ function tableText(table: unknown): string {
 				? cell.content
 						.map((span) => (isRecord(span) && typeof span.text === "string" ? span.text : ""))
 						.join("")
+						.replace(/[\t\n]/g, " ")
 				: "",
 		);
 		if (cells.some((cell) => cell.trim())) rows.push(cells.join("\t"));

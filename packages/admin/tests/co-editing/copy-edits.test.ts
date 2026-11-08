@@ -145,13 +145,17 @@ describe("copyEditsText", () => {
 			{
 				_type: "table",
 				_key: "sizes",
-				rows: [row("head", "Size", "Count"), row("empty", "", ""), row("small", "S", "12")],
+				rows: [
+					row("head", "Size", "Count"),
+					row("empty", "", ""),
+					row("small", "S\tsmall", "12\nin store"),
+				],
 			},
 		];
 
 		const text = copyEditsText({ body: { kind: "portableText", label: "Body" } }, () => body);
 
-		expect(text).toBe("Body\nSizes in stock:\n\nSize\tCount\nS\t12");
+		expect(text).toBe("Body\nSizes in stock:\n\nSize\tCount\nS small\t12 in store");
 	});
 
 	it("leaves out empty values", () => {

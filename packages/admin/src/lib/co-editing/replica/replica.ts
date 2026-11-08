@@ -8,8 +8,6 @@ import {
 	FIELDS_MAP,
 	fieldWrite,
 	readField,
-	readFields,
-	readSlug,
 	touchedFields,
 	type LayoutField,
 } from "../../../co-editing/layout.js";
@@ -102,9 +100,8 @@ export class Replica implements ReplicaHandle {
 			get: (field) => this.#get(field),
 			set: (values) => this.#set(values),
 			read: (names) =>
-				readFields(
-					this.doc,
-					names.map((name) => this.#layoutField(name)),
+				Object.fromEntries(
+					names.map((name) => [name, tryReadField(this.doc, this.#layoutField(name)) ?? null]),
 				),
 			remoteVersion: (field) => this.#remoteVersions.get(field) ?? 0,
 		};
@@ -161,15 +158,23 @@ export class Replica implements ReplicaHandle {
 		return this.#coverage.mark !== null;
 	}
 
-	/** The whole document: every value in the fields map, and every pinned rich-text field. */
+	/**
+	 * The whole document: every value in the fields map, and every pinned rich-text field. A value
+	 * the layout can't read is left out, so the rest still saves.
+	 */
 	recoveryInput(): RecoveryInput {
 		const data: Record<string, unknown> = {};
+		const fields: LayoutField[] = [];
 		for (const key of this.doc.getMap(FIELDS_MAP).keys()) {
-			if (key !== ENTRY_SLUG.slug) data[key] = readField(this.doc, { slug: key, type: "json" });
+			if (key !== ENTRY_SLUG.slug) fields.push({ slug: key, type: "json" });
 		}
-		const richText = Array.from(this.#richText, (slug) => ({ slug, type: "portableText" }));
-		Object.assign(data, readFields(this.doc, richText));
-		return { data, slug: readSlug(this.doc) };
+		for (const slug of this.#richText) fields.push({ slug, type: "portableText" });
+		for (const field of fields) {
+			const value = tryReadField(this.doc, field);
+			if (value !== undefined) data[field.slug] = value;
+		}
+		const slug = tryReadField(this.doc, ENTRY_SLUG);
+		return { data, slug: typeof slug === "string" ? slug : null };
 	}
 
 	setOffline(offline: boolean): void {
@@ -337,15 +342,9 @@ export class Replica implements ReplicaHandle {
 		return () => listeners.delete(listener);
 	}
 
-	/** A value another client wrote in a shape the layout can't read shows as empty. */
 	#get(field: string): unknown {
 		if (this.#values.has(field)) return this.#values.get(field);
-		let value: unknown = null;
-		try {
-			value = readField(this.doc, this.#layoutField(field));
-		} catch (error) {
-			console.error(`[co-editing] couldn't read the field ${field}:`, error);
-		}
+		const value = tryReadField(this.doc, this.#layoutField(field)) ?? null;
 		this.#values.set(field, value);
 		return value;
 	}
@@ -408,5 +407,18 @@ export class Replica implements ReplicaHandle {
 
 	#layoutField(name: string): LayoutField {
 		return { slug: name, type: this.#richText.has(name) ? "portableText" : "json" };
+	}
+}
+
+/**
+ * A field's value, or undefined when another client wrote it in a shape the layout can't read,
+ * which then shows as empty instead of breaking every editor of the entry.
+ */
+function tryReadField(doc: Y.Doc, field: LayoutField): unknown {
+	try {
+		return readField(doc, field);
+	} catch (error) {
+		console.error(`[co-editing] couldn't read the field ${field.slug}:`, error);
+		return undefined;
 	}
 }

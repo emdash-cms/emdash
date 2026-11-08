@@ -287,6 +287,23 @@ describe("document values", () => {
 		});
 	});
 
+	it("reads a value another client nested as a shared type as empty, everywhere", async () => {
+		const room = new LoopbackRoom({ seed: seedEntry });
+		const a = await join(room);
+		room
+			.peer()
+			.getMap("fields")
+			.set("legacy", new Y.Map([["kept", true]]));
+		await settle();
+
+		expect(a.editing.fields.get("legacy")).toBeNull();
+		expect(a.editing.fields.read(["title", "legacy"])).toEqual({ title: "Hello", legacy: null });
+		expect(a.replica().recoveryInput()).toEqual({
+			data: { title: "Hello", tags: ["a", "b"], body },
+			slug: "hello-world",
+		});
+	});
+
 	it("writes changed values in one transaction and skips equal ones", async () => {
 		const room = new LoopbackRoom({ seed: seedEntry });
 		const a = await join(room);
