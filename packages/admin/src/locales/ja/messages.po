@@ -7675,7 +7675,7 @@ msgstr "先に編集画面に戻ってください。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:133
 msgid "Go live"
-msgstr ""
+msgstr "サイトを公開"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
 msgid "Go live {countdown}"
@@ -7833,12 +7833,12 @@ msgstr "ヒーロー, バナー, CTA"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:116
 msgid "Hidden from search engines"
-msgstr ""
+msgstr "検索エンジンに非公開"
 
 #: packages/admin/src/components/Header.tsx:61
 #: packages/admin/src/components/Header.tsx:65
 msgid "Hidden from search engines until you go live"
-msgstr ""
+msgstr "サイトを公開するまで検索エンジンに非公開"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:119
 msgid "Hide earlier entries"
@@ -8904,7 +8904,7 @@ msgstr "リスト表示"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Live"
-msgstr ""
+msgstr "公開中"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
@@ -13012,7 +13012,7 @@ msgstr "検索エンジンの所有権確認"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:122
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
-msgstr ""
+msgstr "検索エンジンはこのサイトをインデックスに登録できます。サイトのリニューアル時など、再び検索エンジンに非公開にするには、準備中に戻してください。"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
 msgid "Search failed"
@@ -13812,11 +13812,11 @@ msgstr "サイト設定"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:109
 msgid "Site Status"
-msgstr ""
+msgstr "サイトの公開状態"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:91
 msgid "Site switched to staging"
-msgstr ""
+msgstr "サイトを準備中に変更しました"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:368
 msgid "Site title"
@@ -14100,7 +14100,7 @@ msgstr "primaryやfooterなど、サイトで継続して使う識別子です�
 #: packages/admin/src/components/Header.tsx:66
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
-msgstr ""
+msgstr "準備中"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:529
 msgid "Start a new import"
@@ -14264,7 +14264,7 @@ msgstr "Swift"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:133
 msgid "Switch back to staging"
-msgstr ""
+msgstr "準備中に戻す"
 
 #: packages/admin/src/components/ThemeToggle.tsx:19
 msgid "Switch to dark"
@@ -16474,11 +16474,11 @@ msgstr "{name}による{when}の版を表示しています。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:116
 msgid "Visible to search engines"
-msgstr ""
+msgstr "検索エンジンに公開"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:121
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
-msgstr ""
+msgstr "訪問者はサイトにアクセスできますが、検索エンジンにはインデックスに登録しないよう求めます。検索結果に表示する準備ができたら、サイトを公開してください。"
 
 #: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
@@ -17069,7 +17069,7 @@ msgstr "サイトの現在のアドレスは{currentUrl}です。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:91
 msgid "Your site is live"
-msgstr ""
+msgstr "サイトを公開しました"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
 #: packages/admin/src/components/RegistryPluginDetail.tsx:696
