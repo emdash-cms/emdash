@@ -35,8 +35,8 @@ Start with an [Ideas Discussion](https://github.com/emdash-cms/emdash/discussion
 An RFC requires:
 
 - a named champion;
-- a Maintainer sponsor;
-- support from two other Maintainers, excluding the sponsor and Project Lead;
+- a Maintainer sponsor, who can be the author;
+- support from one Maintainer other than the author and the Project Lead, who can be the sponsor;
 - acceptance by the Project Lead; and
 - a public review period, normally at least seven days.
 
