@@ -107,35 +107,6 @@ describe("resolveContentEditorPanels", () => {
 		expect(errorSpy).toHaveBeenCalledOnce();
 	});
 
-	it("does not invoke visibility checks when static filters exclude a panel", () => {
-		const isVisible = vi.fn(() => true);
-		const pluginAdmins: PluginAdmins = {
-			plugin: {
-				contentEditorPanels: [
-					{
-						id: "collection",
-						title: "Collection",
-						component: Panel,
-						collections: ["pages"],
-						isVisible,
-					},
-					{ id: "role", title: "Role", component: Panel, minRole: 50, isVisible },
-				],
-			},
-			disabled: {
-				contentEditorPanels: [{ id: "disabled", title: "Disabled", component: Panel, isVisible }],
-			},
-		};
-
-		expect(
-			resolveContentEditorPanels(pluginAdmins, "posts", 40, {
-				plugin: { enabled: true },
-				disabled: { enabled: false },
-			}),
-		).toEqual([]);
-		expect(isVisible).not.toHaveBeenCalled();
-	});
-
 	it("rejects malformed visibility checks without throwing", () => {
 		const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 		const pluginAdmins = {

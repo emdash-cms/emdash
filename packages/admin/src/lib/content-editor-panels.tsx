@@ -20,7 +20,7 @@ export interface ContentEditorPanelExtension {
 	collections?: readonly string[] | ((collection: string) => boolean);
 	/** Minimum numeric admin role required to see this panel. */
 	minRole?: number;
-	/** Show the section only when this check returns true. Hidden while pending or on error. */
+	/** Show the section only when true. Hidden on the first pending check or on error. */
 	isVisible?: (ctx: ContentEditorPanelContext) => boolean | Promise<boolean>;
 	/** Lower values render first among contributed panels. */
 	order?: number;
@@ -164,27 +164,51 @@ export function useVisibleContentEditorPanels(
 	panels: ResolvedContentEditorPanel[],
 	context: ContentEditorPanelContext | null,
 ): ResolvedContentEditorPanel[] {
+	const scope = context
+		? JSON.stringify([context.collection, context.entry.id, context.locale])
+		: null;
 	const [result, setResult] = React.useState<{
-		panels: ResolvedContentEditorPanel[];
-		context: ContentEditorPanelContext;
-		visible: Set<ResolvedContentEditorPanel>;
+		scope: string;
+		visible: Map<string, ContentEditorPanelExtension>;
 	} | null>(null);
 
 	React.useEffect(() => {
-		if (!context) return;
+		if (!context || scope === null) {
+			setResult(null);
+			return;
+		}
 		let cancelled = false;
-		const visible = new Set<ResolvedContentEditorPanel>();
+		setResult((current) => ({
+			scope,
+			visible: new Map(
+				panels.flatMap(({ pluginId, extension }) => {
+					const id = `${pluginId}:${extension.id}`;
+					return current?.scope === scope && current.visible.get(id) === extension
+						? [[id, extension] as const]
+						: [];
+				}),
+			),
+		}));
 
 		for (const panel of panels) {
 			const isVisible = panel.extension.isVisible;
 			if (!isVisible) continue;
+			const id = `${panel.pluginId}:${panel.extension.id}`;
+			const updateVisibility = (visible: boolean) => {
+				setResult((current) => {
+					const next = new Map(current?.scope === scope ? current.visible : []);
+					if (visible) next.set(id, panel.extension);
+					else next.delete(id);
+					return { scope, visible: next };
+				});
+			};
 			void (async () => {
 				try {
-					if ((await isVisible(context)) === true && !cancelled) {
-						visible.add(panel);
-						setResult({ panels, context, visible: new Set(visible) });
-					}
+					const visible = (await isVisible(context)) === true;
+					if (!cancelled) updateVisibility(visible);
 				} catch (error) {
+					if (cancelled) return;
+					updateVisibility(false);
 					console.error(
 						`Plugin "${panel.pluginId}" failed while checking visibility of content editor panel "${panel.extension.id}".`,
 						error,
@@ -196,12 +220,12 @@ export function useVisibleContentEditorPanels(
 		return () => {
 			cancelled = true;
 		};
-	}, [panels, context]);
+	}, [panels, context, scope]);
 
 	return panels.filter(
-		(panel) =>
-			!panel.extension.isVisible ||
-			(result?.panels === panels && result.context === context && result.visible.has(panel)),
+		({ pluginId, extension }) =>
+			!extension.isVisible ||
+			(result?.scope === scope && result.visible.get(`${pluginId}:${extension.id}`) === extension),
 	);
 }
 
