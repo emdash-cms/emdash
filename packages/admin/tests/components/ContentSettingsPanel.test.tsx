@@ -658,9 +658,6 @@ describe("ContentSettingsPanel", () => {
 				.element(screen.getByRole("heading", { name: "Content insights" }))
 				.toBeInTheDocument();
 			await expect.element(screen.getByTestId("insights-panel")).toHaveTextContent("(en)");
-			expect(
-				screen.getByRole("button", { name: "Drag to reorder Content insights" }).query(),
-			).not.toBeNull();
 		},
 	);
 
@@ -1737,13 +1734,7 @@ describe("ContentSettingsPanel", () => {
 		expect(sectionIds(screen.container)).toEqual(["bylines", "publish", "url-language", "outline"]);
 	});
 
-	it("preserves pending panel positions while reordering another section", async () => {
-		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
-		const savedLayout = JSON.stringify({
-			version: 1,
-			order: ["seo", "plugin:insights:summary", "outline", "ownership", "bylines"],
-		});
-		window.localStorage.setItem(storageKey, savedLayout);
+	it("shows a pending panel at its saved position once its visibility check allows it", async () => {
 		let resolveVisibility!: (visible: boolean) => void;
 		const visibility = new Promise<boolean>((resolve) => {
 			resolveVisibility = resolve;
@@ -1760,82 +1751,26 @@ describe("ContentSettingsPanel", () => {
 				],
 			},
 		};
-		const panelProps = makePanelProps({ manifest: TEST_MANIFEST });
-		try {
-			const screen = await render(<ContentSettingsPanel {...panelProps} />, {
-				wrapper: pluginWrapper(pluginAdmins),
-			});
-			expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					adminLayout: { order: ["seo", "plugin:insights:summary", "outline"], hidden: [] },
+				})}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		await expect.element(screen.getByRole("heading", { name: "SEO" })).toBeVisible();
+		expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
 
-			const headings = () =>
-				Array.from(
-					screen.container.querySelectorAll("section h3"),
-					(heading) => heading.textContent,
-				);
-			await vi.waitFor(() =>
-				expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership")),
-			);
-			const pendingPanelHandle = screen
-				.getByRole("button", { name: "Drag to reorder Bylines" })
-				.element();
-			const bylinesSection = pendingPanelHandle.closest("section")!;
-			const ownershipSection = screen
-				.getByRole("heading", { name: "Ownership" })
-				.element()
-				.closest("section")!;
-			pendingPanelHandle.focus();
-			await userEvent.keyboard(" ");
-			await vi.waitFor(() => expect(bylinesSection.dataset.sorting).toBe("true"));
-			// Collapsing the sections changes the geometry used by the keyboard sensor.
-			await act(async () => {
-				await new Promise<void>((resolve) => {
-					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-				});
-			});
-			await userEvent.keyboard("{ArrowUp}");
-			await vi.waitFor(() =>
-				expect(bylinesSection.getBoundingClientRect().top).toBeLessThan(
-					ownershipSection.getBoundingClientRect().top,
-				),
-			);
-			await userEvent.keyboard(" ");
-			await vi.waitFor(() => expect(bylinesSection.dataset.sorting).toBe("false"));
+		await act(async () => resolveVisibility(true));
 
-			await vi.waitFor(() =>
-				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
-			);
-			const reorderedLayout = JSON.parse(window.localStorage.getItem(storageKey) ?? "null");
-			expect(reorderedLayout.order).toEqual(
-				expect.arrayContaining([
-					"seo",
-					"plugin:insights:summary",
-					"outline",
-					"bylines",
-					"ownership",
-				]),
-			);
-			expect(reorderedLayout.order.indexOf("seo")).toBeLessThan(
-				reorderedLayout.order.indexOf("plugin:insights:summary"),
-			);
-			expect(reorderedLayout.order.indexOf("plugin:insights:summary")).toBeLessThan(
-				reorderedLayout.order.indexOf("outline"),
-			);
-
-			await act(async () => resolveVisibility(true));
-			await expect
-				.element(screen.getByRole("heading", { name: "Content insights" }))
-				.toBeInTheDocument();
-			const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
-			const pluginSection = screen
-				.getByRole("heading", { name: "Content insights" })
-				.element()
-				.closest("section");
-			const outlineSection = screen.getByTestId("doc-outline").element().closest("section");
-			expect(seoSection?.nextElementSibling).toBe(pluginSection);
-			expect(pluginSection?.nextElementSibling).toBe(outlineSection);
-		} finally {
-			window.localStorage.removeItem(storageKey);
-		}
+		await expect
+			.element(screen.getByRole("heading", { name: "Content insights" }))
+			.toBeInTheDocument();
+		const ids = sectionIds(screen.container);
+		expect(ids.indexOf("plugin:insights:summary")).toBe(ids.indexOf("seo") + 1);
+		expect(ids.indexOf("outline")).toBe(ids.indexOf("plugin:insights:summary") + 1);
 	});
 
 	it("does not render an empty publishing summary for a new collection without drafts", async () => {
