@@ -326,8 +326,8 @@ export interface WxrNavMenuItem {
 	menuId: number;
 	parentId?: number;
 	sortOrder: number;
-	type: "custom" | "post_type" | "taxonomy";
-	objectType?: string; // 'page', 'post', 'category'
+	type: "custom" | "post_type" | "post_type_archive" | "taxonomy";
+	objectType?: string; // 'page', 'post', 'category'; a post type archive's post type
 	objectId?: number;
 	url?: string;
 	title: string;
@@ -1177,7 +1177,9 @@ function buildNavMenus(
 			const meta = post.meta;
 			const menuItemTypeRaw = meta.get("_menu_item_type") || "custom";
 			const menuItemType: WxrNavMenuItem["type"] =
-				menuItemTypeRaw === "post_type" || menuItemTypeRaw === "taxonomy"
+				menuItemTypeRaw === "post_type" ||
+				menuItemTypeRaw === "post_type_archive" ||
+				menuItemTypeRaw === "taxonomy"
 					? menuItemTypeRaw
 					: "custom";
 			const objectType = meta.get("_menu_item_object");

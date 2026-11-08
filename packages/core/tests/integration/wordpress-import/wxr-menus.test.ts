@@ -27,6 +27,8 @@ interface FixturePost {
 	type: "page" | "post";
 	slug: string;
 	title: string;
+	/** Parent page's post ID */
+	parent?: number;
 	/** Polylang language code */
 	language?: string;
 }
@@ -35,7 +37,7 @@ interface FixtureMenuItem {
 	id: number;
 	menu: string;
 	order: number;
-	type: "post_type" | "custom" | "taxonomy";
+	type: "post_type" | "post_type_archive" | "custom" | "taxonomy";
 	object?: string;
 	objectId?: number;
 	parent?: number;
@@ -53,6 +55,7 @@ function postXml(post: FixturePost): string {
 		<wp:post_type>${post.type}</wp:post_type>
 		<wp:status>publish</wp:status>
 		<wp:post_name>${post.slug}</wp:post_name>
+		<wp:post_parent>${post.parent ?? 0}</wp:post_parent>
 		<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>
 		<content:encoded><![CDATA[<p>${post.title}</p>]]></content:encoded>
 		${language}
@@ -280,6 +283,97 @@ describe("WXR import of menus", () => {
 		expect(menu?.items).toEqual([
 			expect.objectContaining({ label: "Page 1", url: "/pages/page-1" }),
 			expect.objectContaining({ label: "Page 31", url: "/pages/page-31" }),
+		]);
+	});
+
+	it.each([
+		["both pages", [12, 13]],
+		["only the page the import leaves out", [13]],
+	])(
+		"leaves out links to pages that share a slug, since one entry can't stand for both: %s",
+		async (_case, linked) => {
+			// WordPress lets pages under different parents share a slug: services/support and products/support
+			const wxr = makeWxr([
+				menuTermXml(50, "primary", "Main navigation"),
+				postXml({ id: 10, type: "page", slug: "services", title: "Services" }),
+				postXml({ id: 11, type: "page", slug: "products", title: "Products" }),
+				postXml({ id: 12, type: "page", slug: "support", title: "Service support", parent: 10 }),
+				postXml({ id: 13, type: "page", slug: "support", title: "Product support", parent: 11 }),
+				menuItemXml({
+					id: 101,
+					menu: "primary",
+					order: 1,
+					type: "post_type",
+					object: "page",
+					objectId: 10,
+				}),
+				...linked.map((objectId, index) =>
+					menuItemXml({
+						id: 102 + index,
+						menu: "primary",
+						order: 2 + index,
+						type: "post_type",
+						object: "page",
+						objectId,
+					}),
+				),
+			]);
+
+			const result = await execute(emdash, wxr);
+
+			// The content import creates the first support page and skips the second
+			expect(result).toMatchObject({ imported: 3, skipped: 1 });
+			expect(result.menus).toEqual({
+				created: 1,
+				items: 1,
+				skipped: 0,
+				itemsSkipped: linked.length,
+			});
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu?.items).toEqual([
+				expect.objectContaining({ label: "Services", url: "/pages/services" }),
+			]);
+		},
+	);
+
+	it("links an item for a post type archive to the archive of that post type's collection", async () => {
+		const wxr = makeWxr([
+			menuTermXml(50, "primary", "Main navigation"),
+			postXml({ id: 20, type: "post", slug: "hello-world", title: "Hello world" }),
+			// WordPress stores no address for an archive link, and no label unless it has its own
+			menuItemXml({
+				id: 101,
+				menu: "primary",
+				order: 1,
+				type: "post_type_archive",
+				object: "post",
+			}),
+			menuItemXml({
+				id: 102,
+				menu: "primary",
+				order: 2,
+				type: "post_type_archive",
+				object: "post",
+				title: "Blog",
+			}),
+			// A post type the import leaves out
+			menuItemXml({
+				id: 103,
+				menu: "primary",
+				order: 3,
+				type: "post_type_archive",
+				object: "event",
+				title: "Events",
+			}),
+		]);
+
+		const result = await execute(emdash, wxr);
+
+		expect(result.menus).toEqual({ created: 1, items: 2, skipped: 0, itemsSkipped: 1 });
+		const menu = await getMenuWithDb("primary", db);
+		expect(menu?.items).toEqual([
+			expect.objectContaining({ label: "Posts", url: "/posts/" }),
+			expect.objectContaining({ label: "Blog", url: "/posts/" }),
 		]);
 	});
 

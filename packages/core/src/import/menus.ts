@@ -66,12 +66,25 @@ export interface WxrMenuTarget {
 }
 
 /**
+ * The collection that WXR menu items for a post type archive link to
+ */
+export interface WxrMenuArchive {
+	/** Collection the post type was imported into */
+	collection: string;
+	/** Label of the collection, which an item without its own label shows */
+	label: string;
+}
+
+/**
  * Result of a WXR menu import
  */
 export interface WxrMenuImportResult extends MenuImportResult {
 	/** Menus left as they were because the site has one with the same name in that locale */
 	menusSkipped: number;
-	/** Items left out because what they link to wasn't imported and the export has no address for it */
+	/**
+	 * Items left out because what they link to wasn't imported, or can't be told
+	 * apart from another post with the same slug, and the export has no address for it
+	 */
 	itemsSkipped: number;
 }
 
@@ -88,6 +101,7 @@ export interface WxrMenuImportResult extends MenuImportResult {
  * @param db - Database connection
  * @param targets - Imported entries by WordPress post ID
  * @param defaultLocale - Locale for a menu whose entries don't share one
+ * @param archives - Collections that post type archive items link to, by WordPress post type
  * @returns Import result with counts and ID mapping
  */
 export async function importMenusFromWxr(
@@ -95,6 +109,7 @@ export async function importMenusFromWxr(
 	db: Kysely<Database>,
 	targets: Map<number, WxrMenuTarget>,
 	defaultLocale: string,
+	archives: Map<string, WxrMenuArchive> = new Map(),
 ): Promise<WxrMenuImportResult> {
 	const result: WxrMenuImportResult = {
 		menusCreated: 0,
@@ -108,7 +123,7 @@ export async function importMenusFromWxr(
 
 	for (const menu of menus) {
 		try {
-			const { items, locales, skipped } = wxrMenuItems(menu.items, targets);
+			const { items, locales, skipped } = wxrMenuItems(menu.items, targets, archives);
 			const [onlyLocale] = locales;
 			const locale = locales.size === 1 && onlyLocale ? onlyLocale : defaultLocale;
 			if (await repo.existsByNameAndLocale(menu.name, locale)) {
@@ -219,6 +234,7 @@ export async function importMenusFromPlugin(
 function wxrMenuItems(
 	items: WxrNavMenuItem[],
 	targets: Map<number, WxrMenuTarget>,
+	archives: Map<string, WxrMenuArchive>,
 ): { items: SetMenuItem[]; locales: Set<string>; skipped: number } {
 	const sorted = items.toSorted((a, b) => a.sortOrder - b.sortOrder);
 	const indexById = new Map<number, number>();
@@ -247,7 +263,7 @@ function wxrMenuItems(
 		const item = sorted[index];
 		if (!item || placed.has(index)) return;
 		placed.add(index);
-		const mapped = mapWxrMenuItem(item, targets);
+		const mapped = mapWxrMenuItem(item, targets, archives);
 		let childParent = parentIndex;
 		if (mapped) {
 			if (mapped.locale) locales.add(mapped.locale);
@@ -331,15 +347,34 @@ async function importPluginMenuItems(
 }
 
 /**
- * Map a WXR menu item to `setItems` input. Returns `null` when its link is lost:
- * what it links to wasn't imported, and the export has no address for it. That
- * includes taxonomy archives, which WordPress links to without storing an address.
+ * Map a WXR menu item to `setItems` input. A post type archive links to the
+ * archive of the collection its post type was imported into. Returns `null` when
+ * the item's link is lost: what it links to wasn't imported, and the export has
+ * no address for it. That includes taxonomy archives, which WordPress links to
+ * without storing an address.
  */
 function mapWxrMenuItem(
 	item: WxrNavMenuItem,
 	targets: Map<number, WxrMenuTarget>,
+	archives: Map<string, WxrMenuArchive>,
 ): { item: SetMenuItem; locale?: string } | null {
 	const shared = { target: item.target || undefined, cssClasses: item.classes || undefined };
+	const archive =
+		item.type === "post_type_archive" && item.objectType
+			? archives.get(item.objectType)
+			: undefined;
+	if (archive) {
+		return {
+			item: {
+				...shared,
+				// An archive link: the collection, with no entry
+				type: "collection",
+				referenceCollection: archive.collection,
+				// WordPress shows the post type's archive label for an item without its own label
+				label: item.title || archive.label,
+			},
+		};
+	}
 	const entry = item.type === "post_type" && item.objectId ? targets.get(item.objectId) : undefined;
 	if (entry) {
 		return {

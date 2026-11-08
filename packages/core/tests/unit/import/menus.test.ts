@@ -9,6 +9,7 @@ import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
 import {
 	importMenusFromPlugin,
 	importMenusFromWxr,
+	type WxrMenuArchive,
 	type WxrMenuTarget,
 } from "../../../src/import/menus.js";
 import { getMenuWithDb } from "../../../src/menus/index.js";
@@ -320,6 +321,40 @@ describe("importMenusFromWxr", () => {
 				label: "About us",
 				children: [expect.objectContaining({ label: "Team" })],
 			}),
+		]);
+	});
+
+	it("links an item for a post type archive to its collection's archive, with the collection's label for an item without a label", async () => {
+		const archives = new Map<string, WxrMenuArchive>([
+			["event", { collection: "events", label: "Events" }],
+		]);
+
+		const result = await importMenusFromWxr(
+			[
+				{
+					id: 5,
+					name: "primary",
+					label: "Main navigation",
+					items: [
+						// WordPress stores no address for an archive link, and no label unless it has its own
+						wxrItem(1, { type: "post_type_archive", objectType: "event" }),
+						wxrItem(2, { type: "post_type_archive", objectType: "event", title: "What's on" }),
+						// A post type the import left out
+						wxrItem(3, { type: "post_type_archive", objectType: "product", title: "Shop" }),
+					],
+				},
+			],
+			db,
+			targets,
+			"en",
+			archives,
+		);
+
+		expect(result).toMatchObject({ menusCreated: 1, itemsCreated: 2, itemsSkipped: 1 });
+		const menu = await getMenuWithDb("primary", db);
+		expect(menu?.items).toEqual([
+			expect.objectContaining({ label: "Events", url: "/events/" }),
+			expect.objectContaining({ label: "What's on", url: "/events/" }),
 		]);
 	});
 

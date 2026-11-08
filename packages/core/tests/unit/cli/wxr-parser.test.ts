@@ -436,6 +436,47 @@ describe("parseWxr", () => {
 		]);
 	});
 
+	it.each([
+		["parseWxr", (wxr: string) => parseWxr(createStream(wxr))],
+		["parseWxrString", (wxr: string) => parseWxrString(wxr)],
+	])("%s keeps a post type archive item apart from custom links", async (_parser, parse) => {
+		// WordPress stores no address for an archive link, and no label unless it has its own
+		const result = await parse(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:term>
+      <wp:term_id>5</wp:term_id>
+      <wp:term_taxonomy>nav_menu</wp:term_taxonomy>
+      <wp:term_slug>primary</wp:term_slug>
+      <wp:term_name><![CDATA[Main navigation]]></wp:term_name>
+    </wp:term>
+    <item>
+      <title></title>
+      <wp:post_id>50</wp:post_id>
+      <wp:post_type>nav_menu_item</wp:post_type>
+      <category domain="nav_menu" nicename="primary"><![CDATA[Main navigation]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_menu_item_type</wp:meta_key>
+        <wp:meta_value>post_type_archive</wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_menu_item_object</wp:meta_key>
+        <wp:meta_value>event</wp:meta_value>
+      </wp:postmeta>
+      <wp:postmeta>
+        <wp:meta_key>_menu_item_url</wp:meta_key>
+        <wp:meta_value></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`);
+
+		expect(result.navMenus[0]?.items).toEqual([
+			expect.objectContaining({ type: "post_type_archive", objectType: "event", title: "" }),
+		]);
+	});
+
 	it("parses custom taxonomy assignments on posts", async () => {
 		const wxr = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"

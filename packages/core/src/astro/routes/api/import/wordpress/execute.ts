@@ -20,7 +20,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
-import { importMenusFromWxr, type WxrMenuTarget } from "#import/menus.js";
+import { importMenusFromWxr, type WxrMenuArchive, type WxrMenuTarget } from "#import/menus.js";
 import { relativizeContentLinks, resolveImportByline } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
@@ -771,6 +771,7 @@ async function importWxrMenus(
 			db,
 			await findWxrMenuTargets(wxr, config, db, manifest),
 			resolveContentCreateLocale(config.locale),
+			wxrMenuArchives(config, manifest),
 		);
 	} catch (error) {
 		// The content is in by now, so report the failure with the rest of the result
@@ -797,6 +798,10 @@ async function importWxrMenus(
  * Find the entries that menu items link to: the ones the content import made
  * from those posts, looked up by the collection, slug and locale it gave them.
  * This also finds entries an earlier import created and this one skipped.
+ *
+ * Posts that share a slug in a collection and locale are left out: the content
+ * import creates the first and skips the others, so the one entry with that
+ * slug can't be matched to the right post.
  */
 async function findWxrMenuTargets(
 	wxr: Awaited<ReturnType<typeof parseWxrString>>,
@@ -811,13 +816,12 @@ async function findWxrMenuTargets(
 		}
 	}
 
-	// The linked posts, by collection and locale, then by slug
+	// Every post the content import takes, by collection and locale, then by slug
 	const groups = new Map<
 		string,
 		{ collection: string; locale: string; postsBySlug: Map<string, WxrPost[]> }
 	>();
 	for (const post of wxr.posts) {
-		if (!post.id || !linked.has(post.id)) continue;
 		const mapping = config.postTypeMappings[post.postType || "post"];
 		if (!mapping?.enabled) continue;
 		const collection = sanitizeSlug(mapping.collection);
@@ -836,32 +840,57 @@ async function findWxrMenuTargets(
 			groups.set(key, group);
 		}
 		const slug = wxrPostSlug(post);
-		group.postsBySlug.set(slug, [...(group.postsBySlug.get(slug) ?? []), post]);
+		const posts = group.postsBySlug.get(slug);
+		if (posts) posts.push(post);
+		else group.postsBySlug.set(slug, [post]);
 	}
 
 	const contentRepo = new ContentRepository(db);
 	const targets = new Map<number, WxrMenuTarget>();
 	for (const { collection, locale, postsBySlug } of groups.values()) {
+		// The linked posts that have their slug to themselves
+		const linkedBySlug = new Map<string, { id: number; title: string }>();
+		for (const [slug, [post, ...others]] of postsBySlug) {
+			if (post?.id && others.length === 0 && linked.has(post.id)) {
+				linkedBySlug.set(slug, { id: post.id, title: post.title ?? "" });
+			}
+		}
+		if (linkedBySlug.size === 0) continue;
 		const entries = await contentRepo.findManyBySlugsInLocale(
 			collection,
-			[...postsBySlug.keys()],
+			[...linkedBySlug.keys()],
 			locale,
 		);
-		for (const [slug, posts] of postsBySlug) {
+		for (const [slug, post] of linkedBySlug) {
 			const entry = entries.get(slug);
 			if (!entry) continue;
-			for (const post of posts) {
-				if (!post.id) continue;
-				targets.set(post.id, {
-					collection,
-					translationGroup: entry.translationGroup ?? entry.id,
-					locale: entry.locale ?? locale,
-					title: typeof entry.data.title === "string" ? entry.data.title : (post.title ?? ""),
-				});
-			}
+			targets.set(post.id, {
+				collection,
+				translationGroup: entry.translationGroup ?? entry.id,
+				locale: entry.locale ?? locale,
+				title: typeof entry.data.title === "string" ? entry.data.title : post.title,
+			});
 		}
 	}
 	return targets;
+}
+
+/**
+ * The collections that menu items for post type archives link to: each imported
+ * post type's collection, by WordPress post type.
+ */
+function wxrMenuArchives(
+	config: ImportConfig,
+	manifest: EmDashManifest,
+): Map<string, WxrMenuArchive> {
+	const archives = new Map<string, WxrMenuArchive>();
+	for (const [postType, mapping] of Object.entries(config.postTypeMappings)) {
+		if (!mapping.enabled) continue;
+		const collection = sanitizeSlug(mapping.collection);
+		const definition = manifest.collections[collection];
+		if (definition) archives.set(postType, { collection, label: definition.label });
+	}
+	return archives;
 }
 
 function mapStatus(wpStatus: string | undefined): string {
