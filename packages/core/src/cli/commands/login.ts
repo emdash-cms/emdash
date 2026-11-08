@@ -30,6 +30,7 @@ import {
 	resolveCredentialKey,
 	saveCredentials,
 } from "../credentials.js";
+import { tryOpenBrowser } from "../open-browser.js";
 import { configureOutputMode } from "../output.js";
 
 // ---------------------------------------------------------------------------
@@ -310,18 +311,7 @@ export const loginCommand = defineCommand({
 			console.log();
 
 			// Try to open browser (best-effort)
-			try {
-				const { execFile } = await import("node:child_process");
-				if (process.platform === "darwin") {
-					execFile("open", [deviceCode.verification_uri]);
-				} else if (process.platform === "win32") {
-					execFile("cmd", ["/c", "start", "", deviceCode.verification_uri]);
-				} else {
-					execFile("xdg-open", [deviceCode.verification_uri]);
-				}
-			} catch {
-				// Ignore — user can open manually
-			}
+			tryOpenBrowser(deviceCode.verification_uri);
 
 			// Step 4: Poll for token
 			consola.start("Waiting for authorization...");
