@@ -1286,9 +1286,9 @@ msgstr "En paketfil stämmer inte med manifestet"
 msgid "A package file is missing"
 msgstr "En paketfil saknas"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:186
-#: packages/admin/src/components/ContentSettingsPanel.tsx:237
-#: packages/admin/src/components/ContentSettingsPanel.tsx:263
+#: packages/admin/src/components/ContentSettingsPanel.tsx:187
+#: packages/admin/src/components/ContentSettingsPanel.tsx:238
+#: packages/admin/src/components/ContentSettingsPanel.tsx:264
 msgid "A publication time has not been selected"
 msgstr "Ingen publiceringstid har valts"
 
@@ -2401,7 +2401,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Autentiseringen avbröts eller tog för lång tid. Försök igen."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1415
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2823,8 +2823,8 @@ msgstr "Skribenten har uppdaterats"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1170
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1174
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
@@ -2877,7 +2877,7 @@ msgstr "Kan visa innehåll"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:547
+#: packages/admin/src/components/ContentSettingsPanel.tsx:548
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -3051,7 +3051,7 @@ msgstr "Ändra publiceringsdatum"
 msgid "Change publication date: {0}"
 msgstr "Ändra publiceringsdatum: {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:619
+#: packages/admin/src/components/ContentSettingsPanel.tsx:620
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Ändra schemaläggning"
@@ -3732,7 +3732,7 @@ msgstr "Ansluter …"
 msgid "Connects"
 msgstr "Kopplar ihop"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:476
+#: packages/admin/src/components/ContentSettingsPanel.tsx:477
 msgid "content"
 msgstr "innehåll"
 
@@ -3776,7 +3776,7 @@ msgstr "Innehålls-ID:"
 msgid "Content is now live"
 msgstr "Innehållet är nu publicerat"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1124
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1136
 msgid "Content language"
 msgstr "Innehållsspråk"
 
@@ -4332,7 +4332,7 @@ msgid "Create, update, delete content"
 msgstr "Skapa, uppdatera, ta bort innehåll"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1087
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
@@ -4354,7 +4354,7 @@ msgstr "Skapad {0}"
 msgid "Created {0} translation"
 msgstr "Skapade {0}-översättning"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
 msgid "Created and updated"
 msgstr "Skapad och uppdaterad"
 
@@ -5020,8 +5020,8 @@ msgstr "Neka AI-träning"
 msgid "Discard"
 msgstr "Kassera"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:351
-#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
 msgid "Discard changes"
 msgstr "Kassera ändringar"
 
@@ -5029,11 +5029,11 @@ msgstr "Kassera ändringar"
 msgid "Discard changes?"
 msgstr "Kassera ändringar?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:356
+#: packages/admin/src/components/ContentSettingsPanel.tsx:357
 msgid "Discard draft changes?"
 msgstr "Kassera ändringar i utkastet?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:360
 #: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "Kasserar …"
@@ -5236,12 +5236,12 @@ msgstr "Utkast"
 msgid "Draft"
 msgstr "Utkast"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:210
-#: packages/admin/src/components/ContentSettingsPanel.tsx:236
+#: packages/admin/src/components/ContentSettingsPanel.tsx:211
+#: packages/admin/src/components/ContentSettingsPanel.tsx:237
 msgid "Draft changes"
 msgstr "Ändringar i utkastet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:172
+#: packages/admin/src/components/ContentSettingsPanel.tsx:173
 msgid "Draft version"
 msgstr "Utkastversion"
 
@@ -5810,7 +5810,7 @@ msgstr "Aktivera spårning för att indexera befintligt innehåll och hålla ref
 msgid "Enabled"
 msgstr "Aktiverad"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1127
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1139
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "Engelska används eftersom inget innehållsspråk är konfigurerat. Innehållsspråket lagras med posten och är skilt från ditt administrationsspråk."
 
@@ -7486,7 +7486,7 @@ msgstr "Slutför pågående redigeringar."
 msgid "First page"
 msgstr "Första sidan"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:186
 msgid "First publication"
 msgstr "Första publicering"
 
@@ -8920,14 +8920,14 @@ msgid "Live"
 msgstr "Live"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
-#: packages/admin/src/components/ContentSettingsPanel.tsx:194
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:257
 msgid "Live version"
 msgstr "Publicerad version"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:728
+#: packages/admin/src/components/ContentSettingsPanel.tsx:729
 msgid "Live View"
 msgstr "Live-vy"
 
@@ -9719,14 +9719,14 @@ msgstr "Flytta till papperskorgen"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1633
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1382
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1388
 msgid "Move to Trash"
 msgstr "Flytta till papperskorgen"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1631
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1369
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1386
 msgid "Move to Trash?"
 msgstr "Flytta till papperskorgen?"
 
@@ -9841,7 +9841,7 @@ msgid "Moving from another EmDash site?"
 msgstr "Flyttar du från en annan EmDash-webbplats?"
 
 #: packages/admin/src/components/ContentList.tsx:1634
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1372
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
 msgid "Moving to trash..."
 msgstr "Flyttar till papperskorgen …"
 
@@ -10809,7 +10809,7 @@ msgstr "Original:"
 msgid "Other"
 msgstr "Övrigt"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1333
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "Disposition"
@@ -10835,8 +10835,8 @@ msgstr "Försenad · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Åsidosätter sidtiteln i sökmotorresultat"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 msgid "Ownership"
 msgstr "Ägarskap"
 
@@ -11218,7 +11218,7 @@ msgstr "Tilläggssidor"
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:396
-#: packages/admin/src/lib/content-editor-panels.tsx:192
+#: packages/admin/src/lib/content-editor-panels.tsx:267
 msgid "Plugin panel unavailable."
 msgstr "Tilläggspanelen är inte tillgänglig."
 
@@ -11369,7 +11369,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "Tryck på blanksteg för att plocka upp en bild. Flytta den med piltangenterna och tryck sedan på blanksteg för att släppa den."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:425
+#: packages/admin/src/components/ContentSettingsPanel.tsx:426
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -11386,7 +11386,7 @@ msgstr "Förhandsgranska ändringar"
 msgid "Preview content before publishing"
 msgstr "Förhandsgranska innehåll innan publicering"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:425
+#: packages/admin/src/components/ContentSettingsPanel.tsx:426
 msgid "Preview draft"
 msgstr "Förhandsgranska utkast"
 
@@ -11467,9 +11467,9 @@ msgstr "Leverantör:"
 msgid "Public routes"
 msgstr "Offentliga rutter"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1030
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1035
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Publiceringsdatum"
@@ -11484,17 +11484,17 @@ msgid "visualEditing.publish"
 msgstr "Publicera"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:536
-#: packages/admin/src/components/ContentSettingsPanel.tsx:982
-#: packages/admin/src/components/ContentSettingsPanel.tsx:987
+#: packages/admin/src/components/ContentSettingsPanel.tsx:537
+#: packages/admin/src/components/ContentSettingsPanel.tsx:994
+#: packages/admin/src/components/ContentSettingsPanel.tsx:999
 msgid "Publish"
 msgstr "Publicera"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish changes"
 msgstr "Publicera ändringar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:505
+#: packages/admin/src/components/ContentSettingsPanel.tsx:506
 msgid "Publish changes?"
 msgstr "Publicera ändringar?"
 
@@ -11504,11 +11504,11 @@ msgid "visualEditing.publishFailed"
 msgstr "Publiceringen misslyckades. Kontrollera dina behörigheter och försök igen."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish now"
 msgstr "Publicera nu"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:505
+#: packages/admin/src/components/ContentSettingsPanel.tsx:506
 msgid "Publish now?"
 msgstr "Publicera nu?"
 
@@ -11575,7 +11575,7 @@ msgstr "Utgivarens versionspolicy"
 msgid "Publishing"
 msgstr "Publicering"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:991
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 msgid "Publishing summary"
 msgstr "Sammanfattning av publicering"
 
@@ -11707,7 +11707,7 @@ msgstr "Läser paketet"
 msgid "Ready"
 msgstr "Klar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:211
+#: packages/admin/src/components/ContentSettingsPanel.tsx:212
 msgid "Ready to publish now or schedule for later"
 msgstr "Redo att publicera nu eller schemalägga till senare"
 
@@ -11999,7 +11999,7 @@ msgid "Remove passkey?"
 msgstr "Ta bort passkey?"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
-#: packages/admin/src/components/ContentSettingsPanel.tsx:639
+#: packages/admin/src/components/ContentSettingsPanel.tsx:640
 msgid "Remove schedule"
 msgstr "Ta bort schemaläggning"
 
@@ -12434,7 +12434,7 @@ msgstr "Utfasad"
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:404
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/lib/content-editor-panels.tsx:201
+#: packages/admin/src/lib/content-editor-panels.tsx:276
 #: packages/admin/src/router.tsx:3508
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
@@ -12540,7 +12540,7 @@ msgstr "Granskar …"
 msgid "Revision not found: {revisionId}"
 msgstr "Revisionen hittades inte: {revisionId}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12728,7 +12728,7 @@ msgid "Save date"
 msgstr "Spara datum"
 
 #: packages/admin/src/components/ContentEditor.tsx:2386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:716
+#: packages/admin/src/components/ContentSettingsPanel.tsx:717
 msgid "Save draft"
 msgstr "Spara utkast"
 
@@ -12786,7 +12786,7 @@ msgstr "Sparas direkt. Ändringar av termer väntar inte på Publicera ändringa
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr "Om du sparar en samling här blir fältet en postväljare. De lagrade post-ID:na flyttas till relationen och det går inte längre att söka eller filtrera på fältet."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:175
+#: packages/admin/src/components/ContentSettingsPanel.tsx:176
 msgid "Saving creates a draft that stays off the site. You can publish it after the first save."
 msgstr "När du sparar skapas ett utkast som inte visas på webbplatsen. Du kan publicera det när du har sparat en gång."
 
@@ -12832,7 +12832,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Skanna den med en telefon eller surfplatta i närheten."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:619
+#: packages/admin/src/components/ContentSettingsPanel.tsx:620
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Schemalägg"
@@ -12871,12 +12871,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr "Schemalagda poster visas här med sin publiceringstid."
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:151
+#: packages/admin/src/components/ContentSettingsPanel.tsx:152
 msgid "Scheduled for {0}"
 msgstr "Schemalagd till {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:159
-#: packages/admin/src/components/ContentSettingsPanel.tsx:262
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
+#: packages/admin/src/components/ContentSettingsPanel.tsx:263
 msgid "Scheduled publication"
 msgstr "Schemalagd publicering"
 
@@ -13487,8 +13487,8 @@ msgstr "Avsändarnamn (valfritt)"
 msgid "Sending..."
 msgstr "Skickar …"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1238
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1241
 #: packages/admin/src/components/ContentTypeEditor.tsx:700
 #: packages/admin/src/components/Settings.tsx:67
 msgid "SEO"
@@ -13682,7 +13682,7 @@ msgstr "Visar {pageShowingRange} av {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "Visas i administrationen. Vissa teman visar det även på webbplatsen."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
 msgid "Shown to readers in this order."
 msgstr "Visas för läsarna i den här ordningen."
 
@@ -13896,7 +13896,7 @@ msgstr "Överhoppad"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:518
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -14372,7 +14372,7 @@ msgstr "Mål"
 msgid "Target locale"
 msgstr "Målspråk"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1225
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
 #: packages/admin/src/router.tsx:2889
@@ -15017,7 +15017,7 @@ msgstr "Den här samlingen är definierad i kod. Vissa inställningar kan inte �
 msgid "This content cannot be edited safely"
 msgstr "Innehållet kan inte redigeras säkert"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:510
+#: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "This content will be visible on the site immediately."
 msgstr "Innehållet syns direkt på webbplatsen."
 
@@ -15282,7 +15282,7 @@ msgstr "Skribentprofilen tas bort. Kopplingar till skribenten i innehållet tas 
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Relationen tas bort tillsammans med alla länkar som lagrats i den och de referensfält som använder den:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:507
+#: packages/admin/src/components/ContentSettingsPanel.tsx:508
 msgid "This removes the schedule and publishes immediately."
 msgstr "Schemaläggningen tas bort och innehållet publiceras direkt."
 
@@ -15373,7 +15373,7 @@ msgstr "Uppdateringen gör följande rutter tillgängliga utan autentisering:"
 msgid "This version can't be shown."
 msgstr "Den här versionen kan inte visas."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:176
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
 msgid "This version is not visible on the site"
 msgstr "Den här versionen syns inte på webbplatsen"
 
@@ -15385,7 +15385,7 @@ msgstr "Videon kan inte spelas upp."
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Widgetområdet och alla dess widgetar tas bort. Åtgärden kan inte ångras."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1370
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Objektet flyttas till papperskorgen. Du kan återställa det senare från papperskorgen."
 
@@ -15407,7 +15407,7 @@ msgstr "Kommentaren tas bort permanent. Åtgärden kan inte ångras."
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Tillägget och dess paket tas bort från webbplatsen."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Innehållet återställs till den publicerade versionen. Dina utkastsändringar går förlorade."
 
@@ -15558,7 +15558,7 @@ msgstr "Översätter …"
 msgid "Translation created"
 msgstr "Översättning skapad"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1203
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Översättningar"
@@ -15759,8 +15759,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Kunde inte nå marknadsplatsen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1407
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1424
 msgid "Unassigned"
 msgstr "Otilldelad"
 
@@ -15832,7 +15832,7 @@ msgstr "Namnlös passkey"
 msgid "Unnamed user"
 msgstr "Namnlös användare"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "Unpublish {itemLabel}"
 msgstr "Avpublicera {itemLabel}"
 
@@ -15960,7 +15960,7 @@ msgid "Update to v{0}"
 msgstr "Uppdatera till v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
 #: packages/admin/src/components/ContentTypeEditor.tsx:679
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -16130,8 +16130,8 @@ msgstr "Laddar upp video …"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1108
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1120
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1123
 msgid "URL & language"
 msgstr "URL och språk"
 
@@ -16499,20 +16499,20 @@ msgstr "Besökare kan öppna webbplatsen, men sökmotorer ombeds att inte indexe
 msgid "Visitors hitting these paths will see an error."
 msgstr "Besökare som går till de här sökvägarna får ett felmeddelande."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:232
 msgid "Visitors see the published version until the scheduled update"
 msgstr "Besökare ser den publicerade versionen fram till den schemalagda uppdateringen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:195
-#: packages/admin/src/components/ContentSettingsPanel.tsx:257
+#: packages/admin/src/components/ContentSettingsPanel.tsx:196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:258
 msgid "Visitors see this published version"
 msgstr "Besökare ser den här publicerade versionen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:206
 msgid "Visitors still see the published version"
 msgstr "Besökare ser fortfarande den publicerade versionen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:509
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Visitors will see these changes immediately."
 msgstr "Besökare ser ändringarna direkt."
 
@@ -16671,7 +16671,7 @@ msgstr "Vilka innehållstyper som kan använda den här taxonomin"
 msgid "Whole number"
 msgstr "Heltal"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1178
 msgid "Why are bylines shown in this order?"
 msgstr "Varför visas skribenterna i den här ordningen?"
 
@@ -16679,7 +16679,7 @@ msgstr "Varför visas skribenterna i den här ordningen?"
 msgid "Why can't this be changed?"
 msgstr "Varför går det inte att ändra?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1140
 msgid "Why English is used"
 msgstr "Varför engelska används"
 
