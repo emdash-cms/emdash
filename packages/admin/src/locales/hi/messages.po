@@ -142,17 +142,17 @@ msgid "\"{0}\" and its nested items will be removed from this menu. This action 
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1894
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "\"{0}\" {providerName} से हटा दिया जाएगा."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1895
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "\"{0}\" अपने मीडिया प्रोवाइडर से हटा दिया जाएगा."
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1907
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" हमेशा के लिए हटा दिया जाएगा."
 
@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# आइटम)} other {(# आइटम)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3277
+#: packages/admin/src/components/ContentEditor.tsx:3909
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {# में से {counted} अक्षर, कम से कम {min}} other {# में से {counted} अक्षर, कम से कम {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3282
+#: packages/admin/src/components/ContentEditor.tsx:3914
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {# में से {counted} अक्षर} other {# में से {counted} अक्षर}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# टिप्पणी आयातित} other {# टिप्पणियाँ आयात की गईं}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2470
+#: packages/admin/src/router.tsx:2530
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# टिप्पणी अपडेट की गई} other {# टिप्पणियाँ अपडेट की गईं}}"
 
@@ -241,6 +241,11 @@ msgstr "{0, plural, one {# सामग्री आइटम आयात क�
 msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# एंट्री} other {# एंट्रीज़}}"
 
+#. placeholder {0}: count ?? issues.length
+#: packages/admin/src/components/BlocksField.tsx:557
+msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
+msgstr ""
+
 #. placeholder {0}: relation.boundFields.length
 #: packages/admin/src/components/RelationList.tsx:189
 msgid "{0, plural, one {# field} other {# fields}}"
@@ -258,7 +263,7 @@ msgstr "{0, plural, one {# फ़ाइल नहीं जोड़ी गई �
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1514
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 #: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {# फ़ोल्डर लोड हुआ} other {# फ़ोल्डर लोड हुए}}"
@@ -354,7 +359,7 @@ msgstr "{0, plural, one {यह सामग्री प्रकार # स�
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5487
+#: packages/admin/src/components/PortableTextEditor.tsx:5578
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# पंक्ति} other {# पंक्तियाँ}} × {1, plural, one {# कॉलम} other {# कॉलम}} चयनित"
 
@@ -404,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {# वीडियो जोड़ें} other {# वीडियो जोड़ें}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3287
+#: packages/admin/src/components/ContentEditor.tsx:3919
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {कम से कम # अक्षर} other {कम से कम # अक्षर}}"
 
@@ -553,17 +558,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{1} में से {0} चरण · {3} में से {2}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:755
+#: packages/admin/src/router.tsx:782
 msgid "{0} of {total} could not be deleted"
 msgstr "{total} में से {0} को हटाया नहीं जा सका"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:711
+#: packages/admin/src/router.tsx:738
 msgid "{0} of {total} could not be published"
 msgstr "{total} का {0} प्रकाशित नहीं किया जा सका"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:761
 msgid "{0} of {total} could not be updated"
 msgstr "{total} में से {0} को अद्यतन नहीं किया जा सका"
 
@@ -659,6 +664,7 @@ msgstr "{count, plural, one {# एंट्री} other {# एंट्री�
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# फ़ाइल} other {# फ़ाइलें}}"
 
+#: packages/admin/src/components/BlockListField.tsx:165
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
 #: packages/admin/src/components/WordPressImport.tsx:2408
 msgid "{count, plural, one {# item} other {# items}}"
@@ -672,7 +678,7 @@ msgstr "{current} का {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:123
+#: packages/admin/src/components/revisions/revision-format.ts:124
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -706,7 +712,7 @@ msgstr "{hidden, plural, one {{date} पर # और एंट्री} other {
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# और} other {+# और}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:390
+#: packages/admin/src/components/revisions/RevisionList.tsx:393
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {# और दिखाएँ} other {# और दिखाएँ}}"
 
@@ -725,6 +731,20 @@ msgstr "{label} - कोई अनुवाद नहीं"
 #: packages/admin/src/components/LocaleSwitcher.tsx:117
 msgid "{label} — view translation"
 msgstr "{label} - अनुवाद देखें"
+
+#: packages/admin/src/components/BlocksField.tsx:1648
+msgid "{label} · version {versionNumber}"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:1113
+#: packages/admin/src/components/BlockListField.tsx:1156
+msgid "{label} {position}"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:1022
+#: packages/admin/src/components/BlocksField.tsx:1599
+msgid "{label} actions"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:261
 msgid "{label} in {menuName}"
@@ -749,9 +769,17 @@ msgstr "{label} के विकल्प"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
+#: packages/admin/src/components/BlocksField.tsx:2283
+msgid "{label}: {value}"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
 msgstr "{lateness} देर से"
+
+#: packages/admin/src/components/BlocksField.tsx:1238
+msgid "{list} +{more}"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1442
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
@@ -773,6 +801,18 @@ msgstr "{maximum, plural, one {{name} में अधिकतम # अक्�
 msgid "{maximum, plural, one {{name} can have at most # item.} other {{name} can have at most # items.}}"
 msgstr "{maximum, plural, one {{name} में अधिकतम # आइटम हो सकता है।} other {{name} में अधिकतम # आइटम हो सकते हैं।}}"
 
+#: packages/admin/src/components/block-field-notes.tsx:75
+msgid "{maximum, plural, one {Keep to # item} other {Keep to # items}}"
+msgstr ""
+
+#: packages/admin/src/components/block-field-notes.tsx:78
+msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:495
+msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
+msgstr ""
+
 #: packages/admin/src/lib/content-validation-errors.ts:81
 msgid "{minimum, plural, one {{name} needs at least # character.} other {{name} needs at least # characters.}}"
 msgstr "{minimum, plural, one {{name} में कम से कम # अक्षर होना चाहिए।} other {{name} में कम से कम # अक्षर होने चाहिए।}}"
@@ -780,6 +820,24 @@ msgstr "{minimum, plural, one {{name} में कम से कम # अक्
 #: packages/admin/src/lib/content-validation-errors.ts:87
 msgid "{minimum, plural, one {{name} needs at least # item.} other {{name} needs at least # items.}}"
 msgstr "{minimum, plural, one {{name} में कम से कम # आइटम होना चाहिए।} other {{name} में कम से कम # आइटम होने चाहिए।}}"
+
+#: packages/admin/src/components/block-field-notes.tsx:61
+msgid "{minimum, plural, one {Add at least # item} other {Add at least # items}}"
+msgstr ""
+
+#: packages/admin/src/components/block-field-notes.tsx:64
+msgid "{minimum, plural, one {Use at least # character} other {Use at least # characters}}"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:662
+#: packages/admin/src/components/BlocksField.tsx:1044
+msgid "{moved} is already first"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:662
+#: packages/admin/src/components/BlocksField.tsx:1045
+msgid "{moved} is already last"
+msgstr ""
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
@@ -796,6 +854,10 @@ msgstr "{name} का वैल्यू अमान्य है।"
 #: packages/admin/src/lib/content-validation-errors.ts:69
 msgid "{name} is not a field in this collection."
 msgstr "{name} इस संग्रह का फ़ील्ड नहीं है।"
+
+#: packages/admin/src/components/useDragAnnouncements.ts:59
+msgid "{name} is over position {position} of {total}"
+msgstr ""
 
 #: packages/admin/src/lib/content-validation-errors.ts:67
 msgid "{name} is required."
@@ -817,6 +879,10 @@ msgstr "{name} का वैल्यू कम से कम {bound} होन�
 msgid "{name} must be at most {bound}."
 msgstr "{name} का वैल्यू अधिकतम {bound} होना चाहिए।"
 
+#: packages/admin/src/components/useDragAnnouncements.ts:40
+msgid "{name} was not moved"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/labels.ts:101
 msgid "{name}: this site already has some"
 msgstr "{name}: इस साइट पर कुछ पहले से मौजूद हैं"
@@ -828,10 +894,6 @@ msgstr "{needsNewCollections, plural, one {# नया संग्रह बन
 #: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {फ़ील्ड्स को # मौजूदा संग्रह में जोड़ा जाएगा} other {फ़ील्ड्स को # मौजूदा संग्रह में जोड़ा जाएगा}}"
-
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
-msgid "{origin} does not serve this site yet"
-msgstr "{origin} पर यह साइट अभी उपलब्ध नहीं है"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:53
 msgid "{origin} redirects elsewhere"
@@ -913,7 +975,7 @@ msgstr "{row} × {column} टेबल"
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr "{rows, plural, one {पंक्ति हटा दी गई} other {# पंक्तियाँ हटा दी गईं}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3669
+#: packages/admin/src/components/PortableTextEditor.tsx:3701
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} टेबल पेस्ट की गई"
 
@@ -957,17 +1019,25 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, आइटम {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:238
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "{title} is a draft again."
 msgstr "{title} फिर से ड्राफ्ट है।"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 msgid "{title} is now live."
 msgstr "{title} अब लाइव है।"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "{title} now goes live {when}."
 msgstr "{title} अब {when} लाइव होगा।"
+
+#: packages/admin/src/components/BlocksField.tsx:945
+msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:951
+msgid "{toFix, plural, one {# to fix} other {# to fix}}"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1448
 msgid "{total, plural, one {# item} other {# items}}"
@@ -1048,6 +1118,7 @@ msgstr "<0>{name}</0> इस एंट्री को संपादित क
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "इस एंट्री का संपादन अब <0>{name}</0> के नियंत्रण में है, इसलिए आपके बदलाव अब सहेजे नहीं जा रहे हैं। जारी रखने के लिए संपादन का नियंत्रण वापस लें।"
 
+#: packages/admin/src/components/BlocksField.tsx:1408
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:231
 msgid "<0>Alt-click</0> to add above"
 msgstr "ऊपर जोड़ने के लिए <0>Alt-क्लिक</0> करें"
@@ -1056,10 +1127,12 @@ msgstr "ऊपर जोड़ने के लिए <0>Alt-क्लिक</0>
 msgid "<0>Click</0> to add below"
 msgstr "नीचे जोड़ने के लिए <0>क्लिक</0> करें"
 
+#: packages/admin/src/components/BlocksField.tsx:1454
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:273
 msgid "<0>Click</0> to open menu"
 msgstr "मेनू खोलने के लिए <0>क्लिक</0> करें"
 
+#: packages/admin/src/components/BlocksField.tsx:1450
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:269
 msgid "<0>Drag</0> to move"
 msgstr "ले जाने के लिए <0>खींचें</0>"
@@ -1080,7 +1153,7 @@ msgstr "1. अपने वर्डप्रेस एडमिन में �
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. अपने वर्डप्रेस एडमिन डैशबोर्ड में लॉग इन करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:542
+#: packages/admin/src/components/MediaDetailPanel.tsx:544
 msgid "16:9"
 msgstr "16:9"
 
@@ -1092,7 +1165,7 @@ msgstr "2. <0>टूल्स → एक्सपोर्ट</0> पर जा�
 msgid "2. Go to Users → Profile"
 msgstr "2. उपयोगकर्ता → प्रोफ़ाइल पर जाएँ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:541
+#: packages/admin/src/components/MediaDetailPanel.tsx:543
 msgid "3:2"
 msgstr "3:2"
 
@@ -1124,7 +1197,7 @@ msgstr "307 अस्थायी (सख्त)"
 msgid "308 Permanent (Strict)"
 msgstr "308 स्थायी (सख्त)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:540
+#: packages/admin/src/components/MediaDetailPanel.tsx:542
 msgid "4:3"
 msgstr "4:3"
 
@@ -1219,7 +1292,7 @@ msgstr "पैकेज की एक फ़ाइल गायब है"
 msgid "A publication time has not been selected"
 msgstr "प्रकाशन का समय नहीं चुना गया है"
 
-#: packages/admin/src/components/ContentEditor.tsx:1473
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "A publishing action is already in progress"
 msgstr "प्रकाशन की एक ऐक्शन पहले से चल रही है"
 
@@ -1286,7 +1359,7 @@ msgstr "यह आयात छोड़ दें?"
 msgid "Abandoning…"
 msgstr "आयात छोड़ा जा रहा है…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:534
+#: packages/admin/src/components/MediaDetailPanel.tsx:536
 msgid "About focal point"
 msgstr "फ़ोकल पॉइंट के बारे में"
 
@@ -1302,6 +1375,10 @@ msgstr "स्वीकार करें और इंस्टॉल कर�
 msgid "Accept & Update"
 msgstr "स्वीकार करें और अपडेट करें"
 
+#: packages/admin/src/router.tsx:467
+msgid "Accept invitation"
+msgstr ""
+
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
 msgid "Accept Invite"
@@ -1313,7 +1390,7 @@ msgstr "आमंत्रण स्वीकार करें"
 msgid "Access denied"
 msgstr "पहुंच अस्वीकृत"
 
-#: packages/admin/src/router.tsx:2492
+#: packages/admin/src/router.tsx:2552
 msgid "Access Denied"
 msgstr "पहुंच अस्वीकृत"
 
@@ -1342,6 +1419,7 @@ msgstr "खाते की जानकारी"
 msgid "ACF Fields"
 msgstr "एसीएफ फील्ड्स"
 
+#: packages/admin/src/components/BlockListField.tsx:736
 #: packages/admin/src/components/comments/CommentInbox.tsx:365
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
@@ -1425,6 +1503,10 @@ msgstr "1 पोस्ट में {singularLower} जोड़ें"
 msgid "Add {singularLower} to posts"
 msgstr "पोस्ट में {singularLower} जोड़ें"
 
+#: packages/admin/src/components/BlocksField.tsx:2222
+msgid "Add a caption"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:334
 msgid "Add a detail every byline can fill in, such as a job title."
 msgstr ""
@@ -1446,7 +1528,7 @@ msgstr "अपनी कंटेंट पर श्रेय देने क�
 msgid "Add another byline"
 msgstr "एक और बायलाइन जोड़ें"
 
-#: packages/admin/src/components/BlocksField.tsx:283
+#: packages/admin/src/components/BlocksField.tsx:1069
 msgid "Add at least {minItems} blocks."
 msgstr "कम से कम {minItems} ब्लॉक जोड़ें।"
 
@@ -1460,9 +1542,23 @@ msgstr ""
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "पुनरावर्तक संरचना को परिभाषित करने के लिए कम से कम एक उप-फ़ील्ड जोड़ें।"
 
-#: packages/admin/src/components/BlocksField.tsx:184
+#: packages/admin/src/components/BlocksField.tsx:908
+#: packages/admin/src/components/BlockTypePicker.tsx:80
 msgid "Add block"
 msgstr "ब्लॉक जोड़ें"
+
+#: packages/admin/src/components/BlocksField.tsx:1629
+msgid "Add block above"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:1406
+#: packages/admin/src/components/BlocksField.tsx:1630
+msgid "Add block below"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:1425
+msgid "Add block below {label}"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:316
 msgid "Add byline"
@@ -1470,12 +1566,12 @@ msgstr "बायलाइन जोड़ें"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5940
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Add caption"
 msgstr "कैप्शन जोड़ें"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5500
+#: packages/admin/src/components/PortableTextEditor.tsx:5591
 msgid "Add column after"
 msgstr "बाद में कॉलम जोड़ें"
 
@@ -1494,7 +1590,7 @@ msgstr "सामग्री जोड़ें"
 msgid "Add Custom Link"
 msgstr "कस्टम लिंक जोड़ें"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:472
+#: packages/admin/src/components/ImageFieldRenderer.tsx:618
 msgid "Add dark mode variant"
 msgstr "डार्क मोड वेरिएंट जोड़ें"
 
@@ -1537,6 +1633,7 @@ msgstr "छवियां जोड़ें"
 msgid "Add images to gallery"
 msgstr "गैलरी में छवियाँ जोड़ें"
 
+#: packages/admin/src/components/BlockListField.tsx:885
 #: packages/admin/src/components/PortableTextEditor.tsx:3019
 msgid "Add item"
 msgstr "मद जोड़ें"
@@ -1545,9 +1642,21 @@ msgstr "मद जोड़ें"
 msgid "Add Item"
 msgstr "मद जोड़ें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5124
-#: packages/admin/src/components/PortableTextEditor.tsx:5933
-#: packages/admin/src/components/PortableTextEditor.tsx:6382
+#: packages/admin/src/components/BlockListField.tsx:1046
+msgid "Add item above"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:1047
+msgid "Add item below"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:882
+msgid "Add item to {label}"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6473
 msgid "Add link"
 msgstr "लिंक जोड़ें"
 
@@ -1573,12 +1682,16 @@ msgstr "नया फ़ोल्डर जोड़ें"
 msgid "Add noindex meta tag"
 msgstr "नोइंडेक्स मेटा टैग जोड़ें"
 
+#: packages/admin/src/components/PortableTextEditor.tsx:3781
+msgid "Add one or more link buttons"
+msgstr ""
+
 #: packages/admin/src/components/settings/SecuritySettings.tsx:198
 msgid "Add Passkey"
 msgstr "पासकी जोड़ें"
 
-#: packages/admin/src/components/ContentEditor.tsx:3194
-#: packages/admin/src/components/ContentEditor.tsx:3194
+#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Add reference"
 msgstr "संदर्भ जोड़ें"
 
@@ -1591,7 +1704,7 @@ msgid "Add row above"
 msgstr "ऊपर पंक्ति जोड़ें"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5493
+#: packages/admin/src/components/PortableTextEditor.tsx:5584
 msgid "Add row below"
 msgstr "नीचे पंक्ति जोड़ें"
 
@@ -1742,9 +1855,14 @@ msgstr "व्यवस्थापक नेविगेशन"
 msgid "Administrator"
 msgstr "प्रशासक"
 
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2013
 msgid "Advanced"
 msgstr "उन्नत"
+
+#: packages/admin/src/components/BlocksField.tsx:2327
+msgid "Advanced: {blockLabel}"
+msgstr ""
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
 msgid "After"
@@ -1781,25 +1899,25 @@ msgid "Agent-callable MCP tools"
 msgstr "एजेंट-कॉल करने योग्य एमसीपी उपकरण"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5479
 msgid "Align"
 msgstr "संरेखित करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6556
+#: packages/admin/src/components/PortableTextEditor.tsx:6647
 msgid "Align center"
 msgstr "मध्य में संरेखित करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6548
+#: packages/admin/src/components/PortableTextEditor.tsx:6639
 msgid "Align left"
 msgstr "बाएँ संरेखित करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6564
+#: packages/admin/src/components/PortableTextEditor.tsx:6655
 msgid "Align right"
 msgstr "दाएँ संरेखित करें"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:5914
+#: packages/admin/src/components/PortableTextEditor.tsx:6005
 msgid "Alignment"
 msgstr "संरेखण"
 
@@ -1884,6 +2002,7 @@ msgid "Allowed block types"
 msgstr "अनुमत ब्लॉक प्रकार"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
+#: packages/admin/src/router.tsx:2629
 msgid "Allowed Domains"
 msgstr "अनुमत डोमेन"
 
@@ -1924,14 +2043,14 @@ msgstr "ऑल्ट टेक्स्ट"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1176
-#: packages/admin/src/components/PortableTextEditor.tsx:5845
-#: packages/admin/src/components/PortableTextEditor.tsx:5911
+#: packages/admin/src/components/PortableTextEditor.tsx:5936
+#: packages/admin/src/components/PortableTextEditor.tsx:6002
 msgid "Alt text"
 msgstr "ऑल्ट टेक्स्ट"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1582
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
+#: packages/admin/src/components/MediaDetailPanel.tsx:1597
 msgid "Alt Text"
 msgstr "ऑल्ट टेक्स्ट"
 
@@ -1993,19 +2112,18 @@ msgstr "एक एन्क्रिप्टेड डिजिटल कुं
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:665
-#: packages/admin/src/router.tsx:686
-#: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1341
-#: packages/admin/src/router.tsx:1464
-#: packages/admin/src/router.tsx:1498
-#: packages/admin/src/router.tsx:1522
-#: packages/admin/src/router.tsx:1606
-#: packages/admin/src/router.tsx:1639
-#: packages/admin/src/router.tsx:2442
-#: packages/admin/src/router.tsx:2478
-#: packages/admin/src/router.tsx:2906
-#: packages/admin/src/router.tsx:3093
+#: packages/admin/src/router.tsx:692
+#: packages/admin/src/router.tsx:713
+#: packages/admin/src/router.tsx:938
+#: packages/admin/src/router.tsx:1396
+#: packages/admin/src/router.tsx:1554
+#: packages/admin/src/router.tsx:1578
+#: packages/admin/src/router.tsx:1662
+#: packages/admin/src/router.tsx:1695
+#: packages/admin/src/router.tsx:2502
+#: packages/admin/src/router.tsx:2538
+#: packages/admin/src/router.tsx:2996
+#: packages/admin/src/router.tsx:3186
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "एक एरर हुआ"
@@ -2030,7 +2148,7 @@ msgstr "निर्यात फ़ाइल का विश्लेषण �
 msgid "Analyzing WordPress site..."
 msgstr "वर्डप्रेस साइट का विश्लेषण किया जा रहा है..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1742
+#: packages/admin/src/components/MediaDetailPanel.tsx:1753
 msgid "Animated WebP files become still images when cropped."
 msgstr "क्रॉप करने पर एनिमेटेड WebP फ़ाइलें स्थिर छवियाँ बन जाती हैं।"
 
@@ -2104,6 +2222,7 @@ msgstr "कोई भी संख्या"
 #: packages/admin/src/components/Settings.tsx:103
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
+#: packages/admin/src/router.tsx:2637
 msgid "API Tokens"
 msgstr "एपीआई टोकन"
 
@@ -2116,7 +2235,7 @@ msgid "Application Password"
 msgstr "एप्लिकेशन पासवर्ड"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6647
+#: packages/admin/src/components/PortableTextEditor.tsx:6738
 msgid "Apply"
 msgstr "आवेदन करना"
 
@@ -2124,8 +2243,8 @@ msgstr "आवेदन करना"
 msgid "Apply changes"
 msgstr "परिवर्तन लागू करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5098
-#: packages/admin/src/components/PortableTextEditor.tsx:5886
+#: packages/admin/src/components/PortableTextEditor.tsx:5189
+#: packages/admin/src/components/PortableTextEditor.tsx:5977
 msgid "Apply link"
 msgstr "लिंक लागू करें"
 
@@ -2214,7 +2333,7 @@ msgstr ""
 msgid "Ask an administrator to complete this setup."
 msgstr "यह सेटअप पूरा करने के लिए किसी व्यवस्थापक से कहें।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1682
+#: packages/admin/src/components/MediaDetailPanel.tsx:1693
 msgid "Aspect ratio"
 msgstr "आस्पेक्ट रेशियो"
 
@@ -2230,17 +2349,22 @@ msgstr "MCP के माध्यम से जुड़े असिस्ट�
 msgid "Astro"
 msgstr "खगोल"
 
-#: packages/admin/src/components/ContentEditor.tsx:3310
+#: packages/admin/src/components/ContentEditor.tsx:3942
 msgid "At least {min}"
 msgstr "कम से कम {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3307
+#: packages/admin/src/components/ContentEditor.tsx:3939
 msgid "At most {max}"
 msgstr "अधिकतम {max}"
 
 #: packages/admin/src/components/RelationForm.tsx:505
 msgid "At most…"
 msgstr "अधिकतम…"
+
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
@@ -2276,7 +2400,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "ऑथेंटिकेशन रद्द कर दिया गया था या समय समाप्त हो गया था. कृपया पुन: प्रयास करें।"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2298,6 +2422,10 @@ msgstr "ऑथराइज़ेशन असफल रहा"
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:297
 msgid "Authorize"
 msgstr "अधिकृत"
+
+#: packages/admin/src/router.tsx:478
+msgid "Authorize device"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
@@ -2356,9 +2484,13 @@ msgstr "ऑटोमेटिक बैकअप"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "ऑटोमेटिक बैकअप के लिए स्टोरेज बैकएंड (R2, S3, या लोकल स्टोरेज) की आवश्यकता होती है। उन्हें सक्षम करने के लिए अपने EmDash कॉन्फ़िगरेशन में स्टोरेज कॉन्फ़िगर करें।"
 
-#: packages/admin/src/router.tsx:1461
+#: packages/admin/src/router.tsx:1522
 msgid "Autosave failed"
 msgstr "ऑटोसेव असफल रहा"
+
+#: packages/admin/src/components/ContentEditor.tsx:230
+msgid "Autosave paused"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:353
 msgid "Available bylines"
@@ -2393,7 +2525,7 @@ msgstr "वापस"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1814
-#: packages/admin/src/components/MediaDetailPanel.tsx:1786
+#: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
@@ -2401,7 +2533,7 @@ msgstr "वापस"
 msgid "Back"
 msgstr "पीछे"
 
-#: packages/admin/src/components/ContentEditor.tsx:1713
+#: packages/admin/src/components/ContentEditor.tsx:1971
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel} सूची पर वापस जाएँ"
 
@@ -2482,6 +2614,7 @@ msgstr "बैकअप सेटिंग्स सहेजी गईं"
 
 #: packages/admin/src/components/Settings.tsx:118
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
+#: packages/admin/src/router.tsx:2653
 msgid "Backups"
 msgstr "बैकअप"
 
@@ -2509,7 +2642,7 @@ msgstr "भेजने से पहले:"
 msgid "Before you continue:"
 msgstr "जारी रखने से पहले:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3304
+#: packages/admin/src/components/ContentEditor.tsx:3936
 msgid "Between {min} and {max}"
 msgstr "{min} और {max} के बीच"
 
@@ -2524,11 +2657,6 @@ msgstr "जैव"
 #: packages/admin/src/components/editor/BlockMenu.tsx:92
 msgid "Block"
 msgstr "ब्लॉक"
-
-#. placeholder {0}: index + 1
-#: packages/admin/src/components/BlocksField.tsx:423
-msgid "Block {0}"
-msgstr "ब्लॉक {0}"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:138
 msgid "Block actions"
@@ -2549,6 +2677,7 @@ msgid "Block type versions"
 msgstr "ब्लॉक प्रकार के संस्करण"
 
 #: packages/admin/src/components/BlockTypeList.tsx:28
+#: packages/admin/src/components/BlockTypePicker.tsx:163
 #: packages/admin/src/components/settings/transfer/labels.ts:9
 msgid "Block types"
 msgstr "ब्लॉक प्रकार"
@@ -2565,8 +2694,8 @@ msgstr "बाधाएँ"
 msgid "Blocks"
 msgstr "ब्लॉक"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4875
-#: packages/admin/src/components/PortableTextEditor.tsx:6416
+#: packages/admin/src/components/PortableTextEditor.tsx:4966
+#: packages/admin/src/components/PortableTextEditor.tsx:6507
 msgid "Bold"
 msgstr "बोल्ड"
 
@@ -2627,9 +2756,18 @@ msgstr "बिल्ड प्रोवेनंस जाँचा हुआ �
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2054
-#: packages/admin/src/components/PortableTextEditor.tsx:6473
+#: packages/admin/src/components/PortableTextEditor.tsx:6564
 msgid "Bullet List"
 msgstr "बुलेट सूची"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3798
+msgid "button"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3779
+#: packages/admin/src/components/PortableTextEditor.tsx:3797
+msgid "Buttons"
+msgstr ""
 
 #: packages/admin/src/routes/bylines.tsx:537
 msgid "byline"
@@ -2674,6 +2812,7 @@ msgid "Byline schema"
 msgstr "बाइलाइन स्कीमा"
 
 #: packages/admin/src/components/Sidebar.tsx:552
+#: packages/admin/src/router.tsx:2933
 msgid "Byline Schema"
 msgstr "बाइलाइन स्कीमा"
 
@@ -2682,12 +2821,13 @@ msgid "Byline updated"
 msgstr "बायलाइन अपडेट की गई"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1125
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1129
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
+#: packages/admin/src/router.tsx:2922
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "नाम पंक्तियां"
@@ -2707,6 +2847,7 @@ msgstr "सी++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
+#: packages/admin/src/router.tsx:545
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "कैलेंडर"
@@ -2735,13 +2876,13 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:538
+#: packages/admin/src/components/ContentSettingsPanel.tsx:547
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
 #: packages/admin/src/components/FieldEditor.tsx:1819
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:575
@@ -2750,9 +2891,9 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PluginManager.tsx:822
 #: packages/admin/src/components/PortableTextEditor.tsx:2818
-#: packages/admin/src/components/PortableTextEditor.tsx:5857
-#: packages/admin/src/components/PortableTextEditor.tsx:5883
-#: packages/admin/src/components/PortableTextEditor.tsx:6631
+#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:6722
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -2761,7 +2902,7 @@ msgstr "सामग्री देख सकते हैं"
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:277
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:420
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:202
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:216
 #: packages/admin/src/components/settings/SecuritySettings.tsx:177
 #: packages/admin/src/components/TaxonomyManager.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:825
@@ -2821,7 +2962,7 @@ msgstr "क्षमताओं"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 #: packages/admin/src/components/editor/ImageNode.tsx:311
 #: packages/admin/src/components/editor/VideoNode.tsx:332
-#: packages/admin/src/components/MediaDetailPanel.tsx:1597
+#: packages/admin/src/components/MediaDetailPanel.tsx:1608
 msgid "Caption"
 msgstr "कैप्शन"
 
@@ -2861,8 +3002,8 @@ msgstr "सेल मर्ज किए गए"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5392
-#: packages/admin/src/components/PortableTextEditor.tsx:5513
+#: packages/admin/src/components/PortableTextEditor.tsx:5483
+#: packages/admin/src/components/PortableTextEditor.tsx:5604
 msgid "Center"
 msgstr "केंद्र"
 
@@ -2879,7 +3020,7 @@ msgstr "परिवर्तन"
 msgid "Change <0>{0}</0> from <1>{1}</1> to <2>{2}</2>? They will lose access to higher-level features."
 msgstr "<0>{0}</0> को <1>{1}</1> से <2>{2}</2> में बदलें? वे उच्च-स्तरीय सुविधाओं तक पहुंच खो देंगे."
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:141
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
 #: packages/admin/src/components/settings/GeneralSettings.tsx:393
 msgid "Change domain"
 msgstr "डोमेन बदलें"
@@ -2909,7 +3050,7 @@ msgstr "प्रकाशन तिथि बदलें"
 msgid "Change publication date: {0}"
 msgstr "प्रकाशित करने की तारीख बदलें: {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "शेड्यूल बदलें"
@@ -2996,11 +3137,11 @@ msgstr "बदलाव का"
 msgid "Changes apply everywhere this byline appears."
 msgstr "परिवर्तन हर उस जगह लागू होते हैं जहाँ यह बायलाइन दिखती है।"
 
-#: packages/admin/src/router.tsx:1539
+#: packages/admin/src/router.tsx:1595
 msgid "Changes discarded"
 msgstr "परिवर्तन खारिज कर दिए गए"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:347
+#: packages/admin/src/components/revisions/RevisionList.tsx:350
 msgid "Changes in this version"
 msgstr "इस वर्शन में बदलाव"
 
@@ -3012,7 +3153,7 @@ msgstr "परिवर्तन सहेजे गए, लेकिन कै�
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "पृष्ठ शीर्षक और साइट नाम के बीच वर्ण (उदाहरण के लिए, \"मेरी पोस्ट | मेरी साइट\")"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
 msgstr "जाँचें और बदलें"
 
@@ -3039,6 +3180,10 @@ msgstr "astro.config.mjs में registry.policy.minimumReleaseAgeExclude ज�
 #: packages/admin/src/components/WordPressImport.tsx:1145
 msgid "Check Site"
 msgstr "साइट जांचें"
+
+#: packages/admin/src/components/block-field-notes.tsx:52
+msgid "Check the format"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:476
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
@@ -3099,7 +3244,7 @@ msgstr "इस डिवाइस पर पासकी समर्थन ज�
 msgid "Checking this site"
 msgstr "यह साइट जाँची जा रही है"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:204
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
 msgstr "जाँचा जा रहा है…"
 
@@ -3136,7 +3281,7 @@ msgid "Choose a file from the library or upload a new one."
 msgstr "लाइब्रेरी से कोई फ़ाइल चुनें या नई अपलोड करें।"
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:925
+#: packages/admin/src/components/MediaDetailPanel.tsx:927
 msgid "Choose a non-empty {0} image."
 msgstr "कोई नॉन-एम्प्टी {0} छवि चुनें।"
 
@@ -3185,12 +3330,16 @@ msgstr "बायलाइन चुनें"
 msgid "Choose files to upload"
 msgstr "अपलोड करने के लिए फ़ाइलें चुनें"
 
+#: packages/admin/src/components/block-field-notes.tsx:55
+msgid "Choose one of the options"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:269
 msgid "Choose package file"
 msgstr "पैकेज फ़ाइल चुनें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1817
+#: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
 msgstr "बदलने वाली छवि चुनें"
 
@@ -3258,7 +3407,7 @@ msgstr "पूर्ण हुए साफ़ करें"
 msgid "Clear filters"
 msgstr "फ़िल्टर साफ़ करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5402
+#: packages/admin/src/components/PortableTextEditor.tsx:5493
 msgid "Clear formatting"
 msgstr "फ़ॉर्मेटिंग साफ़ करें"
 
@@ -3305,7 +3454,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "{siteName} में साइन इन करने के लिए इस लिंक पर क्लिक करें:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:322
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3313,8 +3462,8 @@ msgstr "{siteName} में साइन इन करने के लिए �
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:627
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:629
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:1134
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1136
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
@@ -3347,7 +3496,7 @@ msgstr "छवि सेटिंग्स बंद करें"
 msgid "Close panel"
 msgstr "पैनल बंद करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:2386
+#: packages/admin/src/components/ContentEditor.tsx:2760
 msgid "Close settings"
 msgstr "सेटिंग्स बंद करें"
 
@@ -3363,7 +3512,7 @@ msgstr "कोड"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2084
-#: packages/admin/src/components/PortableTextEditor.tsx:6515
+#: packages/admin/src/components/PortableTextEditor.tsx:6606
 msgid "Code Block"
 msgstr "कोड ब्लॉक"
 
@@ -3371,9 +3520,9 @@ msgstr "कोड ब्लॉक"
 msgid "Code block actions"
 msgstr "कोड ब्लॉक क्रियाएँ"
 
-#: packages/admin/src/components/BlocksField.tsx:358
-msgid "Collapse block"
-msgstr "ब्लॉक कोलॅप्स करें"
+#: packages/admin/src/components/BlocksField.tsx:984
+msgid "Collapse all"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/PluginManager.tsx:580
@@ -3399,9 +3548,9 @@ msgstr "संग्रह “{0}” में एंट्रीज़ है�
 msgid "Collection “{0}” was created on this site"
 msgstr "संग्रह “{0}” इस साइट पर बनाया गया था"
 
-#: packages/admin/src/router.tsx:776
-#: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:803
+#: packages/admin/src/router.tsx:1005
+#: packages/admin/src/router.tsx:2022
 msgid "Collection \"{collection}\" not found"
 msgstr "कलेक्शन \"{collection}\" नहीं मिला"
 
@@ -3427,7 +3576,7 @@ msgid "Collections created:"
 msgstr "बनाए गए संग्रह:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5498
+#: packages/admin/src/components/PortableTextEditor.tsx:5589
 msgid "Column added after"
 msgstr "बाद में कॉलम जोड़ा गया"
 
@@ -3443,7 +3592,7 @@ msgstr "कॉलम की चौड़ाई घटाई गई"
 msgid "Column width increased"
 msgstr "कॉलम की चौड़ाई बढ़ाई गई"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3669
+#: packages/admin/src/components/PortableTextEditor.tsx:3701
 msgid "Column width resized"
 msgstr "कॉलम की चौड़ाई बदली गई"
 
@@ -3484,6 +3633,7 @@ msgstr "टिप्पणी रिएक्शंस"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/router.tsx:2427
 msgid "Comments"
 msgstr "टिप्पणियाँ"
 
@@ -3518,6 +3668,10 @@ msgstr ""
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
 msgstr "पुष्टि करना"
+
+#: packages/admin/src/router.tsx:441
+msgid "Confirm magic link"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -3564,11 +3718,16 @@ msgstr "वर्डप्रेस से जुड़ें"
 msgid "Connected {0}"
 msgstr "कनेक्टेड {0}"
 
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
+
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
 msgstr "जोड़ता है"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:473
+#: packages/admin/src/components/ContentSettingsPanel.tsx:476
 msgid "content"
 msgstr "सामग्री"
 
@@ -3579,6 +3738,7 @@ msgstr "सामग्री"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
+#: packages/admin/src/router.tsx:557
 msgid "Content"
 msgstr "सामग्री"
 
@@ -3599,7 +3759,7 @@ msgstr "सामग्री एरर्स ({0})"
 msgid "Content found:"
 msgstr "सामग्री मिली:"
 
-#: packages/admin/src/router.tsx:1588
+#: packages/admin/src/router.tsx:1644
 msgid "Content has been scheduled for publishing"
 msgstr "सामग्री प्रकाशन के लिए निर्धारित की गई है"
 
@@ -3607,11 +3767,11 @@ msgstr "सामग्री प्रकाशन के लिए निर�
 msgid "Content ID:"
 msgstr "सामग्री आईडी:"
 
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1548
 msgid "Content is now live"
 msgstr "सामग्री अब लाइव है"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1091
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1124
 msgid "Content language"
 msgstr "सामग्री की भाषा"
 
@@ -3632,11 +3792,11 @@ msgstr "सामग्री मीडिया को अमान्य त�
 msgid "Content refers to media that is not in the package"
 msgstr "सामग्री उस मीडिया को संदर्भित करती है जो पैकेज में नहीं है"
 
-#: packages/admin/src/router.tsx:1516
+#: packages/admin/src/router.tsx:1572
 msgid "Content removed from public view"
 msgstr "सामग्री को सार्वजनिक दृश्य से हटा दिया गया"
 
-#: packages/admin/src/router.tsx:1599
+#: packages/admin/src/router.tsx:1655
 msgid "Content reverted to draft"
 msgstr "सामग्री को ड्राफ्ट में वापस लाया गया"
 
@@ -3659,6 +3819,7 @@ msgstr "सामग्री प्रकार"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
+#: packages/admin/src/router.tsx:2941
 msgid "Content Types"
 msgstr "सामग्री प्रकार"
 
@@ -3666,7 +3827,7 @@ msgstr "सामग्री प्रकार"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "एक ही समूह वाले सामग्री प्रकार साइडबार में एक संक्षिप्त किया जा सकने वाला फ़ोल्डर साझा करते हैं"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1912
+#: packages/admin/src/components/MediaDetailPanel.tsx:1923
 msgid "Content using this media item may show a broken reference."
 msgstr "इस मीडिया आइटम का उपयोग करने वाली सामग्री टूटा हुआ संदर्भ दिखा सकती है।"
 
@@ -3694,7 +3855,7 @@ msgid "Continue Import"
 msgstr "आयात जारी रखें"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6490
+#: packages/admin/src/components/PortableTextEditor.tsx:6581
 msgid "Continue numbering"
 msgstr "क्रमांकन जारी रखें"
 
@@ -3776,7 +3937,7 @@ msgstr "टोकन कॉपी करें"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:335
-#: packages/admin/src/components/MediaDetailPanel.tsx:1385
+#: packages/admin/src/components/MediaDetailPanel.tsx:1396
 msgid "Copy URL"
 msgstr "URL कॉपी करें"
 
@@ -3804,7 +3965,7 @@ msgstr "स्वचालित रूप से प्रतिलिपि �
 msgid "Could not create {singularLower}"
 msgstr "{singularLower} नहीं बनाया जा सका"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4670
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 msgid "Could not insert section"
 msgstr "अनुभाग इन्सर्ट नहीं किया जा सका"
 
@@ -3828,7 +3989,7 @@ msgstr "मीडिया लोड नहीं किया जा सका�
 msgid "Could not load the calendar"
 msgstr "कैलेंडर लोड नहीं किया जा सका"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
 msgid "Could not load this entry's details."
 msgstr "इस एंट्री का विवरण लोड नहीं किया जा सका।"
 
@@ -3836,7 +3997,7 @@ msgstr "इस एंट्री का विवरण लोड नहीं 
 msgid "Could not load this folder."
 msgstr "यह फ़ोल्डर लोड नहीं किया जा सका।"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
 msgid "Could not publish"
 msgstr "प्रकाशित नहीं किया जा सका"
 
@@ -3844,7 +4005,7 @@ msgstr "प्रकाशित नहीं किया जा सका"
 msgid "Could not reach {origin}"
 msgstr "{origin} से कनेक्ट नहीं हो पाया"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:242
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
 msgid "Could not remove the schedule"
 msgstr "शेड्यूल हटाया नहीं जा सका"
 
@@ -3852,11 +4013,15 @@ msgstr "शेड्यूल हटाया नहीं जा सका"
 msgid "Could not review posts"
 msgstr "पोस्ट की समीक्षा नहीं की जा सकी"
 
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
+msgid "Could not verify that {origin} serves this site"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:828
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "पुष्टि नहीं हो सकी कि मीडिया आइटम या चयनित फ़ोल्डर अभी भी मौजूद है। फिर कोशिश करें।"
 
@@ -3864,7 +4029,7 @@ msgstr "पुष्टि नहीं हो सकी कि मीडिय�
 msgid "Couldn't detect WordPress"
 msgstr "वर्डप्रेस का पता नहीं लगाया जा सका"
 
-#: packages/admin/src/components/ContentEditor.tsx:3173
+#: packages/admin/src/components/ContentEditor.tsx:3800
 msgid "Couldn't load all references."
 msgstr "सभी संदर्भ लोड नहीं किए जा सके।"
 
@@ -4027,7 +4192,7 @@ msgstr "बनाएं और जोड़ें"
 msgid "Create Content Type"
 msgstr "सामग्री प्रकार बनाएँ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1849
+#: packages/admin/src/components/MediaDetailPanel.tsx:1860
 msgid "Create cropped copy"
 msgstr "क्रॉप की गई कॉपी बनाएं"
 
@@ -4162,7 +4327,7 @@ msgid "Create, update, delete content"
 msgstr "सामग्री बनाएँ, अद्यतन करें, हटाएँ"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4179,11 +4344,11 @@ msgid "Created {0}"
 msgstr "बनाया गया {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1631
+#: packages/admin/src/router.tsx:1687
 msgid "Created {0} translation"
 msgstr "{0} अनुवाद बनाया गया"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
 msgid "Created and updated"
 msgstr "बनाया गया और अपडेट किया गया"
 
@@ -4199,7 +4364,7 @@ msgstr "संग्रह और फ़ील्ड बनाए जा रह�
 msgid "Creating collections and fields..."
 msgstr "संग्रह और फ़ील्ड बनाए जा रहे हैं..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
 msgid "Creating cropped copy..."
 msgstr "क्रॉप की गई कॉपी बनाई जा रही है..."
 
@@ -4213,7 +4378,7 @@ msgstr "क्रॉप की गई कॉपी बनाई जा रही
 msgid "Creating..."
 msgstr "बनाया जा रहा है..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
+#: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Crop"
 msgstr "क्रॉप करें"
 
@@ -4223,7 +4388,7 @@ msgstr "क्रॉप करें"
 msgid "Crop area {0} by {1} pixels."
 msgstr "क्रॉप क्षेत्र {0} × {1} पिक्सेल।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1715
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Crop output dimensions"
 msgstr "क्रॉप आउटपुट के आयाम"
 
@@ -4231,7 +4396,7 @@ msgstr "क्रॉप आउटपुट के आयाम"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "क्रॉप चयन। इसे ले जाने के लिए Arrow का उपयोग करें।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:773
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "क्रॉप की गई कॉपी बनाई गई।"
@@ -4264,7 +4429,7 @@ msgstr "मौजूदा"
 msgid "Current cell"
 msgstr "वर्तमान सेल"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:265
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:84
 msgid "Current version"
 msgstr "मौजूदा वर्शन"
@@ -4299,15 +4464,17 @@ msgstr "दैनिक स्वचालित बैकअप"
 
 #: packages/admin/src/components/FieldEditor.tsx:1792
 #: packages/admin/src/components/FieldEditor.tsx:1795
-#: packages/admin/src/components/ImageFieldRenderer.tsx:416
+#: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "डार्क मोड वेरिएंट"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Sidebar.tsx:691
+#: packages/admin/src/router.tsx:527
 msgid "Dashboard"
 msgstr "डैशबोर्ड"
 
@@ -4354,6 +4521,11 @@ msgstr "घोषित अनुमतियाँ"
 msgid "Decrease column width"
 msgstr "कॉलम की चौड़ाई घटाएँ"
 
+#: packages/admin/src/components/PortableTextEditor.tsx:3807
+msgctxt "button style"
+msgid "Default"
+msgstr ""
+
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:371
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:404
 msgid "Default Role"
@@ -4392,6 +4564,7 @@ msgstr "अपनी सामग्री की संरचना परि�
 msgid "Defined in code"
 msgstr "कोड में परिभाषित"
 
+#: packages/admin/src/components/BlocksField.tsx:1099
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4401,8 +4574,8 @@ msgstr "कोड में परिभाषित"
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1899
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
@@ -4411,6 +4584,7 @@ msgstr "कोड में परिभाषित"
 #: packages/admin/src/components/Redirects.tsx:886
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:250
+#: packages/admin/src/components/RowMenuItems.tsx:106
 #: packages/admin/src/components/Sections.tsx:423
 #: packages/admin/src/components/settings/BackupSettings.tsx:369
 #: packages/admin/src/components/TaxonomyManager.tsx:448
@@ -4470,11 +4644,14 @@ msgstr "{0} विजेट क्षेत्र हटाएँ"
 msgid "Delete {0}?"
 msgstr "{0} हटाएं?"
 
+#: packages/admin/src/components/BlocksField.tsx:1097
+msgid "Delete {confirmName}?"
+msgstr ""
+
 #: packages/admin/src/components/settings/BackupSettings.tsx:367
 msgid "Delete backup?"
 msgstr "बैकअप हटाएँ?"
 
-#: packages/admin/src/components/BlocksField.tsx:399
 #: packages/admin/src/components/editor/EmbedBlockShell.tsx:358
 msgid "Delete block"
 msgstr "ब्लॉक हटाएं"
@@ -4531,11 +4708,11 @@ msgstr "फ़ोल्डर हटाएँ"
 msgid "Delete gallery"
 msgstr "गैलरी हटाएँ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5952
+#: packages/admin/src/components/PortableTextEditor.tsx:6043
 msgid "Delete image"
 msgstr "छवि हटाएँ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1889
+#: packages/admin/src/components/MediaDetailPanel.tsx:1900
 msgid "Delete media?"
 msgstr "मीडिया हटाएँ?"
 
@@ -4616,6 +4793,11 @@ msgstr "विजेट हटाएँ?"
 msgid "Deleted"
 msgstr "हटाए गए"
 
+#: packages/admin/src/components/BlocksField.tsx:824
+#: packages/admin/src/components/BlocksField.tsx:850
+msgid "Deleted {name}"
+msgstr ""
+
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1429
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
@@ -4627,13 +4809,14 @@ msgstr "\"{0}\" को हटाने से इसका हर टर्म �
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Deleting \"{0}\" will also remove {1, plural, one {# संग्रहीत मूल्य} other {# संग्रहीत मान}} across all bylines. This cannot be undone."
 
+#: packages/admin/src/components/BlocksField.tsx:1100
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1787
 #: packages/admin/src/components/ContentTypeEditor.tsx:881
 #: packages/admin/src/components/ContentTypeList.tsx:267
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1900
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
@@ -4690,7 +4873,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "छवि का वर्णन करें"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5846
+#: packages/admin/src/components/PortableTextEditor.tsx:5937
 msgid "Describe the image"
 msgstr "छवि का वर्णन करें"
 
@@ -4703,7 +4886,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "जो लोग छवि नहीं देख सकते, उनके लिए इसका उद्देश्य और विवरण बताएँ।"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:748
-#: packages/admin/src/components/MediaDetailPanel.tsx:1589
+#: packages/admin/src/components/MediaDetailPanel.tsx:1600
 msgid "Describe this image for accessibility"
 msgstr "पहुंच के लिए इस छवि का वर्णन करें"
 
@@ -4736,8 +4919,8 @@ msgstr "गंतव्य पथ"
 msgid "Destructive"
 msgstr "हानिकारक"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1162
-#: packages/admin/src/components/MediaDetailPanel.tsx:1204
+#: packages/admin/src/components/MediaDetailPanel.tsx:1164
+#: packages/admin/src/components/MediaDetailPanel.tsx:1206
 msgid "Details"
 msgstr "विवरण"
 
@@ -4769,7 +4952,7 @@ msgstr "अंतर"
 msgid "Differences from the source site"
 msgstr "सोर्स साइट से अंतर"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1332
+#: packages/admin/src/components/MediaDetailPanel.tsx:1343
 msgid "Dimensions:"
 msgstr "आयाम:"
 
@@ -4823,25 +5006,25 @@ msgstr "अक्षम किया जा रहा है..."
 msgid "Disallow AI training"
 msgstr "AI ट्रेनिंग की अनुमति न दें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1875
+#: packages/admin/src/components/MediaDetailPanel.tsx:1886
 msgid "Discard"
 msgstr "खारिज करना"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:352
-#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
 msgid "Discard changes"
 msgstr "परिवर्तनों को निरस्त करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1873
+#: packages/admin/src/components/MediaDetailPanel.tsx:1884
 msgid "Discard changes?"
 msgstr "परिवर्तनों को निरस्त करें?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:356
 msgid "Discard draft changes?"
 msgstr "ड्राफ्ट परिवर्तन खारिज करें?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:360
-#: packages/admin/src/components/MediaDetailPanel.tsx:1876
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "त्याग रहा हूँ..."
 
@@ -4861,11 +5044,15 @@ msgstr "पूरा हुआ {0} ख़ारिज करें"
 msgid "Dismiss import suggestion"
 msgstr "आयात सुझाव ख़ारिज करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4691
+#: packages/admin/src/components/ContentEditor.tsx:2720
+msgid "Dismiss save error"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:4782
 msgid "Dismiss section error"
 msgstr "अनुभाग एरर ख़ारिज करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4658
+#: packages/admin/src/components/PortableTextEditor.tsx:4749
 msgid "Dismiss table paste error"
 msgstr "टेबल पेस्ट एरर ख़ारिज करें"
 
@@ -4902,7 +5089,7 @@ msgstr "टैग क्लाउड प्रदर्शित करें"
 msgid "Displayed below the image as a visible caption."
 msgstr "दृश्यमान कैप्शन के रूप में छवि के नीचे प्रदर्शित किया गया।"
 
-#: packages/admin/src/components/ContentEditor.tsx:1833
+#: packages/admin/src/components/ContentEditor.tsx:2109
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "ध्यान-मुक्त मोड (⌘⇧\\)"
 
@@ -5033,7 +5220,7 @@ msgstr "पैकेज डाउनलोड हो रहा है"
 msgid "visualEditing.draft"
 msgstr "ड्राफ़्ट"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:414
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5097,11 +5284,11 @@ msgstr "विजेट्स को जोड़ने के लिए उन�
 msgid "Drag widgets into an area to add them"
 msgstr "विजेट्स को जोड़ने के लिए उन्हें किसी क्षेत्र में खींचें"
 
-#: packages/admin/src/components/media/ImageDropTarget.tsx:145
+#: packages/admin/src/components/media/ImageDropTarget.tsx:149
 msgid "Drop an image here or <0>browse</0>"
 msgstr "छवि यहाँ छोड़ें या <0>ब्राउज़ करें</0>"
 
-#: packages/admin/src/components/media/ImageDropTarget.tsx:127
+#: packages/admin/src/components/media/ImageDropTarget.tsx:130
 msgid "Drop an image here or browse for {label}"
 msgstr "छवि यहाँ छोड़ें या {label} के लिए ब्राउज़ करें"
 
@@ -5109,7 +5296,7 @@ msgstr "छवि यहाँ छोड़ें या {label} के लि�
 msgid "Drop files to upload"
 msgstr "अपलोड करने के लिए फ़ाइलें छोड़ें"
 
-#: packages/admin/src/components/media/ImageDropTarget.tsx:52
+#: packages/admin/src/components/media/ImageDropTarget.tsx:55
 msgid "Drop one image at a time."
 msgstr "एक बार में एक ही छवि छोड़ें।"
 
@@ -5123,16 +5310,21 @@ msgstr "अपनी वर्डप्रेस निर्यात फ़ा
 
 #: packages/admin/src/components/ContentList.tsx:1608
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
+#: packages/admin/src/components/RowMenuItems.tsx:68
 msgid "Duplicate"
 msgstr "डुप्लिकेट"
-
-#: packages/admin/src/components/BlocksField.tsx:390
-msgid "Duplicate block"
-msgstr "ब्लॉक डुप्लिकेट करें"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:156
 msgid "Duplicate redirects were left out"
 msgstr "डुप्लिकेट रीडायरेक्ट्स छोड़ दिए गए"
+
+#: packages/admin/src/components/BlockListField.tsx:438
+msgid "Duplicated {copied}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:766
+msgid "Duplicated {name}"
+msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
@@ -5176,7 +5368,7 @@ msgstr "सबसे पहले सेव किया गया वर्श�
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5206,9 +5398,14 @@ msgstr "संपादित करें {0}"
 msgid "Edit {0} field"
 msgstr "{0} फ़ील्ड संपादित करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1568
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Edit {itemLabel}"
 msgstr "संपादित करें {itemLabel}"
+
+#: packages/admin/src/components/ContentEditor.tsx:1816
+msgid "Edit {itemLabel}: {tabEntryTitle}"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5217,9 +5414,11 @@ msgstr "{label} संपादित करें"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
-#: packages/admin/src/components/ImageFieldRenderer.tsx:322
-#: packages/admin/src/components/ImageFieldRenderer.tsx:379
-#: packages/admin/src/components/ImageFieldRenderer.tsx:447
+#: packages/admin/src/components/ImageFieldRenderer.tsx:419
+#: packages/admin/src/components/ImageFieldRenderer.tsx:461
+#: packages/admin/src/components/ImageFieldRenderer.tsx:462
+#: packages/admin/src/components/ImageFieldRenderer.tsx:525
+#: packages/admin/src/components/ImageFieldRenderer.tsx:593
 #: packages/admin/src/components/MediaPickerModal.tsx:1637
 msgid "Edit asset"
 msgstr "एसेट संपादित करें"
@@ -5235,11 +5434,19 @@ msgstr "बायलाइन फ़ील्ड संपादित करे
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:5940
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Edit caption"
 msgstr "कैप्शन एडिट करें"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:445
+#: packages/admin/src/router.tsx:1048
+msgid "Edit content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3135
+msgid "Edit content type"
+msgstr ""
+
+#: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "Edit dark mode asset"
 msgstr "डार्क मोड एसेट संपादित करें"
 
@@ -5261,8 +5468,8 @@ msgstr "फ़ोल्डर संपादित करें"
 msgid "Edit folder {0}"
 msgstr "फ़ोल्डर {0} संपादित करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1167
-#: packages/admin/src/components/MediaDetailPanel.tsx:1207
+#: packages/admin/src/components/MediaDetailPanel.tsx:1169
+#: packages/admin/src/components/MediaDetailPanel.tsx:1209
 msgid "Edit image"
 msgstr "छवि संपादित करें"
 
@@ -5271,10 +5478,10 @@ msgstr "छवि संपादित करें"
 msgid "Edit image {0}"
 msgstr "छवि संपादित करें {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5124
-#: packages/admin/src/components/PortableTextEditor.tsx:5233
-#: packages/admin/src/components/PortableTextEditor.tsx:5933
-#: packages/admin/src/components/PortableTextEditor.tsx:6381
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:5324
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Edit link"
 msgstr "लिंक संपादित करें"
 
@@ -5285,6 +5492,10 @@ msgstr "संपादन लॉकिंग"
 #: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Edit media alt text, captions, and focal points"
 msgstr "मीडिया का ऑल्ट टेक्स्ट, कैप्शन और फ़ोकल पॉइंट संपादित करें"
+
+#: packages/admin/src/router.tsx:2843
+msgid "Edit menu"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
@@ -5311,6 +5522,10 @@ msgstr "पुनर्निर्देश संपादित करें 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:727
 msgid "Edit role"
 msgstr "भूमिका संपादित करें"
+
+#: packages/admin/src/router.tsx:2892
+msgid "Edit section"
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5445,6 +5660,7 @@ msgstr "ईमेल प्रदाता सक्रिय"
 
 #: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/router.tsx:2645
 msgid "Email Settings"
 msgstr "ईमेल सेटिंग्स"
 
@@ -5470,7 +5686,7 @@ msgid "Embed"
 msgstr "एम्बेड"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:3835
+#: packages/admin/src/components/PortableTextEditor.tsx:3911
 msgid "Embed a {0}"
 msgstr "एक {0} एम्बेड करें"
 
@@ -5500,11 +5716,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} उपलब्ध है (आप {0} चला रहे हैं)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash पिछली छवि नहीं रखता।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1985
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash बिना क्रॉप की गई छवि नहीं रखता।"
 
@@ -5532,6 +5748,7 @@ msgstr "EmDash सेटअप जारी रखेगा और मौजू�
 msgid "EmDash will scan existing content to show where media is used."
 msgstr "मीडिया कहाँ उपयोग हो रहा है, यह दिखाने के लिए EmDash मौजूदा सामग्री स्कैन करेगा।"
 
+#: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:437
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:21
 msgid "Empty"
@@ -5583,9 +5800,17 @@ msgstr "मौजूदा कंटेंट को इंडेक्स क�
 msgid "Enabled"
 msgstr "सक्रिय"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1127
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "कंटेंट की कोई भाषा सेट नहीं है, इसलिए अंग्रेज़ी इस्तेमाल हो रही है। कंटेंट की भाषा एंट्री के साथ सेव होती है और एडमिन में आपकी चुनी हुई भाषा से अलग होती है।"
+
+#: packages/admin/src/components/block-field-notes.tsx:84
+msgid "Enter {formatted} or less"
+msgstr ""
+
+#: packages/admin/src/components/block-field-notes.tsx:70
+msgid "Enter {formatted} or more"
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
@@ -5599,7 +5824,7 @@ msgstr ""
 msgid "Enter a display name."
 msgstr "डिस्प्ले नेम दर्ज करें।"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:100
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:104
 msgid "Enter a domain such as example.com, without a path or port"
 msgstr "example.com जैसा डोमेन दर्ज करें, बिना पथ या पोर्ट के"
 
@@ -5716,9 +5941,14 @@ msgstr ""
 msgid "Enter a valid time"
 msgstr "सही समय दर्ज करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:3354
+#: packages/admin/src/components/block-field-notes.tsx:51
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "एक मान्य URL दर्ज करें (उदा. https://example.com)"
+
+#: packages/admin/src/components/block-field-notes.tsx:57
+msgid "Enter a whole number"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Enter a whole number of 0 or more."
@@ -5741,7 +5971,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "क्रेडेंशियल मैन्युअल रूप से दर्ज करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1828
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Enter distraction-free mode"
 msgstr "व्याकुलता-मुक्त मोड दर्ज करें"
 
@@ -5749,7 +5979,7 @@ msgstr "व्याकुलता-मुक्त मोड दर्ज क�
 msgid "Enter email"
 msgstr "ईमेल दर्ज करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:2684
+#: packages/admin/src/components/ContentEditor.tsx:3253
 msgid "Enter markdown content..."
 msgstr "मार्कडाउन सामग्री दर्ज करें..."
 
@@ -5765,7 +5995,7 @@ msgstr ""
 msgid "Enter the code from your terminal"
 msgstr "अपने टर्मिनल से कोड दर्ज करें"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:154
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
 msgid "Enter the domain below. EmDash checks that it serves this site before switching."
 msgstr "नीचे डोमेन दर्ज करें। स्विच करने से पहले EmDash जाँचता है कि वह डोमेन यही साइट सर्व करता है।"
 
@@ -5814,7 +6044,7 @@ msgstr "लिंक करने वाली ओर की एंट्री"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3368
+#: packages/admin/src/router.tsx:3464
 msgid "Error"
 msgstr "एरर"
 
@@ -5850,11 +6080,11 @@ msgstr "हर आयातित रिकॉर्ड और मीडिय�
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "सक्रिय खाते वाले बाकी सभी उपयोगकर्ताओं को ईमेल मिलता है कि साइट अब {siteHost} पर है, साथ में वहाँ साइन इन करने का लिंक भी। किसी दूसरे पते की पासकी {siteHost} पर काम नहीं करतीं, इसलिए उपयोगकर्ता ईमेल लिंक से साइन इन करते हैं और एक नई पासकी जोड़ते हैं।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1959
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Every place using this image will update to the cropped version."
 msgstr "जहाँ भी यह इमेज इस्तेमाल हो रही है, वहाँ इसका क्रॉप किया गया वर्शन दिखेगा।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1928
+#: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
 msgstr "जहाँ भी यह इमेज इस्तेमाल हो रही है, वहाँ इसका चुना गया वर्शन दिखेगा।"
 
@@ -5875,7 +6105,7 @@ msgid "Example: {pattern} → {preview}"
 msgstr "उदाहरण: {pattern} → {preview}"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:363
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:159
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:163
 msgid "example.com"
 msgstr "example.com"
 
@@ -5891,17 +6121,17 @@ msgstr "मौजूदा सामग्री इंडेक्स हो �
 msgid "Exists"
 msgstr "मौजूद है"
 
-#: packages/admin/src/components/ContentEditor.tsx:1828
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Exit distraction-free mode"
 msgstr "व्याकुलता-मुक्त मोड से बाहर निकलें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1832
+#: packages/admin/src/components/ContentEditor.tsx:2108
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "डिस्ट्रैक्शन-फ़्री मोड से बाहर निकलें (⌘⇧\\)"
 
-#: packages/admin/src/components/BlocksField.tsx:358
-msgid "Expand block"
-msgstr "ब्लॉक विस्तृत करें"
+#: packages/admin/src/components/BlocksField.tsx:984
+msgid "Expand all"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/PluginManager.tsx:580
@@ -6041,7 +6271,7 @@ msgstr "प्लगइन से कम्युनिकेट करने �
 msgid "Failed to compare revisions"
 msgstr "रिविज़न की तुलना करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:391
 msgid "Failed to confirm upload"
 msgstr "अपलोड की पुष्टि करने में असफल"
 
@@ -6108,7 +6338,7 @@ msgstr "कंटेंट बनाने में असफल"
 msgid "Failed to create field"
 msgstr "फ़ील्ड बनाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:257
 msgid "Failed to create media folder"
 msgstr "मीडिया फ़ोल्डर बनाने में असफल"
 
@@ -6154,7 +6384,7 @@ msgid "Failed to create term translation"
 msgstr "टर्म अनुवाद बनाने में असफल"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1636
+#: packages/admin/src/router.tsx:1692
 msgid "Failed to create translation"
 msgstr "अनुवाद बनाने में असफल"
 
@@ -6166,7 +6396,7 @@ msgstr "विजेट बनाने में असफल"
 msgid "Failed to create widget area"
 msgstr "विजेट एरिया बनाने में असफल"
 
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:781
 msgid "Failed to delete"
 msgstr "हटाने में असफल"
 
@@ -6202,15 +6432,15 @@ msgstr "कंटेंट हटाने में असफल"
 msgid "Failed to delete field"
 msgstr "फ़ील्ड हटाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:868
+#: packages/admin/src/lib/api/media.ts:872
 msgid "Failed to delete from provider"
 msgstr "प्रोवाइडर से हटाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:729
 msgid "Failed to delete media"
 msgstr "मीडिया हटाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:277
+#: packages/admin/src/lib/api/media.ts:279
 msgid "Failed to delete media folder"
 msgstr "मीडिया फ़ोल्डर हटाने में असफल"
 
@@ -6288,7 +6518,7 @@ msgstr "वेलकम स्क्रीन बंद करने में �
 msgid "Failed to download a package file"
 msgstr "पैकेज फ़ाइल डाउनलोड करने में असफल"
 
-#: packages/admin/src/router.tsx:685
+#: packages/admin/src/router.tsx:712
 msgid "Failed to duplicate"
 msgstr "कॉपी बनाने में असफल"
 
@@ -6329,7 +6559,7 @@ msgstr "अनुमत डोमेन लाने में असफल"
 msgid "Failed to fetch API tokens"
 msgstr "API टोकन लाने में असफल"
 
-#: packages/admin/src/lib/api/client.ts:375
+#: packages/admin/src/lib/api/client.ts:397
 msgid "Failed to fetch auth mode"
 msgstr "ऑथेंटिकेशन मोड लाने में असफल"
 
@@ -6403,31 +6633,31 @@ msgstr "प्रवेश शर्तें लाने में असफ�
 msgid "Failed to fetch fields"
 msgstr "फ़ील्ड प्राप्त करने में असफल"
 
-#: packages/admin/src/lib/api/client.ts:358
+#: packages/admin/src/lib/api/client.ts:380
 msgid "Failed to fetch manifest"
 msgstr "मेनिफ़ेस्ट लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:177
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to fetch media"
 msgstr "मीडिया लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:244
 msgid "Failed to fetch media folder"
 msgstr "मीडिया फ़ोल्डर प्राप्त करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:236
 msgid "Failed to fetch media folders"
 msgstr "मीडिया फ़ोल्डर प्राप्त करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:195
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to fetch media item"
 msgstr "मीडिया आइटम लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:801
+#: packages/admin/src/lib/api/media.ts:805
 msgid "Failed to fetch media providers"
 msgstr "मीडिया प्रदाता लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:220
 msgid "Failed to fetch media usage details"
 msgstr "मीडिया के उपयोग का विवरण प्राप्त करने में असफल"
 
@@ -6465,7 +6695,7 @@ msgstr "प्लगइन सेटिंग लाने में असफ�
 msgid "Failed to fetch plugins"
 msgstr "प्लगइन्स लाने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:831
+#: packages/admin/src/lib/api/media.ts:835
 msgid "Failed to fetch provider media"
 msgstr "प्रदाता मीडिया लाने में असफल"
 
@@ -6550,7 +6780,7 @@ msgstr "अपडेट की स्थिति प्राप्त कर�
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2388
+#: packages/admin/src/router.tsx:2448
 msgid "Failed to fetch user"
 msgstr "उपयोगकर्ता लाने में असफल"
 
@@ -6587,7 +6817,7 @@ msgstr "ऑथेंटिकेशन विकल्प प्राप्त 
 msgid "Failed to get registration options"
 msgstr "पंजीकरण विकल्प प्राप्त करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:356
+#: packages/admin/src/lib/api/media.ts:358
 msgid "Failed to get upload URL"
 msgstr "अपलोड URL प्राप्त करने में असफल"
 
@@ -6623,7 +6853,7 @@ msgstr "बायलाइन फ़ील्ड सूचीबद्ध कर
 msgid "Failed to list files to upload"
 msgstr "अपलोड की जाने वाली फ़ाइलों की सूची प्राप्त करने में असफल"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:511
 msgid "Failed to load admin"
 msgstr "व्यवस्थापक लोड करने में असफल"
 
@@ -6739,7 +6969,7 @@ msgid "Failed to lock the entry"
 msgstr "एंट्री लॉक करने में असफल"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2477
+#: packages/admin/src/router.tsx:2537
 msgid "Failed to perform bulk action"
 msgstr "थोक कार्रवाई करने में असफल"
 
@@ -6756,8 +6986,8 @@ msgstr "आयात तैयार करने में असफल"
 msgid "Failed to probe URL"
 msgstr "URL की जाँच करने में असफल"
 
-#: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1497
+#: packages/admin/src/router.tsx:737
+#: packages/admin/src/router.tsx:1553
 msgid "Failed to publish"
 msgstr "प्रकाशित करने में असफल"
 
@@ -6769,7 +6999,7 @@ msgstr "कंटेंट प्रकाशित करने में अ�
 msgid "Failed to read byline field usage"
 msgstr "बायलाइन फ़ील्ड उपयोग को पढ़ने में असफल"
 
-#: packages/admin/src/router.tsx:2905
+#: packages/admin/src/router.tsx:2995
 msgid "Failed to register {slug}"
 msgstr "{slug} को रजिस्टर करने में असफल"
 
@@ -6786,7 +7016,7 @@ msgstr "एंट्री का लॉक हटाने में असफ�
 msgid "Failed to remove passkey"
 msgstr "पासकी निकालने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:268
+#: packages/admin/src/lib/api/media.ts:270
 msgid "Failed to rename media folder"
 msgstr "मीडिया फ़ोल्डर का नाम बदलने में असफल"
 
@@ -6820,11 +7050,11 @@ msgstr "टर्म का क्रम बदलने में असफल"
 msgid "Failed to reorder widgets"
 msgstr "विजेट्स को पुन: व्यवस्थित करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:715
+#: packages/admin/src/lib/api/media.ts:717
 msgid "Failed to replace media image"
 msgstr "मीडिया इमेज बदलने में असफल"
 
-#: packages/admin/src/router.tsx:664
+#: packages/admin/src/router.tsx:691
 msgid "Failed to restore"
 msgstr "पुनर्स्थापित करने में असफल"
 
@@ -6846,9 +7076,11 @@ msgstr "एपीआई टोकन रद्द करने में अस�
 msgid "Failed to rewrite URLs"
 msgstr "URL पुनः लिखने में असफल"
 
-#: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1338
-#: packages/admin/src/router.tsx:3092
+#: packages/admin/src/components/ContentEditor.tsx:2458
+#: packages/admin/src/components/ContentEditor.tsx:2712
+#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:1391
+#: packages/admin/src/router.tsx:3185
 msgid "Failed to save"
 msgstr "सहेजने में असफल"
 
@@ -6895,6 +7127,13 @@ msgstr "सत्यापन ईमेल भेजने में असफ�
 msgid "Failed to set entry terms"
 msgstr "प्रवेश शर्तें निर्धारित करने में असफल"
 
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
+
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
 msgstr "एक्सपोर्ट शुरू करने में असफल"
@@ -6909,7 +7148,7 @@ msgstr "इम्पोर्ट शुरू करने में असफ�
 msgid "Failed to uninstall plugin"
 msgstr "प्लगइन अनइंस्टॉल करने में असफल"
 
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1577
 msgid "Failed to unpublish"
 msgstr "अप्रकाशित करने में असफल"
 
@@ -6917,7 +7156,7 @@ msgstr "अप्रकाशित करने में असफल"
 msgid "Failed to unpublish content"
 msgstr "कंटेंट अप्रकाशित करने में असफल"
 
-#: packages/admin/src/router.tsx:1605
+#: packages/admin/src/router.tsx:1661
 msgid "Failed to unschedule"
 msgstr "शेड्यूल अनिर्धारित करने में असफल"
 
@@ -6925,7 +7164,7 @@ msgstr "शेड्यूल अनिर्धारित करने मे
 msgid "Failed to unschedule content"
 msgstr "कंटेंट का शेड्यूल हटाने में असफल"
 
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:760
 msgid "Failed to update"
 msgstr "अद्यतन करने में असफल"
 
@@ -6974,7 +7213,7 @@ msgstr "डोमेन अद्यतन करने में असफल"
 msgid "Failed to update field"
 msgstr "फ़ील्ड अपडेट करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:751
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to update media"
 msgstr "मीडिया अपडेट करने में असफल"
 
@@ -7016,7 +7255,7 @@ msgstr "अनुभाग अद्यतन करने में असफ�
 msgid "Failed to update settings"
 msgstr "सेटिंग्स अपडेट करने में असफल"
 
-#: packages/admin/src/router.tsx:2441
+#: packages/admin/src/router.tsx:2501
 msgid "Failed to update status"
 msgstr "स्थिति अपडेट करने में असफल"
 
@@ -7036,15 +7275,15 @@ msgstr "विजेट अपडेट करने में असफल"
 msgid "Failed to upload a package file"
 msgstr "पैकेज फ़ाइल अपलोड करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:414
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to upload file"
 msgstr "फ़ाइल अपलोड करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:647
+#: packages/admin/src/lib/api/media.ts:649
 msgid "Failed to upload media"
 msgstr "मीडिया अपलोड करने में असफल"
 
-#: packages/admin/src/lib/api/media.ts:856
+#: packages/admin/src/lib/api/media.ts:860
 msgid "Failed to upload to provider"
 msgstr "प्रदाता पर अपलोड करने में असफल"
 
@@ -7142,19 +7381,24 @@ msgstr "फ़ाइल {0}"
 msgid "File from media library"
 msgstr "मीडिया लाइब्रेरी से फ़ाइल"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1433
-#: packages/admin/src/components/MediaDetailPanel.tsx:1438
+#: packages/admin/src/components/MediaDetailPanel.tsx:1444
+#: packages/admin/src/components/MediaDetailPanel.tsx:1449
 #: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "फ़ाइलनाम"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:529
+#: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Filename cannot be changed after upload"
 msgstr "अपलोड के बाद फ़ाइल का नाम नहीं बदला जा सकता"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:231
 msgid "Files upload as soon as you add them."
 msgstr "फ़ाइलें जोड़ते ही अपलोड हो जाती हैं।"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3809
+msgctxt "button style"
+msgid "Fill"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2677
 msgid "Fill in at least one field."
@@ -7244,20 +7488,28 @@ msgstr "पहला वर्ज़न"
 msgid "First-time commenters only"
 msgstr "केवल पहली बार टिप्पणी करने वाले"
 
-#: packages/admin/src/components/ContentEditor.tsx:1550
+#: packages/admin/src/components/ContentEditor.tsx:234
+msgid "Fix {field} in the {block} block to resume saving."
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1792
 msgid "Fix invalid fields before changing the publication date"
 msgstr "प्रकाशन की तारीख़ बदलने से पहले अमान्य फ़ील्ड ठीक करें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1480
+#: packages/admin/src/components/ContentEditor.tsx:1720
 msgid "Fix invalid fields before changing the schedule"
 msgstr "शेड्यूल बदलने से पहले अमान्य फ़ील्ड ठीक करें"
+
+#: packages/admin/src/components/ContentEditor.tsx:233
+msgid "Fix the {block} block to resume saving."
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
+#: packages/admin/src/components/MediaDetailPanel.tsx:1649
 msgid "Focal point"
 msgstr "फ़ोकल पॉइंट"
 
@@ -7273,7 +7525,7 @@ msgstr "फ़ोल्डर"
 msgid "Folder deleted"
 msgstr "फ़ोल्डर हटा दिया गया"
 
-#: packages/admin/src/router.tsx:2111
+#: packages/admin/src/router.tsx:2170
 msgid "Folder no longer exists"
 msgstr "फ़ोल्डर अब मौजूद नहीं है"
 
@@ -7298,7 +7550,7 @@ msgstr "फ़ोल्डर उपलब्ध नहीं है"
 msgid "Folders"
 msgstr "फ़ोल्डर"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1541
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
@@ -7321,15 +7573,15 @@ msgstr "ड्राफ्ट और सभी सामग्री सहि�
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "बेहतर इम्पोर्ट अनुभव के लिए, अपनी WordPress साइट पर <0>EmDash Exporter</0> प्लगइन इंस्टॉल करें।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5076
+#: packages/admin/src/components/PortableTextEditor.tsx:5167
 msgid "Format selection"
 msgstr "चुने हुए टेक्स्ट को फ़ॉर्मैट करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1366
+#: packages/admin/src/components/MediaDetailPanel.tsx:1377
 msgid "Format:"
 msgstr "फ़ॉर्मैट:"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:538
+#: packages/admin/src/components/MediaDetailPanel.tsx:540
 msgid "Freeform"
 msgstr "फ़्रीफ़ॉर्म"
 
@@ -7369,7 +7621,7 @@ msgstr "पूर्ण व्यवस्थापक पहुँच"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:44
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:3783
+#: packages/admin/src/components/PortableTextEditor.tsx:3859
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:437
 msgid "Gallery"
 msgstr "गैलरी"
@@ -7384,6 +7636,7 @@ msgid "General"
 msgstr "सामान्य"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/router.tsx:2675
 msgid "General Settings"
 msgstr "सामान्य सेटिंग्स"
 
@@ -7415,7 +7668,7 @@ msgstr "इस पासकी को बाद में पहचानने 
 msgid "Go"
 msgstr "जाना"
 
-#: packages/admin/src/components/ContentEditor.tsx:1476
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7423,12 +7676,12 @@ msgstr ""
 msgid "Go live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
 msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3388
+#: packages/admin/src/router.tsx:3484
 msgid "Go to Dashboard"
 msgstr "डैशबोर्ड पर जाएँ"
 
@@ -7436,11 +7689,15 @@ msgstr "डैशबोर्ड पर जाएँ"
 msgid "Go to sign-in"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:352
+#: packages/admin/src/components/BlocksField.tsx:938
+msgid "Go to the next problem"
+msgstr ""
+
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Goes live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
 msgid "Goes live {countdown}"
 msgstr ""
 
@@ -7489,6 +7746,10 @@ msgstr "केवल अतिथि"
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
+msgstr ""
+
+#: packages/admin/src/components/BlockListField.tsx:174
+msgid "Has fields to fix"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:234
@@ -7601,7 +7862,7 @@ msgstr "टोकन छिपाएँ"
 msgid "visualEditing.hideToolbar"
 msgstr ""
 
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 msgid "Hide toolbar"
 msgstr ""
 
@@ -7618,7 +7879,7 @@ msgstr "हिट्स"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2861
+#: packages/admin/src/components/ContentEditor.tsx:3487
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -7633,6 +7894,10 @@ msgstr "मुखपृष्ठ"
 #: packages/admin/src/components/PluginManager.tsx:501
 msgid "Hooks"
 msgstr "हुक्स"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3790
+msgid "Horizontal"
+msgstr ""
 
 #. placeholder {0}: Math.round(next.focalX * 100)
 #. placeholder {1}: Math.round(next.focalY * 100)
@@ -7742,7 +8007,7 @@ msgstr "पहचान"
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "यदि कोई खाता <0>{email}</0> के लिए मौजूद है, तो हमने एक साइन-इन लिंक भेजा है।"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:184
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:188
 msgid "If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check."
 msgstr ""
 
@@ -7767,7 +8032,7 @@ msgstr ""
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:710
 #: packages/admin/src/components/FieldEditor.tsx:1702
-#: packages/admin/src/components/PortableTextEditor.tsx:3770
+#: packages/admin/src/components/PortableTextEditor.tsx:3846
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
 msgid "Image"
@@ -7783,13 +8048,13 @@ msgstr "छवि"
 msgid "Image {0}"
 msgstr "छवि {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:341
-#: packages/admin/src/components/ImageFieldRenderer.tsx:356
+#: packages/admin/src/components/ImageFieldRenderer.tsx:487
+#: packages/admin/src/components/ImageFieldRenderer.tsx:502
 #: packages/admin/src/components/SeoImageField.tsx:171
 msgid "Image actions"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5811
+#: packages/admin/src/components/PortableTextEditor.tsx:5902
 msgid "Image controls"
 msgstr ""
 
@@ -7797,14 +8062,15 @@ msgstr ""
 msgid "Image from media library"
 msgstr "मीडिया लाइब्रेरी से छवि"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6379
+#: packages/admin/src/components/PortableTextEditor.tsx:6470
 msgid "Image link"
 msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
-#: packages/admin/src/components/ImageFieldRenderer.tsx:492
-#: packages/admin/src/components/ImageFieldRenderer.tsx:531
-#: packages/admin/src/components/ImageFieldRenderer.tsx:588
+#: packages/admin/src/components/ImageFieldRenderer.tsx:638
+#: packages/admin/src/components/ImageFieldRenderer.tsx:677
+#: packages/admin/src/components/ImageFieldRenderer.tsx:884
+#: packages/admin/src/components/ImageFieldRenderer.tsx:917
 #: packages/admin/src/components/SeoImageField.tsx:146
 msgid "Image not found"
 msgstr "छवि नहीं मिली"
@@ -7813,12 +8079,12 @@ msgstr "छवि नहीं मिली"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:719
 msgid "Image replaced."
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:5945
+#: packages/admin/src/components/PortableTextEditor.tsx:6036
 msgid "Image settings"
 msgstr "छवि सेटिंग्स"
 
@@ -7831,7 +8097,7 @@ msgid "Image shown when this page is shared on social media"
 msgstr "जब यह पेज सोशल मीडिया पर साझा किया जाता है तो छवि दिखाई जाती है"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:262
-#: packages/admin/src/components/media/ImageDropTarget.tsx:81
+#: packages/admin/src/components/media/ImageDropTarget.tsx:84
 msgid "Image upload failed. Try again."
 msgstr ""
 
@@ -7909,6 +8175,7 @@ msgid "Import failed"
 msgstr "आयात असफल"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/router.tsx:2828
 msgid "Import from WordPress"
 msgstr "वर्डप्रेस से आयात करें"
 
@@ -8003,7 +8270,7 @@ msgstr ""
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:372
+#: packages/admin/src/components/BlocksField.tsx:1266
 msgid "Inactive version"
 msgstr ""
 
@@ -8049,8 +8316,8 @@ msgstr ""
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4879
-#: packages/admin/src/components/PortableTextEditor.tsx:6448
+#: packages/admin/src/components/PortableTextEditor.tsx:4970
+#: packages/admin/src/components/PortableTextEditor.tsx:6539
 msgid "Inline Code"
 msgstr "इनलाइन कोड"
 
@@ -8075,7 +8342,7 @@ msgstr "एक कोड ब्लॉक डालें"
 msgid "Insert a horizontal rule"
 msgstr "एक क्षैतिज नियम सम्मिलित करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3814
+#: packages/admin/src/components/PortableTextEditor.tsx:3890
 msgid "Insert a reusable section"
 msgstr "पुन: प्रयोज्य अनुभाग सम्मिलित करें"
 
@@ -8083,11 +8350,11 @@ msgstr "पुन: प्रयोज्य अनुभाग सम्मि�
 msgid "Insert a table"
 msgstr "एक टेबल डालें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3771
+#: packages/admin/src/components/PortableTextEditor.tsx:3847
 msgid "Insert an image"
 msgstr "एक छवि सम्मिलित करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3784
+#: packages/admin/src/components/PortableTextEditor.tsx:3860
 msgid "Insert an image gallery"
 msgstr "एक छवि गैलरी सम्मिलित करें"
 
@@ -8095,8 +8362,8 @@ msgstr "एक छवि गैलरी सम्मिलित करें"
 msgid "Insert block"
 msgstr "ब्लॉक डालें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6395
-#: packages/admin/src/components/PortableTextEditor.tsx:6405
+#: packages/admin/src/components/PortableTextEditor.tsx:6486
+#: packages/admin/src/components/PortableTextEditor.tsx:6496
 msgid "Insert block after current block"
 msgstr "वर्तमान ब्लॉक के बाद ब्लॉक डालें"
 
@@ -8104,12 +8371,12 @@ msgstr "वर्तमान ब्लॉक के बाद ब्लॉक �
 msgid "Insert block below"
 msgstr "नीचे ब्लॉक डालें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6529
+#: packages/admin/src/components/PortableTextEditor.tsx:6620
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4785
-#: packages/admin/src/components/PortableTextEditor.tsx:6522
+#: packages/admin/src/components/PortableTextEditor.tsx:4876
+#: packages/admin/src/components/PortableTextEditor.tsx:6613
 msgid "Insert image"
 msgstr ""
 
@@ -8138,7 +8405,7 @@ msgstr "अनुभाग सम्मिलित करें"
 msgid "Insert table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4799
+#: packages/admin/src/components/PortableTextEditor.tsx:4890
 msgid "Insert video"
 msgstr ""
 
@@ -8200,10 +8467,11 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr "अमान्य आमंत्रण लिंक"
 
-#: packages/admin/src/components/ContentEditor.tsx:3430
+#: packages/admin/src/components/ContentEditor.tsx:4083
 msgid "Invalid JSON"
 msgstr "अमान्य JSON"
 
+#: packages/admin/src/components/block-field-notes.tsx:52
 #: packages/admin/src/components/SignupPage.tsx:285
 msgid "Invalid link"
 msgstr "अमान्य लिंक"
@@ -8265,12 +8533,13 @@ msgstr ""
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4876
-#: packages/admin/src/components/PortableTextEditor.tsx:6424
+#: packages/admin/src/components/PortableTextEditor.tsx:4967
+#: packages/admin/src/components/PortableTextEditor.tsx:6515
 msgid "Italic"
 msgstr "तिरछा"
 
 #. placeholder {0}: index + 1
+#: packages/admin/src/components/BlockListField.tsx:386
 #: packages/admin/src/components/PortableTextEditor.tsx:3181
 #: packages/admin/src/components/RepeaterField.tsx:252
 msgid "Item {0}"
@@ -8426,7 +8695,7 @@ msgstr "भाषा"
 msgid "Large section heading"
 msgstr "बड़े अनुभाग का शीर्षक"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
 msgid "Last edited"
 msgstr ""
 
@@ -8469,6 +8738,10 @@ msgstr "अंतिम बार उपयोग किया गया {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr ""
 
+#: packages/admin/src/components/PortableTextEditor.tsx:3787
+msgid "Layout"
+msgstr ""
+
 #: packages/admin/src/components/PluginManager.tsx:90
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
 msgstr ""
@@ -8496,8 +8769,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5391
-#: packages/admin/src/components/PortableTextEditor.tsx:5512
+#: packages/admin/src/components/PortableTextEditor.tsx:5482
+#: packages/admin/src/components/PortableTextEditor.tsx:5603
 msgid "Left"
 msgstr "बाएं"
 
@@ -8518,7 +8791,8 @@ msgstr "लाइसेंस"
 msgid "Limit"
 msgstr "आप LIMIT"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6608
+#: packages/admin/src/components/BlocksField.tsx:2238
+#: packages/admin/src/components/PortableTextEditor.tsx:6699
 msgid "Link"
 msgstr ""
 
@@ -8526,7 +8800,7 @@ msgstr ""
 msgid "Link expired"
 msgstr "लिंक की अवधि समाप्त हो"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:5302
 msgid "Link options"
 msgstr ""
 
@@ -8601,7 +8875,7 @@ msgstr ""
 msgid "Links in emails and plugins use {0}, set by the deployment configuration."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:146
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:150
 msgid "Links in emails and plugins, sitemaps, and absolute URLs in search and social metadata will use the new domain."
 msgstr "ईमेल और प्लगइन के लिंक, साइटमैप, और सर्च व सोशल मेटाडेटा के एब्सोल्यूट URL नए डोमेन का उपयोग करेंगे।"
 
@@ -8614,7 +8888,7 @@ msgstr ""
 msgid "Links to {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3590
+#: packages/admin/src/components/PortableTextEditor.tsx:3622
 msgid "List"
 msgstr ""
 
@@ -8631,7 +8905,7 @@ msgstr "लिस्ट व्यू"
 msgid "Live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
 #: packages/admin/src/components/ContentSettingsPanel.tsx:204
 #: packages/admin/src/components/ContentSettingsPanel.tsx:230
@@ -8639,7 +8913,7 @@ msgstr ""
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:695
+#: packages/admin/src/components/ContentSettingsPanel.tsx:728
 msgid "Live View"
 msgstr "लाइव देखें"
 
@@ -8661,7 +8935,7 @@ msgstr "और लोड करें"
 msgid "Load More"
 msgstr "और लोड करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1560
+#: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
@@ -8673,7 +8947,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3343
+#: packages/admin/src/router.tsx:3439
 msgid "Loading"
 msgstr "लोड हो रहा है"
 
@@ -8702,8 +8976,8 @@ msgstr "संग्रह लोड हो रहा है..."
 msgid "Loading comments..."
 msgstr "टिप्पणियाँ लोड हो रही हैं..."
 
-#: packages/admin/src/router.tsx:3345
-#: packages/admin/src/router.tsx:3357
+#: packages/admin/src/router.tsx:3441
+#: packages/admin/src/router.tsx:3453
 msgid "Loading configuration..."
 msgstr "कॉन्फ़िगरेशन लोड हो रहा है..."
 
@@ -8711,7 +8985,7 @@ msgstr "कॉन्फ़िगरेशन लोड हो रहा है..
 msgid "Loading content..."
 msgstr "सामग्री लोड हो रही है..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4621
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
 msgid "Loading editor..."
 msgstr "संपादक लोड हो रहा है..."
 
@@ -8725,7 +8999,7 @@ msgstr ""
 msgid "Loading folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1512
+#: packages/admin/src/components/MediaDetailPanel.tsx:1523
 msgid "Loading folders..."
 msgstr ""
 
@@ -8761,7 +9035,7 @@ msgstr "प्लगइन लोड हो रहा है..."
 msgid "Loading redirects..."
 msgstr "पुनर्निर्देश लोड हो रहे हैं..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3181
+#: packages/admin/src/components/ContentEditor.tsx:3808
 msgid "Loading references..."
 msgstr ""
 
@@ -8808,10 +9082,10 @@ msgstr "विजेट लोड हो रहे हैं..."
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaDetailPanel.tsx:605
-#: packages/admin/src/components/MediaDetailPanel.tsx:621
+#: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
-#: packages/admin/src/components/MediaDetailPanel.tsx:1720
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
+#: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
@@ -8847,7 +9121,7 @@ msgstr ""
 msgid "Local time"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:364
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -8860,15 +9134,15 @@ msgstr "स्थान"
 msgid "Locales will use this site’s capitalization"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1449
-#: packages/admin/src/components/MediaDetailPanel.tsx:1477
-#: packages/admin/src/components/MediaDetailPanel.tsx:1568
-#: packages/admin/src/components/MediaDetailPanel.tsx:1570
+#: packages/admin/src/components/MediaDetailPanel.tsx:1460
+#: packages/admin/src/components/MediaDetailPanel.tsx:1488
+#: packages/admin/src/components/MediaDetailPanel.tsx:1579
+#: packages/admin/src/components/MediaDetailPanel.tsx:1581
 msgid "Location"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:606
-#: packages/admin/src/components/MediaDetailPanel.tsx:623
+#: packages/admin/src/components/MediaDetailPanel.tsx:608
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
 msgid "Location unavailable"
 msgstr ""
 
@@ -8881,6 +9155,10 @@ msgstr "पहलू अनुपात लॉक करें"
 #: packages/admin/src/components/BylineFieldEditor.tsx:416
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "लॉक किया गया क्योंकि इस फ़ील्ड में मान संग्रहीत हैं। इसे बदलने के लिए मान (या फ़ील्ड) हटाएं।"
+
+#: packages/admin/src/router.tsx:427
+msgid "Log in"
+msgstr ""
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -8913,7 +9191,7 @@ msgstr ""
 msgid "Lua"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:574
+#: packages/admin/src/components/MediaDetailPanel.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Main library"
 msgstr ""
@@ -8961,11 +9239,11 @@ msgstr "URL पुनर्निर्देश प्रबंधित कर
 msgid "Manage your passkeys and authentication"
 msgstr "अपनी पासकी और ऑथेंटिकेशन प्रबंधित करें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1419
+#: packages/admin/src/components/MediaDetailPanel.tsx:1430
 msgid "Managed by {providerName}"
 msgstr "{providerName} द्वारा प्रबंधित"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1431
 msgid "Managed by an external media provider"
 msgstr "एक बाहरी मीडिया प्रदाता द्वारा प्रबंधित"
 
@@ -9008,11 +9286,11 @@ msgstr "markdown"
 msgid "Marketplace"
 msgstr "बाजार"
 
-#: packages/admin/src/router.tsx:2742
+#: packages/admin/src/router.tsx:2820
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2717
+#: packages/admin/src/router.tsx:2793
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -9064,10 +9342,11 @@ msgstr "एमडीएक्स"
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/router.tsx:2129
 msgid "Media"
 msgstr "मीडिया"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1129
 msgid "Media details"
 msgstr ""
 
@@ -9124,6 +9403,10 @@ msgstr "मीडिया पढ़ें"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1427
 msgid "Media results"
+msgstr ""
+
+#: packages/admin/src/router.tsx:2604
+msgid "Media Usage"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:76
@@ -9218,6 +9501,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/router.tsx:2836
 msgid "Menus"
 msgstr "मेनू"
 
@@ -9324,13 +9608,13 @@ msgstr "मासिक/वार्षिक अभिलेख"
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5358
+#: packages/admin/src/components/PortableTextEditor.tsx:5449
 msgid "More formatting"
 msgstr ""
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
-#: packages/admin/src/components/ImageFieldRenderer.tsx:571
+#: packages/admin/src/components/ImageFieldRenderer.tsx:867
 msgid "More information about {label}"
 msgstr "{label} के बारे में अधिक जानकारी"
 
@@ -9364,7 +9648,7 @@ msgstr "\"{title}\" को कूड़ेदान में ले जाए�
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3148
+#: packages/admin/src/components/ContentEditor.tsx:3775
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr ""
@@ -9381,19 +9665,20 @@ msgstr ""
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3137
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
 #: packages/admin/src/components/MenuEditor.tsx:788
+#: packages/admin/src/components/RowMenuItems.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:429
 #: packages/admin/src/routes/byline-schema.tsx:443
 msgid "Move down"
 msgstr "नीचे की ओर"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:533
+#: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr ""
 
@@ -9405,6 +9690,14 @@ msgstr ""
 msgid "Move this site to another EmDash installation, or import a site package into this one."
 msgstr ""
 
+#: packages/admin/src/components/RowMenuItems.tsx:97
+msgid "Move to bottom"
+msgstr ""
+
+#: packages/admin/src/components/RowMenuItems.tsx:90
+msgid "Move to top"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:673
 #: packages/admin/src/components/ContentList.tsx:1617
 msgid "Move to trash"
@@ -9412,19 +9705,20 @@ msgstr "कूड़ेदान में ले जाएं"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1332
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1338
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
 msgid "Move to Trash"
 msgstr "कूड़ेदान में ले जाएं"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1336
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1369
 msgid "Move to Trash?"
 msgstr "कूड़ेदान में ले जाएं?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
 #: packages/admin/src/components/MenuEditor.tsx:779
+#: packages/admin/src/components/RowMenuItems.tsx:76
 #: packages/admin/src/components/TaxonomyManager.tsx:421
 #: packages/admin/src/routes/byline-schema.tsx:436
 msgid "Move up"
@@ -9439,11 +9733,20 @@ msgstr ""
 msgid "Moved {filename} to position {0}."
 msgstr ""
 
-#: packages/admin/src/router.tsx:730
+#: packages/admin/src/components/BlockListField.tsx:426
+msgid "Moved {moved} to position {position} of {total}"
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:777
+#: packages/admin/src/components/useDragAnnouncements.ts:72
+msgid "Moved {name} to position {position} of {total}"
+msgstr ""
+
+#: packages/admin/src/router.tsx:757
 msgid "Moved {total} items to draft"
 msgstr "ड्राफ्ट में {total} आइटम ले जाया गया"
 
-#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:778
 msgid "Moved {total} items to trash"
 msgstr "{total} आइटम को कूड़ेदान में ले जाया गया"
 
@@ -9524,7 +9827,7 @@ msgid "Moving from another EmDash site?"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1339
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1372
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9594,7 +9897,7 @@ msgstr ""
 msgid "Never"
 msgstr "कभी नहीं"
 
-#: packages/admin/src/router.tsx:1631
+#: packages/admin/src/router.tsx:1687
 msgid "new"
 msgstr "नया"
 
@@ -9602,7 +9905,8 @@ msgstr "नया"
 msgid "NEW"
 msgstr "नया"
 
-#: packages/admin/src/components/ContentEditor.tsx:1568
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "New {itemLabel}"
 msgstr "नया {itemLabel}"
 
@@ -9624,12 +9928,20 @@ msgstr "नया बायलाइन फ़ील्ड"
 msgid "New collection"
 msgstr "नया संग्रह"
 
+#: packages/admin/src/router.tsx:886
+msgid "New content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3038
+msgid "New content type"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 #: packages/admin/src/components/ContentTypeList.tsx:159
 msgid "New Content Type"
 msgstr "नई सामग्री प्रकार"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:158
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:162
 msgid "New domain"
 msgstr "नया डोमेन"
 
@@ -9774,7 +10086,7 @@ msgstr "अभी तक कोई स्वीकृत टिप्पणी �
 msgid "No block types defined"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:237
+#: packages/admin/src/components/BlocksField.tsx:1062
 msgid "No blocks yet"
 msgstr ""
 
@@ -9846,7 +10158,7 @@ msgstr "अभी तक कोई सामग्री प्रकार न�
 msgid "No custom fields yet"
 msgstr "अभी तक कोई कस्टम फ़ील्ड नहीं"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5907
+#: packages/admin/src/components/PortableTextEditor.tsx:5998
 msgid "No description yet"
 msgstr ""
 
@@ -9904,7 +10216,7 @@ msgstr ""
 msgid "No files added"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1520
+#: packages/admin/src/components/MediaDetailPanel.tsx:1531
 msgid "No folders found"
 msgstr ""
 
@@ -9942,6 +10254,7 @@ msgstr "कोई इंस्टॉल करने योग्य रिल�
 msgid "No invite token provided"
 msgstr "कोई आमंत्रण टोकन प्रदान नहीं किया गया"
 
+#: packages/admin/src/components/BlockListField.tsx:870
 #: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/RepeaterField.tsx:172
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
@@ -9969,7 +10282,7 @@ msgstr "कोई मेल नहीं"
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:228
+#: packages/admin/src/components/BlockTypePicker.tsx:218
 msgid "No matching block types"
 msgstr ""
 
@@ -10065,7 +10378,7 @@ msgstr "इस रजिस्ट्री में अभी तक कोई 
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "कोई प्लगइन्स \"{debouncedQuery}\" से मेल नहीं खाता।"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1388
+#: packages/admin/src/components/MediaDetailPanel.tsx:1399
 msgid "No public URL available"
 msgstr "कोई सार्वजनिक URL उपलब्ध नहीं है"
 
@@ -10081,7 +10394,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "अभी तक कोई पुनर्निर्देश नहीं"
 
-#: packages/admin/src/components/ContentEditor.tsx:3091
+#: packages/admin/src/components/ContentEditor.tsx:3718
 msgid "No references selected."
 msgstr ""
 
@@ -10167,7 +10480,7 @@ msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5511
+#: packages/admin/src/components/PortableTextEditor.tsx:5602
 msgid "None"
 msgstr "कोई नहीं"
 
@@ -10194,6 +10507,10 @@ msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:499
 msgid "Not recorded in this version"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:2460
+msgid "Not saved yet"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1641
@@ -10243,7 +10560,7 @@ msgstr "सूची दृश्यों पर प्रति पृष्�
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2064
-#: packages/admin/src/components/PortableTextEditor.tsx:6481
+#: packages/admin/src/components/PortableTextEditor.tsx:6572
 msgid "Numbered List"
 msgstr "क्रमांकित सूची"
 
@@ -10266,6 +10583,10 @@ msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 msgid "On"
+msgstr ""
+
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
+msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
 msgstr ""
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
@@ -10298,7 +10619,7 @@ msgid "Only image and file fields, images in rich text, and site settings are tr
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:245
-#: packages/admin/src/components/media/ImageDropTarget.tsx:57
+#: packages/admin/src/components/media/ImageDropTarget.tsx:60
 msgid "Only image files can be uploaded here."
 msgstr ""
 
@@ -10319,7 +10640,7 @@ msgid "Open"
 msgstr ""
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3126
+#: packages/admin/src/components/ContentEditor.tsx:3753
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -10335,7 +10656,7 @@ msgstr ""
 msgid "visualEditing.openInAdmin"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:483
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
 msgid "Open in editor"
 msgstr ""
 
@@ -10396,7 +10717,7 @@ msgstr "वैकल्पिक कैप्शन"
 msgid "Optional caption displayed below the image"
 msgstr "छवि के नीचे वैकल्पिक कैप्शन प्रदर्शित किया गया है"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1600
+#: packages/admin/src/components/MediaDetailPanel.tsx:1611
 msgid "Optional caption for display"
 msgstr "प्रदर्शन के लिए वैकल्पिक कैप्शन"
 
@@ -10456,11 +10777,11 @@ msgstr "ऑर्डर सहेजा गया"
 msgid "Ordered page-building blocks"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:537
+#: packages/admin/src/components/MediaDetailPanel.tsx:539
 msgid "Original"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:787
 msgid "Original image cropped."
 msgstr ""
 
@@ -10470,16 +10791,21 @@ msgstr ""
 msgid "Original:"
 msgstr "मूल:"
 
-#: packages/admin/src/components/BlocksField.tsx:157
+#: packages/admin/src/components/BlockTypePicker.tsx:113
 msgid "Other"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1283
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "रूपरेखा"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/PortableTextEditor.tsx:3808
+msgctxt "button style"
+msgid "Outline"
+msgstr ""
+
+#: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
 msgstr ""
 
@@ -10495,8 +10821,8 @@ msgstr ""
 msgid "Overrides the page title in search engine results"
 msgstr "खोज इंजन परिणामों में पृष्ठ शीर्षक को ओवरराइड करता है"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1110
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1113
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
 msgid "Ownership"
 msgstr "स्वामित्व"
 
@@ -10514,7 +10840,11 @@ msgstr ""
 msgid "Package downloaded"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3352
+msgid "Page not found"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3479
 msgid "Page Not Found"
 msgstr "पृष्ठ नहीं मिला"
 
@@ -10624,7 +10954,7 @@ msgstr ""
 msgid "Passkeys only work at the address where they were created. Add one here so you can sign in at this address next time."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:177
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:181
 msgid "Passkeys only work at the address where they were created. After switching, keep signing in at the current address, or use an email sign-in link at the new one."
 msgstr ""
 
@@ -10735,6 +11065,10 @@ msgstr "पीएचपी"
 msgid "Picked up {label}."
 msgstr ""
 
+#: packages/admin/src/components/useDragAnnouncements.ts:52
+msgid "Picked up {name}, position {position} of {total}"
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:1879
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr ""
@@ -10776,6 +11110,7 @@ msgid "Please enter a valid URL"
 msgstr "क्रुपया मान्य URL दर्ज करें"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/router.tsx:3328
 msgid "Plugin"
 msgstr "लगाना"
 
@@ -10787,7 +11122,7 @@ msgstr ""
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "प्लगइन \"{pluginId}\" नहीं मिला"
 
-#: packages/admin/src/lib/api/client.ts:68
+#: packages/admin/src/lib/api/client.ts:88
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr ""
 
@@ -10800,7 +11135,7 @@ msgstr ""
 msgid "Plugin actions"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1902
+#: packages/admin/src/components/ContentEditor.tsx:2202
 msgid "Plugin changes were not applied"
 msgstr ""
 
@@ -10811,6 +11146,11 @@ msgstr ""
 #: packages/admin/src/components/RegistryPluginDetail.tsx:855
 msgid "Plugin details"
 msgstr "प्लगइन विवरण"
+
+#: packages/admin/src/router.tsx:2765
+#: packages/admin/src/router.tsx:2772
+msgid "Plugin Details"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -10831,6 +11171,10 @@ msgstr "प्लगइन एरर ({0})"
 
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
+msgstr ""
+
+#: packages/admin/src/router.tsx:2757
+msgid "Plugin Marketplace"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:412
@@ -10869,6 +11213,7 @@ msgid "Plugin Permissions"
 msgstr "प्लगइन अनुमतियाँ"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
+#: packages/admin/src/router.tsx:2714
 msgid "Plugin Registry"
 msgstr "प्लगइन रजिस्ट्री"
 
@@ -10877,8 +11222,8 @@ msgstr "प्लगइन रजिस्ट्री"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2677
-#: packages/admin/src/router.tsx:2708
+#: packages/admin/src/router.tsx:2750
+#: packages/admin/src/router.tsx:2784
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -10886,6 +11231,10 @@ msgstr ""
 #: packages/admin/src/components/SandboxedPluginPage.tsx:59
 msgid "Plugin responded with {0}: {text}"
 msgstr "प्लगइन ने {0} के साथ प्रतिक्रिया दी: {text}"
+
+#: packages/admin/src/router.tsx:3315
+msgid "Plugin Settings"
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -10916,10 +11265,11 @@ msgstr "प्लगइन विजेट एरर"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
+#: packages/admin/src/router.tsx:2699
 msgid "Plugins"
 msgstr "प्लग-इन"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:152
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:156
 msgid "Point the domain at this site. On Cloudflare, open your Worker in Workers & Pages, go to the Domains tab, and add the domain."
 msgstr "डोमेन को इस साइट पर पॉइंट करें। Cloudflare पर, Workers & Pages में अपना Worker खोलें, Domains टैब पर जाएँ, और डोमेन जोड़ें।"
 
@@ -11004,17 +11354,17 @@ msgstr ""
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
-#: packages/admin/src/components/ContentSettingsPanel.tsx:422
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
+#: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1667
+#: packages/admin/src/components/MediaDetailPanel.tsx:1678
 #: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "पूर्व दर्शन"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 msgid "Preview changes"
 msgstr ""
 
@@ -11022,7 +11372,7 @@ msgstr ""
 msgid "Preview content before publishing"
 msgstr "प्रकाशन से पहले सामग्री का पूर्वावलोकन करें"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:422
+#: packages/admin/src/components/ContentSettingsPanel.tsx:425
 msgid "Preview draft"
 msgstr "ड्राफ्ट का पूर्वावलोकन करें"
 
@@ -11103,9 +11453,9 @@ msgstr "प्रदाता:"
 msgid "Public routes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:985
-#: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr ""
@@ -11120,17 +11470,17 @@ msgid "visualEditing.publish"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:528
-#: packages/admin/src/components/ContentSettingsPanel.tsx:949
-#: packages/admin/src/components/ContentSettingsPanel.tsx:954
+#: packages/admin/src/components/ContentSettingsPanel.tsx:536
+#: packages/admin/src/components/ContentSettingsPanel.tsx:982
+#: packages/admin/src/components/ContentSettingsPanel.tsx:987
 msgid "Publish"
 msgstr "प्रकाशित करना"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:502
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish changes?"
 msgstr ""
 
@@ -11139,12 +11489,12 @@ msgstr ""
 msgid "visualEditing.publishFailed"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
-#: packages/admin/src/components/ContentSettingsPanel.tsx:501
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
+#: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:502
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish now?"
 msgstr ""
 
@@ -11158,14 +11508,14 @@ msgid "visualEditing.published"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:266
+#: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1492
+#: packages/admin/src/router.tsx:1548
 msgid "Published"
 msgstr "प्रकाशित"
 
@@ -11174,11 +11524,11 @@ msgstr "प्रकाशित"
 msgid "Published {0}"
 msgstr "प्रकाशित {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:431
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
 msgid "Published {liveSince}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:707
+#: packages/admin/src/router.tsx:734
 msgid "Published {total} items"
 msgstr "{total} आइटम प्रकाशित"
 
@@ -11206,11 +11556,11 @@ msgstr ""
 msgid "Publisher release policy"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:399
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
 msgid "Publishing"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:958
+#: packages/admin/src/components/ContentSettingsPanel.tsx:991
 msgid "Publishing summary"
 msgstr ""
 
@@ -11241,8 +11591,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2074
-#: packages/admin/src/components/PortableTextEditor.tsx:3591
-#: packages/admin/src/components/PortableTextEditor.tsx:6507
+#: packages/admin/src/components/PortableTextEditor.tsx:3623
+#: packages/admin/src/components/PortableTextEditor.tsx:6598
 msgid "Quote"
 msgstr "उद्धरण"
 
@@ -11318,7 +11668,7 @@ msgid "Read your taxonomies and terms"
 msgstr "अपनी वर्गीकरण और शर्तें पढ़ें"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2043
+#: packages/admin/src/router.tsx:2101
 msgid "Read-only"
 msgstr ""
 
@@ -11409,6 +11759,7 @@ msgstr "लॉगिन करने के लिए पुनः निर्�
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
+#: packages/admin/src/router.tsx:2878
 msgid "Redirects"
 msgstr "पुनर्निर्देश"
 
@@ -11416,7 +11767,7 @@ msgstr "पुनर्निर्देश"
 msgid "Redirects that loop will be imported turned off"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6670
+#: packages/admin/src/components/PortableTextEditor.tsx:6761
 msgid "Redo"
 msgstr "फिर से करना"
 
@@ -11487,6 +11838,7 @@ msgstr "रजिस्ट्री"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
+#: packages/admin/src/router.tsx:3074
 msgid "Relations"
 msgstr ""
 
@@ -11528,15 +11880,17 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:3596
+#: packages/admin/src/components/ContentEditor.tsx:4276
+#: packages/admin/src/components/ContentEditor.tsx:4342
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
-#: packages/admin/src/components/ImageFieldRenderer.tsx:334
-#: packages/admin/src/components/ImageFieldRenderer.tsx:388
-#: packages/admin/src/components/ImageFieldRenderer.tsx:459
+#: packages/admin/src/components/ImageFieldRenderer.tsx:431
+#: packages/admin/src/components/ImageFieldRenderer.tsx:534
+#: packages/admin/src/components/ImageFieldRenderer.tsx:605
+#: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:6643
+#: packages/admin/src/components/PortableTextEditor.tsx:6734
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11548,7 +11902,7 @@ msgstr "निकालना"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3161
+#: packages/admin/src/components/ContentEditor.tsx:3788
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11565,7 +11919,9 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "{entry} हटाएं"
 
-#: packages/admin/src/components/ContentEditor.tsx:3594
+#: packages/admin/src/components/ContentEditor.tsx:4274
+#: packages/admin/src/components/ContentEditor.tsx:4340
+#: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
 msgid "Remove {label}"
@@ -11575,7 +11931,7 @@ msgstr "{label} हटाएं"
 msgid "Remove assignment"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:457
+#: packages/admin/src/components/ImageFieldRenderer.tsx:603
 msgid "Remove dark mode variant"
 msgstr ""
 
@@ -11592,7 +11948,9 @@ msgid "Remove from post"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:596
-#: packages/admin/src/components/ImageFieldRenderer.tsx:332
+#: packages/admin/src/components/ImageFieldRenderer.tsx:429
+#: packages/admin/src/components/ImageFieldRenderer.tsx:477
+#: packages/admin/src/components/ImageFieldRenderer.tsx:478
 msgid "Remove image"
 msgstr "छवि हटाएँ"
 
@@ -11611,9 +11969,9 @@ msgstr ""
 msgid "Remove item {0}"
 msgstr "आइटम हटाएं {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5102
-#: packages/admin/src/components/PortableTextEditor.tsx:5245
-#: packages/admin/src/components/PortableTextEditor.tsx:5879
+#: packages/admin/src/components/PortableTextEditor.tsx:5193
+#: packages/admin/src/components/PortableTextEditor.tsx:5336
+#: packages/admin/src/components/PortableTextEditor.tsx:5970
 msgid "Remove link"
 msgstr "लिंक हटाएँ"
 
@@ -11625,8 +11983,8 @@ msgstr "पासकी निकालें"
 msgid "Remove passkey?"
 msgstr "पासकी हटाएँ?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
-#: packages/admin/src/components/ContentSettingsPanel.tsx:630
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
+#: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr ""
 
@@ -11649,6 +12007,10 @@ msgstr ""
 #. placeholder {0}: selected.item.filename
 #: packages/admin/src/components/MediaPickerModal.tsx:727
 msgid "Removed {0} from selection."
+msgstr ""
+
+#: packages/admin/src/components/block-field-undo.tsx:302
+msgid "Removed {fieldLabel}"
 msgstr ""
 
 #: packages/admin/src/components/revisions/change-labels.ts:52
@@ -11756,7 +12118,7 @@ msgstr ""
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:348
+#: packages/admin/src/components/BlocksField.tsx:1467
 #: packages/admin/src/components/BylineCreditsEditor.tsx:690
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -11775,63 +12137,67 @@ msgstr "फ़ील्ड का दोहराव वाला समूह"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3586
-#: packages/admin/src/components/ContentEditor.tsx:3625
+#: packages/admin/src/components/ContentEditor.tsx:4231
+#: packages/admin/src/components/ContentEditor.tsx:4266
+#: packages/admin/src/components/ContentEditor.tsx:4332
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/editor/VideoNode.tsx:427
-#: packages/admin/src/components/ImageFieldRenderer.tsx:308
-#: packages/admin/src/components/ImageFieldRenderer.tsx:369
-#: packages/admin/src/components/ImageFieldRenderer.tsx:432
-#: packages/admin/src/components/ImageFieldRenderer.tsx:650
-#: packages/admin/src/components/ImageFieldRenderer.tsx:653
-#: packages/admin/src/components/PortableTextEditor.tsx:5901
-#: packages/admin/src/components/PortableTextEditor.tsx:5983
+#: packages/admin/src/components/ImageFieldRenderer.tsx:405
+#: packages/admin/src/components/ImageFieldRenderer.tsx:450
+#: packages/admin/src/components/ImageFieldRenderer.tsx:515
+#: packages/admin/src/components/ImageFieldRenderer.tsx:578
+#: packages/admin/src/components/ImageFieldRenderer.tsx:739
+#: packages/admin/src/components/ImageFieldRenderer.tsx:742
+#: packages/admin/src/components/ImageFieldRenderer.tsx:821
+#: packages/admin/src/components/PortableTextEditor.tsx:5992
+#: packages/admin/src/components/PortableTextEditor.tsx:6074
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3624
-#: packages/admin/src/components/ImageFieldRenderer.tsx:644
+#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ImageFieldRenderer.tsx:733
+#: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Replace {label}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:430
+#: packages/admin/src/components/ImageFieldRenderer.tsx:576
 msgid "Replace dark mode image"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:641
+#: packages/admin/src/components/ImageFieldRenderer.tsx:730
 msgid "Replace dark mode variant for {label}"
 msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1808
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
-#: packages/admin/src/components/PortableTextEditor.tsx:5982
+#: packages/admin/src/components/MediaDetailPanel.tsx:1819
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/PortableTextEditor.tsx:6073
 msgid "Replace image"
 msgstr "छवि बदलें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaDetailPanel.tsx:1962
+#: packages/admin/src/components/MediaDetailPanel.tsx:1850
+#: packages/admin/src/components/MediaDetailPanel.tsx:1973
 msgid "Replace original"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
-#: packages/admin/src/components/MediaDetailPanel.tsx:1956
+#: packages/admin/src/components/MediaDetailPanel.tsx:1936
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replace original image?"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Replace original is available with the Original aspect ratio."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3194
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Replace reference"
 msgstr ""
 
@@ -11853,14 +12219,14 @@ msgstr ""
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:950
-#: packages/admin/src/components/MediaDetailPanel.tsx:1932
+#: packages/admin/src/components/MediaDetailPanel.tsx:952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replacing image..."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
-#: packages/admin/src/components/MediaDetailPanel.tsx:1963
-#: packages/admin/src/components/MediaDetailPanel.tsx:1981
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr ""
 
@@ -11884,7 +12250,7 @@ msgstr "कोष"
 msgid "Request a new link"
 msgstr "एक नये लिंक का अनुरोध करें"
 
-#: packages/admin/src/lib/api/client.ts:346
+#: packages/admin/src/lib/api/client.ts:368
 msgid "Request failed"
 msgstr "अनुरोध असफल रहा"
 
@@ -11892,6 +12258,8 @@ msgstr "अनुरोध असफल रहा"
 msgid "Require a slug before content can be published"
 msgstr ""
 
+#: packages/admin/src/components/block-field-notes.tsx:47
+#: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:956
 #: packages/admin/src/components/FieldEditor.tsx:1193
@@ -11913,11 +12281,11 @@ msgstr "पहुंच के लिए आवश्यक है. स्क्
 msgid "Requires EmDash {0}"
 msgstr "EmDash की आवश्यकता है {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:461
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
 msgid "Reschedule"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "Rescheduled"
 msgstr ""
 
@@ -11930,8 +12298,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "{resendCooldown}s में पुनः भेजें"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1659
-#: packages/admin/src/components/MediaDetailPanel.tsx:1709
+#: packages/admin/src/components/MediaDetailPanel.tsx:1670
+#: packages/admin/src/components/MediaDetailPanel.tsx:1720
 msgid "Reset"
 msgstr ""
 
@@ -11939,7 +12307,7 @@ msgstr ""
 msgid "Reset column widths"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1694
+#: packages/admin/src/components/MediaDetailPanel.tsx:1705
 msgid "Reset crop"
 msgstr ""
 
@@ -11979,7 +12347,7 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2181
+#: packages/admin/src/components/ContentEditor.tsx:2529
 msgid "Resize settings panel"
 msgstr ""
 
@@ -11992,7 +12360,7 @@ msgid "Resolving publisher handle..."
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6497
+#: packages/admin/src/components/PortableTextEditor.tsx:6588
 msgid "Restart numbering"
 msgstr ""
 
@@ -12030,17 +12398,17 @@ msgstr ""
 msgid "Results"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:373
+#: packages/admin/src/components/BlocksField.tsx:1267
 #: packages/admin/src/components/FieldEditor.tsx:1488
 msgid "Retired"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3175
+#: packages/admin/src/components/ContentEditor.tsx:3802
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/MediaDetailPanel.tsx:1547
+#: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
@@ -12052,7 +12420,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3371
+#: packages/admin/src/router.tsx:3467
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12103,7 +12471,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "पुन: प्रयोज्य सामग्री ब्लॉक आप किसी भी सामग्री में सम्मिलित कर सकते हैं"
 
-#: packages/admin/src/router.tsx:1540
+#: packages/admin/src/router.tsx:1596
 msgid "Reverted to published version"
 msgstr "प्रकाशित संस्करण पर वापस लौटाया गया"
 
@@ -12157,7 +12525,7 @@ msgstr ""
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12193,13 +12561,14 @@ msgid "Rich text content"
 msgstr "समृद्ध पाठ्य सामग्री"
 
 #: packages/admin/src/components/FieldEditor.tsx:705
+#: packages/admin/src/components/PortableTextEditor.tsx:4137
 msgid "Rich text editor"
 msgstr "समृद्ध पाठ संपादक"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5393
-#: packages/admin/src/components/PortableTextEditor.tsx:5514
+#: packages/admin/src/components/PortableTextEditor.tsx:5484
+#: packages/admin/src/components/PortableTextEditor.tsx:5605
 msgid "Right"
 msgstr "सही"
 
@@ -12254,7 +12623,7 @@ msgid "Row added above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5491
+#: packages/admin/src/components/PortableTextEditor.tsx:5582
 msgid "Row added below"
 msgstr ""
 
@@ -12298,7 +12667,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12314,11 +12683,11 @@ msgstr "बचाना"
 msgid "Save (Enter)"
 msgstr "सहेजें (दर्ज करें)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5860
+#: packages/admin/src/components/PortableTextEditor.tsx:5951
 msgid "Save alt text"
 msgstr "वैकल्पिक पाठ सहेजें"
 
-#: packages/admin/src/components/ContentEditor.tsx:1930
+#: packages/admin/src/components/ContentEditor.tsx:2230
 msgid "Save anyway"
 msgstr ""
 
@@ -12331,7 +12700,7 @@ msgid "Save Changes"
 msgstr "परिवर्तनों को सुरक्षित करें"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:228
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:248
 msgid "Save changes before running plugin actions"
 msgstr ""
 
@@ -12343,7 +12712,8 @@ msgstr "प्रकाशन से पहले सामग्री को �
 msgid "Save date"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:684
+#: packages/admin/src/components/ContentEditor.tsx:2386
+#: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
 
@@ -12360,7 +12730,7 @@ msgstr ""
 msgid "Save name"
 msgstr "नाम सहेजें"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1737
+#: packages/admin/src/components/MediaDetailPanel.tsx:1748
 msgid "Save or discard the other changes before cropping."
 msgstr ""
 
@@ -12383,6 +12753,7 @@ msgstr "सेटिंग्स सेव करें"
 msgid "visualEditing.saved"
 msgstr ""
 
+#: packages/admin/src/components/ContentEditor.tsx:2463
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "सहेजा गया"
@@ -12405,8 +12776,9 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
+#: packages/admin/src/components/ContentEditor.tsx:2456
 #: packages/admin/src/components/FieldEditor.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12445,7 +12817,7 @@ msgstr "एसबीओएम · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:610
+#: packages/admin/src/components/ContentSettingsPanel.tsx:619
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "अनुसूची"
@@ -12463,19 +12835,19 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:234
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "Schedule removed"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1587
+#: packages/admin/src/router.tsx:1643
 msgid "Scheduled"
 msgstr "अनुसूचित"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr ""
 
@@ -12580,11 +12952,11 @@ msgstr ""
 msgid "Search {label}…"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:192
+#: packages/admin/src/components/BlockTypePicker.tsx:144
 msgid "Search block types"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:195
+#: packages/admin/src/components/BlockTypePicker.tsx:150
 msgid "Search blocks"
 msgstr ""
 
@@ -12649,8 +13021,8 @@ msgstr ""
 msgid "Search failed. Check your connection and try again."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1500
-#: packages/admin/src/components/MediaDetailPanel.tsx:1501
+#: packages/admin/src/components/MediaDetailPanel.tsx:1511
+#: packages/admin/src/components/MediaDetailPanel.tsx:1512
 msgid "Search folders"
 msgstr ""
 
@@ -12758,7 +13130,7 @@ msgstr "खोज सकने"
 msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3813
+#: packages/admin/src/components/PortableTextEditor.tsx:3889
 msgid "Section"
 msgstr "अनुभाग"
 
@@ -12791,6 +13163,7 @@ msgstr "अनुभाग शीर्षक"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
+#: packages/admin/src/router.tsx:2885
 msgid "Sections"
 msgstr "धारा"
 
@@ -12847,6 +13220,7 @@ msgstr "सुरक्षा एरर। सुनिश्चित करे
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
+#: packages/admin/src/router.tsx:2612
 msgid "Security Settings"
 msgstr "सुरक्षा सेटिंग्स"
 
@@ -12863,9 +13237,11 @@ msgid "Select"
 msgstr "चुनना"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:3606
-#: packages/admin/src/components/ContentEditor.tsx:3624
-#: packages/admin/src/components/ImageFieldRenderer.tsx:645
+#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ContentEditor.tsx:4291
+#: packages/admin/src/components/ContentEditor.tsx:4352
+#: packages/admin/src/components/ImageFieldRenderer.tsx:734
+#: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
 msgid "Select {label}"
 msgstr "{label} चुनें"
@@ -12887,7 +13263,7 @@ msgstr "एक घटक चुनें..."
 msgid "Select a content type"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1490
+#: packages/admin/src/components/MediaDetailPanel.tsx:1501
 msgid "Select a location"
 msgstr ""
 
@@ -12912,7 +13288,7 @@ msgstr "इस पृष्ठ पर सभी का चयन करें"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3087
+#: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "Select at least one entry."
 msgstr ""
 
@@ -12929,7 +13305,7 @@ msgstr "{0} द्वारा टिप्पणी चुनें"
 msgid "Select content"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:642
+#: packages/admin/src/components/ImageFieldRenderer.tsx:731
 msgid "Select dark mode variant for {label}"
 msgstr ""
 
@@ -12945,19 +13321,21 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "फ़ेविकॉन चुनें"
 
-#: packages/admin/src/components/ContentEditor.tsx:3610
+#: packages/admin/src/components/ContentEditor.tsx:4293
+#: packages/admin/src/components/ContentEditor.tsx:4358
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "फ़ाइल का चयन करें"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4813
+#: packages/admin/src/components/PortableTextEditor.tsx:4904
 msgid "Select gallery images"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:509
-#: packages/admin/src/components/ImageFieldRenderer.tsx:623
+#: packages/admin/src/components/ImageFieldRenderer.tsx:655
+#: packages/admin/src/components/ImageFieldRenderer.tsx:821
+#: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4784
+#: packages/admin/src/components/PortableTextEditor.tsx:4875
 msgid "Select image"
 msgstr "छवि का चयन करें"
 
@@ -12990,7 +13368,7 @@ msgid "Select up to 50 posts at a time."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4798
+#: packages/admin/src/components/PortableTextEditor.tsx:4889
 msgid "Select video"
 msgstr ""
 
@@ -13012,8 +13390,8 @@ msgstr ""
 msgid "Selected {selectedItemTitle}"
 msgstr "चयनित{selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:270
-#: packages/admin/src/components/ImageFieldRenderer.tsx:285
+#: packages/admin/src/components/ImageFieldRenderer.tsx:367
+#: packages/admin/src/components/ImageFieldRenderer.tsx:382
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
 msgid "Selected image"
 msgstr ""
@@ -13094,8 +13472,8 @@ msgstr ""
 msgid "Sending..."
 msgstr "भेजा जा रहा है..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1193
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1229
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
 #: packages/admin/src/components/Settings.tsx:66
 msgid "SEO"
@@ -13108,6 +13486,7 @@ msgid "SEO settings"
 msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/router.tsx:2691
 msgid "SEO Settings"
 msgstr "एसईओ सेटिंग्स"
 
@@ -13180,14 +13559,15 @@ msgid "Setting up..."
 msgstr "की स्थापना..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2045
-#: packages/admin/src/components/ContentEditor.tsx:2372
+#: packages/admin/src/components/ContentEditor.tsx:2355
+#: packages/admin/src/components/ContentEditor.tsx:2746
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/router.tsx:2597
 msgid "Settings"
 msgstr "सेटिंग्स"
 
@@ -13203,6 +13583,10 @@ msgstr "सेटिंग्स पढ़ें"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 msgid "Settings saved successfully"
 msgstr "सेटिंग्स सफलतापूर्वक सहेजी गईं"
+
+#: packages/admin/src/router.tsx:419
+msgid "Setup"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13233,6 +13617,10 @@ msgstr "लघु पाठ"
 #: packages/admin/src/components/FieldEditor.tsx:1694
 msgid "Short Text"
 msgstr "लघु पाठ"
+
+#: packages/admin/src/components/ContentEditor.tsx:239
+msgid "Show"
+msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
@@ -13279,7 +13667,7 @@ msgstr ""
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1132
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
 msgid "Shown to readers in this order."
 msgstr ""
 
@@ -13293,6 +13681,8 @@ msgstr ""
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "दाखिल करना"
 
@@ -13333,6 +13723,14 @@ msgstr "ईमेल लिंक से साइन इन करें"
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
 msgstr "पासकी से साइन इन करें"
+
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
+
+#: packages/admin/src/router.tsx:459
+msgid "Sign up"
+msgstr ""
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
@@ -13448,7 +13846,7 @@ msgstr "साइट URL"
 msgid "Site URL set to {url}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:145
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:149
 msgid "Sitemaps and absolute URLs in search and social metadata will use the new domain. Links in emails and plugins keep using {configuredUrl}, set by the deployment configuration."
 msgstr "साइटमैप और सर्च व सोशल मेटाडेटा के एब्सोल्यूट URL नए डोमेन का उपयोग करेंगे। ईमेल और प्लगइन के लिंक {configuredUrl} का ही उपयोग करते रहेंगे, जो डिप्लॉयमेंट कॉन्फ़िगरेशन में सेट है।"
 
@@ -13465,7 +13863,7 @@ msgstr "आकार"
 msgid "Size is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1319
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Size:"
 msgstr "आकार:"
 
@@ -13483,7 +13881,7 @@ msgstr "छोड़ा गया"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1083
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -13549,7 +13947,7 @@ msgid "SMTP Transport"
 msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
-msgid "smtp-relay.brevo.com"
+msgid "smtp.example.com"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:60
@@ -13569,6 +13967,10 @@ msgstr "सोशल मीडिया प्रोफ़ाइल लिंक
 #: packages/admin/src/components/settings/SocialSettings.tsx:134
 msgid "Social Profiles"
 msgstr "सामाजिक रूपरेखाएं"
+
+#: packages/admin/src/router.tsx:2683
+msgid "Social Settings"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
@@ -13685,7 +14087,7 @@ msgstr "एसक्यूएल"
 msgid "Square"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:539
+#: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
 msgstr ""
 
@@ -13724,8 +14126,9 @@ msgstr ""
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2645
-#: packages/admin/src/components/PortableTextEditor.tsx:3579
+#: packages/admin/src/components/ContentEditor.tsx:3176
+#: packages/admin/src/components/ContentEditor.tsx:3199
+#: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "लिखना प्रारंभ करें, या आदेशों के लिए '/' टाइप करें"
 
@@ -13754,7 +14157,7 @@ msgstr ""
 msgid "STARTTLS (port 587)"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr ""
@@ -13803,8 +14206,8 @@ msgstr "संग्रहित बैकअप"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "प्रति स्थान संग्रहीत - बायलाइन के प्रत्येक अनुवाद को अपना मूल्य मिलता है।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4878
-#: packages/admin/src/components/PortableTextEditor.tsx:6440
+#: packages/admin/src/components/PortableTextEditor.tsx:4969
+#: packages/admin/src/components/PortableTextEditor.tsx:6531
 msgid "Strikethrough"
 msgstr "स्ट्राइकथ्रू"
 
@@ -13815,6 +14218,10 @@ msgstr "संरचना"
 #: packages/admin/src/components/WordPressImport.tsx:1214
 msgid "Structured"
 msgstr "स्ट्रक्चर्ड"
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3805
+msgid "Style"
+msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:135
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:163
@@ -13834,11 +14241,11 @@ msgstr "उप क्षेत्रों"
 msgid "Subscriber"
 msgstr "ग्राहक"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5372
+#: packages/admin/src/components/PortableTextEditor.tsx:5463
 msgid "Subscript"
 msgstr "सबस्क्रिप्ट"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5378
+#: packages/admin/src/components/PortableTextEditor.tsx:5469
 msgid "Superscript"
 msgstr "ऊपर की ओर लिखा हुआ"
 
@@ -13890,11 +14297,11 @@ msgstr "सिस्टम फ़ील्ड"
 msgid "Table"
 msgstr "मेज़"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4635
+#: packages/admin/src/components/PortableTextEditor.tsx:4726
 msgid "Table cells accept text, links, and formatting only."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5481
+#: packages/admin/src/components/PortableTextEditor.tsx:5572
 msgid "Table controls"
 msgstr "टेबल नियंत्रण"
 
@@ -13903,7 +14310,7 @@ msgid "Table deleted"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4525
+#: packages/admin/src/components/PortableTextEditor.tsx:4616
 msgid "Table inserted"
 msgstr ""
 
@@ -13911,7 +14318,7 @@ msgstr ""
 msgid "Table size"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4632
+#: packages/admin/src/components/PortableTextEditor.tsx:4723
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
@@ -13950,9 +14357,10 @@ msgstr "लक्ष्य"
 msgid "Target locale"
 msgstr "लक्ष्य स्थान"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1180
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
+#: packages/admin/src/router.tsx:2856
 msgid "Taxonomies"
 msgstr "वर्गीकरण"
 
@@ -14051,7 +14459,12 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6684
+#: packages/admin/src/components/BlocksField.tsx:2237
+#: packages/admin/src/components/PortableTextEditor.tsx:3800
+msgid "Text"
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:6775
 msgid "Text formatting"
 msgstr "पाठ स्वरूपण"
 
@@ -14127,7 +14540,7 @@ msgstr ""
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:834
+#: packages/admin/src/components/MediaDetailPanel.tsx:836
 msgid "The cropped image could not be created."
 msgstr ""
 
@@ -14342,7 +14755,7 @@ msgstr ""
 msgid "The package’s file index is not valid."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3385
+#: packages/admin/src/router.tsx:3481
 msgid "The page you're looking for doesn't exist."
 msgstr "आप जिस पृष्ठ को खोज रहे हैं वह मौजूद नहीं है।"
 
@@ -14362,8 +14775,8 @@ msgstr "प्लगइन फ़ील्ड विजेट प्रस्त
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1154
-#: packages/admin/src/components/ContentEditor.tsx:1170
+#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1342
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr ""
 
@@ -14405,15 +14818,15 @@ msgstr ""
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:829
+#: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:932
+#: packages/admin/src/components/MediaDetailPanel.tsx:934
 msgid "The selected image could not be read."
 msgstr ""
 
@@ -14489,10 +14902,18 @@ msgstr "विषय"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
+#: packages/admin/src/router.tsx:2811
+msgid "Theme Details"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
 msgstr "थीम आईडी: {0}"
+
+#: packages/admin/src/router.tsx:2803
+msgid "Theme Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -14526,7 +14947,7 @@ msgstr "ये उपकरण इंस्टॉलेशन के बाद �
 msgid "This also removes:"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:411
+#: packages/admin/src/components/BlocksField.tsx:1677
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr ""
 
@@ -14535,17 +14956,33 @@ msgstr ""
 msgid "This block embeds a page from {0}."
 msgstr ""
 
+#: packages/admin/src/components/BlocksField.tsx:2069
+msgid "This block has no fields."
+msgstr ""
+
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
 msgid "This block runs JavaScript."
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:881
+msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:874
+msgid "This block uses an older version of its type, so it can't be restored after you delete it."
+msgstr ""
+
+#: packages/admin/src/components/BlocksField.tsx:876
+msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
+#: packages/admin/src/components/MediaDetailPanel.tsx:1952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "This cannot be undone"
 msgstr ""
 
@@ -14561,11 +14998,11 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "इस संग्रह को कोड में परिभाषित किया गया है। यहां कुछ सेटिंग्स नहीं बदली जा सकतीं. स्कीमा को संशोधित करने के लिए अपनी Live.config.ts फ़ाइल संपादित करें।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4607
+#: packages/admin/src/components/PortableTextEditor.tsx:4698
 msgid "This content cannot be edited safely"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:507
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "This content will be visible on the site immediately."
 msgstr ""
 
@@ -14585,20 +15022,20 @@ msgstr "यह वैध माइग्रेशन कुंजी की त�
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1926
+#: packages/admin/src/components/ContentEditor.tsx:2226
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1486
-#: packages/admin/src/router.tsx:1142
+#: packages/admin/src/components/ContentEditor.tsx:1726
+#: packages/admin/src/router.tsx:1179
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1978
+#: packages/admin/src/router.tsx:2034
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1979
+#: packages/admin/src/router.tsx:2035
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -14610,11 +15047,11 @@ msgstr ""
 msgid "This entry is open somewhere else"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1913
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:407
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr ""
 
@@ -14622,21 +15059,22 @@ msgstr ""
 msgid "This export is large"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2473
+#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2959
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4590
+#: packages/admin/src/components/PortableTextEditor.tsx:4681
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4609
+#: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr ""
 
 #. placeholder {0}: file.type
-#: packages/admin/src/components/media/ImageDropTarget.tsx:61
+#: packages/admin/src/components/media/ImageDropTarget.tsx:64
 msgid "This field does not accept {0} files."
 msgstr ""
 
@@ -14648,8 +15086,8 @@ msgstr ""
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3628
-#: packages/admin/src/components/ImageFieldRenderer.tsx:664
+#: packages/admin/src/components/ContentEditor.tsx:4364
+#: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "यह फ़ील्ड आवश्यक है"
 
@@ -14691,7 +15129,7 @@ msgstr ""
 msgid "This folder is empty."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1730
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "This image could not be loaded for cropping."
 msgstr ""
 
@@ -14736,7 +15174,7 @@ msgid "This media item could not be loaded. Try again."
 msgstr ""
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
-#: packages/admin/src/components/MediaDetailPanel.tsx:823
+#: packages/admin/src/components/MediaDetailPanel.tsx:825
 msgid "This media item no longer exists."
 msgstr ""
 
@@ -14760,7 +15198,7 @@ msgstr ""
 msgid "This passkey is already registered on this device."
 msgstr "यह पासकी इस डिवाइस पर पहले से ही पंजीकृत है।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4628
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr ""
 
@@ -14829,7 +15267,7 @@ msgstr "इससे बायलाइन प्रोफ़ाइल हट �
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:507
 msgid "This removes the schedule and publishes immediately."
 msgstr ""
 
@@ -14837,12 +15275,12 @@ msgstr ""
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4673
+#: packages/admin/src/components/PortableTextEditor.tsx:4764
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr ""
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4675
+#: packages/admin/src/components/PortableTextEditor.tsx:4766
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -14900,15 +15338,15 @@ msgstr ""
 msgid "This slug is reserved. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4630
+#: packages/admin/src/components/PortableTextEditor.tsx:4721
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4588
+#: packages/admin/src/components/PortableTextEditor.tsx:4679
 msgid "This table cannot be edited safely"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4634
+#: packages/admin/src/components/PortableTextEditor.tsx:4725
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
@@ -14932,7 +15370,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "इससे विजेट क्षेत्र और उसके सभी विजेट हट जाएंगे। इस एक्शन को वापस नहीं किया जा सकता।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1337
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1370
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "यह आइटम को कूड़ेदान में ले जाएगा। आप इसे बाद में कूड़ेदान से पुनर्स्थापित कर सकते हैं।"
 
@@ -14954,7 +15392,7 @@ msgstr "इससे यह टिप्पणी स्थायी रूप �
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "यह आपकी साइट से प्लगइन और उसके बंडल को हटा देगा।"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:357
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "यह प्रकाशित संस्करण पर वापस आ जाएगा. आपके ड्राफ्ट परिवर्तन खो जाएंगे."
 
@@ -15072,6 +15510,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
+#: packages/admin/src/router.tsx:2660
 msgid "Transfer"
 msgstr ""
 
@@ -15100,16 +15539,16 @@ msgstr "अनुवाद हो रहा है..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1630
+#: packages/admin/src/router.tsx:1686
 msgid "Translation created"
 msgstr "अनुवाद बनाया गया"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "अनुवाद"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:371
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 msgid "Translations:"
 msgstr ""
 
@@ -15219,9 +15658,9 @@ msgid "TSX"
 msgstr "टीएसएक्स"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5295
-#: packages/admin/src/components/PortableTextEditor.tsx:5297
-#: packages/admin/src/components/PortableTextEditor.tsx:5314
+#: packages/admin/src/components/PortableTextEditor.tsx:5386
+#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5405
 msgid "Turn into"
 msgstr "में बदलना"
 
@@ -15288,7 +15727,7 @@ msgstr "प्रकार बेमेल ({0})"
 msgid "Type to filter"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4745
+#: packages/admin/src/components/PortableTextEditor.tsx:4836
 msgid "Type to search"
 msgstr ""
 
@@ -15305,17 +15744,18 @@ msgstr "टाइपप्रति"
 msgid "Unable to reach marketplace"
 msgstr "बाज़ार तक पहुंचने में असमर्थ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1374
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1407
 msgid "Unassigned"
 msgstr "सौंपे नहीं गए"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4877
-#: packages/admin/src/components/PortableTextEditor.tsx:6432
+#: packages/admin/src/components/PortableTextEditor.tsx:4968
+#: packages/admin/src/components/PortableTextEditor.tsx:6523
 msgid "Underline"
 msgstr "रेखांकन"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6663
+#: packages/admin/src/components/block-field-undo.tsx:219
+#: packages/admin/src/components/PortableTextEditor.tsx:6754
 msgid "Undo"
 msgstr "पूर्ववत"
 
@@ -15351,7 +15791,7 @@ msgstr "विशिष्ट पहचानकर्ता (यूएलआई
 msgid "Unknown"
 msgstr "अज्ञात"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unknown author"
 msgstr ""
 
@@ -15373,15 +15813,15 @@ msgstr "पहलू अनुपात अनलॉक करें"
 msgid "Unnamed passkey"
 msgstr "अनाम पासकी"
 
-#: packages/admin/src/components/revisions/revision-format.ts:129
+#: packages/admin/src/components/revisions/revision-format.ts:130
 msgid "Unnamed user"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:496
 msgid "Unpublish {itemLabel}"
 msgstr "अप्रकाशित करें {itemLabel}"
 
-#: packages/admin/src/router.tsx:1516
+#: packages/admin/src/router.tsx:1572
 msgid "Unpublished"
 msgstr "अप्रकाशित"
 
@@ -15403,15 +15843,19 @@ msgstr ""
 msgid "visualEditing.unsaved"
 msgstr ""
 
+#: packages/admin/src/components/ContentEditor.tsx:2462
+msgid "Unsaved changes"
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:126
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1598
+#: packages/admin/src/router.tsx:1654
 msgid "Unscheduled"
 msgstr "अनिर्धारित"
 
-#: packages/admin/src/components/BlocksField.tsx:374
+#: packages/admin/src/components/BlocksField.tsx:1268
 #: packages/admin/src/components/ContentTypeEditor.tsx:955
 msgid "Unsupported"
 msgstr ""
@@ -15426,12 +15870,13 @@ msgstr "असमर्थित विजेट तत्व प्रकार
 msgid "Until {0}"
 msgstr ""
 
+#: packages/admin/src/components/BlockListField.tsx:386
 #: packages/admin/src/components/Dashboard.tsx:598
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "शीर्षकहीन"
 
-#: packages/admin/src/components/ContentEditor.tsx:3528
+#: packages/admin/src/components/ContentEditor.tsx:4190
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "शीर्षक रहित फ़ाइल"
@@ -15500,7 +15945,7 @@ msgid "Update to v{0}"
 msgstr "v{0} पर अद्यतन करें"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1049
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "अद्यतन"
@@ -15605,7 +16050,7 @@ msgstr "पुन: प्रयोज्य परिसंपत्तियो
 msgid "Upload not finished"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3800
+#: packages/admin/src/components/PortableTextEditor.tsx:3876
 msgid "Upload or choose a video"
 msgstr ""
 
@@ -15630,7 +16075,7 @@ msgstr "वर्डप्रेस निर्यात फ़ाइल अप
 msgid "Uploaded"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Uploaded:"
 msgstr "अपलोड किया गया:"
 
@@ -15646,8 +16091,8 @@ msgid "visualEditing.uploadingFile"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:125
-#: packages/admin/src/components/media/ImageDropTarget.tsx:143
-#: packages/admin/src/components/media/ImageDropTarget.tsx:156
+#: packages/admin/src/components/media/ImageDropTarget.tsx:147
+#: packages/admin/src/components/media/ImageDropTarget.tsx:160
 msgid "Uploading image…"
 msgstr ""
 
@@ -15665,11 +16110,12 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:636
 #: packages/admin/src/components/MenuEditor.tsx:857
 #: packages/admin/src/components/PortableTextEditor.tsx:2805
+#: packages/admin/src/components/PortableTextEditor.tsx:3801
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1078
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1108
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 msgid "URL & language"
 msgstr ""
 
@@ -15686,7 +16132,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "URL-अनुकूल पहचानकर्ता"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1378
+#: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "URL:"
 msgstr "URL:"
 
@@ -15726,7 +16172,7 @@ msgstr ""
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "पैटर्न मिलान के लिए पथों में [param] या [...rest] का उपयोग करें।"
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:195
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:209
 msgid "Use {fallbackUrl} anyway"
 msgstr ""
 
@@ -15806,16 +16252,16 @@ msgstr "जब किसी पृष्ठ पर कोई नहीं हो
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "पहचानकर्ता के रूप में उपयोग किया जाता है। केवल छोटे अक्षर, संख्याएँ और अंडरस्कोर।"
 
-#: packages/admin/src/components/ContentEditor.tsx:2768
+#: packages/admin/src/components/ContentEditor.tsx:3387
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "इस पोस्ट के लिए लिस्टिंग पृष्ठों और पोस्ट के शीर्ष पर मुख्य दृश्य के रूप में उपयोग किया जाता है"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:531
+#: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "Used by screen readers and when image fails to load"
 msgstr "स्क्रीन रीडर द्वारा उपयोग किया जाता है और जब छवि लोड होने में असफल हो जाती है"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1173
-#: packages/admin/src/components/MediaDetailPanel.tsx:1206
+#: packages/admin/src/components/MediaDetailPanel.tsx:1175
+#: packages/admin/src/components/MediaDetailPanel.tsx:1208
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr ""
@@ -15868,6 +16314,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/router.tsx:2900
 msgid "Users"
 msgstr "उपयोगकर्ताओं"
 
@@ -15942,7 +16389,7 @@ msgstr "संस्करण"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:371
+#: packages/admin/src/components/BlocksField.tsx:1658
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -15961,17 +16408,26 @@ msgstr ""
 msgid "Version restored"
 msgstr ""
 
+#: packages/admin/src/components/PortableTextEditor.tsx:3791
+msgid "Vertical"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
-#: packages/admin/src/components/PortableTextEditor.tsx:3799
+#: packages/admin/src/components/PortableTextEditor.tsx:3875
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
 msgstr "वीडियो"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:358
 msgid "Video actions"
+msgstr ""
+
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:1278
+msgid "Video player for {0}"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
@@ -15982,7 +16438,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "ईमेल प्रदाता स्थिति देखें और परीक्षण ईमेल भेजें"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:502
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
 msgid "View live"
 msgstr ""
 
@@ -16040,7 +16496,7 @@ msgstr ""
 msgid "Visitors still see the published version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:506
+#: packages/admin/src/components/ContentSettingsPanel.tsx:509
 msgid "Visitors will see these changes immediately."
 msgstr ""
 
@@ -16066,7 +16522,7 @@ msgstr "चेतावनी देना"
 msgid "Warnings"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Was due"
 msgstr ""
 
@@ -16162,7 +16618,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "जब आप आयात करेंगे तो क्या होगा"
 
-#: packages/admin/src/components/ContentEditor.tsx:1927
+#: packages/admin/src/components/ContentEditor.tsx:2227
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 
@@ -16199,15 +16655,15 @@ msgstr "कौन से सामग्री प्रकार इस वर�
 msgid "Whole number"
 msgstr "पूरा नंबर"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
 msgid "Why are bylines shown in this order?"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:530
+#: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "Why can't this be changed?"
 msgstr "इसे बदला क्यों नहीं जा सकता?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1095
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
 msgid "Why English is used"
 msgstr ""
 
@@ -16231,7 +16687,7 @@ msgstr "खोज दृश्यता के लिए यह क्यों 
 msgid "Why is this important for social sharing?"
 msgstr "सामाजिक साझाकरण के लिए यह महत्वपूर्ण क्यों है?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:532
+#: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Why is this important?"
 msgstr "यह महत्वपूर्ण क्यों है?"
 
@@ -16279,6 +16735,7 @@ msgstr "विजेट अद्यतन किया गया"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/router.tsx:2870
 msgid "Widgets"
 msgstr "विजेट"
 
@@ -16327,7 +16784,7 @@ msgstr "वर्डप्रेस उपयोगकर्ता नाम"
 msgid "Working on {selectedCount} items…"
 msgstr "{selectedCount} आइटम पर कार्य करना..."
 
-#: packages/admin/src/components/SandboxedContentEditorActions.tsx:284
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:285
 msgid "Working…"
 msgstr ""
 
@@ -16447,7 +16904,7 @@ msgstr ""
 msgid "You need Admin permissions to transfer this site."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2493
+#: packages/admin/src/router.tsx:2553
 msgid "You need Editor permissions to moderate comments."
 msgstr "टिप्पणियों को मॉडरेट करने के लिए आपको संपादक की अनुमति की आवश्यकता है।"
 
@@ -16589,11 +17046,11 @@ msgstr "आपका नाम (वैकल्पिक)"
 msgid "Your Role"
 msgstr "आपकी भूमिका"
 
-#: packages/admin/src/router.tsx:2048
+#: packages/admin/src/router.tsx:2106
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2049
+#: packages/admin/src/router.tsx:2107
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -16601,7 +17058,7 @@ msgstr ""
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr ""
 
-#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:143
+#: packages/admin/src/components/settings/ChangeDomainDialog.tsx:147
 msgid "Your site is currently at {currentUrl}."
 msgstr ""
 
@@ -16615,7 +17072,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "आपकी साइट को स्थापित करने से पहले रिलीज़ को कम से कम {0} पुराना होना आवश्यक है। यह रिलीज़ बाद में इंस्टॉल करने योग्य हो जाएगी."
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:359
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
 msgid "Your time: {viewerTime}"
 msgstr ""
 
@@ -16628,7 +17085,7 @@ msgstr "आपका ट्विटर/एक्स हैंडल (जैस�
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1874
+#: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
 msgstr "आपके सहेजे न गए मीडिया परिवर्तन खो जाएंगे."
 

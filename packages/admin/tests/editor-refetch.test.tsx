@@ -391,6 +391,31 @@ describe("ContentEditPage background reads with the real editor", () => {
 		vi.useRealTimers();
 	});
 
+	it("keeps newer edits when a manual save's delayed refetch completes", async () => {
+		vi.useRealTimers();
+		const { screen, queryClient } = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await title.fill("Mobile checkpoint");
+		server.delayRead();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		await title.fill("Later changes");
+		server.resolveRead();
+		await vi.waitFor(() =>
+			expect(queryClient.isFetching({ queryKey: ["content", "posts", "post_1"] })).toBe(0),
+		);
+		await expect.element(title).toHaveValue("Later changes");
+		await expect
+			.poll(() => server.requests.filter((request) => request.method === "PUT").length, {
+				timeout: 6000,
+			})
+			.toBe(2);
+		expect(server.requests.findLast((request) => request.method === "PUT")?.body).toMatchObject({
+			skipRevision: true,
+			data: { title: "Later changes" },
+		});
+	});
+
 	it.each(["entry", "locale"])(
 		"resets a dirty form when its %s identity changes",
 		async (identity) => {
@@ -423,8 +448,8 @@ describe("ContentEditPage background reads with the real editor", () => {
 			await screen.rerender(editor(next));
 			await expect.element(title).toHaveValue("Other entry");
 			await expect
-				.element(screen.getByRole("button", { name: "Saved", exact: true }))
-				.toBeDisabled();
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
 			await title.fill("Edited other entry");
 			await vi.advanceTimersByTimeAsync(150);
 			await screen.getByRole("button", { name: "Save", exact: true }).click();
@@ -461,7 +486,9 @@ describe("ContentEditPage background reads with the real editor", () => {
 		await expect
 			.element(title)
 			.toHaveValue(action === "discard" ? "Published title" : "Restored title");
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+			.toBeNull();
 	});
 
 	it("adopts a fresh revision in a clean cached editor before saving SEO", async () => {
@@ -609,6 +636,7 @@ describe("ContentEditPage rich text body", () => {
 		server.advance({ title: "Saved title", content: textBlocks("Body saved in another tab") });
 		server.resolveRead();
 		await vi.advanceTimersByTimeAsync(2500);
+		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Body saved in another tab"));
 		expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(1);
 
 		await typeAtEnd("!");
@@ -634,6 +662,7 @@ describe("ContentEditPage rich text body", () => {
 		server.resolveRead();
 		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Body saved in another tab"));
 
+		await expect.element(title).toHaveValue("Saved title, edited during the save");
 		await typeAtEnd("!");
 		await vi.advanceTimersByTimeAsync(2500);
 		const sent = server.requests.findLast((r) => r.method === "PUT")?.body as
@@ -723,7 +752,9 @@ describe("ContentEditPage rich text body", () => {
 			.element()
 			.click();
 		await vi.waitFor(() => expect(bodyEditor()?.textContent).toBe("Published body"));
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+			.toBeNull();
 	});
 });
 
@@ -778,13 +809,22 @@ describe("ContentEditPage rich text in blocks", () => {
 	});
 
 	it("saves the next block text edit on top of a block a background read brought in", async () => {
-		const { queryClient } = await renderEditPage();
+		const { screen, queryClient } = await renderEditPage();
+		const openCallout = async () => {
+			const toggle = screen.getByRole("button", { name: "Callout", exact: true });
+			if (toggle.element().getAttribute("aria-expanded") !== "true") await toggle.click();
+		};
+		await openCallout();
 		await vi.waitFor(() => expect(calloutEditor()?.textContent).toBe("Draft callout"));
 		server.advance({ title: "Draft title", layout: calloutBlocks("Callout saved in another tab") });
 		await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
 		await vi.advanceTimersByTimeAsync(2500);
 		expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(0);
 
+		await openCallout();
+		await vi.waitFor(() =>
+			expect(calloutEditor()?.textContent).toBe("Callout saved in another tab"),
+		);
 		await typeAtEnd("!", calloutEditor()!);
 		await vi.advanceTimersByTimeAsync(2500);
 		const sent = server.requests.find((r) => r.method === "PUT")?.body as

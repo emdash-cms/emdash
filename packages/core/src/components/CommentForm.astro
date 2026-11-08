@@ -311,6 +311,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 	:global(.dark) .ec-comment-user-info {
 		background: var(--ec-form-user-bg-dark, #374151);
+		border-color: var(--ec-form-user-border-dark, #4b5563);
 	}
 
 	.ec-comment-user-name {
@@ -336,6 +337,11 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 		cursor: pointer;
 		background: var(--ec-form-submit-bg, #1f2937);
 		color: var(--ec-form-submit-color, #fff);
+	}
+
+	:global(.dark) .ec-comment-form-submit {
+		background: var(--ec-form-submit-bg-dark, #f3f4f6);
+		color: var(--ec-form-submit-color-dark, #111827);
 	}
 
 	.ec-comment-form-submit:disabled {
