@@ -281,6 +281,8 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 			instantiations.push(
 				`adaptSandboxEntry(${varName}, ${JSON.stringify({
 					id: descriptor.id,
+					displayName: descriptor.displayName,
+					description: descriptor.description,
 					version: descriptor.version,
 					capabilities: descriptor.capabilities,
 					allowedHosts: descriptor.allowedHosts,
@@ -299,7 +301,12 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 			// Native format: import createPlugin and call with options
 			const varName = `createPlugin${index}`;
 			imports.push(`import { createPlugin as ${varName} } from "${descriptor.entrypoint}";`);
-			instantiations.push(`${varName}(${JSON.stringify(descriptor.options ?? {})})`);
+			instantiations.push(
+				`({ ...${varName}(${JSON.stringify(descriptor.options ?? {})}), ...${JSON.stringify({
+					displayName: descriptor.displayName,
+					description: descriptor.description,
+				})} })`,
+			);
 		}
 	});
 
@@ -503,10 +510,11 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
  * routes can read Worker bindings/secrets without touching
  * `Astro.locals.runtime.env`, which Astro 6+ removed (accessing it throws
  * rather than returning undefined, so `locals.runtime?.env` optional-chaining
- * doesn't help -- see #1736). For any other adapter, exports `undefined` so
- * callers fall back to `import.meta.env`. Mirrors generateWaitUntilModule:
- * core stays adapter-agnostic, with no direct `cloudflare:workers` import
- * that would fail to resolve under a Node build.
+ * doesn't help). For any other adapter, exports `undefined`. Callers that
+ * need runtime secrets then prefer `process.env` over `import.meta.env`,
+ * which Vite replaces with the environment present at build time. Mirrors
+ * generateWaitUntilModule: core stays adapter-agnostic, with no direct
+ * `cloudflare:workers` import that would fail to resolve under a Node build.
  */
 export function generateEnvModule(adapterName: string | undefined): string {
 	if (adapterName === "@astrojs/cloudflare") {
@@ -691,6 +699,8 @@ export const sandboxedPlugins = [];
 		// Create the plugin entry with embedded code and sandbox config
 		pluginEntries.push(`{
     id: ${JSON.stringify(descriptor.id)},
+		displayName: ${JSON.stringify(descriptor.displayName)},
+		description: ${JSON.stringify(descriptor.description)},
     version: ${JSON.stringify(descriptor.version)},
     options: ${JSON.stringify(descriptor.options ?? {})},
     capabilities: ${JSON.stringify(descriptor.capabilities ?? [])},

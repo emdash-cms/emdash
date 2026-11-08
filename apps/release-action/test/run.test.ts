@@ -1,8 +1,12 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it } from "vitest";
 
 import releaseFixture from "../../../packages/registry-verification/fixtures/records/release.json";
-import type { PreparedReleaseFiles } from "../src/prepare.js";
+import { prepareReleaseFiles, type PreparedReleaseFiles } from "../src/prepare.js";
 import { executeAction, runAction } from "../src/run.js";
 import type { ActionRuntime } from "../src/runtime.js";
 
@@ -315,6 +319,225 @@ describe("delegated release Action", () => {
 			},
 		});
 	});
+
+	it.each([
+		["missing", "No emdash-plugin.jsonc in plugin-directory, so the release has no listing images"],
+		[
+			"unrelated",
+			"emdash-plugin.jsonc in plugin-directory belongs to another plugin, so the release has no listing images. Set plugin-directory to the directory of gallery.",
+		],
+	])(
+		"logs why a %s manifest leaves a bundle release without listing images",
+		async (manifest, message) => {
+			const root = await mkdtemp(join(tmpdir(), "emdash-action-log-"));
+			try {
+				const workspace = join(root, "workspace");
+				const runnerTemp = join(root, "runner-temp");
+				await mkdir(workspace);
+				await mkdir(runnerTemp);
+				const files = preparedFiles();
+				await writeFile(join(workspace, "gallery.tar.gz"), files.packageBytes);
+				await writeFile(join(runnerTemp, "attestation.json"), files.provenanceBytes);
+				if (manifest === "unrelated") {
+					await writeFile(
+						join(workspace, "emdash-plugin.jsonc"),
+						JSON.stringify({
+							slug: "other-plugin",
+							release: { artifacts: { icon: { file: "missing-image.png" } } },
+						}),
+					);
+				}
+				const runtime = new FakeRuntime();
+				runtime.inputs.delete("release-file");
+				runtime.inputs.set("bundle-file", "gallery.tar.gz");
+				runtime.inputs.set("provenance-file", "attestation.json");
+				runtime.inputs.set("repository-visibility", "public");
+				runtime.environment.set("GITHUB_WORKSPACE", workspace);
+				runtime.environment.set("RUNNER_TEMP", runnerTemp);
+				runtime.environment.set("GITHUB_REPOSITORY", "example/gallery");
+				runtime.environment.set(
+					"GITHUB_WORKFLOW_REF",
+					"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+				);
+				const uploads: string[] = [];
+				const result = await runAction(runtime, {
+					prepareReleaseFiles: (options) =>
+						prepareReleaseFiles(options, {
+							validateBundle: async () => ({
+								success: true,
+								value: { packageSlug: "gallery", version: "1.2.3", declaredAccess: {} },
+							}),
+						}),
+					fetch: async (input, init) => {
+						const request = new Request(input, init);
+						const path = new URL(request.url).pathname;
+						if (path === "/v1/workflow-connections")
+							return success({ status: "connected", policy: policy() });
+						if (path === "/v1/staged-artifacts") {
+							const slot = request.headers.get("x-emdash-artifact-slot")!;
+							const checksum = request.headers.get("x-emdash-checksum")!;
+							uploads.push(slot);
+							return success(
+								{
+									artifact: {
+										slot,
+										checksum,
+										contentType: request.headers.get("content-type"),
+										size: (await request.arrayBuffer()).byteLength,
+										sourceUrl:
+											slot === "provenance"
+												? `${SERVICE}/v1/provenance/${checksum}`
+												: `${SERVICE}/v1/staged-artifacts/${slot}/${checksum}`,
+									},
+									replayed: false,
+								},
+								201,
+							);
+						}
+						if (path === "/v1/release-intents")
+							return success({ intent: intent("received"), replayed: false }, 202);
+						return success({
+							intent: intent("published", { result: { uri: CREATED_URI, cid: CREATED_CID } }),
+						});
+					},
+				});
+				expect(result.state).toBe("published");
+				expect(uploads).toEqual(["package", "provenance"]);
+				expect(runtime.messages.filter((entry) => entry.includes("no listing images"))).toEqual([
+					message,
+				]);
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
+		},
+	);
+
+	it.each([false, true])(
+		"stages listing media and stops on upload failure (failure: %s)",
+		async (failImage) => {
+			const runtime = new FakeRuntime();
+			runtime.inputs.delete("release-file");
+			runtime.inputs.set("bundle-file", ".emdash-release/gallery.tar.gz");
+			runtime.inputs.set("plugin-directory", "packages/gallery");
+			runtime.inputs.set("provenance-file", "/runner/temp/attestation.json");
+			runtime.inputs.set("repository-visibility", "public");
+			runtime.environment.set("RUNNER_TEMP", "/runner/temp");
+			runtime.environment.set("GITHUB_REPOSITORY", "example/gallery");
+			runtime.environment.set(
+				"GITHUB_WORKFLOW_REF",
+				"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+			);
+			const image = {
+				bytes: new Uint8Array([1, 2, 3]),
+				checksum: CHECKSUM,
+				contentType: "image/png",
+				width: 100,
+				height: 200,
+			};
+			const prepared = {
+				...preparedFiles(),
+				media: {
+					icon: image,
+					banner: image,
+					screenshots: [
+						{ ...image, lang: "en" },
+						{ ...image, lang: "fr" },
+					],
+				},
+			};
+			const uploads: string[] = [];
+			let submitted: Record<string, unknown> | undefined;
+			await executeAction(runtime, {
+				prepareReleaseFiles: async (options) => {
+					expect(options.pluginDirectory).toBe("packages/gallery");
+					return prepared;
+				},
+				fetch: async (input, init) => {
+					const request = new Request(input, init);
+					const path = new URL(request.url).pathname;
+					if (path === "/v1/workflow-connections")
+						return success({ status: "connected", policy: policy() });
+					if (path === "/v1/staged-artifacts") {
+						const slot = request.headers.get("x-emdash-artifact-slot")!;
+						uploads.push(slot);
+						if (failImage && slot === "icon")
+							return failure("INVALID_REQUEST", "Image upload failed", 400);
+						const checksum = request.headers.get("x-emdash-checksum")!;
+						const sourceUrl =
+							slot === "provenance"
+								? `${SERVICE}/v1/provenance/${checksum}`
+								: `${SERVICE}/v1/staged-artifacts/${slot.replace("[", "-").replace("]", "")}/${checksum}`;
+						const bytes = new Uint8Array(await request.arrayBuffer());
+						if (!["package", "provenance"].includes(slot)) {
+							expect(bytes).toEqual(image.bytes);
+							expect(request.headers.get("idempotency-key")).toBe(
+								`github-upload-10000000001-gallery-${slot.replaceAll("[", "-").replaceAll("]", "")}`,
+							);
+							expect(request.headers.get("authorization")).toMatch(
+								/^Bearer header.payload.signature-/,
+							);
+						}
+						return success(
+							{
+								artifact: {
+									slot,
+									checksum,
+									contentType: request.headers.get("content-type"),
+									size: bytes.byteLength,
+									sourceUrl,
+								},
+								replayed: false,
+							},
+							201,
+						);
+					}
+					if (path === "/v1/release-intents") {
+						submitted = await request.json();
+						return success({ intent: intent("received"), replayed: false }, 202);
+					}
+					return success({
+						intent: intent("published", { result: { uri: CREATED_URI, cid: CREATED_CID } }),
+					});
+				},
+			});
+			if (failImage) {
+				expect(uploads).toEqual(["package", "provenance", "icon"]);
+				expect(submitted).toBeUndefined();
+				expect(runtime.failures).toEqual(["INVALID_REQUEST: Image upload failed"]);
+			} else {
+				expect(runtime.failures).toEqual([]);
+				expect(uploads).toEqual([
+					"package",
+					"provenance",
+					"icon",
+					"banner",
+					"screenshots[0]",
+					"screenshots[1]",
+				]);
+				const { bytes: _bytes, ...descriptor } = image;
+				expect(submitted).toMatchObject({
+					release: {
+						artifacts: {
+							icon: { ...descriptor, url: `${SERVICE}/v1/staged-artifacts/icon/${CHECKSUM}` },
+							banner: { ...descriptor, url: `${SERVICE}/v1/staged-artifacts/banner/${CHECKSUM}` },
+							screenshots: [
+								{
+									...descriptor,
+									lang: "en",
+									url: `${SERVICE}/v1/staged-artifacts/screenshots-0/${CHECKSUM}`,
+								},
+								{
+									...descriptor,
+									lang: "fr",
+									url: `${SERVICE}/v1/staged-artifacts/screenshots-1/${CHECKSUM}`,
+								},
+							],
+						},
+					},
+				});
+			}
+		},
+	);
 
 	it("fails before uploading when the package profile needs setup", async () => {
 		const runtime = new FakeRuntime();

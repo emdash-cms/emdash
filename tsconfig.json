@@ -21,5 +21,11 @@
 		"noEmit": true,
 		/* If your code doesn't run in the DOM: */
 		"lib": ["es2023", "esnext.typedarrays"]
-	}
+	},
+	"files": [],
+	"references": [
+		{ "path": "./tsconfig.lint.json" },
+		{ "path": "./packages/core/tsconfig.lint.json" },
+		{ "path": "./packages/admin/tsconfig.lint.json" }
+	]
 }

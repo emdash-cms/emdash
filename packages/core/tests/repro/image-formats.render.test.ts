@@ -45,7 +45,7 @@ const localImage = {
 
 describe("Image formats prop", () => {
 	test("two formats render a <picture> with an AVIF source and a WebP img", async () => {
-		const html = await render({ image: localImage, formats: ["avif", "webp"] });
+		const html = await renderOptimized({ image: localImage, formats: ["avif", "webp"] });
 
 		expect(html).toContain("<picture");
 		const sources = sourceTags(html);
@@ -102,7 +102,7 @@ describe("Image formats prop", () => {
 	});
 
 	test("sources carry the same sizes as the img, for both color schemes", async () => {
-		const html = await render({
+		const html = await renderOptimized({
 			image: {
 				...localImage,
 				darkVariant: { id: "01DARK", src: "/media/formats-dark.jpg", width: 1232, height: 565 },
@@ -140,7 +140,7 @@ describe("Image formats prop", () => {
 	});
 
 	test("dark variants each get their own <picture>", async () => {
-		const html = await render({
+		const html = await renderOptimized({
 			image: {
 				...localImage,
 				darkVariant: { id: "01DARK", src: "/media/formats-dark.jpg", width: 1232, height: 565 },
@@ -159,7 +159,11 @@ describe("Image formats prop", () => {
 	});
 
 	test("a caller-supplied sizes reaches the source", async () => {
-		const html = await render({ image: localImage, formats: ["avif", "webp"], sizes: "140px" });
+		const html = await renderOptimized({
+			image: localImage,
+			formats: ["avif", "webp"],
+			sizes: "140px",
+		});
 
 		expect(attr(sourceTags(html)[0]!, "sizes")).toBe("140px");
 		expect(attr(imgTag(html), "sizes")).toBe("140px");

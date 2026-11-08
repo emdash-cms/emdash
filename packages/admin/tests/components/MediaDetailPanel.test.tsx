@@ -153,6 +153,7 @@ function makePdfItem(overrides: Partial<MediaItem> = {}): MediaItem {
 
 const STREAM_HLS = "https://customer-abc123.cloudflarestream.com/UID/manifest/video.m3u8";
 const STREAM_DASH = "https://customer-abc123.cloudflarestream.com/UID/manifest/video.mpd";
+const STREAM_PLAYER = "https://customer-abc123.cloudflarestream.com/UID/iframe";
 const STREAM_POSTER = "https://customer-abc123.cloudflarestream.com/UID/thumbnails/thumbnail.jpg";
 
 /**
@@ -2164,6 +2165,28 @@ describe("MediaDetailPanel file URL", () => {
 	describe("video preview", () => {
 		// The dialog may portal outside the render container, so query the document.
 		const findVideo = () => document.querySelector("video");
+
+		it("opens a hosted video player instead of sending streaming manifests to a native video", async () => {
+			const screen = await renderPanel({
+				item: makeStreamItem({ playerUrl: STREAM_PLAYER }),
+				providerName: "Cloudflare Stream",
+			});
+			await expect.element(screen.getByText("Media details")).toBeInTheDocument();
+			const frame = document.querySelector("iframe");
+			expect(frame?.getAttribute("src")).toBe(STREAM_PLAYER);
+			expect(frame?.getAttribute("title")).toBe("Video player for webinar.mp4");
+			expect(frame?.allowFullscreen).toBe(true);
+			expect(findVideo()).toBeNull();
+		});
+
+		it("uses native playback rather than an unsafe player URL", async () => {
+			const screen = await renderPanel({
+				item: makeStreamItem({ playerUrl: "javascript:alert(1)" }),
+			});
+			await expect.element(screen.getByText("Media details")).toBeInTheDocument();
+			expect(document.querySelector("iframe")).toBeNull();
+			expect(findVideo()).not.toBeNull();
+		});
 
 		it("plays a streaming item's HLS/DASH sources rather than its poster URL", async () => {
 			const screen = await renderPanel({
