@@ -5,6 +5,7 @@ import {
 	start,
 	transition,
 	type Away,
+	type JoinIntent,
 	type ReplicaInfo,
 	type SessionEffect,
 	type SessionEvent,
@@ -35,7 +36,8 @@ const waiting = (
 	replica: ReplicaInfo | null,
 	away: Away,
 	reason: "offline" | "busy",
-): SessionState => ({ kind: "waiting", replica, away, reason });
+	join: JoinIntent = { takeover: false, singleEditor: null },
+): SessionState => ({ kind: "waiting", replica, away, reason, join });
 const live: SessionState = { kind: "live", replica: EDIT };
 const single = (reason: "server" | "locked" | "pinned" | "deleted" | "error"): SessionState => ({
 	kind: "single-editor",
@@ -156,6 +158,20 @@ const ROWS: Row[] = [
 		joining(),
 		joined({ kind: "busy" }),
 		waiting(null, NEW_AWAY, "busy"),
+		[retryIn(5000)],
+	],
+	[
+		"busy after Take over keeps the takeover for the retry",
+		joining({ takeover: true }),
+		joined({ kind: "busy" }),
+		waiting(null, NEW_AWAY, "busy", { takeover: true, singleEditor: null }),
+		[retryIn(5000)],
+	],
+	[
+		"busy in a pinned browser session keeps single-editor mode for the retry",
+		joining({ singleEditor: "pinned" }),
+		joined({ kind: "full" }),
+		waiting(null, NEW_AWAY, "busy", { takeover: false, singleEditor: "pinned" }),
 		[retryIn(5000)],
 	],
 	[
@@ -423,6 +439,20 @@ const ROWS: Row[] = [
 		{ type: "recovered", ok: false },
 		kept("recovery-failed"),
 		[FREEZE],
+	],
+	[
+		"retry after a busy Take over joins with takeover again",
+		waiting(null, AWAY, "busy", { takeover: true, singleEditor: null }),
+		{ type: "retry" },
+		joining({ away: AWAY, takeover: true }),
+		[join(true, false)],
+	],
+	[
+		"online after a failed rejoin keeps a pinned join",
+		waiting(EDIT, AWAY, "offline", { takeover: false, singleEditor: "pinned" }),
+		{ type: "online" },
+		joining({ replica: EDIT, away: AWAY, singleEditor: "pinned" }),
+		[join(false, true)],
 	],
 	// User actions
 	[

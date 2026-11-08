@@ -391,6 +391,24 @@ describe("Take over and Join", () => {
 		expect(fallbacks).toBe(1);
 	});
 
+	it("keeps a Take over through a busy room's retry, then falls back to the lock's takeover", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		s.answer({ kind: "locked" });
+		await settle();
+		const view = s.view();
+		if (view.mode !== "single-editor") throw new Error("Expected single-editor mode");
+		let fallbacks = 0;
+		s.answer({ kind: "busy" });
+		s.answer({ kind: "locked" });
+		view.takeOver(() => fallbacks++);
+		await settle();
+		expect(fallbacks).toBe(0);
+		await s.after(5000);
+		expect(s.joins.map((request) => request.takeover)).toEqual([false, true, true]);
+		expect(fallbacks).toBe(1);
+	});
+
 	it("takes the lock instead of reloading an out-of-date admin over unsaved form edits", async () => {
 		const room = new LoopbackRoom();
 		const s = open(room);

@@ -41,6 +41,12 @@ export type SingleEditorReason = "server" | "locked" | "pinned" | "deleted" | "e
  * code didn't load. Either way the server forgets the tokens this user's tab didn't use.
  */
 export type SingleEditorJoin = "pinned" | "load-failed";
+/** What a join asked for, which its retry asks for again. */
+export interface JoinIntent {
+	readonly takeover: boolean;
+	readonly singleEditor: SingleEditorJoin | null;
+}
+const PLAIN_JOIN: JoinIntent = { takeover: false, singleEditor: null };
 export type KeptReason = "access" | "deleted" | "recovery-failed";
 export type RecoveryTarget =
 	| { readonly kind: "rejoin" }
@@ -68,6 +74,7 @@ export type SessionState =
 			readonly replica: ReplicaInfo | null;
 			readonly away: Away;
 			readonly reason: "offline" | "busy";
+			readonly join: JoinIntent;
 	  }
 	| { readonly kind: "recovering"; readonly replica: ReplicaInfo; readonly next: RecoveryTarget }
 	| { readonly kind: "kept"; readonly replica: ReplicaInfo; readonly reason: KeptReason }
@@ -173,11 +180,11 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 				: stay(state);
 		case "online":
 			return state.kind === "waiting" && state.reason === "offline"
-				? joining(state.replica, state.away, false, null)
+				? joining(state.replica, state.away, state.join.takeover, state.join.singleEditor)
 				: stay(state);
 		case "retry":
 			return state.kind === "waiting"
-				? joining(state.replica, state.away, false, null)
+				? joining(state.replica, state.away, state.join.takeover, state.join.singleEditor)
 				: stay(state);
 		case "recovered":
 			return state.kind === "recovering" ? recovered(state, event.ok) : stay(state);
@@ -203,6 +210,7 @@ function joined(
 ): Transition {
 	const { replica, away, takeover } = state;
 	const { outcome } = event;
+	const intent: JoinIntent = { takeover, singleEditor: state.singleEditor };
 	switch (outcome.kind) {
 		case "room":
 			return {
@@ -219,7 +227,7 @@ function joined(
 		}
 		case "busy":
 		case "full":
-			return retryBusy(replica, away ?? freshAway(event.at));
+			return retryBusy(replica, away ?? freshAway(event.at), intent);
 		case "outdated":
 			if (event.reloadedRecently) return joining(replica, away, takeover, "pinned");
 			if (replica && event.uncovered) return recover(replica, { kind: "reload" });
@@ -235,7 +243,9 @@ function joined(
 			}
 			return leave(outcome.kind === "forbidden" ? "error" : "deleted");
 		case "failed":
-			return replica ? retryOffline(replica, away ?? freshAway(event.at)) : leave("error");
+			return replica
+				? retryOffline(replica, away ?? freshAway(event.at), [], intent)
+				: leave("error");
 	}
 }
 
@@ -328,9 +338,13 @@ function joining(
 	};
 }
 
-function retryBusy(replica: ReplicaInfo | null, away: Away): Transition {
+function retryBusy(
+	replica: ReplicaInfo | null,
+	away: Away,
+	join: JoinIntent = PLAIN_JOIN,
+): Transition {
 	return {
-		state: { kind: "waiting", replica, away, reason: "busy" },
+		state: { kind: "waiting", replica, away, reason: "busy", join },
 		effects: [{ type: "retry-in", ms: RETRY_BUSY_MS }],
 	};
 }
@@ -339,6 +353,7 @@ function retryOffline(
 	replica: ReplicaInfo | null,
 	away: Away,
 	before: readonly SessionEffect[] = [],
+	join: JoinIntent = PLAIN_JOIN,
 ): Transition {
 	const ms = OFFLINE_RETRY_MS[Math.min(away.attempt, OFFLINE_RETRY_MS.length - 1)] ?? RETRY_BUSY_MS;
 	return {
@@ -347,6 +362,7 @@ function retryOffline(
 			replica,
 			away: { ...away, attempt: away.attempt + 1 },
 			reason: "offline",
+			join,
 		},
 		effects: [...before, { type: "retry-in", ms }],
 	};
