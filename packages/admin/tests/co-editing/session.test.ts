@@ -441,6 +441,10 @@ describe("co-editing session reducer", () => {
 		});
 	});
 
+	it("starts in single-editor mode, without a join, where the host runs no rooms", () => {
+		expect(start(false, false)).toEqual({ state: single("server"), effects: [] });
+	});
+
 	it("backs off 0, 1, 2 and 4 s, then every 5 s, while the network is down", () => {
 		let state: SessionState = live;
 		const delays: number[] = [];

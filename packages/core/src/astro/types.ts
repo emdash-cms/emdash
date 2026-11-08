@@ -181,6 +181,8 @@ export interface EmDashManifest {
 	signupEnabled?: boolean;
 	/** Whether the site is in staging (hidden from search engines). */
 	staging?: boolean;
+	/** Whether this host runs co-editing rooms. When false, the editor doesn't ask to join one. */
+	coEditing?: boolean;
 	/**
 	 * i18n configuration from Astro config.
 	 * Only present when i18n is enabled (multiple locales configured).

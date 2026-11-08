@@ -6,6 +6,7 @@ import type { CoEditing, RoomSaveError } from "../../src/lib/co-editing/types";
 import { LoopbackRoom, settle, type FakeSocket } from "./loopback-room";
 import {
 	FINGERPRINT,
+	MANIFEST,
 	resetTransportHealth,
 	startSession,
 	type TestSession,
@@ -336,6 +337,15 @@ describe("Take over and Join", () => {
 		await settle();
 		expect(s.view().mode).toBe("room");
 		expect(fallbacks).toBe(1);
+	});
+
+	it("starts in single-editor mode without a join where the host runs no rooms", async () => {
+		const room = new LoopbackRoom();
+		const s = startSession(room, {}, ["body"], { ...MANIFEST, coEditing: false });
+		sessions.push(s);
+		await settle();
+		expect(s.joins).toEqual([]);
+		expect(s.view()).toMatchObject({ mode: "single-editor", canJoin: true });
 	});
 
 	it("sends the fingerprint pinned at creation on every join", async () => {

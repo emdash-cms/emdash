@@ -128,8 +128,12 @@ const CLOSE: SessionEffect = { type: "close-connection" };
 const LEFT_ROOM: SessionEffect = { type: "emit", event: { kind: "left-room" } };
 const RECOVERED: SessionEffect = { type: "emit", event: { kind: "recovered" } };
 
-/** The first join. A browser session pinned to single-editor mode asks for it. */
-export function start(pinned: boolean): Transition {
+/**
+ * The first join. A browser session pinned to single-editor mode asks for it. A host that runs no
+ * rooms starts in single-editor mode without one.
+ */
+export function start(pinned: boolean, rooms = true): Transition {
+	if (!rooms) return { state: { kind: "single-editor", reason: "server" }, effects: [] };
 	return joining(null, null, false, pinned);
 }
 
@@ -468,7 +472,7 @@ export function createCoEditingSession(
 ): CoEditingSession {
 	const listeners = new Set<() => void>();
 	const queue: SessionEvent[] = [];
-	const initial = start(deps.health.pinned());
+	const initial = start(deps.health.pinned(), options.manifest.coEditing !== false);
 	let state = initial.state;
 	let replica: ReplicaHandle | null = null;
 	let connection: ConnectionHandle | null = null;

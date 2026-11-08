@@ -123,6 +123,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					...emdashManifest,
 					timezone: siteTimezone,
 					staging,
+					coEditing: Boolean(emdash?.rooms),
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 					providerManagedName,
 					signupEnabled,

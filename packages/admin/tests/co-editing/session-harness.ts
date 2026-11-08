@@ -14,7 +14,7 @@ import { LoopbackRoom, settle } from "./loopback-room";
 
 export const ROOM_URL = "/_emdash/api/content/posts/01ENTRY/room";
 export const FINGERPRINT = { version: "1.4.0", commit: "abc1234", hash: "manifest-1" };
-const MANIFEST: AdminManifest = {
+export const MANIFEST: AdminManifest = {
 	version: "1.4.0",
 	hash: "manifest-1",
 	authMode: "passkey",
@@ -71,6 +71,7 @@ export function startSession(
 	room: LoopbackRoom,
 	overrides: Partial<SessionDeps> = {},
 	richTextFields: readonly string[] = ["body"],
+	manifest: AdminManifest = MANIFEST,
 ) {
 	const clock = new ManualClock();
 	const joins: JoinRequest[] = [];
@@ -116,7 +117,7 @@ export function startSession(
 		...overrides,
 	};
 	const session = createCoEditingSession(deps, {
-		manifest: MANIFEST,
+		manifest,
 		fingerprint: FINGERPRINT,
 		richTextFields,
 		pluginBlockTypes: [],

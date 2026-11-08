@@ -264,6 +264,8 @@ export interface AdminManifest {
 	signupEnabled?: boolean;
 	/** Whether the site is in staging (hidden from search engines). */
 	staging?: boolean;
+	/** Whether this host runs co-editing rooms. When false, the editor doesn't ask to join one. */
+	coEditing?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */

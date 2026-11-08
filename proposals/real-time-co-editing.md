@@ -372,7 +372,7 @@ A site can run several Node.js processes on one database, each with its own room
 - **Notifications** add one room call per entry row a write changes, after the write commits, without waiting for the room, and an entry load when the room is open. A room that isn't open answers without loading its document, and so does a room that wakes only for presence. The room's own writes send none.
 - **Room storage** writes each second's updates as one row, and compaction bounds it.
 - **Claims** on Node.js add a write when a room opens and when it closes, and one every 20 s while its process holds the claim with nothing to store. Asking whether a room is open reads its claim.
-- **Opening an entry** adds the join request and a WebSocket. Where a room could exist, a single-editor tab's lock heartbeat asks whether the entry's room is open.
+- **Opening an entry** adds the join request and a WebSocket where the host runs rooms. The admin manifest says whether it does, so other sites open the editor as today. Where a room could exist, a single-editor tab's lock heartbeat asks whether the entry's room is open.
 - **Memory.** Node.js keeps a room's document in memory while it has connections, and browsers load the co-editing code only when it's active.
 
 ## Failure handling
