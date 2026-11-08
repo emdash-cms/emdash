@@ -573,6 +573,24 @@ List operations describe their pagination parameters in OpenAPI. Most cursor-pag
 
 `GET /media`, `GET /content/{collection}`, and `GET /content/{collection}/trash` also accept a 1-based `page` instead of `cursor`. A numbered page has no `nextCursor` and reports how many items match: `totalCount` for media, `total` for content. Sending both `page` and `cursor` returns a `400` validation error.
 
+## Search index recovery
+
+Search and autocomplete check for missing or empty indexes on first use in each runtime. They repair those indexes automatically when live content exists. These checks do not compare full row counts, so a non-empty index that contains only some of a collection's content requires an explicit rebuild.
+
+To repair a partial index, rebuild the search-enabled collection with `POST /_emdash/api/search/rebuild`. This operation requires the Admin-only `search:manage` permission; an Editor session receives `403`. Bearer tokens also need the `admin` scope. For session-cookie authentication, include `X-EmDash-Request: 1`.
+
+The following request rebuilds the `articles` index using an Admin's Bearer token with the `admin` scope. Replace the site URL and collection slug with your own values:
+
+```sh
+curl --fail-with-body 'https://example.com/_emdash/api/search/rebuild' \
+  --header "Authorization: Bearer $EMDASH_TOKEN" \
+  --header 'X-EmDash-Request: 1' \
+  --header 'Content-Type: application/json' \
+  --data '{"collection":"articles"}'
+```
+
+A successful response includes `data.collection` and `data.indexed`, the number of indexed rows. After rebuilding, repeat the search that was missing results to verify recovery.
+
 ## Search tokenizers
 
 The search-enable operation stores a tokenizer for each collection. Changing it on an enabled collection rebuilds that collection's index.

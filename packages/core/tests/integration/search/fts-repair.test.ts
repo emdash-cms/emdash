@@ -96,6 +96,7 @@ describe("FTS repair", () => {
 		await createTestRuntime(db).ensureSearchHealthy();
 
 		const statements = executeQuery.mock.calls.map(([query]) => query.sql);
+		expect(statements.length).toBeGreaterThan(0);
 		expect(
 			statements.filter((statement) => /CREATE|DROP|INSERT|count\s*\(/i.test(statement)),
 		).toEqual([]);
