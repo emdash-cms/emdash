@@ -104,12 +104,16 @@ jobs:
             const handles = text =>
               [...text.matchAll(/\(@([a-z\d-]+)\)/gi)].map(match => match[1].toLowerCase());
 
-            function parseProposal(text) {
+            const scalar = value =>
+              value.replace(/\s+#.*$/, '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+
+            function parseProposal(path, text) {
               const frontMatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] || '';
               const field = name =>
                 frontMatter.match(new RegExp(`^${name}:(.*(?:\\r?\\n[ \\t]+.*)*)`, 'm'))?.[1] || '';
               return {
-                type: field('type').trim(),
+                path,
+                type: scalar(field('type')),
                 authors: handles(field('authors')),
                 sponsor: handles(field('sponsor'))[0] || null,
               };
@@ -123,9 +127,9 @@ jobs:
                 github.rest.repos.getContent({ owner, repo, path: file.filename, ref: pr.head.sha })
               ));
               return contents
-                .map(({ data }) => data)
-                .filter(data => !Array.isArray(data) && data.type === 'file')
-                .map(data => parseProposal(Buffer.from(data.content, 'base64').toString('utf8')));
+                .map(({ data }, index) => ({ path: changed[index].filename, data }))
+                .filter(({ data }) => !Array.isArray(data) && data.type === 'file')
+                .map(({ path, data }) => parseProposal(path, Buffer.from(data.content, 'base64').toString('utf8')));
             }
 
             // Read from the default branch, so neither a PR nor its base branch can
@@ -243,20 +247,21 @@ jobs:
 
             // The approval check is easy to miss among the other checks, so design and
             // privileged pull requests, which have more than one requirement, also get a
-            // comment. It is edited in place, which doesn't notify anyone.
-            async function setStatusComment(pr, met, checklist) {
-              const body = [
+            // comment. It is edited in place rather than reposted.
+            function statusCommentBody(summary, checklist) {
+              return [
                 statusMarker,
                 '### Approval status',
                 '',
-                met
-                  ? 'The current revision meets the approval requirements.'
-                  : 'The current revision does not meet the approval requirements yet.',
-                '',
-                checklist,
+                summary,
+                ...(checklist ? ['', checklist] : []),
                 '',
                 'This comment updates as reviews arrive. See [MAINTAINING.md](https://github.com/emdash-cms/emdash/blob/main/MAINTAINING.md) and [the proposal process](https://github.com/emdash-cms/emdash/blob/main/proposals/README.md) for the rules.',
               ].join('\n');
+            }
+
+            // A null body removes the comment. Without create, only an existing comment is updated.
+            async function syncStatusComment(pr, body, { create = true } = {}) {
               const comments = await github.paginate(github.rest.issues.listComments, {
                 owner,
                 repo,
@@ -266,8 +271,10 @@ jobs:
               const existing = comments.find(comment =>
                 comment.user?.login === 'github-actions[bot]' && comment.body?.includes(statusMarker)
               );
-              if (!existing) {
-                await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+              if (body === null) {
+                if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
+              } else if (!existing) {
+                if (create) await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
               } else if (existing.body !== body) {
                 await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
               }
@@ -282,6 +289,11 @@ jobs:
                   'Maintainer review is not requested while this pull request is a draft.',
                 );
                 await setReviewLabel(pr, null);
+                await syncStatusComment(
+                  pr,
+                  statusCommentBody('This pull request is a draft. Approval requirements are checked when it is ready for review.'),
+                  { create: false },
+                );
                 core.info(`#${pr.number}: draft, no approval required yet`);
                 return;
               }
@@ -373,6 +385,14 @@ jobs:
                 independentApprovers.length >= required,
                 `${required} human Maintainer approval${required === 1 ? '' : 's'} from someone other than the author (${category} change); found ${independentApprovers.length}${independentApprovers.length > 0 ? `: ${mentions(independentApprovers)}` : ''}.`,
               );
+              for (const proposal of proposals) {
+                if (!['rfc', 'feature-plan'].includes(proposal.type)) {
+                  requirement(
+                    false,
+                    `\`${proposal.path}\` must set \`type\` to \`rfc\` or \`feature-plan\`; found ${proposal.type ? `\`${proposal.type}\`` : 'none'}.`,
+                  );
+                }
+              }
               if (rfcs.length > 0) {
                 for (const sponsor of new Set(rfcs.map(rfc => rfc.sponsor))) {
                   if (!sponsor || !maintainers.has(sponsor)) {
@@ -431,7 +451,17 @@ jobs:
               else if (requesters.length > 0) title = 'Changes requested by a human Maintainer';
               else title = 'Awaiting human Maintainer approval';
               await setApprovalStatus(pr, met, title, checklist);
-              if (isDesign || privileged) await setStatusComment(pr, met, checklist);
+              await syncStatusComment(
+                pr,
+                isDesign || privileged
+                  ? statusCommentBody(
+                      met
+                        ? 'The current revision meets the approval requirements.'
+                        : 'The current revision does not meet the approval requirements yet.',
+                      checklist,
+                    )
+                  : null,
+              );
 
               // Bot-authored PRs have a review status check but carry no review label. This
               // also removes the label the reviewer adds to re-run the workflow.

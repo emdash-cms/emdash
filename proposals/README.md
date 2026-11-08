@@ -36,12 +36,12 @@ An RFC requires:
 
 - a named champion;
 - a Maintainer sponsor, who can be the author;
-- support from one Maintainer other than the author and the Project Lead, who can be the sponsor; and
+- support from one Maintainer other than the author and the Project Lead; a sponsor who is not the author counts as this supporter; and
 - acceptance by the Project Lead after a public review period, normally at least seven days.
 
 The Project Lead can extend the review period when the decision needs more evidence or participants have not had a reasonable opportunity to respond.
 
-A Maintainer sponsors, supports, or accepts an RFC by approving the current revision of its design pull request, or by opening it. The informational `Human Maintainer approval` check applies these rules to RFC design pull requests.
+A Maintainer sponsors or supports an RFC, and the Project Lead accepts it, by approving the current revision of its design pull request. The sponsor and the Project Lead can also do so by opening the design pull request. The informational `Human Maintainer approval` check applies these rules to RFC design pull requests.
 
 ## Open a design pull request
 

@@ -33,11 +33,11 @@ https://github.com/maintainer-one
 https://github.com/maintainer-two
 <!-- maintainers:end -->`;
 
-function rfc({ authors = ["contributor"], sponsor = "maintainer-one" } = {}) {
+function rfc({ authors = ["contributor"], sponsor = "maintainer-one", type = "rfc" } = {}) {
 	return [
 		"---",
 		"title: Example",
-		"type: rfc",
+		`type: ${type}`,
 		"status: proposed",
 		"authors:",
 		...authors.map((author) => `  - Name (@${author})`),
@@ -120,6 +120,10 @@ function fixture({
 						user: { login: "github-actions[bot]" },
 						body,
 					});
+				},
+				deleteComment: async ({ comment_id }) => {
+					state.commentWrites += 1;
+					state.comments = state.comments.filter((comment) => comment.id !== comment_id);
 				},
 				updateComment: async ({ comment_id, body }) => {
 					state.commentWrites += 1;
@@ -420,5 +424,55 @@ describe("Approval status comment", () => {
 		const test = fixture({ reviews: [review("maintainer-one")] });
 		await test.run();
 		assert.equal(test.state.comments.length, 0);
+	});
+
+	it("updates an existing comment when the PR returns to draft, without creating one", async () => {
+		const test = fixture({ files: [".github/workflows/approval.yml"] });
+		await test.run();
+		test.pr.draft = true;
+		await test.run();
+		assert.equal(test.state.comments.length, 1);
+		assert.ok(test.state.comments[0].body.includes("This pull request is a draft."));
+
+		const fresh = fixture({ draft: true, files: [".github/workflows/approval.yml"] });
+		await fresh.run();
+		assert.equal(fresh.state.comments.length, 0);
+	});
+
+	it("is removed when the PR no longer needs it", async () => {
+		const test = fixture({ files: [".github/workflows/approval.yml"] });
+		await test.run();
+		assert.equal(test.state.comments.length, 1);
+		test.state.files = [{ filename: "packages/core/src/index.ts" }];
+		await test.run();
+		assert.equal(test.state.comments.length, 0);
+	});
+});
+
+describe("Proposal front matter", () => {
+	for (const type of ['"rfc"', "'rfc'", "rfc # architectural change"]) {
+		it(`applies RFC rules when the type is written as ${type}`, async () => {
+			const test = fixture({
+				title: "design: example",
+				files: ["proposals/example.md"],
+				reviews: [review("maintainer-two")],
+				proposals: { "proposals/example.md": rfc({ type }) },
+			});
+			await test.run();
+			assertStatus(test, "neutral", "review/needs-review");
+			assert.ok(test.state.checks[0].output.summary.includes("@project-lead has not accepted"));
+		});
+	}
+
+	it("does not pass a proposal with an unknown type", async () => {
+		const test = fixture({
+			title: "design: example",
+			files: ["proposals/example.md"],
+			reviews: [review("maintainer-one"), review("project-lead")],
+			proposals: { "proposals/example.md": rfc({ type: "rfcc" }) },
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(test.state.checks[0].output.summary.includes("found `rfcc`"));
 	});
 });
