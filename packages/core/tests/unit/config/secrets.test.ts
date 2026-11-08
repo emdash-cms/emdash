@@ -356,6 +356,11 @@ describe("config/secrets", () => {
 	});
 
 	describe("fingerprintKey", () => {
+		it("derives the kid from the first 8 hex characters of the key's SHA-256", async () => {
+			const raw = "emdash_enc_v1_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8";
+			expect(await fingerprintKey(raw)).toBe("630dcd29");
+		});
+
 		it("agrees with parseEncryptionKeys on canonical input", async () => {
 			const raw = generateEncryptionKey();
 			const parsed = await parseEncryptionKeys(raw);
