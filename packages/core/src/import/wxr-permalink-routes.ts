@@ -86,9 +86,7 @@ export async function findLivePermalinkSources(
 	sources: string[],
 ): Promise<Set<string>> {
 	// @ts-ignore - virtual module
-	const { pageRoutes } = (await import("virtual:emdash/page-routes")) as {
-		pageRoutes: Array<{ source: string; flags: string }>;
-	};
+	const { pageRoutes } = await import("virtual:emdash/page-routes");
 	const live = findPageRouteSources(sources, pageRoutes);
 	const collections = (await new SchemaRegistry(db).listCollections()).filter(
 		(collection) => collection.routable !== false,
