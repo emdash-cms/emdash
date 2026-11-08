@@ -597,7 +597,7 @@ describe("values outside the document in a room", () => {
 		expect(server.item.seo?.title).toBe("Ana's title");
 	});
 
-	it("puts a reference selection back when the server refuses it", async () => {
+	it("keeps a reference selection in its input when the server refuses it", async () => {
 		const { screen, server } = await openInRoom(entry(), {
 			prepare: (fake) => (fake.refuseWrites = true),
 		});
@@ -605,7 +605,9 @@ describe("values outside the document in a room", () => {
 		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
 
 		await vi.waitFor(() => expect(server.log).toEqual(["PUT /_emdash/api/content/posts/post_1"]));
-		await expect.element(screen.getByRole("button", { name: "Remove Grace Hopper" })).toBeVisible();
+		await expect.element(screen.getByText("Not allowed")).toBeVisible();
+		expect(screen.getByRole("button", { name: "Remove Grace Hopper" }).query()).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Remove Ada Lovelace" })).toBeVisible();
 	});
 
 	it("saves a reference edit at once without _rev or a revision", async () => {
