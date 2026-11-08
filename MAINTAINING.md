@@ -35,6 +35,8 @@ The following changes require approval from two human Maintainers other than the
 
 The approval workflow (`.github/workflows/approval.yml`) lists the repository paths that need two approvals in its review status calculation. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
 
+A design pull request that only adds or updates rows in the proposal index in `proposals/README.md` does not need two approvals for that file. Design pull requests follow the approval rules in [proposals/README.md](proposals/README.md).
+
 ## Review responsibilities
 
 Before approving, verify the parts relevant to the change:

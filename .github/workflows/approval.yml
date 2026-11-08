@@ -84,6 +84,50 @@ jobs:
               /^infra\/flue-review\//,
             ];
 
+            const proposalIndex = 'proposals/README.md';
+            const proposalPath =
+              /^proposals\/(?!(?:README|feature-plan-template|rfc-template)\.md$)[a-z0-9][a-z0-9-]*\.md$/;
+
+            // A design pull request adds its row to the proposal index, which is otherwise a
+            // governance file. Edits that only touch table rows don't need two approvals.
+            const onlyChangesIndexRows = file =>
+              typeof file.patch === 'string' &&
+              file.patch
+                .split('\n')
+                .filter(line => /^[+-]/.test(line))
+                .every(line => /^[+-]\|/.test(line));
+
+            const isPrivileged = (file, isDesign) =>
+              privilegedPaths.some(pattern => pattern.test(file.filename)) &&
+              !(isDesign && file.filename === proposalIndex && onlyChangesIndexRows(file));
+
+            const handles = text =>
+              [...text.matchAll(/\(@([a-z\d-]+)\)/gi)].map(match => match[1].toLowerCase());
+
+            function parseProposal(text) {
+              const frontMatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] || '';
+              const field = name =>
+                frontMatter.match(new RegExp(`^${name}:(.*(?:\\r?\\n[ \\t]+.*)*)`, 'm'))?.[1] || '';
+              return {
+                type: field('type').trim(),
+                authors: handles(field('authors')),
+                sponsor: handles(field('sponsor'))[0] || null,
+              };
+            }
+
+            async function readProposals(pr, files) {
+              const changed = files.filter(file =>
+                file.status !== 'removed' && proposalPath.test(file.filename)
+              );
+              const contents = await Promise.all(changed.map(file =>
+                github.rest.repos.getContent({ owner, repo, path: file.filename, ref: pr.head.sha })
+              ));
+              return contents
+                .map(({ data }) => data)
+                .filter(data => !Array.isArray(data) && data.type === 'file')
+                .map(data => parseProposal(Buffer.from(data.content, 'base64').toString('utf8')));
+            }
+
             // Read from the default branch, so neither a PR nor its base branch can
             // change who counts as a Maintainer.
             let governanceFile;
@@ -114,6 +158,10 @@ jobs:
               core.setFailed('GOVERNANCE.md does not contain a marked Maintainers list.');
               return;
             }
+            const projectLead = governance
+              .match(/<!-- project-lead:start -->([\s\S]*?)<!-- project-lead:end -->/)?.[1]
+              ?.match(/https:\/\/github\.com\/([a-z\d-]+)/i)?.[1]
+              ?.toLowerCase() || null;
 
             async function setReviewLabel(pr, desired) {
               const current = new Set((pr.labels || []).map(label => label.name));
@@ -262,11 +310,43 @@ jobs:
                 .map(review => review.user.login);
               const changeRequests = decisions.filter(review => review.state === 'CHANGES_REQUESTED');
 
-              const privileged = files.some(file =>
-                privilegedPaths.some(pattern => pattern.test(file.filename))
-              );
+              const isDesign =
+                /^design:/i.test(pr.title || '') || (pr.body || '').includes('<!-- design-pr -->');
+              const proposals = isDesign ? await readProposals(pr, files) : [];
+              const rfcs = proposals.filter(proposal => proposal.type === 'rfc');
+              const opener = pr.user.login.toLowerCase();
+              const authors = new Set([opener, ...proposals.flatMap(proposal => proposal.authors)]);
+              const approved = new Set(approvers.map(login => login.toLowerCase()));
+              const hasApproved = login => login === opener || approved.has(login);
+              const independentApprovers = [...approved].filter(login => !authors.has(login));
+
+              const privileged = files.some(file => isPrivileged(file, isDesign));
               const required = privileged ? 2 : 1;
-              const met = changeRequests.length === 0 && approvers.length >= required;
+              const category = privileged ? 'governance or privileged supply-chain' : 'normal';
+              const unmet = [];
+              if (independentApprovers.length < required) {
+                unmet.push(
+                  `${category} changes require ${required} human Maintainer approval${required === 1 ? '' : 's'} on the current revision from someone other than the author; found ${independentApprovers.length}.`,
+                );
+              }
+              if (rfcs.length > 0) {
+                for (const sponsor of new Set(rfcs.map(rfc => rfc.sponsor))) {
+                  if (!sponsor || !maintainers.has(sponsor)) {
+                    unmet.push(`The RFC sponsor must be a Maintainer; found ${sponsor ? `@${sponsor}` : 'none'}.`);
+                  } else if (!hasApproved(sponsor)) {
+                    unmet.push(`The RFC sponsor @${sponsor} has not approved the current revision.`);
+                  }
+                }
+                if (!independentApprovers.some(login => login !== projectLead)) {
+                  unmet.push('An RFC needs approval from a Maintainer other than the author and the Project Lead.');
+                }
+                if (!projectLead) {
+                  unmet.push('GOVERNANCE.md does not contain a marked Project Lead.');
+                } else if (!hasApproved(projectLead)) {
+                  unmet.push(`The Project Lead @${projectLead} has not accepted the RFC.`);
+                }
+              }
+              const met = changeRequests.length === 0 && unmet.length === 0;
 
               let label;
               if (met) {
@@ -297,15 +377,14 @@ jobs:
                   pr,
                   false,
                   'Changes requested by a human Maintainer',
-                  `Current revision has ${approvers.length} of ${required} expected human Maintainer approvals. Changes are still requested by ${requesters.join(', ')}.`,
+                  [`Changes are still requested by ${requesters.join(', ')}.`, ...unmet].join('\n'),
                 );
               } else {
-                const category = privileged ? 'governance or privileged supply-chain' : 'normal';
                 await setApprovalStatus(
                   pr,
                   false,
                   'Awaiting human Maintainer approval',
-                  `${category} changes require ${required} human Maintainer approval${required === 1 ? '' : 's'} on the current revision; found ${approvers.length}.`,
+                  unmet.join('\n'),
                 );
               }
 

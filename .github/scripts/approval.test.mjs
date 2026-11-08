@@ -21,17 +21,61 @@ function review(login, state = "APPROVED", commit = "head", type = "User") {
 	};
 }
 
-function fixture({ reviews = [], files = [], checks = [], draft = false, sweep = false } = {}) {
+const governance = `### Project Lead
+
+<!-- project-lead:start -->
+- [Lead](https://github.com/project-lead)
+<!-- project-lead:end -->
+
+<!-- maintainers:start -->
+https://github.com/project-lead
+https://github.com/maintainer-one
+https://github.com/maintainer-two
+<!-- maintainers:end -->`;
+
+function rfc({ authors = ["contributor"], sponsor = "maintainer-one" } = {}) {
+	return [
+		"---",
+		"title: Example",
+		"type: rfc",
+		"status: proposed",
+		"authors:",
+		...authors.map((author) => `  - Name (@${author})`),
+		`champion: Name (@${authors[0]})`,
+		`sponsor: ${sponsor ? `Name (@${sponsor})` : "null"}`,
+		"---",
+		"",
+		"# Example",
+	].join("\n");
+}
+
+const indexRow = {
+	filename: "proposals/README.md",
+	patch: "@@ -1,2 +1,3 @@\n | a | b |\n+| [Example](example.md) | RFC | | |",
+};
+
+function fixture({
+	reviews = [],
+	files = [],
+	checks = [],
+	draft = false,
+	sweep = false,
+	title = "fix: example",
+	opener = "contributor",
+	proposals = {},
+} = {}) {
 	const pr = {
 		number: 42,
-		user: { login: "contributor", type: "User" },
+		title,
+		body: "",
+		user: { login: opener, type: "User" },
 		head: { sha: "head" },
 		labels: [],
 		draft,
 	};
 	const state = {
 		reviews,
-		files: files.map((filename) => ({ filename })),
+		files: files.map((file) => (typeof file === "string" ? { filename: file } : file)),
 		commits: [{ sha: "head", parents: [{ sha: "base" }] }],
 		checks: checks.map((check) => ({ name: checkName, ...check })),
 		writes: [],
@@ -39,14 +83,12 @@ function fixture({ reviews = [], files = [], checks = [], draft = false, sweep =
 	const github = {
 		rest: {
 			repos: {
-				getContent: async () => ({
-					data: {
-						type: "file",
-						content: Buffer.from(
-							"<!-- maintainers:start -->\nhttps://github.com/maintainer-one\nhttps://github.com/maintainer-two\n<!-- maintainers:end -->",
-						).toString("base64"),
-					},
-				}),
+				getContent: async ({ path, ref }) => {
+					const text = path === "GOVERNANCE.md" ? governance : proposals[path];
+					assert.ok(text !== undefined, `unexpected read of ${path}`);
+					if (path !== "GOVERNANCE.md") assert.equal(ref, "head");
+					return { data: { type: "file", content: Buffer.from(text).toString("base64") } };
+				},
 			},
 			pulls: {
 				listReviews: async () => state.reviews,
@@ -182,5 +224,145 @@ describe("Maintainer review status", () => {
 		await test.run();
 		assertStatus(test, "neutral", null);
 		assert.ok(test.state.checks[0].output.title.includes("Draft"));
+	});
+});
+
+describe("Design pull request review status", () => {
+	function design(options) {
+		return fixture({
+			title: "design: example",
+			files: ["proposals/example.md", indexRow],
+			...options,
+			proposals: { "proposals/example.md": rfc(), ...options?.proposals },
+		});
+	}
+
+	it("accepts an RFC with sponsor, supporter, and Project Lead approval", async () => {
+		const test = design({ reviews: [review("maintainer-one"), review("project-lead")] });
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	it("waits for the Project Lead to accept an RFC", async () => {
+		const test = design({ reviews: [review("maintainer-one"), review("maintainer-two")] });
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(test.state.checks[0].output.summary.includes("@project-lead has not accepted"));
+	});
+
+	it("needs an RFC supporter other than the Project Lead", async () => {
+		const test = design({
+			reviews: [review("project-lead")],
+			proposals: { "proposals/example.md": rfc({ sponsor: "project-lead" }) },
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(
+			test.state.checks[0].output.summary.includes("other than the author and the Project Lead"),
+		);
+	});
+
+	it("needs the RFC sponsor to approve", async () => {
+		const test = design({ reviews: [review("maintainer-two"), review("project-lead")] });
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(test.state.checks[0].output.summary.includes("@maintainer-one has not approved"));
+	});
+
+	it("needs the RFC sponsor to be a Maintainer", async () => {
+		const test = design({
+			reviews: [review("maintainer-one"), review("project-lead")],
+			proposals: { "proposals/example.md": rfc({ sponsor: "contributor" }) },
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(test.state.checks[0].output.summary.includes("found @contributor"));
+	});
+
+	it("lets a Maintainer sponsor their own RFC with one other supporter", async () => {
+		const test = design({
+			opener: "maintainer-one",
+			reviews: [review("project-lead")],
+			proposals: { "proposals/example.md": rfc({ authors: ["maintainer-one"] }) },
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		test.state.reviews.push(review("maintainer-two"));
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	it("counts the Project Lead opening an RFC as acceptance", async () => {
+		const test = design({
+			opener: "project-lead",
+			reviews: [review("maintainer-one")],
+			proposals: { "proposals/example.md": rfc({ authors: ["project-lead"] }) },
+		});
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	it("does not count a listed author's approval as support", async () => {
+		const test = design({
+			reviews: [review("maintainer-one"), review("project-lead")],
+			proposals: {
+				"proposals/example.md": rfc({ authors: ["contributor", "maintainer-one"] }),
+			},
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(
+			test.state.checks[0].output.summary.includes("other than the author and the Project Lead"),
+		);
+	});
+
+	it("accepts a feature plan with one approval from a non-author", async () => {
+		const plan = "---\ntype: feature-plan\nauthors:\n  - Name (@maintainer-two)\n---\n";
+		const test = design({
+			reviews: [review("maintainer-two")],
+			proposals: { "proposals/example.md": plan },
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		test.state.reviews.push(review("maintainer-one"));
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	it("needs two approvals when a design PR changes proposal policy text", async () => {
+		const plan = "---\ntype: feature-plan\nauthors:\n  - Name (@contributor)\n---\n";
+		const test = design({
+			reviews: [review("maintainer-one")],
+			files: [
+				"proposals/example.md",
+				{
+					filename: "proposals/README.md",
+					patch: "@@ -1 +1 @@\n-An RFC requires:\n+An RFC needs:",
+				},
+			],
+			proposals: { "proposals/example.md": plan },
+		});
+		await test.run();
+		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(test.state.checks[0].output.summary.includes("require 2"));
+	});
+
+	it("needs one approval when a design PR only adds a proposal index row", async () => {
+		const plan = "---\ntype: feature-plan\nauthors:\n  - Name (@contributor)\n---\n";
+		const test = design({
+			reviews: [review("maintainer-one")],
+			proposals: { "proposals/example.md": plan },
+		});
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	it("ignores proposal front matter outside design PRs", async () => {
+		const test = fixture({
+			files: ["proposals/example.md"],
+			reviews: [review("maintainer-one")],
+		});
+		await test.run();
+		assertStatus(test, "success", "review/approved");
 	});
 });
