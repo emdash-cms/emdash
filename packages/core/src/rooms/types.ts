@@ -6,7 +6,7 @@
 import type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/co-editing/types";
 
 import type { ContentWrite } from "../api/content-save.js";
-import type { FieldType } from "../schema/types.js";
+import type { FieldType, FieldValidation } from "../schema/types.js";
 
 export { CLOSE_CODES } from "@emdash-cms/admin/co-editing/types";
 export type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/co-editing/types";
@@ -180,7 +180,7 @@ export interface LoadedEntry {
 	/** The draft revision's staged slug, or else the live slug. */
 	slug: string | null;
 	data: Record<string, unknown>;
-	fields: Array<{ slug: string; type: FieldType }>;
+	fields: Array<{ slug: string; type: FieldType; validation?: FieldValidation | null }>;
 	/** The admin manifest hash. */
 	hash: string;
 	/** Block types plugins register, which the shared editor schema takes. */

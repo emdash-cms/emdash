@@ -16,7 +16,7 @@ const PLUGIN_TYPES = ["callout"];
 const FIELDS = [
 	{ slug: "title", type: "string" as const },
 	{ slug: "body", type: "portableText" as const },
-	{ slug: "related", type: "reference" as const },
+	{ slug: "related", type: "reference" as const, validation: { relation: "posts_related" } },
 ];
 
 const ENTRY_DATA = {

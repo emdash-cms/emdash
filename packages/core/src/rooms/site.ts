@@ -79,7 +79,11 @@ async function loadEntry(runtime: EmDashRuntime, entry: EntryRef): Promise<Loade
 		authorId: row.authorId,
 		trashed: row.deletedAt !== null,
 		...overlayDraft(row, draft?.data),
-		fields: collection.fields.map((field) => ({ slug: field.slug, type: field.type })),
+		fields: collection.fields.map((field) => ({
+			slug: field.slug,
+			type: field.type,
+			validation: field.validation,
+		})),
 		hash: manifest.hash,
 		// Every plugin's, enabled or not, as the admin builds its editor schema.
 		pluginTypes: Object.values(manifest.plugins).flatMap(

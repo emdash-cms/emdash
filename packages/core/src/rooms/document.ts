@@ -14,17 +14,21 @@ import { portableTextToProsemirror } from "@emdash-cms/admin/portable-text";
 import { prosemirrorJSONToYXmlFragment } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 
-import type { FieldType } from "../schema/types.js";
+import { isStoragelessField, type FieldType, type FieldValidation } from "../schema/types.js";
 import type { LoadedEntry } from "./types.js";
 
 export interface DocumentField {
 	slug: string;
 	type: FieldType;
+	validation?: FieldValidation | null;
 }
 
-/** The fields the document holds: every field except references, then the entry slug. */
+/**
+ * The fields the document holds: every field with a column, then the entry slug. A reference bound
+ * to a relation keeps its selection as edges instead, which saves outside the document.
+ */
 export function documentFields(fields: readonly DocumentField[]): DocumentField[] {
-	return [...fields.filter((field) => field.type !== "reference"), ENTRY_SLUG];
+	return [...fields.filter((field) => !isStoragelessField(field)), ENTRY_SLUG];
 }
 
 /** The entry's stored value for each document field, keyed by slug. */
