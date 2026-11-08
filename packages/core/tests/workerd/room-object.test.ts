@@ -10,6 +10,23 @@ const HOUR = 60 * MINUTE;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** A socket's attachment, as `EmDashRoom` writes it. */
+interface Attachment {
+	info: { userId: string; connectedAt: number };
+	seenAt: number;
+}
+
+/** Moves back when a user's sockets last sent a message, as their attachments keep it. */
+function silence(stub: DurableObjectStub<EmDashRoom>, userId: string, ms: number) {
+	return runInDurableObject(stub, (_instance, state) => {
+		for (const ws of state.getWebSockets()) {
+			const attachment = ws.deserializeAttachment() as Attachment | null;
+			if (attachment?.info.userId !== userId) continue;
+			ws.serializeAttachment({ ...attachment, seenAt: attachment.seenAt - ms });
+		}
+	});
+}
+
 function storage(stub: DurableObjectStub<EmDashRoom>) {
 	return runInDurableObject(stub, async (_instance, state) => {
 		const sql = state.storage.sql;
@@ -220,13 +237,60 @@ describe("EmDashRoom alarm", () => {
 		const ana = await RoomClient.join(stub, site, "ana");
 		await runInDurableObject(stub, (_instance, state) => {
 			for (const ws of state.getWebSockets()) {
-				const info = ws.deserializeAttachment() as { connectedAt: number };
-				ws.serializeAttachment({ ...info, connectedAt: info.connectedAt - 16 * MINUTE });
+				const attachment = ws.deserializeAttachment() as Attachment;
+				const connectedAt = attachment.info.connectedAt - 16 * MINUTE;
+				ws.serializeAttachment({ ...attachment, info: { ...attachment.info, connectedAt } });
 			}
 		});
 		await evictDurableObject(stub);
 		expect(await runDurableObjectAlarm(stub)).toBe(true);
 		await vi.waitFor(() => expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin));
+	});
+});
+
+describe("EmDashRoom silent sockets", () => {
+	it("closes a resumed socket that sent nothing for 3 minutes, and stays open for a fresh one", async () => {
+		const { site, stub } = newRoom();
+		const ana = await RoomClient.join(stub, site, "ana");
+		const ben = await RoomClient.join(stub, site, "ben");
+		await silence(stub, "ben", 4 * MINUTE);
+		await evictDurableObject(stub);
+		expect(await stub.isOpen()).toBe(true);
+		await vi.waitFor(() => expect(ben.closed?.code).toBe(1001));
+		expect(ana.closed).toBeNull();
+		ana.close();
+	});
+
+	it("answers closed once its only socket went silent", async () => {
+		const { site, stub } = newRoom();
+		const ana = await RoomClient.join(stub, site, "ana");
+		await silence(stub, "ana", 4 * MINUTE);
+		await evictDurableObject(stub);
+		await stub.isOpen();
+		await vi.waitFor(() => expect(ana.closed?.code).toBe(1001));
+		// As after any last close, the room stays open for 10 s.
+		await vi.waitFor(async () => expect(await stub.isOpen()).toBe(false), {
+			timeout: 15_000,
+			interval: 500,
+		});
+	});
+
+	it("keeps a silent socket whose message arrives, through the next wake", async () => {
+		const { site, stub } = newRoom();
+		const ana = await RoomClient.join(stub, site, "ana");
+		const ben = await RoomClient.join(stub, site, "ben");
+		ana.announce([{ clientId: 7, clock: 1, state: {} }]);
+		await vi.waitFor(() => expect(ben.awareness()).toHaveLength(1));
+		await silence(stub, "ana", 4 * MINUTE);
+		await evictDurableObject(stub);
+		ana.announce([{ clientId: 7, clock: 2, state: {} }]);
+		await vi.waitFor(() => expect(ben.awareness()).toHaveLength(2));
+		await evictDurableObject(stub);
+		expect(await stub.isOpen()).toBe(true);
+		await wait(50);
+		expect(ana.closed).toBeNull();
+		ana.close();
+		ben.close();
 	});
 });
 

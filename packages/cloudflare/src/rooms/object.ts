@@ -25,6 +25,14 @@ import { DurableObjectRoomStore } from "./store.js";
 /** Node.js closes larger frames with 1009 too, through `ws`'s `maxPayload`. */
 const MAX_MESSAGE_BYTES = 2 * MAX_UPDATE_BYTES;
 const MESSAGE_TOO_BIG = 1009;
+const GOING_AWAY = 1001;
+/**
+ * A Durable Object can't ping its sockets, so one silent this long is gone. Clients renew their
+ * presence every 15 s, but browsers run a hidden tab's timers only about once a minute.
+ */
+const SILENT_SOCKET_MS = 3 * 60 * 1000;
+/** A socket's stored last message time is rewritten only once it's this old. */
+const SEEN_STORE_MS = 30 * 1000;
 
 /** What `save` resolves to over RPC, which drops error subclasses. */
 export type RoomSaveReply =
@@ -33,11 +41,19 @@ export type RoomSaveReply =
 	| null
 	| { failed: { reason: string; code: string; message: string } };
 
+/** What a socket keeps through hibernation. */
+interface Attachment {
+	info: ConnectionInfo;
+	seenAt: number;
+}
+
 interface Socket {
 	connection: RoomConnection;
 	/** The room's info for the socket, which it updates as messages arrive. */
 	info: ConnectionInfo | null;
 	attachedClientId: number | null;
+	/** When the socket last sent a message, to within `SEEN_STORE_MS`. */
+	seenAt: number;
 	closed: boolean;
 }
 
@@ -52,16 +68,18 @@ export class EmDashRoom extends DurableObject {
 		this.#store = new DurableObjectRoomStore(ctx.storage, ctx.id.name ?? "");
 		for (const ws of ctx.getWebSockets()) {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only this class writes attachments
-			const info = ws.deserializeAttachment() as ConnectionInfo | null;
-			if (info) this.#socket(ws, info);
+			const attachment = ws.deserializeAttachment() as Attachment | null;
+			if (attachment) this.#socket(ws, attachment.info, attachment.seenAt);
 		}
 	}
 
 	async issueToken(claims: TokenClaims): ReturnType<Room["issueToken"]> {
+		await this.#closeSilent();
 		return (await this.#loadRoom()).issueToken(claims);
 	}
 
 	async isOpen(): Promise<boolean> {
+		await this.#closeSilent();
 		return (await this.#loadRoom()).isOpen();
 	}
 
@@ -99,7 +117,7 @@ export class EmDashRoom extends DurableObject {
 			server.close(CLOSE_CODES.busy, "No valid token");
 			return new Response(null, { status: 101, webSocket: client });
 		}
-		const socket = this.#socket(server, null);
+		const socket = this.#socket(server, null, Date.now());
 		const info = this.#room.connect(socket.connection, token);
 		if (info) {
 			socket.info = info;
@@ -118,6 +136,9 @@ export class EmDashRoom extends DurableObject {
 	override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
 		const socket = this.#sockets.get(ws);
 		if (!socket) return;
+		// Before the sweep, so a socket that was silent isn't closed by its own message.
+		this.#seen(ws, socket);
+		await this.#closeSilent();
 		if (messageBytes(message) > MAX_MESSAGE_BYTES) {
 			closeSocket(ws, socket, MESSAGE_TOO_BIG, "The message is too big");
 			await this.#forget(ws);
@@ -126,9 +147,7 @@ export class EmDashRoom extends DurableObject {
 		if (typeof message === "string") return;
 		const room = this.#room ?? (await this.#loadRoom());
 		room.receive(socket.connection, new Uint8Array(message));
-		if (!socket.closed && socket.info && socket.info.clientId !== socket.attachedClientId) {
-			this.#attach(ws, socket);
-		}
+		if (socket.info && socket.info.clientId !== socket.attachedClientId) this.#attach(ws, socket);
 	}
 
 	override async webSocketClose(ws: WebSocket, code: number): Promise<void> {
@@ -147,6 +166,7 @@ export class EmDashRoom extends DurableObject {
 
 	override async alarm(): Promise<void> {
 		try {
+			await this.#closeSilent();
 			await (await this.#loadRoom()).expire();
 		} finally {
 			// An open room, or a drop that failed, keeps its state for the next hour.
@@ -156,10 +176,11 @@ export class EmDashRoom extends DurableObject {
 		}
 	}
 
-	#socket(ws: WebSocket, info: ConnectionInfo | null): Socket {
+	#socket(ws: WebSocket, info: ConnectionInfo | null, seenAt: number): Socket {
 		const socket: Socket = {
 			info,
 			attachedClientId: info?.clientId ?? null,
+			seenAt,
 			closed: false,
 			connection: {
 				send(message) {
@@ -177,9 +198,27 @@ export class EmDashRoom extends DurableObject {
 	}
 
 	#attach(ws: WebSocket, socket: Socket): void {
-		if (!socket.info) return;
-		ws.serializeAttachment(socket.info);
+		if (!socket.info || socket.closed) return;
+		const attachment: Attachment = { info: socket.info, seenAt: socket.seenAt };
+		ws.serializeAttachment(attachment);
 		socket.attachedClientId = socket.info.clientId;
+	}
+
+	#seen(ws: WebSocket, socket: Socket): void {
+		const now = Date.now();
+		if (now - socket.seenAt <= SEEN_STORE_MS) return;
+		socket.seenAt = now;
+		this.#attach(ws, socket);
+	}
+
+	/** Closes the sockets that went silent, and forgets them as closed. */
+	async #closeSilent(): Promise<void> {
+		const silentSince = Date.now() - SILENT_SOCKET_MS;
+		const silent = [...this.#sockets].filter(([, socket]) => socket.seenAt < silentSince);
+		for (const [ws, socket] of silent) {
+			closeSocket(ws, socket, GOING_AWAY, "The connection went silent");
+			await this.#forget(ws);
+		}
 	}
 
 	/** Loads the room first, so it handles the close of a socket it resumes. */

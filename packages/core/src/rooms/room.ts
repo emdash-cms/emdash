@@ -382,7 +382,7 @@ export class Room {
 
 	/**
 	 * Closes connections past their lifetime, then applies the hourly drop, for the host's alarm or
-	 * cleanup. A host that doesn't ping sockets relies on it to close peers that vanished.
+	 * cleanup.
 	 */
 	async expire(): Promise<void> {
 		this.#closeOldConnections();
