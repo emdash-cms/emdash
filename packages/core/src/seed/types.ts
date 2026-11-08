@@ -93,7 +93,15 @@ export interface SeedCollection {
 	description?: string;
 	icon?: string;
 	admin?: CollectionAdminConfig;
-	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
+	supports?: (
+		| "drafts"
+		| "revisions"
+		| "preview"
+		| "scheduling"
+		| "no-scheduling"
+		| "search"
+		| "seo"
+	)[];
 	urlPattern?: string;
 	/** Require a slug before an entry can be published. Defaults to true. */
 	routable?: boolean;
@@ -379,19 +387,19 @@ export interface SeedApplyOptions {
 	 */
 	onConflict?: "skip" | "update" | "error";
 
-	/** Base path for local media files (for $media.file resolution) */
+	/** Base directory required for $media.file resolution. Files must remain within it. */
 	mediaBasePath?: string;
 
 	/**
 	 * Storage adapter for media uploads.
-	 * Required if seed contains $media references with URLs.
+	 * Required if seed contains $media references with URLs or local files.
 	 */
 	storage?: Storage;
 
 	/**
-	 * Skip downloading and storing media for $media references.
+	 * Skip downloading and storing media for $media references. Local files resolve to null.
 	 *
-	 * When true, $media references are resolved to a MediaValue
+	 * When true, URL references are resolved to a MediaValue
 	 * that uses the original external URL directly as the `src`,
 	 * with provider set to "external". No storage adapter is needed.
 	 *
@@ -456,18 +464,19 @@ export interface MediaQueueItem {
  * ```
  *
  * The seed engine will:
- * 1. Download the image from the URL
+ * 1. Download the URL or read a local file relative to mediaBasePath
  * 2. Upload it to the configured storage
  * 3. Create a media record in the database
  * 4. Replace the $media object with the proper field value
  */
 export interface SeedMediaReference {
-	$media: {
-		/** URL to download the media from */
-		url: string;
+	$media: (
+		| { /** URL to download the media from */ url: string; file?: null }
+		| { /** Local file relative to mediaBasePath */ file: string; url?: null }
+	) & {
 		/** Alt text for the image */
 		alt?: string;
-		/** Custom filename (defaults to URL basename or generated) */
+		/** Custom filename (defaults to the source basename or generated) */
 		filename?: string;
 		/** Caption for this content use */
 		caption?: string;

@@ -156,6 +156,8 @@ export interface EmDashManifest {
 	 * registry plugin's `env:astro` requirement against the running host.
 	 */
 	astroVersion?: string;
+	/** Site title used for browser tab titles. */
+	siteTitle?: string;
 	/** IANA timezone used by datetime-local controls in the admin. */
 	timezone?: string;
 	collections: Record<string, ManifestCollection>;

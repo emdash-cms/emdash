@@ -24,6 +24,7 @@ import {
 	isOfficialPublisher,
 	isRegistryRequestRejected,
 	listingImageUrl,
+	PUBLISHER_LINK_REL,
 	permissionCountLabel,
 	pluginPath,
 	publisherHandle,
@@ -267,7 +268,11 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 					</button>
 					{
 						repository && (
-							<a class="btn btn-secondary btn-lg" href={repository}>
+							<a
+								class="btn btn-secondary btn-lg"
+								href={repository}
+								rel={PUBLISHER_LINK_REL}
+							>
 								<svg
 									viewBox="0 0 24 24"
 									aria-hidden="true"
@@ -437,7 +442,12 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 								<div>
 									<dt>Source</dt>
 									<dd>
-										<a href={repository} dir="ltr" title={repository}>
+										<a
+											href={repository}
+											rel={PUBLISHER_LINK_REL}
+											dir="ltr"
+											title={repository}
+										>
 											{sourceLabel(repository)}
 										</a>
 									</dd>
@@ -506,7 +516,9 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 									{authors.map((author) => (
 										<li dir="auto">
 											{author.url ? (
-												<a href={author.url}>{author.name}</a>
+												<a href={author.url} rel={PUBLISHER_LINK_REL}>
+													{author.name}
+												</a>
 											) : (
 												author.name
 											)}
@@ -552,7 +564,11 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 								<h2 class="aside-title" id="aside-security-title">
 									Security contact
 								</h2>
-								<a class="aside-link" href={securityHref}>
+								<a
+									class="aside-link"
+									href={securityHref}
+									rel={PUBLISHER_LINK_REL}
+								>
 									<svg
 										viewBox="0 0 24 24"
 										aria-hidden="true"

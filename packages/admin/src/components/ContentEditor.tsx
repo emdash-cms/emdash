@@ -70,6 +70,7 @@ import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
+import { useAdminPageTitle } from "./AdminDocumentTitle.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { TOAST_REGION } from "./block-field-keyboard.js";
 import {
@@ -596,6 +597,8 @@ export interface ContentEditorProps {
 	isUpdatingPublishedAt?: boolean;
 	/** Whether this collection supports drafts */
 	supportsDrafts?: boolean;
+	/** Whether this collection supports scheduling */
+	supportsScheduling?: boolean;
 	/** Whether this collection supports revisions */
 	supportsRevisions?: boolean;
 	/** Whether this collection supports preview */
@@ -682,6 +685,7 @@ export function ContentEditor({
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	supportsDrafts = false,
+	supportsScheduling = true,
 	supportsRevisions = false,
 	supportsPreview = false,
 	currentUser,
@@ -1804,6 +1808,15 @@ export function ContentEditor({
 	const liveTitleValue = documentTitleField ? formData[documentTitleField] : undefined;
 	const liveTitle = typeof liveTitleValue === "string" ? liveTitleValue.trim() : "";
 	const barTitle = liveTitle || entryTitle || (isNew ? t`New ${itemLabel}` : t`Edit ${itemLabel}`);
+	const tabEntryTitle = item ? getEntryTitle({ ...item, data: formData }, titleField) : "";
+	useAdminPageTitle(
+		isNew
+			? t`New ${itemLabel}`
+			: tabEntryTitle
+				? t`Edit ${itemLabel}: ${tabEntryTitle}`
+				: t`Edit ${itemLabel}`,
+	);
+
 	const collectionListLabel = manifest?.collections[collection]?.label ?? collectionLabel;
 	const documentTitleRef = React.useRef<HTMLInputElement>(null);
 	const editorHeadingRef = React.useRef<HTMLHeadingElement>(null);
@@ -1900,7 +1913,11 @@ export function ContentEditor({
 	// posts can now have a pending schedule without changing status.
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
-		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
+		supportsScheduling &&
+		!isNew &&
+		!hasSchedule &&
+		Boolean(onSchedule) &&
+		(!isPublished || hasPendingChanges);
 	const publishingState = getContentPublishingState({
 		isLive,
 		hasPendingChanges,
@@ -2062,7 +2079,9 @@ export function ContentEditor({
 											isScheduling={isScheduling}
 											isUnscheduling={isUnscheduling}
 											disabled={publishingPending || hasSaveConflict || isViewing}
-											onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+											onOpenSchedule={
+												supportsScheduling && onSchedule ? handleOpenSchedule : undefined
+											}
 											onUnschedule={onUnschedule ? handleUnschedule : undefined}
 											inline
 										/>
@@ -2385,7 +2404,9 @@ export function ContentEditor({
 										canSchedule={canSchedule}
 										isScheduling={isScheduling}
 										isUnscheduling={isUnscheduling}
-										onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+										onOpenSchedule={
+											supportsScheduling && onSchedule ? handleOpenSchedule : undefined
+										}
 										onUnschedule={onUnschedule ? handleUnschedule : undefined}
 										supportsRevisions={supportsRevisions}
 										onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
@@ -2446,13 +2467,13 @@ export function ContentEditor({
 				{revisionView.announcement}
 			</p>
 			<PublishingScheduleDialog
-				open={scheduleDialogOpen}
+				open={supportsScheduling && scheduleDialogOpen}
 				entryKey={scheduleEntryKey}
 				scheduledAt={item?.scheduledAt}
 				isLive={isLive}
 				isPending={isScheduling}
 				onOpenChange={setScheduleDialogOpen}
-				onSchedule={onSchedule ? handleSchedule : undefined}
+				onSchedule={supportsScheduling && onSchedule ? handleSchedule : undefined}
 			/>
 			{pendingEditorDraftPatch?.response.patch ? (
 				<EditorDraftPatchPreview

@@ -17,6 +17,7 @@ const collectionSupportValues = z.enum([
 	"revisions",
 	"preview",
 	"scheduling",
+	"no-scheduling",
 	"search",
 	"seo",
 ]);

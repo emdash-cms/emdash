@@ -140,6 +140,7 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"revisions",
 	"preview",
 	"scheduling",
+	"no-scheduling",
 	"search",
 	"seo",
 ]);

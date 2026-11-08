@@ -142,17 +142,17 @@ msgid "\"{0}\" and its nested items will be removed from this menu. This action 
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1894
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "\"{0}\" จะถูกลบออกจาก {providerName}"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1895
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "\"{0}\" จะถูกลบออกจากผู้ให้บริการมีเดีย"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1907
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" จะถูกลบอย่างถาวร"
 
@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# รายการ)} other {(# รายการ)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3888
+#: packages/admin/src/components/ContentEditor.tsx:3909
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} จาก # อักขระ อย่างน้อย {min}} other {{counted} จาก # อักขระ อย่างน้อย {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3893
+#: packages/admin/src/components/ContentEditor.tsx:3914
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} จาก # อักขระ} other {{counted} จาก # อักขระ}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {นำเข้าความคิดเห็น # รายการแล้ว} other {นำเข้าความคิดเห็น # รายการแล้ว}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2531
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {อัปเดตความคิดเห็น # รายการ} other {อัปเดตความคิดเห็น # รายการ}}"
 
@@ -263,7 +263,7 @@ msgstr "{0, plural, one {ไม่ได้เพิ่ม # ไฟล์ เน
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1514
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 #: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {โหลดโฟลเดอร์ # รายการแล้ว} other {โหลดโฟลเดอร์ # รายการแล้ว}}"
@@ -359,7 +359,7 @@ msgstr "{0, plural, one {# ความสัมพันธ์ที่ปร�
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5575
+#: packages/admin/src/components/PortableTextEditor.tsx:5578
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "เลือก {0, plural, one {# แถว} other {# แถว}} × {1, plural, one {# คอลัมน์} other {# คอลัมน์}} แล้ว"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3898
+#: packages/admin/src/components/ContentEditor.tsx:3919
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {อย่างน้อย # อักขระ} other {อย่างน้อย # อักขระ}}"
 
@@ -558,17 +558,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} จาก {1} ขั้นตอน · {2} จาก {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:755
+#: packages/admin/src/router.tsx:783
 msgid "{0} of {total} could not be deleted"
 msgstr "ลบไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:711
+#: packages/admin/src/router.tsx:739
 msgid "{0} of {total} could not be published"
 msgstr "เผยแพร่ไม่สำเร็จ {0} จาก {total} รายการ"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:762
 msgid "{0} of {total} could not be updated"
 msgstr "อัปเดตไม่สำเร็จ {0} จาก {total} รายการ"
 
@@ -1019,15 +1019,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, รายการที่ {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:238
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "{title} is a draft again."
 msgstr "{title} กลับเป็นฉบับร่างแล้ว"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 msgid "{title} is now live."
 msgstr "{title} เผยแพร่แล้ว"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "{title} now goes live {when}."
 msgstr "{title} จะเผยแพร่ {when}"
 
@@ -1153,7 +1153,7 @@ msgstr "1. เข้าสู่ระบบ WordPress admin ของคุณ"
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. เข้าสู่ระบบแดชบอร์ด WordPress admin ของคุณ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:542
+#: packages/admin/src/components/MediaDetailPanel.tsx:544
 msgid "16:9"
 msgstr "16:9"
 
@@ -1165,7 +1165,7 @@ msgstr "2. ไปที่ <0>Tools → Export</0>"
 msgid "2. Go to Users → Profile"
 msgstr "2. ไปที่ Users → Profile"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:541
+#: packages/admin/src/components/MediaDetailPanel.tsx:543
 msgid "3:2"
 msgstr "3:2"
 
@@ -1197,7 +1197,7 @@ msgstr "307 ชั่วคราว (Strict)"
 msgid "308 Permanent (Strict)"
 msgstr "308 ถาวร (Strict)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:540
+#: packages/admin/src/components/MediaDetailPanel.tsx:542
 msgid "4:3"
 msgstr "4:3"
 
@@ -1292,7 +1292,7 @@ msgstr "ไฟล์ในแพ็กเกจหายไป"
 msgid "A publication time has not been selected"
 msgstr "ยังไม่ได้เลือกเวลาเผยแพร่"
 
-#: packages/admin/src/components/ContentEditor.tsx:1707
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "A publishing action is already in progress"
 msgstr "มีการดำเนินการเผยแพร่อยู่แล้ว"
 
@@ -1359,7 +1359,7 @@ msgstr "ยกเลิกการนำเข้านี้ทิ้งหร
 msgid "Abandoning…"
 msgstr "กำลังยกเลิกทิ้ง…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:534
+#: packages/admin/src/components/MediaDetailPanel.tsx:536
 msgid "About focal point"
 msgstr "เกี่ยวกับจุดโฟกัส"
 
@@ -1375,18 +1375,23 @@ msgstr "ยอมรับและติดตั้ง"
 msgid "Accept & Update"
 msgstr "ยอมรับและอัปเดต"
 
+#: packages/admin/src/router.tsx:468
+msgid "Accept invitation"
+msgstr ""
+
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
 msgid "Accept Invite"
 msgstr "ยอมรับคำเชิญ"
 
+#: packages/admin/src/components/RequireAdmin.tsx:25
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
 #: packages/admin/src/routes/byline-schema.tsx:164
 msgid "Access denied"
 msgstr "ไม่มีสิทธิ์เข้าถึง"
 
-#: packages/admin/src/router.tsx:2522
+#: packages/admin/src/router.tsx:2553
 msgid "Access Denied"
 msgstr "การเข้าถึงถูกปฏิเสธ"
 
@@ -1562,12 +1567,12 @@ msgstr "เพิ่มชื่อผู้เขียน"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:6028
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Add caption"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5588
+#: packages/admin/src/components/PortableTextEditor.tsx:5591
 msgid "Add column after"
 msgstr "เพิ่มคอลัมน์ถัดไป"
 
@@ -1650,9 +1655,9 @@ msgstr ""
 msgid "Add item to {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5212
-#: packages/admin/src/components/PortableTextEditor.tsx:6021
-#: packages/admin/src/components/PortableTextEditor.tsx:6470
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6473
 msgid "Add link"
 msgstr "เพิ่มลิงก์"
 
@@ -1686,8 +1691,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "เพิ่ม Passkey"
 
-#: packages/admin/src/components/ContentEditor.tsx:3802
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Add reference"
 msgstr "เพิ่มการอ้างอิง"
 
@@ -1700,7 +1705,7 @@ msgid "Add row above"
 msgstr "เพิ่มแถวด้านบน"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5581
+#: packages/admin/src/components/PortableTextEditor.tsx:5584
 msgid "Add row below"
 msgstr "เพิ่มแถวด้านล่าง"
 
@@ -1895,25 +1900,25 @@ msgid "Agent-callable MCP tools"
 msgstr "เครื่องมือ MCP ที่เอเจนต์เรียกใช้ได้"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5476
+#: packages/admin/src/components/PortableTextEditor.tsx:5479
 msgid "Align"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6644
+#: packages/admin/src/components/PortableTextEditor.tsx:6647
 msgid "Align center"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6636
+#: packages/admin/src/components/PortableTextEditor.tsx:6639
 msgid "Align left"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6652
+#: packages/admin/src/components/PortableTextEditor.tsx:6655
 msgid "Align right"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:6002
+#: packages/admin/src/components/PortableTextEditor.tsx:6005
 msgid "Alignment"
 msgstr "การจัดตำแหน่ง"
 
@@ -1983,7 +1988,7 @@ msgstr "อนุญาตให้โทเคน MCP ที่มีขอบ�
 msgid "Allow multiple references"
 msgstr "อนุญาตการอ้างอิงหลายรายการ"
 
-#: packages/admin/src/components/Settings.tsx:94
+#: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:220
 msgid "Allow users from specific domains to sign up"
 msgstr "อนุญาตให้ผู้ใช้จากโดเมนที่ระบุสมัครใช้งาน"
@@ -1998,6 +2003,7 @@ msgid "Allowed block types"
 msgstr "ประเภทบล็อกที่อนุญาต"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
+#: packages/admin/src/router.tsx:2634
 msgid "Allowed Domains"
 msgstr "โดเมนที่อนุญาต"
 
@@ -2038,14 +2044,14 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1176
-#: packages/admin/src/components/PortableTextEditor.tsx:5933
-#: packages/admin/src/components/PortableTextEditor.tsx:5999
+#: packages/admin/src/components/PortableTextEditor.tsx:5936
+#: packages/admin/src/components/PortableTextEditor.tsx:6002
 msgid "Alt text"
 msgstr "ข้อความ Alt"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1582
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
+#: packages/admin/src/components/MediaDetailPanel.tsx:1597
 msgid "Alt Text"
 msgstr "ข้อความ Alt"
 
@@ -2107,18 +2113,18 @@ msgstr "กุญแจดิจิทัลที่เข้ารหัส �
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:665
-#: packages/admin/src/router.tsx:686
-#: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1369
-#: packages/admin/src/router.tsx:1527
-#: packages/admin/src/router.tsx:1551
-#: packages/admin/src/router.tsx:1635
-#: packages/admin/src/router.tsx:1668
-#: packages/admin/src/router.tsx:2472
-#: packages/admin/src/router.tsx:2508
-#: packages/admin/src/router.tsx:2936
-#: packages/admin/src/router.tsx:3123
+#: packages/admin/src/router.tsx:693
+#: packages/admin/src/router.tsx:714
+#: packages/admin/src/router.tsx:939
+#: packages/admin/src/router.tsx:1397
+#: packages/admin/src/router.tsx:1555
+#: packages/admin/src/router.tsx:1579
+#: packages/admin/src/router.tsx:1663
+#: packages/admin/src/router.tsx:1696
+#: packages/admin/src/router.tsx:2503
+#: packages/admin/src/router.tsx:2539
+#: packages/admin/src/router.tsx:3033
+#: packages/admin/src/router.tsx:3223
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "เกิดข้อผิดพลาด"
@@ -2143,7 +2149,7 @@ msgstr "กำลังวิเคราะห์ไฟล์ส่งออก
 msgid "Analyzing WordPress site..."
 msgstr "กำลังวิเคราะห์เว็บไซต์ WordPress..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1742
+#: packages/admin/src/components/MediaDetailPanel.tsx:1753
 msgid "Animated WebP files become still images when cropped."
 msgstr "ไฟล์ WebP แบบเคลื่อนไหวจะกลายเป็นภาพนิ่งเมื่อครอบตัด"
 
@@ -2213,10 +2219,11 @@ msgstr "อนุญาตมีเดียทุกประเภท (ขึ�
 msgid "Any number"
 msgstr "กี่รายการก็ได้"
 
-#: packages/admin/src/components/Settings.tsx:99
-#: packages/admin/src/components/Settings.tsx:103
+#: packages/admin/src/components/Settings.tsx:104
+#: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
+#: packages/admin/src/router.tsx:2646
 msgid "API Tokens"
 msgstr "API Tokens"
 
@@ -2229,7 +2236,7 @@ msgid "Application Password"
 msgstr "Application Password"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6735
+#: packages/admin/src/components/PortableTextEditor.tsx:6738
 msgid "Apply"
 msgstr "ใช้"
 
@@ -2237,8 +2244,8 @@ msgstr "ใช้"
 msgid "Apply changes"
 msgstr "นำการเปลี่ยนแปลงไปใช้"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5186
-#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:5189
+#: packages/admin/src/components/PortableTextEditor.tsx:5977
 msgid "Apply link"
 msgstr "ใช้ลิงก์"
 
@@ -2327,7 +2334,7 @@ msgstr ""
 msgid "Ask an administrator to complete this setup."
 msgstr "ให้ผู้ดูแลระบบตั้งค่านี้ให้เสร็จ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1682
+#: packages/admin/src/components/MediaDetailPanel.tsx:1693
 msgid "Aspect ratio"
 msgstr "อัตราส่วนภาพ"
 
@@ -2343,17 +2350,22 @@ msgstr "ผู้ช่วยที่เชื่อมต่อผ่าน MC
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3921
+#: packages/admin/src/components/ContentEditor.tsx:3942
 msgid "At least {min}"
 msgstr "อย่างน้อย {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3918
+#: packages/admin/src/components/ContentEditor.tsx:3939
 msgid "At most {max}"
 msgstr "ไม่เกิน {max}"
 
 #: packages/admin/src/components/RelationForm.tsx:505
 msgid "At most…"
 msgstr "ไม่เกิน…"
+
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
@@ -2412,6 +2424,10 @@ msgstr "การอนุญาตสิทธิ์ล้มเหลว"
 msgid "Authorize"
 msgstr "อนุญาตสิทธิ์"
 
+#: packages/admin/src/router.tsx:479
+msgid "Authorize device"
+msgstr ""
+
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
 msgstr "อนุญาตสิทธิ์อุปกรณ์"
@@ -2469,11 +2485,11 @@ msgstr "การสำรองข้อมูลอัตโนมัติ"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "การสำรองข้อมูลอัตโนมัติต้องใช้ที่จัดเก็บข้อมูล (R2, S3 หรือที่จัดเก็บในเครื่อง) ตั้งค่าที่จัดเก็บข้อมูลใน EmDash config เพื่อเปิดใช้งาน"
 
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:1523
 msgid "Autosave failed"
 msgstr "บันทึกอัตโนมัติล้มเหลว"
 
-#: packages/admin/src/components/ContentEditor.tsx:229
+#: packages/admin/src/components/ContentEditor.tsx:230
 msgid "Autosave paused"
 msgstr ""
 
@@ -2510,7 +2526,7 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1814
-#: packages/admin/src/components/MediaDetailPanel.tsx:1786
+#: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
@@ -2518,7 +2534,7 @@ msgstr ""
 msgid "Back"
 msgstr "ย้อนกลับ"
 
-#: packages/admin/src/components/ContentEditor.tsx:1954
+#: packages/admin/src/components/ContentEditor.tsx:1971
 msgid "Back to {collectionLabel} list"
 msgstr "กลับไปยังรายการ {collectionLabel}"
 
@@ -2597,8 +2613,9 @@ msgstr "สร้างข้อมูลสำรองแล้ว: {0}"
 msgid "Backup settings saved"
 msgstr "บันทึกการตั้งค่าการสำรองข้อมูลแล้ว"
 
-#: packages/admin/src/components/Settings.tsx:118
+#: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
+#: packages/admin/src/router.tsx:2670
 msgid "Backups"
 msgstr "ข้อมูลสำรอง"
 
@@ -2626,7 +2643,7 @@ msgstr "ก่อนส่ง:"
 msgid "Before you continue:"
 msgstr "ก่อนดำเนินการต่อ:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3915
+#: packages/admin/src/components/ContentEditor.tsx:3936
 msgid "Between {min} and {max}"
 msgstr "ระหว่าง {min} ถึง {max}"
 
@@ -2678,8 +2695,8 @@ msgstr "สิ่งที่ขัดขวาง"
 msgid "Blocks"
 msgstr "บล็อก"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4963
-#: packages/admin/src/components/PortableTextEditor.tsx:6504
+#: packages/admin/src/components/PortableTextEditor.tsx:4966
+#: packages/admin/src/components/PortableTextEditor.tsx:6507
 msgid "Bold"
 msgstr "ตัวหนา"
 
@@ -2740,7 +2757,7 @@ msgstr "ยืนยันที่มาของบิลด์แล้ว"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2054
-#: packages/admin/src/components/PortableTextEditor.tsx:6561
+#: packages/admin/src/components/PortableTextEditor.tsx:6564
 msgid "Bullet List"
 msgstr "รายการแบบจุด"
 
@@ -2796,6 +2813,7 @@ msgid "Byline schema"
 msgstr "สคีมาชื่อผู้เขียน"
 
 #: packages/admin/src/components/Sidebar.tsx:552
+#: packages/admin/src/router.tsx:2970
 msgid "Byline Schema"
 msgstr "สคีมาชื่อผู้เขียน"
 
@@ -2804,12 +2822,13 @@ msgid "Byline updated"
 msgstr "อัปเดตชื่อผู้เขียนแล้ว"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
+#: packages/admin/src/router.tsx:2959
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "ชื่อผู้เขียน"
@@ -2829,6 +2848,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
+#: packages/admin/src/router.tsx:546
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "ปฏิทิน"
@@ -2863,7 +2883,7 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
 #: packages/admin/src/components/FieldEditor.tsx:1819
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:575
@@ -2872,9 +2892,9 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PluginManager.tsx:822
 #: packages/admin/src/components/PortableTextEditor.tsx:2818
-#: packages/admin/src/components/PortableTextEditor.tsx:5945
-#: packages/admin/src/components/PortableTextEditor.tsx:5971
-#: packages/admin/src/components/PortableTextEditor.tsx:6719
+#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:6722
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -2943,7 +2963,7 @@ msgstr "ความสามารถ"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 #: packages/admin/src/components/editor/ImageNode.tsx:311
 #: packages/admin/src/components/editor/VideoNode.tsx:332
-#: packages/admin/src/components/MediaDetailPanel.tsx:1597
+#: packages/admin/src/components/MediaDetailPanel.tsx:1608
 msgid "Caption"
 msgstr "คำบรรยายภาพ"
 
@@ -2983,8 +3003,8 @@ msgstr "ผสานเซลล์แล้ว"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5480
-#: packages/admin/src/components/PortableTextEditor.tsx:5601
+#: packages/admin/src/components/PortableTextEditor.tsx:5483
+#: packages/admin/src/components/PortableTextEditor.tsx:5604
 msgid "Center"
 msgstr "กึ่งกลาง"
 
@@ -3118,7 +3138,7 @@ msgstr "บันทึกการเปลี่ยนแปลง"
 msgid "Changes apply everywhere this byline appears."
 msgstr "การเปลี่ยนแปลงมีผลทุกที่ที่ชื่อผู้เขียนนี้ปรากฏ"
 
-#: packages/admin/src/router.tsx:1568
+#: packages/admin/src/router.tsx:1596
 msgid "Changes discarded"
 msgstr "ละทิ้งการเปลี่ยนแปลงแล้ว"
 
@@ -3262,7 +3282,7 @@ msgid "Choose a file from the library or upload a new one."
 msgstr "เลือกไฟล์จากไลบรารีหรืออัปโหลดไฟล์ใหม่"
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:925
+#: packages/admin/src/components/MediaDetailPanel.tsx:927
 msgid "Choose a non-empty {0} image."
 msgstr "เลือกรูปภาพ {0} ที่ไม่ว่างเปล่า"
 
@@ -3320,7 +3340,7 @@ msgstr ""
 msgid "Choose package file"
 msgstr "เลือกไฟล์แพ็กเกจ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1817
+#: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
 msgstr "เลือกรูปภาพที่จะใช้แทน"
 
@@ -3356,7 +3376,7 @@ msgstr ""
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr "เลือก Windows Hello หรือตัวจัดการข้อมูลรับรองอื่นที่มีอยู่ แล้วยืนยันด้วย PIN ลายนิ้วมือ หรือใบหน้า"
 
-#: packages/admin/src/components/Settings.tsx:144
+#: packages/admin/src/components/Settings.tsx:150
 msgid "Choose your preferred admin language"
 msgstr "เลือกภาษาผู้ดูแลระบบที่คุณต้องการ"
 
@@ -3388,7 +3408,7 @@ msgstr "ล้างรายการที่เสร็จแล้ว"
 msgid "Clear filters"
 msgstr "ล้างตัวกรอง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5490
+#: packages/admin/src/components/PortableTextEditor.tsx:5493
 msgid "Clear formatting"
 msgstr ""
 
@@ -3435,7 +3455,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "คลิกลิงก์นี้เพื่อเข้าสู่ระบบ {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:322
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3443,8 +3463,8 @@ msgstr "คลิกลิงก์นี้เพื่อเข้าสู่
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:627
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:629
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:1134
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1136
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
@@ -3477,7 +3497,7 @@ msgstr "ปิดการตั้งค่ารูปภาพ"
 msgid "Close panel"
 msgstr "ปิดแผง"
 
-#: packages/admin/src/components/ContentEditor.tsx:2739
+#: packages/admin/src/components/ContentEditor.tsx:2760
 msgid "Close settings"
 msgstr "ปิดการตั้งค่า"
 
@@ -3493,7 +3513,7 @@ msgstr "โค้ด"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2084
-#: packages/admin/src/components/PortableTextEditor.tsx:6603
+#: packages/admin/src/components/PortableTextEditor.tsx:6606
 msgid "Code Block"
 msgstr "บล็อกโค้ด"
 
@@ -3529,9 +3549,9 @@ msgstr "คอลเลกชัน “{0}” มีรายการอยู�
 msgid "Collection “{0}” was created on this site"
 msgstr "มีการสร้างคอลเลกชัน “{0}” ในไซต์นี้แล้ว"
 
-#: packages/admin/src/router.tsx:776
-#: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1995
+#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:1006
+#: packages/admin/src/router.tsx:2023
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3557,7 +3577,7 @@ msgid "Collections created:"
 msgstr "คอลเลกชันที่สร้าง:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5586
+#: packages/admin/src/components/PortableTextEditor.tsx:5589
 msgid "Column added after"
 msgstr "เพิ่มคอลัมน์ถัดไปแล้ว"
 
@@ -3614,6 +3634,7 @@ msgstr "รีแอ็กชันของความคิดเห็น"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/router.tsx:2428
 msgid "Comments"
 msgstr "ความคิดเห็น"
 
@@ -3648,6 +3669,10 @@ msgstr ""
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
 msgstr "ยืนยัน"
+
+#: packages/admin/src/router.tsx:442
+msgid "Confirm magic link"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -3694,6 +3719,11 @@ msgstr "เชื่อมต่อกับ WordPress"
 msgid "Connected {0}"
 msgstr "เชื่อมต่อ {0} แล้ว"
 
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
+
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
 msgstr "เชื่อมต่อ"
@@ -3709,6 +3739,7 @@ msgstr "เนื้อหา"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
+#: packages/admin/src/router.tsx:558
 msgid "Content"
 msgstr "เนื้อหา"
 
@@ -3729,7 +3760,7 @@ msgstr "ข้อผิดพลาดของเนื้อหา ({0})"
 msgid "Content found:"
 msgstr "พบเนื้อหา:"
 
-#: packages/admin/src/router.tsx:1617
+#: packages/admin/src/router.tsx:1645
 msgid "Content has been scheduled for publishing"
 msgstr "กำหนดเวลาเผยแพร่เนื้อหาแล้ว"
 
@@ -3737,7 +3768,7 @@ msgstr "กำหนดเวลาเผยแพร่เนื้อหาแ
 msgid "Content ID:"
 msgstr "ID เนื้อหา:"
 
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1549
 msgid "Content is now live"
 msgstr "เนื้อหาเผยแพร่แล้ว"
 
@@ -3762,11 +3793,11 @@ msgstr "เนื้อหาอ้างอิงถึงมีเดียใ
 msgid "Content refers to media that is not in the package"
 msgstr "เนื้อหาอ้างอิงถึงมีเดียที่ไม่มีอยู่ในแพ็กเกจ"
 
-#: packages/admin/src/router.tsx:1545
+#: packages/admin/src/router.tsx:1573
 msgid "Content removed from public view"
 msgstr "นำเนื้อหาออกจากมุมมองสาธารณะแล้ว"
 
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/router.tsx:1656
 msgid "Content reverted to draft"
 msgstr "เปลี่ยนเนื้อหากลับเป็นฉบับร่างแล้ว"
 
@@ -3789,6 +3820,7 @@ msgstr "ประเภทเนื้อหา"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
+#: packages/admin/src/router.tsx:2978
 msgid "Content Types"
 msgstr "ประเภทเนื้อหา"
 
@@ -3796,7 +3828,7 @@ msgstr "ประเภทเนื้อหา"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "ประเภทเนื้อหาที่อยู่ในกลุ่มเดียวกันจะอยู่ในโฟลเดอร์ที่ยุบได้เดียวกันในแถบด้านข้าง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1912
+#: packages/admin/src/components/MediaDetailPanel.tsx:1923
 msgid "Content using this media item may show a broken reference."
 msgstr "เนื้อหาที่ใช้รายการมีเดียนี้อาจแสดงการอ้างอิงที่เสีย"
 
@@ -3824,7 +3856,7 @@ msgid "Continue Import"
 msgstr "ดำเนินการนำเข้าต่อ"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6578
+#: packages/admin/src/components/PortableTextEditor.tsx:6581
 msgid "Continue numbering"
 msgstr "นับเลขต่อ"
 
@@ -3906,7 +3938,7 @@ msgstr "คัดลอกโทเค็น"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:335
-#: packages/admin/src/components/MediaDetailPanel.tsx:1385
+#: packages/admin/src/components/MediaDetailPanel.tsx:1396
 msgid "Copy URL"
 msgstr "คัดลอก URL"
 
@@ -3934,7 +3966,7 @@ msgstr "ไม่สามารถคัดลอกโดยอัตโนม
 msgid "Could not create {singularLower}"
 msgstr "สร้าง {singularLower} ไม่สำเร็จ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4758
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 msgid "Could not insert section"
 msgstr "แทรกส่วนไม่สำเร็จ"
 
@@ -3958,7 +3990,7 @@ msgstr "โหลดมีเดียไม่สำเร็จ"
 msgid "Could not load the calendar"
 msgstr "โหลดปฏิทินไม่สำเร็จ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
 msgid "Could not load this entry's details."
 msgstr "โหลดรายละเอียดของรายการนี้ไม่สำเร็จ"
 
@@ -3966,7 +3998,7 @@ msgstr "โหลดรายละเอียดของรายการน
 msgid "Could not load this folder."
 msgstr "โหลดโฟลเดอร์นี้ไม่สำเร็จ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
 msgid "Could not publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -3974,7 +4006,7 @@ msgstr "เผยแพร่ไม่สำเร็จ"
 msgid "Could not reach {origin}"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:242
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
 msgid "Could not remove the schedule"
 msgstr "นำกำหนดเวลาออกไม่สำเร็จ"
 
@@ -3990,7 +4022,7 @@ msgstr ""
 msgid "Couldn’t add the menu item"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:828
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "ยืนยันไม่ได้ว่ารายการมีเดียหรือโฟลเดอร์ที่เลือกยังคงอยู่หรือไม่ ลองอีกครั้ง"
 
@@ -3998,7 +4030,7 @@ msgstr "ยืนยันไม่ได้ว่ารายการมีเ
 msgid "Couldn't detect WordPress"
 msgstr "ตรวจไม่พบ WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:3779
+#: packages/admin/src/components/ContentEditor.tsx:3800
 msgid "Couldn't load all references."
 msgstr "โหลดการอ้างอิงทั้งหมดไม่สำเร็จ"
 
@@ -4161,7 +4193,7 @@ msgstr "สร้างและเพิ่ม"
 msgid "Create Content Type"
 msgstr "สร้างประเภทเนื้อหา"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1849
+#: packages/admin/src/components/MediaDetailPanel.tsx:1860
 msgid "Create cropped copy"
 msgstr "สร้างสำเนาที่ครอบตัด"
 
@@ -4198,7 +4230,7 @@ msgstr "สร้างความสัมพันธ์เพื่อให
 msgid "Create passkey"
 msgstr "สร้าง Passkey"
 
-#: packages/admin/src/components/Settings.tsx:104
+#: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
@@ -4313,7 +4345,7 @@ msgid "Created {0}"
 msgstr "สร้าง {0} แล้ว"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1660
+#: packages/admin/src/router.tsx:1688
 msgid "Created {0} translation"
 msgstr "สร้างคำแปล {0} แล้ว"
 
@@ -4333,7 +4365,7 @@ msgstr "กำลังสร้างคอลเลกชันและฟิ
 msgid "Creating collections and fields..."
 msgstr "กำลังสร้างคอลเลกชันและฟิลด์..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
 msgid "Creating cropped copy..."
 msgstr "กำลังสร้างสำเนาที่ครอบตัด..."
 
@@ -4347,7 +4379,7 @@ msgstr "กำลังสร้างสำเนาที่ครอบตั
 msgid "Creating..."
 msgstr "กำลังสร้าง..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
+#: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Crop"
 msgstr "ครอบตัด"
 
@@ -4357,7 +4389,7 @@ msgstr "ครอบตัด"
 msgid "Crop area {0} by {1} pixels."
 msgstr "พื้นที่ครอบตัด {0} x {1} พิกเซล"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1715
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Crop output dimensions"
 msgstr "ขนาดผลลัพธ์ของการครอบตัด"
 
@@ -4365,7 +4397,7 @@ msgstr "ขนาดผลลัพธ์ของการครอบตัด
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "ส่วนที่เลือกครอบตัด ใช้ปุ่มลูกศรเพื่อย้าย"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:773
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "สร้างสำเนาที่ครอบตัดแล้ว"
@@ -4440,8 +4472,10 @@ msgstr "รูปภาพสำหรับโหมดมืด"
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Sidebar.tsx:691
+#: packages/admin/src/router.tsx:528
 msgid "Dashboard"
 msgstr "แดชบอร์ด"
 
@@ -4541,8 +4575,8 @@ msgstr "กำหนดไว้ในโค้ด"
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1899
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
@@ -4675,11 +4709,11 @@ msgstr "ลบโฟลเดอร์"
 msgid "Delete gallery"
 msgstr "ลบแกลเลอรี"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6040
+#: packages/admin/src/components/PortableTextEditor.tsx:6043
 msgid "Delete image"
 msgstr "ลบรูปภาพ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1889
+#: packages/admin/src/components/MediaDetailPanel.tsx:1900
 msgid "Delete media?"
 msgstr "ลบมีเดียหรือไม่?"
 
@@ -4782,8 +4816,8 @@ msgstr "การลบ \"{0}\" จะลบ{1, plural, one {ค่าที่�
 #: packages/admin/src/components/ContentList.tsx:1787
 #: packages/admin/src/components/ContentTypeEditor.tsx:881
 #: packages/admin/src/components/ContentTypeList.tsx:267
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1900
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
@@ -4840,7 +4874,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5934
+#: packages/admin/src/components/PortableTextEditor.tsx:5937
 msgid "Describe the image"
 msgstr "อธิบายรูปภาพ"
 
@@ -4853,7 +4887,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "อธิบายจุดประสงค์ของรูปภาพและรายละเอียดที่เกี่ยวข้องสำหรับผู้ที่มองไม่เห็นรูปภาพ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:748
-#: packages/admin/src/components/MediaDetailPanel.tsx:1589
+#: packages/admin/src/components/MediaDetailPanel.tsx:1600
 msgid "Describe this image for accessibility"
 msgstr "อธิบายรูปภาพนี้เพื่อการเข้าถึง"
 
@@ -4886,8 +4920,8 @@ msgstr "เส้นทางปลายทาง"
 msgid "Destructive"
 msgstr "ทำลายข้อมูล"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1162
-#: packages/admin/src/components/MediaDetailPanel.tsx:1204
+#: packages/admin/src/components/MediaDetailPanel.tsx:1164
+#: packages/admin/src/components/MediaDetailPanel.tsx:1206
 msgid "Details"
 msgstr "รายละเอียด"
 
@@ -4919,7 +4953,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "ความแตกต่างจากไซต์ต้นทาง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1332
+#: packages/admin/src/components/MediaDetailPanel.tsx:1343
 msgid "Dimensions:"
 msgstr "ขนาด:"
 
@@ -4973,7 +5007,7 @@ msgstr "กำลังปิดใช้งาน..."
 msgid "Disallow AI training"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1875
+#: packages/admin/src/components/MediaDetailPanel.tsx:1886
 msgid "Discard"
 msgstr "ละทิ้ง"
 
@@ -4982,7 +5016,7 @@ msgstr "ละทิ้ง"
 msgid "Discard changes"
 msgstr "ละทิ้งการเปลี่ยนแปลง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1873
+#: packages/admin/src/components/MediaDetailPanel.tsx:1884
 msgid "Discard changes?"
 msgstr "ละทิ้งการเปลี่ยนแปลงหรือไม่?"
 
@@ -4991,7 +5025,7 @@ msgid "Discard draft changes?"
 msgstr "ละทิ้งการเปลี่ยนแปลงในฉบับร่าง?"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
-#: packages/admin/src/components/MediaDetailPanel.tsx:1876
+#: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "กำลังละทิ้ง..."
 
@@ -5011,15 +5045,15 @@ msgstr "ปิดรายการที่เสร็จแล้ว {0}"
 msgid "Dismiss import suggestion"
 msgstr "ปิดคำแนะนำการนำเข้า"
 
-#: packages/admin/src/components/ContentEditor.tsx:2699
+#: packages/admin/src/components/ContentEditor.tsx:2720
 msgid "Dismiss save error"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4779
+#: packages/admin/src/components/PortableTextEditor.tsx:4782
 msgid "Dismiss section error"
 msgstr "ปิดข้อผิดพลาดของส่วน"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4746
+#: packages/admin/src/components/PortableTextEditor.tsx:4749
 msgid "Dismiss table paste error"
 msgstr "ปิดข้อผิดพลาดการวางตาราง"
 
@@ -5056,7 +5090,7 @@ msgstr "แสดงแท็กคลาวด์"
 msgid "Displayed below the image as a visible caption."
 msgstr "แสดงด้านล่างของรูปภาพเป็นคำบรรยายที่มองเห็นได้"
 
-#: packages/admin/src/components/ContentEditor.tsx:2090
+#: packages/admin/src/components/ContentEditor.tsx:2109
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "โหมดไร้สิ่งรบกวน (⌘⇧\\)"
 
@@ -5145,7 +5179,7 @@ msgstr "ดาวน์โหลดข้อมูลสำรอง"
 msgid "Download Backup"
 msgstr "ดาวน์โหลดข้อมูลสำรอง"
 
-#: packages/admin/src/components/Settings.tsx:119
+#: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:145
 msgid "Download backups and schedule automatic backups to storage"
 msgstr "ดาวน์โหลดข้อมูลสำรองและกำหนดเวลาสำรองข้อมูลอัตโนมัติไปยังที่จัดเก็บข้อมูล"
@@ -5187,7 +5221,7 @@ msgstr "กำลังดาวน์โหลดแพ็กเกจ"
 msgid "visualEditing.draft"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:414
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5335,7 +5369,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5365,9 +5399,14 @@ msgstr "แก้ไข {0}"
 msgid "Edit {0} field"
 msgstr "แก้ไขฟิลด์ {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Edit {itemLabel}"
 msgstr "แก้ไข {itemLabel}"
+
+#: packages/admin/src/components/ContentEditor.tsx:1816
+msgid "Edit {itemLabel}: {tabEntryTitle}"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5396,8 +5435,16 @@ msgstr "แก้ไขฟิลด์ชื่อผู้เขียน"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:6028
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Edit caption"
+msgstr ""
+
+#: packages/admin/src/router.tsx:1049
+msgid "Edit content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3172
+msgid "Edit content type"
 msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
@@ -5422,8 +5469,8 @@ msgstr "แก้ไขโฟลเดอร์"
 msgid "Edit folder {0}"
 msgstr "แก้ไขโฟลเดอร์ {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1167
-#: packages/admin/src/components/MediaDetailPanel.tsx:1207
+#: packages/admin/src/components/MediaDetailPanel.tsx:1169
+#: packages/admin/src/components/MediaDetailPanel.tsx:1209
 msgid "Edit image"
 msgstr "แก้ไขรูปภาพ"
 
@@ -5432,10 +5479,10 @@ msgstr "แก้ไขรูปภาพ"
 msgid "Edit image {0}"
 msgstr "แก้ไขรูปภาพ {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5212
-#: packages/admin/src/components/PortableTextEditor.tsx:5321
-#: packages/admin/src/components/PortableTextEditor.tsx:6021
-#: packages/admin/src/components/PortableTextEditor.tsx:6469
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:5324
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Edit link"
 msgstr "แก้ไขลิงก์"
 
@@ -5446,6 +5493,10 @@ msgstr "การล็อกการแก้ไข"
 #: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Edit media alt text, captions, and focal points"
 msgstr "แก้ไขข้อความ Alt คำบรรยาย และจุดโฟกัสของมีเดีย"
+
+#: packages/admin/src/router.tsx:2876
+msgid "Edit menu"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
@@ -5472,6 +5523,10 @@ msgstr "แก้ไขการเปลี่ยนเส้นทาง {0}"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:727
 msgid "Edit role"
 msgstr "แก้ไขบทบาท"
+
+#: packages/admin/src/router.tsx:2925
+msgid "Edit section"
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5563,7 +5618,7 @@ msgid "em1.…"
 msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/Settings.tsx:112
+#: packages/admin/src/components/Settings.tsx:119
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:167
 msgid "Email"
@@ -5604,8 +5659,9 @@ msgstr ""
 msgid "Email provider active"
 msgstr "ผู้ให้บริการอีเมลใช้งานอยู่"
 
-#: packages/admin/src/components/Settings.tsx:108
+#: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/router.tsx:2658
 msgid "Email Settings"
 msgstr "ตั้งค่าอีเมล"
 
@@ -5661,11 +5717,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} พร้อมใช้งานแล้ว (คุณใช้ {0} อยู่)"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash ไม่เก็บรูปภาพก่อนหน้าไว้"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1985
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash ไม่เก็บรูปภาพที่ยังไม่ได้ครอบตัดไว้"
 
@@ -5887,7 +5943,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3969
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "ป้อน URL ที่ถูกต้อง (เช่น https://example.com)"
 
@@ -5916,7 +5972,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "ป้อนข้อมูลรับรองด้วยตนเอง"
 
-#: packages/admin/src/components/ContentEditor.tsx:2085
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Enter distraction-free mode"
 msgstr "เข้าสู่โหมดไร้สิ่งรบกวน"
 
@@ -5924,7 +5980,7 @@ msgstr "เข้าสู่โหมดไร้สิ่งรบกวน"
 msgid "Enter email"
 msgstr "ป้อนอีเมล"
 
-#: packages/admin/src/components/ContentEditor.tsx:3232
+#: packages/admin/src/components/ContentEditor.tsx:3253
 msgid "Enter markdown content..."
 msgstr "ป้อนเนื้อหา Markdown..."
 
@@ -5989,7 +6045,7 @@ msgstr "รายการฝั่งที่ลิงก์"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3398
+#: packages/admin/src/router.tsx:3505
 msgid "Error"
 msgstr "ข้อผิดพลาด"
 
@@ -6025,11 +6081,11 @@ msgstr "ระบบอ่านทุกระเบียนและไฟล
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1959
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Every place using this image will update to the cropped version."
 msgstr "ทุกตำแหน่งที่ใช้รูปภาพนี้จะอัปเดตเป็นเวอร์ชันที่ครอบตัดแล้ว"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1928
+#: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
 msgstr "ทุกตำแหน่งที่ใช้รูปภาพนี้จะอัปเดตเป็นเวอร์ชันที่เลือก"
 
@@ -6066,11 +6122,11 @@ msgstr "ทำดัชนีเนื้อหาที่มีอยู่แ
 msgid "Exists"
 msgstr "มีอยู่"
 
-#: packages/admin/src/components/ContentEditor.tsx:2085
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Exit distraction-free mode"
 msgstr "ออกจากโหมดไร้สิ่งรบกวน"
 
-#: packages/admin/src/components/ContentEditor.tsx:2089
+#: packages/admin/src/components/ContentEditor.tsx:2108
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "ออกจากโหมดไร้สิ่งรบกวน (⌘⇧\\)"
 
@@ -6216,7 +6272,7 @@ msgstr "สื่อสารกับปลั๊กอินไม่สำเ
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:391
 msgid "Failed to confirm upload"
 msgstr "ยืนยันการอัปโหลดไม่สำเร็จ"
 
@@ -6283,7 +6339,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "สร้างฟิลด์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:257
 msgid "Failed to create media folder"
 msgstr "สร้างโฟลเดอร์มีเดียไม่สำเร็จ"
 
@@ -6329,7 +6385,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1665
+#: packages/admin/src/router.tsx:1693
 msgid "Failed to create translation"
 msgstr "สร้างคำแปลไม่สำเร็จ"
 
@@ -6341,7 +6397,7 @@ msgstr ""
 msgid "Failed to create widget area"
 msgstr ""
 
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:782
 msgid "Failed to delete"
 msgstr "ลบไม่สำเร็จ"
 
@@ -6377,15 +6433,15 @@ msgstr "ลบเนื้อหาไม่สำเร็จ"
 msgid "Failed to delete field"
 msgstr "ลบฟิลด์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:868
+#: packages/admin/src/lib/api/media.ts:872
 msgid "Failed to delete from provider"
 msgstr "ลบจากผู้ให้บริการไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:729
 msgid "Failed to delete media"
 msgstr "ลบมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:277
+#: packages/admin/src/lib/api/media.ts:279
 msgid "Failed to delete media folder"
 msgstr "ลบโฟลเดอร์มีเดียไม่สำเร็จ"
 
@@ -6463,7 +6519,7 @@ msgstr "ปิดข้อความต้อนรับไม่สำเร
 msgid "Failed to download a package file"
 msgstr "ดาวน์โหลดไฟล์แพ็กเกจไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:685
+#: packages/admin/src/router.tsx:713
 msgid "Failed to duplicate"
 msgstr "ทำสำเนาไม่สำเร็จ"
 
@@ -6504,7 +6560,7 @@ msgstr ""
 msgid "Failed to fetch API tokens"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:395
+#: packages/admin/src/lib/api/client.ts:397
 msgid "Failed to fetch auth mode"
 msgstr "ดึงข้อมูลโหมดการยืนยันตัวตนไม่สำเร็จ"
 
@@ -6578,31 +6634,31 @@ msgstr "ดึงข้อมูลเทอมของรายการไม
 msgid "Failed to fetch fields"
 msgstr ""
 
-#: packages/admin/src/lib/api/client.ts:378
+#: packages/admin/src/lib/api/client.ts:380
 msgid "Failed to fetch manifest"
 msgstr "ดึงข้อมูล manifest ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:177
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to fetch media"
 msgstr "ดึงข้อมูลมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:244
 msgid "Failed to fetch media folder"
 msgstr "ดึงข้อมูลโฟลเดอร์มีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:236
 msgid "Failed to fetch media folders"
 msgstr "ดึงรายการโฟลเดอร์มีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:195
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to fetch media item"
 msgstr "ดึงข้อมูลรายการมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:801
+#: packages/admin/src/lib/api/media.ts:805
 msgid "Failed to fetch media providers"
 msgstr "ดึงรายการผู้ให้บริการมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:220
 msgid "Failed to fetch media usage details"
 msgstr "ดึงข้อมูลรายละเอียดการใช้งานมีเดียไม่สำเร็จ"
 
@@ -6640,7 +6696,7 @@ msgstr "ดึงข้อมูลการตั้งค่าปลั๊ก
 msgid "Failed to fetch plugins"
 msgstr "ดึงรายการปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:831
+#: packages/admin/src/lib/api/media.ts:835
 msgid "Failed to fetch provider media"
 msgstr "ดึงข้อมูลมีเดียจากผู้ให้บริการไม่สำเร็จ"
 
@@ -6725,7 +6781,7 @@ msgstr "ดึงสถานะการอัปเดตไม่สำเร
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2418
+#: packages/admin/src/router.tsx:2449
 msgid "Failed to fetch user"
 msgstr "ดึงข้อมูลผู้ใช้ไม่สำเร็จ"
 
@@ -6762,7 +6818,7 @@ msgstr "รับตัวเลือกการตรวจสอบสิท
 msgid "Failed to get registration options"
 msgstr "รับตัวเลือกการลงทะเบียนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:356
+#: packages/admin/src/lib/api/media.ts:358
 msgid "Failed to get upload URL"
 msgstr "รับ URL สำหรับอัปโหลดไม่สำเร็จ"
 
@@ -6798,7 +6854,7 @@ msgstr "แสดงรายการฟิลด์ชื่อผู้เข
 msgid "Failed to list files to upload"
 msgstr "แสดงรายการไฟล์ที่จะอัปโหลดไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:512
 msgid "Failed to load admin"
 msgstr "โหลดหน้าผู้ดูแลระบบไม่สำเร็จ"
 
@@ -6914,7 +6970,7 @@ msgid "Failed to lock the entry"
 msgstr "ล็อกรายการไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2507
+#: packages/admin/src/router.tsx:2538
 msgid "Failed to perform bulk action"
 msgstr "ดำเนินการแบบกลุ่มไม่สำเร็จ"
 
@@ -6931,8 +6987,8 @@ msgstr "เตรียมการนำเข้าไม่สำเร็จ
 msgid "Failed to probe URL"
 msgstr ""
 
-#: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1526
+#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:1554
 msgid "Failed to publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -6944,7 +7000,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "อ่านข้อมูลการใช้งานฟิลด์ชื่อผู้เขียนไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:2935
+#: packages/admin/src/router.tsx:3032
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -6961,7 +7017,7 @@ msgstr "ปลดล็อกรายการไม่สำเร็จ"
 msgid "Failed to remove passkey"
 msgstr "นำ Passkey ออกไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:268
+#: packages/admin/src/lib/api/media.ts:270
 msgid "Failed to rename media folder"
 msgstr "เปลี่ยนชื่อโฟลเดอร์มีเดียไม่สำเร็จ"
 
@@ -6995,11 +7051,11 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "จัดเรียงวิดเจ็ตใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:715
+#: packages/admin/src/lib/api/media.ts:717
 msgid "Failed to replace media image"
 msgstr "แทนที่รูปภาพมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:664
+#: packages/admin/src/router.tsx:692
 msgid "Failed to restore"
 msgstr "กู้คืนไม่สำเร็จ"
 
@@ -7021,11 +7077,11 @@ msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 msgid "Failed to rewrite URLs"
 msgstr "เขียน URL ใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/components/ContentEditor.tsx:2437
-#: packages/admin/src/components/ContentEditor.tsx:2691
-#: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1364
-#: packages/admin/src/router.tsx:3122
+#: packages/admin/src/components/ContentEditor.tsx:2458
+#: packages/admin/src/components/ContentEditor.tsx:2712
+#: packages/admin/src/router.tsx:934
+#: packages/admin/src/router.tsx:1392
+#: packages/admin/src/router.tsx:3222
 msgid "Failed to save"
 msgstr "บันทึกไม่สำเร็จ"
 
@@ -7072,6 +7128,13 @@ msgstr "ส่งอีเมลยืนยันไม่สำเร็จ"
 msgid "Failed to set entry terms"
 msgstr "กำหนดเทอมของรายการไม่สำเร็จ"
 
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
+
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
 msgstr "เริ่มการส่งออกไม่สำเร็จ"
@@ -7086,7 +7149,7 @@ msgstr "เริ่มการนำเข้าไม่สำเร็จ"
 msgid "Failed to uninstall plugin"
 msgstr "ถอนการติดตั้งปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1550
+#: packages/admin/src/router.tsx:1578
 msgid "Failed to unpublish"
 msgstr "ยกเลิกการเผยแพร่ไม่สำเร็จ"
 
@@ -7094,7 +7157,7 @@ msgstr "ยกเลิกการเผยแพร่ไม่สำเร็
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/router.tsx:1662
 msgid "Failed to unschedule"
 msgstr "ยกเลิกการกำหนดเวลาไม่สำเร็จ"
 
@@ -7102,7 +7165,7 @@ msgstr "ยกเลิกการกำหนดเวลาไม่สำเ
 msgid "Failed to unschedule content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:761
 msgid "Failed to update"
 msgstr "อัปเดตไม่สำเร็จ"
 
@@ -7151,7 +7214,7 @@ msgstr "อัปเดตโดเมนไม่สำเร็จ"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:751
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to update media"
 msgstr "อัปเดตมีเดียไม่สำเร็จ"
 
@@ -7193,7 +7256,7 @@ msgstr "อัปเดตส่วนไม่สำเร็จ"
 msgid "Failed to update settings"
 msgstr "อัปเดตการตั้งค่าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:2471
+#: packages/admin/src/router.tsx:2502
 msgid "Failed to update status"
 msgstr "อัปเดตสถานะไม่สำเร็จ"
 
@@ -7213,15 +7276,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "อัปโหลดไฟล์แพ็กเกจไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:414
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to upload file"
 msgstr "อัปโหลดไฟล์ไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:647
+#: packages/admin/src/lib/api/media.ts:649
 msgid "Failed to upload media"
 msgstr "อัปโหลดมีเดียไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/media.ts:856
+#: packages/admin/src/lib/api/media.ts:860
 msgid "Failed to upload to provider"
 msgstr "อัปโหลดไปยังผู้ให้บริการไม่สำเร็จ"
 
@@ -7319,13 +7382,13 @@ msgstr "ไฟล์ {0}"
 msgid "File from media library"
 msgstr "ไฟล์จากคลังมีเดีย"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1433
-#: packages/admin/src/components/MediaDetailPanel.tsx:1438
+#: packages/admin/src/components/MediaDetailPanel.tsx:1444
+#: packages/admin/src/components/MediaDetailPanel.tsx:1449
 #: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "ชื่อไฟล์"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:529
+#: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Filename cannot be changed after upload"
 msgstr "ชื่อไฟล์ไม่สามารถเปลี่ยนได้หลังจากอัปโหลดแล้ว"
 
@@ -7426,19 +7489,19 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "เฉพาะผู้แสดงความคิดเห็นครั้งแรกเท่านั้น"
 
-#: packages/admin/src/components/ContentEditor.tsx:233
+#: packages/admin/src/components/ContentEditor.tsx:234
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1788
+#: packages/admin/src/components/ContentEditor.tsx:1792
 msgid "Fix invalid fields before changing the publication date"
 msgstr "แก้ไขฟิลด์ที่ไม่ถูกต้องก่อนเปลี่ยนวันที่เผยแพร่"
 
-#: packages/admin/src/components/ContentEditor.tsx:1716
+#: packages/admin/src/components/ContentEditor.tsx:1720
 msgid "Fix invalid fields before changing the schedule"
 msgstr "แก้ไขฟิลด์ที่ไม่ถูกต้องก่อนเปลี่ยนกำหนดเวลา"
 
-#: packages/admin/src/components/ContentEditor.tsx:232
+#: packages/admin/src/components/ContentEditor.tsx:233
 msgid "Fix the {block} block to resume saving."
 msgstr ""
 
@@ -7446,8 +7509,8 @@ msgstr ""
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
+#: packages/admin/src/components/MediaDetailPanel.tsx:1649
 msgid "Focal point"
 msgstr "จุดโฟกัส"
 
@@ -7463,7 +7526,7 @@ msgstr "โฟลเดอร์"
 msgid "Folder deleted"
 msgstr "ลบโฟลเดอร์แล้ว"
 
-#: packages/admin/src/router.tsx:2141
+#: packages/admin/src/router.tsx:2171
 msgid "Folder no longer exists"
 msgstr "ไม่มีโฟลเดอร์นี้แล้ว"
 
@@ -7488,7 +7551,7 @@ msgstr "โฟลเดอร์ไม่พร้อมใช้งาน"
 msgid "Folders"
 msgstr "โฟลเดอร์"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1541
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
@@ -7511,15 +7574,15 @@ msgstr "สำหรับการนำเข้าที่สมบูรณ
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "เพื่อประสบการณ์การนำเข้าที่ดีที่สุด ให้ติดตั้งปลั๊กอิน <0>EmDash Exporter</0> บนเว็บไซต์ WordPress ของคุณ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5164
+#: packages/admin/src/components/PortableTextEditor.tsx:5167
 msgid "Format selection"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1366
+#: packages/admin/src/components/MediaDetailPanel.tsx:1377
 msgid "Format:"
 msgstr "รูปแบบ:"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:538
+#: packages/admin/src/components/MediaDetailPanel.tsx:540
 msgid "Freeform"
 msgstr "อิสระ"
 
@@ -7569,11 +7632,12 @@ msgstr "แกลเลอรี"
 msgid "Gallery settings"
 msgstr "การตั้งค่าแกลเลอรี"
 
-#: packages/admin/src/components/Settings.tsx:54
+#: packages/admin/src/components/Settings.tsx:55
 msgid "General"
 msgstr "ทั่วไป"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/router.tsx:2696
 msgid "General Settings"
 msgstr "การตั้งค่าทั่วไป"
 
@@ -7605,7 +7669,7 @@ msgstr "ตั้งชื่อให้ Passkey นี้เพื่อช่
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1710
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7613,12 +7677,12 @@ msgstr ""
 msgid "Go live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
 msgid "Go live {countdown}"
 msgstr "เผยแพร่ {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3418
+#: packages/admin/src/router.tsx:3525
 msgid "Go to Dashboard"
 msgstr "ไปที่แดชบอร์ด"
 
@@ -7630,11 +7694,11 @@ msgstr ""
 msgid "Go to the next problem"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:352
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Goes live"
 msgstr "เผยแพร่จริง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
 msgid "Goes live {countdown}"
 msgstr "เผยแพร่จริง {countdown}"
 
@@ -7799,7 +7863,7 @@ msgstr "ซ่อนโทเค็น"
 msgid "visualEditing.hideToolbar"
 msgstr "ซ่อนแถบเครื่องมือ"
 
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 msgid "Hide toolbar"
 msgstr "ซ่อนแถบเครื่องมือ"
 
@@ -7816,7 +7880,7 @@ msgstr "การเข้าชม"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "กันรายการไว้ขณะมีผู้แก้ไขอยู่ และปฏิเสธผู้เขียนรายอื่น"
 
-#: packages/admin/src/components/ContentEditor.tsx:3466
+#: packages/admin/src/components/ContentEditor.tsx:3487
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "เก็บ ID ของรายการ ตั้งค่าคอลเลกชันเป้าหมายในประเภทเนื้อหาเพื่อเลือกรายการแทน"
 
@@ -7991,7 +8055,7 @@ msgstr "รูปภาพ {0}"
 msgid "Image actions"
 msgstr "การดำเนินการกับรูปภาพ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5899
+#: packages/admin/src/components/PortableTextEditor.tsx:5902
 msgid "Image controls"
 msgstr "ตัวควบคุมรูปภาพ"
 
@@ -7999,7 +8063,7 @@ msgstr "ตัวควบคุมรูปภาพ"
 msgid "Image from media library"
 msgstr "รูปภาพจากคลังมีเดีย"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6467
+#: packages/admin/src/components/PortableTextEditor.tsx:6470
 msgid "Image link"
 msgstr "ลิงก์รูปภาพ"
 
@@ -8016,12 +8080,12 @@ msgstr "ไม่พบรูปภาพ"
 msgid "Image replaced:"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:719
 msgid "Image replaced."
 msgstr "แทนที่รูปภาพแล้ว"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:6033
+#: packages/admin/src/components/PortableTextEditor.tsx:6036
 msgid "Image settings"
 msgstr "ตั้งค่ารูปภาพ"
 
@@ -8112,6 +8176,7 @@ msgid "Import failed"
 msgstr "นำเข้าไม่สำเร็จ"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/router.tsx:2861
 msgid "Import from WordPress"
 msgstr "นำเข้าจาก WordPress"
 
@@ -8252,8 +8317,8 @@ msgstr "ในบรรทัด"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "บล็อกแบบในบรรทัดใช้สไตล์ของไซต์คุณ ไซต์ของคุณจะนำสคริปต์ แท็ก style และแอตทริบิวต์ style ออก และทำให้ iframe ว่างเปล่า ยกเว้น YouTube และ Vimeo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4967
-#: packages/admin/src/components/PortableTextEditor.tsx:6536
+#: packages/admin/src/components/PortableTextEditor.tsx:4970
+#: packages/admin/src/components/PortableTextEditor.tsx:6539
 msgid "Inline Code"
 msgstr "โค้ดในบรรทัด"
 
@@ -8298,8 +8363,8 @@ msgstr "แทรกแกลเลอรีรูปภาพ"
 msgid "Insert block"
 msgstr "แทรกบล็อก"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6483
-#: packages/admin/src/components/PortableTextEditor.tsx:6493
+#: packages/admin/src/components/PortableTextEditor.tsx:6486
+#: packages/admin/src/components/PortableTextEditor.tsx:6496
 msgid "Insert block after current block"
 msgstr "แทรกบล็อกหลังบล็อกปัจจุบัน"
 
@@ -8307,12 +8372,12 @@ msgstr "แทรกบล็อกหลังบล็อกปัจจุบ
 msgid "Insert block below"
 msgstr "แทรกบล็อกด้านล่าง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6617
+#: packages/admin/src/components/PortableTextEditor.tsx:6620
 msgid "Insert HTML"
 msgstr "แทรก HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4873
-#: packages/admin/src/components/PortableTextEditor.tsx:6610
+#: packages/admin/src/components/PortableTextEditor.tsx:4876
+#: packages/admin/src/components/PortableTextEditor.tsx:6613
 msgid "Insert image"
 msgstr "แทรกรูปภาพ"
 
@@ -8341,7 +8406,7 @@ msgstr "แทรกส่วน"
 msgid "Insert table"
 msgstr "แทรกตาราง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4887
+#: packages/admin/src/components/PortableTextEditor.tsx:4890
 msgid "Insert video"
 msgstr ""
 
@@ -8403,7 +8468,7 @@ msgstr "HANDLE ไม่ถูกต้อง"
 msgid "Invalid invite link"
 msgstr "ลิงก์คำเชิญไม่ถูกต้อง"
 
-#: packages/admin/src/components/ContentEditor.tsx:4062
+#: packages/admin/src/components/ContentEditor.tsx:4083
 msgid "Invalid JSON"
 msgstr "JSON ไม่ถูกต้อง"
 
@@ -8469,8 +8534,8 @@ msgstr "Passkey จะถูกเก็บโดยตัวยืนยัน�
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "การนำเข้านี้เริ่มจากที่อื่น จึงไม่สามารถเปลี่ยนแผนได้แล้ว ความคืบหน้าจะแสดงที่นี่"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:6512
+#: packages/admin/src/components/PortableTextEditor.tsx:4967
+#: packages/admin/src/components/PortableTextEditor.tsx:6515
 msgid "Italic"
 msgstr "ตัวเอียง"
 
@@ -8621,9 +8686,9 @@ msgstr "แนวนอน"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:360
-#: packages/admin/src/components/Settings.tsx:132
-#: packages/admin/src/components/Settings.tsx:142
-#: packages/admin/src/components/Settings.tsx:156
+#: packages/admin/src/components/Settings.tsx:138
+#: packages/admin/src/components/Settings.tsx:148
+#: packages/admin/src/components/Settings.tsx:162
 msgid "Language"
 msgstr "ภาษา"
 
@@ -8631,7 +8696,7 @@ msgstr "ภาษา"
 msgid "Large section heading"
 msgstr "หัวข้อส่วนขนาดใหญ่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
 msgid "Last edited"
 msgstr "แก้ไขล่าสุด"
 
@@ -8705,8 +8770,8 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5479
-#: packages/admin/src/components/PortableTextEditor.tsx:5600
+#: packages/admin/src/components/PortableTextEditor.tsx:5482
+#: packages/admin/src/components/PortableTextEditor.tsx:5603
 msgid "Left"
 msgstr "ซ้าย"
 
@@ -8728,7 +8793,7 @@ msgid "Limit"
 msgstr "จำนวนสูงสุด"
 
 #: packages/admin/src/components/BlocksField.tsx:2238
-#: packages/admin/src/components/PortableTextEditor.tsx:6696
+#: packages/admin/src/components/PortableTextEditor.tsx:6699
 msgid "Link"
 msgstr "ลิงก์"
 
@@ -8736,7 +8801,7 @@ msgstr "ลิงก์"
 msgid "Link expired"
 msgstr "ลิงก์หมดอายุ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5299
+#: packages/admin/src/components/PortableTextEditor.tsx:5302
 msgid "Link options"
 msgstr ""
 
@@ -8841,7 +8906,7 @@ msgstr "มุมมองรายการ"
 msgid "Live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
 #: packages/admin/src/components/ContentSettingsPanel.tsx:204
 #: packages/admin/src/components/ContentSettingsPanel.tsx:230
@@ -8871,7 +8936,7 @@ msgstr "โหลดเพิ่มเติม"
 msgid "Load More"
 msgstr "โหลดเพิ่มเติม"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1560
+#: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
@@ -8883,7 +8948,7 @@ msgid "Load preview"
 msgstr "โหลดตัวอย่าง"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3373
+#: packages/admin/src/router.tsx:3480
 msgid "Loading"
 msgstr "กำลังโหลด"
 
@@ -8912,8 +8977,8 @@ msgstr "กำลังโหลดคอลเลกชัน..."
 msgid "Loading comments..."
 msgstr "กำลังโหลดความคิดเห็น..."
 
-#: packages/admin/src/router.tsx:3375
-#: packages/admin/src/router.tsx:3387
+#: packages/admin/src/router.tsx:3482
+#: packages/admin/src/router.tsx:3494
 msgid "Loading configuration..."
 msgstr "กำลังโหลดการกำหนดค่า..."
 
@@ -8921,7 +8986,7 @@ msgstr "กำลังโหลดการกำหนดค่า..."
 msgid "Loading content..."
 msgstr "กำลังโหลดเนื้อหา..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4709
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
 msgid "Loading editor..."
 msgstr "กำลังโหลดตัวแก้ไข..."
 
@@ -8935,7 +9000,7 @@ msgstr "กำลังโหลดการส่งออก…"
 msgid "Loading folders"
 msgstr "กำลังโหลดโฟลเดอร์"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1512
+#: packages/admin/src/components/MediaDetailPanel.tsx:1523
 msgid "Loading folders..."
 msgstr "กำลังโหลดโฟลเดอร์..."
 
@@ -8971,7 +9036,7 @@ msgstr "กำลังโหลดปลั๊กอิน..."
 msgid "Loading redirects..."
 msgstr "กำลังโหลดการเปลี่ยนเส้นทาง..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3787
+#: packages/admin/src/components/ContentEditor.tsx:3808
 msgid "Loading references..."
 msgstr "กำลังโหลดการอ้างอิง..."
 
@@ -9018,10 +9083,10 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaDetailPanel.tsx:605
-#: packages/admin/src/components/MediaDetailPanel.tsx:621
+#: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
-#: packages/admin/src/components/MediaDetailPanel.tsx:1720
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
+#: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
@@ -9057,7 +9122,7 @@ msgstr "กำลังโหลด…"
 msgid "Local time"
 msgstr "เวลาท้องถิ่น"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:364
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -9070,15 +9135,15 @@ msgstr "ภาษา"
 msgid "Locales will use this site’s capitalization"
 msgstr "ภาษาจะใช้รูปแบบตัวพิมพ์ใหญ่-เล็กของไซต์นี้"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1449
-#: packages/admin/src/components/MediaDetailPanel.tsx:1477
-#: packages/admin/src/components/MediaDetailPanel.tsx:1568
-#: packages/admin/src/components/MediaDetailPanel.tsx:1570
+#: packages/admin/src/components/MediaDetailPanel.tsx:1460
+#: packages/admin/src/components/MediaDetailPanel.tsx:1488
+#: packages/admin/src/components/MediaDetailPanel.tsx:1579
+#: packages/admin/src/components/MediaDetailPanel.tsx:1581
 msgid "Location"
 msgstr "ตำแหน่งที่จัดเก็บ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:606
-#: packages/admin/src/components/MediaDetailPanel.tsx:623
+#: packages/admin/src/components/MediaDetailPanel.tsx:608
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
 msgid "Location unavailable"
 msgstr "ตำแหน่งที่จัดเก็บไม่พร้อมใช้งาน"
 
@@ -9091,6 +9156,10 @@ msgstr "ล็อกอัตราส่วนภาพ"
 #: packages/admin/src/components/BylineFieldEditor.tsx:416
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "ล็อกไว้เพราะฟิลด์นี้มีค่าที่จัดเก็บอยู่ ให้ลบค่าเหล่านั้น (หรือลบฟิลด์) เพื่อเปลี่ยนแปลง"
+
+#: packages/admin/src/router.tsx:428
+msgid "Log in"
+msgstr ""
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -9123,7 +9192,7 @@ msgstr "ตัวพิมพ์เล็ก ตัวเลข และขี�
 msgid "Lua"
 msgstr "Lua"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:574
+#: packages/admin/src/components/MediaDetailPanel.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Main library"
 msgstr "คลังหลัก"
@@ -9166,16 +9235,16 @@ msgstr "จัดการบุคคลและทีมที่ได้ร
 msgid "Manage URL redirects and view 404 errors."
 msgstr "จัดการการเปลี่ยนเส้นทาง URL และดูข้อผิดพลาด 404"
 
-#: packages/admin/src/components/Settings.tsx:88
+#: packages/admin/src/components/Settings.tsx:90
 #: packages/admin/src/components/settings/SecuritySettings.tsx:94
 msgid "Manage your passkeys and authentication"
 msgstr "จัดการ Passkey และการยืนยันตัวตนของคุณ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1419
+#: packages/admin/src/components/MediaDetailPanel.tsx:1430
 msgid "Managed by {providerName}"
 msgstr "จัดการโดย {providerName}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1431
 msgid "Managed by an external media provider"
 msgstr "จัดการโดยผู้ให้บริการมีเดียภายนอก"
 
@@ -9218,11 +9287,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2772
+#: packages/admin/src/router.tsx:2849
 msgid "Marketplace browsing is no longer available."
 msgstr "การเรียกดู Marketplace ไม่พร้อมใช้งานแล้ว"
 
-#: packages/admin/src/router.tsx:2747
+#: packages/admin/src/router.tsx:2822
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "การเรียกดู Marketplace ไม่พร้อมใช้งานแล้ว จัดการปลั๊กอินที่ติดตั้งได้จากหน้าปลั๊กอิน"
 
@@ -9267,17 +9336,18 @@ msgid "MDX"
 msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2012
-#: packages/admin/src/components/Settings.tsx:72
+#: packages/admin/src/components/Settings.tsx:74
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:467
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/router.tsx:2130
 msgid "Media"
 msgstr "มีเดีย"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1129
 msgid "Media details"
 msgstr "รายละเอียดมีเดีย"
 
@@ -9336,7 +9406,11 @@ msgstr "อ่านมีเดีย"
 msgid "Media results"
 msgstr "ผลลัพธ์มีเดีย"
 
-#: packages/admin/src/components/Settings.tsx:76
+#: packages/admin/src/router.tsx:2605
+msgid "Media Usage"
+msgstr ""
+
+#: packages/admin/src/components/Settings.tsx:78
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
 msgstr "การติดตามการใช้งานมีเดีย"
@@ -9428,6 +9502,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/router.tsx:2869
 msgid "Menus"
 msgstr "เมนู"
 
@@ -9534,7 +9609,7 @@ msgstr "คลังรายเดือน/รายปี"
 msgid "More actions for {0}"
 msgstr "การดำเนินการเพิ่มเติมสำหรับ {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5446
+#: packages/admin/src/components/PortableTextEditor.tsx:5449
 msgid "More formatting"
 msgstr ""
 
@@ -9574,7 +9649,7 @@ msgstr "ย้าย \"{title}\" ไปยังถังขยะ? คุณส
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3754
+#: packages/admin/src/components/ContentEditor.tsx:3775
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "ย้าย {0} ลง"
@@ -9591,7 +9666,7 @@ msgstr "ย้าย {0} ไปถัดไป"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3743
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "ย้าย {0} ขึ้น"
@@ -9604,11 +9679,11 @@ msgstr "ย้าย {0} ขึ้น"
 msgid "Move down"
 msgstr "เลื่อนลง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:533
+#: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr "ย้ายจุดโฟกัสเพื่อเลือกส่วนที่ยังมองเห็นในรูปภาพที่ครอบตัด"
 
-#: packages/admin/src/components/Settings.tsx:126
+#: packages/admin/src/components/Settings.tsx:132
 msgid "Move this site to another EmDash installation, or import a site package"
 msgstr "ย้ายเว็บไซต์นี้ไปยัง EmDash อีกตัวหนึ่ง หรือนำเข้าแพ็กเกจเว็บไซต์"
 
@@ -9668,11 +9743,11 @@ msgstr ""
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:730
+#: packages/admin/src/router.tsx:758
 msgid "Moved {total} items to draft"
 msgstr "ย้าย {total} รายการไปเป็นฉบับร่างแล้ว"
 
-#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:779
 msgid "Moved {total} items to trash"
 msgstr "ย้าย {total} รายการไปถังขยะแล้ว"
 
@@ -9823,7 +9898,7 @@ msgstr "ต้องการการตรวจสอบ"
 msgid "Never"
 msgstr "ไม่เลย"
 
-#: packages/admin/src/router.tsx:1660
+#: packages/admin/src/router.tsx:1688
 msgid "new"
 msgstr "ใหม่"
 
@@ -9831,7 +9906,8 @@ msgstr "ใหม่"
 msgid "NEW"
 msgstr "ใหม่"
 
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "New {itemLabel}"
 msgstr "{itemLabel}ใหม่"
 
@@ -9852,6 +9928,14 @@ msgstr "ฟิลด์ชื่อผู้เขียนใหม่"
 #: packages/admin/src/components/WordPressImport.tsx:2039
 msgid "New collection"
 msgstr "คอลเลกชันใหม่"
+
+#: packages/admin/src/router.tsx:887
+msgid "New content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3075
+msgid "New content type"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 #: packages/admin/src/components/ContentTypeList.tsx:159
@@ -10075,7 +10159,7 @@ msgstr "ยังไม่มีประเภทเนื้อหา"
 msgid "No custom fields yet"
 msgstr "ยังไม่มีฟิลด์ที่กำหนดเอง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5995
+#: packages/admin/src/components/PortableTextEditor.tsx:5998
 msgid "No description yet"
 msgstr "ยังไม่มีคำอธิบาย"
 
@@ -10133,7 +10217,7 @@ msgstr "ไม่มีฟิลด์"
 msgid "No files added"
 msgstr "ยังไม่ได้เพิ่มไฟล์"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1520
+#: packages/admin/src/components/MediaDetailPanel.tsx:1531
 msgid "No folders found"
 msgstr "ไม่พบโฟลเดอร์"
 
@@ -10295,7 +10379,7 @@ msgstr "ยังไม่มีปลั๊กอินที่เผยแพ
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "ไม่มีปลั๊กอินที่ตรงกับ \"{debouncedQuery}\""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1388
+#: packages/admin/src/components/MediaDetailPanel.tsx:1399
 msgid "No public URL available"
 msgstr "ไม่มี URL สาธารณะ"
 
@@ -10311,7 +10395,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "ยังไม่มีการเปลี่ยนเส้นทาง"
 
-#: packages/admin/src/components/ContentEditor.tsx:3697
+#: packages/admin/src/components/ContentEditor.tsx:3718
 msgid "No references selected."
 msgstr "ยังไม่ได้เลือกการอ้างอิง"
 
@@ -10339,7 +10423,7 @@ msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "ไม่มีผลลัพธ์สำหรับ \"{debouncedQuery}\" ลองใช้คำค้นหาอื่น"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:494
-#: packages/admin/src/components/Settings.tsx:166
+#: packages/admin/src/components/Settings.tsx:172
 msgid "No results found"
 msgstr "ไม่พบผลลัพธ์"
 
@@ -10397,7 +10481,7 @@ msgid "Non-guest"
 msgstr "ไม่ใช่ผู้เขียนรับเชิญ"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5599
+#: packages/admin/src/components/PortableTextEditor.tsx:5602
 msgid "None"
 msgstr "ไม่มี"
 
@@ -10426,7 +10510,7 @@ msgstr "ไม่ตรงกัน"
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2439
+#: packages/admin/src/components/ContentEditor.tsx:2460
 msgid "Not saved yet"
 msgstr ""
 
@@ -10477,7 +10561,7 @@ msgstr "จำนวนโพสต์ที่จะแสดงต่อหน
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2064
-#: packages/admin/src/components/PortableTextEditor.tsx:6569
+#: packages/admin/src/components/PortableTextEditor.tsx:6572
 msgid "Numbered List"
 msgstr "รายการแบบมีลำดับเลข"
 
@@ -10557,7 +10641,7 @@ msgid "Open"
 msgstr "เปิด"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3732
+#: packages/admin/src/components/ContentEditor.tsx:3753
 msgid "Open {0} in a new tab"
 msgstr "เปิด {0} ในแท็บใหม่"
 
@@ -10573,7 +10657,7 @@ msgstr "เปิดโฟลเดอร์ {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "เปิดในหน้าผู้ดูแล"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:483
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
 msgid "Open in editor"
 msgstr "เปิดในตัวแก้ไข"
 
@@ -10634,7 +10718,7 @@ msgstr "คำบรรยายภาพ (ไม่บังคับ)"
 msgid "Optional caption displayed below the image"
 msgstr "คำบรรยายที่ไม่บังคับแสดงด้านล่างรูปภาพ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1600
+#: packages/admin/src/components/MediaDetailPanel.tsx:1611
 msgid "Optional caption for display"
 msgstr "คำบรรยายที่ไม่บังคับสำหรับการแสดงผล"
 
@@ -10694,11 +10778,11 @@ msgstr "บันทึกลำดับแล้ว"
 msgid "Ordered page-building blocks"
 msgstr "บล็อกสร้างหน้าที่เรียงลำดับ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:537
+#: packages/admin/src/components/MediaDetailPanel.tsx:539
 msgid "Original"
 msgstr "ต้นฉบับ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:787
 msgid "Original image cropped."
 msgstr "ครอบตัดรูปภาพต้นฉบับแล้ว"
 
@@ -10722,7 +10806,7 @@ msgctxt "button style"
 msgid "Outline"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
 msgstr "ขนาดผลลัพธ์"
 
@@ -10757,7 +10841,11 @@ msgstr "Digest ของแพ็กเกจ"
 msgid "Package downloaded"
 msgstr "ดาวน์โหลดแพ็กเกจแล้ว"
 
-#: packages/admin/src/router.tsx:3413
+#: packages/admin/src/router.tsx:3393
+msgid "Page not found"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3520
 msgid "Page Not Found"
 msgstr "ไม่พบหน้า"
 
@@ -11023,6 +11111,7 @@ msgid "Please enter a valid URL"
 msgstr "โปรดป้อน URL ที่ถูกต้อง"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/router.tsx:3369
 msgid "Plugin"
 msgstr "ปลั๊กอิน"
 
@@ -11047,7 +11136,7 @@ msgstr "การดำเนินการของปลั๊กอินล
 msgid "Plugin actions"
 msgstr "การดำเนินการของปลั๊กอิน"
 
-#: packages/admin/src/components/ContentEditor.tsx:2183
+#: packages/admin/src/components/ContentEditor.tsx:2202
 msgid "Plugin changes were not applied"
 msgstr "ไม่ได้นำการเปลี่ยนแปลงจากปลั๊กอินไปใช้"
 
@@ -11058,6 +11147,11 @@ msgstr "คอลัมน์ของปลั๊กอินไม่พร้
 #: packages/admin/src/components/RegistryPluginDetail.tsx:855
 msgid "Plugin details"
 msgstr "รายละเอียดปลั๊กอิน"
+
+#: packages/admin/src/router.tsx:2794
+#: packages/admin/src/router.tsx:2801
+msgid "Plugin Details"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -11079,6 +11173,10 @@ msgstr "ข้อผิดพลาดของปลั๊กอิน ({0})"
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
 msgstr "การติดตั้งปลั๊กอินต้องได้รับความยินยอมอย่างชัดแจ้ง"
+
+#: packages/admin/src/router.tsx:2786
+msgid "Plugin Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:412
 msgid "Plugin MCP access updated"
@@ -11116,6 +11214,7 @@ msgid "Plugin Permissions"
 msgstr "สิทธิ์ของปลั๊กอิน"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
+#: packages/admin/src/router.tsx:2743
 msgid "Plugin Registry"
 msgstr "ทะเบียนปลั๊กอิน"
 
@@ -11124,8 +11223,8 @@ msgstr "ทะเบียนปลั๊กอิน"
 msgid "Plugin registry configuration error"
 msgstr "การกำหนดค่ารีจิสทรีปลั๊กอินผิดพลาด"
 
-#: packages/admin/src/router.tsx:2707
-#: packages/admin/src/router.tsx:2738
+#: packages/admin/src/router.tsx:2779
+#: packages/admin/src/router.tsx:2813
 msgid "Plugin registry is not configured."
 msgstr "ยังไม่ได้กำหนดค่ารีจิสทรีปลั๊กอิน"
 
@@ -11133,6 +11232,10 @@ msgstr "ยังไม่ได้กำหนดค่ารีจิสทร
 #: packages/admin/src/components/SandboxedPluginPage.tsx:59
 msgid "Plugin responded with {0}: {text}"
 msgstr "ปลั๊กอินตอบกลับด้วย {0}: {text}"
+
+#: packages/admin/src/router.tsx:3356
+msgid "Plugin Settings"
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -11163,6 +11266,7 @@ msgstr "ข้อผิดพลาดของวิดเจ็ตปลั๊
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
+#: packages/admin/src/router.tsx:2728
 msgid "Plugins"
 msgstr "ปลั๊กอิน"
 
@@ -11251,17 +11355,17 @@ msgstr "กด Escape เพื่อออกจากตัวแก้ไข�
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "กด Space เพื่อหยิบรูปภาพ ใช้ปุ่มลูกศรเพื่อย้าย แล้วกด Space เพื่อวาง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 #: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1667
+#: packages/admin/src/components/MediaDetailPanel.tsx:1678
 #: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "ดูตัวอย่าง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 msgid "Preview changes"
 msgstr "ดูตัวอย่างการเปลี่ยนแปลง"
 
@@ -11386,7 +11490,7 @@ msgstr "เผยแพร่การเปลี่ยนแปลงหรื
 msgid "visualEditing.publishFailed"
 msgstr "เผยแพร่ไม่สำเร็จ ตรวจสอบสิทธิ์ของคุณแล้วลองอีกครั้ง"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
 #: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr "เผยแพร่ทันที"
@@ -11405,14 +11509,14 @@ msgid "visualEditing.published"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1549
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
 
@@ -11421,11 +11525,11 @@ msgstr "เผยแพร่แล้ว"
 msgid "Published {0}"
 msgstr "เผยแพร่แล้ว {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:431
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
 msgid "Published {liveSince}"
 msgstr "เผยแพร่ {liveSince}"
 
-#: packages/admin/src/router.tsx:707
+#: packages/admin/src/router.tsx:735
 msgid "Published {total} items"
 msgstr "เผยแพร่ {total} รายการแล้ว"
 
@@ -11453,7 +11557,7 @@ msgstr "ยืนยัน Handle ของผู้เผยแพร่ไม�
 msgid "Publisher release policy"
 msgstr "นโยบายการออกรุ่นของผู้เผยแพร่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:399
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
 msgid "Publishing"
 msgstr "การเผยแพร่"
 
@@ -11489,7 +11593,7 @@ msgstr "การสร้างด่วนจะตั้งชื่อคว
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2074
 #: packages/admin/src/components/PortableTextEditor.tsx:3623
-#: packages/admin/src/components/PortableTextEditor.tsx:6595
+#: packages/admin/src/components/PortableTextEditor.tsx:6598
 msgid "Quote"
 msgstr "คำพูดอ้างอิง"
 
@@ -11565,7 +11669,7 @@ msgid "Read your taxonomies and terms"
 msgstr "อ่านอนุกรมวิธานและเทอมของคุณ"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2073
+#: packages/admin/src/router.tsx:2102
 msgid "Read-only"
 msgstr "อ่านอย่างเดียว"
 
@@ -11656,6 +11760,7 @@ msgstr "กำลังเปลี่ยนเส้นทางไปยัง
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
+#: packages/admin/src/router.tsx:2911
 msgid "Redirects"
 msgstr "การเปลี่ยนเส้นทาง"
 
@@ -11663,7 +11768,7 @@ msgstr "การเปลี่ยนเส้นทาง"
 msgid "Redirects that loop will be imported turned off"
 msgstr "การเปลี่ยนเส้นทางที่วนซ้ำจะถูกนำเข้าในสถานะปิด"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6758
+#: packages/admin/src/components/PortableTextEditor.tsx:6761
 msgid "Redo"
 msgstr "ทำซ้ำ"
 
@@ -11734,6 +11839,7 @@ msgstr "รีจิสทรี"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
+#: packages/admin/src/router.tsx:3111
 msgid "Relations"
 msgstr "ความสัมพันธ์"
 
@@ -11775,8 +11881,8 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4255
-#: packages/admin/src/components/ContentEditor.tsx:4321
+#: packages/admin/src/components/ContentEditor.tsx:4276
+#: packages/admin/src/components/ContentEditor.tsx:4342
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11785,7 +11891,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:6731
+#: packages/admin/src/components/PortableTextEditor.tsx:6734
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11797,7 +11903,7 @@ msgstr "นำออก"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3767
+#: packages/admin/src/components/ContentEditor.tsx:3788
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11814,8 +11920,8 @@ msgstr "นำ {0} ออกจากรายการที่เลือก"
 msgid "Remove {entry}"
 msgstr "นำออก {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4253
-#: packages/admin/src/components/ContentEditor.tsx:4319
+#: packages/admin/src/components/ContentEditor.tsx:4274
+#: packages/admin/src/components/ContentEditor.tsx:4340
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -11864,9 +11970,9 @@ msgstr "นำรูปภาพออกหรือไม่?"
 msgid "Remove item {0}"
 msgstr "นำรายการ {0} ออก"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5190
-#: packages/admin/src/components/PortableTextEditor.tsx:5333
-#: packages/admin/src/components/PortableTextEditor.tsx:5967
+#: packages/admin/src/components/PortableTextEditor.tsx:5193
+#: packages/admin/src/components/PortableTextEditor.tsx:5336
+#: packages/admin/src/components/PortableTextEditor.tsx:5970
 msgid "Remove link"
 msgstr "นำลิงก์ออก"
 
@@ -11878,7 +11984,7 @@ msgstr "นำ passkey ออก"
 msgid "Remove passkey?"
 msgstr "นำ passkey ออกหรือไม่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
 #: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr "นำกำหนดเวลาออก"
@@ -12032,9 +12138,9 @@ msgstr "กลุ่มฟิลด์ที่ทำซ้ำได้"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4210
-#: packages/admin/src/components/ContentEditor.tsx:4245
-#: packages/admin/src/components/ContentEditor.tsx:4311
+#: packages/admin/src/components/ContentEditor.tsx:4231
+#: packages/admin/src/components/ContentEditor.tsx:4266
+#: packages/admin/src/components/ContentEditor.tsx:4332
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12047,14 +12153,14 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:5989
-#: packages/admin/src/components/PortableTextEditor.tsx:6071
+#: packages/admin/src/components/PortableTextEditor.tsx:5992
+#: packages/admin/src/components/PortableTextEditor.tsx:6074
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr "แทนที่"
 
-#: packages/admin/src/components/ContentEditor.tsx:4209
+#: packages/admin/src/components/ContentEditor.tsx:4230
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12072,27 +12178,27 @@ msgstr "แทนที่ตัวแปรโหมดมืดของ {labe
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1808
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
-#: packages/admin/src/components/PortableTextEditor.tsx:6070
+#: packages/admin/src/components/MediaDetailPanel.tsx:1819
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/PortableTextEditor.tsx:6073
 msgid "Replace image"
 msgstr "แทนที่รูปภาพ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaDetailPanel.tsx:1962
+#: packages/admin/src/components/MediaDetailPanel.tsx:1850
+#: packages/admin/src/components/MediaDetailPanel.tsx:1973
 msgid "Replace original"
 msgstr "แทนที่ต้นฉบับ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
-#: packages/admin/src/components/MediaDetailPanel.tsx:1956
+#: packages/admin/src/components/MediaDetailPanel.tsx:1936
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replace original image?"
 msgstr "แทนที่รูปภาพต้นฉบับหรือไม่?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "แทนที่ต้นฉบับได้เมื่อใช้อัตราส่วนภาพแบบต้นฉบับ"
 
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Replace reference"
 msgstr "แทนที่การอ้างอิง"
 
@@ -12114,14 +12220,14 @@ msgstr "แทนที่ด้วยรายการว่าง"
 msgid "Replaced an image"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:950
-#: packages/admin/src/components/MediaDetailPanel.tsx:1932
+#: packages/admin/src/components/MediaDetailPanel.tsx:952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replacing image..."
 msgstr "กำลังแทนที่รูปภาพ..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
-#: packages/admin/src/components/MediaDetailPanel.tsx:1963
-#: packages/admin/src/components/MediaDetailPanel.tsx:1981
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "กำลังแทนที่ต้นฉบับ..."
 
@@ -12145,7 +12251,7 @@ msgstr "ที่เก็บข้อมูล"
 msgid "Request a new link"
 msgstr "ขอลิงก์ใหม่"
 
-#: packages/admin/src/lib/api/client.ts:366
+#: packages/admin/src/lib/api/client.ts:368
 msgid "Request failed"
 msgstr "คำขอไม่สำเร็จ"
 
@@ -12176,11 +12282,11 @@ msgstr "ต้องระบุเพื่อการเข้าถึง �
 msgid "Requires EmDash {0}"
 msgstr "ต้องใช้ EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:461
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
 msgid "Reschedule"
 msgstr "เปลี่ยนกำหนดเวลา"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "Rescheduled"
 msgstr "เปลี่ยนกำหนดเวลาแล้ว"
 
@@ -12193,8 +12299,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "ส่งอีกครั้งใน {resendCooldown} วินาที"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1659
-#: packages/admin/src/components/MediaDetailPanel.tsx:1709
+#: packages/admin/src/components/MediaDetailPanel.tsx:1670
+#: packages/admin/src/components/MediaDetailPanel.tsx:1720
 msgid "Reset"
 msgstr "รีเซ็ต"
 
@@ -12202,7 +12308,7 @@ msgstr "รีเซ็ต"
 msgid "Reset column widths"
 msgstr "รีเซ็ตความกว้างคอลัมน์"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1694
+#: packages/admin/src/components/MediaDetailPanel.tsx:1705
 msgid "Reset crop"
 msgstr "รีเซ็ตการครอบตัด"
 
@@ -12242,7 +12348,7 @@ msgstr "ปรับขนาดการครอบตัดจากมุม
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "ปรับขนาดการครอบตัดจากมุมขวาบน ใช้ปุ่มลูกศรเพื่อปรับขนาด"
 
-#: packages/admin/src/components/ContentEditor.tsx:2508
+#: packages/admin/src/components/ContentEditor.tsx:2529
 msgid "Resize settings panel"
 msgstr "ปรับขนาดแผงการตั้งค่า"
 
@@ -12255,7 +12361,7 @@ msgid "Resolving publisher handle..."
 msgstr "กำลังตรวจสอบ Handle ของผู้เผยแพร่..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6585
+#: packages/admin/src/components/PortableTextEditor.tsx:6588
 msgid "Restart numbering"
 msgstr "เริ่มนับเลขใหม่"
 
@@ -12299,11 +12405,11 @@ msgid "Retired"
 msgstr "เลิกใช้แล้ว"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3781
+#: packages/admin/src/components/ContentEditor.tsx:3802
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/MediaDetailPanel.tsx:1547
+#: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
@@ -12315,7 +12421,7 @@ msgstr "เลิกใช้แล้ว"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3401
+#: packages/admin/src/router.tsx:3508
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12366,7 +12472,7 @@ msgstr "กำลังลองใหม่…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "บล็อกเนื้อหาที่นำกลับมาใช้ซ้ำได้ ซึ่งคุณสามารถแทรกลงในเนื้อหาใดก็ได้"
 
-#: packages/admin/src/router.tsx:1569
+#: packages/admin/src/router.tsx:1597
 msgid "Reverted to published version"
 msgstr "เปลี่ยนกลับเป็นเวอร์ชันที่เผยแพร่แล้ว"
 
@@ -12456,13 +12562,14 @@ msgid "Rich text content"
 msgstr "เนื้อหา Rich Text"
 
 #: packages/admin/src/components/FieldEditor.tsx:705
+#: packages/admin/src/components/PortableTextEditor.tsx:4137
 msgid "Rich text editor"
 msgstr "ตัวแก้ไข Rich Text"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5481
-#: packages/admin/src/components/PortableTextEditor.tsx:5602
+#: packages/admin/src/components/PortableTextEditor.tsx:5484
+#: packages/admin/src/components/PortableTextEditor.tsx:5605
 msgid "Right"
 msgstr "ขวา"
 
@@ -12517,7 +12624,7 @@ msgid "Row added above"
 msgstr "เพิ่มแถวด้านบนแล้ว"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5579
+#: packages/admin/src/components/PortableTextEditor.tsx:5582
 msgid "Row added below"
 msgstr "เพิ่มแถวด้านล่างแล้ว"
 
@@ -12561,7 +12668,7 @@ msgstr "เนื้อหาตัวอย่าง"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12577,11 +12684,11 @@ msgstr "บันทึก"
 msgid "Save (Enter)"
 msgstr "บันทึก (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5951
 msgid "Save alt text"
 msgstr "บันทึกข้อความแสดงแทน"
 
-#: packages/admin/src/components/ContentEditor.tsx:2211
+#: packages/admin/src/components/ContentEditor.tsx:2230
 msgid "Save anyway"
 msgstr "บันทึกต่อไป"
 
@@ -12606,7 +12713,7 @@ msgstr "บันทึกเนื้อหาเป็นฉบับร่า
 msgid "Save date"
 msgstr "บันทึกวันที่"
 
-#: packages/admin/src/components/ContentEditor.tsx:2367
+#: packages/admin/src/components/ContentEditor.tsx:2386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
@@ -12624,7 +12731,7 @@ msgstr ""
 msgid "Save name"
 msgstr "บันทึกชื่อ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1737
+#: packages/admin/src/components/MediaDetailPanel.tsx:1748
 msgid "Save or discard the other changes before cropping."
 msgstr "บันทึกหรือละทิ้งการเปลี่ยนแปลงอื่นก่อนครอบตัด"
 
@@ -12647,7 +12754,7 @@ msgstr "บันทึกการตั้งค่า"
 msgid "visualEditing.saved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2442
+#: packages/admin/src/components/ContentEditor.tsx:2463
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "บันทึกแล้ว"
@@ -12670,9 +12777,9 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:2435
+#: packages/admin/src/components/ContentEditor.tsx:2456
 #: packages/admin/src/components/FieldEditor.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12729,19 +12836,19 @@ msgstr "วันที่กำหนดเวลา"
 msgid "Schedule publication"
 msgstr "กำหนดเวลาเผยแพร่"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:234
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "Schedule removed"
 msgstr "นำกำหนดเวลาออกแล้ว"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1616
+#: packages/admin/src/router.tsx:1644
 msgid "Scheduled"
 msgstr "กำหนดเวลา"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "การเปลี่ยนแปลงที่กำหนดเวลาไว้"
 
@@ -12822,8 +12929,8 @@ msgid "SCSS"
 msgstr "SCSS"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:110
-#: packages/admin/src/components/Settings.tsx:165
-#: packages/admin/src/components/Settings.tsx:165
+#: packages/admin/src/components/Settings.tsx:171
+#: packages/admin/src/components/Settings.tsx:171
 #: packages/admin/src/components/Widgets.tsx:167
 msgid "Search"
 msgstr "ค้นหา"
@@ -12894,7 +13001,7 @@ msgstr "ค้นหาเนื้อหา..."
 msgid "Search Engine Optimization"
 msgstr "Search Engine Optimization"
 
-#: packages/admin/src/components/Settings.tsx:67
+#: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "การทำ SEO และการยืนยัน"
@@ -12915,8 +13022,8 @@ msgstr "ค้นหาไม่สำเร็จ"
 msgid "Search failed. Check your connection and try again."
 msgstr "ค้นหาไม่สำเร็จ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1500
-#: packages/admin/src/components/MediaDetailPanel.tsx:1501
+#: packages/admin/src/components/MediaDetailPanel.tsx:1511
+#: packages/admin/src/components/MediaDetailPanel.tsx:1512
 msgid "Search folders"
 msgstr "ค้นหาโฟลเดอร์"
 
@@ -13057,6 +13164,7 @@ msgstr "ชื่อส่วน"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
+#: packages/admin/src/router.tsx:2918
 msgid "Sections"
 msgstr "ส่วน"
 
@@ -13069,7 +13177,7 @@ msgid "Secure your account"
 msgstr "รักษาความปลอดภัยบัญชีของคุณ"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:913
-#: packages/admin/src/components/Settings.tsx:87
+#: packages/admin/src/components/Settings.tsx:89
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
 msgid "Security"
@@ -13110,9 +13218,10 @@ msgstr "เกิดข้อผิดพลาดด้านความปล
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
 #: packages/admin/src/components/Header.tsx:109
-#: packages/admin/src/components/Settings.tsx:83
+#: packages/admin/src/components/Settings.tsx:85
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
+#: packages/admin/src/router.tsx:2613
 msgid "Security Settings"
 msgstr "ตั้งค่าความปลอดภัย"
 
@@ -13124,14 +13233,14 @@ msgstr "ดูว่าไฟล์นี้ถูกใช้ที่ใด"
 #: packages/admin/src/components/FieldEditor.tsx:692
 #: packages/admin/src/components/FieldEditor.tsx:1700
 #: packages/admin/src/components/MediaPickerModal.tsx:891
-#: packages/admin/src/components/Settings.tsx:159
+#: packages/admin/src/components/Settings.tsx:165
 msgid "Select"
 msgstr "เลือก"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4209
-#: packages/admin/src/components/ContentEditor.tsx:4270
-#: packages/admin/src/components/ContentEditor.tsx:4331
+#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ContentEditor.tsx:4291
+#: packages/admin/src/components/ContentEditor.tsx:4352
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13155,7 +13264,7 @@ msgstr "เลือกคอมโพเนนต์..."
 msgid "Select a content type"
 msgstr "เลือกประเภทเนื้อหา"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1490
+#: packages/admin/src/components/MediaDetailPanel.tsx:1501
 msgid "Select a location"
 msgstr "เลือกตำแหน่งที่จัดเก็บ"
 
@@ -13180,7 +13289,7 @@ msgstr "เลือกทั้งหมดในหน้านี้"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3805
+#: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "Select at least one entry."
 msgstr "เลือกอย่างน้อยหนึ่งรายการ"
 
@@ -13213,13 +13322,13 @@ msgstr "เลือก Favicon"
 msgid "Select Favicon"
 msgstr "เลือก Favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:4272
-#: packages/admin/src/components/ContentEditor.tsx:4337
+#: packages/admin/src/components/ContentEditor.tsx:4293
+#: packages/admin/src/components/ContentEditor.tsx:4358
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "เลือกไฟล์"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4901
+#: packages/admin/src/components/PortableTextEditor.tsx:4904
 msgid "Select gallery images"
 msgstr "เลือกรูปภาพแกลเลอรี"
 
@@ -13227,7 +13336,7 @@ msgstr "เลือกรูปภาพแกลเลอรี"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4872
+#: packages/admin/src/components/PortableTextEditor.tsx:4875
 msgid "Select image"
 msgstr "เลือกรูปภาพ"
 
@@ -13260,7 +13369,7 @@ msgid "Select up to 50 posts at a time."
 msgstr "เลือกได้ครั้งละไม่เกิน 50 โพสต์"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4886
+#: packages/admin/src/components/PortableTextEditor.tsx:4889
 msgid "Select video"
 msgstr ""
 
@@ -13300,7 +13409,7 @@ msgstr "โพสต์ที่เลือก"
 msgid "Selection"
 msgstr "การเลือก"
 
-#: packages/admin/src/components/Settings.tsx:93
+#: packages/admin/src/components/Settings.tsx:96
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Self-Signup Domains"
@@ -13367,7 +13476,7 @@ msgstr "กำลังส่ง..."
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1226
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1229
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
-#: packages/admin/src/components/Settings.tsx:66
+#: packages/admin/src/components/Settings.tsx:67
 msgid "SEO"
 msgstr "SEO"
 
@@ -13378,6 +13487,7 @@ msgid "SEO settings"
 msgstr "การตั้งค่า SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/router.tsx:2720
 msgid "SEO Settings"
 msgstr "ตั้งค่า SEO"
 
@@ -13450,14 +13560,15 @@ msgid "Setting up..."
 msgstr "กำลังตั้งค่า..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2336
-#: packages/admin/src/components/ContentEditor.tsx:2725
+#: packages/admin/src/components/ContentEditor.tsx:2355
+#: packages/admin/src/components/ContentEditor.tsx:2746
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/router.tsx:2598
 msgid "Settings"
 msgstr "ตั้งค่า"
 
@@ -13473,6 +13584,10 @@ msgstr "อ่านการตั้งค่า"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 msgid "Settings saved successfully"
 msgstr "บันทึกการตั้งค่าสำเร็จ"
+
+#: packages/admin/src/router.tsx:420
+msgid "Setup"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13504,7 +13619,7 @@ msgstr "ข้อความสั้น"
 msgid "Short Text"
 msgstr "ข้อความสั้น"
 
-#: packages/admin/src/components/ContentEditor.tsx:238
+#: packages/admin/src/components/ContentEditor.tsx:239
 msgid "Show"
 msgstr ""
 
@@ -13567,6 +13682,8 @@ msgstr "แสดงปุ่มสำหรับสร้างรายกา
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "เข้าสู่ระบบ"
 
@@ -13608,6 +13725,14 @@ msgstr "เข้าสู่ระบบด้วยลิงก์อีเม
 msgid "Sign in with Passkey"
 msgstr "เข้าสู่ระบบด้วย Passkey"
 
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
+
+#: packages/admin/src/router.tsx:460
+msgid "Sign up"
+msgstr ""
+
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
 msgid "Signed in as {0}"
@@ -13637,7 +13762,7 @@ msgstr "เลือกได้หนึ่งตัวเลือกจาก
 msgid "Single line text input"
 msgstr "ช่องป้อนข้อความบรรทัดเดียว"
 
-#: packages/admin/src/components/Settings.tsx:50
+#: packages/admin/src/components/Settings.tsx:51
 #: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "เว็บไซต์"
@@ -13658,7 +13783,7 @@ msgstr "เอกลักษณ์เว็บไซต์"
 msgid "site identity applied (title, tagline, logo)"
 msgstr "ใช้เอกลักษณ์เว็บไซต์แล้ว (ชื่อ คำโปรย โลโก้)"
 
-#: packages/admin/src/components/Settings.tsx:55
+#: packages/admin/src/components/Settings.tsx:56
 #: packages/admin/src/components/settings/GeneralSettings.tsx:308
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "เอกลักษณ์เว็บไซต์ โลโก้ favicon และการตั้งค่าการอ่าน"
@@ -13739,7 +13864,7 @@ msgstr "ขนาด"
 msgid "Size is not applicable to folders"
 msgstr "ขนาดใช้กับโฟลเดอร์ไม่ได้"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1319
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Size:"
 msgstr "ขนาด:"
 
@@ -13823,10 +13948,10 @@ msgid "SMTP Transport"
 msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
-msgid "smtp-relay.brevo.com"
+msgid "smtp.example.com"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:60
+#: packages/admin/src/components/Settings.tsx:61
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
 msgid "Social Links"
 msgstr "ลิงก์โซเชียล"
@@ -13835,7 +13960,7 @@ msgstr "ลิงก์โซเชียล"
 msgid "Social links saved"
 msgstr "บันทึกลิงก์โซเชียลแล้ว"
 
-#: packages/admin/src/components/Settings.tsx:61
+#: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:90
 msgid "Social media profile links"
 msgstr "ลิงก์โปรไฟล์โซเชียลมีเดีย"
@@ -13843,6 +13968,10 @@ msgstr "ลิงก์โปรไฟล์โซเชียลมีเดี
 #: packages/admin/src/components/settings/SocialSettings.tsx:134
 msgid "Social Profiles"
 msgstr "โปรไฟล์โซเชียล"
+
+#: packages/admin/src/router.tsx:2708
+msgid "Social Settings"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
@@ -13959,7 +14088,7 @@ msgstr "SQL"
 msgid "Square"
 msgstr "จัตุรัส"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:539
+#: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
 msgstr "สี่เหลี่ยมจัตุรัส (1:1)"
 
@@ -13998,8 +14127,8 @@ msgstr "เริ่มต้นด้วยโพสต์และหน้า
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3155
-#: packages/admin/src/components/ContentEditor.tsx:3178
+#: packages/admin/src/components/ContentEditor.tsx:3176
+#: packages/admin/src/components/ContentEditor.tsx:3199
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "เริ่มเขียน หรือพิมพ์ '/' เพื่อดูคำสั่ง"
@@ -14029,7 +14158,7 @@ msgstr ""
 msgid "STARTTLS (port 587)"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "สถานะ"
@@ -14078,8 +14207,8 @@ msgstr "ข้อมูลสำรองที่จัดเก็บไว้
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "จัดเก็บแยกตามภาษา — คำแปลแต่ละภาษาของชื่อผู้เขียนมีค่าของตัวเอง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4966
-#: packages/admin/src/components/PortableTextEditor.tsx:6528
+#: packages/admin/src/components/PortableTextEditor.tsx:4969
+#: packages/admin/src/components/PortableTextEditor.tsx:6531
 msgid "Strikethrough"
 msgstr "ขีดทับ"
 
@@ -14113,11 +14242,11 @@ msgstr "ฟิลด์ย่อย"
 msgid "Subscriber"
 msgstr "ผู้ติดตาม"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5460
+#: packages/admin/src/components/PortableTextEditor.tsx:5463
 msgid "Subscript"
 msgstr "ตัวห้อย"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5466
+#: packages/admin/src/components/PortableTextEditor.tsx:5469
 msgid "Superscript"
 msgstr "ตัวยก"
 
@@ -14169,11 +14298,11 @@ msgstr "ฟิลด์ของระบบ"
 msgid "Table"
 msgstr "ตาราง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4723
+#: packages/admin/src/components/PortableTextEditor.tsx:4726
 msgid "Table cells accept text, links, and formatting only."
 msgstr "เซลล์ตารางรับได้เฉพาะข้อความ ลิงก์ และการจัดรูปแบบเท่านั้น"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5569
+#: packages/admin/src/components/PortableTextEditor.tsx:5572
 msgid "Table controls"
 msgstr "การควบคุมตาราง"
 
@@ -14182,7 +14311,7 @@ msgid "Table deleted"
 msgstr "ลบตารางแล้ว"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4613
+#: packages/admin/src/components/PortableTextEditor.tsx:4616
 msgid "Table inserted"
 msgstr "แทรกตารางแล้ว"
 
@@ -14190,7 +14319,7 @@ msgstr "แทรกตารางแล้ว"
 msgid "Table size"
 msgstr "ขนาดตาราง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4720
+#: packages/admin/src/components/PortableTextEditor.tsx:4723
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "วางตารางภายในรายการหรือคำพูดอ้างอิงไม่ได้ วางตารางในย่อหน้าของตัวเองแล้วลองอีกครั้ง"
 
@@ -14232,6 +14361,7 @@ msgstr "ภาษาเป้าหมาย"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
+#: packages/admin/src/router.tsx:2889
 msgid "Taxonomies"
 msgstr "อนุกรมวิธาน"
 
@@ -14335,7 +14465,7 @@ msgstr "test@example.com"
 msgid "Text"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6772
+#: packages/admin/src/components/PortableTextEditor.tsx:6775
 msgid "Text formatting"
 msgstr "การจัดรูปแบบข้อความ"
 
@@ -14411,7 +14541,7 @@ msgstr "ประเภทเนื้อหาและ slug เปลี่ย
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "ตัวจัดการข้อมูลรับรองบนโทรศัพท์หรือแท็บเล็ตที่คุณเลือกจะบันทึก Passkey ไว้ EmDash ไม่ได้รับ Passkey"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:834
+#: packages/admin/src/components/MediaDetailPanel.tsx:836
 msgid "The cropped image could not be created."
 msgstr "สร้างรูปภาพที่ครอปไม่ได้"
 
@@ -14626,7 +14756,7 @@ msgstr "เนื้อหาของแพ็กเกจจะถูกเข
 msgid "The package’s file index is not valid."
 msgstr "ดัชนีไฟล์ของแพ็กเกจไม่ถูกต้อง"
 
-#: packages/admin/src/router.tsx:3415
+#: packages/admin/src/router.tsx:3522
 msgid "The page you're looking for doesn't exist."
 msgstr "ไม่พบหน้าที่คุณกำลังค้นหา"
 
@@ -14646,8 +14776,8 @@ msgstr "แสดงผลวิดเจ็ตฟิลด์ของปลั
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "ปลั๊กอินยังไม่ได้บันทึกการเปลี่ยนแปลงเหล่านี้ ตรวจสอบก่อนอัปเดตตัวแก้ไข"
 
-#: packages/admin/src/components/ContentEditor.tsx:1322
-#: packages/admin/src/components/ContentEditor.tsx:1338
+#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1342
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "ผลลัพธ์ของปลั๊กอินล้าสมัยแล้ว เพราะตัวแก้ไขเปลี่ยนไประหว่างที่ปลั๊กอินทำงาน"
 
@@ -14689,15 +14819,15 @@ msgstr "เนื้อหาตัวอย่างที่เพิ่มไ
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "การเปลี่ยนแปลงตามกำหนดเวลาของ {title} จะยังคงเป็นฉบับร่าง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:829
+#: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "ไม่มีโฟลเดอร์ที่เลือกแล้ว ให้เลือกตำแหน่งที่จัดเก็บอื่นแล้วบันทึกอีกครั้ง"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:932
+#: packages/admin/src/components/MediaDetailPanel.tsx:934
 msgid "The selected image could not be read."
 msgstr "อ่านรูปภาพที่เลือกไม่ได้"
 
@@ -14773,10 +14903,18 @@ msgstr "ธีม"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
+#: packages/admin/src/router.tsx:2840
+msgid "Theme Details"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
 msgstr "ID ธีม: {0}"
+
+#: packages/admin/src/router.tsx:2832
+msgid "Theme Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -14843,9 +14981,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "เบราว์เซอร์นี้เก็บแพ็กเกจทั้งหมดไว้ในหน่วยความจำจนกว่าการดาวน์โหลดจะเสร็จ สำหรับการส่งออกขนาดนี้ ให้ใช้เบราว์เซอร์ที่ใช้ Chromium ซึ่งบันทึกลงดิสก์โดยตรง หรือเรียกใช้ emdash site export จาก CLI"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
+#: packages/admin/src/components/MediaDetailPanel.tsx:1952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "This cannot be undone"
 msgstr "การดำเนินการนี้ย้อนกลับไม่ได้"
 
@@ -14861,7 +14999,7 @@ msgstr "รหัสนี้ไม่ถูกต้องหรือถูก
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "คอลเลกชันนี้กำหนดไว้ในโค้ด การตั้งค่าบางอย่างไม่สามารถเปลี่ยนแปลงได้ที่นี่ แก้ไขไฟล์ live.config.ts ของคุณเพื่อปรับเปลี่ยนสคีมา"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4695
+#: packages/admin/src/components/PortableTextEditor.tsx:4698
 msgid "This content cannot be edited safely"
 msgstr "แก้ไขเนื้อหานี้อย่างปลอดภัยไม่ได้"
 
@@ -14885,20 +15023,20 @@ msgstr "นี่ไม่เหมือนคีย์การย้ายข
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2207
+#: packages/admin/src/components/ContentEditor.tsx:2226
 msgid "This entry changed somewhere else after you opened it."
 msgstr "รายการนี้ถูกเปลี่ยนจากที่อื่นหลังจากที่คุณเปิด"
 
-#: packages/admin/src/components/ContentEditor.tsx:1722
-#: packages/admin/src/router.tsx:1152
+#: packages/admin/src/components/ContentEditor.tsx:1726
+#: packages/admin/src/router.tsx:1180
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "รายการนี้ถูกเปลี่ยนจากที่อื่น บันทึกต่อไป หรือโหลดใหม่เพื่อรับเวอร์ชันที่ใหม่กว่า"
 
-#: packages/admin/src/router.tsx:2007
+#: packages/admin/src/router.tsx:2035
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2008
+#: packages/admin/src/router.tsx:2036
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -14910,11 +15048,11 @@ msgstr "รายการนี้ยังไม่มี URL จนกว่�
 msgid "This entry is open somewhere else"
 msgstr "รายการนี้เปิดอยู่ที่อื่น"
 
-#: packages/admin/src/components/ContentEditor.tsx:2194
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "รายการนี้เป็นแบบอ่านอย่างเดียว เพราะสคีมาใช้ประเภทฟิลด์ที่ EmDash เวอร์ชันนี้ไม่รองรับ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:407
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "รายการนี้ถึงกำหนด {lateness} แต่ยังไม่ได้เผยแพร่ การเผยแพร่ตามกำหนดเวลาอาจไม่ทำงาน"
 
@@ -14922,17 +15060,17 @@ msgstr "รายการนี้ถึงกำหนด {lateness} แต่
 msgid "This export is large"
 msgstr "การส่งออกนี้มีขนาดใหญ่"
 
-#: packages/admin/src/components/ContentEditor.tsx:2930
-#: packages/admin/src/components/ContentEditor.tsx:2938
+#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2959
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "EmDash เวอร์ชันนี้แก้ไขฟิลด์นี้ไม่ได้"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4678
+#: packages/admin/src/components/PortableTextEditor.tsx:4681
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "ฟิลด์นี้มีเนื้อหาตารางที่ตัวแก้ไขเก็บรักษาไว้ไม่ได้ อัปเดตผ่าน API ก่อนแก้ไขหรือบันทึกเนื้อหานี้"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4697
+#: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "ฟิลด์นี้มีมาร์ก Portable Text ที่ไม่รองรับ: <0>{markList}</0> ให้นำออกผ่าน API ก่อนแก้ไขหรือบันทึกเนื้อหานี้"
 
@@ -14949,7 +15087,7 @@ msgstr "ฟิลด์นี้ไม่รับไฟล์ {mimeType}"
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "ฟิลด์นี้ต้องการรายการแบบลิสต์ ค่าที่จัดเก็บไว้จะไม่เปลี่ยนจนกว่าคุณจะแทนที่ด้วยลิสต์ว่าง ซึ่งจะลบค่านั้น คัดลอกสิ่งที่ต้องการออกมาก่อน"
 
-#: packages/admin/src/components/ContentEditor.tsx:4343
+#: packages/admin/src/components/ContentEditor.tsx:4364
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "ฟิลด์นี้ต้องระบุ"
@@ -14992,7 +15130,7 @@ msgstr "โฟลเดอร์นี้ว่างเปล่า"
 msgid "This folder is empty."
 msgstr "โฟลเดอร์นี้ว่างเปล่า"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1730
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "This image could not be loaded for cropping."
 msgstr "โหลดรูปภาพนี้เพื่อครอปไม่ได้"
 
@@ -15037,7 +15175,7 @@ msgid "This media item could not be loaded. Try again."
 msgstr "โหลดรายการมีเดียนี้ไม่ได้ ลองอีกครั้ง"
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
-#: packages/admin/src/components/MediaDetailPanel.tsx:823
+#: packages/admin/src/components/MediaDetailPanel.tsx:825
 msgid "This media item no longer exists."
 msgstr "ไม่มีรายการมีเดียนี้แล้ว"
 
@@ -15061,7 +15199,7 @@ msgstr "แพ็กเกจนี้สร้างโดย EmDash เวอ�
 msgid "This passkey is already registered on this device."
 msgstr "Passkey นี้ลงทะเบียนบนอุปกรณ์นี้แล้ว"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4716
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "ข้อมูลที่วางมีขนาดใหญ่เกินไป วางเซลล์หรือข้อความทีละน้อยลง"
 
@@ -15138,12 +15276,12 @@ msgstr "การดำเนินการนี้จะนำกำหนด
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "ไม่รู้จักเขตเวลาที่บันทึกไว้ เลือกจากคำแนะนำเพื่อให้แสดงวันที่ได้ถูกต้อง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4764
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "ส่วนนี้มีเนื้อหาตารางที่ตัวแก้ไขเก็บรักษาไว้ไม่ได้ อัปเดตส่วนนี้ก่อนแทรก"
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4763
+#: packages/admin/src/components/PortableTextEditor.tsx:4766
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "ส่วนนี้มีมาร์ก Portable Text ที่ไม่รองรับ: <0>{0}</0> ให้อัปเดตส่วนนี้ก่อนแทรก"
 
@@ -15201,15 +15339,15 @@ msgstr "เว็บไซต์นี้ตั้งค่าด้วยเน
 msgid "This slug is reserved. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4721
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "ข้อมูลสเปรดชีตนี้มีเซลล์ที่ใส่เครื่องหมายคำพูดไม่ถูกต้อง แก้ไขเครื่องหมายคำพูดหรือนำตัวคั่นแท็บออกแล้วลองอีกครั้ง"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4676
+#: packages/admin/src/components/PortableTextEditor.tsx:4679
 msgid "This table cannot be edited safely"
 msgstr "แก้ไขตารางนี้อย่างปลอดภัยไม่ได้"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4722
+#: packages/admin/src/components/PortableTextEditor.tsx:4725
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "ตารางนี้มีการจัดรูปแบบเซลล์ เซลล์ที่ผสาน หรือความกว้างคอลัมน์ที่ไม่รองรับ วางเป็นข้อความธรรมดาหรือทำให้ตารางง่ายขึ้นแล้วลองอีกครั้ง"
 
@@ -15362,7 +15500,7 @@ msgstr "ข้อความ Tooltip"
 msgid "Track content history"
 msgstr "ติดตามประวัติเนื้อหา"
 
-#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/Settings.tsx:79
 msgid "Track where media is used across your content"
 msgstr "ติดตามว่ามีเดียถูกใช้ที่ใดบ้างในเนื้อหาของคุณ"
 
@@ -15370,9 +15508,10 @@ msgstr "ติดตามว่ามีเดียถูกใช้ที่
 msgid "Track where media is used across your content."
 msgstr "ติดตามว่ามีเดียถูกใช้ที่ใดบ้างในเนื้อหาของคุณ"
 
-#: packages/admin/src/components/Settings.tsx:125
+#: packages/admin/src/components/Settings.tsx:131
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
+#: packages/admin/src/router.tsx:2677
 msgid "Transfer"
 msgstr "ย้าย"
 
@@ -15401,7 +15540,7 @@ msgstr "กำลังแปล..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1659
+#: packages/admin/src/router.tsx:1687
 msgid "Translation created"
 msgstr "สร้างคำแปลแล้ว"
 
@@ -15410,7 +15549,7 @@ msgstr "สร้างคำแปลแล้ว"
 msgid "Translations"
 msgstr "คำแปล"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:371
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 msgid "Translations:"
 msgstr "คำแปล:"
 
@@ -15520,9 +15659,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5383
-#: packages/admin/src/components/PortableTextEditor.tsx:5385
-#: packages/admin/src/components/PortableTextEditor.tsx:5402
+#: packages/admin/src/components/PortableTextEditor.tsx:5386
+#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5405
 msgid "Turn into"
 msgstr "เปลี่ยนเป็น"
 
@@ -15589,7 +15728,7 @@ msgstr "ประเภทไม่ตรงกัน ({0})"
 msgid "Type to filter"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4833
+#: packages/admin/src/components/PortableTextEditor.tsx:4836
 msgid "Type to search"
 msgstr ""
 
@@ -15611,13 +15750,13 @@ msgstr "ไม่สามารถเชื่อมต่อกับมาร
 msgid "Unassigned"
 msgstr "ยังไม่ได้กำหนด"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4965
-#: packages/admin/src/components/PortableTextEditor.tsx:6520
+#: packages/admin/src/components/PortableTextEditor.tsx:4968
+#: packages/admin/src/components/PortableTextEditor.tsx:6523
 msgid "Underline"
 msgstr "ขีดเส้นใต้"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:6751
+#: packages/admin/src/components/PortableTextEditor.tsx:6754
 msgid "Undo"
 msgstr "เลิกทำ"
 
@@ -15683,7 +15822,7 @@ msgstr ""
 msgid "Unpublish {itemLabel}"
 msgstr "ยกเลิกการเผยแพร่ {itemLabel}"
 
-#: packages/admin/src/router.tsx:1545
+#: packages/admin/src/router.tsx:1573
 msgid "Unpublished"
 msgstr "ยกเลิกการเผยแพร่แล้ว"
 
@@ -15705,7 +15844,7 @@ msgstr "การกำหนดที่ยังไม่มีในภาษ
 msgid "visualEditing.unsaved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2441
+#: packages/admin/src/components/ContentEditor.tsx:2462
 msgid "Unsaved changes"
 msgstr ""
 
@@ -15713,7 +15852,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "เนื้อหาที่ยังไม่บันทึกอาจถูกส่งออกไปนอกเว็บไซต์"
 
-#: packages/admin/src/router.tsx:1627
+#: packages/admin/src/router.tsx:1655
 msgid "Unscheduled"
 msgstr "ยกเลิกการกำหนดเวลาแล้ว"
 
@@ -15738,7 +15877,7 @@ msgstr "จนถึง {0}"
 msgid "Untitled"
 msgstr "ไม่มีชื่อ"
 
-#: packages/admin/src/components/ContentEditor.tsx:4169
+#: packages/admin/src/components/ContentEditor.tsx:4190
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "ไฟล์ไม่มีชื่อ"
@@ -15937,7 +16076,7 @@ msgstr "อัปโหลดไฟล์ส่งออก WordPress"
 msgid "Uploaded"
 msgstr "อัปโหลดแล้ว"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Uploaded:"
 msgstr "อัปโหลดแล้ว:"
 
@@ -15994,7 +16133,7 @@ msgstr ""
 msgid "URL-friendly identifier"
 msgstr "ตัวระบุที่เหมาะกับ URL"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1378
+#: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "URL:"
 msgstr "URL:"
 
@@ -16114,16 +16253,16 @@ msgstr "ใช้เป็นรูปภาพ Open Graph สำรองเม
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "ใช้เป็นตัวระบุ ใช้ได้เฉพาะตัวอักษรพิมพ์เล็ก ตัวเลข และขีดล่างเท่านั้น"
 
-#: packages/admin/src/components/ContentEditor.tsx:3366
+#: packages/admin/src/components/ContentEditor.tsx:3387
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "ใช้เป็นภาพหลักของโพสต์นี้ในหน้ารายการและที่ส่วนบนของโพสต์"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:531
+#: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "Used by screen readers and when image fails to load"
 msgstr "ใช้โดยโปรแกรมอ่านหน้าจอและเมื่อรูปภาพโหลดไม่สำเร็จ"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1173
-#: packages/admin/src/components/MediaDetailPanel.tsx:1206
+#: packages/admin/src/components/MediaDetailPanel.tsx:1175
+#: packages/admin/src/components/MediaDetailPanel.tsx:1208
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "ใช้ใน"
@@ -16176,6 +16315,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/router.tsx:2937
 msgid "Users"
 msgstr "ผู้ใช้"
 
@@ -16286,15 +16426,20 @@ msgstr "วิดีโอ"
 msgid "Video actions"
 msgstr ""
 
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:1278
+msgid "Video player for {0}"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
 msgid "Video upload failed. Try again."
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:113
+#: packages/admin/src/components/Settings.tsx:120
 msgid "View email provider status and send test emails"
 msgstr "ดูสถานะผู้ให้บริการอีเมลและส่งอีเมลทดสอบ"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:502
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
 msgid "View live"
 msgstr "ดูบนเว็บไซต์จริง"
 
@@ -16378,7 +16523,7 @@ msgstr "เตือน"
 msgid "Warnings"
 msgstr "คำเตือน"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Was due"
 msgstr "ถึงกำหนดเมื่อ"
 
@@ -16474,7 +16619,7 @@ msgstr "สิ่งที่จะถูกนำเข้า"
 msgid "What will happen when you import"
 msgstr "สิ่งที่จะเกิดขึ้นเมื่อคุณนำเข้า"
 
-#: packages/admin/src/components/ContentEditor.tsx:2208
+#: packages/admin/src/components/ContentEditor.tsx:2227
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "ข้อความที่คุณพิมพ์ยังอยู่ การบันทึกจะแทนที่เวอร์ชันที่ใหม่กว่า"
 
@@ -16515,7 +16660,7 @@ msgstr "จำนวนเต็ม"
 msgid "Why are bylines shown in this order?"
 msgstr "ทำไมชื่อผู้เขียนจึงแสดงตามลำดับนี้?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:530
+#: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "Why can't this be changed?"
 msgstr "ทำไมจึงเปลี่ยนสิ่งนี้ไม่ได้?"
 
@@ -16543,7 +16688,7 @@ msgstr "ทำไมสิ่งนี้จึงสำคัญต่อกา
 msgid "Why is this important for social sharing?"
 msgstr "ทำไมสิ่งนี้จึงสำคัญสำหรับการแชร์บนโซเชียล?"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:532
+#: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Why is this important?"
 msgstr "ทำไมสิ่งนี้จึงสำคัญ?"
 
@@ -16591,6 +16736,7 @@ msgstr "อัปเดตวิดเจ็ตแล้ว"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/router.tsx:2903
 msgid "Widgets"
 msgstr "วิดเจ็ต"
 
@@ -16759,7 +16905,11 @@ msgstr "คุณต้องมีสิทธิ์ผู้ดูแลระ
 msgid "You need Admin permissions to transfer this site."
 msgstr "คุณต้องมีสิทธิ์ผู้ดูแลระบบเพื่อย้ายเว็บไซต์นี้"
 
-#: packages/admin/src/router.tsx:2523
+#: packages/admin/src/components/RequireAdmin.tsx:26
+msgid "You need admin permissions to view this page."
+msgstr ""
+
+#: packages/admin/src/router.tsx:2554
 msgid "You need Editor permissions to moderate comments."
 msgstr "คุณต้องมีสิทธิ์ผู้แก้ไขเพื่อกลั่นกรองความคิดเห็น"
 
@@ -16901,11 +17051,11 @@ msgstr "ชื่อของคุณ (ไม่บังคับ)"
 msgid "Your Role"
 msgstr "บทบาทของคุณ"
 
-#: packages/admin/src/router.tsx:2078
+#: packages/admin/src/router.tsx:2107
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2079
+#: packages/admin/src/router.tsx:2108
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -16927,7 +17077,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "เว็บไซต์ของคุณกำหนดให้รุ่นต้องมีอายุอย่างน้อย {0} ก่อนจึงจะติดตั้งได้ รุ่นนี้จะติดตั้งได้ในภายหลัง"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:359
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
 msgid "Your time: {viewerTime}"
 msgstr "เวลาของคุณ: {viewerTime}"
 
@@ -16940,7 +17090,7 @@ msgstr "ชื่อบัญชี Twitter/X ของคุณ (เช่น @
 msgid "Your unsaved changes will be lost."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1874
+#: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
 msgstr "การเปลี่ยนแปลงมีเดียที่ยังไม่ได้บันทึกจะสูญหาย"
 

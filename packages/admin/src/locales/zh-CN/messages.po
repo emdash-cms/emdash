@@ -142,17 +142,17 @@ msgid "\"{0}\" and its nested items will be removed from this menu. This action 
 msgstr ""
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1894
+#: packages/admin/src/components/MediaDetailPanel.tsx:1905
 msgid "\"{0}\" will be deleted from {providerName}."
 msgstr "“{0}”将从 {providerName} 中删除。"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1895
+#: packages/admin/src/components/MediaDetailPanel.tsx:1906
 msgid "\"{0}\" will be deleted from its media provider."
 msgstr "“{0}”将从其媒体服务提供商处删除。"
 
 #. placeholder {0}: item.filename
-#: packages/admin/src/components/MediaDetailPanel.tsx:1896
+#: packages/admin/src/components/MediaDetailPanel.tsx:1907
 msgid "\"{0}\" will be permanently deleted."
 msgstr "“{0}”将被永久删除。"
 
@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# 个项目)} other {(# 个项目)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3888
+#: packages/admin/src/components/ContentEditor.tsx:3909
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted}，共 # 个字符（至少 {min}）} other {{counted}，共 # 个字符（至少 {min}）}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3893
+#: packages/admin/src/components/ContentEditor.tsx:3914
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted}，共 # 个字符} other {{counted}，共 # 个字符}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {已导入 # 条评论} other {已导入 # 条评论}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2531
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# 条评论已更新} other {# 条评论已更新}}"
 
@@ -263,7 +263,7 @@ msgstr "{0, plural, one {# 个文件未添加，因为上传列表已满。} oth
 
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
-#: packages/admin/src/components/MediaDetailPanel.tsx:1514
+#: packages/admin/src/components/MediaDetailPanel.tsx:1525
 #: packages/admin/src/components/MediaLibrary.tsx:962
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr "{0, plural, one {已加载 # 个文件夹} other {已加载 # 个文件夹}}"
@@ -359,7 +359,7 @@ msgstr "{0, plural, one {该内容类型参与 # 个关联关系} other {该内�
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:5575
+#: packages/admin/src/components/PortableTextEditor.tsx:5578
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# 行} other {# 行}} × {1, plural, one {# 列} other {# 列}}已选中"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {添加 # 个视频} other {添加 # 个视频}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3898
+#: packages/admin/src/components/ContentEditor.tsx:3919
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {至少 # 个字符} other {至少 # 个字符}}"
 
@@ -558,17 +558,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0}/{1} 步 · {2}/{3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:755
+#: packages/admin/src/router.tsx:783
 msgid "{0} of {total} could not be deleted"
 msgstr "{total} 项中有 {0} 项无法删除"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:711
+#: packages/admin/src/router.tsx:739
 msgid "{0} of {total} could not be published"
 msgstr "{total} 项中有 {0} 项无法发布"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:762
 msgid "{0} of {total} could not be updated"
 msgstr "{total} 项中有 {0} 项无法更新"
 
@@ -1019,15 +1019,15 @@ msgstr "{state}，{time}："
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel}（{label}，第 {position} 项）"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:238
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "{title} is a draft again."
 msgstr "{title} 已恢复为草稿。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 msgid "{title} is now live."
 msgstr "{title} 现已上线。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "{title} now goes live {when}."
 msgstr "{title} 将于 {when} 上线。"
 
@@ -1153,7 +1153,7 @@ msgstr "1. 登录您的 WordPress 管理后台"
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. 登录您的 WordPress 管理后台"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:542
+#: packages/admin/src/components/MediaDetailPanel.tsx:544
 msgid "16:9"
 msgstr "16:9"
 
@@ -1165,7 +1165,7 @@ msgstr "2. 前往<0>工具 → 导出</0>"
 msgid "2. Go to Users → Profile"
 msgstr "2. 前往 用户 → 个人资料"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:541
+#: packages/admin/src/components/MediaDetailPanel.tsx:543
 msgid "3:2"
 msgstr "3:2"
 
@@ -1197,7 +1197,7 @@ msgstr "307 临时（严格）"
 msgid "308 Permanent (Strict)"
 msgstr "308 永久（严格）"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:540
+#: packages/admin/src/components/MediaDetailPanel.tsx:542
 msgid "4:3"
 msgstr "4:3"
 
@@ -1292,7 +1292,7 @@ msgstr "缺少某个包文件"
 msgid "A publication time has not been selected"
 msgstr "尚未选择发布时间"
 
-#: packages/admin/src/components/ContentEditor.tsx:1707
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "A publishing action is already in progress"
 msgstr "已有发布操作正在进行中"
 
@@ -1359,7 +1359,7 @@ msgstr "要放弃此次导入吗？"
 msgid "Abandoning…"
 msgstr "正在放弃…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:534
+#: packages/admin/src/components/MediaDetailPanel.tsx:536
 msgid "About focal point"
 msgstr "关于焦点"
 
@@ -1375,18 +1375,23 @@ msgstr "接受并安装"
 msgid "Accept & Update"
 msgstr "接受并更新"
 
+#: packages/admin/src/router.tsx:468
+msgid "Accept invitation"
+msgstr ""
+
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
 msgid "Accept Invite"
 msgstr "接受邀请"
 
+#: packages/admin/src/components/RequireAdmin.tsx:25
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
 #: packages/admin/src/routes/byline-schema.tsx:164
 msgid "Access denied"
 msgstr "访问被拒绝"
 
-#: packages/admin/src/router.tsx:2522
+#: packages/admin/src/router.tsx:2553
 msgid "Access Denied"
 msgstr "访问被拒绝"
 
@@ -1562,12 +1567,12 @@ msgstr "添加署名"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:6028
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Add caption"
 msgstr "添加说明文字"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5588
+#: packages/admin/src/components/PortableTextEditor.tsx:5591
 msgid "Add column after"
 msgstr "在后面添加列"
 
@@ -1650,9 +1655,9 @@ msgstr ""
 msgid "Add item to {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5212
-#: packages/admin/src/components/PortableTextEditor.tsx:6021
-#: packages/admin/src/components/PortableTextEditor.tsx:6470
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6473
 msgid "Add link"
 msgstr "添加链接"
 
@@ -1686,8 +1691,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "添加通行密钥"
 
-#: packages/admin/src/components/ContentEditor.tsx:3802
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Add reference"
 msgstr "添加引用"
 
@@ -1700,7 +1705,7 @@ msgid "Add row above"
 msgstr "在上方添加行"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5581
+#: packages/admin/src/components/PortableTextEditor.tsx:5584
 msgid "Add row below"
 msgstr "在下方添加行"
 
@@ -1895,25 +1900,25 @@ msgid "Agent-callable MCP tools"
 msgstr "可供智能体调用的 MCP 工具"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:5476
+#: packages/admin/src/components/PortableTextEditor.tsx:5479
 msgid "Align"
 msgstr "对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6644
+#: packages/admin/src/components/PortableTextEditor.tsx:6647
 msgid "Align center"
 msgstr "居中对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6636
+#: packages/admin/src/components/PortableTextEditor.tsx:6639
 msgid "Align left"
 msgstr "左对齐"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6652
+#: packages/admin/src/components/PortableTextEditor.tsx:6655
 msgid "Align right"
 msgstr "右对齐"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:6002
+#: packages/admin/src/components/PortableTextEditor.tsx:6005
 msgid "Alignment"
 msgstr "对齐方式"
 
@@ -1983,7 +1988,7 @@ msgstr "允许具有 plugin-tool 范围的 MCP 令牌调用这些路由。"
 msgid "Allow multiple references"
 msgstr "允许多个引用"
 
-#: packages/admin/src/components/Settings.tsx:94
+#: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:220
 msgid "Allow users from specific domains to sign up"
 msgstr "允许来自特定域的用户注册"
@@ -1998,6 +2003,7 @@ msgid "Allowed block types"
 msgstr "允许的区块类型"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
+#: packages/admin/src/router.tsx:2634
 msgid "Allowed Domains"
 msgstr "允许的域名"
 
@@ -2038,14 +2044,14 @@ msgstr "替代文本"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1176
-#: packages/admin/src/components/PortableTextEditor.tsx:5933
-#: packages/admin/src/components/PortableTextEditor.tsx:5999
+#: packages/admin/src/components/PortableTextEditor.tsx:5936
+#: packages/admin/src/components/PortableTextEditor.tsx:6002
 msgid "Alt text"
 msgstr "替代文本"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:745
-#: packages/admin/src/components/MediaDetailPanel.tsx:1582
-#: packages/admin/src/components/MediaDetailPanel.tsx:1586
+#: packages/admin/src/components/MediaDetailPanel.tsx:1593
+#: packages/admin/src/components/MediaDetailPanel.tsx:1597
 msgid "Alt Text"
 msgstr "替代文本"
 
@@ -2107,18 +2113,18 @@ msgstr "一种加密数字密钥，可使用指纹、面部、PIN 码或设备�
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:665
-#: packages/admin/src/router.tsx:686
-#: packages/admin/src/router.tsx:911
-#: packages/admin/src/router.tsx:1369
-#: packages/admin/src/router.tsx:1527
-#: packages/admin/src/router.tsx:1551
-#: packages/admin/src/router.tsx:1635
-#: packages/admin/src/router.tsx:1668
-#: packages/admin/src/router.tsx:2472
-#: packages/admin/src/router.tsx:2508
-#: packages/admin/src/router.tsx:2936
-#: packages/admin/src/router.tsx:3123
+#: packages/admin/src/router.tsx:693
+#: packages/admin/src/router.tsx:714
+#: packages/admin/src/router.tsx:939
+#: packages/admin/src/router.tsx:1397
+#: packages/admin/src/router.tsx:1555
+#: packages/admin/src/router.tsx:1579
+#: packages/admin/src/router.tsx:1663
+#: packages/admin/src/router.tsx:1696
+#: packages/admin/src/router.tsx:2503
+#: packages/admin/src/router.tsx:2539
+#: packages/admin/src/router.tsx:3033
+#: packages/admin/src/router.tsx:3223
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "发生错误"
@@ -2143,7 +2149,7 @@ msgstr "正在分析导出文件..."
 msgid "Analyzing WordPress site..."
 msgstr "正在分析 WordPress 站点..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1742
+#: packages/admin/src/components/MediaDetailPanel.tsx:1753
 msgid "Animated WebP files become still images when cropped."
 msgstr "裁剪后，动态 WebP 文件将变为静态图片。"
 
@@ -2213,10 +2219,11 @@ msgstr "允许任何媒体类型（受全局限制）。"
 msgid "Any number"
 msgstr "任意数字"
 
-#: packages/admin/src/components/Settings.tsx:99
-#: packages/admin/src/components/Settings.tsx:103
+#: packages/admin/src/components/Settings.tsx:104
+#: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
+#: packages/admin/src/router.tsx:2646
 msgid "API Tokens"
 msgstr "API 令牌"
 
@@ -2229,7 +2236,7 @@ msgid "Application Password"
 msgstr "应用程序密码"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:6735
+#: packages/admin/src/components/PortableTextEditor.tsx:6738
 msgid "Apply"
 msgstr "应用"
 
@@ -2237,8 +2244,8 @@ msgstr "应用"
 msgid "Apply changes"
 msgstr "应用更改"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5186
-#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:5189
+#: packages/admin/src/components/PortableTextEditor.tsx:5977
 msgid "Apply link"
 msgstr "应用链接"
 
@@ -2327,7 +2334,7 @@ msgstr ""
 msgid "Ask an administrator to complete this setup."
 msgstr "请管理员完成此设置。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1682
+#: packages/admin/src/components/MediaDetailPanel.tsx:1693
 msgid "Aspect ratio"
 msgstr "宽高比"
 
@@ -2343,17 +2350,22 @@ msgstr "通过 MCP 连接的助手在开始导出或导入前需要管理员批�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3921
+#: packages/admin/src/components/ContentEditor.tsx:3942
 msgid "At least {min}"
 msgstr "至少 {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3918
+#: packages/admin/src/components/ContentEditor.tsx:3939
 msgid "At most {max}"
 msgstr "至多 {max}"
 
 #: packages/admin/src/components/RelationForm.tsx:505
 msgid "At most…"
 msgstr "至多…"
+
+#: packages/auth-atproto/src/admin.tsx:97
+#: packages/auth-atproto/src/admin.tsx:179
+msgid "Atmosphere Handle"
+msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
@@ -2412,6 +2424,10 @@ msgstr "授权失败"
 msgid "Authorize"
 msgstr "授权"
 
+#: packages/admin/src/router.tsx:479
+msgid "Authorize device"
+msgstr ""
+
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
 msgstr "授权设备"
@@ -2469,11 +2485,11 @@ msgstr "自动备份"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自动备份需要存储后端（R2、S3 或本地存储）。请在 EmDash 配置中配置存储以启用自动备份。"
 
-#: packages/admin/src/router.tsx:1495
+#: packages/admin/src/router.tsx:1523
 msgid "Autosave failed"
 msgstr "自动保存失败"
 
-#: packages/admin/src/components/ContentEditor.tsx:229
+#: packages/admin/src/components/ContentEditor.tsx:230
 msgid "Autosave paused"
 msgstr ""
 
@@ -2510,7 +2526,7 @@ msgstr "返回"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:500
 #: packages/admin/src/components/FieldEditor.tsx:1814
-#: packages/admin/src/components/MediaDetailPanel.tsx:1786
+#: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
 #: packages/admin/src/components/WordPressImport.tsx:1565
@@ -2518,7 +2534,7 @@ msgstr "返回"
 msgid "Back"
 msgstr "返回"
 
-#: packages/admin/src/components/ContentEditor.tsx:1954
+#: packages/admin/src/components/ContentEditor.tsx:1971
 msgid "Back to {collectionLabel} list"
 msgstr "返回到 {collectionLabel} 列表"
 
@@ -2597,8 +2613,9 @@ msgstr "已创建备份：{0}"
 msgid "Backup settings saved"
 msgstr "备份设置已保存"
 
-#: packages/admin/src/components/Settings.tsx:118
+#: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
+#: packages/admin/src/router.tsx:2670
 msgid "Backups"
 msgstr "备份"
 
@@ -2626,7 +2643,7 @@ msgstr "发送前："
 msgid "Before you continue:"
 msgstr "继续之前："
 
-#: packages/admin/src/components/ContentEditor.tsx:3915
+#: packages/admin/src/components/ContentEditor.tsx:3936
 msgid "Between {min} and {max}"
 msgstr "在 {min} 和 {max} 之间"
 
@@ -2678,8 +2695,8 @@ msgstr "阻塞项"
 msgid "Blocks"
 msgstr "区块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4963
-#: packages/admin/src/components/PortableTextEditor.tsx:6504
+#: packages/admin/src/components/PortableTextEditor.tsx:4966
+#: packages/admin/src/components/PortableTextEditor.tsx:6507
 msgid "Bold"
 msgstr "粗体"
 
@@ -2740,7 +2757,7 @@ msgstr "构建来源已验证"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:2054
-#: packages/admin/src/components/PortableTextEditor.tsx:6561
+#: packages/admin/src/components/PortableTextEditor.tsx:6564
 msgid "Bullet List"
 msgstr "无序列表"
 
@@ -2796,6 +2813,7 @@ msgid "Byline schema"
 msgstr "署名架构"
 
 #: packages/admin/src/components/Sidebar.tsx:552
+#: packages/admin/src/router.tsx:2970
 msgid "Byline Schema"
 msgstr "署名架构"
 
@@ -2804,12 +2822,13 @@ msgid "Byline updated"
 msgstr "署名已更新"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
+#: packages/admin/src/router.tsx:2959
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "署名"
@@ -2829,6 +2848,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:581
 #: packages/admin/src/components/Sidebar.tsx:696
+#: packages/admin/src/router.tsx:546
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "日历"
@@ -2863,7 +2883,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
 #: packages/admin/src/components/FieldEditor.tsx:1819
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:575
@@ -2872,9 +2892,9 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PluginManager.tsx:822
 #: packages/admin/src/components/PortableTextEditor.tsx:2818
-#: packages/admin/src/components/PortableTextEditor.tsx:5945
-#: packages/admin/src/components/PortableTextEditor.tsx:5971
-#: packages/admin/src/components/PortableTextEditor.tsx:6719
+#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5974
+#: packages/admin/src/components/PortableTextEditor.tsx:6722
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -2943,7 +2963,7 @@ msgstr "权限"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:753
 #: packages/admin/src/components/editor/ImageNode.tsx:311
 #: packages/admin/src/components/editor/VideoNode.tsx:332
-#: packages/admin/src/components/MediaDetailPanel.tsx:1597
+#: packages/admin/src/components/MediaDetailPanel.tsx:1608
 msgid "Caption"
 msgstr "说明文字"
 
@@ -2983,8 +3003,8 @@ msgstr "单元格已合并"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:5480
-#: packages/admin/src/components/PortableTextEditor.tsx:5601
+#: packages/admin/src/components/PortableTextEditor.tsx:5483
+#: packages/admin/src/components/PortableTextEditor.tsx:5604
 msgid "Center"
 msgstr "居中"
 
@@ -3118,7 +3138,7 @@ msgstr "更新日志"
 msgid "Changes apply everywhere this byline appears."
 msgstr "更改将应用于此署名出现的所有位置。"
 
-#: packages/admin/src/router.tsx:1568
+#: packages/admin/src/router.tsx:1596
 msgid "Changes discarded"
 msgstr "更改已丢弃"
 
@@ -3262,7 +3282,7 @@ msgid "Choose a file from the library or upload a new one."
 msgstr "从媒体库选择文件或上传新文件。"
 
 #. placeholder {0}: formatFileFormat(item.mimeType)
-#: packages/admin/src/components/MediaDetailPanel.tsx:925
+#: packages/admin/src/components/MediaDetailPanel.tsx:927
 msgid "Choose a non-empty {0} image."
 msgstr "选择一张非空的 {0} 图片。"
 
@@ -3320,7 +3340,7 @@ msgstr ""
 msgid "Choose package file"
 msgstr "选择安装包文件"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1817
+#: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
 msgstr "选择替换图片"
 
@@ -3356,7 +3376,7 @@ msgstr ""
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr "选择 Windows Hello 或其他可用凭据管理器，然后用 PIN、指纹或面容确认。"
 
-#: packages/admin/src/components/Settings.tsx:144
+#: packages/admin/src/components/Settings.tsx:150
 msgid "Choose your preferred admin language"
 msgstr "选择您的首选管理语言"
 
@@ -3388,7 +3408,7 @@ msgstr "清除已完成"
 msgid "Clear filters"
 msgstr "清除筛选"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5490
+#: packages/admin/src/components/PortableTextEditor.tsx:5493
 msgid "Clear formatting"
 msgstr "清除格式"
 
@@ -3435,7 +3455,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "点击此链接登录 {siteName}："
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:322
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3443,8 +3463,8 @@ msgstr "点击此链接登录 {siteName}："
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:627
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:629
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
-#: packages/admin/src/components/MediaDetailPanel.tsx:1134
-#: packages/admin/src/components/MediaDetailPanel.tsx:1828
+#: packages/admin/src/components/MediaDetailPanel.tsx:1136
+#: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaPickerModal.tsx:1052
 #: packages/admin/src/components/MediaPickerModal.tsx:1059
 #: packages/admin/src/components/MediaUploadDialog.tsx:240
@@ -3477,7 +3497,7 @@ msgstr "关闭图片设置"
 msgid "Close panel"
 msgstr "关闭面板"
 
-#: packages/admin/src/components/ContentEditor.tsx:2739
+#: packages/admin/src/components/ContentEditor.tsx:2760
 msgid "Close settings"
 msgstr "关闭设置"
 
@@ -3493,7 +3513,7 @@ msgstr "代码"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:2084
-#: packages/admin/src/components/PortableTextEditor.tsx:6603
+#: packages/admin/src/components/PortableTextEditor.tsx:6606
 msgid "Code Block"
 msgstr "代码块"
 
@@ -3529,9 +3549,9 @@ msgstr "合集“{0}”包含条目"
 msgid "Collection “{0}” was created on this site"
 msgstr "合集“{0}”已在此站点创建"
 
-#: packages/admin/src/router.tsx:776
-#: packages/admin/src/router.tsx:978
-#: packages/admin/src/router.tsx:1995
+#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:1006
+#: packages/admin/src/router.tsx:2023
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3557,7 +3577,7 @@ msgid "Collections created:"
 msgstr "已创建的合集："
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:5586
+#: packages/admin/src/components/PortableTextEditor.tsx:5589
 msgid "Column added after"
 msgstr "已在之后添加列"
 
@@ -3614,6 +3634,7 @@ msgstr "评论互动"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
+#: packages/admin/src/router.tsx:2428
 msgid "Comments"
 msgstr "评论"
 
@@ -3648,6 +3669,10 @@ msgstr ""
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:437
 msgid "Confirm"
 msgstr "确认"
+
+#: packages/admin/src/router.tsx:442
+msgid "Confirm magic link"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -3694,6 +3719,11 @@ msgstr "连接 WordPress"
 msgid "Connected {0}"
 msgstr "已连接 {0}"
 
+#: packages/auth-atproto/src/admin.tsx:111
+#: packages/auth-atproto/src/admin.tsx:200
+msgid "Connecting..."
+msgstr ""
+
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
 msgstr "连接"
@@ -3709,6 +3739,7 @@ msgstr "内容"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
+#: packages/admin/src/router.tsx:558
 msgid "Content"
 msgstr "内容"
 
@@ -3729,7 +3760,7 @@ msgstr "内容错误 ({0})"
 msgid "Content found:"
 msgstr "找到的内容："
 
-#: packages/admin/src/router.tsx:1617
+#: packages/admin/src/router.tsx:1645
 msgid "Content has been scheduled for publishing"
 msgstr "内容已安排发布"
 
@@ -3737,7 +3768,7 @@ msgstr "内容已安排发布"
 msgid "Content ID:"
 msgstr "内容 ID："
 
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1549
 msgid "Content is now live"
 msgstr "内容现已上线"
 
@@ -3762,11 +3793,11 @@ msgstr "内容以无效方式引用了媒体"
 msgid "Content refers to media that is not in the package"
 msgstr "内容引用了安装包中不存在的媒体"
 
-#: packages/admin/src/router.tsx:1545
+#: packages/admin/src/router.tsx:1573
 msgid "Content removed from public view"
 msgstr "内容已从公开视图中移除"
 
-#: packages/admin/src/router.tsx:1628
+#: packages/admin/src/router.tsx:1656
 msgid "Content reverted to draft"
 msgstr "内容已恢复为草稿"
 
@@ -3789,6 +3820,7 @@ msgstr "内容类型"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
+#: packages/admin/src/router.tsx:2978
 msgid "Content Types"
 msgstr "内容类型"
 
@@ -3796,7 +3828,7 @@ msgstr "内容类型"
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "同组的内容类型在侧边栏共用一个可折叠文件夹"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1912
+#: packages/admin/src/components/MediaDetailPanel.tsx:1923
 msgid "Content using this media item may show a broken reference."
 msgstr "使用此媒体项的内容可能显示损坏的引用。"
 
@@ -3824,7 +3856,7 @@ msgid "Continue Import"
 msgstr "继续导入"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:6578
+#: packages/admin/src/components/PortableTextEditor.tsx:6581
 msgid "Continue numbering"
 msgstr "继续编号"
 
@@ -3906,7 +3938,7 @@ msgstr "复制令牌"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:334
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:335
-#: packages/admin/src/components/MediaDetailPanel.tsx:1385
+#: packages/admin/src/components/MediaDetailPanel.tsx:1396
 msgid "Copy URL"
 msgstr "复制 URL"
 
@@ -3934,7 +3966,7 @@ msgstr "无法自动复制。请选择上面的 URL 并手动复制。"
 msgid "Could not create {singularLower}"
 msgstr "无法创建{singularLower}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4758
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 msgid "Could not insert section"
 msgstr "无法插入分区"
 
@@ -3958,7 +3990,7 @@ msgstr "无法加载媒体。"
 msgid "Could not load the calendar"
 msgstr "无法加载日历"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
 msgid "Could not load this entry's details."
 msgstr "无法加载此条目的详情。"
 
@@ -3966,7 +3998,7 @@ msgstr "无法加载此条目的详情。"
 msgid "Could not load this folder."
 msgstr "无法加载此文件夹。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
 msgid "Could not publish"
 msgstr "无法发布"
 
@@ -3974,7 +4006,7 @@ msgstr "无法发布"
 msgid "Could not reach {origin}"
 msgstr "无法连接 {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:242
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
 msgid "Could not remove the schedule"
 msgstr "无法移除定时发布"
 
@@ -3990,7 +4022,7 @@ msgstr ""
 msgid "Couldn’t add the menu item"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:828
+#: packages/admin/src/components/MediaDetailPanel.tsx:830
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "无法确认媒体项或所选文件夹是否仍存在。请重试。"
 
@@ -3998,7 +4030,7 @@ msgstr "无法确认媒体项或所选文件夹是否仍存在。请重试。"
 msgid "Couldn't detect WordPress"
 msgstr "无法检测到 WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:3779
+#: packages/admin/src/components/ContentEditor.tsx:3800
 msgid "Couldn't load all references."
 msgstr "无法加载所有引用。"
 
@@ -4161,7 +4193,7 @@ msgstr "创建并添加"
 msgid "Create Content Type"
 msgstr "创建内容类型"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1849
+#: packages/admin/src/components/MediaDetailPanel.tsx:1860
 msgid "Create cropped copy"
 msgstr "创建裁剪副本"
 
@@ -4198,7 +4230,7 @@ msgstr "创建一个，让这里的条目可以链接到另一种内容类型的
 msgid "Create passkey"
 msgstr "创建通行密钥"
 
-#: packages/admin/src/components/Settings.tsx:104
+#: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
@@ -4313,7 +4345,7 @@ msgid "Created {0}"
 msgstr "创建于 {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1660
+#: packages/admin/src/router.tsx:1688
 msgid "Created {0} translation"
 msgstr "已创建 {0} 翻译"
 
@@ -4333,7 +4365,7 @@ msgstr "正在创建合集与字段"
 msgid "Creating collections and fields..."
 msgstr "正在创建合集和字段..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
 msgid "Creating cropped copy..."
 msgstr "正在创建裁剪副本…"
 
@@ -4347,7 +4379,7 @@ msgstr "正在创建裁剪副本…"
 msgid "Creating..."
 msgstr "创建中..."
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1622
+#: packages/admin/src/components/MediaDetailPanel.tsx:1633
 msgid "Crop"
 msgstr "裁剪"
 
@@ -4357,7 +4389,7 @@ msgstr "裁剪"
 msgid "Crop area {0} by {1} pixels."
 msgstr "裁剪区域 {0} × {1} 像素。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1715
+#: packages/admin/src/components/MediaDetailPanel.tsx:1726
 msgid "Crop output dimensions"
 msgstr "裁剪输出尺寸"
 
@@ -4365,7 +4397,7 @@ msgstr "裁剪输出尺寸"
 msgid "Crop selection. Use the Arrow keys to move it."
 msgstr "裁剪选区。使用方向键移动。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:771
+#: packages/admin/src/components/MediaDetailPanel.tsx:773
 #: packages/admin/src/components/MediaLibrary.tsx:1318
 msgid "Cropped copy created."
 msgstr "裁剪副本已创建。"
@@ -4440,8 +4472,10 @@ msgstr "深色模式变体"
 #: packages/admin/src/components/AdminCommandPalette.tsx:140
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
+#: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Sidebar.tsx:691
+#: packages/admin/src/router.tsx:528
 msgid "Dashboard"
 msgstr "仪表板"
 
@@ -4541,8 +4575,8 @@ msgstr "代码定义"
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1899
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
 #: packages/admin/src/components/MenuEditor.tsx:800
 #: packages/admin/src/components/MenuEditor.tsx:818
@@ -4675,11 +4709,11 @@ msgstr "删除文件夹"
 msgid "Delete gallery"
 msgstr "删除图库"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6040
+#: packages/admin/src/components/PortableTextEditor.tsx:6043
 msgid "Delete image"
 msgstr "删除图片"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1889
+#: packages/admin/src/components/MediaDetailPanel.tsx:1900
 msgid "Delete media?"
 msgstr "删除媒体？"
 
@@ -4782,8 +4816,8 @@ msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/ContentList.tsx:1787
 #: packages/admin/src/components/ContentTypeEditor.tsx:881
 #: packages/admin/src/components/ContentTypeList.tsx:267
-#: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/MediaDetailPanel.tsx:1900
+#: packages/admin/src/components/MediaDetailPanel.tsx:1808
+#: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:819
 #: packages/admin/src/components/MenuList.tsx:292
@@ -4840,7 +4874,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "描述这张图片"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:5934
+#: packages/admin/src/components/PortableTextEditor.tsx:5937
 msgid "Describe the image"
 msgstr "描述图片"
 
@@ -4853,7 +4887,7 @@ msgid "Describe the image's purpose and relevant details for people who cannot s
 msgstr "描述图片的用途及相关细节，方便无法看到图片的人理解。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:748
-#: packages/admin/src/components/MediaDetailPanel.tsx:1589
+#: packages/admin/src/components/MediaDetailPanel.tsx:1600
 msgid "Describe this image for accessibility"
 msgstr "描述此图片以供无障碍访问"
 
@@ -4886,8 +4920,8 @@ msgstr "目标路径"
 msgid "Destructive"
 msgstr "破坏性"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1162
-#: packages/admin/src/components/MediaDetailPanel.tsx:1204
+#: packages/admin/src/components/MediaDetailPanel.tsx:1164
+#: packages/admin/src/components/MediaDetailPanel.tsx:1206
 msgid "Details"
 msgstr "详情"
 
@@ -4919,7 +4953,7 @@ msgstr "Diff"
 msgid "Differences from the source site"
 msgstr "与源站点的差异"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1332
+#: packages/admin/src/components/MediaDetailPanel.tsx:1343
 msgid "Dimensions:"
 msgstr "尺寸："
 
@@ -4973,7 +5007,7 @@ msgstr "正在禁用..."
 msgid "Disallow AI training"
 msgstr "禁止 AI 训练"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1875
+#: packages/admin/src/components/MediaDetailPanel.tsx:1886
 msgid "Discard"
 msgstr "放弃"
 
@@ -4982,7 +5016,7 @@ msgstr "放弃"
 msgid "Discard changes"
 msgstr "放弃更改"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1873
+#: packages/admin/src/components/MediaDetailPanel.tsx:1884
 msgid "Discard changes?"
 msgstr "放弃更改？"
 
@@ -4991,7 +5025,7 @@ msgid "Discard draft changes?"
 msgstr "放弃草稿更改？"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:359
-#: packages/admin/src/components/MediaDetailPanel.tsx:1876
+#: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "正在放弃…"
 
@@ -5011,15 +5045,15 @@ msgstr "关闭已完成的 {0}"
 msgid "Dismiss import suggestion"
 msgstr "关闭导入建议"
 
-#: packages/admin/src/components/ContentEditor.tsx:2699
+#: packages/admin/src/components/ContentEditor.tsx:2720
 msgid "Dismiss save error"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4779
+#: packages/admin/src/components/PortableTextEditor.tsx:4782
 msgid "Dismiss section error"
 msgstr "关闭分区错误"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4746
+#: packages/admin/src/components/PortableTextEditor.tsx:4749
 msgid "Dismiss table paste error"
 msgstr "关闭表格粘贴错误"
 
@@ -5056,7 +5090,7 @@ msgstr "显示标签云"
 msgid "Displayed below the image as a visible caption."
 msgstr "显示在图片下方作为可见说明。"
 
-#: packages/admin/src/components/ContentEditor.tsx:2090
+#: packages/admin/src/components/ContentEditor.tsx:2109
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "无干扰模式（⌘⇧\\）"
 
@@ -5145,7 +5179,7 @@ msgstr "下载备份"
 msgid "Download Backup"
 msgstr "下载备份"
 
-#: packages/admin/src/components/Settings.tsx:119
+#: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:145
 msgid "Download backups and schedule automatic backups to storage"
 msgstr "下载备份并将自动备份定时到存储"
@@ -5187,7 +5221,7 @@ msgstr "正在下载安装包"
 msgid "visualEditing.draft"
 msgstr "草稿"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:414
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5335,7 +5369,7 @@ msgstr "最早保存的版本"
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:241
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -5365,9 +5399,14 @@ msgstr "编辑 {0}"
 msgid "Edit {0} field"
 msgstr "编辑 {0} 字段"
 
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Edit {itemLabel}"
 msgstr "编辑{itemLabel}"
+
+#: packages/admin/src/components/ContentEditor.tsx:1816
+msgid "Edit {itemLabel}: {tabEntryTitle}"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5396,9 +5435,17 @@ msgstr "编辑署名字段"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:388
 #: packages/admin/src/components/editor/VideoNode.tsx:390
-#: packages/admin/src/components/PortableTextEditor.tsx:6028
+#: packages/admin/src/components/PortableTextEditor.tsx:6031
 msgid "Edit caption"
 msgstr "编辑说明文字"
+
+#: packages/admin/src/router.tsx:1049
+msgid "Edit content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3172
+msgid "Edit content type"
+msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "Edit dark mode asset"
@@ -5422,8 +5469,8 @@ msgstr "编辑文件夹"
 msgid "Edit folder {0}"
 msgstr "编辑文件夹 {0}"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1167
-#: packages/admin/src/components/MediaDetailPanel.tsx:1207
+#: packages/admin/src/components/MediaDetailPanel.tsx:1169
+#: packages/admin/src/components/MediaDetailPanel.tsx:1209
 msgid "Edit image"
 msgstr "编辑图片"
 
@@ -5432,10 +5479,10 @@ msgstr "编辑图片"
 msgid "Edit image {0}"
 msgstr "编辑图片 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5212
-#: packages/admin/src/components/PortableTextEditor.tsx:5321
-#: packages/admin/src/components/PortableTextEditor.tsx:6021
-#: packages/admin/src/components/PortableTextEditor.tsx:6469
+#: packages/admin/src/components/PortableTextEditor.tsx:5215
+#: packages/admin/src/components/PortableTextEditor.tsx:5324
+#: packages/admin/src/components/PortableTextEditor.tsx:6024
+#: packages/admin/src/components/PortableTextEditor.tsx:6472
 msgid "Edit link"
 msgstr "编辑链接"
 
@@ -5446,6 +5493,10 @@ msgstr "编辑锁定"
 #: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Edit media alt text, captions, and focal points"
 msgstr "编辑媒体的替代文本、说明和焦点"
+
+#: packages/admin/src/router.tsx:2876
+msgid "Edit menu"
+msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
@@ -5472,6 +5523,10 @@ msgstr "编辑重定向 {0}"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:727
 msgid "Edit role"
 msgstr "编辑角色"
+
+#: packages/admin/src/router.tsx:2925
+msgid "Edit section"
+msgstr ""
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5563,7 +5618,7 @@ msgid "em1.…"
 msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/Settings.tsx:112
+#: packages/admin/src/components/Settings.tsx:119
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:167
 msgid "Email"
@@ -5604,8 +5659,9 @@ msgstr ""
 msgid "Email provider active"
 msgstr "邮件提供商已激活"
 
-#: packages/admin/src/components/Settings.tsx:108
+#: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
+#: packages/admin/src/router.tsx:2658
 msgid "Email Settings"
 msgstr "邮件设置"
 
@@ -5661,11 +5717,11 @@ msgstr "EmDash {0}"
 msgid "EmDash {latest} is available (you're running {0})"
 msgstr "EmDash {latest} 可用（您当前运行的是 {0}）"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1944
+#: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
 msgstr "EmDash 不保留上一张图片。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1985
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash 不保留未裁剪的图片。"
 
@@ -5887,7 +5943,7 @@ msgid "Enter a valid time"
 msgstr "请输入有效的时间"
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3969
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "输入有效的 URL（例如 https://example.com）"
 
@@ -5916,7 +5972,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "手动输入凭据"
 
-#: packages/admin/src/components/ContentEditor.tsx:2085
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Enter distraction-free mode"
 msgstr "进入无干扰模式"
 
@@ -5924,7 +5980,7 @@ msgstr "进入无干扰模式"
 msgid "Enter email"
 msgstr "输入邮箱"
 
-#: packages/admin/src/components/ContentEditor.tsx:3232
+#: packages/admin/src/components/ContentEditor.tsx:3253
 msgid "Enter markdown content..."
 msgstr "输入 Markdown 内容..."
 
@@ -5989,7 +6045,7 @@ msgstr "链接侧的条目"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3398
+#: packages/admin/src/router.tsx:3505
 msgid "Error"
 msgstr "错误"
 
@@ -6025,11 +6081,11 @@ msgstr "每条导入的记录和媒体文件都已回读并与安装包匹配。
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
 msgstr "其他所有拥有活跃账户的用户将收到一封邮件，告知站点已迁移到 {siteHost}，并附上登录链接。其他地址的通行密钥在 {siteHost} 上不可用，因此用户需通过邮件链接登录并添加新的通行密钥。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1959
+#: packages/admin/src/components/MediaDetailPanel.tsx:1970
 msgid "Every place using this image will update to the cropped version."
 msgstr "使用此图片的所有位置都将更新为裁剪版本。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1928
+#: packages/admin/src/components/MediaDetailPanel.tsx:1939
 msgid "Every place using this image will update to the selected version."
 msgstr "使用此图片的所有位置都将更新为所选版本。"
 
@@ -6066,11 +6122,11 @@ msgstr "现有内容已索引。新更改将自动跟踪。"
 msgid "Exists"
 msgstr "已存在"
 
-#: packages/admin/src/components/ContentEditor.tsx:2085
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Exit distraction-free mode"
 msgstr "退出无干扰模式"
 
-#: packages/admin/src/components/ContentEditor.tsx:2089
+#: packages/admin/src/components/ContentEditor.tsx:2108
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "退出无干扰模式（⌘⇧\\）"
 
@@ -6216,7 +6272,7 @@ msgstr "与插件通信失败"
 msgid "Failed to compare revisions"
 msgstr "比较修订版本失败"
 
-#: packages/admin/src/lib/api/media.ts:389
+#: packages/admin/src/lib/api/media.ts:391
 msgid "Failed to confirm upload"
 msgstr "确认上传失败"
 
@@ -6283,7 +6339,7 @@ msgstr "创建内容失败"
 msgid "Failed to create field"
 msgstr "创建字段失败"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:257
 msgid "Failed to create media folder"
 msgstr "创建媒体文件夹失败"
 
@@ -6329,7 +6385,7 @@ msgid "Failed to create term translation"
 msgstr "创建术语翻译失败"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1665
+#: packages/admin/src/router.tsx:1693
 msgid "Failed to create translation"
 msgstr "创建翻译失败"
 
@@ -6341,7 +6397,7 @@ msgstr "创建小组件失败"
 msgid "Failed to create widget area"
 msgstr "创建小组件区域失败"
 
-#: packages/admin/src/router.tsx:754
+#: packages/admin/src/router.tsx:782
 msgid "Failed to delete"
 msgstr "删除失败"
 
@@ -6377,15 +6433,15 @@ msgstr "删除内容失败"
 msgid "Failed to delete field"
 msgstr "删除字段失败"
 
-#: packages/admin/src/lib/api/media.ts:868
+#: packages/admin/src/lib/api/media.ts:872
 msgid "Failed to delete from provider"
 msgstr "从提供商处删除失败"
 
-#: packages/admin/src/lib/api/media.ts:727
+#: packages/admin/src/lib/api/media.ts:729
 msgid "Failed to delete media"
 msgstr "删除媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:277
+#: packages/admin/src/lib/api/media.ts:279
 msgid "Failed to delete media folder"
 msgstr "删除媒体文件夹失败"
 
@@ -6463,7 +6519,7 @@ msgstr "关闭欢迎页面失败"
 msgid "Failed to download a package file"
 msgstr "下载包文件失败"
 
-#: packages/admin/src/router.tsx:685
+#: packages/admin/src/router.tsx:713
 msgid "Failed to duplicate"
 msgstr "复制失败"
 
@@ -6504,7 +6560,7 @@ msgstr "获取允许的域名失败"
 msgid "Failed to fetch API tokens"
 msgstr "获取 API 令牌失败"
 
-#: packages/admin/src/lib/api/client.ts:395
+#: packages/admin/src/lib/api/client.ts:397
 msgid "Failed to fetch auth mode"
 msgstr "获取认证模式失败"
 
@@ -6578,31 +6634,31 @@ msgstr "获取条目词条失败"
 msgid "Failed to fetch fields"
 msgstr "获取字段失败"
 
-#: packages/admin/src/lib/api/client.ts:378
+#: packages/admin/src/lib/api/client.ts:380
 msgid "Failed to fetch manifest"
 msgstr "获取清单失败"
 
-#: packages/admin/src/lib/api/media.ts:177
+#: packages/admin/src/lib/api/media.ts:179
 msgid "Failed to fetch media"
 msgstr "获取媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:244
 msgid "Failed to fetch media folder"
 msgstr "获取媒体文件夹失败"
 
-#: packages/admin/src/lib/api/media.ts:234
+#: packages/admin/src/lib/api/media.ts:236
 msgid "Failed to fetch media folders"
 msgstr "获取媒体文件夹失败"
 
-#: packages/admin/src/lib/api/media.ts:195
+#: packages/admin/src/lib/api/media.ts:197
 msgid "Failed to fetch media item"
 msgstr "获取媒体项失败"
 
-#: packages/admin/src/lib/api/media.ts:801
+#: packages/admin/src/lib/api/media.ts:805
 msgid "Failed to fetch media providers"
 msgstr "获取媒体提供者失败"
 
-#: packages/admin/src/lib/api/media.ts:218
+#: packages/admin/src/lib/api/media.ts:220
 msgid "Failed to fetch media usage details"
 msgstr "获取媒体使用详情失败"
 
@@ -6640,7 +6696,7 @@ msgstr "获取插件设置失败"
 msgid "Failed to fetch plugins"
 msgstr "获取插件失败"
 
-#: packages/admin/src/lib/api/media.ts:831
+#: packages/admin/src/lib/api/media.ts:835
 msgid "Failed to fetch provider media"
 msgstr "获取提供者媒体失败"
 
@@ -6725,7 +6781,7 @@ msgstr "获取更新状态失败"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2418
+#: packages/admin/src/router.tsx:2449
 msgid "Failed to fetch user"
 msgstr "获取用户失败"
 
@@ -6762,7 +6818,7 @@ msgstr "获取身份验证选项失败"
 msgid "Failed to get registration options"
 msgstr "获取注册选项失败"
 
-#: packages/admin/src/lib/api/media.ts:356
+#: packages/admin/src/lib/api/media.ts:358
 msgid "Failed to get upload URL"
 msgstr "获取上传 URL 失败"
 
@@ -6798,7 +6854,7 @@ msgstr "列出署名字段失败"
 msgid "Failed to list files to upload"
 msgstr "列出待上传文件失败"
 
-#: packages/admin/src/router.tsx:486
+#: packages/admin/src/router.tsx:512
 msgid "Failed to load admin"
 msgstr "加载管理后台失败"
 
@@ -6914,7 +6970,7 @@ msgid "Failed to lock the entry"
 msgstr "锁定条目失败"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2507
+#: packages/admin/src/router.tsx:2538
 msgid "Failed to perform bulk action"
 msgstr "执行批量操作失败"
 
@@ -6931,8 +6987,8 @@ msgstr "准备导入失败"
 msgid "Failed to probe URL"
 msgstr "探测 URL 失败"
 
-#: packages/admin/src/router.tsx:710
-#: packages/admin/src/router.tsx:1526
+#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:1554
 msgid "Failed to publish"
 msgstr "发布失败"
 
@@ -6944,7 +7000,7 @@ msgstr "发布内容失败"
 msgid "Failed to read byline field usage"
 msgstr "读取署名字段使用情况失败"
 
-#: packages/admin/src/router.tsx:2935
+#: packages/admin/src/router.tsx:3032
 msgid "Failed to register {slug}"
 msgstr "注册 {slug} 失败"
 
@@ -6961,7 +7017,7 @@ msgstr "释放条目锁定失败"
 msgid "Failed to remove passkey"
 msgstr "移除通行密钥失败"
 
-#: packages/admin/src/lib/api/media.ts:268
+#: packages/admin/src/lib/api/media.ts:270
 msgid "Failed to rename media folder"
 msgstr "重命名媒体文件夹失败"
 
@@ -6995,11 +7051,11 @@ msgstr "重新排序术语失败"
 msgid "Failed to reorder widgets"
 msgstr "重新排序小部件失败"
 
-#: packages/admin/src/lib/api/media.ts:715
+#: packages/admin/src/lib/api/media.ts:717
 msgid "Failed to replace media image"
 msgstr "替换媒体图片失败"
 
-#: packages/admin/src/router.tsx:664
+#: packages/admin/src/router.tsx:692
 msgid "Failed to restore"
 msgstr "恢复失败"
 
@@ -7021,11 +7077,11 @@ msgstr "撤销 API 令牌失败"
 msgid "Failed to rewrite URLs"
 msgstr "重写 URL 失败"
 
-#: packages/admin/src/components/ContentEditor.tsx:2437
-#: packages/admin/src/components/ContentEditor.tsx:2691
-#: packages/admin/src/router.tsx:906
-#: packages/admin/src/router.tsx:1364
-#: packages/admin/src/router.tsx:3122
+#: packages/admin/src/components/ContentEditor.tsx:2458
+#: packages/admin/src/components/ContentEditor.tsx:2712
+#: packages/admin/src/router.tsx:934
+#: packages/admin/src/router.tsx:1392
+#: packages/admin/src/router.tsx:3222
 msgid "Failed to save"
 msgstr "保存失败"
 
@@ -7072,6 +7128,13 @@ msgstr "发送验证邮件失败"
 msgid "Failed to set entry terms"
 msgstr "设置条目词条失败"
 
+#: packages/auth-atproto/src/admin.tsx:78
+#: packages/auth-atproto/src/admin.tsx:88
+#: packages/auth-atproto/src/admin.tsx:152
+#: packages/auth-atproto/src/admin.tsx:163
+msgid "Failed to start AT Protocol login"
+msgstr ""
+
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
 msgstr "开始导出失败"
@@ -7086,7 +7149,7 @@ msgstr "开始导入失败"
 msgid "Failed to uninstall plugin"
 msgstr "卸载插件失败"
 
-#: packages/admin/src/router.tsx:1550
+#: packages/admin/src/router.tsx:1578
 msgid "Failed to unpublish"
 msgstr "取消发布失败"
 
@@ -7094,7 +7157,7 @@ msgstr "取消发布失败"
 msgid "Failed to unpublish content"
 msgstr "取消发布内容失败"
 
-#: packages/admin/src/router.tsx:1634
+#: packages/admin/src/router.tsx:1662
 msgid "Failed to unschedule"
 msgstr "取消安排发布失败"
 
@@ -7102,7 +7165,7 @@ msgstr "取消安排发布失败"
 msgid "Failed to unschedule content"
 msgstr "取消定时发布内容失败"
 
-#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:761
 msgid "Failed to update"
 msgstr "更新失败"
 
@@ -7151,7 +7214,7 @@ msgstr "更新域名失败"
 msgid "Failed to update field"
 msgstr "更新字段失败"
 
-#: packages/admin/src/lib/api/media.ts:751
+#: packages/admin/src/lib/api/media.ts:753
 msgid "Failed to update media"
 msgstr "更新媒体失败"
 
@@ -7193,7 +7256,7 @@ msgstr "更新分区失败"
 msgid "Failed to update settings"
 msgstr "更新设置失败"
 
-#: packages/admin/src/router.tsx:2471
+#: packages/admin/src/router.tsx:2502
 msgid "Failed to update status"
 msgstr "更新状态失败"
 
@@ -7213,15 +7276,15 @@ msgstr "更新小组件失败"
 msgid "Failed to upload a package file"
 msgstr "上传包文件失败"
 
-#: packages/admin/src/lib/api/media.ts:414
+#: packages/admin/src/lib/api/media.ts:416
 msgid "Failed to upload file"
 msgstr "上传文件失败"
 
-#: packages/admin/src/lib/api/media.ts:647
+#: packages/admin/src/lib/api/media.ts:649
 msgid "Failed to upload media"
 msgstr "上传媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:856
+#: packages/admin/src/lib/api/media.ts:860
 msgid "Failed to upload to provider"
 msgstr "上传到提供者失败"
 
@@ -7319,13 +7382,13 @@ msgstr "文件 {0}"
 msgid "File from media library"
 msgstr "来自媒体库的文件"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1433
-#: packages/admin/src/components/MediaDetailPanel.tsx:1438
+#: packages/admin/src/components/MediaDetailPanel.tsx:1444
+#: packages/admin/src/components/MediaDetailPanel.tsx:1449
 #: packages/admin/src/components/MediaLibrary.tsx:1168
 msgid "Filename"
 msgstr "文件名"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:529
+#: packages/admin/src/components/MediaDetailPanel.tsx:531
 msgid "Filename cannot be changed after upload"
 msgstr "文件名上传后无法更改"
 
@@ -7426,19 +7489,19 @@ msgstr "第一个版本"
 msgid "First-time commenters only"
 msgstr "仅首次评论者"
 
-#: packages/admin/src/components/ContentEditor.tsx:233
+#: packages/admin/src/components/ContentEditor.tsx:234
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1788
+#: packages/admin/src/components/ContentEditor.tsx:1792
 msgid "Fix invalid fields before changing the publication date"
 msgstr "请先修正无效字段，再更改发布日期。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1716
+#: packages/admin/src/components/ContentEditor.tsx:1720
 msgid "Fix invalid fields before changing the schedule"
 msgstr "请先修正无效字段，再更改定时发布。"
 
-#: packages/admin/src/components/ContentEditor.tsx:232
+#: packages/admin/src/components/ContentEditor.tsx:233
 msgid "Fix the {block} block to resume saving."
 msgstr ""
 
@@ -7446,8 +7509,8 @@ msgstr ""
 msgid "Fix the percent-encoding in the path."
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1627
 #: packages/admin/src/components/MediaDetailPanel.tsx:1638
+#: packages/admin/src/components/MediaDetailPanel.tsx:1649
 msgid "Focal point"
 msgstr "对焦点"
 
@@ -7463,7 +7526,7 @@ msgstr "文件夹"
 msgid "Folder deleted"
 msgstr "文件夹已删除"
 
-#: packages/admin/src/router.tsx:2141
+#: packages/admin/src/router.tsx:2171
 msgid "Folder no longer exists"
 msgstr "文件夹已不存在"
 
@@ -7488,7 +7551,7 @@ msgstr "文件夹不可用"
 msgid "Folders"
 msgstr "文件夹"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1541
+#: packages/admin/src/components/MediaDetailPanel.tsx:1552
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaLibrary.tsx:1492
 #: packages/admin/src/components/MediaPickerModal.tsx:1370
@@ -7511,15 +7574,15 @@ msgstr "如需完整导入（包括草稿和所有内容），请从 WordPress �
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "为获得最佳导入体验，请在您的 WordPress 站点上安装 <0>EmDash Exporter</0> 插件。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5164
+#: packages/admin/src/components/PortableTextEditor.tsx:5167
 msgid "Format selection"
 msgstr "格式选择"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1366
+#: packages/admin/src/components/MediaDetailPanel.tsx:1377
 msgid "Format:"
 msgstr "格式："
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:538
+#: packages/admin/src/components/MediaDetailPanel.tsx:540
 msgid "Freeform"
 msgstr "自由格式"
 
@@ -7569,11 +7632,12 @@ msgstr "画廊"
 msgid "Gallery settings"
 msgstr "画廊设置"
 
-#: packages/admin/src/components/Settings.tsx:54
+#: packages/admin/src/components/Settings.tsx:55
 msgid "General"
 msgstr "常规"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
+#: packages/admin/src/router.tsx:2696
 msgid "General Settings"
 msgstr "常规设置"
 
@@ -7605,7 +7669,7 @@ msgstr "为此通行密钥命名以便日后识别。"
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1710
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Go back to editing first."
 msgstr "请先返回编辑。"
 
@@ -7613,12 +7677,12 @@ msgstr "请先返回编辑。"
 msgid "Go live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
 msgid "Go live {countdown}"
 msgstr "上线 {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3418
+#: packages/admin/src/router.tsx:3525
 msgid "Go to Dashboard"
 msgstr "前往仪表板"
 
@@ -7630,11 +7694,11 @@ msgstr "前往登录"
 msgid "Go to the next problem"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:352
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Goes live"
 msgstr "上线"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
 msgid "Goes live {countdown}"
 msgstr "上线 {countdown}"
 
@@ -7799,7 +7863,7 @@ msgstr "隐藏令牌"
 msgid "visualEditing.hideToolbar"
 msgstr "隐藏工具栏"
 
-#: packages/admin/src/components/Shell.tsx:88
+#: packages/admin/src/components/Shell.tsx:126
 msgid "Hide toolbar"
 msgstr "隐藏工具栏"
 
@@ -7816,7 +7880,7 @@ msgstr "点击量"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "当有人正在编辑条目时将其锁定，并拒绝其他写入者。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3466
+#: packages/admin/src/components/ContentEditor.tsx:3487
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "存储条目 ID。若要选择条目，请在内容类型下设置目标合集。"
 
@@ -7991,7 +8055,7 @@ msgstr "图片 {0}"
 msgid "Image actions"
 msgstr "图片操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5899
+#: packages/admin/src/components/PortableTextEditor.tsx:5902
 msgid "Image controls"
 msgstr "图片控件"
 
@@ -7999,7 +8063,7 @@ msgstr "图片控件"
 msgid "Image from media library"
 msgstr "来自媒体库的图片"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6467
+#: packages/admin/src/components/PortableTextEditor.tsx:6470
 msgid "Image link"
 msgstr "图片链接"
 
@@ -8016,12 +8080,12 @@ msgstr "未找到图片"
 msgid "Image replaced:"
 msgstr "图片已替换："
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:717
+#: packages/admin/src/components/MediaDetailPanel.tsx:719
 msgid "Image replaced."
 msgstr "图片已替换。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:6033
+#: packages/admin/src/components/PortableTextEditor.tsx:6036
 msgid "Image settings"
 msgstr "图片设置"
 
@@ -8112,6 +8176,7 @@ msgid "Import failed"
 msgstr "导入失败"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/router.tsx:2861
 msgid "Import from WordPress"
 msgstr "从 WordPress 导入"
 
@@ -8252,8 +8317,8 @@ msgstr "内联"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "内联区块使用您站点的样式。您的站点会移除脚本、style 标签和 style 属性，并清空除 YouTube 和 Vimeo 之外的 iframe。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4967
-#: packages/admin/src/components/PortableTextEditor.tsx:6536
+#: packages/admin/src/components/PortableTextEditor.tsx:4970
+#: packages/admin/src/components/PortableTextEditor.tsx:6539
 msgid "Inline Code"
 msgstr "行内代码"
 
@@ -8298,8 +8363,8 @@ msgstr "插入图片画廊"
 msgid "Insert block"
 msgstr "插入区块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6483
-#: packages/admin/src/components/PortableTextEditor.tsx:6493
+#: packages/admin/src/components/PortableTextEditor.tsx:6486
+#: packages/admin/src/components/PortableTextEditor.tsx:6496
 msgid "Insert block after current block"
 msgstr "在当前区块后插入区块"
 
@@ -8307,12 +8372,12 @@ msgstr "在当前区块后插入区块"
 msgid "Insert block below"
 msgstr "在下方插入区块"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6617
+#: packages/admin/src/components/PortableTextEditor.tsx:6620
 msgid "Insert HTML"
 msgstr "插入 HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4873
-#: packages/admin/src/components/PortableTextEditor.tsx:6610
+#: packages/admin/src/components/PortableTextEditor.tsx:4876
+#: packages/admin/src/components/PortableTextEditor.tsx:6613
 msgid "Insert image"
 msgstr "插入图片"
 
@@ -8341,7 +8406,7 @@ msgstr "插入区块"
 msgid "Insert table"
 msgstr "插入表格"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4887
+#: packages/admin/src/components/PortableTextEditor.tsx:4890
 msgid "Insert video"
 msgstr "插入视频"
 
@@ -8403,7 +8468,7 @@ msgstr "无效句柄"
 msgid "Invalid invite link"
 msgstr "无效的邀请链接"
 
-#: packages/admin/src/components/ContentEditor.tsx:4062
+#: packages/admin/src/components/ContentEditor.tsx:4083
 msgid "Invalid JSON"
 msgstr "无效的 JSON"
 
@@ -8469,8 +8534,8 @@ msgstr "它由您在安全系统提示中选择的验证器或凭据管理器存
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "它已在其他位置启动，因此其计划无法再更改。进度将显示在此处。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4964
-#: packages/admin/src/components/PortableTextEditor.tsx:6512
+#: packages/admin/src/components/PortableTextEditor.tsx:4967
+#: packages/admin/src/components/PortableTextEditor.tsx:6515
 msgid "Italic"
 msgstr "斜体"
 
@@ -8621,9 +8686,9 @@ msgstr "横向"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:360
-#: packages/admin/src/components/Settings.tsx:132
-#: packages/admin/src/components/Settings.tsx:142
-#: packages/admin/src/components/Settings.tsx:156
+#: packages/admin/src/components/Settings.tsx:138
+#: packages/admin/src/components/Settings.tsx:148
+#: packages/admin/src/components/Settings.tsx:162
 msgid "Language"
 msgstr "语言"
 
@@ -8631,7 +8696,7 @@ msgstr "语言"
 msgid "Large section heading"
 msgstr "大章节标题"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
 msgid "Last edited"
 msgstr "上次编辑"
 
@@ -8705,8 +8770,8 @@ msgstr "不保存直接离开？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:5479
-#: packages/admin/src/components/PortableTextEditor.tsx:5600
+#: packages/admin/src/components/PortableTextEditor.tsx:5482
+#: packages/admin/src/components/PortableTextEditor.tsx:5603
 msgid "Left"
 msgstr "左侧"
 
@@ -8728,7 +8793,7 @@ msgid "Limit"
 msgstr "限制"
 
 #: packages/admin/src/components/BlocksField.tsx:2238
-#: packages/admin/src/components/PortableTextEditor.tsx:6696
+#: packages/admin/src/components/PortableTextEditor.tsx:6699
 msgid "Link"
 msgstr "链接"
 
@@ -8736,7 +8801,7 @@ msgstr "链接"
 msgid "Link expired"
 msgstr "链接已过期"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5299
+#: packages/admin/src/components/PortableTextEditor.tsx:5302
 msgid "Link options"
 msgstr "链接选项"
 
@@ -8841,7 +8906,7 @@ msgstr "列表视图"
 msgid "Live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
 #: packages/admin/src/components/ContentSettingsPanel.tsx:204
 #: packages/admin/src/components/ContentSettingsPanel.tsx:230
@@ -8871,7 +8936,7 @@ msgstr "加载更多"
 msgid "Load More"
 msgstr "加载更多"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1560
+#: packages/admin/src/components/MediaDetailPanel.tsx:1571
 #: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1419
@@ -8883,7 +8948,7 @@ msgid "Load preview"
 msgstr "加载预览"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3373
+#: packages/admin/src/router.tsx:3480
 msgid "Loading"
 msgstr "正在加载"
 
@@ -8912,8 +8977,8 @@ msgstr "正在加载合集..."
 msgid "Loading comments..."
 msgstr "正在加载评论..."
 
-#: packages/admin/src/router.tsx:3375
-#: packages/admin/src/router.tsx:3387
+#: packages/admin/src/router.tsx:3482
+#: packages/admin/src/router.tsx:3494
 msgid "Loading configuration..."
 msgstr "正在加载配置..."
 
@@ -8921,7 +8986,7 @@ msgstr "正在加载配置..."
 msgid "Loading content..."
 msgstr "正在加载内容..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4709
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
 msgid "Loading editor..."
 msgstr "正在加载编辑器..."
 
@@ -8935,7 +9000,7 @@ msgstr "正在加载导出…"
 msgid "Loading folders"
 msgstr "正在加载文件夹"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1512
+#: packages/admin/src/components/MediaDetailPanel.tsx:1523
 msgid "Loading folders..."
 msgstr "正在加载文件夹..."
 
@@ -8971,7 +9036,7 @@ msgstr "正在加载插件..."
 msgid "Loading redirects..."
 msgstr "正在加载重定向..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3787
+#: packages/admin/src/components/ContentEditor.tsx:3808
 msgid "Loading references..."
 msgstr "正在加载引用..."
 
@@ -9018,10 +9083,10 @@ msgstr "正在加载小部件..."
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/ContentPickerModal.tsx:371
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaDetailPanel.tsx:605
-#: packages/admin/src/components/MediaDetailPanel.tsx:621
+#: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
-#: packages/admin/src/components/MediaDetailPanel.tsx:1720
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
+#: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:3311
@@ -9057,7 +9122,7 @@ msgstr "加载中…"
 msgid "Local time"
 msgstr "本地时间"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:364
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -9070,15 +9135,15 @@ msgstr "语言区域"
 msgid "Locales will use this site’s capitalization"
 msgstr "语言环境将采用本站的大小写规则"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1449
-#: packages/admin/src/components/MediaDetailPanel.tsx:1477
-#: packages/admin/src/components/MediaDetailPanel.tsx:1568
-#: packages/admin/src/components/MediaDetailPanel.tsx:1570
+#: packages/admin/src/components/MediaDetailPanel.tsx:1460
+#: packages/admin/src/components/MediaDetailPanel.tsx:1488
+#: packages/admin/src/components/MediaDetailPanel.tsx:1579
+#: packages/admin/src/components/MediaDetailPanel.tsx:1581
 msgid "Location"
 msgstr "位置"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:606
-#: packages/admin/src/components/MediaDetailPanel.tsx:623
+#: packages/admin/src/components/MediaDetailPanel.tsx:608
+#: packages/admin/src/components/MediaDetailPanel.tsx:625
 msgid "Location unavailable"
 msgstr "位置不可用"
 
@@ -9091,6 +9156,10 @@ msgstr "锁定宽高比"
 #: packages/admin/src/components/BylineFieldEditor.tsx:416
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "已锁定，因为此字段有存储值。删除这些值（或删除该字段）才能更改。"
+
+#: packages/admin/src/router.tsx:428
+msgid "Log in"
+msgstr ""
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -9123,7 +9192,7 @@ msgstr "小写字母、数字和下划线。引用字段存储此值。"
 msgid "Lua"
 msgstr "Lua"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:574
+#: packages/admin/src/components/MediaDetailPanel.tsx:576
 #: packages/admin/src/components/MediaPickerModal.tsx:1241
 msgid "Main library"
 msgstr "主库"
@@ -9166,16 +9235,16 @@ msgstr "管理在您的内容中署名的人员和团队。"
 msgid "Manage URL redirects and view 404 errors."
 msgstr "管理 URL 重定向并查看 404 错误。"
 
-#: packages/admin/src/components/Settings.tsx:88
+#: packages/admin/src/components/Settings.tsx:90
 #: packages/admin/src/components/settings/SecuritySettings.tsx:94
 msgid "Manage your passkeys and authentication"
 msgstr "管理您的通行密钥和认证"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1419
+#: packages/admin/src/components/MediaDetailPanel.tsx:1430
 msgid "Managed by {providerName}"
 msgstr "由 {providerName} 管理"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1420
+#: packages/admin/src/components/MediaDetailPanel.tsx:1431
 msgid "Managed by an external media provider"
 msgstr "由外部媒体服务商管理"
 
@@ -9218,11 +9287,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "市场"
 
-#: packages/admin/src/router.tsx:2772
+#: packages/admin/src/router.tsx:2849
 msgid "Marketplace browsing is no longer available."
 msgstr "市场浏览功能已下线。"
 
-#: packages/admin/src/router.tsx:2747
+#: packages/admin/src/router.tsx:2822
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "市场浏览功能已下线。请在“插件”中管理已安装的插件。"
 
@@ -9267,17 +9336,18 @@ msgid "MDX"
 msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2012
-#: packages/admin/src/components/Settings.tsx:72
+#: packages/admin/src/components/Settings.tsx:74
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:467
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/router.tsx:2130
 msgid "Media"
 msgstr "媒体"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1127
+#: packages/admin/src/components/MediaDetailPanel.tsx:1129
 msgid "Media details"
 msgstr "媒体详情"
 
@@ -9336,7 +9406,11 @@ msgstr "媒体读取"
 msgid "Media results"
 msgstr "媒体结果"
 
-#: packages/admin/src/components/Settings.tsx:76
+#: packages/admin/src/router.tsx:2605
+msgid "Media Usage"
+msgstr ""
+
+#: packages/admin/src/components/Settings.tsx:78
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
 msgstr "媒体用量跟踪"
@@ -9428,6 +9502,7 @@ msgstr "菜单已重命名"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/router.tsx:2869
 msgid "Menus"
 msgstr "菜单"
 
@@ -9534,7 +9609,7 @@ msgstr "月度/年度归档"
 msgid "More actions for {0}"
 msgstr "{0} 的更多操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5446
+#: packages/admin/src/components/PortableTextEditor.tsx:5449
 msgid "More formatting"
 msgstr "更多格式"
 
@@ -9574,7 +9649,7 @@ msgstr "将「{title}」移至回收站？您可以稍后恢复它。"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3754
+#: packages/admin/src/components/ContentEditor.tsx:3775
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "将 {0} 下移"
@@ -9591,7 +9666,7 @@ msgstr "将 {0} 后移"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3743
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "将 {0} 上移"
@@ -9604,11 +9679,11 @@ msgstr "将 {0} 上移"
 msgid "Move down"
 msgstr "下移"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:533
+#: packages/admin/src/components/MediaDetailPanel.tsx:535
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr "移动焦点以选择裁剪后保留可见的区域。"
 
-#: packages/admin/src/components/Settings.tsx:126
+#: packages/admin/src/components/Settings.tsx:132
 msgid "Move this site to another EmDash installation, or import a site package"
 msgstr "将此站点迁移到另一个 EmDash 安装，或导入站点包"
 
@@ -9668,11 +9743,11 @@ msgstr ""
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:730
+#: packages/admin/src/router.tsx:758
 msgid "Moved {total} items to draft"
 msgstr "已将 {total} 个项目移到草稿"
 
-#: packages/admin/src/router.tsx:751
+#: packages/admin/src/router.tsx:779
 msgid "Moved {total} items to trash"
 msgstr "已将 {total} 个项目移到回收站"
 
@@ -9823,7 +9898,7 @@ msgstr "需要注意"
 msgid "Never"
 msgstr "从未"
 
-#: packages/admin/src/router.tsx:1660
+#: packages/admin/src/router.tsx:1688
 msgid "new"
 msgstr "新建"
 
@@ -9831,7 +9906,8 @@ msgstr "新建"
 msgid "NEW"
 msgstr "新"
 
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "New {itemLabel}"
 msgstr "新建{itemLabel}"
 
@@ -9852,6 +9928,14 @@ msgstr "新建署名字段"
 #: packages/admin/src/components/WordPressImport.tsx:2039
 msgid "New collection"
 msgstr "新合集"
+
+#: packages/admin/src/router.tsx:887
+msgid "New content"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3075
+msgid "New content type"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 #: packages/admin/src/components/ContentTypeList.tsx:159
@@ -10075,7 +10159,7 @@ msgstr "暂无内容类型。"
 msgid "No custom fields yet"
 msgstr "尚无自定义字段"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5995
+#: packages/admin/src/components/PortableTextEditor.tsx:5998
 msgid "No description yet"
 msgstr "暂无描述"
 
@@ -10133,7 +10217,7 @@ msgstr "无字段"
 msgid "No files added"
 msgstr "未添加文件"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1520
+#: packages/admin/src/components/MediaDetailPanel.tsx:1531
 msgid "No folders found"
 msgstr "未找到文件夹"
 
@@ -10295,7 +10379,7 @@ msgstr "此仓库尚未发布任何插件。"
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "没有匹配 \"{debouncedQuery}\" 的插件。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1388
+#: packages/admin/src/components/MediaDetailPanel.tsx:1399
 msgid "No public URL available"
 msgstr "无可用的公开 URL"
 
@@ -10311,7 +10395,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "暂无重定向"
 
-#: packages/admin/src/components/ContentEditor.tsx:3697
+#: packages/admin/src/components/ContentEditor.tsx:3718
 msgid "No references selected."
 msgstr "未选择引用。"
 
@@ -10339,7 +10423,7 @@ msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "「{debouncedQuery}」无结果。请尝试其他搜索词。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:494
-#: packages/admin/src/components/Settings.tsx:166
+#: packages/admin/src/components/Settings.tsx:172
 msgid "No results found"
 msgstr "未找到结果"
 
@@ -10397,7 +10481,7 @@ msgid "Non-guest"
 msgstr "非访客"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:5599
+#: packages/admin/src/components/PortableTextEditor.tsx:5602
 msgid "None"
 msgstr "无"
 
@@ -10426,7 +10510,7 @@ msgstr "未匹配"
 msgid "Not recorded in this version"
 msgstr "此版本未记录"
 
-#: packages/admin/src/components/ContentEditor.tsx:2439
+#: packages/admin/src/components/ContentEditor.tsx:2460
 msgid "Not saved yet"
 msgstr ""
 
@@ -10477,7 +10561,7 @@ msgstr "列表视图每页显示的文章数量"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:2064
-#: packages/admin/src/components/PortableTextEditor.tsx:6569
+#: packages/admin/src/components/PortableTextEditor.tsx:6572
 msgid "Numbered List"
 msgstr "有序列表"
 
@@ -10557,7 +10641,7 @@ msgid "Open"
 msgstr "打开"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3732
+#: packages/admin/src/components/ContentEditor.tsx:3753
 msgid "Open {0} in a new tab"
 msgstr "在新标签页中打开 {0}"
 
@@ -10573,7 +10657,7 @@ msgstr "打开文件夹 {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "在管理后台打开"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:483
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
 msgid "Open in editor"
 msgstr "在编辑器中打开"
 
@@ -10634,7 +10718,7 @@ msgstr "可选标题"
 msgid "Optional caption displayed below the image"
 msgstr "显示在图片下方的可选说明"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1600
+#: packages/admin/src/components/MediaDetailPanel.tsx:1611
 msgid "Optional caption for display"
 msgstr "用于显示的可选说明"
 
@@ -10694,11 +10778,11 @@ msgstr "顺序已保存"
 msgid "Ordered page-building blocks"
 msgstr "排序的页面构建区块"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:537
+#: packages/admin/src/components/MediaDetailPanel.tsx:539
 msgid "Original"
 msgstr "原图"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:785
+#: packages/admin/src/components/MediaDetailPanel.tsx:787
 msgid "Original image cropped."
 msgstr "原图已裁剪。"
 
@@ -10722,7 +10806,7 @@ msgctxt "button style"
 msgid "Outline"
 msgstr ""
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1713
+#: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
 msgstr "输出尺寸"
 
@@ -10757,7 +10841,11 @@ msgstr "包摘要"
 msgid "Package downloaded"
 msgstr "包已下载"
 
-#: packages/admin/src/router.tsx:3413
+#: packages/admin/src/router.tsx:3393
+msgid "Page not found"
+msgstr ""
+
+#: packages/admin/src/router.tsx:3520
 msgid "Page Not Found"
 msgstr "页面未找到"
 
@@ -11023,6 +11111,7 @@ msgid "Please enter a valid URL"
 msgstr "请输入有效的 URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/router.tsx:3369
 msgid "Plugin"
 msgstr "插件"
 
@@ -11047,7 +11136,7 @@ msgstr "插件操作失败"
 msgid "Plugin actions"
 msgstr "插件操作"
 
-#: packages/admin/src/components/ContentEditor.tsx:2183
+#: packages/admin/src/components/ContentEditor.tsx:2202
 msgid "Plugin changes were not applied"
 msgstr "插件更改未应用"
 
@@ -11058,6 +11147,11 @@ msgstr "插件列不可用"
 #: packages/admin/src/components/RegistryPluginDetail.tsx:855
 msgid "Plugin details"
 msgstr "插件详情"
+
+#: packages/admin/src/router.tsx:2794
+#: packages/admin/src/router.tsx:2801
+msgid "Plugin Details"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -11079,6 +11173,10 @@ msgstr "插件错误（{0}）"
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
 msgstr "安装插件需要明确同意"
+
+#: packages/admin/src/router.tsx:2786
+msgid "Plugin Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:412
 msgid "Plugin MCP access updated"
@@ -11116,6 +11214,7 @@ msgid "Plugin Permissions"
 msgstr "插件权限"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
+#: packages/admin/src/router.tsx:2743
 msgid "Plugin Registry"
 msgstr "插件仓库"
 
@@ -11124,8 +11223,8 @@ msgstr "插件仓库"
 msgid "Plugin registry configuration error"
 msgstr "插件库配置错误"
 
-#: packages/admin/src/router.tsx:2707
-#: packages/admin/src/router.tsx:2738
+#: packages/admin/src/router.tsx:2779
+#: packages/admin/src/router.tsx:2813
 msgid "Plugin registry is not configured."
 msgstr "插件库未配置。"
 
@@ -11133,6 +11232,10 @@ msgstr "插件库未配置。"
 #: packages/admin/src/components/SandboxedPluginPage.tsx:59
 msgid "Plugin responded with {0}: {text}"
 msgstr "插件响应：{0}：{text}"
+
+#: packages/admin/src/router.tsx:3356
+msgid "Plugin Settings"
+msgstr ""
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -11163,6 +11266,7 @@ msgstr "插件组件错误"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
+#: packages/admin/src/router.tsx:2728
 msgid "Plugins"
 msgstr "插件"
 
@@ -11251,17 +11355,17 @@ msgstr "按 Escape 退出代码编辑器。"
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "按空格拾取图片。使用方向键移动，然后按空格放下。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 #: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/MediaDetailPanel.tsx:1667
+#: packages/admin/src/components/MediaDetailPanel.tsx:1678
 #: packages/admin/src/components/MediaLibrary.tsx:1166
 msgid "Preview"
 msgstr "预览"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 msgid "Preview changes"
 msgstr "预览更改"
 
@@ -11386,7 +11490,7 @@ msgstr "发布更改？"
 msgid "visualEditing.publishFailed"
 msgstr "发布失败"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
 #: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr "立即发布"
@@ -11405,14 +11509,14 @@ msgid "visualEditing.published"
 msgstr "已发布"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1521
+#: packages/admin/src/router.tsx:1549
 msgid "Published"
 msgstr "已发布"
 
@@ -11421,11 +11525,11 @@ msgstr "已发布"
 msgid "Published {0}"
 msgstr "发布于 {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:431
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
 msgid "Published {liveSince}"
 msgstr "已发布 {liveSince}"
 
-#: packages/admin/src/router.tsx:707
+#: packages/admin/src/router.tsx:735
 msgid "Published {total} items"
 msgstr "已发布 {total} 个项目"
 
@@ -11453,7 +11557,7 @@ msgstr "发布者标识验证失败"
 msgid "Publisher release policy"
 msgstr "发布者发布策略"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:399
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
 msgid "Publishing"
 msgstr "发布中"
 
@@ -11489,7 +11593,7 @@ msgstr "快速创建将根据此字段和此内容集合为关联关系命名，
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:2074
 #: packages/admin/src/components/PortableTextEditor.tsx:3623
-#: packages/admin/src/components/PortableTextEditor.tsx:6595
+#: packages/admin/src/components/PortableTextEditor.tsx:6598
 msgid "Quote"
 msgstr "引用"
 
@@ -11565,7 +11669,7 @@ msgid "Read your taxonomies and terms"
 msgstr "读取您的分类法和术语"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2073
+#: packages/admin/src/router.tsx:2102
 msgid "Read-only"
 msgstr "只读"
 
@@ -11656,6 +11760,7 @@ msgstr "正在重定向到登录..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
+#: packages/admin/src/router.tsx:2911
 msgid "Redirects"
 msgstr "重定向"
 
@@ -11663,7 +11768,7 @@ msgstr "重定向"
 msgid "Redirects that loop will be imported turned off"
 msgstr "存在循环的重定向将在导入后处于关闭状态"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6758
+#: packages/admin/src/components/PortableTextEditor.tsx:6761
 msgid "Redo"
 msgstr "重做"
 
@@ -11734,6 +11839,7 @@ msgstr "插件仓库"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
+#: packages/admin/src/router.tsx:3111
 msgid "Relations"
 msgstr "关系"
 
@@ -11775,8 +11881,8 @@ msgstr "移除图片"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4255
-#: packages/admin/src/components/ContentEditor.tsx:4321
+#: packages/admin/src/components/ContentEditor.tsx:4276
+#: packages/admin/src/components/ContentEditor.tsx:4342
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11785,7 +11891,7 @@ msgstr "移除图片"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:6731
+#: packages/admin/src/components/PortableTextEditor.tsx:6734
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -11797,7 +11903,7 @@ msgstr "移除"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3767
+#: packages/admin/src/components/ContentEditor.tsx:3788
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11814,8 +11920,8 @@ msgstr "从选中项中移除 {0}"
 msgid "Remove {entry}"
 msgstr "移除 {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4253
-#: packages/admin/src/components/ContentEditor.tsx:4319
+#: packages/admin/src/components/ContentEditor.tsx:4274
+#: packages/admin/src/components/ContentEditor.tsx:4340
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -11864,9 +11970,9 @@ msgstr "要移除图片吗？"
 msgid "Remove item {0}"
 msgstr "移除项目 {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5190
-#: packages/admin/src/components/PortableTextEditor.tsx:5333
-#: packages/admin/src/components/PortableTextEditor.tsx:5967
+#: packages/admin/src/components/PortableTextEditor.tsx:5193
+#: packages/admin/src/components/PortableTextEditor.tsx:5336
+#: packages/admin/src/components/PortableTextEditor.tsx:5970
 msgid "Remove link"
 msgstr "移除链接"
 
@@ -11878,7 +11984,7 @@ msgstr "移除通行密钥"
 msgid "Remove passkey?"
 msgstr "移除通行密钥？"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
 #: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr "移除定时发布"
@@ -12032,9 +12138,9 @@ msgstr "重复的字段组"
 msgid "visualEditing.replaceImage"
 msgstr "替换图片"
 
-#: packages/admin/src/components/ContentEditor.tsx:4210
-#: packages/admin/src/components/ContentEditor.tsx:4245
-#: packages/admin/src/components/ContentEditor.tsx:4311
+#: packages/admin/src/components/ContentEditor.tsx:4231
+#: packages/admin/src/components/ContentEditor.tsx:4266
+#: packages/admin/src/components/ContentEditor.tsx:4332
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12047,14 +12153,14 @@ msgstr "替换图片"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:5989
-#: packages/admin/src/components/PortableTextEditor.tsx:6071
+#: packages/admin/src/components/PortableTextEditor.tsx:5992
+#: packages/admin/src/components/PortableTextEditor.tsx:6074
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr "替换"
 
-#: packages/admin/src/components/ContentEditor.tsx:4209
+#: packages/admin/src/components/ContentEditor.tsx:4230
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12072,27 +12178,27 @@ msgstr "替换 {label} 的深色模式变体"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
-#: packages/admin/src/components/MediaDetailPanel.tsx:1808
-#: packages/admin/src/components/MediaDetailPanel.tsx:1931
-#: packages/admin/src/components/PortableTextEditor.tsx:6070
+#: packages/admin/src/components/MediaDetailPanel.tsx:1819
+#: packages/admin/src/components/MediaDetailPanel.tsx:1942
+#: packages/admin/src/components/PortableTextEditor.tsx:6073
 msgid "Replace image"
 msgstr "替换图片"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1839
-#: packages/admin/src/components/MediaDetailPanel.tsx:1962
+#: packages/admin/src/components/MediaDetailPanel.tsx:1850
+#: packages/admin/src/components/MediaDetailPanel.tsx:1973
 msgid "Replace original"
 msgstr "替换原图"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1925
-#: packages/admin/src/components/MediaDetailPanel.tsx:1956
+#: packages/admin/src/components/MediaDetailPanel.tsx:1936
+#: packages/admin/src/components/MediaDetailPanel.tsx:1967
 msgid "Replace original image?"
 msgstr "要替换原图吗？"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1725
+#: packages/admin/src/components/MediaDetailPanel.tsx:1736
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "使用「原图」宽高比时可替换原图。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Replace reference"
 msgstr "替换引用"
 
@@ -12114,14 +12220,14 @@ msgstr "替换为空列表"
 msgid "Replaced an image"
 msgstr "替换了图片"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:950
-#: packages/admin/src/components/MediaDetailPanel.tsx:1932
+#: packages/admin/src/components/MediaDetailPanel.tsx:952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1943
 msgid "Replacing image..."
 msgstr "正在替换图片…"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:969
-#: packages/admin/src/components/MediaDetailPanel.tsx:1963
-#: packages/admin/src/components/MediaDetailPanel.tsx:1981
+#: packages/admin/src/components/MediaDetailPanel.tsx:971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1974
+#: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "正在替换原图…"
 
@@ -12145,7 +12251,7 @@ msgstr "仓库"
 msgid "Request a new link"
 msgstr "请求新链接"
 
-#: packages/admin/src/lib/api/client.ts:366
+#: packages/admin/src/lib/api/client.ts:368
 msgid "Request failed"
 msgstr "请求失败"
 
@@ -12176,11 +12282,11 @@ msgstr "无障碍访问必需。为屏幕阅读器描述图片。"
 msgid "Requires EmDash {0}"
 msgstr "需要 EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:461
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
 msgid "Reschedule"
 msgstr "重新定时"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "Rescheduled"
 msgstr "已重新定时"
 
@@ -12193,8 +12299,8 @@ msgid "Resend in {resendCooldown}s"
 msgstr "{resendCooldown}秒后重发"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:443
-#: packages/admin/src/components/MediaDetailPanel.tsx:1659
-#: packages/admin/src/components/MediaDetailPanel.tsx:1709
+#: packages/admin/src/components/MediaDetailPanel.tsx:1670
+#: packages/admin/src/components/MediaDetailPanel.tsx:1720
 msgid "Reset"
 msgstr "重置"
 
@@ -12202,7 +12308,7 @@ msgstr "重置"
 msgid "Reset column widths"
 msgstr "重置列宽"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1694
+#: packages/admin/src/components/MediaDetailPanel.tsx:1705
 msgid "Reset crop"
 msgstr "重置裁剪"
 
@@ -12242,7 +12348,7 @@ msgstr "从左上角调整裁剪。使用方向键调整大小。"
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "从右上角调整裁剪。使用方向键调整大小。"
 
-#: packages/admin/src/components/ContentEditor.tsx:2508
+#: packages/admin/src/components/ContentEditor.tsx:2529
 msgid "Resize settings panel"
 msgstr "调整设置面板大小"
 
@@ -12255,7 +12361,7 @@ msgid "Resolving publisher handle..."
 msgstr "正在解析发布者标识…"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:6585
+#: packages/admin/src/components/PortableTextEditor.tsx:6588
 msgid "Restart numbering"
 msgstr "重新编号"
 
@@ -12299,11 +12405,11 @@ msgid "Retired"
 msgstr "已退役"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3781
+#: packages/admin/src/components/ContentEditor.tsx:3802
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/MediaDetailPanel.tsx:1547
+#: packages/admin/src/components/MediaDetailPanel.tsx:1558
 #: packages/admin/src/components/MediaLibrary.tsx:981
 #: packages/admin/src/components/MediaLibrary.tsx:1495
 #: packages/admin/src/components/MediaPickerModal.tsx:1259
@@ -12315,7 +12421,7 @@ msgstr "已退役"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3401
+#: packages/admin/src/router.tsx:3508
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12366,7 +12472,7 @@ msgstr "正在重试…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "可重用的内容区块，可插入到任何内容中"
 
-#: packages/admin/src/router.tsx:1569
+#: packages/admin/src/router.tsx:1597
 msgid "Reverted to published version"
 msgstr "已恢复到发布版本"
 
@@ -12456,13 +12562,14 @@ msgid "Rich text content"
 msgstr "富文本内容"
 
 #: packages/admin/src/components/FieldEditor.tsx:705
+#: packages/admin/src/components/PortableTextEditor.tsx:4137
 msgid "Rich text editor"
 msgstr "富文本编辑器"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:5481
-#: packages/admin/src/components/PortableTextEditor.tsx:5602
+#: packages/admin/src/components/PortableTextEditor.tsx:5484
+#: packages/admin/src/components/PortableTextEditor.tsx:5605
 msgid "Right"
 msgstr "右"
 
@@ -12517,7 +12624,7 @@ msgid "Row added above"
 msgstr "已在上方添加行"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:5579
+#: packages/admin/src/components/PortableTextEditor.tsx:5582
 msgid "Row added below"
 msgstr "已在下方添加行"
 
@@ -12561,7 +12668,7 @@ msgstr "示例内容"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:829
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12577,11 +12684,11 @@ msgstr "保存"
 msgid "Save (Enter)"
 msgstr "保存 (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5948
+#: packages/admin/src/components/PortableTextEditor.tsx:5951
 msgid "Save alt text"
 msgstr "保存替代文本"
 
-#: packages/admin/src/components/ContentEditor.tsx:2211
+#: packages/admin/src/components/ContentEditor.tsx:2230
 msgid "Save anyway"
 msgstr "仍要保存"
 
@@ -12606,7 +12713,7 @@ msgstr "发布前将内容保存为草稿"
 msgid "Save date"
 msgstr "保存日期"
 
-#: packages/admin/src/components/ContentEditor.tsx:2367
+#: packages/admin/src/components/ContentEditor.tsx:2386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
@@ -12624,7 +12731,7 @@ msgstr "保存图片 URL"
 msgid "Save name"
 msgstr "保存名称"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1737
+#: packages/admin/src/components/MediaDetailPanel.tsx:1748
 msgid "Save or discard the other changes before cropping."
 msgstr "裁剪前请保存或放弃其他更改。"
 
@@ -12647,7 +12754,7 @@ msgstr "保存设置"
 msgid "visualEditing.saved"
 msgstr "已保存"
 
-#: packages/admin/src/components/ContentEditor.tsx:2442
+#: packages/admin/src/components/ContentEditor.tsx:2463
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "已保存"
@@ -12670,9 +12777,9 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:2435
+#: packages/admin/src/components/ContentEditor.tsx:2456
 #: packages/admin/src/components/FieldEditor.tsx:1826
-#: packages/admin/src/components/MediaDetailPanel.tsx:1859
+#: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:581
 #: packages/admin/src/components/MenuEditor.tsx:906
@@ -12729,19 +12836,19 @@ msgstr "定时日期"
 msgid "Schedule publication"
 msgstr "定时发布"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:234
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "Schedule removed"
 msgstr "已移除定时发布"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1616
+#: packages/admin/src/router.tsx:1644
 msgid "Scheduled"
 msgstr "已定时"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "已定时更改"
 
@@ -12822,8 +12929,8 @@ msgid "SCSS"
 msgstr "SCSS"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:110
-#: packages/admin/src/components/Settings.tsx:165
-#: packages/admin/src/components/Settings.tsx:165
+#: packages/admin/src/components/Settings.tsx:171
+#: packages/admin/src/components/Settings.tsx:171
 #: packages/admin/src/components/Widgets.tsx:167
 msgid "Search"
 msgstr "搜索"
@@ -12894,7 +13001,7 @@ msgstr "搜索内容..."
 msgid "Search Engine Optimization"
 msgstr "搜索引擎优化"
 
-#: packages/admin/src/components/Settings.tsx:67
+#: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "搜索引擎优化和验证"
@@ -12915,8 +13022,8 @@ msgstr "搜索失败"
 msgid "Search failed. Check your connection and try again."
 msgstr "搜索失败。请检查网络连接后重试。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1500
-#: packages/admin/src/components/MediaDetailPanel.tsx:1501
+#: packages/admin/src/components/MediaDetailPanel.tsx:1511
+#: packages/admin/src/components/MediaDetailPanel.tsx:1512
 msgid "Search folders"
 msgstr "搜索文件夹"
 
@@ -13057,6 +13164,7 @@ msgstr "区块标题"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
+#: packages/admin/src/router.tsx:2918
 msgid "Sections"
 msgstr "区块"
 
@@ -13069,7 +13177,7 @@ msgid "Secure your account"
 msgstr "保护您的账户"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:913
-#: packages/admin/src/components/Settings.tsx:87
+#: packages/admin/src/components/Settings.tsx:89
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
 msgid "Security"
@@ -13110,9 +13218,10 @@ msgstr "安全错误。请确保您使用的是安全连接。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
 #: packages/admin/src/components/Header.tsx:109
-#: packages/admin/src/components/Settings.tsx:83
+#: packages/admin/src/components/Settings.tsx:85
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
+#: packages/admin/src/router.tsx:2613
 msgid "Security Settings"
 msgstr "安全设置"
 
@@ -13124,14 +13233,14 @@ msgstr "查看此文件的引用位置。"
 #: packages/admin/src/components/FieldEditor.tsx:692
 #: packages/admin/src/components/FieldEditor.tsx:1700
 #: packages/admin/src/components/MediaPickerModal.tsx:891
-#: packages/admin/src/components/Settings.tsx:159
+#: packages/admin/src/components/Settings.tsx:165
 msgid "Select"
 msgstr "选择"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4209
-#: packages/admin/src/components/ContentEditor.tsx:4270
-#: packages/admin/src/components/ContentEditor.tsx:4331
+#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ContentEditor.tsx:4291
+#: packages/admin/src/components/ContentEditor.tsx:4352
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13155,7 +13264,7 @@ msgstr "选择组件..."
 msgid "Select a content type"
 msgstr "选择内容类型"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1490
+#: packages/admin/src/components/MediaDetailPanel.tsx:1501
 msgid "Select a location"
 msgstr "选择位置"
 
@@ -13180,7 +13289,7 @@ msgstr "选择本页全部"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3805
+#: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "Select at least one entry."
 msgstr "请至少选择一个条目。"
 
@@ -13213,13 +13322,13 @@ msgstr "选择网站图标"
 msgid "Select Favicon"
 msgstr "选择网站图标"
 
-#: packages/admin/src/components/ContentEditor.tsx:4272
-#: packages/admin/src/components/ContentEditor.tsx:4337
+#: packages/admin/src/components/ContentEditor.tsx:4293
+#: packages/admin/src/components/ContentEditor.tsx:4358
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "选择文件"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4901
+#: packages/admin/src/components/PortableTextEditor.tsx:4904
 msgid "Select gallery images"
 msgstr "选择图库图片"
 
@@ -13227,7 +13336,7 @@ msgstr "选择图库图片"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4872
+#: packages/admin/src/components/PortableTextEditor.tsx:4875
 msgid "Select image"
 msgstr "选择图片"
 
@@ -13260,7 +13369,7 @@ msgid "Select up to 50 posts at a time."
 msgstr "每次最多选择 50 篇文章。"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:4886
+#: packages/admin/src/components/PortableTextEditor.tsx:4889
 msgid "Select video"
 msgstr "选择视频"
 
@@ -13300,7 +13409,7 @@ msgstr "已选文章"
 msgid "Selection"
 msgstr "选择"
 
-#: packages/admin/src/components/Settings.tsx:93
+#: packages/admin/src/components/Settings.tsx:96
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Self-Signup Domains"
@@ -13367,7 +13476,7 @@ msgstr "发送中..."
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1226
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1229
 #: packages/admin/src/components/ContentTypeEditor.tsx:661
-#: packages/admin/src/components/Settings.tsx:66
+#: packages/admin/src/components/Settings.tsx:67
 msgid "SEO"
 msgstr "SEO"
 
@@ -13378,6 +13487,7 @@ msgid "SEO settings"
 msgstr "SEO 设置"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
+#: packages/admin/src/router.tsx:2720
 msgid "SEO Settings"
 msgstr "SEO 设置"
 
@@ -13450,14 +13560,15 @@ msgid "Setting up..."
 msgstr "正在设置..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2336
-#: packages/admin/src/components/ContentEditor.tsx:2725
+#: packages/admin/src/components/ContentEditor.tsx:2355
+#: packages/admin/src/components/ContentEditor.tsx:2746
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/router.tsx:2598
 msgid "Settings"
 msgstr "设置"
 
@@ -13473,6 +13584,10 @@ msgstr "设置读取"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:202
 msgid "Settings saved successfully"
 msgstr "设置保存成功"
+
+#: packages/admin/src/router.tsx:420
+msgid "Setup"
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13504,7 +13619,7 @@ msgstr "短文本"
 msgid "Short Text"
 msgstr "短文本"
 
-#: packages/admin/src/components/ContentEditor.tsx:238
+#: packages/admin/src/components/ContentEditor.tsx:239
 msgid "Show"
 msgstr ""
 
@@ -13567,6 +13682,8 @@ msgstr "显示用于创建新条目的按钮"
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
+#: packages/auth-atproto/src/admin.tsx:112
+#: packages/auth-atproto/src/admin.tsx:201
 msgid "Sign in"
 msgstr "登录"
 
@@ -13608,6 +13725,14 @@ msgstr "使用邮箱链接登录"
 msgid "Sign in with Passkey"
 msgstr "使用通行密钥登录"
 
+#: packages/auth-atproto/src/admin.tsx:174
+msgid "Sign in with your Bluesky/Atmosphere handle"
+msgstr ""
+
+#: packages/admin/src/router.tsx:460
+msgid "Sign up"
+msgstr ""
+
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
 msgid "Signed in as {0}"
@@ -13637,7 +13762,7 @@ msgstr "从选项中选择一个"
 msgid "Single line text input"
 msgstr "单行文本输入"
 
-#: packages/admin/src/components/Settings.tsx:50
+#: packages/admin/src/components/Settings.tsx:51
 #: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "站点"
@@ -13658,7 +13783,7 @@ msgstr "站点标识"
 msgid "site identity applied (title, tagline, logo)"
 msgstr "已应用站点标识（标题、标语、徽标）"
 
-#: packages/admin/src/components/Settings.tsx:55
+#: packages/admin/src/components/Settings.tsx:56
 #: packages/admin/src/components/settings/GeneralSettings.tsx:308
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "站点标识、徽标、网站图标和阅读偏好"
@@ -13739,7 +13864,7 @@ msgstr "大小"
 msgid "Size is not applicable to folders"
 msgstr "大小不适用于文件夹"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1319
+#: packages/admin/src/components/MediaDetailPanel.tsx:1330
 msgid "Size:"
 msgstr "大小："
 
@@ -13823,10 +13948,10 @@ msgid "SMTP Transport"
 msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:242
-msgid "smtp-relay.brevo.com"
+msgid "smtp.example.com"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:60
+#: packages/admin/src/components/Settings.tsx:61
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
 msgid "Social Links"
 msgstr "社交链接"
@@ -13835,7 +13960,7 @@ msgstr "社交链接"
 msgid "Social links saved"
 msgstr "社交链接已保存"
 
-#: packages/admin/src/components/Settings.tsx:61
+#: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:90
 msgid "Social media profile links"
 msgstr "社交媒体个人资料链接"
@@ -13843,6 +13968,10 @@ msgstr "社交媒体个人资料链接"
 #: packages/admin/src/components/settings/SocialSettings.tsx:134
 msgid "Social Profiles"
 msgstr "社交资料"
+
+#: packages/admin/src/router.tsx:2708
+msgid "Social Settings"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
@@ -13959,7 +14088,7 @@ msgstr "SQL"
 msgid "Square"
 msgstr "正方形"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:539
+#: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
 msgstr "正方形 (1:1)"
 
@@ -13998,8 +14127,8 @@ msgstr "使用模板的示例文章和页面。推荐新站点使用。"
 msgid "Start writing with plain text"
 msgstr "用纯文本开始写作"
 
-#: packages/admin/src/components/ContentEditor.tsx:3155
-#: packages/admin/src/components/ContentEditor.tsx:3178
+#: packages/admin/src/components/ContentEditor.tsx:3176
+#: packages/admin/src/components/ContentEditor.tsx:3199
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "开始写作，或输入「/」使用命令"
@@ -14029,7 +14158,7 @@ msgstr ""
 msgid "STARTTLS (port 587)"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "状态"
@@ -14078,8 +14207,8 @@ msgstr "已存储备份"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "按语言环境存储 — 署名的每个翻译都有各自的值。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4966
-#: packages/admin/src/components/PortableTextEditor.tsx:6528
+#: packages/admin/src/components/PortableTextEditor.tsx:4969
+#: packages/admin/src/components/PortableTextEditor.tsx:6531
 msgid "Strikethrough"
 msgstr "删除线"
 
@@ -14113,11 +14242,11 @@ msgstr "子字段"
 msgid "Subscriber"
 msgstr "订阅者"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5460
+#: packages/admin/src/components/PortableTextEditor.tsx:5463
 msgid "Subscript"
 msgstr "下标"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5466
+#: packages/admin/src/components/PortableTextEditor.tsx:5469
 msgid "Superscript"
 msgstr "上标"
 
@@ -14169,11 +14298,11 @@ msgstr "系统字段"
 msgid "Table"
 msgstr "表格"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4723
+#: packages/admin/src/components/PortableTextEditor.tsx:4726
 msgid "Table cells accept text, links, and formatting only."
 msgstr "表格单元格仅接受文本、链接和格式。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5569
+#: packages/admin/src/components/PortableTextEditor.tsx:5572
 msgid "Table controls"
 msgstr "表格控件"
 
@@ -14182,7 +14311,7 @@ msgid "Table deleted"
 msgstr "表格已删除"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:4613
+#: packages/admin/src/components/PortableTextEditor.tsx:4616
 msgid "Table inserted"
 msgstr "表格已插入"
 
@@ -14190,7 +14319,7 @@ msgstr "表格已插入"
 msgid "Table size"
 msgstr "表格大小"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4720
+#: packages/admin/src/components/PortableTextEditor.tsx:4723
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "表格不能粘贴到列表或引用中。请将表格粘贴到独立段落后再试。"
 
@@ -14232,6 +14361,7 @@ msgstr "目标语言区域"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
+#: packages/admin/src/router.tsx:2889
 msgid "Taxonomies"
 msgstr "分类"
 
@@ -14335,7 +14465,7 @@ msgstr "test@example.com"
 msgid "Text"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:6772
+#: packages/admin/src/components/PortableTextEditor.tsx:6775
 msgid "Text formatting"
 msgstr "文本格式化"
 
@@ -14411,7 +14541,7 @@ msgstr "内容类型和别名是固定的；各端的名称及可容纳的条目
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
 msgstr "您选择的手机或平板上的凭据管理器会保存它。EmDash 不会收到通行密钥。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:834
+#: packages/admin/src/components/MediaDetailPanel.tsx:836
 msgid "The cropped image could not be created."
 msgstr "无法创建裁剪后的图片。"
 
@@ -14626,7 +14756,7 @@ msgstr "包的内容将写入本站点。导入一旦开始无法撤销；如需
 msgid "The package’s file index is not valid."
 msgstr "包的文件索引无效。"
 
-#: packages/admin/src/router.tsx:3415
+#: packages/admin/src/router.tsx:3522
 msgid "The page you're looking for doesn't exist."
 msgstr "您查找的页面不存在。"
 
@@ -14646,8 +14776,8 @@ msgstr "插件字段组件渲染失败。"
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "插件尚未保存这些更改。更新编辑器前请检查。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1322
-#: packages/admin/src/components/ContentEditor.tsx:1338
+#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1342
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "插件结果已过时，因为编辑器在其运行期间发生了更改。"
 
@@ -14689,15 +14819,15 @@ msgstr "已添加的示例内容将保留。继续添加其余内容。"
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr "保存的媒体 ID 在分享链接中可能无法使用。请保存图片 URL，以便将此文件用于分享。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "对 {title} 的定时更改将保留为草稿。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:829
+#: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
 msgstr "所选文件夹已不存在。请选择其他位置并重新保存。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:932
+#: packages/admin/src/components/MediaDetailPanel.tsx:934
 msgid "The selected image could not be read."
 msgstr "所选图片无法读取。"
 
@@ -14773,10 +14903,18 @@ msgstr "主题"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
+#: packages/admin/src/router.tsx:2840
+msgid "Theme Details"
+msgstr ""
+
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
 msgid "Theme ID: {0}"
 msgstr "主题 ID：{0}"
+
+#: packages/admin/src/router.tsx:2832
+msgid "Theme Marketplace"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -14843,9 +14981,9 @@ msgstr ""
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
 msgstr "此浏览器会在下载完成前将整个包保存在内存中。对于此大小的导出，请使用基于 Chromium 的浏览器（可直接保存到磁盘），或从 CLI 运行 emdash site export。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1909
-#: packages/admin/src/components/MediaDetailPanel.tsx:1941
-#: packages/admin/src/components/MediaDetailPanel.tsx:1971
+#: packages/admin/src/components/MediaDetailPanel.tsx:1920
+#: packages/admin/src/components/MediaDetailPanel.tsx:1952
+#: packages/admin/src/components/MediaDetailPanel.tsx:1982
 msgid "This cannot be undone"
 msgstr "此操作无法撤销"
 
@@ -14861,7 +14999,7 @@ msgstr "此代码无效或已被使用。"
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "此合集在代码中定义。某些设置无法在此处更改。请编辑您的 live.config.ts 文件以修改架构。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4695
+#: packages/admin/src/components/PortableTextEditor.tsx:4698
 msgid "This content cannot be edited safely"
 msgstr "此内容无法安全编辑"
 
@@ -14885,20 +15023,20 @@ msgstr "这看起来不是有效的迁移密钥。请在插件中生成一个新
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2207
+#: packages/admin/src/components/ContentEditor.tsx:2226
 msgid "This entry changed somewhere else after you opened it."
 msgstr "您打开后，此条目已在其他地方更改。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1722
-#: packages/admin/src/router.tsx:1152
+#: packages/admin/src/components/ContentEditor.tsx:1726
+#: packages/admin/src/router.tsx:1180
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "此条目已在其他地方更改。仍保存，或重新加载以获取较新的版本。"
 
-#: packages/admin/src/router.tsx:2007
+#: packages/admin/src/router.tsx:2035
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "此条目不存在或未发布。您的角色只能查看已发布的内容。"
 
-#: packages/admin/src/router.tsx:2008
+#: packages/admin/src/router.tsx:2036
 msgid "This entry doesn't exist or was deleted."
 msgstr "此条目不存在或已被删除。"
 
@@ -14910,11 +15048,11 @@ msgstr "此条目在发布之前没有 URL。请粘贴一个 URL。"
 msgid "This entry is open somewhere else"
 msgstr "此条目已在其他地方打开"
 
-#: packages/admin/src/components/ContentEditor.tsx:2194
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "此条目为只读，因为其模式使用了此版本 EmDash 不支持的字段类型。"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:407
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "此条目已到期 {lateness} 但尚未发布。定时发布可能未运行。"
 
@@ -14922,17 +15060,17 @@ msgstr "此条目已到期 {lateness} 但尚未发布。定时发布可能未运
 msgid "This export is large"
 msgstr "此导出较大"
 
-#: packages/admin/src/components/ContentEditor.tsx:2930
-#: packages/admin/src/components/ContentEditor.tsx:2938
+#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2959
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "此字段无法被此版本的 EmDash 编辑。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4678
+#: packages/admin/src/components/PortableTextEditor.tsx:4681
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "此字段包含编辑器无法保留的表格内容。请先通过 API 更新，再编辑或保存此内容。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4697
+#: packages/admin/src/components/PortableTextEditor.tsx:4700
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "此字段包含不支持的 Portable Text 标记：<0>{markList}</0>。请先通过 API 移除，再编辑或保存此内容。"
 
@@ -14949,7 +15087,7 @@ msgstr "此字段不接受 {mimeType} 文件。"
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "此字段需要一个列表。存储的值将保持不变，直到您将其替换为空列表（这将删除它）。请先复制您需要的任何内容。"
 
-#: packages/admin/src/components/ContentEditor.tsx:4343
+#: packages/admin/src/components/ContentEditor.tsx:4364
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "此字段为必填项"
@@ -14992,7 +15130,7 @@ msgstr "此文件夹为空"
 msgid "This folder is empty."
 msgstr "此文件夹为空。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1730
+#: packages/admin/src/components/MediaDetailPanel.tsx:1741
 msgid "This image could not be loaded for cropping."
 msgstr "此图片无法加载以进行裁剪。"
 
@@ -15037,7 +15175,7 @@ msgid "This media item could not be loaded. Try again."
 msgstr "此媒体项无法加载。请重试。"
 
 #: packages/admin/src/components/media/useMediaAssetEditor.tsx:84
-#: packages/admin/src/components/MediaDetailPanel.tsx:823
+#: packages/admin/src/components/MediaDetailPanel.tsx:825
 msgid "This media item no longer exists."
 msgstr "此媒体项已不存在。"
 
@@ -15061,7 +15199,7 @@ msgstr "此包由更新或不同版本的 EmDash 创建。"
 msgid "This passkey is already registered on this device."
 msgstr "此通行密钥已在此设备上注册。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4716
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "粘贴内容过大。请一次粘贴较少的单元格或文本。"
 
@@ -15138,12 +15276,12 @@ msgstr "这将删除定时并立即发布。"
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "无法识别已保存的时区。请从建议中选择一个，以确保日期可靠显示。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4764
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "此节包含编辑器无法保留的表格内容。请在插入前更新该节。"
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:4763
+#: packages/admin/src/components/PortableTextEditor.tsx:4766
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "此节包含不支持的 Portable Text 标记：<0>{0}</0>。请在插入前更新该节。"
 
@@ -15201,15 +15339,15 @@ msgstr "此站点使用初始内容搭建。它没有自己的条目，导入将
 msgid "This slug is reserved. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4721
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "此表格数据包含无效的引号单元格。请修复引号或删除制表符分隔符，然后重试。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4676
+#: packages/admin/src/components/PortableTextEditor.tsx:4679
 msgid "This table cannot be edited safely"
 msgstr "此表格无法安全编辑"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4722
+#: packages/admin/src/components/PortableTextEditor.tsx:4725
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "此表格包含不支持的单元格格式、合并单元格或列宽。请粘贴为纯文本或简化表格后重试。"
 
@@ -15362,7 +15500,7 @@ msgstr "提示文本"
 msgid "Track content history"
 msgstr "跟踪内容历史"
 
-#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/Settings.tsx:79
 msgid "Track where media is used across your content"
 msgstr "跟踪媒体在内容中的使用位置"
 
@@ -15370,9 +15508,10 @@ msgstr "跟踪媒体在内容中的使用位置"
 msgid "Track where media is used across your content."
 msgstr "跟踪媒体在内容中的使用位置。"
 
-#: packages/admin/src/components/Settings.tsx:125
+#: packages/admin/src/components/Settings.tsx:131
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
+#: packages/admin/src/router.tsx:2677
 msgid "Transfer"
 msgstr "迁移"
 
@@ -15401,7 +15540,7 @@ msgstr "翻译中..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1659
+#: packages/admin/src/router.tsx:1687
 msgid "Translation created"
 msgstr "翻译已创建"
 
@@ -15410,7 +15549,7 @@ msgstr "翻译已创建"
 msgid "Translations"
 msgstr "翻译"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:371
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 msgid "Translations:"
 msgstr "翻译："
 
@@ -15520,9 +15659,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:5383
-#: packages/admin/src/components/PortableTextEditor.tsx:5385
-#: packages/admin/src/components/PortableTextEditor.tsx:5402
+#: packages/admin/src/components/PortableTextEditor.tsx:5386
+#: packages/admin/src/components/PortableTextEditor.tsx:5388
+#: packages/admin/src/components/PortableTextEditor.tsx:5405
 msgid "Turn into"
 msgstr "转换为"
 
@@ -15589,7 +15728,7 @@ msgstr "类型不匹配 ({0})"
 msgid "Type to filter"
 msgstr "输入以筛选"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4833
+#: packages/admin/src/components/PortableTextEditor.tsx:4836
 msgid "Type to search"
 msgstr "输入以搜索"
 
@@ -15611,13 +15750,13 @@ msgstr "无法访问市场"
 msgid "Unassigned"
 msgstr "未分配"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4965
-#: packages/admin/src/components/PortableTextEditor.tsx:6520
+#: packages/admin/src/components/PortableTextEditor.tsx:4968
+#: packages/admin/src/components/PortableTextEditor.tsx:6523
 msgid "Underline"
 msgstr "下划线"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:6751
+#: packages/admin/src/components/PortableTextEditor.tsx:6754
 msgid "Undo"
 msgstr "撤销"
 
@@ -15683,7 +15822,7 @@ msgstr "未命名用户"
 msgid "Unpublish {itemLabel}"
 msgstr "取消发布 {itemLabel}"
 
-#: packages/admin/src/router.tsx:1545
+#: packages/admin/src/router.tsx:1573
 msgid "Unpublished"
 msgstr "已取消发布"
 
@@ -15705,7 +15844,7 @@ msgstr "未解决的分配"
 msgid "visualEditing.unsaved"
 msgstr "未保存"
 
-#: packages/admin/src/components/ContentEditor.tsx:2441
+#: packages/admin/src/components/ContentEditor.tsx:2462
 msgid "Unsaved changes"
 msgstr ""
 
@@ -15713,7 +15852,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "未保存的内容可能离开您的站点"
 
-#: packages/admin/src/router.tsx:1627
+#: packages/admin/src/router.tsx:1655
 msgid "Unscheduled"
 msgstr "已取消安排"
 
@@ -15738,7 +15877,7 @@ msgstr "直到 {0}"
 msgid "Untitled"
 msgstr "无标题"
 
-#: packages/admin/src/components/ContentEditor.tsx:4169
+#: packages/admin/src/components/ContentEditor.tsx:4190
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "无标题文件"
@@ -15937,7 +16076,7 @@ msgstr "上传 WordPress 导出文件"
 msgid "Uploaded"
 msgstr "已上传"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1348
+#: packages/admin/src/components/MediaDetailPanel.tsx:1359
 msgid "Uploaded:"
 msgstr "已上传："
 
@@ -15994,7 +16133,7 @@ msgstr "URL 模板（例如 /blog/:slug）"
 msgid "URL-friendly identifier"
 msgstr "URL 友好的标识符"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1378
+#: packages/admin/src/components/MediaDetailPanel.tsx:1389
 msgid "URL:"
 msgstr "URL:"
 
@@ -16114,16 +16253,16 @@ msgstr "当页面没有 Open Graph 图片时作为默认图片。推荐尺寸：
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作标识符。仅限小写字母、数字和下划线。"
 
-#: packages/admin/src/components/ContentEditor.tsx:3366
+#: packages/admin/src/components/ContentEditor.tsx:3387
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "用于在列表页和文章顶部作为主要视觉展示"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:531
+#: packages/admin/src/components/MediaDetailPanel.tsx:533
 msgid "Used by screen readers and when image fails to load"
 msgstr "供屏幕阅读器使用，并在图片加载失败时显示"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1173
-#: packages/admin/src/components/MediaDetailPanel.tsx:1206
+#: packages/admin/src/components/MediaDetailPanel.tsx:1175
+#: packages/admin/src/components/MediaDetailPanel.tsx:1208
 #: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr "用于"
@@ -16176,6 +16315,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/router.tsx:2937
 msgid "Users"
 msgstr "用户"
 
@@ -16286,15 +16426,20 @@ msgstr "视频"
 msgid "Video actions"
 msgstr "视频操作"
 
+#. placeholder {0}: item.filename
+#: packages/admin/src/components/MediaDetailPanel.tsx:1278
+msgid "Video player for {0}"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
 msgid "Video upload failed. Try again."
 msgstr "视频上传失败。请重试。"
 
-#: packages/admin/src/components/Settings.tsx:113
+#: packages/admin/src/components/Settings.tsx:120
 msgid "View email provider status and send test emails"
 msgstr "查看邮件提供商状态并发送测试邮件"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:502
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
 msgid "View live"
 msgstr "查看线上"
 
@@ -16378,7 +16523,7 @@ msgstr "警告"
 msgid "Warnings"
 msgstr "警告"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Was due"
 msgstr "已到期"
 
@@ -16474,7 +16619,7 @@ msgstr "将导入的内容"
 msgid "What will happen when you import"
 msgstr "导入时会发生什么"
 
-#: packages/admin/src/components/ContentEditor.tsx:2208
+#: packages/admin/src/components/ContentEditor.tsx:2227
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "您输入的内容仍在此处。保存将替换较新的版本。"
 
@@ -16515,7 +16660,7 @@ msgstr "整数"
 msgid "Why are bylines shown in this order?"
 msgstr "为什么署名按此顺序显示？"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:530
+#: packages/admin/src/components/MediaDetailPanel.tsx:532
 msgid "Why can't this be changed?"
 msgstr "为什么无法更改？"
 
@@ -16543,7 +16688,7 @@ msgstr "这对搜索可见性为什么重要？"
 msgid "Why is this important for social sharing?"
 msgstr "这对社交分享为什么重要？"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:532
+#: packages/admin/src/components/MediaDetailPanel.tsx:534
 msgid "Why is this important?"
 msgstr "为什么这很重要？"
 
@@ -16591,6 +16736,7 @@ msgstr "小部件已更新"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/router.tsx:2903
 msgid "Widgets"
 msgstr "小部件"
 
@@ -16759,7 +16905,11 @@ msgstr "您需要管理员权限才能管理媒体使用跟踪。"
 msgid "You need Admin permissions to transfer this site."
 msgstr "您需要管理员权限才能迁移此站点。"
 
-#: packages/admin/src/router.tsx:2523
+#: packages/admin/src/components/RequireAdmin.tsx:26
+msgid "You need admin permissions to view this page."
+msgstr ""
+
+#: packages/admin/src/router.tsx:2554
 msgid "You need Editor permissions to moderate comments."
 msgstr "您需要编辑权限才能审核评论。"
 
@@ -16901,11 +17051,11 @@ msgstr "您的姓名（可选）"
 msgid "Your Role"
 msgstr "您的角色"
 
-#: packages/admin/src/router.tsx:2078
+#: packages/admin/src/router.tsx:2107
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "你的角色只能编辑处于草稿状态的自有条目。"
 
-#: packages/admin/src/router.tsx:2079
+#: packages/admin/src/router.tsx:2108
 msgid "Your role can't edit this entry."
 msgstr "你的角色无法编辑此条目。"
 
@@ -16927,7 +17077,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "您的站点要求插件发布至少 {0} 后才能安装。此版本稍后将可供安装。"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:359
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
 msgid "Your time: {viewerTime}"
 msgstr "您的时间：{viewerTime}"
 
@@ -16940,7 +17090,7 @@ msgstr "您的 Twitter/X 用户名（例如：@username）"
 msgid "Your unsaved changes will be lost."
 msgstr "你未保存的更改将丢失。"
 
-#: packages/admin/src/components/MediaDetailPanel.tsx:1874
+#: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
 msgstr "您未保存的媒体更改将丢失。"
 

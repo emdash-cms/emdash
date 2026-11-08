@@ -148,7 +148,9 @@ export type CollectionSupport =
 	| "drafts"
 	| "revisions"
 	| "preview"
+	/** @deprecated Scheduling is enabled by default. Use "no-scheduling" to disable it. */
 	| "scheduling"
+	| "no-scheduling"
 	| "search"
 	| "seo";
 

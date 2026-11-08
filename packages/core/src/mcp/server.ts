@@ -2391,7 +2391,8 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"preview), 'no-scheduling' (disables timed publishing, which is otherwise allowed), " +
+				"'search' (full-text indexing), " +
 				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
@@ -2403,7 +2404,7 @@ export function createMcpServer(
 				description: z.string().optional().describe("Description of this collection"),
 				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
-					"Features to enable (default: ['drafts', 'revisions'])",
+					"Collection capabilities and opt-outs (default: ['drafts', 'revisions']); scheduling is allowed unless 'no-scheduling' is present",
 				),
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",

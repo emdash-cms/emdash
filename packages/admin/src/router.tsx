@@ -5,7 +5,7 @@
  */
 
 import { Banner, Button, Loader, useKumoToastManager } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ import {
 	useParams,
 	useNavigate,
 	useSearch,
+	useMatches,
 } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -57,6 +58,7 @@ import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
 import { RelationList } from "./components/RelationList";
+import { RequireAdmin } from "./components/RequireAdmin.js";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -77,6 +79,7 @@ import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
+import { useAdminBranding } from "./lib/admin-branding-context.js";
 import {
 	apiFetch,
 	parseApiResponse,
@@ -390,13 +393,31 @@ function shouldAdoptRevision(
 
 // Create a base root route without Shell for setup
 const baseRootRoute = createRootRouteWithContext<RouterContext>()({
-	component: () => <Outlet />,
+	component: BaseRootComponent,
 });
+
+function BaseRootComponent() {
+	const { t } = useLingui();
+	const { siteName } = useAdminBranding();
+	const siteLabel = siteName?.trim() || "EmDash";
+	const standaloneTitle = useMatches({
+		select: (matches) =>
+			matches.some((match) => match.routeId === "/_admin")
+				? undefined
+				: matches.at(-1)?.staticData.pageTitle,
+	});
+	const title = standaloneTitle ? t(standaloneTitle) : undefined;
+	React.useEffect(() => {
+		if (title) document.title = `${title} · ${siteLabel}`;
+	}, [title, siteLabel]);
+	return <Outlet />;
+}
 
 // Setup route (standalone, no Shell)
 const setupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/setup",
+	staticData: { pageTitle: msg`Setup` },
 	component: SetupWizard,
 });
 
@@ -404,6 +425,7 @@ const setupRoute = createRoute({
 const loginRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/login",
+	staticData: { pageTitle: msg`Log in` },
 	component: LoginPageWrapper,
 });
 
@@ -417,6 +439,7 @@ function LoginPageWrapper() {
 const magicLinkConfirmRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/login/magic-link",
+	staticData: { pageTitle: msg`Confirm magic link` },
 	component: MagicLinkConfirmPageWrapper,
 	validateSearch: (search: Record<string, unknown>) => ({
 		token: typeof search.token === "string" ? search.token : undefined,
@@ -434,6 +457,7 @@ function MagicLinkConfirmPageWrapper() {
 const signupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/signup",
+	staticData: { pageTitle: msg`Sign up` },
 	component: SignupPage,
 });
 
@@ -441,6 +465,7 @@ const signupRoute = createRoute({
 const inviteAcceptRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/invite/accept",
+	staticData: { pageTitle: msg`Accept invitation` },
 	component: InviteAcceptPage,
 	validateSearch: (search: Record<string, unknown>) => ({
 		token: typeof search.token === "string" ? search.token : undefined,
@@ -451,6 +476,7 @@ const inviteAcceptRoute = createRoute({
 const deviceRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/device",
+	staticData: { pageTitle: msg`Authorize device` },
 	component: DeviceAuthorizePage,
 });
 
@@ -499,6 +525,7 @@ const dashboardRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/",
 	component: DashboardPage,
+	staticData: { pageTitle: msg`Dashboard` },
 });
 
 function DashboardPage() {
@@ -516,7 +543,7 @@ const calendarRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/calendar",
 	component: CalendarPage,
-	staticData: { fullBleed: true },
+	staticData: { fullBleed: true, pageTitle: msg`Calendar` },
 	validateSearch: parseCalendarSearch,
 });
 
@@ -528,6 +555,7 @@ const contentListRoute = createRoute({
 	validateSearch: (search: Record<string, unknown>) => ({
 		locale: typeof search.locale === "string" ? search.locale : undefined,
 	}),
+	staticData: { pageTitle: msg`Content` },
 });
 
 function ContentListPage() {
@@ -856,7 +884,7 @@ const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/new",
 	component: ContentNewPage,
-	staticData: { fullBleed: true },
+	staticData: { fullBleed: true, pageTitle: msg`New content` },
 	validateSearch: (search: Record<string, unknown>) => ({
 		locale: typeof search.locale === "string" ? search.locale : undefined,
 	}),
@@ -1018,7 +1046,7 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
-	staticData: { fullBleed: true },
+	staticData: { fullBleed: true, pageTitle: msg`Edit content` },
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
 		...(typeof search.locale === "string" && { locale: search.locale }),
@@ -2049,6 +2077,7 @@ function ContentEditPage() {
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
+			supportsScheduling={!collectionConfig.supports.includes("no-scheduling")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
@@ -2098,6 +2127,7 @@ const mediaRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/media",
 	component: MediaPage,
+	staticData: { pageTitle: msg`Media` },
 	validateSearch: (search: Record<string, unknown>) => ({
 		folder:
 			typeof search.folder === "string" && search.folder.length > 0 && search.folder.length <= 64
@@ -2395,6 +2425,7 @@ const commentsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/comments",
 	component: CommentsPage,
+	staticData: { pageTitle: msg`Comments` },
 });
 
 // Admin role level from @emdash-cms/auth
@@ -2564,12 +2595,14 @@ const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
 	component: Settings,
+	staticData: { pageTitle: msg`Settings` },
 });
 
 const mediaUsageSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/media-usage",
 	component: MediaUsageSettings,
+	staticData: { pageTitle: msg`Media Usage` },
 });
 
 // Security settings route
@@ -2577,6 +2610,7 @@ const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
 	component: SecuritySettingsWrapper,
+	staticData: { pageTitle: msg`Security Settings` },
 	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
 		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
 			? { addPasskey: true }
@@ -2592,34 +2626,55 @@ function SecuritySettingsWrapper() {
 const allowedDomainsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/allowed-domains",
-	component: AllowedDomainsSettings,
+	component: () => (
+		<RequireAdmin>
+			<AllowedDomainsSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Allowed Domains` },
 });
 
 // API tokens settings route
 const apiTokenSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/api-tokens",
-	component: ApiTokenSettings,
+	component: () => (
+		<RequireAdmin>
+			<ApiTokenSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`API Tokens` },
 });
 
 // Email settings route
 const emailSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/email",
-	component: EmailSettings,
+	component: () => (
+		<RequireAdmin>
+			<EmailSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Email Settings` },
 });
 
 // Backup settings route
 const backupSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/backups",
-	component: BackupSettings,
+	component: () => (
+		<RequireAdmin>
+			<BackupSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Backups` },
 });
 
 const transferSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/transfer",
 	component: TransferSettingsPage,
+	staticData: { pageTitle: msg`Transfer` },
 	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
 		search.start === "import" ? { start: "import" } : {},
 });
@@ -2633,21 +2688,36 @@ function TransferSettingsPage() {
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/general",
-	component: GeneralSettings,
+	component: () => (
+		<RequireAdmin>
+			<GeneralSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`General Settings` },
 });
 
 // Social settings route
 const socialSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/social",
-	component: SocialSettings,
+	component: () => (
+		<RequireAdmin>
+			<SocialSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Social Settings` },
 });
 
 // SEO settings route
 const seoSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/seo",
-	component: SeoSettings,
+	component: () => (
+		<RequireAdmin>
+			<SeoSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`SEO Settings` },
 });
 
 // Plugin manager route
@@ -2655,6 +2725,7 @@ const pluginManagerRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager",
 	component: PluginManagerPage,
+	staticData: { pageTitle: msg`Plugins` },
 });
 
 function PluginManagerPage() {
@@ -2669,6 +2740,7 @@ const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry",
 	component: RegistryBrowsePage,
+	staticData: { pageTitle: msg`Plugin Registry` },
 });
 
 function RegistryBrowsePage() {
@@ -2711,6 +2783,7 @@ const marketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/marketplace",
 	component: MarketplaceUnavailablePage,
+	staticData: { pageTitle: msg`Plugin Marketplace` },
 });
 
 // Marketplace plugin detail route
@@ -2718,12 +2791,14 @@ const marketplaceDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/marketplace/$pluginId",
 	component: MarketplaceDetailPage,
+	staticData: { pageTitle: msg`Plugin Details` },
 });
 
 const registryDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry/$publisher/$slug",
 	component: RegistryDetailPage,
+	staticData: { pageTitle: msg`Plugin Details` },
 });
 
 function RegistryDetailPage() {
@@ -2754,6 +2829,7 @@ const themeMarketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace",
 	component: MarketplaceUnavailablePage,
+	staticData: { pageTitle: msg`Theme Marketplace` },
 });
 
 // Theme marketplace detail route
@@ -2761,6 +2837,7 @@ const themeMarketplaceDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace/$themeId",
 	component: ThemeDetailPage,
+	staticData: { pageTitle: msg`Theme Details` },
 });
 
 function ThemeDetailPage() {
@@ -2776,7 +2853,12 @@ function MarketplaceUnavailablePage() {
 const wordpressImportRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/import/wordpress",
-	component: WordPressImport,
+	component: () => (
+		<RequireAdmin>
+			<WordPressImport />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Import from WordPress` },
 });
 
 // Menu routes
@@ -2784,12 +2866,14 @@ const menuListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus",
 	component: MenuList,
+	staticData: { pageTitle: msg`Menus` },
 });
 
 const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
+	staticData: { pageTitle: msg`Edit menu` },
 	validateSearch: (search: Record<string, unknown>) => {
 		return {
 			locale: typeof search.locale === "string" ? search.locale : undefined,
@@ -2802,6 +2886,7 @@ const taxonomyRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/taxonomies/$taxonomy",
 	component: TaxonomyPage,
+	staticData: { pageTitle: msg`Taxonomies` },
 });
 
 function TaxonomyPage() {
@@ -2815,6 +2900,7 @@ const widgetsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/widgets",
 	component: Widgets,
+	staticData: { pageTitle: msg`Widgets` },
 });
 
 // Sections routes
@@ -2822,25 +2908,33 @@ const redirectsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/redirects",
 	component: Redirects,
+	staticData: { pageTitle: msg`Redirects` },
 });
 
 const sectionsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections",
 	component: Sections,
+	staticData: { pageTitle: msg`Sections` },
 });
 
 const sectionEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections/$slug",
 	component: SectionEditor,
+	staticData: { pageTitle: msg`Edit section` },
 });
 
 // Users route
 const usersRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/users",
-	component: UsersPage,
+	component: () => (
+		<RequireAdmin>
+			<UsersPage />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Users` },
 });
 
 // Bylines route
@@ -2862,6 +2956,7 @@ const bylinesRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/bylines",
 	component: BylinesPage,
+	staticData: { pageTitle: msg`Bylines` },
 	validateSearch: parseBylinesLocaleSearch,
 });
 
@@ -2872,6 +2967,7 @@ const bylineSchemaRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/byline-schema",
 	component: BylineSchemaPage,
+	staticData: { pageTitle: msg`Byline Schema` },
 });
 
 // Content Types routes
@@ -2879,6 +2975,7 @@ const contentTypesListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types",
 	component: ContentTypesListPage,
+	staticData: { pageTitle: msg`Content Types` },
 });
 
 function ContentTypesListPage() {
@@ -2975,6 +3072,7 @@ const contentTypesNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/new",
 	component: ContentTypesNewPage,
+	staticData: { pageTitle: msg`New content type` },
 });
 
 function ContentTypesNewPage() {
@@ -3010,6 +3108,7 @@ const relationsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/relations",
 	component: RelationsListPage,
+	staticData: { pageTitle: msg`Relations` },
 });
 
 function RelationsListPage() {
@@ -3070,6 +3169,7 @@ const contentTypesEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/$slug",
 	component: ContentTypesEditPage,
+	staticData: { pageTitle: msg`Edit content type` },
 });
 
 function ContentTypesEditPage() {
@@ -3248,7 +3348,12 @@ function ContentTypesEditPage() {
 const pluginSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager/$pluginId/settings",
-	component: PluginSettingsPage,
+	component: () => (
+		<RequireAdmin>
+			<PluginSettingsPage />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Plugin Settings` },
 });
 
 function PluginSettingsPage() {
@@ -3261,6 +3366,7 @@ const pluginRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/$pluginId/$",
 	component: PluginPage,
+	staticData: { pageTitle: msg`Plugin` },
 });
 
 function PluginPage() {
@@ -3284,6 +3390,7 @@ const notFoundRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "$",
 	component: () => <NotFoundPage />,
+	staticData: { pageTitle: msg`Page not found` },
 });
 
 // Create route tree with admin routes under layout and setup route separate
