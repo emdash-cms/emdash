@@ -39,7 +39,10 @@ import type {
 	TranslationSummary,
 	UserListItem,
 } from "../lib/api";
-import { ContentEditorPanelBoundary } from "../lib/content-editor-panels";
+import {
+	ContentEditorPanelBoundary,
+	useVisibleContentEditorPanels,
+} from "../lib/content-editor-panels.js";
 import {
 	getContentPublishingState,
 	type ContentPublishingState,
@@ -887,6 +890,19 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				: [],
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
 	);
+	const trustedPanelCandidates = React.useMemo(
+		() =>
+			extensionSections.flatMap((section) => (section.kind === "trusted" ? [section.panel] : [])),
+		[extensionSections],
+	);
+	const panelContext = React.useMemo(
+		() =>
+			!isNew && item
+				? { collection, entry: item, locale: item.locale ?? entryLocale ?? undefined }
+				: null,
+		[collection, entryLocale, isNew, item],
+	);
+	const visibleTrustedPanels = useVisibleContentEditorPanels(trustedPanelCandidates, panelContext);
 
 	const [datesOpen, setDatesOpen] = React.useState(false);
 	const trash = useConfirmedRequest(onDelete);
@@ -1239,6 +1255,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								</ContentSettingsSection>
 							);
 						}
+						if (!visibleTrustedPanels.includes(panel)) return null;
 						const extension = panel.extension;
 						const Panel = extension.component;
 

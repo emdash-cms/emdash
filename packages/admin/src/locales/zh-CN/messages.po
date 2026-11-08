@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {已导入 # 条评论} other {已导入 # 条评论}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2530
+#: packages/admin/src/router.tsx:2531
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# 条评论已更新} other {# 条评论已更新}}"
 
@@ -419,7 +419,7 @@ msgid "{0, plural, one {Column deleted} other {# columns deleted}}"
 msgstr "{0, plural, one {已删除列} other {已删除 # 列}}"
 
 #. placeholder {0}: fields.length
-#: packages/admin/src/components/ContentTypeEditor.tsx:774
+#: packages/admin/src/components/ContentTypeEditor.tsx:813
 msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {字段} other {字段}}"
 
@@ -558,17 +558,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0}/{1} 步 · {2}/{3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:782
+#: packages/admin/src/router.tsx:783
 msgid "{0} of {total} could not be deleted"
 msgstr "{total} 项中有 {0} 项无法删除"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:739
 msgid "{0} of {total} could not be published"
 msgstr "{total} 项中有 {0} 项无法发布"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:761
+#: packages/admin/src/router.tsx:762
 msgid "{0} of {total} could not be updated"
 msgstr "{total} 项中有 {0} 项无法更新"
 
@@ -590,8 +590,8 @@ msgstr "已从此文章中移除 {0}。"
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useQuery } from "@tanstack/react-query"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchCollections, fetchRelations } from "../lib/api"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import type { CreateRelationInput, RelationDef, UpdateRelationInput, } from "../lib/api/relations.js"; import { useConfirmedRequest } from "../lib/dialog-form.js"; import { cn, slugifyIdentifier } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RelationImpact } from "./RelationImpact.js"; import { RelationsPanel } from "./RelationsPanel.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; /** Resolves once the field is saved; rejects with the server's message. */ onAddField?: (input: CreateFieldInput) => Promise<unknown>; /** Resolves once the field is saved; rejects with the server's message. */ onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => Promise<unknown>; /** `deleteRelation` also removes the relationship a reference field views, * its links, and the field on the other end. Return the request's promise to * keep the confirmation open, showing its progress and any failure. */ onDeleteField?: ( fieldSlug: string, options?: { deleteRelation?: boolean }, ) => void | Promise<unknown>; onReorderFields?: (fieldSlugs: string[]) => void; /** Resolves with the new relation; rejects with the server's message. */ onCreateRelation?: (input: CreateRelationInput) => Promise<RelationDef>; /** Resolves once the relation is saved; rejects with the server's message. */ onUpdateRelation?: (id: string, input: UpdateRelationInput) => Promise<unknown>; /** Also removes the relation's links and the reference fields bound to it. */ onDeleteRelation?: (id: string) => Promise<unknown>; isDeletingRelation?: boolean; deleteRelationError?: unknown; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, onCreateRelation, onUpdateRelation, onDeleteRelation, isDeletingRelation, deleteRelationError, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true); const [icon, setIcon] = React.useState(collection?.icon ?? ""); const [group, setGroup] = React.useState(collection?.group ?? ""); const [hidden, setHidden] = React.useState(collection?.hidden ?? false); const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [fieldSaveError, setFieldSaveError] = React.useState<unknown>(null); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); // Checked by default: deleting a reference field almost always means the // relationship it views is finished too. const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true); const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? ""); const urlPatternSharesSegment = urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern); const urlPatternValid = !urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment); const slugError = isNew && !slug && label.trim().length > 0 ? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.` : undefined; // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || editLocking !== (collection.editLocking ?? true) || icon !== (collection.icon ?? "") || group !== (collection.group ?? "") || hidden !== (collection.hidden ?? false) || quickCreate !== (collection.admin?.quickCreate ?? true) || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, editLocking, icon, group, hidden, quickCreate, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug(slugifyIdentifier(value)); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim() || undefined, group: group.trim() || undefined, hidden, admin: quickCreate ? undefined : { quickCreate: false }, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim(), group: group.trim() || null, hidden, admin: quickCreate !== (collection?.admin?.quickCreate ?? true) ? { ...collection?.admin, quickCreate: quickCreate ? undefined : false } : undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); setFieldSaveError(null); try { if (editingField) { await onUpdateField?.(editingField.slug, input); } else { await onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } catch (err) { setFieldSaveError(err); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { if (field.unsupportedType) return; setEditingField(field); setFieldSaveError(null); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldSaveError(null); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const { data: relations = [], isLoading: relationsLoading } = useQuery({ queryKey: ["relations"], queryFn: () => fetchRelations(), }); const { data: allCollections = [] } = useQuery({ queryKey: ["schema", "collections"], queryFn: fetchCollections, }); const targetRelationSlug = deleteFieldTarget?.validation?.relation; const targetRelation = relations.find((rel) => rel.slug === targetRelationSlug); const deleteField = useConfirmedRequest( deleteFieldTarget ? () => onDeleteField?.( deleteFieldTarget.slug, targetRelation ? { deleteRelation: deleteFieldRelation } : undefined, ) : undefined, ); const requestDeleteField = (field: SchemaField) => { setDeleteFieldRelation(true); setDeleteFieldTarget(field); deleteField.show(); }; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded"> {collection?.slug} </code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input dir="ltr" label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} error={slugError} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <Switch checked={editLocking} onCheckedChange={setEditLocking} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Edit locking`}</span> <p className="text-xs text-kumo-subtle"> {t`Hold an entry while someone is editing it, and refuse other writers`} </p> </div> } /> <div> <Input dir="ltr" label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} {urlPatternSharesSegment && ( <p className="text-xs text-kumo-danger mt-2"> {t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`} </p> </div> <div className="space-y-3"> <Label>{t`Navigation`}</Label> <div> <Input label={t`Group`} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t`Calendar`} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Content types with the same group share a collapsible folder in the sidebar`} </p> </div> <div> <Input dir="ltr" label={t`Icon`} value={icon} onChange={(e) => setIcon(e.target.value)} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Phosphor icon name, e.g. calendar-blank or trophy`} </p> </div> <Switch checked={hidden} onCheckedChange={setHidden} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Hide from navigation`}</span> <p className="text-xs text-kumo-subtle"> {t`Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins`} </p> </div> } /> <Switch checked={quickCreate} onCheckedChange={setQuickCreate} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Quick action on the dashboard`}</span> <p className="text-xs text-kumo-subtle"> {t`Shows a button for creating a new entry`} </p> </div> } /> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields and relations - only shown for existing collections */} {!isNew && ( <div className="lg:col-span-2 space-y-6"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => requestDeleteField(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> {collection && ( <RelationsPanel collectionSlug={collection.slug} relations={relations} collections={allCollections} isLoading={relationsLoading} onCreateRelation={onCreateRelation} onUpdateRelation={onUpdateRelation} onDeleteRelation={onDeleteRelation} isDeletingRelation={isDeletingRelation} deleteRelationError={deleteRelationError} /> )} </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={(nextOpen) => { setFieldEditorOpen(nextOpen); if (!nextOpen) setFieldSaveError(null); }} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} saveError={fieldSaveError} collectionSlug={collection?.slug} onCreateRelation={onCreateRelation} /> <ConfirmDialog {...deleteField.dialog} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} > {targetRelation && ( <div className="space-y-3"> <Checkbox checked={deleteFieldRelation} onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)} disabled={deleteField.dialog.isPending} label={t`Also delete the relationship this field uses`} /> {deleteFieldRelation && collection && ( <div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3"> <p className="text-sm font-medium">{t`This also removes:`}</p> <RelationImpact relations={[targetRelation]} excludeField={{ collectionSlug: collection.slug, fieldSlug: deleteFieldTarget?.slug ?? "", }} /> </div> )} </div> )} </ConfirmDialog> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}> {field.unsupportedType?.type ?? field.type} </span> {field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>} {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} disabled={Boolean(field.unsupportedType)} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
-#: packages/admin/src/components/ContentTypeEditor.tsx:772
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useQuery } from "@tanstack/react-query"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import { fetchCollections, fetchRelations } from "../lib/api"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import type { CreateRelationInput, RelationDef, UpdateRelationInput, } from "../lib/api/relations.js"; import { useConfirmedRequest } from "../lib/dialog-form.js"; import { cn, slugifyIdentifier } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RelationImpact } from "./RelationImpact.js"; import { RelationsPanel } from "./RelationsPanel.js"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; /** Resolves once the field is saved; rejects with the server's message. */ onAddField?: (input: CreateFieldInput) => Promise<unknown>; /** Resolves once the field is saved; rejects with the server's message. */ onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => Promise<unknown>; /** `deleteRelation` also removes the relationship a reference field views, * its links, and the field on the other end. Return the request's promise to * keep the confirmation open, showing its progress and any failure. */ onDeleteField?: ( fieldSlug: string, options?: { deleteRelation?: boolean }, ) => void | Promise<unknown>; onReorderFields?: (fieldSlugs: string[]) => void; /** Resolves with the new relation; rejects with the server's message. */ onCreateRelation?: (input: CreateRelationInput) => Promise<RelationDef>; /** Resolves once the relation is saved; rejects with the server's message. */ onUpdateRelation?: (id: string, input: UpdateRelationInput) => Promise<unknown>; /** Also removes the relation's links and the reference fields bound to it. */ onDeleteRelation?: (id: string) => Promise<unknown>; isDeletingRelation?: boolean; deleteRelationError?: unknown; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, onCreateRelation, onUpdateRelation, onDeleteRelation, isDeletingRelation, deleteRelationError, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [dateField, setDateField] = React.useState(collection?.dateField ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true); const [icon, setIcon] = React.useState(collection?.icon ?? ""); const [group, setGroup] = React.useState(collection?.group ?? ""); const [hidden, setHidden] = React.useState(collection?.hidden ?? false); const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [fieldSaveError, setFieldSaveError] = React.useState<unknown>(null); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); // Checked by default: deleting a reference field almost always means the // relationship it views is finished too. const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true); const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? ""); const urlPatternSharesSegment = urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern); const urlPatternValid = !urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment); const slugError = isNew && !slug && label.trim().length > 0 ? t`A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores.` : undefined; // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || dateField !== (collection.dateField ?? "") || routable !== (collection.routable ?? true) || editLocking !== (collection.editLocking ?? true) || icon !== (collection.icon ?? "") || group !== (collection.group ?? "") || hidden !== (collection.hidden ?? false) || quickCreate !== (collection.admin?.quickCreate ?? true) || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, dateField, routable, editLocking, icon, group, hidden, quickCreate, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug(slugifyIdentifier(value)); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, icon: icon.trim() || undefined, group: group.trim() || undefined, hidden, admin: quickCreate ? undefined : { quickCreate: false }, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, ...(dateField !== (collection?.dateField ?? "") ? { dateField: dateField || null } : {}), routable, editLocking, icon: icon.trim(), group: group.trim() || null, hidden, admin: quickCreate !== (collection?.admin?.quickCreate ?? true) ? { ...collection?.admin, quickCreate: quickCreate ? undefined : false } : undefined, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); setFieldSaveError(null); try { if (editingField) { await onUpdateField?.(editingField.slug, input); } else { await onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } catch (err) { setFieldSaveError(err); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { if (field.unsupportedType) return; setEditingField(field); setFieldSaveError(null); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldSaveError(null); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; React.useEffect(() => { if ( dateField && dateField !== "publishedAt" && dateField !== "createdAt" && dateField !== "updatedAt" && !fields.some((field) => field.slug === dateField && field.type === "datetime") ) { setDateField(collection?.dateField ?? ""); } }, [dateField, fields, collection?.dateField]); const { data: relations = [], isLoading: relationsLoading } = useQuery({ queryKey: ["relations"], queryFn: () => fetchRelations(), }); const { data: allCollections = [] } = useQuery({ queryKey: ["schema", "collections"], queryFn: fetchCollections, }); const targetRelationSlug = deleteFieldTarget?.validation?.relation; const targetRelation = relations.find((rel) => rel.slug === targetRelationSlug); const deleteField = useConfirmedRequest( deleteFieldTarget ? () => onDeleteField?.( deleteFieldTarget.slug, targetRelation ? { deleteRelation: deleteFieldRelation } : undefined, ) : undefined, ); const requestDeleteField = (field: SchemaField) => { setDeleteFieldRelation(true); setDeleteFieldTarget(field); deleteField.show(); }; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code dir="ltr" className="bg-kumo-tint px-1.5 py-0.5 rounded"> {collection?.slug} </code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input dir="ltr" label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} error={slugError} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <Switch checked={editLocking} onCheckedChange={setEditLocking} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Edit locking`}</span> <p className="text-xs text-kumo-subtle"> {t`Hold an entry while someone is editing it, and refuse other writers`} </p> </div> } /> <div> <Input dir="ltr" label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} {urlPatternSharesSegment && ( <p className="text-xs text-kumo-danger mt-2"> {t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`} </p> </div> <div className="space-y-3"> <Label>{t`Navigation`}</Label> <div> <Input label={t`Group`} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t`Calendar`} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Content types with the same group share a collapsible folder in the sidebar`} </p> </div> <div> <Input dir="ltr" label={t`Icon`} value={icon} onChange={(e) => setIcon(e.target.value)} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Phosphor icon name, e.g. calendar-blank or trophy`} </p> </div> <Switch checked={hidden} onCheckedChange={setHidden} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Hide from navigation`}</span> <p className="text-xs text-kumo-subtle"> {t`Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins`} </p> </div> } /> <Switch checked={quickCreate} onCheckedChange={setQuickCreate} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Quick action on the dashboard`}</span> <p className="text-xs text-kumo-subtle"> {t`Shows a button for creating a new entry`} </p> </div> } /> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {!isNew && ( <div className="space-y-2"> <Select label={t`Date column source`} value={dateField} onValueChange={(value) => setDateField(value ?? "")} items={Object.fromEntries([ ["", t`Last updated (default)`], ["publishedAt", t`Published`], ["createdAt", t`Created`], ["updatedAt", t`Updated`], ...fields .filter((field) => field.type === "datetime") .map((field) => [field.slug, field.label]), ])} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle"> {t`Choose which date appears in the content list.`} </p> </div> )} {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields and relations - only shown for existing collections */} {!isNew && ( <div className="lg:col-span-2 space-y-6"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => requestDeleteField(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> {collection && ( <RelationsPanel collectionSlug={collection.slug} relations={relations} collections={allCollections} isLoading={relationsLoading} onCreateRelation={onCreateRelation} onUpdateRelation={onUpdateRelation} onDeleteRelation={onDeleteRelation} isDeletingRelation={isDeletingRelation} deleteRelationError={deleteRelationError} /> )} </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={(nextOpen) => { setFieldEditorOpen(nextOpen); if (!nextOpen) setFieldSaveError(null); }} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} saveError={fieldSaveError} collectionSlug={collection?.slug} onCreateRelation={onCreateRelation} /> <ConfirmDialog {...deleteField.dialog} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} > {targetRelation && ( <div className="space-y-3"> <Checkbox checked={deleteFieldRelation} onCheckedChange={(checked) => setDeleteFieldRelation(checked === true)} disabled={deleteField.dialog.isPending} label={t`Also delete the relationship this field uses`} /> {deleteFieldRelation && collection && ( <div className="space-y-3 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3"> <p className="text-sm font-medium">{t`This also removes:`}</p> <RelationImpact relations={[targetRelation]} excludeField={{ collectionSlug: collection.slug, fieldSlug: deleteFieldTarget?.slug ?? "", }} /> </div> )} </div> )} </ConfirmDialog> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}> {field.unsupportedType?.type ?? field.type} </span> {field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>} {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} disabled={Boolean(field.unsupportedType)} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code dir="ltr" className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#: packages/admin/src/components/ContentTypeEditor.tsx:811
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} 个系统 + {1} 个自定义 {2}"
 
@@ -1237,7 +1237,7 @@ msgstr "7 天"
 msgid "90 days"
 msgstr "90 天"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:517
+#: packages/admin/src/components/ContentTypeEditor.tsx:533
 msgid "A brief description of this content type"
 msgstr "此内容类型的简要描述"
 
@@ -1286,9 +1286,9 @@ msgstr "某个包文件与清单不匹配"
 msgid "A package file is missing"
 msgstr "缺少某个包文件"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:186
-#: packages/admin/src/components/ContentSettingsPanel.tsx:237
-#: packages/admin/src/components/ContentSettingsPanel.tsx:263
+#: packages/admin/src/components/ContentSettingsPanel.tsx:187
+#: packages/admin/src/components/ContentSettingsPanel.tsx:238
+#: packages/admin/src/components/ContentSettingsPanel.tsx:264
 msgid "A publication time has not been selected"
 msgstr "尚未选择发布时间"
 
@@ -1318,7 +1318,7 @@ msgstr "无法从这些角色名称生成别名。请手动输入一个仅包含
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:128
 #: packages/admin/src/components/BylineFieldEditor.tsx:372
-#: packages/admin/src/components/ContentTypeEditor.tsx:239
+#: packages/admin/src/components/ContentTypeEditor.tsx:240
 #: packages/admin/src/components/FieldEditor.tsx:439
 #: packages/admin/src/components/FieldEditor.tsx:1178
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
@@ -1375,7 +1375,7 @@ msgstr "接受并安装"
 msgid "Accept & Update"
 msgstr "接受并更新"
 
-#: packages/admin/src/router.tsx:467
+#: packages/admin/src/router.tsx:468
 msgid "Accept invitation"
 msgstr ""
 
@@ -1384,13 +1384,14 @@ msgstr ""
 msgid "Accept Invite"
 msgstr "接受邀请"
 
+#: packages/admin/src/components/RequireAdmin.tsx:25
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:305
 #: packages/admin/src/components/settings/TransferSettings.tsx:69
 #: packages/admin/src/routes/byline-schema.tsx:164
 msgid "Access denied"
 msgstr "访问被拒绝"
 
-#: packages/admin/src/router.tsx:2552
+#: packages/admin/src/router.tsx:2553
 msgid "Access Denied"
 msgstr "访问被拒绝"
 
@@ -1444,8 +1445,8 @@ msgstr "操作"
 msgid "Actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1573
-#: packages/admin/src/components/ContentList.tsx:1766
+#: packages/admin/src/components/ContentList.tsx:1582
+#: packages/admin/src/components/ContentList.tsx:1775
 msgid "Actions for {title}"
 msgstr ""
 
@@ -1599,7 +1600,7 @@ msgstr "添加深色模式变体"
 msgid "Add Domain"
 msgstr "添加域名"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:780
+#: packages/admin/src/components/ContentTypeEditor.tsx:819
 #: packages/admin/src/components/FieldEditor.tsx:1008
 #: packages/admin/src/components/FieldEditor.tsx:1826
 msgid "Add Field"
@@ -1613,11 +1614,11 @@ msgstr "添加字段"
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
 msgstr "添加如\"职位\"或\"代词\"等字段来丰富每个署名。"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:802
+#: packages/admin/src/components/ContentTypeEditor.tsx:841
 msgid "Add fields to define the structure of your content"
 msgstr "添加字段以定义您的内容结构"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:805
+#: packages/admin/src/components/ContentTypeEditor.tsx:844
 msgid "Add First Field"
 msgstr "添加第一个字段"
 
@@ -1717,7 +1718,7 @@ msgstr "向站点页面添加脚本和样式"
 msgid "Add selected"
 msgstr "添加所选项"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:663
+#: packages/admin/src/components/ContentTypeEditor.tsx:702
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "添加 SEO 元数据字段（标题、描述、图片）并包含在站点地图中"
 
@@ -1987,12 +1988,12 @@ msgstr "允许具有 plugin-tool 范围的 MCP 令牌调用这些路由。"
 msgid "Allow multiple references"
 msgstr "允许多个引用"
 
-#: packages/admin/src/components/Settings.tsx:94
+#: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:220
 msgid "Allow users from specific domains to sign up"
 msgstr "允许来自特定域的用户注册"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:684
+#: packages/admin/src/components/ContentTypeEditor.tsx:723
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "允许访客在此合集的内容上留下评论"
 
@@ -2002,7 +2003,7 @@ msgid "Allowed block types"
 msgstr "允许的区块类型"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:2629
+#: packages/admin/src/router.tsx:2634
 msgid "Allowed Domains"
 msgstr "允许的域名"
 
@@ -2022,7 +2023,7 @@ msgstr "已经有账户了？"
 msgid "Also delete plugin storage data"
 msgstr "同时删除插件存储数据"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:889
+#: packages/admin/src/components/ContentTypeEditor.tsx:928
 msgid "Also delete the relationship this field uses"
 msgstr "同时删除此字段使用的关联关系"
 
@@ -2112,18 +2113,18 @@ msgstr "一种加密数字密钥，可使用指纹、面部、PIN 码或设备�
 #: packages/admin/src/components/TaxonomySidebar.tsx:696
 #: packages/admin/src/components/TaxonomySidebar.tsx:792
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:692
-#: packages/admin/src/router.tsx:713
-#: packages/admin/src/router.tsx:938
-#: packages/admin/src/router.tsx:1396
-#: packages/admin/src/router.tsx:1554
-#: packages/admin/src/router.tsx:1578
-#: packages/admin/src/router.tsx:1662
-#: packages/admin/src/router.tsx:1695
-#: packages/admin/src/router.tsx:2502
-#: packages/admin/src/router.tsx:2538
-#: packages/admin/src/router.tsx:2996
-#: packages/admin/src/router.tsx:3186
+#: packages/admin/src/router.tsx:693
+#: packages/admin/src/router.tsx:714
+#: packages/admin/src/router.tsx:939
+#: packages/admin/src/router.tsx:1397
+#: packages/admin/src/router.tsx:1555
+#: packages/admin/src/router.tsx:1579
+#: packages/admin/src/router.tsx:1663
+#: packages/admin/src/router.tsx:1696
+#: packages/admin/src/router.tsx:2503
+#: packages/admin/src/router.tsx:2539
+#: packages/admin/src/router.tsx:3033
+#: packages/admin/src/router.tsx:3223
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "发生错误"
@@ -2218,11 +2219,11 @@ msgstr "允许任何媒体类型（受全局限制）。"
 msgid "Any number"
 msgstr "任意数字"
 
-#: packages/admin/src/components/Settings.tsx:99
-#: packages/admin/src/components/Settings.tsx:103
+#: packages/admin/src/components/Settings.tsx:104
+#: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:2637
+#: packages/admin/src/router.tsx:2646
 msgid "API Tokens"
 msgstr "API 令牌"
 
@@ -2313,7 +2314,7 @@ msgid "Are you sure you want to delete \"{0}\"? This will also delete all conten
 msgstr "您确定要删除 \"{0}\" 吗？这也将删除该合集中的所有内容。"
 
 #. placeholder {0}: deleteFieldTarget.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:877
+#: packages/admin/src/components/ContentTypeEditor.tsx:916
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "您确定要删除 \"{0}\" 字段吗？"
 
@@ -2400,7 +2401,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "认证已取消或超时。请重试。"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1398
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1415
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2423,7 +2424,7 @@ msgstr "授权失败"
 msgid "Authorize"
 msgstr "授权"
 
-#: packages/admin/src/router.tsx:478
+#: packages/admin/src/router.tsx:479
 msgid "Authorize device"
 msgstr ""
 
@@ -2458,7 +2459,7 @@ msgstr "自动"
 msgid "Auto (slug change)"
 msgstr "自动（slug 变更）"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:728
+#: packages/admin/src/components/ContentTypeEditor.tsx:767
 msgid "Auto-approve authenticated users"
 msgstr "自动批准已认证用户"
 
@@ -2484,7 +2485,7 @@ msgstr "自动备份"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自动备份需要存储后端（R2、S3 或本地存储）。请在 EmDash 配置中配置存储以启用自动备份。"
 
-#: packages/admin/src/router.tsx:1522
+#: packages/admin/src/router.tsx:1523
 msgid "Autosave failed"
 msgstr "自动保存失败"
 
@@ -2537,7 +2538,7 @@ msgstr "返回"
 msgid "Back to {collectionLabel} list"
 msgstr "返回到 {collectionLabel} 列表"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:433
+#: packages/admin/src/components/ContentTypeEditor.tsx:449
 #: packages/admin/src/components/RelationList.tsx:73
 msgid "Back to Content Types"
 msgstr "返回内容类型"
@@ -2612,9 +2613,9 @@ msgstr "已创建备份：{0}"
 msgid "Backup settings saved"
 msgstr "备份设置已保存"
 
-#: packages/admin/src/components/Settings.tsx:118
+#: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:2653
+#: packages/admin/src/router.tsx:2670
 msgid "Backups"
 msgstr "备份"
 
@@ -2812,7 +2813,7 @@ msgid "Byline schema"
 msgstr "署名架构"
 
 #: packages/admin/src/components/Sidebar.tsx:552
-#: packages/admin/src/router.tsx:2933
+#: packages/admin/src/router.tsx:2970
 msgid "Byline Schema"
 msgstr "署名架构"
 
@@ -2822,12 +2823,12 @@ msgstr "署名已更新"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1162
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1170
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1174
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
-#: packages/admin/src/router.tsx:2922
+#: packages/admin/src/router.tsx:2959
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "署名"
@@ -2845,9 +2846,9 @@ msgid "C++"
 msgstr "C++"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
-#: packages/admin/src/components/ContentTypeEditor.tsx:581
+#: packages/admin/src/components/ContentTypeEditor.tsx:597
 #: packages/admin/src/components/Sidebar.tsx:696
-#: packages/admin/src/router.tsx:545
+#: packages/admin/src/router.tsx:546
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "日历"
@@ -2876,7 +2877,7 @@ msgstr "可以查看内容"
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:547
+#: packages/admin/src/components/ContentSettingsPanel.tsx:548
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -3050,7 +3051,7 @@ msgstr "更改发布日期"
 msgid "Change publication date: {0}"
 msgstr "更改发布日期：{0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:619
+#: packages/admin/src/components/ContentSettingsPanel.tsx:620
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "更改定时"
@@ -3137,7 +3138,7 @@ msgstr "更新日志"
 msgid "Changes apply everywhere this byline appears."
 msgstr "更改将应用于此署名出现的所有位置。"
 
-#: packages/admin/src/router.tsx:1595
+#: packages/admin/src/router.tsx:1596
 msgid "Changes discarded"
 msgstr "更改已丢弃"
 
@@ -3371,11 +3372,15 @@ msgstr ""
 msgid "Choose when this entry is published."
 msgstr ""
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:687
+msgid "Choose which date appears in the content list."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr "选择 Windows Hello 或其他可用凭据管理器，然后用 PIN、指纹或面容确认。"
 
-#: packages/admin/src/components/Settings.tsx:144
+#: packages/admin/src/components/Settings.tsx:150
 msgid "Choose your preferred admin language"
 msgstr "选择您的首选管理语言"
 
@@ -3480,7 +3485,7 @@ msgstr "关闭"
 msgid "Close byline search"
 msgstr "关闭署名搜索"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:707
+#: packages/admin/src/components/ContentTypeEditor.tsx:746
 msgid "Close comments after (days)"
 msgstr "关闭评论后（天）"
 
@@ -3548,13 +3553,13 @@ msgstr "合集“{0}”包含条目"
 msgid "Collection “{0}” was created on this site"
 msgstr "合集“{0}”已在此站点创建"
 
-#: packages/admin/src/router.tsx:803
-#: packages/admin/src/router.tsx:1005
-#: packages/admin/src/router.tsx:2022
+#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:1006
+#: packages/admin/src/router.tsx:2023
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:349
+#: packages/admin/src/lib/api/schema.ts:353
 msgid "Collection \"{slug}\" not found"
 msgstr ""
 
@@ -3629,15 +3634,15 @@ msgid "Comment reactions"
 msgstr "评论互动"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:194
-#: packages/admin/src/components/ContentTypeEditor.tsx:674
+#: packages/admin/src/components/ContentTypeEditor.tsx:713
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/router.tsx:2427
+#: packages/admin/src/router.tsx:2428
 msgid "Comments"
 msgstr "评论"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:731
+#: packages/admin/src/components/ContentTypeEditor.tsx:770
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "登录用户的评论将自动批准"
 
@@ -3669,7 +3674,7 @@ msgstr ""
 msgid "Confirm"
 msgstr "确认"
 
-#: packages/admin/src/router.tsx:441
+#: packages/admin/src/router.tsx:442
 msgid "Confirm magic link"
 msgstr ""
 
@@ -3727,7 +3732,7 @@ msgstr ""
 msgid "Connects"
 msgstr "连接"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:476
+#: packages/admin/src/components/ContentSettingsPanel.tsx:477
 msgid "content"
 msgstr "内容"
 
@@ -3738,7 +3743,7 @@ msgstr "内容"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:706
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/router.tsx:557
+#: packages/admin/src/router.tsx:558
 msgid "Content"
 msgstr "内容"
 
@@ -3759,7 +3764,7 @@ msgstr "内容错误 ({0})"
 msgid "Content found:"
 msgstr "找到的内容："
 
-#: packages/admin/src/router.tsx:1644
+#: packages/admin/src/router.tsx:1645
 msgid "Content has been scheduled for publishing"
 msgstr "内容已安排发布"
 
@@ -3767,11 +3772,11 @@ msgstr "内容已安排发布"
 msgid "Content ID:"
 msgstr "内容 ID："
 
-#: packages/admin/src/router.tsx:1548
+#: packages/admin/src/router.tsx:1549
 msgid "Content is now live"
 msgstr "内容现已上线"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1124
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1136
 msgid "Content language"
 msgstr "内容语言"
 
@@ -3792,11 +3797,11 @@ msgstr "内容以无效方式引用了媒体"
 msgid "Content refers to media that is not in the package"
 msgstr "内容引用了安装包中不存在的媒体"
 
-#: packages/admin/src/router.tsx:1572
+#: packages/admin/src/router.tsx:1573
 msgid "Content removed from public view"
 msgstr "内容已从公开视图中移除"
 
-#: packages/admin/src/router.tsx:1655
+#: packages/admin/src/router.tsx:1656
 msgid "Content reverted to draft"
 msgstr "内容已恢复为草稿"
 
@@ -3819,11 +3824,11 @@ msgstr "内容类型"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
-#: packages/admin/src/router.tsx:2941
+#: packages/admin/src/router.tsx:2978
 msgid "Content Types"
 msgstr "内容类型"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:585
+#: packages/admin/src/components/ContentTypeEditor.tsx:601
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr "同组的内容类型在侧边栏共用一个可折叠文件夹"
 
@@ -4188,7 +4193,7 @@ msgstr "创建账户"
 msgid "Create and add"
 msgstr "创建并添加"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:749
+#: packages/admin/src/components/ContentTypeEditor.tsx:788
 msgid "Create Content Type"
 msgstr "创建内容类型"
 
@@ -4229,7 +4234,7 @@ msgstr "创建一个，让这里的条目可以链接到另一种内容类型的
 msgid "Create passkey"
 msgstr "创建通行密钥"
 
-#: packages/admin/src/components/Settings.tsx:104
+#: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:344
@@ -4327,7 +4332,8 @@ msgid "Create, update, delete content"
 msgstr "创建、更新、删除内容"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1075
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1087
+#: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:232
 msgid "Created"
@@ -4344,11 +4350,11 @@ msgid "Created {0}"
 msgstr "创建于 {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1687
+#: packages/admin/src/router.tsx:1688
 msgid "Created {0} translation"
 msgstr "已创建 {0} 翻译"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1067
 msgid "Created and updated"
 msgstr "创建与更新"
 
@@ -4442,7 +4448,7 @@ msgstr "当前已设置 — 输入新值以替换"
 msgid "Custom"
 msgstr "自定义"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:812
+#: packages/admin/src/components/ContentTypeEditor.tsx:851
 msgid "Custom Fields"
 msgstr "自定义字段"
 
@@ -4474,7 +4480,7 @@ msgstr "深色模式变体"
 #: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:452
 #: packages/admin/src/components/Sidebar.tsx:691
-#: packages/admin/src/router.tsx:527
+#: packages/admin/src/router.tsx:528
 msgid "Dashboard"
 msgstr "仪表板"
 
@@ -4496,6 +4502,10 @@ msgstr "日期和时间"
 #: packages/admin/src/components/FieldEditor.tsx:687
 msgid "Date and time picker"
 msgstr "日期和时间选择器"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:672
+msgid "Date column source"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1098
 msgid "Date field to filter on"
@@ -4560,7 +4570,7 @@ msgstr "定义内容类型之间的链接方式"
 msgid "Define the structure of your content"
 msgstr "定义您的内容结构"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:459
+#: packages/admin/src/components/ContentTypeEditor.tsx:475
 msgid "Defined in code"
 msgstr "代码定义"
 
@@ -4569,7 +4579,7 @@ msgstr "代码定义"
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
 #: packages/admin/src/components/comments/CommentInbox.tsx:489
-#: packages/admin/src/components/ContentTypeEditor.tsx:880
+#: packages/admin/src/components/ContentTypeEditor.tsx:919
 #: packages/admin/src/components/ContentTypeList.tsx:266
 #: packages/admin/src/components/ContentTypeList.tsx:393
 #: packages/admin/src/components/editor/BlockMenu.tsx:218
@@ -4623,7 +4633,7 @@ msgid "Delete {0}"
 msgstr "删除 {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:976
+#: packages/admin/src/components/ContentTypeEditor.tsx:1015
 msgid "Delete {0} field"
 msgstr "删除 {0} 字段"
 
@@ -4692,7 +4702,7 @@ msgstr "删除内容类型？"
 msgid "Delete embed"
 msgstr "删除嵌入内容"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:874
+#: packages/admin/src/components/ContentTypeEditor.tsx:913
 msgid "Delete Field?"
 msgstr "删除字段？"
 
@@ -4725,17 +4735,17 @@ msgid "Delete menu item?"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:612
-#: packages/admin/src/components/ContentList.tsx:1779
+#: packages/admin/src/components/ContentList.tsx:1788
 msgid "Delete permanently"
 msgstr "永久删除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:185
-#: packages/admin/src/components/ContentList.tsx:1786
+#: packages/admin/src/components/ContentList.tsx:1795
 msgid "Delete Permanently"
 msgstr "永久删除"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:484
-#: packages/admin/src/components/ContentList.tsx:1784
+#: packages/admin/src/components/ContentList.tsx:1793
 msgid "Delete Permanently?"
 msgstr "永久删除？"
 
@@ -4812,8 +4822,8 @@ msgstr "删除 \"{0}\" 将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/BlocksField.tsx:1100
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
-#: packages/admin/src/components/ContentList.tsx:1787
-#: packages/admin/src/components/ContentTypeEditor.tsx:881
+#: packages/admin/src/components/ContentList.tsx:1796
+#: packages/admin/src/components/ContentTypeEditor.tsx:920
 #: packages/admin/src/components/ContentTypeList.tsx:267
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1911
@@ -4894,7 +4904,7 @@ msgstr "描述此图片以供无障碍访问"
 msgid "Describe what this section is for..."
 msgstr "描述此区块的用途..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:514
+#: packages/admin/src/components/ContentTypeEditor.tsx:530
 #: packages/admin/src/components/RegistryPluginDetail.tsx:909
 #: packages/admin/src/components/SectionEditor.tsx:296
 #: packages/admin/src/components/Sections.tsx:289
@@ -5010,8 +5020,8 @@ msgstr "禁止 AI 训练"
 msgid "Discard"
 msgstr "放弃"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:351
-#: packages/admin/src/components/ContentSettingsPanel.tsx:358
+#: packages/admin/src/components/ContentSettingsPanel.tsx:352
+#: packages/admin/src/components/ContentSettingsPanel.tsx:359
 msgid "Discard changes"
 msgstr "放弃更改"
 
@@ -5019,11 +5029,11 @@ msgstr "放弃更改"
 msgid "Discard changes?"
 msgstr "放弃更改？"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:356
+#: packages/admin/src/components/ContentSettingsPanel.tsx:357
 msgid "Discard draft changes?"
 msgstr "放弃草稿更改？"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:359
+#: packages/admin/src/components/ContentSettingsPanel.tsx:360
 #: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "正在放弃…"
@@ -5178,7 +5188,7 @@ msgstr "下载备份"
 msgid "Download Backup"
 msgstr "下载备份"
 
-#: packages/admin/src/components/Settings.tsx:119
+#: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:145
 msgid "Download backups and schedule automatic backups to storage"
 msgstr "下载备份并将自动备份定时到存储"
@@ -5226,12 +5236,12 @@ msgstr "草稿"
 msgid "Draft"
 msgstr "草稿"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:210
-#: packages/admin/src/components/ContentSettingsPanel.tsx:236
+#: packages/admin/src/components/ContentSettingsPanel.tsx:211
+#: packages/admin/src/components/ContentSettingsPanel.tsx:237
 msgid "Draft changes"
 msgstr "草稿更改"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:172
+#: packages/admin/src/components/ContentSettingsPanel.tsx:173
 msgid "Draft version"
 msgstr "草稿版本"
 
@@ -5266,7 +5276,7 @@ msgstr "拖动以重新排序"
 
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
-#: packages/admin/src/components/ContentTypeEditor.tsx:939
+#: packages/admin/src/components/ContentTypeEditor.tsx:978
 #: packages/admin/src/components/Widgets.tsx:874
 msgid "Drag to reorder {0}"
 msgstr "拖动以重新排序 {0}"
@@ -5308,7 +5318,7 @@ msgstr "放置以添加小部件"
 msgid "Drop your WordPress export file here"
 msgstr "将 WordPress 导出文件拖放到此处"
 
-#: packages/admin/src/components/ContentList.tsx:1608
+#: packages/admin/src/components/ContentList.tsx:1617
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
 #: packages/admin/src/components/RowMenuItems.tsx:68
 msgid "Duplicate"
@@ -5351,7 +5361,7 @@ msgid "Each {linkingSideName} links to"
 msgstr "每个{linkingSideName}链接到的条目"
 
 #. placeholder {0}: "/{year}/{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:566
+#: packages/admin/src/components/ContentTypeEditor.tsx:582
 msgid "Each path segment can contain at most one placeholder, e.g. {0}"
 msgstr "每个路径段最多可包含一个占位符，例如 {0}"
 
@@ -5359,7 +5369,7 @@ msgstr "每个路径段最多可包含一个占位符，例如 {0}"
 msgid "Earliest saved version"
 msgstr "最早保存的版本"
 
-#: packages/admin/src/components/ContentList.tsx:1585
+#: packages/admin/src/components/ContentList.tsx:1594
 #: packages/admin/src/components/ContentTypeList.tsx:382
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5394,7 +5404,7 @@ msgid "Edit {0}"
 msgstr "编辑 {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:968
+#: packages/admin/src/components/ContentTypeEditor.tsx:1007
 msgid "Edit {0} field"
 msgstr "编辑 {0} 字段"
 
@@ -5438,11 +5448,11 @@ msgstr "编辑署名字段"
 msgid "Edit caption"
 msgstr "编辑说明文字"
 
-#: packages/admin/src/router.tsx:1048
+#: packages/admin/src/router.tsx:1049
 msgid "Edit content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3135
+#: packages/admin/src/router.tsx:3172
 msgid "Edit content type"
 msgstr ""
 
@@ -5485,7 +5495,7 @@ msgstr "编辑图片 {0}"
 msgid "Edit link"
 msgstr "编辑链接"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:542
+#: packages/admin/src/components/ContentTypeEditor.tsx:558
 msgid "Edit locking"
 msgstr "编辑锁定"
 
@@ -5493,7 +5503,7 @@ msgstr "编辑锁定"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "编辑媒体的替代文本、说明和焦点"
 
-#: packages/admin/src/router.tsx:2843
+#: packages/admin/src/router.tsx:2876
 msgid "Edit menu"
 msgstr ""
 
@@ -5523,7 +5533,7 @@ msgstr "编辑重定向 {0}"
 msgid "Edit role"
 msgstr "编辑角色"
 
-#: packages/admin/src/router.tsx:2892
+#: packages/admin/src/router.tsx:2925
 msgid "Edit section"
 msgstr ""
 
@@ -5617,7 +5627,7 @@ msgid "em1.…"
 msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/Settings.tsx:112
+#: packages/admin/src/components/Settings.tsx:119
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:167
 msgid "Email"
@@ -5658,9 +5668,9 @@ msgstr ""
 msgid "Email provider active"
 msgstr "邮件提供商已激活"
 
-#: packages/admin/src/components/Settings.tsx:108
+#: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:2645
+#: packages/admin/src/router.tsx:2658
 msgid "Email Settings"
 msgstr "邮件设置"
 
@@ -5766,7 +5776,7 @@ msgstr "空站点"
 msgid "Enable"
 msgstr "启用"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:682
+#: packages/admin/src/components/ContentTypeEditor.tsx:721
 msgid "Enable comments"
 msgstr "启用评论"
 
@@ -5800,7 +5810,7 @@ msgstr "启用跟踪以索引现有内容并保持引用为最新。"
 msgid "Enabled"
 msgstr "已启用"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1127
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1139
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "由于未配置内容语言，将使用英文。内容语言随条目存储，与您的管理语言相互独立。"
 
@@ -6044,7 +6054,7 @@ msgstr "链接侧的条目"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3464
+#: packages/admin/src/router.tsx:3505
 msgid "Error"
 msgstr "错误"
 
@@ -6218,7 +6228,7 @@ msgstr "安全审计失败"
 msgid "Failed to abandon import"
 msgstr "放弃导入失败"
 
-#: packages/admin/src/lib/api/schema.ts:319
+#: packages/admin/src/lib/api/schema.ts:323
 msgid "Failed to activate block type version"
 msgstr "激活块类型版本失败"
 
@@ -6310,7 +6320,7 @@ msgstr "创建 API 令牌失败"
 msgid "Failed to create backup"
 msgstr "创建备份失败"
 
-#: packages/admin/src/lib/api/schema.ts:283
+#: packages/admin/src/lib/api/schema.ts:287
 msgid "Failed to create block type"
 msgstr "创建块类型失败"
 
@@ -6326,7 +6336,7 @@ msgstr "创建署名字段失败"
 msgid "Failed to create byline translation"
 msgstr "创建署名翻译失败"
 
-#: packages/admin/src/lib/api/schema.ts:371
+#: packages/admin/src/lib/api/schema.ts:375
 msgid "Failed to create collection"
 msgstr "创建合集失败"
 
@@ -6334,7 +6344,7 @@ msgstr "创建合集失败"
 msgid "Failed to create content"
 msgstr "创建内容失败"
 
-#: packages/admin/src/lib/api/schema.ts:432
+#: packages/admin/src/lib/api/schema.ts:436
 msgid "Failed to create field"
 msgstr "创建字段失败"
 
@@ -6384,7 +6394,7 @@ msgid "Failed to create term translation"
 msgstr "创建术语翻译失败"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1692
+#: packages/admin/src/router.tsx:1693
 msgid "Failed to create translation"
 msgstr "创建翻译失败"
 
@@ -6396,7 +6406,7 @@ msgstr "创建小组件失败"
 msgid "Failed to create widget area"
 msgstr "创建小组件区域失败"
 
-#: packages/admin/src/router.tsx:781
+#: packages/admin/src/router.tsx:782
 msgid "Failed to delete"
 msgstr "删除失败"
 
@@ -6416,7 +6426,7 @@ msgstr "删除署名失败"
 msgid "Failed to delete byline field"
 msgstr "删除署名字段失败"
 
-#: packages/admin/src/lib/api/schema.ts:403
+#: packages/admin/src/lib/api/schema.ts:407
 msgid "Failed to delete collection"
 msgstr "删除合集失败"
 
@@ -6428,7 +6438,7 @@ msgstr "删除评论失败"
 msgid "Failed to delete content"
 msgstr "删除内容失败"
 
-#: packages/admin/src/lib/api/schema.ts:473
+#: packages/admin/src/lib/api/schema.ts:477
 msgid "Failed to delete field"
 msgstr "删除字段失败"
 
@@ -6518,7 +6528,7 @@ msgstr "关闭欢迎页面失败"
 msgid "Failed to download a package file"
 msgstr "下载包文件失败"
 
-#: packages/admin/src/router.tsx:712
+#: packages/admin/src/router.tsx:713
 msgid "Failed to duplicate"
 msgstr "复制失败"
 
@@ -6567,11 +6577,11 @@ msgstr "获取认证模式失败"
 msgid "Failed to fetch backup settings"
 msgstr "获取备份设置失败"
 
-#: packages/admin/src/lib/api/schema.ts:270
+#: packages/admin/src/lib/api/schema.ts:274
 msgid "Failed to fetch block type"
 msgstr "获取块类型失败"
 
-#: packages/admin/src/lib/api/schema.ts:261
+#: packages/admin/src/lib/api/schema.ts:265
 msgid "Failed to fetch block types"
 msgstr "获取块类型失败"
 
@@ -6587,12 +6597,12 @@ msgstr "获取署名翻译失败"
 msgid "Failed to fetch bylines"
 msgstr "获取署名失败"
 
-#: packages/admin/src/lib/api/schema.ts:351
 #: packages/admin/src/lib/api/schema.ts:355
+#: packages/admin/src/lib/api/schema.ts:359
 msgid "Failed to fetch collection"
 msgstr "获取合集失败"
 
-#: packages/admin/src/lib/api/schema.ts:331
+#: packages/admin/src/lib/api/schema.ts:335
 msgid "Failed to fetch collections"
 msgstr "获取合集失败"
 
@@ -6629,7 +6639,7 @@ msgstr "获取邮件设置失败"
 msgid "Failed to fetch entry terms"
 msgstr "获取条目词条失败"
 
-#: packages/admin/src/lib/api/schema.ts:413
+#: packages/admin/src/lib/api/schema.ts:417
 msgid "Failed to fetch fields"
 msgstr "获取字段失败"
 
@@ -6673,7 +6683,7 @@ msgstr "获取菜单翻译失败"
 msgid "Failed to fetch menus"
 msgstr "获取菜单失败"
 
-#: packages/admin/src/lib/api/schema.ts:525
+#: packages/admin/src/lib/api/schema.ts:529
 msgid "Failed to fetch orphaned tables"
 msgstr "获取孤立数据表失败"
 
@@ -6780,7 +6790,7 @@ msgstr "获取更新状态失败"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2448
+#: packages/admin/src/router.tsx:2449
 msgid "Failed to fetch user"
 msgstr "获取用户失败"
 
@@ -6853,7 +6863,7 @@ msgstr "列出署名字段失败"
 msgid "Failed to list files to upload"
 msgstr "列出待上传文件失败"
 
-#: packages/admin/src/router.tsx:511
+#: packages/admin/src/router.tsx:512
 msgid "Failed to load admin"
 msgstr "加载管理后台失败"
 
@@ -6969,7 +6979,7 @@ msgid "Failed to lock the entry"
 msgstr "锁定条目失败"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2537
+#: packages/admin/src/router.tsx:2538
 msgid "Failed to perform bulk action"
 msgstr "执行批量操作失败"
 
@@ -6986,8 +6996,8 @@ msgstr "准备导入失败"
 msgid "Failed to probe URL"
 msgstr "探测 URL 失败"
 
-#: packages/admin/src/router.tsx:737
-#: packages/admin/src/router.tsx:1553
+#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:1554
 msgid "Failed to publish"
 msgstr "发布失败"
 
@@ -6999,11 +7009,11 @@ msgstr "发布内容失败"
 msgid "Failed to read byline field usage"
 msgstr "读取署名字段使用情况失败"
 
-#: packages/admin/src/router.tsx:2995
+#: packages/admin/src/router.tsx:3032
 msgid "Failed to register {slug}"
 msgstr "注册 {slug} 失败"
 
-#: packages/admin/src/lib/api/schema.ts:548
+#: packages/admin/src/lib/api/schema.ts:552
 msgid "Failed to register orphaned table"
 msgstr "注册孤立数据表失败"
 
@@ -7029,11 +7039,11 @@ msgstr "重命名通行密钥失败"
 msgid "Failed to reorder byline fields"
 msgstr "重新排序署名字段失败"
 
-#: packages/admin/src/lib/api/schema.ts:505
+#: packages/admin/src/lib/api/schema.ts:509
 msgid "Failed to reorder content types"
 msgstr "重新排序内容类型失败"
 
-#: packages/admin/src/lib/api/schema.ts:488
+#: packages/admin/src/lib/api/schema.ts:492
 #: packages/admin/src/routes/byline-schema.tsx:142
 msgid "Failed to reorder fields"
 msgstr "重新排序字段失败"
@@ -7054,7 +7064,7 @@ msgstr "重新排序小部件失败"
 msgid "Failed to replace media image"
 msgstr "替换媒体图片失败"
 
-#: packages/admin/src/router.tsx:691
+#: packages/admin/src/router.tsx:692
 msgid "Failed to restore"
 msgstr "恢复失败"
 
@@ -7078,9 +7088,9 @@ msgstr "重写 URL 失败"
 
 #: packages/admin/src/components/ContentEditor.tsx:2458
 #: packages/admin/src/components/ContentEditor.tsx:2712
-#: packages/admin/src/router.tsx:933
-#: packages/admin/src/router.tsx:1391
-#: packages/admin/src/router.tsx:3185
+#: packages/admin/src/router.tsx:934
+#: packages/admin/src/router.tsx:1392
+#: packages/admin/src/router.tsx:3222
 msgid "Failed to save"
 msgstr "保存失败"
 
@@ -7148,7 +7158,7 @@ msgstr "开始导入失败"
 msgid "Failed to uninstall plugin"
 msgstr "卸载插件失败"
 
-#: packages/admin/src/router.tsx:1577
+#: packages/admin/src/router.tsx:1578
 msgid "Failed to unpublish"
 msgstr "取消发布失败"
 
@@ -7156,7 +7166,7 @@ msgstr "取消发布失败"
 msgid "Failed to unpublish content"
 msgstr "取消发布内容失败"
 
-#: packages/admin/src/router.tsx:1661
+#: packages/admin/src/router.tsx:1662
 msgid "Failed to unschedule"
 msgstr "取消安排发布失败"
 
@@ -7164,7 +7174,7 @@ msgstr "取消安排发布失败"
 msgid "Failed to unschedule content"
 msgstr "取消定时发布内容失败"
 
-#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:761
 msgid "Failed to update"
 msgstr "更新失败"
 
@@ -7181,7 +7191,7 @@ msgstr "更新允许的域名失败"
 msgid "Failed to update backup settings"
 msgstr "更新备份设置失败"
 
-#: packages/admin/src/lib/api/schema.ts:299
+#: packages/admin/src/lib/api/schema.ts:303
 msgid "Failed to update block type"
 msgstr "更新块类型失败"
 
@@ -7193,7 +7203,7 @@ msgstr "更新署名失败"
 msgid "Failed to update byline field"
 msgstr "更新署名字段失败"
 
-#: packages/admin/src/lib/api/schema.ts:390
+#: packages/admin/src/lib/api/schema.ts:394
 msgid "Failed to update collection"
 msgstr "更新合集失败"
 
@@ -7209,7 +7219,7 @@ msgstr "更新内容失败"
 msgid "Failed to update domain"
 msgstr "更新域名失败"
 
-#: packages/admin/src/lib/api/schema.ts:455
+#: packages/admin/src/lib/api/schema.ts:459
 msgid "Failed to update field"
 msgstr "更新字段失败"
 
@@ -7255,7 +7265,7 @@ msgstr "更新分区失败"
 msgid "Failed to update settings"
 msgstr "更新设置失败"
 
-#: packages/admin/src/router.tsx:2501
+#: packages/admin/src/router.tsx:2502
 msgid "Failed to update status"
 msgstr "更新状态失败"
 
@@ -7317,7 +7327,7 @@ msgstr "功能"
 msgid "Featured Images"
 msgstr "特色图片"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:629
+#: packages/admin/src/components/ContentTypeEditor.tsx:645
 #: packages/admin/src/components/ContentTypeList.tsx:224
 msgid "Features"
 msgstr "功能"
@@ -7358,7 +7368,7 @@ msgstr "字段已更新"
 msgid "field_slug"
 msgstr "field_slug"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:770
+#: packages/admin/src/components/ContentTypeEditor.tsx:809
 #: packages/admin/src/components/RelationList.tsx:104
 #: packages/admin/src/components/settings/transfer/labels.ts:12
 msgid "Fields"
@@ -7476,7 +7486,7 @@ msgstr "完成当前所有编辑。"
 msgid "First page"
 msgstr "第一页"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:186
 msgid "First publication"
 msgstr "首次发布"
 
@@ -7525,7 +7535,7 @@ msgstr "文件夹"
 msgid "Folder deleted"
 msgstr "文件夹已删除"
 
-#: packages/admin/src/router.tsx:2170
+#: packages/admin/src/router.tsx:2171
 msgid "Folder no longer exists"
 msgstr "文件夹已不存在"
 
@@ -7631,12 +7641,12 @@ msgstr "画廊"
 msgid "Gallery settings"
 msgstr "画廊设置"
 
-#: packages/admin/src/components/Settings.tsx:54
+#: packages/admin/src/components/Settings.tsx:55
 msgid "General"
 msgstr "常规"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:2675
+#: packages/admin/src/router.tsx:2696
 msgid "General Settings"
 msgstr "常规设置"
 
@@ -7681,7 +7691,7 @@ msgid "Go live {countdown}"
 msgstr "上线 {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3484
+#: packages/admin/src/router.tsx:3525
 msgid "Go to Dashboard"
 msgstr "前往仪表板"
 
@@ -7714,7 +7724,7 @@ msgstr "GraphQL"
 msgid "Grid view"
 msgstr "网格视图"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:578
+#: packages/admin/src/components/ContentTypeEditor.tsx:594
 #: packages/admin/src/components/Redirects.tsx:484
 #: packages/admin/src/components/Redirects.tsx:815
 msgid "Group"
@@ -7843,7 +7853,7 @@ msgstr ""
 msgid "Hide earlier entries"
 msgstr "隐藏较早的条目"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:606
+#: packages/admin/src/components/ContentTypeEditor.tsx:622
 msgid "Hide from navigation"
 msgstr "在导航中隐藏"
 
@@ -7875,7 +7885,7 @@ msgstr "层级式（类似分类，具有父子关系）"
 msgid "Hits"
 msgstr "点击量"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:544
+#: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "当有人正在编辑条目时将其锁定，并拒绝其他写入者。"
 
@@ -7990,7 +8000,7 @@ msgstr "我已完成这些步骤，并理解跟踪无法关闭。"
 msgid "I've set it up — check again"
 msgstr "我已设置好——重新检查"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:591
+#: packages/admin/src/components/ContentTypeEditor.tsx:607
 msgid "Icon"
 msgstr "图标"
 
@@ -8175,7 +8185,7 @@ msgid "Import failed"
 msgstr "导入失败"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
-#: packages/admin/src/router.tsx:2828
+#: packages/admin/src/router.tsx:2861
 msgid "Import from WordPress"
 msgstr "从 WordPress 导入"
 
@@ -8671,11 +8681,11 @@ msgstr "Kotlin"
 msgid "Label"
 msgstr "标签"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:491
+#: packages/admin/src/components/ContentTypeEditor.tsx:507
 msgid "Label (Plural)"
 msgstr "标签（复数）"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:483
+#: packages/admin/src/components/ContentTypeEditor.tsx:499
 msgid "Label (Singular)"
 msgstr "标签（单数）"
 
@@ -8685,9 +8695,9 @@ msgstr "横向"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:286
 #: packages/admin/src/components/LoginPage.tsx:360
-#: packages/admin/src/components/Settings.tsx:132
-#: packages/admin/src/components/Settings.tsx:142
-#: packages/admin/src/components/Settings.tsx:156
+#: packages/admin/src/components/Settings.tsx:138
+#: packages/admin/src/components/Settings.tsx:148
+#: packages/admin/src/components/Settings.tsx:162
 msgid "Language"
 msgstr "语言"
 
@@ -8723,6 +8733,10 @@ msgstr "最后访问"
 #: packages/admin/src/components/users/UserDetail.tsx:238
 msgid "Last updated"
 msgstr "最后更新"
+
+#: packages/admin/src/components/ContentTypeEditor.tsx:676
+msgid "Last updated (default)"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
 #: packages/admin/src/components/settings/PasskeyItem.tsx:134
@@ -8906,14 +8920,14 @@ msgid "Live"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
-#: packages/admin/src/components/ContentSettingsPanel.tsx:194
-#: packages/admin/src/components/ContentSettingsPanel.tsx:204
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
-#: packages/admin/src/components/ContentSettingsPanel.tsx:256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:257
 msgid "Live version"
 msgstr "线上版本"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:728
+#: packages/admin/src/components/ContentSettingsPanel.tsx:729
 msgid "Live View"
 msgstr "实时预览"
 
@@ -8947,7 +8961,7 @@ msgid "Load preview"
 msgstr "加载预览"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3439
+#: packages/admin/src/router.tsx:3480
 msgid "Loading"
 msgstr "正在加载"
 
@@ -8976,8 +8990,8 @@ msgstr "正在加载合集..."
 msgid "Loading comments..."
 msgstr "正在加载评论..."
 
-#: packages/admin/src/router.tsx:3441
-#: packages/admin/src/router.tsx:3453
+#: packages/admin/src/router.tsx:3482
+#: packages/admin/src/router.tsx:3494
 msgid "Loading configuration..."
 msgstr "正在加载配置..."
 
@@ -9156,7 +9170,7 @@ msgstr "锁定宽高比"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "已锁定，因为此字段有存储值。删除这些值（或删除该字段）才能更改。"
 
-#: packages/admin/src/router.tsx:427
+#: packages/admin/src/router.tsx:428
 msgid "Log in"
 msgstr ""
 
@@ -9234,7 +9248,7 @@ msgstr "管理在您的内容中署名的人员和团队。"
 msgid "Manage URL redirects and view 404 errors."
 msgstr "管理 URL 重定向并查看 404 错误。"
 
-#: packages/admin/src/components/Settings.tsx:88
+#: packages/admin/src/components/Settings.tsx:90
 #: packages/admin/src/components/settings/SecuritySettings.tsx:94
 msgid "Manage your passkeys and authentication"
 msgstr "管理您的通行密钥和认证"
@@ -9286,11 +9300,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "市场"
 
-#: packages/admin/src/router.tsx:2820
+#: packages/admin/src/router.tsx:2849
 msgid "Marketplace browsing is no longer available."
 msgstr "市场浏览功能已下线。"
 
-#: packages/admin/src/router.tsx:2793
+#: packages/admin/src/router.tsx:2822
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "市场浏览功能已下线。请在“插件”中管理已安装的插件。"
 
@@ -9335,14 +9349,14 @@ msgid "MDX"
 msgstr "MDX"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2012
-#: packages/admin/src/components/Settings.tsx:72
+#: packages/admin/src/components/Settings.tsx:74
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:467
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
-#: packages/admin/src/router.tsx:2129
+#: packages/admin/src/router.tsx:2130
 msgid "Media"
 msgstr "媒体"
 
@@ -9405,11 +9419,11 @@ msgstr "媒体读取"
 msgid "Media results"
 msgstr "媒体结果"
 
-#: packages/admin/src/router.tsx:2604
+#: packages/admin/src/router.tsx:2605
 msgid "Media Usage"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:76
+#: packages/admin/src/components/Settings.tsx:78
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
 msgstr "媒体用量跟踪"
@@ -9501,7 +9515,7 @@ msgstr "菜单已重命名"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
-#: packages/admin/src/router.tsx:2836
+#: packages/admin/src/router.tsx:2869
 msgid "Menus"
 msgstr "菜单"
 
@@ -9575,7 +9589,7 @@ msgstr ""
 msgid "Mixed"
 msgstr "混合"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:693
+#: packages/admin/src/components/ContentTypeEditor.tsx:732
 msgid "Moderation"
 msgstr "审核"
 
@@ -9642,7 +9656,7 @@ msgstr "多篇文章与此链接匹配"
 msgid "Most Popular"
 msgstr "最受欢迎"
 
-#: packages/admin/src/components/ContentList.tsx:1623
+#: packages/admin/src/components/ContentList.tsx:1632
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "将「{title}」移至回收站？您可以稍后恢复它。"
 
@@ -9682,7 +9696,7 @@ msgstr "下移"
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr "移动焦点以选择裁剪后保留可见的区域。"
 
-#: packages/admin/src/components/Settings.tsx:126
+#: packages/admin/src/components/Settings.tsx:132
 msgid "Move this site to another EmDash installation, or import a site package"
 msgstr "将此站点迁移到另一个 EmDash 安装，或导入站点包"
 
@@ -9699,20 +9713,20 @@ msgid "Move to top"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:673
-#: packages/admin/src/components/ContentList.tsx:1617
+#: packages/admin/src/components/ContentList.tsx:1626
 msgid "Move to trash"
 msgstr "移到回收站"
 
 #: packages/admin/src/components/ContentList.tsx:694
-#: packages/admin/src/components/ContentList.tsx:1624
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1365
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1371
+#: packages/admin/src/components/ContentList.tsx:1633
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1382
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1388
 msgid "Move to Trash"
 msgstr "移至回收站"
 
 #: packages/admin/src/components/ContentList.tsx:678
-#: packages/admin/src/components/ContentList.tsx:1622
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1369
+#: packages/admin/src/components/ContentList.tsx:1631
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1386
 msgid "Move to Trash?"
 msgstr "移至回收站？"
 
@@ -9742,11 +9756,11 @@ msgstr ""
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:757
+#: packages/admin/src/router.tsx:758
 msgid "Moved {total} items to draft"
 msgstr "已将 {total} 个项目移到草稿"
 
-#: packages/admin/src/router.tsx:778
+#: packages/admin/src/router.tsx:779
 msgid "Moved {total} items to trash"
 msgstr "已将 {total} 个项目移到回收站"
 
@@ -9826,8 +9840,8 @@ msgstr "移动 {label} 已取消。"
 msgid "Moving from another EmDash site?"
 msgstr "从另一个 EmDash 站点迁移？"
 
-#: packages/admin/src/components/ContentList.tsx:1625
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1372
+#: packages/admin/src/components/ContentList.tsx:1634
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
 msgid "Moving to trash..."
 msgstr ""
 
@@ -9877,7 +9891,7 @@ msgid "Navigate"
 msgstr "导航"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:369
-#: packages/admin/src/components/ContentTypeEditor.tsx:575
+#: packages/admin/src/components/ContentTypeEditor.tsx:591
 msgid "Navigation"
 msgstr "导航"
 
@@ -9897,7 +9911,7 @@ msgstr "需要注意"
 msgid "Never"
 msgstr "从未"
 
-#: packages/admin/src/router.tsx:1687
+#: packages/admin/src/router.tsx:1688
 msgid "new"
 msgstr "新建"
 
@@ -9928,15 +9942,15 @@ msgstr "新建署名字段"
 msgid "New collection"
 msgstr "新合集"
 
-#: packages/admin/src/router.tsx:886
+#: packages/admin/src/router.tsx:887
 msgid "New content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3038
+#: packages/admin/src/router.tsx:3075
 msgid "New content type"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:452
+#: packages/admin/src/components/ContentTypeEditor.tsx:468
 #: packages/admin/src/components/ContentTypeList.tsx:159
 msgid "New Content Type"
 msgstr "新内容类型"
@@ -10042,7 +10056,7 @@ msgstr "接下来将打开 {0}"
 msgid "Next, the browser's passkey window will open"
 msgstr "接下来将打开浏览器的通行密钥窗口"
 
-#: packages/admin/src/components/ContentList.tsx:1642
+#: packages/admin/src/components/ContentList.tsx:1651
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
@@ -10154,7 +10168,7 @@ msgstr "此合集中无内容"
 msgid "No content types yet."
 msgstr "暂无内容类型。"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:801
+#: packages/admin/src/components/ContentTypeEditor.tsx:840
 msgid "No custom fields yet"
 msgstr "尚无自定义字段"
 
@@ -10422,7 +10436,7 @@ msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "「{debouncedQuery}」无结果。请尝试其他搜索词。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:494
-#: packages/admin/src/components/Settings.tsx:166
+#: packages/admin/src/components/Settings.tsx:172
 msgid "No results found"
 msgstr "未找到结果"
 
@@ -10513,7 +10527,7 @@ msgstr "此版本未记录"
 msgid "Not saved yet"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1641
+#: packages/admin/src/components/ContentList.tsx:1650
 #: packages/admin/src/components/PluginSettings.tsx:342
 #: packages/admin/src/components/settings/GeneralSettings.tsx:385
 msgid "Not set"
@@ -10795,7 +10809,7 @@ msgstr "原始："
 msgid "Other"
 msgstr "其他"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1316
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1333
 #: packages/admin/src/components/editor/DocumentOutline.tsx:248
 msgid "Outline"
 msgstr "大纲"
@@ -10821,8 +10835,8 @@ msgstr "已逾期 · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "覆盖搜索引擎结果中的页面标题"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1143
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 msgid "Ownership"
 msgstr "所有权"
 
@@ -10840,11 +10854,11 @@ msgstr "包摘要"
 msgid "Package downloaded"
 msgstr "包已下载"
 
-#: packages/admin/src/router.tsx:3352
+#: packages/admin/src/router.tsx:3393
 msgid "Page not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3479
+#: packages/admin/src/router.tsx:3520
 msgid "Page Not Found"
 msgstr "页面未找到"
 
@@ -11004,12 +11018,12 @@ msgstr "模式（正则表达式）"
 #. placeholder {7}: "{minute}"
 #. placeholder {8}: "{second}"
 #. placeholder {9}: "/{year}/{month}/{day}/{slug}.html"
-#: packages/admin/src/components/ContentTypeEditor.tsx:570
+#: packages/admin/src/components/ContentTypeEditor.tsx:586
 msgid "Pattern for generating URLs, e.g. /blog/{0}. Tokens: {1}, {2}, and date tokens {3}/{4}/{5} (also {6}/{7}/{8}) from the publish date — e.g. {9} for WordPress-style permalinks."
 msgstr "生成 URL 的模式，例如 /blog/{0}。标记：{1}、{2}，以及来自发布日期的日期标记 {3}/{4}/{5}（还有 {6}/{7}/{8}）——例如，{9} 用于 WordPress 风格的固定链接。"
 
 #. placeholder {0}: "{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:561
+#: packages/admin/src/components/ContentTypeEditor.tsx:577
 msgid "Pattern must include a {0} placeholder"
 msgstr "模式必须包含一个 {0} 占位符"
 
@@ -11045,7 +11059,7 @@ msgstr "每页"
 msgid "Period"
 msgstr "周期"
 
-#: packages/admin/src/components/ContentList.tsx:1785
+#: packages/admin/src/components/ContentList.tsx:1794
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "永久删除「{title}」？此操作无法撤销。"
 
@@ -11053,7 +11067,7 @@ msgstr "永久删除「{title}」？此操作无法撤销。"
 msgid "Permissions"
 msgstr "权限"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:597
+#: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Phosphor icon name, e.g. calendar-blank or trophy"
 msgstr "Phosphor 图标名称，例如 calendar-blank 或 trophy"
 
@@ -11110,7 +11124,7 @@ msgid "Please enter a valid URL"
 msgstr "请输入有效的 URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
-#: packages/admin/src/router.tsx:3328
+#: packages/admin/src/router.tsx:3369
 msgid "Plugin"
 msgstr "插件"
 
@@ -11147,8 +11161,8 @@ msgstr "插件列不可用"
 msgid "Plugin details"
 msgstr "插件详情"
 
-#: packages/admin/src/router.tsx:2765
-#: packages/admin/src/router.tsx:2772
+#: packages/admin/src/router.tsx:2794
+#: packages/admin/src/router.tsx:2801
 msgid "Plugin Details"
 msgstr ""
 
@@ -11173,7 +11187,7 @@ msgstr "插件错误（{0}）"
 msgid "Plugin installation requires explicit consent"
 msgstr "安装插件需要明确同意"
 
-#: packages/admin/src/router.tsx:2757
+#: packages/admin/src/router.tsx:2786
 msgid "Plugin Marketplace"
 msgstr ""
 
@@ -11204,7 +11218,7 @@ msgstr "插件页面"
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:396
-#: packages/admin/src/lib/content-editor-panels.tsx:192
+#: packages/admin/src/lib/content-editor-panels.tsx:267
 msgid "Plugin panel unavailable."
 msgstr "插件面板不可用。"
 
@@ -11213,7 +11227,7 @@ msgid "Plugin Permissions"
 msgstr "插件权限"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:2714
+#: packages/admin/src/router.tsx:2743
 msgid "Plugin Registry"
 msgstr "插件仓库"
 
@@ -11222,8 +11236,8 @@ msgstr "插件仓库"
 msgid "Plugin registry configuration error"
 msgstr "插件库配置错误"
 
-#: packages/admin/src/router.tsx:2750
-#: packages/admin/src/router.tsx:2784
+#: packages/admin/src/router.tsx:2779
+#: packages/admin/src/router.tsx:2813
 msgid "Plugin registry is not configured."
 msgstr "插件库未配置。"
 
@@ -11232,7 +11246,7 @@ msgstr "插件库未配置。"
 msgid "Plugin responded with {0}: {text}"
 msgstr "插件响应：{0}：{text}"
 
-#: packages/admin/src/router.tsx:3315
+#: packages/admin/src/router.tsx:3356
 msgid "Plugin Settings"
 msgstr ""
 
@@ -11265,7 +11279,7 @@ msgstr "插件组件错误"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
-#: packages/admin/src/router.tsx:2699
+#: packages/admin/src/router.tsx:2728
 msgid "Plugins"
 msgstr "插件"
 
@@ -11298,7 +11312,7 @@ msgstr ""
 msgid "Portrait"
 msgstr "纵向"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:486
+#: packages/admin/src/components/ContentTypeEditor.tsx:502
 #: packages/admin/src/components/RelationForm.tsx:378
 msgid "Post"
 msgstr "文章"
@@ -11307,7 +11321,7 @@ msgstr "文章"
 msgid "Post URLs (one per line)"
 msgstr "文章 URL（每行一个）"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:494
+#: packages/admin/src/components/ContentTypeEditor.tsx:510
 #: packages/admin/src/components/RelationForm.tsx:369
 #: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "Posts"
@@ -11355,7 +11369,7 @@ msgid "Press Space to pick up an image. Use the Arrow keys to move it, then pres
 msgstr "按空格拾取图片。使用方向键移动，然后按空格放下。"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:425
+#: packages/admin/src/components/ContentSettingsPanel.tsx:426
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
@@ -11372,7 +11386,7 @@ msgstr "预览更改"
 msgid "Preview content before publishing"
 msgstr "发布前预览内容"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:425
+#: packages/admin/src/components/ContentSettingsPanel.tsx:426
 msgid "Preview draft"
 msgstr "预览草稿"
 
@@ -11453,9 +11467,9 @@ msgstr "提供商："
 msgid "Public routes"
 msgstr "公开路由"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1023
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1034
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1030
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1035
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1046
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "发布日期"
@@ -11470,17 +11484,17 @@ msgid "visualEditing.publish"
 msgstr "发布"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:536
-#: packages/admin/src/components/ContentSettingsPanel.tsx:982
-#: packages/admin/src/components/ContentSettingsPanel.tsx:987
+#: packages/admin/src/components/ContentSettingsPanel.tsx:537
+#: packages/admin/src/components/ContentSettingsPanel.tsx:994
+#: packages/admin/src/components/ContentSettingsPanel.tsx:999
 msgid "Publish"
 msgstr "发布"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish changes"
 msgstr "发布更改"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:505
+#: packages/admin/src/components/ContentSettingsPanel.tsx:506
 msgid "Publish changes?"
 msgstr "发布更改？"
 
@@ -11490,11 +11504,11 @@ msgid "visualEditing.publishFailed"
 msgstr "发布失败"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
-#: packages/admin/src/components/ContentSettingsPanel.tsx:504
+#: packages/admin/src/components/ContentSettingsPanel.tsx:505
 msgid "Publish now"
 msgstr "立即发布"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:505
+#: packages/admin/src/components/ContentSettingsPanel.tsx:506
 msgid "Publish now?"
 msgstr "立即发布？"
 
@@ -11512,10 +11526,11 @@ msgstr "已发布"
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
+#: packages/admin/src/components/ContentTypeEditor.tsx:677
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1548
+#: packages/admin/src/router.tsx:1549
 msgid "Published"
 msgstr "已发布"
 
@@ -11528,7 +11543,7 @@ msgstr "发布于 {0}"
 msgid "Published {liveSince}"
 msgstr "已发布 {liveSince}"
 
-#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:735
 msgid "Published {total} items"
 msgstr "已发布 {total} 个项目"
 
@@ -11560,7 +11575,7 @@ msgstr "发布者发布策略"
 msgid "Publishing"
 msgstr "发布中"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:991
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1003
 msgid "Publishing summary"
 msgstr "发布摘要"
 
@@ -11577,7 +11592,7 @@ msgstr "Python"
 msgid "Queued"
 msgstr "已排队"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:619
+#: packages/admin/src/components/ContentTypeEditor.tsx:635
 msgid "Quick action on the dashboard"
 msgstr "仪表板上的快捷操作"
 
@@ -11668,7 +11683,7 @@ msgid "Read your taxonomies and terms"
 msgstr "读取您的分类法和术语"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2101
+#: packages/admin/src/router.tsx:2102
 msgid "Read-only"
 msgstr "只读"
 
@@ -11692,7 +11707,7 @@ msgstr "正在读取软件包"
 msgid "Ready"
 msgstr "就绪"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:211
+#: packages/admin/src/components/ContentSettingsPanel.tsx:212
 msgid "Ready to publish now or schedule for later"
 msgstr "可立即发布或稍后定时发布"
 
@@ -11759,7 +11774,7 @@ msgstr "正在重定向到登录..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
-#: packages/admin/src/router.tsx:2878
+#: packages/admin/src/router.tsx:2911
 msgid "Redirects"
 msgstr "重定向"
 
@@ -11838,7 +11853,7 @@ msgstr "插件仓库"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3074
+#: packages/admin/src/router.tsx:3111
 msgid "Relations"
 msgstr "关系"
 
@@ -11984,7 +11999,7 @@ msgid "Remove passkey?"
 msgstr "移除通行密钥？"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
-#: packages/admin/src/components/ContentSettingsPanel.tsx:639
+#: packages/admin/src/components/ContentSettingsPanel.tsx:640
 msgid "Remove schedule"
 msgstr "移除定时发布"
 
@@ -12075,7 +12090,7 @@ msgstr "移除了别名"
 msgid "Removed:"
 msgstr "已移除："
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:608
+#: packages/admin/src/components/ContentTypeEditor.tsx:624
 msgid "Removes the sidebar entry, command palette link, dashboard quick action, and dashboard Content card row; entries stay reachable by URL, API, and plugins"
 msgstr ""
 
@@ -12254,14 +12269,14 @@ msgstr "请求新链接"
 msgid "Request failed"
 msgstr "请求失败"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:530
+#: packages/admin/src/components/ContentTypeEditor.tsx:546
 msgid "Require a slug before content can be published"
 msgstr "内容发布前必须填写别名"
 
 #: packages/admin/src/components/block-field-notes.tsx:47
 #: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
-#: packages/admin/src/components/ContentTypeEditor.tsx:956
+#: packages/admin/src/components/ContentTypeEditor.tsx:995
 #: packages/admin/src/components/FieldEditor.tsx:1193
 #: packages/admin/src/components/FieldEditor.tsx:1723
 #: packages/admin/src/routes/byline-schema.tsx:235
@@ -12364,7 +12379,7 @@ msgstr "正在解析发布者标识…"
 msgid "Restart numbering"
 msgstr "重新编号"
 
-#: packages/admin/src/components/ContentList.tsx:1771
+#: packages/admin/src/components/ContentList.tsx:1780
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:128
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:237
 msgid "Restore"
@@ -12419,8 +12434,8 @@ msgstr "已退役"
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:404
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
-#: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3467
+#: packages/admin/src/lib/content-editor-panels.tsx:276
+#: packages/admin/src/router.tsx:3508
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12471,7 +12486,7 @@ msgstr "正在重试…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "可重用的内容区块，可插入到任何内容中"
 
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1597
 msgid "Reverted to published version"
 msgstr "已恢复到发布版本"
 
@@ -12525,7 +12540,7 @@ msgstr "审核中…"
 msgid "Revision not found: {revisionId}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
 #: packages/admin/src/components/RevisionHistory.tsx:57
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12607,7 +12622,7 @@ msgstr "{0} 的角色已更新。"
 msgid "Roles"
 msgstr "角色"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:528
+#: packages/admin/src/components/ContentTypeEditor.tsx:544
 msgid "Routable"
 msgstr "可路由"
 
@@ -12713,7 +12728,7 @@ msgid "Save date"
 msgstr "保存日期"
 
 #: packages/admin/src/components/ContentEditor.tsx:2386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:716
+#: packages/admin/src/components/ContentSettingsPanel.tsx:717
 msgid "Save draft"
 msgstr ""
 
@@ -12771,7 +12786,7 @@ msgstr "立即保存；术语更改不等待发布更改。"
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr "在此保存集合会将此字段变为条目选择器。其存储的条目 ID 将移至关联关系中，此字段将无法再被搜索或筛选。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:175
+#: packages/admin/src/components/ContentSettingsPanel.tsx:176
 msgid "Saving creates a draft that stays off the site. You can publish it after the first save."
 msgstr ""
 
@@ -12817,7 +12832,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "用附近的手机或平板扫描它。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:619
+#: packages/admin/src/components/ContentSettingsPanel.tsx:620
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "定时发布"
@@ -12843,7 +12858,7 @@ msgstr "已移除定时发布"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1643
+#: packages/admin/src/router.tsx:1644
 msgid "Scheduled"
 msgstr "已定时"
 
@@ -12856,12 +12871,12 @@ msgid "Scheduled entries appear here with their publish time."
 msgstr "已定时的条目在此显示发布时间。"
 
 #. placeholder {0}: isolate(formattedSchedule)
-#: packages/admin/src/components/ContentSettingsPanel.tsx:151
+#: packages/admin/src/components/ContentSettingsPanel.tsx:152
 msgid "Scheduled for {0}"
 msgstr "定于 {0} 发布"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:159
-#: packages/admin/src/components/ContentSettingsPanel.tsx:262
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
+#: packages/admin/src/components/ContentSettingsPanel.tsx:263
 msgid "Scheduled publication"
 msgstr "定时发布"
 
@@ -12928,8 +12943,8 @@ msgid "SCSS"
 msgstr "SCSS"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:110
-#: packages/admin/src/components/Settings.tsx:165
-#: packages/admin/src/components/Settings.tsx:165
+#: packages/admin/src/components/Settings.tsx:171
+#: packages/admin/src/components/Settings.tsx:171
 #: packages/admin/src/components/Widgets.tsx:167
 msgid "Search"
 msgstr "搜索"
@@ -13000,7 +13015,7 @@ msgstr "搜索内容..."
 msgid "Search Engine Optimization"
 msgstr "搜索引擎优化"
 
-#: packages/admin/src/components/Settings.tsx:67
+#: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/components/settings/SeoSettings.tsx:127
 msgid "Search engine optimization and verification"
 msgstr "搜索引擎优化和验证"
@@ -13120,7 +13135,7 @@ msgstr "部分集合的搜索将被关闭"
 msgid "Search..."
 msgstr "搜索..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:958
+#: packages/admin/src/components/ContentTypeEditor.tsx:997
 #: packages/admin/src/components/FieldEditor.tsx:1206
 msgid "Searchable"
 msgstr "可搜索"
@@ -13163,7 +13178,7 @@ msgstr "区块标题"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
-#: packages/admin/src/router.tsx:2885
+#: packages/admin/src/router.tsx:2918
 msgid "Sections"
 msgstr "区块"
 
@@ -13176,7 +13191,7 @@ msgid "Secure your account"
 msgstr "保护您的账户"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:913
-#: packages/admin/src/components/Settings.tsx:87
+#: packages/admin/src/components/Settings.tsx:89
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
 msgid "Security"
@@ -13217,10 +13232,10 @@ msgstr "安全错误。请确保您使用的是安全连接。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
 #: packages/admin/src/components/Header.tsx:109
-#: packages/admin/src/components/Settings.tsx:83
+#: packages/admin/src/components/Settings.tsx:85
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:2612
+#: packages/admin/src/router.tsx:2613
 msgid "Security Settings"
 msgstr "安全设置"
 
@@ -13232,7 +13247,7 @@ msgstr "查看此文件的引用位置。"
 #: packages/admin/src/components/FieldEditor.tsx:692
 #: packages/admin/src/components/FieldEditor.tsx:1700
 #: packages/admin/src/components/MediaPickerModal.tsx:891
-#: packages/admin/src/components/Settings.tsx:159
+#: packages/admin/src/components/Settings.tsx:165
 msgid "Select"
 msgstr "选择"
 
@@ -13246,7 +13261,7 @@ msgstr "选择"
 msgid "Select {label}"
 msgstr "选择 {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1517
+#: packages/admin/src/components/ContentList.tsx:1526
 msgid "Select {title}"
 msgstr "选择 {title}"
 
@@ -13408,7 +13423,7 @@ msgstr "已选文章"
 msgid "Selection"
 msgstr "选择"
 
-#: packages/admin/src/components/Settings.tsx:93
+#: packages/admin/src/components/Settings.tsx:96
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
 msgid "Self-Signup Domains"
@@ -13472,10 +13487,10 @@ msgstr ""
 msgid "Sending..."
 msgstr "发送中..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1229
-#: packages/admin/src/components/ContentTypeEditor.tsx:661
-#: packages/admin/src/components/Settings.tsx:66
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1238
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1241
+#: packages/admin/src/components/ContentTypeEditor.tsx:700
+#: packages/admin/src/components/Settings.tsx:67
 msgid "SEO"
 msgstr "SEO"
 
@@ -13486,7 +13501,7 @@ msgid "SEO settings"
 msgstr "SEO 设置"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:2691
+#: packages/admin/src/router.tsx:2720
 msgid "SEO Settings"
 msgstr "SEO 设置"
 
@@ -13524,7 +13539,7 @@ msgstr "设置语言（当前：{label}）"
 msgid "Set role"
 msgstr "设置角色"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:718
+#: packages/admin/src/components/ContentTypeEditor.tsx:757
 msgid "Set to 0 to never close comments automatically."
 msgstr "设置为 0 以永不自动关闭评论。"
 
@@ -13561,13 +13576,13 @@ msgstr "正在设置..."
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
 #: packages/admin/src/components/ContentEditor.tsx:2355
 #: packages/admin/src/components/ContentEditor.tsx:2746
-#: packages/admin/src/components/ContentTypeEditor.tsx:480
+#: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
-#: packages/admin/src/router.tsx:2597
+#: packages/admin/src/router.tsx:2598
 msgid "Settings"
 msgstr "设置"
 
@@ -13584,7 +13599,7 @@ msgstr "设置读取"
 msgid "Settings saved successfully"
 msgstr "设置保存成功"
 
-#: packages/admin/src/router.tsx:419
+#: packages/admin/src/router.tsx:420
 msgid "Setup"
 msgstr ""
 
@@ -13667,7 +13682,7 @@ msgstr "正在显示 {0} 中的 {pageShowingRange}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "在管理后台中显示。某些主题也会在站点上展示它。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1165
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
 msgid "Shown to readers in this order."
 msgstr "按此顺序向读者展示。"
 
@@ -13675,7 +13690,7 @@ msgstr "按此顺序向读者展示。"
 msgid "Shown when hovering over the image."
 msgstr "悬停在图片上时显示。"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:621
+#: packages/admin/src/components/ContentTypeEditor.tsx:637
 msgid "Shows a button for creating a new entry"
 msgstr "显示用于创建新条目的按钮"
 
@@ -13728,7 +13743,7 @@ msgstr "使用通行密钥登录"
 msgid "Sign in with your Bluesky/Atmosphere handle"
 msgstr ""
 
-#: packages/admin/src/router.tsx:459
+#: packages/admin/src/router.tsx:460
 msgid "Sign up"
 msgstr ""
 
@@ -13761,7 +13776,7 @@ msgstr "从选项中选择一个"
 msgid "Single line text input"
 msgstr "单行文本输入"
 
-#: packages/admin/src/components/Settings.tsx:50
+#: packages/admin/src/components/Settings.tsx:51
 #: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Site"
 msgstr "站点"
@@ -13782,7 +13797,7 @@ msgstr "站点标识"
 msgid "site identity applied (title, tagline, logo)"
 msgstr "已应用站点标识（标题、标语、徽标）"
 
-#: packages/admin/src/components/Settings.tsx:55
+#: packages/admin/src/components/Settings.tsx:56
 #: packages/admin/src/components/settings/GeneralSettings.tsx:308
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "站点标识、徽标、网站图标和阅读偏好"
@@ -13881,9 +13896,9 @@ msgstr "已跳过"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1116
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
-#: packages/admin/src/components/ContentTypeEditor.tsx:502
+#: packages/admin/src/components/ContentTypeEditor.tsx:518
 #: packages/admin/src/components/ContentTypeList.tsx:218
 #: packages/admin/src/components/FieldEditor.tsx:734
 #: packages/admin/src/components/FieldEditor.tsx:1164
@@ -13950,7 +13965,7 @@ msgstr ""
 msgid "smtp.example.com"
 msgstr ""
 
-#: packages/admin/src/components/Settings.tsx:60
+#: packages/admin/src/components/Settings.tsx:61
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
 msgid "Social Links"
 msgstr "社交链接"
@@ -13959,7 +13974,7 @@ msgstr "社交链接"
 msgid "Social links saved"
 msgstr "社交链接已保存"
 
-#: packages/admin/src/components/Settings.tsx:61
+#: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:90
 msgid "Social media profile links"
 msgstr "社交媒体个人资料链接"
@@ -13968,7 +13983,7 @@ msgstr "社交媒体个人资料链接"
 msgid "Social Profiles"
 msgstr "社交资料"
 
-#: packages/admin/src/router.tsx:2683
+#: packages/admin/src/router.tsx:2708
 msgid "Social Settings"
 msgstr ""
 
@@ -14281,11 +14296,11 @@ msgstr "已同步"
 msgid "Synced passkey"
 msgstr "已同步通行密钥"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:1004
+#: packages/admin/src/components/ContentTypeEditor.tsx:1043
 msgid "System"
 msgstr "系统"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:788
+#: packages/admin/src/components/ContentTypeEditor.tsx:827
 msgid "System Fields"
 msgstr "系统字段"
 
@@ -14357,10 +14372,10 @@ msgstr "目标"
 msgid "Target locale"
 msgstr "目标语言区域"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1213
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1225
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
-#: packages/admin/src/router.tsx:2856
+#: packages/admin/src/router.tsx:2889
 msgid "Taxonomies"
 msgstr "分类"
 
@@ -14755,7 +14770,7 @@ msgstr "包的内容将写入本站点。导入一旦开始无法撤销；如需
 msgid "The package’s file index is not valid."
 msgstr "包的文件索引无效。"
 
-#: packages/admin/src/router.tsx:3481
+#: packages/admin/src/router.tsx:3522
 msgid "The page you're looking for doesn't exist."
 msgstr "您查找的页面不存在。"
 
@@ -14902,7 +14917,7 @@ msgstr "主题"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2811
+#: packages/admin/src/router.tsx:2840
 msgid "Theme Details"
 msgstr ""
 
@@ -14911,7 +14926,7 @@ msgstr ""
 msgid "Theme ID: {0}"
 msgstr "主题 ID：{0}"
 
-#: packages/admin/src/router.tsx:2803
+#: packages/admin/src/router.tsx:2832
 msgid "Theme Marketplace"
 msgstr ""
 
@@ -14943,7 +14958,7 @@ msgstr "重定向过多，导入前无法检查循环。"
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr "安装后这些工具将保持禁用状态，直到您明确启用代理访问。"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:893
+#: packages/admin/src/components/ContentTypeEditor.tsx:932
 msgid "This also removes:"
 msgstr "这还将删除："
 
@@ -14994,7 +15009,7 @@ msgstr "此代码已过期。请从终端重新开始登录以获取新代码。
 msgid "This code is invalid or has already been used."
 msgstr "此代码无效或已被使用。"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:469
+#: packages/admin/src/components/ContentTypeEditor.tsx:485
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "此合集在代码中定义。某些设置无法在此处更改。请编辑您的 live.config.ts 文件以修改架构。"
 
@@ -15002,7 +15017,7 @@ msgstr "此合集在代码中定义。某些设置无法在此处更改。请编
 msgid "This content cannot be edited safely"
 msgstr "此内容无法安全编辑"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:510
+#: packages/admin/src/components/ContentSettingsPanel.tsx:511
 msgid "This content will be visible on the site immediately."
 msgstr "此内容将立即在站点上可见。"
 
@@ -15027,15 +15042,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "您打开后，此条目已在其他地方更改。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1726
-#: packages/admin/src/router.tsx:1179
+#: packages/admin/src/router.tsx:1180
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "此条目已在其他地方更改。仍保存，或重新加载以获取较新的版本。"
 
-#: packages/admin/src/router.tsx:2034
+#: packages/admin/src/router.tsx:2035
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "此条目不存在或未发布。您的角色只能查看已发布的内容。"
 
-#: packages/admin/src/router.tsx:2035
+#: packages/admin/src/router.tsx:2036
 msgid "This entry doesn't exist or was deleted."
 msgstr "此条目不存在或已被删除。"
 
@@ -15267,7 +15282,7 @@ msgstr "这将删除署名配置文件。内容署名链接将被移除，主要
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "这将删除该关系、其下存储的所有链接以及使用它的引用字段："
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:507
+#: packages/admin/src/components/ContentSettingsPanel.tsx:508
 msgid "This removes the schedule and publishes immediately."
 msgstr "这将删除定时并立即发布。"
 
@@ -15358,7 +15373,7 @@ msgstr "此更新暴露了以下无需身份验证的路由："
 msgid "This version can't be shown."
 msgstr "无法显示此版本。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:176
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
 msgid "This version is not visible on the site"
 msgstr "此版本在站点上不可见"
 
@@ -15370,7 +15385,7 @@ msgstr "此视频无法播放。"
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "这将删除小部件区域及其所有小部件。此操作无法撤销。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1370
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1387
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "这将把项目移至回收站。您可以稍后从回收站恢复它。"
 
@@ -15392,7 +15407,7 @@ msgstr "这将永久删除此评论。此操作无法撤销。"
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "这将从您的站点移除插件及其包。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:358
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "这将恢复到已发布的版本。您的草稿更改将会丢失。"
 
@@ -15499,7 +15514,7 @@ msgstr "提示文本"
 msgid "Track content history"
 msgstr "跟踪内容历史"
 
-#: packages/admin/src/components/Settings.tsx:77
+#: packages/admin/src/components/Settings.tsx:79
 msgid "Track where media is used across your content"
 msgstr "跟踪媒体在内容中的使用位置"
 
@@ -15507,10 +15522,10 @@ msgstr "跟踪媒体在内容中的使用位置"
 msgid "Track where media is used across your content."
 msgstr "跟踪媒体在内容中的使用位置。"
 
-#: packages/admin/src/components/Settings.tsx:125
+#: packages/admin/src/components/Settings.tsx:131
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:2660
+#: packages/admin/src/router.tsx:2677
 msgid "Transfer"
 msgstr "迁移"
 
@@ -15539,11 +15554,11 @@ msgstr "翻译中..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1686
+#: packages/admin/src/router.tsx:1687
 msgid "Translation created"
 msgstr "翻译已创建"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1203
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "翻译"
@@ -15744,8 +15759,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "无法访问市场"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1407
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1424
 msgid "Unassigned"
 msgstr "未分配"
 
@@ -15777,7 +15792,7 @@ msgstr "卸载 {pluginName}？"
 msgid "Uninstalling..."
 msgstr "卸载中..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:957
+#: packages/admin/src/components/ContentTypeEditor.tsx:996
 #: packages/admin/src/components/FieldEditor.tsx:1198
 msgid "Unique"
 msgstr "唯一"
@@ -15817,11 +15832,11 @@ msgstr "未命名通行密钥"
 msgid "Unnamed user"
 msgstr "未命名用户"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 msgid "Unpublish {itemLabel}"
 msgstr "取消发布 {itemLabel}"
 
-#: packages/admin/src/router.tsx:1572
+#: packages/admin/src/router.tsx:1573
 msgid "Unpublished"
 msgstr "已取消发布"
 
@@ -15851,12 +15866,12 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "未保存的内容可能离开您的站点"
 
-#: packages/admin/src/router.tsx:1654
+#: packages/admin/src/router.tsx:1655
 msgid "Unscheduled"
 msgstr "已取消安排"
 
 #: packages/admin/src/components/BlocksField.tsx:1268
-#: packages/admin/src/components/ContentTypeEditor.tsx:955
+#: packages/admin/src/components/ContentTypeEditor.tsx:994
 msgid "Unsupported"
 msgstr "不支持"
 
@@ -15945,7 +15960,8 @@ msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1094
+#: packages/admin/src/components/ContentTypeEditor.tsx:679
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
 msgstr "已更新"
@@ -16114,12 +16130,12 @@ msgstr "正在上传视频…"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1108
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1120
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1123
 msgid "URL & language"
 msgstr "URL 与语言"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:553
+#: packages/admin/src/components/ContentTypeEditor.tsx:569
 msgid "URL Pattern"
 msgstr "URL 模式"
 
@@ -16266,7 +16282,7 @@ msgstr "供屏幕阅读器使用，并在图片加载失败时显示"
 msgid "Used in"
 msgstr "用于"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:509
+#: packages/admin/src/components/ContentTypeEditor.tsx:525
 msgid "Used in URLs and API endpoints"
 msgstr "用于 URL 和 API 端点"
 
@@ -16314,7 +16330,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
-#: packages/admin/src/router.tsx:2900
+#: packages/admin/src/router.tsx:2937
 msgid "Users"
 msgstr "用户"
 
@@ -16434,7 +16450,7 @@ msgstr ""
 msgid "Video upload failed. Try again."
 msgstr "视频上传失败。请重试。"
 
-#: packages/admin/src/components/Settings.tsx:113
+#: packages/admin/src/components/Settings.tsx:120
 msgid "View email provider status and send test emails"
 msgstr "查看邮件提供商状态并发送测试邮件"
 
@@ -16447,7 +16463,7 @@ msgstr "查看线上"
 msgid "View mode"
 msgstr "查看模式"
 
-#: packages/admin/src/components/ContentList.tsx:1600
+#: packages/admin/src/components/ContentList.tsx:1609
 msgid "View published"
 msgstr ""
 
@@ -16483,20 +16499,20 @@ msgstr ""
 msgid "Visitors hitting these paths will see an error."
 msgstr "访问这些路径的用户将看到错误。"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:231
+#: packages/admin/src/components/ContentSettingsPanel.tsx:232
 msgid "Visitors see the published version until the scheduled update"
 msgstr "在定时更新之前，访客将看到已发布的版本"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:195
-#: packages/admin/src/components/ContentSettingsPanel.tsx:257
+#: packages/admin/src/components/ContentSettingsPanel.tsx:196
+#: packages/admin/src/components/ContentSettingsPanel.tsx:258
 msgid "Visitors see this published version"
 msgstr "访客看到的是此已发布版本"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:205
+#: packages/admin/src/components/ContentSettingsPanel.tsx:206
 msgid "Visitors still see the published version"
 msgstr "访客仍然看到已发布的版本"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:509
+#: packages/admin/src/components/ContentSettingsPanel.tsx:510
 msgid "Visitors will see these changes immediately."
 msgstr "访客将立即看到这些更改。"
 
@@ -16655,7 +16671,7 @@ msgstr "哪些内容类型可以使用此分类"
 msgid "Whole number"
 msgstr "整数"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1178
 msgid "Why are bylines shown in this order?"
 msgstr "为什么署名按此顺序显示？"
 
@@ -16663,7 +16679,7 @@ msgstr "为什么署名按此顺序显示？"
 msgid "Why can't this be changed?"
 msgstr "为什么无法更改？"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1140
 msgid "Why English is used"
 msgstr "为什么使用英文"
 
@@ -16735,7 +16751,7 @@ msgstr "小部件已更新"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
-#: packages/admin/src/router.tsx:2870
+#: packages/admin/src/router.tsx:2903
 msgid "Widgets"
 msgstr "小部件"
 
@@ -16832,7 +16848,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "每年"
 
-#: packages/admin/src/components/ContentList.tsx:1644
+#: packages/admin/src/components/ContentList.tsx:1653
 #: packages/admin/src/components/users/UserDetail.tsx:255
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
@@ -16904,7 +16920,11 @@ msgstr "您需要管理员权限才能管理媒体使用跟踪。"
 msgid "You need Admin permissions to transfer this site."
 msgstr "您需要管理员权限才能迁移此站点。"
 
-#: packages/admin/src/router.tsx:2553
+#: packages/admin/src/components/RequireAdmin.tsx:26
+msgid "You need admin permissions to view this page."
+msgstr ""
+
+#: packages/admin/src/router.tsx:2554
 msgid "You need Editor permissions to moderate comments."
 msgstr "您需要编辑权限才能审核评论。"
 
@@ -17046,11 +17066,11 @@ msgstr "您的姓名（可选）"
 msgid "Your Role"
 msgstr "您的角色"
 
-#: packages/admin/src/router.tsx:2106
+#: packages/admin/src/router.tsx:2107
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "你的角色只能编辑处于草稿状态的自有条目。"
 
-#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:2108
 msgid "Your role can't edit this entry."
 msgstr "你的角色无法编辑此条目。"
 

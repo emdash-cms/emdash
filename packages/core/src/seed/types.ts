@@ -124,7 +124,7 @@ export interface SeedCollection {
 	editLocking?: boolean;
 	/** Field slug powering the admin list Title column (defaults to title display) */
 	titleField?: string;
-	/** Field slug (a datetime field) powering the admin list Date column (defaults to last-updated) */
+	/** Datetime field slug or system timestamp (`publishedAt`, `createdAt`, `updatedAt`) for the admin list Date column (defaults to last-updated) */
 	dateField?: string;
 	fields: SeedField[];
 }

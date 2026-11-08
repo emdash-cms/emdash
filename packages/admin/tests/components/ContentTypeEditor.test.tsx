@@ -753,6 +753,145 @@ describe("ContentTypeEditor", () => {
 			.not.toBeInTheDocument();
 	});
 
+	// ---- Date column source ----
+
+	it("offers system and datetime field date column sources", async () => {
+		const collection = makeCollection({
+			fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+		});
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		const trigger = screen.getByRole("combobox", { name: "Date column source", exact: true });
+		await expect.element(trigger).toHaveTextContent("Last updated (default)");
+		await trigger.click();
+		await expect
+			.element(screen.getByRole("option", { name: "Published", exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("option", { name: "Published on", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it.each([
+		["Published", "publishedAt"],
+		["Created", "createdAt"],
+		["Updated", "updatedAt"],
+	])("saves %s as the date column source", async (label, dateField) => {
+		const onSave = vi.fn();
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={makeCollection()} />,
+		);
+		await screen.getByRole("combobox", { name: "Date column source", exact: true }).click();
+		await screen.getByRole("option", { name: label, exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField }));
+	});
+
+	it("saves and resets the date column source without overriding it when unchanged", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({
+			dateField: "published_on",
+			fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+		});
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(
+			expect.not.objectContaining({ dateField: expect.anything() }),
+		);
+
+		onSave.mockClear();
+		const trigger = screen.getByRole("combobox", { name: "Date column source", exact: true });
+		await trigger.click();
+		await screen.getByRole("option", { name: "Last updated (default)", exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField: null }));
+	});
+
+	it("resets a deleted date source before saving unrelated settings", async () => {
+		const onSave = vi.fn();
+		function EditorWithRefetch() {
+			const [collection, setCollection] = React.useState(
+				makeCollection({
+					dateField: "published_on",
+					fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+				}),
+			);
+			return (
+				<ContentTypeEditor
+					{...defaultProps({ onSave })}
+					collection={collection}
+					onDeleteField={async () => {
+						setCollection({ ...collection, dateField: undefined, fields: [] });
+					}}
+				/>
+			);
+		}
+		const screen = await render(<EditorWithRefetch />);
+		await screen.getByRole("button", { name: "Delete Published on field", exact: true }).click();
+		screen.getByRole("button", { name: "Delete", exact: true }).element().click();
+		await expect
+			.element(screen.getByRole("combobox", { name: "Date column source", exact: true }))
+			.toHaveTextContent("Last updated (default)");
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).last())
+			.toBeDisabled();
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledOnce();
+		expect(onSave.mock.calls[0]![0]).toMatchObject({ label: "Articles" });
+		expect(onSave.mock.calls[0]![0]).not.toHaveProperty("dateField");
+	});
+
+	it.each([
+		["Published", "publishedAt"],
+		["Event date", "event_date"],
+	])(
+		"preserves an unsaved %s source when an unrelated field is deleted",
+		async (label, dateField) => {
+			const onSave = vi.fn();
+			function EditorWithRefetch() {
+				const [collection, setCollection] = React.useState(
+					makeCollection({
+						fields: [
+							makeField({ slug: "title", label: "Title" }),
+							makeField({
+								id: "event-date",
+								slug: "event_date",
+								label: "Event date",
+								type: "datetime",
+							}),
+						],
+					}),
+				);
+				return (
+					<ContentTypeEditor
+						{...defaultProps({ onSave })}
+						collection={collection}
+						onDeleteField={async (slug) => {
+							setCollection({
+								...collection,
+								fields: collection.fields.filter((field) => field.slug !== slug),
+							});
+						}}
+					/>
+				);
+			}
+			const screen = await render(<EditorWithRefetch />);
+			await screen.getByRole("combobox", { name: "Date column source", exact: true }).click();
+			await screen.getByRole("option", { name: label, exact: true }).click();
+			await screen.getByRole("button", { name: "Delete Title field", exact: true }).click();
+			screen.getByRole("button", { name: "Delete", exact: true }).element().click();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Date column source", exact: true }))
+				.toHaveTextContent(label);
+			await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField }));
+		},
+	);
+
 	// ---- URL Pattern field ----
 
 	it("shows URL Pattern input", async () => {
