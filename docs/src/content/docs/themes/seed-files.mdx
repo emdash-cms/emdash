@@ -202,13 +202,15 @@ A collection requires `slug`, `label`, and `fields`:
 | `commentsEnabled` | `boolean` | Enables comments for the collection |
 | `editLocking` | `boolean` | Enables edit locks; defaults to `true` |
 | `titleField` | `string` | Field used as the entry title in the admin, search results, generated slugs, and the default SEO title |
-| `dateField` | `string` | `datetime` field used for the content-list date |
+| `dateField` | `string` | `datetime` field slug or `publishedAt`, `createdAt`, or `updatedAt` used for the content-list date and default sort; defaults to last-updated |
 | `fields` | `SeedField[]` | Required field definitions |
 
 Collections allow scheduling by default. Add `no-scheduling` to prevent editors from creating or
 changing schedules in the admin. Existing schedules still run and can be removed. The legacy
 `scheduling` value is accepted for compatibility but has no effect; if both values are present,
 `no-scheduling` takes precedence.
+
+Set `dateField` to `"publishedAt"` to show publication dates rather than recent edits. Entries without a publication date show their last-updated date. You can also change this setting under **Date column source** when editing an existing content type in the admin. The Date header sorts by the configured source, including for entries whose display falls back to last-updated.
 
 `sortOrder` belongs to the collection and controls sidebar order. `SeedField` has no `sortOrder` property. Fields are created in their array order.
 
