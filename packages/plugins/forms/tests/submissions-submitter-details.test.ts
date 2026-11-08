@@ -48,12 +48,12 @@ const handlers = {
 
 describe("submissions/list management capability", () => {
 	it.each([
-		[{ role: EDITOR }, false],
-		[{ role: ADMIN }, true],
-		[{ role: 60 }, true],
-		[undefined, false],
-	] as const)("returns canManage=%s for the request user", async (user, canManage) => {
-		const result = await submissionsListHandler(ctxWith(storedSubmission(), user ?? undefined));
+		[false, { role: EDITOR }],
+		[true, { role: ADMIN }],
+		[true, { role: 60 }],
+		[false, undefined],
+	] as const)("returns canManage=%s for user %o", async (canManage, user) => {
+		const result = await submissionsListHandler(ctxWith(storedSubmission(), user));
 		expect(result.canManage).toBe(canManage);
 	});
 });
