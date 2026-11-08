@@ -129,6 +129,8 @@ const SYSTEM_COLUMNS = new Set([
 /** Markers for byline/taxonomy hydration folded into the content query. */
 export const FOLDED_TERMS = Symbol.for("emdash:foldedTerms");
 export const FOLDED_BYLINES = Symbol.for("emdash:foldedBylines");
+/** Persisted byline schema version read in the same statement as the credits. */
+export const FOLDED_BYLINE_FIELDS_VERSION = Symbol.for("emdash:foldedBylineFieldsVersion");
 /**
  * Marker for whether `_emdash_bylines` has any rows at all (`false` = table
  * empty). Lets byline hydration trust an empty fold instead of re-checking
@@ -231,13 +233,13 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 			AND ${canonicalLocaleColumn("b.locale")} = ${canonicalLocaleColumn(`${outer}.locale`)}
 		ORDER BY ${storedLocaleOrder("b.locale")}, b.id LIMIT 1)`
 		: sql`(SELECT ${bylineInner} FROM ${sql.ref("_emdash_bylines")} AS b LEFT JOIN ${sql.ref("media")} AS m ON m.id = b.avatar_media_id WHERE b.user_id = ${o}.author_id AND b.locale = ${o}.locale LIMIT 1)`;
-	// Both ride in one result column: D1 caps a result set at 100 columns and
-	// the entry read is budgeted to the column, so folding them together keeps
-	// its width unchanged. SQLite's `json()` keeps each subquery's JSON text
-	// from being nested as a string.
+	// D1 caps result sets at 100 columns, so credits, author and schema version
+	// share one column to keep the entry read's width unchanged. SQLite's
+	// `json()` keeps each subquery's JSON text from being nested as a string.
+	const fieldsVersion = sql`(SELECT value FROM ${sql.ref("options")} WHERE name = ${"byline_fields_version"})`;
 	const bylines = pg
-		? sql`json_build_object('credits', ${credits}, 'author', ${author}) AS ${sql.ref("_emdash_bylines")}`
-		: sql`json_object('credits', json(${credits}), 'author', json(${author})) AS ${sql.ref("_emdash_bylines")}`;
+		? sql`json_build_object('credits', ${credits}, 'author', ${author}, 'fieldsVersion', ${fieldsVersion}) AS ${sql.ref("_emdash_bylines")}`
+		: sql`json_object('credits', json(${credits}), 'author', json(${author}), 'fieldsVersion', ${fieldsVersion}) AS ${sql.ref("_emdash_bylines")}`;
 	// Uncorrelated existence probe (evaluated once per statement, not per row):
 	// 1 when `_emdash_bylines` has any row, NULL when empty. An empty table
 	// means an empty fold is authoritative — no credit in any locale, no
@@ -372,6 +374,14 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 		// fallback; the marker stays unset and hydration treats it as unknown.
 		if (sym === FOLDED_BYLINES && isPlainObject(value)) {
 			const { credits, author } = value;
+			if ("fieldsVersion" in value) {
+				const version = Number.parseInt(String(value.fieldsVersion), 10);
+				Object.defineProperty(data, FOLDED_BYLINE_FIELDS_VERSION, {
+					value: Number.isFinite(version) ? version : 0,
+					enumerable: false,
+					configurable: true,
+				});
+			}
 			if (author === null || isPlainObject(author)) {
 				Object.defineProperty(data, FOLDED_AUTHOR_BYLINE, {
 					value: author,

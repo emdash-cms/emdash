@@ -1,6 +1,7 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { B32_CHARACTERS, decodeTime, encodeTime, monotonicFactory, ULID_REGEX } from "ulidx";
 
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -214,6 +215,28 @@ export class RevisionRepository {
 					: null,
 			};
 		});
+	}
+
+	async findByIds(collection: string, ids: string[]): Promise<Revision[]> {
+		const revisions: Revision[] = [];
+		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("revisions")
+				.selectAll()
+				.where("collection", "=", collection)
+				.where("id", "in", batch)
+				.execute();
+			const data = await this.datetimes.normalizeDataMany(
+				collection,
+				rows.map((row) => JSON.parse(row.data)),
+			);
+			for (const [index, row] of rows.entries()) {
+				const normalized = data[index];
+				if (!normalized) throw new Error("Failed to normalize revision data");
+				revisions.push(this.rowToRevision(row, normalized));
+			}
+		}
+		return revisions;
 	}
 
 	/** Read revisions only when the owning content row is visible in the same statement snapshot. */

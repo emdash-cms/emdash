@@ -51,7 +51,7 @@ describe("registry presentation boundaries", () => {
 		);
 
 		expect(html).toContain('href="https://example.com/"');
-		expect(html).toContain('rel="noreferrer noopener"');
+		expect(html).toContain('rel="ugc nofollow noopener noreferrer"');
 		expect(html).not.toContain('href="/admin"');
 		expect(html).not.toContain("javascript:");
 		expect(html).not.toContain("<script");

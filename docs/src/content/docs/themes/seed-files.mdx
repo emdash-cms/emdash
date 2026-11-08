@@ -162,7 +162,7 @@ A collection requires `slug`, `label`, and `fields`:
       "label": "Posts",
       "labelSingular": "Post",
       "description": "Published articles",
-      "supports": ["drafts", "revisions", "scheduling", "search", "seo"],
+      "supports": ["drafts", "revisions", "search", "seo"],
       "urlPattern": "/posts/{slug}",
       "routable": true,
       "commentsEnabled": true,
@@ -193,7 +193,7 @@ A collection requires `slug`, `label`, and `fields`:
 | `icon` | `string` | Phosphor icon name for the sidebar entry, such as `calendar-blank` |
 | `admin.listColumns` | `string[]` | Up to four declared field slugs shown in the content list |
 | `admin.quickCreate` | `boolean` | Whether the dashboard shows a "new entry" quick action for this collection; defaults to `true` |
-| `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `scheduling`, `search`, and `seo` |
+| `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `no-scheduling`, `scheduling`, `search`, and `seo` |
 | `urlPattern` | `string` | Public pattern such as `/posts/{slug}`, with at most one placeholder per path segment |
 | `routable` | `boolean` | Whether published entries require a slug; defaults to `true` |
 | `hidden` | `boolean` | Hides the generated sidebar link, command palette link, dashboard quick action, and dashboard **Content** card row; the collection stays reachable by URL and API |
@@ -204,6 +204,11 @@ A collection requires `slug`, `label`, and `fields`:
 | `titleField` | `string` | Field used as the entry title in the admin, search results, generated slugs, and the default SEO title |
 | `dateField` | `string` | `datetime` field used for the content-list date |
 | `fields` | `SeedField[]` | Required field definitions |
+
+Collections allow scheduling by default. Add `no-scheduling` to prevent editors from creating or
+changing schedules in the admin. Existing schedules still run and can be removed. The legacy
+`scheduling` value is accepted for compatibility but has no effect; if both values are present,
+`no-scheduling` takes precedence.
 
 `sortOrder` belongs to the collection and controls sidebar order. `SeedField` has no `sortOrder` property. Fields are created in their array order.
 
@@ -472,11 +477,28 @@ Seed exports include both fields so that restoring per-use captions also preserv
 
 In a Portable Text `image` block or a `gallery` image, `$media` in `asset` becomes a media reference (`_type: "reference"`, `_ref`, `url`, `provider`), and the media's alt text and dimensions fill the image's own `alt`, `width`, and `height` when they are missing.
 
-Within one apply call, repeated references to the same URL reuse the resolved media value. Seed media references do not accept a local `file` property. `mediaBasePath` remains in the public `SeedApplyOptions` type but the current apply engine does not read it.
+To import an image from the local filesystem, use `file` instead of `url`:
 
-When no storage adapter is supplied, `$media` references are skipped and resolve to `null`. With `skipMediaDownload: true`, they become external media values and no storage adapter is required.
+```json title="seed/seed.json"
+{
+  "featured_image": {
+    "$media": {
+      "file": "assets/launch.jpg",
+      "alt": "A product launch on stage"
+    }
+  }
+}
+```
 
-The `emdash seed` CLI has a `--skip-media` flag that sets this option. In that mode every `$media` reference remains an external URL instead of being downloaded and stored, so the resulting media fields point at the original remote URLs.
+Place the image at `seed/assets/launch.jpg`. The `emdash seed` CLI, setup wizard, and dev-bypass resolve `file` relative to the selected seed file's directory. Programmatic callers must set `mediaBasePath` to the directory containing the files. Supply exactly one non-null `file` or `url`; null values are treated as absent. Absolute paths, paths outside the base directory, and symlinks that escape it are rejected.
+
+Local files require a Node.js filesystem at seed-apply time. They are not bundled into the deployment. For Astro setup, the seed directory must remain at the same path used during the build. On Workers, use public URLs for `$media`. The `emdash seed` CLI applies to local SQLite and filesystem storage, not D1 or R2. URL references still reject localhost and internal hosts; `file` does not fetch over HTTP.
+
+The filename defaults to the local file's basename, and its extension determines the MIME type. Local files use the same storage upload, image dimensions, captions, and content-hash deduplication as downloaded media. Within one apply call, repeated references to the same file or URL reuse the resolved media value.
+
+When no storage adapter is supplied, `$media` references are skipped and resolve to `null`. With `skipMediaDownload: true`, URL references become external media values and no storage adapter is required; local files are skipped and resolve to `null`.
+
+The `emdash seed` CLI has a `--skip-media` flag that sets this option. In that mode URL references remain external URLs instead of being downloaded and stored, and local file references resolve to `null`.
 
 ## Menus
 
@@ -628,9 +650,9 @@ export async function applyProjectSeed(
 | --- | --- | --- |
 | `includeContent` | `false` | Includes content entries, bylines, and taxonomy terms |
 | `onConflict` | `"skip"` | `"skip"`, `"update"`, or `"error"` for supported entity conflicts |
-| `storage` | none | Storage adapter required to download `$media` URLs |
-| `skipMediaDownload` | `false` | Keeps `$media` URLs as external media values |
-| `mediaBasePath` | none | Present in the public type but not used by the current apply engine |
+| `storage` | none | Storage adapter required for `$media` uploads |
+| `skipMediaDownload` | `false` | Keeps `$media` URLs as external media values; skips local files |
+| `mediaBasePath` | none | Required base directory for local `$media.file` paths |
 
 Programmatic application defaults `includeContent` to `false`. The setup wizard passes the administrator's sample-content choice. The `emdash seed` CLI includes content by default unless `--no-content` is set.
 
@@ -681,7 +703,7 @@ Apply a seed to a local SQLite database with explicit conflict behavior:
 npx emdash seed seed/seed.json --database ./data.db --on-conflict skip
 ```
 
-Apply a seed without downloading or storing `$media` references, leaving them as external URLs:
+Apply a seed without downloading or storing `$media` references, leaving URLs as external references and skipping local files:
 
 ```bash
 npx emdash seed seed/seed.json --database ./data.db --skip-media
