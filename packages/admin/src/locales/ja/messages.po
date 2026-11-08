@@ -1009,7 +1009,7 @@ msgstr "{state} · {when}"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {lateness} late, {time}:"
-msgstr ""
+msgstr "{state}、{lateness}遅延、{time}："
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {time}:"
@@ -3557,7 +3557,7 @@ msgstr "コンテンツタイプ「{collection}」が見つかりません"
 
 #: packages/admin/src/lib/api/schema.ts:349
 msgid "Collection \"{slug}\" not found"
-msgstr ""
+msgstr "コレクション「{slug}」が見つかりません"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:109
 msgid "Collection:"
@@ -4016,7 +4016,7 @@ msgstr "投稿を確認できませんでした"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:55
 msgid "Could not verify that {origin} serves this site"
-msgstr ""
+msgstr "{origin}でこのサイトが表示されることを確認できませんでした"
 
 #: packages/admin/src/components/MenuEditor.tsx:306
 msgid "Couldn’t add the menu item"
@@ -10588,7 +10588,7 @@ msgstr "有効"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
 msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
-msgstr ""
+msgstr "Cloudflare Workersでは、Workerが自身のドメインにアクセスできず、確認に失敗する場合があります。そのまま使用する場合は、ブラウザーで新しいアドレスを開き、そのアドレスのままこのサイトが表示されることを確認してください。"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:185
 msgid "On the site"
@@ -11117,7 +11117,7 @@ msgstr "プラグイン"
 
 #: packages/admin/src/lib/api/marketplace.ts:322
 msgid "Plugin \"{id}\" not found in marketplace"
-msgstr ""
+msgstr "マーケットプレイスにプラグイン「{id}」が見つかりません"
 
 #: packages/admin/src/lib/api/plugins.ts:69
 msgid "Plugin \"{pluginId}\" not found"
@@ -12524,7 +12524,7 @@ msgstr "確認中…"
 #: packages/admin/src/lib/api/content.ts:650
 #: packages/admin/src/lib/api/content.ts:672
 msgid "Revision not found: {revisionId}"
-msgstr ""
+msgstr "リビジョンが見つかりません：{revisionId}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1340
 #: packages/admin/src/components/ContentTypeEditor.tsx:100
@@ -13046,11 +13046,11 @@ msgstr "メディアを検索"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:503
 msgid "Search or create {label}"
-msgstr ""
+msgstr "{label}を検索または作成"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:524
 msgid "Search or create {label}…"
-msgstr ""
+msgstr "{label}を検索または作成…"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
@@ -14901,7 +14901,7 @@ msgstr "テーマ"
 
 #: packages/admin/src/lib/api/theme-marketplace.ts:97
 msgid "Theme \"{id}\" not found"
-msgstr ""
+msgstr "テーマ「{id}」が見つかりません"
 
 #: packages/admin/src/router.tsx:2840
 msgid "Theme Details"
@@ -15709,7 +15709,7 @@ msgstr "種類"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:592
 msgid "Type a name above to create a new {singularLabel}."
-msgstr ""
+msgstr "新しい{singularLabel}を作成するには、上に名前を入力してください。"
 
 #: packages/admin/src/components/editor/ImageNode.tsx:312
 msgid "Type caption for image (optional)"
@@ -16306,7 +16306,7 @@ msgstr "ユーザーが見つかりません"
 
 #: packages/admin/src/lib/api/users.ts:89
 msgid "User not found: {id}"
-msgstr ""
+msgstr "ユーザーが見つかりません：{id}"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:273
 msgid "Username"
@@ -16429,7 +16429,7 @@ msgstr "動画の操作"
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/MediaDetailPanel.tsx:1278
 msgid "Video player for {0}"
-msgstr ""
+msgstr "{0}の動画プレーヤー"
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:261
 msgid "Video upload failed. Try again."
@@ -16907,7 +16907,7 @@ msgstr "このサイトを移行するには管理者権限が必要です。"
 
 #: packages/admin/src/components/RequireAdmin.tsx:26
 msgid "You need admin permissions to view this page."
-msgstr ""
+msgstr "このページを表示するには管理者権限が必要です。"
 
 #: packages/admin/src/router.tsx:2554
 msgid "You need Editor permissions to moderate comments."
