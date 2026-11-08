@@ -1043,7 +1043,7 @@ describe("ContentEditor's values outside a room's document", () => {
 		translationGroup: null,
 	};
 
-	it("saves bylines at once, and keeps them in place when that save fails", async () => {
+	it("saves bylines at once, and shows the entry's own again when that save fails", async () => {
 		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
 		let refuse!: (error: Error) => void;
 		const onSaveOutsideValues = vi.fn(() => new Promise((_resolve, reject) => (refuse = reject)));
@@ -1065,9 +1065,21 @@ describe("ContentEditor's values outside a room's document", () => {
 		});
 		expect(fake.set).not.toHaveBeenCalled();
 
+		await expect
+			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))
+			.toBeInTheDocument();
 		refuse(new Error("Refused"));
+		await expect
+			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))
+			.not.toBeInTheDocument();
 		await screen.rerender(
-			<ContentEditor {...props} item={makeItem({ updatedAt: "2026-01-15T11:00:00Z" })} />,
+			<ContentEditor
+				{...props}
+				item={makeItem({
+					updatedAt: "2026-01-15T11:00:00Z",
+					bylines: [{ byline: MINA, sortOrder: 0, roleLabel: "Editor" }],
+				})}
+			/>,
 		);
 		await expect
 			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))

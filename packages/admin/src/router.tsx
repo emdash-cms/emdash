@@ -1127,16 +1127,13 @@ function ContentEditPage() {
 	};
 	const handleRoomEvent = (event: RoomEvent) => {
 		switch (event.kind) {
-			case "left-room": {
-				const draftRevisionId = rawItem?.draftRevisionId;
-				void Promise.all([
-					queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
-					draftRevisionId
-						? queryClient.invalidateQueries({ queryKey: ["revision", draftRevisionId] })
-						: undefined,
-				]).then(() => resetEditorItem(id));
+			case "outdated":
+				toastManager.add({
+					title: t`The admin was updated`,
+					description: t`Your edits are still on this page. Reload it to edit with others.`,
+					variant: "info",
+				});
 				return;
-			}
 			case "recovered":
 				toastManager.add({
 					title: t`Your unsaved edits are in a recovery revision`,
@@ -1209,33 +1206,59 @@ function ContentEditPage() {
 			: settledCoEditing?.identity === revisionIdentity
 				? settledCoEditing.mode
 				: null;
+	// A room owns the document, so after one the form still holds the entry as the page loaded
+	// it. The fields wait until the entry's current item replaces it.
+	const [leftRoomEntry, setLeftRoomEntry] = React.useState<string | null>(null);
 	if (
 		coEditing.mode !== "pending" &&
 		(settledCoEditing?.identity !== revisionIdentity || settledCoEditing.mode !== coEditing.mode)
 	) {
+		if (
+			settledCoEditing?.identity === revisionIdentity &&
+			settledCoEditing.mode === "room" &&
+			coEditing.mode === "single-editor"
+		) {
+			setLeftRoomEntry(revisionIdentity);
+		}
 		setSettledCoEditing({ identity: revisionIdentity, mode: coEditing.mode });
 	}
+	const leavingRoom = leftRoomEntry === revisionIdentity;
+	React.useEffect(() => {
+		if (!leavingRoom) return;
+		const identity = revisionIdentity;
+		const draftRevisionId = rawItem?.draftRevisionId;
+		void Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			draftRevisionId
+				? queryClient.invalidateQueries({ queryKey: ["revision", draftRevisionId] })
+				: undefined,
+		]).then(() => {
+			resetEditorItem(id);
+			setLeftRoomEntry((current) => (current === identity ? null : current));
+			return undefined;
+		});
+	}, [leavingRoom]);
 	const [loadingCapEntry, setLoadingCapEntry] = React.useState<string | null>(null);
 	// The editor stays mounted across a switch to a cached entry, so only one that isn't showing
 	// yet waits for the room.
 	const editorShownRef = React.useRef(false);
 	// A reset drops the replica. Until the next one syncs, the form would show the entry as the
-	// page loaded it, so the fields wait for it as the page does on open. Values outside the
-	// document still save as they do in the room.
+	// page loaded it, so the fields wait for it. Values outside the document still save as they do
+	// in the room.
 	const lastRoomRef = React.useRef<RoomEditing | null>(null);
 	if (coEditing.mode === "room") lastRoomRef.current = coEditing.room;
 	const resetting = coEditing.mode === "pending" && coEditingMode === "room";
-	const loadingCapKey = resetting
-		? `${revisionIdentity}:${lastRoomRef.current?.id}`
-		: revisionIdentity;
 	const waitingForRoom =
-		(resetting || (coEditingMode === null && !editorShownRef.current)) &&
-		loadingCapEntry !== loadingCapKey;
+		coEditingMode === null && !editorShownRef.current && loadingCapEntry !== revisionIdentity;
 	React.useEffect(() => {
 		if (!waitingForRoom) return;
-		const timer = window.setTimeout(setLoadingCapEntry, CO_EDITING_LOADING_CAP_MS, loadingCapKey);
+		const timer = window.setTimeout(
+			setLoadingCapEntry,
+			CO_EDITING_LOADING_CAP_MS,
+			revisionIdentity,
+		);
 		return () => window.clearTimeout(timer);
-	}, [waitingForRoom, loadingCapKey]);
+	}, [waitingForRoom, revisionIdentity]);
 	// A reload the user turns down in the browser's prompt leaves the tab as it was.
 	const lastRoomViewRef = React.useRef<Extract<CoEditing, { mode: "room" }> | null>(null);
 	if (coEditing.mode === "room") lastRoomViewRef.current = coEditing;
@@ -1248,7 +1271,7 @@ function ContentEditPage() {
 				: null;
 	roomRef.current = roomView?.room ?? (resetting ? lastRoomRef.current : null);
 	const roomBlocked = roomView
-		? roomView.offline || roomView.access !== "edit" || roomView.kept !== null
+		? roomView.offline || !roomView.editable || roomView.kept !== null
 		: resetting;
 	let roomSync: SyncProblem | null | undefined;
 	if (coEditing.mode === "pending") {
@@ -1308,7 +1331,7 @@ function ContentEditPage() {
 		Boolean(manifest?.collections[collection]) &&
 		!isLoading &&
 		!(itemError && !rawItem) &&
-		!(waitingForRoom && !resetting) &&
+		!waitingForRoom &&
 		!(coEditing.mode === "reloading" && !roomView);
 	React.useLayoutEffect(() => {
 		editorShownRef.current = showsEditor;
@@ -1335,7 +1358,7 @@ function ContentEditPage() {
 		if (coEditing.mode !== "single-editor") return;
 		const form = isEditorDirtyRef.current ? readFormRef.current?.() : undefined;
 		joinSnapshotRef.current = form ? { from: coEditing, identity: revisionIdentity, form } : null;
-		coEditing.takeOver(entryLock.takeOver);
+		coEditing.takeOver(entryLock.takeOver, { unsaved: Boolean(form) });
 	};
 	React.useEffect(() => {
 		const snapshot = joinSnapshotRef.current;
@@ -2425,7 +2448,7 @@ function ContentEditPage() {
 			notice={notice}
 			room={roomView?.room ?? null}
 			roomResetting={resetting}
-			fieldsLoading={resetting && waitingForRoom}
+			fieldsLoading={resetting || leavingRoom}
 			roomSync={roomSync}
 			roomBlocked={roomBlocked}
 			onSaveOutsideValues={saveOutsideValues}

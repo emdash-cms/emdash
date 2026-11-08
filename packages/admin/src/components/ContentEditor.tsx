@@ -649,6 +649,8 @@ export function ContentEditor({
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
 	const resolvedItemBylines = resolveEditorBylines(item);
+	const itemBylinesRef = React.useRef(resolvedItemBylines.explicitCredits);
+	itemBylinesRef.current = resolvedItemBylines.explicitCredits;
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
 		resolvedItemBylines.explicitCredits,
 	);
@@ -1019,6 +1021,7 @@ export function ContentEditor({
 	}, [isDirty]);
 
 	// In a room, bylines save at once and the entry's own are adopted again once no save is left.
+	// A refused save shows the entry's own again.
 	const bylineSavesRef = React.useRef(0);
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
@@ -1026,12 +1029,14 @@ export function ContentEditor({
 				setInternalBylines(next);
 				setBylinesTouched(true);
 				const save = ++bylineSavesRef.current;
+				const settle = (saved: boolean) => {
+					if (bylineSavesRef.current !== save) return;
+					if (!saved) setInternalBylines(itemBylinesRef.current);
+					setBylinesTouched(false);
+				};
 				void onSaveOutsideValues?.({ bylines: next }).then(
-					() => {
-						if (bylineSavesRef.current === save) setBylinesTouched(false);
-						return undefined;
-					},
-					() => undefined,
+					() => settle(true),
+					() => settle(false),
 				);
 				return;
 			}
@@ -1100,18 +1105,20 @@ export function ContentEditor({
 	/**
 	 * In a room, a selection saves at once. The saved rows become the baseline unless a later
 	 * change is on its way, so a refetch adopts the entry's selection only once nothing differs.
+	 * A refused save shows the baseline again.
 	 */
 	const saveRoomReferences = React.useCallback(
 		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
+			const settle = (saved: boolean) =>
+				setReferenceState((prev) => {
+					const current = prev[fieldSlug];
+					if (current?.current !== rows) return prev;
+					const next = saved ? { baseline: rows } : { current: current.baseline };
+					return { ...prev, [fieldSlug]: { ...current, ...next } };
+				});
 			void onSaveOutsideValues?.({ references: { [fieldSlug]: rows.map((row) => row.id) } }).then(
-				() =>
-					setReferenceState((prev) => {
-						const current = prev[fieldSlug];
-						return current?.current === rows
-							? { ...prev, [fieldSlug]: { ...current, baseline: rows } }
-							: prev;
-					}),
-				() => undefined,
+				() => settle(true),
+				() => settle(false),
 			);
 		},
 		[onSaveOutsideValues],

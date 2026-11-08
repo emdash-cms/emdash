@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
+import { ApiResponseError } from "../../src/lib/api/client";
 import { REMOTE } from "../../src/lib/co-editing/replica/origins";
 import type { CoEditing, RoomSaveError } from "../../src/lib/co-editing/types";
 import { LoopbackRoom, settle, type FakeSocket } from "./loopback-room";
@@ -46,7 +47,6 @@ describe("joining and syncing", () => {
 		expect(view).toMatchObject({
 			access: "edit",
 			editable: true,
-			canOperate: true,
 			offline: false,
 		});
 		expect(view.room.fields.get("title")).toBe("Hello");
@@ -98,7 +98,6 @@ describe("joining and syncing", () => {
 		expect(roomView(s.view())).toMatchObject({
 			access: "view",
 			editable: false,
-			canOperate: false,
 		});
 	});
 
@@ -212,7 +211,7 @@ describe("closes and retries", () => {
 		s.answer({ kind: "failed" });
 		s.setOnline(false);
 		expect(room.sockets[0]?.closed).toBe(true);
-		expect(roomView(s.view())).toMatchObject({ offline: false, editable: true, canOperate: false });
+		expect(roomView(s.view())).toMatchObject({ offline: false, editable: true });
 		await s.after(4999);
 		expect(roomView(s.view()).offline).toBe(false);
 		await s.after(1);
@@ -270,7 +269,7 @@ describe("closes and retries", () => {
 		room.close(4402);
 		await settle();
 		const view = roomView(s.view());
-		expect(view).toMatchObject({ kept: "deleted", editable: true, canOperate: false });
+		expect(view).toMatchObject({ kept: "deleted", editable: true });
 		await expect(view.room.whenCovered({ save: false })).rejects.toMatchObject({ reason: "gone" });
 		expect(view.room.fields.get("title")).toBe("Keep me");
 		view.reload();
@@ -278,11 +277,64 @@ describe("closes and retries", () => {
 		expect(s.view().mode).toBe("reloading");
 	});
 
-	it("joins again in single-editor mode when the co-editing chunk fails to load", async () => {
+	it("joins again in single-editor mode when the co-editing chunk fails to load, keeping Join", async () => {
 		const room = new LoopbackRoom();
-		const s = open(room, { loadReplicaModule: () => Promise.reject(new Error("offline")) });
+		let loads = 0;
+		const s = open(room, {
+			loadReplicaModule: () =>
+				++loads === 1
+					? Promise.reject(new Error("offline"))
+					: import("../../src/lib/co-editing/replica/index"),
+		});
 		await settle();
 		expect(s.joins.map((request) => request.singleEditor)).toEqual([false, true]);
+		const view = s.view();
+		if (view.mode !== "single-editor") throw new Error("Expected single-editor mode");
+		expect(view.canJoin).toBe(true);
+		view.takeOver(() => {});
+		await settle();
+		expect(s.view().mode).toBe("room");
+	});
+
+	it("tries a recovery revision again after a network error", async () => {
+		const room = new LoopbackRoom();
+		const failures = [new TypeError("Failed to fetch")];
+		let attempts = 0;
+		const s = open(room, {
+			async saveRecovery() {
+				attempts++;
+				const failure = failures.shift();
+				if (failure) throw failure;
+			},
+		});
+		await settle();
+		roomView(s.view()).room.fields.set({ title: "Typed" });
+		s.answer({ kind: "outdated" });
+		room.close(4400);
+		await settle();
+		expect(attempts).toBe(1);
+		expect(s.view().mode).toBe("room");
+		await s.after(1000);
+		expect(attempts).toBe(2);
+		expect(s.view().mode).toBe("reloading");
+	});
+
+	it("keeps the edits in the tab when the server refuses the recovery revision", async () => {
+		const room = new LoopbackRoom();
+		let attempts = 0;
+		const s = open(room, {
+			async saveRecovery() {
+				attempts++;
+				throw new ApiResponseError(413, "PAYLOAD_TOO_LARGE", "Too large");
+			},
+		});
+		await settle();
+		roomView(s.view()).room.fields.set({ title: "Typed" });
+		s.answer({ kind: "outdated" });
+		room.close(4400);
+		await s.after(5000);
+		expect(attempts).toBe(1);
+		expect(roomView(s.view()).kept).toBe("recovery-failed");
 	});
 
 	it("counts edits as saved once a recovery revision holds them, before reloading as outdated", async () => {
@@ -336,6 +388,31 @@ describe("Take over and Join", () => {
 		again.takeOver(() => fallbacks++);
 		await settle();
 		expect(s.view().mode).toBe("room");
+		expect(fallbacks).toBe(1);
+	});
+
+	it("takes the lock instead of reloading an out-of-date admin over unsaved form edits", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		s.answer({ kind: "locked" });
+		await settle();
+		const view = s.view();
+		if (view.mode !== "single-editor") throw new Error("Expected single-editor mode");
+		let fallbacks = 0;
+		s.answer({ kind: "outdated" });
+		view.takeOver(() => fallbacks++, { unsaved: true });
+		await settle();
+		expect(s.reloads).toBe(0);
+		expect(fallbacks).toBe(1);
+		expect(s.events).toContainEqual({ kind: "outdated" });
+		expect(s.view()).toMatchObject({ mode: "single-editor", canJoin: true });
+
+		const clean = s.view();
+		if (clean.mode !== "single-editor") throw new Error("Expected single-editor mode");
+		s.answer({ kind: "outdated" });
+		clean.takeOver(() => fallbacks++);
+		await settle();
+		expect(s.reloads).toBe(1);
 		expect(fallbacks).toBe(1);
 	});
 

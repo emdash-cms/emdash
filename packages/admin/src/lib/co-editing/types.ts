@@ -21,8 +21,6 @@ export type CoEditing =
 			readonly room: RoomEditing;
 			readonly access: RoomAccess;
 			readonly editable: boolean;
-			/** Operations can run: connected with edit access. */
-			readonly canOperate: boolean;
 			/** Disconnected for 5 s or more. */
 			readonly offline: boolean;
 			/** Disconnected for good. The edits stay in the tab, but none are sent. */
@@ -40,9 +38,10 @@ export type CoEditing =
 			readonly deleted: boolean;
 			/**
 			 * Joins again with `takeover`, for **Take over** and **Join** alike. Calls `fallback`, the
-			 * edit lock's own takeover, if the join still answers single-editor mode.
+			 * edit lock's own takeover, if the join still answers single-editor mode, or if the admin is
+			 * out of date and `unsaved` says the form holds edits a reload would lose.
 			 */
-			takeOver(fallback: () => void): void;
+			takeOver(fallback: () => void, options?: { unsaved?: boolean }): void;
 	  }
 	| { readonly mode: "reloading" };
 
@@ -148,8 +147,8 @@ export type RoomEvent =
 	| { readonly kind: "checkpoint"; readonly rev: string; readonly editedBy: readonly string[] }
 	/** A reset saved this tab's uncovered edits as a recovery revision. */
 	| { readonly kind: "recovered" }
-	/** The tab left its room for single-editor mode. */
-	| { readonly kind: "left-room" };
+	/** A Take over or Join found the admin out of date, and stayed to keep the form's edits. */
+	| { readonly kind: "outdated" };
 
 export type RoomSaveFailure = "offline" | "access" | "refused" | "gone" | "timeout";
 

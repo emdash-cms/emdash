@@ -54,7 +54,6 @@ function roomView(fake: FakeRoom): CoEditing {
 		room: fake.room,
 		access: "edit",
 		editable: true,
-		canOperate: true,
 		offline: false,
 		kept: null,
 		reload: vi.fn(),
@@ -168,6 +167,7 @@ function createServer(initial: ContentItem) {
 			unknown
 		>,
 		refuseRecovery: false,
+		refuseWrites: false,
 		requests: [] as RecordedRequest[],
 		/** Requests other than reads, and the room's saves, in the order they happened. */
 		log: [] as string[],
@@ -235,6 +235,9 @@ function createServer(initial: ContentItem) {
 			return json({ data: { id: "revision-recovery" } }, 201);
 		}
 		if (path.startsWith("/_emdash/api/content/posts/post_1")) {
+			if (method === "PUT" && server.refuseWrites) {
+				return json({ error: { code: "FORBIDDEN", message: "Not allowed" } }, 403);
+			}
 			if (method === "PUT" && body?.seo) {
 				server.item = { ...server.item, seo: { ...server.item.seo!, ...body.seo } };
 			}
@@ -490,24 +493,37 @@ describe("reloading from a room", () => {
 });
 
 describe("resetting a room", () => {
-	it("blanks the fields up to the loading cap instead of showing the entry as loaded", async () => {
+	it("keeps the fields blank until the new replica syncs, instead of showing the entry as loaded", async () => {
 		const { screen, fake } = await openInRoom(entry());
 		const title = screen.getByRole("textbox", { name: "Title", exact: true });
 		fake.remote({ title: "Edited in the room" });
 		await expect.element(title).toHaveValue("Edited in the room");
 
-		show({ mode: "pending", waiting: false });
+		show({ mode: "pending", waiting: true });
 
 		await expect.element(title).not.toBeInTheDocument();
 		expect(screen.getByRole("textbox", { name: "SEO Title" }).query()).not.toBeNull();
-		await expect.element(title, { timeout: 3000 }).toBeInTheDocument();
-		await expect.element(title).toBeDisabled();
 		await expect.element(screen.getByRole("button", { name: "Joining…" })).toBeEnabled();
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+		expect(title.query()).toBeNull();
 
 		show(roomView(createRoom({ title: "From the new replica", slug: "post-one" })));
 
 		await expect.element(title).toHaveValue("From the new replica");
 		await expect.element(title).toBeEnabled();
+	});
+
+	it("shows the entry as it's now saved once a reset ends in single-editor mode", async () => {
+		const { screen, fake, server } = await openInRoom(entry());
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		fake.remote({ title: "Edited in the room" });
+		await expect.element(title).toHaveValue("Edited in the room");
+		server.item = { ...server.item, data: { title: "Saved by the room" } };
+
+		show({ mode: "pending", waiting: false });
+		show({ mode: "single-editor", canJoin: true, deleted: false, takeOver: vi.fn() });
+
+		await expect.element(title).toHaveValue("Saved by the room");
 	});
 
 	it("keeps the editor mounted, so its view survives", async () => {
@@ -579,6 +595,17 @@ describe("values outside the document in a room", () => {
 		await vi.waitFor(() => expect(puts()).toHaveLength(2));
 		expect(puts()[1]?.body).toEqual({ seo: { description: "Ben's longer description" } });
 		expect(server.item.seo?.title).toBe("Ana's title");
+	});
+
+	it("puts a reference selection back when the server refuses it", async () => {
+		const { screen, server } = await openInRoom(entry(), {
+			prepare: (fake) => (fake.refuseWrites = true),
+		});
+
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+
+		await vi.waitFor(() => expect(server.log).toEqual(["PUT /_emdash/api/content/posts/post_1"]));
+		await expect.element(screen.getByRole("button", { name: "Remove Grace Hopper" })).toBeVisible();
 	});
 
 	it("saves a reference edit at once without _rev or a revision", async () => {

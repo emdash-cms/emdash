@@ -25,7 +25,7 @@ const joining = (
 	replica: null,
 	away: null,
 	takeover: false,
-	singleEditor: false,
+	singleEditor: null,
 	...patch,
 });
 const connecting = (
@@ -50,11 +50,12 @@ const RELOADING: SessionState = { kind: "reloading" };
 
 const joined = (
 	outcome: JoinOutcome,
-	options: { uncovered?: boolean; reloadedRecently?: boolean } = {},
+	options: { uncovered?: boolean; unsavedForm?: boolean; reloadedRecently?: boolean } = {},
 ): SessionEvent => ({
 	type: "joined",
 	outcome,
 	uncovered: options.uncovered ?? false,
+	unsavedForm: options.unsavedForm ?? false,
 	reloadedRecently: options.reloadedRecently ?? false,
 	at: AT,
 });
@@ -92,8 +93,8 @@ const CLOSE: SessionEffect = { type: "close-connection" };
 const DISCARD: SessionEffect = { type: "discard-replica" };
 const FREEZE: SessionEffect = { type: "freeze-replica" };
 const RECOVER: SessionEffect = { type: "recover" };
-const LEFT: SessionEffect = { type: "emit", event: { kind: "left-room" } };
 const RECOVERED: SessionEffect = { type: "emit", event: { kind: "recovered" } };
+const LOCK_TAKE_OVER: SessionEffect = { type: "lock-take-over" };
 
 type Row = [
 	name: string,
@@ -119,7 +120,7 @@ const ROWS: Row[] = [
 		joining({ replica: EDIT }),
 		joined({ kind: "single-editor" }),
 		single("server"),
-		[DISCARD, LEFT],
+		[DISCARD],
 	],
 	[
 		"single-editor, uncovered edits",
@@ -131,9 +132,16 @@ const ROWS: Row[] = [
 	["locked", joining(), joined({ kind: "locked" }), single("locked"), [DISCARD]],
 	[
 		"single-editor, pinned",
-		joining({ singleEditor: true }),
+		joining({ singleEditor: "pinned" }),
 		joined({ kind: "single-editor" }),
 		single("pinned"),
+		[DISCARD],
+	],
+	[
+		"single-editor after the replica chunk failed to load, which can still join",
+		joining({ singleEditor: "load-failed" }),
+		joined({ kind: "single-editor" }),
+		single("error"),
 		[DISCARD],
 	],
 	[
@@ -141,7 +149,7 @@ const ROWS: Row[] = [
 		joining({ takeover: true }),
 		joined({ kind: "single-editor" }),
 		single("server"),
-		[DISCARD, { type: "lock-take-over" }],
+		[DISCARD, LOCK_TAKE_OVER],
 	],
 	[
 		"busy, first join",
@@ -189,8 +197,22 @@ const ROWS: Row[] = [
 		"outdated again within a minute",
 		joining({ replica: EDIT, away: AWAY }),
 		joined({ kind: "outdated" }, { uncovered: true, reloadedRecently: true }),
-		joining({ replica: EDIT, away: AWAY, singleEditor: true }),
+		joining({ replica: EDIT, away: AWAY, singleEditor: "pinned" }),
 		[join(false, true)],
+	],
+	[
+		"outdated after Take over with a clean form reloads",
+		joining({ takeover: true }),
+		joined({ kind: "outdated" }),
+		RELOADING,
+		[{ type: "reload", outdated: true }],
+	],
+	[
+		"outdated after Take over with unsaved form edits takes the lock instead",
+		joining({ takeover: true }),
+		joined({ kind: "outdated" }, { unsavedForm: true }),
+		single("server"),
+		[DISCARD, LOCK_TAKE_OVER, { type: "emit", event: { kind: "outdated" } }],
 	],
 	[
 		"forbidden, uncovered edits",
@@ -211,14 +233,14 @@ const ROWS: Row[] = [
 		joining({ replica: EDIT }),
 		joined({ kind: "forbidden" }),
 		single("error"),
-		[DISCARD, LEFT],
+		[DISCARD],
 	],
 	[
 		"gone after a room",
 		joining({ replica: EDIT }),
 		joined({ kind: "gone" }),
 		single("deleted"),
-		[DISCARD, LEFT],
+		[DISCARD],
 	],
 	["gone, first join", joining(), joined({ kind: "gone" }), single("deleted"), [DISCARD]],
 	[
@@ -278,7 +300,7 @@ const ROWS: Row[] = [
 		"the replica chunk fails to load",
 		connecting({ away: AWAY }),
 		{ type: "load-failed" },
-		joining({ away: AWAY, singleEditor: true }),
+		joining({ away: AWAY, singleEditor: "load-failed" }),
 		[join(false, true)],
 	],
 	// Closes
@@ -306,7 +328,7 @@ const ROWS: Row[] = [
 		[RECOVER],
 	],
 	["deleted, uncovered edits", live, closed(4402, { uncovered: true }), kept("deleted"), [FREEZE]],
-	["deleted", live, closed(4402), single("deleted"), [DISCARD, LEFT]],
+	["deleted", live, closed(4402), single("deleted"), [DISCARD]],
 	["busy socket", live, closed(4403), waiting(EDIT, NEW_AWAY, "busy"), [retryIn(5000)]],
 	[
 		"dropped",
@@ -326,7 +348,7 @@ const ROWS: Row[] = [
 		"third socket that never opened",
 		connecting(),
 		closed(1006, { opened: false, noWebSockets: true }),
-		joining({ away: NEW_AWAY, singleEditor: true }),
+		joining({ away: NEW_AWAY, singleEditor: "pinned" }),
 		[join(false, true)],
 	],
 	[
@@ -393,7 +415,7 @@ const ROWS: Row[] = [
 		{ kind: "recovering", replica: EDIT, next: { kind: "single-editor", reason: "locked" } },
 		{ type: "recovered", ok: true },
 		single("locked"),
-		[DISCARD, RECOVERED, LEFT],
+		[DISCARD, RECOVERED],
 	],
 	[
 		"recovery failed",
@@ -414,7 +436,7 @@ const ROWS: Row[] = [
 		"Take over, pinned",
 		single("pinned"),
 		{ type: "take-over" },
-		joining({ takeover: true, singleEditor: true }),
+		joining({ takeover: true, singleEditor: "pinned" }),
 		[join(true, true)],
 	],
 	[
@@ -436,7 +458,7 @@ describe("co-editing session reducer", () => {
 	it("starts with a join, as single-editor when the browser session is pinned", () => {
 		expect(start(false)).toEqual({ state: joining(), effects: [join()] });
 		expect(start(true)).toEqual({
-			state: joining({ singleEditor: true }),
+			state: joining({ singleEditor: "pinned" }),
 			effects: [join(false, true)],
 		});
 	});
