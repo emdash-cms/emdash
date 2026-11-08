@@ -3654,18 +3654,10 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Verify and repair FTS indexes on demand. Runs at most once per worker
-	 * lifetime.
-	 *
-	 * Originally called from `EmDashRuntime.create()`, but on a busy D1 link
-	 * (e.g. SIN replica ~80-150ms per query) it added ~1.5s to every cold
-	 * start for a modest-sized site — more than every other init phase
-	 * combined. Anonymous public reads never touch the search write path,
-	 * so the cost isn't paid back for the vast majority of requests.
-	 *
-	 * Instead, search endpoints call this lazily: the first request that
-	 * actually needs the index pays the verify cost (usually fast — no
-	 * rebuild needed), everyone else runs cold-free.
+	 * Repair missing or empty FTS indexes on demand, at most once per worker
+	 * lifetime. Search endpoints check existence and emptiness only: row-count
+	 * verification scans entire content and FTS tables on D1, even for healthy indexes.
+	 * Full drift checks remain available through FTSManager.verifyAndRepairAll().
 	 *
 	 * Uses the runtime's singleton database (`this._db`) rather than the
 	 * request-scoped DB. Verify reads only, but `rebuildIndex` writes, and
@@ -3688,9 +3680,9 @@ export class EmDashRuntime {
 				async () => {
 					try {
 						const ftsManager = new FTSManager(this._db);
-						const repaired = await ftsManager.verifyAndRepairAll();
+						const repaired = await ftsManager.verifyAndRepairAll({ checkRowCounts: false });
 						if (repaired > 0) {
-							console.log(`Repaired ${repaired} corrupted FTS index(es)`);
+							console.log(`Repaired ${repaired} missing or empty FTS index(es)`);
 						}
 					} catch {
 						// FTS tables may not exist yet (pre-setup). Non-fatal — cache
