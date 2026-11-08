@@ -307,12 +307,22 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 	);
 
 	it.each([
-		{ base: "/", source: "/contact/", destination: "/posts/contact" },
-		{ base: "/archive/", source: "/archive/contact/", destination: "/archive/posts/contact" },
+		{ base: "/", source: "/contact/", destination: "/posts/contact", i18n: false },
+		{
+			base: "/archive/",
+			source: "/archive/contact/",
+			destination: "/archive/posts/contact",
+			i18n: false,
+		},
+		{ base: "/", source: "/contact/", destination: "/posts/contact", i18n: true },
 	])(
-		"removes the imported redirect when a page is published at the canonical path ($base)",
-		async ({ base, source, destination }) => {
+		"removes the imported redirect when a page is published at the canonical path (base=$base, i18n=$i18n)",
+		async ({ base, source, destination, i18n }) => {
 			if (base !== "/") vi.stubEnv("BASE_URL", base);
+			if (i18n) {
+				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: false });
+				_resetAstroI18nCacheForTests();
+			}
 			const result = await executeImport(
 				wxr(wxrItem({ type: "post", id: 1, slug: "contact", link: source })),
 				harness.emdash,
@@ -338,6 +348,142 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 			const published = await harness.runtime.handleContentPublish("pages", created.data.item.id);
 			expect(published.success).toBe(true);
 			expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
+		},
+	);
+
+	it("removes only the localized import redirect when a translated page is published", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en", "fr"],
+			prefixDefaultLocale: false,
+		});
+		_resetAstroI18nCacheForTests();
+
+		const result = await executeImport(
+			wxr(wxrItem({ type: "post", id: 1, slug: "contact", link: "/contact/" })),
+			harness.emdash,
+			{ post: { collection: "posts", enabled: true } },
+		);
+		expect(result.data.result).toMatchObject({ imported: 1, errors: [] });
+		const repository = new RedirectRepository(harness.db);
+		const englishRedirect = await repository.findBySource("/contact");
+		expect(englishRedirect).toMatchObject({
+			source: "/contact",
+			destination: "/posts/contact",
+			type: 301,
+			enabled: true,
+			auto: true,
+		});
+		if (!englishRedirect) throw new Error("English import redirect was not created");
+		const englishBefore = await harness.db
+			.selectFrom("_emdash_redirects")
+			.selectAll()
+			.where("id", "=", englishRedirect.id)
+			.executeTakeFirstOrThrow();
+
+		const frenchRedirect = await repository.create({
+			source: "/fr/contact",
+			destination: "/fr/posts/old",
+			type: 301,
+			enabled: true,
+			isPattern: false,
+			auto: true,
+			groupName: "WordPress import",
+		});
+		const created = await harness.runtime.handleContentCreate("pages", {
+			data: { title: "Contact" },
+			slug: "contact",
+			locale: "fr",
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		const published = await harness.runtime.handleContentPublish("pages", created.data.item.id);
+		expect(published.success).toBe(true);
+		expect(
+			await harness.db
+				.selectFrom("ec_pages")
+				.select(["status", "locale"])
+				.where("id", "=", created.data.item.id)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ status: "published", locale: "fr" });
+		expect(await repository.findById(frenchRedirect.id)).toBeNull();
+		expect(
+			await harness.db
+				.selectFrom("_emdash_redirects")
+				.selectAll()
+				.where("id", "=", englishRedirect.id)
+				.executeTakeFirstOrThrow(),
+		).toEqual(englishBefore);
+
+		const next = vi.fn(async () => new Response("ok", { status: 200 }));
+		try {
+			invalidateRedirectCache();
+			const englishResponse = await onRequest(middlewareContext("/contact", harness.db), next);
+			expect(englishResponse.status).toBe(301);
+			expect(englishResponse.headers.get("location")).toBe("/posts/contact");
+			next.mockClear();
+			const frenchResponse = await onRequest(middlewareContext("/fr/contact", harness.db), next);
+			expect(frenchResponse.status).toBe(200);
+			expect(frenchResponse.headers.has("location")).toBe(false);
+			expect(next).toHaveBeenCalledOnce();
+		} finally {
+			invalidateRedirectCache();
+		}
+	});
+
+	it.each([
+		{
+			base: "/archive/",
+			prefixDefaultLocale: false,
+			locale: "fr",
+			localizedSource: "/archive/fr/contact",
+		},
+		{ base: "/", prefixDefaultLocale: true, locale: "en", localizedSource: "/en/contact" },
+	])(
+		"preserves an unprefixed WordPress source outside the published page's path (base=$base, prefixDefaultLocale=$prefixDefaultLocale)",
+		async ({ base, prefixDefaultLocale, locale, localizedSource }) => {
+			if (base !== "/") vi.stubEnv("BASE_URL", base);
+			setI18nConfig({
+				defaultLocale: "en",
+				locales: ["en", "fr"],
+				prefixDefaultLocale,
+			});
+			_resetAstroI18nCacheForTests();
+			const result = await executeImport(
+				wxr(wxrItem({ type: "post", id: 1, slug: "contact", link: "/contact/" })),
+				harness.emdash,
+				{ post: { collection: "posts", enabled: true } },
+			);
+			expect(result.data.result).toMatchObject({ imported: 1, errors: [] });
+			const repository = new RedirectRepository(harness.db);
+			const legacy = await repository.findBySource("/contact");
+			expect(legacy).toMatchObject({
+				source: "/contact",
+				destination: prefixDefaultLocale ? "/en/posts/contact" : "/archive/posts/contact",
+			});
+			if (!legacy) throw new Error("Legacy import redirect was not created");
+			const before = await repository.findById(legacy.id);
+			await repository.create({
+				source: localizedSource,
+				destination: `/${locale}/posts/old`,
+				type: 301,
+				enabled: true,
+				isPattern: false,
+				auto: true,
+				groupName: "WordPress import",
+			});
+
+			const created = await harness.runtime.handleContentCreate("pages", {
+				data: { title: "Contact" },
+				slug: "contact",
+				locale,
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const published = await harness.runtime.handleContentPublish("pages", created.data.item.id);
+			expect(published.success).toBe(true);
+			expect(await repository.findById(legacy.id)).toEqual(before);
+			expect(await repository.findBySource(localizedSource)).toBeNull();
 		},
 	);
 });

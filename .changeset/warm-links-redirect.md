@@ -2,7 +2,7 @@
 "emdash": patch
 ---
 
-Fixes incoming WordPress links that break after an admin WXR import because EmDash resolves a different permalink, including dated URLs near midnight UTC. The importer creates 301 redirects from the export's original paths where safe and reports conflicts. Imported exact redirects also match WordPress's lowercase UTF-8 URL escapes. Existing UTC canonical URLs are unchanged.
+Fixes incoming WordPress links that break after an admin WXR import because EmDash resolves a different permalink, including dated URLs near midnight UTC. The importer creates 301 redirects from the export's original paths where safe and reports conflicts. Exact redirect rules also match lowercase UTF-8 URL escapes, including WordPress's. Existing UTC canonical URLs are unchanged.
 
 #### What should I do?
 

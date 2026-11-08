@@ -836,6 +836,13 @@ async function createSlugChangeRedirect(
 
 const TRAILING_SLASH = /\/$/;
 
+function addRedirectCleanupSource(source: string, target: Set<string>): void {
+	const normalized = normalizeSourcePath(source);
+	for (const path of [source, normalized]) {
+		for (const variant of redirectPathVariants(path)) target.add(variant);
+	}
+}
+
 /**
  * Remove any auto-redirect whose source is the URL a newly published entry
  * now occupies. This prevents an earlier slug-change redirect from shadowing
@@ -867,26 +874,24 @@ async function removeShadowingAutoRedirect(
 	});
 
 	const sources = new Set<string>();
-	const addSource = (source: string) => {
-		const normalized = normalizeSourcePath(source);
-		for (const path of [source, normalized]) {
-			for (const variant of redirectPathVariants(path)) sources.add(variant);
-		}
-	};
-	addSource(url);
+	const importerSources = new Set<string>();
+	// Legacy unprefixed aliases may belong to a different locale's imported entry.
+	addRedirectCleanupSource(url, sources);
 
-	if (locale) {
+	const routeLocale = locale || (!isI18nEnabled() ? "en" : undefined);
+	if (routeLocale) {
 		const localized = await resolveLocalizedContentRoutePath({
 			pattern: collectionRow?.url_pattern ?? null,
 			collection,
 			slug,
 			id: contentId,
 			date: publishedAt,
-			locale,
+			locale: routeLocale,
 		});
 		if (localized) {
 			const base = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASH, "");
-			addSource(`${base}${localized}`);
+			addRedirectCleanupSource(`${base}${localized}`, importerSources);
+			for (const source of importerSources) sources.add(source);
 		}
 	}
 
@@ -898,7 +903,16 @@ async function removeShadowingAutoRedirect(
 			eb.or([
 				eb("group_name", "is", null),
 				eb("group_name", "!=", "WordPress import"),
-				eb.and([eb("enabled", "=", 1), eb("is_pattern", "=", 0), eb("type", "=", 301)]),
+				...(importerSources.size > 0
+					? [
+							eb.and([
+								eb("source", "in", [...importerSources]),
+								eb("enabled", "=", 1),
+								eb("is_pattern", "=", 0),
+								eb("type", "=", 301),
+							]),
+						]
+					: []),
 			]),
 		)
 		.executeTakeFirst();
