@@ -78,6 +78,8 @@ function fixture({
 		files: files.map((file) => (typeof file === "string" ? { filename: file } : file)),
 		commits: [{ sha: "head", parents: [{ sha: "base" }] }],
 		checks: checks.map((check) => ({ name: checkName, ...check })),
+		comments: [],
+		commentWrites: 0,
 		writes: [],
 	};
 	const github = {
@@ -110,6 +112,19 @@ function fixture({
 				},
 			},
 			issues: {
+				listComments: async () => structuredClone(state.comments),
+				createComment: async ({ body }) => {
+					state.commentWrites += 1;
+					state.comments.push({
+						id: state.comments.length + 1,
+						user: { login: "github-actions[bot]" },
+						body,
+					});
+				},
+				updateComment: async ({ comment_id, body }) => {
+					state.commentWrites += 1;
+					state.comments.find((comment) => comment.id === comment_id).body = body;
+				},
 				addLabels: async ({ labels }) => {
 					pr.labels.push(...labels.map((name) => ({ name })));
 				},
@@ -258,7 +273,9 @@ describe("Design pull request review status", () => {
 		await test.run();
 		assertStatus(test, "neutral", "review/needs-review");
 		assert.ok(
-			test.state.checks[0].output.summary.includes("other than the author and the Project Lead"),
+			test.state.checks[0].output.summary.includes(
+				"❌ Support from a Maintainer other than the author and the Project Lead",
+			),
 		);
 	});
 
@@ -312,7 +329,9 @@ describe("Design pull request review status", () => {
 		await test.run();
 		assertStatus(test, "neutral", "review/needs-review");
 		assert.ok(
-			test.state.checks[0].output.summary.includes("other than the author and the Project Lead"),
+			test.state.checks[0].output.summary.includes(
+				"❌ Support from a Maintainer other than the author and the Project Lead",
+			),
 		);
 	});
 
@@ -344,7 +363,7 @@ describe("Design pull request review status", () => {
 		});
 		await test.run();
 		assertStatus(test, "neutral", "review/needs-review");
-		assert.ok(test.state.checks[0].output.summary.includes("require 2"));
+		assert.ok(test.state.checks[0].output.summary.includes("❌ 2 human Maintainer approvals"));
 	});
 
 	it("needs one approval when a design PR only adds a proposal index row", async () => {
@@ -364,5 +383,37 @@ describe("Design pull request review status", () => {
 		});
 		await test.run();
 		assertStatus(test, "success", "review/approved");
+	});
+
+	it("keeps one status comment up to date on a design PR", async () => {
+		const test = design({ reviews: [review("maintainer-one")] });
+		await test.run();
+		assert.equal(test.state.comments.length, 1);
+		assert.ok(
+			test.state.comments[0].body.includes("❌ The Project Lead @project-lead has not accepted"),
+		);
+		await test.run();
+		assert.equal(test.state.commentWrites, 1);
+		test.state.reviews.push(review("project-lead"));
+		await test.run();
+		assert.equal(test.state.comments.length, 1);
+		assert.ok(
+			test.state.comments[0].body.includes("✅ The Project Lead @project-lead has accepted"),
+		);
+	});
+});
+
+describe("Approval status comment", () => {
+	it("is posted on privileged PRs", async () => {
+		const test = fixture({ files: [".github/workflows/approval.yml"] });
+		await test.run();
+		assert.equal(test.state.comments.length, 1);
+		assert.ok(test.state.comments[0].body.includes("❌ 2 human Maintainer approvals"));
+	});
+
+	it("is not posted on normal PRs", async () => {
+		const test = fixture({ reviews: [review("maintainer-one")] });
+		await test.run();
+		assert.equal(test.state.comments.length, 0);
 	});
 });
