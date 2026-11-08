@@ -47,7 +47,7 @@ export type DomainBlocker =
 			code: "collection_deletion_unfinished";
 			id: string;
 			slug: string;
-			state: string;
+			state: "failed";
 			phase: string;
 	  }
 	| { code: "taxonomy_def_not_scaffold"; id: string; name: string };
@@ -114,7 +114,7 @@ export async function inspectPortableDomain(
 
 	const deletions = await db
 		.selectFrom("_emdash_media_usage_collection_deletions")
-		.select(["collection_id", "collection_slug", "state", "phase"])
+		.select(["collection_id", "collection_slug", "phase"])
 		.where("state", "=", "failed")
 		.orderBy("collection_slug")
 		.execute();
@@ -123,7 +123,7 @@ export async function inspectPortableDomain(
 			code: "collection_deletion_unfinished",
 			id: deletion.collection_id,
 			slug: deletion.collection_slug,
-			state: deletion.state,
+			state: "failed",
 			phase: deletion.phase,
 		});
 	}

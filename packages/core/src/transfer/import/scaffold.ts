@@ -109,10 +109,6 @@ export async function clearScaffold(
 					failedDeletion.collection_slug,
 				);
 			}
-			throw new TransferError(
-				"TRANSFER_IMPORT_ERROR",
-				"Removing the seeded scaffold collections failed",
-			);
 		}
 	}
 	return { state: "done" };
@@ -165,7 +161,8 @@ async function removeItem(
 					const deletion = await new MediaUsageCollectionDeletionRepository(db).findBySlug(
 						row.slug,
 					);
-					if (deletion?.collectionId === item.id) {
+					if (!deletion) return "continue";
+					if (deletion.collectionId === item.id) {
 						const outcome =
 							deletion.state === "failed"
 								? "failed"

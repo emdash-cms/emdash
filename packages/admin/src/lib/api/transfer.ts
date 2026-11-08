@@ -72,7 +72,7 @@ export type PortableDomainBlocker =
 			code: "collection_deletion_unfinished";
 			id: string;
 			slug: string;
-			state: string;
+			state: "failed";
 			phase: string;
 	  }
 	| { code: "collection_not_seeded"; id: string; slug: string }
