@@ -115,6 +115,7 @@ export async function inspectPortableDomain(
 	const deletions = await db
 		.selectFrom("_emdash_media_usage_collection_deletions")
 		.select(["collection_id", "collection_slug", "state", "phase"])
+		.where("state", "=", "failed")
 		.orderBy("collection_slug")
 		.execute();
 	for (const deletion of deletions) {

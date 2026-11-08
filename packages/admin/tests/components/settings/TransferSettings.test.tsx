@@ -214,13 +214,6 @@ describe("TransferSettings", () => {
 					{ code: "collection_has_entries", id: "c1", slug: "posts" },
 					{
 						code: "collection_deletion_unfinished",
-						id: "c2",
-						slug: "events",
-						state: "pending",
-						phase: "sources",
-					},
-					{
-						code: "collection_deletion_unfinished",
 						id: "c3",
 						slug: "legacy",
 						state: "failed",
@@ -233,13 +226,6 @@ describe("TransferSettings", () => {
 		const screen = await render(<TransferSettings />);
 		await expect.element(screen.getByText("This site can’t receive an import")).toBeVisible();
 		await expect.element(screen.getByText("Collection “posts” has entries")).toBeVisible();
-		await expect
-			.element(
-				screen.getByText(
-					"Deletion of collection “events” has not finished. Wait for cleanup before importing.",
-				),
-			)
-			.toBeVisible();
 		await expect
 			.element(
 				screen.getByText(

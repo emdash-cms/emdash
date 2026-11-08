@@ -303,44 +303,42 @@ describeEachDialect("transfer fence, domain, and site id", (dialect) => {
 			).toEqual(["category", "tag"]);
 		});
 
-		it.each(["pending", "leased", "retry", "failed"] as const)(
-			"blocks analysis for a %s collection deletion, even without a registry row",
-			async (state) => {
-				await seedDefault();
-				await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
-					collectionId: "deleted-collection",
-					collectionSlug: "old_posts",
-					forceDelete: false,
-				});
-				await ctx.db
-					.updateTable("_emdash_media_usage_collection_deletions")
-					.set({ state, phase: "sources" })
-					.where("collection_id", "=", "deleted-collection")
-					.execute();
+		it("blocks analysis for a failed collection deletion, even without a registry row", async () => {
+			const state = "failed";
+			await seedDefault();
+			await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
+				collectionId: "deleted-collection",
+				collectionSlug: "old_posts",
+				forceDelete: false,
+			});
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({ state, phase: "sources" })
+				.where("collection_id", "=", "deleted-collection")
+				.execute();
 
-				const result = await inspectPortableDomain(ctx.db);
-				expect(result.empty).toBe(false);
-				expect(result.blockers).toContainEqual({
-					code: "collection_deletion_unfinished",
-					id: "deleted-collection",
-					slug: "old_posts",
-					state,
-					phase: "sources",
-				});
-				const target = await inspectTargetDomain(ctx.db, ["posts"]);
-				expect(target.blockers).toContainEqual(
-					expect.objectContaining({
-						code: "target_not_empty",
-						detail: {
-							reason: "collection_deletion_unfinished",
-							collection: "old_posts",
-							state,
-							phase: "sources",
-						},
-					}),
-				);
-			},
-		);
+			const result = await inspectPortableDomain(ctx.db);
+			expect(result.empty).toBe(false);
+			expect(result.blockers).toContainEqual({
+				code: "collection_deletion_unfinished",
+				id: "deleted-collection",
+				slug: "old_posts",
+				state,
+				phase: "sources",
+			});
+			const target = await inspectTargetDomain(ctx.db, ["posts"]);
+			expect(target.blockers).toContainEqual(
+				expect.objectContaining({
+					code: "target_not_empty",
+					detail: {
+						reason: "collection_deletion_unfinished",
+						collection: "old_posts",
+						state,
+						phase: "sources",
+					},
+				}),
+			);
+		});
 
 		it("treats theme sections, menus, widgets, and unassigned terms as scaffold", async () => {
 			await seedDefault();

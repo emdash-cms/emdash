@@ -54,7 +54,7 @@ const DOMAIN_BLOCKER_MESSAGES: Record<DomainBlocker["code"], string> = {
 	table_not_empty: "The site already has content of this kind",
 	collection_not_seeded: "The site has a collection that was not created by setup",
 	collection_has_entries: "A collection on the site already has entries",
-	collection_deletion_unfinished: "A collection deletion on the site has not finished",
+	collection_deletion_unfinished: "A collection deletion on the site failed",
 	taxonomy_def_not_scaffold: "The site has a taxonomy that was not created by setup",
 	block_type_not_seeded: "The site has a block type that was not created by setup",
 };

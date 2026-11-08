@@ -53,6 +53,29 @@ async function activateCapture(db: Kysely<Database>): Promise<void> {
 	throw new Error("Capture activation did not finish");
 }
 
+async function preparePostsDeletion(db: Kysely<Database>): Promise<void> {
+	await activateCapture(db);
+	const registry = new SchemaRegistry(db);
+	const posts = await registry.getCollection("posts");
+	expect(posts).not.toBeNull();
+	await db
+		.insertInto("_emdash_media_usage_sources")
+		.values(
+			Array.from({ length: 3 }, (_, index) => ({
+				source_key: `deleted-post-source-${index}`,
+				source_type: "content",
+				collection_id: posts!.id,
+				collection_slug: "posts",
+				content_id: `deleted-post-${index}`,
+				source_variant: "columns",
+				current_generation: "generation-old",
+			})),
+		)
+		.execute();
+	await registry.deleteCollection("posts", { force: true });
+	await registry.deleteCollection("pages", { force: true });
+}
+
 async function deletedPostsSourceCount(db: Kysely<Database>): Promise<number> {
 	const row = await db
 		.selectFrom("_emdash_media_usage_sources")
@@ -60,77 +83,6 @@ async function deletedPostsSourceCount(db: Kysely<Database>): Promise<number> {
 		.where("collection_slug", "=", "posts")
 		.executeTakeFirstOrThrow();
 	return Number(row.count);
-}
-
-// Leave collection-deletion tombstones at the schema checkpoint, after the
-// reservation check that would otherwise refuse them.
-async function stageResumedCleanup(
-	db: Kysely<Database>,
-	storage: MemoryStorage,
-	dialect: DialectTestContext["dialect"],
-	options: { state?: "leased" | "retry"; postsSources?: boolean } = {},
-) {
-	await activateCapture(db);
-	const registry = new SchemaRegistry(db);
-	const oldCollections = {
-		posts: await registry.getCollection("posts"),
-		pages: await registry.getCollection("pages"),
-	};
-	expect(oldCollections.posts).not.toBeNull();
-	expect(oldCollections.pages).not.toBeNull();
-	const staged = await stageGoldenImport(db, storage, dialect);
-	const { db: faultDb, faults } = withFaults(db);
-	let prepared = false;
-	faults.afterCheckpoint = async () => {
-		if (prepared) return;
-		const operation = await new TransferOperationRepository(db).require(staged.operationId);
-		if (operation.stage !== "schema") return;
-		prepared = true;
-		const deletionRepository = new MediaUsageCollectionDeletionRepository(db);
-		if (options.postsSources) {
-			await db
-				.insertInto("_emdash_media_usage_sources")
-				.values(
-					Array.from({ length: 3 }, (_, index) => ({
-						source_key: `deleted-post-source-${index}`,
-						source_type: "content",
-						collection_id: oldCollections.posts!.id,
-						collection_slug: "posts",
-						content_id: `deleted-post-${index}`,
-						source_variant: "columns",
-						current_generation: "generation-old",
-					})),
-				)
-				.execute();
-		}
-		for (const collection of Object.values(oldCollections)) {
-			await deletionRepository.createTombstone({
-				collectionId: collection!.id,
-				collectionSlug: collection!.slug,
-				forceDelete: true,
-			});
-		}
-		const stateUpdate =
-			options.state === "leased"
-				? {
-						state: "leased" as const,
-						lease_token: "another-worker",
-						lease_expires_at: "2999-01-01T00:00:00.000Z",
-					}
-				: options.state === "retry"
-					? { state: "retry" as const, next_attempt_at: "2999-01-01T00:00:00.000Z" }
-					: { state: "pending" as const };
-		await db
-			.updateTable("_emdash_media_usage_collection_deletions")
-			.set({ phase: "work" })
-			.execute();
-		await db
-			.updateTable("_emdash_media_usage_collection_deletions")
-			.set(stateUpdate)
-			.where("collection_slug", "=", "posts")
-			.execute();
-	};
-	return { staged, db: faultDb, faults, prepared: () => prepared };
 }
 
 /** A dump with each run's media storage keys replaced by the media id they belong to. */
@@ -486,9 +438,11 @@ describeEachDialect("site import resumption", (dialect) => {
 		expect(operation.errorDetail?.message).toContain('"collectionId":"deleted-posts"');
 	});
 
-	it("finishes resumed collection cleanup entries before importing in one request", async () => {
-		const prepared = await stageResumedCleanup(ctx.db, storage, dialect, { postsSources: true });
-		const { staged, db, faults } = prepared;
+	it("finishes several collection cleanup entries before importing in one request", async () => {
+		await preparePostsDeletion(ctx.db);
+		expect(await deletedPostsSourceCount(ctx.db)).toBe(3);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
 
 		const result = await advanceImport({
 			db,
@@ -497,8 +451,6 @@ describeEachDialect("site import resumption", (dialect) => {
 			verify: verifyOk,
 			budget: countingBudget(faults, 1000)(),
 		});
-
-		expect(prepared.prepared()).toBe(true);
 
 		expect(result.operation.state).not.toBe("failed");
 		expect(result.nextRequestInMs).not.toBe(IMPORT_RETRY_MS);
@@ -509,9 +461,11 @@ describeEachDialect("site import resumption", (dialect) => {
 		expect(await new MediaUsageCollectionDeletionRepository(ctx.db).findBySlug("posts")).toBeNull();
 	});
 
-	it("keeps the collection cursor while resumed cleanup spans budget-limited requests", async () => {
-		const prepared = await stageResumedCleanup(ctx.db, storage, dialect, { postsSources: true });
-		const { staged, db, faults } = prepared;
+	it("keeps the collection cursor while cleanup spans budget-limited requests", async () => {
+		await preparePostsDeletion(ctx.db);
+		expect(await deletedPostsSourceCount(ctx.db)).toBe(3);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
 		const ceiling = 100;
 		const perStep: number[] = [];
 		let cleanupCursor: unknown;
@@ -546,13 +500,13 @@ describeEachDialect("site import resumption", (dialect) => {
 		);
 	});
 
-	it("cancels after resumed cleanup finalizes without importing the collection", async () => {
-		const prepared = await stageResumedCleanup(ctx.db, storage, dialect, { postsSources: true });
-		const { staged } = prepared;
+	it("cancels after cleanup finalizes without importing the collection", async () => {
+		await preparePostsDeletion(ctx.db);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
 		const finalizations = new WeakSet<object>();
 		let cancelled = false;
 		let cancellationCursor: unknown;
-		const db = prepared.db.withPlugin({
+		const db = ctx.db.withPlugin({
 			transformQuery(args) {
 				if (
 					args.node.kind === "DeleteQueryNode" &&
@@ -563,7 +517,7 @@ describeEachDialect("site import resumption", (dialect) => {
 				return args.node;
 			},
 			async transformResult(args) {
-				if (!cancelled && prepared.prepared() && finalizations.has(args.queryId)) {
+				if (!cancelled && finalizations.has(args.queryId)) {
 					cancelled = true;
 					const operation = await new TransferOperationRepository(ctx.db).requestCancel(
 						staged.operationId,
@@ -591,11 +545,24 @@ describeEachDialect("site import resumption", (dialect) => {
 	it.each(["pending", "leased", "retry"] as const)(
 		"cancels during %s collection cleanup before importing the collection",
 		async (state) => {
-			const prepared = await stageResumedCleanup(ctx.db, storage, dialect, {
-				state: state === "pending" ? undefined : state,
-				postsSources: true,
-			});
-			const { staged } = prepared;
+			await activateCapture(ctx.db);
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.deleteCollection("posts", { force: true });
+			await registry.deleteCollection("pages", { force: true });
+			if (state !== "pending") {
+				await ctx.db
+					.updateTable("_emdash_media_usage_collection_deletions")
+					.set({
+						state,
+						...(state === "leased"
+							? { lease_token: "another-worker", lease_expires_at: "2999-01-01T00:00:00.000Z" }
+							: { next_attempt_at: "2999-01-01T00:00:00.000Z" }),
+					})
+					.where("collection_slug", "=", "posts")
+					.execute();
+			}
+
+			const staged = await stageGoldenImport(ctx.db, storage, dialect);
 			const download = storage.download.bind(storage);
 			let callbackRan = false;
 			let cancellationCursor: unknown;
@@ -618,13 +585,12 @@ describeEachDialect("site import resumption", (dialect) => {
 			};
 
 			const result = await advanceImport({
-				db: prepared.db,
+				db: ctx.db,
 				storage,
 				operationId: staged.operationId,
 				verify: verifyOk,
 			});
 
-			expect(prepared.prepared()).toBe(true);
 			expect(callbackRan).toBe(true);
 			expect(result.operation.state).toBe("cancelled");
 			expect(result.nextRequestInMs).toBeNull();
@@ -632,7 +598,7 @@ describeEachDialect("site import resumption", (dialect) => {
 			expect(result.operation.cursor).toEqual(cancellationCursor);
 			expect(result.operation.leaseToken).toBeNull();
 			expect(result.operation.completedAt).not.toBeNull();
-			expect(await new SchemaRegistry(ctx.db).getCollection("posts")).toBeNull();
+			expect(await registry.getCollection("posts")).toBeNull();
 		},
 	);
 
@@ -933,13 +899,18 @@ describeEachDialect("site import resumption", (dialect) => {
 		);
 	});
 
-	it("rejects a deletion started after analysis before mutation begins", async () => {
+	it("rejects a deletion that failed after analysis before mutation begins", async () => {
 		const staged = await stageGoldenImport(ctx.db, storage, dialect);
 		await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
 			collectionId: "old-collection",
 			collectionSlug: "old_posts",
 			forceDelete: false,
 		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ state: "failed" })
+			.where("collection_id", "=", "old-collection")
+			.execute();
 		const result = await advanceImport({
 			db: ctx.db,
 			storage,
@@ -966,11 +937,24 @@ describeEachDialect("site import resumption", (dialect) => {
 	});
 
 	it(
-		"imports after resumed media-usage cleanup for seeded collections",
+		"imports after media-usage capture deletes seeded collections",
 		{ timeout: 60_000 },
 		async () => {
-			const prepared = await stageResumedCleanup(ctx.db, storage, dialect);
-			const { staged, db, faults } = prepared;
+			await activateCapture(ctx.db);
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.deleteCollection("posts", { force: true });
+			await registry.deleteCollection("pages", { force: true });
+			expect(await ctx.db.selectFrom("_emdash_collections").select("slug").execute()).toEqual([]);
+			expect(
+				await ctx.db
+					.selectFrom("_emdash_media_usage_collection_deletions")
+					.select("collection_slug")
+					.orderBy("collection_slug")
+					.execute(),
+			).toEqual([{ collection_slug: "pages" }, { collection_slug: "posts" }]);
+
+			const staged = await stageGoldenImport(ctx.db, storage, dialect);
+			const { db, faults } = withFaults(ctx.db);
 			const results = await driveImport(db, storage, staged.operationId, {
 				budget: countingBudget(faults, 100),
 			});
@@ -988,12 +972,26 @@ describeEachDialect("site import resumption", (dialect) => {
 	);
 
 	it.each(["leased", "retry"] as const)(
-		"waits for a resumed %s deletion before importing its collection",
+		"waits for a %s deletion before importing its collection",
 		async (state) => {
-			const prepared = await stageResumedCleanup(ctx.db, storage, dialect, { state });
-			const { staged } = prepared;
+			await activateCapture(ctx.db);
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.deleteCollection("posts", { force: true });
+			await registry.deleteCollection("pages", { force: true });
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({
+					state,
+					...(state === "leased"
+						? { lease_token: "another-worker", lease_expires_at: "2999-01-01T00:00:00.000Z" }
+						: { next_attempt_at: "2999-01-01T00:00:00.000Z" }),
+				})
+				.where("collection_slug", "=", "posts")
+				.execute();
+
+			const staged = await stageGoldenImport(ctx.db, storage, dialect);
 			const first = await advanceImport({
-				db: prepared.db,
+				db: ctx.db,
 				storage,
 				operationId: staged.operationId,
 				verify: verifyOk,
