@@ -211,7 +211,12 @@ import {
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
-import { closeHistoryGroup, historyDepth, undoLastGroup } from "./editor/history.js";
+import {
+	closeHistoryGroup,
+	endHistoryGroup,
+	historyDepth,
+	undoLastGroup,
+} from "./editor/history.js";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
@@ -2771,6 +2776,9 @@ export function PortableTextEditor({
 					return true;
 				})
 				.run();
+			// An upload that lands while the menu is open must not join the slash's undo step, which
+			// dismissing the menu undoes.
+			endHistoryGroup(editor.state);
 			inserted.slash = editor.utils.createMappablePosition(slashPos);
 			inserted.undoDepth = historyDepth(editor.state);
 			// Scrolls far enough for the menu, up to 21rem tall, to open below the line, without

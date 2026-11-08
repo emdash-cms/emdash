@@ -28,6 +28,15 @@ export function closeHistoryGroup(state: EditorState, tr: Transaction): Transact
 }
 
 /**
+ * Ends the current undo step, so the next local change starts its own. Y.UndoManager groups local
+ * changes by time alone; prosemirror-history already starts a step for a change that isn't next to
+ * the last one.
+ */
+export function endHistoryGroup(state: EditorState): void {
+	undoManager(state)?.stopCapturing();
+}
+
+/**
  * Undoes the last undo step. Y.UndoManager renders its undo through the
  * binding itself, so `dispatch` only receives prosemirror-history's.
  */

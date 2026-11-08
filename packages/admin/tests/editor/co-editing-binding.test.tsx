@@ -344,6 +344,24 @@ describe("a rich-text editor bound to a room", () => {
 		expect(texts(editor)).toEqual([""]);
 	});
 
+	it("keeps an upload that lands while the insert button's slash menu is open", async () => {
+		const room = roomWith([block("k-intro", "Intro")]);
+		const a = await join(room);
+		const { editor, screen } = await mount(a.editing);
+		editor.commands.focus();
+		const insert = screen.getByRole("button", { name: "Test gutter insert" }).element();
+		// Within the undo manager's capture window, which joins local changes by time alone.
+		(insert as HTMLButtonElement).click();
+		const uploaded = editor.schema.nodes.paragraph!.create(null, editor.schema.text("Uploaded"));
+		editor.view.dispatch(editor.state.tr.insert(0, uploaded));
+		await slashMenu();
+		expect(texts(editor)).toEqual(["Uploaded", "Intro", "/"]);
+		await userEvent.keyboard("{Escape}");
+
+		await vi.waitFor(() => expect(slashMenuElement()).toBeNull());
+		expect(texts(editor)).toEqual(["Uploaded", "Intro"]);
+	});
+
 	it("takes the insert button's slash line back out after a peer's edit above it", async () => {
 		const room = roomWith([block("k-intro", "Intro")]);
 		const a = await join(room);
