@@ -31,7 +31,7 @@ const GOING_AWAY = 1001;
  * presence every 15 s, but browsers run a hidden tab's timers only about once a minute.
  */
 const SILENT_SOCKET_MS = 3 * 60 * 1000;
-/** A socket's stored last message time is rewritten only once it's this old. */
+/** A socket's attachment rewrites its last message time only once the stored one is this old. */
 const SEEN_STORE_MS = 30 * 1000;
 
 /** What `save` resolves to over RPC, which drops error subclasses. */
@@ -52,8 +52,10 @@ interface Socket {
 	/** The room's info for the socket, which it updates as messages arrive. */
 	info: ConnectionInfo | null;
 	attachedClientId: number | null;
-	/** When the socket last sent a message, to within `SEEN_STORE_MS`. */
+	/** When the socket last sent a message. */
 	seenAt: number;
+	/** The `seenAt` its attachment holds, at most `SEEN_STORE_MS` behind after a message. */
+	storedSeenAt: number;
 	closed: boolean;
 }
 
@@ -186,6 +188,7 @@ export class EmDashRoom extends DurableObject {
 			info,
 			attachedClientId: info?.clientId ?? null,
 			seenAt,
+			storedSeenAt: seenAt,
 			closed: false,
 			connection: {
 				send(message) {
@@ -207,13 +210,12 @@ export class EmDashRoom extends DurableObject {
 		const attachment: Attachment = { info: socket.info, seenAt: socket.seenAt };
 		ws.serializeAttachment(attachment);
 		socket.attachedClientId = socket.info.clientId;
+		socket.storedSeenAt = socket.seenAt;
 	}
 
 	#seen(ws: WebSocket, socket: Socket): void {
-		const now = Date.now();
-		if (now - socket.seenAt <= SEEN_STORE_MS) return;
-		socket.seenAt = now;
-		this.#attach(ws, socket);
+		socket.seenAt = Date.now();
+		if (socket.seenAt - socket.storedSeenAt > SEEN_STORE_MS) this.#attach(ws, socket);
 	}
 
 	/**

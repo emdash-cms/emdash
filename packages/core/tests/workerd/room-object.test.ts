@@ -5,7 +5,8 @@ import type { EmDashRoom } from "../../../cloudflare/src/rooms/object.js";
 import { CLOSE_CODES } from "../../src/rooms/types.js";
 import { blocksText, claims, newRoom, RoomClient } from "./room-object-client.js";
 
-const MINUTE = 60 * 1000;
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -273,6 +274,26 @@ describe("EmDashRoom silent sockets", () => {
 			timeout: 15_000,
 			interval: 500,
 		});
+	});
+
+	it("goes by each socket's last message, not the time its attachment last stored", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		try {
+			const start = Date.now();
+			const { site, stub } = newRoom();
+			const ana = await RoomClient.join(stub, site, "ana");
+			const ben = await RoomClient.join(stub, site, "ben");
+			vi.setSystemTime(start + 20 * SECOND);
+			ana.announce([{ clientId: 7, clock: 1, state: {} }]);
+			await vi.waitFor(() => expect(ben.awareness()).toHaveLength(1));
+			vi.setSystemTime(start + 190 * SECOND);
+			expect(await stub.isOpen()).toBe(true);
+			await vi.waitFor(() => expect(ben.closed?.code).toBe(1001));
+			expect(ana.closed).toBeNull();
+			ana.close();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("keeps a silent socket whose message arrives, through the next wake", async () => {
