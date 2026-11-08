@@ -1685,7 +1685,7 @@ msgstr "noindexメタタグを追加"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3781
 msgid "Add one or more link buttons"
-msgstr ""
+msgstr "リンクボタンを1つ以上追加"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:198
 msgid "Add Passkey"
@@ -2491,7 +2491,7 @@ msgstr "自動保存に失敗しました"
 
 #: packages/admin/src/components/ContentEditor.tsx:230
 msgid "Autosave paused"
-msgstr ""
+msgstr "自動保存を一時停止しました"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:353
 msgid "Available bylines"
@@ -2763,12 +2763,12 @@ msgstr "箇条書きリスト"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3798
 msgid "button"
-msgstr ""
+msgstr "ボタン"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3779
 #: packages/admin/src/components/PortableTextEditor.tsx:3797
 msgid "Buttons"
-msgstr ""
+msgstr "ボタン"
 
 #: packages/admin/src/routes/bylines.tsx:537
 msgid "byline"
@@ -4525,7 +4525,7 @@ msgstr "列幅を縮小"
 #: packages/admin/src/components/PortableTextEditor.tsx:3807
 msgctxt "button style"
 msgid "Default"
-msgstr ""
+msgstr "標準"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:371
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:404
@@ -5047,7 +5047,7 @@ msgstr "インポートの案内を閉じる"
 
 #: packages/admin/src/components/ContentEditor.tsx:2720
 msgid "Dismiss save error"
-msgstr ""
+msgstr "保存エラーを閉じる"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4782
 msgid "Dismiss section error"
@@ -5406,7 +5406,7 @@ msgstr "{itemLabel}を編集"
 
 #: packages/admin/src/components/ContentEditor.tsx:1816
 msgid "Edit {itemLabel}: {tabEntryTitle}"
-msgstr ""
+msgstr "{itemLabel}を編集：{tabEntryTitle}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -7399,7 +7399,7 @@ msgstr "ファイルを追加すると、自動的にアップロードが始ま
 #: packages/admin/src/components/PortableTextEditor.tsx:3809
 msgctxt "button style"
 msgid "Fill"
-msgstr ""
+msgstr "塗りつぶし"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2677
 msgid "Fill in at least one field."
@@ -7491,7 +7491,7 @@ msgstr "初回コメント投稿者のみ"
 
 #: packages/admin/src/components/ContentEditor.tsx:234
 msgid "Fix {field} in the {block} block to resume saving."
-msgstr ""
+msgstr "保存を再開するには、{block}ブロックの{field}を修正してください。"
 
 #: packages/admin/src/components/ContentEditor.tsx:1792
 msgid "Fix invalid fields before changing the publication date"
@@ -7503,7 +7503,7 @@ msgstr "予約を変更する前に、入力内容の誤りを直してくださ
 
 #: packages/admin/src/components/ContentEditor.tsx:233
 msgid "Fix the {block} block to resume saving."
-msgstr ""
+msgstr "保存を再開するには、{block}ブロックを修正してください。"
 
 #: packages/admin/src/components/Redirects.tsx:94
 msgid "Fix the percent-encoding in the path."
@@ -7898,7 +7898,7 @@ msgstr "フック"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3790
 msgid "Horizontal"
-msgstr ""
+msgstr "横並び"
 
 #. placeholder {0}: Math.round(next.focalX * 100)
 #. placeholder {1}: Math.round(next.focalY * 100)
@@ -8741,7 +8741,7 @@ msgstr "これ以降のコンテンツは読み込まれていません。この
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3787
 msgid "Layout"
-msgstr ""
+msgstr "レイアウト"
 
 #: packages/admin/src/components/PluginManager.tsx:90
 msgid "Learn how to install plugins in the <0>documentation<1/></0>."
@@ -10512,7 +10512,7 @@ msgstr "この版には記録されていません"
 
 #: packages/admin/src/components/ContentEditor.tsx:2460
 msgid "Not saved yet"
-msgstr ""
+msgstr "まだ保存されていません"
 
 #: packages/admin/src/components/ContentList.tsx:1641
 #: packages/admin/src/components/PluginSettings.tsx:342
@@ -10804,7 +10804,7 @@ msgstr "アウトライン"
 #: packages/admin/src/components/PortableTextEditor.tsx:3808
 msgctxt "button style"
 msgid "Outline"
-msgstr ""
+msgstr "アウトライン"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
@@ -12716,7 +12716,7 @@ msgstr "日時を保存"
 #: packages/admin/src/components/ContentEditor.tsx:2386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
-msgstr ""
+msgstr "下書きを保存"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:62
@@ -12774,7 +12774,7 @@ msgstr "ここでコンテンツタイプを指定して保存すると、この
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:175
 msgid "Saving creates a draft that stays off the site. You can publish it after the first save."
-msgstr ""
+msgstr "保存すると、サイトには表示されない下書きが作成されます。最初の保存後に公開できます。"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:2456
@@ -13621,7 +13621,7 @@ msgstr "短文テキスト"
 
 #: packages/admin/src/components/ContentEditor.tsx:239
 msgid "Show"
-msgstr ""
+msgstr "表示"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
@@ -14222,7 +14222,7 @@ msgstr "構造化データ"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3805
 msgid "Style"
-msgstr ""
+msgstr "スタイル"
 
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:135
 #: packages/admin/src/components/revisions/RevisionSegments.tsx:163
@@ -15846,7 +15846,7 @@ msgstr "未保存"
 
 #: packages/admin/src/components/ContentEditor.tsx:2462
 msgid "Unsaved changes"
-msgstr ""
+msgstr "未保存の変更"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:126
 msgid "Unsaved content may leave your site"
@@ -16411,7 +16411,7 @@ msgstr "版を復元しました"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3791
 msgid "Vertical"
-msgstr ""
+msgstr "縦並び"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:99
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
