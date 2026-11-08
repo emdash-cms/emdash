@@ -304,6 +304,11 @@ describe("Design pull request review status", () => {
 		});
 		await test.run();
 		assertStatus(test, "neutral", "review/needs-review");
+		assert.ok(
+			test.state.checks[0].output.summary.includes(
+				"✅ The RFC sponsor `@maintainer-one` opened this pull request.",
+			),
+		);
 		test.state.reviews.push(review("maintainer-two"));
 		await test.run();
 		assertStatus(test, "success", "review/approved");

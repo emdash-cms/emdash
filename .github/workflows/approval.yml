@@ -362,7 +362,11 @@ jobs:
               // Only people the pull request is waiting on are mentioned, so the comment
               // doesn't notify everyone it names.
               const handle = login => `\`@${login}\``;
-              const waitingOn = (login, met) => (met ? handle(login) : `@${login}`);
+              const approval = (role, login, action) => {
+                if (login === opener) return `${role} ${handle(login)} opened this pull request.`;
+                if (approved.has(login)) return `${role} ${handle(login)} has ${action}.`;
+                return `${role} @${login} has not ${action}.`;
+              };
               const mentions = logins => logins.map(handle).join(', ');
 
               requirement(
@@ -376,7 +380,7 @@ jobs:
                   } else {
                     requirement(
                       hasApproved(sponsor),
-                      `The RFC sponsor ${waitingOn(sponsor, hasApproved(sponsor))} ${hasApproved(sponsor) ? 'has' : 'has not'} approved the current revision.`,
+                      approval('The RFC sponsor', sponsor, 'approved the current revision'),
                     );
                   }
                 }
@@ -390,7 +394,7 @@ jobs:
                 } else {
                   requirement(
                     hasApproved(projectLead),
-                    `The Project Lead ${waitingOn(projectLead, hasApproved(projectLead))} ${hasApproved(projectLead) ? 'has' : 'has not'} accepted the RFC.`,
+                    approval('The Project Lead', projectLead, 'accepted the RFC'),
                   );
                 }
               }
