@@ -51,6 +51,7 @@ const INSTALL_TIMEOUT_MS = 600_000;
 const INJECTED_ROUTE_TIMEOUT_MS = 30_000;
 const INJECTED_ROUTE_REQUEST_TIMEOUT_MS = 5_000;
 const PAGE_REQUEST_TIMEOUT_MS = 30_000;
+const SMOKE_ENCRYPTION_KEY = "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const PLATFORM_CASES: PlatformCase[] = [
 	{
 		id: "node",
@@ -546,10 +547,16 @@ describe.sequential("Isolated template installs", () => {
 					const devLogPath = join(projectDir, ".astro/dev.log");
 					rmSync(devLogPath, { force: true });
 
+					if (platform.id === "cloudflare") {
+						writeFileSync(
+							join(projectDir, ".env"),
+							`EMDASH_ENCRYPTION_KEY=${SMOKE_ENCRYPTION_KEY}\n`,
+						);
+					}
 					const serverEnv = consumerEnvironment({
 						CI: "true",
 						ASTRO_TELEMETRY_DISABLED: "1",
-						EMDASH_ENCRYPTION_KEY: "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+						EMDASH_ENCRYPTION_KEY: SMOKE_ENCRYPTION_KEY,
 						NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(projectDir),
 						WRANGLER_LOG_PATH: join(temporaryDirectory, "wrangler.log"),
 					});
@@ -613,7 +620,9 @@ describe.sequential("Isolated template installs", () => {
 									optimized: Record<string, unknown>;
 								};
 							const initialMetadata = readMetadata();
-							expect(initialMetadata.optimized).toHaveProperty("emdash/middleware");
+							expect(initialMetadata.optimized).toHaveProperty("@emdash-cms/admin");
+							expect(initialMetadata.optimized).not.toHaveProperty("emdash");
+							expect(initialMetadata.optimized).not.toHaveProperty("emdash/middleware");
 							expect(initialMetadata.optimized).not.toHaveProperty("react-dom/client");
 							expect(setupToken).toEqual(expect.any(String));
 							if (!setupToken) throw new Error("Setup did not return a dev API token");
@@ -655,15 +664,16 @@ describe.sequential("Isolated template installs", () => {
 									})
 									.toBeGreaterThan(initialReloads);
 
+								const apiHeaders = {
+									Authorization: `Bearer ${setupToken}`,
+									"Content-Type": "application/json",
+									"X-EmDash-Request": "1",
+								};
 								const contentWrite = await fetch(
 									`http://localhost:${platform.port}/_emdash/api/content/posts`,
 									{
 										method: "POST",
-										headers: {
-											Authorization: `Bearer ${setupToken}`,
-											"Content-Type": "application/json",
-											"X-EmDash-Request": "1",
-										},
+										headers: apiHeaders,
 										body: JSON.stringify({
 											slug: "after-page-reload",
 											status: "draft",
@@ -676,6 +686,42 @@ describe.sequential("Isolated template installs", () => {
 								expect(contentWrite.status, `${readOutput()}\n${contentWriteBody}`).toBe(201);
 								expect(JSON.parse(contentWriteBody)).toMatchObject({
 									data: { item: { data: { title: "After page reload" } } },
+								});
+
+								const smtpConfig = await fetch(
+									`http://localhost:${platform.port}/_emdash/api/settings/email`,
+									{
+										method: "PUT",
+										headers: apiHeaders,
+										body: JSON.stringify({
+											provider: "smtp",
+											smtp: {
+												host: "127.0.0.1",
+												port: 1,
+												secure: "starttls",
+												user: "smoke@example.com",
+												pass: "smoke-password",
+											},
+										}),
+										signal: AbortSignal.timeout(PAGE_REQUEST_TIMEOUT_MS),
+									},
+								);
+								const smtpConfigBody = await smtpConfig.text();
+								expect(smtpConfig.status, `${readOutput()}\n${smtpConfigBody}`).toBe(200);
+
+								const testEmail = await fetch(
+									`http://localhost:${platform.port}/_emdash/api/settings/email`,
+									{
+										method: "POST",
+										headers: apiHeaders,
+										body: JSON.stringify({ to: "recipient@example.com" }),
+										signal: AbortSignal.timeout(PAGE_REQUEST_TIMEOUT_MS),
+									},
+								);
+								const testEmailBody = await testEmail.text();
+								expect(testEmail.status, `${readOutput()}\n${testEmailBody}`).toBe(502);
+								expect(JSON.parse(testEmailBody)).toMatchObject({
+									error: { code: "EMAIL_TEST_ERROR" },
 								});
 							} finally {
 								writeFileSync(pagePath, originalPage);

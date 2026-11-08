@@ -190,7 +190,7 @@ export interface VitePluginOptions {
  */
 export function createVirtualModulesPlugin(
 	options: VitePluginOptions,
-	optimizeRuntime = false,
+	optimizeAdmin = false,
 ): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
@@ -405,7 +405,7 @@ export function createVirtualModulesPlugin(
 				return generateEnvModule(astroConfig.adapter?.name);
 			}
 			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
-				return generateBuildModule(buildTime, viteCommand === "serve" && optimizeRuntime);
+				return generateBuildModule(buildTime, viteCommand === "serve" && optimizeAdmin);
 			}
 		},
 	};
@@ -526,7 +526,7 @@ export function createViteConfig(
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
-	const optimizeRuntime = cloudflare && isDev && !useSource && hasRolldownOptimizer(projectRoot);
+	const optimizeAdmin = cloudflare && isDev && !useSource && hasRolldownOptimizer(projectRoot);
 	const adminLocales = options.resolvedConfig.admin?.locales;
 	const useSyncExternalStoreShimPath = resolveIntegrationShim("use-sync-external-store.js");
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
@@ -601,8 +601,8 @@ export function createViteConfig(
 		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
-			createVirtualModulesPlugin(options, optimizeRuntime),
-			...(optimizeRuntime ? [createCloudflareOptimizerReloadPlugin()] : []),
+			createVirtualModulesPlugin(options, optimizeAdmin),
+			...(optimizeAdmin ? [createCloudflareOptimizerReloadPlugin()] : []),
 			...(isDev && !cloudflare
 				? [{ name: "emdash-runtime-shutdown", apply: "serve", closeBundle: shutdownRuntime }]
 				: []),
@@ -646,42 +646,21 @@ export function createViteConfig(
 						// during pre-bundling and can't resolve them. Vite's exclude
 						// uses prefix matching (id.startsWith(m + "/")), so
 						// "virtual:emdash" matches all "virtual:emdash/*" imports.
+						// Core routes resolve to absolute dist paths. Keep middleware
+						// and routes on the same unoptimized graph for error identity.
+						// Cloudflare must also stay excluded: in installed projects,
+						// pre-bundling code-splits lazy imports into hashed chunks.
+						// Re-optimization deletes those chunks while loaded adapter
+						// modules can still reference them. Their CJS dependencies
+						// remain pre-bundled through the parent > dep entries below.
 						exclude: [
 							"virtual:emdash",
+							"emdash",
 							"@emdash-cms/cloudflare",
-							...(!optimizeRuntime ? ["emdash", "@emdash-cms/admin"] : []),
+							...(!optimizeAdmin ? ["@emdash-cms/admin"] : []),
 						],
 						include: [
-							// Cache the runtime graph across workerd program reloads.
-							// These entrypoints are otherwise discovered serially on startup.
-							...(optimizeRuntime
-								? [
-										"emdash",
-										"@emdash-cms/admin",
-										"emdash/middleware",
-										"emdash/internal/middleware/setup",
-										"emdash/internal/middleware/auth",
-										"emdash/internal/middleware/media-usage-write-fence",
-										"emdash/internal/middleware/redirect",
-										"emdash/internal/middleware/request-context",
-										"emdash/runtime",
-										"emdash/ui",
-										"emdash/page",
-										"emdash/internal/media/local-runtime",
-										"emdash/internal/plugins/adapt-sandbox-entry",
-										...[
-											options.resolvedConfig.database?.entrypoint,
-											options.resolvedConfig.storage?.entrypoint,
-											options.resolvedConfig.objectCache?.entrypoint,
-											...(options.resolvedConfig.mediaProviders?.map(
-												(provider) => provider.entrypoint,
-											) ?? []),
-										].filter(
-											(entry): entry is string =>
-												typeof entry === "string" && entry.startsWith("emdash/"),
-										),
-									]
-								: []),
+							...(optimizeAdmin ? ["@emdash-cms/admin"] : []),
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
 							"emdash > @unpic/placeholder",

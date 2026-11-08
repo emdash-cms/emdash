@@ -9,6 +9,7 @@ interface RuntimeHolder {
 	instance: EmDashRuntime | null;
 	lock: InitLock;
 	closed: boolean;
+	shutdown?: Promise<void>;
 }
 
 export function getRuntimeHolder(): RuntimeHolder {
@@ -27,15 +28,22 @@ export async function shutdownRuntime(): Promise<void> {
 	const holder = store[RUNTIME_HOLDER_KEY] as RuntimeHolder | undefined;
 	if (!holder) return;
 
-	// Detach before awaiting so the next server cannot reuse a closing runtime.
+	if (holder.shutdown) return holder.shutdown;
+
+	// Keep the closed holder installed until teardown finishes. Requests must
+	// not initialize replacement plugins while the old runtime clears them.
 	holder.closed = true;
-	delete store[RUNTIME_HOLDER_KEY];
 	const runtime = holder.instance;
 	holder.instance = null;
-	try {
-		await runtime?.shutdown();
-	} catch (error) {
-		console.error("[emdash] runtime shutdown failed:", error);
-		throw error;
-	}
+	holder.shutdown = Promise.resolve().then(async () => {
+		try {
+			await runtime?.shutdown();
+		} catch (error) {
+			console.error("[emdash] runtime shutdown failed:", error);
+			throw error;
+		} finally {
+			if (store[RUNTIME_HOLDER_KEY] === holder) delete store[RUNTIME_HOLDER_KEY];
+		}
+	});
+	return holder.shutdown;
 }

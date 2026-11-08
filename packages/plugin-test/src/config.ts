@@ -20,7 +20,7 @@ const runtimeVirtualModules: Record<string, string> = {
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
 	"virtual:emdash/config": "export default {};",
 	"virtual:emdash/env": "export const env = undefined;",
-	"virtual:emdash/build": "export const buildTime = 0;",
+	"virtual:emdash/build": "export const buildTime = 0; export const onBeforeFullReload = () => {};",
 	"virtual:emdash/object-cache": "export const createObjectCacheBackend = null;",
 };
 

@@ -492,7 +492,7 @@ describe("createViteConfig Cloudflare optimizer selection", () => {
 	function isOptimized(config: ReturnType<typeof createViteConfig>) {
 		const include = config.ssr?.optimizeDeps?.include ?? [];
 		return (
-			include.includes("emdash") &&
+			include.includes("@emdash-cms/admin") &&
 			(config.plugins ?? []).some(
 				(plugin) =>
 					typeof plugin === "object" &&
@@ -510,6 +510,8 @@ describe("createViteConfig Cloudflare optimizer selection", () => {
 	] as const)("uses Astro's nested Vite version for %s", async (_name, viteVersion, optimized) => {
 		const config = buildConfig(writeFixture({ astroVersion: "7.3.8", viteVersion }));
 		expect(isOptimized(config)).toBe(optimized);
+		expect(config.ssr?.optimizeDeps?.exclude).toContain("emdash");
+		expect(config.ssr?.optimizeDeps?.include).not.toContain("emdash");
 		const virtualPlugin = config.plugins?.find(
 			(plugin): plugin is Plugin =>
 				typeof plugin === "object" &&
@@ -575,7 +577,7 @@ describe("createViteConfig Cloudflare optimizer selection", () => {
 			),
 		).toBe(false);
 	});
-	it("only includes configured EmDash provider entrypoints", () => {
+	it("keeps core and adapter providers on the unoptimized graph", () => {
 		const config = buildConfig(writeFixture({ astroVersion: "7.3.8", viteVersion: "8.0.0" }), {
 			database: { entrypoint: "emdash/db/sqlite" },
 			storage: { entrypoint: "@emdash-cms/cloudflare/storage/r2" },
@@ -586,9 +588,9 @@ describe("createViteConfig Cloudflare optimizer selection", () => {
 			],
 		});
 		const include = config.ssr?.optimizeDeps?.include ?? [];
-		expect(include).toContain("emdash/db/sqlite");
-		expect(include).toContain("emdash/internal/object-cache/memory");
-		expect(include).toContain("emdash/media");
+		expect(include).not.toContain("emdash/db/sqlite");
+		expect(include).not.toContain("emdash/internal/object-cache/memory");
+		expect(include).not.toContain("emdash/media");
 		expect(include).not.toContain("@emdash-cms/cloudflare/storage/r2");
 		expect(include).not.toContain("@emdash-cms/cloudflare/media");
 	});
@@ -687,7 +689,8 @@ describe("createViteConfig runtime shutdown plugin", () => {
 		try {
 			const close = server.close();
 			await vi.waitFor(() => expect(shutdown).toHaveBeenCalledTimes(1));
-			expect(getRuntimeHolder()).not.toBe(holder);
+			expect(getRuntimeHolder()).toBe(holder);
+			expect(holder.closed).toBe(true);
 			expect(holder.instance).toBeNull();
 			let closed = false;
 			void close.then(() => {
@@ -699,6 +702,7 @@ describe("createViteConfig runtime shutdown plugin", () => {
 
 			resolveShutdown();
 			await close;
+			expect(getRuntimeHolder()).not.toBe(holder);
 		} finally {
 			resolveShutdown?.();
 			await server.close().catch(() => undefined);
@@ -797,11 +801,13 @@ describe("generateBuildModule runtime reload lifecycle", () => {
 			await Promise.resolve();
 			expect(finished).toBe(false);
 			expect(shutdown).toHaveBeenCalledOnce();
-			expect(getRuntimeHolder()).not.toBe(holder);
+			expect(getRuntimeHolder()).toBe(holder);
+			expect(holder.closed).toBe(true);
 			expect(holder.instance).toBeNull();
 			expect(Reflect.has(globalThis, pluginsKey)).toBe(false);
 			finishShutdown();
 			await reload;
+			expect(getRuntimeHolder()).not.toBe(holder);
 			expect(finished).toBe(true);
 		} finally {
 			finishShutdown?.();
