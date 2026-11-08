@@ -1,4 +1,4 @@
-import { sha256 } from "@oslojs/crypto/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { decodeBase64urlIgnorePadding, encodeBase64urlNoPadding } from "@oslojs/encoding";
 
 declare const challengeContextType: unique symbol;

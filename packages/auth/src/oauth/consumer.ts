@@ -2,7 +2,7 @@
  * OAuth consumer - "Login with X" functionality
  */
 
-import { sha256 } from "@oslojs/crypto/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import { z } from "zod";
 

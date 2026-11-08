@@ -5,13 +5,10 @@
  * a device code, displays a URL + user code, and polls for a token.
  * The user opens a browser, logs in, enters the code, and the CLI gets
  * an access + refresh token pair.
- *
- * Uses arctic for code generation and @emdash-cms/auth for token utilities.
  */
 
-import { clampScopes } from "@emdash-cms/auth";
+import { clampScopes, generateToken } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
-import { generateCodeVerifier } from "arctic";
 import type { Kysely, Selectable } from "kysely";
 
 import {
@@ -174,7 +171,7 @@ export async function handleDeviceCodeRequest(
 			};
 		}
 
-		const deviceCode = generateCodeVerifier();
+		const deviceCode = generateToken();
 		const userCode = generateUserCode();
 		const expires = expiresAt(DEVICE_CODE_TTL_SECONDS);
 
