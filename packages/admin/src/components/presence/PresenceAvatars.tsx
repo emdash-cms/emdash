@@ -115,6 +115,8 @@ export function PresenceAvatars({ room, fieldLabel, photos }: PresenceAvatarsPro
 							data-presence-face=""
 							data-author-color={user.color}
 							aria-label={describe(user)}
+							// Focus still shows a viewer's name, but there's no field to go to.
+							aria-disabled={user.field === null || undefined}
 							aria-hidden={leaving || undefined}
 							tabIndex={leaving ? -1 : undefined}
 							className={cn(
@@ -125,7 +127,7 @@ export function PresenceAvatars({ room, fieldLabel, photos }: PresenceAvatarsPro
 								animate && ENTER,
 								leaving && LEAVING,
 							)}
-							onClick={() => go(user)}
+							onClick={user.field === null ? undefined : () => go(user)}
 						>
 							<Face user={user} photo={photos?.get(user.id)} />
 						</Button>

@@ -129,8 +129,11 @@ describe("presence avatars", () => {
 		await userEvent.hover(ana.element());
 		await expect.element(page.getByText("Ana Lima · Editing Excerpt")).toBeVisible();
 
-		await userEvent.hover(screen.getByRole("button", { name: "Ben Okafor · Viewing" }).element());
+		const ben = screen.getByRole("button", { name: "Ben Okafor · Viewing" });
+		await userEvent.hover(ben.element());
 		await expect.element(page.getByText("Ben Okafor · Viewing")).toBeVisible();
+		await expect.element(ben).toHaveAttribute("aria-disabled", "true");
+		await expect.element(ana).not.toHaveAttribute("aria-disabled");
 	});
 
 	it("brings a person's field into view, at their caret in rich text, at once under reduced motion", async () => {
@@ -164,7 +167,8 @@ describe("presence avatars", () => {
 		expect(scroll.mock.contexts.at(-1)).toBe(document.querySelector(".emdash-remote-caret"));
 
 		scroll.mockClear();
-		await screen.getByRole("button", { name: "Cleo Park · Viewing" }).click();
+		// Playwright won't click a control marked unavailable unless forced; a person still can.
+		await screen.getByRole("button", { name: "Cleo Park · Viewing" }).click({ force: true });
 		expect(scroll).not.toHaveBeenCalled();
 	});
 
@@ -384,7 +388,7 @@ describe("presence avatars", () => {
 		expect(document.activeElement).toBe(screen.getByRole("button", { name: "Before" }).element());
 		expect(lifts(screen.container)).toEqual(rest);
 
-		await screen.getByRole("button", { name: "Cleo Park · Viewing" }).click();
+		await screen.getByRole("button", { name: "Cleo Park · Viewing" }).click({ force: true });
 		await userEvent.hover(screen.getByText("Elsewhere").element());
 		expect(lifts(screen.container)).toEqual(rest);
 	});
