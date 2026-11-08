@@ -597,11 +597,15 @@ function TaxonomyTermPicker({
 									>
 										{trimmedInput ? t`Create "${trimmedInput}"` : t`Create a new ${singularLabel}`}
 									</Button>
-									{!trimmedInput ? (
-										<p id={createHintId} className="px-2 pb-1.5 text-xs leading-4 text-kumo-subtle">
-											{t`Type a name above to create a new ${singularLabel}.`}
-										</p>
-									) : null}
+									<p
+										id={createHintId}
+										className={cn(
+											"px-2 pb-1.5 text-xs leading-4 text-kumo-subtle",
+											trimmedInput && "invisible",
+										)}
+									>
+										{t`Type a name above to create a new ${singularLabel}.`}
+									</p>
 								</div>
 							) : null}
 

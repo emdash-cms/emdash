@@ -78,7 +78,7 @@ async function openPicker(
 		{ container: root },
 	);
 	await screen.getByRole("button", { name: `Choose ${label}` }).click();
-	const search = page.getByRole("searchbox", { name: `Search ${label}` });
+	const search = page.getByRole("searchbox", { name: `Search or create ${label}` });
 	await expect.element(page.getByRole("checkbox", { name: "Term 00", exact: true })).toBeVisible();
 	await settlePosition();
 	await Promise.all(
@@ -102,6 +102,8 @@ describe("TaxonomySidebar picker layout", () => {
 		for (const direction of ["ltr", "rtl"] as const) {
 			it(`keeps a small ${label} list compact and stable while filtering (${direction})`, async () => {
 				const { search, options } = await openPicker(label, 650, direction, terms.slice(0, 3));
+				const hint = page.getByText(`Type a name above to create a new ${label}.`, { exact: true });
+				await expect.element(hint).toBeVisible();
 				const initialBounds = options.element().getBoundingClientRect();
 				const list = options.element();
 				const listStyle = getComputedStyle(list);
@@ -116,6 +118,11 @@ describe("TaxonomySidebar picker layout", () => {
 					await expect
 						.poll(() => options.element().querySelectorAll('[role="checkbox"]').length)
 						.toBe(query === "" ? 3 : query === "Term 02" ? 1 : 0);
+					if (query) {
+						await expect.element(hint).not.toBeVisible();
+					} else {
+						await expect.element(hint).toBeVisible();
+					}
 					await settlePosition();
 					expect(
 						Math.abs(search.element().getBoundingClientRect().top - initialTop),

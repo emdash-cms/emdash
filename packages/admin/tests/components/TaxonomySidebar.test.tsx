@@ -392,6 +392,7 @@ describe("TaxonomySidebar", () => {
 			);
 
 			await input.fill("Alpha");
+			await expect.element(input).toHaveAccessibleDescription("");
 			await expect.element(screen.getByRole("button", { name: 'Create "Alpha"' })).toBeDisabled();
 			await input.fill("Gamma");
 			const createNamed = screen.getByRole("button", { name: 'Create "Gamma"' });
