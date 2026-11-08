@@ -244,7 +244,7 @@ msgstr "{0, plural, one {#件} other {#件}}"
 #. placeholder {0}: count ?? issues.length
 #: packages/admin/src/components/BlocksField.tsx:557
 msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
-msgstr ""
+msgstr "{0, plural, one {#件のフィールドを確認してください} other {#件のフィールドを確認してください}}"
 
 #. placeholder {0}: relation.boundFields.length
 #: packages/admin/src/components/RelationList.tsx:189
@@ -734,17 +734,17 @@ msgstr "{label}（翻訳を表示）"
 
 #: packages/admin/src/components/BlocksField.tsx:1648
 msgid "{label} · version {versionNumber}"
-msgstr ""
+msgstr "{label} · バージョン{versionNumber}"
 
 #: packages/admin/src/components/BlockListField.tsx:1113
 #: packages/admin/src/components/BlockListField.tsx:1156
 msgid "{label} {position}"
-msgstr ""
+msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1022
 #: packages/admin/src/components/BlocksField.tsx:1599
 msgid "{label} actions"
-msgstr ""
+msgstr "{label}の操作"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:261
 msgid "{label} in {menuName}"
@@ -771,7 +771,7 @@ msgstr "{label}、{restored}"
 
 #: packages/admin/src/components/BlocksField.tsx:2283
 msgid "{label}: {value}"
-msgstr ""
+msgstr "{label}：{value}"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
@@ -779,7 +779,7 @@ msgstr "{lateness}の遅れ"
 
 #: packages/admin/src/components/BlocksField.tsx:1238
 msgid "{list} +{more}"
-msgstr ""
+msgstr "{list} ほか{more}件"
 
 #: packages/admin/src/components/ContentList.tsx:1442
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
@@ -803,15 +803,15 @@ msgstr "{maximum, plural, one {{name}は#件まで設定できます。} other {
 
 #: packages/admin/src/components/block-field-notes.tsx:75
 msgid "{maximum, plural, one {Keep to # item} other {Keep to # items}}"
-msgstr ""
+msgstr "{maximum, plural, one {#件以下にしてください} other {#件以下にしてください}}"
 
 #: packages/admin/src/components/block-field-notes.tsx:78
 msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
-msgstr ""
+msgstr "{maximum, plural, one {#文字以下にしてください} other {#文字以下にしてください}}"
 
 #: packages/admin/src/components/BlocksField.tsx:495
 msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
-msgstr ""
+msgstr "{maxItems, plural, one {このフィールドには#個までブロックを追加できます。} other {このフィールドには#個までブロックを追加できます。}}"
 
 #: packages/admin/src/lib/content-validation-errors.ts:81
 msgid "{minimum, plural, one {{name} needs at least # character.} other {{name} needs at least # characters.}}"
@@ -823,21 +823,21 @@ msgstr "{minimum, plural, one {{name}は#件以上設定してください。} o
 
 #: packages/admin/src/components/block-field-notes.tsx:61
 msgid "{minimum, plural, one {Add at least # item} other {Add at least # items}}"
-msgstr ""
+msgstr "{minimum, plural, one {#件以上追加してください} other {#件以上追加してください}}"
 
 #: packages/admin/src/components/block-field-notes.tsx:64
 msgid "{minimum, plural, one {Use at least # character} other {Use at least # characters}}"
-msgstr ""
+msgstr "{minimum, plural, one {#文字以上にしてください} other {#文字以上にしてください}}"
 
 #: packages/admin/src/components/BlockListField.tsx:662
 #: packages/admin/src/components/BlocksField.tsx:1044
 msgid "{moved} is already first"
-msgstr ""
+msgstr "{moved}はすでに先頭です"
 
 #: packages/admin/src/components/BlockListField.tsx:662
 #: packages/admin/src/components/BlocksField.tsx:1045
 msgid "{moved} is already last"
-msgstr ""
+msgstr "{moved}はすでに末尾です"
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
@@ -857,7 +857,7 @@ msgstr "{name}はこのコンテンツタイプのフィールドではありま
 
 #: packages/admin/src/components/useDragAnnouncements.ts:59
 msgid "{name} is over position {position} of {total}"
-msgstr ""
+msgstr "{name}は全{total}件中{position}番目の位置にあります"
 
 #: packages/admin/src/lib/content-validation-errors.ts:67
 msgid "{name} is required."
@@ -881,7 +881,7 @@ msgstr "{name}は{bound}以下にしてください。"
 
 #: packages/admin/src/components/useDragAnnouncements.ts:40
 msgid "{name} was not moved"
-msgstr ""
+msgstr "{name}を移動しませんでした"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:101
 msgid "{name}: this site already has some"
@@ -1033,11 +1033,11 @@ msgstr "「{title}」は{when}に公開されます。"
 
 #: packages/admin/src/components/BlocksField.tsx:945
 msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
-msgstr ""
+msgstr "{toFix, plural, one {修正が必要な箇所が#件あります。該当箇所に移動} other {修正が必要な箇所が#件あります。次の該当箇所に移動}}"
 
 #: packages/admin/src/components/BlocksField.tsx:951
 msgid "{toFix, plural, one {# to fix} other {# to fix}}"
-msgstr ""
+msgstr "{toFix, plural, one {要修正#件} other {要修正#件}}"
 
 #: packages/admin/src/components/ContentList.tsx:1448
 msgid "{total, plural, one {# item} other {# items}}"
@@ -1506,7 +1506,7 @@ msgstr "投稿に{singularLower}を追加"
 
 #: packages/admin/src/components/BlocksField.tsx:2222
 msgid "Add a caption"
-msgstr ""
+msgstr "キャプションを追加"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:334
 msgid "Add a detail every byline can fill in, such as a job title."
@@ -1550,16 +1550,16 @@ msgstr "ブロックを追加"
 
 #: packages/admin/src/components/BlocksField.tsx:1629
 msgid "Add block above"
-msgstr ""
+msgstr "上にブロックを追加"
 
 #: packages/admin/src/components/BlocksField.tsx:1406
 #: packages/admin/src/components/BlocksField.tsx:1630
 msgid "Add block below"
-msgstr ""
+msgstr "下にブロックを追加"
 
 #: packages/admin/src/components/BlocksField.tsx:1425
 msgid "Add block below {label}"
-msgstr ""
+msgstr "{label}の下にブロックを追加"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:316
 msgid "Add byline"
@@ -1645,15 +1645,15 @@ msgstr "項目を追加"
 
 #: packages/admin/src/components/BlockListField.tsx:1046
 msgid "Add item above"
-msgstr ""
+msgstr "上に項目を追加"
 
 #: packages/admin/src/components/BlockListField.tsx:1047
 msgid "Add item below"
-msgstr ""
+msgstr "下に項目を追加"
 
 #: packages/admin/src/components/BlockListField.tsx:882
 msgid "Add item to {label}"
-msgstr ""
+msgstr "{label}に項目を追加"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:5215
 #: packages/admin/src/components/PortableTextEditor.tsx:6024
@@ -1863,7 +1863,7 @@ msgstr "高度なブロック"
 
 #: packages/admin/src/components/BlocksField.tsx:2327
 msgid "Advanced: {blockLabel}"
-msgstr ""
+msgstr "詳細設定：{blockLabel}"
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
 msgid "After"
@@ -3184,7 +3184,7 @@ msgstr "サイトを確認"
 
 #: packages/admin/src/components/block-field-notes.tsx:52
 msgid "Check the format"
-msgstr ""
+msgstr "形式を確認してください"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:476
 msgid "Check the server logs, then use the media usage recovery API for the failed work."
@@ -3333,7 +3333,7 @@ msgstr "アップロードするファイルを選択"
 
 #: packages/admin/src/components/block-field-notes.tsx:55
 msgid "Choose one of the options"
-msgstr ""
+msgstr "選択肢から1つ選んでください"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:269
@@ -3523,7 +3523,7 @@ msgstr "コードブロックの操作"
 
 #: packages/admin/src/components/BlocksField.tsx:984
 msgid "Collapse all"
-msgstr ""
+msgstr "すべて折りたたむ"
 
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/PluginManager.tsx:580
@@ -4647,7 +4647,7 @@ msgstr "{0}を削除しますか？"
 
 #: packages/admin/src/components/BlocksField.tsx:1097
 msgid "Delete {confirmName}?"
-msgstr ""
+msgstr "{confirmName}を削除しますか？"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:367
 msgid "Delete backup?"
@@ -4797,7 +4797,7 @@ msgstr "削除日時"
 #: packages/admin/src/components/BlocksField.tsx:824
 #: packages/admin/src/components/BlocksField.tsx:850
 msgid "Deleted {name}"
-msgstr ""
+msgstr "{name}を削除しました"
 
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1429
@@ -5321,11 +5321,11 @@ msgstr "重複するリダイレクトを除外しました"
 
 #: packages/admin/src/components/BlockListField.tsx:438
 msgid "Duplicated {copied}"
-msgstr ""
+msgstr "{copied}を複製しました"
 
 #: packages/admin/src/components/BlocksField.tsx:766
 msgid "Duplicated {name}"
-msgstr ""
+msgstr "{name}を複製しました"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:195
 msgid "e.g. application/zip or .pdf"
@@ -5807,11 +5807,11 @@ msgstr "コンテンツの言語が設定されていないため、英語にな
 
 #: packages/admin/src/components/block-field-notes.tsx:84
 msgid "Enter {formatted} or less"
-msgstr ""
+msgstr "{formatted}以下の値を入力してください"
 
 #: packages/admin/src/components/block-field-notes.tsx:70
 msgid "Enter {formatted} or more"
-msgstr ""
+msgstr "{formatted}以上の値を入力してください"
 
 #: packages/admin/src/components/Redirects.tsx:115
 msgid "Enter a destination different from the source."
@@ -5949,7 +5949,7 @@ msgstr "有効なURL（例：https://example.com）を入力"
 
 #: packages/admin/src/components/block-field-notes.tsx:57
 msgid "Enter a whole number"
-msgstr ""
+msgstr "整数を入力してください"
 
 #: packages/admin/src/components/FieldEditor.tsx:342
 msgid "Enter a whole number of 0 or more."
@@ -6132,7 +6132,7 @@ msgstr "集中モードを終了（⌘⇧\\）"
 
 #: packages/admin/src/components/BlocksField.tsx:984
 msgid "Expand all"
-msgstr ""
+msgstr "すべて展開"
 
 #: packages/admin/src/components/PluginManager.tsx:575
 #: packages/admin/src/components/PluginManager.tsx:580
@@ -7692,7 +7692,7 @@ msgstr "ログイン画面へ"
 
 #: packages/admin/src/components/BlocksField.tsx:938
 msgid "Go to the next problem"
-msgstr ""
+msgstr "次の要修正箇所に移動"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Goes live"
@@ -7751,7 +7751,7 @@ msgstr "ハンドルが利用できません"
 
 #: packages/admin/src/components/BlockListField.tsx:174
 msgid "Has fields to fix"
-msgstr ""
+msgstr "修正が必要なフィールドがあります"
 
 #: packages/admin/src/components/editor/TableControls.tsx:234
 msgid "Header column added"
@@ -9693,11 +9693,11 @@ msgstr "このサイトを別のEmDash環境に移行するか、サイトパッ
 
 #: packages/admin/src/components/RowMenuItems.tsx:97
 msgid "Move to bottom"
-msgstr ""
+msgstr "末尾に移動"
 
 #: packages/admin/src/components/RowMenuItems.tsx:90
 msgid "Move to top"
-msgstr ""
+msgstr "先頭に移動"
 
 #: packages/admin/src/components/ContentList.tsx:673
 #: packages/admin/src/components/ContentList.tsx:1617
@@ -9736,12 +9736,12 @@ msgstr "{filename}を{0}番目に移動しました。"
 
 #: packages/admin/src/components/BlockListField.tsx:426
 msgid "Moved {moved} to position {position} of {total}"
-msgstr ""
+msgstr "{moved}を全{total}件中{position}番目に移動しました"
 
 #: packages/admin/src/components/BlocksField.tsx:777
 #: packages/admin/src/components/useDragAnnouncements.ts:72
 msgid "Moved {name} to position {position} of {total}"
-msgstr ""
+msgstr "{name}を全{total}件中{position}番目に移動しました"
 
 #: packages/admin/src/router.tsx:758
 msgid "Moved {total} items to draft"
@@ -11068,7 +11068,7 @@ msgstr "{label}を選択して移動を開始しました。"
 
 #: packages/admin/src/components/useDragAnnouncements.ts:52
 msgid "Picked up {name}, position {position} of {total}"
-msgstr ""
+msgstr "{name}をつかみました。全{total}件中{position}番目です"
 
 #: packages/admin/src/components/FieldEditor.tsx:1879
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
@@ -12012,7 +12012,7 @@ msgstr "{0}を選択から外しました。"
 
 #: packages/admin/src/components/block-field-undo.tsx:302
 msgid "Removed {fieldLabel}"
-msgstr ""
+msgstr "{fieldLabel}を削除しました"
 
 #: packages/admin/src/components/revisions/change-labels.ts:52
 msgid "Removed a code block"
@@ -14463,7 +14463,7 @@ msgstr "test@example.com"
 #: packages/admin/src/components/BlocksField.tsx:2237
 #: packages/admin/src/components/PortableTextEditor.tsx:3800
 msgid "Text"
-msgstr ""
+msgstr "テキスト"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:6775
 msgid "Text formatting"
@@ -14959,7 +14959,7 @@ msgstr "このブロックには、{0}のページが埋め込まれています
 
 #: packages/admin/src/components/BlocksField.tsx:2069
 msgid "This block has no fields."
-msgstr ""
+msgstr "このブロックにはフィールドがありません。"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
 msgid "This block runs JavaScript."
@@ -14967,15 +14967,15 @@ msgstr "このブロックはJavaScriptを実行します。"
 
 #: packages/admin/src/components/BlocksField.tsx:881
 msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
-msgstr ""
+msgstr "このブロックタイプはこのフィールドに追加できなくなっているため、削除するとブロックを復元できません。"
 
 #: packages/admin/src/components/BlocksField.tsx:874
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
-msgstr ""
+msgstr "このブロックは古いバージョンのブロックタイプを使用しているため、削除すると復元できません。"
 
 #: packages/admin/src/components/BlocksField.tsx:876
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
-msgstr ""
+msgstr "このブロックの保存済み定義を利用できないため、削除すると復元できません。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
