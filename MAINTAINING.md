@@ -17,7 +17,7 @@ The author is the pull request's main author. A Maintainer who has made substant
 
 An approval applies to the reviewed revision. A later substantive commit requires another approval. A merge commit that only updates the branch from `main` does not invalidate an approval.
 
-The `review/*` labels and the informational `Human Maintainer approval` check report whether the approval requirement is met. The check finishes with a neutral result when review is outstanding and success when enough Maintainers have approved. On design pull requests and changes that need two approvals, the same automation keeps an approval status comment that lists each requirement. Do not make the check a required status check. The Maintainer merging the pull request is responsible for applying the merge requirements above.
+The `review/*` labels and the informational `Human Maintainer approval` check report whether the approval requirement is met. The check finishes with a neutral result when review is outstanding and success when enough Maintainers have approved. On design pull requests and changes that need two approvals, the same automation keeps an approval status comment that lists each requirement. The Maintainer merging the pull request is responsible for applying the merge requirements above.
 
 Project Team reviews, automated reviews, test results, and static analysis help the human reviewer. They do not replace Maintainer approval. A bot with repository permissions is still a bot, not a Maintainer.
 
