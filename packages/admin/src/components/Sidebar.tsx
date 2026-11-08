@@ -1,5 +1,6 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
+import type { I18n } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import { Gear, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -338,14 +339,10 @@ export function NavIcon({
 
 /**
  * Resolve the display label for a plugin admin page (sidebar + command
- * palette). Declared labels are run through the shared Lingui instance:
- * plugins that load their own catalog — with the English label as msgid —
- * get localized nav items. The catalog is shared with the admin, so common
- * labels like "Settings" pick up the admin's own translations even without
- * a plugin catalog (deliberate: a localized admin shouldn't show stray
- * English nav items). Labels with no catalog entry anywhere fall back to
- * the literal string. Pages without a label prettify the plugin id
- * ("my-shop" → "My Shop").
+ * palette). Declared labels are translated only when the active catalog has
+ * an entry for them; otherwise they are returned as declared. Plugins that
+ * load their own catalog — with the English label as msgid — get localized
+ * nav items. Pages without a label prettify the plugin id ("my-shop" → "My Shop").
  */
 export function resolvePluginPageLabel(
 	label: string | undefined,
@@ -374,6 +371,19 @@ export function resolvePluginWidgetTitle(
 	return widgetId;
 }
 
+/**
+ * Wrap `translate` so a declared label reaches it only when the active catalog
+ * has an entry for it; any other label is returned as declared. Most plugin
+ * labels have no catalog entry, and passing one to Lingui logs an
+ * "Uncompiled message detected" warning on every render.
+ */
+export function declaredLabelTranslator(
+	i18n: Pick<I18n, "messages">,
+	translate: (id: string) => string,
+): (id: string) => string {
+	return (id) => (i18n.messages[id] === undefined ? id : translate(id));
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
 export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
@@ -388,13 +398,29 @@ export function resolveItemPath(item: NavItem): string {
 	return path;
 }
 
-/** Checks if a nav item is active based on the current router path. */
+const TRAILING_SLASHES = /\/+$/;
+
+/**
+ * Drop trailing slashes so a target and the router's path compare equal.
+ * "/" keeps its meaning: it is the admin root, not an empty path.
+ */
+function stripTrailingSlash(value: string): string {
+	return value.length > 1 ? value.replace(TRAILING_SLASHES, "") : value;
+}
+
+/**
+ * Checks if a nav item is active based on the current router path.
+ *
+ * Both sides are normalized because a plugin page declared with `path: "/"`
+ * makes the target `/plugins/<id>/`, while the router navigates to the same
+ * URL without the trailing slash — an exact compare would never match.
+ */
 export function isItemActive(itemPath: string, currentPath: string): boolean {
 	const queryIndex = itemPath.indexOf("?");
-	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
-	return path === "/"
-		? currentPath === "/"
-		: currentPath === path || currentPath.startsWith(`${path}/`);
+	const raw = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	const path = stripTrailingSlash(raw);
+	const current = stripTrailingSlash(currentPath);
+	return path === "/" ? current === "/" : current === path || current.startsWith(`${path}/`);
 }
 
 /**
@@ -562,7 +588,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
 				if (!isSafePluginPagePath(page.path)) continue;
-				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
+				const label = resolvePluginPageLabel(
+					page.label,
+					pluginId,
+					declaredLabelTranslator(i18n, (id) => i18n._(id)),
+				);
 				const group = normalizeGroup(page.group);
 				const item: NavItem = {
 					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,

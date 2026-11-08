@@ -6,6 +6,8 @@ const htmlClass = theme === "dark" || theme === "light" ? theme : undefined;
 
 const light = { id: "light", src: "https://example.com/light.png", alt: "Diagram", width: 200, height: 100 };
 const dark = { id: "dark", src: "https://example.com/dark.png", alt: "Diagram (dark)", width: 200, height: 100 };
+const mediaLight = { id: "media-light", src: "/_emdash/api/media/file/light.png", alt: "Diagram", width: 200, height: 100 };
+const mediaDark = { id: "media-dark", src: "/_emdash/api/media/file/dark.png", alt: "Diagram (dark)", width: 200, height: 100 };
 ---
 
 <html class={htmlClass}>
@@ -16,5 +18,8 @@ const dark = { id: "dark", src: "https://example.com/dark.png", alt: "Diagram (d
 		<div id="with-variant"><Image image={{ ...light, darkVariant: dark }} /></div>
 		<div id="without-variant"><Image image={light} /></div>
 		<div id="explicit-variant"><Image image={light} darkVariant={dark} /></div>
+		<div id="picture-variant">
+			<Image image={{ ...mediaLight, darkVariant: mediaDark }} formats={["avif", "webp"]} />
+		</div>
 	</body>
 </html>

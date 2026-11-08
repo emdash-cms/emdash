@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -70,6 +70,7 @@ import {
 } from "./relations.js";
 import {
 	applyStagedReferences,
+	liveReferenceData,
 	liveReferenceSelection,
 	pageStagedGroups,
 	readStagedReferenceBaselines,
@@ -215,10 +216,13 @@ function decodeRevisionPrecondition(
 }
 
 /**
- * Extract a slug source (title or name) from content data.
+ * Extract a slug source from content data: the collection's `titleField` when
+ * it sets one and the entry has a value for it, otherwise `title`, then `name`.
  * Returns null if no suitable string field is found.
  */
-function getSlugSource(data: Record<string, unknown>): string | null {
+function getSlugSource(data: Record<string, unknown>, titleField?: string | null): string | null {
+	const configured = titleField ? data[titleField] : undefined;
+	if (typeof configured === "string" && configured.length > 0) return configured;
 	if (typeof data.title === "string" && data.title.length > 0) return data.title;
 	if (typeof data.name === "string" && data.name.length > 0) return data.name;
 	return null;
@@ -268,6 +272,20 @@ async function getCollectionPublishConfig(
 			supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
 			routable: row?.routable !== 0,
 		};
+	});
+}
+
+async function getCollectionTitleField(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<string | null> {
+	return requestCached(`collectionTitleField:${collection}`, async () => {
+		const row = await db
+			.selectFrom("_emdash_collections")
+			.select("title_field")
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		return row?.title_field ?? null;
 	});
 }
 
@@ -846,7 +864,7 @@ async function removeShadowingAutoRedirect(
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "=", url)
+		.where("source", "in", redirectPathVariants(url))
 		.where("auto", "=", 1)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
@@ -1021,6 +1039,28 @@ export async function handleContentList(
 				: undefined,
 			sortableExtras,
 		});
+
+		// Unpublished entries have no live data to preserve in the list. Keep the
+		// base columns untouched so discarding a draft can still restore them.
+		const unpublishedDrafts = result.items.filter(
+			(item) => item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
+		);
+		const draftIds = unpublishedDrafts.flatMap((item) =>
+			item.draftRevisionId ? [item.draftRevisionId] : [],
+		);
+		if (draftIds.length > 0) {
+			const revisions = await new RevisionRepository(db).findByIds(collection, draftIds);
+			const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+			for (const item of unpublishedDrafts) {
+				if (!item.draftRevisionId) continue;
+				const revision = byId.get(item.draftRevisionId);
+				if (!revision || revision.entryId !== item.id) continue;
+				const fields = Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				);
+				item.data = { ...item.data, ...fields };
+			}
+		}
 
 		// Hydrate SEO data if the collection has SEO enabled
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1350,7 +1390,7 @@ export async function handleContentCreate(
 
 			let slug: string | null | undefined = body.slug;
 			if (!slug) {
-				const slugSource = getSlugSource(body.data);
+				const slugSource = getSlugSource(body.data, await getCollectionTitleField(trx, collection));
 				if (slugSource) {
 					slug = await repo.generateUniqueSlug(collection, slugSource, effectiveLocale);
 				}
@@ -1606,9 +1646,10 @@ export async function handleContentUpdate(
 			}
 		}
 
-		// Wrap content + SEO writes in a transaction for atomicity.
-		// The _rev check is inside the transaction so the read-then-write
-		// is atomic -- no concurrent write can slip between the check and update.
+		// Wrap content + SEO writes in a transaction for atomicity. The transaction
+		// does not keep a concurrent save out between the _rev check and the update
+		// (D1 has none, and Postgres reads without a lock), so the update repeats
+		// the check in its WHERE clause.
 		let redirectChanged = false;
 		const item = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
@@ -1680,15 +1721,20 @@ export async function handleContentUpdate(
 			// Collections without revisions save to the columns, and reads show any
 			// draft revision over them, so no draft pointer may outlive a save.
 			const { supportsRevisions } = await getCollectionPublishConfig(trx, collection);
-			const updated = await trxRepo.update(collection, resolvedId, {
-				data: body.data,
-				slug: body.slug,
-				locale: existing?.locale ?? body.locale,
-				status: body.status,
-				authorId: body.authorId,
-				publishedAt: body.publishedAt,
-				...(supportsRevisions ? {} : { draftRevisionId: null }),
-			});
+			const updated = await trxRepo.update(
+				collection,
+				resolvedId,
+				{
+					data: body.data,
+					slug: body.slug,
+					locale: existing?.locale ?? body.locale,
+					status: body.status,
+					authorId: body.authorId,
+					publishedAt: body.publishedAt,
+					...(supportsRevisions ? {} : { draftRevisionId: null }),
+				},
+				body._rev ? decodeRevisionPrecondition(body._rev) : undefined,
+			);
 
 			if (body.bylines !== undefined) {
 				const credits = await bylineRepo.setContentBylines(collection, resolvedId, body.bylines);
@@ -1699,11 +1745,11 @@ export async function handleContentUpdate(
 				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// Create auto-redirect when slug changes. Date tokens in the URL
-			// pattern resolve from the publish date, so the old URL uses the
-			// pre-update date (the URL that was actually live) and the new URL
-			// the post-update one.
-			if (oldSlug && body.slug) {
+			// Create auto-redirect when a published entry's slug changes. Date
+			// tokens in the URL pattern resolve from the publish date, so the old
+			// URL uses the pre-update date (the URL that was actually live) and the
+			// new URL the post-update one.
+			if (oldSlug && body.slug && existing?.status === "published") {
 				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
@@ -1783,6 +1829,12 @@ export async function handleContentUpdate(
 			return {
 				success: false,
 				error: { code: error.apiError.code, message: error.message },
+			};
+		}
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
 			};
 		}
 		if (isMissingTableError(error)) {
@@ -2513,6 +2565,14 @@ export async function handleContentPublish(
 						stagedReferenceBaselines,
 					);
 				}
+			}
+
+			// `repo.publish()` writes the starting revision too, but without the links.
+			if (publishConfig.supportsRevisions && existing) {
+				const entryGroup = existing.translationGroup;
+				await repo.keepStartingRevision(new RevisionRepository(trx), collection, existing, () =>
+					liveReferenceData(trx, collection, entryGroup),
+				);
 			}
 
 			const published = await repo.publish(

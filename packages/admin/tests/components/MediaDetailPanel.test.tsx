@@ -153,6 +153,7 @@ function makePdfItem(overrides: Partial<MediaItem> = {}): MediaItem {
 
 const STREAM_HLS = "https://customer-abc123.cloudflarestream.com/UID/manifest/video.m3u8";
 const STREAM_DASH = "https://customer-abc123.cloudflarestream.com/UID/manifest/video.mpd";
+const STREAM_PLAYER = "https://customer-abc123.cloudflarestream.com/UID/iframe";
 const STREAM_POSTER = "https://customer-abc123.cloudflarestream.com/UID/thumbnails/thumbnail.jpg";
 
 /**
@@ -631,13 +632,16 @@ describe("MediaDetailPanel", () => {
 		await expect
 			.element(screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }))
 			.toBeVisible();
-		const focalDescription = screen
-			.getByText("Move the focal point to choose what stays visible in cropped images.")
-			.element();
-		expect(focalDescription).toHaveClass("sr-only");
-		expect(
-			screen.getByRole("button", { name: "Focal point. Use arrow keys to move it." }).element(),
-		).toHaveAttribute("aria-describedby", focalDescription.id);
+		const focalPoint = screen.getByRole("button", {
+			name: "Focal point. Use arrow keys to move it.",
+		});
+		await expect
+			.element(focalPoint)
+			.toHaveAccessibleDescription(
+				"Move the focal point to choose what stays visible in cropped images.",
+			);
+		const focalDescriptionId = focalPoint.element().getAttribute("aria-describedby") ?? "";
+		expect(document.getElementById(focalDescriptionId)).toHaveClass("sr-only");
 		await expect.element(screen.getByRole("button", { name: "About focal point" })).toBeVisible();
 		await expect.element(screen.getByRole("heading", { name: "Preview" })).toBeVisible();
 		const previewGroup = screen.getByTestId("focal-preview-group").element();
@@ -1106,7 +1110,7 @@ describe("MediaDetailPanel", () => {
 		expect(createCroppedImageFile).toHaveBeenCalledTimes(2);
 	});
 
-	it("returns replacement failures to the crop panel with the draft intact", async () => {
+	it("keeps a failed replacement in its confirmation, with the draft intact", async () => {
 		vi.mocked(replaceMediaImage).mockRejectedValueOnce(new Error("Replace failed"));
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
@@ -1121,8 +1125,12 @@ describe("MediaDetailPanel", () => {
 		await expect.element(confirmation).toBeVisible();
 		confirmation.getByRole("button", { name: "Replace original" }).element().click();
 
-		await expect.element(screen.getByText("Replace failed")).toBeVisible();
+		await expect.element(confirmation.getByText("Replace failed")).toBeVisible();
+		expect(screen.getByText("Replace failed").elements()).toHaveLength(1);
+
+		confirmation.getByRole("button", { name: "Cancel" }).element().click();
 		await expect.element(confirmation).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Replace failed")).toBeVisible();
 		expect(cropSelectionStyle(screen)).toBe(draftStyle);
 	});
 
@@ -2157,6 +2165,28 @@ describe("MediaDetailPanel file URL", () => {
 	describe("video preview", () => {
 		// The dialog may portal outside the render container, so query the document.
 		const findVideo = () => document.querySelector("video");
+
+		it("opens a hosted video player instead of sending streaming manifests to a native video", async () => {
+			const screen = await renderPanel({
+				item: makeStreamItem({ playerUrl: STREAM_PLAYER }),
+				providerName: "Cloudflare Stream",
+			});
+			await expect.element(screen.getByText("Media details")).toBeInTheDocument();
+			const frame = document.querySelector("iframe");
+			expect(frame?.getAttribute("src")).toBe(STREAM_PLAYER);
+			expect(frame?.getAttribute("title")).toBe("Video player for webinar.mp4");
+			expect(frame?.allowFullscreen).toBe(true);
+			expect(findVideo()).toBeNull();
+		});
+
+		it("uses native playback rather than an unsafe player URL", async () => {
+			const screen = await renderPanel({
+				item: makeStreamItem({ playerUrl: "javascript:alert(1)" }),
+			});
+			await expect.element(screen.getByText("Media details")).toBeInTheDocument();
+			expect(document.querySelector("iframe")).toBeNull();
+			expect(findVideo()).not.toBeNull();
+		});
 
 		it("plays a streaming item's HLS/DASH sources rather than its poster URL", async () => {
 			const screen = await renderPanel({

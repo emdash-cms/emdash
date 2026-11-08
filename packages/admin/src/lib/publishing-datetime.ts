@@ -1,4 +1,4 @@
-import { parseTimestamp } from "./utils.js";
+import { formatDate, parseTimestamp } from "./utils.js";
 
 export interface PublishingDateTimeFields {
 	date: Date | undefined;
@@ -107,15 +107,16 @@ export function publishingFieldsMatchInstant(
 }
 
 export function formatPublishingInstant(value: string, locale: string): string {
-	return new Intl.DateTimeFormat(locale, {
+	return formatDate(value, locale, {
 		dateStyle: "medium",
 		timeStyle: "short",
-	}).format(parseTimestamp(value));
+	});
 }
 
 export function formatPublishingInstantWithZone(value: string, locale: string): string {
-	const date = parseTimestamp(value);
 	const formatted = formatPublishingInstant(value, locale);
+	if (!formatted) return "";
+	const date = parseTimestamp(value);
 	const { timeZone, shortName } = getPublishingTimeZone(date, locale);
 	const zone = shortName ?? timeZone;
 	return zone ? `${formatted} (${zone})` : formatted;

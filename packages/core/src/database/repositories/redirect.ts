@@ -10,6 +10,7 @@ import {
 	isPattern,
 	validatePattern,
 } from "../../redirects/patterns.js";
+import { REDIRECT_STATUSES } from "../../redirects/status.js";
 import { currentTimestampValue, isPostgres } from "../dialect-helpers.js";
 import type { Database, RedirectTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
@@ -121,6 +122,12 @@ const REDIRECT_WRITE_LEASE_MS = 30_000;
 const REDIRECT_WRITE_LOCK_ATTEMPTS = 5;
 const POSTGRES_REDIRECT_LOCK_KEY = 1_168_624_763;
 
+/** The forms of `path` the redirect middleware treats as the same request path. */
+export function redirectPathVariants(path: string): string[] {
+	const bare = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+	return bare === "/" ? [bare] : [bare, `${bare}/`];
+}
+
 // ---------------------------------------------------------------------------
 // Row mapping
 // ---------------------------------------------------------------------------
@@ -207,14 +214,28 @@ export class RedirectRepository {
 		for (let attempt = 0; attempt < REDIRECT_WRITE_LOCK_ATTEMPTS; attempt++) {
 			const now = Date.now();
 			const result = await this.db
-				.updateTable("_emdash_redirect_write_lock")
-				.set({
+				.insertInto("_emdash_redirect_write_lock")
+				.values({
+					id: REDIRECT_WRITE_LOCK_ID,
 					token,
 					expires_at: now + REDIRECT_WRITE_LEASE_MS,
-					generation: sql`generation + 1`,
+					generation: 1,
 				})
-				.where("id", "=", REDIRECT_WRITE_LOCK_ID)
-				.where((eb) => eb.or([eb("token", "=", ""), eb("expires_at", "<", now)]))
+				.onConflict((oc) =>
+					oc
+						.column("id")
+						.doUpdateSet({
+							token,
+							expires_at: now + REDIRECT_WRITE_LEASE_MS,
+							generation: sql`${sql.ref("_emdash_redirect_write_lock.generation")} + 1`,
+						})
+						.where((eb) =>
+							eb.or([
+								eb("_emdash_redirect_write_lock.token", "=", ""),
+								eb("_emdash_redirect_write_lock.expires_at", "<", now),
+							]),
+						),
+				)
 				.returning("generation")
 				.executeTakeFirst();
 			if (result) {
@@ -316,26 +337,53 @@ export class RedirectRepository {
 		const now = new Date().toISOString();
 		const patternFlag = input.isPattern ?? isPattern(input.source);
 
-		await this.db
+		const result = await this.db
 			.insertInto("_emdash_redirects")
-			.values({
-				id,
-				source: input.source,
-				destination: input.destination,
-				type: input.type ?? 301,
-				is_pattern: patternFlag ? 1 : 0,
-				enabled: input.enabled !== false ? 1 : 0,
-				hits: 0,
-				last_hit_at: null,
-				group_name: input.groupName ?? null,
-				auto: input.auto ? 1 : 0,
-				config_revision: ulid(),
-				source_guard: 1,
-				write_generation: fence?.generation ?? 0,
-				created_at: now,
-				updated_at: now,
-			})
-			.execute();
+			.columns([
+				"id",
+				"source",
+				"destination",
+				"type",
+				"is_pattern",
+				"enabled",
+				"hits",
+				"last_hit_at",
+				"group_name",
+				"auto",
+				"config_revision",
+				"source_guard",
+				"write_generation",
+				"created_at",
+				"updated_at",
+			])
+			.expression((eb) =>
+				eb
+					.selectFrom("_emdash_redirect_write_lock")
+					.select((select) => [
+						select.val(id).as("id"),
+						select.val(input.source).as("source"),
+						select.val(input.destination).as("destination"),
+						select.val(input.type ?? 301).as("type"),
+						select.val(patternFlag ? 1 : 0).as("is_pattern"),
+						select.val(input.enabled !== false ? 1 : 0).as("enabled"),
+						select.val(0).as("hits"),
+						select.val(null).as("last_hit_at"),
+						select.val(input.groupName ?? null).as("group_name"),
+						select.val(input.auto ? 1 : 0).as("auto"),
+						select.val(ulid()).as("config_revision"),
+						select.val(1).as("source_guard"),
+						select.val(fence.generation).as("write_generation"),
+						select.val(now).as("created_at"),
+						select.val(now).as("updated_at"),
+					])
+					.where("id", "=", REDIRECT_WRITE_LOCK_ID)
+					.where("token", "=", fence.token)
+					.where("generation", "=", fence.generation),
+			)
+			.executeTakeFirst();
+		if ((result.numInsertedOrUpdatedRows ?? 0n) === 0n) {
+			throw new Error("redirect write lease expired");
+		}
 
 		return (await this.findById(id))!;
 	}
@@ -519,7 +567,9 @@ export class RedirectRepository {
 	 * removes redirects that would shadow the now-live new URL, so a
 	 * rename that is later reverted cannot form a loop (#1986).
 	 *
-	 * Returns null without an explicit URL pattern or when old and new URLs are identical.
+	 * Returns the redirect now answering the old URL, which is a kept disabled
+	 * or terminal rule when one sits there. Returns null without an explicit
+	 * URL pattern or when old and new URLs are identical.
 	 */
 	async createAutoRedirect(
 		collection: string,
@@ -532,21 +582,27 @@ export class RedirectRepository {
 	): Promise<Redirect | null> {
 		if (!urlPattern) return null;
 
+		const withPatternSlash = (path: string) =>
+			urlPattern.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
 		return this.withWriteLock(async (fence, repository) => {
-			const oldUrl = interpolateUrlPattern({
-				pattern: urlPattern,
-				collection,
-				slug: oldSlug,
-				id: contentId,
-				date: oldPublishedAt,
-			});
-			const newUrl = interpolateUrlPattern({
-				pattern: urlPattern,
-				collection,
-				slug: newSlug,
-				id: contentId,
-				date: newPublishedAt,
-			});
+			const oldUrl = withPatternSlash(
+				interpolateUrlPattern({
+					pattern: urlPattern,
+					collection,
+					slug: oldSlug,
+					id: contentId,
+					date: oldPublishedAt,
+				}),
+			);
+			const newUrl = withPatternSlash(
+				interpolateUrlPattern({
+					pattern: urlPattern,
+					collection,
+					slug: newSlug,
+					id: contentId,
+					date: newPublishedAt,
+				}),
+			);
 
 			// A redirect from a URL to itself would make the page unreachable
 			if (oldUrl === newUrl) return null;
@@ -554,7 +610,7 @@ export class RedirectRepository {
 			// The new URL serves live content again — any redirect from it would
 			await repository.db
 				.deleteFrom("_emdash_redirects")
-				.where("source", "=", newUrl)
+				.where("source", "in", redirectPathVariants(newUrl))
 				.where((eb) =>
 					eb.exists(
 						eb
@@ -570,12 +626,26 @@ export class RedirectRepository {
 			// Collapse chains: update any existing redirects pointing to the old URL
 			await repository.collapseChains(oldUrl, newUrl, fence);
 
-			// Check if a redirect from this source already exists
-			const existing = await repository.findBySource(oldUrl);
-			if (existing) {
-				// Update the existing redirect to point to the new URL
-				return (await repository.update(existing.id, { destination: newUrl }, undefined, fence))!;
+			// Only active redirects are retargeted. A disabled or terminal rule at
+			// the exact old URL is kept and suppresses the auto-redirect.
+			const existing = await repository.db
+				.selectFrom("_emdash_redirects")
+				.select(["id", "source", "enabled", "type"])
+				.where("source", "in", redirectPathVariants(oldUrl))
+				.orderBy("id")
+				.execute();
+			const active = existing.filter(
+				(row) => row.enabled === 1 && REDIRECT_STATUSES.some((status) => status === row.type),
+			);
+			let updated: Redirect | null = null;
+			for (const { id } of active) {
+				// oxlint-disable-next-line no-await-in-loop -- at most two rows, under the write lock
+				const redirect = await repository.update(id, { destination: newUrl }, undefined, fence);
+				updated ??= redirect;
 			}
+			if (active.length > 0) return updated;
+			const kept = existing.find((row) => row.source === oldUrl);
+			if (kept) return repository.findById(kept.id);
 
 			return repository.create(
 				{
@@ -614,7 +684,7 @@ export class RedirectRepository {
 				config_revision: ulid(),
 				...(fence ? { write_generation: fence.generation } : {}),
 			})
-			.where("destination", "=", oldDestination);
+			.where("destination", "in", redirectPathVariants(oldDestination));
 		if (fence) {
 			query = query.where((eb) =>
 				eb.exists(

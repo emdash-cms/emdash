@@ -55,9 +55,13 @@ function providerImage(key: string) {
 	};
 }
 
-async function renderGallery(props: Record<string, unknown>) {
+async function renderGallery(props: Record<string, unknown>, request?: Request) {
 	const container = await AstroContainer.create();
-	return container.renderToString(Gallery, { props, locals });
+	return container.renderToString(Gallery, {
+		props,
+		locals,
+		...(request ? { request } : {}),
+	});
 }
 
 describe("Gallery sizes", () => {
@@ -97,22 +101,25 @@ describe("Gallery sizes", () => {
 	});
 
 	test("locally stored images with dimensions get the same cell estimate", async () => {
-		const html = await renderGallery({
-			node: {
-				_type: "gallery",
-				_key: "g",
-				images: [
-					{
-						_type: "image",
-						_key: "local",
-						asset: { _ref: "media-1", url: "/_emdash/api/media/file/local.jpg" },
-						alt: "local",
-						width: 1600,
-						height: 1200,
-					},
-				],
+		const html = await renderGallery(
+			{
+				node: {
+					_type: "gallery",
+					_key: "g",
+					images: [
+						{
+							_type: "image",
+							_key: "local",
+							asset: { _ref: "media-1", url: "/_emdash/api/media/file/local.jpg" },
+							alt: "local",
+							width: 1600,
+							height: 1200,
+						},
+					],
+				},
 			},
-		});
+			new Request("https://quality.example.com/"),
+		);
 		const tag = imgTags(html)[0]!;
 
 		expect(attr(tag, "data-astro-image")).toBe("constrained");

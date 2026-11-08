@@ -1,18 +1,27 @@
 /**
- * In-memory stand-ins for an AI Search namespace and its Items API. Search
- * matches query words against the uploaded text and ranks by `priority`.
+ * An in-memory AI Search provider. Search matches query words against the
+ * uploaded text and ranks by `priority`.
  */
 
-import type { IndexerDeps } from "../src/indexer.js";
-
-type ItemsApi = IndexerDeps["items"];
+import {
+	type AiSearchProvider,
+	type InstanceInfo,
+	type InstanceStats,
+	type Item,
+	type ItemPage,
+	type ItemQuery,
+	ProviderError,
+	type ProviderErrorReason,
+	type SearchChunk,
+	type SearchQuery,
+} from "../src/ports/ai-search.js";
 
 interface Version {
-	metadata: Record<string, unknown> | undefined;
+	metadata: Record<string, string>;
 	body: string;
 }
 
-type StoredItem = AiSearchItemInfo &
+type StoredItem = Item &
 	Version & {
 		indexedAt: number;
 		/** The last indexed version, searchable while this one is queued. */
@@ -20,11 +29,16 @@ type StoredItem = AiSearchItemInfo &
 	};
 
 const WHITESPACE = /\s+/;
-const NOT_FOUND = "AiSearchNotFoundError: ai_search_not_found";
 
-/** Upload is an upsert by key. With `indexingMs`, an upload stays queued until that much time passes. */
-export class FakeItems implements ItemsApi {
+/**
+ * Upload is an upsert by key. With `indexingMs`, an upload stays queued until
+ * that much time passes. Calls fail before the instance is created only when
+ * `requireInstance` is set.
+ */
+export class FakeAiSearch implements AiSearchProvider {
+	kind: AiSearchProvider["kind"] = "binding";
 	readonly items = new Map<string, StoredItem>();
+	created = false;
 	uploads = 0;
 	/** Number of list calls received. */
 	lists = 0;
@@ -34,69 +48,110 @@ export class FakeItems implements ItemsApi {
 	rateLimitAfter = Number.POSITIVE_INFINITY;
 	/** The instance was just created and AI Search does not serve it yet. */
 	starting = false;
+	searchError: Error | null = null;
+	/** Every call fails for this reason, as when a token expires or the account is rate-limited. */
+	failAll: ProviderErrorReason | null = null;
+	/** Cloudflare rejects the token when asked directly. */
+	rejectsToken = false;
+	/** Search requests received. */
+	readonly searches: SearchQuery[] = [];
 
-	constructor(readonly indexingMs = 0) {}
+	constructor(readonly options: { indexingMs?: number; requireInstance?: boolean } = {}) {}
 
-	async list(params: AiSearchListItemsParams = {}): Promise<AiSearchListItemsResponse> {
+	async ensureInstance(): Promise<{ created: boolean }> {
+		if (this.created) return { created: false };
+		this.created = true;
+		return { created: true };
+	}
+
+	async tokenRejected(): Promise<boolean> {
+		return this.rejectsToken;
+	}
+
+	async info(): Promise<InstanceInfo> {
+		this.assertServing();
+		return { id: "emdash", namespace: "default" };
+	}
+
+	async stats(): Promise<InstanceStats> {
+		this.assertServing();
+		const count = (status: Item["status"]) =>
+			this.current().filter((item) => item.status === status).length;
+		return {
+			queued: count("queued"),
+			running: count("running"),
+			completed: count("completed"),
+			error: count("error"),
+			skipped: count("skipped"),
+			outdated: count("outdated"),
+			lastActivity: null,
+		};
+	}
+
+	async search(query: SearchQuery): Promise<SearchChunk[]> {
+		this.assertServing();
+		this.searches.push(query);
+		if (this.searchError) throw this.searchError;
+		const words = query.query.toLowerCase().split(WHITESPACE);
+		return this.current()
+			.flatMap((item) => {
+				const version = searchable(item);
+				return version ? [{ key: item.key, ...version }] : [];
+			})
+			.filter((item) => words.some((word) => item.body.toLowerCase().includes(word)))
+			.filter((item) =>
+				Object.entries(query.filters ?? {}).every(([name, value]) => item.metadata[name] === value),
+			)
+			.toSorted((a, b) => Number(b.metadata.priority) - Number(a.metadata.priority))
+			.slice(0, query.maxResults)
+			.map((item) => ({ key: item.key, metadata: item.metadata }));
+	}
+
+	async listItems(query: ItemQuery = {}): Promise<ItemPage> {
 		this.lists++;
-		if (this.starting) throw new Error(NOT_FOUND);
-		const filter = params.metadata_filter
-			? (JSON.parse(params.metadata_filter) as { folder?: string; source?: string })
-			: {};
+		this.assertServing();
+		const { folder, ...metadata } = query.metadata ?? {};
 		const all = this.current().filter(
 			(item) =>
-				(!params.key || item.key === params.key) &&
-				(!params.status || item.status === params.status) &&
-				(!filter.folder || item.key.startsWith(filter.folder)) &&
-				(!filter.source || item.metadata?.source === filter.source),
+				(!query.key || item.key === query.key) &&
+				(!query.status || item.status === query.status) &&
+				(!folder || item.key.startsWith(folder)) &&
+				Object.entries(metadata).every(([name, value]) => item.metadata[name] === value),
 		);
-		const perPage = params.per_page ?? 20;
-		const start = ((params.page ?? 1) - 1) * perPage;
-		return {
-			result: all.slice(start, start + perPage),
-			result_info: {
-				count: Math.min(perPage, Math.max(0, all.length - start)),
-				page: params.page ?? 1,
-				per_page: perPage,
-				total_count: all.length,
-			},
-		};
+		const perPage = query.perPage ?? 20;
+		const start = ((query.page ?? 1) - 1) * perPage;
+		return { items: all.slice(start, start + perPage).map(toItem), total: all.length };
 	}
 
-	async upload(
-		name: string,
-		content: string | ReadableStream | Blob,
-		options?: AiSearchUploadItemOptions,
-	): Promise<AiSearchItemInfo> {
-		if (Object.values(options?.metadata ?? {}).some((value) => typeof value !== "string")) {
-			throw new Error("AiSearchError: invalid_metadata_format");
+	async uploadItem(key: string, body: string, metadata: Record<string, string>): Promise<Item> {
+		if (JSON.stringify(metadata).length > 10_240) {
+			throw new ProviderError("failed", "AiSearchInternalError: unable_to_connect_to_ai_search");
 		}
-		if (JSON.stringify(options?.metadata ?? {}).length > 10_240) {
-			throw new Error("AiSearchInternalError: unable_to_connect_to_ai_search");
-		}
-		if (this.starting) throw new Error(NOT_FOUND);
-		if (this.failKeys.has(name)) throw new Error("AiSearchError: internal_error");
+		this.assertServing();
+		if (this.failKeys.has(key)) throw new ProviderError("failed", "AiSearchError: internal_error");
 		if (this.uploads >= this.rateLimitAfter) {
-			throw new Error("AiSearchError: You are being rate limited.");
+			throw new ProviderError("rate-limited", "AiSearchError: You are being rate limited.");
 		}
 		this.uploads++;
-		const replaced = this.current().find((item) => item.key === name);
+		const indexingMs = this.options.indexingMs ?? 0;
+		const replaced = this.current().find((item) => item.key === key);
 		const item: StoredItem = {
-			id: `item-${name}`,
-			key: name,
-			status: this.indexingMs > 0 ? "queued" : "completed",
-			last_seen_at: "2026-01-01 12:00:00",
-			metadata: options?.metadata,
-			body: typeof content === "string" ? content : "",
-			indexedAt: Date.now() + this.indexingMs,
+			id: `item-${key}`,
+			key,
+			status: indexingMs > 0 ? "queued" : "completed",
+			updatedAt: "2026-01-01T12:00:00Z",
+			metadata,
+			body,
+			indexedAt: Date.now() + indexingMs,
 			previous: replaced ? searchable(replaced) : null,
 		};
-		this.items.set(name, item);
-		return item;
+		this.items.set(key, item);
+		return toItem(item);
 	}
 
-	async delete(itemId: string): Promise<void> {
-		for (const [key, item] of this.items) if (item.id === itemId) this.items.delete(key);
+	async deleteItem(id: string): Promise<void> {
+		this.assertServing();
+		for (const [key, item] of this.items) if (item.id === id) this.items.delete(key);
 	}
 
 	/** Every item, with the uploads whose processing time has passed marked completed. */
@@ -109,71 +164,27 @@ export class FakeItems implements ItemsApi {
 		}
 		return [...this.items.values()];
 	}
+
+	private assertServing(): void {
+		if (this.failAll) throw new ProviderError(this.failAll, "Cloudflare refused the call");
+		if (this.starting || (this.options.requireInstance && !this.created)) {
+			throw new ProviderError("not-found", "AiSearchNotFoundError: ai_search_not_found");
+		}
+	}
+}
+
+function toItem(item: StoredItem): Item {
+	const { id, key, status, metadata, error, updatedAt } = item;
+	return {
+		id,
+		key,
+		status,
+		metadata,
+		...(error ? { error } : {}),
+		...(updatedAt ? { updatedAt } : {}),
+	};
 }
 
 function searchable(item: StoredItem): Version | null {
 	return item.status === "completed" ? item : item.previous;
-}
-
-/** A namespace holding one instance, which must be created before use. */
-export class FakeAiSearch {
-	created = false;
-	readonly items: FakeItems;
-	searchError: Error | null = null;
-	private readonly instance: ReturnType<FakeAiSearch["createInstance"]>;
-
-	constructor(options: { indexingMs?: number } = {}) {
-		this.items = new FakeItems(options.indexingMs);
-		this.instance = this.createInstance();
-	}
-
-	get = (_name: string) => this.instance;
-
-	create = async (_config: unknown) => {
-		this.created = true;
-		return this.instance;
-	};
-
-	private createInstance() {
-		const items = this.items;
-		return {
-			info: async () => {
-				if (!this.created) throw new Error("AiSearchNotFoundError: instance not found");
-				return {};
-			},
-			stats: async () => {
-				const all = items.current();
-				return {
-					completed: all.filter((item) => item.status === "completed").length,
-					queued: all.filter((item) => item.status === "queued").length,
-				};
-			},
-			search: async (request: {
-				query: string;
-				ai_search_options?: { retrieval?: { filters?: { locale?: string } } };
-			}) => {
-				if (this.searchError) throw this.searchError;
-				const words = request.query.toLowerCase().split(WHITESPACE);
-				const locale = request.ai_search_options?.retrieval?.filters?.locale;
-				const chunks = items
-					.current()
-					.flatMap((item) => {
-						const version = searchable(item);
-						return version ? [{ id: item.id, key: item.key, ...version }] : [];
-					})
-					.filter((item) => words.some((word) => item.body.toLowerCase().includes(word)))
-					.filter((item) => !locale || item.metadata?.locale === locale)
-					.toSorted((a, b) => Number(b.metadata?.priority) - Number(a.metadata?.priority))
-					.map((item) => ({
-						id: item.id,
-						type: "text",
-						score: 1,
-						text: "",
-						item: { key: item.key, metadata: item.metadata },
-					}));
-				return { search_query: request.query, chunks };
-			},
-			items,
-		};
-	}
 }

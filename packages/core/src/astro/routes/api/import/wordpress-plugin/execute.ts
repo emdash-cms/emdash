@@ -212,9 +212,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		);
 
 		// Import navigation menus, resolving item references through the
-		// WP-post-ID -> EmDash-ID map collected during the content pass.
+		// WP-post-ID -> EmDash-ID and -> collection maps collected during the content pass.
 		if (config.importMenus !== false) {
-			await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+			await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 		}
 
 		// Import comments into EmDash's native comments table, preserving
@@ -275,7 +275,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 /**
  * Import navigation menus into `result`, resolving item references through
- * the WP-post-ID -> EmDash-ID map collected during the content pass.
+ * the WP-post-ID -> EmDash-ID and -> collection maps collected during the content pass.
  * Non-fatal: older plugin versions have no /menus endpoint.
  */
 async function importMenusInto(
@@ -284,11 +284,17 @@ async function importMenusInto(
 	url: string,
 	token: string,
 	contentIdMap: Map<number, string>,
+	collectionByWpId: Map<number, string>,
 ): Promise<void> {
 	try {
 		const menus = await fetchPluginMenus(url, token);
 		if (menus.length > 0) {
-			const menuResult = await importMenusFromPlugin(menus, emdash.db, contentIdMap);
+			const menuResult = await importMenusFromPlugin(
+				menus,
+				emdash.db,
+				contentIdMap,
+				collectionByWpId,
+			);
 			result.menus = {
 				created: menuResult.menusCreated,
 				items: menuResult.itemsCreated,
@@ -466,10 +472,10 @@ async function runFinalizePhase(
 	config: WpPluginImportConfig,
 ): Promise<ChunkResponse> {
 	const result = emptyImportResult();
-	const { contentIdMap } = parseIdMap(body.idMap);
+	const { contentIdMap, collectionByWpId } = parseIdMap(body.idMap);
 
 	if (config.importMenus !== false) {
-		await importMenusInto(result, emdash, body.url, body.token, contentIdMap);
+		await importMenusInto(result, emdash, body.url, body.token, contentIdMap, collectionByWpId);
 	}
 
 	try {
@@ -765,6 +771,7 @@ async function applySiteSettings(
 			emdash.db,
 			emdash.storage,
 			() => {},
+			emdash.config?.imagePlaceholders ?? true,
 		);
 		for (const item of mediaResult.imported) {
 			if (item.originalUrl === parsed.logo?.url) {
@@ -825,7 +832,7 @@ export async function importContent(
 	// WP post ID -> EmDash content ID, used to resolve menu item references
 	const contentIdMap = new Map<number, string>();
 
-	// WP post ID -> EmDash collection slug, used by the comment import
+	// WP post ID -> EmDash collection slug, used by the comment and menu imports
 	const collectionByWpId = new Map<number, string>();
 
 	// Create content repository for checking existing items
@@ -1044,7 +1051,10 @@ export async function importContent(
 				itemDateTime !== undefined && !Number.isNaN(itemDateTime)
 					? item.date.toISOString()
 					: undefined;
-			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+			const scheduledAt =
+				item.status === "future" && createdAt && Date.parse(createdAt) > Date.now()
+					? createdAt
+					: undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -1056,7 +1066,8 @@ export async function importContent(
 				locale: item.locale,
 				translationOf,
 				createdAt,
-				publishedAt,
+				// Scheduled posts get their publication date from the final schedule.
+				publishedAt: scheduledAt ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
@@ -1098,13 +1109,8 @@ export async function importContent(
 					translationGroupMap.set(item.translationGroup, createdId);
 				}
 
-				if (
-					createdId &&
-					item.status === "future" &&
-					createdAt &&
-					Date.parse(createdAt) > Date.now()
-				) {
-					const scheduled = await emdash.handleContentSchedule(collection, createdId, createdAt);
+				if (createdId && scheduledAt) {
+					const scheduled = await emdash.handleContentSchedule(collection, createdId, scheduledAt);
 					if (!scheduled.success) {
 						result.errors.push({
 							title: item.title || "Untitled",

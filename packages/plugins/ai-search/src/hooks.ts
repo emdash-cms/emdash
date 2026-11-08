@@ -69,8 +69,9 @@ export function createHooks(options: AiSearchOptions): PluginHooks {
 				if (event.name !== "build" && event.name !== "retry") return;
 				const session = await openSession(ctx, options);
 				if (!session) return;
-				if (event.name === "build") await runBuild(ctx, session.indexer, CRON_BUDGET_MS);
-				else await runRetries(ctx, session.indexer, CRON_BUDGET_MS);
+				if (event.name === "build") {
+					await runBuild(ctx, session.indexer, CRON_BUDGET_MS, session.provider);
+				} else await runRetries(ctx, session.indexer, CRON_BUDGET_MS);
 			},
 		},
 	};

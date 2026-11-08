@@ -361,6 +361,26 @@ describe("parseInlineContent", () => {
 			const fullText = result.children.map((c) => c.text).join("");
 			expect(fullText.match(NEWLINE_PATTERN)?.length).toBeGreaterThanOrEqual(2);
 		});
+
+		it("keeps a newline that follows inline formatting", () => {
+			const result = parseInlineContent(
+				"<strong>Opening hours</strong>\nWed to Sun<em>, 12 to 7 pm</em>\n<em>Closed</em> on Mondays",
+				generateKey,
+			);
+
+			expect(result.children.map((c) => c.text).join("")).toBe(
+				"Opening hours\nWed to Sun, 12 to 7 pm\nClosed on Mondays",
+			);
+		});
+
+		it("keeps one line break for a <br> followed by a newline", () => {
+			const result = parseInlineContent(
+				"<strong>1978 - 1982</strong><br />\nThe museum opens",
+				generateKey,
+			);
+
+			expect(result.children.map((c) => c.text).join("")).toBe("1978 - 1982\nThe museum opens");
+		});
 	});
 
 	describe("block wrapper stripping", () => {

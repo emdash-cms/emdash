@@ -1092,6 +1092,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/auth/dev-bypass",
+		entrypoint: resolveRoute("api/auth/dev-bypass.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/setup/dev-reset",
 		entrypoint: resolveRoute("api/setup/dev-reset.ts"),
 	});
@@ -1189,11 +1194,6 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	injectRoute({
 		pattern: "/_emdash/api/auth/passkey/[id]",
 		entrypoint: resolveRoute("api/auth/passkey/[id].ts"),
-	});
-
-	injectRoute({
-		pattern: "/_emdash/api/auth/dev-bypass",
-		entrypoint: resolveRoute("api/auth/dev-bypass.ts"),
 	});
 
 	// Invite routes

@@ -5,9 +5,11 @@ import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/secrets.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import { createPublicMediaUrlResolver } from "../../../src/media/url.js";
 import { __setObjectCacheBackendForTests } from "../../../src/object-cache/index.js";
 import { createObjectCache } from "../../../src/object-cache/memory.js";
 import { encryptPluginSetting } from "../../../src/plugins/settings.js";
@@ -22,6 +24,7 @@ import {
 	invalidateSiteSettingsCache,
 	setSiteSettings,
 } from "../../../src/settings/index.js";
+import { LocalStorage } from "../../../src/storage/local.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
@@ -933,5 +936,83 @@ describe("Media mutations invalidate site settings cache", () => {
 			expect(after.seo?.defaultOgImage?.width).toBe(400);
 			expect(after.seo?.defaultOgImage?.height).toBe(300);
 		});
+	});
+});
+
+describe("Site settings public media URLs", () => {
+	const cdn = new LocalStorage({ directory: "./uploads", baseUrl: "https://media.example.com" });
+	const publicMediaUrl = createPublicMediaUrlResolver(cdn);
+	let db: Kysely<Database>;
+	let logoKey: string;
+
+	beforeEach(async () => {
+		__setObjectCacheBackendForTests(null);
+		invalidateSiteSettingsCache();
+		db = await setupTestDatabase();
+		const repo = new MediaRepository(db);
+		const logo = await repo.create({
+			filename: "logo.png",
+			mimeType: "image/png",
+			storageKey: "01KTRTJ55S65SADEH9P9TSY89H.png",
+		});
+		const favicon = await repo.create({
+			filename: "favicon.svg",
+			mimeType: "image/svg+xml",
+			storageKey: "01KTRTJ5QSVC3TB57387DX445P.svg",
+		});
+		const og = await repo.create({
+			filename: "og.png",
+			mimeType: "image/png",
+			storageKey: "01KTRTJ6A1B2C3D4E5F6G7H8J9.png",
+		});
+		logoKey = logo.storageKey;
+		await setSiteSettings(
+			{
+				logo: { mediaId: logo.id, alt: "Logo" },
+				favicon: { mediaId: favicon.id },
+				seo: { defaultOgImage: { mediaId: og.id }, titleSeparator: " | " },
+			},
+			db,
+		);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("serves logo, favicon, and default OG image from the storage public URL", async () => {
+		const settings = await runWithContext({ editMode: false, db, publicMediaUrl }, () =>
+			getSiteSettings(),
+		);
+
+		expect(settings.logo?.url).toBe(`https://media.example.com/${logoKey}`);
+		expect(settings.logo?.alt).toBe("Logo");
+		expect(settings.favicon?.url).toBe("https://media.example.com/01KTRTJ5QSVC3TB57387DX445P.svg");
+		expect(settings.seo?.defaultOgImage?.url).toBe(
+			"https://media.example.com/01KTRTJ6A1B2C3D4E5F6G7H8J9.png",
+		);
+		expect(settings.seo?.titleSeparator).toBe(" | ");
+	});
+
+	it("serves a single media setting from the storage public URL", async () => {
+		const logo = await runWithContext({ editMode: false, db, publicMediaUrl }, () =>
+			getSiteSetting("logo"),
+		);
+		const seo = await runWithContext({ editMode: false, db, publicMediaUrl }, () =>
+			getSiteSetting("seo"),
+		);
+
+		expect(logo?.url).toBe(`https://media.example.com/${logoKey}`);
+		expect(seo?.defaultOgImage?.url).toBe(
+			"https://media.example.com/01KTRTJ6A1B2C3D4E5F6G7H8J9.png",
+		);
+	});
+
+	it("keeps the cached settings on the internal media route", async () => {
+		await runWithContext({ editMode: false, db, publicMediaUrl }, () => getSiteSettings());
+		const withoutResolver = await runWithContext({ editMode: false, db }, () => getSiteSettings());
+
+		expect(withoutResolver.logo?.url).toBe(`/_emdash/api/media/file/${logoKey}`);
 	});
 });

@@ -3,7 +3,46 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	type DialectTestContext,
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
+
+describeEachDialect("RedirectRepository write fence", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: RedirectRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new RedirectRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("rejects a stale writer's create after the lock row is recreated", async () => {
+		const staleFence = await repo.withWriteLock(async (fence) => fence);
+		await ctx.db.deleteFrom("_emdash_redirect_write_lock").where("id", "=", 1).execute();
+
+		await repo.withWriteLock(async (fence, current) => {
+			expect(fence.generation).toBe(staleFence.generation);
+			await current.create({ source: "/current", destination: "/target" }, fence);
+			await expect(
+				current.create({ source: "/stale", destination: "/target" }, staleFence),
+			).rejects.toThrow("redirect write lease expired");
+		});
+
+		await expect(repo.findBySource("/stale")).resolves.toBeNull();
+		await expect(repo.findBySource("/current")).resolves.toMatchObject({
+			destination: "/target",
+		});
+	});
+});
 
 describe("RedirectRepository", () => {
 	let db: Kysely<Database>;
@@ -476,21 +515,24 @@ describe("RedirectRepository", () => {
 	// --- Auto-redirects -----------------------------------------------------
 
 	describe("createAutoRedirect", () => {
-		it("creates a redirect for slug change with url pattern", async () => {
-			const redirect = await repo.createAutoRedirect(
-				"posts",
-				"old-title",
-				"new-title",
-				"id1",
-				"/blog/{slug}",
-			);
+		it.each(["", "/"])(
+			"creates a redirect for slug change with url pattern suffix '%s'",
+			async (suffix) => {
+				const redirect = await repo.createAutoRedirect(
+					"posts",
+					"old-title",
+					"new-title",
+					"id1",
+					`/blog/{slug}${suffix}`,
+				);
 
-			expect(redirect.source).toBe("/blog/old-title");
-			expect(redirect.destination).toBe("/blog/new-title");
-			expect(redirect.auto).toBe(true);
-			expect(redirect.groupName).toBe("Auto: slug change");
-			expect(redirect.type).toBe(301);
-		});
+				expect(redirect.source).toBe(`/blog/old-title${suffix}`);
+				expect(redirect.destination).toBe(`/blog/new-title${suffix}`);
+				expect(redirect.auto).toBe(true);
+				expect(redirect.groupName).toBe("Auto: slug change");
+				expect(redirect.type).toBe(301);
+			},
+		);
 
 		it("resolves date tokens from the publish date (#1526)", async () => {
 			const redirect = await repo.createAutoRedirect(

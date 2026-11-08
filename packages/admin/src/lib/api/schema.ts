@@ -76,7 +76,7 @@ export interface SchemaCollection {
 	/** Published entries require a slug unless this is false. */
 	routable?: boolean;
 	hasSeo: boolean;
-	/** Sidebar entry and dashboard quick action omitted in the admin; the collection stays reachable by URL */
+	/** Sidebar entry, dashboard quick action, and dashboard Content card row omitted in the admin; the collection stays reachable by URL */
 	hidden: boolean;
 	/** Explicit sidebar position; absent means the alphabetical fallback */
 	sortOrder?: number;
@@ -346,7 +346,7 @@ export async function fetchCollection(
 	const response = await apiFetch(url);
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Collection "${slug}" not found`);
+			throw new Error(i18n._(msg`Collection "${slug}" not found`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch collection`));
 	}

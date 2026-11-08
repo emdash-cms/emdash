@@ -1,4 +1,3 @@
-import { toIsoTime } from "./activity.js";
 import { type ContextLine, readMetadata } from "./documents.js";
 import type { Exclusion, Indexer } from "./indexer.js";
 import { itemState } from "./ingestion.js";
@@ -46,7 +45,7 @@ export async function entryIndexStatus(
 		(queued) => queued.source === record.source && queued.id === record.id,
 	);
 	const status: Omit<EntryIndexStatus, "state"> = {
-		...(item?.last_seen_at ? { updatedAt: toIsoTime(item.last_seen_at) } : {}),
+		...(item?.updatedAt ? { updatedAt: item.updatedAt } : {}),
 		...(item?.error ? { error: item.error } : {}),
 		...(retry ? { retry: { error: retry.error, automatic: retry.nextAt !== null } } : {}),
 	};
