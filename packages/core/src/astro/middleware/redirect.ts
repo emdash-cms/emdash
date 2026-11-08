@@ -25,6 +25,7 @@ import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { shouldSkipRedirectPath } from "../../redirects/paths.js";
+import { normalizeSourcePath } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { peekRequestCache } from "../../request-cache.js";
 import {
@@ -63,12 +64,14 @@ interface RedirectMatch {
 
 /** Exact rules first, with or without a trailing slash, then patterns in precedence order. */
 function matchRedirect(cached: CachedRedirects, pathname: string): RedirectMatch | null {
-	let exact = cached.exact.get(pathname);
-	if (!exact && pathname.length > 1) {
-		const alt = pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
+	const normalized = normalizeSourcePath(pathname);
+	let exact = cached.exact.get(normalized);
+	if (!exact && normalized.length > 1) {
+		const alt = normalized.endsWith("/") ? normalized.slice(0, -1) : `${normalized}/`;
 		exact = cached.exact.get(alt);
 	}
 	if (exact) return { redirect: exact, destination: exact.destination };
+	// Pattern captures are interpolated into Location; preserve their original escaping.
 	return matchCachedPatterns(cached.patterns, pathname);
 }
 

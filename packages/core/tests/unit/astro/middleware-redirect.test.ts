@@ -240,9 +240,89 @@ describe("redirect middleware — issue #808", () => {
 		expect(redirect).not.toHaveBeenCalled();
 		expect(next).toHaveBeenCalledTimes(1);
 	});
+
+	it.each([
+		["lowercase UTF-8 escapes", "/%d0%bf%d1%80", "/posts/%D0%BF%D1%80"],
+		["uppercase UTF-8 escapes", "/%D0%BF%D1%80/", "/posts/%D0%BF%D1%80"],
+		["mixed-case UTF-8 escapes", "/%d0%BF%D1%80", "/posts/%D0%BF%D1%80"],
+		["raw Unicode", "/пр/", "/posts/%D0%BF%D1%80"],
+	])("matches %s exact sources with either trailing slash", async (_name, pathname, location) => {
+		await new RedirectRepository(db).create({
+			source: "/%D0%BF%D1%80",
+			destination: "/posts/пр",
+			type: 301,
+		});
+		invalidateRedirectCache();
+		const { context, redirect } = buildContext({ pathname });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe(location);
+		expect(redirect).toHaveBeenCalledWith("/posts/%D0%BF%D1%80", 301);
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it.each(["50%25-off", "a%253Fb", "a%252Fb"])(
+		"preserves original pattern capture escaping for %s",
+		async (capture) => {
+			await new RedirectRepository(db).create({
+				source: "/old/[...path]",
+				destination: "/new/[...path]",
+				type: 301,
+				isPattern: true,
+			});
+			invalidateRedirectCache();
+			const { context, redirect } = buildContext({ pathname: `/old/${capture}` });
+			const next = vi.fn(async () => new Response("not found", { status: 404 }));
+			const response = await runMiddleware(context, next);
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe(`/new/${capture}`);
+			expect(redirect).toHaveBeenCalledWith(`/new/${capture}`, 301);
+			expect(next).not.toHaveBeenCalled();
+		},
+	);
+
+	it("matches encoded values without treating an encoded delimiter as a slash", async () => {
+		await new RedirectRepository(db).create({
+			source: "/old/[slug]",
+			destination: "/new/[slug]",
+			type: 301,
+			isPattern: true,
+		});
+		invalidateRedirectCache();
+		const { context, redirect } = buildContext({ pathname: "/old/a%2Fb" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.status).toBe(301);
+		expect(redirect).toHaveBeenCalledWith("/new/a%2Fb", 301);
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("keeps ordinary ASCII source matching case-sensitive", async () => {
+		await new RedirectRepository(db).create({ source: "/Case", destination: "/upper", type: 301 });
+		invalidateRedirectCache();
+		const { context, redirect } = buildContext({ pathname: "/case" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledOnce();
+		const uppercase = buildContext({ pathname: "/Case" });
+		expect((await runMiddleware(uppercase.context, next)).status).toBe(301);
+		expect(uppercase.redirect).toHaveBeenCalledWith("/upper", 301);
+	});
+
+	it("does not throw for malformed percent escapes", async () => {
+		const { context, redirect } = buildContext({ pathname: "/%d0%zz" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await expect(runMiddleware(context, next)).resolves.toHaveProperty("status", 404);
+		expect(redirect).not.toHaveBeenCalled();
+	});
 });
 
-describe("redirect middleware — 404 logging attributes misses to the requested path", () => {
+describe("redirect middleware — 404 logging attributes misses the requested path", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
