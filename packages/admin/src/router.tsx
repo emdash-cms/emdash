@@ -1127,13 +1127,33 @@ function ContentEditPage() {
 	};
 	const handleRoomEvent = (event: RoomEvent) => {
 		switch (event.kind) {
-			case "outdated":
-				toastManager.add({
-					title: t`The admin was updated`,
-					description: t`Your edits are still on this page. Reload it to edit with others.`,
-					variant: "info",
-				});
+			case "outdated": {
+				// The form stays, but a room holding the entry grants no lock to save it with.
+				const snapshot = joinSnapshotRef.current;
+				joinSnapshotRef.current = null;
+				const updated = (description: string) =>
+					toastManager.add({ title: t`The admin was updated`, description, variant: "info" });
+				const stillHere = t`Your edits are still on this page. Reload it to edit with others.`;
+				if (!snapshot || snapshot.identity !== revisionIdentity) {
+					updated(stillHere);
+					return;
+				}
+				void saveRecoveryRevision({ collection, id, locale: activeLocale }, snapshot.form).then(
+					() =>
+						updated(
+							t`Your unsaved edits are in a recovery revision. Reload the page to edit with others.`,
+						),
+					(error: unknown) => {
+						toastManager.add({
+							title: t`Your unsaved edits couldn’t be kept`,
+							description: error instanceof Error ? error.message : t`An error occurred`,
+							variant: "error",
+						});
+						updated(stillHere);
+					},
+				);
 				return;
+			}
 			case "recovered":
 				toastManager.add({
 					title: t`Your unsaved edits are in a recovery revision`,

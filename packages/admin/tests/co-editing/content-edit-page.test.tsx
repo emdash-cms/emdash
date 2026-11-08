@@ -714,6 +714,25 @@ describe("joining a room from single-editor mode", () => {
 		},
 	);
 
+	it("keeps unsaved edits in a recovery revision when Join finds the admin out of date", async () => {
+		const { screen, server, title } = await openWithUnsavedEdits("room");
+
+		await screen.getByRole("button", { name: "Join", exact: true }).click();
+		emit({ kind: "outdated" });
+		answer({ mode: "single-editor", canJoin: true, deleted: false, takeOver: vi.fn() });
+
+		await vi.waitFor(() =>
+			expect(server.find("POST", REVISIONS)?.body).toEqual({
+				data: { title: "Unsaved title" },
+				slug: "post-one",
+			}),
+		);
+		await expect
+			.element(screen.getByText(/Your unsaved edits are in a recovery revision\. Reload the page/))
+			.toBeVisible();
+		await expect.element(title).toHaveValue("Unsaved title");
+	});
+
 	it("says the unsaved edits couldn't be kept when the recovery revision fails", async () => {
 		const { screen, server } = await openWithUnsavedEdits("room");
 		server.refuseRecovery = true;

@@ -111,8 +111,8 @@ function SyncExplanation({ problem, readOnly }: { problem: SyncProblem; readOnly
 		case "joining":
 			title = problem.waiting ? t`Waiting to join` : t`Joining this entry`;
 			body = problem.waiting
-				? t`EmDash couldn’t join this entry yet and keeps trying every few seconds. You can read it in the meantime.`
-				: t`Connecting to the live version of this entry. You can read it in the meantime.`;
+				? t`EmDash couldn’t join this entry yet and keeps trying every few seconds.`
+				: t`Connecting to the live version of this entry.`;
 			break;
 		case "offline":
 			title = t`You’re offline`;
