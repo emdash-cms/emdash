@@ -97,6 +97,31 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		]);
 	});
 
+	it.each([false, true])(
+		"refuses a source assigned to an entry by the same import (reverse=%s)",
+		async (reverse) => {
+			const entries = [
+				entry("https://wp.test/old-first/", post({ id: "first", slug: "claimed" }), {
+					pattern: "/{slug}",
+				}),
+				entry("https://wp.test/claimed/", post({ id: "second", slug: "second" }), {
+					pattern: "/{slug}",
+				}),
+			];
+			const errors = await importWxrPermalinks(ctx.db, reverse ? entries.toReversed() : entries);
+			expect(errors).toEqual([
+				{
+					title: "second",
+					error:
+						"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
+				},
+			]);
+			expect(await redirects()).toEqual([
+				{ source: "/old-first", destination: "/claimed", type: 301, enabled: 1, isPattern: 0 },
+			]);
+		},
+	);
+
 	it("updates an owned redirect when only the trailing slash changes", async () => {
 		const first = await importWxrPermalinks(ctx.db, [
 			entry("https://wp.test/2004/05/01/example-post/", post(), { trailingSlash: "always" }),

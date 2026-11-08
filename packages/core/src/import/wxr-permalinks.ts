@@ -34,6 +34,22 @@ function pathKey(path: string): string {
 	return normalizeSourcePath(path).replace(TRAILING_SLASH, "") || "/";
 }
 
+function countPermalinkSources(links: readonly (string | undefined)[]): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const link of links) {
+		if (!link) continue;
+		try {
+			const url = new URL(link);
+			if (!["http:", "https:"].includes(url.protocol) || url.search || url.hash) continue;
+			const key = pathKey(url.pathname);
+			if (isSiteRelativeDestination(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+		} catch {
+			// Invalid links are reported when their items are processed.
+		}
+	}
+	return counts;
+}
+
 async function importPermalinkRoots(): Promise<Set<string>> {
 	const base = pathKey(import.meta.env.BASE_URL || "/");
 	const roots = new Set(["/", base]);
@@ -76,8 +92,11 @@ async function findCanonicalRedirects(
 export async function importWxrPermalinks(
 	db: Kysely<Database>,
 	entries: WxrPermalinkEntry[],
+	sourceLinks: readonly (string | undefined)[] = entries.map((entry) => entry.link),
 ): Promise<PermalinkError[]> {
 	const errors: PermalinkError[] = [];
+	const exportedSources = countPermalinkSources(sourceLinks);
+	const currentSources = countPermalinkSources(entries.map((entry) => entry.link));
 	const roots = await importPermalinkRoots();
 	const candidates: Array<{ title: string; source: string; destination: string }> = [];
 	const canonicalPaths = new Set<string>();
@@ -104,6 +123,13 @@ export async function importWxrPermalinks(
 				const key = pathKey(destination);
 				canonicalPaths.add(key);
 				canonicalTitles.set(key, [...(canonicalTitles.get(key) ?? []), entry.title]);
+				if ((exportedSources.get(key) ?? 0) > (currentSources.get(key) ?? 0)) {
+					errors.push({
+						title: entry.title,
+						error:
+							"Canonical URL conflicts with another WordPress source in this import; review the affected permalink",
+					});
+				}
 			}
 			if (!entry.link) continue;
 			const url = new URL(entry.link);
@@ -255,7 +281,11 @@ export async function importWxrPermalinks(
 					continue;
 				}
 				const existing = sources.get(sourceKey);
-				if (sourceKey === destinationKey || liveSources.has(sourceKey)) {
+				if (
+					sourceKey === destinationKey ||
+					canonicalPaths.has(sourceKey) ||
+					liveSources.has(sourceKey)
+				) {
 					if (existing?.owned && existing.enabled && !existing.isPattern && existing.type === 301) {
 						if (!(await repository.delete(existing.id, undefined, fence)))
 							throw new Error("Redirect write fence expired");

@@ -267,9 +267,14 @@ describe("WXR execute chunked import", () => {
 		expect(rows.length).toBe(35);
 	});
 
-	it.each([true, false])(
-		"cleans up an importer redirect when a later chunk makes its source canonical (page link: %s)",
-		async (pageHasLink) => {
+	it.each([
+		{ pageHasLink: true, reverse: false },
+		{ pageHasLink: false, reverse: false },
+		{ pageHasLink: true, reverse: true },
+		{ pageHasLink: false, reverse: true },
+	])(
+		"reports cross-chunk canonical-source conflicts (page link=$pageHasLink, reverse=$reverse)",
+		async ({ pageHasLink, reverse }) => {
 			const posts = Array.from({ length: 30 }, (_, i) => {
 				const n = i + 1;
 				return `\t<item>
@@ -283,7 +288,7 @@ describe("WXR execute chunked import", () => {
 			<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>
 			<content:encoded><![CDATA[<p>Content ${n}</p>]]></content:encoded>
 		</item>`;
-			}).join("\n");
+			});
 			const page = `\t<item>
 			<title>Shared</title>
 			<wp:post_id>31</wp:post_id>
@@ -295,9 +300,17 @@ describe("WXR execute chunked import", () => {
 			<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>
 			<content:encoded><![CDATA[<p>Shared</p>]]></content:encoded>
 		</item>`;
+			const items = reverse ? [page, ...posts.slice(1), posts[0]] : [...posts, page];
+			const claimConflict = [
+				{
+					title: "Shared",
+					error:
+						"Canonical URL conflicts with another WordPress source in this import; review the affected permalink",
+				},
+			];
 			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
-	<channel><title>Test Site</title><link>https://example.com</link>${posts}\n${page}</channel>
+	<channel><title>Test Site</title><link>https://example.com</link>${items.join("\n")}</channel>
 </rss>`;
 			const mappings = {
 				post: { collection: "post", enabled: true },
@@ -329,7 +342,10 @@ describe("WXR execute chunked import", () => {
 			const firstResponse = await runChunk(taxonomy.data.cursor, taxonomy.data.chunk);
 			expect(firstResponse.status).toBe(200);
 			const first = await firstResponse.json();
-			expect(first.data.result).toMatchObject({ imported: 30, errors: [] });
+			expect(first.data.result).toMatchObject({
+				imported: 30,
+				errors: reverse ? claimConflict : [],
+			});
 			expect(first.data.done).toBe(false);
 			expect(
 				await harness.db
@@ -337,12 +353,23 @@ describe("WXR execute chunked import", () => {
 					.select(["source", "destination", "type"])
 					.where("source", "=", "/shared")
 					.execute(),
-			).toEqual([{ source: "/shared", destination: "/blog/post-1", type: 301 }]);
+			).toEqual(reverse ? [] : [{ source: "/shared", destination: "/blog/post-1", type: 301 }]);
 
 			const secondResponse = await runChunk(first.data.cursor, first.data.chunk);
 			expect(secondResponse.status).toBe(200);
 			const second = await secondResponse.json();
-			expect(second.data.result).toMatchObject({ imported: 1, errors: [] });
+			expect(second.data.result).toMatchObject({
+				imported: 1,
+				errors: reverse
+					? [
+							{
+								title: "Post 1",
+								error:
+									"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
+							},
+						]
+					: claimConflict,
+			});
 			expect(second.data.done).toBe(true);
 			expect(second.data.cursor.offset).toBe(31);
 			expect(

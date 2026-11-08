@@ -1,9 +1,10 @@
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 
 import { ContentRepository } from "../database/repositories/content.js";
 import type { ContentItem } from "../database/repositories/types.js";
 import type { Database } from "../database/types.js";
-import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { validateIdentifier } from "../database/validate.js";
+import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../i18n/config.js";
 import { localizePath, resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
 import { normalizeSourcePath } from "../redirects/patterns.js";
 import { SchemaRegistry } from "../schema/registry.js";
@@ -49,6 +50,34 @@ type Candidate = {
 	identifier: string;
 	by: "slug" | "id";
 };
+type RouteItem = Pick<ContentItem, "id" | "slug" | "status" | "locale" | "publishedAt">;
+
+/** Without i18n, all stored locales share the same public route space. */
+async function findPublishedBySlug(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	slug: string,
+): Promise<RouteItem[]> {
+	validateIdentifier(collectionSlug, "collection slug");
+	const result = await sql<{
+		id: string;
+		slug: string | null;
+		status: string;
+		locale: string | null;
+		published_at: string | null;
+	}>`
+		SELECT id, slug, status, locale, published_at
+		FROM ${sql.ref(`ec_${collectionSlug}`)}
+		WHERE slug = ${slug} AND status = 'published' AND deleted_at IS NULL
+	`.execute(db);
+	return result.rows.map((row) => ({
+		id: row.id,
+		slug: row.slug,
+		status: row.status,
+		locale: row.locale,
+		publishedAt: row.published_at,
+	}));
+}
 
 export function findPageRouteSources(
 	sources: string[],
@@ -140,39 +169,50 @@ export async function findLivePermalinkSources(
 	}
 
 	const repo = new ContentRepository(db);
-	const resolved = new Map<string, ContentItem | null>();
+	const resolved = new Map<string, RouteItem[]>();
+	const i18nEnabled = isI18nEnabled();
 	for (const [sourceKey, matches] of candidates) {
 		for (const candidate of matches) {
 			const lookupKey = `${candidate.collection.slug}:${candidate.locale}:${candidate.by}:${candidate.identifier}`;
-			let item = resolved.get(lookupKey);
-			if (item === undefined && !resolved.has(lookupKey)) {
-				item =
-					candidate.by === "slug"
-						? await repo.findBySlug(
-								candidate.collection.slug,
-								candidate.identifier,
-								candidate.locale,
-							)
-						: await repo.findById(candidate.collection.slug, candidate.identifier);
-				resolved.set(lookupKey, item);
+			let items = resolved.get(lookupKey);
+			if (!items) {
+				if (candidate.by === "slug") {
+					if (i18nEnabled) {
+						const item = await repo.findBySlug(
+							candidate.collection.slug,
+							candidate.identifier,
+							candidate.locale,
+						);
+						items = item ? [item] : [];
+					} else {
+						items = await findPublishedBySlug(db, candidate.collection.slug, candidate.identifier);
+					}
+				} else {
+					const item = await repo.findById(candidate.collection.slug, candidate.identifier);
+					items = item ? [item] : [];
+				}
+				resolved.set(lookupKey, items);
 			}
-			if (!item || item.status !== "published") continue;
-			if (
-				resolveConfiguredLocale(item.locale ?? "en") !== resolveConfiguredLocale(candidate.locale)
-			)
-				continue;
-			const canonical = await resolveLocalizedContentRoutePath({
-				pattern: candidate.collection.urlPattern ?? `/${candidate.collection.slug}/{slug}`,
-				collection: candidate.collection.slug,
-				slug: item.slug ?? "",
-				id: item.id,
-				date: item.publishedAt,
-				locale: candidate.locale,
-			});
-			if (!canonical) continue;
-			const base = basePath();
-			const canonicalWithBase = base === "/" ? canonical : `${base}${canonical}`;
-			if (pathKey(canonicalWithBase) === sourceKey) live.add(sourceKey);
+			for (const item of items) {
+				if (item.status !== "published") continue;
+				if (
+					i18nEnabled &&
+					resolveConfiguredLocale(item.locale ?? "en") !== resolveConfiguredLocale(candidate.locale)
+				)
+					continue;
+				const canonical = await resolveLocalizedContentRoutePath({
+					pattern: candidate.collection.urlPattern ?? `/${candidate.collection.slug}/{slug}`,
+					collection: candidate.collection.slug,
+					slug: item.slug ?? "",
+					id: item.id,
+					date: item.publishedAt,
+					locale: i18nEnabled ? candidate.locale : (item.locale ?? "en"),
+				});
+				if (!canonical) continue;
+				const base = basePath();
+				const canonicalWithBase = base === "/" ? canonical : `${base}${canonical}`;
+				if (pathKey(canonicalWithBase) === sourceKey) live.add(sourceKey);
+			}
 		}
 	}
 	return live;
