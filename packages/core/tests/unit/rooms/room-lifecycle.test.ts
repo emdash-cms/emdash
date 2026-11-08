@@ -3,7 +3,7 @@ import * as Y from "yjs";
 
 import { MAX_ROOM_CONNECTIONS, MAX_USER_CONNECTIONS } from "../../../src/rooms/limits.js";
 import { encodeSyncStep1 } from "../../../src/rooms/protocol.js";
-import { CLOSE_CODES } from "../../../src/rooms/types.js";
+import { CLOSE_CODES, isRoomToken } from "../../../src/rooms/types.js";
 import {
 	advance,
 	blocksText,
@@ -285,6 +285,13 @@ describe("tokens and connecting", () => {
 		const cat = new TestClient(test, "cat");
 		cat.connect(late.token);
 		expect(cat.closed?.code).toBe(CLOSE_CODES.busy);
+	});
+
+	it("issues tokens in the shape a host checks before it asks the room", async () => {
+		const test = new TestRoom();
+		const result = (await test.room.issueToken(test.claims("ana"))) as { token: string };
+		expect(isRoomToken(result.token)).toBe(true);
+		expect(isRoomToken(`${result.token}A`)).toBe(false);
 	});
 
 	it("sends sync step 1 to co-editors only", async () => {
