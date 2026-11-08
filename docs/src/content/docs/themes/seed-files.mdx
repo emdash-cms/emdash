@@ -162,7 +162,7 @@ A collection requires `slug`, `label`, and `fields`:
       "label": "Posts",
       "labelSingular": "Post",
       "description": "Published articles",
-      "supports": ["drafts", "revisions", "scheduling", "search", "seo"],
+      "supports": ["drafts", "revisions", "search", "seo"],
       "urlPattern": "/posts/{slug}",
       "routable": true,
       "commentsEnabled": true,
@@ -193,7 +193,7 @@ A collection requires `slug`, `label`, and `fields`:
 | `icon` | `string` | Phosphor icon name for the sidebar entry, such as `calendar-blank` |
 | `admin.listColumns` | `string[]` | Up to four declared field slugs shown in the content list |
 | `admin.quickCreate` | `boolean` | Whether the dashboard shows a "new entry" quick action for this collection; defaults to `true` |
-| `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `scheduling`, `search`, and `seo` |
+| `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `no-scheduling`, `scheduling`, `search`, and `seo` |
 | `urlPattern` | `string` | Public pattern such as `/posts/{slug}`, with at most one placeholder per path segment |
 | `routable` | `boolean` | Whether published entries require a slug; defaults to `true` |
 | `hidden` | `boolean` | Hides the generated sidebar link, command palette link, dashboard quick action, and dashboard **Content** card row; the collection stays reachable by URL and API |
@@ -204,6 +204,11 @@ A collection requires `slug`, `label`, and `fields`:
 | `titleField` | `string` | Field used as the entry title in the admin, search results, generated slugs, and the default SEO title |
 | `dateField` | `string` | `datetime` field used for the content-list date |
 | `fields` | `SeedField[]` | Required field definitions |
+
+Collections allow scheduling by default. Add `no-scheduling` to prevent editors from creating or
+changing schedules in the admin. Existing schedules still run and can be removed. The legacy
+`scheduling` value is accepted for compatibility but has no effect; if both values are present,
+`no-scheduling` takes precedence.
 
 `sortOrder` belongs to the collection and controls sidebar order. `SeedField` has no `sortOrder` property. Fields are created in their array order.
 

@@ -215,6 +215,10 @@ To schedule an entry, save it first, select **Schedule** below the publishing su
 future date and time. The editor displays the time zone used for the schedule. Until that time, the
 current live revision stays public; for a new entry, nothing is public yet.
 
+Scheduling is available by default. A collection can disable creating or changing schedules with
+`no-scheduling` in its `supports` settings through a seed file, the schema API, or MCP. The Content
+Type editor has no checkbox for this flag. Existing schedules still run and can be removed.
+
 Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
 Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
 [Scheduled publishing](/deployment/cloudflare/#scheduled-publishing) to verify the trigger.
@@ -241,9 +245,10 @@ in the editor in a new tab. The panel shows the entry's state, time, collection,
 translations, bylines, and when it was last edited. From the panel you can open the entry in the
 editor, preview scheduled changes, or view a published entry on the site. If you can publish the
 entry (Authors for their own entries, and Editors and higher roles for any entry), you can also
-reschedule it, remove its schedule, or publish an overdue entry now. On a wide screen the panel sits
-beside the calendar; select another entry to switch to it, or select empty space to close it. On a
-phone, the panel opens as a sheet at the bottom of the screen; swipe it down to close it.
+reschedule it (unless its collection has `no-scheduling`), remove its schedule, or publish an overdue
+entry now. On a wide screen the panel sits beside the calendar; select another entry to switch to it,
+or select empty space to close it. On a phone, the panel opens as a sheet at the bottom of the screen;
+swipe it down to close it.
 
 Use **Filter** to narrow both views by collection and state, and by locale on multilingual sites. The
 filters, the view, the month, and the open entry are kept in the page URL, so you can bookmark or

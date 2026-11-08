@@ -2076,6 +2076,7 @@ function ContentEditPage() {
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
+			supportsScheduling={!collectionConfig.supports.includes("no-scheduling")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}

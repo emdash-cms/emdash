@@ -260,7 +260,7 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 async function getCollectionPublishConfig(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<{ supportsRevisions: boolean; routable: boolean }> {
+): Promise<{ supportsRevisions: boolean; supportsScheduling: boolean; routable: boolean }> {
 	return requestCached(`collectionPublishConfig:${collection}`, async () => {
 		const row = await db
 			.selectFrom("_emdash_collections")
@@ -270,6 +270,7 @@ async function getCollectionPublishConfig(
 		const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
 		return {
 			supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
+			supportsScheduling: !Array.isArray(supports) || !supports.includes("no-scheduling"),
 			routable: row?.routable !== 0,
 		};
 	});
@@ -2321,6 +2322,9 @@ export async function handleContentSchedule(
 			const resolvedId = existing?.id ?? id;
 			if (existing) {
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				if (!publishConfig.supportsScheduling) {
+					throw new EmDashValidationError("Scheduling is disabled for this collection");
+				}
 				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
 			}
 			return repo.schedule(collection, resolvedId, scheduledAt, currentTime, expectedRevision);
