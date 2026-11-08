@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# ელემენტი)} other {(# ელემენტი)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3898
+#: packages/admin/src/components/ContentEditor.tsx:3909
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} / # სიმბოლო, მინიმუმ {min}} other {{counted} / # სიმბოლო, მინიმუმ {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3903
+#: packages/admin/src/components/ContentEditor.tsx:3914
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} / # სიმბოლო} other {{counted} / # სიმბოლო}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# კომენტარი იმპორტირდა} other {# კომენტარი იმპორტირდა}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2529
+#: packages/admin/src/router.tsx:2530
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# კომენტარი განახლდა} other {# კომენტარი განახლდა}}"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3908
+#: packages/admin/src/components/ContentEditor.tsx:3919
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {მინიმუმ # სიმბოლო} other {მინიმუმ # სიმბოლო}}"
 
@@ -1019,15 +1019,15 @@ msgstr ""
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, ელემენტი {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:238
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "{title} is a draft again."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 msgid "{title} is now live."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "{title} now goes live {when}."
 msgstr ""
 
@@ -1292,7 +1292,7 @@ msgstr ""
 msgid "A publication time has not been selected"
 msgstr "გამოქვეყნების დრო არ არის არჩეული"
 
-#: packages/admin/src/components/ContentEditor.tsx:1708
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "A publishing action is already in progress"
 msgstr "გამოქვეყნების ოპერაცია უკვე მიმდინარეობს"
 
@@ -1390,7 +1390,7 @@ msgstr "მოწვევის მიღება"
 msgid "Access denied"
 msgstr "წვდომა აკრძალულია"
 
-#: packages/admin/src/router.tsx:2551
+#: packages/admin/src/router.tsx:2552
 msgid "Access Denied"
 msgstr "წვდომა აკრძალულია"
 
@@ -1690,8 +1690,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "პასკის დამატება"
 
-#: packages/admin/src/components/ContentEditor.tsx:3812
-#: packages/admin/src/components/ContentEditor.tsx:3812
+#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Add reference"
 msgstr ""
 
@@ -2002,7 +2002,7 @@ msgid "Allowed block types"
 msgstr ""
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:2628
+#: packages/admin/src/router.tsx:2629
 msgid "Allowed Domains"
 msgstr "დაშვებული დომენები"
 
@@ -2120,10 +2120,10 @@ msgstr "დაშიფრული ციფრული გასაღებ�
 #: packages/admin/src/router.tsx:1578
 #: packages/admin/src/router.tsx:1662
 #: packages/admin/src/router.tsx:1695
-#: packages/admin/src/router.tsx:2501
-#: packages/admin/src/router.tsx:2537
-#: packages/admin/src/router.tsx:2995
-#: packages/admin/src/router.tsx:3185
+#: packages/admin/src/router.tsx:2502
+#: packages/admin/src/router.tsx:2538
+#: packages/admin/src/router.tsx:2996
+#: packages/admin/src/router.tsx:3186
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "დაფიქსირდა შეცდომა"
@@ -2222,7 +2222,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:103
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:2636
+#: packages/admin/src/router.tsx:2637
 msgid "API Tokens"
 msgstr "API ტოკენები"
 
@@ -2349,11 +2349,11 @@ msgstr ""
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3931
+#: packages/admin/src/components/ContentEditor.tsx:3942
 msgid "At least {min}"
 msgstr "მინიმუმ {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3928
+#: packages/admin/src/components/ContentEditor.tsx:3939
 msgid "At most {max}"
 msgstr "მაქსიმუმ {max}"
 
@@ -2533,7 +2533,7 @@ msgstr ""
 msgid "Back"
 msgstr "უკან"
 
-#: packages/admin/src/components/ContentEditor.tsx:1964
+#: packages/admin/src/components/ContentEditor.tsx:1971
 msgid "Back to {collectionLabel} list"
 msgstr "დაბრუნება {collectionLabel}-ის სიაში"
 
@@ -2614,7 +2614,7 @@ msgstr "სარეზერვო ასლის პარამეტრე�
 
 #: packages/admin/src/components/Settings.tsx:118
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:2652
+#: packages/admin/src/router.tsx:2653
 msgid "Backups"
 msgstr "სარეზერვო ასლები"
 
@@ -2642,7 +2642,7 @@ msgstr "გაგზავნამდე:"
 msgid "Before you continue:"
 msgstr "სანამ გააგრძელებთ:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3925
+#: packages/admin/src/components/ContentEditor.tsx:3936
 msgid "Between {min} and {max}"
 msgstr "{min}-სა და {max}-ს შორის"
 
@@ -2812,7 +2812,7 @@ msgid "Byline schema"
 msgstr "ბაილაინის სქემა"
 
 #: packages/admin/src/components/Sidebar.tsx:552
-#: packages/admin/src/router.tsx:2932
+#: packages/admin/src/router.tsx:2933
 msgid "Byline Schema"
 msgstr "ბაილაინის სქემა"
 
@@ -2821,13 +2821,13 @@ msgid "Byline updated"
 msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
-#: packages/admin/src/router.tsx:2921
+#: packages/admin/src/router.tsx:2922
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "ბაილაინები"
@@ -3454,7 +3454,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr ""
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:322
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3496,7 +3496,7 @@ msgstr "სურათის პარამეტრების დახუ�
 msgid "Close panel"
 msgstr "პანელის დახურვა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2749
+#: packages/admin/src/components/ContentEditor.tsx:2760
 msgid "Close settings"
 msgstr "პარამეტრების დახურვა"
 
@@ -3633,7 +3633,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/router.tsx:2426
+#: packages/admin/src/router.tsx:2427
 msgid "Comments"
 msgstr "კომენტარები"
 
@@ -3819,7 +3819,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
-#: packages/admin/src/router.tsx:2940
+#: packages/admin/src/router.tsx:2941
 msgid "Content Types"
 msgstr "შიგთავსის ტიპები"
 
@@ -3989,7 +3989,7 @@ msgstr "მედიის ჩატვირთვა ვერ მოხერ
 msgid "Could not load the calendar"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
 msgid "Could not load this entry's details."
 msgstr ""
 
@@ -3997,7 +3997,7 @@ msgstr ""
 msgid "Could not load this folder."
 msgstr "ამ საქაღალდის ჩატვირთვა ვერ მოხერხდა."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
 msgid "Could not publish"
 msgstr ""
 
@@ -4005,7 +4005,7 @@ msgstr ""
 msgid "Could not reach {origin}"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:242
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
 msgid "Could not remove the schedule"
 msgstr ""
 
@@ -4029,7 +4029,7 @@ msgstr "ვერ დადასტურდა, არსებობს თ�
 msgid "Couldn't detect WordPress"
 msgstr "WordPress ვერ აღმოჩნდა"
 
-#: packages/admin/src/components/ContentEditor.tsx:3789
+#: packages/admin/src/components/ContentEditor.tsx:3800
 msgid "Couldn't load all references."
 msgstr ""
 
@@ -5044,7 +5044,7 @@ msgstr "დასრულებული {0}-ის დახურვა"
 msgid "Dismiss import suggestion"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2709
+#: packages/admin/src/components/ContentEditor.tsx:2720
 msgid "Dismiss save error"
 msgstr ""
 
@@ -5089,7 +5089,7 @@ msgstr "თეგების ღრუბლის ჩვენება"
 msgid "Displayed below the image as a visible caption."
 msgstr "ნაჩვენებია სურათის ქვემოთ, როგორც ხილული წარწერა."
 
-#: packages/admin/src/components/ContentEditor.tsx:2100
+#: packages/admin/src/components/ContentEditor.tsx:2109
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "ყურადღებისგან თავისუფალი რეჟიმი (⌘⇧\\)"
 
@@ -5220,7 +5220,7 @@ msgstr ""
 msgid "visualEditing.draft"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:414
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5398,12 +5398,12 @@ msgstr "{0}-ის რედაქტირება"
 msgid "Edit {0} field"
 msgstr "{0} ველის რედაქტირება"
 
-#: packages/admin/src/components/ContentEditor.tsx:1807
-#: packages/admin/src/components/ContentEditor.tsx:1814
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel}-ის რედაქტირება"
 
-#: packages/admin/src/components/ContentEditor.tsx:1813
+#: packages/admin/src/components/ContentEditor.tsx:1816
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr ""
 
@@ -5442,7 +5442,7 @@ msgstr ""
 msgid "Edit content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3134
+#: packages/admin/src/router.tsx:3135
 msgid "Edit content type"
 msgstr ""
 
@@ -5493,7 +5493,7 @@ msgstr "რედაქტირების ჩაკეტვა"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "მედიის ალტ-ტექსტის, წარწერებისა და ფოკუსის წერტილების რედაქტირება"
 
-#: packages/admin/src/router.tsx:2842
+#: packages/admin/src/router.tsx:2843
 msgid "Edit menu"
 msgstr ""
 
@@ -5523,7 +5523,7 @@ msgstr "გადამისამართების რედაქტი�
 msgid "Edit role"
 msgstr "როლის რედაქტირება"
 
-#: packages/admin/src/router.tsx:2891
+#: packages/admin/src/router.tsx:2892
 msgid "Edit section"
 msgstr ""
 
@@ -5660,7 +5660,7 @@ msgstr "ელფოსტის პროვაიდერი აქტიუ�
 
 #: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:2644
+#: packages/admin/src/router.tsx:2645
 msgid "Email Settings"
 msgstr "ელფოსტის პარამეტრები"
 
@@ -5942,7 +5942,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3979
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "შეიყვანეთ სწორი URL (მაგ. https://example.com)"
 
@@ -5971,7 +5971,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "ავტორიზაციის მონაცემების ხელით შეყვანა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2095
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Enter distraction-free mode"
 msgstr "ყურადღებისგან თავისუფალ რეჟიმში გადასვლა"
 
@@ -5979,7 +5979,7 @@ msgstr "ყურადღებისგან თავისუფალ რ�
 msgid "Enter email"
 msgstr "შეიყვანეთ ელფოსტა"
 
-#: packages/admin/src/components/ContentEditor.tsx:3242
+#: packages/admin/src/components/ContentEditor.tsx:3253
 msgid "Enter markdown content..."
 msgstr "შეიყვანეთ Markdown შიგთავსი..."
 
@@ -6044,7 +6044,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3463
+#: packages/admin/src/router.tsx:3464
 msgid "Error"
 msgstr "შეცდომა"
 
@@ -6121,11 +6121,11 @@ msgstr "არსებული შიგთავსი ინდექსი�
 msgid "Exists"
 msgstr "არსებობს"
 
-#: packages/admin/src/components/ContentEditor.tsx:2095
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Exit distraction-free mode"
 msgstr "ყურადღებისგან თავისუფალი რეჟიმიდან გამოსვლა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2099
+#: packages/admin/src/components/ContentEditor.tsx:2108
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "ყურადღებისგან თავისუფალი რეჟიმიდან გამოსვლა (⌘⇧\\)"
 
@@ -6780,7 +6780,7 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2447
+#: packages/admin/src/router.tsx:2448
 msgid "Failed to fetch user"
 msgstr "მომხმარებლის ჩატვირთვა ვერ მოხერხდა"
 
@@ -6969,7 +6969,7 @@ msgid "Failed to lock the entry"
 msgstr "ჩანაწერის ჩაკეტვა ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2536
+#: packages/admin/src/router.tsx:2537
 msgid "Failed to perform bulk action"
 msgstr "მასობრივი მოქმედების შესრულება ვერ მოხერხდა"
 
@@ -6999,7 +6999,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "ბაილაინის ველის გამოყენების წაკითხვა ვერ მოხერხდა"
 
-#: packages/admin/src/router.tsx:2994
+#: packages/admin/src/router.tsx:2995
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -7076,11 +7076,11 @@ msgstr "API ტოკენის გაუქმება ვერ მოხ�
 msgid "Failed to rewrite URLs"
 msgstr "URL-ების გადაწერა ვერ მოხერხდა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2447
-#: packages/admin/src/components/ContentEditor.tsx:2701
+#: packages/admin/src/components/ContentEditor.tsx:2458
+#: packages/admin/src/components/ContentEditor.tsx:2712
 #: packages/admin/src/router.tsx:933
 #: packages/admin/src/router.tsx:1391
-#: packages/admin/src/router.tsx:3184
+#: packages/admin/src/router.tsx:3185
 msgid "Failed to save"
 msgstr "შენახვა ვერ მოხერხდა"
 
@@ -7255,7 +7255,7 @@ msgstr "სექციის განახლება ვერ მოხე
 msgid "Failed to update settings"
 msgstr "პარამეტრების განახლება ვერ მოხერხდა"
 
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2501
 msgid "Failed to update status"
 msgstr "სტატუსის განახლება ვერ მოხერხდა"
 
@@ -7492,11 +7492,11 @@ msgstr "მხოლოდ პირველად კომენტატო�
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/ContentEditor.tsx:1792
 msgid "Fix invalid fields before changing the publication date"
 msgstr "გამოქვეყნების თარიღის შეცვლამდე გაასწორეთ არასწორი ველები"
 
-#: packages/admin/src/components/ContentEditor.tsx:1717
+#: packages/admin/src/components/ContentEditor.tsx:1720
 msgid "Fix invalid fields before changing the schedule"
 msgstr "დაგეგმვის შეცვლამდე გაასწორეთ არასწორი ველები"
 
@@ -7525,7 +7525,7 @@ msgstr "საქაღალდე"
 msgid "Folder deleted"
 msgstr "საქაღალდე წაიშალა"
 
-#: packages/admin/src/router.tsx:2169
+#: packages/admin/src/router.tsx:2170
 msgid "Folder no longer exists"
 msgstr "საქაღალდე აღარ არსებობს"
 
@@ -7636,7 +7636,7 @@ msgid "General"
 msgstr "ზოგადი"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:2675
 msgid "General Settings"
 msgstr "ზოგადი პარამეტრები"
 
@@ -7668,7 +7668,7 @@ msgstr "მიანიჭეთ ამ პასკის სახელი, �
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1711
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7676,12 +7676,12 @@ msgstr ""
 msgid "Go live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
 msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3483
+#: packages/admin/src/router.tsx:3484
 msgid "Go to Dashboard"
 msgstr "დაფაზე გადასვლა"
 
@@ -7693,11 +7693,11 @@ msgstr ""
 msgid "Go to the next problem"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:352
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Goes live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
 msgid "Goes live {countdown}"
 msgstr ""
 
@@ -7879,7 +7879,7 @@ msgstr "მოხვედრები"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "ჩანაწერის ჩაკეტვა რედაქტირებისას და უარი სხვა ავტორებისთვის"
 
-#: packages/admin/src/components/ContentEditor.tsx:3476
+#: packages/admin/src/components/ContentEditor.tsx:3487
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -8175,7 +8175,7 @@ msgid "Import failed"
 msgstr "იმპორტი ვერ მოხერხდა"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
-#: packages/admin/src/router.tsx:2827
+#: packages/admin/src/router.tsx:2828
 msgid "Import from WordPress"
 msgstr "იმპორტი WordPress-იდან"
 
@@ -8467,7 +8467,7 @@ msgstr "არასწორი HANDLE"
 msgid "Invalid invite link"
 msgstr "მოწვევის ბმული არასწორია"
 
-#: packages/admin/src/components/ContentEditor.tsx:4072
+#: packages/admin/src/components/ContentEditor.tsx:4083
 msgid "Invalid JSON"
 msgstr "არასწორი JSON"
 
@@ -8695,7 +8695,7 @@ msgstr "ენა"
 msgid "Large section heading"
 msgstr "დიდი სათაური"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
 msgid "Last edited"
 msgstr ""
 
@@ -8905,7 +8905,7 @@ msgstr "სიის ხედი"
 msgid "Live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
 #: packages/admin/src/components/ContentSettingsPanel.tsx:204
 #: packages/admin/src/components/ContentSettingsPanel.tsx:230
@@ -8947,7 +8947,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3438
+#: packages/admin/src/router.tsx:3439
 msgid "Loading"
 msgstr "იტვირთება"
 
@@ -8976,8 +8976,8 @@ msgstr "კოლექციები იტვირთება..."
 msgid "Loading comments..."
 msgstr "კომენტარები იტვირთება..."
 
-#: packages/admin/src/router.tsx:3440
-#: packages/admin/src/router.tsx:3452
+#: packages/admin/src/router.tsx:3441
+#: packages/admin/src/router.tsx:3453
 msgid "Loading configuration..."
 msgstr "კონფიგურაცია იტვირთება..."
 
@@ -9035,7 +9035,7 @@ msgstr "პლაგინები იტვირთება..."
 msgid "Loading redirects..."
 msgstr "გადამისამართებები იტვირთება..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3797
+#: packages/admin/src/components/ContentEditor.tsx:3808
 msgid "Loading references..."
 msgstr ""
 
@@ -9121,7 +9121,7 @@ msgstr "იტვირთება…"
 msgid "Local time"
 msgstr "ადგილობრივი დრო"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:364
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -9286,11 +9286,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "მარკეტპლეისი"
 
-#: packages/admin/src/router.tsx:2819
+#: packages/admin/src/router.tsx:2820
 msgid "Marketplace browsing is no longer available."
 msgstr "მარკეტპლეისში დათვალიერება აღარ არის ხელმისაწვდომი."
 
-#: packages/admin/src/router.tsx:2792
+#: packages/admin/src/router.tsx:2793
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "მარკეტპლეისში დათვალიერება აღარ არის ხელმისაწვდომი. დაყენებული პლაგინები მართეთ პლაგინების განყოფილებიდან."
 
@@ -9342,7 +9342,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
-#: packages/admin/src/router.tsx:2128
+#: packages/admin/src/router.tsx:2129
 msgid "Media"
 msgstr "მედია"
 
@@ -9405,7 +9405,7 @@ msgstr "მედიის კითხვა"
 msgid "Media results"
 msgstr "მედიის შედეგები"
 
-#: packages/admin/src/router.tsx:2603
+#: packages/admin/src/router.tsx:2604
 msgid "Media Usage"
 msgstr ""
 
@@ -9501,7 +9501,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
-#: packages/admin/src/router.tsx:2835
+#: packages/admin/src/router.tsx:2836
 msgid "Menus"
 msgstr "მენიუები"
 
@@ -9648,7 +9648,7 @@ msgstr "გადავიტანოთ „{title}“ ნაგავში? �
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3764
+#: packages/admin/src/components/ContentEditor.tsx:3775
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "{0}-ის ქვემოთ გადატანა"
@@ -9665,7 +9665,7 @@ msgstr "{0}-ის უკან გადატანა"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3753
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "{0}-ის ზემოთ გადატანა"
@@ -9905,8 +9905,8 @@ msgstr "ახალი"
 msgid "NEW"
 msgstr "ახალი"
 
-#: packages/admin/src/components/ContentEditor.tsx:1807
-#: packages/admin/src/components/ContentEditor.tsx:1811
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "New {itemLabel}"
 msgstr "ახალი {itemLabel}"
 
@@ -9932,7 +9932,7 @@ msgstr "ახალი კოლექცია"
 msgid "New content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3037
+#: packages/admin/src/router.tsx:3038
 msgid "New content type"
 msgstr ""
 
@@ -10394,7 +10394,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "გადამისამართებები ჯერ არ არის"
 
-#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3718
 msgid "No references selected."
 msgstr ""
 
@@ -10509,7 +10509,7 @@ msgstr ""
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2449
+#: packages/admin/src/components/ContentEditor.tsx:2460
 msgid "Not saved yet"
 msgstr ""
 
@@ -10640,7 +10640,7 @@ msgid "Open"
 msgstr "გახსნა"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3742
+#: packages/admin/src/components/ContentEditor.tsx:3753
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -10656,7 +10656,7 @@ msgstr "{0} საქაღალდის გახსნა"
 msgid "visualEditing.openInAdmin"
 msgstr "ადმინში გახსნა"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:483
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
 msgid "Open in editor"
 msgstr ""
 
@@ -10840,11 +10840,11 @@ msgstr ""
 msgid "Package downloaded"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3351
+#: packages/admin/src/router.tsx:3352
 msgid "Page not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3478
+#: packages/admin/src/router.tsx:3479
 msgid "Page Not Found"
 msgstr "გვერდი ვერ მოიძებნა"
 
@@ -11110,7 +11110,7 @@ msgid "Please enter a valid URL"
 msgstr "შეიყვანეთ სწორი URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
-#: packages/admin/src/router.tsx:3327
+#: packages/admin/src/router.tsx:3328
 msgid "Plugin"
 msgstr "პლაგინი"
 
@@ -11135,7 +11135,7 @@ msgstr "პლაგინის ქმედება ვერ შესრუ
 msgid "Plugin actions"
 msgstr "პლაგინის ქმედებები"
 
-#: packages/admin/src/components/ContentEditor.tsx:2193
+#: packages/admin/src/components/ContentEditor.tsx:2202
 msgid "Plugin changes were not applied"
 msgstr ""
 
@@ -11147,8 +11147,8 @@ msgstr "პლაგინის სვეტი მიუწვდომელ�
 msgid "Plugin details"
 msgstr "პლაგინის დეტალები"
 
-#: packages/admin/src/router.tsx:2764
-#: packages/admin/src/router.tsx:2771
+#: packages/admin/src/router.tsx:2765
+#: packages/admin/src/router.tsx:2772
 msgid "Plugin Details"
 msgstr ""
 
@@ -11173,7 +11173,7 @@ msgstr "პლაგინის შეცდომა ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "პლაგინის დაყენება მოითხოვს ცალსახა თანხმობას"
 
-#: packages/admin/src/router.tsx:2756
+#: packages/admin/src/router.tsx:2757
 msgid "Plugin Marketplace"
 msgstr ""
 
@@ -11213,7 +11213,7 @@ msgid "Plugin Permissions"
 msgstr "პლაგინის ნებართვები"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2714
 msgid "Plugin Registry"
 msgstr "პლაგინების რეესტრი"
 
@@ -11222,8 +11222,8 @@ msgstr "პლაგინების რეესტრი"
 msgid "Plugin registry configuration error"
 msgstr "პლაგინების რეესტრის კონფიგურაციის შეცდომა"
 
-#: packages/admin/src/router.tsx:2749
-#: packages/admin/src/router.tsx:2783
+#: packages/admin/src/router.tsx:2750
+#: packages/admin/src/router.tsx:2784
 msgid "Plugin registry is not configured."
 msgstr "პლაგინების რეესტრი კონფიგურირებული არ არის."
 
@@ -11232,7 +11232,7 @@ msgstr "პლაგინების რეესტრი კონფიგ�
 msgid "Plugin responded with {0}: {text}"
 msgstr "პლაგინმა უპასუხა {0}: {text}"
 
-#: packages/admin/src/router.tsx:3314
+#: packages/admin/src/router.tsx:3315
 msgid "Plugin Settings"
 msgstr ""
 
@@ -11265,7 +11265,7 @@ msgstr "პლაგინის ვიჯეტის შეცდომა"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
-#: packages/admin/src/router.tsx:2698
+#: packages/admin/src/router.tsx:2699
 msgid "Plugins"
 msgstr "პლაგინები"
 
@@ -11354,7 +11354,7 @@ msgstr ""
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "სურათის ასაღებად დააჭირეთ Space-ს. გადასატანად გამოიყენეთ ისრის ღილაკები, შემდეგ ჩამოსაშვებად ისევ დააჭირეთ Space-ს."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 #: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
@@ -11364,7 +11364,7 @@ msgstr "სურათის ასაღებად დააჭირეთ 
 msgid "Preview"
 msgstr "გადახედვა"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 msgid "Preview changes"
 msgstr ""
 
@@ -11489,7 +11489,7 @@ msgstr "გამოვაქვეყნოთ ცვლილებები?"
 msgid "visualEditing.publishFailed"
 msgstr "გამოქვეყნება ვერ მოხერხდა. შეამოწმეთ ნებართვები და სცადეთ ხელახლა."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
 #: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr "ახლავე გამოქვეყნება"
@@ -11508,7 +11508,7 @@ msgid "visualEditing.published"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
@@ -11524,7 +11524,7 @@ msgstr "გამოქვეყნებული"
 msgid "Published {0}"
 msgstr "გამოქვეყნებულია {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:431
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
 msgid "Published {liveSince}"
 msgstr ""
 
@@ -11556,7 +11556,7 @@ msgstr "გამომცემლის სახელის დადას�
 msgid "Publisher release policy"
 msgstr "გამომცემლის გამოშვების პოლიტიკა"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:399
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
 msgid "Publishing"
 msgstr ""
 
@@ -11668,7 +11668,7 @@ msgid "Read your taxonomies and terms"
 msgstr "საკუთარი ტაქსონომიებისა და ტერმინების წაკითხვა"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2100
+#: packages/admin/src/router.tsx:2101
 msgid "Read-only"
 msgstr "მხოლოდ კითხვის რეჟიმი"
 
@@ -11759,7 +11759,7 @@ msgstr "გადამისამართება შესვლის გ�
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
-#: packages/admin/src/router.tsx:2877
+#: packages/admin/src/router.tsx:2878
 msgid "Redirects"
 msgstr "გადამისამართებები"
 
@@ -11838,7 +11838,7 @@ msgstr "რეესტრი"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3073
+#: packages/admin/src/router.tsx:3074
 msgid "Relations"
 msgstr ""
 
@@ -11880,8 +11880,8 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4265
-#: packages/admin/src/components/ContentEditor.tsx:4331
+#: packages/admin/src/components/ContentEditor.tsx:4276
+#: packages/admin/src/components/ContentEditor.tsx:4342
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11902,7 +11902,7 @@ msgstr "მოცილება"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3777
+#: packages/admin/src/components/ContentEditor.tsx:3788
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11919,8 +11919,8 @@ msgstr "{0}-ის მოცილება არჩეულებიდან
 msgid "Remove {entry}"
 msgstr "{entry}-ის მოცილება"
 
-#: packages/admin/src/components/ContentEditor.tsx:4263
-#: packages/admin/src/components/ContentEditor.tsx:4329
+#: packages/admin/src/components/ContentEditor.tsx:4274
+#: packages/admin/src/components/ContentEditor.tsx:4340
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -11983,7 +11983,7 @@ msgstr "პასკის მოცილება"
 msgid "Remove passkey?"
 msgstr "მოვაცილოთ პასკი?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
 #: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr "დაგეგმვის მოცილება"
@@ -12137,9 +12137,9 @@ msgstr "ველების გამეორებადი ჯგუფი"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4220
-#: packages/admin/src/components/ContentEditor.tsx:4255
-#: packages/admin/src/components/ContentEditor.tsx:4321
+#: packages/admin/src/components/ContentEditor.tsx:4231
+#: packages/admin/src/components/ContentEditor.tsx:4266
+#: packages/admin/src/components/ContentEditor.tsx:4332
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12159,7 +12159,7 @@ msgstr ""
 msgid "Replace"
 msgstr "შეცვლა"
 
-#: packages/admin/src/components/ContentEditor.tsx:4219
+#: packages/admin/src/components/ContentEditor.tsx:4230
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12197,7 +12197,7 @@ msgstr "შევცვალოთ ორიგინალი სურათ�
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "ორიგინალის შეცვლა ხელმისაწვდომია „ორიგინალი“ ასპექტის თანაფარდობით."
 
-#: packages/admin/src/components/ContentEditor.tsx:3812
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Replace reference"
 msgstr ""
 
@@ -12281,11 +12281,11 @@ msgstr "სავალდებულოა ხელმისაწვდო�
 msgid "Requires EmDash {0}"
 msgstr "საჭიროებს EmDash {0}-ს"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:461
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
 msgid "Reschedule"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "Rescheduled"
 msgstr ""
 
@@ -12347,7 +12347,7 @@ msgstr "მოჭრის ზომის შეცვლა ზედა მ�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "მოჭრის ზომის შეცვლა ზედა მარჯვენა კუთხიდან. ზომის შესაცვლელად გამოიყენეთ ისრის ღილაკები."
 
-#: packages/admin/src/components/ContentEditor.tsx:2518
+#: packages/admin/src/components/ContentEditor.tsx:2529
 msgid "Resize settings panel"
 msgstr "პარამეტრების პანელის ზომის შეცვლა"
 
@@ -12404,7 +12404,7 @@ msgid "Retired"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3791
+#: packages/admin/src/components/ContentEditor.tsx:3802
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12420,7 +12420,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3466
+#: packages/admin/src/router.tsx:3467
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12687,7 +12687,7 @@ msgstr "შენახვა (Enter)"
 msgid "Save alt text"
 msgstr "ალტ-ტექსტის შენახვა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2221
+#: packages/admin/src/components/ContentEditor.tsx:2230
 msgid "Save anyway"
 msgstr "მაინც შენახვა"
 
@@ -12712,7 +12712,7 @@ msgstr "შიგთავსის მონახაზად შენახ�
 msgid "Save date"
 msgstr "თარიღის შენახვა"
 
-#: packages/admin/src/components/ContentEditor.tsx:2377
+#: packages/admin/src/components/ContentEditor.tsx:2386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
@@ -12753,7 +12753,7 @@ msgstr "პარამეტრების შენახვა"
 msgid "visualEditing.saved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2452
+#: packages/admin/src/components/ContentEditor.tsx:2463
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "შენახულია"
@@ -12776,7 +12776,7 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:2445
+#: packages/admin/src/components/ContentEditor.tsx:2456
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -12835,19 +12835,19 @@ msgstr "დაგეგმვის თარიღი"
 msgid "Schedule publication"
 msgstr "გამოქვეყნების დაგეგმვა"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:234
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "Schedule removed"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1643
 msgid "Scheduled"
 msgstr "დაგეგმილი"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr ""
 
@@ -13163,7 +13163,7 @@ msgstr "სექციის სათაური"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
-#: packages/admin/src/router.tsx:2884
+#: packages/admin/src/router.tsx:2885
 msgid "Sections"
 msgstr "სექციები"
 
@@ -13220,7 +13220,7 @@ msgstr "უსაფრთხოების შეცდომა. დარწ
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:2611
+#: packages/admin/src/router.tsx:2612
 msgid "Security Settings"
 msgstr "უსაფრთხოების პარამეტრები"
 
@@ -13237,9 +13237,9 @@ msgid "Select"
 msgstr "არჩევა"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4219
-#: packages/admin/src/components/ContentEditor.tsx:4280
-#: packages/admin/src/components/ContentEditor.tsx:4341
+#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ContentEditor.tsx:4291
+#: packages/admin/src/components/ContentEditor.tsx:4352
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13288,7 +13288,7 @@ msgstr "ამ გვერდზე ყველას არჩევა"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3815
+#: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "Select at least one entry."
 msgstr ""
 
@@ -13321,8 +13321,8 @@ msgstr "ფავიკონის არჩევა"
 msgid "Select Favicon"
 msgstr "ფავიკონის არჩევა"
 
-#: packages/admin/src/components/ContentEditor.tsx:4282
-#: packages/admin/src/components/ContentEditor.tsx:4347
+#: packages/admin/src/components/ContentEditor.tsx:4293
+#: packages/admin/src/components/ContentEditor.tsx:4358
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "ფაილის არჩევა"
@@ -13486,7 +13486,7 @@ msgid "SEO settings"
 msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:2690
+#: packages/admin/src/router.tsx:2691
 msgid "SEO Settings"
 msgstr "SEO პარამეტრები"
 
@@ -13559,15 +13559,15 @@ msgid "Setting up..."
 msgstr "მიმდინარეობს გამართვა..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2346
-#: packages/admin/src/components/ContentEditor.tsx:2735
+#: packages/admin/src/components/ContentEditor.tsx:2355
+#: packages/admin/src/components/ContentEditor.tsx:2746
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
-#: packages/admin/src/router.tsx:2596
+#: packages/admin/src/router.tsx:2597
 msgid "Settings"
 msgstr "პარამეტრები"
 
@@ -13968,7 +13968,7 @@ msgstr "სოციალური მედიის პროფილებ�
 msgid "Social Profiles"
 msgstr "სოციალური პროფილები"
 
-#: packages/admin/src/router.tsx:2682
+#: packages/admin/src/router.tsx:2683
 msgid "Social Settings"
 msgstr ""
 
@@ -14126,8 +14126,8 @@ msgstr ""
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3165
-#: packages/admin/src/components/ContentEditor.tsx:3188
+#: packages/admin/src/components/ContentEditor.tsx:3176
+#: packages/admin/src/components/ContentEditor.tsx:3199
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "დაიწყეთ წერა ან აკრიფეთ '/' ბრძანებებისთვის"
@@ -14157,7 +14157,7 @@ msgstr ""
 msgid "STARTTLS (port 587)"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr ""
@@ -14360,7 +14360,7 @@ msgstr "სამიზნე ლოკალი"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
-#: packages/admin/src/router.tsx:2855
+#: packages/admin/src/router.tsx:2856
 msgid "Taxonomies"
 msgstr "ტაქსონომიები"
 
@@ -14755,7 +14755,7 @@ msgstr ""
 msgid "The package’s file index is not valid."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3480
+#: packages/admin/src/router.tsx:3481
 msgid "The page you're looking for doesn't exist."
 msgstr "გვერდი, რომელსაც ეძებთ, არ არსებობს."
 
@@ -14775,8 +14775,8 @@ msgstr "პლაგინის ველის ვიჯეტი ვერ �
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
-#: packages/admin/src/components/ContentEditor.tsx:1339
+#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1342
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr ""
 
@@ -14818,7 +14818,7 @@ msgstr ""
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr ""
 
@@ -14902,7 +14902,7 @@ msgstr "თემა"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2810
+#: packages/admin/src/router.tsx:2811
 msgid "Theme Details"
 msgstr ""
 
@@ -14911,7 +14911,7 @@ msgstr ""
 msgid "Theme ID: {0}"
 msgstr "თემის ID: {0}"
 
-#: packages/admin/src/router.tsx:2802
+#: packages/admin/src/router.tsx:2803
 msgid "Theme Marketplace"
 msgstr ""
 
@@ -15022,11 +15022,11 @@ msgstr "ეს არ ჰგავს სწორ მიგრაციის �
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2217
+#: packages/admin/src/components/ContentEditor.tsx:2226
 msgid "This entry changed somewhere else after you opened it."
 msgstr "ეს ჩანაწერი გახსნის შემდეგ სხვაგან შეიცვალა."
 
-#: packages/admin/src/components/ContentEditor.tsx:1723
+#: packages/admin/src/components/ContentEditor.tsx:1726
 #: packages/admin/src/router.tsx:1179
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "ეს ჩანაწერი სხვაგან შეიცვალა. მაინც შეინახეთ ან ხელახლა ჩატვირთეთ უახლესი ვერსიის მისაღებად."
@@ -15047,11 +15047,11 @@ msgstr "ამ ჩანაწერს გამოქვეყნებამ�
 msgid "This entry is open somewhere else"
 msgstr "ეს ჩანაწერი სხვაგან არის გახსნილი"
 
-#: packages/admin/src/components/ContentEditor.tsx:2204
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "ეს ჩანაწერი მხოლოდ კითხვის რეჟიმშია, რადგან მისი სქემა იყენებს ველის ტიპებს, რომლებსაც EmDash-ის ეს ვერსია არ უჭერს მხარს."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:407
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr ""
 
@@ -15059,8 +15059,8 @@ msgstr ""
 msgid "This export is large"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2940
-#: packages/admin/src/components/ContentEditor.tsx:2948
+#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2959
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "ამ ველის რედაქტირება EmDash-ის ამ ვერსიას არ შეუძლია."
@@ -15086,7 +15086,7 @@ msgstr "ეს ველი არ იღებს {mimeType} ფაილებ
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4353
+#: packages/admin/src/components/ContentEditor.tsx:4364
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "ეს ველი სავალდებულოა"
@@ -15510,7 +15510,7 @@ msgstr "თვალყური ადევნეთ, სად გამო�
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:2659
+#: packages/admin/src/router.tsx:2660
 msgid "Transfer"
 msgstr ""
 
@@ -15548,7 +15548,7 @@ msgstr "თარგმანი შეიქმნა"
 msgid "Translations"
 msgstr "თარგმანები"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:371
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 msgid "Translations:"
 msgstr ""
 
@@ -15843,7 +15843,7 @@ msgstr "გადაუწყვეტელი მიკუთვნება"
 msgid "visualEditing.unsaved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2451
+#: packages/admin/src/components/ContentEditor.tsx:2462
 msgid "Unsaved changes"
 msgstr ""
 
@@ -15876,7 +15876,7 @@ msgstr "{0}-მდე"
 msgid "Untitled"
 msgstr "უსათაურო"
 
-#: packages/admin/src/components/ContentEditor.tsx:4179
+#: packages/admin/src/components/ContentEditor.tsx:4190
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "უსათაურო ფაილი"
@@ -16252,7 +16252,7 @@ msgstr "გამოიყენება Open Graph-ის სარეზე�
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "გამოიყენება იდენტიფიკატორად. მხოლოდ პატარა ასოები, ციფრები და ქვედა ტირეები."
 
-#: packages/admin/src/components/ContentEditor.tsx:3376
+#: packages/admin/src/components/ContentEditor.tsx:3387
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "გამოიყენება ამ ჩანაწერის მთავარ ვიზუალად სიის გვერდებზე და ჩანაწერის დასაწყისში"
 
@@ -16314,7 +16314,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
-#: packages/admin/src/router.tsx:2899
+#: packages/admin/src/router.tsx:2900
 msgid "Users"
 msgstr "მომხმარებლები"
 
@@ -16438,7 +16438,7 @@ msgstr ""
 msgid "View email provider status and send test emails"
 msgstr "ელფოსტის პროვაიდერის სტატუსის ნახვა და სატესტო წერილების გაგზავნა"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:502
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
 msgid "View live"
 msgstr ""
 
@@ -16522,7 +16522,7 @@ msgstr "გაფრთხილება"
 msgid "Warnings"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Was due"
 msgstr ""
 
@@ -16618,7 +16618,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "რა მოხდება იმპორტის დროს"
 
-#: packages/admin/src/components/ContentEditor.tsx:2218
+#: packages/admin/src/components/ContentEditor.tsx:2227
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "აკრეფილი ტექსტი ჯერ კიდევ აქ არის. შენახვა ახალ ვერსიას ჩაანაცვლებს."
 
@@ -16735,7 +16735,7 @@ msgstr "ვიჯეტი განახლდა"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
-#: packages/admin/src/router.tsx:2869
+#: packages/admin/src/router.tsx:2870
 msgid "Widgets"
 msgstr "ვიჯეტები"
 
@@ -16904,7 +16904,7 @@ msgstr "მედიის გამოყენების მიკვლე�
 msgid "You need Admin permissions to transfer this site."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2552
+#: packages/admin/src/router.tsx:2553
 msgid "You need Editor permissions to moderate comments."
 msgstr "კომენტარების მოდერაციისთვის რედაქტორის ნებართვები გჭირდებათ."
 
@@ -17046,11 +17046,11 @@ msgstr "სახელი (არასავალდებულო)"
 msgid "Your Role"
 msgstr "როლი"
 
-#: packages/admin/src/router.tsx:2105
+#: packages/admin/src/router.tsx:2106
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2106
+#: packages/admin/src/router.tsx:2107
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -17072,7 +17072,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "საიტი მოითხოვს, რომ გამოშვებები დაყენებამდე მინიმუმ {0} ხნის იყოს. ეს გამოშვება მოგვიანებით დასაყენებელი გახდება."
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:359
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
 msgid "Your time: {viewerTime}"
 msgstr ""
 

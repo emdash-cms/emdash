@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# элемент)} few {(# элемента)} many {(# элементов)} other {(# элементов)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3898
+#: packages/admin/src/components/ContentEditor.tsx:3909
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} из # символа, не меньше {min}} few {{counted} из # символов, не меньше {min}} many {{counted} из # символов, не меньше {min}} other {{counted} из # символов, не меньше {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3903
+#: packages/admin/src/components/ContentEditor.tsx:3914
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} из # символа} few {{counted} из # символов} many {{counted} из # символов} other {{counted} из # символов}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# комментарий импортирован} few {# комментария импортировано} many {# комментариев импортировано} other {# комментариев импортировано}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2529
+#: packages/admin/src/router.tsx:2530
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# комментарий обновлён} few {# комментария обновлено} many {# комментариев обновлено} other {# комментариев обновлено}}"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Добавить # видео} few {Добавить # видео} many {Добавить # видео} other {Добавить # видео}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3908
+#: packages/admin/src/components/ContentEditor.tsx:3919
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Не меньше # символа} few {Не меньше # символов} many {Не меньше # символов} other {Не меньше # символов}}"
 
@@ -1019,15 +1019,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, элемент {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:238
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
 msgid "{title} is a draft again."
 msgstr "Запись «{title}» снова стала черновиком."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 msgid "{title} is now live."
 msgstr "Запись «{title}» опубликована."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "{title} now goes live {when}."
 msgstr "Запись «{title}» теперь выйдет {when}."
 
@@ -1292,7 +1292,7 @@ msgstr "Отсутствует файл пакета"
 msgid "A publication time has not been selected"
 msgstr "Время публикации не выбрано"
 
-#: packages/admin/src/components/ContentEditor.tsx:1708
+#: packages/admin/src/components/ContentEditor.tsx:1711
 msgid "A publishing action is already in progress"
 msgstr "Публикация уже выполняется"
 
@@ -1390,7 +1390,7 @@ msgstr "Принять приглашение"
 msgid "Access denied"
 msgstr "Доступ запрещён"
 
-#: packages/admin/src/router.tsx:2551
+#: packages/admin/src/router.tsx:2552
 msgid "Access Denied"
 msgstr "Доступ запрещён"
 
@@ -1690,8 +1690,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "Добавить ключ доступа"
 
-#: packages/admin/src/components/ContentEditor.tsx:3812
-#: packages/admin/src/components/ContentEditor.tsx:3812
+#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Add reference"
 msgstr "Добавить ссылку"
 
@@ -2002,7 +2002,7 @@ msgid "Allowed block types"
 msgstr "Разрешённые типы блоков"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:2628
+#: packages/admin/src/router.tsx:2629
 msgid "Allowed Domains"
 msgstr "Разрешённые домены"
 
@@ -2120,10 +2120,10 @@ msgstr "Зашифрованный цифровой ключ, который в�
 #: packages/admin/src/router.tsx:1578
 #: packages/admin/src/router.tsx:1662
 #: packages/admin/src/router.tsx:1695
-#: packages/admin/src/router.tsx:2501
-#: packages/admin/src/router.tsx:2537
-#: packages/admin/src/router.tsx:2995
-#: packages/admin/src/router.tsx:3185
+#: packages/admin/src/router.tsx:2502
+#: packages/admin/src/router.tsx:2538
+#: packages/admin/src/router.tsx:2996
+#: packages/admin/src/router.tsx:3186
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Произошла ошибка"
@@ -2222,7 +2222,7 @@ msgstr "Любое количество"
 #: packages/admin/src/components/Settings.tsx:103
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:2636
+#: packages/admin/src/router.tsx:2637
 msgid "API Tokens"
 msgstr "Токены API"
 
@@ -2349,11 +2349,11 @@ msgstr "Ассистентам, подключённым через MCP, нуж�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3931
+#: packages/admin/src/components/ContentEditor.tsx:3942
 msgid "At least {min}"
 msgstr "Не меньше {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:3928
+#: packages/admin/src/components/ContentEditor.tsx:3939
 msgid "At most {max}"
 msgstr "Не больше {max}"
 
@@ -2533,7 +2533,7 @@ msgstr "Назад"
 msgid "Back"
 msgstr "Назад"
 
-#: packages/admin/src/components/ContentEditor.tsx:1964
+#: packages/admin/src/components/ContentEditor.tsx:1971
 msgid "Back to {collectionLabel} list"
 msgstr "К списку «{collectionLabel}»"
 
@@ -2614,7 +2614,7 @@ msgstr "Настройки копий сохранены"
 
 #: packages/admin/src/components/Settings.tsx:118
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:2652
+#: packages/admin/src/router.tsx:2653
 msgid "Backups"
 msgstr "Резервные копии"
 
@@ -2642,7 +2642,7 @@ msgstr "Перед отправкой:"
 msgid "Before you continue:"
 msgstr "Прежде чем продолжить:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3925
+#: packages/admin/src/components/ContentEditor.tsx:3936
 msgid "Between {min} and {max}"
 msgstr "От {min} до {max}"
 
@@ -2812,7 +2812,7 @@ msgid "Byline schema"
 msgstr "Схема подписи"
 
 #: packages/admin/src/components/Sidebar.tsx:552
-#: packages/admin/src/router.tsx:2932
+#: packages/admin/src/router.tsx:2933
 msgid "Byline Schema"
 msgstr "Схема подписи"
 
@@ -2821,13 +2821,13 @@ msgid "Byline updated"
 msgstr "Подпись обновлена"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:383
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1162
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
-#: packages/admin/src/router.tsx:2921
+#: packages/admin/src/router.tsx:2922
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Подписи"
@@ -3454,7 +3454,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "Перейдите по этой ссылке, чтобы войти на {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:322
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3496,7 +3496,7 @@ msgstr "Закрыть настройки изображения"
 msgid "Close panel"
 msgstr "Закрыть панель"
 
-#: packages/admin/src/components/ContentEditor.tsx:2749
+#: packages/admin/src/components/ContentEditor.tsx:2760
 msgid "Close settings"
 msgstr "Закрыть настройки"
 
@@ -3633,7 +3633,7 @@ msgstr "Реакции на комментарии"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/router.tsx:2426
+#: packages/admin/src/router.tsx:2427
 msgid "Comments"
 msgstr "Комментарии"
 
@@ -3819,7 +3819,7 @@ msgstr "Типы материалов"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
-#: packages/admin/src/router.tsx:2940
+#: packages/admin/src/router.tsx:2941
 msgid "Content Types"
 msgstr "Типы материалов"
 
@@ -3989,7 +3989,7 @@ msgstr "Не удалось загрузить медиа."
 msgid "Could not load the calendar"
 msgstr "Не удалось загрузить календарь"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:393
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
 msgid "Could not load this entry's details."
 msgstr "Не удалось загрузить сведения об этой записи."
 
@@ -3997,7 +3997,7 @@ msgstr "Не удалось загрузить сведения об этой з
 msgid "Could not load this folder."
 msgstr "Не удалось загрузить эту папку."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
 msgid "Could not publish"
 msgstr "Не удалось опубликовать"
 
@@ -4005,7 +4005,7 @@ msgstr "Не удалось опубликовать"
 msgid "Could not reach {origin}"
 msgstr "Не удалось связаться с {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:242
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
 msgid "Could not remove the schedule"
 msgstr "Не удалось снять расписание"
 
@@ -4029,7 +4029,7 @@ msgstr "Не удалось проверить, существует ли ещё
 msgid "Couldn't detect WordPress"
 msgstr "Не удалось обнаружить WordPress"
 
-#: packages/admin/src/components/ContentEditor.tsx:3789
+#: packages/admin/src/components/ContentEditor.tsx:3800
 msgid "Couldn't load all references."
 msgstr "Не удалось загрузить все ссылки."
 
@@ -5044,7 +5044,7 @@ msgstr "Скрыть завершённое: {0}"
 msgid "Dismiss import suggestion"
 msgstr "Скрыть предложение импорта"
 
-#: packages/admin/src/components/ContentEditor.tsx:2709
+#: packages/admin/src/components/ContentEditor.tsx:2720
 msgid "Dismiss save error"
 msgstr ""
 
@@ -5089,7 +5089,7 @@ msgstr "Показать облако меток"
 msgid "Displayed below the image as a visible caption."
 msgstr "Показывается под изображением как видимая подпись."
 
-#: packages/admin/src/components/ContentEditor.tsx:2100
+#: packages/admin/src/components/ContentEditor.tsx:2109
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Режим без отвлечений (⌘⇧\\)"
 
@@ -5220,7 +5220,7 @@ msgstr "Скачивание пакета"
 msgid "visualEditing.draft"
 msgstr "Черновик"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:414
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5398,12 +5398,12 @@ msgstr "Изменить {0}"
 msgid "Edit {0} field"
 msgstr "Изменить поле {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1807
-#: packages/admin/src/components/ContentEditor.tsx:1814
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Edit {itemLabel}"
 msgstr "Изменить {itemLabel}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1813
+#: packages/admin/src/components/ContentEditor.tsx:1816
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr ""
 
@@ -5442,7 +5442,7 @@ msgstr ""
 msgid "Edit content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3134
+#: packages/admin/src/router.tsx:3135
 msgid "Edit content type"
 msgstr ""
 
@@ -5493,7 +5493,7 @@ msgstr "Блокировка редактирования"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Изменять альтернативный текст, подписи и точки фокуса медиа"
 
-#: packages/admin/src/router.tsx:2842
+#: packages/admin/src/router.tsx:2843
 msgid "Edit menu"
 msgstr ""
 
@@ -5523,7 +5523,7 @@ msgstr "Изменить перенаправление {0}"
 msgid "Edit role"
 msgstr "Изменить роль"
 
-#: packages/admin/src/router.tsx:2891
+#: packages/admin/src/router.tsx:2892
 msgid "Edit section"
 msgstr ""
 
@@ -5660,7 +5660,7 @@ msgstr "Поставщик почты активен"
 
 #: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:2644
+#: packages/admin/src/router.tsx:2645
 msgid "Email Settings"
 msgstr "Настройки почты"
 
@@ -5942,7 +5942,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3979
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Введите корректный URL (например, https://example.com)"
 
@@ -5971,7 +5971,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "Ввести учётные данные вручную"
 
-#: packages/admin/src/components/ContentEditor.tsx:2095
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Enter distraction-free mode"
 msgstr "Включить режим без отвлечений"
 
@@ -5979,7 +5979,7 @@ msgstr "Включить режим без отвлечений"
 msgid "Enter email"
 msgstr "Введите почту"
 
-#: packages/admin/src/components/ContentEditor.tsx:3242
+#: packages/admin/src/components/ContentEditor.tsx:3253
 msgid "Enter markdown content..."
 msgstr "Введите содержимое Markdown..."
 
@@ -6044,7 +6044,7 @@ msgstr "запись на ссылающейся стороне"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3463
+#: packages/admin/src/router.tsx:3464
 msgid "Error"
 msgstr "Ошибка"
 
@@ -6121,11 +6121,11 @@ msgstr "Существующие материалы проиндексирова
 msgid "Exists"
 msgstr "Существует"
 
-#: packages/admin/src/components/ContentEditor.tsx:2095
+#: packages/admin/src/components/ContentEditor.tsx:2104
 msgid "Exit distraction-free mode"
 msgstr "Выйти из режима без отвлечений"
 
-#: packages/admin/src/components/ContentEditor.tsx:2099
+#: packages/admin/src/components/ContentEditor.tsx:2108
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "Выйти из режима без отвлечений (⌘⇧\\)"
 
@@ -6780,7 +6780,7 @@ msgstr "Не удалось получить статус обновления"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2447
+#: packages/admin/src/router.tsx:2448
 msgid "Failed to fetch user"
 msgstr "Не удалось получить пользователя"
 
@@ -6969,7 +6969,7 @@ msgid "Failed to lock the entry"
 msgstr "Не удалось заблокировать запись"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2536
+#: packages/admin/src/router.tsx:2537
 msgid "Failed to perform bulk action"
 msgstr "Не удалось выполнить массовое действие"
 
@@ -6999,7 +6999,7 @@ msgstr "Не удалось опубликовать материал"
 msgid "Failed to read byline field usage"
 msgstr "Не удалось прочитать использование поля подписи"
 
-#: packages/admin/src/router.tsx:2994
+#: packages/admin/src/router.tsx:2995
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -7076,11 +7076,11 @@ msgstr "Не удалось отозвать токен API"
 msgid "Failed to rewrite URLs"
 msgstr "Не удалось переписать URL"
 
-#: packages/admin/src/components/ContentEditor.tsx:2447
-#: packages/admin/src/components/ContentEditor.tsx:2701
+#: packages/admin/src/components/ContentEditor.tsx:2458
+#: packages/admin/src/components/ContentEditor.tsx:2712
 #: packages/admin/src/router.tsx:933
 #: packages/admin/src/router.tsx:1391
-#: packages/admin/src/router.tsx:3184
+#: packages/admin/src/router.tsx:3185
 msgid "Failed to save"
 msgstr "Не удалось сохранить"
 
@@ -7255,7 +7255,7 @@ msgstr "Не удалось обновить раздел"
 msgid "Failed to update settings"
 msgstr "Не удалось обновить настройки"
 
-#: packages/admin/src/router.tsx:2500
+#: packages/admin/src/router.tsx:2501
 msgid "Failed to update status"
 msgstr "Не удалось обновить статус"
 
@@ -7492,11 +7492,11 @@ msgstr "Только для тех, кто комментирует впервы
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/ContentEditor.tsx:1792
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Исправьте недопустимые поля, прежде чем менять дату публикации"
 
-#: packages/admin/src/components/ContentEditor.tsx:1717
+#: packages/admin/src/components/ContentEditor.tsx:1720
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Исправьте недопустимые поля, прежде чем менять расписание"
 
@@ -7525,7 +7525,7 @@ msgstr "Папка"
 msgid "Folder deleted"
 msgstr "Папка удалена"
 
-#: packages/admin/src/router.tsx:2169
+#: packages/admin/src/router.tsx:2170
 msgid "Folder no longer exists"
 msgstr "Папки больше нет"
 
@@ -7636,7 +7636,7 @@ msgid "General"
 msgstr "Общие"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:2675
 msgid "General Settings"
 msgstr "Общие настройки"
 
@@ -7668,7 +7668,7 @@ msgstr "Дайте ключу доступа имя, чтобы потом ег�
 msgid "Go"
 msgstr "Перейти"
 
-#: packages/admin/src/components/ContentEditor.tsx:1711
+#: packages/admin/src/components/ContentEditor.tsx:1714
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7676,12 +7676,12 @@ msgstr ""
 msgid "Go live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:437
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
 msgid "Go live {countdown}"
 msgstr "Выйдет {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3483
+#: packages/admin/src/router.tsx:3484
 msgid "Go to Dashboard"
 msgstr "К обзору"
 
@@ -7693,11 +7693,11 @@ msgstr "Перейти ко входу"
 msgid "Go to the next problem"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:352
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
 msgid "Goes live"
 msgstr "Выходит"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:419
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
 msgid "Goes live {countdown}"
 msgstr "Выйдет {countdown}"
 
@@ -7879,7 +7879,7 @@ msgstr "Переходы"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Удерживать запись, пока её редактируют, и не пускать других"
 
-#: packages/admin/src/components/ContentEditor.tsx:3476
+#: packages/admin/src/components/ContentEditor.tsx:3487
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Хранит ID записи. Чтобы выбирать записи из списка, укажите целевую коллекцию в разделе «Типы материалов»."
 
@@ -8175,7 +8175,7 @@ msgid "Import failed"
 msgstr "Импорт не удался"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
-#: packages/admin/src/router.tsx:2827
+#: packages/admin/src/router.tsx:2828
 msgid "Import from WordPress"
 msgstr "Импорт из WordPress"
 
@@ -8467,7 +8467,7 @@ msgstr "НЕДОПУСТИМОЕ ИМЯ"
 msgid "Invalid invite link"
 msgstr "Недействительная ссылка-приглашение"
 
-#: packages/admin/src/components/ContentEditor.tsx:4072
+#: packages/admin/src/components/ContentEditor.tsx:4083
 msgid "Invalid JSON"
 msgstr "Недопустимый JSON"
 
@@ -8695,7 +8695,7 @@ msgstr "Язык"
 msgid "Large section heading"
 msgstr "Крупный заголовок раздела"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:387
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
 msgid "Last edited"
 msgstr "Последнее изменение"
 
@@ -8905,7 +8905,7 @@ msgstr "Список"
 msgid "Live"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:430
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 #: packages/admin/src/components/ContentSettingsPanel.tsx:194
 #: packages/admin/src/components/ContentSettingsPanel.tsx:204
 #: packages/admin/src/components/ContentSettingsPanel.tsx:230
@@ -8947,7 +8947,7 @@ msgid "Load preview"
 msgstr "Загрузить предпросмотр"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3438
+#: packages/admin/src/router.tsx:3439
 msgid "Loading"
 msgstr "Загрузка"
 
@@ -8976,8 +8976,8 @@ msgstr "Загрузка коллекций..."
 msgid "Loading comments..."
 msgstr "Загрузка комментариев..."
 
-#: packages/admin/src/router.tsx:3440
-#: packages/admin/src/router.tsx:3452
+#: packages/admin/src/router.tsx:3441
+#: packages/admin/src/router.tsx:3453
 msgid "Loading configuration..."
 msgstr "Загрузка конфигурации..."
 
@@ -9035,7 +9035,7 @@ msgstr "Загрузка плагинов..."
 msgid "Loading redirects..."
 msgstr "Загрузка перенаправлений..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3797
+#: packages/admin/src/components/ContentEditor.tsx:3808
 msgid "Loading references..."
 msgstr "Загрузка ссылок..."
 
@@ -9121,7 +9121,7 @@ msgstr "Загрузка…"
 msgid "Local time"
 msgstr "Местное время"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:364
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -9286,11 +9286,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Каталог"
 
-#: packages/admin/src/router.tsx:2819
+#: packages/admin/src/router.tsx:2820
 msgid "Marketplace browsing is no longer available."
 msgstr "Просмотр каталога больше недоступен."
 
-#: packages/admin/src/router.tsx:2792
+#: packages/admin/src/router.tsx:2793
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Просмотр каталога больше недоступен. Установленными плагинами управляйте в разделе «Плагины»."
 
@@ -9342,7 +9342,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
-#: packages/admin/src/router.tsx:2128
+#: packages/admin/src/router.tsx:2129
 msgid "Media"
 msgstr "Медиа"
 
@@ -9405,7 +9405,7 @@ msgstr "Чтение медиа"
 msgid "Media results"
 msgstr "Результаты медиа"
 
-#: packages/admin/src/router.tsx:2603
+#: packages/admin/src/router.tsx:2604
 msgid "Media Usage"
 msgstr ""
 
@@ -9501,7 +9501,7 @@ msgstr "Меню переименовано"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
-#: packages/admin/src/router.tsx:2835
+#: packages/admin/src/router.tsx:2836
 msgid "Menus"
 msgstr "Меню"
 
@@ -9648,7 +9648,7 @@ msgstr "Переместить «{title}» в корзину? Позже мож�
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3764
+#: packages/admin/src/components/ContentEditor.tsx:3775
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "Переместить {0} вниз"
@@ -9665,7 +9665,7 @@ msgstr "Переместить {0} позже"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3753
+#: packages/admin/src/components/ContentEditor.tsx:3764
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "Переместить {0} вверх"
@@ -9905,8 +9905,8 @@ msgstr "новое"
 msgid "NEW"
 msgstr "НОВОЕ"
 
-#: packages/admin/src/components/ContentEditor.tsx:1807
-#: packages/admin/src/components/ContentEditor.tsx:1811
+#: packages/admin/src/components/ContentEditor.tsx:1810
+#: packages/admin/src/components/ContentEditor.tsx:1814
 msgid "New {itemLabel}"
 msgstr "Новый {itemLabel}"
 
@@ -9932,7 +9932,7 @@ msgstr "Новая коллекция"
 msgid "New content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3037
+#: packages/admin/src/router.tsx:3038
 msgid "New content type"
 msgstr ""
 
@@ -10394,7 +10394,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "Перенаправлений пока нет"
 
-#: packages/admin/src/components/ContentEditor.tsx:3707
+#: packages/admin/src/components/ContentEditor.tsx:3718
 msgid "No references selected."
 msgstr "Ссылки не выбраны."
 
@@ -10509,7 +10509,7 @@ msgstr "Не сопоставлено"
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2449
+#: packages/admin/src/components/ContentEditor.tsx:2460
 msgid "Not saved yet"
 msgstr ""
 
@@ -10640,7 +10640,7 @@ msgid "Open"
 msgstr "Открыть"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3742
+#: packages/admin/src/components/ContentEditor.tsx:3753
 msgid "Open {0} in a new tab"
 msgstr "Открыть {0} в новой вкладке"
 
@@ -10656,7 +10656,7 @@ msgstr "Открыть папку {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "Открыть в админке"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:483
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
 msgid "Open in editor"
 msgstr "Открыть в редакторе"
 
@@ -10840,11 +10840,11 @@ msgstr "Хеш пакета"
 msgid "Package downloaded"
 msgstr "Пакет скачан"
 
-#: packages/admin/src/router.tsx:3351
+#: packages/admin/src/router.tsx:3352
 msgid "Page not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3478
+#: packages/admin/src/router.tsx:3479
 msgid "Page Not Found"
 msgstr "Страница не найдена"
 
@@ -11110,7 +11110,7 @@ msgid "Please enter a valid URL"
 msgstr "Введите корректный URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
-#: packages/admin/src/router.tsx:3327
+#: packages/admin/src/router.tsx:3328
 msgid "Plugin"
 msgstr "Плагин"
 
@@ -11135,7 +11135,7 @@ msgstr "Действие плагина не удалось"
 msgid "Plugin actions"
 msgstr "Действия плагина"
 
-#: packages/admin/src/components/ContentEditor.tsx:2193
+#: packages/admin/src/components/ContentEditor.tsx:2202
 msgid "Plugin changes were not applied"
 msgstr "Изменения плагина не применены"
 
@@ -11147,8 +11147,8 @@ msgstr "Столбец плагина недоступен"
 msgid "Plugin details"
 msgstr "Сведения о плагине"
 
-#: packages/admin/src/router.tsx:2764
-#: packages/admin/src/router.tsx:2771
+#: packages/admin/src/router.tsx:2765
+#: packages/admin/src/router.tsx:2772
 msgid "Plugin Details"
 msgstr ""
 
@@ -11173,7 +11173,7 @@ msgstr "Ошибка плагина ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Для установки плагина нужно явное согласие"
 
-#: packages/admin/src/router.tsx:2756
+#: packages/admin/src/router.tsx:2757
 msgid "Plugin Marketplace"
 msgstr ""
 
@@ -11213,7 +11213,7 @@ msgid "Plugin Permissions"
 msgstr "Права плагина"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2714
 msgid "Plugin Registry"
 msgstr "Реестр плагинов"
 
@@ -11222,8 +11222,8 @@ msgstr "Реестр плагинов"
 msgid "Plugin registry configuration error"
 msgstr "Ошибка настройки реестра плагинов"
 
-#: packages/admin/src/router.tsx:2749
-#: packages/admin/src/router.tsx:2783
+#: packages/admin/src/router.tsx:2750
+#: packages/admin/src/router.tsx:2784
 msgid "Plugin registry is not configured."
 msgstr "Реестр плагинов не настроен."
 
@@ -11232,7 +11232,7 @@ msgstr "Реестр плагинов не настроен."
 msgid "Plugin responded with {0}: {text}"
 msgstr "Плагин ответил {0}: {text}"
 
-#: packages/admin/src/router.tsx:3314
+#: packages/admin/src/router.tsx:3315
 msgid "Plugin Settings"
 msgstr ""
 
@@ -11265,7 +11265,7 @@ msgstr "Ошибка виджета плагина"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
-#: packages/admin/src/router.tsx:2698
+#: packages/admin/src/router.tsx:2699
 msgid "Plugins"
 msgstr "Плагины"
 
@@ -11354,7 +11354,7 @@ msgstr "Нажмите Escape, чтобы выйти из редактора к�
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "Нажмите пробел, чтобы взять изображение. Стрелками переместите его и снова нажмите пробел, чтобы отпустить."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 #: packages/admin/src/components/ContentSettingsPanel.tsx:425
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
@@ -11364,7 +11364,7 @@ msgstr "Нажмите пробел, чтобы взять изображени�
 msgid "Preview"
 msgstr "Предпросмотр"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:492
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
 msgid "Preview changes"
 msgstr "Предпросмотр изменений"
 
@@ -11489,7 +11489,7 @@ msgstr "Опубликовать изменения?"
 msgid "visualEditing.publishFailed"
 msgstr "Не удалось опубликовать. Проверьте права и попробуйте снова."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:452
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
 #: packages/admin/src/components/ContentSettingsPanel.tsx:504
 msgid "Publish now"
 msgstr "Опубликовать сейчас"
@@ -11508,7 +11508,7 @@ msgid "visualEditing.published"
 msgstr "Опубликовано"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:224
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
@@ -11524,7 +11524,7 @@ msgstr "Опубликовано"
 msgid "Published {0}"
 msgstr "Опубликовано {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:431
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
 msgid "Published {liveSince}"
 msgstr "Опубликовано {liveSince}"
 
@@ -11556,7 +11556,7 @@ msgstr "Не удалось проверить имя издателя"
 msgid "Publisher release policy"
 msgstr "Политика выпусков издателя"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:399
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
 msgid "Publishing"
 msgstr "Публикация"
 
@@ -11668,7 +11668,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Читать ваши таксономии и термины"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2100
+#: packages/admin/src/router.tsx:2101
 msgid "Read-only"
 msgstr "Только чтение"
 
@@ -11759,7 +11759,7 @@ msgstr "Переход ко входу..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
-#: packages/admin/src/router.tsx:2877
+#: packages/admin/src/router.tsx:2878
 msgid "Redirects"
 msgstr "Перенаправления"
 
@@ -11838,7 +11838,7 @@ msgstr "Реестр"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3073
+#: packages/admin/src/router.tsx:3074
 msgid "Relations"
 msgstr "Связи"
 
@@ -11880,8 +11880,8 @@ msgstr "Убрать"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4265
-#: packages/admin/src/components/ContentEditor.tsx:4331
+#: packages/admin/src/components/ContentEditor.tsx:4276
+#: packages/admin/src/components/ContentEditor.tsx:4342
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11902,7 +11902,7 @@ msgstr "Убрать"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3777
+#: packages/admin/src/components/ContentEditor.tsx:3788
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11919,8 +11919,8 @@ msgstr "Убрать {0} из выбора"
 msgid "Remove {entry}"
 msgstr "Убрать {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4263
-#: packages/admin/src/components/ContentEditor.tsx:4329
+#: packages/admin/src/components/ContentEditor.tsx:4274
+#: packages/admin/src/components/ContentEditor.tsx:4340
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -11983,7 +11983,7 @@ msgstr "Удалить ключ доступа"
 msgid "Remove passkey?"
 msgstr "Удалить ключ доступа?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:469
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
 #: packages/admin/src/components/ContentSettingsPanel.tsx:639
 msgid "Remove schedule"
 msgstr "Снять расписание"
@@ -12137,9 +12137,9 @@ msgstr "Повторяющаяся группа полей"
 msgid "visualEditing.replaceImage"
 msgstr "Заменить"
 
-#: packages/admin/src/components/ContentEditor.tsx:4220
-#: packages/admin/src/components/ContentEditor.tsx:4255
-#: packages/admin/src/components/ContentEditor.tsx:4321
+#: packages/admin/src/components/ContentEditor.tsx:4231
+#: packages/admin/src/components/ContentEditor.tsx:4266
+#: packages/admin/src/components/ContentEditor.tsx:4332
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12159,7 +12159,7 @@ msgstr "Заменить"
 msgid "Replace"
 msgstr "Заменить"
 
-#: packages/admin/src/components/ContentEditor.tsx:4219
+#: packages/admin/src/components/ContentEditor.tsx:4230
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12197,7 +12197,7 @@ msgstr "Заменить исходное изображение?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Замена оригинала доступна при соотношении сторон «Оригинал»."
 
-#: packages/admin/src/components/ContentEditor.tsx:3812
+#: packages/admin/src/components/ContentEditor.tsx:3823
 msgid "Replace reference"
 msgstr "Заменить ссылку"
 
@@ -12281,11 +12281,11 @@ msgstr "Нужно для доступности. Описывает изобр�
 msgid "Requires EmDash {0}"
 msgstr "Нужен EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:461
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
 msgid "Reschedule"
 msgstr "Перенести"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:250
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
 msgid "Rescheduled"
 msgstr "Перенесено"
 
@@ -12347,7 +12347,7 @@ msgstr "Меняйте обрезку от левого верхнего угл�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Меняйте обрезку от правого верхнего угла. Размер — стрелками."
 
-#: packages/admin/src/components/ContentEditor.tsx:2518
+#: packages/admin/src/components/ContentEditor.tsx:2529
 msgid "Resize settings panel"
 msgstr "Изменить размер панели настроек"
 
@@ -12404,7 +12404,7 @@ msgid "Retired"
 msgstr "Выведен из использования"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3791
+#: packages/admin/src/components/ContentEditor.tsx:3802
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12420,7 +12420,7 @@ msgstr "Выведен из использования"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:3466
+#: packages/admin/src/router.tsx:3467
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12687,7 +12687,7 @@ msgstr "Сохранить (Enter)"
 msgid "Save alt text"
 msgstr "Сохранить альтернативный текст"
 
-#: packages/admin/src/components/ContentEditor.tsx:2221
+#: packages/admin/src/components/ContentEditor.tsx:2230
 msgid "Save anyway"
 msgstr "Всё равно сохранить"
 
@@ -12712,7 +12712,7 @@ msgstr "Сохранять материал как черновик перед �
 msgid "Save date"
 msgstr "Сохранить дату"
 
-#: packages/admin/src/components/ContentEditor.tsx:2377
+#: packages/admin/src/components/ContentEditor.tsx:2386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:716
 msgid "Save draft"
 msgstr ""
@@ -12753,7 +12753,7 @@ msgstr "Сохранить настройки"
 msgid "visualEditing.saved"
 msgstr "Сохранено"
 
-#: packages/admin/src/components/ContentEditor.tsx:2452
+#: packages/admin/src/components/ContentEditor.tsx:2463
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "Сохранено"
@@ -12776,7 +12776,7 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:2445
+#: packages/admin/src/components/ContentEditor.tsx:2456
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -12835,19 +12835,19 @@ msgstr "Дата расписания"
 msgid "Schedule publication"
 msgstr "Запланировать публикацию"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:234
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
 msgid "Schedule removed"
 msgstr "Расписание снято"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:418
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1643
 msgid "Scheduled"
 msgstr "Запланировано"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:436
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "Запланированные изменения"
 
@@ -13163,7 +13163,7 @@ msgstr "Заголовок раздела"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
-#: packages/admin/src/router.tsx:2884
+#: packages/admin/src/router.tsx:2885
 msgid "Sections"
 msgstr "Разделы"
 
@@ -13220,7 +13220,7 @@ msgstr "Ошибка безопасности. Убедитесь, что сое
 #: packages/admin/src/components/Settings.tsx:83
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:2611
+#: packages/admin/src/router.tsx:2612
 msgid "Security Settings"
 msgstr "Настройки безопасности"
 
@@ -13237,9 +13237,9 @@ msgid "Select"
 msgstr "Выбрать"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4219
-#: packages/admin/src/components/ContentEditor.tsx:4280
-#: packages/admin/src/components/ContentEditor.tsx:4341
+#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ContentEditor.tsx:4291
+#: packages/admin/src/components/ContentEditor.tsx:4352
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13288,7 +13288,7 @@ msgstr "Выбрать все на этой странице"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3815
+#: packages/admin/src/components/ContentEditor.tsx:3826
 msgid "Select at least one entry."
 msgstr "Выберите хотя бы одну запись."
 
@@ -13321,8 +13321,8 @@ msgstr "Выбрать значок сайта"
 msgid "Select Favicon"
 msgstr "Выбрать значок сайта"
 
-#: packages/admin/src/components/ContentEditor.tsx:4282
-#: packages/admin/src/components/ContentEditor.tsx:4347
+#: packages/admin/src/components/ContentEditor.tsx:4293
+#: packages/admin/src/components/ContentEditor.tsx:4358
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Выбрать файл"
@@ -13486,7 +13486,7 @@ msgid "SEO settings"
 msgstr "Настройки SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:2690
+#: packages/admin/src/router.tsx:2691
 msgid "SEO Settings"
 msgstr "Настройки SEO"
 
@@ -13559,15 +13559,15 @@ msgid "Setting up..."
 msgstr "Настройка..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2346
-#: packages/admin/src/components/ContentEditor.tsx:2735
+#: packages/admin/src/components/ContentEditor.tsx:2355
+#: packages/admin/src/components/ContentEditor.tsx:2746
 #: packages/admin/src/components/ContentTypeEditor.tsx:480
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
-#: packages/admin/src/router.tsx:2596
+#: packages/admin/src/router.tsx:2597
 msgid "Settings"
 msgstr "Настройки"
 
@@ -13968,7 +13968,7 @@ msgstr "Ссылки на профили в соцсетях"
 msgid "Social Profiles"
 msgstr "Профили в соцсетях"
 
-#: packages/admin/src/router.tsx:2682
+#: packages/admin/src/router.tsx:2683
 msgid "Social Settings"
 msgstr ""
 
@@ -14126,8 +14126,8 @@ msgstr "Начать с примерами записей и страниц из
 msgid "Start writing with plain text"
 msgstr "Начните писать обычным текстом"
 
-#: packages/admin/src/components/ContentEditor.tsx:3165
-#: packages/admin/src/components/ContentEditor.tsx:3188
+#: packages/admin/src/components/ContentEditor.tsx:3176
+#: packages/admin/src/components/ContentEditor.tsx:3199
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "Начните писать или введите «/» для команд"
@@ -14157,7 +14157,7 @@ msgstr ""
 msgid "STARTTLS (port 587)"
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:338
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "Состояние"
@@ -14360,7 +14360,7 @@ msgstr "Целевой язык"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
-#: packages/admin/src/router.tsx:2855
+#: packages/admin/src/router.tsx:2856
 msgid "Taxonomies"
 msgstr "Таксономии"
 
@@ -14755,7 +14755,7 @@ msgstr "Материалы пакета записываются на этот �
 msgid "The package’s file index is not valid."
 msgstr "Файловый индекс пакета недействителен."
 
-#: packages/admin/src/router.tsx:3480
+#: packages/admin/src/router.tsx:3481
 msgid "The page you're looking for doesn't exist."
 msgstr "Страница, которую вы ищете, не существует."
 
@@ -14775,8 +14775,8 @@ msgstr "Не удалось отобразить виджет поля плаг�
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Плагин не сохранил эти изменения. Просмотрите их перед обновлением редактора."
 
-#: packages/admin/src/components/ContentEditor.tsx:1323
-#: packages/admin/src/components/ContentEditor.tsx:1339
+#: packages/admin/src/components/ContentEditor.tsx:1326
+#: packages/admin/src/components/ContentEditor.tsx:1342
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Результат плагина устарел: пока он работал, содержимое редактора изменилось."
 
@@ -14818,7 +14818,7 @@ msgstr "Уже добавленные демо-материалы сохране
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Запланированные изменения записи «{title}» остаются черновиком."
 
@@ -14902,7 +14902,7 @@ msgstr "Тема"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2810
+#: packages/admin/src/router.tsx:2811
 msgid "Theme Details"
 msgstr ""
 
@@ -14911,7 +14911,7 @@ msgstr ""
 msgid "Theme ID: {0}"
 msgstr "ID темы: {0}"
 
-#: packages/admin/src/router.tsx:2802
+#: packages/admin/src/router.tsx:2803
 msgid "Theme Marketplace"
 msgstr ""
 
@@ -15022,11 +15022,11 @@ msgstr "Это не похоже на действительный ключ пе
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2217
+#: packages/admin/src/components/ContentEditor.tsx:2226
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Эта запись изменилась в другом месте после того, как вы её открыли."
 
-#: packages/admin/src/components/ContentEditor.tsx:1723
+#: packages/admin/src/components/ContentEditor.tsx:1726
 #: packages/admin/src/router.tsx:1179
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Эта запись изменилась в другом месте. Сохраните всё равно или перезагрузите, чтобы получить более новую версию."
@@ -15047,11 +15047,11 @@ msgstr "У этой записи нет URL, пока она не опублик
 msgid "This entry is open somewhere else"
 msgstr "Эта запись открыта в другом месте"
 
-#: packages/admin/src/components/ContentEditor.tsx:2204
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Запись доступна только для чтения: в её схеме есть типы полей, которые эта версия EmDash не поддерживает."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:407
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Срок публикации этой записи: {lateness}, но она не опубликована. Возможно, запланированная публикация не работает."
 
@@ -15059,8 +15059,8 @@ msgstr "Срок публикации этой записи: {lateness}, но о
 msgid "This export is large"
 msgstr "Большой объём экспорта"
 
-#: packages/admin/src/components/ContentEditor.tsx:2940
-#: packages/admin/src/components/ContentEditor.tsx:2948
+#: packages/admin/src/components/ContentEditor.tsx:2951
+#: packages/admin/src/components/ContentEditor.tsx:2959
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Эту версию EmDash это поле не умеет редактировать."
@@ -15086,7 +15086,7 @@ msgstr "Это поле не принимает файлы {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Это поле ожидает список. Сохранённое значение не изменится, пока вы не замените его пустым списком — при этом оно будет удалено. Сначала скопируйте из него всё нужное."
 
-#: packages/admin/src/components/ContentEditor.tsx:4353
+#: packages/admin/src/components/ContentEditor.tsx:4364
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Это поле обязательно"
@@ -15510,7 +15510,7 @@ msgstr "Отслеживать, где медиа используется в м
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:2659
+#: packages/admin/src/router.tsx:2660
 msgid "Transfer"
 msgstr "Перенос"
 
@@ -15548,7 +15548,7 @@ msgstr "Перевод создан"
 msgid "Translations"
 msgstr "Переводы"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:371
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
 msgid "Translations:"
 msgstr "Переводы:"
 
@@ -15843,7 +15843,7 @@ msgstr "Назначение не определено"
 msgid "visualEditing.unsaved"
 msgstr "Не сохранено"
 
-#: packages/admin/src/components/ContentEditor.tsx:2451
+#: packages/admin/src/components/ContentEditor.tsx:2462
 msgid "Unsaved changes"
 msgstr ""
 
@@ -15876,7 +15876,7 @@ msgstr "До {0}"
 msgid "Untitled"
 msgstr "Без названия"
 
-#: packages/admin/src/components/ContentEditor.tsx:4179
+#: packages/admin/src/components/ContentEditor.tsx:4190
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Файл без названия"
@@ -16252,7 +16252,7 @@ msgstr "Запасное изображение Open Graph, если у стра
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Используется как идентификатор. Только строчные буквы, цифры и подчёркивания."
 
-#: packages/admin/src/components/ContentEditor.tsx:3376
+#: packages/admin/src/components/ContentEditor.tsx:3387
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Главное изображение записи в списках и в начале записи"
 
@@ -16314,7 +16314,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
-#: packages/admin/src/router.tsx:2899
+#: packages/admin/src/router.tsx:2900
 msgid "Users"
 msgstr "Пользователи"
 
@@ -16438,7 +16438,7 @@ msgstr "Не удалось загрузить видео. Попробуйте 
 msgid "View email provider status and send test emails"
 msgstr "Смотрите статус поставщика почты и отправляйте тестовые письма"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:502
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
 msgid "View live"
 msgstr "Открыть на сайте"
 
@@ -16522,7 +16522,7 @@ msgstr "Предупреждение"
 msgid "Warnings"
 msgstr "Предупреждения"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:351
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Was due"
 msgstr "Срок был"
 
@@ -16618,7 +16618,7 @@ msgstr "Что будет импортировано"
 msgid "What will happen when you import"
 msgstr "Что произойдёт при импорте"
 
-#: packages/admin/src/components/ContentEditor.tsx:2218
+#: packages/admin/src/components/ContentEditor.tsx:2227
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Набранный текст на месте. Сохранение заменит более новую версию."
 
@@ -16735,7 +16735,7 @@ msgstr "Виджет обновлён"
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
-#: packages/admin/src/router.tsx:2869
+#: packages/admin/src/router.tsx:2870
 msgid "Widgets"
 msgstr "Виджеты"
 
@@ -16904,7 +16904,7 @@ msgstr "Для учёта использования медиа нужны пр�
 msgid "You need Admin permissions to transfer this site."
 msgstr "Для переноса этого сайта нужны права администратора."
 
-#: packages/admin/src/router.tsx:2552
+#: packages/admin/src/router.tsx:2553
 msgid "You need Editor permissions to moderate comments."
 msgstr "Для модерации комментариев нужны права редактора."
 
@@ -17046,11 +17046,11 @@ msgstr "Ваше имя (необязательно)"
 msgid "Your Role"
 msgstr "Ваша роль"
 
-#: packages/admin/src/router.tsx:2105
+#: packages/admin/src/router.tsx:2106
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2106
+#: packages/admin/src/router.tsx:2107
 msgid "Your role can't edit this entry."
 msgstr ""
 
@@ -17072,7 +17072,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "Сайт требует, чтобы выпуску было не меньше {0}, прежде чем его можно установить. Этот выпуск станет доступен позже."
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:359
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
 msgid "Your time: {viewerTime}"
 msgstr "Ваше время: {viewerTime}"
 
