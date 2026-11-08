@@ -1916,7 +1916,7 @@ export function ContentEditor({
 		hasPendingChanges,
 		scheduledAt: item?.scheduledAt,
 	});
-	const publishingPending = Boolean(isScheduling || isUnscheduling);
+	const publishingPending = Boolean(isPublishing || isScheduling || isUnscheduling);
 	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
 	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
 	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;

@@ -243,6 +243,16 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 	};
 }
 
+function deferred<T = void>() {
+	let resolve!: (value: T | PromiseLike<T>) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((promiseResolve, promiseReject) => {
+		resolve = promiseResolve;
+		reject = promiseReject;
+	});
+	return { promise, resolve, reject };
+}
+
 function renderEditor(props: Partial<ContentEditorProps> = {}) {
 	const defaultProps: ContentEditorProps = {
 		collection: "posts",
@@ -2307,6 +2317,63 @@ describe("ContentEditor", () => {
 			expect(onPublish).toHaveBeenCalledOnce();
 		});
 
+		it.each([
+			{
+				name: "Publish now",
+				item: makeItem({ status: "draft" }),
+				props: {},
+				settlement: "resolve" as const,
+			},
+			{
+				name: "Publish now",
+				item: makeItem({ status: "draft" }),
+				props: {},
+				settlement: "reject" as const,
+			},
+			{
+				name: "Publish changes",
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				props: { supportsDrafts: true },
+				settlement: "resolve" as const,
+			},
+			{
+				name: "Publish changes",
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				props: { supportsDrafts: true },
+				settlement: "reject" as const,
+			},
+		])(
+			"disables $name while the publish request is in flight and re-enables after it $settlement",
+			async ({ name, item, props, settlement }) => {
+				const pending = deferred();
+				const onPublish = vi.fn(() => pending.promise);
+				const screen = await renderEditor({ isNew: false, item, onPublish, ...props });
+				const publish = screen.getByRole("button", { name, exact: true });
+
+				await publish.click();
+				const dialogName = name === "Publish changes" ? "Publish changes?" : "Publish now?";
+				screen
+					.getByRole("dialog", { name: dialogName })
+					.getByRole("button", { name, exact: true })
+					.element()
+					.click();
+				await vi.waitFor(() => expect(onPublish).toHaveBeenCalledOnce());
+				await expect.element(publish).toBeDisabled();
+
+				if (settlement === "resolve") pending.resolve();
+				else pending.reject(new Error("publish failed"));
+				await expect.element(publish).not.toBeDisabled();
+			},
+		);
+
 		it("shows Preview in normal mode when previews are supported", async () => {
 			const item = makeItem({ status: "draft" });
 			const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
@@ -2661,6 +2728,34 @@ describe("ContentEditor", () => {
 			await unpublishBtn.click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
+
+		it.each(["resolve", "reject"] as const)(
+			"disables Unpublish while the request is pending and re-enables after it %s",
+			async (settlement) => {
+				const pending = deferred();
+				const onUnpublish = vi.fn(() => pending.promise);
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-1",
+						draftRevisionId: "rev-1",
+					}),
+					onUnpublish,
+					supportsDrafts: true,
+				});
+				const unpublish = screen
+					.getByRole("button", { name: "Unpublish Post", exact: true })
+					.element();
+
+				unpublish.click();
+				await vi.waitFor(() => expect(onUnpublish).toHaveBeenCalledOnce());
+				await expect.element(unpublish).toBeDisabled();
+				if (settlement === "resolve") pending.resolve();
+				else pending.reject(new Error("unpublish failed"));
+				await expect.element(unpublish).not.toBeDisabled();
+			},
+		);
 	});
 
 	describe("distraction-free mode", () => {
