@@ -3,7 +3,9 @@
 "@emdash-cms/sandbox-workerd": patch
 ---
 
-Fixes AT Protocol plugin settings and publication sync failing under the default Cloudflare sandbox budget by raising the subrequest allowance from 10 to 100 per invocation. Settings reads and other bridge calls share this budget with HTTP requests; the previous allowance could stop a sync after creating a publication on the PDS but before saving its URI, causing retries to create duplicates.
+Raises the default Cloudflare sandbox subrequest allowance from 10 to 30 per invocation so AT Protocol settings and first-login publication sync can complete. Settings reads and other bridge calls share this budget with HTTP requests; the previous allowance could stop a sync after creating a publication on the PDS but before saving its URI, causing retries to create duplicates.
+
+This is a partial fix: publication sync that refreshes an expired token and publishing with cross-posting can still exceed 30 bridge calls, causing settings-rendering failures or external writes whose results are not saved. Those paths require further plugin-side changes; a higher runner allowance cannot bypass Cloudflare's invocation cap.
 
 CPU and wall-time limits are unchanged. Existing explicit `limits.subrequests` overrides still apply. The Node.js workerd runner uses the same default value but does not enforce subrequest limits. No configuration changes are required, and this update does not remove duplicate records already created on a PDS.
 

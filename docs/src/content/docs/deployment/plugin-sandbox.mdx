@@ -138,9 +138,11 @@ Each runner applies resource limits per plugin invocation. The built-in runners 
 | Limit       | Value  | Cloudflare Workers                                                        | Node.js                |
 | ----------- | ------ | ------------------------------------------------------------------------- | ---------------------- |
 | CPU time    | 50 ms  | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
-| Subrequests | 100    | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
+| Subrequests | 30     | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
 | Memory      | 128 MB | Not enforced per plugin; the platform's isolate memory ceiling applies    | Not enforced           |
 | Wall time   | 30 s   | Enforced by the runner                                                    | Enforced by the runner |
+
+Cloudflare's [32-invocation limit](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/#limits) caps one plugin call at 30 bridge calls, so a custom runner can lower this limit but cannot raise it.
 
 Settings reads, storage operations, and HTTP requests through the plugin bridge all count toward the Cloudflare subrequest limit. The allowance covers the whole invocation, including any settings page rebuilt after an action.
 
@@ -170,11 +172,11 @@ import { fileURLToPath } from "node:url";
 import emdash from "emdash/astro";
 
 emdash({
-	sandboxRunner: fileURLToPath(new URL("./src/sandbox-runner.ts", import.meta.url)),
+	sandboxRunner: fileURLToPath(new URL("./src/sandbox-runner.ts", import.meta.url)).replaceAll("\\", "/"),
 });
 ```
 
-Keep the Worker Loader binding and `PluginBridge` export described above. A ceiling of 10 is too low for the AT Protocol plugin's settings and publication sync operations.
+Keep the Worker Loader binding and `PluginBridge` export described above. A ceiling of 10 is too low for the AT Protocol plugin's settings and first-login publication sync. Token-refresh sync and publishing with cross-posting can still exceed 30 bridge calls; these paths need plugin-side changes to avoid settings-rendering failures or unsaved external-write results.
 
 ## When the runner is unavailable
 
