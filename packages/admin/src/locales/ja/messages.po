@@ -2365,7 +2365,7 @@ msgstr "上限を指定…"
 #: packages/auth-atproto/src/admin.tsx:97
 #: packages/auth-atproto/src/admin.tsx:179
 msgid "Atmosphere Handle"
-msgstr ""
+msgstr "Atmosphereハンドル"
 
 #: packages/admin/src/components/BylineFormDialog.tsx:467
 msgid "Attribution"
@@ -3722,7 +3722,7 @@ msgstr "接続日：{0}"
 #: packages/auth-atproto/src/admin.tsx:111
 #: packages/auth-atproto/src/admin.tsx:200
 msgid "Connecting..."
-msgstr ""
+msgstr "接続中…"
 
 #: packages/admin/src/components/RelationList.tsx:101
 msgid "Connects"
@@ -7133,7 +7133,7 @@ msgstr "コンテンツへの分類項目の設定に失敗しました"
 #: packages/auth-atproto/src/admin.tsx:152
 #: packages/auth-atproto/src/admin.tsx:163
 msgid "Failed to start AT Protocol login"
-msgstr ""
+msgstr "AT Protocolでのログインを開始できませんでした"
 
 #: packages/admin/src/lib/api/transfer.ts:317
 msgid "Failed to start export"
@@ -13727,7 +13727,7 @@ msgstr "パスキーでログイン"
 
 #: packages/auth-atproto/src/admin.tsx:174
 msgid "Sign in with your Bluesky/Atmosphere handle"
-msgstr ""
+msgstr "Bluesky/Atmosphereハンドルでログイン"
 
 #: packages/admin/src/router.tsx:460
 msgid "Sign up"
