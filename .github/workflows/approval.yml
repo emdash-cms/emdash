@@ -359,8 +359,10 @@ jobs:
               const category = privileged ? 'governance or privileged supply-chain' : 'normal';
               const requirements = [];
               const requirement = (met, text) => requirements.push({ met, text });
-              // Handles are code-formatted so the comment doesn't notify the people it names.
+              // Only people the pull request is waiting on are mentioned, so the comment
+              // doesn't notify everyone it names.
               const handle = login => `\`@${login}\``;
+              const waitingOn = (login, met) => (met ? handle(login) : `@${login}`);
               const mentions = logins => logins.map(handle).join(', ');
 
               requirement(
@@ -374,7 +376,7 @@ jobs:
                   } else {
                     requirement(
                       hasApproved(sponsor),
-                      `The RFC sponsor ${handle(sponsor)} ${hasApproved(sponsor) ? 'has' : 'has not'} approved the current revision.`,
+                      `The RFC sponsor ${waitingOn(sponsor, hasApproved(sponsor))} ${hasApproved(sponsor) ? 'has' : 'has not'} approved the current revision.`,
                     );
                   }
                 }
@@ -388,7 +390,7 @@ jobs:
                 } else {
                   requirement(
                     hasApproved(projectLead),
-                    `The Project Lead ${handle(projectLead)} ${hasApproved(projectLead) ? 'has' : 'has not'} accepted the RFC.`,
+                    `The Project Lead ${waitingOn(projectLead, hasApproved(projectLead))} ${hasApproved(projectLead) ? 'has' : 'has not'} accepted the RFC.`,
                   );
                 }
               }

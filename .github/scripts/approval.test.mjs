@@ -262,7 +262,7 @@ describe("Design pull request review status", () => {
 		const test = design({ reviews: [review("maintainer-one"), review("maintainer-two")] });
 		await test.run();
 		assertStatus(test, "neutral", "review/needs-review");
-		assert.ok(test.state.checks[0].output.summary.includes("`@project-lead` has not accepted"));
+		assert.ok(test.state.checks[0].output.summary.includes("@project-lead has not accepted"));
 	});
 
 	it("needs an RFC supporter other than the Project Lead", async () => {
@@ -283,7 +283,7 @@ describe("Design pull request review status", () => {
 		const test = design({ reviews: [review("maintainer-two"), review("project-lead")] });
 		await test.run();
 		assertStatus(test, "neutral", "review/needs-review");
-		assert.ok(test.state.checks[0].output.summary.includes("`@maintainer-one` has not approved"));
+		assert.ok(test.state.checks[0].output.summary.includes("@maintainer-one has not approved"));
 	});
 
 	it("needs the RFC sponsor to be a Maintainer", async () => {
@@ -390,7 +390,7 @@ describe("Design pull request review status", () => {
 		await test.run();
 		assert.equal(test.state.comments.length, 1);
 		assert.ok(
-			test.state.comments[0].body.includes("❌ The Project Lead `@project-lead` has not accepted"),
+			test.state.comments[0].body.includes("❌ The Project Lead @project-lead has not accepted"),
 		);
 		await test.run();
 		assert.equal(test.state.commentWrites, 1);
