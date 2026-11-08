@@ -129,6 +129,31 @@ describe("copyEditsText", () => {
 		expect(text).toBe("Stage\nReady for review\n\nTopics\nNews, other");
 	});
 
+	it("reads a table as rows of tab-separated cells", () => {
+		const cell = (text: string) => ({
+			_type: "tableCell",
+			_key: `cell-${text}`,
+			content: text ? [{ _type: "span", _key: `span-${text}`, text }] : [],
+		});
+		const row = (key: string, ...texts: string[]) => ({
+			_type: "tableRow",
+			_key: key,
+			cells: texts.map(cell),
+		});
+		const body = [
+			block("Sizes in stock:"),
+			{
+				_type: "table",
+				_key: "sizes",
+				rows: [row("head", "Size", "Count"), row("empty", "", ""), row("small", "S", "12")],
+			},
+		];
+
+		const text = copyEditsText({ body: { kind: "portableText", label: "Body" } }, () => body);
+
+		expect(text).toBe("Body\nSizes in stock:\n\nSize\tCount\nS\t12");
+	});
+
 	it("leaves out empty values", () => {
 		const values: Record<string, unknown> = {
 			title: "Kept",

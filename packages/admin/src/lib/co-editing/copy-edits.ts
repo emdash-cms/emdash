@@ -65,8 +65,9 @@ function optionLabel(options: unknown, value: string): string {
 }
 
 /**
- * Text blocks one per line, list items marked and numbered as the editor shows them. A numbered
- * list keeps counting across blocks between its items when they share a `listId`.
+ * Text blocks one per line, list items marked and numbered as the editor shows them, and tables as
+ * rows of tab-separated cells. A numbered list keeps counting across blocks between its items when
+ * they share a `listId`.
  */
 function portableText(blocks: readonly unknown[]): string {
 	let text = "";
@@ -97,6 +98,7 @@ function portableText(blocks: readonly unknown[]): string {
 			endUnnamedLists(0);
 			if (block.kind === "text" && block.text.trim()) line = block.text;
 			else if (block.kind === "code" && block.code.trim()) line = block.code;
+			else if (block.kind === "opaque" && block.type === "table") line = tableText(block.raw);
 		}
 		const isListItem = listItem !== null;
 		if (!isListItem) previousWasListItem = false;
@@ -106,4 +108,21 @@ function portableText(blocks: readonly unknown[]): string {
 		previousWasListItem = isListItem;
 	}
 	return text;
+}
+
+function tableText(table: unknown): string {
+	if (!isRecord(table) || !Array.isArray(table.rows)) return "";
+	const rows: string[] = [];
+	for (const row of table.rows) {
+		if (!isRecord(row) || !Array.isArray(row.cells)) continue;
+		const cells = row.cells.map((cell) =>
+			isRecord(cell) && Array.isArray(cell.content)
+				? cell.content
+						.map((span) => (isRecord(span) && typeof span.text === "string" ? span.text : ""))
+						.join("")
+				: "",
+		);
+		if (cells.some((cell) => cell.trim())) rows.push(cells.join("\t"));
+	}
+	return rows.join("\n");
 }

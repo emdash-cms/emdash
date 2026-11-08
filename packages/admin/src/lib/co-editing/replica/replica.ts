@@ -337,9 +337,15 @@ export class Replica implements ReplicaHandle {
 		return () => listeners.delete(listener);
 	}
 
+	/** A value another client wrote in a shape the layout can't read shows as empty. */
 	#get(field: string): unknown {
 		if (this.#values.has(field)) return this.#values.get(field);
-		const value = readField(this.doc, this.#layoutField(field));
+		let value: unknown = null;
+		try {
+			value = readField(this.doc, this.#layoutField(field));
+		} catch (error) {
+			console.error(`[co-editing] couldn't read the field ${field}:`, error);
+		}
 		this.#values.set(field, value);
 		return value;
 	}
