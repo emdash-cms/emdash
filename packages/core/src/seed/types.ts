@@ -463,8 +463,8 @@ export interface MediaQueueItem {
  */
 export interface SeedMediaReference {
 	$media: (
-		| { /** URL to download the media from */ url: string; file?: never }
-		| { /** Local file relative to mediaBasePath */ file: string; url?: never }
+		| { /** URL to download the media from */ url: string; file?: null }
+		| { /** Local file relative to mediaBasePath */ file: string; url?: null }
 	) & {
 		/** Alt text for the image */
 		alt?: string;

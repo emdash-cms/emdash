@@ -1157,6 +1157,42 @@ describe("$media seed resolution", () => {
 		).toBeFalsy();
 	});
 
+	it.each([false, true])(
+		"imports URL references with file:null when skipMediaDownload is %s",
+		async (skipMediaDownload) => {
+			const url = "https://example.com/photo.png";
+			mockFetch.mockResolvedValue(createMockResponse(MOCK_PNG, "image/png"));
+			const seed: SeedFile = {
+				version: "1",
+				content: {
+					posts: [null, undefined].map((file, index) => ({
+						id: `nullable-file-${index}`,
+						slug: `nullable-file-${index}`,
+						data: { title: "URL image", featured_image: { $media: { url, file } } },
+					})),
+				},
+			};
+			const result = await applySeed(db, seed, {
+				includeContent: true,
+				storage,
+				skipMediaDownload,
+			});
+			expect(result.media).toEqual(
+				skipMediaDownload ? { created: 0, skipped: 2 } : { created: 1, skipped: 1 },
+			);
+			expect(mockFetch).toHaveBeenCalledTimes(skipMediaDownload ? 0 : 1);
+			expect(storage.uploads).toHaveLength(skipMediaDownload ? 0 : 1);
+			const repo = new ContentRepository(db);
+			const first = await repo.findBySlug("posts", "nullable-file-0");
+			const second = await repo.findBySlug("posts", "nullable-file-1");
+			expect(first?.data.featured_image).toMatchObject({
+				provider: skipMediaDownload ? "external" : "local",
+				...(skipMediaDownload ? { src: url } : { mimeType: "image/png" }),
+			});
+			expect(first?.data.featured_image).toEqual(second?.data.featured_image);
+		},
+	);
+
 	it("still rejects localhost URLs and ambiguous url/file references", async () => {
 		const localhost: SeedFile = {
 			version: "1",

@@ -2433,7 +2433,9 @@ async function resolveMedia(
 	ctx: MediaContext,
 	result: SeedApplyResult,
 ): Promise<MediaValue | null> {
-	const { url, file, alt, filename, caption, libraryCaption } = ref.$media;
+	const { alt, filename, caption, libraryCaption } = ref.$media;
+	const url = ref.$media.url ?? undefined;
+	const file = ref.$media.file ?? undefined;
 	const source = file ?? url;
 	const cacheKey = file === undefined ? `url:${url}` : `file:${file}`;
 	if ((file !== undefined && url !== undefined) || !source) {

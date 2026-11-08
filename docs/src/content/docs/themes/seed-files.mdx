@@ -485,9 +485,9 @@ To import an image from the local filesystem, use `file` instead of `url`:
 }
 ```
 
-Place the image at `seed/assets/launch.jpg`. The `emdash seed` CLI, setup wizard, and dev-bypass resolve `file` relative to the selected seed file's directory. Programmatic callers must set `mediaBasePath` to the directory containing the files. Supply exactly one of `file` or `url`. Absolute paths, paths outside the base directory, and symlinks that escape it are rejected.
+Place the image at `seed/assets/launch.jpg`. The `emdash seed` CLI, setup wizard, and dev-bypass resolve `file` relative to the selected seed file's directory. Programmatic callers must set `mediaBasePath` to the directory containing the files. Supply exactly one non-null `file` or `url`; null values are treated as absent. Absolute paths, paths outside the base directory, and symlinks that escape it are rejected.
 
-Local files require a Node.js filesystem at seed-apply time. They are not bundled into the deployment. For Astro setup, the seed directory must remain at the same path used during the build. On Workers, use public URLs or apply the seed locally with the CLI. URL references still reject localhost and internal hosts; `file` does not fetch over HTTP.
+Local files require a Node.js filesystem at seed-apply time. They are not bundled into the deployment. For Astro setup, the seed directory must remain at the same path used during the build. On Workers, use public URLs for `$media`. The `emdash seed` CLI applies to local SQLite and filesystem storage, not D1 or R2. URL references still reject localhost and internal hosts; `file` does not fetch over HTTP.
 
 The filename defaults to the local file's basename, and its extension determines the MIME type. Local files use the same storage upload, image dimensions, captions, and content-hash deduplication as downloaded media. Within one apply call, repeated references to the same file or URL reuse the resolved media value.
 
