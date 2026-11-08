@@ -82,8 +82,7 @@ export interface CalendarEntryPanelProps {
 	/** Each collection's public URL pattern, for View live. */
 	urlPatterns: Readonly<Record<string, string | undefined>>;
 	user: CurrentUser | undefined;
-	/** Whether the collection allows changing an existing schedule. */
-	supportsScheduling?: boolean;
+	collections: AdminManifest["collections"];
 	/** The entry link to focus when the panel closes, if it is still on the page. */
 	returnFocus?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
@@ -176,7 +175,7 @@ function CalendarEntryPanelContent({
 	i18n,
 	urlPatterns,
 	user,
-	supportsScheduling = true,
+	collections,
 	onClose,
 	onRescheduled,
 }: CalendarEntryPanelProps & { item: CalendarItem }) {
@@ -203,6 +202,7 @@ function CalendarEntryPanelContent({
 	const entry = details.data;
 	const canPublish = Boolean(entry && canPublishEntry(user, { authorId: entry.authorId ?? null }));
 	const scheduled = item.kind === "scheduled";
+	const supportsScheduling = !collections[item.collection]?.supports?.includes("no-scheduling");
 	const title = item.title;
 	const editorLink = {
 		to: "/content/$collection/$id",
