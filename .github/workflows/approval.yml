@@ -359,7 +359,9 @@ jobs:
               const category = privileged ? 'governance or privileged supply-chain' : 'normal';
               const requirements = [];
               const requirement = (met, text) => requirements.push({ met, text });
-              const mentions = logins => logins.map(login => `@${login}`).join(', ');
+              // Handles are code-formatted so the comment doesn't notify the people it names.
+              const handle = login => `\`@${login}\``;
+              const mentions = logins => logins.map(handle).join(', ');
 
               requirement(
                 independentApprovers.length >= required,
@@ -368,11 +370,11 @@ jobs:
               if (rfcs.length > 0) {
                 for (const sponsor of new Set(rfcs.map(rfc => rfc.sponsor))) {
                   if (!sponsor || !maintainers.has(sponsor)) {
-                    requirement(false, `The RFC sponsor must be a Maintainer; found ${sponsor ? `@${sponsor}` : 'none'}.`);
+                    requirement(false, `The RFC sponsor must be a Maintainer; found ${sponsor ? handle(sponsor) : 'none'}.`);
                   } else {
                     requirement(
                       hasApproved(sponsor),
-                      `The RFC sponsor @${sponsor} ${hasApproved(sponsor) ? 'has' : 'has not'} approved the current revision.`,
+                      `The RFC sponsor ${handle(sponsor)} ${hasApproved(sponsor) ? 'has' : 'has not'} approved the current revision.`,
                     );
                   }
                 }
@@ -386,7 +388,7 @@ jobs:
                 } else {
                   requirement(
                     hasApproved(projectLead),
-                    `The Project Lead @${projectLead} ${hasApproved(projectLead) ? 'has' : 'has not'} accepted the RFC.`,
+                    `The Project Lead ${handle(projectLead)} ${hasApproved(projectLead) ? 'has' : 'has not'} accepted the RFC.`,
                   );
                 }
               }
