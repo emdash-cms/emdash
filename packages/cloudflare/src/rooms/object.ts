@@ -80,10 +80,12 @@ export class EmDashRoom extends DurableObject {
 
 	async isOpen(): Promise<boolean> {
 		await this.#closeSilent();
+		if (this.#holdsNothing()) return false;
 		return (await this.#loadRoom()).isOpen();
 	}
 
 	async save(actorId: string, rev?: string): Promise<RoomSaveReply> {
+		if (this.#holdsNothing()) return null;
 		const room = await this.#loadRoom();
 		try {
 			return await room.save(actorId, rev);
@@ -94,14 +96,17 @@ export class EmDashRoom extends DurableObject {
 	}
 
 	async release(hold: string, options?: { overwrite?: boolean }): Promise<void> {
+		if (this.#holdsNothing()) return;
 		return (await this.#loadRoom()).release(hold, options);
 	}
 
 	async notify(outside: OutsideValue[]): Promise<void> {
+		if (this.#holdsNothing()) return;
 		return (await this.#loadRoom()).notify(outside);
 	}
 
 	async forgetTokens(userId: string): Promise<void> {
+		if (this.#holdsNothing()) return;
 		return (await this.#loadRoom()).forgetTokens(userId);
 	}
 
@@ -209,6 +214,14 @@ export class EmDashRoom extends DurableObject {
 		if (now - socket.seenAt <= SEEN_STORE_MS) return;
 		socket.seenAt = now;
 		this.#attach(ws, socket);
+	}
+
+	/**
+	 * Whether the room is closed without loading it: tokens, holds and close times live only in a
+	 * loaded room's memory, so an instance without one and without sockets has none.
+	 */
+	#holdsNothing(): boolean {
+		return this.#room === null && this.#sockets.size === 0;
 	}
 
 	/** Closes the sockets that went silent, and forgets them as closed. */

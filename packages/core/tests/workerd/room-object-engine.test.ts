@@ -16,8 +16,11 @@ describe("EmDashRoom's room engine", () => {
 		engine.actual = await vi.importActual("emdash/internal/co-editing/room");
 	});
 
-	it("isn't imported to reject an upgrade to a fresh object, only once a room needs it", async () => {
+	it("isn't imported to answer for a fresh object or reject an upgrade to it, only once a room needs it", async () => {
 		const { site, stub } = newRoom();
+		expect(await stub.isOpen()).toBe(false);
+		await stub.notify(["seo"]);
+		expect(engine.imports).toBe(0);
 		const stranger = new RoomClient("eve");
 		await stranger.upgrade(stub, "not-a-token");
 		await vi.waitFor(() => expect(stranger.closed?.code).toBe(CLOSE_CODES.busy));
