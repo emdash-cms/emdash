@@ -17,6 +17,7 @@ This document explains our accessibility commitment, how contributors can help u
 If you run into an accessibility barrier, please let us know by [opening an issue](https://github.com/emdash-cms/emdash/issues/new/choose). We treat accessibility reports as expertise, not complaints.
 
 Include, when possible:
+
 - What you were trying to do and what went wrong.
 - The page URL.
 - Steps to reproduce.
