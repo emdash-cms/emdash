@@ -541,6 +541,7 @@ export function ImageDetailPanel({
 
 					<div className="space-y-2">
 						<Input
+							dir="ltr"
 							label={t`Link URL`}
 							type="text"
 							value={linkHref}
@@ -562,6 +563,7 @@ export function ImageDetailPanel({
 							<Label htmlFor={sourceInputId}>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
 								<Input
+									dir="ltr"
 									id={sourceInputId}
 									aria-label={t`Source`}
 									value={asset.src}
@@ -766,6 +768,7 @@ export function ImageDetailPanel({
 
 					<div className="space-y-2">
 						<Input
+							dir="ltr"
 							label={t`Link URL`}
 							type="text"
 							value={linkHref}
@@ -786,7 +789,12 @@ export function ImageDetailPanel({
 						<div>
 							<Label>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
-								<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-base" />
+								<Input
+									dir="ltr"
+									value={asset.src}
+									readOnly
+									className="min-w-0 flex-1 font-mono text-base"
+								/>
 								<LinkButton
 									variant="outline"
 									shape="square"

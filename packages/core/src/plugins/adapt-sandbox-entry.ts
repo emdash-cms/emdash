@@ -345,6 +345,8 @@ export function adaptSandboxEntry(
 
 	return {
 		id: pluginId,
+		displayName: descriptor.displayName,
+		description: descriptor.description,
 		version,
 		capabilities,
 		allowedHosts,

@@ -586,6 +586,10 @@ describe("RevisionViewCanvas", () => {
 					caption: "",
 				},
 			],
+			[
+				block("h3", "What goes on it", { style: "h3" }),
+				textBlock("What goes on it", { style: "h3" }),
+			],
 			[table, { kind: "opaque", key: null, type: "table", raw: table }],
 			[block("e", ""), textBlock("")],
 			[block("end", "The end."), textBlock("The end.")],

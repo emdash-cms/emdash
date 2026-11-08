@@ -11,10 +11,39 @@ import {
 	syncDeclaredStorageIndexes,
 	removeAllPluginIndexes,
 	getPluginIndexStatus,
+	generateIndexName,
 } from "../../../src/plugins/storage-indexes.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const UNIQUE_CONSTRAINT_PATTERN = /UNIQUE constraint failed/;
+
+/**
+ * Attach an audit trigger that counts UPDATEs on _plugin_indexes.
+ * Returns a function that reads the current count. SQLite only.
+ */
+async function attachIndexUpdateCounter(db: Kysely<Database>): Promise<() => Promise<number>> {
+	await sql`
+		CREATE TABLE IF NOT EXISTS _plugin_index_update_audit (n INTEGER NOT NULL DEFAULT 1)
+	`.execute(db);
+	await sql`DELETE FROM _plugin_index_update_audit`.execute(db);
+	await sql`
+		DROP TRIGGER IF EXISTS _plugin_index_update_trigger
+	`.execute(db);
+	await sql`
+		CREATE TRIGGER _plugin_index_update_trigger
+		AFTER UPDATE ON _plugin_indexes
+		BEGIN
+			INSERT INTO _plugin_index_update_audit (n) VALUES (1);
+		END
+	`.execute(db);
+
+	return async () => {
+		const result = await sql<{ count: number }>`
+			SELECT COALESCE(SUM(n), 0) AS count FROM _plugin_index_update_audit
+		`.execute(db);
+		return result.rows[0].count;
+	};
+}
 
 describe("Plugin Storage Indexes Integration", () => {
 	let db: Kysely<Database>;
@@ -27,11 +56,89 @@ describe("Plugin Storage Indexes Integration", () => {
 		await teardownTestDatabase(db);
 	});
 
+	describe("unchanged declaration writes", () => {
+		it("does not UPDATE _plugin_indexes rows when declarations are unchanged", async () => {
+			const getUpdateCount = await attachIndexUpdateCounter(db);
+
+			// First sync creates two tracking rows.
+			await createStorageIndexes(db, "write-repro", "records", ["status", ["status", "updatedAt"]]);
+			expect(await getUpdateCount()).toBe(0);
+
+			// Repeated sync with identical declarations should not write the
+			// registry rows again, matching the reproduction in issue #4228.
+			await createStorageIndexes(db, "write-repro", "records", ["status", ["status", "updatedAt"]]);
+			expect(await getUpdateCount()).toBe(0);
+
+			const rows = await db
+				.selectFrom("_plugin_indexes")
+				.selectAll()
+				.where("plugin_id", "=", "write-repro")
+				.execute();
+			expect(rows).toHaveLength(2);
+		});
+
+		it("still UPDATES _plugin_indexes when stored fields differ", async () => {
+			await createStorageIndexes(db, "write-repro", "records", ["status"], {
+				uniqueIndexes: ["slug"],
+			});
+
+			// Simulate a stale/corrupted tracking row where the stored fields
+			// disagree with the declared index. Re-syncing should rewrite it.
+			await db
+				.updateTable("_plugin_indexes")
+				.set({ fields: JSON.stringify(["oldField"]) })
+				.where("plugin_id", "=", "write-repro")
+				.where("index_name", "=", "idx_plugin_write-repro_records_status")
+				.execute();
+
+			const getUpdateCount = await attachIndexUpdateCounter(db);
+
+			await createStorageIndexes(db, "write-repro", "records", ["status"], {
+				uniqueIndexes: ["slug"],
+			});
+
+			// Only the mismatched regular-index row is rewritten.
+			expect(await getUpdateCount()).toBe(1);
+			const row = await db
+				.selectFrom("_plugin_indexes")
+				.select("fields")
+				.where("plugin_id", "=", "write-repro")
+				.where("index_name", "=", "idx_plugin_write-repro_records_status")
+				.executeTakeFirstOrThrow();
+			expect(JSON.parse(row.fields)).toEqual(["status"]);
+		});
+
+		it("repairs a missing physical index without rewriting unchanged registry rows", async () => {
+			await createStorageIndexes(db, "write-repro", "records", ["status"]);
+
+			// Drop the physical index from sqlite_master but leave the tracking
+			// row in place, simulating a partial previous sync.
+			await sql`
+				DROP INDEX IF EXISTS ${sql.ref("idx_plugin_write-repro_records_status")}
+			`.execute(db);
+
+			const getUpdateCount = await attachIndexUpdateCounter(db);
+
+			// Re-creating the same declaration should repair the index without
+			// touching the registry row.
+			const result = await createStorageIndexes(db, "write-repro", "records", ["status"]);
+			expect(result.created).toContain("idx_plugin_write-repro_records_status");
+			expect(result.errors).toHaveLength(0);
+			expect(await getUpdateCount()).toBe(0);
+
+			const repaired = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name = 'idx_plugin_write-repro_records_status'
+			`.execute(db);
+			expect(repaired.rows).toHaveLength(1);
+		});
+	});
+
 	describe("createStorageIndexes", () => {
 		it("should create single-field index", async () => {
 			const result = await createStorageIndexes(db, "my-plugin", "events", ["eventType"]);
 
-			expect(result.created).toContain("idx_plugin_my-plugin_events_eventType");
+			expect(result.created).toContain(generateIndexName("my-plugin", "events", ["eventType"]));
 			expect(result.errors).toHaveLength(0);
 		});
 
@@ -40,7 +147,9 @@ describe("Plugin Storage Indexes Integration", () => {
 				["status", "createdAt"],
 			]);
 
-			expect(result.created).toContain("idx_plugin_my-plugin_events_status_createdAt");
+			expect(result.created).toContain(
+				generateIndexName("my-plugin", "events", ["status", "createdAt"]),
+			);
 			expect(result.errors).toHaveLength(0);
 		});
 
@@ -152,8 +261,8 @@ describe("Plugin Storage Indexes Integration", () => {
 			// Sync to new state
 			const result = await syncStorageIndexes(db, "my-plugin", "events", ["eventType", "newField"]);
 
-			expect(result.created).toContain("idx_plugin_my-plugin_events_newField");
-			expect(result.removed).toContain("idx_plugin_my-plugin_events_oldField");
+			expect(result.created).toContain(generateIndexName("my-plugin", "events", ["newField"]));
+			expect(result.removed).toContain(generateIndexName("my-plugin", "events", ["oldField"]));
 
 			const status = await getPluginIndexStatus(db, "my-plugin");
 			const fields = status.map((s) => s.fields);
@@ -271,7 +380,9 @@ describe("Plugin Storage Indexes Integration", () => {
 				AND name LIKE 'idx_plugin_%'
 			`.execute(db);
 
-			expect(indexes.rows.map((r) => r.name)).toContain("idx_plugin_my-plugin_events_eventType");
+			expect(indexes.rows.map((r) => r.name)).toContain(
+				generateIndexName("my-plugin", "events", ["eventType"]),
+			);
 		});
 
 		it("should drop actual SQLite index on removal", async () => {
@@ -294,6 +405,7 @@ describe("Plugin Storage Indexes Integration", () => {
 				uniqueIndexes: ["slug"],
 			});
 
+			expect(result.created).toContain("idx_plugin_my-plugin_forms_slug");
 			expect(result.created).toContain("uidx_plugin_my-plugin_forms_slug");
 			expect(result.errors).toHaveLength(0);
 
@@ -410,11 +522,81 @@ describe("Plugin Storage Indexes Integration", () => {
 			await syncDeclaredStorageIndexes(db, plugins);
 
 			const tracked = await db.selectFrom("_plugin_indexes").select("index_name").execute();
-			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
-				"idx_plugin_audit-log_entries_timestamp",
-				"idx_plugin_forms_submissions_formId",
-				"uidx_plugin_forms_submissions_token",
+			expect(tracked.map((r) => r.index_name).toSorted()).toEqual(
+				[
+					generateIndexName("audit-log", "entries", ["timestamp"]),
+					generateIndexName("forms", "submissions", ["formId"]),
+					generateIndexName("forms", "submissions", ["token"]),
+					generateIndexName("forms", "submissions", ["token"], { unique: true }),
+				].toSorted(),
+			);
+		});
+
+		it("returns an incomplete result when a unique index conflicts with existing data", async () => {
+			const pluginId = "conflict-plugin";
+			const repo = new PluginStorageRepository<{ externalId: string }>(db, pluginId, "records", [
+				"externalId",
 			]);
+
+			await repo.put("a", { externalId: "duplicate" });
+			await repo.put("b", { externalId: "duplicate" });
+
+			const result = await syncDeclaredStorageIndexes(db, [
+				{
+					id: pluginId,
+					storage: { records: { indexes: ["status"], uniqueIndexes: ["externalId"] } },
+				},
+			]);
+
+			expect(result.ok).toBe(false);
+			expect(result.errors.length).toBeGreaterThan(0);
+			expect(result.errors.some((e) => e.index.includes("uidx_") && e.pluginId === pluginId)).toBe(
+				true,
+			);
+
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.where("plugin_id", "=", pluginId)
+				.select("index_name")
+				.execute();
+			expect(tracked).toHaveLength(2);
+		});
+
+		it("retries a previously failed unique index after the conflict is removed", async () => {
+			const pluginId = "retry-plugin";
+			const repo = new PluginStorageRepository<{ externalId: string }>(db, pluginId, "records", [
+				"externalId",
+			]);
+
+			await repo.put("a", { externalId: "duplicate" });
+			await repo.put("b", { externalId: "duplicate" });
+
+			const declaration = {
+				id: pluginId,
+				storage: { records: { indexes: ["status"], uniqueIndexes: ["externalId"] } },
+			};
+
+			const first = await syncDeclaredStorageIndexes(db, [declaration]);
+			expect(first.ok).toBe(false);
+
+			await repo.delete("b");
+
+			const second = await syncDeclaredStorageIndexes(db, [declaration]);
+			expect(second.ok).toBe(true);
+			expect(second.errors).toHaveLength(0);
+
+			const tracked = await db
+				.selectFrom("_plugin_indexes")
+				.where("plugin_id", "=", pluginId)
+				.select("index_name")
+				.execute();
+			expect(tracked.map((r) => r.index_name).toSorted()).toEqual(
+				[
+					generateIndexName("retry-plugin", "records", ["externalId"]),
+					generateIndexName("retry-plugin", "records", ["status"]),
+					generateIndexName("retry-plugin", "records", ["externalId"], { unique: true }),
+				].toSorted(),
+			);
 		});
 	});
 

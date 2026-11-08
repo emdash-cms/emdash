@@ -124,6 +124,11 @@ function jsonResponse(body: unknown, status = 200) {
 	});
 }
 
+/** A `_rev` encoded like the server's, so the client can tell which is newer. */
+function rev(version: number) {
+	return btoa(`${version}:2026-01-02T00:00:00Z`);
+}
+
 function revisionResponse(id: string, data: Record<string, unknown>) {
 	return jsonResponse({
 		data: {
@@ -151,6 +156,7 @@ function createMockServer() {
 	let restored = false;
 	let draftId = "revision-draft";
 	let autosaves = 0;
+	let version = 1;
 	let releaseRestoredEntry = () => {};
 	const restoredEntryReleased = new Promise<void>((resolve) => {
 		releaseRestoredEntry = resolve;
@@ -226,14 +232,14 @@ function createMockServer() {
 		if (method === "GET" && url.startsWith("/_emdash/api/content/posts/post_1")) {
 			if (!restored) {
 				const gate = gates.entry.shift();
-				const response = jsonResponse({ data: { item: makeItem(), _rev: "rev-initial" } });
+				const response = jsonResponse({ data: { item: makeItem(), _rev: rev(1) } });
 				await gate;
 				return response;
 			}
 			await restoredEntryReleased;
 			// Like the server, the entry read carries its draft revision's data.
 			const item = makeItem({ draftRevisionId: "revision-restored", data: OLD_DATA });
-			return jsonResponse({ data: { item, _rev: "rev-restored" } });
+			return jsonResponse({ data: { item, _rev: rev(version) } });
 		}
 		if (method === "GET" && url === "/_emdash/api/revisions/revision-draft") {
 			return revisionResponse("revision-draft", { ...DRAFT_DATA, ...DRAFT_INTERNALS });
@@ -244,19 +250,21 @@ function createMockServer() {
 		if (method === "PUT" && url.startsWith("/_emdash/api/content/posts/post_1")) {
 			await gates.autosave.shift();
 			autosaves++;
+			version++;
 			draftId = `revision-autosaved-${autosaves}`;
 			// A draft autosave leaves the entry's updatedAt where it was.
 			const item = makeItem({
 				draftRevisionId: draftId,
 				data: body?.data as Record<string, unknown>,
 			});
-			return jsonResponse({ data: { item, _rev: `rev-autosaved-${autosaves}` } });
+			return jsonResponse({ data: { item, _rev: rev(version) } });
 		}
 		if (method === "POST" && url === "/_emdash/api/revisions/revision-old/restore") {
 			restored = true;
+			version++;
 			draftId = "revision-restored";
 			const item = makeItem({ draftRevisionId: "revision-restored", data: OLD_DATA });
-			return jsonResponse({ data: { item, _rev: "rev-restored" } });
+			return jsonResponse({ data: { item, _rev: rev(version) } });
 		}
 
 		throw new Error(`Unhandled request: ${method} ${url}`);

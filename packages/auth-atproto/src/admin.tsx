@@ -6,6 +6,7 @@
  */
 
 import { Button, Input } from "@cloudflare/kumo";
+import { Trans, useLingui } from "@lingui/react";
 import * as React from "react";
 
 // ============================================================================
@@ -34,10 +35,21 @@ export function LoginButton() {
 }
 
 // ============================================================================
+// LoginHelp — shown beneath the provider's LoginForm on the login page
+// ============================================================================
+
+export function loginHelp() {
+	// Reuse the message's generated ID to retain existing admin translations.
+	// This package ships source, so use runtime Trans rather than a build-time macro.
+	return <Trans id="TZGT4o" message="Enter your handle to sign in." />;
+}
+
+// ============================================================================
 // LoginForm — expanded form shown when LoginButton is clicked
 // ============================================================================
 
 export function LoginForm() {
+	const { i18n } = useLingui();
 	const [handle, setHandle] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
@@ -61,13 +73,20 @@ export function LoginForm() {
 
 			if (!response.ok) {
 				const body: { error?: { message?: string } } = await response.json().catch(() => ({}));
-				throw new Error(body?.error?.message || "Failed to start AT Protocol login");
+				throw new Error(
+					body?.error?.message ||
+						i18n._({ id: "9M2CU4", message: "Failed to start AT Protocol login" }),
+				);
 			}
 
 			const result: { data: { url: string } } = await response.json();
 			window.location.href = result.data.url;
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to start AT Protocol login");
+			setError(
+				err instanceof Error
+					? err.message
+					: i18n._({ id: "9M2CU4", message: "Failed to start AT Protocol login" }),
+			);
 			setIsLoading(false);
 		}
 	};
@@ -75,7 +94,7 @@ export function LoginForm() {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-3">
 			<Input
-				label="Atmosphere Handle"
+				label={i18n._({ id: "/gyI39", message: "Atmosphere Handle" })}
 				type="text"
 				value={handle}
 				onChange={(e) => setHandle(e.target.value)}
@@ -88,7 +107,9 @@ export function LoginForm() {
 			)}
 
 			<Button type="submit" className="w-full" disabled={isLoading || !handle.trim()}>
-				{isLoading ? "Connecting..." : "Sign in"}
+				{isLoading
+					? i18n._({ id: "J28zul", message: "Connecting..." })
+					: i18n._({ id: "5lWFkC", message: "Sign in" })}
 			</Button>
 		</form>
 	);
@@ -99,6 +120,7 @@ export function LoginForm() {
 // ============================================================================
 
 export function SetupStep({ onComplete }: { onComplete: () => void }) {
+	const { i18n } = useLingui();
 	const [handle, setHandle] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
@@ -125,14 +147,21 @@ export function SetupStep({ onComplete }: { onComplete: () => void }) {
 
 			if (!response.ok) {
 				const body: { error?: { message?: string } } = await response.json().catch(() => ({}));
-				throw new Error(body?.error?.message || "Failed to start AT Protocol login");
+				throw new Error(
+					body?.error?.message ||
+						i18n._({ id: "9M2CU4", message: "Failed to start AT Protocol login" }),
+				);
 			}
 
 			const result: { data: { url: string } } = await response.json();
 			// Redirect to PDS authorization page — onComplete will be called after redirect back
 			window.location.href = result.data.url;
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to start AT Protocol login");
+			setError(
+				err instanceof Error
+					? err.message
+					: i18n._({ id: "9M2CU4", message: "Failed to start AT Protocol login" }),
+			);
 			setIsLoading(false);
 		}
 	};
@@ -141,11 +170,13 @@ export function SetupStep({ onComplete }: { onComplete: () => void }) {
 		<form onSubmit={handleSubmit} className="space-y-3">
 			<div className="text-center mb-2">
 				<p className="text-sm font-medium text-kumo-default">Atmosphere</p>
-				<p className="text-xs text-kumo-subtle">Sign in with your Bluesky/Atmosphere handle</p>
+				<p className="text-xs text-kumo-subtle">
+					{i18n._({ id: "jS2X6L", message: "Sign in with your Bluesky/Atmosphere handle" })}
+				</p>
 			</div>
 
 			<Input
-				label="Atmosphere Handle"
+				label={i18n._({ id: "/gyI39", message: "Atmosphere Handle" })}
 				name="handle"
 				type="text"
 				value={handle}
@@ -165,7 +196,9 @@ export function SetupStep({ onComplete }: { onComplete: () => void }) {
 				className="w-full"
 				disabled={isLoading || !handle.trim()}
 			>
-				{isLoading ? "Connecting..." : "Sign in"}
+				{isLoading
+					? i18n._({ id: "J28zul", message: "Connecting..." })
+					: i18n._({ id: "5lWFkC", message: "Sign in" })}
 			</Button>
 		</form>
 	);

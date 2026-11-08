@@ -4,6 +4,7 @@ import {
 	formatPublishingInstant,
 	formatPublishingInstantWithZone,
 	getPublishingTimeZone,
+	nextPublishingScheduleSlot,
 	publishingFieldsMatchInstant,
 	publishingInstantToLocalFields,
 	resolvePublishingLocalDateTime,
@@ -11,6 +12,11 @@ import {
 } from "../../src/lib/publishing-datetime.js";
 
 describe("publishing date-time helpers", () => {
+	it.each(["", "not a date", "0000-00-00 00:00:00"])("renders %s as empty", (value) => {
+		expect(formatPublishingInstant(value, "en")).toBe("");
+		expect(formatPublishingInstantWithZone(value, "en")).toBe("");
+	});
+
 	it("round-trips an instant through browser-local minute fields", () => {
 		const fields = publishingInstantToLocalFields("2026-07-01T13:30:00.000Z");
 
@@ -69,6 +75,17 @@ describe("publishing date-time helpers", () => {
 		expect(publishingFieldsMatchInstant("2026-07-01T13:30:45.123Z", fields.date, fields.time)).toBe(
 			true,
 		);
+	});
+
+	it("suggests the next whole hour at least five minutes away", () => {
+		expect(nextPublishingScheduleSlot(new Date(2035, 5, 15, 8, 55))).toEqual({
+			date: new Date(2035, 5, 15, 12),
+			time: "09:00",
+		});
+		expect(nextPublishingScheduleSlot(new Date(2035, 5, 15, 23, 56))).toEqual({
+			date: new Date(2035, 5, 16, 12),
+			time: "01:00",
+		});
 	});
 
 	it("formats the instant and reports the browser time zone", () => {

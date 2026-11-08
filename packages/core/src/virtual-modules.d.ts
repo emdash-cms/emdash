@@ -142,7 +142,7 @@ declare module "virtual:emdash/auth" {
 declare module "virtual:emdash/plugins" {
 	import type { ResolvedPlugin } from "./plugins/types.js";
 
-	export const plugins: ResolvedPlugin[];
+	export const plugins: ResolvedPlugin[] | (() => ResolvedPlugin[]);
 }
 
 declare module "virtual:emdash/sandbox-runner" {
@@ -170,6 +170,7 @@ declare module "virtual:emdash/auth-providers" {
 		label: string;
 		LoginButton?: ComponentType;
 		LoginForm?: ComponentType;
+		loginHelp?: string | ComponentType;
 		SetupStep?: ComponentType<{ onComplete: () => void }>;
 	}
 
@@ -188,8 +189,9 @@ declare module "virtual:emdash/wait-until" {
 declare module "virtual:emdash/env" {
 	/**
 	 * Worker bindings/secrets. Resolves to Cloudflare's `env` (from
-	 * `cloudflare:workers`) under @astrojs/cloudflare; `undefined` on Node,
-	 * where callers should fall back to `import.meta.env`.
+	 * `cloudflare:workers`) under @astrojs/cloudflare. `undefined` on Node,
+	 * where callers that need runtime secrets prefer `process.env` over the
+	 * build-time `import.meta.env` snapshot.
 	 */
 	export const env: Record<string, unknown> | undefined;
 }
@@ -213,6 +215,10 @@ declare module "virtual:emdash/scheduler" {
 	 * Trigger drives scheduled work instead.
 	 */
 	export const createScheduler: CreateSchedulerFn | null;
+}
+
+declare module "virtual:emdash/admin-loader" {
+	export function loadPluginAdmins(): Promise<typeof import("virtual:emdash/admin-registry")>;
 }
 
 declare module "virtual:emdash/admin-registry" {

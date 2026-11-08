@@ -7,6 +7,8 @@
  *   Tier 3: Unknown blocks <-> opaque HTML comment fences (preserved, not editable)
  */
 
+import { Marked, type MarkedToken, type Tokens } from "marked";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -54,6 +56,7 @@ interface ParsedInline {
 export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	const lines: string[] = [];
 	let prevWasList = false;
+	const listWidths: number[] = [];
 
 	for (let i = 0; i < blocks.length; i++) {
 		const block = blocks[i];
@@ -66,7 +69,14 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 				lines.push("");
 			}
 
-			lines.push(renderStandardBlock(block));
+			const level = Math.max(1, block.level ?? 1);
+			const indent = Array.from({ length: level - 1 }, (_, index) => listWidths[index] ?? 2).reduce(
+				(sum, width) => sum + width,
+				0,
+			);
+			listWidths[level - 1] = block.listItem === "number" ? 3 : 2;
+			listWidths.length = isList ? level : 0;
+			lines.push(renderStandardBlock(block, indent));
 			prevWasList = isList;
 		} else if (block._type === "code") {
 			if (i > 0) lines.push("");
@@ -82,6 +92,10 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 			const url = (block.asset as { url?: string })?.url || "";
 			lines.push(`![${alt}](${url})`);
 			prevWasList = false;
+		} else if (block._type === "table") {
+			if (i > 0) lines.push("");
+			lines.push(renderTable(block) ?? `<!--ec:block ${JSON.stringify(block)} -->`);
+			prevWasList = false;
 		} else {
 			// Tier 3: Unknown block -> opaque fence
 			if (i > 0) lines.push("");
@@ -93,497 +107,454 @@ export function portableTextToMarkdown(blocks: PortableTextBlock[]): string {
 	return lines.join("\n") + "\n";
 }
 
-function renderStandardBlock(block: PortableTextBlock): string {
-	const text = renderSpans(block.children ?? [], block.markDefs ?? []);
+const LINE_BREAK_PATTERN = /[\n\r]/;
+const CODE_EDGE_PATTERN = /^`|`$/;
+const PADDED_CODE_PATTERN = /^ .* $/;
+const CODE_PIPE_PATTERN = /\\\|/;
+
+interface MarkdownTableCell {
+	_type: string;
+	content: PortableTextSpan[];
+	markDefs?: MarkDef[];
+	isHeader?: boolean;
+	colspan?: number;
+	rowspan?: number;
+	colwidth?: unknown;
+	textAlign?: string;
+}
+
+const TABLE_FIELDS = new Set(["_type", "_key", "rows", "hasHeaderRow", "markDefs"]);
+const ROW_FIELDS = new Set(["_type", "_key", "cells"]);
+const CELL_FIELDS = new Set([
+	"_type",
+	"_key",
+	"content",
+	"markDefs",
+	"isHeader",
+	"colspan",
+	"rowspan",
+	"colwidth",
+	"textAlign",
+]);
+const SPAN_FIELDS = new Set(["_type", "_key", "text", "marks"]);
+const LINK_FIELDS = new Set(["_type", "_key", "href"]);
+const MARKDOWN_MARKS = new Set(["strong", "em", "code", "strike-through", "strikethrough"]);
+
+function hasOnlyFields(value: object, fields: Set<string>): boolean {
+	return Object.keys(value).every((key) => fields.has(key));
+}
+
+function canRenderMarkDefs(defs: MarkDef[]): boolean {
+	return defs.every(
+		(def) =>
+			def?._type === "link" &&
+			hasOnlyFields(def, LINK_FIELDS) &&
+			!def.href?.includes("\\") &&
+			!def.href?.includes("|"),
+	);
+}
+
+function renderTable(block: PortableTextBlock): string | undefined {
+	if (
+		!Array.isArray(block.rows) ||
+		!block.rows.length ||
+		!hasOnlyFields(block, TABLE_FIELDS) ||
+		!canRenderMarkDefs(block.markDefs ?? [])
+	)
+		return undefined;
+	const rows = block.rows as Array<{ cells?: MarkdownTableCell[] }>;
+	const width = rows[0]?.cells?.length;
+	if (!width || !block.hasHeaderRow) return undefined;
+	const rendered: string[] = [];
+	for (const [index, row] of rows.entries()) {
+		if (!Array.isArray(row?.cells) || row.cells.length !== width || !hasOnlyFields(row, ROW_FIELDS))
+			return undefined;
+		const cells: string[] = [];
+		for (const [column, cell] of row.cells.entries()) {
+			// GFM cannot represent merged cells, per-row alignment, or column widths.
+			if (
+				!cell ||
+				cell._type !== "tableCell" ||
+				!hasOnlyFields(cell, CELL_FIELDS) ||
+				!canRenderMarkDefs(cell.markDefs ?? []) ||
+				!Array.isArray(cell.content) ||
+				(cell.colspan ?? 1) !== 1 ||
+				(cell.rowspan ?? 1) !== 1 ||
+				cell.colwidth ||
+				(cell.isHeader ?? index === 0) !== (index === 0) ||
+				cell.textAlign !== rows[0]?.cells?.[column]?.textAlign ||
+				cell.textAlign === "justify" ||
+				cell.content.some(
+					(span) =>
+						!span ||
+						span._type !== "span" ||
+						!hasOnlyFields(span, SPAN_FIELDS) ||
+						LINE_BREAK_PATTERN.test(span.text ?? "") ||
+						span.marks?.some(
+							(mark) =>
+								!MARKDOWN_MARKS.has(mark) &&
+								![...(cell.markDefs ?? []), ...(block.markDefs ?? [])].some(
+									(def) => def._key === mark && def._type === "link",
+								),
+						),
+				)
+			)
+				return undefined;
+			const text = cell.content.map((span) => span.text ?? "").join("");
+			if (
+				text !== text.trim() ||
+				coalesceSpans(cell.content).some(
+					(span) => span.marks?.includes("code") && CODE_PIPE_PATTERN.test(span.text ?? ""),
+				)
+			)
+				return undefined;
+			cells.push(
+				renderSpans(cell.content, [...(cell.markDefs ?? []), ...(block.markDefs ?? [])]).replaceAll(
+					"|",
+					"\\|",
+				),
+			);
+		}
+		rendered.push(`| ${cells.join(" | ")} |`);
+		if (index === 0) {
+			rendered.push(
+				`| ${row.cells.map((cell) => (cell.textAlign === "center" ? ":---:" : cell.textAlign === "right" ? "---:" : cell.textAlign === "left" ? ":---" : "---")).join(" | ")} |`,
+			);
+		}
+	}
+	return rendered.join("\n");
+}
+
+function renderStandardBlock(block: PortableTextBlock, indentation = 0): string {
+	const text = escapeBlockStarts(renderSpans(block.children ?? [], block.markDefs ?? []));
 
 	// List items
 	if (block.listItem) {
-		const indent = "  ".repeat(Math.max(0, (block.level ?? 1) - 1));
+		const indent = " ".repeat(indentation);
 		const marker = block.listItem === "number" ? "1." : "-";
-		return `${indent}${marker} ${renderLinesAfterFirst(text)}`;
+		return `${indent}${marker} ${text.replaceAll("\n", `\n${indent}${" ".repeat(marker.length + 1)}`)}`;
 	}
 
 	// Headings
 	if (block.style && block.style.startsWith("h")) {
 		const level = parseInt(block.style.substring(1), 10);
 		if (level >= 1 && level <= 6) {
-			return `${"#".repeat(level)} ${renderLinesAfterFirst(text)}`;
+			if (
+				block.children?.some(
+					(span) => span._type === "span" && LINE_BREAK_PATTERN.test(span.text ?? ""),
+				)
+			) {
+				return `<!--ec:block ${JSON.stringify(block)} -->`;
+			}
+			return `${"#".repeat(level)} ${text}`;
 		}
 	}
 
 	// Blockquote
 	if (block.style === "blockquote") {
-		return `> ${renderLinesAfterFirst(text)}`;
+		return `> ${text.replaceAll("\n", "\n> ")}`;
 	}
 
-	return renderParagraph(text);
+	return text;
 }
 
-/**
- * markdownToPortableText reads only the first line into a list item, heading or
- * blockquote, and the lines after it as a paragraph.
- */
-function renderLinesAfterFirst(text: string): string {
-	const lineBreak = text.indexOf("\n");
-	if (lineBreak === -1) return text;
-	return text.slice(0, lineBreak + 1) + renderParagraph(text.slice(lineBreak + 1));
+// Inline escapes alone do not protect headings, lists, setext underlines, or table delimiters.
+function escapeBlockStarts(text: string): string {
+	return text.replace(
+		/^([ \t]{0,3})([#=+|:-]|\d{1,9}[.)])/gm,
+		(_match, indent: string, marker: string) => `${indent}${marker.slice(0, -1)}\\${marker.at(-1)}`,
+	);
 }
 
-/**
- * Ends every line but the last with a backslash hard break, so markdownToPortableText
- * reads the text back as one paragraph with its line breaks. An empty line becomes a
- * line holding only the hard break; trailing empty lines cannot be written in a
- * Markdown paragraph and are dropped.
- */
-function renderParagraph(text: string): string {
-	const lines = text.split("\n");
-	while (lines.length > 1 && lines.at(-1)?.trim() === "") lines.pop();
-	return lines.map((line, index) => escapeBlockStart(line, index < lines.length - 1)).join("\\\n");
+function wrapMark(text: string, delimiter: string): string {
+	const trimmed = text.trim();
+	if (!trimmed) return text;
+	const start = text.length - text.trimStart().length;
+	return `${text.slice(0, start)}${delimiter}${trimmed}${delimiter}${text.slice(start + trimmed.length)}`;
 }
 
-/**
- * Escapes the start of a line that markdownToPortableText would read as the start
- * of another block, such as `# `, `> `, `- `, `2. `, a table row or `---`. The check
- * reads the line with its hard break, because `# \` is a heading where `# ` is not.
- */
-function escapeBlockStart(line: string, beforeHardBreak: boolean): string {
-	const written = beforeHardBreak ? `${line}\\` : line;
-	// With afterListItem set any `<number>. ` counts as a list item, so the escape
-	// holds wherever the line ends up.
-	if (line.trim() === "" || continuesParagraph(written, true)) return line;
-	if (ORDERED_LIST_PATTERN.test(written)) return line.replace(ORDERED_LIST_NUMBER_PATTERN, "$1\\.");
-	return line.replace(LEADING_WHITESPACE_PATTERN, "$1\\");
-}
-
-/**
- * Backslash-escapes the characters in span text that parseInline would read as
- * Markdown. A character is checked against its neighbours inside the span; at
- * the edge of the span the neighbour is unknown, so the character is escaped.
- */
-function escapeInlineMarkdown(text: string): string {
-	let escaped = "";
-	for (let index = 0; index < text.length; index++) {
-		const character = text[index];
-		if (needsInlineEscape(character, text[index - 1], text[index + 1])) escaped += "\\";
-		escaped += character;
+function coalesceSpans(spans: PortableTextSpan[]): PortableTextSpan[] {
+	const runs: PortableTextSpan[] = [];
+	for (const span of spans) {
+		const previous = runs.at(-1);
+		const marks = [...new Set(span.marks ?? [])];
+		if (
+			span._type === "span" &&
+			previous?._type === "span" &&
+			marks.length === previous.marks?.length &&
+			marks.every((mark) => previous.marks?.includes(mark))
+		) {
+			previous.text = (previous.text ?? "") + (span.text ?? "");
+		} else {
+			runs.push({ ...span, marks });
+		}
 	}
-	return escaped;
+	return runs;
 }
-
-function needsInlineEscape(
-	character: string,
-	previous: string | undefined,
-	next: string | undefined,
-): boolean {
-	switch (character) {
-		case "\\":
-			return next === undefined || next === "\n" || ASCII_PUNCTUATION_PATTERN.test(next);
-		case "`":
-		case "[":
-		case "]":
-			return true;
-		case "*":
-			return !isWhitespace(previous) || !isWhitespace(next);
-		case "_":
-			return !(
-				(isWordCharacter(previous) && isWordCharacter(next)) ||
-				(isWhitespace(previous) && isWhitespace(next))
-			);
-		case "~":
-			return previous === undefined || next === undefined || previous === "~" || next === "~";
-		default:
-			return false;
-	}
-}
-
-function isWhitespace(character: string | undefined): boolean {
-	return character !== undefined && WHITESPACE_PATTERN.test(character);
-}
-
-function isWordCharacter(character: string | undefined): boolean {
-	return character !== undefined && WORD_CHARACTER_PATTERN.test(character);
-}
-
-const WRAPPING_MARKS = new Set(["strong", "em", "code", "strike-through", "strikethrough"]);
 
 function renderSpans(spans: PortableTextSpan[], markDefs: MarkDef[]): string {
-	// An empty span renders nothing, so it must not stand between a span and its neighbour.
-	const textSpans = spans.filter((span) => span._type === "span" && (span.text ?? "") !== "");
-	const isLink = (mark: string) => markDefs.some((d) => d._key === mark && d._type === "link");
-	// The character next to the span in the output is a letter or digit only when
-	// the neighbour renders without delimiters.
-	const touchesWord = (neighbour: PortableTextSpan | undefined, edge: RegExp) =>
-		neighbour !== undefined &&
-		!(neighbour.marks ?? []).some((mark) => WRAPPING_MARKS.has(mark) || isLink(mark)) &&
-		edge.test(neighbour.text ?? "");
-
 	let result = "";
 
-	for (const [index, span] of textSpans.entries()) {
+	for (const span of coalesceSpans(spans)) {
+		if (span._type !== "span") continue;
+
 		const marks = span.marks ?? [];
-		let text = span.text ?? "";
-
-		// `*x*` and `_x_` are not emphasis when whitespace follows the opening or
-		// precedes the closing delimiter, so that whitespace goes outside. Split it
-		// off before escaping, so a character next to a delimiter counts as an edge.
-		let leading = "";
-		let trailing = "";
-		if (marks.includes("em")) {
-			const start = text.length - text.trimStart().length;
-			const end = Math.max(start, text.trimEnd().length);
-			[leading, text, trailing] = [text.slice(0, start), text.slice(start, end), text.slice(end)];
+		const normalized = (span.text ?? "").replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+		const value = marks.includes("code") ? normalized.replaceAll("\n", " ") : normalized;
+		let text: string;
+		if (marks.includes("code")) {
+			const runs = value.match(/`+/g) ?? [];
+			const fence = "`".repeat(runs.reduce((max, run) => Math.max(max, run.length), 0) + 1);
+			const padding =
+				CODE_EDGE_PATTERN.test(value) || (PADDED_CODE_PATTERN.test(value) && value.trim())
+					? " "
+					: "";
+			text = `${fence}${padding}${value}${padding}${fence}`;
+		} else {
+			text = value.replace(/[\\`*_[\]<>~]/g, "\\$&");
 		}
-		if (!marks.includes("code")) text = escapeInlineMarkdown(text);
-
 		for (const mark of marks) {
-			if (text === "") break;
-			const def = markDefs.find((d) => d._key === mark);
-			if (def) {
-				if (def._type === "link") {
-					text = `[${text}](${def.href ?? ""})`;
-				}
-			} else {
-				switch (mark) {
-					case "strong":
-						text = `**${text}**`;
-						break;
-					case "em": {
-						// An underscore inside a word does not open or close emphasis.
-						const insideWord =
-							(leading === "" &&
-								touchesWord(textSpans[index - 1], WORD_CHARACTER_AT_END_PATTERN)) ||
-							(trailing === "" &&
-								touchesWord(textSpans[index + 1], WORD_CHARACTER_AT_START_PATTERN));
-						text = insideWord ? `*${text}*` : `_${text}_`;
-						break;
-					}
-					case "code":
-						// One span per line: a line inside a code span that starts with `# ` or
-						// `- ` would start a new block.
-						text = text
-							.split("\n")
-							.map((line) => (line === "" ? "" : `\`${line}\``))
-							.join("\n");
-						break;
-					case "strike-through":
-					case "strikethrough":
-						text = `~~${text}~~`;
-						break;
-				}
+			switch (mark) {
+				case "strong":
+					text = wrapMark(text, "**");
+					break;
+				case "em":
+					text = wrapMark(text, "*");
+					break;
+				case "strike-through":
+				case "strikethrough":
+					text = wrapMark(text, "~~");
+					break;
 			}
 		}
+		for (const mark of marks) {
+			const def = markDefs.find((candidate) => candidate._key === mark);
+			if (def?._type === "link") text = `[${text}](${def.href ?? ""})`;
+		}
 
-		result += leading + text + trailing;
+		result += text;
 	}
 
-	return result;
+	let end = result.length;
+	while (end > 0 && result[end - 1] === "\n") end--;
+	return result.slice(0, end).replaceAll("\n", "\\\n");
 }
 
 // ---------------------------------------------------------------------------
 // Markdown -> PT
 // ---------------------------------------------------------------------------
 
-// Regex patterns for markdown parsing
+let markdownLexer: Marked | undefined;
 const OPAQUE_FENCE_PATTERN = /^<!--ec:block (.+) -->$/;
-// The text starts at a non-space: `\s+(.+)` backtracks quadratically on long runs of whitespace.
-const HEADING_PATTERN = /^(#{1,6})\s+(\S.*)$/;
-const UNORDERED_LIST_PATTERN = /^(\s*)[-*+]\s+(\S.*)$/;
-const ORDERED_LIST_PATTERN = /^(\s*)\d+\.\s+(\S.*)$/;
-const IMAGE_PATTERN = /^!\[([^\]]*)\]\(([^)]+)\)$/;
-const CODE_FENCE_PATTERN = /^(```|~~~)/;
-// In CommonMark only an ordered list that starts at 1 can interrupt a paragraph.
-const PARAGRAPH_INTERRUPTING_ORDERED_LIST_PATTERN = /^\s*1\.\s+\S/;
-// Table rows, thematic breaks and setext underlines stay one block per line.
-const UNJOINABLE_LINE_PATTERN =
-	/^\s*\||^ {0,3}(?:-+|=+|\*(?:[ \t]*\*){2,}|_(?:[ \t]*_){2,})[ \t]*$/;
-// An odd number of trailing backslashes ends in a backslash that is not escaped.
-const BACKSLASH_HARD_BREAK_PATTERN = /(?:^|[^\\])(?:\\\\)*\\$/;
-// CommonMark emphasis: `_` does not open or close inside a word, a single `*` next
-// to another `*` does neither, and a `*` with whitespace on both sides is text.
-// Inside `_x_` an underscore is text only between two word characters or two
-// whitespace characters; any other `_` ends the scan, which keeps it linear.
-const INLINE_MARKDOWN_PATTERN =
-	/(\*\*(.+?)\*\*)|((?<![\p{L}\p{N}])_(?!\s)((?:[^_]|(?<=[\p{L}\p{N}])_(?=[\p{L}\p{N}])|(?<=\s)_(?=\s))+?)(?<!\s)_(?![\p{L}\p{N}]))|(`(.+?)`)|(\[(.+?)\]\((.+?)\))|(~~(.+?)~~)|((?<!\*)\*([^\s*](?:(?:[^*]|(?<=\s)\*(?=\s))*?[^\s*])?)\*(?!\*))/dgsu;
-const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}]/u;
-const WORD_CHARACTER_AT_START_PATTERN = /^[\p{L}\p{N}]/u;
-const WORD_CHARACTER_AT_END_PATTERN = /[\p{L}\p{N}]$/u;
-const WHITESPACE_PATTERN = /\s/;
-const ASCII_PUNCTUATION_PATTERN = /[!-/:-@[-`{-~]/;
-const ORDERED_LIST_NUMBER_PATTERN = /^(\s*\d+)\./;
-const LEADING_WHITESPACE_PATTERN = /^(\s*)/;
-const LINE_BREAK_PATTERN = /\r?\n/;
-const LEADING_SPACES_PATTERN = /^[ \t]+/;
-// Stands in for an escaped character while INLINE_MARKDOWN_PATTERN runs.
-const ESCAPED_CHARACTER = "\uE000";
 
 /**
  * Convert Markdown to Portable Text blocks.
  * Opaque fences (<!--ec:block ... -->) are deserialized and spliced back in.
  */
 export function markdownToPortableText(markdown: string): PortableTextBlock[] {
+	markdownLexer ??= new Marked({ gfm: true, tokenizer: { url: () => undefined } });
+	return convertTokens(markdownLexer.lexer(markdown) as MarkedToken[]);
+}
+
+function convertTokens(
+	tokens: MarkedToken[],
+	level = 0,
+	splitParagraphImages = true,
+): PortableTextBlock[] {
 	const blocks: PortableTextBlock[] = [];
-	const lines = markdown.split(LINE_BREAK_PATTERN);
-	let i = 0;
-
-	while (i < lines.length) {
-		const line = lines[i];
-
-		// Opaque fence
-		const opaqueMatch = line.match(OPAQUE_FENCE_PATTERN);
-		if (opaqueMatch) {
-			try {
-				blocks.push(JSON.parse(opaqueMatch[1]) as PortableTextBlock);
-			} catch {
-				blocks.push(makeBlock(line));
+	for (const token of tokens) {
+		switch (token.type) {
+			case "space":
+			case "def":
+			case "checkbox":
+				break;
+			case "heading":
+				blocks.push(makeBlock(token.tokens as MarkedToken[], `h${token.depth}`));
+				break;
+			case "paragraph":
+			case "text": {
+				const inline = token.tokens as MarkedToken[] | undefined;
+				const children = inline ?? [{ type: "text" as const, raw: token.text, text: token.text }];
+				const parts = splitParagraphImages ? splitInlineImages(children) : [children];
+				for (const part of parts) {
+					if (Array.isArray(part)) {
+						const block = makeBlock(part);
+						if (parts.length > 1) {
+							const first = block.children?.[0];
+							const last = block.children?.at(-1);
+							if (first && !first.marks?.length) first.text = first.text?.trimStart();
+							if (last && !last.marks?.length) last.text = last.text?.trimEnd();
+						}
+						if (block.children?.some((span) => span.text)) blocks.push(block);
+					} else {
+						blocks.push({
+							_type: "image",
+							_key: generateKey(),
+							alt: part.text,
+							asset: { url: part.href },
+						});
+					}
+				}
+				break;
 			}
-			i++;
-			continue;
+			case "blockquote":
+				for (const block of convertTokens(token.tokens as MarkedToken[], level, false)) {
+					if (block._type === "block") block.style = "blockquote";
+					blocks.push(block);
+				}
+				break;
+			case "list":
+				for (const item of token.items) {
+					let first = true;
+					for (const block of convertTokens(item.tokens as MarkedToken[], level + 1, false)) {
+						if (first && block._type === "block" && !block.listItem) {
+							block.listItem = token.ordered ? "number" : "bullet";
+							block.level = level + 1;
+							if (item.tokens[0]?.type === "checkbox") {
+								block.children?.unshift({
+									_type: "span",
+									_key: generateKey(),
+									text: item.tokens[0].raw,
+									marks: [],
+								});
+							}
+						}
+						first = false;
+						blocks.push(block);
+					}
+				}
+				break;
+			case "code":
+				blocks.push({
+					_type: "code",
+					_key: generateKey(),
+					language: token.lang || undefined,
+					code: token.text,
+				});
+				break;
+			case "table":
+				blocks.push({
+					_type: "table",
+					_key: generateKey(),
+					hasHeaderRow: true,
+					rows: [token.header, ...token.rows].map((row, index) => ({
+						_type: "tableRow",
+						_key: generateKey(),
+						cells: row.map((cell, column) => {
+							const { spans, markDefs } = parseInline(cell.tokens as MarkedToken[]);
+							return {
+								_type: "tableCell",
+								_key: generateKey(),
+								content: spans,
+								markDefs,
+								isHeader: index === 0,
+								...(token.align[column] ? { textAlign: token.align[column] } : {}),
+							};
+						}),
+					})),
+				});
+				break;
+			case "html":
+				// Marked can group adjacent comments into one HTML token.
+				for (const line of token.raw.trimEnd().split("\n")) {
+					const match = line.match(OPAQUE_FENCE_PATTERN);
+					if (match) {
+						try {
+							blocks.push(JSON.parse(match[1]) as PortableTextBlock);
+							continue;
+						} catch {
+							/* Preserve malformed fences as literal text. */
+						}
+					}
+					blocks.push(makeBlock([{ type: "text", raw: line, text: line }]));
+				}
+				break;
+			default:
+				blocks.push(makeBlock([{ type: "text", raw: token.raw, text: token.raw.trimEnd() }]));
 		}
-
-		// Code fence
-		const fenceMatch = line.match(CODE_FENCE_PATTERN);
-		if (fenceMatch) {
-			const fence = fenceMatch[1];
-			const lang = line.slice(3).trim();
-			const codeLines: string[] = [];
-			i++;
-			while (i < lines.length && !lines[i].startsWith(fence)) {
-				codeLines.push(lines[i]);
-				i++;
-			}
-			blocks.push({
-				_type: "code",
-				_key: generateKey(),
-				language: lang || undefined,
-				code: codeLines.join("\n"),
-			});
-			i++; // skip the closing fence
-			continue;
-		}
-
-		// Blank line
-		if (line.trim() === "") {
-			i++;
-			continue;
-		}
-
-		// Heading
-		const headingMatch = line.match(HEADING_PATTERN);
-		if (headingMatch) {
-			blocks.push(makeBlock(headingMatch[2], `h${headingMatch[1].length}`));
-			i++;
-			continue;
-		}
-
-		// Blockquote
-		if (line.startsWith("> ")) {
-			blocks.push(makeBlock(line.slice(2), "blockquote"));
-			i++;
-			continue;
-		}
-
-		// Unordered list
-		const ulMatch = line.match(UNORDERED_LIST_PATTERN);
-		if (ulMatch) {
-			const level = Math.floor(ulMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(ulMatch[2], "bullet", level));
-			i++;
-			continue;
-		}
-
-		// Ordered list
-		const olMatch = line.match(ORDERED_LIST_PATTERN);
-		if (olMatch) {
-			const level = Math.floor(olMatch[1].length / 2) + 1;
-			blocks.push(makeListBlock(olMatch[2], "number", level));
-			i++;
-			continue;
-		}
-
-		// Image
-		const imgMatch = line.match(IMAGE_PATTERN);
-		if (imgMatch) {
-			blocks.push({
-				_type: "image",
-				_key: generateKey(),
-				alt: imgMatch[1],
-				asset: { url: imgMatch[2] },
-			});
-			i++;
-			continue;
-		}
-
-		// Paragraph
-		const afterListItem = blocks.at(-1)?.listItem != null && lines[i - 1]?.trim() !== "";
-		const paragraph = [line];
-		i++;
-		if (!UNJOINABLE_LINE_PATTERN.test(line)) {
-			while (i < lines.length && continuesParagraph(lines[i], afterListItem)) {
-				joinParagraphLine(paragraph, lines[i]);
-				i++;
-			}
-		}
-		blocks.push(makeBlock(paragraph.join("")));
 	}
-
 	return blocks;
 }
 
-/**
- * After a list item any number starts the next item, so a wrapped item's
- * continuation line does not swallow the items that follow it.
- */
-function continuesParagraph(line: string, afterListItem: boolean): boolean {
-	return (
-		line.trim() !== "" &&
-		!OPAQUE_FENCE_PATTERN.test(line) &&
-		!CODE_FENCE_PATTERN.test(line) &&
-		!HEADING_PATTERN.test(line) &&
-		!line.startsWith("> ") &&
-		!UNORDERED_LIST_PATTERN.test(line) &&
-		!(afterListItem ? ORDERED_LIST_PATTERN : PARAGRAPH_INTERRUPTING_ORDERED_LIST_PATTERN).test(
-			line,
-		) &&
-		!IMAGE_PATTERN.test(line) &&
-		!UNJOINABLE_LINE_PATTERN.test(line)
-	);
+function splitInlineImages(tokens: MarkedToken[]): Array<MarkedToken[] | Tokens.Image> {
+	const parts: Array<MarkedToken[] | Tokens.Image> = [];
+	let pending: MarkedToken[] = [];
+	function appendImage(image: Tokens.Image): void {
+		if (pending.length) parts.push(pending);
+		pending = [];
+		parts.push(image);
+	}
+	for (const token of tokens) {
+		if (token.type === "image") {
+			appendImage(token);
+		} else if (
+			(token.type === "strong" ||
+				token.type === "em" ||
+				token.type === "del" ||
+				token.type === "text") &&
+			token.tokens
+		) {
+			for (const part of splitInlineImages(token.tokens as MarkedToken[])) {
+				if (Array.isArray(part)) pending.push({ ...token, tokens: part });
+				else appendImage(part);
+			}
+		} else {
+			pending.push(token);
+		}
+	}
+	if (pending.length) parts.push(pending);
+	return parts;
 }
 
-// A loop instead of /[ \t]+$/, which is quadratic on long runs of spaces or tabs.
-function trimTrailingSpaces(line: string): string {
-	let end = line.length;
-	while (end > 0 && (line[end - 1] === " " || line[end - 1] === "\t")) end--;
-	return line.slice(0, end);
-}
-
-/**
- * Appends the next line to a paragraph whose last entry is the line before it.
- * In CommonMark a line ending in two spaces or a backslash is a hard break; any
- * other line break inside a paragraph is soft and reads as a space.
- */
-function joinParagraphLine(paragraph: string[], next: string): void {
-	const line = paragraph.pop() ?? "";
-	const backslashBreak = BACKSLASH_HARD_BREAK_PATTERN.test(line);
-	const hardBreak = backslashBreak || line.endsWith("  ");
-	// Whitespace before a backslash break is text; before a two-space break it is the break.
-	const head = backslashBreak ? line.slice(0, -1) : trimTrailingSpaces(line);
-	// A line holding only the hard break also drops the space before it.
-	if (head === "") paragraph.push(trimTrailingSpaces(paragraph.pop() ?? ""));
-	paragraph.push(head + (hardBreak ? "\n" : " "), next.replace(LEADING_SPACES_PATTERN, ""));
-}
-
-// ---------------------------------------------------------------------------
-// Block builders
-// ---------------------------------------------------------------------------
-
-function makeBlock(text: string, style: string = "normal"): PortableTextBlock {
-	const { spans, markDefs } = parseInline(text);
+function makeBlock(tokens: MarkedToken[], style = "normal"): PortableTextBlock {
+	const { spans, markDefs } = parseInline(tokens);
 	return { _type: "block", _key: generateKey(), style, markDefs, children: spans };
 }
 
-function makeListBlock(text: string, listItem: string, level: number): PortableTextBlock {
-	const { spans, markDefs } = parseInline(text);
-	return {
-		_type: "block",
-		_key: generateKey(),
-		style: "normal",
-		listItem,
-		level,
-		markDefs,
-		children: spans,
-	};
-}
-
-/**
- * Parse inline markdown (bold, italic, code, links, strikethrough) into PT spans + markDefs.
- */
-function parseInline(markdown: string): ParsedInline {
+function parseInline(tokens: MarkedToken[]): ParsedInline {
 	const spans: PortableTextSpan[] = [];
 	const markDefs: MarkDef[] = [];
-	const regex = INLINE_MARKDOWN_PATTERN;
-	const { masked, text } = resolveEscapes(markdown);
-
-	let lastIndex = 0;
-	let match: RegExpExecArray | null;
-
-	while ((match = regex.exec(masked)) !== null) {
-		const indices = match.indices;
-		const group = (n: number) => {
-			const range = indices?.[n];
-			return range ? text.slice(range[0], range[1]) : undefined;
-		};
-
-		if (match.index > lastIndex) {
-			spans.push({
-				_type: "span",
-				_key: generateKey(),
-				text: text.slice(lastIndex, match.index),
-				marks: [],
-			});
+	const append = (text: string, marks: string[]) => {
+		spans.push({ _type: "span", _key: generateKey(), text, marks });
+	};
+	function visit(children: MarkedToken[], marks: string[] = []): void {
+		for (const token of children) {
+			switch (token.type) {
+				case "strong":
+				case "em":
+				case "del":
+					visit(token.tokens as MarkedToken[], [
+						...marks,
+						token.type === "del" ? "strike-through" : token.type,
+					]);
+					break;
+				case "link": {
+					const key = generateKey();
+					markDefs.push({ _type: "link", _key: key, href: token.href });
+					visit(token.tokens as MarkedToken[], [...marks, key]);
+					break;
+				}
+				case "codespan":
+					append(token.text, [...marks, "code"]);
+					break;
+				case "br":
+					append("\n", marks);
+					break;
+				case "text":
+					if (token.tokens) visit(token.tokens as MarkedToken[], marks);
+					else append(token.text.replaceAll("\n", " "), marks);
+					break;
+				case "escape":
+					append(token.text, marks);
+					break;
+				default:
+					append(token.raw, marks);
+			}
 		}
-
-		if (match[2] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: group(2), marks: ["strong"] });
-		} else if (match[4] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: group(4), marks: ["em"] });
-		} else if (match[6] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: group(6), marks: ["code"] });
-		} else if (match[8] != null && match[9] != null) {
-			const key = generateKey();
-			markDefs.push({ _key: key, _type: "link", href: group(9) });
-			spans.push({ _type: "span", _key: generateKey(), text: group(8), marks: [key] });
-		} else if (match[11] != null) {
-			spans.push({
-				_type: "span",
-				_key: generateKey(),
-				text: group(11),
-				marks: ["strike-through"],
-			});
-		} else if (match[13] != null) {
-			spans.push({ _type: "span", _key: generateKey(), text: group(13), marks: ["em"] });
-		}
-
-		lastIndex = match.index + match[0].length;
 	}
-
-	if (lastIndex < text.length) {
-		spans.push({ _type: "span", _key: generateKey(), text: text.slice(lastIndex), marks: [] });
-	}
-
-	if (spans.length === 0) {
-		spans.push({ _type: "span", _key: generateKey(), text, marks: [] });
-	}
-
+	visit(tokens);
+	if (!spans.length) append("", []);
 	return { spans, markDefs };
-}
-
-/**
- * Resolves CommonMark backslash escapes outside code spans. `text` drops the
- * backslash; `masked` also swaps the escaped character for ESCAPED_CHARACTER, so
- * INLINE_MARKDOWN_PATTERN never reads it as a delimiter. Both have the same
- * length, so a match in `masked` slices the same characters out of `text`.
- */
-function resolveEscapes(markdown: string): { masked: string; text: string } {
-	let masked = "";
-	let text = "";
-	let index = 0;
-	while (index < markdown.length) {
-		const character = markdown[index];
-		const next = markdown[index + 1];
-		if (character === "\\" && next !== undefined && ASCII_PUNCTUATION_PATTERN.test(next)) {
-			masked += ESCAPED_CHARACTER;
-			text += next;
-			index += 2;
-			continue;
-		}
-		// Backslashes inside a code span are literal.
-		const codeEnd = character === "`" ? markdown.indexOf("`", index + 2) : -1;
-		const chunk = codeEnd === -1 ? character : markdown.slice(index, codeEnd + 1);
-		masked += chunk;
-		text += chunk;
-		index += chunk.length;
-	}
-	return { masked, text };
 }
 
 // ---------------------------------------------------------------------------

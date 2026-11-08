@@ -1,6 +1,7 @@
 import { Role } from "@emdash-cms/auth";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
@@ -72,6 +73,52 @@ describeEachDialect("MCP blocks content writes", (dialect) => {
 			title: "No layout",
 			layout: [],
 		});
+	});
+
+	it("links rich text images of library files inside blocks to their media items", async () => {
+		const media = await new MediaRepository(ctx.db).create({
+			filename: "hero.png",
+			mimeType: "image/png",
+			storageKey: "01K0HEROIMAGE.png",
+		});
+		const result = await harness.client.callTool({
+			name: "content_create",
+			arguments: {
+				collection: "pages",
+				data: {
+					title: "Landing",
+					layout: [
+						{
+							_type: "hero",
+							heading: "Welcome",
+							body: [
+								{
+									_type: "image",
+									_key: "img",
+									asset: { url: "/_emdash/api/media/file/01K0HEROIMAGE.png" },
+								},
+							],
+						},
+					],
+				},
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const created = extractJson<ContentEnvelope>(result);
+		const read = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "pages", id: created.item.id },
+		});
+
+		expect(extractJson<ContentEnvelope>(read).item.data.layout).toEqual([
+			expect.objectContaining({
+				body: [
+					expect.objectContaining({
+						asset: { _ref: media.id, url: "/_emdash/api/media/file/01K0HEROIMAGE.png" },
+					}),
+				],
+			}),
+		]);
 	});
 
 	it("preserves stored blocks when an update changes only another field", async () => {

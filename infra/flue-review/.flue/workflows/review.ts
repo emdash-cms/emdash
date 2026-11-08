@@ -22,11 +22,12 @@ import {
 	defineWorkflow,
 	type ActionContext,
 	type WorkflowRouteHandler,
+	type WorkflowRunsHandler,
 } from "@flue/runtime";
 import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cloudflare";
+import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
-import { withCapacityRetry } from "../lib/capacity.js";
 import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
@@ -36,6 +37,7 @@ import {
 	fetchPullRequestRevision,
 	classifyPullRequestHeadMove,
 	fetchAcceptedDesign,
+	fetchLinkedIssues,
 	fetchPriorReview,
 	postReview,
 	addEyesReaction,
@@ -45,13 +47,24 @@ import {
 	type AcceptedDesign,
 	type GitHubToken,
 } from "../lib/github.js";
+import { followUpHead } from "../lib/rereview.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
 import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
 import { reviewUntilCurrentHead, type PullRequestRevision } from "../lib/review-head.js";
+import { linkedIssueSections, type LinkedIssue } from "../lib/review-linked-issues.js";
+import { completeWithGateway, reviewPlan } from "../lib/review-model.js";
+import { MODEL_REVIEW_STAGE_LIMIT_MS, runReviewPanel } from "../lib/review-panel.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
+	followUpMaxLines,
+	followUpScope,
+	maxSuggestions,
+	type ChangedLines,
+} from "../lib/review-scope.js";
+import {
 	getReviewWatchdog,
+	withStageHeartbeats,
 	type ReviewStage,
 	type ReviewTerminal,
 } from "../lib/review-watchdog.js";
@@ -75,6 +88,15 @@ const reviewPayloadSchema = v.object({
 	expectedRunId: v.optional(v.string()),
 	deliveryId: v.optional(v.string()),
 	checkRunId: v.optional(v.number()),
+	// Set by the re-review scheduler: review only what changed since priorHeadSha.
+	reviewMode: v.optional(v.picklist(["full", "scoped"])),
+	priorHeadSha: v.optional(v.string()),
+	// Set only by the local evaluation runner, which has no token to fetch them.
+	linkedIssues: v.optional(
+		v.array(v.object({ number: v.number(), title: v.string(), body: v.string() })),
+	),
+	priorReview: v.optional(v.string()),
+	interHeadDiff: v.optional(v.string()),
 });
 
 async function coordinatedToken(env: Env, consumer: string): Promise<GitHubToken> {
@@ -87,6 +109,7 @@ type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
 
 const REPO_DIR = "/repo";
 const DIFF_PATH = `${REPO_DIR}/.flue-pr.diff`;
+const FOLLOW_UP_DIFF_PATH = `${REPO_DIR}/.flue-follow-up.diff`;
 const HYDRATED = `${REPO_DIR}/.flue-hydrated`;
 
 const NAME = /^[A-Za-z0-9._-]+$/;
@@ -115,6 +138,7 @@ function assertSafe(payload: ReviewPayload): void {
 	for (const [key, value] of [
 		["baseSha", payload.baseSha],
 		["headSha", payload.headSha],
+		["priorHeadSha", payload.priorHeadSha],
 	] as const) {
 		if (value !== undefined && !SHA.test(value))
 			throw new Error(`payload.${key} is not a full SHA`);
@@ -144,8 +168,7 @@ function workflowRunId(): string {
 const reviewAgent = defineAgent<Env>(({ env }) => {
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	return {
-		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
-		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		model: reviewPlan(env).reviewers[0],
 		compaction: REVIEW_COMPACTION,
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
@@ -160,10 +183,26 @@ const reviewAgent = defineAgent<Env>(({ env }) => {
 	};
 });
 
+function followUpSection(priorHeadSha: string): string[] {
+	return [
+		"",
+		"## Follow-up review",
+		"",
+		`This is an automatic follow-up review of the author's changes since your last review, at ${priorHeadSha}. The diff from that head to this one is at ${FOLLOW_UP_DIFF_PATH}; the full PR diff is still at ${DIFF_PATH}.`,
+		"",
+		"- Check whether each earlier finding is addressed or reasonably answered, and whether the new changes introduce a defect.",
+		"- Do not look for new issues in code that has not changed since the last review.",
+		"- An author's reply to a finding settles it: do not reopen it.",
+		"- When the earlier findings are addressed, a clean review with no findings is the expected result.",
+	];
+}
+
 function buildPrContext(
 	payload: ReviewPayload,
 	priorReview?: string,
 	acceptedDesign?: AcceptedDesign,
+	linkedIssues: readonly LinkedIssue[] = [],
+	followUpFrom?: string,
 ): string {
 	const lines = [
 		`PR #${payload.prNumber} in ${payload.owner}/${payload.repo}.`,
@@ -174,6 +213,7 @@ function buildPrContext(
 		"## Description",
 		"",
 		payload.prBody || "(no description provided)",
+		...linkedIssueSections(linkedIssues),
 	];
 	if (acceptedDesign) {
 		lines.push(
@@ -188,6 +228,7 @@ function buildPrContext(
 	if (priorReview) {
 		lines.push("", "## Prior review context (this is a re-review)", "", priorReview);
 	}
+	if (followUpFrom) lines.push(...followUpSection(followUpFrom));
 	return lines.join("\n");
 }
 
@@ -333,8 +374,9 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 	// workspace. Without app creds (local dev) we skip posting and return.
 	const creds = readAppCreds(env);
 	let token: GitHubToken | undefined;
-	let priorReview: string | undefined;
+	let priorReview = payload.priorReview;
 	let acceptedDesign: AcceptedDesign | undefined;
+	let linkedIssues: readonly LinkedIssue[] = payload.linkedIssues ?? [];
 	let reactionId: number | undefined;
 	let stage: ReviewStage = "admitted";
 	try {
@@ -364,6 +406,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 				payload.repo,
 				payload.prBody,
 			);
+			linkedIssues = await fetchLinkedIssues(token, payload.owner, payload.repo, payload.prNumber);
 		}
 
 		const initialRevision = { headSha: payload.headSha, baseSha: payload.baseSha };
@@ -384,8 +427,6 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 				throw new Error("Review attempt is no longer active");
 			}
 			await hydrate(env, activePayload, token);
-
-			const session = await context.harness.session(`review-${revision.headSha}`);
 
 			stage = "fetching_diff";
 			if (
@@ -410,6 +451,40 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			);
 			await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
 
+			let followUpFrom = followUpHead(activePayload, priorReview);
+			let changed: ChangedLines | undefined;
+			let largeFollowUp: { lines: number; maxLines: number } | undefined;
+			if (followUpFrom) {
+				const followUpDiff =
+					activePayload.interHeadDiff ??
+					(await fetchUnifiedDiff(
+						activePayload.owner,
+						activePayload.repo,
+						activePayload.prNumber,
+						token,
+						followUpFrom,
+						revision.headSha,
+					));
+				const maxLines = followUpMaxLines(env);
+				const scope = followUpScope(diff, followUpDiff, maxLines);
+				logReviewEvent("log", activePayload, runId, "follow-up scope chosen", {
+					priorHeadSha: followUpFrom,
+					changedLines: scope.lines,
+					maxLines,
+					reviewMode: scope.scoped ? "scoped" : "full",
+				});
+				if (scope.scoped) {
+					changed = scope.changed;
+					await context.harness.fs.writeFile(
+						FOLLOW_UP_DIFF_PATH,
+						elideLargeDiffSections(followUpDiff),
+					);
+				} else {
+					largeFollowUp = { lines: scope.lines, maxLines };
+					followUpFrom = undefined;
+				}
+			}
+
 			stage = "model_review";
 			if (
 				!(await reportStage(
@@ -423,38 +498,87 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			) {
 				throw new Error("Review attempt is no longer active");
 			}
-			const { data } = await withCapacityRetry(
+			const plan = reviewPlan(env, { followUp: Boolean(followUpFrom) });
+			const prContext = buildPrContext(
+				activePayload,
+				priorReview,
+				acceptedDesign,
+				linkedIssues,
+				followUpFrom,
+			);
+			const watchdog =
+				activePayload.attemptId && activePayload.checkRunId !== undefined
+					? getReviewWatchdog(env, activePayload.attemptId)
+					: undefined;
+			const attemptId = activePayload.attemptId;
+			const { result: data, mergePath } = await withStageHeartbeats(
 				(signal) =>
-					session.skill("review", {
-						args: {
-							prContext: buildPrContext(activePayload, priorReview, acceptedDesign),
-							owner: activePayload.owner,
-							repo: activePayload.repo,
-							prNumber: activePayload.prNumber,
-							baseRef: activePayload.baseRef,
-							headRef: activePayload.headRef,
-							repoDir: REPO_DIR,
-							diffPath: DIFF_PATH,
+					runReviewPanel(
+						plan,
+						{
+							review: async (model, attemptSignal) => {
+								// A lone reviewer keeps the session name earlier runs used.
+								const session = await context.harness.session(
+									plan.reviewers.length === 1
+										? `review-${revision.headSha}`
+										: `review-${revision.headSha}-${plan.reviewers.indexOf(model)}`,
+								);
+								return session.skill("review", {
+									args: {
+										prContext,
+										owner: activePayload.owner,
+										repo: activePayload.repo,
+										prNumber: activePayload.prNumber,
+										baseRef: activePayload.baseRef,
+										headRef: activePayload.headRef,
+										repoDir: REPO_DIR,
+										diffPath: DIFF_PATH,
+									},
+									result: reviewResultSchema,
+									model,
+									signal: attemptSignal,
+								});
+							},
+							merge: async (model, prompt, attemptSignal) => {
+								const { text, usage } = await completeWithGateway(env, model, prompt, {
+									signal: attemptSignal,
+									reasoning: "low",
+								});
+								return { data: text, usage };
+							},
+							log: (message, fields) =>
+								logReviewEvent("log", activePayload, runId, message, fields),
 						},
-						result: reviewResultSchema,
-						signal,
-					}),
+						{
+							...(priorReview ? { priorReview } : {}),
+							...(changed ? { changed } : {}),
+							...(largeFollowUp
+								? {
+										footerNote: `The change since the last review (${largeFollowUp.lines} lines) was too large for a scoped follow-up, so this is a full review.`,
+									}
+								: {}),
+							maxSuggestions: maxSuggestions(env),
+							signal,
+						},
+					),
 				{
-					label: `review#${activePayload.prNumber}`,
-					attempts: 3,
-					perAttemptTimeoutMs: 30 * 60_000,
-					onRetry: ({ attempt, delayMs, error }) =>
-						context.log.warn?.("[review] model over capacity, backing off", {
-							prNumber: activePayload.prNumber,
-							attempt,
-							delayMs,
-							error: String(error),
+					maxMs: MODEL_REVIEW_STAGE_LIMIT_MS,
+					beat: async () =>
+						watchdog && attemptId ? watchdog.heartbeat(attemptId, runId, "model_review") : true,
+					onError: (error) =>
+						logReviewEvent("error", activePayload, runId, "review heartbeat failed", {
+							error: error instanceof Error ? error.message : String(error),
 						}),
 				},
 			);
 
 			logReviewEvent("log", activePayload, runId, "review model result received", {
 				hasToken: Boolean(token),
+				mergePath,
+				reviewMode: followUpFrom ? "scoped" : "full",
+				priorHeadSha: followUpFrom,
+				reviewers: plan.reviewers,
+				linkedIssueCount: linkedIssues.length,
 				verdict: data.verdict,
 				summaryLength: data.summary.length,
 				findingCount: data.findings.length,
@@ -597,3 +721,7 @@ export default defineWorkflow({
 // Enable POST /workflows/review (the internal admission route the webhook
 // handler calls). Pass-through: admission control lives in the webhook handler.
 export const route: WorkflowRouteHandler = async (_c, next) => next();
+
+// Run reads are served only under the local evaluation mount.
+export const runs: WorkflowRunsHandler = async (c, next) =>
+	workerEnv.REVIEW_EVAL === "1" ? next() : c.json({ error: "Not found" }, 404);

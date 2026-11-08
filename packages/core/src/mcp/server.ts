@@ -41,6 +41,7 @@ import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import { resolveConfiguredLocale } from "../i18n/config.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -557,6 +558,14 @@ function isPublished(t: unknown): boolean {
 		t !== null &&
 		"status" in t &&
 		(t as Record<string, unknown>).status === "published"
+	);
+}
+
+function isEntry(t: unknown, idOrSlug: string): boolean {
+	return (
+		typeof t === "object" &&
+		t !== null &&
+		(("id" in t && t.id === idOrSlug) || ("slug" in t && t.slug === idOrSlug))
 	);
 }
 
@@ -1137,6 +1146,15 @@ export function createMcpServer(
 						success: false,
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
 					});
+				}
+				// handleContentGet overlays the draft revision onto item.data and
+				// moves the published values to item.liveData.
+				if (item) {
+					if (item.liveData && typeof item.liveData === "object") {
+						item.data = item.liveData;
+					}
+					delete item.liveData;
+					delete item.draftRevisionId;
 				}
 			}
 			if (result.success && args.markdown && result.data?.item) {
@@ -1983,6 +2001,8 @@ export function createMcpServer(
 			const result = await ec.handleContentTranslations(args.collection, args.id);
 			// Filter out non-published translations for users without draft
 			// access so a subscriber can't enumerate locales that aren't yet live.
+			// The requested entry is one of the translations; if it isn't
+			// published, report it as not found so its id or slug can't be probed.
 			if (result.success && !canReadDrafts(extra)) {
 				const data =
 					result.data && typeof result.data === "object"
@@ -1991,6 +2011,12 @@ export function createMcpServer(
 						: undefined;
 				const translations = Array.isArray(data?.translations) ? data.translations : [];
 				const filtered = translations.filter(isPublished);
+				if (!filtered.some((t) => isEntry(t, args.id))) {
+					return unwrap({
+						success: false,
+						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+					});
+				}
 				return unwrap({
 					success: true,
 					data: { ...data, translations: filtered },
@@ -2365,7 +2391,8 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"preview), 'no-scheduling' (disables timed publishing, which is otherwise allowed), " +
+				"'search' (full-text indexing), " +
 				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
@@ -2377,7 +2404,7 @@ export function createMcpServer(
 				description: z.string().optional().describe("Description of this collection"),
 				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
-					"Features to enable (default: ['drafts', 'revisions'])",
+					"Collection capabilities and opt-outs (default: ['drafts', 'revisions']); scheduling is allowed unless 'no-scheduling' is present",
 				),
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",
@@ -3182,7 +3209,8 @@ export function createMcpServer(
 					if (
 						!cursorTerm ||
 						cursorTerm.name !== args.taxonomy ||
-						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+						(args.locale !== undefined &&
+							resolveConfiguredLocale(cursorTerm.locale) !== resolveConfiguredLocale(args.locale))
 					) {
 						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
 					}
@@ -3730,7 +3758,7 @@ export function createMcpServer(
 			title: "Get Site Settings",
 			description:
 				"Get all site-wide settings (title, tagline, logo, favicon, URL, " +
-				"date/time formatting, social links, SEO defaults). Media references " +
+				"date/time formatting, social links, SEO defaults, and staging status). Media references " +
 				"(logo, favicon, defaultOgImage) include resolved URLs. Unset values " +
 				"are omitted from the response.",
 			inputSchema: z.object({}),
@@ -3780,6 +3808,12 @@ export function createMcpServer(
 					])
 					.optional()
 					.describe("Canonical site URL (http or https). Empty string clears it."),
+				staging: z
+					.boolean()
+					.optional()
+					.describe(
+						"true asks search engines not to index the site (noindex); false makes it live",
+					),
 				postsPerPage: z
 					.number()
 					.int()

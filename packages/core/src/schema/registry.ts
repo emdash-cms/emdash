@@ -39,6 +39,7 @@ import {
 	markContentMediaUsageCollectionStaleSafely,
 } from "../media/usage/content-refresh.js";
 import { finishMediaUsageCollectionDeletion } from "../media/usage/maintenance-engine.js";
+import { invalidateCollectionCache } from "../object-cache/index.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { getPortableTableSpec } from "../transfer/format/columns.js";
 import { canonicalDigest } from "../transfer/format/digest.js";
@@ -137,6 +138,7 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"revisions",
 	"preview",
 	"scheduling",
+	"no-scheduling",
 	"search",
 	"seo",
 ]);
@@ -1076,6 +1078,7 @@ export class SchemaRegistry {
 	 * Update a collection
 	 */
 	async updateCollection(slug: string, input: UpdateCollectionInput): Promise<Collection> {
+		let titleFieldChanged = false;
 		const updated = await withTransaction(this.db, async (trx) => {
 			const existingRow = await trx
 				.selectFrom("_emdash_collections")
@@ -1146,6 +1149,7 @@ export class SchemaRegistry {
 			if (!row) {
 				throw new SchemaError("Failed to update collection", "UPDATE_FAILED");
 			}
+			titleFieldChanged = row.title_field !== existingRow.title_field;
 
 			// Sync FTS state when the supports array changes (e.g. search toggled on/off)
 			if (input.supports !== undefined) {
@@ -1158,6 +1162,8 @@ export class SchemaRegistry {
 
 			return this.mapCollectionRow(row);
 		});
+		// Cached entries carry the collection's titleField, which getSeoMeta() reads.
+		if (titleFieldChanged) invalidateCollectionCache(slug);
 		this.notifyTypegen();
 		return updated;
 	}
@@ -1324,6 +1330,7 @@ export class SchemaRegistry {
 		);
 
 		let schemaMutated = false;
+		let fieldStorageReady = false;
 		try {
 			const created = await withTransaction(this.db, async (trx) => {
 				// Insert field record
@@ -1367,6 +1374,8 @@ export class SchemaRegistry {
 					);
 				}
 
+				fieldStorageReady = true;
+
 				if (input.indexed) {
 					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
 				}
@@ -1405,6 +1414,12 @@ export class SchemaRegistry {
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
+				// D1 cannot roll back the insert when ADD COLUMN fails. Once storage
+				// exists, later failures must not remove its field metadata.
+				if (!fieldStorageReady) {
+					await this.db.deleteFrom("_emdash_fields").where("id", "=", id).execute();
+				}
+
 				if (activeCoverageInvalidated) {
 					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
 				} else {

@@ -19,7 +19,13 @@ import {
 } from "../database/repositories/taxonomy-def.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { getI18nConfig } from "../i18n/config.js";
+import { getI18nConfig, getLocaleChainRank, getLocaleCandidates } from "../i18n/config.js";
+import {
+	canonicalLocaleColumn,
+	localeMatches,
+	localeOrder,
+	storedLocaleOrder,
+} from "../i18n/query.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb, resetTaxonomyNamesCache } from "../loader.js";
 import {
@@ -34,6 +40,12 @@ import { peekRequestCache, requestCached, setRequestCacheEntry } from "../reques
 import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
+import {
+	createRevalidatingCache,
+	invalidateRevalidatingCache,
+	revalidatingCached,
+	type RevalidatingCache,
+} from "../utils/revalidating-cache.js";
 import { fetchVisibleTermCounts } from "./term-counts.js";
 import type { TaxonomyDef, TaxonomyTerm, TaxonomyTermRow } from "./types.js";
 
@@ -70,8 +82,12 @@ async function selectEntryTermRows(
 ): Promise<EntryTermRow[]> {
 	validateIdentifier(collection, "collection slug");
 	const tableName = `ec_${collection}`;
-	const preferredLocale = locale ? sql`${locale}` : sql`content.locale`;
 	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
+	const preferredMatch = locale
+		? localeMatches("exact_term.locale", locale)
+		: sql`${canonicalLocaleColumn("exact_term.locale")} = ${canonicalLocaleColumn("content.locale")}`;
+	const defaultMatch = localeMatches("default_term.locale", defaultLocale);
+	const hasAliases = Object.keys(getI18nConfig()?.localeAliases ?? {}).length > 0;
 	const result = await sql<EntryTermRow>`
 		SELECT content.id AS entry_id,
 			coalesce(exact_term.id, default_term.id) AS id,
@@ -87,14 +103,35 @@ async function selectEntryTermRows(
 			AND pivot.collection = ${collection}
 		LEFT JOIN taxonomies AS exact_term
 			ON exact_term.translation_group = pivot.taxonomy_id
-			AND exact_term.locale = ${preferredLocale}
+			AND ${preferredMatch}
+			${
+				hasAliases
+					? sql`AND exact_term.id = (
+				SELECT candidate.id FROM taxonomies AS candidate
+				WHERE candidate.translation_group = pivot.taxonomy_id
+					AND ${locale ? localeMatches("candidate.locale", locale) : sql`${canonicalLocaleColumn("candidate.locale")} = ${canonicalLocaleColumn("content.locale")}`}
+				ORDER BY ${locale ? localeOrder("candidate.locale", locale) : storedLocaleOrder("candidate.locale")}, candidate.id LIMIT 1
+			)`
+					: sql``
+			}
 		LEFT JOIN taxonomies AS default_term
 			ON default_term.translation_group = pivot.taxonomy_id
-			AND default_term.locale = ${defaultLocale}
+			AND ${defaultMatch}
+			${
+				hasAliases
+					? sql`AND default_term.id = (
+				SELECT candidate.id FROM taxonomies AS candidate
+				WHERE candidate.translation_group = pivot.taxonomy_id
+					AND ${localeMatches("candidate.locale", defaultLocale)}
+				ORDER BY ${localeOrder("candidate.locale", defaultLocale)}, candidate.id LIMIT 1
+			)`
+					: sql``
+			}
 		WHERE content.id IN (${sql.join(entryIds.map((id) => sql`${id}`))})
 			AND coalesce(exact_term.id, default_term.id) IS NOT NULL
 			${taxonomyName ? sql`AND coalesce(exact_term.name, default_term.name) = ${taxonomyName}` : sql``}
-		ORDER BY coalesce(exact_term.label, default_term.label) ASC
+		ORDER BY coalesce(exact_term.label, default_term.label) ASC,
+			coalesce(exact_term.id, default_term.id) ASC
 	`.execute(db);
 	return result.rows;
 }
@@ -105,68 +142,36 @@ export function invalidateTermCache(): void {
 }
 
 /**
- * Worker-isolate cache for taxonomy definitions: every locale's rows, resolved
- * per locale in memory.
- *
- * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
- * their terms) are read on every public render that hydrates entry terms —
- * `getAllTermsForEntries` → `getCollectionTaxonomyNames` → `getTaxonomyDefs` —
- * but change extremely rarely: they're written only by the admin API and by
- * seed application. Caching them across the isolate lifetime drops the
- * per-render `SELECT * FROM _emdash_taxonomy_defs` to once-per-isolate.
- *
- * Stored on globalThis behind a Symbol key (same pattern as
- * `settings/index.ts`) so the bundler duplicating this module across SSR
- * chunks can't produce two independent caches.
- *
- * When the distributed object cache is configured, it is authoritative and this
- * fallback is bypassed so cross-isolate epoch invalidation cannot be undercut
- * by stale per-isolate data on an object-cache miss.
- *
- * **Isolated databases bypass the cache.** Playground / DO preview requests
- * set `requestContext.dbIsIsolated`; they point at a divergent schema, so we
- * skip both reading and writing the global holder and fall back to the
- * per-request cache (same precedent as `getTaxonomyNames` / byline field defs).
+ * Every locale's definition rows, revalidated in the background after 30 seconds.
+ * The optional object cache remains authoritative when configured; isolated
+ * databases bypass the isolate snapshot.
  */
-interface TaxonomyDefsHolder {
-	version: number;
-	/** The rows and the version they were fetched at. */
-	cache: Map<"all", { version: number; promise: Promise<TaxonomyDef[]> }>;
-}
-
-const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs");
+const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs:swr");
 const taxonomyDefsStore = globalThis as Record<symbol, unknown>;
-const defsHolder: TaxonomyDefsHolder =
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see settings/index.ts)
-	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as TaxonomyDefsHolder | undefined) ??
+const defsCache =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	(taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] as RevalidatingCache<TaxonomyDef[]> | undefined) ??
 	(() => {
-		const h: TaxonomyDefsHolder = { version: 0, cache: new Map() };
-		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = h;
-		return h;
+		const c = createRevalidatingCache<TaxonomyDef[]>();
+		taxonomyDefsStore[TAXONOMY_DEFS_CACHE_KEY] = c;
+		return c;
 	})();
 
 /**
  * Invalidate the isolate-wide taxonomy-definitions cache (and the related
  * loader taxonomy-names cache). Called from every taxonomy-def write path
  * (`handleTaxonomyCreate`/`Update`/`Delete`, seed application). Other isolates
- * refresh on their next recycle — staleness bounded by isolate lifetime.
+ * pick up remote changes through background revalidation.
  */
 export function invalidateTaxonomyDefsCache(): void {
-	defsHolder.version++;
-	defsHolder.cache.clear();
+	invalidateRevalidatingCache(defsCache);
 	resetTaxonomyNamesCache();
 	invalidateTaxonomyObjectCache();
 }
 
-/**
- * Test/internal helper: clear the per-isolate taxonomy-defs cache. Useful for
- * unit tests that insert defs directly and need to force a refetch without
- * going through a write path. Production code should rely on
- * `invalidateTaxonomyDefsCache()`.
- */
+/** @internal Clear the isolate snapshot between test databases. */
 export function resetTaxonomyDefsCacheForTests(): void {
-	defsHolder.version++;
-	defsHolder.cache.clear();
+	invalidateRevalidatingCache(defsCache);
 }
 
 /** Every locale's definition rows, straight from the database (no caching). */
@@ -181,28 +186,14 @@ async function fetchTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 
 /**
  * Resolve the definition rows through the isolate fallback cache, bypassing it
- * for isolated databases. The returned promise is cached (not the resolved
- * value) so concurrent cold-isolate readers share one in-flight query; a
- * rejection evicts the entry so the next caller retries.
+ * for isolated databases.
  */
 function loadTaxonomyDefRows(): Promise<TaxonomyDef[]> {
-	if (getRequestContext()?.dbIsIsolated === true) {
-		return fetchTaxonomyDefRows();
-	}
-	const existing = defsHolder.cache.get("all");
-	if (existing && existing.version === defsHolder.version) {
-		return existing.promise;
-	}
-	const version = defsHolder.version;
-	const promise = fetchTaxonomyDefRows().catch((error: unknown) => {
-		const current = defsHolder.cache.get("all");
-		if (current && current.promise === promise) {
-			defsHolder.cache.delete("all");
-		}
-		throw error;
-	});
-	defsHolder.cache.set("all", { version, promise });
-	return promise;
+	const context = getRequestContext();
+	if (context?.dbIsIsolated) return fetchTaxonomyDefRows();
+	return revalidatingCached(defsCache, fetchTaxonomyDefRows, (error) =>
+		console.error("[emdash:taxonomies] revalidating taxonomy definitions failed:", error),
+	);
 }
 
 /**
@@ -235,14 +226,14 @@ function resolveDefs(rows: readonly TaxonomyDef[], chain: readonly string[]): Ta
 	const byName = new Map<string, TaxonomyDef>();
 	for (const row of rows) {
 		const current = byName.get(row.name);
-		if (!current || rank(row.locale) < rank(current.locale)) byName.set(row.name, row);
+		if (
+			!current ||
+			getLocaleChainRank(row.locale, preference) < getLocaleChainRank(current.locale, preference)
+		) {
+			byName.set(row.name, row);
+		}
 	}
 	return [...byName.values()];
-
-	function rank(locale: string): number {
-		const index = preference.indexOf(locale);
-		return index === -1 ? preference.length : index;
-	}
 }
 
 /**
@@ -361,7 +352,11 @@ async function loadTaxonomyTerms(
 		.where("name", "=", def.name)
 		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
-	if (locale !== undefined) termsQuery = termsQuery.where("locale", "=", locale);
+	if (locale !== undefined) {
+		termsQuery = termsQuery
+			.where(localeMatches("locale", locale))
+			.orderBy(localeOrder("locale", locale), "asc");
+	}
 
 	const rows = await termsQuery.execute();
 
@@ -475,13 +470,28 @@ async function loadTerm(
 			.where("slug", "=", slug);
 
 	if (chain.length === 0) {
-		row = await selectTerm().orderBy("locale", "asc").executeTakeFirst();
+		row = await selectTerm().orderBy("locale", "asc").orderBy("id", "asc").executeTakeFirst();
 	} else {
-		row = undefined;
-		for (const locale of chain) {
-			row = await selectTerm().where("locale", "=", locale).executeTakeFirst();
-			if (row) break;
-		}
+		let offset = 0;
+		const candidates = chain.flatMap((locale) => {
+			const values = getLocaleCandidates(locale);
+			const result = values.map((candidate, index) => ({ candidate, rank: offset + index }));
+			offset += values.length;
+			return result;
+		});
+		const chainOrder = sql<number>`CASE ${sql.join(
+			candidates.map(
+				({ candidate, rank }) =>
+					sql`WHEN lower(locale) = ${candidate.toLowerCase()} THEN ${sql.lit(rank)}`,
+			),
+			sql` `,
+		)} ELSE ${sql.lit(offset)} END`;
+		row = await selectTerm()
+			.where((eb) => eb.or(chain.map((locale) => localeMatches("locale", locale))))
+			.orderBy(chainOrder, "asc")
+			.orderBy(localeOrder("locale", chain[0]), "asc")
+			.orderBy("id", "asc")
+			.executeTakeFirst();
 	}
 
 	if (!row) return null;
@@ -495,7 +505,11 @@ async function loadTerm(
 		.orderBy("sort_order", "asc")
 		.orderBy("label", "asc");
 	const termLocale = row.locale;
-	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
+	if (termLocale) {
+		childrenQuery = childrenQuery
+			.where(localeMatches("locale", termLocale))
+			.orderBy(localeOrder("locale", termLocale), "asc");
+	}
 
 	const childRows = await childrenQuery.execute();
 
@@ -524,6 +538,29 @@ async function loadTerm(
 }
 
 /**
+ * Serve one taxonomy's terms for an entry from its primed wildcard key.
+ *
+ * `terms:C:E:*:L` is only ever set from an entry's complete term list (the
+ * folded content query, `getAllTermsForEntries`, or a wildcard
+ * `getEntryTerms` query), so a taxonomy absent from it has no terms on the
+ * entry. The fold primes per-taxonomy keys only for taxonomies present on the
+ * entry; without this, a post with no tags re-queries for its tags.
+ *
+ * Returns `undefined` when the wildcard key isn't primed. A rejected wildcard
+ * promise rejects here too; callers treat that as a cache miss.
+ */
+function peekTermsFromWildcard(
+	collection: string,
+	entryId: string,
+	taxonomyName: string,
+	localeKey: string,
+): Promise<TaxonomyTerm[]> | undefined {
+	return peekRequestCache<TaxonomyTerm[]>(`terms:${collection}:${entryId}:*:${localeKey}`)?.then(
+		(terms) => terms.filter((t) => t.name === taxonomyName),
+	);
+}
+
+/**
  * Terms assigned to a content entry, resolved into the active locale and then
  * the configured default locale.
  */
@@ -534,31 +571,36 @@ export function getEntryTerms(
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyTerm[]> {
 	const locale = resolveLocale(options.locale);
+	const query = () =>
+		cachedQuery({
+			namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
+			key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
+			load: async () => {
+				const db = await getDb();
+				const rows = await selectEntryTermRows(db, collection, [entryId], taxonomyName, locale);
+				return rows.map<TaxonomyTerm>((row) => ({
+					id: row.id,
+					name: row.name,
+					slug: row.slug,
+					label: row.label,
+					parentId: row.parent_id ?? undefined,
+					children: [],
+					locale: row.locale,
+					translationGroup: row.translation_group,
+				}));
+			},
+		});
 	// requestCached short-circuits to values primed by getAllTermsForEntries
 	// during entry hydration (same key shape). On a warm content-cache hit
 	// hydration doesn't run, so the inner cachedQuery serves this from KV
 	// instead of falling through to D1 on every request.
 	return requestCached(
 		`terms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
-		() =>
-			cachedQuery({
-				namespace: [...contentCacheNamespaces(collection), CacheNamespace.TAXONOMIES],
-				key: `entryTerms:${collection}:${entryId}:${taxonomyName ?? "*"}:${locale ?? "*"}`,
-				load: async () => {
-					const db = await getDb();
-					const rows = await selectEntryTermRows(db, collection, [entryId], taxonomyName, locale);
-					return rows.map<TaxonomyTerm>((row) => ({
-						id: row.id,
-						name: row.name,
-						slug: row.slug,
-						label: row.label,
-						parentId: row.parent_id ?? undefined,
-						children: [],
-						locale: row.locale,
-						translationGroup: row.translation_group,
-					}));
-				},
-			}),
+		() => {
+			const fromWildcard =
+				taxonomyName && peekTermsFromWildcard(collection, entryId, taxonomyName, locale ?? "*");
+			return fromWildcard ? fromWildcard.catch(query) : query();
+		},
 	);
 }
 
@@ -586,14 +628,16 @@ export async function getTermsForEntries(
 		// seeds the per-entry cache under the same key getEntryTerms uses:
 		// `terms:${collection}:${entryId}:${taxonomyName}:${localeKey}`, storing a
 		// TaxonomyTerm[] (including `[]` for entries with no terms). Satisfy those
-		// from cache and run the batched query only for the ids that missed.
+		// from cache, falling back to the entry's primed wildcard key, and run the
+		// batched query only for the ids that missed both.
 		const missedIds: string[] = [];
 		type CacheRead = { id: string; terms: TaxonomyTerm[] } | { id: string; miss: true };
 		const cacheReads: Array<Promise<CacheRead>> = [];
 		for (const id of uniqueIds) {
-			const cached = peekRequestCache<TaxonomyTerm[]>(
-				`terms:${collection}:${id}:${taxonomyName}:${localeKey}`,
-			);
+			const cached =
+				peekRequestCache<TaxonomyTerm[]>(
+					`terms:${collection}:${id}:${taxonomyName}:${localeKey}`,
+				) ?? peekTermsFromWildcard(collection, id, taxonomyName, localeKey);
 			if (cached) {
 				// A peeked promise can reject (e.g. a sibling getEntryTerms hit a
 				// missing table). Treat a rejection as a cache miss so the batched
@@ -792,8 +836,8 @@ function primeEntryTermsCache(
  * Unlike `getAllTermsForEntries`, this deliberately does NOT seed `[]` for
  * taxonomies that apply to the collection but have no rows on the entry: doing
  * so would require a `getTaxonomyDefs` query, adding a round trip to every fold
- * render to serve the rarer `getEntryTerms(id, absentTaxonomy)` case from cache.
- * That call simply falls through to its own cached query. Keeping the key shape
+ * render. `getEntryTerms` and `getTermsForEntries` answer an absent taxonomy
+ * from the wildcard key instead (`peekTermsFromWildcard`). Keeping the key shape
  * here (rather than in query.ts) prevents the two from drifting.
  */
 export function primeFoldedEntryTerms(

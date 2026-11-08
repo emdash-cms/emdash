@@ -15,6 +15,8 @@ import {
 	teardownTestDatabase,
 } from "../../utils/test-db.js";
 
+const fullAccess = { includeDrafts: true, includeMediaCount: true, includeUserCount: true };
+
 describe("Dashboard Handlers", () => {
 	describe("handleDashboardStats", () => {
 		let db: Kysely<Database>;
@@ -26,7 +28,7 @@ describe("Dashboard Handlers", () => {
 		it("returns empty stats when no collections exist", async () => {
 			db = await setupTestDatabase();
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			expect(result.data).toBeDefined();
@@ -48,7 +50,7 @@ describe("Dashboard Handlers", () => {
 			// Create a draft page
 			await contentRepo.create(createPageFixture({ slug: "page-1" }));
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const { collections } = result.data!;
@@ -98,7 +100,7 @@ describe("Dashboard Handlers", () => {
 
 			await contentRepo.create(createPostFixture({ slug: "archived", status: "archived" }));
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const postStats = result.data!.collections.find((c) => c.slug === "post");
@@ -117,7 +119,7 @@ describe("Dashboard Handlers", () => {
 				scheduledAt: "2026-08-16T11:59:00.000Z",
 			});
 
-			const result = await handleDashboardStats(db, { includeDrafts: true }, now);
+			const result = await handleDashboardStats(db, fullAccess, now);
 
 			expect(result.success).toBe(true);
 			expect(result.data!.schedulerHealth).toEqual({
@@ -137,12 +139,12 @@ describe("Dashboard Handlers", () => {
 			const now = new Date("2026-08-16T12:00:00.000Z");
 			await options.set(SCHEDULER_HEARTBEAT_OPTION, "2026-08-16T11:50:00.000Z");
 
-			const stale = await handleDashboardStats(db, { includeDrafts: true }, now);
+			const stale = await handleDashboardStats(db, fullAccess, now);
 			expect(stale.success).toBe(true);
 			expect(stale.data!.schedulerHealth.status).toBe("stale");
 
 			await options.set(SCHEDULER_HEARTBEAT_OPTION, "2026-08-16T11:58:00.000Z");
-			const healthy = await handleDashboardStats(db, { includeDrafts: true }, now);
+			const healthy = await handleDashboardStats(db, fullAccess, now);
 			expect(healthy.success).toBe(true);
 			expect(healthy.data!.schedulerHealth.status).toBe("healthy");
 		});
@@ -165,7 +167,7 @@ describe("Dashboard Handlers", () => {
 				rejectedAt: "2030-01-02T00:00:00.000Z",
 			});
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 			expect(result.success).toBe(true);
 			expect(result.data!.policyRejectedScheduled).toBe(2);
 			expect(result.data!.policyRejections).toEqual(
@@ -194,7 +196,7 @@ describe("Dashboard Handlers", () => {
 				});
 			}
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 			expect(result.success).toBe(true);
 			expect(result.data!.policyRejectedScheduled).toBe(25);
 			expect(result.data!.policyRejections).toHaveLength(20);
@@ -209,7 +211,7 @@ describe("Dashboard Handlers", () => {
 			await new Promise((r) => setTimeout(r, 10));
 			await contentRepo.create(createPageFixture({ slug: "page-1" }));
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const { recentItems } = result.data!;
@@ -239,7 +241,7 @@ describe("Dashboard Handlers", () => {
 				}),
 			);
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const postItem = result.data!.recentItems.find((i) => i.slug === "my-post");
@@ -271,7 +273,7 @@ describe("Dashboard Handlers", () => {
 				status: "draft",
 			});
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const eventItem = result.data!.recentItems.find((i) => i.collection === "events");
@@ -290,7 +292,7 @@ describe("Dashboard Handlers", () => {
 			// Soft-delete the first post
 			await contentRepo.delete("post", post.id);
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const slugs = result.data!.recentItems.map((i) => i.slug);
@@ -307,7 +309,7 @@ describe("Dashboard Handlers", () => {
 				await contentRepo.create(createPostFixture({ slug: `post-${String(i).padStart(2, "0")}` }));
 			}
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			expect(result.data!.recentItems).toHaveLength(10);
@@ -323,7 +325,7 @@ describe("Dashboard Handlers", () => {
 			await new Promise((r) => setTimeout(r, 10));
 			await contentRepo.create(createPostFixture({ slug: "newest" }));
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const slugs = result.data!.recentItems.map((i) => i.slug);
@@ -338,7 +340,7 @@ describe("Dashboard Handlers", () => {
 			await contentRepo.create(createPostFixture({ slug: "to-keep" }));
 			await contentRepo.delete("post", post.id);
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const postStats = result.data!.collections.find((c) => c.slug === "post");
@@ -380,7 +382,7 @@ describe("Dashboard Handlers", () => {
 				await new Promise((r) => setTimeout(r, 5));
 			}
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const { recentItems } = result.data!;
@@ -399,7 +401,7 @@ describe("Dashboard Handlers", () => {
 			const contentRepo = new ContentRepository(db);
 			await contentRepo.create(createPostFixture());
 
-			const result = await handleDashboardStats(db, { includeDrafts: true });
+			const result = await handleDashboardStats(db, fullAccess);
 
 			expect(result.success).toBe(true);
 			const item = result.data!.recentItems[0]!;

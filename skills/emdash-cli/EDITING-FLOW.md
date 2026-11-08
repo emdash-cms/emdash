@@ -31,7 +31,7 @@ Standard blocks:
 
 Lines inside a paragraph join with a space, so separate paragraphs with a blank line. To keep a line break, end the line with two spaces or a backslash. A backslash before a punctuation character, as in `\*` or `\#`, keeps that character as text.
 
-On read, the CLI ends each line inside a paragraph with a backslash and escapes characters that would otherwise read as Markdown, such as `*`, `_` or a `#` at the start of a line, so writing a paragraph back keeps its text and line breaks, except spaces and tabs at the start of its second and later lines, which Markdown drops. Bold italic text, italics inside a word right next to bold text, and inline code holding a backtick still come back with stray `*`, `_` or backtick characters in their text. A list item, heading or quote holds one line: the lines after the first come back as a paragraph below it.
+On read, the CLI ends each internal paragraph line with a backslash and escapes literal Markdown syntax, such as `*`, `_`, or a `#` at the start of a line. List items and quotes can contain hard breaks. Headings with line breaks are written as opaque fences to keep their content intact. Newlines inside inline code become spaces. Markdown conversion can normalize whitespace and span boundaries; use raw mode when you need the exact Portable Text structure.
 
 Inline marks:
 

@@ -125,7 +125,14 @@ const formSettingsSchema = z.object({
 });
 
 /** Update: a missing setting stays missing, so the handler's merge keeps the stored value. */
-const formSettingsUpdateSchema = z.object(formSettingsShape).partial();
+const formSettingsUpdateSchema = z
+	.object({
+		...formSettingsShape,
+		autoresponder: autoresponderSchema
+			.nullable()
+			.describe("Send null to disable the autoresponder"),
+	})
+	.partial();
 
 // ─── Form CRUD Schemas ──────────────────────────────────────────
 

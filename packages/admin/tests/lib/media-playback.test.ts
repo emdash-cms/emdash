@@ -22,6 +22,19 @@ describe("metaPlayback", () => {
 });
 
 describe("providerItemToMediaItem", () => {
+	it("keeps the hosted player separate from the poster when opening provider details", () => {
+		const playerUrl = "https://customer-abc123.cloudflarestream.com/UID/iframe";
+		const result = providerItemToMediaItem("cloudflare-stream", {
+			id: "UID",
+			filename: "webinar.mp4",
+			mimeType: "video/mp4",
+			previewUrl: STREAM_POSTER,
+			playerUrl,
+		});
+		expect(result.playerUrl).toBe(playerUrl);
+		expect(result.url).toBe(STREAM_POSTER);
+	});
+
 	it("falls back to meta.size when the provider reports no top-level size", () => {
 		// Regression: Stream items displayed "0 B" because only `item.size` was read.
 		const result = providerItemToMediaItem("cloudflare-stream", {
@@ -35,5 +48,25 @@ describe("providerItemToMediaItem", () => {
 		expect(result.size).toBe(75431883);
 		// `meta` must survive the mapping or the detail panel cannot find playback.
 		expect(metaPlayback(result.meta)).toEqual({ hls: STREAM_HLS });
+	});
+
+	it("maps provider captions and preserves the legacy meta fallback", () => {
+		const firstClass = providerItemToMediaItem("cloudflare-images", {
+			id: "image-1",
+			filename: "image.jpg",
+			mimeType: "image/jpeg",
+			caption: "First-class caption",
+			meta: { caption: "Old caption" },
+		});
+		const legacy = providerItemToMediaItem("cloudflare-images", {
+			id: "image-2",
+			filename: "image-2.jpg",
+			mimeType: "image/jpeg",
+			meta: { caption: "Legacy caption" },
+		});
+
+		expect(firstClass.caption).toBe("First-class caption");
+		expect(firstClass.meta?.caption).toBe("First-class caption");
+		expect(legacy.caption).toBe("Legacy caption");
 	});
 });

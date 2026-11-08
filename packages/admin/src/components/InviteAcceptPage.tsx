@@ -60,7 +60,13 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 				</p>
 			</div>
 
-			<Input label={t`Email`} value={inviteData.email} disabled className="bg-kumo-tint" />
+			<Input
+				dir="ltr"
+				label={t`Email`}
+				value={inviteData.email}
+				disabled
+				className="bg-kumo-tint"
+			/>
 
 			<Input
 				label={t`Your name (optional)`}
