@@ -44,6 +44,16 @@ export function parseRoomId(id: string): EntryRef | null {
 	return { collection: id.slice(0, colon), id: id.slice(colon + 1) };
 }
 
+/** A room token's random bytes. The token is their base64url encoding, without padding. */
+export const ROOM_TOKEN_BYTES = 32;
+const ROOM_TOKEN_LENGTH = Math.ceil((ROOM_TOKEN_BYTES * 4) / 3);
+const BASE64URL = /^[\w-]*$/;
+
+/** Whether a string has the shape of a token a room issues. */
+export function isRoomToken(token: string): boolean {
+	return token.length === ROOM_TOKEN_LENGTH && BASE64URL.test(token);
+}
+
 /** An EmDash build and its editor schema: the admin manifest's `version`, `commit` and `hash`. */
 export interface Fingerprint {
 	version: string;

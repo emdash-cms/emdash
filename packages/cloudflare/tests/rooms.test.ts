@@ -1,5 +1,5 @@
-import { RoomSaveError } from "emdash/internal/co-editing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CLOSE_CODES, RoomSaveError } from "emdash/internal/co-editing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fakeEnv, rooms, astroFetch } = vi.hoisted(() => {
 	const stub = {
@@ -24,7 +24,9 @@ import { createRoomHost } from "../src/rooms/host.js";
 import { handleRoomUpgrade } from "../src/rooms/upgrade.js";
 import worker from "../src/worker.js";
 
-const ROOM_URL = "https://site.test/blog/_emdash/api/content/posts/01%20ID/room?token=abc";
+const TOKEN = "Aa0_-".repeat(8) + "Aa0";
+const ROOM_PATH = "https://site.test/blog/_emdash/api/content/posts/01%20ID/room";
+const ROOM_URL = `${ROOM_PATH}?token=${TOKEN}`;
 
 function upgrade(url = ROOM_URL, method = "GET"): Request {
 	return new Request(url, { method, headers: { Upgrade: "websocket" } });
@@ -49,10 +51,14 @@ describe("handleRoomUpgrade", () => {
 	it.each([
 		["a request that isn't an upgrade", new Request(ROOM_URL)],
 		["an upgrade that isn't a GET", upgrade(ROOM_URL, "POST")],
-		["an upgrade without a token", upgrade(ROOM_URL.replace("?token=abc", ""))],
+		["an upgrade without a token", upgrade(ROOM_PATH)],
 		[
 			"an upgrade on another path",
-			upgrade("https://site.test/_emdash/api/content/posts/1?token=abc"),
+			upgrade(`https://site.test/_emdash/api/content/posts/1?token=${TOKEN}`),
+		],
+		[
+			"an upgrade on a path that names no room",
+			upgrade(`https://site.test/_emdash/api/content/%3Aposts/1/room?token=${TOKEN}`),
 		],
 	])("ignores %s", (_name, request) => {
 		expect(handleRoomUpgrade(request, { EMDASH_ROOMS: rooms })).toBeNull();
@@ -62,6 +68,49 @@ describe("handleRoomUpgrade", () => {
 	it("ignores room upgrades when the Worker has no room binding", () => {
 		expect(handleRoomUpgrade(upgrade(), {})).toBeNull();
 		expect(handleRoomUpgrade(upgrade(), undefined)).toBeNull();
+	});
+
+	describe("with a token no room could have issued", () => {
+		const server = { accept: vi.fn(), close: vi.fn() };
+		const client = {};
+
+		beforeEach(() => {
+			vi.stubGlobal(
+				"WebSocketPair",
+				class {
+					0 = client;
+					1 = server;
+				},
+			);
+			// Node.js refuses the 101 status a Worker completes an upgrade with.
+			vi.stubGlobal(
+				"Response",
+				class {
+					constructor(
+						readonly body: null,
+						readonly init: ResponseInit & { webSocket?: unknown },
+					) {}
+				},
+			);
+		});
+
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
+		it.each([
+			["empty", ""],
+			["too short", TOKEN.slice(1)],
+			["too long", `${TOKEN}A`],
+			["outside base64url", `${TOKEN.slice(1)}+`],
+		])("closes the socket with busy without reaching the namespace: %s", async (_name, token) => {
+			const url = `${ROOM_PATH}?token=${encodeURIComponent(token)}`;
+			const response = await handleRoomUpgrade(upgrade(url), { EMDASH_ROOMS: rooms });
+			expect(response).toMatchObject({ init: { status: 101, webSocket: client } });
+			expect(server.accept).toHaveBeenCalled();
+			expect(server.close).toHaveBeenCalledWith(CLOSE_CODES.busy, "No valid token");
+			expect(rooms.getByName).not.toHaveBeenCalled();
+		});
 	});
 });
 
