@@ -395,14 +395,10 @@ it("steps and navigates time segments without changing the date", async () => {
 	const minute = screen.getByRole("textbox", { name: "Minute" });
 	await hour.click();
 	await userEvent.keyboard("{ArrowUp}");
-	await expect
-		.element(screen.getByText("00:59", { exact: true }))
-		.toBeVisible();
+	await expect.element(screen.getByText("00:59", { exact: true })).toBeVisible();
 	await minute.click();
 	await userEvent.keyboard("{ArrowUp}");
-	await expect
-		.element(screen.getByText("00:00", { exact: true }))
-		.toBeVisible();
+	await expect.element(screen.getByText("00:00", { exact: true })).toBeVisible();
 	minute.element().setSelectionRange(0, 0);
 	await userEvent.keyboard("{ArrowLeft}");
 	await expect.element(hour).toHaveFocus();
@@ -430,13 +426,56 @@ it("wraps 24-hour steps independently and preserves the minute", async () => {
 		const screen = await render(<ControlledFields />);
 		await screen.getByRole("textbox", { name: "Hour" }).click();
 		await userEvent.keyboard("{ArrowUp}");
-		await expect
-			.element(screen.getByText("00:42", { exact: true }))
-			.toBeVisible();
+		await expect.element(screen.getByText("00:42", { exact: true })).toBeVisible();
 		await userEvent.keyboard("{ArrowDown}");
-		await expect
-			.element(screen.getByText("23:42", { exact: true }))
-			.toBeVisible();
+		await expect.element(screen.getByText("23:42", { exact: true })).toBeVisible();
+		await screen.unmount();
+	} finally {
+		i18n.activate(originalLocale);
+	}
+});
+
+it("moves from the period control to the adjacent time fields", async () => {
+	const screen = await render(
+		<PublishingDateTimeFields
+			date={new Date(2035, 5, 15, 12)}
+			time="09:00"
+			dateAriaLabel="Publication date"
+			onDateChange={vi.fn()}
+			onTimeChange={vi.fn()}
+		/>,
+	);
+	const period = screen.getByRole("combobox", { name: "Period" });
+	period.element().focus();
+	await userEvent.keyboard("{ArrowLeft}");
+	await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveFocus();
+	period.element().focus();
+	await userEvent.keyboard("{ArrowRight}");
+	await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveFocus();
+});
+
+it("uses ArrowLeft to advance the focused month title in RTL", async () => {
+	const originalLocale = i18n.locale;
+	i18n.activate("ar");
+	try {
+		const date = new Date(2035, 5, 15, 12);
+		const onDateChange = vi.fn();
+		const screen = await render(
+			<PublishingDateTimeFields
+				date={date}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={onDateChange}
+				onTimeChange={vi.fn()}
+			/>,
+		);
+		const formatter = new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" });
+		const title = screen.getByText(formatter.format(date), { exact: true });
+		await title.click();
+		await userEvent.keyboard("{ArrowLeft}");
+		const next = screen.getByText(formatter.format(new Date(2035, 6, 1)), { exact: true });
+		await expect.element(next).toHaveFocus();
+		expect(onDateChange).not.toHaveBeenCalled();
 		await screen.unmount();
 	} finally {
 		i18n.activate(originalLocale);

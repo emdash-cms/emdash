@@ -57,9 +57,13 @@ function PublishingMonthCaption(props: React.ComponentProps<"span">) {
 			aria-keyshortcuts="ArrowLeft ArrowRight"
 			onKeyDown={(event) => {
 				if (
-					event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+					event.altKey ||
+					event.ctrlKey ||
+					event.metaKey ||
+					event.shiftKey ||
 					(event.key !== "ArrowLeft" && event.key !== "ArrowRight")
-				) return;
+				)
+					return;
 
 				const calendar = event.currentTarget.closest(".rdp-root");
 				const rtl = calendar?.getAttribute("dir") === "rtl";
@@ -227,8 +231,7 @@ export function PublishingDateTimeFields({
 			const current = Number(timeParts[part]);
 			const value = timeParts[part] ? current : min;
 			const next =
-				((value - min + (event.key === "ArrowUp" ? 1 : -1) + max - min + 1) %
-					(max - min + 1)) +
+				((value - min + (event.key === "ArrowUp" ? 1 : -1) + max - min + 1) % (max - min + 1)) +
 				min;
 			updateTimeParts({ ...timeParts, [part]: String(next).padStart(2, "0") });
 			return;
@@ -236,12 +239,10 @@ export function PublishingDateTimeFields({
 		const input = event.currentTarget;
 		if (input.selectionStart !== input.selectionEnd) return;
 		const backwards = event.key === "ArrowLeft" && input.selectionStart === 0;
-		const forwards =
-			event.key === "ArrowRight" && input.selectionEnd === input.value.length;
+		const forwards = event.key === "ArrowRight" && input.selectionEnd === input.value.length;
 		if (!backwards && !forwards) return;
 		event.preventDefault();
-		const period =
-			timeGroupRef.current?.querySelector<HTMLElement>('[role="combobox"]');
+		const period = timeGroupRef.current?.querySelector<HTMLElement>('[role="combobox"]');
 		const target =
 			part === "hour"
 				? backwards
@@ -281,7 +282,8 @@ export function PublishingDateTimeFields({
 				className="w-full"
 				components={{ CaptionLabel: PublishingMonthCaption }}
 				classNames={{
-					caption_label: "rdp-caption_label rounded text-base !font-medium focus-visible:outline-2 focus-visible:outline-kumo-brand",
+					caption_label:
+						"rdp-caption_label rounded text-base !font-medium focus-visible:outline-2 focus-visible:outline-kumo-brand",
 					day_button: "rdp-day_button !mx-auto",
 					month: "rdp-month !w-full",
 					month_grid: "rdp-month_grid !w-full table-fixed",
@@ -356,24 +358,20 @@ export function PublishingDateTimeFields({
 						<div
 							dir={getLocaleDir(i18n.locale)}
 							className="rtl:order-first"
-								onKeyDown={(event) => {
-									if (
-										event.target ===
-											event.currentTarget.querySelector('[role="combobox"]') &&
-										!event.altKey &&
-										!event.ctrlKey &&
-										!event.metaKey &&
-										!event.shiftKey &&
-										!event.nativeEvent.isComposing &&
-										(event.key === "ArrowLeft" || event.key === "ArrowRight")
-									) {
-										event.preventDefault();
-										(event.key === "ArrowLeft"
-											? minuteInputRef
-											: hourInputRef
-										).current?.focus();
-									}
-								}}
+							onKeyDown={(event) => {
+								if (
+									event.target === event.currentTarget.querySelector('[role="combobox"]') &&
+									!event.altKey &&
+									!event.ctrlKey &&
+									!event.metaKey &&
+									!event.shiftKey &&
+									!event.nativeEvent.isComposing &&
+									(event.key === "ArrowLeft" || event.key === "ArrowRight")
+								) {
+									event.preventDefault();
+									(event.key === "ArrowLeft" ? minuteInputRef : hourInputRef).current?.focus();
+								}
+							}}
 						>
 							<Select
 								aria-label={t`Period`}
