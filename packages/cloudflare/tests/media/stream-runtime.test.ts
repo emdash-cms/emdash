@@ -15,6 +15,42 @@ const PREVIEW_URL = "https://customer-abc12345.cloudflarestream.com/UID/thumbnai
 
 const provider = createMediaProvider({ accountId: ACCOUNT_ID, apiToken: "test-token" });
 
+function streamVideo(preview?: string) {
+	return {
+		uid: "UID",
+		thumbnail: PREVIEW_URL,
+		readyToStream: true,
+		status: { state: "ready" },
+		meta: { name: "video.mp4" },
+		created: "2024-01-01T00:00:00Z",
+		modified: "2024-01-01T00:00:00Z",
+		size: 1234,
+		preview,
+		requireSignedURLs: false,
+		duration: 41,
+		input: { width: 1280, height: 720 },
+		playback: { hls: HLS, dash: DASH },
+	};
+}
+
+function apiResponse(result: unknown) {
+	return new Response(JSON.stringify({ success: true, result }), {
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+function mockFetch(...responses: Response[]) {
+	const fetchMock = vi.fn();
+	for (const response of responses) fetchMock.mockResolvedValueOnce(response);
+	vi.stubGlobal("fetch", fetchMock);
+	return fetchMock;
+}
+
+afterEach(() => {
+	vi.useRealTimers();
+	vi.unstubAllGlobals();
+});
+
 /** Resolve an embed and narrow it to the video variant, which is the only one Stream returns. */
 async function videoEmbed(value: MediaValue) {
 	const getEmbed = provider.getEmbed;
@@ -40,6 +76,106 @@ function streamValue(overrides: Partial<MediaValue> = {}): MediaValue {
 		...overrides,
 	};
 }
+
+describe("cloudflare stream hosted player mapping", () => {
+	it.each([
+		[
+			"rewrites a watch preview and preserves its query",
+			"https://customer-abc12345.cloudflarestream.com/UID/watch?autoplay=true&foo=bar",
+			"https://customer-abc12345.cloudflarestream.com/UID/iframe?autoplay=true&foo=bar",
+		],
+		[
+			"keeps an iframe preview unchanged",
+			"https://customer-abc12345.cloudflarestream.com/UID/iframe?autoplay=true",
+			"https://customer-abc12345.cloudflarestream.com/UID/iframe?autoplay=true",
+		],
+		[
+			"rewrites a watch preview with a trailing slash",
+			"https://customer-abc12345.cloudflarestream.com/UID/watch/",
+			"https://customer-abc12345.cloudflarestream.com/UID/iframe",
+		],
+		[
+			"omits an unrecognized preview path",
+			"https://customer-abc12345.cloudflarestream.com/UID/other",
+			undefined,
+		],
+		["omits a missing preview", undefined, undefined],
+		["omits a malformed preview", "not a URL", undefined],
+		[
+			"omits a non-HTTPS preview",
+			"http://customer-abc12345.cloudflarestream.com/UID/watch",
+			undefined,
+		],
+	] as const)("list %s", async (_label, preview, playerUrl) => {
+		mockFetch(apiResponse([streamVideo(preview)]));
+
+		const result = await provider.list({});
+		expect(result.items[0]).toMatchObject({ playerUrl });
+	});
+
+	it("maps get()'s watch preview to the hosted iframe player", async () => {
+		mockFetch(
+			apiResponse(
+				streamVideo("https://customer-abc12345.cloudflarestream.com/UID/watch?token=abc"),
+			),
+		);
+
+		const get = provider.get?.bind(provider);
+		if (!get) throw new Error("Stream provider does not implement get");
+		const result = await get("UID");
+		expect(result).toMatchObject({
+			playerUrl: "https://customer-abc12345.cloudflarestream.com/UID/iframe?token=abc",
+		});
+	});
+
+	it("returns a pending upload without inventing a hosted player URL", async () => {
+		vi.useFakeTimers();
+		mockFetch(
+			apiResponse({ uploadURL: "https://upload.example.com", uid: "UID" }),
+			new Response("uploaded"),
+			...Array.from({ length: 10 }, () =>
+				apiResponse({
+					...streamVideo("https://customer-abc12345.cloudflarestream.com/UID/watch"),
+					status: { state: "queued" },
+				}),
+			),
+		);
+
+		const upload = provider.upload?.bind(provider);
+		if (!upload) throw new Error("Stream provider does not implement upload");
+		const resultPromise = upload({
+			file: new File(["video"], "video.mp4", { type: "video/mp4" }),
+			filename: "video.mp4",
+		});
+		await vi.advanceTimersByTimeAsync(10000);
+		const result = await resultPromise;
+		expect(result.meta?.status).toEqual({ state: "processing" });
+		expect(result.playerUrl).toBeUndefined();
+	});
+
+	it("maps a completed upload's watch preview to the hosted iframe player", async () => {
+		vi.useFakeTimers();
+		mockFetch(
+			apiResponse({ uploadURL: "https://upload.example.com", uid: "UID" }),
+			new Response("uploaded"),
+			apiResponse(
+				streamVideo("https://customer-abc12345.cloudflarestream.com/UID/watch?token=abc"),
+			),
+		);
+
+		const upload = provider.upload?.bind(provider);
+		if (!upload) throw new Error("Stream provider does not implement upload");
+		const resultPromise = upload({
+			file: new File(["video"], "video.mp4", { type: "video/mp4" }),
+			filename: "video.mp4",
+		});
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(await resultPromise).toMatchObject({
+			playerUrl: "https://customer-abc12345.cloudflarestream.com/UID/iframe?token=abc",
+		});
+	});
+});
 
 describe("cloudflare stream getEmbed", () => {
 	it("takes the poster from previewUrl, where list()/get() actually report it", async () => {

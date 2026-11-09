@@ -163,6 +163,7 @@ import {
 	PortableTextStarterKit,
 	PortableTextTable,
 	PortableTextTextAlign,
+	PortableTextYSync,
 	SubscriptMark,
 	SuperscriptMark,
 	TableIdentity,
@@ -281,8 +282,8 @@ function linkAtCaret(state: EditorState): ProseMirrorMark | undefined {
 
 /**
  * Links the selected text, or the whole link around the caret, to `value`.
- * At a caret outside a link, the text typed next gets the link. Returns
- * `false`, changing nothing, for a URL the editor won't link.
+ * At a caret outside a link, the text typed next gets the link up to the first
+ * space. Returns `false`, changing nothing, for a URL the editor won't link.
  */
 function setSelectedTextLink(editor: Editor, value: string): boolean {
 	const href = normalizeLinkHref(value);
@@ -2067,6 +2068,42 @@ function mediaItemToImageAttrs(item: MediaItem) {
 }
 
 const EMPTY_PLUGIN_BLOCKS: PluginBlockDef[] = [];
+const BUILTIN_BLOCKS_PLUGIN_ID = "emdash";
+
+/**
+ * The repeater drops `_key` from the rows it emits, so each button's key rides
+ * along under this name while the form is open.
+ */
+const BUTTON_KEY_FIELD = "_editorKey";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function withButtonKeyField(buttons: unknown): unknown {
+	if (!Array.isArray(buttons)) return buttons;
+	return buttons.map((item) =>
+		isRecord(item) && typeof item._key === "string"
+			? { ...item, [BUTTON_KEY_FIELD]: item._key }
+			: item,
+	);
+}
+
+/** Shapes repeater rows into the `button` items `Buttons.astro` renders. */
+function normalizeButtonItems(items: unknown): unknown {
+	if (!Array.isArray(items)) return items;
+	return items.filter(isRecord).map((item) => {
+		const { url, style, [BUTTON_KEY_FIELD]: key, ...rest } = item;
+		return {
+			...rest,
+			_type: "button",
+			_key: typeof key === "string" && key ? key : generateKey(),
+			text: typeof item.text === "string" ? item.text : "",
+			...(typeof url === "string" && url.trim() ? { url: url.trim() } : {}),
+			...(typeof style === "string" && style ? { style } : {}),
+		};
+	});
+}
 
 /**
  * Portable Text Editor Component
@@ -2078,7 +2115,7 @@ export function PortableTextEditor({
 	className,
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
-	pluginBlocks = EMPTY_PLUGIN_BLOCKS,
+	pluginBlocks: externalPluginBlocks = EMPTY_PLUGIN_BLOCKS,
 	focusMode: controlledFocusMode,
 	onEditorReady,
 	minimal = false,
@@ -2254,6 +2291,50 @@ export function PortableTextEditor({
 		[],
 	);
 
+	const pluginBlocks = React.useMemo(() => {
+		if (externalPluginBlocks.some((block) => block.type === "buttons")) return externalPluginBlocks;
+		const buttonsBlock: PluginBlockDef = {
+			type: "buttons",
+			pluginId: BUILTIN_BLOCKS_PLUGIN_ID,
+			label: t`Buttons`,
+			icon: "link",
+			description: t`Add one or more link buttons`,
+			category: t(BASIC_BLOCKS_CATEGORY),
+			fields: [
+				{
+					type: "select",
+					action_id: "layout",
+					label: t`Layout`,
+					initial_value: "horizontal",
+					options: [
+						{ label: t`Horizontal`, value: "horizontal" },
+						{ label: t`Vertical`, value: "vertical" },
+					],
+				},
+				{
+					type: "repeater",
+					action_id: "buttons",
+					label: t`Buttons`,
+					item_label: t`button`,
+					fields: [
+						{ type: "text_input", action_id: "text", label: t`Text` },
+						{ type: "text_input", action_id: "url", label: t`URL`, placeholder: "https://" },
+						{
+							type: "select",
+							action_id: "style",
+							label: t`Style`,
+							options: [
+								{ label: t({ message: "Default", context: "button style" }), value: "default" },
+								{ label: t({ message: "Outline", context: "button style" }), value: "outline" },
+								{ label: t({ message: "Fill", context: "button style" }), value: "fill" },
+							],
+						},
+					],
+				},
+			],
+		};
+		return [...externalPluginBlocks, buttonsBlock];
+	}, [externalPluginBlocks, t]);
 	const pluginBlockTypes = React.useMemo(
 		() => new Set(pluginBlocks.map((block) => block.type)),
 		[pluginBlocks],
@@ -2502,6 +2583,7 @@ export function PortableTextEditor({
 			TableIdentity,
 			PortableTextNormalizers,
 			PortableTextKeys,
+			PortableTextYSync,
 			PortableTextFilledDefaults,
 			BlockFormatShortcuts,
 			BlockSelection.configure({
@@ -2542,6 +2624,7 @@ export function PortableTextEditor({
 		[], // Created once — all mutable state accessed via refs
 	);
 
+	const editorLabel = t`Rich text editor`;
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -2552,13 +2635,15 @@ export function PortableTextEditor({
 			scrollThreshold: isDocument ? { top: 96, right: 0, bottom: 0, left: 0 } : 0,
 			scrollMargin: isDocument ? { top: 96, right: 5, bottom: 5, left: 5 } : 5,
 			attributes: {
+				"aria-label": editorLabel,
+				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
-		[isDocument],
+		[ariaLabelledby, editorLabel, isDocument],
 	);
 
 	const editor = useEditor({
@@ -2803,7 +2888,11 @@ export function PortableTextEditor({
 			const block = editedPluginBlockAt(editor.state.doc, attrs.pos);
 			if (block === null) return;
 			editingBlockRef.current = block;
-			setPluginBlockInitialValues({ id: attrs.id, ...attrs.data });
+			const data =
+				blockDef.pluginId === BUILTIN_BLOCKS_PLUGIN_ID && blockDef.type === "buttons"
+					? { ...attrs.data, buttons: withButtonKeyField(attrs.data.buttons) }
+					: attrs.data;
+			setPluginBlockInitialValues({ id: attrs.id, ...data });
 			setPluginBlockModal(blockDef);
 		};
 		return () => {
@@ -2942,7 +3031,15 @@ export function PortableTextEditor({
 		(values: Record<string, unknown>): MessageDescriptor | undefined => {
 			if (!editor || !pluginBlockModal) return undefined;
 
-			const { id, ...data } = values;
+			const { id: formId, ...fieldData } = values;
+			const isBuiltinButtons =
+				pluginBlockModal.pluginId === BUILTIN_BLOCKS_PLUGIN_ID &&
+				pluginBlockModal.type === "buttons";
+			// A buttons group has no URL of its own; an older editor could store one here.
+			const id = isBuiltinButtons ? "" : formId;
+			const data = isBuiltinButtons
+				? { ...fieldData, buttons: normalizeButtonItems(fieldData.buttons) }
+				: fieldData;
 			const editing = editingBlockRef.current;
 
 			if (editing !== null) {

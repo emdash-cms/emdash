@@ -128,7 +128,7 @@ export async function handleSiteDomainChange(
 				? (body.data as { token?: unknown }).token
 				: undefined;
 		if (received !== token) {
-			return checkFailed(`${origin} does not serve this site yet`, {
+			return checkFailed(`Could not verify that ${origin} serves this site`, {
 				reason: "NOT_SERVING",
 				origin,
 			});

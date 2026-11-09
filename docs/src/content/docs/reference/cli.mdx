@@ -26,9 +26,13 @@ Commands that connect to a running EmDash instance resolve authentication in thi
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
 3. **Stored credentials** from `~/.config/emdash/auth.json` (saved by `emdash login`)
-4. **Dev bypass** — if the URL is localhost and no token is available, automatically authenticates via the dev bypass endpoint
+4. **Dev bypass** — if the URL is localhost and no token is available, automatically authenticates via the dev bypass endpoint after setup is complete
 
 The `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, and `site` commands connect to a running instance. Authentication commands have their own connection options. When targeting a local development server, no token is needed.
+
+The local development bypass requires setup to be complete. In passkey mode, it also requires an existing user. Before setup is complete, it creates no account or session and returns `409 SETUP_REQUIRED`. Finish the wizard at `/_emdash/admin/setup`, or explicitly skip it under `astro dev` with `/_emdash/api/setup/dev-bypass?content=0`. Skipping applies the schema and structure but does not add sample entries, bylines, or taxonomy terms.
+
+If the setup wizard is blocked by `Admin user already exists` because an earlier dev bypass created `dev@emdash.local`, open `/_emdash/api/setup/dev-bypass?content=0` under `astro dev`. This reuses the existing dev account and completes setup; it does not replace the dev account with a personal account.
 
 ## Common flags
 
@@ -96,7 +100,7 @@ npx emdash seed [path] [options]
 | `--on-conflict`    |       | Handle existing records with `skip`, `update`, or `error` | `skip`                         |
 | `--uploads-dir`    |       | Local directory used for seed media                    | `./uploads`                      |
 | `--media-base-url` |       | Base URL stored for local seed media                   | `/_emdash/api/media/file`        |
-| `--skip-media`     |       | Resolve `$media` references to external URLs instead of downloading and storing them | `false` |
+| `--skip-media`     |       | Keep `$media` URLs as external references; skip local files and leave their fields unset | `false` |
 
 Applying a seed runs core migrations first. Use `--validate` in continuous integration when you need to check the file without opening or creating the database.
 
@@ -243,7 +247,9 @@ npx emdash whoami [options]
 | `--header "Name: Value"` | `-H`  | Custom header, repeatable | Merged with `EMDASH_HEADERS`         |
 | `--json`                 |       | Output as JSON        |                                          |
 
-Displays email, name, role, auth method, and instance URL. On localhost with no token or stored credentials, `whoami` signs in through the dev bypass, which creates the `dev@emdash.local` admin user if it doesn't exist, and reports that user. It exits with a non-zero status when the instance can't be reached or the dev bypass is unavailable, for example when the site isn't running under `astro dev`.
+Displays email, name, role, auth method, and instance URL. On localhost with no token or stored credentials, `whoami` signs in through the dev bypass after setup is complete. It creates `dev@emdash.local` if needed and reports that user. Before setup is complete, `whoami` exits with status `1` and prints setup guidance. See [Authentication](#authentication) for setup prerequisites, the wizard and explicit setup-bypass paths, and recovery advice.
+
+It also exits with a non-zero status when the instance can't be reached or the dev bypass is unavailable, for example when the site isn't running under `astro dev`.
 
 ### `emdash content`
 
