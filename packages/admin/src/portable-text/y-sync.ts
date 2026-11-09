@@ -163,6 +163,9 @@ function inLiveText(binding: ProsemirrorBinding, relative: Y.RelativePosition): 
 const followed = new WeakSet<ProsemirrorBinding>();
 
 /**
+ * Works around https://github.com/ueberdosis/tiptap/issues/8594. Remove it once the y-tiptap pin
+ * includes a fix, such as https://github.com/ueberdosis/tiptap/pull/8617.
+ *
  * y-tiptap moves the selection by its old absolute positions only while they are in the old
  * document, so putting them out of it for a caret whose text node survived leaves the caret at its
  * relative position.
