@@ -89,7 +89,7 @@ import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
  * order fields; a collection's configured titleField/dateField slug is also
  * accepted, which the server validates against the collection.
  */
-export type ContentListSortField = "title" | "status" | "locale" | "updatedAt" | (string & {});
+export type ContentListSortField = "title" | "status" | "locale" | ContentDateField | (string & {});
 export interface ContentListSort {
 	field: ContentListSortField;
 	direction: "asc" | "desc";
@@ -1495,8 +1495,17 @@ function ContentListItem({
 	const title = getEntryTitle(item, titleField);
 	// A configured dateField drives the Date column; fall back to the
 	// last-updated / created date when it's unset, empty, or unparseable.
-	const customDate = dateField ? parseListDate(item.data[dateField]) : null;
-	const date = customDate ?? parseTimestamp(item.updatedAt || item.createdAt);
+	let configuredDate: Date | null = null;
+	if (dateField === "publishedAt" || dateField === "createdAt" || dateField === "updatedAt") {
+		const value = item[dateField];
+		if (value) {
+			const parsed = parseTimestamp(value);
+			if (!Number.isNaN(parsed.getTime())) configuredDate = parsed;
+		}
+	} else if (dateField) {
+		configuredDate = parseListDate(item.data[dateField]);
+	}
+	const date = configuredDate ?? parseTimestamp(item.updatedAt || item.createdAt);
 	const trash = useConfirmedRequest(onDelete && (() => onDelete(item.id)));
 	const statusBadge = (
 		<StatusBadge

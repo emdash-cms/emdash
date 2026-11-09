@@ -120,6 +120,32 @@ describe("Settings", () => {
 		expect(editor.getByRole("link", { name: /Media usage tracking/ }).query()).toBeNull();
 	});
 
+	it("shows non-admins only their own security settings and the language picker", async () => {
+		currentUser.role = 40;
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("link", { name: /Security/ })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("combobox", { name: "Language", exact: true }))
+			.toBeInTheDocument();
+		for (const name of [
+			/General/,
+			/Social Links/,
+			/SEO/,
+			/Self-Signup Domains/,
+			/API Tokens/,
+			/Email/,
+			/Backups/,
+			/Transfer/,
+		]) {
+			expect(screen.getByRole("link", { name }).query()).toBeNull();
+		}
+	});
+
 	it("groups settings into clear semantic sections", async () => {
 		const screen = await render(
 			<Wrapper>

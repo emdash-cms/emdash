@@ -91,7 +91,8 @@ test.describe("Autosave", () => {
 		const firstPut = admin.page.waitForResponse(isPutOf("Edit One"), { timeout: 10000 });
 		await titleInput.fill("Edit One");
 		await firstPut;
-		await expect(admin.page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible();
+		await admin.waitForSaveComplete();
+		await expect(admin.page.getByRole("status").filter({ hasText: "Saved" })).toHaveText("Saved");
 
 		// Check revision count after first autosave
 		const res1 = await fetch(
@@ -119,6 +120,63 @@ test.describe("Autosave", () => {
 		// Verify the latest revision contains the last autosaved data
 		const latestRevision = data2.data.items?.[0];
 		expect(latestRevision?.data?.title).toBe("Edit Two");
+	});
+
+	test("keeps an explicit draft checkpoint from mobile Settings through later autosaves", async ({
+		admin,
+		page,
+	}) => {
+		await admin.goToEditContent(collectionSlug, postId);
+		await admin.waitForLoading();
+		await page.setViewportSize({ width: 390, height: 800 });
+		const contentUrl = `/_emdash/api/content/${collectionSlug}/${postId}`;
+		const title = page.locator("#field-title");
+		const firstAutosave = page.waitForResponse(
+			(response) => response.url().includes(contentUrl) && response.request().method() === "PUT",
+		);
+		await title.fill("Mobile checkpoint");
+		expect((await firstAutosave).status()).toBe(200);
+		await admin.waitForSaveComplete();
+		const before = await (await fetch(`${baseUrl}${contentUrl}/revisions`, { headers })).json();
+		const checkpointId = before.data.items.find(
+			(revision: { data: { title: string } }) => revision.data.title === "Mobile checkpoint",
+		).id;
+
+		await page.getByRole("button", { name: "Settings", exact: true }).click();
+		const manualSave = page.waitForResponse(
+			(response) => response.url().includes(contentUrl) && response.request().method() === "PUT",
+		);
+		await page.getByRole("button", { name: "Save draft", exact: true }).click();
+		const manualResponse = await manualSave;
+		expect(manualResponse.status()).toBe(200);
+		expect(manualResponse.request().postDataJSON()).not.toHaveProperty("skipRevision");
+		await admin.waitForSaveComplete();
+		await page.getByRole("button", { name: "Close settings", exact: true }).click();
+		await title.click();
+		await expect(title).toBeFocused();
+
+		const laterAutosave = page.waitForResponse(
+			(response) =>
+				response.url().includes(contentUrl) &&
+				response.request().method() === "PUT" &&
+				response.request().postDataJSON()?.data?.title === "Later changes",
+		);
+		await title.fill("Later changes");
+		await expect(title).toHaveValue("Later changes");
+		expect((await laterAutosave).status()).toBe(200);
+		await admin.waitForSaveComplete();
+		const after = await (await fetch(`${baseUrl}${contentUrl}/revisions`, { headers })).json();
+		expect(after.data.items).toContainEqual(
+			expect.objectContaining({ data: expect.objectContaining({ title: "Later changes" }) }),
+		);
+		expect(after.data.items).toContainEqual(
+			expect.objectContaining({
+				id: checkpointId,
+				data: expect.objectContaining({ title: "Mobile checkpoint" }),
+			}),
+		);
+		await expect(page.getByRole("status").filter({ hasText: "Saved" })).toHaveText("Saved");
+		await expect(title).toHaveValue("Later changes");
 	});
 
 	test("does not resend a rejected autosave until the content changes", async ({ admin }) => {
@@ -179,7 +237,11 @@ test.describe("Autosave", () => {
 		await admin.page.locator("#field-excerpt").fill("short");
 		expect((await rejectedPut).status()).toBe(400);
 
-		await expect(admin.page.getByText("Summary needs at least 10 characters.")).toBeVisible();
+		await expect(
+			admin.page
+				.getByRole("alert")
+				.getByText("Summary needs at least 10 characters.", { exact: true }),
+		).toBeVisible();
 		await expect(admin.page.getByText("excerpt:", { exact: false })).toHaveCount(0);
 	});
 });

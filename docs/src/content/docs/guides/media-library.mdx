@@ -18,6 +18,14 @@ If the site has external media providers, each provider appears as another sourc
 capabilities vary: a source may support browsing and selecting but not folders, local image editing,
 or deletion.
 
+Open a video to preview it in the detail panel. Cloudflare Stream videos use the hosted player;
+other providers can also supply a hosted player, or use the browser's native video player.
+
+If you enable [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp),
+allow the hosted player's origin in `frame-src`. For Cloudflare Stream, this is the
+`https://customer-<code>.cloudflarestream.com` origin from the video's preview URL. EmDash's default
+admin policy already allows HTTPS frames.
+
 ## Upload files
 
 ### Upload from the library
