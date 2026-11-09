@@ -10,8 +10,8 @@ export const MAX_UPDATE_BYTES = MB;
 export const MAX_ENTRY_BYTES = MB;
 /** Largest compacted document. Past it, the room saves and drops. */
 export const MAX_COMPACTED_BYTES = 2 * MB;
-/** Largest recovery revision, as stored data. */
-export const MAX_RECOVERY_BYTES = 4 * MB;
+/** Largest recovery revision, as stored data. Under D1's 2,000,000-byte row limit. */
+export const MAX_RECOVERY_BYTES = 1_900_000;
 export const MAX_ROOM_CONNECTIONS = 25;
 export const MAX_USER_CONNECTIONS = 5;
 /** A token is single use, and valid this long. */

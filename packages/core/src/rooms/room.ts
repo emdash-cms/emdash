@@ -1207,13 +1207,16 @@ export class Room {
 	 */
 	async #saveRecovery(state: LoadedState): Promise<boolean> {
 		const data: Record<string, unknown> = {};
+		const saved = new Set<string>();
+		const base = state.record.mergeBase.document;
 		let slug: string | null = null;
 		for (const field of layoutFields(state.doc)) {
 			try {
 				const value = readField(state.doc, field);
-				hashValue(value);
+				const hash = hashValue(value);
 				if (field === ENTRY_SLUG) slug = slugValue(value);
 				else data[field.slug] = value;
+				if (hash === base[field.slug]) saved.add(field.slug);
 			} catch {
 				console.warn(
 					`${LOG} room ${this.#roomId()} left field ${field.slug} out of a recovery revision`,
@@ -1221,13 +1224,14 @@ export class Room {
 			}
 		}
 		if (jsonBytes(data) > MAX_RECOVERY_BYTES) {
+			for (const key of saved) delete data[key];
 			const sizes = Object.entries(data).map(([key, value]) => ({ key, bytes: jsonBytes(value) }));
 			for (const { key } of sizes.toSorted((a, b) => b.bytes - a.bytes)) {
+				if (jsonBytes(data) <= MAX_RECOVERY_BYTES) break;
 				delete data[key];
 				console.warn(
 					`${LOG} room ${this.#roomId()} left field ${key} out of a recovery revision over the size limit`,
 				);
-				if (jsonBytes(data) <= MAX_RECOVERY_BYTES) break;
 			}
 		}
 		try {
