@@ -73,7 +73,7 @@ it("uses Kumo segmented time fields without a browser picker", async () => {
 		.element(screen.getByRole("combobox", { name: "Period" }))
 		.toHaveTextContent(dayPeriodLabel(13));
 	const { timeZone, shortName } = getPublishingTimeZone(date, i18n.locale);
-	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
+	const zoneDetails = timeZone ? (shortName ? `New York (${shortName})` : "New York") : null;
 	expect(zoneDetails).not.toBeNull();
 	await expect.element(screen.getByText(zoneDetails!, { exact: true })).toBeVisible();
 	expect(screen.container.querySelector('input[type="time"]')).toBeNull();
