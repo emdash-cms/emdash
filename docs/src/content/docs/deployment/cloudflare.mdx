@@ -203,7 +203,7 @@ export default {
 
 ### Turn co-editing off
 
-Remove `coEditing: true` from the `emdash()` options. Leave the binding, the `exports` entry and the room exports in place for at least an hour after deploying the change. A room that still holds unsaved edits saves them as a recovery revision an hour after its last activity, and needs both classes to do it.
+Remove `coEditing: true` from the `emdash()` options, and leave the binding, the `exports` entry and the room exports in place. The Worker then leaves the room engine out of its upload. A room that still holds unsaved edits keeps them in its storage until co-editing is on again, and then saves them as a recovery revision.
 
 ## Place the Worker near D1
 

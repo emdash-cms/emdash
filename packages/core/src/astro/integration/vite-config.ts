@@ -429,7 +429,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				return generateRoomsModule(adapterName, coEditing, cloudflareRoomsResolves);
 			}
 			if (id === RESOLVED_VIRTUAL_ROOM_ENGINE_ID) {
-				return generateRoomEngineModule(resolvedConfig.coEditing ?? false);
+				return generateRoomEngineModule(resolvedConfig.coEditing === true);
 			}
 		},
 	};
