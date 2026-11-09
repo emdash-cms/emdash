@@ -796,6 +796,18 @@ describe("room notices", () => {
 		expect(reads()).toBe(start + 2);
 	});
 
+	it("reads the entry again when the tab reconnects, since saves meanwhile sent it no checkpoint", async () => {
+		const { screen, server } = await openInRoom(entry({ draftRevisionId: "revision-live" }));
+		await expect.element(screen.getByRole("button", { name: "Unpublish Post" })).toBeVisible();
+
+		server.item = entry({ draftRevisionId: "revision-draft-2" });
+		emit({ kind: "reconnected" });
+
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeVisible();
+	});
+
 	it("names who ran an operation, except to the person who ran it", async () => {
 		const { fake } = await openInRoom(entry());
 		fake.present("user_ana", "Ana Lima");

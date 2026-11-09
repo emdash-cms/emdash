@@ -145,6 +145,7 @@ const DISCARD: SessionEffect = { type: "discard-replica" };
 const CLOSE: SessionEffect = { type: "close-connection" };
 const RECOVERED: SessionEffect = { type: "emit", event: { kind: "recovered" } };
 const OUTDATED: SessionEffect = { type: "emit", event: { kind: "outdated" } };
+const RECONNECTED: SessionEffect = { type: "emit", event: { kind: "reconnected" } };
 
 /**
  * The first join. A browser session pinned to single-editor mode asks for it. A host that runs no
@@ -168,7 +169,10 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 			return state.kind === "connecting" && !state.welcomed ? welcomed(state, event) : stay(state);
 		case "synced":
 			return state.kind === "connecting" && state.welcomed
-				? { state: { kind: "live", replica: state.welcomed }, effects: [] }
+				? {
+						state: { kind: "live", replica: state.welcomed },
+						effects: state.away ? [RECONNECTED] : [],
+					}
 				: stay(state);
 		case "closed":
 			return state.kind === "connecting" || state.kind === "live"

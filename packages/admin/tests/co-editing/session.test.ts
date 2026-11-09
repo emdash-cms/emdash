@@ -309,8 +309,9 @@ const ROWS: Row[] = [
 		connecting({ replica: EDIT, away: AWAY, welcomed: VIEW }),
 		{ type: "synced" },
 		{ kind: "live", replica: VIEW },
-		[],
+		[{ type: "emit", event: { kind: "reconnected" } }],
 	],
+	["synced on the first join", connecting({ welcomed: EDIT }), { type: "synced" }, live, []],
 	["synced before welcome", connecting(), { type: "synced" }, connecting(), []],
 	[
 		"the replica chunk fails to load",

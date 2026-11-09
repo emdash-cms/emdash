@@ -1186,11 +1186,12 @@ function ContentEditPage() {
 			case "values":
 				reloadOutsideValues(event.values);
 				return;
+			case "reconnected":
 			case "operation": {
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 				void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 				void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
-				if (event.by === currentUser?.id) return;
+				if (event.kind === "reconnected" || event.by === currentUser?.id) return;
 				const name =
 					roomRef.current?.presence.getUsers().find((user) => user.id === event.by)?.name ??
 					queryClient

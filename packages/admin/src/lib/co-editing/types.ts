@@ -145,6 +145,8 @@ export type RoomEvent =
 	| { readonly kind: "operation"; readonly by: string }
 	| { readonly kind: "refused"; readonly code: string; readonly message: string }
 	| { readonly kind: "checkpoint"; readonly rev: string; readonly editedBy: readonly string[] }
+	/** The tab is live again after a disconnection. Saves made meanwhile sent it no checkpoint. */
+	| { readonly kind: "reconnected" }
 	/** A reset saved this tab's uncovered edits as a recovery revision. */
 	| { readonly kind: "recovered" }
 	/** A Take over or Join found the admin out of date, and stayed to keep the form's edits. */
