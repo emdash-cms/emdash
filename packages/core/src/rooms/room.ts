@@ -1235,11 +1235,15 @@ export class Room {
 				);
 			}
 		}
-		if (encoder.encode(JSON.stringify(data)).byteLength > MAX_RECOVERY_BYTES) {
-			console.error(
-				`${LOG} room ${this.#roomId()} kept its state: its recovery revision is over the size limit`,
-			);
-			return false;
+		if (jsonBytes(data) > MAX_RECOVERY_BYTES) {
+			const sizes = Object.entries(data).map(([key, value]) => ({ key, bytes: jsonBytes(value) }));
+			for (const { key } of sizes.toSorted((a, b) => b.bytes - a.bytes)) {
+				delete data[key];
+				console.warn(
+					`${LOG} room ${this.#roomId()} left field ${key} out of a recovery revision over the size limit`,
+				);
+				if (jsonBytes(data) <= MAX_RECOVERY_BYTES) break;
+			}
 		}
 		try {
 			await this.#site.saveRecovery(this.#entry, {
@@ -1496,6 +1500,10 @@ function randomId(bytes: number): string {
 	const value = new Uint8Array(bytes);
 	crypto.getRandomValues(value);
 	return encodeBase64urlNoPadding(value);
+}
+
+function jsonBytes(value: unknown): number {
+	return encoder.encode(JSON.stringify(value)).byteLength;
 }
 
 function slugValue(value: unknown): string | null {
