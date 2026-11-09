@@ -174,13 +174,13 @@ export class EmDashRoom extends DurableObject {
 	}
 
 	override async alarm(): Promise<void> {
-		// Stored room state waits for co-editing to be on again.
-		if (!loadRoomEngine) return;
 		try {
+			// Stored room state waits for co-editing to be on again.
+			if (!loadRoomEngine) return;
 			await this.#closeSilent();
 			await (await this.#loadRoom()).expire();
 		} finally {
-			// An open room, or a drop that failed, keeps its state for the next hour.
+			// An open room, a drop that failed, or co-editing being off keeps the state for the next hour.
 			if (this.#store.holdsState()) {
 				await this.ctx.storage.setAlarm(Date.now() + ROOM_STATE_LIFETIME_MS);
 			}
