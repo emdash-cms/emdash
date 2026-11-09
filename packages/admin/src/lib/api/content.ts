@@ -645,6 +645,28 @@ export async function fetchRevisions(
 }
 
 /**
+ * Everyone who edited a content item in the revisions newer than `since`, newest first and once
+ * each, or everyone who edited it when `since` is `null`. An entry is `null` when the account no
+ * longer exists.
+ */
+export async function fetchRevisionEditors(
+	collection: string,
+	entryId: string,
+	options: { since: string | null; signal?: AbortSignal },
+): Promise<Array<RevisionAuthor | null>> {
+	const params = new URLSearchParams();
+	if (options.since) params.set("since", options.since);
+
+	const url = `${API_BASE}/content/${collection}/${entryId}/revisions/editors${params.toString() ? `?${params}` : ""}`;
+	const response = await apiFetch(url, { signal: options.signal });
+	const data = await parseApiResponse<{ items: Array<RevisionAuthor | null> }>(
+		response,
+		i18n._(msg`Failed to fetch revision editors`),
+	);
+	return data.items;
+}
+
+/**
  * Get a specific revision
  */
 export async function fetchRevision(revisionId: string): Promise<Revision> {
