@@ -49,6 +49,32 @@ function getLocalToday(): Date {
 
 type DayPeriod = "am" | "pm";
 
+function PublishingMonthCaption(props: React.ComponentProps<"span">) {
+	return (
+		<span
+			{...props}
+			tabIndex={0}
+			aria-keyshortcuts="ArrowLeft ArrowRight"
+			onKeyDown={(event) => {
+				if (
+					event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+					(event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+				) return;
+
+				const calendar = event.currentTarget.closest(".rdp-root");
+				const rtl = calendar?.getAttribute("dir") === "rtl";
+				const previous = (event.key === "ArrowLeft") !== rtl;
+				const button = calendar?.querySelector<HTMLButtonElement>(
+					previous ? ".rdp-button_previous" : ".rdp-button_next",
+				);
+				if (!button || button.disabled || button.getAttribute("aria-disabled") === "true") return;
+				event.preventDefault();
+				button.click();
+			}}
+		/>
+	);
+}
+
 interface TimeParts {
 	hour: string;
 	minute: string;
@@ -136,6 +162,7 @@ export function PublishingDateTimeFields({
 		[i18n.locale],
 	);
 	const [timeParts, setTimeParts] = React.useState(() => timePartsFromValue(time, use12HourClock));
+	const hourInputRef = React.useRef<HTMLInputElement>(null);
 	const minuteInputRef = React.useRef<HTMLInputElement>(null);
 	const lastEmittedValueRef = React.useRef<string | null>(null);
 	const lastCompleteTimeRef = React.useRef(time);
@@ -181,6 +208,50 @@ export function PublishingDateTimeFields({
 		if (minute.length === 2 && Number(minute) > 59) return;
 		updateTimeParts({ ...timeParts, minute });
 	};
+	const handleTimeKeyDown = (
+		event: React.KeyboardEvent<HTMLInputElement>,
+		part: "hour" | "minute",
+	) => {
+		if (
+			event.altKey ||
+			event.ctrlKey ||
+			event.metaKey ||
+			event.shiftKey ||
+			event.nativeEvent.isComposing
+		)
+			return;
+		if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+			event.preventDefault();
+			const max = part === "minute" ? 59 : use12HourClock ? 12 : 23;
+			const min = part === "hour" && use12HourClock ? 1 : 0;
+			const current = Number(timeParts[part]);
+			const value = timeParts[part] ? current : min;
+			const next =
+				((value - min + (event.key === "ArrowUp" ? 1 : -1) + max - min + 1) %
+					(max - min + 1)) +
+				min;
+			updateTimeParts({ ...timeParts, [part]: String(next).padStart(2, "0") });
+			return;
+		}
+		const input = event.currentTarget;
+		if (input.selectionStart !== input.selectionEnd) return;
+		const backwards = event.key === "ArrowLeft" && input.selectionStart === 0;
+		const forwards =
+			event.key === "ArrowRight" && input.selectionEnd === input.value.length;
+		if (!backwards && !forwards) return;
+		event.preventDefault();
+		const period =
+			timeGroupRef.current?.querySelector<HTMLElement>('[role="combobox"]');
+		const target =
+			part === "hour"
+				? backwards
+					? (period ?? minuteInputRef.current)
+					: minuteInputRef.current
+				: backwards
+					? hourInputRef.current
+					: (period ?? hourInputRef.current);
+		target?.focus();
+	};
 	const errorId = React.useId();
 	const timeGroupRef = React.useRef<HTMLDivElement>(null);
 	const timeInvalid = invalid ? !invalid.reason.endsWith("-date") : false;
@@ -208,8 +279,9 @@ export function PublishingDateTimeFields({
 				dir={getLocaleDir(i18n.locale)}
 				aria-label={dateAriaLabel}
 				className="w-full"
+				components={{ CaptionLabel: PublishingMonthCaption }}
 				classNames={{
-					caption_label: "rdp-caption_label text-base !font-medium",
+					caption_label: "rdp-caption_label rounded text-base !font-medium focus-visible:outline-2 focus-visible:outline-kumo-brand",
 					day_button: "rdp-day_button !mx-auto",
 					month: "rdp-month !w-full",
 					month_grid: "rdp-month_grid !w-full table-fixed",
@@ -230,6 +302,7 @@ export function PublishingDateTimeFields({
 					}
 				>
 					<Input
+						ref={hourInputRef}
 						aria-label={t`Hour`}
 						variant={hourInvalid ? "error" : "default"}
 						aria-invalid={hourInvalid || undefined}
@@ -242,6 +315,7 @@ export function PublishingDateTimeFields({
 						pattern="[0-9]*"
 						autoComplete="off"
 						onChange={(event) => updateHour(event.target.value)}
+						onKeyDown={(event) => handleTimeKeyDown(event, "hour")}
 						onFocus={(event) => event.currentTarget.select()}
 						onBlur={(event) => {
 							const hour = numericTimePart(event.currentTarget.value);
@@ -268,6 +342,7 @@ export function PublishingDateTimeFields({
 						pattern="[0-9]*"
 						autoComplete="off"
 						onChange={(event) => updateMinute(event.target.value)}
+						onKeyDown={(event) => handleTimeKeyDown(event, "minute")}
 						onFocus={(event) => event.currentTarget.select()}
 						onBlur={(event) => {
 							const minute = numericTimePart(event.currentTarget.value);
@@ -278,7 +353,28 @@ export function PublishingDateTimeFields({
 						className="w-full tabular-nums"
 					/>
 					{use12HourClock ? (
-						<div dir={getLocaleDir(i18n.locale)} className="rtl:order-first">
+						<div
+							dir={getLocaleDir(i18n.locale)}
+							className="rtl:order-first"
+								onKeyDown={(event) => {
+									if (
+										event.target ===
+											event.currentTarget.querySelector('[role="combobox"]') &&
+										!event.altKey &&
+										!event.ctrlKey &&
+										!event.metaKey &&
+										!event.shiftKey &&
+										!event.nativeEvent.isComposing &&
+										(event.key === "ArrowLeft" || event.key === "ArrowRight")
+									) {
+										event.preventDefault();
+										(event.key === "ArrowLeft"
+											? minuteInputRef
+											: hourInputRef
+										).current?.focus();
+									}
+								}}
+						>
 							<Select
 								aria-label={t`Period`}
 								value={timeParts.period}
