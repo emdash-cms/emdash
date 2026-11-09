@@ -544,6 +544,12 @@ export interface EmDashHandlers {
 		params?: { limit?: number },
 	) => Promise<HandlerResponse>;
 
+	handleRevisionEditors: (
+		collection: string,
+		entryId: string,
+		since: string | null,
+	) => Promise<HandlerResponse>;
+
 	handleRevisionGet: (revisionId: string) => Promise<
 		HandlerResponse<{
 			item: {

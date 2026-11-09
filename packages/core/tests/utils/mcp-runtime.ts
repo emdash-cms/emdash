@@ -206,6 +206,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 
 		// Revisions
 		handleRevisionList: runtime.handleRevisionList.bind(runtime),
+		handleRevisionEditors: runtime.handleRevisionEditors.bind(runtime),
 		handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
 		handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
 
