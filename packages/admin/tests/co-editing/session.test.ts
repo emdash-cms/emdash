@@ -38,8 +38,17 @@ const waiting = (
 	reason: "offline" | "busy",
 	join: JoinIntent = { takeover: false, singleEditor: null },
 ): SessionState => ({ kind: "waiting", replica, away, reason, join });
-const live: SessionState = { kind: "live", replica: EDIT };
-const single = (reason: "server" | "locked" | "pinned" | "deleted" | "error"): SessionState => ({
+const live: SessionState = { kind: "live", replica: EDIT, at: 0, ended: null };
+/** Live since a moment ago, after reconnecting from `ended`. */
+const justLive = (ended: Away): SessionState => ({
+	kind: "live",
+	replica: EDIT,
+	at: AT - 1000,
+	ended,
+});
+const single = (
+	reason: "server" | "locked" | "pinned" | "deleted" | "error" | "no-rooms",
+): SessionState => ({
 	kind: "single-editor",
 	reason,
 });
@@ -52,13 +61,19 @@ const RELOADING: SessionState = { kind: "reloading" };
 
 const joined = (
 	outcome: JoinOutcome,
-	options: { uncovered?: boolean; unsavedForm?: boolean; reloadedRecently?: boolean } = {},
+	options: {
+		uncovered?: boolean;
+		unsavedForm?: boolean;
+		reloadedRecently?: boolean;
+		online?: boolean;
+	} = {},
 ): SessionEvent => ({
 	type: "joined",
 	outcome,
 	uncovered: options.uncovered ?? false,
 	unsavedForm: options.unsavedForm ?? false,
 	reloadedRecently: options.reloadedRecently ?? false,
+	online: options.online ?? true,
 	at: AT,
 });
 const closed = (
@@ -267,6 +282,27 @@ const ROWS: Row[] = [
 		[retryIn(0)],
 	],
 	["failed, first join", joining(), joined({ kind: "failed" }), single("error"), [DISCARD]],
+	[
+		"failed first join while the browser is offline waits for the network",
+		joining(),
+		joined({ kind: "failed" }, { online: false }),
+		waiting(null, { ...NEW_AWAY, attempt: 1 }, "offline"),
+		[retryIn(0)],
+	],
+	[
+		"failed after Take over takes the lock instead",
+		joining({ takeover: true }),
+		joined({ kind: "failed" }),
+		single("error"),
+		[DISCARD, LOCK_TAKE_OVER],
+	],
+	[
+		"forbidden after Take over takes the lock instead",
+		joining({ takeover: true }),
+		joined({ kind: "forbidden" }),
+		single("error"),
+		[DISCARD, LOCK_TAKE_OVER],
+	],
 	// Welcome and sync
 	["welcome", connecting(), welcome("one", "edit"), connecting({ welcomed: EDIT }), []],
 	[
@@ -307,12 +343,18 @@ const ROWS: Row[] = [
 	[
 		"synced",
 		connecting({ replica: EDIT, away: AWAY, welcomed: VIEW }),
-		{ type: "synced" },
-		{ kind: "live", replica: VIEW },
+		{ type: "synced", at: AT },
+		{ kind: "live", replica: VIEW, at: AT, ended: AWAY },
 		[{ type: "emit", event: { kind: "reconnected" } }],
 	],
-	["synced on the first join", connecting({ welcomed: EDIT }), { type: "synced" }, live, []],
-	["synced before welcome", connecting(), { type: "synced" }, connecting(), []],
+	[
+		"synced on the first join",
+		connecting({ welcomed: EDIT }),
+		{ type: "synced", at: AT },
+		{ kind: "live", replica: EDIT, at: AT, ended: null },
+		[],
+	],
+	["synced before welcome", connecting(), { type: "synced", at: AT }, connecting(), []],
 	[
 		"the replica chunk fails to load",
 		connecting({ away: AWAY }),
@@ -337,6 +379,48 @@ const ROWS: Row[] = [
 		[retryIn(5000)],
 	],
 	["reset", live, closed(4401), joining({ away: NEW_AWAY }), [DISCARD, join()]],
+	[
+		"reset before live",
+		connecting({ away: AWAY }),
+		closed(4401),
+		joining({ away: { ...AWAY, rejoins: 1 } }),
+		[DISCARD, join()],
+	],
+	[
+		"second reset before live waits",
+		connecting({ away: { ...AWAY, rejoins: 1 } }),
+		closed(4401),
+		waiting(null, { ...AWAY, rejoins: 2 }, "busy"),
+		[DISCARD, retryIn(5000)],
+	],
+	[
+		"reset soon after reaching live counts with the resets before it",
+		justLive({ ...AWAY, rejoins: 1 }),
+		closed(4401),
+		waiting(null, { ...AWAY, since: AT, rejoins: 2 }, "busy"),
+		[DISCARD, retryIn(5000)],
+	],
+	[
+		"rejoin soon after reaching live counts with the rejoins before it",
+		justLive({ ...AWAY, rejoins: 1 }),
+		closed(4400),
+		waiting(EDIT, { ...AWAY, since: AT, rejoins: 2 }, "busy"),
+		[retryIn(5000)],
+	],
+	[
+		"dropped soon after reaching live keeps backing off",
+		justLive({ ...AWAY, attempt: 3 }),
+		closed(1006),
+		waiting(EDIT, { ...AWAY, since: AT, attempt: 4 }, "offline"),
+		[retryIn(4000)],
+	],
+	[
+		"rejoin after staying live starts over",
+		{ kind: "live", replica: EDIT, at: AT - 10_000, ended: { ...AWAY, rejoins: 1 } },
+		closed(4400),
+		joining({ replica: EDIT, away: NEW_AWAY }),
+		[join()],
+	],
 	[
 		"frame too large, uncovered edits",
 		live,
@@ -464,6 +548,13 @@ const ROWS: Row[] = [
 		[join(true, false)],
 	],
 	[
+		"Take over where the host runs no rooms takes the lock without a join",
+		single("no-rooms"),
+		{ type: "take-over" },
+		single("no-rooms"),
+		[LOCK_TAKE_OVER],
+	],
+	[
 		"Take over, pinned",
 		single("pinned"),
 		{ type: "take-over" },
@@ -495,7 +586,7 @@ describe("co-editing session reducer", () => {
 	});
 
 	it("starts in single-editor mode, without a join, where the host runs no rooms", () => {
-		expect(start(false, false)).toEqual({ state: single("server"), effects: [] });
+		expect(start(false, false)).toEqual({ state: single("no-rooms"), effects: [] });
 	});
 
 	it("backs off 0, 1, 2 and 4 s, then every 5 s, while the network is down", () => {
@@ -524,7 +615,7 @@ describe("co-editing session reducer", () => {
 			joined(ROOM, { uncovered: true }),
 			{ type: "load-failed" },
 			welcome("two", "view", true),
-			{ type: "synced" },
+			{ type: "synced", at: AT },
 			closed(4400),
 			closed(4401, { uncovered: true }),
 			closed(1006, { opened: false, noWebSockets: true }),

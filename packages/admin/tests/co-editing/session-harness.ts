@@ -109,6 +109,7 @@ export function startSession(
 		health: createTransportHealth(),
 		reload: () => reloads++,
 		clock,
+		online: () => true,
 		listenNetwork(listener) {
 			network.add(listener);
 			return () => network.delete(listener);

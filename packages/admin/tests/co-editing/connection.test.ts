@@ -208,7 +208,7 @@ describe("closes and retries", () => {
 		const s = open(room);
 		await settle();
 		roomView(s.view()).room.fields.set({ title: "Offline edit" });
-		s.answer({ kind: "failed" });
+		const joins = s.joins.length;
 		s.setOnline(false);
 		expect(room.sockets[0]?.closed).toBe(true);
 		expect(roomView(s.view())).toMatchObject({ offline: false, editable: true });
@@ -220,12 +220,50 @@ describe("closes and retries", () => {
 		await expect(view.room.whenCovered({ save: true })).rejects.toMatchObject({
 			reason: "offline",
 		});
-		const joins = s.joins.length;
+		await s.after(60_000);
+		expect(s.joins).toHaveLength(joins);
 		s.setOnline(true);
 		await settle();
 		expect(s.joins).toHaveLength(joins + 1);
 		expect(roomView(s.view()).offline).toBe(false);
 		expect(room.doc.getMap("fields").get("title")).toBe("Offline edit");
+	});
+
+	it("waits for the network when the first join fails offline, then joins the room", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		s.answer({ kind: "failed" });
+		s.setOnline(false);
+		await s.after(60_000);
+		expect(s.joins).toHaveLength(1);
+		expect(s.view()).toMatchObject({ mode: "pending", waiting: true });
+
+		s.setOnline(true);
+		await settle();
+		expect(s.joins).toHaveLength(2);
+		expect(s.view().mode).toBe("room");
+	});
+
+	it("waits for the network in a tab opened offline", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room, { online: () => false });
+		s.answer({ kind: "failed" });
+		await s.after(60_000);
+		expect(s.joins).toHaveLength(1);
+
+		s.setOnline(true);
+		await settle();
+		expect(s.joins).toHaveLength(2);
+		expect(s.view().mode).toBe("room");
+	});
+
+	it("opens in single-editor mode at once when a first join fails online", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		s.answer({ kind: "failed" });
+		await settle();
+		expect(s.joins).toHaveLength(1);
+		expect(s.view()).toMatchObject({ mode: "single-editor", canJoin: true });
 	});
 
 	it("joins in single-editor mode after a browser session's third socket fails to open", async () => {
@@ -441,6 +479,37 @@ describe("Take over and Join", () => {
 		await settle();
 		expect(s.joins).toEqual([]);
 		expect(s.view()).toMatchObject({ mode: "single-editor", canJoin: true });
+	});
+
+	it("takes the lock without a join where the host runs no rooms", async () => {
+		const room = new LoopbackRoom();
+		const s = startSession(room, {}, ["body"], { ...MANIFEST, coEditing: false });
+		sessions.push(s);
+		await settle();
+		const view = s.view();
+		if (view.mode !== "single-editor") throw new Error("Expected single-editor mode");
+		let fallbacks = 0;
+		view.takeOver(() => fallbacks++);
+		await settle();
+		expect(s.joins).toEqual([]);
+		expect(fallbacks).toBe(1);
+	});
+
+	it("falls back to the lock's takeover when a Take over's join fails or is refused", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		s.answer({ kind: "locked" });
+		await settle();
+		let fallbacks = 0;
+		for (const outcome of [{ kind: "failed" }, { kind: "forbidden" }] as const) {
+			const view = s.view();
+			if (view.mode !== "single-editor") throw new Error("Expected single-editor mode");
+			s.answer(outcome);
+			view.takeOver(() => fallbacks++);
+			await settle();
+		}
+		expect(s.joins.map((request) => request.takeover)).toEqual([false, true, true]);
+		expect(fallbacks).toBe(2);
 	});
 
 	it("sends the fingerprint pinned at creation on every join", async () => {

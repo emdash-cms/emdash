@@ -162,6 +162,7 @@ function browserDeps(entry: RoomEntry, onEvent: (event: RoomEvent) => void): Ses
 				if (typeof handle === "number") window.clearTimeout(handle);
 			},
 		},
+		online: () => navigator.onLine,
 		listenNetwork(listener) {
 			const online = () => listener(true);
 			const offline = () => listener(false);

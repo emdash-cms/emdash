@@ -13,8 +13,10 @@ import type { CoEditing, RoomEditing, RoomEvent } from "./types.js";
 const RETRY_BUSY_MS = 5000;
 const OFFLINE_NOTICE_MS = 5000;
 const OFFLINE_RETRY_MS = [0, 1000, 2000, 4000, 5000];
-/** Rejoins after a `rejoin` close that never reached live before waiting as for `busy`. */
+/** Rejoins after a `rejoin` or reset close that never stayed live before waiting as for `busy`. */
 const REJOINS_BEFORE_WAIT = 2;
+/** A connection that stayed live this long starts a new absence when it closes. */
+const STEADY_LIVE_MS = 10_000;
 /** The host closes a socket whose frame is too large with 1009, which resets like `reset`. */
 const CLOSE_TOO_LARGE = 1009;
 /** The waits before each new attempt at a recovery revision that failed for a network or server error. */
@@ -30,12 +32,12 @@ export interface Away {
 	readonly since: number;
 	/** Retries scheduled since the network dropped, which pick the next delay. */
 	readonly attempt: number;
-	/** `rejoin` closes in a row that never reached live. */
+	/** `rejoin` and reset closes in a row on connections that never stayed live. */
 	readonly rejoins: number;
 }
 
-/** `deleted`: the entry went to Trash or is gone. */
-export type SingleEditorReason = "server" | "locked" | "pinned" | "deleted" | "error";
+/** `deleted`: the entry went to Trash or is gone. `no-rooms`: the host runs no rooms. */
+export type SingleEditorReason = "server" | "locked" | "pinned" | "deleted" | "error" | "no-rooms";
 /**
  * Why a join asks for single-editor mode: the browser session is pinned to it, or the replica's
  * code didn't load. Either way the server forgets the tokens this user's tab didn't use.
@@ -68,7 +70,14 @@ export type SessionState =
 			readonly away: Away | null;
 			readonly welcomed: ReplicaInfo | null;
 	  }
-	| { readonly kind: "live"; readonly replica: ReplicaInfo }
+	| {
+			readonly kind: "live";
+			readonly replica: ReplicaInfo;
+			/** When it reached live. */
+			readonly at: number;
+			/** The absence it ended, which a close before it stays live continues. */
+			readonly ended: Away | null;
+	  }
 	| {
 			readonly kind: "waiting";
 			readonly replica: ReplicaInfo | null;
@@ -92,6 +101,8 @@ export type SessionEvent =
 			readonly uncovered: boolean;
 			readonly unsavedForm: boolean;
 			readonly reloadedRecently: boolean;
+			/** Whether the browser had a network connection when the answer came. */
+			readonly online: boolean;
 			readonly at: number;
 	  }
 	| { readonly type: "load-failed" }
@@ -101,7 +112,7 @@ export type SessionEvent =
 			readonly access: RoomAccess;
 			readonly uncovered: boolean;
 	  }
-	| { readonly type: "synced" }
+	| { readonly type: "synced"; readonly at: number }
 	| {
 			readonly type: "closed";
 			readonly code: number;
@@ -146,13 +157,14 @@ const CLOSE: SessionEffect = { type: "close-connection" };
 const RECOVERED: SessionEffect = { type: "emit", event: { kind: "recovered" } };
 const OUTDATED: SessionEffect = { type: "emit", event: { kind: "outdated" } };
 const RECONNECTED: SessionEffect = { type: "emit", event: { kind: "reconnected" } };
+const LOCK_TAKE_OVER: SessionEffect = { type: "lock-take-over" };
 
 /**
  * The first join. A browser session pinned to single-editor mode asks for it. A host that runs no
  * rooms starts in single-editor mode without one.
  */
 export function start(pinned: boolean, rooms = true): Transition {
-	if (!rooms) return { state: { kind: "single-editor", reason: "server" }, effects: [] };
+	if (!rooms) return { state: { kind: "single-editor", reason: "no-rooms" }, effects: [] };
 	return joining(null, null, false, pinned ? "pinned" : null);
 }
 
@@ -170,7 +182,7 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 		case "synced":
 			return state.kind === "connecting" && state.welcomed
 				? {
-						state: { kind: "live", replica: state.welcomed },
+						state: { kind: "live", replica: state.welcomed, at: event.at, ended: state.away },
 						effects: state.away ? [RECONNECTED] : [],
 					}
 				: stay(state);
@@ -180,7 +192,9 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 				: stay(state);
 		case "offline":
 			return state.kind === "connecting" || state.kind === "live"
-				? retryOffline(state.replica, disconnectedSince(state, event.at), [CLOSE])
+				? retryOffline(state.replica, continuedAway(state, event.at) ?? freshAway(event.at), [
+						CLOSE,
+					])
 				: stay(state);
 		case "online":
 			return state.kind === "waiting" && state.reason === "offline"
@@ -193,9 +207,9 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 		case "recovered":
 			return state.kind === "recovering" ? recovered(state, event.ok) : stay(state);
 		case "take-over":
-			return state.kind === "single-editor"
-				? joining(null, null, true, state.reason === "pinned" ? "pinned" : null)
-				: stay(state);
+			if (state.kind !== "single-editor") return stay(state);
+			if (state.reason === "no-rooms") return { state, effects: [LOCK_TAKE_OVER] };
+			return joining(null, null, true, state.reason === "pinned" ? "pinned" : null);
 		case "reload":
 			return state.kind === "kept"
 				? { state: RELOADING, effects: [{ type: "reload", outdated: false }] }
@@ -227,7 +241,7 @@ function joined(
 		case "locked": {
 			const reason = singleEditorReason(outcome.kind, state.singleEditor);
 			if (replica && event.uncovered) return recover(replica, { kind: "single-editor", reason });
-			return leave(reason, takeover ? [{ type: "lock-take-over" }] : []);
+			return leave(reason, takeover ? [LOCK_TAKE_OVER] : []);
 		}
 		case "busy":
 		case "full":
@@ -237,7 +251,7 @@ function joined(
 			if (replica && event.uncovered) return recover(replica, { kind: "reload" });
 			// A reload would throw away the form's edits, so the edit lock's own takeover keeps them.
 			if (takeover && event.unsavedForm) {
-				return leave("server", [{ type: "lock-take-over" }, OUTDATED]);
+				return leave("server", [LOCK_TAKE_OVER, OUTDATED]);
 			}
 			return { state: RELOADING, effects: [{ type: "reload", outdated: true }] };
 		case "forbidden":
@@ -245,11 +259,15 @@ function joined(
 			if (replica && event.uncovered) {
 				return keep(replica, outcome.kind === "forbidden" ? "access" : "deleted");
 			}
-			return leave(outcome.kind === "forbidden" ? "error" : "deleted");
+			if (outcome.kind === "gone") return leave("deleted");
+			return leave("error", takeover ? [LOCK_TAKE_OVER] : []);
 		case "failed":
-			return replica
-				? retryOffline(replica, away ?? freshAway(event.at), [], intent)
-				: leave("error");
+			if (takeover && !replica) return leave("error", [LOCK_TAKE_OVER]);
+			// Without a replica the editor is read-only while it waits, so only the network is waited for.
+			if (replica || !event.online) {
+				return retryOffline(replica, away ?? freshAway(event.at), [], intent);
+			}
+			return leave("error");
 	}
 }
 
@@ -276,19 +294,19 @@ function closed(
 	event: Extract<SessionEvent, { type: "closed" }>,
 ): Transition {
 	const { replica } = state;
-	const away = disconnectedSince(state, event.at);
+	const continued = continuedAway(state, event.at);
+	const away = continued ?? freshAway(event.at);
+	const rejoined = { ...away, rejoins: continued ? away.rejoins + 1 : 0 };
+	const rejoinNow = rejoined.rejoins < REJOINS_BEFORE_WAIT;
 	switch (event.code) {
-		case CLOSE_CODES.rejoin: {
-			const rejoins = state.kind === "live" ? 0 : away.rejoins + 1;
-			const next = { ...away, rejoins };
-			return rejoins < REJOINS_BEFORE_WAIT
-				? joining(replica, next, false, null)
-				: retryBusy(replica, next);
-		}
+		case CLOSE_CODES.rejoin:
+			return rejoinNow ? joining(replica, rejoined, false, null) : retryBusy(replica, rejoined);
 		case CLOSE_CODES.reset:
 		case CLOSE_TOO_LARGE:
 			if (replica && event.uncovered) return recover(replica, { kind: "rejoin" });
-			return joining(null, away, false, null, [DISCARD]);
+			return rejoinNow
+				? joining(null, rejoined, false, null, [DISCARD])
+				: retryBusy(null, rejoined, PLAIN_JOIN, [DISCARD]);
 		case CLOSE_CODES.deleted:
 			if (replica && event.uncovered) return keep(replica, "deleted");
 			return leave("deleted");
@@ -346,10 +364,11 @@ function retryBusy(
 	replica: ReplicaInfo | null,
 	away: Away,
 	join: JoinIntent = PLAIN_JOIN,
+	before: readonly SessionEffect[] = [],
 ): Transition {
 	return {
 		state: { kind: "waiting", replica, away, reason: "busy", join },
-		effects: [{ type: "retry-in", ms: RETRY_BUSY_MS }],
+		effects: [...before, { type: "retry-in", ms: RETRY_BUSY_MS }],
 	};
 }
 
@@ -398,12 +417,17 @@ function leave(reason: SingleEditorReason, after: readonly SessionEffect[] = [])
 	return { state: { kind: "single-editor", reason }, effects: [DISCARD, ...after] };
 }
 
-/** A live connection starts a new absence; one that never reached live continues the last. */
-function disconnectedSince(
+/**
+ * The absence a close at `at` continues, or null for a new one: a connection that never reached
+ * live continues the last, and one that stayed live starts anew.
+ */
+function continuedAway(
 	state: Extract<SessionState, { kind: "connecting" | "live" }>,
 	at: number,
-): Away {
-	return state.kind === "live" ? freshAway(at) : (state.away ?? freshAway(at));
+): Away | null {
+	if (state.kind === "connecting") return state.away ?? freshAway(at);
+	if (!state.ended || at - state.at >= STEADY_LIVE_MS) return null;
+	return { ...state.ended, since: at };
 }
 
 function freshAway(at: number): Away {
@@ -479,6 +503,8 @@ export interface SessionDeps {
 	health: TransportHealth;
 	reload(): void;
 	clock: Clock;
+	/** Whether the browser has a network connection now. */
+	online(): boolean;
 	/** Calls `listener` on the browser's `online` and `offline` events. */
 	listenNetwork(listener: (online: boolean) => void): () => void;
 	onEvent(event: RoomEvent): void;
@@ -519,6 +545,9 @@ export function createCoEditingSession(
 	let generation = 0;
 	let retryTimer: unknown = null;
 	let offlineTimer: unknown = null;
+	let online = deps.online();
+	// A retry that fell due while the browser was offline, which runs once it's back online.
+	let heldRetry = false;
 	let lockFallback: (() => void) | null = null;
 	let unsavedForm = false;
 	let dispatching = false;
@@ -550,7 +579,10 @@ export function createCoEditingSession(
 
 	function apply(result: Transition): void {
 		state = result.state;
-		if (state.kind !== "waiting") clearTimer("retry");
+		if (state.kind !== "waiting") {
+			clearTimer("retry");
+			heldRetry = false;
+		}
 		for (const effect of result.effects) run(effect);
 	}
 
@@ -580,7 +612,8 @@ export function createCoEditingSession(
 				clearTimer("retry");
 				retryTimer = deps.clock.setTimeout(() => {
 					retryTimer = null;
-					dispatch({ type: "retry" });
+					if (online) dispatch({ type: "retry" });
+					else heldRetry = true;
 				}, effect.ms);
 				return;
 			case "reload":
@@ -614,6 +647,7 @@ export function createCoEditingSession(
 			uncovered: uncovered(),
 			unsavedForm: takeover && unsavedForm,
 			reloadedRecently: deps.health.reloadedRecently(at),
+			online,
 			at,
 		});
 	}
@@ -651,7 +685,7 @@ export function createCoEditingSession(
 				if (isCurrent()) dispatch({ type: "welcome", lineage, access, uncovered: uncovered() });
 			},
 			synced() {
-				if (isCurrent()) dispatch({ type: "synced" });
+				if (isCurrent()) dispatch({ type: "synced", at: deps.clock.now() });
 			},
 			checkpoint(rev, editedBy) {
 				if (isCurrent()) deps.onEvent({ kind: "checkpoint", rev, editedBy });
@@ -735,9 +769,18 @@ export function createCoEditingSession(
 		for (const listener of listeners) listener();
 	}
 
-	const stopNetwork = deps.listenNetwork((online) =>
-		dispatch(online ? { type: "online" } : { type: "offline", at: deps.clock.now() }),
-	);
+	const stopNetwork = deps.listenNetwork((isOnline) => {
+		online = isOnline;
+		if (!isOnline) {
+			dispatch({ type: "offline", at: deps.clock.now() });
+			return;
+		}
+		dispatch({ type: "online" });
+		if (heldRetry) {
+			heldRetry = false;
+			dispatch({ type: "retry" });
+		}
+	});
 	for (const effect of initial.effects) run(effect);
 	refresh();
 
