@@ -13,14 +13,13 @@ import type { RuntimeRoomHost } from "../types.js";
 import { RoomRegistry } from "./registry.js";
 import { watchServers } from "./upgrades.js";
 
-if (!cluster.isWorker) watchServers();
-
 /**
  * The runtime's room registry, or null in a `node:cluster` worker: the cluster's primary hands
  * out connections without seeing their paths, so no room path can be routed to one worker.
  */
 export function createRoomHost(runtime: EmDashRuntime): RuntimeRoomHost | null {
 	if (cluster.isWorker) return null;
+	watchServers();
 	return new RoomRegistry({
 		db: runtime.db,
 		// Never the queuing request's context, whose cached reads go stale, nor `getRuntime`, which
