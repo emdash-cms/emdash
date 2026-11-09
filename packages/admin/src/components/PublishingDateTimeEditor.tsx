@@ -125,13 +125,14 @@ export function PublishingDateTimeFields({
 	const resolved = resolvePublishingLocalDateTime(date, time);
 	const zoneDate = resolved.success ? resolved.date : (date ?? new Date());
 	const { timeZone, shortName } = getPublishingTimeZone(zoneDate, i18n.locale);
-	const zoneLabel = timeZone?.split("/").at(-1)?.replaceAll("_", " ");
-	const zoneDetails = zoneLabel
-		? shortName
+	// Etc/GMT IDs use the opposite sign from the displayed UTC offset.
+	const zoneLabel = timeZone?.startsWith("Etc/")
+		? null
+		: timeZone?.split("/").slice(1).reverse().join(", ").replaceAll("_", " ") || timeZone;
+	const zoneValue =
+		zoneLabel && shortName && zoneLabel !== shortName
 			? `${zoneLabel} (${shortName})`
-			: zoneLabel
-		: null;
-	const zoneValue = zoneDetails ?? t`Local time`;
+			: (zoneLabel ?? shortName ?? t`Local time`);
 	const use12HourClock = React.useMemo(() => uses12HourClock(i18n.locale), [i18n.locale]);
 	const periodItems = React.useMemo(
 		() => [
@@ -208,9 +209,7 @@ export function PublishingDateTimeFields({
 				month={month}
 				onMonthChange={setMonth}
 				onChange={onDateChange}
-				disabled={
-					disabled ? true : restrictToFuture ? { before: today } : undefined
-				}
+				disabled={disabled ? true : restrictToFuture ? { before: today } : undefined}
 				locale={dateLocale}
 				dir={getLocaleDir(i18n.locale)}
 				aria-label={dateAriaLabel}
@@ -229,7 +228,7 @@ export function PublishingDateTimeFields({
 				<Text as="legend" bold DANGEROUS_className="mb-2">
 					{t`Time`}
 				</Text>
-				<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
 					<div ref={timeGroupRef} dir="ltr" className="flex items-center gap-2">
 						<Input
 							aria-label={t`Hour`}
@@ -253,11 +252,7 @@ export function PublishingDateTimeFields({
 							disabled={disabled}
 							className="!w-14 tabular-nums"
 						/>
-						<Text
-							as="span"
-							variant="secondary"
-							DANGEROUS_className="tabular-nums"
-						>
+						<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
 							:
 						</Text>
 						<Input
@@ -284,10 +279,7 @@ export function PublishingDateTimeFields({
 							className="!w-14 tabular-nums"
 						/>
 						{use12HourClock ? (
-							<div
-								dir={getLocaleDir(i18n.locale)}
-								className="rtl:order-first"
-							>
+							<div dir={getLocaleDir(i18n.locale)} className="rtl:order-first">
 								<Select
 									aria-label={t`Period`}
 									value={timeParts.period}
@@ -314,7 +306,7 @@ export function PublishingDateTimeFields({
 					role="alert"
 					variant="error"
 					size="sm"
-					DANGEROUS_className={errorText ? "mt-1.5 whitespace-pre-line" : ""}
+					DANGEROUS_className="mt-1.5 min-h-lh whitespace-pre-line"
 				>
 					{errorText}
 				</Text>

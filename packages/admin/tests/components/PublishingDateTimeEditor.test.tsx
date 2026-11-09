@@ -13,6 +13,32 @@ import { render } from "../utils/render.tsx";
 
 import "../../dist/styles.css";
 
+vi.mock("../../src/lib/publishing-datetime.js", { spy: true });
+
+it("shows only the actual offset for an Etc/GMT zone", async () => {
+	const date = new Date(2035, 5, 15, 12);
+	const timeZone = "Etc/GMT+5";
+	const shortName = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "short" })
+		.formatToParts(date)
+		.find((part) => part.type === "timeZoneName")!.value;
+	const getZone = vi.mocked(getPublishingTimeZone);
+	getZone.mockReturnValue({ timeZone, shortName });
+	try {
+		const screen = await render(
+			<PublishingDateTimeFields
+				date={date}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={vi.fn()}
+				onTimeChange={vi.fn()}
+			/>,
+		);
+		expect(screen.container.querySelector("bdi")?.textContent).toBe(shortName);
+	} finally {
+		getZone.mockRestore();
+	}
+});
+
 afterEach(() => {
 	vi.useRealTimers();
 });

@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Make publishing time fields compact, move the month arrows to the calendar edges, and display a readable local time zone.
+Improves the publishing date and time picker with calendar-edge month arrows, compact time fields, and a readable local time zone label that shows the actual offset for fixed-offset zones.
