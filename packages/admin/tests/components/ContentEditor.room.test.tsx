@@ -11,7 +11,12 @@ import {
 	type FieldDescriptor,
 } from "../../src/components/ContentEditor";
 import { EntryLockNotice } from "../../src/components/EntryLockNotice";
-import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
+import {
+	fetchReferenceChildren,
+	type AdminManifest,
+	type BylineSummary,
+	type ContentItem,
+} from "../../src/lib/api";
 import { RoomOperationsContext, type RoomOperations } from "../../src/lib/co-editing/operations";
 import { RoomSaveError, type RoomEditing } from "../../src/lib/co-editing/types";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
@@ -75,6 +80,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchReferenceChildren: vi.fn(async () => ({ children: [] })),
 		fetchRevisions: vi.fn(async () => ({ items: [], total: 0 })),
 		getPreviewUrl: vi.fn(async () => ({ url: "/posts/my-post?_preview=token" })),
 	};
@@ -575,6 +581,19 @@ describe("ContentEditor's save button in a room", () => {
 		}
 	});
 
+	it("announces the save state once", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		await renderEditor(fake.room);
+		const announcements = () =>
+			Array.from(document.querySelectorAll('[role="status"]'), (region) =>
+				region.textContent?.trim(),
+			).filter(Boolean);
+
+		await expect.poll(announcements).toEqual(["Saved"]);
+		fake.setSaveState(SAVING);
+		await expect.poll(announcements).toEqual(["Saving..."]);
+	});
+
 	it("explains Offline when selected, without saving", async () => {
 		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
 		const onSave = vi.fn();
@@ -1043,10 +1062,27 @@ describe("ContentEditor's values outside a room's document", () => {
 		translationGroup: null,
 	};
 
+	const OSCAR: BylineSummary = { ...MINA, id: "byline-oscar", slug: "oscar", displayName: "Oscar" };
+	const credited = (...bylines: BylineSummary[]) =>
+		makeItem({
+			bylines: bylines.map((byline, sortOrder) => ({ byline, sortOrder, roleLabel: null })),
+		});
+	/** Answers each outside save in turn, building it from `latest` as the page would. */
+	function outsideSaves(latest: () => ContentItem) {
+		const sent: unknown[] = [];
+		const replies: Array<{ resolve: () => void; reject: (error: Error) => void }> = [];
+		const onSaveOutsideValues = vi.fn(async (changes: unknown) => {
+			sent.push(typeof changes === "function" ? await changes(latest()) : changes);
+			return new Promise((resolve, reject) => {
+				replies.push({ resolve: () => resolve(undefined), reject });
+			});
+		});
+		return { sent, replies, onSaveOutsideValues };
+	}
+
 	it("saves bylines at once, and keeps them in place when that save fails", async () => {
 		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
-		let refuse!: (error: Error) => void;
-		const onSaveOutsideValues = vi.fn(() => new Promise((_resolve, reject) => (refuse = reject)));
+		const { sent, replies, onSaveOutsideValues } = outsideSaves(() => makeItem());
 		const onSave = vi.fn();
 		const props = editorProps(fake.room, {
 			currentUser: { id: "u-1", role: 50 },
@@ -1060,12 +1096,12 @@ describe("ContentEditor's values outside a room's document", () => {
 
 		await screen.getByRole("button", { name: "Choose bylines" }).click();
 		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
-		expect(onSaveOutsideValues).toHaveBeenCalledExactlyOnceWith({
-			bylines: [{ bylineId: "byline-mina", roleLabel: null }],
-		});
+		await expect
+			.poll(() => sent)
+			.toEqual([{ bylines: [{ bylineId: "byline-mina", roleLabel: null }] }]);
 		expect(fake.set).not.toHaveBeenCalled();
 
-		refuse(new Error("Refused"));
+		replies[0]!.reject(new Error("Refused"));
 		await screen.rerender(
 			<ContentEditor {...props} item={makeItem({ updatedAt: "2026-01-15T11:00:00Z" })} />,
 		);
@@ -1073,6 +1109,104 @@ describe("ContentEditor's values outside a room's document", () => {
 			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))
 			.toBeInTheDocument();
 		expect(onSave).not.toHaveBeenCalled();
+	});
+
+	it("sends one byline save at a time, each on the entry's latest bylines", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		let latest = makeItem();
+		const { sent, replies, onSaveOutsideValues } = outsideSaves(() => latest);
+		const props = editorProps(fake.room, {
+			currentUser: { id: "u-1", role: 50 },
+			availableBylines: [MINA, OSCAR],
+			availableBylinesLoaded: true,
+			onSaveOutsideValues,
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+		await expect.poll(() => sent).toHaveLength(1);
+		// Another editor credits Oscar while this tab's save is on its way.
+		latest = credited(MINA, OSCAR);
+		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+		await screen.getByRole("menuitem", { name: "Remove from post" }).click();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(sent).toHaveLength(1);
+
+		replies[0]!.resolve();
+		await expect.poll(() => sent).toHaveLength(2);
+		expect(sent[1]).toEqual({ bylines: [{ bylineId: "byline-oscar", roleLabel: null }] });
+		replies[1]!.resolve();
+		await expect
+			.element(screen.getByRole("button", { name: "More actions for Oscar" }))
+			.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "More actions for Mina Patel" }).query()).toBeNull();
+	});
+
+	it("leaves an entry's byline save out of the entry it switched to", async () => {
+		const first = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const second = createRoom({ title: "Other", summary: "", slug: "other" });
+		const { sent, replies, onSaveOutsideValues } = outsideSaves(() => makeItem());
+		const props = editorProps(first.room, {
+			currentUser: { id: "u-1", role: 50 },
+			availableBylines: [MINA],
+			availableBylinesLoaded: true,
+			onSaveOutsideValues,
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+		await expect.poll(() => sent).toHaveLength(1);
+
+		await screen.rerender(
+			<ContentEditor
+				{...props}
+				room={second.room}
+				item={makeItem({ id: "item-2", slug: "other" })}
+			/>,
+		);
+		replies[0]!.resolve();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "More actions for Mina Patel" }).query()).toBeNull();
+	});
+
+	it("re-bases a reference change on every page of the field", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const entry = (id: string) => ({ id, slug: id, title: id, locale: "en", translationGroup: id });
+		const firstPage = makeItem({
+			references: { related: { children: [entry("one"), entry("two")], nextCursor: "page-2" } },
+		});
+		vi.mocked(fetchReferenceChildren).mockResolvedValueOnce({
+			children: [entry("three")],
+		} as never);
+		const { sent, onSaveOutsideValues } = outsideSaves(() => firstPage);
+		const screen = await render(
+			<ContentEditor
+				{...editorProps(fake.room, {
+					fields: {
+						...FIELDS,
+						related: {
+							kind: "reference",
+							label: "Related",
+							validation: { relation: "rel-1", targetCollection: "posts", multiple: true },
+						},
+					},
+					item: firstPage,
+					onSaveOutsideValues,
+				})}
+			/>,
+		);
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByRole("button", { name: "Remove three" })).toBeInTheDocument();
+
+		// Someone else adds an entry on the second page.
+		vi.mocked(fetchReferenceChildren).mockResolvedValueOnce({
+			children: [entry("three"), entry("four")],
+		} as never);
+		await screen.getByRole("button", { name: "Remove one" }).click();
+		await expect.poll(() => sent).toEqual([{ references: { related: ["two", "three", "four"] } }]);
 	});
 });
 

@@ -2083,15 +2083,42 @@ function ContentEditPage() {
 		[activeLocale, autosaveMutation.mutateAsync, id, rawItem?.locale, serializeEditorSave],
 	);
 	const saveOutsideValues = React.useCallback(
-		(changes: OutsideValueChanges) =>
-			updateMutation.mutateAsync({
+		async (
+			values:
+				| OutsideValueChanges
+				| ((latest: ContentItem) => OutsideValueChanges | Promise<OutsideValueChanges>),
+		): Promise<ContentItem> => {
+			let changes = values;
+			if (typeof changes === "function") {
+				try {
+					const latest = await queryClient.fetchQuery({
+						queryKey: ["content", collection, id, { locale: activeLocale }],
+						queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
+						staleTime: 0,
+					});
+					changes = await changes(latest);
+				} catch (error) {
+					handleContentUpdateError(error, id, "outside");
+					throw error;
+				}
+			}
+			return updateMutation.mutateAsync({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "outside",
 				// Reference edges save as autosaves do, without a revision.
 				changes: changes.references ? { ...changes, skipRevision: true } : changes,
-			}),
-		[activeLocale, id, rawItem?.locale, updateMutation.mutateAsync],
+			});
+		},
+		[
+			activeLocale,
+			collection,
+			handleContentUpdateError,
+			id,
+			queryClient,
+			rawItem?.locale,
+			updateMutation.mutateAsync,
+		],
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {

@@ -40,6 +40,7 @@ import type {
 	BylineCreditInput,
 	BylineSummary,
 	ContentItem,
+	EntryRef,
 	MediaItem,
 	UserListItem,
 	TranslationSummary,
@@ -62,6 +63,7 @@ import {
 	useRoomSaveState,
 	useRoomSelf,
 } from "../lib/co-editing/hooks.js";
+import { ListSaver } from "../lib/co-editing/outside-lists.js";
 import type { DraftCapture, RichTextBinding, RoomEditing } from "../lib/co-editing/types.js";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
@@ -437,18 +439,66 @@ type ReferenceGroupState = {
 };
 
 /** Seed reference state from a hydrated item (first page per reference field). */
+interface OutsideListChanges {
+	bylines?: BylineCreditInput[];
+	references?: Record<string, string[]>;
+}
+
+interface OutsideListSavers {
+	/** The `editorIdentity` the savers belong to. */
+	identity: string;
+	bylines: ListSaver<BylineCreditInput>;
+	references: ReadonlyMap<string, ListSaver<ReferenceEntryRow>>;
+	reference(fieldSlug: string): ListSaver<ReferenceEntryRow>;
+}
+
+/**
+ * Every row of a reference field, from the first page an entry read holds on, and whether that's
+ * all of them. Rejects if a page fails to load.
+ */
+async function readReferenceRows(
+	collection: string,
+	entryId: string | undefined,
+	field: FieldDescriptor | undefined,
+	firstPage: { children: EntryRef[]; nextCursor?: string } | undefined,
+): Promise<{ rows: ReferenceEntryRow[]; complete: boolean }> {
+	if (!firstPage) return { rows: [], complete: false };
+	const rows = toReferenceRows(firstPage.children);
+	const relation =
+		typeof field?.validation?.relation === "string" ? field.validation.relation : undefined;
+	if (!firstPage.nextCursor) return { rows, complete: true };
+	if (!relation || !entryId) return { rows, complete: false };
+	const onChildSide = field?.validation?.relationSide === "child";
+	for (let cursor: string | undefined = firstPage.nextCursor; cursor;) {
+		// oxlint-disable-next-line no-await-in-loop -- each page's cursor comes from the one before
+		const page: { children: EntryRef[]; nextCursor?: string } = onChildSide
+			? await fetchReferenceParents(collection, entryId, relation, { cursor }).then((parents) => ({
+					children: parents.parents,
+					nextCursor: parents.nextCursor,
+				}))
+			: await fetchReferenceChildren(collection, entryId, relation, { cursor });
+		rows.push(...toReferenceRows(page.children));
+		cursor = page.nextCursor;
+	}
+	return { rows, complete: true };
+}
+
+function toReferenceRows(children: EntryRef[]): ReferenceEntryRow[] {
+	return children.map((c) => ({
+		id: c.id,
+		slug: c.slug,
+		title: c.title ?? undefined,
+		locale: c.locale,
+		translationGroup: c.translationGroup,
+	}));
+}
+
 function seedReferenceState(item?: ContentItem | null): Record<string, ReferenceGroupState> {
 	const out: Record<string, ReferenceGroupState> = {};
 	const refs = item?.references;
 	if (!refs) return out;
 	for (const [group, page] of Object.entries(refs)) {
-		const rows: ReferenceEntryRow[] = page.children.map((c) => ({
-			id: c.id,
-			slug: c.slug,
-			title: c.title ?? undefined,
-			locale: c.locale,
-			translationGroup: c.translationGroup,
-		}));
+		const rows = toReferenceRows(page.children);
 		out[group] = { baseline: rows, current: rows, nextCursor: page.nextCursor, loading: false };
 	}
 	return out;
@@ -682,13 +732,13 @@ export interface ContentEditorProps {
 	/** In a room: saving is refused, offline, without edit access, or for good. */
 	roomBlocked?: boolean;
 	/**
-	 * In a room: saves bylines or references at once, outside the room's document. Rejects, with
+	 * In a room: saves bylines or references at once, outside the room's document. Given a
+	 * function, builds them from the entry as the server has it just before the save. Rejects, with
 	 * the failure already shown, if the save fails.
 	 */
-	onSaveOutsideValues?: (changes: {
-		bylines?: BylineCreditInput[];
-		references?: Record<string, string[]>;
-	}) => Promise<unknown>;
+	onSaveOutsideValues?: (
+		changes: OutsideListChanges | ((latest: ContentItem) => Promise<OutsideListChanges>),
+	) => Promise<unknown>;
 	/** In a room: Preview didn't open because no save of this tab's edits arrived. */
 	onPreviewNotSaved?: () => void;
 	/** Set to read the form's data and slug, which the page keeps before it joins a room. */
@@ -837,6 +887,82 @@ export function ContentEditor({
 	const pendingAutosaveReferencesRef = React.useRef<Record<string, ReferenceEntryRow[]> | null>(
 		null,
 	);
+	// In a room, bylines and each reference field save at once, one save at a time per list.
+	const internalBylinesRef = React.useRef(internalBylines);
+	internalBylinesRef.current = internalBylines;
+	const onSaveOutsideValuesRef = React.useRef(onSaveOutsideValues);
+	onSaveOutsideValuesRef.current = onSaveOutsideValues;
+	const editorIdentityRef = React.useRef(editorIdentity);
+	editorIdentityRef.current = editorIdentity;
+	const entryRef = React.useRef({ collection, entryId: item?.id, fields });
+	entryRef.current = { collection, entryId: item?.id, fields };
+	// The savers belong to one entry: after a switch, the earlier entry's saves send nothing more.
+	const saversRef = React.useRef<OutsideListSavers | null>(null);
+	const outsideListSavers = React.useCallback((): OutsideListSavers => {
+		const identity = editorIdentityRef.current;
+		if (saversRef.current?.identity === identity) return saversRef.current;
+		const current = () => editorIdentityRef.current === identity;
+		const save = (build: (latest: ContentItem) => Promise<OutsideListChanges>) =>
+			current()
+				? (onSaveOutsideValuesRef.current?.(build) ?? Promise.resolve())
+				: Promise.reject(new Error("The editor shows another entry"));
+		const references = new Map<string, ListSaver<ReferenceEntryRow>>();
+		const savers: OutsideListSavers = {
+			identity,
+			bylines: new ListSaver<BylineCreditInput>({
+				key: (credit) => credit.bylineId,
+				same: (a, b) => a.roleLabel === b.roleLabel,
+				shown: () => internalBylinesRef.current,
+				save: (build) =>
+					save(async (latest) => ({
+						bylines: build(resolveEditorBylines(latest).explicitCredits, true),
+					})),
+				settled: (saved) => {
+					if (!saved || !current()) return;
+					internalBylinesRef.current = saved;
+					setInternalBylines(saved);
+					setBylinesTouched(false);
+				},
+			}),
+			references,
+			reference(fieldSlug) {
+				const existing = references.get(fieldSlug);
+				if (existing) return existing;
+				const saver = new ListSaver<ReferenceEntryRow>({
+					key: (row) => row.id,
+					shown: () => referenceStateRef.current[fieldSlug]?.current ?? [],
+					save: (build) =>
+						save(async (latest) => {
+							const {
+								collection: entryCollection,
+								entryId,
+								fields: entryFields,
+							} = entryRef.current;
+							const { rows, complete } = await readReferenceRows(
+								entryCollection,
+								entryId,
+								entryFields[fieldSlug],
+								latest.references?.[fieldSlug],
+							);
+							return { references: { [fieldSlug]: build(rows, complete).map((row) => row.id) } };
+						}),
+					settled: (saved) => {
+						if (!saved || !current()) return;
+						setReferenceState((prev) => {
+							const shown = prev[fieldSlug];
+							return shown
+								? { ...prev, [fieldSlug]: { ...shown, baseline: saved, current: saved } }
+								: prev;
+						});
+					},
+				});
+				references.set(fieldSlug, saver);
+				return saver;
+			},
+		};
+		saversRef.current = savers;
+		return savers;
+	}, []);
 
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
@@ -1025,8 +1151,23 @@ export function ContentEditor({
 			setStatus(item.status);
 			// The room's document owns the field values, and adopting them would remount bound editors.
 			if (room) {
-				if (!bylinesTouched) setInternalBylines(nextBylines);
-				if (item.references && !referencesDirty) setReferenceState(seedReferenceState(item));
+				// The entry's lists, with this tab's unsaved change to each on top.
+				const savers = outsideListSavers();
+				const bylines = [...savers.bylines.adopt(nextBylines, internalBylinesRef.current)];
+				internalBylinesRef.current = bylines;
+				setInternalBylines(bylines);
+				if (item.references) {
+					const seeded = seedReferenceState(item);
+					for (const [fieldSlug, saver] of savers.references) {
+						const shown = referenceStateRef.current[fieldSlug];
+						const latest = seeded[fieldSlug];
+						if (!shown || !latest || !saver.unsent) continue;
+						const current = saver.adopt(latest.current, shown.current, !latest.nextCursor);
+						seeded[fieldSlug] = { ...latest, current: [...current] };
+					}
+					referenceStateRef.current = seeded;
+					setReferenceState(seeded);
+				}
 				if (restored) revisionView.completeRestore();
 				return;
 			}
@@ -1188,21 +1329,14 @@ export function ContentEditor({
 		onDirtyChangeRef.current?.(isDirty);
 	}, [isDirty]);
 
-	// In a room, bylines save at once and the entry's own are adopted again once no save is left.
-	const bylineSavesRef = React.useRef(0);
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
 			if (room) {
+				const before = internalBylinesRef.current;
+				internalBylinesRef.current = next;
 				setInternalBylines(next);
 				setBylinesTouched(true);
-				const save = ++bylineSavesRef.current;
-				void onSaveOutsideValues?.({ bylines: next }).then(
-					() => {
-						if (bylineSavesRef.current === save) setBylinesTouched(false);
-						return undefined;
-					},
-					() => undefined,
-				);
+				outsideListSavers().bylines.change(before);
 				return;
 			}
 			editorGenerationRef.current++;
@@ -1215,7 +1349,7 @@ export function ContentEditor({
 			setInternalBylines(next);
 			onBylinesChange?.(next);
 		},
-		[isNew, onBylinesChange, markDirty, room, onSaveOutsideValues],
+		[isNew, onBylinesChange, markDirty, room, outsideListSavers],
 	);
 
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
@@ -1267,30 +1401,10 @@ export function ContentEditor({
 
 	// Replace a reference field's staged current selection (add/remove/reorder).
 	// Upserts the field so one with no hydrated rows can take its first pick.
-	/**
-	 * In a room, a selection saves at once. The saved rows become the baseline unless a later
-	 * change is on its way, so a refetch adopts the entry's selection only once nothing differs.
-	 */
-	const saveRoomReferences = React.useCallback(
-		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
-			void onSaveOutsideValues?.({ references: { [fieldSlug]: rows.map((row) => row.id) } }).then(
-				() =>
-					setReferenceState((prev) => {
-						const current = prev[fieldSlug];
-						return current?.current === rows
-							? { ...prev, [fieldSlug]: { ...current, baseline: rows } }
-							: prev;
-					}),
-				() => undefined,
-			);
-		},
-		[onSaveOutsideValues],
-	);
+	// In a room, a selection saves at once.
 	const handleReferenceCurrentChange = React.useCallback(
 		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
-			if (room) saveRoomReferences(fieldSlug, rows);
-			else markDirty();
-			setReferenceState((prev) => {
+			const update = (prev: Record<string, ReferenceGroupState>) => {
 				const existing = prev[fieldSlug];
 				return {
 					...prev,
@@ -1298,9 +1412,17 @@ export function ContentEditor({
 						? { ...existing, current: rows }
 						: { baseline: [], current: rows, loading: false },
 				};
-			});
+			};
+			if (room) {
+				const before = referenceStateRef.current[fieldSlug]?.current ?? [];
+				referenceStateRef.current = update(referenceStateRef.current);
+				outsideListSavers().reference(fieldSlug).change(before);
+			} else {
+				markDirty();
+			}
+			setReferenceState(update);
 		},
-		[markDirty, room, saveRoomReferences],
+		[markDirty, room, outsideListSavers],
 	);
 
 	// Page the rest of a field's hydrated set. The full set must be loaded before
@@ -2774,16 +2896,19 @@ export function ContentEditor({
 				<MobileSidebarPortalGuard />
 				<RevisionViewSheetSync sheetRef={revisionView.sheetRef} />
 			</Sidebar.Provider>
+			{/* In a room, the save button announces the room's save state. */}
 			<span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-				{saveFeedbackActive || autosaveFeedbackActive
-					? t`Saving...`
-					: saveError || hasAutosaveError || hasSaveConflict
-						? (saveError?.title ?? t`Failed to save`)
-						: isNew
-							? t`Not saved yet`
-							: isDirty
-								? t`Unsaved changes`
-								: t`Saved`}
+				{roomSync !== undefined
+					? null
+					: saveFeedbackActive || autosaveFeedbackActive
+						? t`Saving...`
+						: saveError || hasAutosaveError || hasSaveConflict
+							? (saveError?.title ?? t`Failed to save`)
+							: isNew
+								? t`Not saved yet`
+								: isDirty
+									? t`Unsaved changes`
+									: t`Saved`}
 			</span>
 			{/* Outside the sidebar, which is inert while the phone sheet is closed. */}
 			<p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
