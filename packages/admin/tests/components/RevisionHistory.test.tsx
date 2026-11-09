@@ -308,9 +308,9 @@ describe("RevisionHistory", () => {
 		const named = [
 			"Maya Chen",
 			`${isolated("Sam Okafor")} and ${isolated("Maya Chen")}`,
-			`${isolated("Ana Lima")}, ${isolated("Sam Okafor")} and 1 other person`,
-			`${isolated("Ana Lima")}, ${isolated("Sam Okafor")} and 2 other people`,
-			`${isolated("Sam Okafor")}, ${isolated("Maya Chen")} and 2 other people`,
+			`${isolated("Ana Lima")}, ${isolated("Sam Okafor")}, and 1 other person`,
+			`${isolated("Ana Lima")}, ${isolated("Sam Okafor")}, and 2 other people`,
+			`${isolated("Sam Okafor")}, ${isolated("Maya Chen")}, and 2 other people`,
 			`${isolated("Sam Okafor")} and 1 other person`,
 			"Unknown author",
 		];

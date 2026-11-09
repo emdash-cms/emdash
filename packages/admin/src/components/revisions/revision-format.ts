@@ -86,29 +86,6 @@ export function revisionAuthorColor(
 	return authorColorOf(colors, soleNamed(item)?.id);
 }
 
-/**
- * Everyone the versions newer than `revisionId` name, newest first and once each, or everyone in
- * the list when that version isn't in it. Deleted accounts can't be told apart, so each one stays.
- * A version that records no one, such as the draft copy an unpublish leaves, names no one here.
- */
-export function namedSince(
-	items: readonly RevisionListItem[],
-	revisionId: string | null,
-): Array<RevisionAuthor | null> {
-	const people: Array<RevisionAuthor | null> = [];
-	const seen = new Set<string>();
-	for (const item of items) {
-		if (item.id === revisionId) break;
-		if (item.editedBy === null && item.authorId === null) continue;
-		for (const person of revisionNamed(item)) {
-			if (person && seen.has(person.id)) continue;
-			if (person) seen.add(person.id);
-			people.push(person);
-		}
-	}
-	return people;
-}
-
 /** Revision timestamps come from SQLite without a zone and are UTC. */
 export function revisionDate(createdAt: string): Date {
 	return parseTimestamp(createdAt);
@@ -138,9 +115,10 @@ export interface RevisionFormat {
 	 */
 	author(author: RevisionAuthor | null | undefined): string;
 	/**
-	 * The people a version names, such as "Ana", "Ana and Ben", or "Ana, Ben and 3 other people",
-	 * each named as `author` names them. Deleted accounts count among the others; a list of only
-	 * deleted accounts reads "Unknown author". With more than one person, each name is isolated.
+	 * The people a version names, such as "Ana", "Ana and Ben", or "Ana, Ben, and 3 other people",
+	 * each named as `author` names them and joined as the locale joins a list. Deleted accounts
+	 * count among the others; a list of only deleted accounts reads "Unknown author". With more
+	 * than one person, each name is isolated.
 	 */
 	people(named: readonly (RevisionAuthor | null)[]): string;
 }
@@ -178,27 +156,21 @@ export function useRevisionFormat(): RevisionFormat {
 			if (value && me && value.id === me.id) return me.name || me.email;
 			return value ? t`Unnamed user` : t`Unknown author`;
 		};
+		const list = new Intl.ListFormat(locale, { type: "conjunction" });
 		const people = (named: readonly (RevisionAuthor | null)[]) => {
-			const [first, second] = named
+			const names = named
 				.filter((person): person is RevisionAuthor => person !== null)
+				.slice(0, 2)
 				.map((person) => author(person));
+			const [first] = names;
 			if (first === undefined) return author(null);
-			const firstName = isolate(first);
-			if (second === undefined) {
-				const others = named.length - 1;
-				if (others === 0) return first;
-				return plural(others, {
-					one: `${firstName} and # other person`,
-					other: `${firstName} and # other people`,
-				});
+			const others = named.length - names.length;
+			if (names.length === 1 && others === 0) return first;
+			const items = names.map((name) => isolate(name));
+			if (others > 0) {
+				items.push(plural(others, { one: "# other person", other: "# other people" }));
 			}
-			const secondName = isolate(second);
-			const others = named.length - 2;
-			if (others === 0) return t`${firstName} and ${secondName}`;
-			return plural(others, {
-				one: `${firstName}, ${secondName} and # other person`,
-				other: `${firstName}, ${secondName} and # other people`,
-			});
+			return list.format(items);
 		};
 		return { day, time, when, author, people };
 	}, [t, locale, queryClient]);

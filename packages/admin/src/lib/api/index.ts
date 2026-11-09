@@ -55,6 +55,7 @@ export {
 	discardDraft,
 	compareRevisions,
 	fetchRevisions,
+	fetchRevisionEditors,
 	fetchRevision,
 	restoreRevision,
 } from "./content.js";

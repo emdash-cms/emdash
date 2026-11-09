@@ -30,6 +30,7 @@ import {
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
+import { handleRevisionEditors } from "./api/handlers/revision.js";
 import {
 	liveReferenceData,
 	liveReferenceSelection,
@@ -5590,6 +5591,10 @@ export class EmDashRuntime {
 
 	async handleRevisionList(collection: string, entryId: string, params: { limit?: number } = {}) {
 		return handleRevisionList(this.db, collection, entryId, params);
+	}
+
+	async handleRevisionEditors(collection: string, entryId: string, since: string | null) {
+		return handleRevisionEditors(this.db, collection, entryId, since);
 	}
 
 	async handleRevisionGet(revisionId: string) {

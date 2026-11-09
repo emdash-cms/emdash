@@ -255,6 +255,33 @@ export class RevisionRepository {
 		});
 	}
 
+	/**
+	 * Everyone the entry's revisions newer than `sinceId` credit, newest first and once each, or
+	 * everyone its revisions credit when `sinceId` is `null`. A revision credits its editors, or its
+	 * author when none are recorded; one that records no one credits no one. An entry is `null` for
+	 * an account that no longer exists.
+	 */
+	async findEditorsSince(
+		collection: string,
+		entryId: string,
+		sinceId: string | null,
+	): Promise<Array<RevisionAuthor | null>> {
+		let query = this.db
+			.selectFrom("revisions")
+			.select(["author_id", "edited_by"])
+			.where("collection", "=", collection)
+			.where("entry_id", "=", entryId)
+			.orderBy("id", "desc");
+		if (sinceId) query = query.where("id", ">", sinceId);
+
+		const rows = await query.execute();
+		const ids = new Set(
+			rows.flatMap((row) => parseEditedBy(row.edited_by) ?? (row.author_id ? [row.author_id] : [])),
+		);
+		const authors = await this.findAuthors([...ids]);
+		return Array.from(ids, (id) => authors.get(id) ?? null);
+	}
+
 	/** The accounts among `userIds` that still exist, keyed by ID. */
 	private async findAuthors(userIds: readonly string[]): Promise<Map<string, RevisionAuthor>> {
 		const authors = new Map<string, RevisionAuthor>();

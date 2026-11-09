@@ -1112,6 +1112,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Revision handlers
 					handleRevisionList: runtime.handleRevisionList.bind(runtime),
+					handleRevisionEditors: runtime.handleRevisionEditors.bind(runtime),
 					handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
 					handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
 
