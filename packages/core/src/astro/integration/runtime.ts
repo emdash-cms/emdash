@@ -373,7 +373,7 @@ export interface EmDashConfig {
 	 * Elsewhere the editor uses single-editor mode with edit locks. Changing
 	 * it needs a rebuild.
 	 *
-	 * @default true
+	 * @default false
 	 */
 	coEditing?: boolean;
 

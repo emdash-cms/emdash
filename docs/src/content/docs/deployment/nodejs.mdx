@@ -97,7 +97,7 @@ Marketplace plugins and the plugins listed under `sandboxed: []` need a sandbox 
 
 ## Co-editing
 
-[Co-editing](/guides/working-with-content/#edit-with-other-people) is on by default ([`coEditing`](/reference/configuration/#coediting)). On Node.js, each entry's room runs inside a site process. EmDash takes WebSocket upgrades on the room path, `/_emdash/api/content/{collection}/{id}/room` after any base path, from the HTTP server that serves Astro. Rooms store their state in the site database, in the `_emdash_rooms` and `_emdash_room_updates` tables, and the process keeps each open room's document in memory.
+[Co-editing](/guides/working-with-content/#edit-with-other-people) is off by default. Set [`coEditing: true`](/reference/configuration/#coediting) to turn it on. On Node.js, each entry's room runs inside a site process. EmDash takes WebSocket upgrades on the room path, `/_emdash/api/content/{collection}/{id}/room` after any base path, from the HTTP server that serves Astro. Rooms store their state in the site database, in the `_emdash_rooms` and `_emdash_room_updates` tables, and the process keeps each open room's document in memory.
 
 Rooms run when the site uses `@astrojs/node` with an HTTP/1.1 `node:http` or `node:https` server:
 
@@ -146,7 +146,7 @@ EmDash pings each room socket every 30 seconds, so a proxy that closes idle conn
 
 Several Node.js processes can serve one site from a shared database. Each entry's room runs in one of them at a time: the first process to open it claims it in the database. People co-edit only when both their join request and their WebSocket, which use the same path, reach that process.
 
-Route each room path to one process, or set [`coEditing: false`](/reference/configuration/#coediting). The following nginx upstreams pick one of two processes by hashing the path:
+Route each room path to one process, or leave [co-editing](/reference/configuration/#coediting) off. The following nginx upstreams pick one of two processes by hashing the path:
 
 ```nginx title="/etc/nginx/conf.d/emdash.conf"
 upstream emdash {
@@ -174,7 +174,7 @@ Writes that another process handles reach the room late, at its next save or joi
 
 ### Other WebSocket handlers
 
-EmDash adds one `upgrade` listener to the site's server. Any other upgrade handler on that server must leave room paths alone. Handlers that answer every upgrade, such as a `ws` server created with `{ server }`, `express-ws` and `@fastify/websocket`, don't. Replace such a handler with a `ws` server created with `noServer: true` that you hand only your own paths, or turn co-editing off.
+EmDash adds one `upgrade` listener to the site's server. Any other upgrade handler on that server must leave room paths alone. Handlers that answer every upgrade, such as a `ws` server created with `{ server }`, `express-ws` and `@fastify/websocket`, don't. Replace such a handler with a `ws` server created with `noServer: true` that you hand only your own paths, or leave co-editing off.
 
 The following Express server runs a site built with `node({ mode: "middleware" })` and passes upgrades on `/live` to its own `ws` server, leaving room paths to EmDash:
 
@@ -198,7 +198,7 @@ server.on("upgrade", (request, socket, head) => {
 
 ### Older Node.js releases
 
-On Node.js 22.21 or later and 24.9 or later, EmDash sets the server's `shouldUpgradeCallback`, keeping any callback the site set, so that the server hands room upgrades to EmDash and handles every other request as it would without co-editing. Node.js 22.16 to 22.20, 23, and 24.0 to 24.8 have no `shouldUpgradeCallback`. On those releases, a server whose only `upgrade` listener is EmDash's answers upgrade requests on other paths, such as `Upgrade: h2c`, with `404`. Without co-editing, the server serves them as plain requests. If a client of the site sends such requests, upgrade Node.js or turn co-editing off.
+On Node.js 22.21 or later and 24.9 or later, EmDash sets the server's `shouldUpgradeCallback`, keeping any callback the site set, so that the server hands room upgrades to EmDash and handles every other request as it would without co-editing. Node.js 22.16 to 22.20, 23, and 24.0 to 24.8 have no `shouldUpgradeCallback`. On those releases, a server whose only `upgrade` listener is EmDash's answers upgrade requests on other paths, such as `Upgrade: h2c`, with `404`. Without co-editing, the server serves them as plain requests. If a client of the site sends such requests, upgrade Node.js or leave co-editing off.
 
 ### Stop the process
 

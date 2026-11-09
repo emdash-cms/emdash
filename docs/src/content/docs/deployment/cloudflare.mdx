@@ -148,7 +148,7 @@ After deployment, the admin dashboard shows **Scheduled publishing needs attenti
 
 ## Co-editing
 
-[Co-editing](/guides/working-with-content/#edit-with-other-people) is on by default ([`coEditing`](/reference/configuration/#coediting)). On Cloudflare, each entry's room is an `EmDashRoom` Durable Object, which keeps the room's state in its own SQLite storage. Rooms need the following, which the Cloudflare templates include:
+[Co-editing](/guides/working-with-content/#edit-with-other-people) is off by default. Set [`coEditing: true`](/reference/configuration/#coediting) to turn it on. On Cloudflare, each entry's room is an `EmDashRoom` Durable Object, which keeps the room's state in its own SQLite storage. Rooms need the following, which the Cloudflare templates include:
 
 - The `EMDASH_ROOMS` binding and the `exports` entry for `EmDashRoom`, as shown in [Configure bindings](#configure-bindings).
 - `EmDashRoom` and `EmDashRoomSite` exported from the Worker entry point, as shown in [Add the Worker entry point](#add-the-worker-entry-point). Rooms load and save entries through `EmDashRoomSite`, a named entrypoint that isn't reachable from the internet.
@@ -203,7 +203,7 @@ export default {
 
 ### Turn co-editing off
 
-Set `coEditing: false` in the `emdash()` options. Leave the binding, the `exports` entry and the room exports in place for at least an hour after deploying the change. A room that still holds unsaved edits saves them as a recovery revision an hour after its last activity, and needs both classes to do it.
+Remove `coEditing: true` from the `emdash()` options. Leave the binding, the `exports` entry and the room exports in place for at least an hour after deploying the change. A room that still holds unsaved edits saves them as a recovery revision an hour after its last activity, and needs both classes to do it.
 
 ## Place the Worker near D1
 
