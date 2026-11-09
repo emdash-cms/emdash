@@ -358,6 +358,39 @@ describe("importMenusFromWxr", () => {
 		]);
 	});
 
+	it("leaves out Polylang's language switcher and keeps other custom links", async () => {
+		const result = await importMenusFromWxr(
+			[
+				{
+					id: 5,
+					name: "primary",
+					label: "Main navigation",
+					items: [
+						wxrItem(1, { objectId: 10 }),
+						// What Polylang's language switcher box adds to a menu
+						wxrItem(2, {
+							type: "custom",
+							objectType: "custom",
+							url: "#pll_switcher",
+							title: "Languages",
+						}),
+						wxrItem(3, { type: "custom", objectType: "custom", url: "#contact", title: "Contact" }),
+					],
+				},
+			],
+			db,
+			targets,
+			"en",
+		);
+
+		expect(result).toMatchObject({ itemsCreated: 2, itemsSkipped: 1 });
+		const menu = await getMenuWithDb("primary", db);
+		expect(menu?.items).toEqual([
+			expect.objectContaining({ label: "About us" }),
+			expect.objectContaining({ label: "Contact", url: "#contact" }),
+		]);
+	});
+
 	it("keeps items whose parents form a cycle", async () => {
 		const result = await importMenusFromWxr(
 			[

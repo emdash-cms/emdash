@@ -15,6 +15,13 @@ import { invalidateMenuObjectCache } from "../object-cache/index.js";
 import { mapPostTypeToCollection } from "./utils.js";
 
 /**
+ * The address of the language switcher that Polylang adds to menus as a custom
+ * link. Polylang replaces the item with the language links when it renders the
+ * menu, so on its own the address leads nowhere.
+ */
+const POLYLANG_SWITCHER_URL = "#pll_switcher";
+
+/**
  * Result of menu import operation
  */
 export interface MenuImportResult {
@@ -83,7 +90,8 @@ export interface WxrMenuImportResult extends MenuImportResult {
 	menusSkipped: number;
 	/**
 	 * Items left out because what they link to wasn't imported, or can't be told
-	 * apart from another post with the same slug, and the export has no address for it
+	 * apart from another post with the same slug, and the export has no address for
+	 * it, and Polylang language switchers, which only Polylang can turn into links
 	 */
 	itemsSkipped: number;
 }
@@ -351,7 +359,8 @@ async function importPluginMenuItems(
  * archive of the collection its post type was imported into. Returns `null` when
  * the item's link is lost: what it links to wasn't imported, and the export has
  * no address for it. That includes taxonomy archives, which WordPress links to
- * without storing an address.
+ * without storing an address, and Polylang's language switcher, whose address is
+ * a placeholder that only Polylang turns into language links.
  */
 function mapWxrMenuItem(
 	item: WxrNavMenuItem,
@@ -395,6 +404,7 @@ function mapWxrMenuItem(
 			locale: entry.locale,
 		};
 	}
+	if (item.type === "custom" && item.url === POLYLANG_SWITCHER_URL) return null;
 	if (item.type === "custom" || item.url) {
 		return {
 			item: {

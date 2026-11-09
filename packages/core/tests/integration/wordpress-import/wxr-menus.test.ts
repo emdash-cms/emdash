@@ -468,11 +468,20 @@ describe("WXR import of menus", () => {
 				object: "page",
 				objectId: 11,
 			}),
+			// Polylang's language switcher, which only Polylang turns into language links
+			menuItemXml({
+				id: 103,
+				menu: "primary",
+				order: 2,
+				type: "custom",
+				url: "#pll_switcher",
+				title: "Languages",
+			}),
 		]);
 
 		const result = await execute(emdash, wxr);
 
-		expect(result.menus).toMatchObject({ created: 2, items: 2 });
+		expect(result.menus).toMatchObject({ created: 2, items: 2, itemsSkipped: 1 });
 		const menus = await db
 			.selectFrom("_emdash_menus")
 			.select(["name", "label", "locale"])
