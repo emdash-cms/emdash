@@ -451,7 +451,7 @@ See [MCP Server Reference](/reference/mcp-server/) for token creation and client
 
 ### `coEditing`
 
-**Optional.** Runs a co-editing room for each entry in collections with revision support. The default is `false`. Rooms run on Node.js sites that use the `@astrojs/node` adapter, except in `node:cluster` workers. Changing the option needs a rebuild.
+**Optional.** Runs a co-editing room for each entry in collections with revision support. The default is `false`. Rooms run on Node.js sites that use the `@astrojs/node` adapter, except in `node:cluster` workers, and on Cloudflare Workers sites with the `EMDASH_ROOMS` Durable Object binding. Changing the option needs a rebuild.
 
 ```js
 emdash({
