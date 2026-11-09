@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        seed-start: [1, 25001, 50001, 75001]
+        seed-start: [1, 12501, 25001, 37501, 50001, 62501, 75001, 87501]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -32,11 +32,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter emdash... build
-      - name: Run 25,000 seeds and 2,500 takeover seeds
+      - name: Run 12,500 seeds and 1,250 takeover seeds
         env:
           ROOM_SEED_START: ${{ matrix.seed-start }}
-          ROOM_SEEDS: 25000
-          ROOM_TAKEOVER_SEEDS: 2500
+          ROOM_SEEDS: 12500
+          ROOM_TAKEOVER_SEEDS: 1250
         run: pnpm --filter emdash exec vitest run tests/unit/rooms/convergence.test.ts
 
   schema-safety:
@@ -66,3 +66,29 @@ jobs:
           RUNS: 10000
           EDITS: 200
         run: pnpm --filter @emdash-cms/admin exec vitest run tests/editor/schema-safety.test.ts
+
+  report:
+    name: Report a failure
+    needs: [room-harness, schema-safety]
+    # A job that runs out of time ends cancelled.
+    if: (failure() || cancelled()) && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write # opens or comments on the tracking issue
+    steps:
+      - name: Open or update the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Co-editing gates failed"
+          body="The nightly co-editing gates failed or ran out of time: $RUN_URL"
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq "map(select(.title == \"$title\"))[0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

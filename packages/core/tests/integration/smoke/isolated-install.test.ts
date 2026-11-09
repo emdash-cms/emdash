@@ -60,6 +60,8 @@ const INJECTED_ROUTE_TIMEOUT_MS = 30_000;
 const INJECTED_ROUTE_REQUEST_TIMEOUT_MS = 5_000;
 const PAGE_REQUEST_TIMEOUT_MS = 30_000;
 const BUILD_TIMEOUT_MS = 300_000;
+/** The install scripts npm runs, after installing without any: the Node case's `allowBuilds`. */
+const NPM_BUILDS = ["esbuild", "sharp"];
 const PLATFORM_CASES: PlatformCase[] = [
 	{
 		id: "node",
@@ -206,6 +208,11 @@ function parseWorkspaceNumber(key: string): number {
 		throw new Error(`Missing numeric ${key} in pnpm-workspace.yaml`);
 	}
 	return value;
+}
+
+/** npm's `--before` for the workspace's `minimumReleaseAge`, which is in minutes. */
+function npmReleaseCutoff(): string {
+	return new Date(Date.now() - parseWorkspaceNumber("minimumReleaseAge") * 60_000).toISOString();
 }
 
 async function runPackageManager(
@@ -570,10 +577,19 @@ describe.sequential("Isolated template installs", () => {
 				if (platform.packageManager === "npm") {
 					await runPackageManager(
 						"npm",
-						["install", "--no-audit", "--no-fund", "--cache", npmCacheDir],
+						[
+							"install",
+							"--no-audit",
+							"--no-fund",
+							"--ignore-scripts",
+							`--before=${npmReleaseCutoff()}`,
+							"--cache",
+							npmCacheDir,
+						],
 						projectDir,
 						INSTALL_TIMEOUT_MS,
 					);
+					await runPackageManager("npm", ["rebuild", ...NPM_BUILDS], projectDir, 120_000);
 					return;
 				}
 				await runPackageManager(
