@@ -79,6 +79,9 @@ export const RESOLVED_VIRTUAL_BUILD_ID = "\0" + VIRTUAL_BUILD_ID;
 export const VIRTUAL_ROOMS_ID = "virtual:emdash/rooms";
 export const RESOLVED_VIRTUAL_ROOMS_ID = "\0" + VIRTUAL_ROOMS_ID;
 
+export const VIRTUAL_ROOM_ENGINE_ID = "virtual:emdash/room-engine";
+export const RESOLVED_VIRTUAL_ROOM_ENGINE_ID = "\0" + VIRTUAL_ROOM_ENGINE_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -583,6 +586,16 @@ export function generateRoomsModule(adapterName: string | undefined, coEditing: 
 		return `export { createRoomHost } from "@emdash-cms/cloudflare/rooms";\n`;
 	}
 	return `export const createRoomHost = null;\n`;
+}
+
+/**
+ * Generates the module `EmDashRoom` imports the room engine through. With co-editing off it
+ * exports null, so the engine stays out of a Cloudflare site's upload.
+ */
+export function generateRoomEngineModule(coEditing: boolean): string {
+	return coEditing
+		? `export const loadRoomEngine = () => import("emdash/internal/co-editing/room");\n`
+		: `export const loadRoomEngine = null;\n`;
 }
 
 /**
