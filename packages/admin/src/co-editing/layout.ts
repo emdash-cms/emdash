@@ -49,7 +49,8 @@ export function editorSchema(): Schema {
 export function readField(doc: Y.Doc, field: LayoutField): unknown {
 	if (field.type === "portableText") {
 		const { content } = yXmlFragmentToProsemirrorJSON(doc.getXmlFragment(fragmentName(field.slug)));
-		return prosemirrorToPortableText({ type: "doc", content });
+		// Text at the fragment's top level comes back as an array of text nodes.
+		return prosemirrorToPortableText({ type: "doc", content: content.flat() });
 	}
 	return structuredClone(doc.getMap(FIELDS_MAP).get(field.slug) ?? null);
 }
