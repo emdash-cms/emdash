@@ -35,6 +35,8 @@ import {
 } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 
+import { markRemote } from "./normalize.js";
+
 type YChild = ReturnType<Y.XmlFragment["toArray"]>[number];
 
 const sameType = (yChild: YChild | undefined, node: ProseMirrorNode | undefined) =>
@@ -163,6 +165,9 @@ function inLiveText(binding: ProsemirrorBinding, relative: Y.RelativePosition): 
 const followed = new WeakSet<ProsemirrorBinding>();
 
 /**
+ * Works around https://github.com/ueberdosis/tiptap/issues/8594. Remove it once the y-tiptap pin
+ * includes a fix, such as https://github.com/ueberdosis/tiptap/pull/8617.
+ *
  * y-tiptap moves the selection by its old absolute positions only while they are in the old
  * document, so putting them out of it for a caret whose text node survived leaves the caret at its
  * relative position.
@@ -192,8 +197,36 @@ function followRemoteEdits(binding: ProsemirrorBinding) {
 	(binding as { _observeFunction: typeof observe })._observeFunction = observeAndFollow;
 }
 
+/**
+ * Marks each transaction y-tiptap dispatches as remote for the normalizers. Its priority puts its
+ * filter before theirs.
+ */
+const PortableTextRemoteChanges = Extension.create({
+	name: "emdashPortableTextRemoteChanges",
+	priority: 10_000,
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				filterTransaction(transaction) {
+					if (transaction.getMeta(ySyncPluginKey)) markRemote(transaction);
+					return true;
+				},
+			}),
+		];
+	},
+});
+
+/**
+ * The two workarounds above, and the marks `isRemote` reads. It isn't in `portableTextExtensions()`,
+ * which sites load on the server.
+ */
 export const PortableTextYSync = Extension.create({
 	name: "emdashPortableTextYSync",
+
+	addExtensions() {
+		return [PortableTextRemoteChanges];
+	},
 
 	addProseMirrorPlugins() {
 		return [
