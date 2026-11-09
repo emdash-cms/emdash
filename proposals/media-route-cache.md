@@ -23,6 +23,7 @@ Sites pay for this on every image request, although replacing an original is rar
 When the site configures an Astro cache provider (`cacheCloudflare()`, `memoryCache()` or another adapter's provider), EmDash stores image responses in the route cache and purges them when the image changes:
 
 - A whole `200` image response from the media file route, and every successful variant from the image endpoints (Node and the Cloudflare Images binding), calls `context.cache.set({ maxAge: 86400, tags: ["emdash:media:<storageKey>"] })`.
+- A variant is only stored when its query contains nothing but `href`, `w`, `h`, `f`, `q` and `fit`, each at most once. A request with any other parameter (for example `&x=1`) is still served, but not cached, so extra parameters can't create new cache entries.
 - A successful replace invalidates `emdash:media:<storageKey>`. One purge removes the original file and every cached variant of it.
 - A successful delete that removed the stored file invalidates the same tag, so a deleted image stops being served from the cache.
 - The `Cache-Control` header that browsers see stays `public, max-age=0, must-revalidate` with the existing `ETag` and `Last-Modified` validators. Browser caches can't be purged, so a replaced image must still revalidate there. Revalidation still returns `304` when the image is unchanged.
@@ -52,7 +53,7 @@ The baseline numbers come from a different image on a different Worker (our stoc
 - Caching audio, video and other non-image files. See [Errors and edge cases](#errors-and-edge-cases).
 - Changing the browser `Cache-Control`, or making file URLs content-addressed (a new storage key or a version parameter on replace). That rewrites stored references in content and is a larger change.
 - Media from external providers, or storage served from a public URL. Those responses don't pass through these routes.
-- Limiting which widths, formats or qualities `/_image` accepts. Issue #4214 asks for that too; it is a separate decision.
+- Limiting which widths, heights, formats or qualities `/_image` accepts, or snapping a width to the nearest preset. That changes which image URLs work and needs configuration, so it belongs in a separate plan together with issue #4214.
 - A configuration option for the lifetime.
 
 ## Interfaces and compatibility
@@ -66,6 +67,8 @@ The baseline numbers come from a different image on a different Worker (our stoc
 
 - **Failed or rate-limited purge.** `invalidateRouteCache` logs and never throws, so a replace or delete still succeeds when the purge fails. Workers Cache rate-limits purge requests, and the editor doesn't see a rejected purge. The old or deleted image then stays cached until `maxAge` expires, at most one day.
 - **Range requests.** `memoryCache()` keys entries by URL and ignores the `Range` header, so a cached file answers a ranged request with the whole file and status `200`. The prototype reproduced this on Node. Video and audio players depend on ranges, so only `image/*` responses are stored. Audio and video stay uncached until this is solved separately.
+- **Many distinct variants.** `/_image` accepts any width and height from 1 to 4000, and every combination is already transformed on request today. Caching doesn't add transformations, and Cloudflare Images bills unique transformations whether or not they are cached. On Workers Cache, extra entries are evicted by the edge. With `memoryCache()` (an LRU with 1,000 entries by default), a flood of distinct variants can evict cached pages and make them render again. Sites that expect this can raise `max`.
+- **Parameter order.** `memoryCache()` sorts query parameters by default, so `?w=400&q=80` and `?q=80&w=400` share one entry. Whether Workers Cache treats them as one entry is still to be checked; if not, they are two entries for the same variant, purged by the same tag.
 - **Responses that are never stored:** `206`, `304`, `404`, `416` and error responses. Only whole `200` image responses and successful variants call `cache.set`.
 - **Deletes outside the media routes.** Media deleted through the plugin API (`ctx.media.delete`) or the MCP `media_delete` tool, and storage objects removed directly, are not purged. Those images stay cached until `maxAge`. New uploads get unique storage keys, so they never collide with a cached key.
 - **Private keys.** The media file route refuses backup and transfer staging keys before it reads storage. Refused keys return `404` and are never cached.
@@ -73,7 +76,7 @@ The baseline numbers come from a different image on a different Worker (our stoc
 ## Verification
 
 - Media file route: a whole image `200` sets the route cache with the tag and `maxAge`; a ranged request, a `304`, a `404` and a non-image file do not.
-- Image endpoints on Node and Cloudflare: a successful variant sets the same tag; a failed transform does not.
+- Image endpoints on Node and Cloudflare: a successful variant sets the same tag; a failed transform and a request with an unknown or repeated query parameter do not.
 - Replace: a successful replace invalidates the tag; a failed upload or metadata update does not. A rejected purge doesn't fail the replace.
 - Delete: invalidates the tag when the stored file was removed, not when the media item doesn't exist.
 - Without a cache provider, responses and headers are unchanged.
