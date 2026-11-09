@@ -2,8 +2,8 @@ import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { page, userEvent, type Locator } from "vitest/browser";
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from "vitest";
+import { cdp, page, userEvent, type Locator } from "vitest/browser";
 
 import { AdminDocumentTitle } from "../../src/components/AdminDocumentTitle.js";
 import {
@@ -2240,6 +2240,234 @@ describe("ContentEditor", () => {
 			});
 		});
 
+		describe("settings panel toggle", () => {
+			const STORAGE_KEY = "emdash-editor-settings-panel";
+			const ptFields: Record<string, FieldDescriptor> = {
+				title: { kind: "string", label: "Title" },
+				content: { kind: "portableText", label: "Content" },
+			};
+
+			beforeEach(() => {
+				localStorage.removeItem(STORAGE_KEY);
+			});
+			afterEach(() => {
+				localStorage.removeItem(STORAGE_KEY);
+			});
+
+			function getPanel(screen: Awaited<ReturnType<typeof renderEditor>>) {
+				return screen.getByRole("complementary", { name: "Settings", includeHidden: true });
+			}
+
+			function makeBlockPanel() {
+				return {
+					type: "image",
+					attrs: { src: "https://example.com/image.png", alt: "Example" },
+					onUpdate: vi.fn(),
+					onReplace: vi.fn(),
+					onDelete: vi.fn(),
+					onClose: vi.fn(),
+				};
+			}
+
+			function getPanelHooks() {
+				const open = portableTextProps.current?.onBlockSidebarOpen as (panel: unknown) => void;
+				const close = portableTextProps.current?.onBlockSidebarClose as () => void;
+				expect(typeof open).toBe("function");
+				expect(typeof close).toBe("function");
+				return { open, close };
+			}
+
+			it("hides and shows the panel without unmounting it", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const slug = screen.getByLabelText("Slug");
+				await slug.fill("kept-slug");
+				const slugInput = slug.element();
+				const panel = getPanel(screen).element();
+
+				await screen.getByRole("button", { name: "Hide settings" }).click();
+				expect(panel).toHaveAttribute("inert");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBe(0));
+
+				await screen.getByRole("button", { name: "Show settings" }).click();
+				expect(panel).not.toHaveAttribute("inert");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(368));
+				expect(screen.getByLabelText("Slug").element()).toBe(slugInput);
+				await expect.element(screen.getByLabelText("Slug")).toHaveValue("kept-slug");
+			});
+
+			it("remembers the choice in this browser", async () => {
+				const first = await renderEditor({ isNew: false, item: makeItem() });
+				await first.getByRole("button", { name: "Hide settings" }).click();
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+				await first.unmount();
+
+				const second = await renderEditor({ isNew: false, item: makeItem() });
+				const panel = getPanel(second).element();
+				expect(panel).toHaveAttribute("inert");
+				expect(panel.getBoundingClientRect().width).toBe(0);
+				await expect
+					.element(second.getByRole("button", { name: "Show settings" }))
+					.toBeInTheDocument();
+			});
+
+			it("opens for an unrecognized stored value", async () => {
+				localStorage.setItem(STORAGE_KEY, "banana");
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				expect(getPanel(screen).element()).not.toHaveAttribute("inert");
+				await expect
+					.element(screen.getByRole("button", { name: "Hide settings" }))
+					.toBeInTheDocument();
+			});
+
+			it("closes an image panel when the panel is hidden", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+				const blockPanel = makeBlockPanel();
+				getPanelHooks().open(blockPanel);
+				await expect.element(screen.getByRole("textbox", { name: "Alt text" })).toBeVisible();
+
+				await screen.getByRole("button", { name: "Hide settings" }).click();
+				expect(getPanel(screen).element()).toHaveAttribute("inert");
+				expect(blockPanel.onClose).toHaveBeenCalled();
+
+				await screen.getByRole("button", { name: "Show settings" }).click();
+				await expect.element(screen.getByLabelText("Slug")).toBeVisible();
+				expect(
+					screen.getByRole("textbox", { name: "Alt text", includeHidden: true }).query(),
+				).toBeNull();
+			});
+
+			it("shows a hidden panel for a block panel, then hides it again", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+				const panel = getPanel(screen).element();
+				expect(panel).toHaveAttribute("inert");
+
+				const { open, close } = getPanelHooks();
+				open(makeBlockPanel());
+				await expect.element(screen.getByText("Image settings")).toBeVisible();
+				expect(panel).not.toHaveAttribute("inert");
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+
+				close();
+				await vi.waitFor(() => expect(panel).toHaveAttribute("inert"));
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+			});
+
+			it.each([
+				["after the panel slides open", false],
+				["under reduced motion", true],
+			])("opens a hidden panel to report its invalid control on Save %s", async (_, reduced) => {
+				if (reduced) {
+					await cdp().send("Emulation.setEmulatedMedia", {
+						features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+					});
+					onTestFinished(() => cdp().send("Emulation.setEmulatedMedia", { features: [] }));
+				}
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const onSave = vi.fn();
+				const pluginAdmins: PluginAdmins = {
+					ratings: {
+						contentEditorPanels: [
+							{
+								id: "rating",
+								title: "Rating",
+								component: () => (
+									<input type="number" min={1} max={10} defaultValue={50} aria-label="Rating" />
+								),
+							},
+						],
+					},
+				};
+				const screen = await render(
+					<PluginAdminProvider pluginAdmins={pluginAdmins}>
+						<ContentEditor
+							collection="posts"
+							collectionLabel="Post"
+							fields={defaultFields}
+							isNew={false}
+							item={makeItem()}
+							currentUser={{ id: "u-1", role: 50 }}
+							onSave={onSave}
+						/>
+					</PluginAdminProvider>,
+					{ wrapper: Toasty },
+				);
+				const rating = screen.getByRole("spinbutton", { name: "Rating", includeHidden: true });
+				await expect.element(rating).toBeInTheDocument();
+				const panel = getPanel(screen).element();
+				expect(panel).toHaveAttribute("inert");
+
+				await screen.getByLabelText("Title").fill("Changed");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				await vi.waitFor(() => expect(document.activeElement).toBe(rating.element()));
+				expect(onSave).not.toHaveBeenCalled();
+				expect(panel).not.toHaveAttribute("inert");
+				await expect
+					.element(screen.getByRole("button", { name: "Hide settings" }))
+					.toBeInTheDocument();
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+
+				await new Promise((resolve) => setTimeout(resolve, 400));
+				expect(document.activeElement).toBe(rating.element());
+				expect(panel).not.toHaveAttribute("inert");
+			});
+
+			it("leaves a hidden panel closed when the invalid control is in the canvas", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const onSave = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ data: { title: "My Post", rating: 50 } }),
+					fields: {
+						title: { kind: "string", label: "Title" },
+						rating: { kind: "number", label: "Rating", validation: { min: 1, max: 10 } },
+					},
+					onSave,
+				});
+				await screen.getByLabelText("Title").fill("Changed");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				const rating = screen.getByLabelText("Rating", { exact: true }).element();
+				await vi.waitFor(() => expect(document.activeElement).toBe(rating));
+				expect(onSave).not.toHaveBeenCalled();
+				expect(getPanel(screen).element()).toHaveAttribute("inert");
+			});
+
+			it("ignores the stored choice below lg", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const media = installMatchMedia(true);
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					await screen.getByRole("button", { name: "Settings" }).click();
+					await expect
+						.element(screen.getByRole("navigation", { name: "Settings" }))
+						.toBeInTheDocument();
+					expect(screen.getByRole("button", { name: "Hide settings" }).query()).toBeNull();
+					expect(screen.getByRole("button", { name: "Show settings" }).query()).toBeNull();
+				} finally {
+					media.restore();
+				}
+			});
+
+			it("restores a hidden panel after distraction-free mode", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				await screen.getByRole("button", { name: "Hide settings" }).click();
+
+				await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+				expect(screen.getByRole("button", { name: "Show settings" }).query()).toBeNull();
+				expect(screen.getByRole("button", { name: "Hide settings" }).query()).toBeNull();
+
+				await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
+				await expect
+					.element(screen.getByRole("button", { name: "Show settings" }))
+					.toBeInTheDocument();
+				expect(getPanel(screen).element()).toHaveAttribute("inert");
+			});
+		});
+
 		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
 			await renderEditor({ isNew: false, item: makeItem() });
 			const form = document.querySelector("form");
@@ -2611,7 +2839,7 @@ describe("ContentEditor", () => {
 
 				media.setMatches(false);
 				await expect
-					.element(screen.getByRole("button", { name: "Settings" }))
+					.element(screen.getByRole("button", { name: "Settings", exact: true }))
 					.not.toBeInTheDocument();
 				await expect
 					.element(screen.getByRole("button", { name: "Publish now", exact: true }))

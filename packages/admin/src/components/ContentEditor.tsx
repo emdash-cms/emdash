@@ -127,6 +127,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { SettingsPanelToggle, useSettingsPanel } from "./SettingsPanelToggle.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -802,6 +803,14 @@ export function ContentEditor({
 			return null;
 		});
 	}, []);
+	const settingsPanel = useSettingsPanel({
+		panelId: settingsPanelId,
+		side: panelSide,
+		isBelowLg,
+		isDistractionFree,
+		blockPanel: blockSidebarPanel,
+		closeBlockPanel: handleBlockSidebarClose,
+	});
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -819,7 +828,7 @@ export function ContentEditor({
 	const documentTitleField = titleField ?? (fields.title?.kind === "string" ? "title" : undefined);
 	const canvasRef = React.useRef<HTMLDivElement>(null);
 	const settingsButtonRef = React.useRef<HTMLButtonElement>(null);
-	const listVisible = !isBelowLg && !isDistractionFree;
+	const listVisible = settingsPanel.listVisible;
 	const focusAfterRevisionView = React.useCallback(() => {
 		// Focusing a text field on a phone would open the keyboard. The Settings button may have
 		// scrolled away with the editor bar, and the page stays where the writer left it.
@@ -2093,6 +2102,7 @@ export function ContentEditor({
 							<MobileSettingsButton buttonRef={settingsButtonRef} />
 						)}
 					</fieldset>
+					<SettingsPanelToggle toggle={settingsPanel.toggle} />
 					<Button
 						variant="ghost"
 						shape="square"
@@ -2131,7 +2141,10 @@ export function ContentEditor({
 		<form
 			onSubmit={handleSubmit}
 			// A save the browser's own check stopped never reaches onSubmit.
-			onInvalidCapture={() => setSaveAttempted(true)}
+			onInvalidCapture={(event) => {
+				setSaveAttempted(true);
+				settingsPanel.onInvalidCapture(event);
+			}}
 			className={cn(
 				"flex h-full flex-col bg-kumo-elevated",
 				isDistractionFree && "fixed inset-0 z-50",
@@ -2149,7 +2162,8 @@ export function ContentEditor({
 			<Sidebar.Provider
 				contained={!isBelowLg}
 				defaultOpen
-				open={isBelowLg ? undefined : true}
+				open={settingsPanel.providerOpen}
+				onOpenChangeComplete={settingsPanel.onOpenChangeComplete}
 				side={panelSide}
 				collapsible="offcanvas"
 				resizable
@@ -2353,7 +2367,8 @@ export function ContentEditor({
 					<Sidebar
 						id={settingsPanelId}
 						aria-label={t`Settings`}
-						className={cn(isDistractionFree && "hidden")}
+						className={cn(isDistractionFree && "hidden", settingsPanel.asideClassName)}
+						{...settingsPanel.asideProps}
 					>
 						<fieldset disabled={readOnly} className="contents">
 							<div
