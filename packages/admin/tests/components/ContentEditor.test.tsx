@@ -5,6 +5,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 
+import { AdminDocumentTitle } from "../../src/components/AdminDocumentTitle.js";
 import {
 	ContentEditor,
 	type FieldDescriptor,
@@ -692,6 +693,48 @@ describe("ContentEditor", () => {
 				media.restore();
 			}
 		});
+	});
+
+	it("uses a custom collection's title field and singular label in the browser tab", async () => {
+		const screen = await render(
+			<AdminDocumentTitle siteName="My Site" pageKey="/content/people/1" pageTitle="People">
+				<ContentEditor
+					collection="people"
+					collectionLabel="Person"
+					fields={{
+						name: { kind: "string", label: "Name" },
+						title: { kind: "string", label: "Job title" },
+					}}
+					item={makeItem({ data: { name: "Jane Smith", title: "Trustee" } })}
+					isNew={false}
+					onSave={vi.fn()}
+					manifest={{
+						version: "1",
+						hash: "hash",
+						authMode: "passkey",
+						collections: {
+							people: {
+								label: "People",
+								labelSingular: "Person",
+								supports: [],
+								hasSeo: false,
+								titleField: "name",
+							},
+						},
+						plugins: {},
+						taxonomies: [],
+					}}
+				/>
+			</AdminDocumentTitle>,
+			{ wrapper: Toasty },
+		);
+		await expect.poll(() => document.title).toBe("Edit Person: Jane Smith · My Site");
+		await screen.getByLabelText("Name").fill("Jane Doe");
+		await expect.poll(() => document.title).toBe("Edit Person: Jane Doe · My Site");
+		await screen.getByLabelText("Name").fill("");
+		await expect.poll(() => document.title).toBe("Edit Person: Trustee · My Site");
+		await screen.getByLabelText("Job title").fill("");
+		await expect.poll(() => document.title).toBe("Edit Person: my-post · My Site");
 	});
 
 	describe("slug generation", () => {
@@ -2824,6 +2867,41 @@ describe("ContentEditor", () => {
 	});
 
 	describe("scheduler", () => {
+		it("hides scheduling actions when the collection does not support scheduling", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onSchedule: vi.fn(),
+				supportsScheduling: false,
+			});
+
+			expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
+		});
+
+		it("allows removing an existing schedule without scheduling support", async () => {
+			const onUnschedule = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				onSchedule: vi.fn(),
+				onUnschedule,
+				supportsScheduling: false,
+			});
+
+			expect(screen.getByRole("button", { name: "Change schedule" }).query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Remove schedule" })).toBeVisible();
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			expect(screen.getByRole("button", { name: "Change schedule" }).query()).toBeNull();
+			const removeSchedule = [
+				...(getEditorBar().lastElementChild?.querySelectorAll("button") ?? []),
+			].find((action) => action.textContent?.trim() === "Remove schedule");
+			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
+			removeSchedule?.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
+		});
+
 		it("keeps draft scheduling separate from confirmed publishing", async () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({

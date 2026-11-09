@@ -239,7 +239,7 @@ export function EmailSettings() {
 											label={t`SMTP Host`}
 											value={smtpHost}
 											onChange={(event) => setSmtpHost(event.target.value)}
-											placeholder={t`smtp-relay.brevo.com`}
+											placeholder={t`smtp.example.com`}
 											required
 										/>
 										<Input

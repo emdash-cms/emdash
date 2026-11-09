@@ -107,6 +107,22 @@ describe("resolveContentEditorPanels", () => {
 		expect(errorSpy).toHaveBeenCalledOnce();
 	});
 
+	it("rejects malformed visibility checks without throwing", () => {
+		const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const pluginAdmins = {
+			broken: {
+				contentEditorPanels: [
+					{ id: "visibility", title: "Visibility", component: Panel, isVisible: "yes" },
+				],
+			},
+		} as unknown as PluginAdmins;
+
+		expect(resolveContentEditorPanels(pluginAdmins, "posts", 50)).toEqual([]);
+		expect(warningSpy).toHaveBeenCalledWith(
+			expect.stringContaining('panel "visibility" because isVisible must be a function'),
+		);
+	});
+
 	it("ignores malformed panel exports without throwing", () => {
 		const warningSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 		const pluginAdmins = {
