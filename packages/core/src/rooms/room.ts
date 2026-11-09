@@ -172,6 +172,11 @@ const UNLOADED: SaveOutcome = {
 	code: "UNLOADED",
 	message: UNLOADED_MESSAGE,
 };
+const UNREADABLE = {
+	reason: INVALID_CONTENT,
+	code: INVALID_CONTENT,
+	message: "A field holds content that can't be saved",
+} satisfies { reason: SaveFailure; code: string; message: string };
 
 type MergeStep =
 	| {
@@ -829,7 +834,6 @@ export class Room {
 	async #saveOnce(state: LoadedState, request: SaveRequest): Promise<SaveOutcome | null> {
 		const actor = request.kind === "auto" ? state.record.editors[0] : request.actor;
 		if (actor === undefined) return null;
-		const kept = request.kind !== "auto";
 		// One synchronous step, so fields touched while the save awaits stay pending.
 		this.#cancelSaveTimers(state);
 		const snapshot = Y.snapshot(state.doc);
@@ -839,14 +843,9 @@ export class Room {
 		const editedBy = [...state.record.editors];
 		let recorded = false;
 		try {
-			const sent = this.#changedFields(state, swapped);
-			if (!sent) {
-				return this.#saveFailed(request, {
-					reason: INVALID_CONTENT,
-					code: INVALID_CONTENT,
-					message: "A field holds content that can't be saved",
-				});
-			}
+			const { unreadable, ...sent } = this.#changedFields(state, swapped);
+			if (unreadable && request.kind === "operation") return this.#saveFailed(request, UNREADABLE);
+			const kept = request.kind !== "auto" && !unreadable;
 			if (!(await this.#flush(state)) || !this.#live(state)) return UNLOADED;
 			let base = state.record.mergeBase;
 			const empty = sent.slug === undefined && Object.keys(sent.data).length === 0;
@@ -862,6 +861,14 @@ export class Room {
 				if (!result.ok) return this.#saveFailed(request, result);
 				base = mergeBaseAfterSave(base, sent, result);
 			}
+			if (unreadable) {
+				// No checkpoint, so the unreadable field's edits never show as saved.
+				if (base !== state.record.mergeBase) {
+					state.record.mergeBase = base;
+					if (!(await this.#writeRecord(state))) return UNLOADED;
+				}
+				return this.#saveFailed(request, UNREADABLE);
+			}
 			recorded = true;
 			const written = await this.#recordCheckpoint(state, snapshot, base, editedBy, creditMark);
 			return written ? { ok: true, rev: base.rev } : UNLOADED;
@@ -872,15 +879,16 @@ export class Room {
 
 	/**
 	 * The pending fields, and fields whose document hash was cleared, that differ from the merge
-	 * base's document hash. Null when one can't be read or hashed.
+	 * base's document hash, without any that can't be read or hashed.
 	 */
 	#changedFields(
 		state: LoadedState,
 		pending: ReadonlySet<string>,
-	): Pick<CheckpointInput, "data" | "slug"> | null {
+	): Pick<CheckpointInput, "data" | "slug"> & { unreadable: boolean } {
 		const base = state.record.mergeBase.document;
 		const data: Record<string, unknown> = {};
 		let slug: string | null | undefined;
+		let unreadable = false;
 		for (const field of state.fields) {
 			if (!pending.has(field.slug) && base[field.slug] !== null) continue;
 			try {
@@ -890,10 +898,10 @@ export class Room {
 				else data[field.slug] = value;
 			} catch {
 				console.warn(`${LOG} room ${this.#roomId()} can't save field ${field.slug}`);
-				return null;
+				unreadable = true;
 			}
 		}
-		return slug === undefined ? { data } : { data, slug };
+		return slug === undefined ? { data, unreadable } : { data, slug, unreadable };
 	}
 
 	/** Sends a save, then as each next user in `editedBy` while the site refuses the actor. */
@@ -1202,9 +1210,9 @@ export class Room {
 		}
 		if (encoder.encode(JSON.stringify(data)).byteLength > MAX_RECOVERY_BYTES) {
 			console.error(
-				`${LOG} room ${this.#roomId()} dropped a recovery revision over the size limit`,
+				`${LOG} room ${this.#roomId()} kept its state: its recovery revision is over the size limit`,
 			);
-			return true;
+			return false;
 		}
 		try {
 			await this.#site.saveRecovery(this.#entry, {

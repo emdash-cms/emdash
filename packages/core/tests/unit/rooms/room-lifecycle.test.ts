@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
-import { MAX_ROOM_CONNECTIONS, MAX_USER_CONNECTIONS } from "../../../src/rooms/limits.js";
+import {
+	MAX_RECOVERY_BYTES,
+	MAX_ROOM_CONNECTIONS,
+	MAX_USER_CONNECTIONS,
+} from "../../../src/rooms/limits.js";
 import { encodeSyncStep1 } from "../../../src/rooms/protocol.js";
 import { CLOSE_CODES } from "../../../src/rooms/types.js";
 import {
@@ -393,6 +397,16 @@ describe("hourly drop", () => {
 		await test.room.expire();
 		expect(test.site.recoveries).toHaveLength(1);
 		expect(test.store.record).toBeNull();
+	});
+
+	it("keeps the state when its recovery revision is over the size limit", async () => {
+		const test = new TestRoom();
+		// Each control character takes six bytes as JSON.
+		await leaveUncovered(test, "\u0001".repeat(MAX_RECOVERY_BYTES / 6 + 1));
+		await advance(HOUR);
+		await test.room.expire();
+		expect(test.site.recoveries).toHaveLength(0);
+		expect(test.store.record).not.toBeNull();
 	});
 
 	it("drops state past its hour before answering a token request", async () => {
