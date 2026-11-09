@@ -292,7 +292,7 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect
-			.element(screen.getByText("Publication policy blocked scheduled content"))
+			.element(screen.getByText("Scheduled content was not published"))
 			.toBeInTheDocument();
 		await expect.element(screen.getByText("Approval is required.")).toBeInTheDocument();
 		await expect.element(screen.getByText("posts/post-1")).toBeInTheDocument();
@@ -305,6 +305,32 @@ describe("Dashboard", () => {
 			"post-1",
 			"rejection-revision",
 		);
+	});
+
+	it("lists a scheduled publish the publish itself refused", async () => {
+		const stats = makeStats([]);
+		stats.policyRejectedScheduled = 1;
+		stats.policyRejections = [
+			{
+				collection: "posts",
+				id: "post-1",
+				code: "VALIDATION_ERROR",
+				reason: "This post needs an excerpt before it can be published.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+				_rev: "rejection-revision",
+			},
+		];
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Scheduled content was not published"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("This post needs an excerpt before it can be published."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("posts/post-1")).toBeInTheDocument();
 	});
 
 	it("refreshes a stale policy rejection after dismissal conflicts", async () => {
@@ -356,7 +382,7 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect
-			.element(screen.getByText("Publication policy blocked scheduled content"))
+			.element(screen.getByText("Scheduled content was not published"))
 			.toBeInTheDocument();
 		await expect
 			.element(screen.getByText("Scheduled publishing needs attention"))

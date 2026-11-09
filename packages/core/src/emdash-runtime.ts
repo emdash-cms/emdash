@@ -98,6 +98,7 @@ import {
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import {
 	scheduledPolicyRejectionKey,
+	toScheduledRejectionReason,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
@@ -335,6 +336,11 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
+/**
+ * Publish errors a scheduled retry cannot clear: the entry has to change first.
+ * A scheduled publish refused with one of these is unscheduled and recorded.
+ */
+const SCHEDULED_REFUSAL_CODES: ReadonlySet<string> = new Set(["VALIDATION_ERROR", "SLUG_CONFLICT"]);
 
 type ContentPolicyHookName =
 	| "content:beforePublish"
@@ -4973,6 +4979,44 @@ export class EmDashRuntime {
 		};
 	}
 
+	/**
+	 * A scheduled publication refused by the publish itself. Every tick would
+	 * refuse it again, and the calendar would call it overdue and guess that the
+	 * scheduler is down, so it is handled like a plugin's cancellation: the
+	 * entry is unscheduled and the error message is recorded for the dashboard.
+	 * Only refusals that a retry cannot clear count; anything else (a conflict,
+	 * an entry no longer due, a database error) is left for the next tick.
+	 */
+	private async unscheduleRefusedPublish(
+		collection: string,
+		id: string,
+		revision: string | undefined,
+		error: { code?: string; message?: string } | undefined,
+	): Promise<void> {
+		if (!error?.code || !SCHEDULED_REFUSAL_CODES.has(error.code)) return;
+		const reason = toScheduledRejectionReason(error.message);
+		if (!reason || revision === undefined) return;
+		const unscheduled = await handleScheduledPolicyRejection(this.db, collection, id, {
+			_rev: revision,
+			rejection: {
+				collection,
+				id,
+				code: error.code,
+				reason,
+				rejectedAt: (this.runtimeDeps.now?.() ?? new Date()).toISOString(),
+			},
+		});
+		if (!unscheduled.success) {
+			console.error(
+				`[scheduled-publish] Failed to unschedule refused ${collection}/${id}:`,
+				unscheduled.error,
+			);
+			return;
+		}
+		await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
+		this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
+	}
+
 	async handleContentPublish(
 		collection: string,
 		id: string,
@@ -5018,6 +5062,9 @@ export class EmDashRuntime {
 			...handlerOptions,
 			_rev: policy.revision,
 		});
+		if (!result.success && options.origin?.source === "scheduler") {
+			await this.unscheduleRefusedPublish(collection, id, policy.revision, result.error);
+		}
 		if (result.success && result.data) {
 			await this.clearScheduledPolicyRejection(
 				collection,
