@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import { getEmDashCollection } from "../../src/query.js";
+import { getEmDashCollection, type CollectionFilter } from "../../src/query.js";
 
 // The shape `generateTypesFile` emits: system fields around the collection's own.
 interface Card {
@@ -52,10 +52,23 @@ describe("getEmDashCollection fields", () => {
 		await getEmDashCollection("cards", { fields: ["titel"] });
 	});
 
-	it("rejects a list widened to string[] on a typed collection", async () => {
+	it("accepts the system fields every entry carries", async () => {
+		const { entries } = await getEmDashCollection("cards", { fields: ["title", "createdAt"] });
+		expectTypeOf(entries[0]!.data.createdAt).toEqualTypeOf<Date>();
+	});
+
+	it("keeps the full type for a list widened to string[]", async () => {
 		const names: string[] = ["title"];
-		// @ts-expect-error - a widened list cannot be checked against Card
-		await getEmDashCollection("cards", { fields: names });
+		const { entries } = await getEmDashCollection("cards", { fields: names });
+		expectTypeOf(entries[0]!.data).toEqualTypeOf<Card>();
+	});
+
+	it("accepts a CollectionFilter variable, and a spread of one, on a typed collection", async () => {
+		const filter: CollectionFilter = { limit: 3 };
+		const plain = await getEmDashCollection("cards", filter);
+		expectTypeOf(plain.entries[0]!.data).toEqualTypeOf<Card>();
+		const spread = await getEmDashCollection("cards", { ...filter, status: "published" });
+		expectTypeOf(spread.entries[0]!.data).toEqualTypeOf<Card>();
 	});
 
 	it("leaves a collection without generated types loose", async () => {

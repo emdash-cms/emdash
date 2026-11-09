@@ -156,7 +156,8 @@ export type SelectedReferences<T extends string, S> = Pick<
 
 /**
  * Keys of `entry.data` the loader fills on every entry, whatever `fields`
- * names: the system fields in the generated collection types.
+ * names: the system fields in the generated collection types. The runtime
+ * check accepts the same names (`ALWAYS_SELECTED_DATA_KEYS` in loader.ts).
  */
 type AlwaysSelectedDataKeys =
 	| "id"
@@ -173,14 +174,30 @@ type AlwaysSelectedDataKeys =
 export type ProjectableFields<D> = readonly (keyof D & string)[];
 
 /**
- * `entry.data` of a collection read: the full type without `fields`, else the
- * named fields plus {@link AlwaysSelectedDataKeys}. A collection without
- * generated types keeps its loose record type.
+ * The check on a `fields` list: a literal list must name keys of `D`. A list
+ * typed only as `string[]` (a variable, or a `CollectionFilter` passed
+ * through) cannot be checked and is let through, keeping the full data type.
+ */
+type CheckedFields<D, F> = string extends keyof D
+	? unknown
+	: F extends readonly string[]
+		? string extends F[number]
+			? unknown
+			: ProjectableFields<D>
+		: unknown;
+
+/**
+ * `entry.data` of a collection read: the full type without `fields` or with
+ * a list typed only as `string[]`, else the named fields plus
+ * {@link AlwaysSelectedDataKeys}. A collection without generated types keeps
+ * its loose record type.
  */
 export type ProjectedCollectionData<D, F> = string extends keyof D
 	? D
 	: [F] extends [readonly string[]]
-		? Pick<D, Extract<keyof D, F[number] | AlwaysSelectedDataKeys>>
+		? string extends F[number]
+			? D
+			: Pick<D, Extract<keyof D, F[number] | AlwaysSelectedDataKeys>>
 		: D;
 
 /**
@@ -247,20 +264,14 @@ export interface CollectionFilterBase {
 	 * Return only these content fields, instead of every column on the
 	 * collection table.
 	 *
-	 * List queries default to `SELECT *`, which reads each entry's whole
-	 * body to render a card, a teaser or an archive row. On a content site
-	 * the body is most of the database, so a list that displays a title and
-	 * an excerpt can be reading several hundred KB to produce a few KB of
-	 * markup. Naming the fields a template actually uses bounds that.
-	 *
 	 * System columns (`id`, `slug`, `status`, the timestamps, locale and
 	 * revision ids) and the sort columns are always selected, so pagination,
 	 * cursors, locale resolution and `entry.data` metadata behave exactly as
-	 * they do without this option. Taxonomy terms, bylines and SEO are loaded
-	 * as before. A requested boolean field is still returned as a boolean. In
-	 * preview, a draft supplies only the requested fields, so the entry has
-	 * the same keys as on the live site. `where` and `orderBy` may name fields
-	 * that are not requested.
+	 * they do without this option. Taxonomy terms and bylines are loaded as
+	 * before. A requested boolean field is still returned as a boolean. In
+	 * preview and edit mode, an entry has only the requested fields, as on
+	 * the live site. `where` and `orderBy` may name fields that are not
+	 * requested.
 	 *
 	 * A projected entry is a PARTIAL entry. A field that was not requested is
 	 * absent from `entry.data`, so anything deriving a value from it (an
@@ -274,8 +285,9 @@ export interface CollectionFilterBase {
 	 * an empty array, a malformed name, a name that is not a field of the
 	 * collection, and a `reference` field bound to a relation (its links are
 	 * not stored on the entry; read them with `getEmDashEntry(..., { references })`
-	 * or `getEmDashReferences()`). System field names are accepted and change
-	 * nothing.
+	 * or `getEmDashReferences()`). The system fields every entry carries
+	 * (`id`, `slug`, `status`, `createdAt`, `updatedAt`, `publishedAt`,
+	 * `byline`, `bylines`, `terms`) are accepted and change nothing.
 	 *
 	 * Omit it to select every column, which is the default.
 	 *
@@ -634,11 +646,15 @@ function canExposeRevisionMetadata(
 export async function getEmDashCollection<
 	T extends string,
 	D = InferCollectionData<T>,
-	const F extends ProjectableFields<D> | undefined = ProjectableFields<D> | undefined,
+	const F extends readonly string[] | undefined = readonly string[] | undefined,
 >(
 	type: T,
-	filter?: CollectionFilter & { fields?: F },
-): Promise<CollectionResult<ProjectedCollectionData<D, F>>> {
+	filter?: CollectionFilter & { fields?: F & CheckedFields<NoInfer<D>, F> },
+): Promise<CollectionResult<ProjectedCollectionData<D, F>>>;
+export async function getEmDashCollection<T extends string, D = InferCollectionData<T>>(
+	type: T,
+	filter?: CollectionFilter,
+): Promise<CollectionResult<D>> {
 	const { assertProjectedFields } = await import("./loader.js");
 	await assertProjectedFields(type, filter?.fields);
 	// Cache per (type, filter) within a single request. Edit mode and
@@ -861,12 +877,8 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
 		filter.locale === undefined ? "" : resolveConfiguredLocale(filter.locale),
-		// A projected read and a full read must never share a cache entry: the
-		// projected one is missing columns the full one carries, and whichever
-		// ran first would answer for both. Sorted so field order can't fork the
-		// key for what is the same request.
-		filter.fields ? [...filter.fields].toSorted().join(",") : "",
 	];
+	if (filter.fields) parts.push([...filter.fields].toSorted().join(","));
 	return `collection:${type}:${parts.join("|")}`;
 }
 
@@ -1069,8 +1081,14 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 	const hasMoreResult = requestedLimit != null && requestedLimit > 0 ? hasMore : undefined;
 
 	const isEditMode = ctx?.editMode ?? false;
-	const portableTextFields =
+	const allPortableText =
 		isEditMode && pageEntries.length > 0 ? await getPortableTextFieldSlugs(type) : undefined;
+	// A projected entry gets an empty editable value only for requested fields.
+	const requested = filter?.fields ? new Set(filter.fields) : undefined;
+	const portableTextFields =
+		allPortableText && requested
+			? new Set([...allPortableText].filter((field) => requested.has(field)))
+			: allPortableText;
 	const entriesWithEdit = pageEntries.map((entry: ContentEntry<D>) => {
 		const dbId = entryDatabaseId(entry);
 		if (isEditMode) {

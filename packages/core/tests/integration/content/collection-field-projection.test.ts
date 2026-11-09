@@ -89,6 +89,15 @@ describeEachDialect("getEmDashCollection fields", (dialect) => {
 		);
 	});
 
+	it("throws for a raw column name and an internal alias, as the types do", async () => {
+		await expect(
+			read(() => getEmDashCollection("posts", { fields: ["created_at"] } as never)),
+		).rejects.toThrow('"created_at" in `fields` is not a field of "posts"');
+		await expect(
+			read(() => getEmDashCollection("posts", { fields: ["_emdash_terms"] } as never)),
+		).rejects.toThrow('"_emdash_terms" in `fields` is not a field of "posts"');
+	});
+
 	it("throws for a reference field bound to a relation, naming the readers to use", async () => {
 		await expect(read(() => getEmDashCollection("posts", { fields: ["author"] }))).rejects.toThrow(
 			/cannot select "author".*getEmDashReferences/,
@@ -106,15 +115,31 @@ describeEachDialect("getEmDashCollection fields", (dialect) => {
 		expect(entries[0]?.data).not.toHaveProperty("body");
 	});
 
-	it("accepts system field names and returns a requested boolean as a boolean", async () => {
+	it("accepts the system fields every entry carries and returns a requested boolean as a boolean", async () => {
 		await createPost({ title: "One", body: "Long body", featured: true });
 
 		const { entries } = await read(() =>
-			getEmDashCollection("posts", { fields: ["slug", "featured"] }),
+			getEmDashCollection("posts", { fields: ["slug", "createdAt", "terms", "featured"] }),
 		);
 
 		expect(entries[0]?.data.featured).toBe(true);
+		expect(entries[0]?.data.createdAt).toBeInstanceOf(Date);
 		expect(entries[0]?.data).not.toHaveProperty("title");
+	});
+
+	it("gives an unrequested Portable Text field no editable value in edit mode", async () => {
+		await new SchemaRegistry(ctx.db).createField("posts", {
+			slug: "content",
+			label: "Content",
+			type: "portableText",
+		});
+		await createPost({ title: "One", body: "Long body" });
+
+		const { entries } = await read(() => getEmDashCollection("posts", { fields: ["title"] }), true);
+		const full = await read(() => getEmDashCollection("posts"), true);
+
+		expect(entries[0]?.data).not.toHaveProperty("content");
+		expect(full.entries[0]?.data.content).toEqual([]);
 	});
 
 	it("loads terms and bylines on a projected entry", async () => {

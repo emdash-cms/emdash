@@ -40,25 +40,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function loadBindings(
+/** A collection's field slugs and its bound reference fields, from one read. */
+interface FieldIndexSnapshot {
+	slugs: string[];
+	bindings: ReferenceFieldBinding[];
+}
+
+export interface FieldIndex {
+	/** Every field slug on the collection; undefined before the schema tables exist. */
+	slugs: ReadonlySet<string> | undefined;
+	/** Every bound reference field, by field slug. */
+	bindings: Map<string, ReferenceFieldBinding>;
+}
+
+async function loadFieldIndex(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<ReferenceFieldBinding[] | null> {
+): Promise<FieldIndexSnapshot | null> {
 	// The relation's id joins in here rather than being looked up per field at
 	// render time: the field stores a slug, but the link table is keyed by id.
 	const relationSlug = jsonExtractExpr(db, "validation", "relation");
-	let rows: { slug: string; validation: string | null; relation_id: string | null }[];
+	let rows: { slug: string; type: string; validation: string | null; relation_id: string | null }[];
 	try {
 		const result = await sql<{
 			slug: string;
+			type: string;
 			validation: string | null;
 			relation_id: string | null;
 		}>`
-			SELECT f.slug AS slug, f.validation AS validation, r.id AS relation_id
+			SELECT f.slug AS slug, f.type AS type, f.validation AS validation, r.id AS relation_id
 			FROM ${sql.ref("_emdash_fields")} AS f
 			INNER JOIN ${sql.ref("_emdash_collections")} AS c ON c.id = f.collection_id
-			LEFT JOIN ${sql.ref("_emdash_relations")} AS r ON r.slug = ${sql.raw(relationSlug)}
-			WHERE c.slug = ${collection} AND f.type = 'reference'
+			LEFT JOIN ${sql.ref("_emdash_relations")} AS r
+				ON f.type = 'reference' AND r.slug = ${sql.raw(relationSlug)}
+			WHERE c.slug = ${collection}
 		`.execute(db);
 		rows = result.rows;
 	} catch (error) {
@@ -69,7 +84,7 @@ async function loadBindings(
 
 	const bindings: ReferenceFieldBinding[] = [];
 	for (const row of rows) {
-		if (!row.validation) continue;
+		if (row.type !== "reference" || !row.validation) continue;
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(row.validation);
@@ -91,27 +106,36 @@ async function loadBindings(
 			side: parsed.relationSide === "child" ? "child" : "parent",
 		});
 	}
-	return bindings;
+	return { slugs: rows.map((row) => row.slug), bindings };
 }
 
 /**
- * Every bound reference field on `collection`, by field slug.
+ * The field slugs and bound reference fields of `collection`, or undefined
+ * slugs when the schema tables are not there yet.
  *
- * Cached twice over: once per request, and once in the schema object-cache
- * namespace, which a schema edit already bumps. A render that asks for
- * references therefore pays for this lookup at most once per isolate between
- * schema changes, and a render that asks for none never issues it.
+ * One read serves every schema check a list or entry read makes: reference
+ * selections, `where` keys and `fields` names. Cached twice over: once per
+ * request, and once in the schema object-cache namespace, which a schema edit
+ * already bumps. A render that makes none of those checks never issues it.
  */
-export function getReferenceFieldMap(
-	collection: string,
-): Promise<Map<string, ReferenceFieldBinding>> {
-	return requestCached(`reference-field-map:${collection}`, async () => {
-		const bindings = await cachedQuery({
+export function getFieldIndex(collection: string): Promise<FieldIndex> {
+	return requestCached(`field-index:${collection}`, async () => {
+		const snapshot = await cachedQuery({
 			namespace: CacheNamespace.SCHEMA,
-			key: `reference-field-map:${collection}`,
-			load: async () => loadBindings(await getDb(), collection),
+			key: `field-index:${collection}`,
+			load: async () => loadFieldIndex(await getDb(), collection),
 			cacheable: (value) => value !== null,
 		});
-		return new Map((bindings ?? []).map((binding) => [binding.slug, binding]));
+		return {
+			slugs: snapshot ? new Set(snapshot.slugs) : undefined,
+			bindings: new Map((snapshot?.bindings ?? []).map((binding) => [binding.slug, binding])),
+		};
 	});
+}
+
+/** Every bound reference field on `collection`, by field slug. See {@link getFieldIndex}. */
+export async function getReferenceFieldMap(
+	collection: string,
+): Promise<Map<string, ReferenceFieldBinding>> {
+	return (await getFieldIndex(collection)).bindings;
 }

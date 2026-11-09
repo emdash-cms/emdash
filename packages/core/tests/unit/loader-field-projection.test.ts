@@ -11,21 +11,6 @@ import {
 	type DialectTestContext,
 } from "../utils/test-db.js";
 
-/**
- * The `fields` option: project the content columns instead of `SELECT *`.
- *
- * List queries read every column of every row to render a card, so a
- * collection whose entries carry a long `body` pays that body on every
- * archive, teaser rail and related-posts block. These tests pin the three
- * things that make the option safe to use:
- *
- *  - a requested field is present and an unrequested one is absent, so the
- *    saving is real rather than a filter applied after the read;
- *  - system metadata (id, slug, dates, status) survives projection, because
- *    pagination, cursors and `entry.data` metadata all read it off the row;
- *  - an invalid field name throws instead of being dropped, since a silently
- *    missing field renders as empty and looks like missing content.
- */
 describeEachDialect("Collection field projection", (dialect) => {
 	let ctx: DialectTestContext;
 	const COLLECTION = "projected_posts";
@@ -85,7 +70,6 @@ describeEachDialect("Collection field projection", (dialect) => {
 		for (const entry of entries) {
 			expect(entry.data.title).toMatch(/^Post \d$/);
 			expect(entry.data.excerpt).toMatch(/^Excerpt \d$/);
-			// The point of the option: the body was never read.
 			expect("body" in entry.data).toBe(false);
 		}
 	});
@@ -106,11 +90,6 @@ describeEachDialect("Collection field projection", (dialect) => {
 		const [full] = entriesOf(await load());
 		const [projected] = entriesOf(await load(["title"]));
 
-		// Anything reading an entry needs these regardless of the projection:
-		// the id and slug identify it, and the dates drive ordering and cursors.
-		// Asserted against the unprojected read rather than against fixed
-		// values, so the test pins "projection changes nothing here" instead of
-		// restating what handleContentCreate happens to set.
 		expect(projected!.id).toBe(full!.id);
 		expect(projected!.data.slug).toBe(full!.data.slug);
 		expect(projected!.data.status).toBe(full!.data.status);

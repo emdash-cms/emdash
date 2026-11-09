@@ -522,13 +522,9 @@ const INCLUDE_IN_DATA: Record<string, string> = {
 const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "scheduled_at"]);
 
 /**
- * Columns a projected read must select whatever the caller asked for.
- *
- * `INCLUDE_IN_DATA` is every system column surfaced on `entry.data`; `slug`
- * and `deleted_at` are read directly off the row (entry id, and the liveness
- * filter). Leaving any of them out does not fail loudly — it produces entries
- * with no id, no date and a broken cursor — so the set is derived from
- * INCLUDE_IN_DATA rather than written out a second time.
+ * Columns a projected read selects whatever the caller asked for: every system
+ * column surfaced on `entry.data`, plus `slug` and `deleted_at`, which are read
+ * off the row.
  */
 const REQUIRED_SELECT_COLUMNS: readonly string[] = [
 	...Object.keys(INCLUDE_IN_DATA),
@@ -537,18 +533,27 @@ const REQUIRED_SELECT_COLUMNS: readonly string[] = [
 ];
 
 /**
- * Build the column list for a content query: `*` (or `r.*`) when no projection
- * was requested, else the requested fields plus the required system columns.
- *
- * Sort columns are included even when unrequested. A `SELECT` list does not
- * have to carry the `ORDER BY` column for the sort itself, but the cursor
- * encoder reads the sort value back OFF THE ROW, so a projected page ordered
- * by an unselected column would paginate from `undefined` and hand out the
- * same page forever.
- *
- * An unknown-looking name throws. Interpolating it would be an injection, and
- * quietly dropping it renders the field as empty, which is the failure mode
- * this option exists to avoid.
+ * Keys of `entry.data` every list entry carries whatever `fields` names, as
+ * the generated collection types spell them. `fields` accepts them and they
+ * select nothing extra. Kept in step with `AlwaysSelectedDataKeys` in query.ts.
+ */
+const ALWAYS_SELECTED_DATA_KEYS: ReadonlySet<string> = new Set([
+	"id",
+	"slug",
+	"status",
+	"createdAt",
+	"updatedAt",
+	"publishedAt",
+	"byline",
+	"bylines",
+	"terms",
+]);
+
+/**
+ * The column list for a content query: `*` (or `r.*`) without a projection,
+ * else the required system columns, the requested fields and the sort columns.
+ * The sort columns are needed because the cursor encoder reads the sort value
+ * off the row.
  */
 function contentSelect(
 	fields: readonly string[] | undefined,
@@ -574,7 +579,8 @@ function projectedColumns(fields: readonly string[], orderBy: OrderBySpec | unde
 		}
 	}
 	const sortKeys = orderBy ? Object.keys(orderBy).filter((k) => FIELD_NAME_PATTERN.test(k)) : [];
-	return [...new Set([...sortKeys, ...fields])];
+	const content = fields.filter((f) => !ALWAYS_SELECTED_DATA_KEYS.has(f));
+	return [...new Set([...sortKeys, ...content])];
 }
 
 /**
@@ -1191,39 +1197,12 @@ function isWhereRange(value: WhereValue): value is WhereRange {
  */
 const SYSTEM_QUERY_KEYS: ReadonlySet<string> = new Set([...SYSTEM_COLUMNS, "slug"]);
 
-/** Slugs of a collection's fields, or undefined when the schema tables are not there yet. */
-async function getFieldSlugs(collection: string): Promise<ReadonlySet<string> | undefined> {
-	const { cachedQuery, CacheNamespace } = await import("./object-cache/index.js");
-	const { requestCached } = await import("./request-cache.js");
-	const slugs = await requestCached(`field-slugs:${collection}`, () =>
-		cachedQuery({
-			namespace: CacheNamespace.SCHEMA,
-			key: `field-slugs:${collection}`,
-			load: async () => {
-				try {
-					const db = await getDb();
-					const rows = await db
-						.selectFrom("_emdash_fields as f")
-						.innerJoin("_emdash_collections as c", "c.id", "f.collection_id")
-						.select("f.slug")
-						.where("c.slug", "=", collection)
-						.execute();
-					return rows.map((row) => row.slug);
-				} catch (error) {
-					if (isMissingTableError(error)) return null;
-					throw error;
-				}
-			},
-			cacheable: (value) => value !== null,
-		}),
-	);
-	return slugs ? new Set(slugs) : undefined;
-}
-
 /**
  * Checks a `fields` list before any query runs. The loader returns a failed
  * list query as `error` with no entries, which a template that reads only
  * `entries` cannot tell from an empty collection, so a mistake here throws.
+ * Accepted names are the collection's field slugs and the
+ * {@link ALWAYS_SELECTED_DATA_KEYS}, the same set the generated types allow.
  */
 export async function assertProjectedFields(
 	collection: string,
@@ -1241,16 +1220,19 @@ export async function assertProjectedFields(
 			);
 		}
 	}
-	const candidates = fields.filter((field) => !SYSTEM_QUERY_KEYS.has(field));
+	const candidates = fields.filter((field) => !ALWAYS_SELECTED_DATA_KEYS.has(field));
 	if (candidates.length === 0) return;
-	const known = await getFieldSlugs(collection);
-	if (known) {
-		const unknown = candidates.find((field) => !known.has(field));
+	// One schema read answers both checks, and is shared with `where` and
+	// reference selections in the same render.
+	const { getFieldIndex } = await import("./references/field-map.js");
+	const { slugs, bindings } = await getFieldIndex(collection);
+	if (slugs) {
+		const unknown = candidates.find((field) => !slugs.has(field));
 		if (unknown) {
 			throw new Error(`${read}: "${unknown}" in \`fields\` is not a field of "${collection}".`);
 		}
 	}
-	const bound = await findStoragelessQueryKey(collection, candidates);
+	const bound = candidates.find((field) => bindings.has(field));
 	if (bound) {
 		throw new Error(
 			`${read}: cannot select "${bound}": it is a reference field bound to a relation, and its links are not stored on the entry. Read them with getEmDashEntry(..., { references }) or getEmDashReferences().`,
@@ -1776,7 +1758,7 @@ export interface CollectionFilterBase {
 	 * Project the content columns: select only these fields instead of `*`.
 	 *
 	 * Required system columns are added automatically, and the taxonomy,
-	 * byline, SEO and boolean-field subqueries are unaffected. Omit for
+	 * byline and boolean-field subqueries are unaffected. Omit for
 	 * every column. See `contentSelect` and the public `fields` option on
 	 * `getEmDashCollection`.
 	 */
