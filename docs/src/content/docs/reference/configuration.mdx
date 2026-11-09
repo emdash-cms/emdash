@@ -453,6 +453,8 @@ See [MCP Server Reference](/reference/mcp-server/) for token creation and client
 
 **Optional.** Runs a co-editing room for each entry in collections with revision support. The default is `false`. Rooms run on Node.js sites that use the `@astrojs/node` adapter, except in `node:cluster` workers, and on Cloudflare Workers sites with the `EMDASH_ROOMS` Durable Object binding. Changing the option needs a rebuild.
 
+The admin editor doesn't join these rooms, so opening an entry still takes an edit lock.
+
 ```js
 emdash({
 	coEditing: true,
