@@ -5,6 +5,7 @@ import * as Y from "yjs";
 
 import { PORTABLE_TEXT_KEY_ATTR } from "../../src/components/editor/portableTextIdentity.js";
 import { portableTextExtensions, portableTextSchema } from "../../src/portable-text.js";
+import { PortableTextYSync } from "../../src/portable-text/y-sync.js";
 
 const REMOTE = Symbol("remote");
 const editors: Editor[] = [];
@@ -24,6 +25,7 @@ function client(doc: Y.Doc): Editor {
 		element,
 		extensions: [
 			...portableTextExtensions(),
+			PortableTextYSync,
 			Extension.create({
 				name: "testSync",
 				priority: 1000,

@@ -14,6 +14,7 @@ import * as Y from "yjs";
 
 import { portableTextExtensions, portableTextSchema } from "../../src/portable-text.js";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema.js";
+import { PortableTextYSync } from "../../src/portable-text/y-sync.js";
 
 const REMOTE = Symbol("remote");
 const CLIENTS = 3;
@@ -494,7 +495,7 @@ function makeClient(ctx: RunContext, id: number, initialUpdate: Uint8Array): Cli
 	ctx.local = true;
 	const editor = new Editor({
 		element,
-		extensions: [...portableTextExtensions(), PortableTextFilledDefaults, sync],
+		extensions: [...portableTextExtensions(), PortableTextFilledDefaults, PortableTextYSync, sync],
 		injectCSS: false,
 		content: "",
 	});
