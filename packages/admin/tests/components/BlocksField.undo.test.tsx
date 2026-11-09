@@ -356,7 +356,10 @@ async function reduceMotion() {
 	});
 }
 
-/** Calls `read` on every frame until `done`, and returns what it read with the time of each frame. */
+/**
+ * Calls `read` on every frame until `done`, or for at most 300 frames, and returns what it read
+ * with the time of each frame.
+ */
 async function sample<T>(
 	read: () => T,
 	done: () => boolean,
@@ -366,7 +369,7 @@ async function sample<T>(
 	await new Promise<void>((resolve) => {
 		const tick = (now: number) => {
 			frames.push({ t: now - start, value: read() });
-			if (done()) resolve();
+			if (done() || frames.length >= 300) resolve();
 			else requestAnimationFrame(tick);
 		};
 		requestAnimationFrame(tick);
