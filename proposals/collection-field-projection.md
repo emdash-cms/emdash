@@ -37,7 +37,7 @@ The list query then selects those fields' columns instead of every column. Each 
 
 - **Without `fields`, nothing changes.** Every column is selected, as today.
 - **System columns are always selected:** the id, slug, status, locale, translation group, timestamps and revision ids, plus the columns the query sorts by. Pagination, cursors, locale resolution and the metadata on `entry.data` behave the same with or without `fields`. A sort column is needed because the next cursor is read from the last row; a page sorted by an unselected column would return the same page forever.
-- **Hydration is unchanged.** Taxonomy terms, bylines, SEO and boolean fields are loaded by their own subqueries, not by `SELECT *`, and are returned as before.
+- **Hydration is unchanged.** Taxonomy terms, bylines and boolean fields are loaded by their own subqueries, not by `SELECT *`, and are returned as before. (Collection reads do not return SEO; only the single-entry read does.)
 - **Draft preview has the same shape as the live read.** When a draft revision overlays an entry, only the requested fields are taken from the revision, so a template sees the same keys in preview as on the live site.
 - **Filters and sorting may use fields that are not selected.** `where` and `orderBy` name columns in the query, not in the result.
 - **The result type narrows.** With generated collection types, `entry.data` for a projected read is typed as the named fields plus the keys the loader fills on every entry (`id`, `slug`, `status`, the dates, bylines and terms), so a template that reads an unrequested field fails to type-check instead of rendering nothing. A name that is not a field of the collection is a type error too.
@@ -61,7 +61,7 @@ The list query then selects those fields' columns instead of every column. Each 
 ## Interfaces and compatibility
 
 - **Public API:** `CollectionFilter` gains an optional `fields?: readonly string[]` on both the cursor and offset variants. `getEmDashCollection` gains a third, `const` type parameter for the named fields, constrained to the collection's field names and inferred from the call, so the result type can narrow. `getEmDashEntry` already narrows its result to the `references` a caller names in the same way.
-- **Types, in detail:** the narrowed `data` is a `Pick` of the collection's generated interface. A collection without generated types keeps `Record<string, unknown>`. A caller that passes the type arguments explicitly, as `getEmDashCollection<"posts", Post>(...)`, gets the full type, as today. On a typed collection, a list widened to `string[]` is rejected; it has to be written inline or typed as the collection's field names. This was checked with `tsc` and `tsgo` against a model of the generated types.
+- **Types, in detail:** the narrowed `data` is a `Pick` of the collection's generated interface. A collection without generated types keeps `Record<string, unknown>`. A caller that passes the type arguments explicitly, as `getEmDashCollection<"posts", Post>(...)`, gets the full type, as today. On a typed collection, a literal list must name the collection's fields. A list typed only as `string[]`, such as a variable or a `CollectionFilter` passed through, cannot be checked: it is accepted and keeps the full type, so existing callers that never pass `fields` are unaffected. This was checked with `tsc` and `tsgo` against a model of the generated types.
 - **Cache:** the request cache and the object cache key on the sorted field list, so a projected read and a full read never share an entry, and the order of the names does not split one request into two keys. Keys for reads without `fields` are unchanged.
 - **Stored data, migrations, configuration and plugin surface:** none.
 
@@ -76,7 +76,7 @@ A projected read that returns an empty list, or entries silently missing a field
 - **An empty array is an error.** It most likely means a caller computed the list and got nothing, and selecting only system columns is not a useful read.
 - **A reference field bound to a relation is an error**, with the message the loader already gives when one is named in `where` or `orderBy`, pointing to `getEmDashEntry(..., { references })` and `getEmDashReferences()`. Such a field has no column, and list reads never fill it. A field bound after its column existed still has the column, holding values it no longer writes, so selecting it would return stale data. The check is the one `where` and `orderBy` use (`findStoragelessQueryKey`), on the same cached reference-field lookup.
 - **A reference field that is not bound to a relation is selected like any other field.** Fields created before relations keep their own column, holding an entry id, and the generated types already type them that way.
-- **System field names are accepted** and change nothing, since those columns are always selected. Duplicates are ignored.
+- **The system fields every entry carries are accepted** (`id`, `slug`, `status`, `createdAt`, `updatedAt`, `publishedAt`, `byline`, `bylines`, `terms`, the names the generated types use) and change nothing, since they are always present. Raw column names such as `created_at` are not field names and throw. Duplicates are ignored.
 - **A projected entry is a partial entry.** Anything a site derives from an unselected field sees nothing rather than falling back. On our site, cards fell back to an excerpt computed from `body` when the stored excerpt was empty; projecting without first backfilling stored excerpts would have blanked 62% of them. The option's documentation states this, and the narrowed type catches direct reads.
 
 ## Verification
@@ -88,7 +88,7 @@ Loader tests on SQLite and PostgreSQL:
 - System metadata on a projected entry equals that of the same entry read without `fields`.
 - Cursor pagination across several pages, sorted by a field that is not requested.
 - A projected read through the taxonomy-pivot path.
-- Taxonomy terms, bylines, SEO and boolean fields are hydrated on a projected entry.
+- Taxonomy terms, bylines and boolean fields are hydrated on a projected entry.
 - With a draft revision overlay, only requested fields come from the revision.
 - An unknown field, a malformed name, an empty array and a bound reference field each throw, and none returns an empty list.
 - An unbound reference field is selected and returns its stored entry id.
