@@ -5,7 +5,7 @@
  */
 
 import { readFile, access, mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import { defineCommand } from "citty";
 import consola from "consola";
@@ -131,8 +131,7 @@ export const seedCommand = defineCommand({
 		},
 		"skip-media": {
 			type: "boolean",
-			description:
-				"Resolve $media references to external URLs instead of downloading and storing files",
+			description: "Keep $media URLs as external references and skip local files without uploading",
 			default: false,
 		},
 	},
@@ -230,6 +229,7 @@ export const seedCommand = defineCommand({
 		const options: SeedApplyOptions = {
 			includeContent: args.content,
 			onConflict: onConflictRaw,
+			mediaBasePath: dirname(seedPath),
 			storage,
 			skipMediaDownload: args["skip-media"],
 		};

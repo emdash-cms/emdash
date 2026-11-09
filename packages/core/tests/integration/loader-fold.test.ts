@@ -17,7 +17,12 @@ import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { ContentBylineCredit } from "../../src/database/repositories/types.js";
 import { setI18nConfig } from "../../src/i18n/config.js";
-import { emdashLoader, FOLDED_BYLINES, FOLDED_TERMS } from "../../src/loader.js";
+import {
+	emdashLoader,
+	FOLDED_BYLINES,
+	FOLDED_BYLINE_FIELDS_VERSION,
+	FOLDED_TERMS,
+} from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { BylineSchemaRegistry } from "../../src/schema/byline-registry.js";
 import {
@@ -114,6 +119,8 @@ describeEachDialect("loader hydration fold", (dialect) => {
 		const terms = read<FoldedTerm[]>(data, FOLDED_TERMS);
 		expect(terms).toHaveLength(1);
 		expect(terms[0]).toMatchObject({ name: "tag", slug: "news", label: "News" });
+
+		expect(read<number>(data, FOLDED_BYLINE_FIELDS_VERSION)).toBe(0);
 
 		const credits = read<FoldedByline[]>(data, FOLDED_BYLINES);
 		expect(credits).toHaveLength(2);
