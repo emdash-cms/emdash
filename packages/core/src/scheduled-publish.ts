@@ -68,6 +68,7 @@ export type ScheduledPublishFn = (
 		publishedAt?: string;
 		requireScheduledDue?: boolean;
 		expectedScheduledAt?: string;
+		_rev?: string;
 		currentTime?: Date;
 	},
 ) => Promise<{ success: boolean; error?: { code?: string; message?: string } }>;
@@ -182,6 +183,7 @@ export async function publishDueContent(
 					publishedAt,
 					requireScheduledDue: true,
 					expectedScheduledAt: item.scheduledAt ?? undefined,
+					_rev: encodeRev(item),
 					currentTime,
 				});
 				const rejection = !result.success
@@ -198,9 +200,12 @@ export async function publishDueContent(
 				}
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });
-				} else if (result.error?.code === "NOT_DUE" || result.error?.code === "PUBLISH_REJECTED") {
-					// Unscheduled or rescheduled between selection and publish — the
-					// editor changed their mind; skip quietly, not a failure.
+				} else if (
+					result.error?.code === "NOT_DUE" ||
+					result.error?.code === "CONFLICT" ||
+					result.error?.code === "PUBLISH_REJECTED"
+				) {
+					// Stale selections and recorded refusals need no failure log.
 				} else {
 					console.error(
 						`[scheduled-publish] Failed to publish ${collection.slug}/${item.id}:`,

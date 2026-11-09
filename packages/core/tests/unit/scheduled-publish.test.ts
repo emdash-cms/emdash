@@ -3,13 +3,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentPublish } from "../../src/api/handlers/content.js";
 import { handleDashboardStats } from "../../src/api/handlers/dashboard.js";
+import { STAGED_REFERENCES_KEY } from "../../src/api/handlers/staged-references.js";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import { runSystemCleanup } from "../../src/cleanup.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../src/database/repositories/options.js";
+import { RelationRepository } from "../../src/database/repositories/relation.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import {
 	ContentMutationConflictError,
+	EmDashValidationError,
 	ScheduledNotDueError,
 } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
@@ -22,6 +25,7 @@ import {
 	type ScheduledPublishFn,
 } from "../../src/scheduled-publish.js";
 import { SCHEDULER_HEARTBEAT_OPTION } from "../../src/scheduler-health.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -256,6 +260,95 @@ describe("publishDueContent()", () => {
 		).toBeNull();
 	});
 
+	it.each([60_000, -30_000])(
+		"keeps a replacement schedule read after sweep selection (%i ms)",
+		async (offset) => {
+			const relation = await new RelationRepository(db).create({
+				slug: "post_featured_page",
+				parentCollection: "post",
+				childCollection: "page",
+				parentLabel: "Posts",
+				childLabel: "Featured page",
+				maxChildrenPerParent: 1,
+			});
+			await new SchemaRegistry(db).createField("post", {
+				slug: "featured_page",
+				label: "Featured page",
+				type: "reference",
+				required: true,
+				validation: {
+					relation: relation.slug,
+					relationSide: "parent",
+					targetCollection: "page",
+					multiple: false,
+				},
+			});
+			const post = await repo.create(createPostFixture());
+			const revision = await new RevisionRepository(db).create({
+				collection: "post",
+				entryId: post.id,
+				data: { ...post.data, [STAGED_REFERENCES_KEY]: { featured_page: [] } },
+			});
+			await repo.setDraftRevision("post", post.id, revision.id);
+			const selectedAt = new Date(Date.now() - 120_000).toISOString();
+			const replacementAt = new Date(Date.now() + offset).toISOString();
+			await repo.update("post", post.id, { status: "scheduled", scheduledAt: selectedAt });
+
+			// Reference validation refuses before the handler reaches its scheduled-time fence.
+			expect(
+				await handleContentPublish(db, "post", post.id, {
+					requireScheduledDue: true,
+					expectedScheduledAt: "obsolete-schedule",
+				}),
+			).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+
+			const runtime = buildRuntime(db);
+			const originalPublish = runtime.handleContentPublish.bind(runtime);
+			vi.spyOn(runtime, "handleContentPublish").mockImplementationOnce(
+				async (collection, id, options) => {
+					await repo.update(collection, id, { scheduledAt: replacementAt });
+					return originalPublish(collection, id, options);
+				},
+			);
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+			expect(await runtime.publishScheduled()).toEqual([]);
+			expect(consoleError).not.toHaveBeenCalled();
+			expect(await repo.findById("post", post.id)).toMatchObject({
+				status: "scheduled",
+				scheduledAt: replacementAt,
+				draftRevisionId: revision.id,
+			});
+			expect(
+				await new OptionsRepository(db).get(scheduledPolicyRejectionKey("post", post.id)),
+			).toBeNull();
+		},
+	);
+
+	it("does not reinterpret a runtime unschedule failure as a new publication refusal", async () => {
+		const post = await repo.create(createPostFixture());
+		const revision = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "" },
+		});
+		await repo.setDraftRevision("post", post.id, revision.id);
+		const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt });
+		vi.spyOn(ContentRepository.prototype, "unschedule").mockRejectedValueOnce(
+			new EmDashValidationError("Content item not found"),
+		);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		expect(await buildRuntime(db).publishScheduled()).toEqual([]);
+		expect(await repo.findById("post", post.id)).toMatchObject({
+			status: "scheduled",
+			scheduledAt,
+		});
+		expect(
+			await new OptionsRepository(db).get(scheduledPolicyRejectionKey("post", post.id)),
+		).toBeNull();
+	});
+
 	it("keeps long publish refusal messages visible in the dashboard", async () => {
 		const post = await repo.create(createPostFixture());
 		await repo.update("post", post.id, {
@@ -352,6 +445,7 @@ describe("publishDueContent()", () => {
 			publishedAt: scheduledFor,
 			requireScheduledDue: true,
 			expectedScheduledAt: scheduledFor,
+			_rev: expect.any(String),
 			currentTime,
 		});
 	});

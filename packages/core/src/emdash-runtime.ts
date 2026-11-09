@@ -5002,7 +5002,18 @@ export class EmDashRuntime {
 					_rev: policy.revision,
 					rejection: this.createScheduledPolicyRejection(collection, id, policy.cancellation),
 				});
-				if (!unscheduled.success) return unscheduled;
+				if (!unscheduled.success) {
+					return {
+						...unscheduled,
+						error: {
+							...unscheduled.error,
+							code:
+								unscheduled.error.code === "VALIDATION_ERROR"
+									? "CONTENT_UNSCHEDULE_ERROR"
+									: unscheduled.error.code,
+						},
+					};
+				}
 				await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
 				this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
 			}
@@ -5031,7 +5042,18 @@ export class EmDashRuntime {
 					_rev: policy.revision,
 					rejection,
 				});
-				if (!unscheduled.success) return unscheduled;
+				if (!unscheduled.success) {
+					return {
+						...unscheduled,
+						error: {
+							...unscheduled.error,
+							code:
+								unscheduled.error.code === "VALIDATION_ERROR"
+									? "CONTENT_UNSCHEDULE_ERROR"
+									: unscheduled.error.code,
+						},
+					};
+				}
 				await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
 				this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
 				return {
