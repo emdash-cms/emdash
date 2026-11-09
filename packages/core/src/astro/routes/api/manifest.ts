@@ -51,6 +51,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		// null and the React SPA never received custom logo/siteName/favicon.
 		// See issue #835.
 		let adminBranding = emdash?.config?.admin;
+		let siteTitle: string | undefined;
 		let siteTimezone = "UTC";
 		let staging = false;
 
@@ -71,15 +72,17 @@ export const GET: APIRoute = async ({ locals }) => {
 					"site:staging",
 					"site:logo",
 				]);
-				const siteTitle = resolveSiteTitle(
-					titles.get("site:title"),
-					titles.get("emdash:site_title"),
-				);
+				const savedSiteTitle = titles.get("site:title");
+				siteTitle =
+					typeof savedSiteTitle === "string"
+						? savedSiteTitle.trim() || undefined
+						: resolveSiteTitle(undefined, titles.get("emdash:site_title"))?.trim() || undefined;
+				const brandingSiteTitle = resolveSiteTitle(savedSiteTitle, titles.get("emdash:site_title"));
 				const timezone = titles.get("site:timezone");
 				siteTimezone = typeof timezone === "string" && timezone ? timezone : "UTC";
 				staging = titles.get("site:staging") === true;
-				if (!adminBranding?.siteName && siteTitle) {
-					adminBranding = { ...adminBranding, siteName: siteTitle };
+				if (!adminBranding?.siteName && brandingSiteTitle) {
+					adminBranding = { ...adminBranding, siteName: brandingSiteTitle };
 				}
 
 				const siteLogo: unknown = titles.get("site:logo");
@@ -121,6 +124,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		const manifest: EmDashManifest = emdashManifest
 			? {
 					...emdashManifest,
+					siteTitle,
 					timezone: siteTimezone,
 					staging,
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
@@ -134,6 +138,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					hash: "default",
 					collections: {},
 					plugins: {},
+					siteTitle,
 					timezone: siteTimezone,
 					staging,
 					taxonomies: [],

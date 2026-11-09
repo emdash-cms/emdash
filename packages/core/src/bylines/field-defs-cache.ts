@@ -47,16 +47,16 @@
  * **Why a versioned cache and not a TTL?** The version counter gives
  * deterministic invalidation without the staleness window a TTL would
  * impose. Field-definition changes need to be visible to the next
- * request, not eventually. The cost is one cheap `options` read per
- * request — cheaper than the field-defs fetch it replaces, and cheaper
- * than maintaining a TTL state machine.
+ * request, not eventually. Content reads fold the version into their
+ * byline metadata and prime the request cache before hydration. Other
+ * callers pay at most one standalone `options` read per request.
  */
 
 import type { Kysely } from "kysely";
 
 import { after } from "../after.js";
 import type { Database } from "../database/types.js";
-import { requestCached } from "../request-cache.js";
+import { requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
 import { BylineSchemaRegistry } from "../schema/byline-registry.js";
 import type { BylineFieldDefinition } from "../schema/types.js";
@@ -109,6 +109,11 @@ let reclaimDeadlineMs = 10_000;
  */
 async function getBylineFieldsVersion(db: Kysely<Database>): Promise<number> {
 	return requestCached(REQUEST_CACHE_KEY_VERSION, () => new BylineSchemaRegistry(db).getVersion());
+}
+
+/** Prime the request's schema version from a folded content read. */
+export function primeBylineFieldsVersion(version: number): void {
+	setRequestCacheEntry(REQUEST_CACHE_KEY_VERSION, version);
 }
 
 /**

@@ -117,7 +117,13 @@ test.describe("Byline custom fields", () => {
 
 		await expect(page.getByLabel(fieldLabel)).toBeVisible();
 		await page.getByLabel(fieldLabel).fill(fieldValue);
+		const saveResponse = page.waitForResponse(
+			(res) =>
+				res.url().includes("/api/admin/bylines/") && res.request().method() === "PUT" && res.ok(),
+			{ timeout: 10000 },
+		);
 		await page.getByRole("button", { name: "Save" }).click();
+		await saveResponse;
 
 		// ---------------------------------------------------------------
 		// 4. Verify the round-trip via the REST API

@@ -20,17 +20,16 @@ vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
 	DragHandleWrapper: () => null,
 }));
 
-const buttonsBlock = {
-	_type: "buttons",
-	_key: "buttons-1",
+const columnsBlock = {
+	_type: "columns",
+	_key: "columns-1",
 	layout: "horizontal",
-	buttons: [
+	columns: [
 		{
-			_type: "button",
-			_key: "button-1",
+			_type: "column",
+			_key: "column-1",
 			text: "Official results",
 			url: "https://example.com/results",
-			style: "default",
 		},
 	],
 };
@@ -48,7 +47,7 @@ function pasteBlockThroughHtml(editor: Editor) {
 }
 
 describe("unsupported blocks", () => {
-	it("does not offer URL editing for imported buttons and preserves them when editing surrounding text", async () => {
+	it("does not offer URL editing for unknown imported blocks and preserves them when editing surrounding text", async () => {
 		const onChange = vi.fn();
 		let editor: Editor | undefined;
 		const screen = await render(
@@ -57,7 +56,7 @@ describe("unsupported blocks", () => {
 					editor = instance;
 				}}
 				value={[
-					buttonsBlock,
+					columnsBlock,
 					{
 						_type: "block",
 						_key: "paragraph-1",
@@ -70,7 +69,7 @@ describe("unsupported blocks", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByText("Buttons", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Columns", { exact: true })).toBeVisible();
 		expect(screen.getByRole("button", { name: "Edit URL", exact: true }).query()).toBeNull();
 		await expect
 			.element(
@@ -82,15 +81,15 @@ describe("unsupported blocks", () => {
 		editor!.chain().focus("end").insertContent("After").run();
 		await vi.waitFor(() => {
 			const saved = onChange.mock.lastCall?.[0] as Array<Record<string, unknown>> | undefined;
-			expect(saved?.find((block) => block._type === "buttons")).toEqual(buttonsBlock);
+			expect(saved?.find((block) => block._type === "columns")).toEqual(columnsBlock);
 		});
 	});
 
 	it("allows deleting unsupported blocks without offering URL actions", async () => {
 		const onChange = vi.fn();
-		const screen = await render(<PortableTextEditor value={[buttonsBlock]} onChange={onChange} />);
+		const screen = await render(<PortableTextEditor value={[columnsBlock]} onChange={onChange} />);
 
-		await expect.element(screen.getByText("Buttons", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Columns", { exact: true })).toBeVisible();
 		for (const name of ["Edit URL", "Copy URL", "Open in new tab"]) {
 			expect(screen.getByRole("button", { name, exact: true }).query()).toBeNull();
 		}
@@ -98,7 +97,7 @@ describe("unsupported blocks", () => {
 		await vi.waitFor(() => {
 			expect(onChange).toHaveBeenCalled();
 			const saved = onChange.mock.lastCall?.[0] as Array<Record<string, unknown>>;
-			expect(saved.some((block) => block._type === "buttons")).toBe(false);
+			expect(saved.some((block) => block._type === "columns")).toBe(false);
 		});
 	});
 
@@ -107,7 +106,7 @@ describe("unsupported blocks", () => {
 		{ _type: "file", url: "https://example.com/download.pdf" },
 		{ _type: "embed", url: "" },
 		{ _type: "test.embed", id: "https://example.com/embed" },
-		{ ...buttonsBlock, id: "https://example.com/previously-saved-stray-id" },
+		{ ...columnsBlock, id: "https://example.com/previously-saved-stray-id" },
 	])("still edits an unregistered $_type block's existing identity", async (identity) => {
 		const onChange = vi.fn();
 		const block = { ...identity, _key: "url-block-1" };
@@ -165,11 +164,11 @@ describe("unsupported blocks", () => {
 		},
 	);
 
-	it("does not offer URL editing for buttons after an HTML clipboard round-trip", async () => {
+	it("does not offer URL editing for unknown blocks after an HTML clipboard round-trip", async () => {
 		let editor: Editor | undefined;
 		const screen = await render(
 			<PortableTextEditor
-				value={[buttonsBlock]}
+				value={[columnsBlock]}
 				onEditorReady={(instance) => {
 					editor = instance;
 				}}
@@ -179,16 +178,16 @@ describe("unsupported blocks", () => {
 		pasteBlockThroughHtml(editor!);
 		await vi.waitFor(() => {
 			expect(editor!.state.doc.firstChild!.attrs[PORTABLE_TEXT_BLOCK_ATTR]).toBeNull();
-			expect(editor!.state.doc.firstChild!.attrs.data.buttons).toEqual(buttonsBlock.buttons);
+			expect(editor!.state.doc.firstChild!.attrs.data.columns).toEqual(columnsBlock.columns);
 		});
-		await expect.element(screen.getByText("Buttons", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Columns", { exact: true })).toBeVisible();
 		for (const name of ["Edit URL", "Copy URL", "Open in new tab"]) {
 			expect(screen.getByRole("button", { name, exact: true }).query()).toBeNull();
 		}
 	});
 
 	it("updates the available editor when a block definition arrives after mount", async () => {
-		const value = [buttonsBlock];
+		const value = [columnsBlock];
 		function LateDefinition() {
 			const [registered, setRegistered] = React.useState(false);
 			return (
@@ -202,9 +201,9 @@ describe("unsupported blocks", () => {
 							registered
 								? [
 										{
-											type: "buttons",
+											type: "columns",
 											pluginId: "test",
-											label: "Custom Buttons",
+											label: "Custom Columns",
 											fields: [{ type: "text_input", action_id: "heading", label: "Heading" }],
 										},
 									]
@@ -221,7 +220,7 @@ describe("unsupported blocks", () => {
 			)
 			.toBeVisible();
 		screen.getByRole("button", { name: "Register block", exact: true }).element().click();
-		await expect.element(screen.getByText("Custom Buttons", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Custom Columns", { exact: true })).toBeVisible();
 		screen.getByRole("button", { name: "Edit", exact: true }).element().click();
 		await expect.element(screen.getByRole("dialog")).toBeVisible();
 		await expect.element(screen.getByLabelText("Heading", { exact: true })).toBeVisible();
