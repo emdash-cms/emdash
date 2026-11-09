@@ -207,6 +207,9 @@ describe("presence avatars", () => {
 		await screen.rerender(<Bar width={30} />);
 		await expect.poll(circles).toEqual([]);
 		expect(row().scrollWidth).toBeLessThanOrEqual(row().clientWidth);
+		const everyone = screen.getByRole("group", { name: "5 other people here" });
+		await expect.element(everyone).toHaveTextContent("Ana Lima · Viewing");
+		await expect.element(everyone).toHaveTextContent("Eli Cohen · Viewing");
 	});
 
 	it("lets a person who leaves fade out, and removes them at once under reduced motion", async () => {

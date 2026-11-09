@@ -1204,11 +1204,44 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	}
 }
 
+/*
+ * The caret line keeps 3:1 against the page in both themes, which the badge
+ * colors miss: dark mode takes lighter shades, and light mode a darker orange.
+ */
 .ProseMirror .emdash-remote-caret {
+	--emdash-caret: var(--color-neutral-500, oklch(55.6% 0 0));
 	position: relative;
 	margin-inline: -1px;
-	border-inline-start: 2px solid var(--emdash-author);
+	border-inline-start: 2px solid var(--emdash-caret);
 	pointer-events: none;
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="purple"] {
+	--emdash-caret: light-dark(
+		var(--color-purple-600, oklch(55.8% 0.288 302.321)),
+		var(--color-purple-500, oklch(62.7% 0.265 303.9))
+	);
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="teal"] {
+	--emdash-caret: light-dark(
+		var(--color-teal-650, oklch(54.9% 0.096 184.565)),
+		var(--color-teal-500, oklch(70.4% 0.14 182.503))
+	);
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="blue"] {
+	--emdash-caret: light-dark(
+		var(--color-blue-600, oklch(54.6% 0.245 262.881)),
+		var(--color-blue-500, oklch(62.3% 0.214 259.815))
+	);
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="orange"] {
+	--emdash-caret: light-dark(
+		var(--color-yellow-700, oklch(55.4% 0.135 66.442)),
+		var(--color-orange-650, oklch(81.5% 0.197 76))
+	);
 }
 
 /* A wider target than the 2px caret, for showing the name on hover. */

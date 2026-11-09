@@ -66,19 +66,30 @@ export function PresenceAvatars({ room, fieldLabel, photos }: PresenceAvatarsPro
 	const go = (user: PresenceUser) => {
 		if (user.field !== null) scrollToField(room.id, user.field, user.id);
 	};
+	const label = plural(users.length, {
+		one: "# other person here",
+		other: "# other people here",
+	});
+
+	// Without room for a circle, screen readers still hear who is here.
+	if (slots === 0 && shown.length === 0) {
+		return (
+			<div ref={group} role="group" aria-label={label} className="sr-only">
+				<ul>
+					{users.map((user) => (
+						<li key={user.id}>{describe(user)}</li>
+					))}
+				</ul>
+			</div>
+		);
+	}
 
 	return (
 		<div
 			ref={group}
 			role="group"
-			aria-label={plural(users.length, {
-				one: "# other person here",
-				other: "# other people here",
-			})}
-			className={cn(
-				"emdash-presence-avatars ms-auto flex shrink-0 items-center",
-				slots === 0 && shown.length === 0 && "hidden",
-			)}
+			aria-label={label}
+			className="emdash-presence-avatars ms-auto flex shrink-0 items-center"
 			onPointerOver={(event) => {
 				const face = faceOf(event.currentTarget, event.target);
 				if (face) lift(event.currentTarget, face);

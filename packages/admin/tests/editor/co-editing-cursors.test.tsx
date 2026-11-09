@@ -340,3 +340,54 @@ describe("other people's carets", () => {
 		expect(renders).toEqual(before);
 	});
 });
+
+/** A CSS color as 8-bit sRGB, through a canvas so any color syntax works. */
+function srgb(color: string): number[] {
+	const canvas = document.createElement("canvas");
+	canvas.width = canvas.height = 1;
+	const context = canvas.getContext("2d")!;
+	context.fillStyle = color;
+	context.fillRect(0, 0, 1, 1);
+	const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+	return [red!, green!, blue!];
+}
+
+function contrast(a: string, b: string): number {
+	const luminance = (color: string) => {
+		const [red, green, blue] = srgb(color).map((value) => {
+			const channel = value / 255;
+			return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+		});
+		return 0.2126 * red! + 0.7152 * green! + 0.0722 * blue!;
+	};
+	const [high, low] = [luminance(a), luminance(b)].toSorted((x, y) => y - x);
+	return (high! + 0.05) / (low! + 0.05);
+}
+
+describe("a remote caret's color", () => {
+	it.each(["light", "dark"])("keeps 3:1 against the editor in %s mode", async (mode) => {
+		const colors = ["neutral", "purple", "teal", "blue", "orange"];
+		const screen = await render(
+			<div data-mode={mode} className="bg-kumo-base">
+				<div className="ProseMirror">
+					{colors.map((color) => (
+						<span key={color} className="emdash-remote-caret" data-author-color={color}>
+							x
+						</span>
+					))}
+				</div>
+			</div>,
+		);
+		unmounts.push(() => screen.unmount());
+		const surface = screen.container.firstElementChild as HTMLElement;
+		const background = getComputedStyle(surface).backgroundColor;
+		const short = Array.from(
+			surface.querySelectorAll<HTMLElement>(".emdash-remote-caret"),
+			(caret) => ({
+				color: caret.dataset.authorColor,
+				ratio: contrast(getComputedStyle(caret).borderInlineStartColor, background),
+			}),
+		).filter(({ ratio }) => ratio < 3);
+		expect(short).toEqual([]);
+	});
+});
