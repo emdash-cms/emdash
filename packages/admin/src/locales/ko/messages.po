@@ -190,12 +190,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(#개 항목)} other {(#개 항목)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3909
+#: packages/admin/src/components/ContentEditor.tsx:3916
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {최대 #자 중 {counted}자 입력, 최소 {min}자} other {최대 #자 중 {counted}자 입력, 최소 {min}자}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:3914
+#: packages/admin/src/components/ContentEditor.tsx:3921
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {최대 #자 중 {counted}자 입력} other {최대 #자 중 {counted}자 입력}}"
 
@@ -217,7 +217,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#개 댓글 가져옴} other {#개 댓글 가져옴}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2531
+#: packages/admin/src/router.tsx:2533
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {댓글 #개를 처리했습니다} other {댓글 #개를 처리했습니다}}"
 
@@ -409,7 +409,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:3919
+#: packages/admin/src/components/ContentEditor.tsx:3926
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {최소 #자} other {최소 #자}}"
 
@@ -1292,7 +1292,7 @@ msgstr "패키지 파일이 없습니다"
 msgid "A publication time has not been selected"
 msgstr "게시 시간이 선택되지 않았습니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:1711
+#: packages/admin/src/components/ContentEditor.tsx:1718
 msgid "A publishing action is already in progress"
 msgstr "게시 작업이 이미 진행 중입니다"
 
@@ -1391,7 +1391,7 @@ msgstr "초대 수락"
 msgid "Access denied"
 msgstr "접근이 거부되었습니다"
 
-#: packages/admin/src/router.tsx:2553
+#: packages/admin/src/router.tsx:2555
 msgid "Access Denied"
 msgstr "접근이 거부되었습니다"
 
@@ -1691,8 +1691,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "패스키 추가"
 
-#: packages/admin/src/components/ContentEditor.tsx:3823
-#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3830
+#: packages/admin/src/components/ContentEditor.tsx:3830
 msgid "Add reference"
 msgstr "참조 추가"
 
@@ -2003,7 +2003,7 @@ msgid "Allowed block types"
 msgstr "허용할 블록 유형"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:2634
+#: packages/admin/src/router.tsx:2636
 msgid "Allowed Domains"
 msgstr "허용된 도메인"
 
@@ -2116,15 +2116,15 @@ msgstr "지문, 얼굴 인식, PIN 또는 기기 비밀번호로 잠금을 해�
 #: packages/admin/src/router.tsx:693
 #: packages/admin/src/router.tsx:714
 #: packages/admin/src/router.tsx:939
-#: packages/admin/src/router.tsx:1397
-#: packages/admin/src/router.tsx:1555
-#: packages/admin/src/router.tsx:1579
-#: packages/admin/src/router.tsx:1663
-#: packages/admin/src/router.tsx:1696
-#: packages/admin/src/router.tsx:2503
-#: packages/admin/src/router.tsx:2539
-#: packages/admin/src/router.tsx:3033
-#: packages/admin/src/router.tsx:3223
+#: packages/admin/src/router.tsx:1398
+#: packages/admin/src/router.tsx:1556
+#: packages/admin/src/router.tsx:1580
+#: packages/admin/src/router.tsx:1664
+#: packages/admin/src/router.tsx:1697
+#: packages/admin/src/router.tsx:2505
+#: packages/admin/src/router.tsx:2541
+#: packages/admin/src/router.tsx:3035
+#: packages/admin/src/router.tsx:3225
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "오류가 발생했습니다"
@@ -2223,7 +2223,7 @@ msgstr "제한 없음"
 #: packages/admin/src/components/Settings.tsx:108
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:2646
+#: packages/admin/src/router.tsx:2648
 msgid "API Tokens"
 msgstr "API 토큰"
 
@@ -2350,11 +2350,11 @@ msgstr "MCP로 연결된 어시스턴트는 토큰에 사이트 이전 권한 �
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:3942
+#: packages/admin/src/components/ContentEditor.tsx:3949
 msgid "At least {min}"
 msgstr "{min} 이상"
 
-#: packages/admin/src/components/ContentEditor.tsx:3939
+#: packages/admin/src/components/ContentEditor.tsx:3946
 msgid "At most {max}"
 msgstr "{max} 이하"
 
@@ -2485,7 +2485,7 @@ msgstr "자동 백업"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "자동 백업에는 스토리지 백엔드(R2, S3 또는 로컬 스토리지)가 필요합니다. 자동 백업을 사용하려면 EmDash 설정에서 스토리지를 구성하세요."
 
-#: packages/admin/src/router.tsx:1523
+#: packages/admin/src/router.tsx:1524
 msgid "Autosave failed"
 msgstr "자동 저장에 실패했습니다"
 
@@ -2534,7 +2534,7 @@ msgstr ""
 msgid "Back"
 msgstr "뒤로"
 
-#: packages/admin/src/components/ContentEditor.tsx:1971
+#: packages/admin/src/components/ContentEditor.tsx:1978
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel} 목록으로 돌아가기"
 
@@ -2615,7 +2615,7 @@ msgstr "백업 설정이 저장되었습니다."
 
 #: packages/admin/src/components/Settings.tsx:125
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:2670
+#: packages/admin/src/router.tsx:2672
 msgid "Backups"
 msgstr "백업"
 
@@ -2643,7 +2643,7 @@ msgstr "발송 전:"
 msgid "Before you continue:"
 msgstr "계속하기 전에 다음 사항을 확인하세요:"
 
-#: packages/admin/src/components/ContentEditor.tsx:3936
+#: packages/admin/src/components/ContentEditor.tsx:3943
 msgid "Between {min} and {max}"
 msgstr "{min} 이상 {max} 이하"
 
@@ -2813,7 +2813,7 @@ msgid "Byline schema"
 msgstr "저자 정보 스키마"
 
 #: packages/admin/src/components/Sidebar.tsx:552
-#: packages/admin/src/router.tsx:2970
+#: packages/admin/src/router.tsx:2972
 msgid "Byline Schema"
 msgstr "저자 정보 스키마"
 
@@ -2828,7 +2828,7 @@ msgstr "저자 정보가 업데이트되었습니다."
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:518
-#: packages/admin/src/router.tsx:2959
+#: packages/admin/src/router.tsx:2961
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "저자 정보"
@@ -3138,7 +3138,7 @@ msgstr "변경 이력"
 msgid "Changes apply everywhere this byline appears."
 msgstr "이 저자 정보가 표시되는 모든 곳에 변경 사항이 적용됩니다."
 
-#: packages/admin/src/router.tsx:1596
+#: packages/admin/src/router.tsx:1597
 msgid "Changes discarded"
 msgstr "변경 사항을 버렸습니다"
 
@@ -3501,7 +3501,7 @@ msgstr "이미지 설정 닫기"
 msgid "Close panel"
 msgstr "패널 닫기"
 
-#: packages/admin/src/components/ContentEditor.tsx:2760
+#: packages/admin/src/components/ContentEditor.tsx:2767
 msgid "Close settings"
 msgstr "설정 닫기"
 
@@ -3555,7 +3555,7 @@ msgstr "이 사이트에서 컬렉션 “{0}”이(가) 생성되었습니다"
 
 #: packages/admin/src/router.tsx:804
 #: packages/admin/src/router.tsx:1006
-#: packages/admin/src/router.tsx:2023
+#: packages/admin/src/router.tsx:2024
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3638,7 +3638,7 @@ msgstr "댓글 반응"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:482
-#: packages/admin/src/router.tsx:2428
+#: packages/admin/src/router.tsx:2430
 msgid "Comments"
 msgstr "댓글"
 
@@ -3764,7 +3764,7 @@ msgstr "콘텐츠 오류({0})"
 msgid "Content found:"
 msgstr "발견된 콘텐츠:"
 
-#: packages/admin/src/router.tsx:1645
+#: packages/admin/src/router.tsx:1646
 msgid "Content has been scheduled for publishing"
 msgstr "콘텐츠의 게시를 예약했습니다"
 
@@ -3772,7 +3772,7 @@ msgstr "콘텐츠의 게시를 예약했습니다"
 msgid "Content ID:"
 msgstr "콘텐츠 ID:"
 
-#: packages/admin/src/router.tsx:1549
+#: packages/admin/src/router.tsx:1550
 msgid "Content is now live"
 msgstr "콘텐츠를 게시했습니다"
 
@@ -3797,11 +3797,11 @@ msgstr "콘텐츠가 잘못된 방식으로 미디어를 참조합니다"
 msgid "Content refers to media that is not in the package"
 msgstr "콘텐츠가 패키지에 없는 미디어를 참조합니다"
 
-#: packages/admin/src/router.tsx:1573
+#: packages/admin/src/router.tsx:1574
 msgid "Content removed from public view"
 msgstr "콘텐츠가 더 이상 공개되지 않습니다"
 
-#: packages/admin/src/router.tsx:1656
+#: packages/admin/src/router.tsx:1657
 msgid "Content reverted to draft"
 msgstr "콘텐츠를 초안으로 되돌렸습니다"
 
@@ -3824,7 +3824,7 @@ msgstr "콘텐츠 유형"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:548
-#: packages/admin/src/router.tsx:2978
+#: packages/admin/src/router.tsx:2980
 msgid "Content Types"
 msgstr "콘텐츠 유형"
 
@@ -4034,7 +4034,7 @@ msgstr "미디어 항목이나 선택한 폴더가 아직 존재하는지 확인
 msgid "Couldn't detect WordPress"
 msgstr "WordPress를 감지할 수 없습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:3800
+#: packages/admin/src/components/ContentEditor.tsx:3807
 msgid "Couldn't load all references."
 msgstr "참조를 모두 불러오지 못했습니다."
 
@@ -4350,7 +4350,7 @@ msgid "Created {0}"
 msgstr "생성: {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1688
+#: packages/admin/src/router.tsx:1689
 msgid "Created {0} translation"
 msgstr "{0} 번역을 만들었습니다"
 
@@ -5054,7 +5054,7 @@ msgstr "업로드가 완료된 {0} 항목 지우기"
 msgid "Dismiss import suggestion"
 msgstr "가져오기 제안 닫기"
 
-#: packages/admin/src/components/ContentEditor.tsx:2720
+#: packages/admin/src/components/ContentEditor.tsx:2727
 msgid "Dismiss save error"
 msgstr ""
 
@@ -5099,7 +5099,7 @@ msgstr "태그 클라우드 표시"
 msgid "Displayed below the image as a visible caption."
 msgstr "이미지 아래에 보이는 캡션으로 표시됩니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:2109
+#: packages/admin/src/components/ContentEditor.tsx:2116
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "집중 모드 (⌘⇧\\)"
 
@@ -5408,12 +5408,12 @@ msgstr "{0} 편집"
 msgid "Edit {0} field"
 msgstr "{0} 필드 편집"
 
-#: packages/admin/src/components/ContentEditor.tsx:1810
 #: packages/admin/src/components/ContentEditor.tsx:1817
+#: packages/admin/src/components/ContentEditor.tsx:1824
 msgid "Edit {itemLabel}"
 msgstr "{itemLabel} 편집"
 
-#: packages/admin/src/components/ContentEditor.tsx:1816
+#: packages/admin/src/components/ContentEditor.tsx:1823
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr ""
 
@@ -5452,7 +5452,7 @@ msgstr ""
 msgid "Edit content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3172
+#: packages/admin/src/router.tsx:3174
 msgid "Edit content type"
 msgstr ""
 
@@ -5503,7 +5503,7 @@ msgstr "편집 잠금"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "미디어 대체 텍스트, 캡션 및 초점 편집"
 
-#: packages/admin/src/router.tsx:2876
+#: packages/admin/src/router.tsx:2878
 msgid "Edit menu"
 msgstr ""
 
@@ -5533,7 +5533,7 @@ msgstr "리디렉션 {0} 편집"
 msgid "Edit role"
 msgstr "기여 역할 편집"
 
-#: packages/admin/src/router.tsx:2925
+#: packages/admin/src/router.tsx:2927
 msgid "Edit section"
 msgstr ""
 
@@ -5670,7 +5670,7 @@ msgstr "이메일 제공업체 활성"
 
 #: packages/admin/src/components/Settings.tsx:115
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:2658
+#: packages/admin/src/router.tsx:2660
 msgid "Email Settings"
 msgstr "이메일 설정"
 
@@ -5952,7 +5952,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:3990
+#: packages/admin/src/components/ContentEditor.tsx:3997
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "유효한 URL을 입력하세요 (예: https://example.com)"
 
@@ -5981,7 +5981,7 @@ msgstr ""
 msgid "Enter credentials manually"
 msgstr "자격 증명 직접 입력"
 
-#: packages/admin/src/components/ContentEditor.tsx:2104
+#: packages/admin/src/components/ContentEditor.tsx:2111
 msgid "Enter distraction-free mode"
 msgstr "집중 모드로 전환"
 
@@ -5989,7 +5989,7 @@ msgstr "집중 모드로 전환"
 msgid "Enter email"
 msgstr "이메일을 입력하세요"
 
-#: packages/admin/src/components/ContentEditor.tsx:3253
+#: packages/admin/src/components/ContentEditor.tsx:3260
 msgid "Enter markdown content..."
 msgstr "마크다운 콘텐츠를 입력하세요..."
 
@@ -6054,7 +6054,7 @@ msgstr "연결하는 쪽 항목"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:3505
+#: packages/admin/src/router.tsx:3507
 msgid "Error"
 msgstr "오류"
 
@@ -6131,11 +6131,11 @@ msgstr "기존 콘텐츠의 색인이 완료되었습니다. 새로운 변경 �
 msgid "Exists"
 msgstr "존재"
 
-#: packages/admin/src/components/ContentEditor.tsx:2104
+#: packages/admin/src/components/ContentEditor.tsx:2111
 msgid "Exit distraction-free mode"
 msgstr "집중 모드 종료"
 
-#: packages/admin/src/components/ContentEditor.tsx:2108
+#: packages/admin/src/components/ContentEditor.tsx:2115
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr "집중 모드 종료 (⌘⇧\\)"
 
@@ -6394,7 +6394,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:791
-#: packages/admin/src/router.tsx:1693
+#: packages/admin/src/router.tsx:1694
 msgid "Failed to create translation"
 msgstr "번역을 생성하지 못했습니다."
 
@@ -6790,7 +6790,7 @@ msgstr "업데이트 상태를 가져오지 못했습니다"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2449
+#: packages/admin/src/router.tsx:2451
 msgid "Failed to fetch user"
 msgstr "사용자 정보를 가져오지 못했습니다."
 
@@ -6979,7 +6979,7 @@ msgid "Failed to lock the entry"
 msgstr "항목의 편집 잠금에 실패했습니다"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:2538
+#: packages/admin/src/router.tsx:2540
 msgid "Failed to perform bulk action"
 msgstr "일괄 작업에 실패했습니다"
 
@@ -6997,7 +6997,7 @@ msgid "Failed to probe URL"
 msgstr ""
 
 #: packages/admin/src/router.tsx:738
-#: packages/admin/src/router.tsx:1554
+#: packages/admin/src/router.tsx:1555
 msgid "Failed to publish"
 msgstr "게시에 실패했습니다"
 
@@ -7009,7 +7009,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "저자 정보 필드의 사용 현황을 불러오지 못했습니다."
 
-#: packages/admin/src/router.tsx:3032
+#: packages/admin/src/router.tsx:3034
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -7086,11 +7086,11 @@ msgstr "API 토큰을 폐기하지 못했습니다."
 msgid "Failed to rewrite URLs"
 msgstr "URL을 다시 쓰지 못했습니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:2458
-#: packages/admin/src/components/ContentEditor.tsx:2712
+#: packages/admin/src/components/ContentEditor.tsx:2465
+#: packages/admin/src/components/ContentEditor.tsx:2719
 #: packages/admin/src/router.tsx:934
-#: packages/admin/src/router.tsx:1392
-#: packages/admin/src/router.tsx:3222
+#: packages/admin/src/router.tsx:1393
+#: packages/admin/src/router.tsx:3224
 msgid "Failed to save"
 msgstr "저장하지 못했습니다."
 
@@ -7158,7 +7158,7 @@ msgstr "가져오기를 시작하지 못했습니다"
 msgid "Failed to uninstall plugin"
 msgstr "플러그인을 제거하지 못했습니다."
 
-#: packages/admin/src/router.tsx:1578
+#: packages/admin/src/router.tsx:1579
 msgid "Failed to unpublish"
 msgstr "게시 취소에 실패했습니다"
 
@@ -7166,7 +7166,7 @@ msgstr "게시 취소에 실패했습니다"
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1662
+#: packages/admin/src/router.tsx:1663
 msgid "Failed to unschedule"
 msgstr "게시 예약 취소에 실패했습니다"
 
@@ -7265,7 +7265,7 @@ msgstr "섹션을 업데이트하지 못했습니다."
 msgid "Failed to update settings"
 msgstr "설정을 업데이트하지 못했습니다."
 
-#: packages/admin/src/router.tsx:2502
+#: packages/admin/src/router.tsx:2504
 msgid "Failed to update status"
 msgstr "상태 변경에 실패했습니다"
 
@@ -7502,11 +7502,11 @@ msgstr "처음 댓글을 남기는 사용자만"
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1792
+#: packages/admin/src/components/ContentEditor.tsx:1799
 msgid "Fix invalid fields before changing the publication date"
 msgstr "게시 일시를 변경하기 전에 유효하지 않은 필드를 수정해 주세요"
 
-#: packages/admin/src/components/ContentEditor.tsx:1720
+#: packages/admin/src/components/ContentEditor.tsx:1727
 msgid "Fix invalid fields before changing the schedule"
 msgstr "게시 예약을 변경하기 전에 유효하지 않은 필드를 수정해 주세요"
 
@@ -7535,7 +7535,7 @@ msgstr "폴더"
 msgid "Folder deleted"
 msgstr "폴더를 삭제했습니다"
 
-#: packages/admin/src/router.tsx:2171
+#: packages/admin/src/router.tsx:2173
 msgid "Folder no longer exists"
 msgstr "폴더가 더 이상 존재하지 않습니다"
 
@@ -7646,7 +7646,7 @@ msgid "General"
 msgstr "일반"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:2696
+#: packages/admin/src/router.tsx:2698
 msgid "General Settings"
 msgstr "일반 설정"
 
@@ -7678,7 +7678,7 @@ msgstr "나중에 식별할 수 있도록 이 패스키에 이름을 지정하�
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:1714
+#: packages/admin/src/components/ContentEditor.tsx:1721
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7691,7 +7691,7 @@ msgid "Go live {countdown}"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2477
-#: packages/admin/src/router.tsx:3525
+#: packages/admin/src/router.tsx:3527
 msgid "Go to Dashboard"
 msgstr "대시보드로 이동"
 
@@ -7889,7 +7889,7 @@ msgstr "접근 수"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "누군가 항목을 편집하는 동안 해당 항목을 잠그고 다른 사용자의 쓰기를 차단합니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:3487
+#: packages/admin/src/components/ContentEditor.tsx:3494
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "항목 ID를 저장합니다. 항목을 직접 선택하려면 콘텐츠 유형에서 대상 컬렉션을 설정해 주세요."
 
@@ -8185,7 +8185,7 @@ msgid "Import failed"
 msgstr "가져오기 실패"
 
 #: packages/admin/src/components/WordPressImport.tsx:736
-#: packages/admin/src/router.tsx:2861
+#: packages/admin/src/router.tsx:2863
 msgid "Import from WordPress"
 msgstr "WordPress에서 가져오기"
 
@@ -8477,7 +8477,7 @@ msgstr "잘못된 핸들"
 msgid "Invalid invite link"
 msgstr "유효하지 않은 초대 링크"
 
-#: packages/admin/src/components/ContentEditor.tsx:4083
+#: packages/admin/src/components/ContentEditor.tsx:4090
 msgid "Invalid JSON"
 msgstr "잘못된 JSON"
 
@@ -8961,7 +8961,7 @@ msgid "Load preview"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/router.tsx:3480
+#: packages/admin/src/router.tsx:3482
 msgid "Loading"
 msgstr "불러오는 중"
 
@@ -8990,8 +8990,8 @@ msgstr "컬렉션 로드 중..."
 msgid "Loading comments..."
 msgstr "댓글 로드 중..."
 
-#: packages/admin/src/router.tsx:3482
-#: packages/admin/src/router.tsx:3494
+#: packages/admin/src/router.tsx:3484
+#: packages/admin/src/router.tsx:3496
 msgid "Loading configuration..."
 msgstr "설정을 불러오는 중..."
 
@@ -9049,7 +9049,7 @@ msgstr "플러그인 로드 중..."
 msgid "Loading redirects..."
 msgstr "리디렉션 로드 중..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3808
+#: packages/admin/src/components/ContentEditor.tsx:3815
 msgid "Loading references..."
 msgstr "참조를 불러오는 중..."
 
@@ -9300,11 +9300,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "마켓플레이스"
 
-#: packages/admin/src/router.tsx:2849
+#: packages/admin/src/router.tsx:2851
 msgid "Marketplace browsing is no longer available."
 msgstr "더 이상 마켓플레이스를 탐색할 수 없습니다."
 
-#: packages/admin/src/router.tsx:2822
+#: packages/admin/src/router.tsx:2824
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "더 이상 마켓플레이스를 탐색할 수 없습니다. 설치된 플러그인은 플러그인 메뉴에서 관리하세요."
 
@@ -9356,7 +9356,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:797
 #: packages/admin/src/components/WordPressImport.tsx:1195
 #: packages/admin/src/components/WordPressImport.tsx:1388
-#: packages/admin/src/router.tsx:2130
+#: packages/admin/src/router.tsx:2132
 msgid "Media"
 msgstr "미디어"
 
@@ -9419,7 +9419,7 @@ msgstr "미디어 읽기"
 msgid "Media results"
 msgstr "미디어 결과"
 
-#: packages/admin/src/router.tsx:2605
+#: packages/admin/src/router.tsx:2607
 msgid "Media Usage"
 msgstr ""
 
@@ -9515,7 +9515,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:490
 #: packages/admin/src/components/WordPressImport.tsx:1199
-#: packages/admin/src/router.tsx:2869
+#: packages/admin/src/router.tsx:2871
 msgid "Menus"
 msgstr "메뉴"
 
@@ -9662,7 +9662,7 @@ msgstr "\"{title}\"을(를) 휴지통으로 이동하시겠습니까? 나중에 
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3775
+#: packages/admin/src/components/ContentEditor.tsx:3782
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "{0} 아래로 이동"
@@ -9679,7 +9679,7 @@ msgstr "{0} 순서 뒤로 이동"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3764
+#: packages/admin/src/components/ContentEditor.tsx:3771
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "{0} 위로 이동"
@@ -9911,7 +9911,7 @@ msgstr "조치 필요"
 msgid "Never"
 msgstr "없음"
 
-#: packages/admin/src/router.tsx:1688
+#: packages/admin/src/router.tsx:1689
 msgid "new"
 msgstr "새"
 
@@ -9919,8 +9919,8 @@ msgstr "새"
 msgid "NEW"
 msgstr "신규"
 
-#: packages/admin/src/components/ContentEditor.tsx:1810
-#: packages/admin/src/components/ContentEditor.tsx:1814
+#: packages/admin/src/components/ContentEditor.tsx:1817
+#: packages/admin/src/components/ContentEditor.tsx:1821
 msgid "New {itemLabel}"
 msgstr "새 {itemLabel}"
 
@@ -9946,7 +9946,7 @@ msgstr "새 컬렉션"
 msgid "New content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3075
+#: packages/admin/src/router.tsx:3077
 msgid "New content type"
 msgstr ""
 
@@ -10408,7 +10408,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "아직 리디렉션이 없습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:3718
+#: packages/admin/src/components/ContentEditor.tsx:3725
 msgid "No references selected."
 msgstr "선택한 참조가 없습니다."
 
@@ -10523,7 +10523,7 @@ msgstr "일치하지 않음"
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2460
+#: packages/admin/src/components/ContentEditor.tsx:2467
 msgid "Not saved yet"
 msgstr ""
 
@@ -10654,7 +10654,7 @@ msgid "Open"
 msgstr "열기"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:3753
+#: packages/admin/src/components/ContentEditor.tsx:3760
 msgid "Open {0} in a new tab"
 msgstr "{0} 새 탭에서 열기"
 
@@ -10854,11 +10854,11 @@ msgstr "패키지 다이제스트"
 msgid "Package downloaded"
 msgstr "패키지 다운로드 완료"
 
-#: packages/admin/src/router.tsx:3393
+#: packages/admin/src/router.tsx:3395
 msgid "Page not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3520
+#: packages/admin/src/router.tsx:3522
 msgid "Page Not Found"
 msgstr "페이지를 찾을 수 없습니다"
 
@@ -11124,7 +11124,7 @@ msgid "Please enter a valid URL"
 msgstr "유효한 URL을 입력하세요."
 
 #: packages/admin/src/components/WordPressImport.tsx:1232
-#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3371
 msgid "Plugin"
 msgstr "플러그인"
 
@@ -11149,7 +11149,7 @@ msgstr "플러그인 작업을 수행하지 못했습니다"
 msgid "Plugin actions"
 msgstr "플러그인 작업"
 
-#: packages/admin/src/components/ContentEditor.tsx:2202
+#: packages/admin/src/components/ContentEditor.tsx:2209
 msgid "Plugin changes were not applied"
 msgstr "플러그인 변경 사항이 적용되지 않았습니다"
 
@@ -11161,8 +11161,8 @@ msgstr "플러그인 열을 사용할 수 없음"
 msgid "Plugin details"
 msgstr "플러그인 상세 정보"
 
-#: packages/admin/src/router.tsx:2794
-#: packages/admin/src/router.tsx:2801
+#: packages/admin/src/router.tsx:2796
+#: packages/admin/src/router.tsx:2803
 msgid "Plugin Details"
 msgstr ""
 
@@ -11187,7 +11187,7 @@ msgstr "플러그인 오류({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "플러그인 설치에는 명시적인 동의가 필요합니다"
 
-#: packages/admin/src/router.tsx:2786
+#: packages/admin/src/router.tsx:2788
 msgid "Plugin Marketplace"
 msgstr ""
 
@@ -11227,7 +11227,7 @@ msgid "Plugin Permissions"
 msgstr "플러그인 권한"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:2743
+#: packages/admin/src/router.tsx:2745
 msgid "Plugin Registry"
 msgstr "플러그인 레지스트리"
 
@@ -11236,8 +11236,8 @@ msgstr "플러그인 레지스트리"
 msgid "Plugin registry configuration error"
 msgstr "플러그인 레지스트리 설정 오류"
 
-#: packages/admin/src/router.tsx:2779
-#: packages/admin/src/router.tsx:2813
+#: packages/admin/src/router.tsx:2781
+#: packages/admin/src/router.tsx:2815
 msgid "Plugin registry is not configured."
 msgstr "플러그인 레지스트리가 설정되지 않았습니다."
 
@@ -11246,7 +11246,7 @@ msgstr "플러그인 레지스트리가 설정되지 않았습니다."
 msgid "Plugin responded with {0}: {text}"
 msgstr "플러그인이 {0} 응답을 반환했습니다: {text}"
 
-#: packages/admin/src/router.tsx:3356
+#: packages/admin/src/router.tsx:3358
 msgid "Plugin Settings"
 msgstr ""
 
@@ -11279,7 +11279,7 @@ msgstr "플러그인 위젯 오류"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:556
 #: packages/admin/src/components/Sidebar.tsx:730
-#: packages/admin/src/router.tsx:2728
+#: packages/admin/src/router.tsx:2730
 msgid "Plugins"
 msgstr "플러그인"
 
@@ -11530,7 +11530,7 @@ msgstr ""
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:269
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:161
-#: packages/admin/src/router.tsx:1549
+#: packages/admin/src/router.tsx:1550
 msgid "Published"
 msgstr "게시됨"
 
@@ -11683,7 +11683,7 @@ msgid "Read your taxonomies and terms"
 msgstr "분류 및 분류 항목 읽기"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:78
-#: packages/admin/src/router.tsx:2102
+#: packages/admin/src/router.tsx:2104
 msgid "Read-only"
 msgstr "읽기 전용"
 
@@ -11774,7 +11774,7 @@ msgstr "로그인으로 리디렉션 중..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:497
-#: packages/admin/src/router.tsx:2911
+#: packages/admin/src/router.tsx:2913
 msgid "Redirects"
 msgstr "리디렉션"
 
@@ -11853,7 +11853,7 @@ msgstr "레지스트리"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3111
+#: packages/admin/src/router.tsx:3113
 msgid "Relations"
 msgstr "관계"
 
@@ -11895,8 +11895,8 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:4276
-#: packages/admin/src/components/ContentEditor.tsx:4342
+#: packages/admin/src/components/ContentEditor.tsx:4283
+#: packages/admin/src/components/ContentEditor.tsx:4349
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -11917,7 +11917,7 @@ msgstr "제거"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:3788
+#: packages/admin/src/components/ContentEditor.tsx:3795
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -11934,8 +11934,8 @@ msgstr "선택 목록에서 {0} 제거"
 msgid "Remove {entry}"
 msgstr "{entry} 제거"
 
-#: packages/admin/src/components/ContentEditor.tsx:4274
-#: packages/admin/src/components/ContentEditor.tsx:4340
+#: packages/admin/src/components/ContentEditor.tsx:4281
+#: packages/admin/src/components/ContentEditor.tsx:4347
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12152,9 +12152,9 @@ msgstr "반복되는 필드 그룹"
 msgid "visualEditing.replaceImage"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4231
-#: packages/admin/src/components/ContentEditor.tsx:4266
-#: packages/admin/src/components/ContentEditor.tsx:4332
+#: packages/admin/src/components/ContentEditor.tsx:4238
+#: packages/admin/src/components/ContentEditor.tsx:4273
+#: packages/admin/src/components/ContentEditor.tsx:4339
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12174,7 +12174,7 @@ msgstr ""
 msgid "Replace"
 msgstr "교체"
 
-#: packages/admin/src/components/ContentEditor.tsx:4230
+#: packages/admin/src/components/ContentEditor.tsx:4237
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12212,7 +12212,7 @@ msgstr "원본 이미지를 교체할까요?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "가로세로 비율을 ‘원본 비율’로 선택해야 원본을 교체할 수 있습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:3823
+#: packages/admin/src/components/ContentEditor.tsx:3830
 msgid "Replace reference"
 msgstr "참조 교체"
 
@@ -12362,7 +12362,7 @@ msgstr "자르기 영역의 왼쪽 위 모서리 크기 조절. 방향키로 크
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "자르기 영역의 오른쪽 위 모서리 크기 조절. 방향키로 크기를 조절하세요."
 
-#: packages/admin/src/components/ContentEditor.tsx:2529
+#: packages/admin/src/components/ContentEditor.tsx:2536
 msgid "Resize settings panel"
 msgstr "설정 패널 크기 조절"
 
@@ -12419,7 +12419,7 @@ msgid "Retired"
 msgstr "사용 중단됨"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:3802
+#: packages/admin/src/components/ContentEditor.tsx:3809
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12435,7 +12435,7 @@ msgstr "사용 중단됨"
 #: packages/admin/src/components/Sections.tsx:352
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:276
-#: packages/admin/src/router.tsx:3508
+#: packages/admin/src/router.tsx:3510
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12486,7 +12486,7 @@ msgstr "재시도 중…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "모든 콘텐츠에 삽입할 수 있는 재사용 가능한 콘텐츠 블록"
 
-#: packages/admin/src/router.tsx:1597
+#: packages/admin/src/router.tsx:1598
 msgid "Reverted to published version"
 msgstr "게시된 버전으로 되돌렸습니다"
 
@@ -12702,7 +12702,7 @@ msgstr "저장(Enter)"
 msgid "Save alt text"
 msgstr "대체 텍스트 저장"
 
-#: packages/admin/src/components/ContentEditor.tsx:2230
+#: packages/admin/src/components/ContentEditor.tsx:2237
 msgid "Save anyway"
 msgstr "계속 저장"
 
@@ -12727,7 +12727,7 @@ msgstr "게시하기 전에 콘텐츠를 초안으로 저장"
 msgid "Save date"
 msgstr "일시 저장"
 
-#: packages/admin/src/components/ContentEditor.tsx:2386
+#: packages/admin/src/components/ContentEditor.tsx:2393
 #: packages/admin/src/components/ContentSettingsPanel.tsx:717
 msgid "Save draft"
 msgstr ""
@@ -12768,7 +12768,7 @@ msgstr "설정 저장"
 msgid "visualEditing.saved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2463
+#: packages/admin/src/components/ContentEditor.tsx:2470
 #: packages/admin/src/components/SaveButton.tsx:40
 msgid "Saved"
 msgstr "저장됨"
@@ -12791,7 +12791,7 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:2456
+#: packages/admin/src/components/ContentEditor.tsx:2463
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -12858,7 +12858,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1644
+#: packages/admin/src/router.tsx:1645
 msgid "Scheduled"
 msgstr "예약됨"
 
@@ -13178,7 +13178,7 @@ msgstr "섹션 제목"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:511
-#: packages/admin/src/router.tsx:2918
+#: packages/admin/src/router.tsx:2920
 msgid "Sections"
 msgstr "섹션"
 
@@ -13235,7 +13235,7 @@ msgstr "보안 오류입니다. 보안 연결 상태인지 확인하세요."
 #: packages/admin/src/components/Settings.tsx:85
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:2613
+#: packages/admin/src/router.tsx:2615
 msgid "Security Settings"
 msgstr "보안 설정"
 
@@ -13252,9 +13252,9 @@ msgid "Select"
 msgstr "선택"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4230
-#: packages/admin/src/components/ContentEditor.tsx:4291
-#: packages/admin/src/components/ContentEditor.tsx:4352
+#: packages/admin/src/components/ContentEditor.tsx:4237
+#: packages/admin/src/components/ContentEditor.tsx:4298
+#: packages/admin/src/components/ContentEditor.tsx:4359
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13303,7 +13303,7 @@ msgstr "이 페이지의 모든 항목 선택"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3826
+#: packages/admin/src/components/ContentEditor.tsx:3833
 msgid "Select at least one entry."
 msgstr "항목을 하나 이상 선택해 주세요."
 
@@ -13336,8 +13336,8 @@ msgstr "파비콘 선택"
 msgid "Select Favicon"
 msgstr "파비콘 선택"
 
-#: packages/admin/src/components/ContentEditor.tsx:4293
-#: packages/admin/src/components/ContentEditor.tsx:4358
+#: packages/admin/src/components/ContentEditor.tsx:4300
+#: packages/admin/src/components/ContentEditor.tsx:4365
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "파일 선택"
@@ -13501,7 +13501,7 @@ msgid "SEO settings"
 msgstr "SEO 설정"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:2720
+#: packages/admin/src/router.tsx:2722
 msgid "SEO Settings"
 msgstr "SEO 설정"
 
@@ -13574,15 +13574,15 @@ msgid "Setting up..."
 msgstr "설정 중..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2355
-#: packages/admin/src/components/ContentEditor.tsx:2746
+#: packages/admin/src/components/ContentEditor.tsx:2362
+#: packages/admin/src/components/ContentEditor.tsx:2753
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/Header.tsx:117
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:46
 #: packages/admin/src/components/Sidebar.tsx:579
 #: packages/admin/src/components/WordPressImport.tsx:1868
-#: packages/admin/src/router.tsx:2598
+#: packages/admin/src/router.tsx:2600
 msgid "Settings"
 msgstr "설정"
 
@@ -13983,7 +13983,7 @@ msgstr "소셜 미디어 프로필 링크"
 msgid "Social Profiles"
 msgstr "소셜 프로필"
 
-#: packages/admin/src/router.tsx:2708
+#: packages/admin/src/router.tsx:2710
 msgid "Social Settings"
 msgstr ""
 
@@ -14141,8 +14141,8 @@ msgstr "템플릿의 예시 게시물과 페이지로 시작합니다. 새 사�
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3176
-#: packages/admin/src/components/ContentEditor.tsx:3199
+#: packages/admin/src/components/ContentEditor.tsx:3183
+#: packages/admin/src/components/ContentEditor.tsx:3206
 #: packages/admin/src/components/PortableTextEditor.tsx:3611
 msgid "Start writing, or type '/' for commands"
 msgstr "내용을 입력하거나 '/'를 입력해 명령어를 표시하세요"
@@ -14375,7 +14375,7 @@ msgstr "번역 대상 언어"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1225
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:907
-#: packages/admin/src/router.tsx:2889
+#: packages/admin/src/router.tsx:2891
 msgid "Taxonomies"
 msgstr "분류"
 
@@ -14770,7 +14770,7 @@ msgstr "패키지의 콘텐츠가 이 사이트에 기록됩니다. 가져오기
 msgid "The package’s file index is not valid."
 msgstr "패키지의 파일 인덱스가 유효하지 않습니다."
 
-#: packages/admin/src/router.tsx:3522
+#: packages/admin/src/router.tsx:3524
 msgid "The page you're looking for doesn't exist."
 msgstr "찾으시는 페이지가 존재하지 않습니다."
 
@@ -14790,8 +14790,8 @@ msgstr "플러그인 필드 위젯을 표시하지 못했습니다."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "플러그인이 이 변경 사항을 저장하지 않았습니다. 편집기에 적용하기 전에 검토하세요."
 
-#: packages/admin/src/components/ContentEditor.tsx:1326
-#: packages/admin/src/components/ContentEditor.tsx:1342
+#: packages/admin/src/components/ContentEditor.tsx:1333
+#: packages/admin/src/components/ContentEditor.tsx:1349
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "플러그인 작업 중 편집기 내용이 변경되어 결과가 더 이상 유효하지 않습니다."
 
@@ -14917,7 +14917,7 @@ msgstr "테마"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2840
+#: packages/admin/src/router.tsx:2842
 msgid "Theme Details"
 msgstr ""
 
@@ -14926,7 +14926,7 @@ msgstr ""
 msgid "Theme ID: {0}"
 msgstr "테마 ID: {0}"
 
-#: packages/admin/src/router.tsx:2832
+#: packages/admin/src/router.tsx:2834
 msgid "Theme Marketplace"
 msgstr ""
 
@@ -15037,20 +15037,20 @@ msgstr "유효한 마이그레이션 키가 아닌 것 같습니다. 플러그�
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2226
+#: packages/admin/src/components/ContentEditor.tsx:2233
 msgid "This entry changed somewhere else after you opened it."
 msgstr "이 항목을 연 이후 다른 곳에서 변경되었습니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:1726
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/components/ContentEditor.tsx:1733
+#: packages/admin/src/router.tsx:1181
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "이 항목이 다른 곳에서 변경되었습니다. 계속 저장하거나 새로고침하여 최신 버전을 불러오세요."
 
-#: packages/admin/src/router.tsx:2035
+#: packages/admin/src/router.tsx:2036
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2036
+#: packages/admin/src/router.tsx:2037
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -15062,7 +15062,7 @@ msgstr "이 항목은 게시되기 전까지 URL이 없습니다. 대신 URL을 
 msgid "This entry is open somewhere else"
 msgstr "이 항목이 다른 곳에서 열려 있습니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:2213
+#: packages/admin/src/components/ContentEditor.tsx:2220
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "이 항목의 스키마에 현재 EmDash 버전이 지원하지 않는 필드 유형이 포함되어 있어 읽기 전용입니다."
 
@@ -15074,8 +15074,8 @@ msgstr ""
 msgid "This export is large"
 msgstr "내보내기 크기가 큽니다"
 
-#: packages/admin/src/components/ContentEditor.tsx:2951
-#: packages/admin/src/components/ContentEditor.tsx:2959
+#: packages/admin/src/components/ContentEditor.tsx:2958
+#: packages/admin/src/components/ContentEditor.tsx:2966
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "현재 EmDash 버전에서는 이 필드를 편집할 수 없습니다."
@@ -15101,7 +15101,7 @@ msgstr "이 필드에는 {mimeType} 유형의 파일을 사용할 수 없습니�
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "이 필드에는 목록이 필요합니다. 빈 목록으로 교체하기 전까지 저장된 값은 그대로 유지되며, 교체하면 기존 값이 삭제됩니다. 먼저 필요한 내용을 복사하세요."
 
-#: packages/admin/src/components/ContentEditor.tsx:4364
+#: packages/admin/src/components/ContentEditor.tsx:4371
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "필수 항목입니다"
@@ -15525,7 +15525,7 @@ msgstr "콘텐츠 전반에서 미디어가 사용된 위치를 추적합니다.
 #: packages/admin/src/components/Settings.tsx:131
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:2677
+#: packages/admin/src/router.tsx:2679
 msgid "Transfer"
 msgstr "이전"
 
@@ -15554,7 +15554,7 @@ msgstr "번역 중..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:787
-#: packages/admin/src/router.tsx:1687
+#: packages/admin/src/router.tsx:1688
 msgid "Translation created"
 msgstr "번역이 생성되었습니다."
 
@@ -15836,7 +15836,7 @@ msgstr ""
 msgid "Unpublish {itemLabel}"
 msgstr "{itemLabel} 게시 취소"
 
-#: packages/admin/src/router.tsx:1573
+#: packages/admin/src/router.tsx:1574
 msgid "Unpublished"
 msgstr "게시 취소됨"
 
@@ -15858,7 +15858,7 @@ msgstr "표시할 번역이 없는 항목 지정"
 msgid "visualEditing.unsaved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2462
+#: packages/admin/src/components/ContentEditor.tsx:2469
 msgid "Unsaved changes"
 msgstr ""
 
@@ -15866,7 +15866,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "저장하지 않은 콘텐츠가 사이트 외부로 전송될 수 있습니다"
 
-#: packages/admin/src/router.tsx:1655
+#: packages/admin/src/router.tsx:1656
 msgid "Unscheduled"
 msgstr "게시 예약 취소됨"
 
@@ -15891,7 +15891,7 @@ msgstr "{0}까지"
 msgid "Untitled"
 msgstr "제목 없음"
 
-#: packages/admin/src/components/ContentEditor.tsx:4190
+#: packages/admin/src/components/ContentEditor.tsx:4197
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "제목 없는 파일"
@@ -16268,7 +16268,7 @@ msgstr "페이지에 Open Graph 이미지가 없을 때 대신 사용됩니다. 
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "식별자로 사용됩니다. 소문자, 숫자, 밑줄만 가능합니다."
 
-#: packages/admin/src/components/ContentEditor.tsx:3387
+#: packages/admin/src/components/ContentEditor.tsx:3394
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "목록 페이지와 게시물 상단에서 이 게시물의 기본 시각적 요소로 사용됩니다."
 
@@ -16330,7 +16330,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:553
 #: packages/admin/src/components/users/UserList.tsx:63
-#: packages/admin/src/router.tsx:2937
+#: packages/admin/src/router.tsx:2939
 msgid "Users"
 msgstr "사용자"
 
@@ -16634,7 +16634,7 @@ msgstr "가져올 항목"
 msgid "What will happen when you import"
 msgstr "가져오면 어떻게 되나요?"
 
-#: packages/admin/src/components/ContentEditor.tsx:2227
+#: packages/admin/src/components/ContentEditor.tsx:2234
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "입력한 내용은 그대로 유지됩니다. 저장하면 최신 버전을 덮어씁니다."
 
@@ -16751,7 +16751,7 @@ msgstr "위젯이 업데이트되었습니다."
 #: packages/admin/src/components/Sidebar.tsx:504
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1207
-#: packages/admin/src/router.tsx:2903
+#: packages/admin/src/router.tsx:2905
 msgid "Widgets"
 msgstr "위젯"
 
@@ -16924,7 +16924,7 @@ msgstr "이 사이트를 이전하려면 관리자 권한이 필요합니다."
 msgid "You need admin permissions to view this page."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2554
+#: packages/admin/src/router.tsx:2556
 msgid "You need Editor permissions to moderate comments."
 msgstr "댓글을 관리하려면 편집자 권한이 필요합니다."
 
@@ -17066,11 +17066,11 @@ msgstr "이름(선택 사항)"
 msgid "Your Role"
 msgstr "내 역할"
 
-#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:2109
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2108
+#: packages/admin/src/router.tsx:2110
 msgid "Your role can't edit this entry."
 msgstr ""
 
