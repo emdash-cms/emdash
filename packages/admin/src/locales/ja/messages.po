@@ -13012,7 +13012,7 @@ msgstr "検索エンジンの所有権確認"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:122
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
-msgstr "検索エンジンはこのサイトをインデックスに登録できます。サイトのリニューアル時など、再び検索エンジンに非公開にするには、準備中に戻してください。"
+msgstr "検索エンジンはこのサイトをインデックスできます。サイトのリニューアル時など、再び検索エンジンに非公開にするには、準備中に戻してください。"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
 msgid "Search failed"
@@ -16478,7 +16478,7 @@ msgstr "検索エンジンに公開"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:121
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
-msgstr "訪問者はサイトにアクセスできますが、検索エンジンにはインデックスに登録しないよう求めます。検索結果に表示する準備ができたら、サイトを公開してください。"
+msgstr "訪問者はサイトにアクセスできますが、検索エンジンにはインデックスされないように求めます。検索結果に表示する準備ができたら、サイトを公開してください。"
 
 #: packages/admin/src/components/Redirects.tsx:780
 msgid "Visitors hitting these paths will see an error."
