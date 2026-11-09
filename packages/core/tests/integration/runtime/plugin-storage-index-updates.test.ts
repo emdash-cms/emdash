@@ -11,6 +11,7 @@ import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-run
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
 import {
+	generateIndexName,
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
 } from "../../../src/plugins/storage-indexes.js";
@@ -203,7 +204,9 @@ describe.each(["registry", "marketplace"] as const)(
 				return { ok: true };
 			});
 			expect(await post(runtime)).toMatchObject({ success: true });
-			expect(indexesSeenByRoute).toContain(`uidx_plugin_${pluginId}_records_externalId`);
+			expect(indexesSeenByRoute).toContain(
+				generateIndexName(pluginId, "records", ["externalId"], { unique: true }),
+			);
 		});
 
 		it.each(["plugin", "all"] as const)(
@@ -315,7 +318,9 @@ describe.each(["registry", "marketplace"] as const)(
 				return { ok: true };
 			};
 			await post(runtime);
-			expect(indexesSeenByRoute).toContain(`uidx_plugin_${pluginId}_records_externalId`);
+			expect(indexesSeenByRoute).toContain(
+				generateIndexName(pluginId, "records", ["externalId"], { unique: true }),
+			);
 		});
 	},
 );

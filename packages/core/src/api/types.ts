@@ -55,6 +55,7 @@ export interface ManifestCollectionDescriptor {
 	urlPattern?: string;
 	routable?: boolean;
 	titleField?: string;
+	/** Field slug or system timestamp (`publishedAt`, `createdAt`, or `updatedAt`) for the admin list Date column. */
 	dateField?: string;
 	hidden?: boolean;
 	/** Phosphor icon name for the admin sidebar entry */

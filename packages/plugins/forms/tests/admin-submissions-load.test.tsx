@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -48,6 +48,7 @@ vi.mock("@cloudflare/kumo", () => ({
 
 interface PendingRequest {
 	route: string;
+	body: Record<string, unknown>;
 	resolve: (response: Response) => void;
 	reject: (error: Error) => void;
 }
@@ -61,10 +62,11 @@ beforeEach(() => {
 	vi.stubGlobal(
 		"fetch",
 		vi.fn(
-			(url: string) =>
+			(url: string, init: RequestInit) =>
 				new Promise<Response>((resolve, reject) => {
 					requests.push({
 						route: url.split("/emdash-forms/")[1] ?? url,
+						body: JSON.parse(init.body as string),
 						resolve,
 						reject,
 					});
@@ -200,6 +202,182 @@ describe.each([
 
 		await settle(current, ok({ items: [submission("s2", "Bob")] }));
 		expect(screen.getByText("Bob")).toBeTruthy();
+	});
+});
+
+describe.each([
+	["Submissions page", pages!["/submissions"]!],
+	["Recent Submissions widget", widgets!["recent-submissions"]!],
+])("%s initial form", (_, Component) => {
+	it("shows the latest submitted form instead of a newer empty form", async () => {
+		render(<Component />);
+		await settle(
+			await nextRequest("forms/list"),
+			ok({
+				items: [
+					{ ...form("b", "Empty B"), submissionCount: 0, lastSubmissionAt: null },
+					{ ...form("c", "Older C"), lastSubmissionAt: "2026-09-01T00:00:00.000Z" },
+					{ ...form("a", "Contact A"), lastSubmissionAt: "2026-10-01T00:00:00.000Z" },
+					{ ...form("d", "Older D"), lastSubmissionAt: "2026-08-01T00:00:00.000Z" },
+				],
+			}),
+		);
+		const request = await nextRequest("submissions/list");
+		expect(request.body.formId).toBe("a");
+		await settle(request, ok({ items: [submission("s1", "Alice")] }));
+		expect(screen.getByText("Alice")).toBeTruthy();
+		expect(screen.queryByText("No submissions yet")).toBeNull();
+	});
+
+	it("ignores an empty form with a stale last submission timestamp", async () => {
+		render(<Component />);
+		await settle(
+			await nextRequest("forms/list"),
+			ok({
+				items: [
+					{
+						...form("b", "Deleted submissions"),
+						submissionCount: 0,
+						lastSubmissionAt: "2026-10-02T00:00:00.000Z",
+					},
+					{ ...form("a", "Contact A"), lastSubmissionAt: "2026-10-01T00:00:00.000Z" },
+				],
+			}),
+		);
+		const request = await nextRequest("submissions/list");
+		expect(request.body.formId).toBe("a");
+		await settle(request, ok({ items: [submission("s1", "Alice")] }));
+		expect(screen.getByText("Alice")).toBeTruthy();
+	});
+
+	it("falls back to the first form when no forms have submissions", async () => {
+		render(<Component />);
+		await settle(
+			await nextRequest("forms/list"),
+			ok({
+				items: [
+					{ ...form("b", "Empty B"), submissionCount: 0, lastSubmissionAt: null },
+					{ ...form("a", "Empty A"), submissionCount: 0, lastSubmissionAt: null },
+				],
+			}),
+		);
+		const request = await nextRequest("submissions/list");
+		expect(request.body.formId).toBe("b");
+		await settle(request, ok({ items: [] }));
+		expect(screen.getByText(/No submissions/)).toBeTruthy();
+	});
+
+	it("handles a site without forms", async () => {
+		render(<Component />);
+		await settle(await nextRequest("forms/list"), ok({ items: [] }));
+		expect(screen.getByText(/No forms/)).toBeTruthy();
+		expect(requests).toHaveLength(1);
+	});
+});
+
+describe("Submissions permissions", () => {
+	const SubmissionsPage = pages!["/submissions"]!;
+
+	async function loadSubmissions(data: unknown): Promise<HTMLElement> {
+		render(<SubmissionsPage />);
+		await settle(await nextRequest("forms/list"), ok({ items: [form("a", "A")] }));
+		const request = await nextRequest("submissions/list");
+		await settle(request, ok(data));
+		return screen.getByText("Alice");
+	}
+
+	it("hides all write and export controls for an Editor while keeping the row openable", async () => {
+		const alice = await loadSubmissions({
+			items: [{ ...submission("s1", "Alice"), starred: true }],
+			canManage: false,
+		});
+		const row = alice.closest("tr")!;
+
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+		expect(screen.queryByText("Actions")).toBeNull();
+		expect(row.querySelector("svg")).not.toBeNull();
+		expect(within(row).queryAllByRole("button")).toHaveLength(0);
+		fireEvent.click(row);
+		expect(screen.getByText("Submission Detail")).toBeTruthy();
+	});
+
+	it("defaults to read-only when the capability is missing", async () => {
+		await loadSubmissions({ items: [submission("s1", "Alice")] });
+
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+	});
+
+	it("does not expose controls while a new submissions list is loading", async () => {
+		render(<SubmissionsPage />);
+		await settle(await nextRequest("forms/list"), ok({ items: [form("a", "A")] }));
+		await nextRequest("submissions/list");
+
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+	});
+
+	it("does not expose controls when loading submissions fails", async () => {
+		render(<SubmissionsPage />);
+		await settle(await nextRequest("forms/list"), ok({ items: [form("a", "A")] }));
+		await settle(await nextRequest("submissions/list"), new Response("{}", { status: 500 }));
+
+		expect(screen.getByRole("alert")).toBeTruthy();
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+	});
+
+	it.each(["read-only", "failure"])(
+		"revokes controls when the next list is %s",
+		async (outcome) => {
+			await loadSubmissions({ items: [submission("s1", "Alice")], canManage: true });
+			expect(screen.getByText("CSV")).toBeTruthy();
+			fireEvent.change(screen.getByRole("combobox", { name: "Filter by status" }), {
+				target: { value: "new" },
+			});
+			const request = await nextRequest("submissions/list");
+			expect(screen.queryByText("CSV")).toBeNull();
+			await settle(
+				request,
+				outcome === "failure"
+					? new Response("{}", { status: 500 })
+					: ok({ items: [submission("s2", "Bob")], canManage: false }),
+			);
+			expect(screen.queryByText("CSV")).toBeNull();
+			expect(screen.queryByText("JSON")).toBeNull();
+			expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+			expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+		},
+	);
+
+	it("keeps submission actions available to an administrator", async () => {
+		const alice = await loadSubmissions({
+			items: [submission("s1", "Alice")],
+			canManage: true,
+		});
+		const row = alice.closest("tr")!;
+
+		expect(screen.getByText("CSV")).toBeTruthy();
+		expect(screen.getByText("JSON")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Toggle status" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+		expect(screen.getByText("Actions")).toBeTruthy();
+
+		fireEvent.click(within(row).getAllByRole("button")[0]!);
+		await settle(await nextRequest("submissions/update"), ok({}));
+		fireEvent.click(screen.getByRole("button", { name: "Toggle status" }));
+		const update = await nextRequest("submissions/update");
+		expect(update.body.status).toBe("read");
+		await settle(update, ok({}));
 	});
 });
 

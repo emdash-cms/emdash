@@ -21,6 +21,8 @@ The following seed defines Hero and Feature grid blocks, then makes them availab
     {
       "slug": "hero",
       "label": "Hero",
+      "description": "A heading, body text and an image",
+      "icon": "sparkle",
       "category": "Layout",
       "currentVersion": 1,
       "versions": [
@@ -39,6 +41,8 @@ The following seed defines Hero and Feature grid blocks, then makes them availab
     {
       "slug": "feature_grid",
       "label": "Feature grid",
+      "description": "A heading and a grid of features",
+      "icon": "squares-four",
       "category": "Layout",
       "currentVersion": 1,
       "versions": [
@@ -83,7 +87,29 @@ The following seed defines Hero and Feature grid blocks, then makes them availab
 }
 ```
 
-The order of `allowedTypes` controls the block picker. If you remove an allowed type later, EmDash moves it to the server-managed `retiredTypes` list. Existing blocks remain editable, but editors cannot add or duplicate that type.
+The block picker lists block types in `allowedTypes` order, grouped by `category`, and shows each type's `description` and `icon`. Set `icon` to a [Phosphor icon](https://phosphoricons.com/) name, such as `sparkle` or `chart-bar`; editors also see it on each block in the content editor. A block type without an icon, or with a name that doesn't match a Phosphor icon, shows a generic block icon.
+
+If you remove an allowed type later, EmDash moves it to the server-managed `retiredTypes` list. Existing blocks remain editable, but editors cannot add or duplicate that type.
+
+## Name fields for the editor layout
+
+An open block in the content editor shows its content first: text, rich text, photos and lists, each under its label. Settings follow as rows with the label beside the value, then an Advanced row. The editor places each field by its type and slug, not its label, and shows every label as written. These conventions change where a field goes:
+
+- **Link fields.** A `url` field, or a `string` field whose slug ends in `_url`, `_link` or `_href`, gets a settings row.
+- **Buttons.** A `string` field named `{base}_label`, `{base}_text` or `{base}` shares one row with a link field named `{base}_url`, `{base}_link` or `{base}_href`. The row takes the text field's label. In the Hero above, `link_label` and `link_url` share a row labelled "Link label".
+- **Captions.** A `string` field named `{image}_caption` sits under the `image` field named `{image}`, such as `photo_caption` under `photo`.
+- **Section ID.** A field named `anchor_id` goes in the Advanced row.
+- **Headline.** The first `string` or `text` field whose slug has the word headline, heading, title or statement is drawn larger, as the block's headline. A field whose slug has the word label, eyebrow, kicker or tag is never the headline. Slugs split into words at underscores, so `section_heading` counts and `subheadline` doesn't. When no field matches, the block's first `string` or `text` field is the headline unless its slug has one of those excluded words.
+
+A `repeater` field inside a block takes its shape from its sub-fields:
+
+- **Type-in list.** A list with exactly one sub-field, of type `string` or `url`, shows each item as a bulleted line. Enter adds a line, and pasting several lines adds one item per line. A list of client names fits this shape.
+- **Table.** A list with up to three sub-fields, each of type `string`, `url`, `number`, `integer`, `select` or `image`, and at most one `image`, shows a row per item and a column per sub-field. A list of stats with a value and a label fits this shape.
+- **Expandable items.** Every other list shows each item as a row that opens to edit its sub-fields. An open item lays out its sub-fields with the rules above, except that no sub-field is drawn as a headline or goes in an Advanced row, a photo gets a settings row, and `{image}_caption` is an ordinary text field.
+
+An item's title is its first `string` sub-field that is neither a link field nor a button's text, or else its first `text` sub-field. A closed item shows its title, followed by up to two of its other `string` values. When those are all empty, it shows the start of its first other `text` value instead. In the Feature grid above, `items` shows as expandable items titled by `title`. Adding a fourth sub-field, or a `text` sub-field, to a table's block type turns the list into expandable items.
+
+These rules are best-effort layout hints and can change in a later release. They affect only how the editor arranges the form, and a field that matches none of them gets a row of its own.
 
 ## Create the Astro components
 

@@ -118,6 +118,8 @@ export interface MediaItem {
 	status?: "pending" | "ready" | "failed";
 	/** Provider ID for external media (e.g., "cloudflare-images") */
 	provider?: string;
+	/** HTTPS URL of an embeddable hosted video player for the admin preview. */
+	playerUrl?: string;
 	/** Provider-specific metadata */
 	meta?: Record<string, unknown>;
 }
@@ -788,6 +790,8 @@ export interface MediaProviderItem {
 	alt?: string;
 	caption?: string;
 	previewUrl?: string;
+	/** HTTPS URL of an embeddable hosted video player for the admin preview (not a thumbnail). */
+	playerUrl?: string;
 	meta?: Record<string, unknown>;
 }
 

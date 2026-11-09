@@ -320,6 +320,9 @@ describe("generateSeedModule", () => {
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain(`"name":"dot-emdash"`);
 		expect(out).toContain("export const seed = userSeed;");
+		expect(out).toContain(
+			`export const mediaBasePath = ${JSON.stringify(join(projectRoot, ".emdash"))};`,
+		);
 	});
 
 	it("uses package.json#emdash.seed when .emdash/seed.json is absent", () => {
@@ -332,6 +335,9 @@ describe("generateSeedModule", () => {
 
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain(`"name":"via-pkg"`);
+		expect(out).toContain(
+			`export const mediaBasePath = ${JSON.stringify(join(projectRoot, "seed"))};`,
+		);
 	});
 
 	it("falls back to seed/seed.json when no pointer is configured", () => {
@@ -345,6 +351,9 @@ describe("generateSeedModule", () => {
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain(`"name":"conventional-fallback"`);
 		expect(out).toContain("export const seed = userSeed;");
+		expect(out).toContain(
+			`export const mediaBasePath = ${JSON.stringify(join(projectRoot, "seed"))};`,
+		);
 	});
 
 	it("falls through to the default seed when no user seed is found", () => {
@@ -353,5 +362,6 @@ describe("generateSeedModule", () => {
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain("export const userSeed = null;");
 		expect(out).toContain("export const seed = ");
+		expect(out).toContain("export const mediaBasePath = undefined;");
 	});
 });

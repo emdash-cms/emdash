@@ -33,6 +33,7 @@ import { TABLE_CELL_MIN_WIDTH } from "../portable-text-table.js";
 import { isDimension, isString } from "../video-block.js";
 import { PortableTextKeys } from "./keys.js";
 import { PortableTextNormalizers, withLocalOnlyPlugins } from "./normalize.js";
+import { PortableTextYSync } from "./y-sync.js";
 
 export {
 	CodeMarkExtension,
@@ -42,6 +43,7 @@ export {
 	EmDashTableRow,
 	PortableTextKeys,
 	PortableTextNormalizers,
+	PortableTextYSync,
 	TableIdentity,
 };
 
@@ -554,6 +556,7 @@ export function portableTextExtensions(): AnyExtension[] {
 		TableIdentity,
 		PortableTextNormalizers,
 		PortableTextKeys,
+		PortableTextYSync,
 		PortableTextTextAlign,
 	];
 }
