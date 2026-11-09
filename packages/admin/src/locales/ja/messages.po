@@ -10804,7 +10804,7 @@ msgstr "アウトライン"
 #: packages/admin/src/components/PortableTextEditor.tsx:3808
 msgctxt "button style"
 msgid "Outline"
-msgstr "アウトライン"
+msgstr "枠線"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1724
 msgid "Output size"
