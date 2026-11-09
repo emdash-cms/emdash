@@ -216,8 +216,8 @@ function SchedulerWarning({
 					{policyRejected > policyRejections.length && (
 						<p className="text-sm text-kumo-subtle">
 							{plural(policyRejected - policyRejections.length, {
-								one: "One more blocked entry is not shown.",
-								other: "# more blocked entries are not shown.",
+								one: "One more entry is not shown.",
+								other: "# more entries are not shown.",
 							})}
 						</p>
 					)}

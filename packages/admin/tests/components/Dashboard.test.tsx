@@ -296,9 +296,7 @@ describe("Dashboard", () => {
 			.toBeInTheDocument();
 		await expect.element(screen.getByText("Approval is required.")).toBeInTheDocument();
 		await expect.element(screen.getByText("posts/post-1")).toBeInTheDocument();
-		await expect
-			.element(screen.getByText("One more blocked entry is not shown."))
-			.toBeInTheDocument();
+		await expect.element(screen.getByText("One more entry is not shown.")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Dismiss" }).click();
 		expect(mockDismissScheduledPolicyRejection).toHaveBeenCalledWith(
 			"posts",

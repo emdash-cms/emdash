@@ -826,6 +826,31 @@ describe("EmDashRuntime scheduled publish refused by the publish itself", () => 
 		expect((rejection as { reason: string }).reason).toContain("taken");
 	});
 
+	it("unschedules an entry refused with a validation error and records the message", async () => {
+		const post = await repo.create(createPostFixture({ slug: "has-a-slug" }));
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+
+		const { published } = await buildRuntime(db).runScheduledTasks();
+
+		expect(published).toEqual([]);
+		const after = await repo.findById("post", post.id);
+		expect(after?.scheduledAt).toBeNull();
+		expect(after?.draftRevisionId).toBe(draft.id);
+		const rejection = await readRejection(post.id);
+		expect(isScheduledPolicyRejection(rejection)).toBe(true);
+		expect(rejection).toMatchObject({
+			code: "VALIDATION_ERROR",
+			reason: "Cannot publish routable content without a slug",
+		});
+	});
+
 	it("does not try the refused entry again on the next tick", async () => {
 		const post = await scheduleSlugConflict();
 		const runtime = buildRuntime(db);

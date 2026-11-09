@@ -336,10 +336,7 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
-/**
- * Publish errors a scheduled retry cannot clear: the entry has to change first.
- * A scheduled publish refused with one of these is unscheduled and recorded.
- */
+/** Publish errors a scheduled retry cannot clear: the entry has to change first. */
 const SCHEDULED_REFUSAL_CODES: ReadonlySet<string> = new Set(["VALIDATION_ERROR", "SLUG_CONFLICT"]);
 
 type ContentPolicyHookName =
@@ -4979,14 +4976,6 @@ export class EmDashRuntime {
 		};
 	}
 
-	/**
-	 * A scheduled publication refused by the publish itself. Every tick would
-	 * refuse it again, and the calendar would call it overdue and guess that the
-	 * scheduler is down, so it is handled like a plugin's cancellation: the
-	 * entry is unscheduled and the error message is recorded for the dashboard.
-	 * Only refusals that a retry cannot clear count; anything else (a conflict,
-	 * an entry no longer due, a database error) is left for the next tick.
-	 */
 	private async unscheduleRefusedPublish(
 		collection: string,
 		id: string,
