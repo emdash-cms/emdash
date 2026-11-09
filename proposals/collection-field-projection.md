@@ -1,7 +1,7 @@
 ---
 title: Select only named fields in a collection read
 type: feature-plan
-status: proposed
+status: accepted
 authors:
   - Noah Eisenbruch (@eisenbruch)
 discussion: https://github.com/emdash-cms/emdash/discussions/3086
