@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { portableTextExtensions, portableTextToProsemirror } from "../../src/portable-text";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
+import { PortableTextYSync } from "../../src/portable-text/y-sync";
 
 const editors: Editor[] = [];
 afterEach(() => {
@@ -21,7 +22,7 @@ afterEach(() => {
 
 function createEditor(...content: JSONContent[]): Editor {
 	const editor = new Editor({
-		extensions: [...portableTextExtensions(), PortableTextFilledDefaults],
+		extensions: [...portableTextExtensions(), PortableTextFilledDefaults, PortableTextYSync],
 		content: { type: "doc", content },
 	});
 	editors.push(editor);
