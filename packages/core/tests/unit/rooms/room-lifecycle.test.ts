@@ -399,14 +399,26 @@ describe("hourly drop", () => {
 		expect(test.store.record).toBeNull();
 	});
 
-	it("keeps the state when its recovery revision is over the size limit", async () => {
+	it("leaves the largest fields out of a recovery revision over the size limit, and drops", async () => {
 		const test = new TestRoom();
 		// Each control character takes six bytes as JSON.
 		await leaveUncovered(test, "\u0001".repeat(MAX_RECOVERY_BYTES / 6 + 1));
 		await advance(HOUR);
 		await test.room.expire();
+		expect(test.site.recoveries).toHaveLength(1);
+		expect(test.site.recoveries[0]?.data).not.toHaveProperty("title");
+		expect(blocksText(test.site.recoveries[0]?.data.body)).toBe("First paragraph.");
+		expect(test.store.record).toBeNull();
+	});
+
+	it("drops the state of an entry that's gone, with no recovery revision", async () => {
+		const test = new TestRoom();
+		await leaveUncovered(test, "Unsaved");
+		test.site.remove();
+		await advance(HOUR);
+		await test.room.expire();
 		expect(test.site.recoveries).toHaveLength(0);
-		expect(test.store.record).not.toBeNull();
+		expect(test.store.record).toBeNull();
 	});
 
 	it("drops state past its hour before answering a token request", async () => {
