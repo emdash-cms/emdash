@@ -401,13 +401,38 @@ describe("hourly drop", () => {
 
 	it("leaves the largest fields out of a recovery revision over the size limit, and drops", async () => {
 		const test = new TestRoom();
+		const ana = await test.join("ana");
+		test.site.forced = ["REFUSED", "REFUSED"];
+		ana.type("Unsaved. ");
 		// Each control character takes six bytes as JSON.
-		await leaveUncovered(test, "\u0001".repeat(MAX_RECOVERY_BYTES / 6 + 1));
+		ana.setField("title", "\u0001".repeat(MAX_RECOVERY_BYTES / 6 + 1));
+		await advance(2000);
+		ana.disconnect();
+		await advance(10_000);
 		await advance(HOUR);
 		await test.room.expire();
 		expect(test.site.recoveries).toHaveLength(1);
 		expect(test.site.recoveries[0]?.data).not.toHaveProperty("title");
-		expect(blocksText(test.site.recoveries[0]?.data.body)).toBe("First paragraph.");
+		expect(blocksText(test.site.recoveries[0]?.data.body)).toBe("Unsaved. First paragraph.");
+		expect(test.store.record).toBeNull();
+	});
+
+	it("leaves saved fields out of a recovery revision over the size limit before unsaved ones", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		ana.type("\u0001".repeat(MAX_RECOVERY_BYTES / 12));
+		await advance(2000);
+		expect(test.site.saves).toHaveLength(1);
+		const title = "\u0001".repeat(MAX_RECOVERY_BYTES / 10);
+		test.site.forced = ["REFUSED", "REFUSED"];
+		ana.setField("title", title);
+		await advance(2000);
+		ana.disconnect();
+		await advance(10_000);
+		await advance(HOUR);
+		await test.room.expire();
+		expect(test.site.recoveries).toHaveLength(1);
+		expect(test.site.recoveries[0]?.data).toEqual({ title });
 		expect(test.store.record).toBeNull();
 	});
 
