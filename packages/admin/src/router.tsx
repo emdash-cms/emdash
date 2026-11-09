@@ -1699,14 +1699,14 @@ function ContentEditPage() {
 		(
 			error: unknown,
 			targetId: string,
-			source: "editor" | "autosave" | "auxiliary",
+			source: "editor" | "autosave" | "auxiliary" | "outside",
 			toastTitle = t`Failed to save`,
 		) => {
 			if (editorShows(targetId) && entryLock.reportWriteError(error, targetId)) return;
 			const message =
 				describeContentValidationError(error, collectionFields) ??
 				(error instanceof Error ? error.message : t`An error occurred`);
-			if (source !== "auxiliary" && editorShows(targetId)) {
+			if ((source === "editor" || source === "autosave") && editorShows(targetId)) {
 				setEditorSaveError((current) => ({
 					entryId: targetId,
 					message,

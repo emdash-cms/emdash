@@ -2248,7 +2248,8 @@ export function ContentEditor({
 						icon={<ArrowPrev className="size-4" />}
 					/>
 				)}
-				<div className="flex min-w-0 flex-1 items-center gap-1.5">
+				{/* As tall as an avatar, so the row keeps its height when people arrive. */}
+				<div className="flex min-h-7.5 min-w-0 flex-1 items-center gap-1.5">
 					{!isDistractionFree && (
 						<>
 							{/* Repeats the back link for pointers, so it stays out of the tab order. */}
@@ -2296,7 +2297,10 @@ export function ContentEditor({
 				    the view, not the entry, and a reader must be able to leave the
 				    overlay. So does the save button, which explains a co-editing
 				    problem such as joining the room. */}
-				<div className="grid w-full grid-cols-4 items-center gap-1.5 sm:ms-1.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
+				<div
+					data-emdash-editor-actions=""
+					className="grid w-full grid-cols-4 items-center gap-1.5 sm:ms-1.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end"
+				>
 					{!isDistractionFree && item && sandboxedEditorActions.length > 0 ? (
 						<fieldset disabled={readOnly} className="contents">
 							<SandboxedContentEditorActions
