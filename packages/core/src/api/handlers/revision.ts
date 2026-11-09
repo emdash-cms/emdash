@@ -9,6 +9,7 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import {
 	RevisionRepository,
 	type Revision,
+	type RevisionAuthor,
 	type RevisionWithAuthor,
 } from "../../database/repositories/revision.js";
 import { ContentMutationConflictError } from "../../database/repositories/types.js";
@@ -59,6 +60,34 @@ export async function handleRevisionList(
 			error: {
 				code: "REVISION_LIST_ERROR",
 				message: "Failed to list revisions",
+			},
+		};
+	}
+}
+
+export interface RevisionEditorsResponse {
+	items: Array<RevisionAuthor | null>;
+}
+
+/**
+ * Everyone who edited a content entry in the revisions newer than `since`, newest first and once
+ * each. With no `since`, everyone who edited it.
+ */
+export async function handleRevisionEditors(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	since: string | null,
+): Promise<ApiResult<RevisionEditorsResponse>> {
+	try {
+		const items = await new RevisionRepository(db).findEditorsSince(collection, entryId, since);
+		return { success: true, data: { items } };
+	} catch {
+		return {
+			success: false,
+			error: {
+				code: "REVISION_EDITORS_ERROR",
+				message: "Failed to list revision editors",
 			},
 		};
 	}

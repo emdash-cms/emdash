@@ -16,6 +16,7 @@ import { useRevisionViewContext } from "../../src/components/revisions/revision-
 import {
 	fetchBylines,
 	fetchReferenceChildren,
+	fetchRevisionEditors,
 	fetchRevisions,
 	restoreRevision,
 } from "../../src/lib/api";
@@ -208,6 +209,7 @@ vi.mock("../../src/lib/api", async () => {
 		getPreviewUrl: vi.fn().mockResolvedValue({ url: "https://example.com/preview" }),
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
 		fetchReferenceChildren: vi.fn(async () => ({ children: [] })),
+		fetchRevisionEditors: vi.fn(),
 		fetchRevisions: vi.fn(),
 		restoreRevision: vi.fn(),
 	};
@@ -4348,12 +4350,17 @@ describe("ContentEditor revision view", () => {
 	});
 
 	it("names who edited since the live version in the publish confirmation", async () => {
+		vi.mocked(fetchRevisionEditors).mockResolvedValue([{ id: "user-maya", name: "Maya Chen" }]);
 		const screen = await renderRevisionEditor({ onPublish: vi.fn() });
 		await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
 		const dialog = screen.getByRole("dialog", { name: "Publish changes?" });
 
 		await expect.element(dialog.getByText("Edited by Maya Chen", { exact: true })).toBeVisible();
-		expect(dialog.element().textContent).not.toContain("Sam Rivera");
+		expect(fetchRevisionEditors).toHaveBeenCalledWith(
+			"posts",
+			"item-1",
+			expect.objectContaining({ since: "rev-old" }),
+		);
 	});
 
 	it("pauses saving and publishing while a version is shown", async () => {

@@ -3,43 +3,19 @@ import { page } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { PublishActions } from "../../src/components/ContentSettingsPanel";
-import { fetchRevisions, type RevisionListResponse } from "../../src/lib/api";
+import { fetchRevisionEditors, type RevisionAuthor } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
-	return { ...actual, fetchRevisions: vi.fn() };
+	return { ...actual, fetchRevisionEditors: vi.fn() };
 });
 
-const LIST: RevisionListResponse = {
-	items: [
-		{
-			id: "rev-2",
-			collection: "posts",
-			entryId: "item-1",
-			data: {},
-			authorId: "u-chris",
-			author: { id: "u-chris", name: "Christopher Montgomery-Smith of the Editorial Team" },
-			editedBy: [
-				{ id: "u-chris", name: "Christopher Montgomery-Smith of the Editorial Team" },
-				{ id: "u-ana", name: "Ana Lima" },
-				null,
-			],
-			createdAt: "2026-10-02 13:12:00",
-		},
-		{
-			id: "rev-1",
-			collection: "posts",
-			entryId: "item-1",
-			data: {},
-			authorId: "u-lee",
-			author: { id: "u-lee", name: "Lee Park" },
-			editedBy: null,
-			createdAt: "2026-10-01 09:30:00",
-		},
-	],
-	total: 2,
-};
+const EDITORS: Array<RevisionAuthor | null> = [
+	{ id: "u-chris", name: "Christopher Montgomery-Smith of the Editorial Team" },
+	{ id: "u-ana", name: "Ana Lima" },
+	null,
+];
 
 describe("PublishActions layout", () => {
 	beforeEach(() => {
@@ -57,8 +33,8 @@ describe("PublishActions layout", () => {
 		"keeps the confirmation's height when the names arrive and cuts a long line short, on %s",
 		async (_name, width) => {
 			await page.viewport(width, 800);
-			let respond!: (list: RevisionListResponse) => void;
-			vi.mocked(fetchRevisions).mockReturnValue(
+			let respond!: (editors: Array<RevisionAuthor | null>) => void;
+			vi.mocked(fetchRevisionEditors).mockReturnValue(
 				new Promise((resolve) => {
 					respond = resolve;
 				}),
@@ -74,10 +50,10 @@ describe("PublishActions layout", () => {
 			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
 			const dialog = screen.getByRole("dialog", { name: "Publish changes?" });
 			await expect.element(dialog).toBeVisible();
-			await vi.waitFor(() => expect(fetchRevisions).toHaveBeenCalled());
+			await vi.waitFor(() => expect(fetchRevisionEditors).toHaveBeenCalled());
 			const loading = dialog.element().getBoundingClientRect().height;
 
-			respond(LIST);
+			respond(EDITORS);
 			const names = dialog.getByText("Edited by", { exact: false });
 			await expect.element(names).toBeVisible();
 

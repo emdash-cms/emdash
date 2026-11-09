@@ -31,7 +31,7 @@ import * as React from "react";
 import { flushSync } from "react-dom";
 
 import {
-	fetchRevisions,
+	fetchRevisionEditors,
 	type AdminManifest,
 	type BylineCreditInput,
 	type BylineSummary,
@@ -73,8 +73,7 @@ import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
-import { namedSince, useRevisionFormat } from "./revisions/revision-format.js";
-import { REVISION_LIST_LIMIT_ALL } from "./revisions/revision-query.js";
+import { useRevisionFormat } from "./revisions/revision-format.js";
 import { useRevisionViewContext } from "./revisions/revision-view-context.js";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import type {
@@ -465,12 +464,9 @@ export interface PublishActionsProps {
 function PublishEditedBy({ collection, entryId, liveRevisionId }: PublishRevisions) {
 	const format = useRevisionFormat();
 	const query = useQuery({
-		// Outside the `revisions` lists, which an autosave patches with its guess at the newest
-		// version, so this list only ever holds what a read returned.
-		queryKey: ["publishEditedBy", collection, entryId],
+		queryKey: ["publishEditedBy", collection, entryId, liveRevisionId],
 		queryFn: ({ signal }) =>
-			fetchRevisions(collection, entryId, { limit: REVISION_LIST_LIMIT_ALL, signal }),
-		select: (list) => namedSince(list.items, liveRevisionId),
+			fetchRevisionEditors(collection, entryId, { since: liveRevisionId, signal }),
 		staleTime: 0,
 		refetchOnMount: "always",
 	});
