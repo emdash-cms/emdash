@@ -1,4 +1,5 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -137,11 +138,36 @@ describe("RevisionViewBar", () => {
 
 		await expect
 			.element(
-				screen.getByText("\u2068Ana Lima\u2069, \u2068Maya Chen\u2069 and 1 other person", {
+				screen.getByText("\u2068Ana Lima\u2069, \u2068Maya Chen\u2069, and 1 other person", {
 					exact: true,
 				}),
 			)
 			.toBeVisible();
+	});
+
+	it("joins the names as the admin's language joins a list", async () => {
+		const { locale, messages } = i18n;
+		try {
+			i18n.loadAndActivate({ locale: "de", messages: {} });
+			const screen = await renderBar(
+				<BarAt
+					width={2000}
+					createdAt={lastWednesdayEvening()}
+					editedBy={[
+						{ id: "user-ana", name: "Ana Lima" },
+						{ id: "user-maya", name: "Maya Chen" },
+					]}
+				/>,
+			);
+
+			await expect
+				.element(
+					screen.getByText("\u2068Ana Lima\u2069 und \u2068Maya Chen\u2069", { exact: true }),
+				)
+				.toBeVisible();
+		} finally {
+			i18n.loadAndActivate({ locale, messages });
+		}
 	});
 
 	it("puts Show changes and Restore on their own row under the version", async () => {
