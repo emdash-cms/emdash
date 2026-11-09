@@ -40,6 +40,7 @@
 		"ulidx": "^2.4.1"
 	},
 	"devDependencies": {
+		"@atcute/cid": "catalog:",
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-plugin": "catalog:",
 		"@cloudflare/workers-types": "catalog:",

@@ -111,6 +111,26 @@ export function formatContentType(format: string): string {
 	return `image/${format === "jpg" ? "jpeg" : format}`;
 }
 
+/** Return whether the image service rewrites the URL for this transform. */
+export async function canOptimizeImage(
+	getImage: GetImage,
+	opts: {
+		src: string;
+		width: number;
+		height: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	},
+): Promise<boolean> {
+	if (!ABSOLUTE_HTTP_URL.test(opts.src)) return false;
+	try {
+		const result = await getImage(opts);
+		return Boolean(result.src && result.src !== opts.src);
+	} catch {
+		return false;
+	}
+}
+
 export interface ResponsiveImage {
 	src: string;
 	srcset?: string;

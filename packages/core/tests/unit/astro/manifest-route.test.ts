@@ -27,6 +27,7 @@ import {
 
 interface ManifestEnvelope {
 	data: {
+		siteTitle?: string;
 		admin?: {
 			logo?: string;
 			siteName?: string;
@@ -256,6 +257,36 @@ describeEachDialect("manifest route saved site logo", (dialect) => {
 		const clearedResponse = await getManifest(makeDatabaseContext(branding));
 		const clearedBody = (await clearedResponse.json()) as ManifestEnvelope;
 		expect(clearedBody.data.admin).toEqual({ ...branding, siteName: "Saved Site" });
+	});
+
+	it("exposes the saved site title separately from configured admin branding", async () => {
+		await new OptionsRepository(ctx.db).set("site:title", "  Saved Site  ");
+
+		const response = await getManifest(makeDatabaseContext({ siteName: "Configured Admin Name" }));
+		const body = (await response.json()) as ManifestEnvelope;
+
+		expect(body.data.siteTitle).toBe("Saved Site");
+		expect(body.data.admin?.siteName).toBe("Configured Admin Name");
+	});
+
+	it("does not use the legacy title when Site Title is explicitly empty", async () => {
+		const options = new OptionsRepository(ctx.db);
+		await options.set("site:title", "  ");
+		await options.set("emdash:site_title", "Legacy Setup Title");
+
+		const response = await getManifest(makeDatabaseContext());
+		const body = (await response.json()) as ManifestEnvelope;
+
+		expect(body.data.siteTitle).toBeUndefined();
+	});
+
+	it("falls back to the legacy title when Site Title is missing", async () => {
+		await new OptionsRepository(ctx.db).set("emdash:site_title", "  Legacy Setup Title  ");
+
+		const response = await getManifest(makeDatabaseContext());
+		const body = (await response.json()) as ManifestEnvelope;
+
+		expect(body.data.siteTitle).toBe("Legacy Setup Title");
 	});
 
 	it("keeps an explicitly configured admin logo over the saved site logo", async () => {

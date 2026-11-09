@@ -271,6 +271,28 @@ export class RevisionRepository {
 		return authors;
 	}
 
+	async findByIds(collection: string, ids: string[]): Promise<Revision[]> {
+		const revisions: Revision[] = [];
+		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("revisions")
+				.selectAll()
+				.where("collection", "=", collection)
+				.where("id", "in", batch)
+				.execute();
+			const data = await this.datetimes.normalizeDataMany(
+				collection,
+				rows.map((row) => JSON.parse(row.data)),
+			);
+			for (const [index, row] of rows.entries()) {
+				const normalized = data[index];
+				if (!normalized) throw new Error("Failed to normalize revision data");
+				revisions.push(this.rowToRevision(row, normalized));
+			}
+		}
+		return revisions;
+	}
+
 	/** Read revisions only when the owning content row is visible in the same statement snapshot. */
 	async findVisibleByEntry(
 		collection: string,

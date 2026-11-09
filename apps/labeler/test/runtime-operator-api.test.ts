@@ -695,6 +695,80 @@ describe("operator assessment detail", () => {
 	});
 });
 
+describe("operator takedown subjects", () => {
+	const PUBLISHER_DID = "did:plc:publisherfixture";
+
+	async function issueTakedown(
+		uri: string,
+		resolveHandleDid: () => Promise<string | null> = async () => PUBLISHER_DID,
+	) {
+		const issue = vi.fn(async () => ({ sequence: 9 }));
+		const resolver = vi.fn(resolveHandleDid);
+		const response = await handleOperatorApi(
+			operatorRequest("/_admin/api/takedown", { reason: "Emergency", uri }),
+			{} as Env,
+			{ ...dependencies(ADMIN, { issue }), resolveHandleDid: resolver },
+		);
+		return { response, issue, resolver };
+	}
+
+	it.each([
+		["@publisher.example", PUBLISHER_DID],
+		["publisher.example", PUBLISHER_DID],
+		[
+			"@publisher.example/demo-plugin",
+			`at://${PUBLISHER_DID}/com.emdashcms.experimental.package.profile/demo-plugin`,
+		],
+		[
+			"at://publisher.example/com.emdashcms.experimental.package.release/demo:1.0.0",
+			`at://${PUBLISHER_DID}/com.emdashcms.experimental.package.release/demo:1.0.0`,
+		],
+	])("labels %s by its resolved DID", async (input, expected) => {
+		const { response, issue, resolver } = await issueTakedown(input);
+
+		expect(response.status).toBe(200);
+		expect(resolver).toHaveBeenCalledWith("publisher.example");
+		expect(issue).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ subject: { uri: expected } }),
+			expect.any(Date),
+		);
+		expect(await response.json()).toMatchObject({ subject: { uri: expected } });
+	});
+
+	it("passes DID subjects through without resolving a handle", async () => {
+		const { response, issue, resolver } = await issueTakedown(RUN.subject.uri);
+
+		expect(response.status).toBe(200);
+		expect(resolver).not.toHaveBeenCalled();
+		expect(issue).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ subject: { uri: RUN.subject.uri } }),
+			expect.any(Date),
+		);
+	});
+
+	it.each(["@publisher.example/", "at://publisher.example", "at://publisher.example/"])(
+		"rejects the incomplete subject %s without resolving or issuing a label",
+		async (input) => {
+			const { response, issue, resolver } = await issueTakedown(input);
+
+			expect(response.status).toBe(400);
+			expect(await response.json()).toMatchObject({ error: { code: "INVALID_REQUEST" } });
+			expect(resolver).not.toHaveBeenCalled();
+			expect(issue).not.toHaveBeenCalled();
+		},
+	);
+
+	it("rejects a handle that does not resolve without issuing a label", async () => {
+		const { response, issue } = await issueTakedown("@missing.example", async () => null);
+
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({ error: { code: "HANDLE_NOT_RESOLVED" } });
+		expect(issue).not.toHaveBeenCalled();
+	});
+});
+
 function operatorRequest(path: string, body: Record<string, unknown>): Request {
 	return new Request(`https://labels.example${path}`, {
 		method: "POST",
