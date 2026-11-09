@@ -101,6 +101,8 @@ export interface MediaProviderItem {
 	caption?: string;
 	/** Preview URL for admin UI thumbnail */
 	previewUrl?: string;
+	/** HTTPS URL of an embeddable hosted video player for the admin preview (not a thumbnail). */
+	playerUrl?: string;
 	/** Provider-specific metadata */
 	meta?: Record<string, unknown>;
 }

@@ -17,7 +17,7 @@ import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { createRevisionId, RevisionRepository } from "./revision.js";
+import { createRevisionId, RevisionRepository, startingRevisionId } from "./revision.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -48,6 +48,10 @@ const LIKE_WILDCARD_RE = /[\\%_]/g;
 const MAX_INDEXED_FIELD_FILTERS = 20;
 const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
 const MAX_FILTER_STRING_LENGTH = 2048;
+
+function readyToPublishCondition(now: string): RawBuilder<unknown> {
+	return sql`scheduled_at IS NOT NULL AND scheduled_at <= ${now} AND deleted_at IS NULL`;
+}
 
 type NormalizedFilterScalar = string | number;
 export type ContentRevisionPrecondition = Pick<ContentItem, "version" | "updatedAt">;
@@ -300,6 +304,39 @@ const SYSTEM_COLUMNS = new Set([
 function getTableName(type: string): string {
 	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
+}
+
+/**
+ * Which of `types` have at least one entry `findReadyToPublish` would return
+ * at `currentTime`, ignoring its cursor and limit.
+ *
+ * One statement per `SQL_BATCH_SIZE` collections, one column each: every column
+ * binds `now` once, and D1 caps both bound parameters and result columns at 100.
+ */
+export async function findTypesWithDueContent(
+	db: Kysely<Database>,
+	types: string[],
+	currentTime: Date,
+): Promise<Set<string>> {
+	const now = currentTime.toISOString();
+	const due = new Set<string>();
+
+	for (const chunk of chunks(types, SQL_BATCH_SIZE)) {
+		const columns = chunk.map(
+			(type, index) => sql`CASE WHEN EXISTS (
+				SELECT 1 FROM ${sql.ref(getTableName(type))}
+				WHERE ${readyToPublishCondition(now)}
+			) THEN 1 ELSE 0 END AS ${sql.ref(`due_${index}`)}`,
+		);
+		const result = await sql<Record<string, unknown>>`SELECT ${sql.join(columns)}`.execute(db);
+		const row = result.rows[0];
+		if (!row) throw new Error("Due-content check returned no row");
+		for (const [index, type] of chunk.entries()) {
+			if (Number(row[`due_${index}`]) === 1) due.add(type);
+		}
+	}
+
+	return due;
 }
 
 function assertPageOffset(offset: number | undefined, cursor: string | undefined): void {
@@ -580,17 +617,17 @@ export class ContentRepository {
 			return baseSlug;
 		}
 
-		// Find all slugs matching the pattern `baseSlug` or `baseSlug-N`
-		const pattern = `${baseSlug}-%`;
+		// D1 caps LIKE patterns at 50 bytes; compare the literal prefix instead.
+		const prefix = `${baseSlug}-`;
 		const candidates = locale
 			? await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
-					WHERE (slug = ${baseSlug} OR slug LIKE ${pattern})
+					WHERE (slug = ${baseSlug} OR substr(slug, 1, length(${prefix})) = ${prefix})
 					AND ${localeMatches("locale", locale)}
 				`.execute(this.db)
 			: await sql<{ slug: string }>`
 					SELECT slug FROM ${sql.ref(tableName)}
-					WHERE slug = ${baseSlug} OR slug LIKE ${pattern}
+					WHERE slug = ${baseSlug} OR substr(slug, 1, length(${prefix})) = ${prefix}
 				`.execute(this.db);
 
 		// Find the highest numeric suffix in use
@@ -1070,7 +1107,12 @@ export class ContentRepository {
 	/**
 	 * Update content
 	 */
-	async update(type: string, id: string, input: UpdateContentInput): Promise<ContentItem> {
+	async update(
+		type: string,
+		id: string,
+		input: UpdateContentInput,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -1127,12 +1169,20 @@ export class ContentRepository {
 		}
 		updates.version = sql`version + 1`;
 
-		await this.db
+		let query = this.db
 			.updateTable(tableName as keyof Database)
 			.set(updates)
 			.where("id", "=", id)
-			.where("deleted_at" as never, "is", null)
-			.execute();
+			.where("deleted_at" as never, "is", null);
+		if (expectedRevision) {
+			query = query
+				.where(sql<boolean>`version = ${expectedRevision.version}`)
+				.where(sql<boolean>`updated_at = ${expectedRevision.updatedAt}`);
+		}
+		const result = await query.executeTakeFirst();
+		if (expectedRevision && result.numUpdatedRows === 0n) {
+			throw new ContentMutationConflictError();
+		}
 
 		if (hasColumnWrites) invalidateCollectionCache(type);
 
@@ -1395,6 +1445,7 @@ export class ContentRepository {
 
 			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
+			await this.keepStartingRevision(revisionRepo, type, existing);
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
@@ -1426,6 +1477,41 @@ export class ContentRepository {
 
 		if (!existing) throw new Error("Content not found");
 		throw new ContentMutationConflictError();
+	}
+
+	/**
+	 * Keep an entry's starting content as a revision before any other revision of it is written.
+	 * Until then only the columns hold it, and publishing a later draft overwrites them. A save
+	 * writes it ahead of its own draft, and publishing an entry with no live or draft revision
+	 * publishes it. Neither removes it, so a save that finds any revision already there can skip
+	 * writing it. Returns its id while it is the entry's newest revision and holds the stored
+	 * content, otherwise null.
+	 */
+	async keepStartingRevision(
+		revisionRepo: RevisionRepository,
+		type: string,
+		existing: ContentItem,
+		extraData?: () => Promise<Record<string, unknown>>,
+	): Promise<string | null> {
+		if (existing.draftRevisionId || existing.liveRevisionId) return null;
+		const id = startingRevisionId(type, existing.id, existing.createdAt);
+		const latest = await revisionRepo.findLatest(type, existing.id);
+		if (latest) {
+			const holdsStoredContent =
+				latest.id === id &&
+				Object.entries(existing.data).every(([key, value]) =>
+					sameStoredValue(latest.data[key], value),
+				);
+			return holdsStoredContent ? id : null;
+		}
+		await revisionRepo.createIfMissing({
+			id,
+			collection: type,
+			entryId: existing.id,
+			data: { ...existing.data, ...(await extraData?.()) },
+			authorId: existing.authorId ?? undefined,
+		});
+		return id;
 	}
 
 	private async deleteUnstagedRevision(
@@ -2289,9 +2375,7 @@ export class ContentRepository {
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
-			WHERE scheduled_at IS NOT NULL
-			AND scheduled_at <= ${now}
-			AND deleted_at IS NULL
+			WHERE ${readyToPublishCondition(now)}
 			${afterClause}
 			ORDER BY scheduled_at ASC, id ASC
 			${limitClause}
@@ -2639,7 +2723,10 @@ export class ContentRepository {
 		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
-			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
+			let revisionToPublish =
+				existing.draftRevisionId ||
+				existing.liveRevisionId ||
+				(await this.keepStartingRevision(revisionRepo, type, existing));
 
 			if (!revisionToPublish) {
 				const revision = await revisionRepo.create({

@@ -104,6 +104,24 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 	const sortAsc = (values: unknown[]) =>
 		values.toSorted((a, b) => String(a).localeCompare(String(b)));
 
+	// --- Field projection ---------------------------------------------------
+
+	it("selects only the requested fields on both pivot branches", async () => {
+		const news = await term("category", "news");
+		for (let i = 0; i < 3; i++) {
+			const post = await createPost(`Post ${i}`);
+			await tax.attachToEntry("post", post.id, news);
+		}
+
+		for (const orderBy of [{ created_at: "desc" }, { title: "asc" }]) {
+			const result = await load({ category: "news" }, { fields: ["title"], orderBy });
+			expect(sortAsc(titles(result))).toEqual(["Post 0", "Post 1", "Post 2"]);
+			for (const entry of result.entries) {
+				expect(entry.data).not.toHaveProperty("content");
+			}
+		}
+	});
+
 	// --- Parity -------------------------------------------------------------
 
 	it("selective term: returns only the one tagged entry", async () => {

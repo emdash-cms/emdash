@@ -4,8 +4,8 @@
  * Defines all admin routes and their components.
  */
 
-import { Banner, Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
+import { Banner, Button, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ import {
 	useParams,
 	useNavigate,
 	useSearch,
+	useMatches,
 } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -57,6 +58,7 @@ import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
 import { RelationList } from "./components/RelationList";
+import { RequireAdmin } from "./components/RequireAdmin.js";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -77,6 +79,7 @@ import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
+import { useAdminBranding } from "./lib/admin-branding-context.js";
 import {
 	apiFetch,
 	parseApiResponse,
@@ -340,11 +343,20 @@ function patchAutosaveQueries(
 	// The save response carries no `references` (only the editor GET hydrates
 	// them), and an entry reopened from this cache would show its reference
 	// fields empty, so the cached pages are carried over.
-	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, (cached) => ({
+	const contentKey = ["content", collection, id];
+	const contentRead = queryClient.isFetching({ queryKey: contentKey }) > 0;
+	queryClient.setQueriesData<ContentItem>({ queryKey: contentKey }, (cached) => ({
 		...savedItem,
 		references:
 			savedItem.references ?? withAutosavedReferences(cached?.references, referenceRows, fields),
 	}));
+	if (contentRead) {
+		// A read already in flight may predate this write and would land over the patch,
+		// so it is dropped and made again.
+		void queryClient
+			.cancelQueries({ queryKey: contentKey })
+			.then(() => queryClient.invalidateQueries({ queryKey: contentKey }));
+	}
 }
 
 /**
@@ -381,13 +393,31 @@ function shouldAdoptRevision(
 
 // Create a base root route without Shell for setup
 const baseRootRoute = createRootRouteWithContext<RouterContext>()({
-	component: () => <Outlet />,
+	component: BaseRootComponent,
 });
+
+function BaseRootComponent() {
+	const { t } = useLingui();
+	const { siteName } = useAdminBranding();
+	const siteLabel = siteName?.trim() || "EmDash";
+	const standaloneTitle = useMatches({
+		select: (matches) =>
+			matches.some((match) => match.routeId === "/_admin")
+				? undefined
+				: matches.at(-1)?.staticData.pageTitle,
+	});
+	const title = standaloneTitle ? t(standaloneTitle) : undefined;
+	React.useEffect(() => {
+		if (title) document.title = `${title} · ${siteLabel}`;
+	}, [title, siteLabel]);
+	return <Outlet />;
+}
 
 // Setup route (standalone, no Shell)
 const setupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/setup",
+	staticData: { pageTitle: msg`Setup` },
 	component: SetupWizard,
 });
 
@@ -395,6 +425,7 @@ const setupRoute = createRoute({
 const loginRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/login",
+	staticData: { pageTitle: msg`Log in` },
 	component: LoginPageWrapper,
 });
 
@@ -408,6 +439,7 @@ function LoginPageWrapper() {
 const magicLinkConfirmRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/login/magic-link",
+	staticData: { pageTitle: msg`Confirm magic link` },
 	component: MagicLinkConfirmPageWrapper,
 	validateSearch: (search: Record<string, unknown>) => ({
 		token: typeof search.token === "string" ? search.token : undefined,
@@ -425,6 +457,7 @@ function MagicLinkConfirmPageWrapper() {
 const signupRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/signup",
+	staticData: { pageTitle: msg`Sign up` },
 	component: SignupPage,
 });
 
@@ -432,6 +465,7 @@ const signupRoute = createRoute({
 const inviteAcceptRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/invite/accept",
+	staticData: { pageTitle: msg`Accept invitation` },
 	component: InviteAcceptPage,
 	validateSearch: (search: Record<string, unknown>) => ({
 		token: typeof search.token === "string" ? search.token : undefined,
@@ -442,6 +476,7 @@ const inviteAcceptRoute = createRoute({
 const deviceRoute = createRoute({
 	getParentRoute: () => baseRootRoute,
 	path: "/device",
+	staticData: { pageTitle: msg`Authorize device` },
 	component: DeviceAuthorizePage,
 });
 
@@ -490,6 +525,7 @@ const dashboardRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/",
 	component: DashboardPage,
+	staticData: { pageTitle: msg`Dashboard` },
 });
 
 function DashboardPage() {
@@ -507,6 +543,7 @@ const calendarRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/calendar",
 	component: CalendarPage,
+	staticData: { fullBleed: true, pageTitle: msg`Calendar` },
 	validateSearch: parseCalendarSearch,
 });
 
@@ -518,6 +555,7 @@ const contentListRoute = createRoute({
 	validateSearch: (search: Record<string, unknown>) => ({
 		locale: typeof search.locale === "string" ? search.locale : undefined,
 	}),
+	staticData: { pageTitle: msg`Content` },
 });
 
 function ContentListPage() {
@@ -526,7 +564,7 @@ function ContentListPage() {
 	const { locale: localeParam } = useSearch({ from: "/_admin/content/$collection" });
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -641,13 +679,6 @@ function ContentListPage() {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
 		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
-			});
-		},
 	});
 
 	const restoreMutation = useMutation({
@@ -660,7 +691,7 @@ function ContentListPage() {
 			toastManager.add({
 				title: t`Failed to restore`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -669,13 +700,6 @@ function ContentListPage() {
 		mutationFn: (id: string) => permanentDeleteContent(collection, id),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
-		},
-		onError: (mutationError) => {
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
-			});
 		},
 	});
 
@@ -688,7 +712,7 @@ function ContentListPage() {
 			toastManager.add({
 				title: t`Failed to duplicate`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -708,12 +732,12 @@ function ContentListPage() {
 		},
 		onSuccess: ({ total, failedIds }) => {
 			if (failedIds.length === 0) {
-				toastManager.add({ title: t`Published ${total} items`, type: "success" });
+				toastManager.add({ title: t`Published ${total} items`, variant: "success" });
 			} else {
 				toastManager.add({
 					title: t`Failed to publish`,
 					description: t`${failedIds.length} of ${total} could not be published`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -731,12 +755,12 @@ function ContentListPage() {
 		},
 		onSuccess: ({ total, failedIds }) => {
 			if (failedIds.length === 0) {
-				toastManager.add({ title: t`Moved ${total} items to draft`, type: "success" });
+				toastManager.add({ title: t`Moved ${total} items to draft`, variant: "success" });
 			} else {
 				toastManager.add({
 					title: t`Failed to update`,
 					description: t`${failedIds.length} of ${total} could not be updated`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -752,12 +776,12 @@ function ContentListPage() {
 		},
 		onSuccess: ({ total, failedIds }) => {
 			if (failedIds.length === 0) {
-				toastManager.add({ title: t`Moved ${total} items to trash`, type: "success" });
+				toastManager.add({ title: t`Moved ${total} items to trash`, variant: "success" });
 			} else {
 				toastManager.add({
 					title: t`Failed to delete`,
 					description: t`${failedIds.length} of ${total} could not be deleted`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -777,7 +801,7 @@ function ContentListPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	if (contentList.query.error) {
@@ -818,9 +842,9 @@ function ContentListPage() {
 			isLoading={contentList.query.isLoading}
 			isTrashedLoading={trash.query.isLoading}
 			trashedCount={trash.pagination.totalCount}
-			onDelete={(id) => deleteMutation.mutate(id)}
+			onDelete={(id) => deleteMutation.mutateAsync(id)}
 			onRestore={(id) => restoreMutation.mutate(id)}
-			onPermanentDelete={(id) => permanentDeleteMutation.mutate(id)}
+			onPermanentDelete={(id) => permanentDeleteMutation.mutateAsync(id)}
 			onDuplicate={(id) => duplicateMutation.mutate(id)}
 			canDuplicate={(item) => !currentUser || canDuplicateEntry(currentUser, item)}
 			i18n={i18n}
@@ -860,7 +884,7 @@ const contentNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/new",
 	component: ContentNewPage,
-	staticData: { fullBleed: true },
+	staticData: { fullBleed: true, pageTitle: msg`New content` },
 	validateSearch: (search: Record<string, unknown>) => ({
 		locale: typeof search.locale === "string" ? search.locale : undefined,
 	}),
@@ -979,7 +1003,7 @@ function ContentNewPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	return (
@@ -988,9 +1012,20 @@ function ContentNewPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			fields={collectionConfig.fields}
 			isNew
+			supportsDrafts={collectionConfig.supports.includes("drafts")}
 			entryLocale={pickerLocale}
 			i18n={manifest?.i18n}
 			isSaving={createMutation.isPending}
+			saveError={
+				createMutation.isError
+					? {
+							message:
+								describeContentValidationError(createMutation.error, collectionConfig.fields) ??
+								createMutation.error.message,
+							token: createMutation.submittedAt,
+						}
+					: undefined
+			}
 			onSave={handleSave}
 			pluginBlocks={pluginBlocks}
 			availableBylines={bylinesData?.items}
@@ -1011,7 +1046,7 @@ const contentEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content/$collection/$id",
 	component: ContentEditPage,
-	staticData: { fullBleed: true },
+	staticData: { fullBleed: true, pageTitle: msg`Edit content` },
 	validateSearch: (search) => ({
 		...(typeof search.field === "string" && { field: search.field }),
 		...(typeof search.locale === "string" && { locale: search.locale }),
@@ -1035,20 +1070,22 @@ function ContentEditPage() {
 	});
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const isEditorDirtyRef = React.useRef(false);
-	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
-	const [editorItemReset, setEditorItemReset] = React.useState({ entryId: "", token: 0 });
-	const resetEditorItem = React.useCallback((entryId: string) => {
-		setEditorItemReset((previous) => ({ entryId, token: previous.token + 1 }));
-	}, []);
+	const [editorItemReset, setEditorItemReset] = React.useState({
+		entryId: "",
+		token: 0,
+		discarded: false,
+	});
+	const resetEditorItem = React.useCallback(
+		(entryId: string, { discarded = false }: { discarded?: boolean } = {}) => {
+			setEditorItemReset((previous) => ({ entryId, token: previous.token + 1, discarded }));
+		},
+		[],
+	);
 	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
 		isEditorDirtyRef.current = isDirty;
-		setIsEditorDirty(isDirty);
 	}, []);
-	// The ref is updated synchronously from editor interaction callbacks so a
-	// clean refetch that resolves in the same render batch as an edit still sees
-	// dirty=true when the token adoption layout effect runs.
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1105,19 +1142,33 @@ function ContentEditPage() {
 		},
 		[],
 	);
+	// Explicit resets can apply a read while the parent still sees a dirty form.
+	const handleEditorItemApplied = React.useCallback(
+		(item: ContentItem) => {
+			const storedVersion = revisionVersionsRef.current.get(item.id);
+			if (shouldAdoptRevision(storedVersion, item._rev)) {
+				recordWriteRevision(item.id, item);
+			}
+		},
+		[recordWriteRevision],
+	);
 	React.useLayoutEffect(() => {
-		if (!rawItem?._rev) return;
-		if (isEditorDirtyRef.current) return;
-		const storedVersion = revisionVersionsRef.current.get(rawItem.id);
-		if (shouldAdoptRevision(storedVersion, rawItem._rev)) {
-			recordWriteRevision(rawItem.id, rawItem);
-		}
-	}, [rawItem?._rev, rawItem?.id, isEditorDirty, recordWriteRevision]);
+		if (!rawItem?._rev || isEditorDirtyRef.current) return;
+		handleEditorItemApplied(rawItem);
+	}, [rawItem?._rev, rawItem?.id, handleEditorItemApplied]);
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
 	// Written together with the conflict state rather than on render, so a save
 	// that runs before the next render still sees the conflict.
 	const conflictedEntryIdRef = React.useRef("");
+	/** The entry the editor shows, or null once the page has closed. */
+	const openEntryIdRef = React.useRef<string | null>(id);
+	React.useEffect(() => {
+		openEntryIdRef.current = id;
+		return () => {
+			openEntryIdRef.current = null;
+		};
+	}, [id]);
 	const serializeEditorSave = React.useCallback(
 		<T,>(operation: () => Promise<T>, { explicitSave = false, allowConflict = false } = {}) => {
 			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
@@ -1306,18 +1357,56 @@ function ContentEditPage() {
 		},
 		[activeLocale, collection, rawItem?.locale, recordWriteRevision],
 	);
+	// Once the editor has moved off an entry, only a toast can tell the writer a save failed.
+	const editorShows = React.useCallback(
+		(entryId: string) => openEntryIdRef.current === entryId,
+		[],
+	);
+	const recoverInEditor = React.useCallback(
+		async (error: unknown, entryId: string) =>
+			editorShows(entryId) &&
+			isSaveConflict(error) &&
+			(await recoverFromSaveConflict(entryId)) &&
+			editorShows(entryId),
+		[editorShows, recoverFromSaveConflict],
+	);
+	const [editorSaveError, setEditorSaveError] = React.useState<
+		| {
+				entryId: string;
+				message: string;
+				title: string;
+				token: number;
+		  }
+		| undefined
+	>();
+	React.useEffect(() => {
+		setEditorSaveError(undefined);
+	}, [id]);
+	const clearEditorSaveError = (entryId: string) => {
+		setEditorSaveError((current) => (current?.entryId === entryId ? undefined : current));
+	};
 	const handleContentUpdateError = React.useCallback(
-		(error: unknown, targetId: string) => {
-			if (entryLock.reportWriteError(error, targetId)) return;
-			toastManager.add({
-				title: t`Failed to save`,
-				description:
-					describeContentValidationError(error, collectionFields) ??
-					(error instanceof Error ? error.message : t`An error occurred`),
-				type: "error",
-			});
+		(
+			error: unknown,
+			targetId: string,
+			source: "editor" | "autosave" | "auxiliary",
+			toastTitle = t`Failed to save`,
+		) => {
+			if (editorShows(targetId) && entryLock.reportWriteError(error, targetId)) return;
+			const message =
+				describeContentValidationError(error, collectionFields) ??
+				(error instanceof Error ? error.message : t`An error occurred`);
+			if (source !== "auxiliary" && editorShows(targetId)) {
+				setEditorSaveError((current) => ({
+					entryId: targetId,
+					message,
+					title: toastTitle,
+					token: (current?.token ?? 0) + 1,
+				}));
+			}
+			toastManager.add({ title: toastTitle, description: message, variant: "error" });
 		},
-		[collectionFields, entryLock.reportWriteError, t, toastManager],
+		[collectionFields, editorShows, entryLock.reportWriteError, t, toastManager],
 	);
 
 	const updateMutation = useMutation({
@@ -1341,7 +1430,11 @@ function ContentEditPage() {
 			// write carries the recovered token too, and clearing the notice for one
 			// would hand the editor's stale copy a token the server accepts.
 			if (variables.source === "editor") {
+				clearEditorSaveError(variables.targetId);
 				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+				// The editor holds back autosave on leaving while the last one counts as failed.
+				if (autosaveMutation.isError && autosaveMutation.variables?.targetId === variables.targetId)
+					autosaveMutation.reset();
 			}
 			void handleContentUpdateSuccess(variables.targetId).then(() => {
 				if (variables.source === "editor") resetEditorItem(variables.targetId);
@@ -1349,8 +1442,8 @@ function ContentEditPage() {
 			});
 		},
 		onError: async (error, variables) => {
-			if (isSaveConflict(error) && (await recoverFromSaveConflict(variables.targetId))) return;
-			handleContentUpdateError(error, variables.targetId);
+			if (await recoverInEditor(error, variables.targetId)) return;
+			handleContentUpdateError(error, variables.targetId, variables.source);
 		},
 		onSettled: (_, __, variables) => {
 			if (variables.source === "editor") {
@@ -1373,9 +1466,9 @@ function ContentEditPage() {
 			setConflictedEntryId((current) => (current === id ? "" : current));
 			void handleContentUpdateSuccess(id);
 		},
+		// The publication-date dialog shows the failure.
 		onError: async (error) => {
-			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
-			handleContentUpdateError(error, id);
+			if (isSaveConflict(error)) await recoverFromSaveConflict(id);
 		},
 	});
 
@@ -1407,6 +1500,7 @@ function ContentEditPage() {
 			return savedItem;
 		},
 		onSuccess: (savedItem, variables, started) => {
+			clearEditorSaveError(variables.targetId);
 			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
@@ -1425,16 +1519,9 @@ function ContentEditPage() {
 			// while the user is still typing.
 		},
 		onError: async (err, variables) => {
-			if (isSaveConflict(err) && (await recoverFromSaveConflict(variables.targetId))) return;
+			if (await recoverInEditor(err, variables.targetId)) return;
 			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
-			if (entryLock.reportWriteError(err, variables.targetId)) return;
-			toastManager.add({
-				title: t`Autosave failed`,
-				description:
-					describeContentValidationError(err, collectionFields) ??
-					(err instanceof Error ? err.message : t`An error occurred`),
-				type: "error",
-			});
+			handleContentUpdateError(err, variables.targetId, "autosave", t`Autosave failed`);
 		},
 	});
 
@@ -1467,7 +1554,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to publish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1491,7 +1578,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to unpublish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1505,18 +1592,10 @@ function ContentEditPage() {
 				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			resetEditorItem(id);
+			resetEditorItem(id, { discarded: true });
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
-			});
-		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
-			toastManager.add({
-				title: t`Failed to discard changes`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
 			});
 		},
 	});
@@ -1567,14 +1646,6 @@ function ContentEditPage() {
 				description: t`Content has been scheduled for publishing`,
 			});
 		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
-			toastManager.add({
-				title: t`Failed to schedule`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
-			});
-		},
 	});
 
 	const unscheduleMutation = useMutation({
@@ -1591,7 +1662,7 @@ function ContentEditPage() {
 			toastManager.add({
 				title: t`Failed to unschedule`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1624,7 +1695,7 @@ function ContentEditPage() {
 				description:
 					describeContentValidationError(error, collectionFields) ??
 					(error instanceof Error ? error.message : t`An error occurred`),
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -1638,14 +1709,7 @@ function ContentEditPage() {
 				to: "/content/$collection",
 				params: { collection },
 				search: { locale: activeLocale },
-			});
-		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
-			toastManager.add({
-				title: t`Failed to delete`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				ignoreBlocker: true,
 			});
 		},
 	});
@@ -1662,8 +1726,8 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
-		}) => {
-			void serializeEditorSave(
+		}) =>
+			serializeEditorSave(
 				() =>
 					updateMutation.mutateAsync({
 						targetId: id,
@@ -1672,8 +1736,7 @@ function ContentEditPage() {
 						changes: payload,
 					}),
 				{ explicitSave: true },
-			).catch(() => undefined);
-		},
+			),
 		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
 	);
 
@@ -1729,10 +1792,13 @@ function ContentEditPage() {
 				},
 				{ allowConflict: !payload },
 			);
-			await publishedAtMutation.mutateAsync(publishedAt);
+			await publishedAtMutation.mutateAsync(publishedAt).catch((error: unknown) => {
+				if (!entryLock.reportWriteError(error, id)) throw error;
+			});
 		},
 		[
 			activeLocale,
+			entryLock.reportWriteError,
 			id,
 			publishedAtMutation.mutateAsync,
 			rawItem?.locale,
@@ -1831,9 +1897,14 @@ function ContentEditPage() {
 			updateMutation.mutateAsync,
 		],
 	);
+	// The confirmation shows a failure, except a refusal the lock explains:
+	// that resolves, so the confirmation closes and the lock notice takes over.
 	const handleDiscardDraft = React.useCallback(
-		() => discardDraftMutation.mutate(),
-		[discardDraftMutation.mutate],
+		() =>
+			discardDraftMutation.mutateAsync().catch((error: unknown) => {
+				if (!entryLock.reportWriteError(error, id)) throw error;
+			}),
+		[discardDraftMutation.mutateAsync, entryLock.reportWriteError, id],
 	);
 	const handleSchedule = React.useCallback(
 		async (
@@ -1854,12 +1925,20 @@ function ContentEditPage() {
 					changes: payload,
 				});
 			});
-			const scheduledItem = await scheduleMutation.mutateAsync(scheduledAt);
+			// The schedule dialog shows the failure, unless the lock explains it.
+			const scheduledItem = await scheduleMutation
+				.mutateAsync(scheduledAt)
+				.catch((error: unknown) => {
+					if (entryLock.reportWriteError(error, id)) return null;
+					throw error;
+				});
+			if (!scheduledItem) return;
 			await applyScheduleChange(scheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,
 			applyScheduleChange,
+			entryLock.reportWriteError,
 			id,
 			rawItem?.locale,
 			scheduleMutation.mutateAsync,
@@ -1896,7 +1975,14 @@ function ContentEditPage() {
 			updateMutation.mutateAsync,
 		],
 	);
-	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
+	// As with discarding, a refusal the lock explains closes the confirmation.
+	const handleDelete = React.useCallback(
+		() =>
+			deleteMutation.mutateAsync().catch((error: unknown) => {
+				if (!entryLock.reportWriteError(error, id)) throw error;
+			}),
+		[deleteMutation.mutateAsync, entryLock.reportWriteError, id],
+	);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),
 		[translateMutation.mutate],
@@ -1921,6 +2007,7 @@ function ContentEditPage() {
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["translations", collection, id] }),
@@ -1934,7 +2021,7 @@ function ContentEditPage() {
 	const collectionConfig = manifest.collections[collection];
 
 	if (!collectionConfig) {
-		return <NotFoundPage message={`Collection "${collection}" not found`} />;
+		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
 	}
 
 	if (isLoading) {
@@ -1965,7 +2052,9 @@ function ContentEditPage() {
 			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onDirtyChange={handleEditorDirtyChange}
+			onItemApplied={handleEditorItemApplied}
 			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
+			itemResetDiscards={editorItemReset.entryId === id && editorItemReset.discarded}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
 			isAutosaving={autosaveMutation.isPending}
@@ -1974,7 +2063,9 @@ function ContentEditPage() {
 			}
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
 			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
+			hasAutosaveError={autosaveMutation.isError && autosaveMutation.variables?.targetId === id}
 			hasSaveConflict={conflictedEntryId === id}
+			saveError={editorSaveError?.entryId === id ? editorSaveError : undefined}
 			onPublish={canPublish ? handlePublish : undefined}
 			onUnpublish={canPublish ? handleUnpublish : undefined}
 			onDiscardDraft={handleDiscardDraft}
@@ -1988,6 +2079,7 @@ function ContentEditPage() {
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
+			supportsScheduling={!collectionConfig.supports.includes("no-scheduling")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
@@ -2024,6 +2116,7 @@ function ContentEditPage() {
 						onTakeOver={entryLock.takeOver}
 						onReadInstead={entryLock.readInstead}
 						isTakingOver={entryLock.isTakingOver}
+						takeOverFailed={entryLock.takeOverFailed}
 					/>
 				)
 			}
@@ -2036,6 +2129,7 @@ const mediaRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/media",
 	component: MediaPage,
+	staticData: { pageTitle: msg`Media` },
 	validateSearch: (search: Record<string, unknown>) => ({
 		folder:
 			typeof search.folder === "string" && search.folder.length > 0 && search.folder.length <= 64
@@ -2049,7 +2143,7 @@ function MediaPage() {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const { folder } = useSearch({ from: "/_admin/media" });
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { data: currentUser } = useCurrentUser();
 
 	const [search, setSearch] = React.useState("");
@@ -2077,7 +2171,7 @@ function MediaPage() {
 		void navigate({ to: "/media", search: { folder: undefined }, replace: true });
 		toastManager.add({
 			title: t`Folder no longer exists`,
-			type: "warning",
+			variant: "warning",
 			timeout: 4000,
 		});
 	}, [folder, missingFolder, navigate, t, toastManager]);
@@ -2333,6 +2427,7 @@ const commentsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/comments",
 	component: CommentsPage,
+	staticData: { pageTitle: msg`Comments` },
 });
 
 // Admin role level from @emdash-cms/auth
@@ -2341,7 +2436,7 @@ const ROLE_ADMIN = 50;
 function CommentsPage() {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -2408,7 +2503,7 @@ function CommentsPage() {
 			toastManager.add({
 				title: t`Failed to update status`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -2419,13 +2514,6 @@ function CommentsPage() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["comments"] });
 			void queryClient.invalidateQueries({ queryKey: ["commentCounts"] });
-		},
-		onError: (error) => {
-			toastManager.add({
-				title: t`Failed to delete comment`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
-			});
 		},
 	});
 
@@ -2445,11 +2533,13 @@ function CommentsPage() {
 				title: plural(result.affected, { one: "# comment updated", other: "# comments updated" }),
 			});
 		},
-		onError: (error) => {
+		onError: (error, { action }) => {
+			// A failed delete shows in its confirmation.
+			if (action === "delete") return;
 			toastManager.add({
 				title: t`Failed to perform bulk action`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -2485,8 +2575,8 @@ function CommentsPage() {
 			onCommentStatusChange={(id, status) =>
 				statusMutation.mutateAsync({ id, status }).catch(() => {})
 			}
-			onCommentDelete={(id) => deleteMutation.mutateAsync(id).catch(() => {})}
-			onBulkAction={(ids, action) => bulkMutation.mutateAsync({ ids, action }).catch(() => {})}
+			onCommentDelete={(id) => deleteMutation.mutateAsync(id)}
+			onBulkAction={(ids, action) => bulkMutation.mutateAsync({ ids, action })}
 			onLoadMore={() => {
 				if (hasNextPage) void fetchNextPage();
 			}}
@@ -2496,6 +2586,8 @@ function CommentsPage() {
 			}
 			deleteError={deleteMutation.error}
 			onDeleteErrorReset={() => deleteMutation.reset()}
+			bulkError={bulkMutation.error}
+			onBulkErrorReset={() => bulkMutation.reset()}
 		/>
 	);
 }
@@ -2505,12 +2597,14 @@ const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
 	component: Settings,
+	staticData: { pageTitle: msg`Settings` },
 });
 
 const mediaUsageSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/media-usage",
 	component: MediaUsageSettings,
+	staticData: { pageTitle: msg`Media Usage` },
 });
 
 // Security settings route
@@ -2518,6 +2612,7 @@ const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
 	component: SecuritySettingsWrapper,
+	staticData: { pageTitle: msg`Security Settings` },
 	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
 		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
 			? { addPasskey: true }
@@ -2533,34 +2628,55 @@ function SecuritySettingsWrapper() {
 const allowedDomainsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/allowed-domains",
-	component: AllowedDomainsSettings,
+	component: () => (
+		<RequireAdmin>
+			<AllowedDomainsSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Allowed Domains` },
 });
 
 // API tokens settings route
 const apiTokenSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/api-tokens",
-	component: ApiTokenSettings,
+	component: () => (
+		<RequireAdmin>
+			<ApiTokenSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`API Tokens` },
 });
 
 // Email settings route
 const emailSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/email",
-	component: EmailSettings,
+	component: () => (
+		<RequireAdmin>
+			<EmailSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Email Settings` },
 });
 
 // Backup settings route
 const backupSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/backups",
-	component: BackupSettings,
+	component: () => (
+		<RequireAdmin>
+			<BackupSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Backups` },
 });
 
 const transferSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/transfer",
 	component: TransferSettingsPage,
+	staticData: { pageTitle: msg`Transfer` },
 	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
 		search.start === "import" ? { start: "import" } : {},
 });
@@ -2574,21 +2690,36 @@ function TransferSettingsPage() {
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/general",
-	component: GeneralSettings,
+	component: () => (
+		<RequireAdmin>
+			<GeneralSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`General Settings` },
 });
 
 // Social settings route
 const socialSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/social",
-	component: SocialSettings,
+	component: () => (
+		<RequireAdmin>
+			<SocialSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Social Settings` },
 });
 
 // SEO settings route
 const seoSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/seo",
-	component: SeoSettings,
+	component: () => (
+		<RequireAdmin>
+			<SeoSettings />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`SEO Settings` },
 });
 
 // Plugin manager route
@@ -2596,6 +2727,7 @@ const pluginManagerRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager",
 	component: PluginManagerPage,
+	staticData: { pageTitle: msg`Plugins` },
 });
 
 function PluginManagerPage() {
@@ -2610,6 +2742,7 @@ const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry",
 	component: RegistryBrowsePage,
+	staticData: { pageTitle: msg`Plugin Registry` },
 });
 
 function RegistryBrowsePage() {
@@ -2652,6 +2785,7 @@ const marketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/marketplace",
 	component: MarketplaceUnavailablePage,
+	staticData: { pageTitle: msg`Plugin Marketplace` },
 });
 
 // Marketplace plugin detail route
@@ -2659,12 +2793,14 @@ const marketplaceDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/marketplace/$pluginId",
 	component: MarketplaceDetailPage,
+	staticData: { pageTitle: msg`Plugin Details` },
 });
 
 const registryDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry/$publisher/$slug",
 	component: RegistryDetailPage,
+	staticData: { pageTitle: msg`Plugin Details` },
 });
 
 function RegistryDetailPage() {
@@ -2695,6 +2831,7 @@ const themeMarketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace",
 	component: MarketplaceUnavailablePage,
+	staticData: { pageTitle: msg`Theme Marketplace` },
 });
 
 // Theme marketplace detail route
@@ -2702,6 +2839,7 @@ const themeMarketplaceDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace/$themeId",
 	component: ThemeDetailPage,
+	staticData: { pageTitle: msg`Theme Details` },
 });
 
 function ThemeDetailPage() {
@@ -2717,7 +2855,12 @@ function MarketplaceUnavailablePage() {
 const wordpressImportRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/import/wordpress",
-	component: WordPressImport,
+	component: () => (
+		<RequireAdmin>
+			<WordPressImport />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Import from WordPress` },
 });
 
 // Menu routes
@@ -2725,12 +2868,14 @@ const menuListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus",
 	component: MenuList,
+	staticData: { pageTitle: msg`Menus` },
 });
 
 const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
+	staticData: { pageTitle: msg`Edit menu` },
 	validateSearch: (search: Record<string, unknown>) => {
 		return {
 			locale: typeof search.locale === "string" ? search.locale : undefined,
@@ -2743,6 +2888,7 @@ const taxonomyRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/taxonomies/$taxonomy",
 	component: TaxonomyPage,
+	staticData: { pageTitle: msg`Taxonomies` },
 });
 
 function TaxonomyPage() {
@@ -2756,6 +2902,7 @@ const widgetsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/widgets",
 	component: Widgets,
+	staticData: { pageTitle: msg`Widgets` },
 });
 
 // Sections routes
@@ -2763,25 +2910,33 @@ const redirectsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/redirects",
 	component: Redirects,
+	staticData: { pageTitle: msg`Redirects` },
 });
 
 const sectionsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections",
 	component: Sections,
+	staticData: { pageTitle: msg`Sections` },
 });
 
 const sectionEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections/$slug",
 	component: SectionEditor,
+	staticData: { pageTitle: msg`Edit section` },
 });
 
 // Users route
 const usersRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/users",
-	component: UsersPage,
+	component: () => (
+		<RequireAdmin>
+			<UsersPage />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Users` },
 });
 
 // Bylines route
@@ -2803,6 +2958,7 @@ const bylinesRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/bylines",
 	component: BylinesPage,
+	staticData: { pageTitle: msg`Bylines` },
 	validateSearch: parseBylinesLocaleSearch,
 });
 
@@ -2813,6 +2969,7 @@ const bylineSchemaRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/byline-schema",
 	component: BylineSchemaPage,
+	staticData: { pageTitle: msg`Byline Schema` },
 });
 
 // Content Types routes
@@ -2820,6 +2977,7 @@ const contentTypesListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types",
 	component: ContentTypesListPage,
+	staticData: { pageTitle: msg`Content Types` },
 });
 
 function ContentTypesListPage() {
@@ -2901,7 +3059,9 @@ function ContentTypesListPage() {
 				collections={collections ?? []}
 				orphanedTables={orphanedTables}
 				isLoading={collectionsLoading || orphansLoading}
-				onDelete={(slug) => deleteMutation.mutate(slug)}
+				onDelete={(slug) => deleteMutation.mutateAsync(slug)}
+				isDeleting={deleteMutation.isPending}
+				deleteError={deleteMutation.error}
 				onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
 				onReorder={(slugs) => reorderMutation.mutate(slugs)}
 			/>
@@ -2914,6 +3074,7 @@ const contentTypesNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/new",
 	component: ContentTypesNewPage,
+	staticData: { pageTitle: msg`New content type` },
 });
 
 function ContentTypesNewPage() {
@@ -2949,6 +3110,7 @@ const relationsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/relations",
 	component: RelationsListPage,
+	staticData: { pageTitle: msg`Relations` },
 });
 
 function RelationsListPage() {
@@ -3009,12 +3171,13 @@ const contentTypesEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/$slug",
 	component: ContentTypesEditPage,
+	staticData: { pageTitle: msg`Edit content type` },
 });
 
 function ContentTypesEditPage() {
 	const { slug } = useParams({ from: "/_admin/content-types/$slug" });
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const { t } = useLingui();
 
 	const {
@@ -3060,7 +3223,7 @@ function ContentTypesEditPage() {
 			toastManager.add({
 				title: t`Failed to save`,
 				description: mutationError instanceof Error ? mutationError.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -3169,7 +3332,7 @@ function ContentTypesEditPage() {
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
 			onDeleteField={(fieldSlug, options) =>
-				deleteFieldMutation.mutate({ fieldSlug, alsoDeleteRelation: options?.deleteRelation })
+				deleteFieldMutation.mutateAsync({ fieldSlug, alsoDeleteRelation: options?.deleteRelation })
 			}
 			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
 			onCreateRelation={(input) => createRelationMutation.mutateAsync(input)}
@@ -3187,7 +3350,12 @@ function ContentTypesEditPage() {
 const pluginSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager/$pluginId/settings",
-	component: PluginSettingsPage,
+	component: () => (
+		<RequireAdmin>
+			<PluginSettingsPage />
+		</RequireAdmin>
+	),
+	staticData: { pageTitle: msg`Plugin Settings` },
 });
 
 function PluginSettingsPage() {
@@ -3200,6 +3368,7 @@ const pluginRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/$pluginId/$",
 	component: PluginPage,
+	staticData: { pageTitle: msg`Plugin` },
 });
 
 function PluginPage() {
@@ -3221,8 +3390,9 @@ function PluginPage() {
 // Catch-all 404 route
 const notFoundRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
-	path: "*",
+	path: "$",
 	component: () => <NotFoundPage />,
+	staticData: { pageTitle: msg`Page not found` },
 });
 
 // Create route tree with admin routes under layout and setup route separate

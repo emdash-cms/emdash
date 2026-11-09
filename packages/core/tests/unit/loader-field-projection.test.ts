@@ -151,6 +151,34 @@ describeEachDialect("Collection field projection", (dialect) => {
 		expect(second[0]!.data.title).toBe("Post 1");
 	});
 
+	it("paginates a projected list sorted by an unrequested field", async () => {
+		await seed(3);
+
+		const loader = emdashLoader();
+		const page = (cursor?: string) =>
+			runWithContext({ db: ctx.db }, () =>
+				loader.loadCollection!({
+					filter: {
+						type: COLLECTION,
+						status: "published",
+						fields: ["title"],
+						orderBy: { excerpt: "desc" },
+						limit: 2,
+						cursor,
+					},
+				}),
+			);
+
+		const first = (await page()) as {
+			entries: { data: Record<string, unknown> }[];
+			nextCursor?: string;
+		};
+		expect(first.entries.map((entry) => entry.data.title)).toEqual(["Post 3", "Post 2"]);
+		const second = entriesOf(await page(first.nextCursor));
+		expect(second.map((entry) => entry.data.title)).toEqual(["Post 1"]);
+		expect("body" in second[0]!.data).toBe(false);
+	});
+
 	it("rejects a field name that is not a plain identifier", async () => {
 		await seed(1);
 

@@ -737,3 +737,141 @@ describe("redirect middleware — responses the route cache stores", () => {
 		expect(selects).toBe(0);
 	});
 });
+
+describe("redirect middleware: non-ASCII source paths", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	it("fires for a redirect whose stored source is raw Unicode", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/domácí-zvířata",
+			destination: "/stitek/domaci-zvirata",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		// The browser sends the path percent-encoded, so `context.url.pathname`
+		// arrives encoded while the stored source is raw Unicode.
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí-zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/stitek/domaci-zvirata");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("still fires when the stored source is already percent-encoded", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/dom%C3%A1c%C3%AD-zv%C3%AD%C5%99ata",
+			destination: "/stitek/domaci-zvirata",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí-zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
+	});
+
+	it("fires when the stored source uses lowercase percent-escapes", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/dom%c3%a1c%c3%ad",
+			destination: "/stitek/domaci",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci", 301);
+	});
+
+	it("percent-encodes a non-ASCII destination for the Location header", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/stitek/zvířata", destination: "/štítek/zvířata", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/stitek/zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/%C5%A1t%C3%ADtek/zv%C3%AD%C5%99ata");
+	});
+
+	it("percent-encodes a non-ASCII pattern destination", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/clanky/[...slug]",
+			destination: "/články/[...slug]",
+			type: 301,
+			isPattern: true,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context } = buildContext({ pathname: "/clanky/hello" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(response.headers.get("Location")).toBe("/%C4%8Dl%C3%A1nky/hello");
+	});
+
+	it("matches a pattern whose literal segment contains non-ASCII characters", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/články/[...slug]",
+			destination: "/articles/[...slug]",
+			type: 301,
+			isPattern: true,
+		});
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/články/hello" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/articles/hello", 301);
+	});
+	it("does not let a source with a query string redirect its bare path", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/?p=123", destination: "/hello-world", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const { context, redirect } = buildContext({ pathname: "/" });
+		const next = vi.fn(async () => new Response("home", { status: 200 }));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+	});
+});

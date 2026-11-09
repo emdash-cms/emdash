@@ -42,6 +42,11 @@ Collection settings control how editors and public pages use the entries:
 - **Drafts** lets editors save work before publishing it.
 - **Revisions** keeps snapshots of content history.
 - **Preview** provides signed preview URLs for unpublished content.
+- **Scheduling** is enabled by default. Editors can schedule new entries and changes to published
+  entries. Add `no-scheduling` to `supports` through a seed file, the schema API, or MCP when editors
+  must not create or change schedules; this flag has no checkbox in the Content Type editor. An
+  existing schedule can still run or be removed. The legacy `scheduling` value is accepted for
+  compatibility but has no effect; `no-scheduling` takes precedence when both values are present.
 - **Search** enables full-text search for fields marked as searchable.
 - **SEO** adds title, description, and image metadata fields and includes the collection in the
   sitemap. See [Built-in SEO Features](/guides/seo/).
@@ -50,10 +55,10 @@ Collection settings control how editors and public pages use the entries:
 - **Comments** can be enabled per collection, with moderation and automatic closing settings.
 - **Icon** names the Phosphor icon shown next to the collection in the sidebar and command
   palette, such as `calendar-blank`; a name that does not resolve falls back to the default icon.
-- **Hide from navigation** removes the sidebar entry, the command palette link, and the dashboard
-  quick action while the collection stays reachable by URL, API, and plugins. Turning off **Quick action on the
-  dashboard** removes only the quick action, for collections that plugins or imports fill rather
-  than editors.
+- **Hide from navigation** removes the sidebar entry, the command palette link, the dashboard quick
+  action, and the dashboard **Content** card row while the collection stays reachable by URL, API,
+  and plugins. Turning off **Quick action on the dashboard** removes only the quick action, for
+  collections that plugins or imports fill rather than editors.
 - **Group** places the collection in a collapsible sidebar folder. Collections with the same group
   share one folder, positioned where the first of them would appear. A taxonomy joins the folder when
   every collection it is assigned to is shown in that folder.

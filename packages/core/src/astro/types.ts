@@ -49,9 +49,9 @@ export interface ManifestCollection {
 	titleField?: string;
 	dateField?: string;
 	/**
-	 * Omit the auto-generated sidebar entry and dashboard quick action in the
-	 * admin. The collection is still listed in the manifest so its routes,
-	 * editor, and API keep working.
+	 * Omit the auto-generated sidebar entry, dashboard quick action, and
+	 * dashboard Content card row in the admin. The collection is still listed
+	 * in the manifest so its routes, editor, and API keep working.
 	 */
 	hidden?: boolean;
 	/** Phosphor icon name for the sidebar entry (kebab-case, e.g. `calendar-blank`). */
@@ -156,6 +156,8 @@ export interface EmDashManifest {
 	 * registry plugin's `env:astro` requirement against the running host.
 	 */
 	astroVersion?: string;
+	/** Site title used for browser tab titles. */
+	siteTitle?: string;
 	/** IANA timezone used by datetime-local controls in the admin. */
 	timezone?: string;
 	collections: Record<string, ManifestCollection>;
@@ -178,6 +180,8 @@ export interface EmDashManifest {
 	 * Used by the login page to conditionally show the "Sign up" link.
 	 */
 	signupEnabled?: boolean;
+	/** Whether the site is in staging (hidden from search engines). */
+	staging?: boolean;
 	/**
 	 * i18n configuration from Astro config.
 	 * Only present when i18n is enabled (multiple locales configured).
@@ -255,6 +259,7 @@ export interface EmDashManifest {
 		siteName?: string;
 		footerLabel?: string | false;
 		favicon?: string;
+		hiddenNavItems?: string[];
 	};
 }
 
@@ -323,6 +328,7 @@ export interface EmDashHandlers {
 		id: string,
 		locale?: string,
 		referenceOptions?: { includeDrafts: boolean },
+		draftOptions?: { includeStagedSlug?: boolean },
 	) => Promise<
 		HandlerResponse<{
 			item: {

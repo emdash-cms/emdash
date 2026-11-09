@@ -470,9 +470,10 @@ describe("ContentEditPage revision token handling", () => {
 		const screen = await renderEditPage();
 		const watcher = watchUnhandledRejections();
 		try {
-			const button = screen.getByRole("button", { name: "Unpublish Post", exact: true });
-			fireEvent.click(button.element());
-			fireEvent.click(button.element());
+			const button = screen.getByRole("button", { name: "Unpublish Post", exact: true }).element();
+			fireEvent.click(button);
+			expect(button).toBeDisabled();
+			fireEvent.click(button);
 			await vi.advanceTimersByTimeAsync(0);
 
 			await vi.waitFor(() => {

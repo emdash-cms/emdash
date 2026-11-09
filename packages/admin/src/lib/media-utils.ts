@@ -135,6 +135,7 @@ export function providerItemToMediaItem(
 		filename: item.filename,
 		mimeType: item.mimeType,
 		url: item.previewUrl || "",
+		playerUrl: item.playerUrl,
 		// Providers may report size as a first-class field or stash it in `meta`
 		// (Cloudflare Stream uses `meta.size`); 0 means "unknown".
 		size: item.size ?? metaNumber(item.meta, "size") ?? 0,
@@ -158,6 +159,7 @@ const UPLOAD_PREVIEW_MIME_TYPES = new Set([
 	"image/gif",
 	"image/webp",
 	"image/avif",
+	"image/bmp",
 ]);
 
 /** A local preview URL for a file being uploaded, or undefined for large files and formats not previewed. */

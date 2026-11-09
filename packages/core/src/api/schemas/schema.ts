@@ -17,6 +17,7 @@ const collectionSupportValues = z.enum([
 	"revisions",
 	"preview",
 	"scheduling",
+	"no-scheduling",
 	"search",
 	"seo",
 ]);
@@ -26,6 +27,12 @@ const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)
 const collectionListColumns = z.array(
 	z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"),
 );
+
+const systemDateField = z.enum(["publishedAt", "createdAt", "updatedAt"]);
+const collectionDateField = z.union([
+	systemDateField,
+	z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"),
+]);
 
 const collectionAdminInputConfig = z.object({
 	listColumns: collectionListColumns
@@ -207,7 +214,8 @@ export const updateCollectionBody = z
 		commentsAutoApproveUsers: z.boolean().optional(),
 		editLocking: z.boolean().optional(),
 		titleField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
-		dateField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
+		/** Datetime field slug or a system timestamp for the admin list Date column. */
+		dateField: collectionDateField.nullish(),
 	})
 	.meta({ id: "UpdateCollectionBody" });
 
