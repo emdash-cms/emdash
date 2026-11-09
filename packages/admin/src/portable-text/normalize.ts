@@ -8,7 +8,6 @@
  */
 
 import { Extension, type AnyExtension } from "@tiptap/core";
-import { isChangeOrigin } from "@tiptap/extension-collaboration";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, Transaction, type EditorState } from "@tiptap/pm/state";
 import { canJoin, liftTarget, type Step } from "@tiptap/pm/transform";
@@ -57,9 +56,19 @@ export function rootOf(transaction: Transaction): Transaction {
 	return root instanceof Transaction ? root : transaction;
 }
 
-/** Whether the transaction renders another client's change, or answers one that does. */
+const REMOTE = "emdashRemote";
+
+/** Marks a transaction that renders another client's change. */
+export function markRemote(transaction: Transaction): void {
+	transaction.setMeta(REMOTE, true);
+}
+
+/**
+ * Whether the transaction renders another client's change, or answers one that does. Only an
+ * editor with `PortableTextYSync` marks them.
+ */
 export function isRemote(transaction: Transaction): boolean {
-	return isChangeOrigin(transaction) || isChangeOrigin(rootOf(transaction));
+	return transaction.getMeta(REMOTE) === true || rootOf(transaction).getMeta(REMOTE) === true;
 }
 
 type AppendCondition = (

@@ -64,6 +64,7 @@ export default defineConfig({
 		"src/locales/emails.ts",
 		"src/portable-text-table.ts",
 		"src/portable-text.ts",
+		"src/portable-text-y-sync.ts",
 		"src/co-editing.ts",
 		"src/co-editing/types.ts",
 		"src/html-block.ts",

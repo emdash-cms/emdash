@@ -42,6 +42,10 @@
       "types": "./dist/portable-text.d.ts",
       "default": "./dist/portable-text.js"
     },
+    "./portable-text-y-sync": {
+      "types": "./dist/portable-text-y-sync.d.ts",
+      "default": "./dist/portable-text-y-sync.js"
+    },
     "./co-editing": {
       "types": "./dist/co-editing.d.ts",
       "default": "./dist/co-editing.js"

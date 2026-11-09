@@ -31,6 +31,7 @@ import {
 	type PortableTextBlock,
 } from "../../src/portable-text";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
+import { PortableTextYSync } from "../../src/portable-text/y-sync";
 import { LoopbackRoom, settle } from "../co-editing/loopback-room";
 import {
 	resetTransportHealth,
@@ -158,6 +159,7 @@ function peer(room: LoopbackRoom): HeadlessEditor {
 		extensions: [
 			...portableTextExtensions(),
 			PortableTextFilledDefaults,
+			PortableTextYSync,
 			Extension.create({
 				name: "peerSync",
 				addProseMirrorPlugins: () => [ySyncPlugin(doc.getXmlFragment(fragmentName(BODY.slug)))],

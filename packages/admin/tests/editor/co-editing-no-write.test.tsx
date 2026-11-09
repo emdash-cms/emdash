@@ -27,6 +27,7 @@ import {
 	prosemirrorToPortableText,
 } from "../../src/portable-text";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
+import { PortableTextYSync } from "../../src/portable-text/y-sync";
 import { render } from "../utils/render";
 
 vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () => null }));
@@ -121,6 +122,7 @@ function peer(doc: Y.Doc) {
 		extensions: [
 			...portableTextExtensions(),
 			PortableTextFilledDefaults,
+			PortableTextYSync,
 			Extension.create({
 				name: "peerSync",
 				addProseMirrorPlugins: () => [ySyncPlugin(doc.getXmlFragment("default"))],
