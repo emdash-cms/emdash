@@ -14,6 +14,7 @@ import {
 	portableTextExtensions,
 	type PortableTextBlock,
 } from "@emdash-cms/admin/portable-text";
+import { PortableTextYSync } from "@emdash-cms/admin/portable-text-y-sync";
 import { Editor, Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
@@ -476,7 +477,12 @@ class Client {
 		});
 		this.editor = new Editor({
 			element,
-			extensions: [...portableTextExtensions(), PortableTextFilledDefaults, sync],
+			extensions: [
+				...portableTextExtensions(),
+				PortableTextFilledDefaults,
+				PortableTextYSync,
+				sync,
+			],
 			injectCSS: false,
 			content: "",
 		});
