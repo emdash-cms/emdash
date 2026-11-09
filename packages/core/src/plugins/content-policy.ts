@@ -4,7 +4,7 @@ export const SCHEDULED_POLICY_REJECTION_PREFIX = "emdash:scheduled-policy-reject
 export interface ScheduledPolicyRejection {
 	collection: string;
 	id: string;
-	pluginId: string;
+	pluginId?: string;
 	reason: string;
 	rejectedAt: string;
 }
@@ -18,12 +18,32 @@ export function isScheduledPolicyRejection(value: unknown): value is ScheduledPo
 	if (
 		typeof value.collection !== "string" ||
 		typeof value.id !== "string" ||
-		typeof value.pluginId !== "string" ||
+		(value.pluginId !== undefined && typeof value.pluginId !== "string") ||
 		typeof value.rejectedAt !== "string"
 	) {
 		return false;
 	}
 	return inspectContentPolicyDecision({ cancel: true, reason: value.reason }).kind === "cancel";
+}
+
+export function scheduledPublishRefusal(
+	collection: string,
+	id: string,
+	error: { code?: string; message?: string } | undefined,
+	currentTime: Date,
+): ScheduledPolicyRejection | undefined {
+	if (error?.code !== "VALIDATION_ERROR" && error?.code !== "SLUG_CONFLICT") return undefined;
+	const message = Array.from(error.message ?? "", (character) =>
+		containsForbiddenControlCharacter(character) ? " " : character,
+	)
+		.join("")
+		.trim();
+	return {
+		collection,
+		id,
+		reason: [...(message || error.code)].slice(0, MAX_CONTENT_POLICY_REASON_LENGTH).join(""),
+		rejectedAt: currentTime.toISOString(),
+	};
 }
 
 export function scheduledPolicyRejectionKey(collection: string, id: string): string {

@@ -2,6 +2,7 @@ import { sql, type Kysely, type KyselyPlugin } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { handleContentPublish } from "../../src/api/handlers/content.js";
+import { handleDashboardStats } from "../../src/api/handlers/dashboard.js";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import { runSystemCleanup } from "../../src/cleanup.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
@@ -13,6 +14,7 @@ import {
 } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
+import { scheduledPolicyRejectionKey } from "../../src/plugins/content-policy.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import {
 	publishDueContent,
@@ -83,6 +85,209 @@ describe("publishDueContent()", () => {
 	afterEach(async () => {
 		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
+	});
+
+	for (const scheduler of ["runtime", "db-only"] as const) {
+		it.each([
+			["taken", "already used"],
+			["", "without a slug"],
+		])(
+			`unschedules a permanent %s refusal with a dashboard reason (${scheduler})`,
+			async (slug, reason) => {
+				const blocker = await repo.create(createPostFixture({ slug: "taken" }));
+				await handleContentPublish(db, "post", blocker.id);
+				const post = await repo.create(createPostFixture({ slug: "refused" }));
+				const revision = await new RevisionRepository(db).create({
+					collection: "post",
+					entryId: post.id,
+					data: { title: "Refused", _slug: slug },
+				});
+				await repo.setDraftRevision("post", post.id, revision.id);
+				const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+				await repo.update("post", post.id, { status: "scheduled", scheduledAt });
+				const runtime = buildRuntime(db);
+				const publish = vi.spyOn(runtime, "handleContentPublish");
+				const sweep = () =>
+					scheduler === "runtime" ? runtime.publishScheduled() : publishDueContent(db);
+
+				expect(await sweep()).toEqual([]);
+				expect(await repo.findById("post", post.id)).toMatchObject({
+					status: "draft",
+					scheduledAt: null,
+					draftRevisionId: revision.id,
+				});
+				const key = scheduledPolicyRejectionKey("post", post.id);
+				const rejection = await new OptionsRepository(db).get(key);
+				expect(rejection).toMatchObject({
+					collection: "post",
+					id: post.id,
+					reason: expect.stringContaining(reason),
+				});
+				const stats = await handleDashboardStats(db, {
+					includeDrafts: true,
+					includeMediaCount: false,
+					includeUserCount: false,
+				});
+				expect(stats).toMatchObject({
+					success: true,
+					data: {
+						policyRejections: [
+							expect.objectContaining({ id: post.id, reason: expect.stringContaining(reason) }),
+						],
+					},
+				});
+				expect(await sweep()).toEqual([]);
+				if (scheduler === "runtime") expect(publish).toHaveBeenCalledTimes(1);
+				expect(await new OptionsRepository(db).get(key)).toEqual(rejection);
+			},
+		);
+	}
+
+	it("preserves the live version when a published entry's staged slug is refused", async () => {
+		const blocker = await repo.create(createPostFixture({ slug: "taken" }));
+		await handleContentPublish(db, "post", blocker.id);
+		const post = await repo.create(createPostFixture({ slug: "original" }));
+		await handleContentPublish(db, "post", post.id);
+		const before = await repo.findById("post", post.id);
+		const revision = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { title: "Unpublished change", _slug: "taken" },
+		});
+		await repo.setDraftRevision("post", post.id, revision.id);
+		const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { scheduledAt });
+
+		await publishDueContent(db);
+
+		const after = await repo.findById("post", post.id);
+		expect(after).toMatchObject({
+			status: "published",
+			slug: before?.slug,
+			data: before?.data,
+			liveRevisionId: before?.liveRevisionId,
+			publishedAt: before?.publishedAt,
+			scheduledAt: null,
+			draftRevisionId: revision.id,
+		});
+	});
+
+	it("keeps a conflicting schedule when interactive publishing is refused", async () => {
+		const blocker = await repo.create(createPostFixture({ slug: "taken" }));
+		await handleContentPublish(db, "post", blocker.id);
+		const post = await repo.create(createPostFixture({ slug: "scheduled" }));
+		const revision = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { title: "Scheduled", _slug: "taken" },
+		});
+		await repo.setDraftRevision("post", post.id, revision.id);
+		const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt });
+
+		const result = await buildRuntime(db).handleContentPublish("post", post.id, {
+			requireScheduledDue: true,
+			expectedScheduledAt: scheduledAt,
+		});
+
+		expect(result).toMatchObject({ success: false, error: { code: "SLUG_CONFLICT" } });
+		expect(await repo.findById("post", post.id)).toMatchObject({
+			status: "scheduled",
+			scheduledAt,
+			draftRevisionId: revision.id,
+		});
+		expect(
+			await new OptionsRepository(db).get(scheduledPolicyRejectionKey("post", post.id)),
+		).toBeNull();
+	});
+
+	it("retries a transient publish error without recording a rejection", async () => {
+		const post = await repo.create(createPostFixture());
+		const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt });
+		const find = vi
+			.spyOn(RevisionRepository.prototype, "findById")
+			.mockRejectedValueOnce(new Error("revision store unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(publishDueContent(db)).resolves.toEqual([]);
+		find.mockRestore();
+		expect(await repo.findById("post", post.id)).toMatchObject({
+			status: "scheduled",
+			scheduledAt,
+		});
+		expect(
+			await new OptionsRepository(db).get(scheduledPolicyRejectionKey("post", post.id)),
+		).toBeNull();
+		expect(await publishDueContent(db)).toEqual([{ collection: "post", id: post.id }]);
+	});
+
+	it("does not unschedule a replacement schedule after a concurrent refusal", async () => {
+		const blocker = await repo.create(createPostFixture({ slug: "taken" }));
+		await handleContentPublish(db, "post", blocker.id);
+		const post = await repo.create(createPostFixture({ slug: "scheduled" }));
+		const revision = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { title: "Scheduled", _slug: "taken" },
+		});
+		await repo.setDraftRevision("post", post.id, revision.id);
+		const selectedAt = new Date(Date.now() - 120_000).toISOString();
+		const replacementAt = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: selectedAt });
+		let rescheduled = false;
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		await publishDueContent(db, {
+			publish: async () => {
+				rescheduled = true;
+				await repo.update("post", post.id, { scheduledAt: replacementAt });
+				return { success: false, error: { code: "SLUG_CONFLICT" } };
+			},
+		});
+
+		expect(rescheduled).toBe(true);
+		expect(await repo.findById("post", post.id)).toMatchObject({
+			status: "scheduled",
+			scheduledAt: replacementAt,
+			draftRevisionId: revision.id,
+		});
+		expect(
+			await new OptionsRepository(db).get(scheduledPolicyRejectionKey("post", post.id)),
+		).toBeNull();
+	});
+
+	it("keeps long publish refusal messages visible in the dashboard", async () => {
+		const post = await repo.create(createPostFixture());
+		await repo.update("post", post.id, {
+			status: "scheduled",
+			scheduledAt: new Date(Date.now() - 60_000).toISOString(),
+		});
+		await publishDueContent(db, {
+			publish: async () => ({
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "Invalid\u0000 field: " + "😀".repeat(600),
+				},
+			}),
+		});
+		const stats = await handleDashboardStats(db, {
+			includeDrafts: true,
+			includeMediaCount: false,
+			includeUserCount: false,
+		});
+		expect(stats).toMatchObject({
+			success: true,
+			data: {
+				policyRejectedScheduled: 1,
+				policyRejections: [
+					expect.objectContaining({
+						id: post.id,
+						reason: expect.stringContaining("Invalid  field:"),
+					}),
+				],
+			},
+		});
 	});
 
 	it("promotes a scheduled draft whose time has passed", async () => {

@@ -98,6 +98,7 @@ import {
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import {
 	scheduledPolicyRejectionKey,
+	scheduledPublishRefusal,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
@@ -5018,6 +5019,27 @@ export class EmDashRuntime {
 			...handlerOptions,
 			_rev: policy.revision,
 		});
+		if (!result.success && options.origin?.source === "scheduler") {
+			const rejection = scheduledPublishRefusal(
+				collection,
+				id,
+				result.error,
+				options.currentTime ?? this.runtimeDeps.now?.() ?? new Date(),
+			);
+			if (rejection) {
+				const unscheduled = await handleScheduledPolicyRejection(this.db, collection, id, {
+					_rev: policy.revision,
+					rejection,
+				});
+				if (!unscheduled.success) return unscheduled;
+				await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
+				this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
+				return {
+					success: false as const,
+					error: { code: "PUBLISH_REJECTED", message: rejection.reason },
+				};
+			}
+		}
 		if (result.success && result.data) {
 			await this.clearScheduledPolicyRejection(
 				collection,

@@ -43,7 +43,7 @@ export interface DashboardStats {
 	policyRejections?: Array<{
 		collection: string;
 		id: string;
-		pluginId: string;
+		pluginId?: string;
 		reason: string;
 		rejectedAt: string;
 		_rev: string;

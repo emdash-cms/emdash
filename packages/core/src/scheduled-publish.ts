@@ -12,10 +12,12 @@
 
 import type { Kysely } from "kysely";
 
-import { handleContentPublish } from "./api/handlers/content.js";
+import { handleContentPublish, handleScheduledPolicyRejection } from "./api/handlers/content.js";
+import { encodeRev } from "./api/rev.js";
 import { ContentRepository, findTypesWithDueContent } from "./database/repositories/content.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import type { Database } from "./database/types.js";
+import { scheduledPublishRefusal } from "./plugins/content-policy.js";
 import { SchemaRegistry } from "./schema/registry.js";
 
 /** A content item that was promoted to published by a sweep. */
@@ -68,7 +70,7 @@ export type ScheduledPublishFn = (
 		expectedScheduledAt?: string;
 		currentTime?: Date;
 	},
-) => Promise<{ success: boolean; error?: { code?: string } }>;
+) => Promise<{ success: boolean; error?: { code?: string; message?: string } }>;
 
 export interface PublishDueContentOptions {
 	/**
@@ -176,12 +178,24 @@ export async function publishDueContent(
 				// scheduled time, not the (later) sweep time. Items already published
 				// with pending draft changes keep their original published_at.
 				const publishedAt = item.publishedAt == null ? (item.scheduledAt ?? undefined) : undefined;
-				const result = await doPublish(collection.slug, item.id, {
+				let result = await doPublish(collection.slug, item.id, {
 					publishedAt,
 					requireScheduledDue: true,
 					expectedScheduledAt: item.scheduledAt ?? undefined,
 					currentTime,
 				});
+				const rejection = !result.success
+					? scheduledPublishRefusal(collection.slug, item.id, result.error, currentTime)
+					: undefined;
+				if (rejection) {
+					const unscheduled = await handleScheduledPolicyRejection(db, collection.slug, item.id, {
+						_rev: encodeRev(item),
+						rejection,
+					});
+					result = unscheduled.success
+						? { success: false, error: { code: "PUBLISH_REJECTED" } }
+						: unscheduled;
+				}
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });
 				} else if (result.error?.code === "NOT_DUE" || result.error?.code === "PUBLISH_REJECTED") {
