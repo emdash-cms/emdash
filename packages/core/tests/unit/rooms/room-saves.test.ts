@@ -330,6 +330,26 @@ describe("save results", () => {
 		expect(test.site.current.data.title).toBe("Offline");
 	});
 
+	it("saves the fields it can read when another can't be, and shows nothing as saved", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		const ben = await test.join("ben");
+		const checkpoints = ben.checkpoints().length;
+		ana.setField("title", new Uint8Array([1, 2]));
+		ben.type("Ben ");
+		await advance(2000);
+		expect(test.storedText()).toBe("Ben First paragraph.");
+		expect(test.site.current.data.title).toBe("Hello");
+		expect(ben.checkpoints()).toHaveLength(checkpoints);
+		expect(ben.notices()).toContainEqual(
+			expect.objectContaining({ kind: "refused", code: "INVALID_CONTENT" }),
+		);
+		ana.setField("title", "Fixed");
+		await advance(2000);
+		expect(test.site.saves.at(-1)?.data).toEqual({ title: "Fixed" });
+		expect(ben.checkpoints()).toHaveLength(checkpoints + 1);
+	});
+
 	it("refuses a save holding a value that isn't JSON, and retries at the next update", async () => {
 		const test = new TestRoom();
 		const ana = await test.join("ana");
