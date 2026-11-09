@@ -2089,8 +2089,10 @@ function ContentEditPage() {
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
 			if (roomRef.current) {
-				saveOutsideValues({ seo }).catch(() => undefined);
-				return;
+				return saveOutsideValues({ seo }).then(
+					() => true,
+					() => false,
+				);
 			}
 			updateMutation.mutate({
 				targetId: id,
@@ -2098,6 +2100,7 @@ function ContentEditPage() {
 				source: "auxiliary",
 				changes: { seo },
 			});
+			return undefined;
 		},
 		[activeLocale, id, rawItem?.locale, saveOutsideValues, updateMutation.mutate],
 	);

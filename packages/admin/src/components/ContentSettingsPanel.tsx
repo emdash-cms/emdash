@@ -849,7 +849,7 @@ export interface ContentSettingsPanelProps {
 	translations?: TranslationSummary[];
 	onTranslate?: (locale: string) => void;
 	hasSeo: boolean;
-	onSeoChange?: (seo: ContentSeoInput) => void;
+	onSeoChange?: (seo: ContentSeoInput) => void | Promise<boolean>;
 	/** In a co-editing room, where the SEO panel sends only the values changed here. */
 	seoInRoom?: boolean;
 	/** portableText editor for the document outline (null when none mounted) */

@@ -597,6 +597,26 @@ describe("values outside the document in a room", () => {
 		expect(server.item.seo?.title).toBe("Ana's title");
 	});
 
+	it("sends a refused SEO value again with the next SEO change", async () => {
+		const { screen, server } = await openInRoom(entry(), {
+			prepare: (fake) => (fake.refuseWrites = true),
+		});
+		const puts = () =>
+			server.requests.filter(
+				(request) => request.method === "PUT" && request.url.startsWith("/_emdash/api/content"),
+			);
+
+		await screen.getByRole("textbox", { name: "SEO Title" }).fill("A better title");
+		await expect.element(screen.getByText("Not allowed")).toBeVisible();
+		server.refuseWrites = false;
+		await screen.getByRole("textbox", { name: "Meta Description" }).fill("A description");
+
+		await vi.waitFor(() => expect(puts()).toHaveLength(2));
+		expect(puts()[1]?.body).toEqual({
+			seo: { title: "A better title", description: "A description" },
+		});
+	});
+
 	it("keeps a reference selection in its input when the server refuses it", async () => {
 		const { screen, server } = await openInRoom(entry(), {
 			prepare: (fake) => (fake.refuseWrites = true),

@@ -17,7 +17,8 @@ import { SeoImageField } from "./SeoImageField";
 export interface SeoPanelProps {
 	contentKey: string;
 	seo?: ContentSeo;
-	onChange: (seo: ContentSeoInput) => void;
+	/** May resolve to whether the change saved. A room sends a value that didn't with the next change. */
+	onChange: (seo: ContentSeoInput) => void | Promise<boolean>;
 	/** Title `getSeoMeta` uses when this panel has none, shown as placeholder text. */
 	defaultTitle?: string | null;
 	/** Description `getSeoMeta` uses when this panel has none, shown as placeholder text. */
@@ -104,9 +105,16 @@ export function SeoPanel({
 			return;
 		}
 		lastEmittedDraftRef.current = nextDraft;
-		activeOnChangeRef.current(
-			inRoomRef.current ? changedInput(nextDraft, lastEmitted) : toInput(nextDraft),
-		);
+		const sent = inRoomRef.current ? changedInput(nextDraft, lastEmitted) : toInput(nextDraft);
+		void activeOnChangeRef.current(sent)?.then((saved) => {
+			if (saved) return undefined;
+			const emitted = { ...lastEmittedDraftRef.current };
+			for (const key of DRAFT_KEYS) {
+				if (key in sent && emitted[key] === nextDraft[key]) copyKey(emitted, lastEmitted, key);
+			}
+			lastEmittedDraftRef.current = emitted;
+			return undefined;
+		});
 	}, []);
 
 	const clearPendingTextFlush = React.useCallback(() => {

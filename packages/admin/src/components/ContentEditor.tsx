@@ -498,7 +498,7 @@ export interface ContentEditorProps {
 	/** Whether this collection has SEO fields enabled */
 	hasSeo?: boolean;
 	/** Callback when SEO fields change */
-	onSeoChange?: (seo: ContentSeoInput) => void;
+	onSeoChange?: (seo: ContentSeoInput) => void | Promise<boolean>;
 	/** Admin manifest for resolving plugin field widgets */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 	/** Re-fetch host state after a plugin action requests an entry refresh. */
@@ -764,9 +764,7 @@ export function ContentEditor({
 	}, [blockSidebarPanel]);
 
 	const handleSeoChange = React.useCallback(
-		(seo: ContentSeoInput) => {
-			onSeoChange?.(seo);
-		},
+		(seo: ContentSeoInput) => onSeoChange?.(seo),
 		[onSeoChange],
 	);
 
