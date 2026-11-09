@@ -54,10 +54,13 @@ import {
 	RESOLVED_VIRTUAL_BUILD_ID,
 	VIRTUAL_ROOMS_ID,
 	RESOLVED_VIRTUAL_ROOMS_ID,
+	VIRTUAL_ROOM_ENGINE_ID,
+	RESOLVED_VIRTUAL_ROOM_ENGINE_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
 	generateRoomsModule,
+	generateRoomEngineModule,
 	generateEnvModule,
 	generateBuildModule,
 	generateConfigModule,
@@ -286,6 +289,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_ROOMS_ID) {
 				return RESOLVED_VIRTUAL_ROOMS_ID;
 			}
+			if (id === VIRTUAL_ROOM_ENGINE_ID) {
+				return RESOLVED_VIRTUAL_ROOM_ENGINE_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_ADMIN_ENTRY_ID) {
@@ -421,6 +427,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 						"@emdash-cms/cloudflare/rooms",
 					);
 				return generateRoomsModule(adapterName, coEditing, cloudflareRoomsResolves);
+			}
+			if (id === RESOLVED_VIRTUAL_ROOM_ENGINE_ID) {
+				return generateRoomEngineModule(resolvedConfig.coEditing ?? false);
 			}
 		},
 	};

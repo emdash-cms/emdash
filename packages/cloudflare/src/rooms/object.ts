@@ -19,6 +19,8 @@ import {
 	type TokenClaims,
 } from "emdash/internal/co-editing";
 import type { Room, RoomOptions } from "emdash/internal/co-editing/room";
+// @ts-ignore - virtual module
+import { loadRoomEngine } from "virtual:emdash/room-engine";
 
 import { DurableObjectRoomStore } from "./store.js";
 
@@ -172,6 +174,8 @@ export class EmDashRoom extends DurableObject {
 	}
 
 	override async alarm(): Promise<void> {
+		// Stored room state waits for co-editing to be on again.
+		if (!loadRoomEngine) return;
 		try {
 			await this.#closeSilent();
 			await (await this.#loadRoom()).expire();
@@ -255,7 +259,8 @@ export class EmDashRoom extends DurableObject {
 			const name = this.ctx.id.name ?? "";
 			const entry = parseRoomId(name);
 			if (!entry) throw new Error(`[co-editing] ${name} isn't a room ID`);
-			const { Room } = await import("emdash/internal/co-editing/room");
+			if (!loadRoomEngine) throw new Error("[co-editing] Co-editing is off");
+			const { Room } = await loadRoomEngine();
 			const room = new Room({
 				entry,
 				site: roomSite(),
