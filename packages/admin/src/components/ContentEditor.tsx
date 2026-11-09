@@ -540,6 +540,8 @@ export interface ContentEditorProps {
 	hasSaveConflict?: boolean;
 	/** Called when the dirty state of the editor form changes. */
 	onDirtyChange?: (isDirty: boolean) => void;
+	/** Called when an item read is applied to the form, not when a dirty form skips it. */
+	onItemApplied?: (item: ContentItem) => void;
 	/** Advanced after an explicit save, discard, or restore has refreshed the item. */
 	itemResetToken?: number;
 	/** Whether the latest item reset follows a discard, which replaces unsaved edits too. */
@@ -672,6 +674,7 @@ export function ContentEditor({
 	saveError,
 	hasSaveConflict,
 	onDirtyChange,
+	onItemApplied,
 	itemResetToken = 0,
 	itemResetDiscards = false,
 	onPublish,
@@ -939,6 +942,8 @@ export function ContentEditor({
 	);
 	const autosaveCompletionTokenRef = React.useRef(autosaveCompletionToken ?? 0);
 	const itemResetTokenRef = React.useRef(itemResetToken);
+	const onItemAppliedRef = React.useRef(onItemApplied);
+	onItemAppliedRef.current = onItemApplied;
 	React.useEffect(() => {
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
@@ -1017,6 +1022,8 @@ export function ContentEditor({
 				setSlugTouched(!!item.slug);
 				setInternalBylines(nextBylines);
 				setBylinesTouched(false);
+				// Retained edits still belong to the saved version, not this newer read.
+				if (keepEdits(formDataRef.current) === item.data) onItemAppliedRef.current?.(item);
 			}
 			setLastSavedData(
 				serializeEditorState({
