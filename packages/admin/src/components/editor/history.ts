@@ -6,11 +6,12 @@
 
 import { closeHistory, undo, undoDepth } from "@tiptap/pm/history";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
-import { yUndoPluginKey } from "@tiptap/y-tiptap";
 import type { UndoManager } from "yjs";
 
+import { yPluginKeys } from "./y-plugin-keys.js";
+
 function undoManager(state: EditorState): UndoManager | undefined {
-	return yUndoPluginKey.getState(state)?.undoManager;
+	return yPluginKeys(state)?.undo.getState(state)?.undoManager;
 }
 
 /** The number of undo steps the history holds. */

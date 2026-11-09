@@ -1,20 +1,27 @@
 import { Extension } from "@tiptap/core";
 import { Collaboration } from "@tiptap/extension-collaboration";
-import { yCursorPlugin } from "@tiptap/y-tiptap";
+import { yCursorPlugin, ySyncPluginKey, yUndoPluginKey } from "@tiptap/y-tiptap";
 
 import { fragmentName } from "../../../co-editing/layout.js";
+import { yPluginKeysPlugin } from "../../../components/editor/y-plugin-keys.js";
 import type { RichTextBinding } from "../types.js";
 import type { Replica } from "./replica.js";
 
 /**
  * What a rich-text field's editor mounts with in a room: the field's fragment, with
- * Collaboration's undo, the other clients' cursors, and a registration that tells the replica
- * which editor renders the field.
+ * Collaboration's undo, y-tiptap's plugin keys for the editor's own plugins, the other clients'
+ * cursors, and a registration that tells the replica which editor renders the field.
  */
 export function createRichTextBinding(replica: Replica, field: string): RichTextBinding {
 	return {
 		extensions: [
 			Collaboration.configure({ fragment: replica.doc.getXmlFragment(fragmentName(field)) }),
+			Extension.create({
+				name: "coEditingPluginKeys",
+				addProseMirrorPlugins: () => [
+					yPluginKeysPlugin({ sync: ySyncPluginKey, undo: yUndoPluginKey }),
+				],
+			}),
 			Extension.create({
 				name: "coEditingCursors",
 				addProseMirrorPlugins: () => [

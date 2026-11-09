@@ -14,11 +14,11 @@ import {
 	selectedRect,
 } from "@tiptap/pm/tables";
 import type { EditorView } from "@tiptap/pm/view";
-import { ySyncPluginKey } from "@tiptap/y-tiptap";
 
 import { MAX_TABLE_REPAIRED_SLOTS, MAX_TABLE_SPAN } from "../../portable-text-table.js";
 import { changedRanges, localOnly } from "../../portable-text/normalize.js";
 import { closeHistoryGroup } from "./history.js";
+import { yPluginKeys } from "./y-plugin-keys.js";
 
 const TABLE_NODE_ROLES = new Set(["table", "row", "cell", "header_cell"]);
 const TABLE_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
@@ -464,7 +464,7 @@ export const TableIdentity = Extension.create({
 					}
 					// y-tiptap writes a whole dispatch with its last transaction's flag, which would leave
 					// the edit this repairs out of the undo history.
-					if (ySyncPluginKey.getState(newState)) return transaction;
+					if (yPluginKeys(newState)?.sync.getState(newState)) return transaction;
 					return transaction.setMeta("addToHistory", false);
 				},
 			}),
