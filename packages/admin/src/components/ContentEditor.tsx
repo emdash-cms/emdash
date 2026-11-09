@@ -23,8 +23,6 @@ import {
 	FloppyDisk,
 	Paperclip,
 	X,
-	ArrowsInSimple,
-	ArrowsOutSimple,
 	CaretUp,
 	CaretDown,
 	Plus,
@@ -34,7 +32,6 @@ import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { useHotkeys } from "react-hotkeys-hook";
 
 import type {
 	BylineCreditInput,
@@ -97,9 +94,7 @@ import {
 	ContentSettingsPanel,
 	compactBarButtonClassName,
 	compactBarLabelClassName,
-	DiscardDraftDialog,
 	EditorActions,
-	ScheduleActions,
 } from "./ContentSettingsPanel.js";
 import { focusDocumentStart } from "./editor/BlockCommands.js";
 import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
@@ -734,8 +729,6 @@ export function ContentEditor({
 		mq.addEventListener("change", onChange);
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
-	// Distraction-free mode state
-	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(
 		() => item?.data ?? (isNew ? defaultFieldValues(fields) : {}),
 	);
@@ -807,7 +800,6 @@ export function ContentEditor({
 		panelId: settingsPanelId,
 		side: panelSide,
 		isBelowLg,
-		isDistractionFree,
 		blockPanel: blockSidebarPanel,
 		closeBlockPanel: handleBlockSidebarClose,
 	});
@@ -1934,7 +1926,6 @@ export function ContentEditor({
 	});
 	const publishingPending = Boolean(isScheduling || isUnscheduling);
 	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
-	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
 	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
 	const handleOpenSchedule = React.useCallback(() => setScheduleDialogOpen(true), []);
 
@@ -1947,65 +1938,41 @@ export function ContentEditor({
 		[collection, isNew, item, manifest?.plugins],
 	);
 
-	// The title advertises ⌘⇧\\ as the shortcut, so register it globally.
-	// It toggles both into and out of the mode, but is disabled while a
-	// publishing menu or schedule dialog is open.
-	const canToggleDistractionFree = !scheduleDialogOpen && !publishingMenuOpen;
-	useHotkeys(
-		"mod+shift+\\",
-		(e) => {
-			if (!canToggleDistractionFree) return;
-			e.preventDefault();
-			setIsDistractionFree((prev) => !prev);
-		},
-		{ enableOnFormTags: true, useKey: true },
-		[canToggleDistractionFree],
-	);
-
 	// One bar for where you are and what you can do with the entry. Pinned
-	// above the scrolling page on wide screens and in distraction-free mode;
-	// on small screens it scrolls away with the page to leave room to write.
-	const pinEditorBar = !isBelowLg || isDistractionFree || isViewing;
+	// above the scrolling page on wide screens; on small screens it scrolls
+	// away with the page to leave room to write.
+	const pinEditorBar = !isBelowLg || isViewing;
 	const editorBar = (
 		<div className="shrink-0">
 			<div
 				data-emdash-editor-bar=""
 				className="@container/editor-bar flex min-h-12 shrink-0 flex-wrap items-center gap-1.5 border-b sm:flex-nowrap border-kumo-line px-3 py-2 sm:px-4"
 			>
-				{!isDistractionFree && (
-					<RouterLinkButton
+				<RouterLinkButton
+					to="/content/$collection"
+					params={{ collection }}
+					search={{ locale: undefined }}
+					aria-label={t`Back to ${{ collectionLabel: collectionListLabel }} list`}
+					variant="ghost"
+					shape="square"
+					size="sm"
+					icon={<ArrowPrev className="size-4" />}
+				/>
+				<div className="flex min-w-0 flex-1 items-center gap-1.5">
+					{/* Repeats the back link for pointers, so it stays out of the tab order. */}
+					<Link
 						to="/content/$collection"
 						params={{ collection }}
 						search={{ locale: undefined }}
-						aria-label={t`Back to ${{ collectionLabel: collectionListLabel }} list`}
-						variant="ghost"
-						shape="square"
-						size="sm"
-						icon={<ArrowPrev className="size-4" />}
-					/>
-				)}
-				<div className="flex min-w-0 flex-1 items-center gap-1.5">
-					{!isDistractionFree && (
-						<>
-							{/* Repeats the back link for pointers, so it stays out of the tab order. */}
-							<Link
-								to="/content/$collection"
-								params={{ collection }}
-								search={{ locale: undefined }}
-								tabIndex={-1}
-								aria-hidden="true"
-								className="hidden max-w-48 shrink-0 truncate text-base text-kumo-subtle no-underline hover:text-kumo-default @[44rem]/editor-bar:block"
-							>
-								{collectionListLabel}
-							</Link>
-							<span
-								aria-hidden="true"
-								className="hidden text-kumo-inactive @[44rem]/editor-bar:block"
-							>
-								/
-							</span>
-						</>
-					)}
+						tabIndex={-1}
+						aria-hidden="true"
+						className="hidden max-w-48 shrink-0 truncate text-base text-kumo-subtle no-underline hover:text-kumo-default @[44rem]/editor-bar:block"
+					>
+						{collectionListLabel}
+					</Link>
+					<span aria-hidden="true" className="hidden text-kumo-inactive @[44rem]/editor-bar:block">
+						/
+					</span>
 					<h1
 						ref={editorHeadingRef}
 						tabIndex={-1}
@@ -2020,12 +1987,9 @@ export function ContentEditor({
 						</Badge>
 					)}
 				</div>
-				{/* The distraction-free toggle stays outside the disabled fieldset:
-			    it changes the view, not the entry, and a reader must be able to
-			    leave the overlay. */}
 				<div className="grid w-full grid-cols-4 items-center gap-1.5 sm:ms-1.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
 					<fieldset disabled={readOnly} className="contents">
-						{!isDistractionFree && item && sandboxedEditorActions.length > 0 ? (
+						{item && sandboxedEditorActions.length > 0 ? (
 							<SandboxedContentEditorActions
 								actions={sandboxedEditorActions}
 								collection={collection}
@@ -2068,63 +2032,10 @@ export function ContentEditor({
 							onPreview={handlePreview}
 							onPublish={onPublish ? handlePublish : undefined}
 							onUnpublish={onUnpublish ? handleUnpublish : undefined}
-							onMenuOpenChange={setPublishingMenuOpen}
-							beforePublish={
-								// The settings panel holds these outside distraction-free mode.
-								isDistractionFree && !isNew ? (
-									<>
-										{supportsDrafts && hasPendingChanges && onDiscardDraft && (
-											<DiscardDraftDialog
-												onDiscard={onDiscardDraft}
-												triggerVariant="outline"
-												triggerSize="sm"
-												compact
-												disabled={isViewing}
-											/>
-										)}
-										<ScheduleActions
-											publishingState={publishingState}
-											canSchedule={canSchedule}
-											isScheduling={isScheduling}
-											isUnscheduling={isUnscheduling}
-											disabled={publishingPending || hasSaveConflict || isViewing}
-											onOpenSchedule={
-												supportsScheduling && onSchedule ? handleOpenSchedule : undefined
-											}
-											onUnschedule={onUnschedule ? handleUnschedule : undefined}
-											inline
-										/>
-									</>
-								) : null
-							}
 						/>
-						{!isDistractionFree && isBelowLg && (
-							<MobileSettingsButton buttonRef={settingsButtonRef} />
-						)}
+						{isBelowLg && <MobileSettingsButton buttonRef={settingsButtonRef} />}
 					</fieldset>
 					<SettingsPanelToggle toggle={settingsPanel.toggle} />
-					<Button
-						variant="ghost"
-						shape="square"
-						size="sm"
-						type="button"
-						onClick={() => setIsDistractionFree((prev) => !prev)}
-						className="max-sm:w-full"
-						aria-label={
-							isDistractionFree ? t`Exit distraction-free mode` : t`Enter distraction-free mode`
-						}
-						title={
-							isDistractionFree
-								? t`Exit distraction-free mode (⌘⇧\\)`
-								: t`Distraction-free mode (⌘⇧\\)`
-						}
-					>
-						{isDistractionFree ? (
-							<ArrowsInSimple className="h-4 w-4" aria-hidden="true" />
-						) : (
-							<ArrowsOutSimple className="h-4 w-4" aria-hidden="true" />
-						)}
-					</Button>
 				</div>
 			</div>
 			{saveError && (
@@ -2145,10 +2056,7 @@ export function ContentEditor({
 				setSaveAttempted(true);
 				settingsPanel.onInvalidCapture(event);
 			}}
-			className={cn(
-				"flex h-full flex-col bg-kumo-elevated",
-				isDistractionFree && "fixed inset-0 z-50",
-			)}
+			className="flex h-full flex-col bg-kumo-elevated"
 		>
 			{hasBlocksField && (
 				<AutosavePausedNotice
@@ -2361,13 +2269,10 @@ export function ContentEditor({
 						</ScrollArea.Scrollbar>
 					</ScrollArea.Root>
 
-					{/* Hidden (not unmounted) in distraction-free mode so panel-local
-					    state survives the round trip; `hidden` on the pane's own layout
-					    element leaves no gap. */}
 					<Sidebar
 						id={settingsPanelId}
 						aria-label={t`Settings`}
-						className={cn(isDistractionFree && "hidden", settingsPanel.asideClassName)}
+						className={settingsPanel.asideClassName}
 						{...settingsPanel.asideProps}
 					>
 						<fieldset disabled={readOnly} className="contents">
@@ -2459,10 +2364,8 @@ export function ContentEditor({
 					</Sidebar>
 				</div>
 
-				{/* Below lg, opening a block detail panel must open the sheet.
-				    Suspended in distraction-free mode: the nav is hidden there but
-				    Kumo's separate backdrop would still scrim the whole screen. */}
-				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
+				{/* Below lg, opening a block detail panel must open the sheet. */}
+				<MobileBlockSidebarSync active={!!blockSidebarPanel} />
 				<MobileSidebarPortalGuard />
 				<RevisionViewSheetSync sheetRef={revisionView.sheetRef} />
 			</Sidebar.Provider>
@@ -2558,31 +2461,20 @@ function ContentEditorSettingsResizeHandle({ panelId }: { panelId: string }) {
  * space below the mobile breakpoint, and restores the sheet's prior
  * open/closed state when the block panel closes. Renders nothing.
  */
-function MobileBlockSidebarSync({ active, suspended }: { active: boolean; suspended?: boolean }) {
+function MobileBlockSidebarSync({ active }: { active: boolean }) {
 	const { isMobile, openMobile, setOpenMobile } = useSidebar();
 	const prevActiveRef = React.useRef(active);
 	const prevIsMobileRef = React.useRef(isMobile);
-	const prevSuspendedRef = React.useRef(suspended);
 	const priorOpenRef = React.useRef<boolean | null>(null);
 
 	React.useEffect(() => {
 		const becameActive = active && !prevActiveRef.current;
 		const becameInactive = !active && prevActiveRef.current;
 		const becameMobileWithActivePanel = active && isMobile && !prevIsMobileRef.current;
-		const becameUnsuspendedWithActivePanel = active && !suspended && prevSuspendedRef.current;
 		prevActiveRef.current = active;
 		prevIsMobileRef.current = isMobile;
-		prevSuspendedRef.current = suspended;
 
 		if (!isMobile) {
-			priorOpenRef.current = null;
-			if (openMobile) setOpenMobile(false);
-			return;
-		}
-
-		// While suspended (distraction-free), keep the sheet closed: its nav is
-		// display:none but the backdrop sibling would still scrim the screen.
-		if (suspended) {
 			priorOpenRef.current = null;
 			if (openMobile) setOpenMobile(false);
 			return;
@@ -2594,11 +2486,11 @@ function MobileBlockSidebarSync({ active, suspended }: { active: boolean; suspen
 			return;
 		}
 
-		if (becameActive || becameMobileWithActivePanel || becameUnsuspendedWithActivePanel) {
+		if (becameActive || becameMobileWithActivePanel) {
 			priorOpenRef.current = openMobile;
 			setOpenMobile(true);
 		}
-	}, [active, isMobile, openMobile, setOpenMobile, suspended]);
+	}, [active, isMobile, openMobile, setOpenMobile]);
 
 	return null;
 }
@@ -2786,7 +2678,7 @@ interface FieldRendererProps {
 	/** Callback when a portableText editor is ready.
 	 * Called with the editor on mount, and with `null` on unmount. */
 	onEditorReady?: (editor: Editor | null) => void;
-	/** Minimal chrome - hides toolbar, fades labels, removes borders (distraction-free mode) */
+	/** Minimal chrome - hides toolbar, fades labels, removes borders */
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
 	pluginBlocks?: PluginBlockDef[];

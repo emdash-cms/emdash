@@ -63,7 +63,6 @@ export interface SettingsPanelOptions {
 	/** Kumo's physical side, so "left" in RTL. */
 	side: Side;
 	isBelowLg: boolean;
-	isDistractionFree: boolean;
 	/** The open image or gallery detail panel, which shows a hidden panel while it lasts. */
 	blockPanel: object | null;
 	closeBlockPanel: () => void;
@@ -94,7 +93,6 @@ export function useSettingsPanel({
 	panelId,
 	side,
 	isBelowLg,
-	isDistractionFree,
 	blockPanel,
 	closeBlockPanel,
 }: SettingsPanelOptions): SettingsPanel {
@@ -134,7 +132,7 @@ export function useSettingsPanel({
 			event.preventDefault();
 			return;
 		}
-		if (!desktop || isDistractionFree || open) return;
+		if (!desktop || open) return;
 		const first = firstInvalidControl(event.currentTarget);
 		if (first !== event.target) return;
 		if (!first || !document.getElementById(panelId)?.contains(first)) return;
@@ -173,12 +171,9 @@ export function useSettingsPanel({
 		},
 		// Kumo's collapsed content container keeps its 1px border at width 0. Clip it.
 		asideClassName: collapsed ? "overflow-hidden" : undefined,
-		listVisible: desktop && !isDistractionFree && open,
+		listVisible: desktop && open,
 		onInvalidCapture,
-		toggle:
-			desktop && !isDistractionFree
-				? { open, side, controls: panelId, ref: toggleRef, onClick }
-				: null,
+		toggle: desktop ? { open, side, controls: panelId, ref: toggleRef, onClick } : null,
 	};
 }
 

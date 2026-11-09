@@ -3508,7 +3508,7 @@ export interface PortableTextEditorProps {
 	"aria-labelledby"?: string;
 	/** Plugin blocks available for insertion via slash commands */
 	pluginBlocks?: PluginBlockDef[];
-	/** Focus mode - controlled from parent for distraction-free mode coordination */
+	/** Focus mode - controlled from parent */
 	focusMode?: FocusMode;
 	/** Callback when focus mode changes */
 	onFocusModeChange?: (mode: FocusMode) => void;
@@ -3516,7 +3516,7 @@ export interface PortableTextEditorProps {
 	 * Called with the editor on mount, and with `null` on unmount so consumers
 	 * can clear stale references (e.g. before the next instance mounts). */
 	onEditorReady?: (editor: Editor | null) => void;
-	/** Minimal chrome - hides toolbar, border, footer (distraction-free mode) */
+	/** Minimal chrome - hides toolbar, border, footer */
 	minimal?: boolean;
 	/** Callback when a block node requests sidebar space (e.g. image settings) */
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;

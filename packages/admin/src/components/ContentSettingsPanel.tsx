@@ -307,32 +307,21 @@ function TimestampRow({
 
 /**
  * Secondary actions keep only their icons in narrow editor bars and fill a
- * grid cell on mobile. Distraction-free actions give up their labels first.
+ * grid cell on mobile.
  */
 export const compactBarButtonClassName =
 	"@max-2xl/editor-bar:sm:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0 max-sm:w-full";
 export const compactBarLabelClassName = "@max-2xl/editor-bar:sr-only";
-const compactBarExtraButtonClassName =
-	"@max-[60rem]/editor-bar:sm:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0 max-sm:w-full";
-const compactBarExtraLabelClassName = "@max-[60rem]/editor-bar:sr-only";
 
-/**
- * Discard-draft confirmation shared by the settings panel and the
- * distraction-free bar, so the copy and behavior can't drift.
- */
+/** Discard-draft confirmation for the settings panel's publishing rows. */
 export function DiscardDraftDialog({
 	onDiscard,
-	triggerVariant = "ghost",
 	triggerSize,
-	compact,
 	disabled,
 }: {
 	/** Return the request's promise to keep the confirmation open until it lands. */
 	onDiscard?: () => Promise<unknown> | void;
-	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
-	/** Shows only the icon on small screens, for the editor bar. */
-	compact?: boolean;
 	disabled?: boolean;
 }) {
 	const { t } = useLingui();
@@ -341,16 +330,13 @@ export function DiscardDraftDialog({
 		<>
 			<Button
 				type="button"
-				variant={triggerVariant}
+				variant="ghost"
 				size={triggerSize}
 				disabled={disabled}
-				className={compact ? compactBarExtraButtonClassName : undefined}
 				icon={<X />}
 				onClick={discard.show}
 			>
-				<span className={compact ? compactBarExtraLabelClassName : undefined}>
-					{t`Discard changes`}
-				</span>
+				{t`Discard changes`}
 			</Button>
 			<ConfirmDialog
 				{...discard.dialog}
@@ -388,9 +374,6 @@ export interface EditorActionsProps {
 	onPreview?: () => void;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
-	onMenuOpenChange?: (open: boolean) => void;
-	/** Shown before Publish, e.g. scheduling while the settings panel is hidden. */
-	beforePublish?: React.ReactNode;
 }
 
 export interface PreviewButtonProps {
@@ -440,7 +423,6 @@ export interface PublishActionsProps {
 	disabled?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
-	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
 	/** In the editor's bar, which shortens or hides the labels when it's narrow. */
 	compact?: boolean;
@@ -456,24 +438,11 @@ export function PublishActions({
 	disabled,
 	onPublish,
 	onUnpublish,
-	onMenuOpenChange,
 	size,
 	compact,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 	const [publishOpen, setPublishOpen] = React.useState(false);
-	const publishOpenRef = React.useRef(publishOpen);
-	publishOpenRef.current = publishOpen;
-	React.useEffect(
-		() => () => {
-			if (publishOpenRef.current) onMenuOpenChange?.(false);
-		},
-		[onMenuOpenChange],
-	);
-	const setConfirmationOpen = (open: boolean) => {
-		setPublishOpen(open);
-		onMenuOpenChange?.(open);
-	};
 	const itemLabel = collectionLabel ?? t`content`;
 	const state =
 		publishingState ??
@@ -511,7 +480,7 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+		<LayerDialog.Root open={publishOpen} onOpenChange={setPublishOpen}>
 			<LayerDialog.Trigger
 				disabled={disabled}
 				render={
@@ -551,7 +520,7 @@ export function PublishActions({
 						disabled={disabled}
 						aria-label={publishLabel}
 						onClick={() => {
-							setConfirmationOpen(false);
+							setPublishOpen(false);
 							onPublish();
 						}}
 					>
@@ -571,7 +540,6 @@ export interface ScheduleActionsProps {
 	disabled?: boolean;
 	onOpenSchedule?: () => void;
 	onUnschedule?: () => void | Promise<void>;
-	inline?: boolean;
 }
 
 export function ScheduleActions({
@@ -582,7 +550,6 @@ export function ScheduleActions({
 	disabled,
 	onOpenSchedule,
 	onUnschedule,
-	inline,
 }: ScheduleActionsProps) {
 	const { t } = useLingui();
 	const hasSchedule =
@@ -595,20 +562,14 @@ export function ScheduleActions({
 
 	return (
 		<div
-			className={cn(
-				inline ? "contents" : "mt-3 grid gap-2",
-				!inline && (showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1"),
-			)}
+			className={cn("mt-3 grid gap-2", showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1")}
 		>
 			{showSchedule ? (
 				<Button
 					type="button"
 					variant="outline"
 					size="sm"
-					className={cn(
-						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
-						inline ? compactBarExtraButtonClassName : "w-full",
-					)}
+					className="w-full min-w-0 justify-center overflow-hidden whitespace-nowrap"
 					icon={
 						hasSchedule ? <CalendarDots aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />
 					}
@@ -616,9 +577,7 @@ export function ScheduleActions({
 					disabled={disabled || isUnscheduling}
 					onClick={onOpenSchedule}
 				>
-					<span className={inline ? compactBarExtraLabelClassName : undefined}>
-						{hasSchedule ? t`Change schedule` : t`Schedule`}
-					</span>
+					{hasSchedule ? t`Change schedule` : t`Schedule`}
 				</Button>
 			) : null}
 			{showRemove ? (
@@ -626,18 +585,13 @@ export function ScheduleActions({
 					type="button"
 					variant="secondary-destructive"
 					size="sm"
-					className={cn(
-						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
-						inline ? compactBarExtraButtonClassName : "w-full",
-					)}
+					className="w-full min-w-0 justify-center overflow-hidden whitespace-nowrap"
 					icon={<CalendarX aria-hidden="true" />}
 					loading={isUnscheduling}
 					disabled={disabled || isScheduling}
 					onClick={() => void Promise.resolve(onUnschedule?.()).catch(() => undefined)}
 				>
-					<span
-						className={inline ? compactBarExtraLabelClassName : undefined}
-					>{t`Remove schedule`}</span>
+					{t`Remove schedule`}
 				</Button>
 			) : null}
 		</div>
@@ -673,8 +627,6 @@ export function EditorActions({
 	onPreview,
 	onPublish,
 	onUnpublish,
-	onMenuOpenChange,
-	beforePublish,
 }: EditorActionsProps) {
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
@@ -739,7 +691,6 @@ export function EditorActions({
 					onPreview={onPreview}
 				/>
 			)}
-			{beforePublish}
 			{!isNew && (
 				<PublishActions
 					collectionLabel={collectionLabel}
@@ -751,7 +702,6 @@ export function EditorActions({
 					disabled={publishDisabled}
 					onPublish={onPublish}
 					onUnpublish={onUnpublish}
-					onMenuOpenChange={onMenuOpenChange}
 					size="sm"
 					compact
 				/>
