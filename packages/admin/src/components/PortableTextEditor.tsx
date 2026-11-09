@@ -163,12 +163,12 @@ import {
 	PortableTextStarterKit,
 	PortableTextTable,
 	PortableTextTextAlign,
-	PortableTextYSync,
 	SubscriptMark,
 	SuperscriptMark,
 	TableIdentity,
 	TopBlockDocument,
 } from "../portable-text/schema.js";
+import { PortableTextYSync } from "../portable-text/y-sync.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { DialogError } from "./DialogError.js";
