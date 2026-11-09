@@ -1072,7 +1072,6 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = useKumoToastManager();
 	const isEditorDirtyRef = React.useRef(false);
-	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
 	const [editorItemReset, setEditorItemReset] = React.useState({
 		entryId: "",
 		token: 0,
@@ -1086,11 +1085,7 @@ function ContentEditPage() {
 	);
 	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
 		isEditorDirtyRef.current = isDirty;
-		setIsEditorDirty(isDirty);
 	}, []);
-	// The ref is updated synchronously from editor interaction callbacks so a
-	// clean refetch that resolves in the same render batch as an edit still sees
-	// dirty=true when the token adoption layout effect runs.
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1147,14 +1142,20 @@ function ContentEditPage() {
 		},
 		[],
 	);
+	// Explicit resets can apply a read while the parent still sees a dirty form.
+	const handleEditorItemApplied = React.useCallback(
+		(item: ContentItem) => {
+			const storedVersion = revisionVersionsRef.current.get(item.id);
+			if (shouldAdoptRevision(storedVersion, item._rev)) {
+				recordWriteRevision(item.id, item);
+			}
+		},
+		[recordWriteRevision],
+	);
 	React.useLayoutEffect(() => {
-		if (!rawItem?._rev) return;
-		if (isEditorDirtyRef.current) return;
-		const storedVersion = revisionVersionsRef.current.get(rawItem.id);
-		if (shouldAdoptRevision(storedVersion, rawItem._rev)) {
-			recordWriteRevision(rawItem.id, rawItem);
-		}
-	}, [rawItem?._rev, rawItem?.id, isEditorDirty, recordWriteRevision]);
+		if (!rawItem?._rev || isEditorDirtyRef.current) return;
+		handleEditorItemApplied(rawItem);
+	}, [rawItem?._rev, rawItem?.id, handleEditorItemApplied]);
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
 	// Written together with the conflict state rather than on render, so a save
@@ -2051,6 +2052,7 @@ function ContentEditPage() {
 			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onDirtyChange={handleEditorDirtyChange}
+			onItemApplied={handleEditorItemApplied}
 			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
 			itemResetDiscards={editorItemReset.entryId === id && editorItemReset.discarded}
 			onSave={handleSave}
