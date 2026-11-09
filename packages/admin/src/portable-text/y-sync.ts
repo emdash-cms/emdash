@@ -1,5 +1,8 @@
 /**
- * Keeps y-tiptap from replacing a shared block when a local change adds a
+ * Works around two y-tiptap behaviors that lose or misplace another client's
+ * work.
+ *
+ * It keeps y-tiptap from replacing a shared block when a local change adds a
  * block before it.
  *
  * When a change adds a block before a block it also changes, as lifting the
@@ -10,6 +13,13 @@
  * y-tiptap writes, this updates each such element from the node of the same
  * type, counting from the end of the changed run, so y-tiptap finds it
  * unchanged and keeps it.
+ *
+ * It also keeps the caret with its text when another client edits the same
+ * paragraph. After a remote change, y-tiptap treats a caret in a paragraph
+ * whose text changed as misplaced and puts it back at its old offset, so text
+ * typed before it pushes the caret off its word. While the caret's text node
+ * still exists, its relative position is exact, and the caret goes there.
+ * y-tiptap's own recovery still handles a caret whose text node is gone.
  *
  * Server-safe: nothing here touches the DOM, React or `crypto` when loaded.
  */
@@ -138,6 +148,50 @@ function alignBeforeWrites(binding: ProsemirrorBinding) {
 	};
 }
 
+/** Whether a relative position is in a text node that still exists. */
+function inLiveText(binding: ProsemirrorBinding, relative: Y.RelativePosition): boolean {
+	const decoded = Y.createAbsolutePositionFromRelativePosition(relative, binding.doc);
+	if (!decoded || !(decoded.type instanceof Y.XmlText)) return false;
+	let item: Y.Item | null = decoded.type._item;
+	while (item) {
+		if (item.deleted) return false;
+		item = item.parent instanceof Y.AbstractType ? item.parent._item : null;
+	}
+	return true;
+}
+
+const followed = new WeakSet<ProsemirrorBinding>();
+
+/**
+ * y-tiptap moves the selection by its old absolute positions only while they are in the old
+ * document, so putting them out of it for a caret whose text node survived leaves the caret at its
+ * relative position.
+ */
+function followRemoteEdits(binding: ProsemirrorBinding) {
+	if (followed.has(binding)) return;
+	followed.add(binding);
+	const observe = binding._observeFunction;
+	const observeAndFollow: typeof observe = (events, transaction) => {
+		const selection = binding.beforeTransactionSelection;
+		if (
+			selection?.type === "text" &&
+			transaction.origin !== ySyncPluginKey &&
+			!(transaction.origin instanceof Y.UndoManager) &&
+			inLiveText(binding, selection.anchor) &&
+			inLiveText(binding, selection.head)
+		) {
+			binding.beforeTransactionSelection = { ...selection, absAnchor: -1, absHead: -1 };
+		}
+		observe(events, transaction);
+	};
+	// y-tiptap observes with the function it bound when it was made, and starts once it has a view.
+	if (binding.prosemirrorView) {
+		binding.type.unobserveDeep(observe);
+		binding.type.observeDeep(observeAndFollow);
+	}
+	(binding as { _observeFunction: typeof observe })._observeFunction = observeAndFollow;
+}
+
 export const PortableTextYSync = Extension.create({
 	name: "emdashPortableTextYSync",
 
@@ -146,7 +200,10 @@ export const PortableTextYSync = Extension.create({
 			new Plugin({
 				view(view) {
 					const binding = ySyncPluginKey.getState(view.state)?.binding;
-					if (binding) alignBeforeWrites(binding);
+					if (binding) {
+						alignBeforeWrites(binding);
+						followRemoteEdits(binding);
+					}
 					return {};
 				},
 			}),
