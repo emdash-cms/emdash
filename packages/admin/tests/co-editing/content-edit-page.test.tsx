@@ -173,7 +173,7 @@ function createServer(initial: ContentItem) {
 		/** The reference field's entries, as a read returns them. */
 		authors: AUTHORS,
 		/** Answers a reference save in place of the server, when it returns a response. */
-		answerReferenceWrite: null as (() => Response | undefined) | null,
+		answerReferenceWrite: null as (() => Response | Promise<Response> | undefined) | null,
 		requests: [] as RecordedRequest[],
 		/** Requests other than reads, and the room's saves, in the order they happened. */
 		log: [] as string[],
@@ -422,6 +422,56 @@ describe("operations in a room", () => {
 				"DELETE /_emdash/api/content/posts/post_1",
 			]),
 		);
+	});
+
+	it("publishes a reference edit still on its way once its save lands", async () => {
+		const { screen, server } = await openInRoom(entry());
+		let land = () => {};
+		server.answerReferenceWrite = () => {
+			server.answerReferenceWrite = null;
+			return new Promise((resolve) => {
+				land = () => {
+					server.log.push("PUT landed");
+					resolve(json({ data: { item: server.item, _rev: "rev-server" } }));
+				};
+			});
+		};
+
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+		await vi.waitFor(() => expect(server.log).toEqual(["PUT /_emdash/api/content/posts/post_1"]));
+		await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+		await confirm(screen, "Publish changes?", "Publish changes");
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(server.log).toEqual(["PUT /_emdash/api/content/posts/post_1"]);
+
+		land();
+		await vi.waitFor(() =>
+			expect(server.log).toEqual([
+				"PUT /_emdash/api/content/posts/post_1",
+				"PUT landed",
+				"whenCovered save=true",
+				"POST /_emdash/api/content/posts/post_1/publish",
+			]),
+		);
+	});
+
+	it("doesn't publish a reference edit whose save fails, and says why", async () => {
+		const { screen, server } = await openInRoom(entry(), {
+			prepare: (fake) => (fake.refuseWrites = true),
+		});
+
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+		await expect.element(screen.getByText("Not allowed")).toBeVisible();
+		await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+		await confirm(screen, "Publish changes?", "Publish changes");
+
+		await expect
+			.element(screen.getByText("Your edits couldn’t be saved, so this didn’t run. Try again."))
+			.toBeVisible();
+		expect(server.log).toEqual([
+			"PUT /_emdash/api/content/posts/post_1",
+			"PUT /_emdash/api/content/posts/post_1",
+		]);
 	});
 
 	it("doesn't publish when the room refuses the save, and says why", async () => {

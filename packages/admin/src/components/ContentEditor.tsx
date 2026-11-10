@@ -149,6 +149,8 @@ import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 const AUTOSAVE_DELAY = 2000;
 /** How long a link waits for the room to save this tab's edits before asking to leave. */
 const ROOM_LEAVE_WAIT_MS = 3000;
+/** How long an operation on the draft waits for a reference change to save before it's refused. */
+const ROOM_REFERENCE_WAIT_MS = 30_000;
 /** Editor-draft captures a plugin's response can still name in a room. */
 const ROOM_DRAFT_CAPTURES_KEPT = 16;
 // Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
@@ -442,7 +444,6 @@ type ReferenceGroupState = {
 	error?: boolean;
 };
 
-/** Seed reference state from a hydrated item (first page per reference field). */
 interface OutsideListChanges {
 	bylines?: BylineCreditInput[];
 	references?: Record<string, string[]>;
@@ -499,6 +500,7 @@ function toReferenceRows(children: EntryRef[]): ReferenceEntryRow[] {
 	}));
 }
 
+/** Seed reference state from a hydrated item (first page per reference field). */
 function seedReferenceState(item?: ContentItem | null): Record<string, ReferenceGroupState> {
 	const out: Record<string, ReferenceGroupState> = {};
 	const refs = item?.references;
@@ -757,6 +759,11 @@ export interface ContentEditorProps {
 	readFormRef?: React.RefObject<
 		(() => { data: Record<string, unknown>; slug: string | null }) | null
 	>;
+	/**
+	 * In a room: set to send the reference changes this tab hasn't saved yet, resolving whether the
+	 * server has all of them.
+	 */
+	sendReferencesRef?: React.RefObject<(() => Promise<boolean>) | null>;
 }
 
 /**
@@ -830,6 +837,7 @@ export function ContentEditor({
 	onSaveOutsideValues,
 	onPreviewNotSaved,
 	readFormRef,
+	sendReferencesRef,
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -920,6 +928,20 @@ export function ContentEditor({
 		if (!savers || savers.identity !== editorIdentityRef.current) return [];
 		return [savers.bylines, ...savers.references.values()] as ListSaver<unknown>[];
 	}, []);
+	React.useImperativeHandle(
+		sendReferencesRef,
+		() => async () => {
+			const savers = saversRef.current;
+			if (!savers || savers.identity !== editorIdentityRef.current) return true;
+			const references = [...savers.references.values()];
+			for (const saver of references) saver.retry();
+			const sent = await Promise.all(
+				references.map((saver) => settledWithin(saver, ROOM_REFERENCE_WAIT_MS)),
+			);
+			return sent.every(Boolean);
+		},
+		[],
+	);
 	const outsideListSavers = React.useCallback((): OutsideListSavers => {
 		const identity = editorIdentityRef.current;
 		if (saversRef.current?.identity === identity) return saversRef.current;
@@ -1458,9 +1480,9 @@ export function ContentEditor({
 	 * reports whether the edits are saved or a save on its way carries all of them.
 	 */
 	const saveBeforeLeaving = React.useCallback((): boolean | Promise<boolean> => {
+		if (editsNotKeptRef.current) return false;
 		// The room saves 2 s after the last update, so waiting a little usually saves the edits.
 		if (room) {
-			if (editsNotKeptRef.current) return false;
 			// A byline or reference change whose save failed gets one more try on the way out.
 			const lists = currentListSavers();
 			for (const saver of lists) saver.retry();
@@ -4280,9 +4302,8 @@ function withRoomAutoSlug(
 		: { [titleField]: title };
 }
 
-/** Whether a checkpoint covers the room's edits within `ms`. Never rejects. */
 /** Whether a list saver has nothing left to send within `ms`. */
-function settledWithin(saver: ListSaver<unknown>, ms: number): Promise<boolean> {
+function settledWithin<T>(saver: ListSaver<T>, ms: number): Promise<boolean> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const timeout = new Promise<boolean>((resolve) => {
 		timer = setTimeout(resolve, ms, false);
@@ -4290,6 +4311,7 @@ function settledWithin(saver: ListSaver<unknown>, ms: number): Promise<boolean> 
 	return Promise.race([saver.whenSettled(), timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Whether a checkpoint covers the room's edits within `ms`. Never rejects. */
 function coveredWithin(room: RoomEditing, ms: number): Promise<boolean> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const timeout = new Promise<boolean>((resolve) => {

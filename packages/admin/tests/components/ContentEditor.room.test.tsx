@@ -242,6 +242,14 @@ describe("ContentEditor in a room", () => {
 		await expect.poll(() => blocker.options?.disabled).toBe(true);
 	});
 
+	it("guards leaving while edits from before joining aren't kept, once the room is gone", async () => {
+		await renderEditor(null, { unkeptEdits: true });
+		const leave = { current: { pathname: "/content/posts/item-1" }, next: { pathname: "/" } };
+
+		await expect.poll(() => blocker.options?.disabled).toBe(false);
+		expect(await blocker.options!.shouldBlockFn(leave)).toBe(true);
+	});
+
 	it("keeps the fields' height while they load after a reset, so the page doesn't scroll", async () => {
 		const fields: Record<string, FieldDescriptor> = Object.fromEntries(
 			Array.from({ length: 12 }, (_, index) => [

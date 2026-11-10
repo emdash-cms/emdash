@@ -1363,20 +1363,24 @@ function ContentEditPage() {
 		retrying: boolean;
 	} | null>(null);
 	if (unkeptEdits && unkeptEdits.identity !== revisionIdentity) setUnkeptEdits(null);
+	const shownIdentityRef = React.useRef(revisionIdentity);
+	shownIdentityRef.current = revisionIdentity;
+	// A recovery that lands after a switch to another entry leaves that entry's edits alone.
 	const keepEdits = async (identity: string, form: RecoveryInput) => {
 		try {
 			await saveRecoveryRevision({ collection, id, locale: activeLocale }, form);
 		} catch (error) {
-			setUnkeptEdits({
-				identity,
-				form,
-				error: error instanceof Error ? error.message : t`An error occurred`,
-				retrying: false,
-			});
+			const message = error instanceof Error ? error.message : t`An error occurred`;
+			setUnkeptEdits((current) =>
+				current?.identity === identity ||
+				(current === null && shownIdentityRef.current === identity)
+					? { identity, form, error: message, retrying: false }
+					: current,
+			);
 			return;
 		}
-		setUnkeptEdits(null);
-		handleRoomEvent({ kind: "recovered" });
+		setUnkeptEdits((current) => (current?.identity === identity ? null : current));
+		if (shownIdentityRef.current === identity) handleRoomEvent({ kind: "recovered" });
 	};
 	let roomSync: SyncProblem | null | undefined;
 	if (coEditing.mode === "pending") {
@@ -1402,20 +1406,25 @@ function ContentEditPage() {
 	} else if (roomView) {
 		roomSync = roomView.offline ? { kind: "offline" } : null;
 	}
-	const prepareRoomOperation = React.useCallback(async () => {
-		const room = roomRef.current;
-		if (!room) return;
-		try {
-			await room.whenCovered({ save: true });
-		} catch (error) {
-			throw new Error(
-				error instanceof RoomSaveError && error.reason === "refused"
-					? error.message
-					: t`Your edits couldn’t be saved, so this didn’t run. Try again.`,
-				{ cause: error },
-			);
-		}
-	}, [t]);
+	const sendReferencesRef = React.useRef<(() => Promise<boolean>) | null>(null);
+	/** With `draft`, for an operation that takes the draft, which a reference change saves to. */
+	const prepareRoomOperation = React.useCallback(
+		async ({ draft = false }: { draft?: boolean } = {}) => {
+			const room = roomRef.current;
+			if (!room) return;
+			const notSaved = t`Your edits couldn’t be saved, so this didn’t run. Try again.`;
+			if (draft && !(await (sendReferencesRef.current?.() ?? true))) throw new Error(notSaved);
+			try {
+				await room.whenCovered({ save: true });
+			} catch (error) {
+				throw new Error(
+					error instanceof RoomSaveError && error.reason === "refused" ? error.message : notSaved,
+					{ cause: error },
+				);
+			}
+		},
+		[t],
+	);
 	const inRoom = roomView !== null;
 	const roomOperations = React.useMemo(
 		() => ({ prepare: prepareRoomOperation, blocked: roomBlocked, inRoom }),
@@ -2279,7 +2288,7 @@ function ContentEditPage() {
 				// Only a room publishes without a payload: it saves the edits, and the route publishes
 				// that save.
 				if (!payload) {
-					await prepareRoomOperation().catch(failWithToast(t`Failed to publish`));
+					await prepareRoomOperation({ draft: true }).catch(failWithToast(t`Failed to publish`));
 					await publishMutation.mutateAsync({ revision: undefined, savedReferences: false });
 					return;
 				}
@@ -2380,7 +2389,7 @@ function ContentEditPage() {
 				references?: Record<string, string[]>;
 			},
 		) => {
-			if (roomRef.current) await prepareRoomOperation();
+			if (roomRef.current) await prepareRoomOperation({ draft: true });
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
 				return updateMutation.mutateAsync({
@@ -2643,6 +2652,7 @@ function ContentEditPage() {
 			onSaveOutsideValues={saveOutsideValues}
 			onPreviewNotSaved={handlePreviewNotSaved}
 			readFormRef={readFormRef}
+			sendReferencesRef={sendReferencesRef}
 		/>
 	);
 	return (
