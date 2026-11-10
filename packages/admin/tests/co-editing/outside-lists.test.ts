@@ -89,6 +89,29 @@ function harness(server: Credit[]) {
 const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 describe("ListSaver", () => {
+	it("keeps the rows past the start of the list in its base when it adopts only that start", async () => {
+		const list = harness([credit("a"), credit("b"), credit("c")]);
+		list.change([credit("a"), credit("b"), credit("c"), credit("d")]);
+		await flush();
+		list.replies[0]!.reject(new Error("Refused"));
+		await flush();
+
+		// A refetch shows only the list's first row, so the rest can't tell what changed.
+		const shown = list.saver.adopt(
+			[credit("a")],
+			[credit("a"), credit("b"), credit("c"), credit("d")],
+			false,
+		);
+		expect(ids(shown)).toEqual(["a", "b", "c", "d"]);
+		// Another editor removes c, further down the list.
+		list.setServer([credit("a"), credit("b")]);
+		list.change([...shown, credit("e")]);
+		await flush();
+		list.replies[1]!.resolve();
+		await flush();
+		expect(list.sent.map(ids).at(-1)).toEqual(["a", "b", "d", "e"]);
+	});
+
 	it("sends one save at a time, the later change re-based on the earlier one", async () => {
 		const list = harness([]);
 		list.change([credit("a")]);

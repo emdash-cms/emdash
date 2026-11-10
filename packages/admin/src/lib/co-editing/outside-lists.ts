@@ -96,7 +96,11 @@ export class ListSaver<T> {
 		if (this.#sending) return shown;
 		if (this.#base === null) return latest;
 		const merged = rebaseList(this.#base, shown, latest, this.#options, complete);
-		this.#base = [...latest];
+		// Past the start of the list, the server's rows are still the ones the old base holds.
+		const seen = new Set(latest.map(this.#options.key));
+		this.#base = complete
+			? [...latest]
+			: [...latest, ...this.#base.filter((item) => !seen.has(this.#options.key(item)))];
 		return merged;
 	}
 
