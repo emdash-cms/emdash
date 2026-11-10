@@ -1404,7 +1404,7 @@ function ContentEditPage() {
 			reload: coEditing.mode === "room" ? roomView.reload : () => window.location.reload(),
 		};
 	} else if (roomView) {
-		roomSync = roomView.offline ? { kind: "offline" } : null;
+		roomSync = roomView.offline ? { kind: "offline", unreachable: roomView.unreachable } : null;
 	}
 	const sendReferencesRef = React.useRef<(() => Promise<boolean>) | null>(null);
 	/** With `draft`, for an operation that takes the draft, which a reference change saves to. */

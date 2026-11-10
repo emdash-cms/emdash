@@ -229,6 +229,20 @@ describe("closes and retries", () => {
 		expect(room.doc.getMap("fields").get("title")).toBe("Offline edit");
 	});
 
+	it("says the room can't be reached, not that the browser is offline, while joins fail online", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		await settle();
+		for (let attempt = 0; attempt < 10; attempt++) s.answer({ kind: "failed" });
+		room.sockets[0]!.serverClose(1011);
+		await settle();
+		await s.after(5000);
+		expect(roomView(s.view())).toMatchObject({ offline: true, unreachable: true });
+
+		s.setOnline(false);
+		expect(roomView(s.view())).toMatchObject({ offline: true, unreachable: false });
+	});
+
 	it("waits for the network when the first join fails offline, then joins the room", async () => {
 		const room = new LoopbackRoom();
 		const s = open(room);

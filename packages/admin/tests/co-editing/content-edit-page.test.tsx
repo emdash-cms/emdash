@@ -55,6 +55,7 @@ function roomView(fake: FakeRoom): CoEditing {
 		access: "edit",
 		editable: true,
 		offline: false,
+		unreachable: false,
 		kept: null,
 		reload: vi.fn(),
 		manifest: MANIFEST,
@@ -998,6 +999,18 @@ describe("joining a room from single-editor mode", () => {
 		} finally {
 			writeText.mockRestore();
 		}
+	});
+});
+
+describe("a room that's out of reach", () => {
+	it("says EmDash can't be reached, not that the browser is offline, while it's online", async () => {
+		const { screen, fake } = await openInRoom(entry());
+
+		show({ ...roomView(fake), offline: true, unreachable: true });
+		await screen.getByRole("button", { name: "Offline" }).click();
+
+		await expect.element(screen.getByRole("dialog", { name: "Can’t reach EmDash" })).toBeVisible();
+		expect(screen.getByText("You’re offline").query()).toBeNull();
 	});
 });
 

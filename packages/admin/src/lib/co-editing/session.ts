@@ -767,6 +767,7 @@ export function createCoEditingSession(
 		const away = "away" in state ? state.away : null;
 		const now = deps.clock.now();
 		const offline = away !== null && now - away.since >= OFFLINE_NOTICE_MS;
+		const unreachable = offline && deps.online();
 		replica?.setOffline(offline);
 		clearTimer("offline");
 		if (away && !offline) {
@@ -778,10 +779,16 @@ export function createCoEditingSession(
 				away.since + OFFLINE_NOTICE_MS - now,
 			);
 		}
-		const inputs = [state, offline, replica];
+		const inputs = [state, offline, unreachable, replica];
 		if (inputs.every((input, index) => input === viewInputs[index])) return;
 		viewInputs = inputs;
-		view = sessionView(state, offline, replica?.editing ?? null, options.manifest, actions);
+		view = sessionView(
+			state,
+			{ offline, unreachable },
+			replica?.editing ?? null,
+			options.manifest,
+			actions,
+		);
 		for (const listener of listeners) listener();
 	}
 
@@ -838,7 +845,7 @@ export function createCoEditingSession(
 
 function sessionView(
 	state: SessionState,
-	offline: boolean,
+	{ offline, unreachable }: { offline: boolean; unreachable: boolean },
 	editing: RoomEditing | null,
 	manifest: AdminManifest,
 	actions: {
@@ -864,6 +871,7 @@ function sessionView(
 		access: synced.access,
 		editable: edit && state.kind !== "recovering",
 		offline,
+		unreachable,
 		kept: state.kind === "kept" ? state.reason : null,
 		reload: actions.reload,
 		manifest,

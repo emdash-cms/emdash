@@ -23,6 +23,8 @@ export type CoEditing =
 			readonly editable: boolean;
 			/** Disconnected for 5 s or more. */
 			readonly offline: boolean;
+			/** With `offline`: the browser still has a network connection, so the server can't be reached. */
+			readonly unreachable: boolean;
 			/** Disconnected for good. The edits stay in the tab, but none are sent. */
 			readonly kept: "access" | "deleted" | "recovery-failed" | null;
 			/** Reloads the admin, from `kept`. */

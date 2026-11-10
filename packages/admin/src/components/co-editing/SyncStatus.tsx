@@ -9,7 +9,11 @@ import { cn } from "../../lib/utils";
 /** A room state the save button shows in place of Save, and explains when selected. */
 export type SyncProblem =
 	| { readonly kind: "joining"; readonly waiting: boolean }
-	| { readonly kind: "offline" }
+	| {
+			readonly kind: "offline";
+			/** The browser still has a network connection, so the server can't be reached. */
+			readonly unreachable?: boolean;
+	  }
 	| { readonly kind: "not-saved"; readonly reason: KeptReason; readonly reload: () => void }
 	| {
 			/** Edits from before joining that a recovery revision couldn't keep. */
@@ -142,6 +146,13 @@ function SyncExplanation({ problem, readOnly }: { problem: SyncProblem; readOnly
 				: t`Connecting to the live version of this entry.`;
 			break;
 		case "offline":
+			if (problem.unreachable) {
+				title = t`Can’t reach EmDash`;
+				body = readOnly
+					? t`Other people’s edits show here again once EmDash can be reached.`
+					: t`Keep typing. Your edits stay in this tab and save once EmDash can be reached again, so keep the tab open. Until then, you can’t publish or preview.`;
+				break;
+			}
 			title = t`You’re offline`;
 			body = readOnly
 				? t`Other people’s edits show here again once you’re back online.`
