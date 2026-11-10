@@ -58,6 +58,7 @@ import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
 import { RelationList } from "./components/RelationList";
+import { RequireAdmin } from "./components/RequireAdmin.js";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -70,6 +71,7 @@ import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
+import { SidebarsSettings } from "./components/settings/SidebarsSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
 import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
@@ -148,6 +150,7 @@ import {
 	type RevisionListItem,
 	type RevisionListResponse,
 } from "./lib/api";
+import { useAdminLayout } from "./lib/api/admin-layout.js";
 import {
 	fetchComments,
 	fetchCommentCounts,
@@ -502,8 +505,13 @@ function RootComponent() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	// The navigation follows the user's sidebar layout, so wait for the first
+	// load of the user. Later resets (authorization recovery) must not unmount the admin.
+	const currentUser = useCurrentUser();
+	const [userSettled, setUserSettled] = React.useState(false);
+	if (!userSettled && !currentUser.isLoading) setUserSettled(true);
 
-	if (isLoading) {
+	if (isLoading || !userSettled) {
 		return <ConfigurationLoadingScreen />;
 	}
 
@@ -898,6 +906,7 @@ function ContentNewPage() {
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1034,6 +1043,7 @@ function ContentNewPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -1071,7 +1081,6 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = useKumoToastManager();
 	const isEditorDirtyRef = React.useRef(false);
-	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
 	const [editorItemReset, setEditorItemReset] = React.useState({
 		entryId: "",
 		token: 0,
@@ -1085,11 +1094,7 @@ function ContentEditPage() {
 	);
 	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
 		isEditorDirtyRef.current = isDirty;
-		setIsEditorDirty(isDirty);
 	}, []);
-	// The ref is updated synchronously from editor interaction callbacks so a
-	// clean refetch that resolves in the same render batch as an edit still sees
-	// dirty=true when the token adoption layout effect runs.
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1112,6 +1117,7 @@ function ContentEditPage() {
 			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	// Nothing is withheld until the current user has loaded; the server still
 	// refuses what the role can't do.
@@ -1146,14 +1152,20 @@ function ContentEditPage() {
 		},
 		[],
 	);
+	// Explicit resets can apply a read while the parent still sees a dirty form.
+	const handleEditorItemApplied = React.useCallback(
+		(item: ContentItem) => {
+			const storedVersion = revisionVersionsRef.current.get(item.id);
+			if (shouldAdoptRevision(storedVersion, item._rev)) {
+				recordWriteRevision(item.id, item);
+			}
+		},
+		[recordWriteRevision],
+	);
 	React.useLayoutEffect(() => {
-		if (!rawItem?._rev) return;
-		if (isEditorDirtyRef.current) return;
-		const storedVersion = revisionVersionsRef.current.get(rawItem.id);
-		if (shouldAdoptRevision(storedVersion, rawItem._rev)) {
-			recordWriteRevision(rawItem.id, rawItem);
-		}
-	}, [rawItem?._rev, rawItem?.id, isEditorDirty, recordWriteRevision]);
+		if (!rawItem?._rev || isEditorDirtyRef.current) return;
+		handleEditorItemApplied(rawItem);
+	}, [rawItem?._rev, rawItem?.id, handleEditorItemApplied]);
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
 	// Written together with the conflict state rather than on render, so a save
@@ -2050,6 +2062,7 @@ function ContentEditPage() {
 			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onDirtyChange={handleEditorDirtyChange}
+			onItemApplied={handleEditorItemApplied}
 			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
 			itemResetDiscards={editorItemReset.entryId === id && editorItemReset.discarded}
 			onSave={handleSave}
@@ -2076,9 +2089,11 @@ function ContentEditPage() {
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
+			supportsScheduling={!collectionConfig.supports.includes("no-scheduling")}
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}
@@ -2624,7 +2639,11 @@ function SecuritySettingsWrapper() {
 const allowedDomainsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/allowed-domains",
-	component: AllowedDomainsSettings,
+	component: () => (
+		<RequireAdmin>
+			<AllowedDomainsSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Allowed Domains` },
 });
 
@@ -2632,7 +2651,11 @@ const allowedDomainsSettingsRoute = createRoute({
 const apiTokenSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/api-tokens",
-	component: ApiTokenSettings,
+	component: () => (
+		<RequireAdmin>
+			<ApiTokenSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`API Tokens` },
 });
 
@@ -2640,7 +2663,11 @@ const apiTokenSettingsRoute = createRoute({
 const emailSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/email",
-	component: EmailSettings,
+	component: () => (
+		<RequireAdmin>
+			<EmailSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Email Settings` },
 });
 
@@ -2648,7 +2675,11 @@ const emailSettingsRoute = createRoute({
 const backupSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/backups",
-	component: BackupSettings,
+	component: () => (
+		<RequireAdmin>
+			<BackupSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Backups` },
 });
 
@@ -2666,11 +2697,28 @@ function TransferSettingsPage() {
 	return <TransferSettings focusImport={start === "import"} />;
 }
 
+const sidebarsSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/sidebars",
+	component: SidebarsSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
+		search.tab === "editor" ? { tab: "editor" } : {},
+});
+
+function SidebarsSettingsPage() {
+	const { tab } = sidebarsSettingsRoute.useSearch();
+	return <SidebarsSettings tab={tab ?? "navigation"} />;
+}
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/general",
-	component: GeneralSettings,
+	component: () => (
+		<RequireAdmin>
+			<GeneralSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`General Settings` },
 });
 
@@ -2678,7 +2726,11 @@ const generalSettingsRoute = createRoute({
 const socialSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/social",
-	component: SocialSettings,
+	component: () => (
+		<RequireAdmin>
+			<SocialSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Social Settings` },
 });
 
@@ -2686,7 +2738,11 @@ const socialSettingsRoute = createRoute({
 const seoSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/seo",
-	component: SeoSettings,
+	component: () => (
+		<RequireAdmin>
+			<SeoSettings />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`SEO Settings` },
 });
 
@@ -2823,7 +2879,11 @@ function MarketplaceUnavailablePage() {
 const wordpressImportRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/import/wordpress",
-	component: WordPressImport,
+	component: () => (
+		<RequireAdmin>
+			<WordPressImport />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Import from WordPress` },
 });
 
@@ -2895,7 +2955,11 @@ const sectionEditRoute = createRoute({
 const usersRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/users",
-	component: UsersPage,
+	component: () => (
+		<RequireAdmin>
+			<UsersPage />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Users` },
 });
 
@@ -3310,7 +3374,11 @@ function ContentTypesEditPage() {
 const pluginSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager/$pluginId/settings",
-	component: PluginSettingsPage,
+	component: () => (
+		<RequireAdmin>
+			<PluginSettingsPage />
+		</RequireAdmin>
+	),
 	staticData: { pageTitle: msg`Plugin Settings` },
 });
 
@@ -3394,6 +3462,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	emailSettingsRoute,
 	backupSettingsRoute,
 	transferSettingsRoute,
+	sidebarsSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);

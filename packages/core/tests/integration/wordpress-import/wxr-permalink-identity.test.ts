@@ -1,9 +1,15 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+vi.mock("astro:middleware", () => ({
+	defineMiddleware: (handler: unknown) => handler,
+}));
+
+import { onRequest as redirectMiddleware } from "../../../src/astro/middleware/redirect.js";
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
+import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { handlersFromRuntime, createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
@@ -88,6 +94,7 @@ function formData(
 	phase: string,
 	data: { cursor: unknown; chunk: unknown } | undefined,
 	skipExisting = true,
+	uploadLocale?: string,
 ) {
 	const body = new FormData();
 	body.append("file", new File([text], "test.xml", { type: "text/xml" }));
@@ -96,6 +103,7 @@ function formData(
 		JSON.stringify({
 			postTypeMappings: { page: { collection: "pages", enabled: true } },
 			skipExisting,
+			...(uploadLocale ? { locale: uploadLocale } : {}),
 		}),
 	);
 	body.append("phase", phase);
@@ -112,12 +120,13 @@ async function post(
 	phase: string,
 	data?: { cursor: unknown; chunk: unknown },
 	skipExisting = true,
+	uploadLocale?: string,
 ) {
 	const response = await executePost({
 		request: new Request("http://localhost/_emdash/api/import/wordpress/execute", {
 			method: "POST",
 			headers: { "X-EmDash-Request": "1" },
-			body: formData(text, phase, data, skipExisting),
+			body: formData(text, phase, data, skipExisting, uploadLocale),
 		}),
 		locals: { emdash: harness.emdash, user: { id: "test-admin", role: 50 } },
 	} as any);
@@ -125,9 +134,14 @@ async function post(
 	return (await response.json()).data;
 }
 
-async function importContent(harness: Harness, text: string, skipExisting = true) {
-	const prepared = await post(harness, text, "taxonomy", undefined, skipExisting);
-	return (await post(harness, text, "content", prepared, skipExisting)).result;
+async function importContent(
+	harness: Harness,
+	text: string,
+	skipExisting = true,
+	uploadLocale?: string,
+) {
+	const prepared = await post(harness, text, "taxonomy", undefined, skipExisting, uploadLocale);
+	return (await post(harness, text, "content", prepared, skipExisting, uploadLocale)).result;
 }
 
 async function redirects(harness: Harness) {
@@ -138,6 +152,20 @@ async function redirects(harness: Harness) {
 				.map(({ source, destination }) => ({ source, destination }))
 				.sort((a, b) => a.source.localeCompare(b.source)),
 		);
+}
+
+type RedirectContext = Parameters<typeof redirectMiddleware>[0];
+
+function redirectContext(pathname: string, db: Harness["db"]): RedirectContext {
+	const url = new URL(`https://example.test${pathname}`);
+	return {
+		url,
+		request: new Request(url),
+		locals: { emdash: { db } },
+		redirect: (location: string, status: number) =>
+			new Response(null, { status, headers: { Location: location } }),
+		cache: { set: vi.fn() },
+	} as unknown as RedirectContext;
 }
 
 describeEachDialect("WXR permalink identity across an import", (dialect) => {
@@ -234,6 +262,49 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		expect(await redirects(harness)).toEqual([
 			{ source: "/fr/overview", destination: "/pages/overview" },
 		]);
+	});
+
+	it("reuses the upload locale on a locale-less rerun with i18n enabled", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
+		_resetAstroI18nCacheForTests();
+		const text = wxr(item({ id: 1, title: "French", link: "/fr/overview/" }));
+		const first = await importContent(harness, text, true, "fr");
+		expect(first).toMatchObject({ imported: 1, skipped: 0, errors: [] });
+		const before = await harness.db.selectFrom("ec_pages").selectAll().execute();
+		expect(before).toHaveLength(1);
+
+		const rerun = await importContent(harness, text);
+		expect(rerun).toMatchObject({ imported: 0, skipped: 1, errors: [] });
+		expect(await harness.db.selectFrom("ec_pages").selectAll().execute()).toEqual(before);
+		expect(before[0]?.locale).toBe("fr");
+		expect(await redirects(harness)).toEqual([
+			{ source: "/fr/overview", destination: "/fr/pages/overview" },
+		]);
+	});
+
+	it("imports and serves escaped WordPress post names", async () => {
+		const text = wxr(item({ id: 1, title: "Пр", slug: "%d0%bf%d1%80", link: "/%d0%bf%d1%80/" }));
+		const result = await importContent(harness, text, false);
+		expect(result).toMatchObject({ imported: 1, skipped: 0, errors: [] });
+		expect(
+			await harness.db.selectFrom("ec_pages").select(["slug"]).executeTakeFirstOrThrow(),
+		).toEqual({
+			slug: "%d0%bf%d1%80",
+		});
+		expect(await redirects(harness)).toEqual([
+			{ source: "/%D0%BF%D1%80", destination: "/pages/%25d0%25bf%25d1%2580" },
+		]);
+
+		invalidateRedirectCache();
+		for (const path of ["/%d0%bf%d1%80", "/%d0%bf%d1%80/", "/%D0%BF%D1%80", "/%D0%BF%D1%80/"]) {
+			const response = await redirectMiddleware(
+				redirectContext(path, harness.db),
+				async () => new Response("not found", { status: 404 }),
+			);
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe("/pages/%25d0%25bf%25d1%2580");
+		}
+		invalidateRedirectCache();
 	});
 
 	it("imports an explicitly different language independently with i18n disabled", async () => {

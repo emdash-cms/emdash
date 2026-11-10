@@ -13,6 +13,12 @@ import {
 } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
+import {
+	MAX_CONTENT_POLICY_REASON_LENGTH,
+	isScheduledPolicyRejection,
+	scheduledPolicyRejectionKey,
+	toScheduledRejectionReason,
+} from "../../src/plugins/content-policy.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import {
 	publishDueContent,
@@ -766,5 +772,150 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		const result = await handleContentPublish(db, "post", post.id);
 
 		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+	});
+});
+
+describe("EmDashRuntime scheduled publish refused by the publish itself", () => {
+	let db: Kysely<Database>;
+	let repo: ContentRepository;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		repo = new ContentRepository(db);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+
+	afterEach(async () => {
+		vi.restoreAllMocks();
+		await teardownTestDatabase(db);
+	});
+
+	/** A scheduled draft whose staged slug another entry already holds. */
+	async function scheduleSlugConflict() {
+		await repo.create(createPostFixture({ slug: "taken" }));
+		const post = await repo.create(createPostFixture({ slug: "initial-slug" }));
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "taken" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		return post;
+	}
+
+	async function readRejection(id: string) {
+		return (await new OptionsRepository(db).getVersioned(scheduledPolicyRejectionKey("post", id)))
+			?.value;
+	}
+
+	it("unschedules the entry and records the error for the dashboard", async () => {
+		const post = await scheduleSlugConflict();
+
+		const { published } = await buildRuntime(db).runScheduledTasks();
+
+		expect(published).toEqual([]);
+		const after = await repo.findById("post", post.id);
+		expect(after?.status).not.toBe("scheduled");
+		expect(after?.scheduledAt).toBeNull();
+		const rejection = await readRejection(post.id);
+		expect(isScheduledPolicyRejection(rejection)).toBe(true);
+		expect(rejection).toMatchObject({ collection: "post", id: post.id, code: "SLUG_CONFLICT" });
+		expect(rejection).not.toHaveProperty("pluginId");
+		expect((rejection as { reason: string }).reason).toContain("taken");
+	});
+
+	it("unschedules an entry refused with a validation error and records the message", async () => {
+		const post = await repo.create(createPostFixture({ slug: "has-a-slug" }));
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+
+		const { published } = await buildRuntime(db).runScheduledTasks();
+
+		expect(published).toEqual([]);
+		const after = await repo.findById("post", post.id);
+		expect(after?.scheduledAt).toBeNull();
+		expect(after?.draftRevisionId).toBe(draft.id);
+		const rejection = await readRejection(post.id);
+		expect(isScheduledPolicyRejection(rejection)).toBe(true);
+		expect(rejection).toMatchObject({
+			code: "VALIDATION_ERROR",
+			reason: "Cannot publish routable content without a slug",
+		});
+	});
+
+	it("does not try the refused entry again on the next tick", async () => {
+		const post = await scheduleSlugConflict();
+		const runtime = buildRuntime(db);
+		await runtime.runScheduledTasks();
+		const publish = vi.spyOn(runtime, "handleContentPublish");
+
+		await runtime.runScheduledTasks();
+
+		expect(publish).not.toHaveBeenCalled();
+		expect((await repo.findById("post", post.id))?.scheduledAt).toBeNull();
+	});
+
+	it("clears the record when the entry is published later", async () => {
+		const post = await scheduleSlugConflict();
+		const runtime = buildRuntime(db);
+		await runtime.runScheduledTasks();
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "free" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+
+		const result = await runtime.handleContentPublish("post", post.id);
+
+		expect(result.success).toBe(true);
+		expect(await readRejection(post.id)).toBeUndefined();
+	});
+
+	it("leaves the entry scheduled when the failure is not a refusal", async () => {
+		const post = await repo.create(createPostFixture());
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await sql`
+			CREATE TRIGGER reject_test_publication
+			BEFORE UPDATE OF status ON ec_post
+			WHEN NEW.status = 'published'
+			BEGIN
+				SELECT RAISE(ABORT, 'test publication failure');
+			END
+		`.execute(db);
+
+		await buildRuntime(db).runScheduledTasks();
+
+		const after = await repo.findById("post", post.id);
+		expect(after).toMatchObject({ status: "scheduled", scheduledAt: past });
+		expect(await readRejection(post.id)).toBeUndefined();
+	});
+});
+
+describe("toScheduledRejectionReason()", () => {
+	it("turns control characters into spaces and trims", () => {
+		expect(toScheduledRejectionReason("  Needs\nan\u0000excerpt.  ")).toBe("Needs an excerpt.");
+	});
+
+	it("cuts a long message to the stored reason limit", () => {
+		const reason = toScheduledRejectionReason("x".repeat(MAX_CONTENT_POLICY_REASON_LENGTH + 50));
+		expect(reason).toHaveLength(MAX_CONTENT_POLICY_REASON_LENGTH);
+		expect(
+			isScheduledPolicyRejection({ collection: "post", id: "1", reason, rejectedAt: "x" }),
+		).toBe(true);
+	});
+
+	it("returns undefined when nothing is left", () => {
+		expect(toScheduledRejectionReason(undefined)).toBeUndefined();
+		expect(toScheduledRejectionReason(" \n ")).toBeUndefined();
 	});
 });

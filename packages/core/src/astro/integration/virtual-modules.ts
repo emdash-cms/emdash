@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import type { AuthProviderDescriptor } from "../../auth/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
@@ -598,6 +598,7 @@ export function createScheduler(executor) {
  */
 export function generateSeedModule(projectRoot: string, warnOnFallback = false): string {
 	let userSeedJson: string | null = null;
+	let mediaBasePath: string | undefined;
 
 	// Try .emdash/seed.json
 	try {
@@ -605,6 +606,7 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 		const content = readFileSync(seedPath, "utf-8");
 		JSON.parse(content); // validate
 		userSeedJson = content;
+		mediaBasePath = dirname(seedPath);
 	} catch {
 		// Not found, try next
 	}
@@ -621,6 +623,7 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 				const content = readFileSync(seedPath, "utf-8");
 				JSON.parse(content); // validate
 				userSeedJson = content;
+				mediaBasePath = dirname(seedPath);
 			}
 		} catch {
 			// Not found
@@ -634,13 +637,18 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 			const content = readFileSync(seedPath, "utf-8");
 			JSON.parse(content); // validate
 			userSeedJson = content;
+			mediaBasePath = dirname(seedPath);
 		} catch {
 			// Not found
 		}
 	}
 
 	if (userSeedJson) {
-		return [`export const userSeed = ${userSeedJson};`, `export const seed = userSeed;`].join("\n");
+		return [
+			`export const userSeed = ${userSeedJson};`,
+			`export const seed = userSeed;`,
+			`export const mediaBasePath = ${JSON.stringify(mediaBasePath)};`,
+		].join("\n");
 	}
 
 	// No user seed — inline the default. Caller (the Vite plugin) gates this
@@ -654,6 +662,7 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 	return [
 		`export const userSeed = null;`,
 		`export const seed = ${JSON.stringify(defaultSeed)};`,
+		`export const mediaBasePath = undefined;`,
 	].join("\n");
 }
 
