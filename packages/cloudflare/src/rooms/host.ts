@@ -1,7 +1,7 @@
 /**
- * The Worker-side room host, `@emdash-cms/cloudflare/rooms`: routes reach each room by RPC
- * through the `EMDASH_ROOMS` binding. Only `virtual:emdash/rooms` imports it, on Cloudflare with
- * co-editing on, and it loads no room code itself.
+ * The Worker-side room host, `@emdash-cms/cloudflare/internal/rooms`: routes reach each room by
+ * RPC through the `EMDASH_ROOMS` binding. Only `virtual:emdash/rooms` imports it, on Cloudflare
+ * with co-editing on, and it loads no room code itself.
  */
 
 import { env } from "cloudflare:workers";

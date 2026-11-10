@@ -108,11 +108,11 @@ describe("generateRoomsModule", () => {
 
 	it("loads the Durable Object room host on @astrojs/cloudflare with co-editing on", () => {
 		expect(generateRoomsModule("@astrojs/cloudflare", true, true)).toContain(
-			'export { createRoomHost } from "@emdash-cms/cloudflare/rooms"',
+			'export { createRoomHost } from "@emdash-cms/cloudflare/internal/rooms"',
 		);
 	});
 
-	it("gives a Cloudflare site that can't resolve @emdash-cms/cloudflare/rooms no room host", () => {
+	it("gives a Cloudflare site that can't resolve @emdash-cms/cloudflare/internal/rooms no room host", () => {
 		const out = generateRoomsModule("@astrojs/cloudflare", true, false);
 		expect(out).toContain("export const createRoomHost = null");
 		expect(out).not.toContain("@emdash-cms/cloudflare");

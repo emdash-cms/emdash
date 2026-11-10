@@ -424,7 +424,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 					adapterName === "@astrojs/cloudflare" &&
 					canResolveProjectDependency(
 						fileURLToPath(astroConfig.root),
-						"@emdash-cms/cloudflare/rooms",
+						"@emdash-cms/cloudflare/internal/rooms",
 					);
 				return generateRoomsModule(adapterName, coEditing, cloudflareRoomsResolves);
 			}
