@@ -24,6 +24,7 @@ import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js"
 import { BylineRepository } from "#db/repositories/byline.js";
 import type { ContentItem } from "#db/repositories/types.js";
 import { relativizeContentLinks, resolveImportByline } from "#import/utils.js";
+import { findStoredSlugLocales } from "#import/wxr-permalink-routes.js";
 import { importWxrPermalinks, type WxrPermalinkEntry } from "#import/wxr-permalinks.js";
 import {
 	attachPostTaxonomies,
@@ -477,6 +478,10 @@ async function prepareTaxonomies(
 	return taxonomyPlan;
 }
 
+function unlocalizedSlugKey(collection: string, slug: string): string {
+	return JSON.stringify([collection, slug]);
+}
+
 export async function importContent(
 	posts: WxrPost[],
 	config: ImportConfig,
@@ -512,24 +517,36 @@ export async function importContent(
 	const sourceSlugs = new Map<WxrPost, string>();
 	const seenIdentities = new Set<string>();
 	const ambiguousIdentities = new Set<string>();
+	const plannedLocales = new Map<string, Set<string>>();
+	const sourceRouteKeys = new Map<WxrPost, string>();
 	const defaultLocale = locale ?? getI18nConfig()?.defaultLocale ?? "en";
 	const i18nEnabled = isI18nEnabled();
 	const identityFor = (collection: string, slug: string, postLocale: string | undefined) =>
 		JSON.stringify([
 			collection,
 			slug,
-			i18nEnabled ? resolveConfiguredLocale(postLocale ?? defaultLocale).toLowerCase() : "",
+			resolveConfiguredLocale(postLocale ?? defaultLocale).toLowerCase(),
 		]);
 	// Slug ownership must be unambiguous across the full WXR, not only this chunk.
-	if (config.skipExisting) {
+	if (config.skipExisting || !i18nEnabled) {
 		for (const post of sourcePosts) {
 			const mapping = config.postTypeMappings[post.postType || "post"];
 			if (!mapping?.enabled) continue;
 			const slug = post.postName || slugify(post.title || `post-${post.id || Date.now()}`);
-			sourceSlugs.set(post, slug);
-			const key = identityFor(sanitizeSlug(mapping.collection), slug, post.locale ?? locale);
-			if (seenIdentities.has(key)) ambiguousIdentities.add(key);
-			seenIdentities.add(key);
+			const collection = sanitizeSlug(mapping.collection);
+			if (config.skipExisting) {
+				sourceSlugs.set(post, slug);
+				const key = identityFor(collection, slug, post.locale ?? locale);
+				if (seenIdentities.has(key)) ambiguousIdentities.add(key);
+				seenIdentities.add(key);
+			}
+			if (!i18nEnabled) {
+				const key = unlocalizedSlugKey(collection, slug);
+				sourceRouteKeys.set(post, key);
+				const variants = plannedLocales.get(key) ?? new Set<string>();
+				variants.add(resolveConfiguredLocale(post.locale ?? locale ?? defaultLocale).toLowerCase());
+				plannedLocales.set(key, variants);
+			}
 		}
 	}
 	const queuePermalink = (post: WxrPost, collection: string, item: ContentItem) => {
@@ -586,28 +603,22 @@ export async function importContent(
 			const requestedLocale = post.locale ?? locale;
 			const postLocale = resolveConfiguredLocale(requestedLocale ?? defaultLocale);
 
-			// Locale is part of URL identity only when i18n is enabled.
-			// Otherwise every stored locale occupies the same route space.
+			// Explicit source locales identify separate stored entries, even without i18n.
+			// An omitted locale retains the legacy unscoped skip-existing lookup.
 			if (config.skipExisting) {
 				const existing = await contentRepo.findBySlug(
 					collection,
 					slug,
-					i18nEnabled ? postLocale : undefined,
+					i18nEnabled || requestedLocale !== undefined ? postLocale : undefined,
 				);
 				if (existing) {
 					result.skipped++;
 					const ambiguous = ambiguousIdentities.has(identityFor(collection, slug, postLocale));
-					const differentLocale =
-						!i18nEnabled &&
-						requestedLocale !== undefined &&
-						resolveConfiguredLocale(existing.locale ?? defaultLocale).toLowerCase() !==
-							postLocale.toLowerCase();
-					if (ambiguous || differentLocale) {
+					if (ambiguous) {
 						result.errors.push({
 							title: post.title || "Untitled",
-							error: ambiguous
-								? "Skipped item has an ambiguous collection, slug and locale in this WXR; no permalink redirect was created"
-								: "Skipped item matches an entry in another locale while i18n is disabled; no permalink redirect was created",
+							error:
+								"Skipped item has an ambiguous collection, slug and locale in this WXR; no permalink redirect was created",
 						});
 						continue;
 					}
@@ -797,9 +808,43 @@ export async function importContent(
 		}
 	}
 
+	const suppressedRoutes = new Set<string>();
+	if (!i18nEnabled) {
+		for (const [key, variants] of plannedLocales) {
+			if (variants.size > 1) suppressedRoutes.add(key);
+		}
+		const checkedRoutes = new Set<string>();
+		for (const entry of permalinks) {
+			if (!entry.link || entry.item.status !== "published" || !entry.item.slug) continue;
+			const key = unlocalizedSlugKey(entry.collection, entry.item.slug);
+			if (suppressedRoutes.has(key) || checkedRoutes.has(key)) continue;
+			checkedRoutes.add(key);
+			try {
+				if ((await findStoredSlugLocales(emdash.db, entry.collection, entry.item.slug)).size > 1)
+					suppressedRoutes.add(key);
+			} catch (error) {
+				console.error("[WXR_IMPORT] Could not verify redirect locale ownership:", error);
+				suppressedRoutes.add(key);
+				result.errors.push({
+					title: entry.title,
+					error: "Could not verify redirect ownership; retry with skip existing",
+				});
+			}
+		}
+		// Keep canonical claims for the imported data, but do not invent a locale's public target.
+		for (const entry of permalinks) {
+			if (
+				entry.item.slug &&
+				suppressedRoutes.has(unlocalizedSlugKey(entry.collection, entry.item.slug))
+			)
+				entry.link = undefined;
+		}
+	}
 	const sourceLinks = sourcePosts.flatMap((post) => {
 		const mapping = config.postTypeMappings[post.postType || "post"];
 		if (!mapping?.enabled) return [];
+		const routeKey = sourceRouteKeys.get(post);
+		if (routeKey && suppressedRoutes.has(routeKey)) return [];
 		const schema = manifest.collections[sanitizeSlug(mapping.collection)];
 		return schema && schema.routable !== false && post.link ? [post.link] : [];
 	});

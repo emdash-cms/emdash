@@ -236,7 +236,7 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		]);
 	});
 
-	it("does not bind an explicitly different language to an existing i18n-off entry", async () => {
+	it("imports an explicitly different language independently with i18n disabled", async () => {
 		const english = wxr(
 			item({ id: 1, title: "English", link: "/first/overview/", localeMeta: "en" }),
 		);
@@ -245,41 +245,162 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 			skipped: 0,
 			errors: [],
 		});
-		const before = await harness.db.selectFrom("ec_pages").selectAll().execute();
+		const englishRedirects = await redirects(harness);
 		const french = wxr(item({ id: 2, title: "French", link: "/fr/overview/", localeMeta: "fr" }));
+		expect(await importContent(harness, french)).toMatchObject({
+			imported: 1,
+			skipped: 0,
+			errors: [],
+		});
+		const rows = await harness.db
+			.selectFrom("ec_pages")
+			.select(["id", "slug", "locale", "title"])
+			.orderBy("locale")
+			.execute();
+		expect(rows).toHaveLength(2);
+		expect(rows).toEqual([
+			expect.objectContaining({ slug: "overview", locale: "en", title: "English" }),
+			expect.objectContaining({ slug: "overview", locale: "fr", title: "French" }),
+		]);
+		expect(rows[0]?.id).not.toBe(rows[1]?.id);
+		expect(await redirects(harness)).toEqual(englishRedirects);
+
+		const before = await harness.db.selectFrom("ec_pages").selectAll().execute();
 		expect(await importContent(harness, french)).toMatchObject({
 			imported: 0,
 			skipped: 1,
-			errors: [
-				{
-					title: "French",
-					error:
-						"Skipped item matches an entry in another locale while i18n is disabled; no permalink redirect was created",
-				},
-			],
+			errors: [],
 		});
 		expect(await harness.db.selectFrom("ec_pages").selectAll().execute()).toEqual(before);
+		expect(await redirects(harness)).toEqual(englishRedirects);
+
+		await new SchemaRegistry(harness.db).updateCollection("pages", {
+			urlPattern: "/updated/{slug}",
+		});
+		expect(await importContent(harness, english)).toMatchObject({
+			imported: 0,
+			skipped: 1,
+			errors: [],
+		});
+		expect(await redirects(harness)).toEqual(englishRedirects);
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
+		_resetAstroI18nCacheForTests();
+		expect(await importContent(harness, english)).toMatchObject({
+			imported: 0,
+			skipped: 1,
+			errors: [],
+		});
 		expect(await redirects(harness)).toEqual([
-			{ source: "/first/overview", destination: "/pages/overview" },
+			{ source: "/first/overview", destination: "/en/updated/overview" },
 		]);
+		expect(await harness.db.selectFrom("ec_pages").selectAll().execute()).toEqual(before);
 	});
 
-	it("reports same-slug languages as ambiguous in the shared i18n-off route space", async () => {
-		const text = wxr(
-			item({ id: 1, title: "First", link: "/en/first/overview/", localeMeta: "en" }) +
-				item({ id: 2, title: "Second", link: "/fr/second/overview/", localeMeta: "fr" }),
-		);
-		expect(await importContent(harness, text)).toMatchObject({
-			imported: 1,
-			skipped: 1,
-			errors: [{ title: "Second", error: AMBIGUOUS }],
-		});
-		expect(await harness.db.selectFrom("ec_pages").select(["slug", "locale"]).execute()).toEqual([
+	it.each([true, false])(
+		"imports same-slug languages in one i18n-off WXR without redirects (skipExisting=%s)",
+		async (skipExisting) => {
+			const text = wxr(
+				item({
+					id: 1,
+					title: "English",
+					link: "/pages/overview/",
+					localeMeta: "en",
+					translationGroup: 42,
+				}) +
+					item({
+						id: 2,
+						title: "French",
+						link: "/fr/overview/",
+						localeMeta: "fr",
+						translationGroup: 42,
+					}),
+			);
+			expect(await importContent(harness, text, skipExisting)).toMatchObject({
+				imported: 2,
+				skipped: 0,
+				errors: [],
+			});
+			expect(await redirects(harness)).toEqual([]);
+
+			const before = await harness.db
+				.selectFrom("ec_pages")
+				.selectAll()
+				.orderBy("locale")
+				.execute();
+			expect(before.map((row) => row.locale)).toEqual(["en", "fr"]);
+			expect(typeof before[0]?.translation_group).toBe("string");
+			expect(before[1]?.translation_group).toBe(before[0]?.translation_group);
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
+			_resetAstroI18nCacheForTests();
+			expect(await importContent(harness, text)).toMatchObject({
+				imported: 0,
+				skipped: 2,
+				errors: [],
+			});
+			expect(
+				await harness.db.selectFrom("ec_pages").selectAll().orderBy("locale").execute(),
+			).toEqual(before);
+			expect(await redirects(harness)).toEqual([
+				{ source: "/fr/overview", destination: "/fr/pages/overview" },
+				{ source: "/pages/overview", destination: "/en/pages/overview" },
+			]);
+		},
+	);
+
+	it("uses the whole WXR to import same-slug languages across a content chunk", async () => {
+		const items = [item({ id: 1, title: "English", link: "/en/overview/", localeMeta: "en" })];
+		for (let id = 2; id <= 30; id++) {
+			items.push(item({ id, title: `Unique ${id}`, slug: `unique-${id}`, link: `/unique-${id}/` }));
+		}
+		items.push(item({ id: 31, title: "French", link: "/fr/overview/", localeMeta: "fr" }));
+		const text = wxr(items.join("\n"), true);
+		const prepared = await post(harness, text, "taxonomy");
+		const first = await post(harness, text, "content", prepared);
+		expect(first.result).toMatchObject({ imported: 30, skipped: 0, errors: [] });
+		expect(first.done).toBe(false);
+		const second = await post(harness, text, "content", first);
+		expect(second.result).toMatchObject({ imported: 1, skipped: 0, errors: [] });
+		expect(second.done).toBe(true);
+		expect(
+			await harness.db
+				.selectFrom("ec_pages")
+				.select(["slug", "locale"])
+				.where("slug", "=", "overview")
+				.orderBy("locale")
+				.execute(),
+		).toEqual([
 			{ slug: "overview", locale: "en" },
+			{ slug: "overview", locale: "fr" },
 		]);
-		expect(await redirects(harness)).toEqual([
-			{ source: "/en/first/overview", destination: "/pages/overview" },
-		]);
+		expect(await new RedirectRepository(harness.db).findBySource("/en/overview")).toBeNull();
+		expect(await new RedirectRepository(harness.db).findBySource("/fr/overview")).toBeNull();
+		expect(await new RedirectRepository(harness.db).findBySource("/unique-2")).not.toBeNull();
+	});
+
+	it("keeps created and skipped data when redirect locale verification fails", async () => {
+		const checkedDb = harness.db.withPlugin({
+			transformQuery(args) {
+				const sql = harness.db.getExecutor().compileQuery(args.node, args.queryId).sql;
+				if (sql.includes("SELECT DISTINCT locale") && sql.includes('"ec_pages"'))
+					throw new Error("locale read unavailable");
+				return args.node;
+			},
+			async transformResult(args) {
+				return args.result;
+			},
+		});
+		const faulted = { ...harness, emdash: { ...harness.emdash, db: checkedDb } };
+		const text = wxr(item({ id: 1, title: "French", link: "/fr/overview/", localeMeta: "fr" }));
+		const errors = [
+			{ title: "French", error: "Could not verify redirect ownership; retry with skip existing" },
+		];
+		expect(await importContent(faulted, text)).toMatchObject({ imported: 1, skipped: 0, errors });
+		const before = await harness.db.selectFrom("ec_pages").selectAll().execute();
+		expect(before).toHaveLength(1);
+		expect(await redirects(harness)).toEqual([]);
+		expect(await importContent(faulted, text)).toMatchObject({ imported: 0, skipped: 1, errors });
+		expect(await harness.db.selectFrom("ec_pages").selectAll().execute()).toEqual(before);
+		expect(await redirects(harness)).toEqual([]);
 	});
 
 	it("keeps same-slug translations distinct and prefixes their redirect targets", async () => {

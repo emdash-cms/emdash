@@ -6,6 +6,6 @@ Fixes incoming WordPress links that break after an admin WXR import because EmDa
 
 #### What should I do?
 
-Configure the final collection `urlPattern` before importing. If you already imported your content or change the pattern afterwards, rerun the same WXR with **skip existing** enabled before serving the migrated site. Review any reported conflicts.
+Configure the final collection `urlPattern` before importing. If you already imported your content or change the pattern afterwards, rerun the same WXR with **skip existing** enabled before serving the migrated site. Review any reported conflicts. With i18n off, redirects for slugs shared across languages are left untouched; enable i18n and rerun, or review those rules manually.
 
 See the [WordPress permalink migration guidance](https://docs.emdashcms.com/migration/content-import/#preserve-wordpress-permalinks) for redirect safeguards, protected rules, and unsupported URL shapes.

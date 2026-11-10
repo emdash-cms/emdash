@@ -59,6 +59,19 @@ type Candidate = {
 };
 type RouteItem = Pick<ContentItem, "id" | "slug" | "status" | "locale" | "publishedAt">;
 
+export async function findStoredSlugLocales(
+	db: Kysely<Database>,
+	collection: string,
+	slug: string,
+): Promise<Set<string | null>> {
+	validateIdentifier(collection, "collection slug");
+	const result = await sql<{ locale: string | null }>`
+		SELECT DISTINCT locale FROM ${sql.ref(`ec_${collection}`)}
+		WHERE slug = ${slug} AND deleted_at IS NULL
+	`.execute(db);
+	return new Set(result.rows.map((row) => row.locale));
+}
+
 /** Without i18n, all stored locales share the same public route space. */
 async function findPublishedBySlug(
 	db: Kysely<Database>,
