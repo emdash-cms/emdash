@@ -27,6 +27,7 @@ import {
 } from "@emdash-cms/registry-verification/artifact";
 import type { Kysely } from "kysely";
 
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
@@ -724,9 +725,11 @@ export async function handleRegistryInstall(
 		}
 		const records = authoritative.value;
 		const { profile, release } = records.inspection.value;
+		// The public listing may retain an older approved profile during metadata
+		// review. Release identity must still match; policy and consent use the
+		// current, independently verified PDS profile rather than the listing.
 		if (
 			packageView.uri !== records.profile.uri ||
-			packageView.cid !== records.profile.cid ||
 			releaseView.uri !== records.release.uri ||
 			releaseView.cid !== records.release.cid
 		) {
@@ -749,9 +752,11 @@ export async function handleRegistryInstall(
 			if (consentError) return consentError;
 		}
 
-		const packageYanked =
-			hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", records.profile) ||
-			hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", records.profile);
+		const packageYanked = [packageView, records.profile].some(
+			(record) =>
+				hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", record) ||
+				hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", record),
+		);
 		if (packageYanked) {
 			return {
 				success: false,
@@ -1033,11 +1038,8 @@ export async function handleRegistryInstall(
 		// Step 7: store in R2 under the registry prefix.
 		await storeBundleInR2(storage, pluginId, version, bundle, "registry");
 
-		// Step 8: write plugin state.
-		// Display name and description come from the *package profile*
-		// (the signed record from the publisher's repo), not from the
-		// bundle manifest -- the manifest carries the trust contract,
-		// the profile carries the marketing copy.
+		// Step 8: write plugin state. Display text follows the approved listing
+		// when the current signed profile is not yet projected.
 		//
 		// On failure, we may need to clean up the R2 bundle we just
 		// wrote. But two parallel installs of the same (did, slug,
@@ -1062,11 +1064,12 @@ export async function handleRegistryInstall(
 		// Cleanup is best-effort; if it also fails, the row failure
 		// still surfaces to the caller and the orphan R2 bundle costs
 		// only the storage of a single checksum-verified zip.
+		const displayProfile = packageView.cid === records.profile.cid ? profile : packageView.profile;
 		try {
 			await stateRepo.upsert(pluginId, version, "active", {
 				source: "registry",
-				displayName: profile.name ?? slug,
-				description: profile.description ?? undefined,
+				displayName: displayProfile?.name ?? slug,
+				description: displayProfile?.description ?? undefined,
 				registryPublisherDid: publisherDid,
 				registrySlug: slug,
 			});
@@ -1171,7 +1174,11 @@ export async function handleRegistryUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
+	opts?: {
+		deleteData?: boolean;
+		rollbackInstall?: boolean;
+		beforeDelete?: () => Promise<void>;
+	},
 ): Promise<ApiResult<RegistryUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -1197,8 +1204,9 @@ export async function handleRegistryUninstall(
 		// idempotent bundle delete, leaving the state row and bundle intact if a
 		// transient database error makes the uninstall retryable.
 		let dataDeleted = false;
-		if (opts?.deleteData) {
+		if (opts?.deleteData && !opts.rollbackInstall) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
+			await new OptionsRepository(db).deleteByPrefix(`plugin:${pluginId}:`);
 			dataDeleted = true;
 		}
 
@@ -1465,9 +1473,11 @@ export async function handleRegistryUpdate(
 		}
 		const records = authoritative.value;
 		const { profile, release } = records.inspection.value;
+		// The public listing may retain an older approved profile during metadata
+		// review. Release identity must still match; policy and consent use the
+		// current, independently verified PDS profile rather than the listing.
 		if (
 			packageView.uri !== records.profile.uri ||
-			packageView.cid !== records.profile.cid ||
 			releaseView.uri !== records.release.uri ||
 			releaseView.cid !== records.release.cid
 		) {
@@ -1479,9 +1489,11 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
-		const packageYanked =
-			hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", records.profile) ||
-			hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", records.profile);
+		const packageYanked = [packageView, records.profile].some(
+			(record) =>
+				hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", record) ||
+				hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", record),
+		);
 		if (packageYanked) {
 			return {
 				success: false,
@@ -1656,14 +1668,14 @@ export async function handleRegistryUpdate(
 		// so a retry of the same update is idempotent.
 		await storeBundleInR2(storage, pluginId, newVersion, bundle, "registry");
 
-		// Refresh display metadata from the same signed profile used for
-		// release-policy verification.
+		// Keep unreviewed profile text out of the installed listing metadata.
+		const displayProfile = packageView.cid === records.profile.cid ? profile : packageView.profile;
 		await stateRepo.upsert(pluginId, newVersion, "active", {
 			source: "registry",
 			registryPublisherDid: publisherDid,
 			registrySlug: slug,
-			displayName: profile.name ?? slug,
-			description: profile.description ?? undefined,
+			displayName: displayProfile?.name ?? slug,
+			description: displayProfile?.description ?? undefined,
 			mcpToolsEnabled: false,
 			mcpToolsConsent: null,
 		});

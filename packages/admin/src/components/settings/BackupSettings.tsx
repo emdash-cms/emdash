@@ -302,7 +302,9 @@ export function BackupSettings() {
 							<SettingRow key={archive.name}>
 								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<div className="min-w-0 text-sm">
-										<div className="break-all font-mono text-[0.9em] leading-5">{archive.name}</div>
+										<div className="break-all font-mono text-[0.9em] leading-5">
+											<bdi dir="ltr">{archive.name}</bdi>
+										</div>
 										<div className="leading-5 text-kumo-subtle">
 											{i18n.date(new Date(archive.lastModified), {
 												dateStyle: "medium",

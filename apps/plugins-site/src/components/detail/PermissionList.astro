@@ -1,0 +1,233 @@
+---
+/** The capabilities a plugin's latest release declares, with any allowed network hosts. */
+import { capabilityGroup } from "../../lib/capabilities.js";
+import { permissionCopy, type PermissionSummary } from "../../lib/registry.js";
+import { capabilityIcons, detailIcons } from "./icons.js";
+
+interface Props {
+	permissions: PermissionSummary;
+}
+
+const { permissions } = Astro.props;
+
+const rows = permissions.capabilities.map((capability) => ({
+	capability,
+	copy: permissionCopy(capability),
+	icon: capabilityIcons[capabilityGroup(capability)],
+	hosts: capability === "network:request" ? permissions.allowedHosts : [],
+}));
+---
+
+{
+	!permissions.declared ? (
+		<p class="permissions-note">
+			Permission information is not available for this release.
+		</p>
+	) : rows.length === 0 ? (
+		<div class="permission-card card">
+			<div class="permission-row permission-row--none">
+				<span class="permission-icon permission-icon--ok" aria-hidden="true">
+					<svg
+						viewBox="0 0 24 24"
+						focusable="false"
+						set:html={detailIcons.check}
+					/>
+				</span>
+				<div class="permission-text">
+					<p class="permission-label">No special permissions requested</p>
+					<p class="permission-description">
+						This plugin does not request access to protected EmDash features.
+					</p>
+				</div>
+			</div>
+		</div>
+	) : (
+		<ul class="permission-card card" role="list">
+			{rows.map((row) => (
+				<li class="permission-row">
+					<span class="permission-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" focusable="false" set:html={row.icon} />
+					</span>
+					<div class="permission-text">
+						<p class="permission-label">{row.copy.label}</p>
+						<p class="permission-description">{row.copy.description}</p>
+						{row.hosts.length > 0 && (
+							<div class="permission-hosts">
+								<p
+									class="permission-hosts-label"
+									id={`allowed-hosts-${row.capability}`}
+								>
+									Allowed hosts
+								</p>
+								<ul
+									class="host-list"
+									role="list"
+									aria-labelledby={`allowed-hosts-${row.capability}`}
+								>
+									{row.hosts.map((host) => (
+										<li dir="auto">{host}</li>
+									))}
+								</ul>
+							</div>
+						)}
+					</div>
+				</li>
+			))}
+		</ul>
+	)
+}
+
+<style>
+	.permissions-note {
+		margin: 0;
+		color: var(--muted);
+		font-size: 15px;
+		line-height: 1.6;
+	}
+
+	.permission-card {
+		display: grid;
+		margin: 0;
+		padding: 6px;
+		list-style: none;
+	}
+
+	.permission-row {
+		position: relative;
+		display: flex;
+		align-items: flex-start;
+		gap: 14px;
+		min-width: 0;
+		padding: 14px 14px 15px;
+		border-radius: var(--radius-md);
+	}
+
+	.permission-row + .permission-row::before {
+		content: "";
+		position: absolute;
+		inset-block-start: 0;
+		inset-inline: 60px 14px;
+		border-block-start: 1px solid var(--line);
+	}
+
+	.permission-icon {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		color: var(--ink);
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-sm);
+		box-shadow: inset 0 1px 0 var(--permission-highlight, transparent);
+	}
+
+	.permission-icon svg {
+		width: 17px;
+		height: 17px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.75;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.permission-icon--ok {
+		color: var(--success);
+		background: color-mix(in srgb, var(--success) 10%, var(--surface));
+		border-color: color-mix(in srgb, var(--success) 24%, var(--line));
+	}
+
+	.permission-icon--ok svg {
+		stroke-width: 2;
+	}
+
+	.permission-text {
+		display: grid;
+		flex: 1;
+		gap: 3px;
+		min-width: 0;
+		padding-block-start: 5px;
+	}
+
+	.permission-label,
+	.permission-description,
+	.permission-hosts-label {
+		margin: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.permission-label {
+		color: var(--ink-strong);
+		font-size: 15px;
+		font-weight: 600;
+		line-height: 1.35;
+		letter-spacing: -0.01em;
+	}
+
+	.permission-description {
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.5;
+		text-wrap: pretty;
+	}
+
+	.permission-hosts {
+		display: grid;
+		gap: 8px;
+		margin-block-start: 10px;
+		padding-block-start: 10px;
+		border-block-start: 1px dashed var(--line);
+	}
+
+	.permission-hosts-label {
+		color: var(--muted);
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	.host-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	/* Hosts wrap rather than truncate: the end of a hostname is its registrable domain. */
+	.host-list li {
+		max-width: 100%;
+		padding: 3px 8px;
+		color: var(--ink);
+		font-family: var(--font-mono);
+		font-size: 12px;
+		line-height: 1.5;
+		overflow-wrap: anywhere;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-xs);
+	}
+
+	:global(:root[data-theme="dark"]) .permission-card {
+		--permission-highlight: rgb(255 255 255 / 5%);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not([data-theme])) .permission-card {
+			--permission-highlight: rgb(255 255 255 / 5%);
+		}
+	}
+
+	@media (max-width: 479px) {
+		.permission-row {
+			gap: 12px;
+			padding-inline: 10px;
+		}
+
+		.permission-row + .permission-row::before {
+			inset-inline: 54px 10px;
+		}
+	}
+</style>

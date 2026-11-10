@@ -17,6 +17,7 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { signupRequestBody } from "#api/schemas.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
@@ -66,7 +67,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Get site config for signup email
 		const options = new OptionsRepository(emdash.db);
-		const siteName = (await options.get<string>("emdash:site_title")) || "EmDash";
+		const siteName = (await getSiteTitle(options)) || "EmDash";
 
 		// Use the configured site URL (stored option as fallback) to prevent Host header spoofing in signup emails
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);

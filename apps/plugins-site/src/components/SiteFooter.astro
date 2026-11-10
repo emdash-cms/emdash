@@ -1,0 +1,422 @@
+---
+import Logo from "./Logo.astro";
+
+const columns = [
+	{
+		heading: "Plugins",
+		links: [
+			{ label: "Browse", href: "/search" },
+			{
+				label: "Build a plugin",
+				href: "https://docs.emdashcms.com/plugins/creating-plugins/your-first-plugin/",
+			},
+			{
+				label: "Publish",
+				href: "https://docs.emdashcms.com/plugins/creating-plugins/publishing/",
+			},
+			{
+				label: "Capabilities",
+				href: "https://docs.emdashcms.com/plugins/creating-plugins/capabilities/",
+			},
+		],
+	},
+	{
+		heading: "EmDash",
+		links: [
+			{ label: "Home", href: "https://emdashcms.com" },
+			{ label: "Playground", href: "https://try.emdashcms.com" },
+			{ label: "Documentation", href: "https://docs.emdashcms.com" },
+			{ label: "Blog", href: "https://emdashcms.com/blog" },
+		],
+	},
+	{
+		heading: "Community",
+		links: [
+			{ label: "GitHub", href: "https://github.com/emdash-cms/emdash" },
+			{ label: "Discord", href: "https://discord.gg/YY9vBaQRYt" },
+			{
+				label: "Discussions",
+				href: "https://github.com/emdash-cms/emdash/discussions",
+			},
+		],
+	},
+];
+
+const socialLinks = [
+	{
+		label: "EmDash on GitHub",
+		href: "https://github.com/emdash-cms/emdash",
+		path: "M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73c.5.09.68-.22.68-.49c0-.24-.01-1.05-.01-1.9c-2.78.62-3.37-1.21-3.37-1.21c-.45-1.19-1.11-1.5-1.11-1.5c-.91-.64.07-.63.07-.63c1 .07 1.53 1.06 1.53 1.06c.89 1.56 2.34 1.11 2.91.85c.09-.66.35-1.11.64-1.37c-2.22-.26-4.55-1.14-4.55-5.06c0-1.12.39-2.03 1.03-2.75c-.1-.26-.45-1.3.1-2.71c0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.97c.85 0 1.71.12 2.51.35c1.91-1.32 2.75-1.05 2.75-1.05c.55 1.41.2 2.45.1 2.71c.64.72 1.03 1.63 1.03 2.75c0 3.93-2.34 4.8-4.57 5.06c.36.32.68.94.68 1.9c0 1.37-.01 2.48-.01 2.81c0 .27.18.59.69.49A10.1 10.1 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z",
+	},
+	{
+		label: "EmDash on Discord",
+		href: "https://discord.gg/YY9vBaQRYt",
+		path: "M20.32 4.37A19.8 19.8 0 0 0 15.36 2.8a13.6 13.6 0 0 0-.63 1.3a18.4 18.4 0 0 0-5.5 0a13.6 13.6 0 0 0-.64-1.3a19.7 19.7 0 0 0-4.96 1.58C.5 9.22-.04 13.94.32 18.59a19.9 19.9 0 0 0 6.08 3.1a14.7 14.7 0 0 0 1.3-2.13a12.8 12.8 0 0 1-2.05-.99c.17-.13.34-.26.5-.4a14.1 14.1 0 0 0 11.68 0c.16.14.33.27.5.4c-.66.4-1.35.73-2.06.99c.38.75.82 1.47 1.3 2.13a19.8 19.8 0 0 0 6.1-3.1c.42-5.39-.72-10.07-3.35-14.22ZM8.02 15.73c-1.18 0-2.15-1.1-2.15-2.45s.95-2.45 2.15-2.45c1.21 0 2.17 1.1 2.15 2.45c0 1.35-.95 2.45-2.15 2.45Zm7.96 0c-1.18 0-2.15-1.1-2.15-2.45s.95-2.45 2.15-2.45c1.21 0 2.17 1.1 2.15 2.45c0 1.35-.94 2.45-2.15 2.45Z",
+	},
+];
+
+const themeChoices = [
+	{ value: "light", label: "Light" },
+	{ value: "dark", label: "Dark" },
+	{ value: "system", label: "System" },
+];
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+	<div class="shell footer-top">
+		<div class="footer-brand">
+			<a class="footer-logo" href="/" aria-label="EmDash Plugins home"
+				><Logo loading="lazy" /></a
+			>
+			<p>
+				Sandboxed plugins for EmDash, ready to install from your site’s admin.
+			</p>
+		</div>
+		<nav class="footer-links" aria-label="Footer">
+			{
+				columns.map((column) => (
+					<div class="footer-column">
+						<h2>{column.heading}</h2>
+						<ul role="list">
+							{column.links.map((link) => (
+								<li>
+									<a href={link.href}>{link.label}</a>
+								</li>
+							))}
+						</ul>
+					</div>
+				))
+			}
+		</nav>
+	</div>
+
+	<div class="shell footer-bottom">
+		<div class="footer-legal">
+			<p>© {year} EmDash CMS</p>
+			<p>Open source CMS for Astro, brought to you by Cloudflare.</p>
+		</div>
+		<div class="footer-actions">
+			<ul class="social-links" role="list">
+				{
+					socialLinks.map((link) => (
+						<li>
+							<a
+								class="social-link tap-target"
+								href={link.href}
+								aria-label={link.label}
+							>
+								<svg viewBox="0 0 24 24" aria-hidden="true">
+									<path fill="currentColor" d={link.path} />
+								</svg>
+							</a>
+						</li>
+					))
+				}
+			</ul>
+			<div class="theme-switcher" role="group" aria-label="Theme">
+				{
+					themeChoices.map((choice) => (
+						<button
+							type="button"
+							class="theme-choice tap-target"
+							data-theme-choice={choice.value}
+							aria-pressed="false"
+						>
+							{choice.label}
+						</button>
+					))
+				}
+			</div>
+		</div>
+	</div>
+</footer>
+
+<script>
+	import {
+		THEME_COLORS,
+		THEME_STORAGE_KEY,
+		parseThemePreference,
+		resolveTheme,
+		storedThemeValue,
+		type ThemePreference,
+	} from "../lib/theme.js";
+
+	const root = document.documentElement;
+	const systemDark = matchMedia("(prefers-color-scheme: dark)");
+	const buttons = document.querySelectorAll<HTMLButtonElement>(
+		"[data-theme-choice]",
+	);
+
+	const syncThemeColor = (preference: ThemePreference) => {
+		const resolved = resolveTheme(preference, systemDark.matches);
+		document
+			.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"][media]')
+			.forEach((meta) => {
+				const own = meta.media.includes("dark")
+					? THEME_COLORS.dark
+					: THEME_COLORS.light;
+				meta.content = preference === "system" ? own : THEME_COLORS[resolved];
+			});
+	};
+
+	const apply = (preference: ThemePreference) => {
+		root.dataset.theme = resolveTheme(preference, systemDark.matches);
+		root.dataset.themePreference = preference;
+		syncThemeColor(preference);
+		buttons.forEach((button) => {
+			button.setAttribute(
+				"aria-pressed",
+				String(button.dataset.themeChoice === preference),
+			);
+		});
+	};
+
+	// Every themed colour changes in the same frame instead of each control easing on its own schedule.
+	const switchTheme = (preference: ThemePreference) => {
+		root.classList.add("theme-switching");
+		apply(preference);
+		void root.offsetWidth;
+		requestAnimationFrame(() => root.classList.remove("theme-switching"));
+	};
+
+	const persist = (preference: ThemePreference) => {
+		try {
+			const value = storedThemeValue(preference);
+			if (value === null) localStorage.removeItem(THEME_STORAGE_KEY);
+			else localStorage.setItem(THEME_STORAGE_KEY, value);
+		} catch {
+			// Storage can be unavailable (private mode, blocked cookies); the choice still applies to this page.
+		}
+	};
+
+	buttons.forEach((button) => {
+		button.addEventListener("click", () => {
+			const preference = parseThemePreference(button.dataset.themeChoice);
+			persist(preference);
+			switchTheme(preference);
+		});
+	});
+
+	systemDark.addEventListener("change", () => {
+		if (parseThemePreference(root.dataset.themePreference) === "system")
+			switchTheme("system");
+	});
+
+	window.addEventListener("storage", (event) => {
+		if (event.key === THEME_STORAGE_KEY || event.key === null) {
+			switchTheme(parseThemePreference(event.newValue));
+		}
+	});
+
+	apply(parseThemePreference(root.dataset.themePreference));
+</script>
+
+<style>
+	.site-footer {
+		background: var(--surface);
+		border-block-start: 1px solid var(--line);
+	}
+
+	.footer-top {
+		display: grid;
+		gap: 48px;
+		padding-block-start: clamp(4rem, 3rem + 3vw, 6rem);
+	}
+
+	.footer-logo {
+		display: inline-flex;
+		width: fit-content;
+		padding-block: 4px;
+		color: inherit;
+		text-decoration: none;
+		border-radius: var(--radius-sm);
+	}
+
+	.footer-brand p {
+		max-width: 18rem;
+		margin: 16px 0 0;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.6;
+	}
+
+	.footer-links {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 32px 48px;
+	}
+
+	.footer-column h2 {
+		margin: 0 0 12px;
+		color: var(--ink);
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.footer-column ul,
+	.social-links {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.footer-column a {
+		display: inline-block;
+		padding-block: 4px;
+		color: var(--muted);
+		font-size: 14px;
+		line-height: 1.55;
+		text-decoration: none;
+		transition: color 150ms ease;
+	}
+
+	@media (pointer: coarse) {
+		.footer-column a {
+			padding-block: 9px;
+		}
+	}
+
+	@media (hover: hover) {
+		.footer-column a:hover {
+			color: var(--link-hover);
+		}
+	}
+
+	.footer-bottom {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 24px;
+		margin-block-start: clamp(3.5rem, 2.5rem + 3vw, 6rem);
+		padding-block: 24px;
+		color: var(--muted);
+		font-size: 14px;
+		border-block-start: 1px solid var(--line);
+	}
+
+	.footer-legal {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 16px;
+	}
+
+	.footer-legal p {
+		margin: 0;
+	}
+
+	.footer-actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 16px;
+	}
+
+	.social-links {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.social-link {
+		display: inline-flex;
+		width: 36px;
+		height: 36px;
+		align-items: center;
+		justify-content: center;
+		color: var(--muted);
+		border-radius: var(--radius);
+		transition:
+			color 150ms ease,
+			background-color 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.social-link:hover {
+			color: var(--link-hover);
+			background: var(--accent-soft);
+		}
+	}
+
+	.social-link svg {
+		width: 20px;
+		height: 20px;
+	}
+
+	:global(:root:not(.js)) .theme-switcher {
+		display: none;
+	}
+
+	.theme-switcher {
+		--theme-choice-active: var(--surface);
+		display: flex;
+		gap: 2px;
+		padding: 3px;
+		background: var(--fill);
+		border-radius: 14px;
+	}
+
+	/* In dark the footer is already --surface, so the active segment needs a lighter fill to read as selected. */
+	:global(:root[data-theme="dark"]) .theme-switcher {
+		--theme-choice-active: var(--fill-active);
+	}
+
+	.theme-choice {
+		min-height: 30px;
+		padding: 0 10px;
+		color: var(--muted);
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1;
+		cursor: pointer;
+		background: transparent;
+		border: 0;
+		border-radius: var(--radius);
+		transition:
+			color 150ms ease,
+			background-color 150ms ease,
+			box-shadow 150ms ease;
+	}
+
+	@media (hover: hover) {
+		.theme-choice:hover {
+			color: var(--ink);
+		}
+	}
+
+	.theme-choice[aria-pressed="true"],
+	:global(:root[data-theme-preference="light"])
+		.theme-choice[data-theme-choice="light"],
+	:global(:root[data-theme-preference="dark"])
+		.theme-choice[data-theme-choice="dark"],
+	:global(:root[data-theme-preference="system"])
+		.theme-choice[data-theme-choice="system"] {
+		color: var(--ink);
+		background: var(--theme-choice-active);
+		box-shadow: var(--shadow-sm);
+	}
+
+	@media (min-width: 768px) {
+		.footer-top {
+			grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+		}
+
+		.footer-links {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 767.98px) {
+		.footer-actions {
+			order: -1;
+			width: 100%;
+			justify-content: space-between;
+		}
+
+		.footer-legal {
+			flex-direction: column;
+		}
+	}
+</style>

@@ -15,7 +15,11 @@ interface ImageDropTargetProps {
 	onUploaded: (item: MediaItem) => void;
 	allowedMimeTypes?: string[];
 	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	className?: string;
+	/** Extra attributes for the browse button, such as the link to a field error. */
+	buttonProps?: Pick<React.ComponentProps<typeof Button>, "aria-invalid" | "aria-describedby">;
 }
 
 export function ImageDropTarget({
@@ -24,7 +28,10 @@ export function ImageDropTarget({
 	onUploaded,
 	allowedMimeTypes,
 	fieldId,
+	blockType,
+	blockVersion,
 	className,
+	buttonProps,
 }: ImageDropTargetProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
@@ -63,7 +70,12 @@ export function ImageDropTarget({
 		setUploading(true);
 		setError(null);
 		try {
-			const item = await uploadMedia(file, { fieldId, signal: controller.signal });
+			const item = await uploadMedia(file, {
+				fieldId,
+				blockType,
+				blockVersion,
+				signal: controller.signal,
+			});
 			if (controller.signal.aborted || activeUpload.current !== controller) return;
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			onUploaded(item);
@@ -117,6 +129,7 @@ export function ImageDropTarget({
 					className="h-auto min-h-32 w-full flex-col items-center justify-center gap-3 rounded-[10px] px-4 py-5 text-center text-base text-kumo-subtle"
 					aria-label={t`Drop an image here or browse for ${label}`}
 					disabled={uploading}
+					{...buttonProps}
 					onClick={() => {
 						setError(null);
 						onSelect();

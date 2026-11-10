@@ -7,7 +7,9 @@ export interface StoredBlockValue {
 	[key: string]: unknown;
 }
 
-function cloneValue<T>(value: T): T {
+const LINE_BREAK = /\r\n|\r|\n/;
+
+export function cloneValue<T>(value: T): T {
 	return globalThis.structuredClone
 		? globalThis.structuredClone(value)
 		: JSON.parse(JSON.stringify(value));
@@ -24,12 +26,23 @@ export function createBlockValue(blockType: BlockType, key: string): StoredBlock
 	};
 	for (const field of version?.fields ?? []) {
 		if (field.defaultValue !== undefined) value[field.slug] = cloneValue(field.defaultValue);
+		else if (field.type === "boolean") value[field.slug] = false;
 	}
 	return value;
 }
 
 export function duplicateBlockValue(block: StoredBlockValue, key: string): StoredBlockValue {
 	return { ...cloneValue(block), _key: key };
+}
+
+export function insertBlockValue(
+	blocks: readonly StoredBlockValue[],
+	block: StoredBlockValue,
+	index: number,
+): StoredBlockValue[] {
+	const next = [...blocks];
+	next.splice(Math.max(0, Math.min(index, next.length)), 0, block);
+	return next;
 }
 
 export function moveBlockValue(
@@ -53,6 +66,19 @@ export function updateBlockFieldValue(
 	value: unknown,
 ): StoredBlockValue[] {
 	return blocks.map((block) => (block._key === key ? { ...block, [field]: value } : block));
+}
+
+/** A type-in list line with nothing but whitespace, which the editor keeps out of the saved value. */
+export function isBlankLine(value: unknown): boolean {
+	return value === undefined || value === null || (typeof value === "string" && !value.trim());
+}
+
+/** Text pasted into a type-in list, as one trimmed entry per line that has any text. */
+export function pastedLines(text: string): string[] {
+	return text
+		.split(LINE_BREAK)
+		.map((line) => line.trim())
+		.filter(Boolean);
 }
 
 export function createBlockKey(): string {

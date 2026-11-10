@@ -57,6 +57,7 @@ import {
 	type AttachmentInfo,
 	type ProbeResult,
 	type AuthorMapping,
+	type NavMenu,
 	type UserListItem,
 } from "../lib/api";
 import { cn } from "../lib/utils";
@@ -1530,6 +1531,7 @@ function PluginAuthStep({
 							{t`WordPress Username`}
 						</label>
 						<Input
+							dir="ltr"
 							id="wp-username"
 							type="text"
 							value={username}
@@ -1663,13 +1665,7 @@ function UploadStep({
 // Menu Info (Type-safe helper for navMenus)
 // =============================================================================
 
-interface NavMenuItem {
-	name: string;
-	slug: string;
-	count: number;
-}
-
-function getNavMenus(analysis: ImportAnalysis): NavMenuItem[] | undefined {
+function getNavMenus(analysis: ImportAnalysis): NavMenu[] | undefined {
 	if ("navMenus" in analysis && Array.isArray(analysis.navMenus)) {
 		return analysis.navMenus;
 	}
@@ -1740,7 +1736,9 @@ function ReviewStep({
 			{/* Site info */}
 			<div className="rounded-lg border bg-kumo-base p-4">
 				<h3 className="font-medium">{analysis.site.title}</h3>
-				<p className="text-sm text-kumo-subtle">{analysis.site.url}</p>
+				<p className="text-sm text-kumo-subtle">
+					<bdi dir="ltr">{analysis.site.url}</bdi>
+				</p>
 			</div>
 
 			{/* Errors */}
@@ -1807,27 +1805,24 @@ function ReviewStep({
 						<p className="text-sm text-kumo-subtle mt-1">{t`Additional data to import.`}</p>
 					</div>
 					<div className="divide-y">
-						{/* Menus — only the plugin import can import them; for WXR the
-						    entries are informational */}
-						{isPluginSource && (
-							<div className="p-4">
-								<Switch
-									checked={importMenus}
-									onCheckedChange={(checked) => onImportMenusChange(checked)}
-									label={
-										<div className="flex items-center gap-2">
-											<List className="h-4 w-4 text-kumo-subtle" />
-											<div>
-												<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
-												<p className="text-sm text-kumo-subtle">
-													{navMenus.map((m) => m.name).join(", ")}
-												</p>
-											</div>
+						{/* Menus — both the WXR and the plugin import bring them in */}
+						<div className="p-4">
+							<Switch
+								checked={importMenus}
+								onCheckedChange={(checked) => onImportMenusChange(checked)}
+								label={
+									<div className="flex items-center gap-2">
+										<List className="h-4 w-4 text-kumo-subtle" />
+										<div>
+											<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
+											<p className="text-sm text-kumo-subtle">
+												{navMenus.map((m) => m.label || m.name).join(", ")}
+											</p>
 										</div>
-									}
-								/>
-							</div>
-						)}
+									</div>
+								}
+							/>
+						</div>
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (
@@ -1894,7 +1889,7 @@ function ReviewStep({
 								onCheckedChange={(checked) => onImportSeoChange(checked)}
 								label={
 									<div>
-										<p className="font-medium">{t`SEO settings (Yoast)`}</p>
+										<p className="font-medium">{t`SEO settings`}</p>
 										<p className="text-sm text-kumo-subtle">
 											{t`Meta titles, descriptions, and social images`}
 										</p>
@@ -2457,7 +2452,9 @@ function CompleteStep({
 					<div className="divide-y divide-destructive/20 max-h-64 overflow-y-auto">
 						{mediaResult.failed.map((error, i) => (
 							<div key={i} className="p-4">
-								<p className="font-medium text-sm font-mono truncate">{error.originalUrl}</p>
+								<p className="font-medium text-sm font-mono truncate">
+									<bdi dir="ltr">{error.originalUrl}</bdi>
+								</p>
 								<p className="text-sm text-kumo-subtle">{error.error}</p>
 							</div>
 						))}

@@ -5,10 +5,14 @@
  * - ?rest_route= fallback for sites with plain permalinks
  */
 
+import type { APIContext } from "astro";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { handleContentCreate } from "../../../src/api/handlers/content.js";
 import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/analyze.js";
 import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import {
 	clearSources,
 	probeUrl,
@@ -17,7 +21,14 @@ import {
 } from "../../../src/import/registry.js";
 import { wordpressPluginSource } from "../../../src/import/sources/wordpress-plugin.js";
 import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
-import { setupTestDatabase } from "../../utils/test-db.js";
+import { getMenuWithDb } from "../../../src/menus/index.js";
+import type { Storage } from "../../../src/storage/types.js";
+import { JPEG_4x4, PNG_4x4 } from "../../utils/image-fixtures.js";
+import {
+	setupTestDatabase,
+	setupTestDatabaseWithCollections,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
 
 // ─── Mock fetch ──────────────────────────────────────────────────────────────
 
@@ -122,6 +133,17 @@ function mediaPage(page: number, pages: number, ids: number[]) {
 		}),
 		{ status: 200 },
 	);
+}
+
+function routeContext(path: string, body: unknown, emdash: unknown) {
+	return {
+		request: new Request(`http://localhost/_emdash/api/import/wordpress-plugin/${path}`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+			body: JSON.stringify(body),
+		}),
+		locals: { emdash, user: { id: "admin", role: 50 } },
+	};
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -606,6 +628,97 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 	});
 });
 
+describe("WordPress Plugin Source: site settings media", () => {
+	it.each([false, true, undefined])(
+		"forwards imagePlaceholders=%s while importing logo and favicon",
+		async (imagePlaceholders) => {
+			const db = await setupTestDatabase();
+			mockFetch.mockImplementation((input: RequestInfo | URL) => {
+				const url = toUrlString(input);
+				if (url.includes("/options")) {
+					return Promise.resolve(
+						new Response(
+							JSON.stringify({
+								custom_logo_url: "https://example.com/logo.jpg",
+								site_icon_url: "https://example.com/favicon.png",
+							}),
+						),
+					);
+				}
+				return Promise.resolve(
+					new Response(url.includes("favicon") ? PNG_4x4 : JPEG_4x4, {
+						status: 200,
+						headers: {
+							"content-type": url.includes("favicon") ? "image/png" : "image/jpeg",
+						},
+					}),
+				);
+			});
+
+			const storage: Pick<Storage, "upload"> = {
+				async upload(options) {
+					const body =
+						options.body instanceof Uint8Array
+							? options.body
+							: new Uint8Array(options.body as ArrayBuffer);
+					return { key: options.key, url: `/media/${options.key}`, size: body.byteLength };
+				},
+			};
+			const request = new Request("http://localhost/_emdash/api/import/wordpress-plugin/execute", {
+				method: "POST",
+				headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+				body: JSON.stringify({
+					url: "https://example.com",
+					token: "test-token",
+					phase: "finalize",
+					config: {
+						postTypeMappings: { post: { collection: "posts", enabled: true } },
+						importMenus: false,
+					},
+				}),
+			});
+
+			try {
+				const response = await executeRoute({
+					request,
+					locals: {
+						emdash: {
+							db,
+							handleContentCreate: vi.fn(),
+							storage: storage as Storage,
+							config: { imagePlaceholders },
+							getManifest: async () => ({ collections: {} }),
+						},
+						user: { id: "admin", role: 50 },
+					},
+				} as unknown as APIContext);
+				expect(response.status).toBe(200);
+
+				const options = new OptionsRepository(db);
+				const logo = await options.get<{ mediaId: string }>("site:logo");
+				const favicon = await options.get<{ mediaId: string }>("site:favicon");
+				expect(logo?.mediaId).toBeTruthy();
+				expect(favicon?.mediaId).toBeTruthy();
+				expect(favicon?.mediaId).not.toBe(logo?.mediaId);
+				const media = new MediaRepository(db);
+				const logoMedia = await media.findById(logo!.mediaId);
+				const faviconMedia = await media.findById(favicon!.mediaId);
+				expect(logoMedia).toMatchObject({ width: 4, height: 4 });
+				expect(faviconMedia).toMatchObject({ width: 4, height: 4 });
+				if (imagePlaceholders !== false) {
+					expect(logoMedia?.blurhash).toBeTruthy();
+					expect(faviconMedia?.blurhash).toBeTruthy();
+				} else {
+					expect(logoMedia).toMatchObject({ blurhash: null, dominantColor: null });
+					expect(faviconMedia).toMatchObject({ blurhash: null, dominantColor: null });
+				}
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		},
+	);
+});
+
 describe("WordPress Plugin Source: bot-protection challenges", () => {
 	function challengeResponse() {
 		return new Response("<!DOCTYPE html><title>Just a moment...</title>", {
@@ -651,17 +764,6 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 		expect(result.isWordPress).toBe(false);
 		expect(result.challenged).toBeUndefined();
 	});
-
-	function routeContext(path: string, body: unknown, emdash: unknown) {
-		return {
-			request: new Request(`http://localhost/_emdash/api/import/wordpress-plugin/${path}`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-				body: JSON.stringify(body),
-			}),
-			locals: { emdash, user: { id: "admin", role: 50 } },
-		};
-	}
 
 	it.each([
 		[
@@ -755,6 +857,90 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 			expect(response.status).toBe(502);
 			const json = (await response.json()) as { error: { code: string } };
 			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
+		},
+	);
+});
+
+describe("WordPress Plugin execute: menus", () => {
+	beforeEach(() => {
+		clearSources();
+		registerSource(wordpressPluginSource);
+	});
+
+	afterAll(() => {
+		clearSources();
+	});
+
+	it.each(["unchunked", "finalize"])(
+		"links a menu item to the collection its entry was imported into (%s import)",
+		async (phase) => {
+			const db = await setupTestDatabaseWithCollections();
+			mockFetch.mockImplementation((input: RequestInfo | URL) => {
+				const url = toUrlString(input);
+				if (url.includes("/emdash/v1/content")) {
+					return Promise.resolve(
+						contentResponse([makePost({ id: 42, slug: "jane", title: "Jane" })]),
+					);
+				}
+				if (url.includes("/emdash/v1/menus")) {
+					return Promise.resolve(
+						new Response(
+							JSON.stringify([
+								{
+									id: 1,
+									name: "primary",
+									label: "Primary",
+									items: [
+										{
+											id: 10,
+											parent_id: null,
+											sort_order: 0,
+											type: "post_type",
+											object: "post",
+											object_id: 42,
+											url: "https://example.com/jane/",
+											title: "Jane",
+											target: null,
+											classes: null,
+										},
+									],
+								},
+							]),
+						),
+					);
+				}
+				return Promise.resolve(new Response("{}", { status: 404 }));
+			});
+
+			let idMap: Record<string, { id: string; collection: string }> | undefined;
+			if (phase === "finalize") {
+				const created = await handleContentCreate(db, "post", {
+					data: { title: "Jane" },
+					slug: "jane",
+					status: "published",
+				});
+				if (!created.success) throw new Error("fixture entry was not created");
+				idMap = { "42": { id: created.data.item.id, collection: "post" } };
+			}
+			const body = {
+				url: "https://example.com",
+				token: "test-token",
+				config: { postTypeMappings: { post: { collection: "post", enabled: true } } },
+				...(phase === "finalize" ? { phase, idMap } : {}),
+			};
+			const emdash = {
+				db,
+				handleContentCreate: (collection: string, input: { data: Record<string, unknown> }) =>
+					handleContentCreate(db, collection, input),
+				getManifest: async () => ({ collections: { post: {} } }),
+			};
+
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await executeRoute(routeContext("execute", body, emdash) as any);
+
+			expect(response.status).toBe(200);
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu?.items).toEqual([expect.objectContaining({ label: "Jane", url: "/post/jane" })]);
 		},
 	);
 });

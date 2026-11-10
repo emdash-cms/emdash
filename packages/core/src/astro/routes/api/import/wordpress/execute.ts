@@ -20,6 +20,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+import { importMenusFromWxr, type WxrMenuArchive, type WxrMenuTarget } from "#import/menus.js";
 import { relativizeContentLinks, resolveImportByline } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
@@ -33,6 +34,7 @@ import {
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
+import { resolveContentCreateLocale } from "../../../../../i18n/config.js";
 import { sanitizeSlug } from "./analyze.js";
 
 export const prerender = false;
@@ -50,6 +52,7 @@ interface WxrChunkCursor {
 /** Cross-chunk state carried by the client. */
 interface WxrChunkState {
 	translationGroups: Record<string, string>;
+	bylines?: Record<string, string>;
 }
 
 /** Chunked response shape mirrors the wordpress-plugin execute endpoint. */
@@ -78,6 +81,8 @@ export interface ImportConfig {
 	authorMappings?: Record<string, string | null>;
 	/** BCP 47 locale for all imported items. When omitted, defaults to defaultLocale. */
 	locale?: string;
+	/** Whether to import the export's menus. Defaults to true. */
+	importMenus?: boolean;
 }
 
 export interface ImportResult {
@@ -91,6 +96,15 @@ export interface ImportResult {
 	sections?: {
 		created: number;
 		skipped: number;
+	};
+	/** Menu import results (if the export has menus) */
+	menus?: {
+		created: number;
+		items: number;
+		/** Menus left as they were because the site has one with the same name in that locale */
+		skipped: number;
+		/** Items left out because what they link to wasn't imported */
+		itemsSkipped: number;
 	};
 	/** Taxonomy import results (categories, tags, custom taxonomies). */
 	taxonomies?: {
@@ -270,6 +284,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				result.errors.push(...sectionsResult.errors);
 				result.success = result.errors.length === 0;
 			}
+			await importWxrMenus(wxr, config, emdash.db, emdashManifest, result);
 			return apiSuccess({ success: result.success, result, done: true });
 		}
 
@@ -353,6 +368,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			}
 		}
 
+		await importWxrMenus(wxr, config, emdash.db, emdashManifest, result);
+
 		return apiSuccess(result);
 	} catch (error) {
 		return handleError(error, "Failed to import content", "WXR_IMPORT_ERROR");
@@ -410,6 +427,9 @@ async function runContentChunk(
 	const translationGroupMap = new Map<string, string>(
 		Object.entries(incomingChunk?.translationGroups ?? {}),
 	);
+	// Likewise for bylines: an author without a user mapping is matched only
+	// through this map, so a fresh one per chunk gives them a new byline each time.
+	const bylineCache = new Map<string, string>(Object.entries(incomingChunk?.bylines ?? {}));
 
 	const result = await importContent(
 		posts,
@@ -422,6 +442,7 @@ async function runContentChunk(
 		taxonomyPlan,
 		translationGroupMap,
 		wxr.site.link,
+		bylineCache,
 	);
 
 	const nextOffset = offset + posts.length;
@@ -432,7 +453,10 @@ async function runContentChunk(
 		result,
 		done,
 		cursor: { offset: nextOffset, source, taxonomiesReady: true },
-		chunk: { translationGroups: Object.fromEntries(translationGroupMap) },
+		chunk: {
+			translationGroups: Object.fromEntries(translationGroupMap),
+			bylines: Object.fromEntries(bylineCache),
+		},
 	};
 }
 
@@ -470,6 +494,7 @@ export async function importContent(
 	taxonomyPlan: TaxonomyImportPlan,
 	translationGroupMap = new Map<string, string>(),
 	siteUrl = "",
+	bylineCache = new Map<string, string>(),
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -488,7 +513,6 @@ export async function importContent(
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
-	const bylineCache = new Map<string, string>();
 
 	for (const post of posts) {
 		const postType = post.postType || "post";
@@ -517,8 +541,7 @@ export async function importContent(
 			const content = post.content ? gutenbergToPortableText(post.content) : [];
 			if (siteUrl) relativizeContentLinks(content, siteUrl);
 
-			// Generate slug from post name or title
-			const slug = post.postName || slugify(post.title || `post-${post.id || Date.now()}`);
+			const slug = wxrPostSlug(post);
 
 			// Per-post locale: prefer the value extracted from WPML/Polylang
 			// metadata; fall back to the upload-wide locale. Two translations
@@ -603,7 +626,10 @@ export async function importContent(
 			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
 			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
 			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
-			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+			const scheduledAt =
+				post.status === "future" && createdAt && Date.parse(createdAt) > Date.now()
+					? createdAt
+					: undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -615,7 +641,8 @@ export async function importContent(
 				locale: postLocale,
 				translationOf,
 				createdAt,
-				publishedAt,
+				// Scheduled posts get their publication date from the final schedule.
+				publishedAt: scheduledAt ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
@@ -684,16 +711,11 @@ export async function importContent(
 					}
 				}
 
-				if (
-					createdItem &&
-					post.status === "future" &&
-					createdAt &&
-					Date.parse(createdAt) > Date.now()
-				) {
+				if (createdItem && scheduledAt) {
 					const scheduled = await emdash.handleContentSchedule(
 						collection,
 						createdItem.id,
-						createdAt,
+						scheduledAt,
 					);
 					if (!scheduled.success) {
 						result.errors.push({
@@ -722,6 +744,153 @@ export async function importContent(
 
 	result.success = result.errors.length === 0;
 	return result;
+}
+
+/** The slug the content import gives a post: its post name, or one made from its title. */
+function wxrPostSlug(post: WxrPost): string {
+	return post.postName || slugify(post.title || `post-${post.id || Date.now()}`);
+}
+
+/**
+ * Import the export's menus once its content is in, linking their items to the
+ * entries the content import created.
+ */
+async function importWxrMenus(
+	wxr: Awaited<ReturnType<typeof parseWxrString>>,
+	config: ImportConfig,
+	db: EmDashHandlers["db"],
+	manifest: EmDashManifest,
+	result: ImportResult,
+): Promise<void> {
+	if (config.importMenus === false || wxr.navMenus.length === 0) return;
+
+	let menuResult: Awaited<ReturnType<typeof importMenusFromWxr>>;
+	try {
+		menuResult = await importMenusFromWxr(
+			wxr.navMenus,
+			db,
+			await findWxrMenuTargets(wxr, config, db, manifest),
+			resolveContentCreateLocale(config.locale),
+			wxrMenuArchives(config, manifest),
+		);
+	} catch (error) {
+		// The content is in by now, so report the failure with the rest of the result
+		console.error("[WXR_IMPORT_MENUS]", error);
+		result.errors.push({ title: "Menus", error: "Failed to import menus" });
+		result.success = false;
+		return;
+	}
+	result.menus = {
+		created: menuResult.menusCreated,
+		items: menuResult.itemsCreated,
+		skipped: menuResult.menusSkipped,
+		itemsSkipped: menuResult.itemsSkipped,
+	};
+	for (const menuError of menuResult.errors) {
+		// The detail can carry database and adapter messages, so it stays in the log
+		console.error("[WXR_IMPORT_MENUS]", menuError.menu, menuError.error);
+		result.errors.push({ title: `Menu: ${menuError.menu}`, error: "Failed to import menu" });
+	}
+	if (menuResult.errors.length > 0) result.success = false;
+}
+
+/**
+ * Find the entries that menu items link to: the ones the content import made
+ * from those posts, looked up by the collection, slug and locale it gave them.
+ * This also finds entries an earlier import created and this one skipped.
+ *
+ * Posts that share a slug in a collection and locale are left out: the content
+ * import creates the first and skips the others, so the one entry with that
+ * slug can't be matched to the right post.
+ */
+async function findWxrMenuTargets(
+	wxr: Awaited<ReturnType<typeof parseWxrString>>,
+	config: ImportConfig,
+	db: EmDashHandlers["db"],
+	manifest: EmDashManifest,
+): Promise<Map<number, WxrMenuTarget>> {
+	const linked = new Set<number>();
+	for (const menu of wxr.navMenus) {
+		for (const item of menu.items) {
+			if (item.type === "post_type" && item.objectId) linked.add(item.objectId);
+		}
+	}
+
+	// Every post the content import takes, by collection and locale, then by slug
+	const groups = new Map<
+		string,
+		{ collection: string; locale: string; postsBySlug: Map<string, WxrPost[]> }
+	>();
+	for (const post of wxr.posts) {
+		const mapping = config.postTypeMappings[post.postType || "post"];
+		if (!mapping?.enabled) continue;
+		const collection = sanitizeSlug(mapping.collection);
+		if (!manifest.collections[collection]) continue;
+		let locale: string;
+		try {
+			locale = resolveContentCreateLocale(post.locale ?? config.locale);
+		} catch {
+			// The content import couldn't create the entry in this locale either
+			continue;
+		}
+		const key = `${collection}\u0000${locale}`;
+		let group = groups.get(key);
+		if (!group) {
+			group = { collection, locale, postsBySlug: new Map() };
+			groups.set(key, group);
+		}
+		const slug = wxrPostSlug(post);
+		const posts = group.postsBySlug.get(slug);
+		if (posts) posts.push(post);
+		else group.postsBySlug.set(slug, [post]);
+	}
+
+	const contentRepo = new ContentRepository(db);
+	const targets = new Map<number, WxrMenuTarget>();
+	for (const { collection, locale, postsBySlug } of groups.values()) {
+		// The linked posts that have their slug to themselves
+		const linkedBySlug = new Map<string, { id: number; title: string }>();
+		for (const [slug, [post, ...others]] of postsBySlug) {
+			if (post?.id && others.length === 0 && linked.has(post.id)) {
+				linkedBySlug.set(slug, { id: post.id, title: post.title ?? "" });
+			}
+		}
+		if (linkedBySlug.size === 0) continue;
+		const entries = await contentRepo.findManyBySlugsInLocale(
+			collection,
+			[...linkedBySlug.keys()],
+			locale,
+		);
+		for (const [slug, post] of linkedBySlug) {
+			const entry = entries.get(slug);
+			if (!entry) continue;
+			targets.set(post.id, {
+				collection,
+				translationGroup: entry.translationGroup ?? entry.id,
+				locale: entry.locale ?? locale,
+				title: typeof entry.data.title === "string" ? entry.data.title : post.title,
+			});
+		}
+	}
+	return targets;
+}
+
+/**
+ * The collections that menu items for post type archives link to: each imported
+ * post type's collection, by WordPress post type.
+ */
+function wxrMenuArchives(
+	config: ImportConfig,
+	manifest: EmDashManifest,
+): Map<string, WxrMenuArchive> {
+	const archives = new Map<string, WxrMenuArchive>();
+	for (const [postType, mapping] of Object.entries(config.postTypeMappings)) {
+		if (!mapping.enabled) continue;
+		const collection = sanitizeSlug(mapping.collection);
+		const definition = manifest.collections[collection];
+		if (definition) archives.set(postType, { collection, label: definition.label });
+	}
+	return archives;
 }
 
 function mapStatus(wpStatus: string | undefined): string {

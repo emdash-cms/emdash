@@ -10,6 +10,8 @@ import { sql } from "kysely";
 import { isSqlite, tableExists as dialectTableExists } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import { isStoragelessFieldRow } from "../schema/types.js";
+import { normalizeSearchError } from "./errors.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
 
@@ -154,7 +156,10 @@ export class FTSManager {
 				tokenize='${tokenizer}'
 			)
 		`)
-			.execute(this.db);
+			.execute(this.db)
+			.catch((error: unknown) => {
+				throw normalizeSearchError(error);
+			});
 
 		// Create triggers for automatic sync
 		await this.createTriggers(collectionSlug, searchableFields);
@@ -321,11 +326,15 @@ export class FTSManager {
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
 
-		// Drop triggers first
-		await this.dropTriggers(collectionSlug);
+		try {
+			// Drop triggers first
+			await this.dropTriggers(collectionSlug);
 
-		// Drop the FTS table
-		await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(this.db);
+			// Drop the FTS table
+			await sql.raw(`DROP TABLE IF EXISTS "${ftsTable}"`).execute(this.db);
+		} catch (error) {
+			throw normalizeSearchError(error);
+		}
 	}
 
 	/**
@@ -450,6 +459,10 @@ export class FTSManager {
 		let query = this.db
 			.selectFrom("_emdash_collections as c")
 			.select([
+				// SQLite resolves bm25 at prepare time even when no rows match.
+				// The unreachable branch probes FTS5 without invoking bm25 outside
+				// a MATCH query.
+				sql<null>`CASE WHEN 0 THEN bm25(NULL) END`.as("fts5_capability"),
 				"c.slug",
 				"c.search_config",
 				"c.title_field",
@@ -477,7 +490,10 @@ export class FTSManager {
 		}
 
 		const metadata = new Map<string, CollectionSearchMetadata>();
-		for (const row of await query.execute()) {
+		const rows = await query.execute().catch((error: unknown) => {
+			throw normalizeSearchError(error);
+		});
+		for (const row of rows) {
 			const config = row.search_config
 				? parseSearchConfig(row.search_config, row.title_field)
 				: null;
@@ -513,7 +529,8 @@ export class FTSManager {
 	}
 
 	/**
-	 * Get searchable fields for a collection
+	 * Get searchable fields for a collection. Fields that store no column (bound
+	 * reference fields) are left out: the index triggers read each field's column.
 	 */
 	async getSearchableFields(collectionSlug: string): Promise<string[]> {
 		const collection = await this.db
@@ -528,12 +545,12 @@ export class FTSManager {
 
 		const fields = await this.db
 			.selectFrom("_emdash_fields")
-			.select("slug")
+			.select(["slug", "type", "validation"])
 			.where("collection_id", "=", collection.id)
 			.where("searchable", "=", 1)
 			.execute();
 
-		return fields.map((f) => f.slug);
+		return fields.filter((f) => !isStoragelessFieldRow(f)).map((f) => f.slug);
 	}
 
 	/**

@@ -60,12 +60,14 @@ function TestEditor({
 	acceptsVideo,
 	editable = true,
 	content = TWO_PARAGRAPHS,
+	className,
 	onReady,
 }: {
 	upload: ImageUploadOptions["upload"];
 	acceptsVideo?: () => boolean;
 	editable?: boolean;
 	content?: JSONContent[];
+	className?: string;
 	onReady: (editor: Editor) => void;
 }) {
 	const editor = useEditor({
@@ -80,6 +82,7 @@ function TestEditor({
 			: [StarterKit, ImageExtension, ImageUploadExtension.configure({ upload })],
 		content: { type: "doc", content },
 		editable,
+		...(className ? { editorProps: { attributes: { class: className } } } : {}),
 		immediatelyRender: true,
 	});
 	React.useEffect(() => {
@@ -91,7 +94,12 @@ function TestEditor({
 
 async function setup(
 	upload: ImageUploadOptions["upload"],
-	options: { editable?: boolean; content?: JSONContent[]; acceptsVideo?: () => boolean } = {},
+	options: {
+		editable?: boolean;
+		content?: JSONContent[];
+		acceptsVideo?: () => boolean;
+		className?: string;
+	} = {},
 ) {
 	let editor: Editor | undefined;
 	await render(
@@ -100,6 +108,7 @@ async function setup(
 			acceptsVideo={options.acceptsVideo}
 			editable={options.editable}
 			content={options.content}
+			className={options.className}
 			onReady={(instance) => {
 				editor = instance;
 			}}
@@ -192,6 +201,28 @@ describe("ImageUploadExtension", () => {
 		);
 		expect(document.querySelector("[data-image-upload-placeholder]")).toBeNull();
 	});
+
+	it.each([
+		["page", "emdash-document"],
+		["boxed", "prose"],
+	])(
+		"puts an uploaded image where its placeholder was in the %s editor",
+		async (_name, className) => {
+			const pending = deferred<Record<string, unknown>>();
+			await setup(() => pending.promise, { className });
+
+			dropFiles(paragraph("First"), [imageFile("cat.png")]);
+			const placeholderTop = (await waitForPlaceholder()).getBoundingClientRect().top;
+			pending.resolve(attrsFor(imageFile("cat.png")));
+
+			const image = await vi.waitFor(() => {
+				const element = document.querySelector(".node-image [data-node-view-wrapper]");
+				expect(element).not.toBeNull();
+				return element!;
+			});
+			expect(image.getBoundingClientRect().top).toBeCloseTo(placeholderTop, 0);
+		},
+	);
 
 	it("shows a spinner hidden from screen readers and unmounts it with the placeholder", async () => {
 		const pending = deferred<Record<string, unknown>>();
