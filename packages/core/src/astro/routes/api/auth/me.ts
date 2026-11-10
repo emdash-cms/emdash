@@ -1,8 +1,8 @@
 /**
  * GET /_emdash/api/auth/me
  *
- * Returns the current authenticated user's info.
- * Used by the admin UI to display user info in the header.
+ * Returns the current authenticated user's info, welcome state, and personal
+ * sidebar layout.
  */
 
 import type { APIRoute } from "astro";
@@ -10,8 +10,8 @@ import type { APIRoute } from "astro";
 export const prerender = false;
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
-import { isParseError, parseBody } from "#api/parse.js";
-import { authMeActionBody } from "#api/schemas.js";
+import { isParseError, parseBody, validate } from "#api/parse.js";
+import { adminLayoutSchema, authMeActionBody, setAdminLayoutBody } from "#api/schemas.js";
 import { UserRepository } from "#db/repositories/user.js";
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -37,6 +37,7 @@ export const GET: APIRoute = async ({ locals }) => {
 	// The flag is persisted in the user's `data` JSON column so it survives
 	// session expiry / rotation.
 	const isFirstLogin = !userData?.welcomeDismissed;
+	const adminLayout = adminLayoutSchema.safeParse(userData?.adminLayout);
 
 	// Return safe user info (no sensitive data)
 	return apiSuccess({
@@ -46,13 +47,16 @@ export const GET: APIRoute = async ({ locals }) => {
 		role: user.role,
 		avatarUrl: user.avatarUrl,
 		isFirstLogin,
+		adminLayout: adminLayout.success ? adminLayout.data : null,
 	});
 };
 
 /**
  * POST /_emdash/api/auth/me
  *
- * Mark that the user has seen the welcome modal.
+ * - `{ action: "dismissWelcome" }` marks the welcome modal as seen.
+ * - `{ action: "setAdminLayout", adminLayout }` replaces the personal sidebar
+ *   layout, or removes it when `adminLayout` is `null`.
  */
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { user, emdash } = locals;
@@ -66,18 +70,35 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	const body = await parseBody(request, authMeActionBody);
 	if (isParseError(body)) return body;
 
-	if (body.action === "dismissWelcome") {
-		try {
-			// Persist in the user's data column so it survives session expiry.
-			const userRepo = new UserRepository(emdash.db);
-			await userRepo.update(user.id, {
-				data: { ...user.data, welcomeDismissed: true },
-			});
-			return apiSuccess({ success: true });
-		} catch (error) {
-			return handleError(error, "Failed to dismiss welcome", "WELCOME_DISMISS_ERROR");
-		}
-	}
+	const users = new UserRepository(emdash.db);
 
-	return apiError("UNKNOWN_ACTION", "Unknown action", 400);
+	switch (body.action) {
+		case "dismissWelcome": {
+			try {
+				// Persist in the user's data column so it survives session expiry.
+				await users.setDataKey(user.id, "welcomeDismissed", true);
+				return apiSuccess({ success: true });
+			} catch (error) {
+				return handleError(error, "Failed to dismiss welcome", "WELCOME_DISMISS_ERROR");
+			}
+		}
+
+		case "setAdminLayout": {
+			const input = validate(setAdminLayoutBody, body);
+			if (isParseError(input)) return input;
+			try {
+				if (input.adminLayout) {
+					await users.setDataKey(user.id, "adminLayout", input.adminLayout);
+				} else {
+					await users.removeDataKey(user.id, "adminLayout");
+				}
+				return apiSuccess({ adminLayout: input.adminLayout });
+			} catch (error) {
+				return handleError(error, "Failed to save admin layout", "ADMIN_LAYOUT_SAVE_ERROR");
+			}
+		}
+
+		default:
+			return apiError("UNKNOWN_ACTION", "Unknown action", 400);
+	}
 };
