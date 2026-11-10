@@ -1,6 +1,6 @@
 ---
-"emdash": patch
-"@emdash-cms/admin": patch
+"emdash": minor
+"@emdash-cms/admin": minor
 ---
 
 Fixes autosave deleting versions saved with **Save**, and names everyone who edited each version in revision history.
