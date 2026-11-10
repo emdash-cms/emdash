@@ -134,30 +134,6 @@ test.describe("Portable Text image upload", () => {
 	}) => {
 		const id = await createPost(page.request, serverInfo, `image-drop-${crypto.randomUUID()}`);
 		postIds.push(id);
-		const t0 = Date.now();
-		const diag = (...parts: unknown[]) => console.log("[diag]", Date.now() - t0, ...parts);
-		page.on("framenavigated", (frame) => {
-			if (frame === page.mainFrame()) diag("nav", frame.url());
-		});
-		page.on("response", (response) => {
-			if (response.request().method() === "POST" && response.url().includes("/room")) {
-				void response.json().then(
-					(body: { data?: { mode?: string }; error?: { code?: string } }) =>
-						diag("join", response.status(), body.data?.mode ?? body.error?.code),
-					() => diag("join", response.status()),
-				);
-			}
-		});
-		page.on("websocket", (socket) => {
-			if (!socket.url().includes("/room")) return;
-			diag("ws open");
-			socket.on("close", () => diag("ws close"));
-		});
-		page.on("console", (message) => {
-			if (message.type() === "error" || message.type() === "warning") {
-				diag("console", message.type(), message.text().slice(0, 300));
-			}
-		});
 		await admin.goToEditContent("posts", id);
 		await admin.waitForLoading();
 		const editor = page.locator(EDITOR);
@@ -166,21 +142,7 @@ test.describe("Portable Text image upload", () => {
 		const release = await holdUploads(page);
 		const transfer = await imageTransfer(page, `drop-${crypto.randomUUID()}.png`);
 		try {
-			const target = editor.locator("p", { hasText: "First" });
-			const box = (await target.boundingBox())!;
-			diag(
-				"before drop",
-				await page.evaluate(
-					({ x, y }) => {
-						const hit = document.elementFromPoint(x, y);
-						const pm = document.querySelector("#field-body .ProseMirror");
-						return `hit=${hit?.tagName}.${hit?.className} inEditor=${Boolean(pm?.contains(hit))} ce=${pm?.getAttribute("contenteditable")} editors=${document.querySelectorAll("#field-body .ProseMirror").length}`;
-					},
-					{ x: box.x + box.width - 2, y: box.y + box.height / 2 },
-				),
-			);
-			await dropOn(target, transfer);
-			diag("dropped");
+			await dropOn(editor.locator("p", { hasText: "First" }), transfer);
 		} finally {
 			await transfer.dispose();
 		}
