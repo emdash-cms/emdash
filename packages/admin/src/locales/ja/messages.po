@@ -752,7 +752,7 @@ msgstr "{menuName}内の{label}"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "{label} is always shown"
-msgstr ""
+msgstr "{label}は常に表示されます"
 
 #. placeholder {0}: newIndex + 1
 #. placeholder {1}: images.length
@@ -768,7 +768,7 @@ msgstr "{label}を{0}番目に移動しました。"
 #: packages/admin/src/components/settings/LayoutList.tsx:436
 #: packages/admin/src/components/settings/LayoutList.tsx:468
 msgid "{label} moved to position {position} of {count}."
-msgstr ""
+msgstr "{label}を全{count}件中{position}番目に移動しました。"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "{label} options"
@@ -2078,7 +2078,7 @@ msgstr "または、WordPressからエクスポート（ツール → エクス�
 
 #: packages/admin/src/components/settings/LayoutList.tsx:154
 msgid "Always shown"
-msgstr ""
+msgstr "常に表示"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:324
 msgid "An earlier import of this package stopped after it started writing to this site. Abandon that import, then reset this site or set up a new one before importing again."
@@ -2250,7 +2250,7 @@ msgstr "アプリケーションパスワード"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:127
 msgid "Applies to every collection. Sections a collection doesn't use are skipped."
-msgstr ""
+msgstr "すべてのコレクションに適用されます。コレクションで使用しないセクションは表示されません。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
 #: packages/admin/src/components/PortableTextEditor.tsx:6738
@@ -2960,7 +2960,7 @@ msgstr "このインポートをキャンセルしますか？"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:447
 msgid "Cancelled. {label} is back at position {position} of {count}."
-msgstr ""
+msgstr "キャンセルしました。{label}は全{count}件中{position}番目に戻りました。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:357
 msgid "Cancelling…"
@@ -3387,11 +3387,11 @@ msgstr "フィールドに入力する内容の種類を選択します。"
 
 #: packages/admin/src/components/Settings.tsx:143
 msgid "Choose what the navigation and editor sidebars show, and in what order"
-msgstr ""
+msgstr "ナビゲーションとエディターのサイドバーに表示する項目と順序を選択"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:81
 msgid "Choose what your sidebars show and in what order. Only you see your layout, and it follows you to any browser."
-msgstr ""
+msgstr "サイドバーに表示する項目と順序を選択します。このレイアウトは自分にだけ適用され、どのブラウザーでも使用できます。"
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
@@ -4117,7 +4117,7 @@ msgstr "変更履歴を読み込めませんでした"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:88
 msgid "Couldn't load your sidebars"
-msgstr ""
+msgstr "サイドバーを読み込めませんでした"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -4133,7 +4133,7 @@ msgstr "インポート計画を再読み込みできませんでした"
 
 #: packages/admin/src/lib/api/admin-layout.ts:277
 msgid "Couldn't save your sidebars"
-msgstr ""
+msgstr "サイドバーを保存できませんでした"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
@@ -4504,7 +4504,7 @@ msgstr "独自の分類グループ"
 #: packages/admin/src/components/ContentEditor.tsx:2464
 #: packages/admin/src/components/Sidebar.tsx:796
 msgid "Customize sidebar"
-msgstr ""
+msgstr "サイドバーをカスタマイズ"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Daily automatic backups"
@@ -5206,7 +5206,7 @@ msgstr "完了"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:289
 msgid "Down arrow"
-msgstr ""
+msgstr "下矢印"
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:321
@@ -5336,7 +5336,7 @@ msgstr "追加したいウィジェットをエリアへドラッグしてくだ
 
 #: packages/admin/src/components/settings/LayoutList.tsx:283
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
-msgstr ""
+msgstr "ドラッグするか、<0>Alt <1/></0> <2>Alt <3/></2>を押します"
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:149
 msgid "Drop an image here or <0>browse</0>"
@@ -5364,11 +5364,11 @@ msgstr "WordPressのエクスポートファイルをここにドロップ"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:442
 msgid "Dropped {label} at position {position} of {count}."
-msgstr ""
+msgstr "{label}を全{count}件中{position}番目に配置しました。"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:440
 msgid "Dropped {label}."
-msgstr ""
+msgstr "{label}を配置しました。"
 
 #: packages/admin/src/components/ContentList.tsx:1617
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
@@ -5672,15 +5672,15 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:110
 msgid "Editor sidebar"
-msgstr ""
+msgstr "エディターのサイドバー"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:64
 msgid "Editor sidebar reset"
-msgstr ""
+msgstr "エディターのサイドバーをリセットしました"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:148
 msgid "Editor sidebar sections"
-msgstr ""
+msgstr "エディターのサイドバーのセクション"
 
 #: packages/admin/src/components/FieldEditor.tsx:1790
 msgid "Editors can select a second image that the site shows in dark mode."
@@ -6172,7 +6172,7 @@ msgstr "このコンテンツタイプが含まれるすべての関連付けも
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:65
 msgid "Everything is shown again, in the default order."
-msgstr ""
+msgstr "すべての項目が標準の順序で再び表示されます。"
 
 #: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
@@ -7181,7 +7181,7 @@ msgstr "設定の保存に失敗しました"
 
 #: packages/admin/src/lib/api/admin-layout.ts:113
 msgid "Failed to save sidebar layout"
-msgstr ""
+msgstr "サイドバーのレイアウトの保存に失敗しました"
 
 #: packages/admin/src/lib/api/content.ts:433
 msgid "Failed to schedule content"
@@ -9969,7 +9969,7 @@ msgstr "ナビゲーション"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:64
 msgid "Navigation reset"
-msgstr ""
+msgstr "ナビゲーションをリセットしました"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:458
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:462
@@ -11145,7 +11145,7 @@ msgstr "権限"
 
 #: packages/admin/src/components/Settings.tsx:138
 msgid "Personal"
-msgstr ""
+msgstr "個人設定"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Phosphor icon name, e.g. calendar-blank or trophy"
@@ -11157,7 +11157,7 @@ msgstr "PHP"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:430
 msgid "Picked up {label}, position {position} of {count}."
-msgstr ""
+msgstr "{label}をつかみました。全{count}件中{position}番目です。"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
@@ -12221,7 +12221,7 @@ msgstr "{0}を並べ替え"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:311
 msgid "Reorder {label}"
-msgstr ""
+msgstr "{label}を並べ替え"
 
 #: packages/admin/src/components/FieldEditor.tsx:746
 msgid "Repeater"
@@ -12413,11 +12413,11 @@ msgstr "切り抜きをリセット"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:119
 msgid "Reset editor sidebar"
-msgstr ""
+msgstr "エディターのサイドバーをリセット"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:119
 msgid "Reset navigation"
-msgstr ""
+msgstr "ナビゲーションをリセット"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:677
 msgid "Reset to original"
@@ -13737,7 +13737,7 @@ msgstr "表示"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:165
 msgid "Show {label}"
-msgstr ""
+msgstr "{label}を表示"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
@@ -13799,7 +13799,7 @@ msgstr "新しいコンテンツを作成するボタンを表示します"
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
 msgid "Sidebars"
-msgstr ""
+msgstr "サイドバー"
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
@@ -14166,7 +14166,7 @@ msgstr "テーマを並べ替え"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:259
 msgid "sortable"
-msgstr ""
+msgstr "並べ替え可能"
 
 #: packages/admin/src/components/ContentTypeList.tsx:221
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:563
@@ -15570,7 +15570,7 @@ msgstr "サイトを別のEmDash環境に移行するには、<0>サイト移行
 
 #: packages/admin/src/components/settings/LayoutList.tsx:453
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
-msgstr ""
+msgstr "項目をつかむには、スペースキーまたはEnterキーを押します。上下の矢印キーで移動し、スペースキーまたはEnterキーで配置するか、Escキーでキャンセルします。Altキーと上下の矢印キーを押すと、すぐに1つ移動します。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:502
 msgid "to select"
@@ -15627,7 +15627,7 @@ msgstr "ツールチップのテキスト"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:138
 msgid "Top"
-msgstr ""
+msgstr "最上部"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 msgid "Track content history"
@@ -15800,7 +15800,7 @@ msgstr "変換"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:126
 msgid "Turn off pages you don't use, and drag to reorder them within their group."
-msgstr ""
+msgstr "使用しないページを非表示にし、ドラッグしてグループ内の順序を変更します。"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Turn on"
@@ -16032,7 +16032,7 @@ msgstr "使用されていない参照を除外しました"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:286
 msgid "Up arrow"
-msgstr ""
+msgstr "上矢印"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
