@@ -1077,44 +1077,39 @@ export class EmDashRuntime {
 			console.error("[plugins] Storage index sync failed:", error);
 		}
 
-		let processed = 0;
-		if (this.cronExecutor) {
-			try {
-				processed = await this.cronExecutor.tick();
-			} catch (error) {
-				console.error("[cron] Tick failed:", error);
-			}
-			try {
-				await this.cronExecutor.recoverStaleLocks();
-			} catch (error) {
-				console.error("[cron] Stale lock recovery failed:", error);
-			}
-		}
-
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		const upcomingWindowMs = options.publishUpcomingWithinMs ?? 0;
+		const requestedWindowMs = options.publishUpcomingWithinMs ?? 0;
+		const upcomingWindowMs = Number.isFinite(requestedWindowMs) ? requestedWindowMs : 0;
 		const upcomingUntil =
 			upcomingWindowMs > 0 ? new Date(currentTime.getTime() + upcomingWindowMs) : undefined;
-		const { published, nextScheduledAt } = await this.runScheduledMaintenanceTick(
-			{ onPublished: options.onPublished, upcomingUntil },
-			currentTime,
-		);
 
-		if (upcomingUntil && nextScheduledAt) {
-			try {
-				published.push(
-					...(await this.publishAtScheduledTimes(
-						nextScheduledAt,
-						upcomingUntil,
-						options.onPublished,
-					)),
-				);
-			} catch (error) {
-				console.error("[scheduled-publish] Upcoming publication failed:", error);
-			}
-		}
+		// Plugin cron runs alongside maintenance, as it does on the Node scheduler,
+		// so a slow task cannot hold up a scheduled publication.
+		const [processed, { published }] = await Promise.all([
+			this.runCronTick(),
+			this.runScheduledMaintenanceTick(
+				{ onPublished: options.onPublished, upcomingUntil },
+				currentTime,
+			),
+		]);
 
 		return { processed, published };
+	}
+
+	private async runCronTick(): Promise<number> {
+		if (!this.cronExecutor) return 0;
+		let processed = 0;
+		try {
+			processed = await this.cronExecutor.tick();
+		} catch (error) {
+			console.error("[cron] Tick failed:", error);
+		}
+		try {
+			await this.cronExecutor.recoverStaleLocks();
+		} catch (error) {
+			console.error("[cron] Stale lock recovery failed:", error);
+		}
+		return processed;
 	}
 
 	/**
@@ -1131,7 +1126,7 @@ export class EmDashRuntime {
 			upcomingUntil?: Date;
 		},
 		currentTime: Date,
-	): Promise<ScheduledSweepResult> {
+	): Promise<{ published: PublishedRef[] }> {
 		let sweep: ScheduledSweepResult = { published: [], nextScheduledAt: null };
 		try {
 			sweep = await this.publishScheduledWithFence(
@@ -1142,6 +1137,20 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
+
+		// Runs alongside the maintenance below so slow cleanup or backups cannot
+		// delay content scheduled within the window.
+		const upcoming =
+			options.upcomingUntil && sweep.nextScheduledAt
+				? this.publishAtScheduledTimes(
+						sweep.nextScheduledAt,
+						options.upcomingUntil,
+						options.onPublished,
+					).catch((error: unknown) => {
+						console.error("[scheduled-publish] Upcoming publication failed:", error);
+						return [];
+					})
+				: undefined;
 
 		await this.runSystemCleanupIfDue(currentTime);
 
@@ -1157,7 +1166,9 @@ export class EmDashRuntime {
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 		await recordSchedulerHeartbeatSafely(this.db, currentTime);
 
-		return sweep;
+		const published = [...sweep.published];
+		if (upcoming) published.push(...(await upcoming));
+		return { published };
 	}
 
 	private lastSystemCleanupAt: Date | null = null;

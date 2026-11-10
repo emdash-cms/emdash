@@ -553,6 +553,46 @@ describe("EmDashRuntime.runScheduledTasks() with publishUpcomingWithinMs", () =>
 		expect(updated?.publishedAt).toBeNull();
 	});
 
+	it("publishes at the scheduled time while slower maintenance is still running", async () => {
+		start = Math.ceil(Date.now() / 3_600_000) * 3_600_000;
+		const post = await schedulePost(30_000);
+		let finishCleanup: (() => void) | undefined;
+		vi.mocked(runSystemCleanup).mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					finishCleanup = resolve;
+				}),
+		);
+		const sleep = async (ms: number) => {
+			elapsed += ms;
+		};
+
+		const run = buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: 120_000,
+		});
+
+		await vi.waitFor(async () => {
+			expect((await repo.findById("post", post.id))?.status).toBe("published");
+		});
+		expect(finishCleanup).toBeDefined();
+		finishCleanup?.();
+		await expect(run).resolves.toEqual({ published: [{ collection: "post", id: post.id }] });
+	});
+
+	it("ignores a window that is not a finite number", async () => {
+		const post = await schedulePost(30_000);
+		const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+		const sleep = vi.fn(async () => {});
+
+		await buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: Number.POSITIVE_INFINITY,
+		});
+
+		expect(sleep).not.toHaveBeenCalled();
+		expect(errors).not.toHaveBeenCalled();
+		expect((await repo.findById("post", post.id))?.status).toBe("scheduled");
+	});
+
 	it("does not publish early when the clock does not reach the scheduled time", async () => {
 		const post = await schedulePost(30_000);
 		const sleep = vi.fn(async () => {});
