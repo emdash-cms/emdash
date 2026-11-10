@@ -337,7 +337,7 @@ const ROWS: Row[] = [
 		"editor welcomed as a viewer",
 		connecting({ replica: EDIT }),
 		welcome("one", "view"),
-		connecting({ replica: EDIT, welcomed: VIEW }),
+		connecting({ replica: VIEW, welcomed: VIEW }),
 		[],
 	],
 	[

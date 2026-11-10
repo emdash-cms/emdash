@@ -106,6 +106,7 @@ function mockApiFetch({
 	createTermRequest,
 	unresolved = [],
 	saveEntryTerms,
+	otherEntryTerms = [],
 }: {
 	taxonomies?: TestTaxonomy[];
 	terms?: TestTerm[];
@@ -116,6 +117,8 @@ function mockApiFetch({
 	createTermRequest?: (label: string) => Promise<Response>;
 	unresolved?: TestUnresolvedAssignment[];
 	saveEntryTerms?: (init?: RequestInit) => Promise<Response>;
+	/** The terms of `entry_2`, which no test saves. */
+	otherEntryTerms?: TestTerm[];
 } = {}) {
 	let currentTerms = terms;
 	let currentEntryTerms = entryTerms;
@@ -144,6 +147,16 @@ function mockApiFetch({
 			return dataResponse({
 				terms: currentEntryTerms,
 				unresolved,
+				entryLocale: "fr",
+				defaultLocale: "en",
+				implicitDefaultLocale: false,
+			});
+		}
+
+		if (method === "GET" && path === "/_emdash/api/content/products/entry_2/terms/tags") {
+			return dataResponse({
+				terms: otherEntryTerms,
+				unresolved: [],
 				entryLocale: "fr",
 				defaultLocale: "en",
 				implicitDefaultLocale: false,
@@ -699,6 +712,45 @@ describe("TaxonomySidebar", () => {
 			{ termIds: [], expected: ["term_alpha"] },
 			{ termIds: ["term_beta"], expected: [] },
 		]);
+	});
+
+	it("sends a change queued on one entry with that entry's terms after switching to another", async () => {
+		let resolveFirstSave: (response: Response) => void = () => undefined;
+		const firstSave = new Promise<Response>((resolve) => {
+			resolveFirstSave = resolve;
+		});
+		const gamma = makeTerm("term_gamma", "Gamma");
+		const saveEntryTerms = vi.fn((init?: RequestInit) => dataResponse({ init }));
+		saveEntryTerms.mockImplementationOnce(() => firstSave);
+		mockApiFetch({
+			terms: [alphaTerm, betaTerm, gamma],
+			entryTerms: [alphaTerm],
+			otherEntryTerms: [gamma],
+			saveEntryTerms,
+		});
+
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+			{ wrapper: Wrapper },
+		);
+		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
+		const input = await openPicker(screen, "Tags");
+		await userEvent.keyboard("{Backspace}");
+		await input.fill("Beta");
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() => expect(saveEntryTerms).toHaveBeenCalledTimes(1));
+
+		await screen.rerender(
+			<TaxonomySidebar collection="products" entryId="entry_2" canManageTaxonomies />,
+		);
+		await expect.element(screen.getByLabelText("Remove Gamma")).toBeInTheDocument();
+		resolveFirstSave(new Response(null, { status: 200 }));
+
+		await vi.waitFor(() => expect(saveEntryTerms).toHaveBeenCalledTimes(2));
+		const requestBodies = saveEntryTerms.mock.calls.map(([init]) =>
+			typeof init?.body === "string" ? JSON.parse(init.body) : null,
+		);
+		expect(requestBodies[1]).toEqual({ termIds: ["term_beta"], expected: [] });
 	});
 
 	it("keeps another editor's term when that editor's change arrives first", async () => {

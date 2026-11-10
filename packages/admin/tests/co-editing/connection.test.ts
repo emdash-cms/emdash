@@ -541,6 +541,27 @@ describe("Take over and Join", () => {
 	});
 });
 
+describe("access on a rejoin", () => {
+	it("stops editing once a rejoin's welcome grants only viewing, before the sync completes", async () => {
+		const room = new LoopbackRoom({ manual: true });
+		const s = open(room);
+		await settle();
+		const first = room.sockets[0]!;
+		while (first.pumpIn() || first.pumpOut());
+		await settle();
+		expect(roomView(s.view())).toMatchObject({ editable: true });
+
+		room.access = "view";
+		room.close(4400);
+		await settle();
+		const second = room.sockets.at(-1)!;
+		expect(second).not.toBe(first);
+		second.pumpIn(); // welcome
+
+		expect(roomView(s.view())).toMatchObject({ access: "view", editable: false });
+	});
+});
+
 describe("whenCovered rejections", () => {
 	it("rejects without edit access, for a viewer's own edits", async () => {
 		const room = new LoopbackRoom();

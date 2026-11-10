@@ -3509,7 +3509,11 @@ export function PortableTextEditor({
 				>
 					<EditorContent editor={editor} />
 					{dragHandleMounted && (
-						<DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />
+						<DragHandleWrapper
+							editor={editor}
+							onInsertBlock={openBlockInsertMenuAt}
+							editable={editable}
+						/>
 					)}
 				</div>
 				{isDocument ? (

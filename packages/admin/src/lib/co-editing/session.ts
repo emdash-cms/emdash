@@ -287,8 +287,17 @@ function welcomed(
 		if (event.uncovered) return recover(replica, { kind: "rejoin" }, [CLOSE]);
 		return joining(null, state.away, false, null, [CLOSE, DISCARD]);
 	}
-	if (replica?.access === "edit" && event.access === "view" && event.uncovered) {
-		return keep(replica, "access", [CLOSE]);
+	if (replica?.access === "edit" && event.access === "view") {
+		if (event.uncovered) return keep(replica, "access", [CLOSE]);
+		// Edits made before the sync completes would never be sent, so editing stops now.
+		return {
+			state: {
+				...state,
+				replica: { ...replica, access: "view" },
+				welcomed: { lineage: event.lineage, access: event.access },
+			},
+			effects: [],
+		};
 	}
 	return {
 		state: { ...state, welcomed: { lineage: event.lineage, access: event.access } },
