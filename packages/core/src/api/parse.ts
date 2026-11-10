@@ -98,9 +98,10 @@ export function parseQuery<T extends z.ZodType>(url: URL, schema: T): ParseResul
 }
 
 /**
- * Validate raw data against a schema. Returns data or error Response.
+ * Validate already-parsed data against a schema. Returns data or a 400
+ * `VALIDATION_ERROR` Response.
  */
-function validate<T extends z.ZodType>(schema: T, data: unknown): ParseResult<z.infer<T>> {
+export function validate<T extends z.ZodType>(schema: T, data: unknown): ParseResult<z.infer<T>> {
 	const result = schema.safeParse(data);
 
 	if (result.success) {

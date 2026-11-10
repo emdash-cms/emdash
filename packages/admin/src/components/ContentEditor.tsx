@@ -27,6 +27,7 @@ import {
 	ArrowsOutSimple,
 	CaretUp,
 	CaretDown,
+	PencilSimple,
 	Plus,
 	Trash,
 } from "@phosphor-icons/react";
@@ -36,6 +37,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import type { ListLayout } from "../lib/admin-layout.js";
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -607,6 +609,8 @@ export interface ContentEditorProps {
 	supportsPreview?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
+	/** The user's editor sidebar layout; must keep its identity across renders. */
+	adminLayout?: ListLayout;
 	/** Available users for author selection (only shown to editors+) */
 	users?: UserListItem[];
 	/** Callback when author is changed */
@@ -692,6 +696,7 @@ export function ContentEditor({
 	supportsRevisions = false,
 	supportsPreview = false,
 	currentUser,
+	adminLayout,
 	users,
 	onAuthorChange,
 	availableBylines,
@@ -2362,11 +2367,11 @@ export function ContentEditor({
 						aria-label={t`Settings`}
 						className={cn(isDistractionFree && "hidden")}
 					>
-						<fieldset disabled={readOnly} className="contents">
-							<div
-								className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
-								style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
-							>
+						<div
+							className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
+							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+						>
+							<fieldset disabled={readOnly} className="contents">
 								{isBelowLg && blockSidebarPanel?.type !== "image" && (
 									<div className="flex justify-end px-4 pt-3">
 										<MobileSettingsCloseButton />
@@ -2422,6 +2427,7 @@ export function ContentEditor({
 										onDelete={onDelete}
 										isDeleting={isDeleting}
 										currentUser={currentUser}
+										adminLayout={adminLayout}
 										users={users}
 										onAuthorChange={onAuthorChange}
 										activeBylines={activeBylines}
@@ -2445,8 +2451,21 @@ export function ContentEditor({
 										onEntryRefresh={onEntryRefresh}
 									/>
 								</RevisionViewProvider>
-							</div>
-						</fieldset>
+							</fieldset>
+							{!blockSidebarPanel && (
+								<div className={cn("px-4 pb-4", (isNew || !onDelete) && "border-t pt-4")}>
+									<RouterLinkButton
+										to="/settings/sidebars"
+										search={{ tab: "editor" }}
+										variant="ghost"
+										icon={<PencilSimple aria-hidden="true" />}
+										className="w-full min-w-0 justify-start ps-2.5 pb-0.5 text-kumo-subtle hover:text-kumo-default [--kumo-button-text-lift:1px] [&>svg:first-child]:translate-y-(--kumo-button-text-lift)"
+									>
+										<span className="truncate">{t`Customize sidebar`}</span>
+									</RouterLinkButton>
+								</div>
+							)}
+						</div>
 						{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 					</Sidebar>
 				</div>

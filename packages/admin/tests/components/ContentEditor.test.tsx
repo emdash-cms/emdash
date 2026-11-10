@@ -196,7 +196,11 @@ vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
 		...actual,
-		Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+		Link: ({ children, search, ...props }: any) => (
+			<a {...props} data-search={search ? JSON.stringify(search) : undefined}>
+				{children}
+			</a>
+		),
 		useBlocker: () => ({ status: "idle" }),
 	};
 });
@@ -702,6 +706,60 @@ describe("ContentEditor", () => {
 			} finally {
 				media.restore();
 			}
+		});
+	});
+
+	describe("customize sidebar link", () => {
+		function customizeLink() {
+			const link = [...document.querySelectorAll("a")].find(
+				(anchor) => anchor.textContent === "Customize sidebar",
+			);
+			expect(link).toBeDefined();
+			return link!;
+		}
+
+		it("links to the Editor tab of Settings → Sidebars after the last section", async () => {
+			await renderEditor({ isNew: false, item: makeItem() });
+
+			const link = customizeLink();
+			expect(link.getAttribute("to")).toBe("/settings/sidebars");
+			expect(JSON.parse(link.dataset.search ?? "null")).toEqual({ tab: "editor" });
+			const lastSection = [...document.querySelectorAll("[data-settings-section]")].at(-1);
+			expect(lastSection).toBeDefined();
+			expect(
+				lastSection!.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+			).toBeTruthy();
+			expect(link.closest('[data-sidebar="footer"]')).toBeNull();
+		});
+
+		it("stays outside the read-only lock", async () => {
+			const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
+
+			await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+			expect(customizeLink().closest("fieldset:disabled")).toBeNull();
+		});
+
+		it("is not shown while a block panel replaces the sections", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				fields: { content: { kind: "portableText", label: "Content" } },
+			});
+			await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+			customizeLink();
+
+			const open = portableTextProps.current?.onBlockSidebarOpen as (panel: unknown) => void;
+			open({
+				type: "image",
+				attrs: { src: "https://example.com/image.png", alt: "Example" },
+				onUpdate: vi.fn(),
+				onReplace: vi.fn(),
+				onDelete: vi.fn(),
+				onClose: vi.fn(),
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+			expect(screen.getByText("Customize sidebar").query()).toBeNull();
 		});
 	});
 
@@ -2468,10 +2526,10 @@ describe("ContentEditor", () => {
 		it("keeps the settings sheet open when a sortable handle restores focus after drop", async () => {
 			const media = installMatchMedia(true);
 			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const screen = await renderBylineContent([savedCredit(makeByline())]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
-				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				const handle = screen.getByRole("button", { name: "Reorder Jane Smith" }).element();
 				handle.focus();
 				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
 
@@ -2506,10 +2564,10 @@ describe("ContentEditor", () => {
 		it("keeps the settings sheet open when keyboard sorting is cancelled", async () => {
 			const media = installMatchMedia(true);
 			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const screen = await renderBylineContent([savedCredit(makeByline())]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
-				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				const handle = screen.getByRole("button", { name: "Reorder Jane Smith" }).element();
 				handle.focus();
 				await userEvent.keyboard(" ");
 
@@ -2529,10 +2587,10 @@ describe("ContentEditor", () => {
 		it("lets Escape close the settings sheet when sorting is idle", async () => {
 			const media = installMatchMedia(true);
 			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const screen = await renderBylineContent([savedCredit(makeByline())]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
-				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				const handle = screen.getByRole("button", { name: "Reorder Jane Smith" }).element();
 				handle.focus();
 				await userEvent.keyboard("{Escape}");
 
