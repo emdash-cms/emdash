@@ -47,7 +47,7 @@ function packagesLoadedBy(entry: string): Set<string> {
 
 describe("@emdash-cms/admin/internal/portable-text", () => {
 	it("loads no Yjs code, since sites import it on the server", () => {
-		const packages = [...packagesLoadedBy("src/portable-text.ts")];
+		const packages = [...packagesLoadedBy("src/internal/portable-text.ts")];
 		expect(packages).toContain("@tiptap/core");
 		const yjs = packages.filter((name) =>
 			/^(yjs|lib0|y-protocols|@tiptap\/y-tiptap|@tiptap\/extension-collaboration)(\/|$)/.test(name),

@@ -12,7 +12,7 @@ import { EditorState, NodeSelection, TextSelection, type Transaction } from "@ti
 import { prosemirrorToYXmlFragment, ySyncPlugin, ySyncPluginKey } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 
-import { portableTextExtensions, portableTextSchema } from "../../src/portable-text.js";
+import { portableTextExtensions, portableTextSchema } from "../../src/internal/portable-text.js";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema.js";
 import { PortableTextYSync } from "../../src/portable-text/y-sync.js";
 
