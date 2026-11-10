@@ -1,4 +1,7 @@
-import { prosemirrorToPortableText, type PortableTextBlock } from "@emdash-cms/admin/portable-text";
+import {
+	prosemirrorToPortableText,
+	type PortableTextBlock,
+} from "@emdash-cms/admin/internal/portable-text";
 import { describe, expect, it } from "vitest";
 
 type Mark = { type: string; attrs?: Record<string, unknown> };

@@ -20,6 +20,7 @@ import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import * as React from "react";
 
+import { isDimension, isString } from "../../internal/video-block.js";
 import { fetchMediaItem, type MediaItem } from "../../lib/api/media.js";
 import {
 	canonicalMediaProviderId,
@@ -29,7 +30,6 @@ import {
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
 import { VideoBlockNode } from "../../portable-text/schema.js";
-import { isDimension, isString } from "../../video-block.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { useCaptionField, useCaptionText } from "./useCaptionField.js";
 

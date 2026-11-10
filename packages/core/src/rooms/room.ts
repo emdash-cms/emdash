@@ -4,7 +4,7 @@
  * and operations run one at a time through a serial queue; client updates apply at once.
  */
 
-import { findUnsupportedPortableTextMarks } from "@emdash-cms/admin/portable-text";
+import { findUnsupportedPortableTextMarks } from "@emdash-cms/admin/internal/portable-text";
 import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import * as Y from "yjs";
 

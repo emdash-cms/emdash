@@ -111,6 +111,32 @@ describeEachDialect("revision editors", (dialect) => {
 		expect(await editors(live)).toEqual([null, ada]);
 	});
 
+	it("reads only the newest 100 sets of editors", async () => {
+		const ids = Array.from({ length: 101 }, (_, index) => `user-${String(index).padStart(3, "0")}`);
+		await ctx.db
+			.insertInto("users")
+			.values(
+				ids.map((id) => ({
+					id,
+					name: id,
+					email: `${id}@example.com`,
+					role: 30,
+					email_verified: 1,
+				})),
+			)
+			.execute();
+		for (const id of ids) {
+			await save(id);
+			await save(id);
+		}
+
+		const named = await editors(null);
+
+		expect(named).toHaveLength(100);
+		expect(named[0]).toEqual({ id: "user-100", name: "user-100" });
+		expect(named).not.toContainEqual({ id: "user-000", name: "user-000" });
+	});
+
 	it("is refused to a Subscriber", async () => {
 		const res = await get(null, { id: "user-subscriber", role: Role.SUBSCRIBER });
 		expect(res.status).toBe(403);
