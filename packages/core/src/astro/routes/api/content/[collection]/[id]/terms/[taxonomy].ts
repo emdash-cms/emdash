@@ -216,11 +216,14 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 					return false;
 				}
 			}
+			// D1 runs these statements without a transaction, so another change can land after the
+			// check. Writing only this change, rather than the whole list, keeps that one too.
 			await new TaxonomyRepository(trx).setTermsForEntry(
 				collection,
 				canonicalId,
 				taxonomy,
 				termIds,
+				expected,
 			);
 			return true;
 		});

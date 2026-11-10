@@ -367,6 +367,8 @@ Content-Type: application/json
 
 `expected` takes `bylines`, in order with their role labels, and `references`, keyed by field slug, with every entry the field selects. `POST /content/{collection}/{id}/terms/{taxonomy}` takes `expected` as a list of term IDs. When a stored list differs from `expected`, nothing is written and the request fails with `409 LIST_CONFLICT`. Read the entry again, apply your change to the list it holds now, and retry.
 
+In a collection with revisions, a save with `expected` can't change draft values, such as `data` or `references`, together with live values, such as `bylines`. That request fails with `400 VALIDATION_ERROR`. Send the two changes as separate saves.
+
 ### Entry edit lock
 
 Collections can take a seven-minute edit lock when an editor opens an entry. Use the three operations on `/content/{collection}/{id}/lock` to read, acquire or refresh, and release the lease.

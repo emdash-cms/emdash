@@ -195,6 +195,26 @@ describeEachDialect("saves based on an entry's lists", (dialect) => {
 			expect(await selected(id)).toEqual([one, two]);
 		});
 
+		it.runIf(supports.length > 0)(
+			"refuses a draft change and a live one together, writing neither",
+			async () => {
+				const page = await entry("pages_ref");
+				const repo = new BylineRepository(ctx.db);
+				const credit = await repo.create({ slug: "ada", displayName: "Ada" });
+				const id = await entry("articles");
+
+				const refused = await runtime.handleContentUpdate("articles", id, {
+					references: { pages: [page] },
+					bylines: [{ bylineId: credit.id }],
+					expected: { references: { pages: [] } },
+				});
+
+				expect(refused).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+				expect(await selected(id)).toEqual([]);
+				expect(await repo.getContentBylines("articles", id)).toEqual([]);
+			},
+		);
+
 		it("lets one of two saves from the same selection through", async () => {
 			const one = await entry("pages_ref");
 			const two = await entry("pages_ref");
@@ -257,6 +277,26 @@ describeEachDialect("saves based on an entry's lists", (dialect) => {
 			expect(await refused.json()).toMatchObject({ error: { code: "LIST_CONFLICT" } });
 			const stored = await repo.getTermsForEntry("post", id, "category");
 			expect(stored.map((term) => term.id).toSorted()).toEqual([news.id, tech.id].toSorted());
+		});
+
+		it("keeps a change that lands after the check, writing only its own change", async () => {
+			const repo = new TaxonomyRepository(ctx.db);
+			const [news, tech, art] = await Promise.all(
+				["news", "tech", "art"].map((slug) =>
+					repo.create({ name: "category", slug, label: slug, locale: "en" }),
+				),
+			);
+			const id = await entry("post");
+			await repo.setTermsForEntry("post", id, "category", [news.id]);
+			// Another change, landing between this change's check and its write.
+			await repo.setTermsForEntry("post", id, "category", [news.id, art.id]);
+
+			await repo.setTermsForEntry("post", id, "category", [news.id, tech.id], [news.id]);
+
+			const stored = await repo.getTermsForEntry("post", id, "category");
+			expect(stored.map((term) => term.id).toSorted()).toEqual(
+				[news.id, tech.id, art.id].toSorted(),
+			);
 		});
 
 		it("lets one of two changes from the same terms through, made on two translations", async () => {

@@ -4230,6 +4230,24 @@ export class EmDashRuntime {
 				? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
 				: null;
 		const knownFieldSlugs = new Set((collectionInfo?.fields ?? []).map((f) => f.slug));
+		// Staging a draft and writing live columns are two writes, so a list conflict between them
+		// would leave the draft staged. A save based on a read of the lists makes only one of them.
+		if (
+			checksLists &&
+			collectionInfo?.supports?.includes("revisions") &&
+			Object.entries(bodyWithoutRev).some(
+				([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+			)
+		) {
+			return {
+				success: false as const,
+				error: {
+					code: "VALIDATION_ERROR",
+					message:
+						"A save with `expected` can't change draft and live values together in a collection with revisions. Send them as two saves.",
+				},
+			};
+		}
 
 		// A collection that keeps drafts merges `data` into a revision instead of
 		// writing columns, so a reference field's slug would land in the revision
