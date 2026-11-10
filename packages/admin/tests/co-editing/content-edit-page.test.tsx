@@ -651,6 +651,30 @@ describe("values outside the document in a room", () => {
 		});
 	});
 
+	it("saves a reference edit to more entries than a save can name without the list it was based on", async () => {
+		const others: EntryRef[] = Array.from({ length: 999 }, (_, index) => ({
+			id: `author_${index}`,
+			slug: `author-${index}`,
+			collection: "authors",
+			title: `Author ${index}`,
+			locale: "en",
+			translationGroup: `author_${index}`,
+		}));
+		const { screen, server } = await openInRoom(entry(), {
+			prepare: (created) => {
+				created.authors = [...AUTHORS, ...others];
+			},
+		});
+
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+
+		await vi.waitFor(() => expect(server.log).toEqual(["PUT /_emdash/api/content/posts/post_1"]));
+		expect(server.find("PUT", "/_emdash/api/content/posts/post_1")?.body).toEqual({
+			references: { authors: ["author_ada", ...others.map((other) => other.id)] },
+			skipRevision: true,
+		});
+	});
+
 	it("saves a reference edit again on top of another person's, when theirs landed first", async () => {
 		const { screen, server } = await openInRoom(entry());
 		const alan: EntryRef = {

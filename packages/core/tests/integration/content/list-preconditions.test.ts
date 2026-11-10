@@ -115,6 +115,23 @@ describeEachDialect("saves based on an entry's lists", (dialect) => {
 			});
 			expect(await credits(id)).toEqual([ada.id, winners[0] === 0 ? grace.id : mary.id]);
 		});
+
+		it("refuses a save whose read is out of date as a list conflict", async () => {
+			const [ada, grace] = await bylines();
+			const id = await entry("post");
+			const read = await runtime.handleContentGet("post", id);
+			if (!read.success) throw new Error(read.error.message);
+			await runtime.handleContentUpdate("post", id, { data: { title: "Renamed" } });
+
+			const refused = await runtime.handleContentUpdate("post", id, {
+				_rev: read.data._rev,
+				bylines: [{ bylineId: ada.id }, { bylineId: grace.id }],
+				expected: { bylines: [] },
+			});
+
+			expect(refused).toMatchObject({ success: false, error: { code: "LIST_CONFLICT" } });
+			expect(await credits(id)).toEqual([]);
+		});
 	});
 
 	describe.each([
@@ -240,6 +257,35 @@ describeEachDialect("saves based on an entry's lists", (dialect) => {
 			expect(await refused.json()).toMatchObject({ error: { code: "LIST_CONFLICT" } });
 			const stored = await repo.getTermsForEntry("post", id, "category");
 			expect(stored.map((term) => term.id).toSorted()).toEqual([news.id, tech.id].toSorted());
+		});
+
+		it("lets one of two changes from the same terms through, made on two translations", async () => {
+			const repo = new TaxonomyRepository(ctx.db);
+			const [news, tech, art] = await Promise.all(
+				["news", "tech", "art"].map((slug) =>
+					repo.create({ name: "category", slug, label: slug, locale: "en" }),
+				),
+			);
+			const id = await entry("post");
+			const translated = await handleContentCreate(ctx.db, "post", {
+				data: { title: "Entrée" },
+				slug: "entree",
+				locale: "fr",
+				translationOf: id,
+			});
+			if (!translated.success) throw new Error(translated.error.message);
+			const frId = translated.data.item.id;
+			expect((await post(id, { termIds: [news.id] })).status).toBe(200);
+
+			const results = await Promise.all([
+				post(id, { termIds: [news.id, tech.id], expected: [news.id] }),
+				post(frId, { termIds: [news.id, art.id], expected: [news.id] }),
+			]);
+
+			expect(results.map((result) => result.status).toSorted((a, b) => a - b)).toEqual([200, 409]);
+			const won = results[0]?.status === 200 ? tech.id : art.id;
+			const stored = await repo.getTermsForEntry("post", id, "category");
+			expect(stored.map((term) => term.id).toSorted()).toEqual([news.id, won].toSorted());
 		});
 	});
 });

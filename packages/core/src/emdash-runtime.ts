@@ -4171,6 +4171,7 @@ export class EmDashRuntime {
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
+		const checksLists = Boolean(body.expected?.bylines || body.expected?.references);
 
 		// Validate _rev early — before draft revision writes which modify the version.
 		// The token is checked again against the row the draft UPDATE is conditioned
@@ -4185,6 +4186,7 @@ export class EmDashRuntime {
 			}
 			const revCheck = validateRev(body._rev, resolvedItem);
 			if (!revCheck.valid) {
+				if (checksLists) return listConflict();
 				return {
 					success: false as const,
 					error: { code: "CONFLICT", message: revCheck.message },
@@ -4203,7 +4205,6 @@ export class EmDashRuntime {
 		// The lists are compared once, so every write below is conditioned on the entry as it was
 		// read before them: a write in between changes its version.
 		let revGuard = body._rev;
-		const checksLists = Boolean(expected?.bylines || expected?.references);
 		if (expected && checksLists) {
 			if (!resolvedItem) {
 				return {

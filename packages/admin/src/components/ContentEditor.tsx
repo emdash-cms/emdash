@@ -158,6 +158,8 @@ const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
 const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
 const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
 const LIST_FIELD_KINDS = new Set(["repeater", "portableText", "multiSelect", "blocks"]);
+/** The most entries a save can name for one reference field, in its selection or the list it's based on. */
+const MAX_SAVED_REFERENCES = 1000;
 
 /** A problem in the blocks field named `name`. */
 interface FieldBlockIssue {
@@ -956,8 +958,9 @@ export function ContentEditor({
 								latest.references?.[fieldSlug],
 							);
 							const ids = build(rows, complete).map((row) => row.id);
-							// Only every page of the field says what the server holds.
-							return complete
+							// Only every page of the field says what the server holds. The entries pointing
+							// at this one have no limit, so they can be more than a save can name.
+							return complete && rows.length <= MAX_SAVED_REFERENCES
 								? {
 										references: { [fieldSlug]: ids },
 										expected: { references: { [fieldSlug]: rows.map((row) => row.id) } },

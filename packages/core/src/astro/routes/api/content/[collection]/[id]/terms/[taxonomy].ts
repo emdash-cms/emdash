@@ -188,10 +188,12 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		const written = await withTransaction(emdash.db, async (trx) => {
 			if (expected) {
 				// Postgres reads without a lock, so two changes could both find the terms they
-				// were based on. Locking the entry's row makes the second read the first's write.
+				// were based on. Every translation shares the terms, so each one's row is locked,
+				// in id order so that two changes can't deadlock.
 				if (isPostgres(trx)) {
 					validateIdentifier(collection, "collection slug");
-					await sql`SELECT id FROM ${sql.ref(`ec_${collection}`)} WHERE id = ${canonicalId} FOR UPDATE`.execute(
+					const table = sql.ref(`ec_${collection}`);
+					await sql`SELECT id FROM ${table} WHERE id = ${canonicalId} OR translation_group = (SELECT translation_group FROM ${table} WHERE id = ${canonicalId}) ORDER BY id FOR UPDATE`.execute(
 						trx,
 					);
 				}
