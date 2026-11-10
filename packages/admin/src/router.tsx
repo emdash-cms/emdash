@@ -1331,7 +1331,7 @@ function ContentEditPage() {
 	roomRef.current = roomView?.room ?? (resetting ? lastRoomRef.current : null);
 	const roomBlocked = roomView
 		? roomView.offline || !roomView.editable || roomView.kept !== null
-		: resetting;
+		: resetting || leavingRoom;
 	let roomSync: SyncProblem | null | undefined;
 	if (coEditing.mode === "pending") {
 		roomSync = { kind: "joining", waiting: coEditing.waiting };

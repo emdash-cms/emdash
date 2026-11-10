@@ -1392,12 +1392,14 @@ export function ContentEditor({
 		return autosaveSent || (saveInFlight && sentSaveKeyRef.current === saveKey);
 	}, [flushPendingAutosave, room]);
 	const isContentOperationPending = Boolean(isSaving);
+	// Fields that wait for the entry's content still hold the values the page loaded with.
 	const isContentSaveBlocked =
 		isContentOperationPending ||
 		hasUnsupportedPortableTextMarks ||
 		readOnly ||
 		isViewing ||
-		roomBlocked;
+		roomBlocked ||
+		fieldsLoading;
 
 	// Replace a reference field's staged current selection (add/remove/reorder).
 	// Upserts the field so one with no hydrated rows can take its first pick.
@@ -1840,7 +1842,8 @@ export function ContentEditor({
 			hasUnsupportedPortableTextMarks ||
 			isPublishing ||
 			readOnly ||
-			isViewing
+			isViewing ||
+			fieldsLoading
 		) {
 			return;
 		}
@@ -1914,6 +1917,7 @@ export function ContentEditor({
 		isPublishing,
 		readOnly,
 		isViewing,
+		fieldsLoading,
 		currentSaveKey,
 		rejectedAutosaveState,
 		hasSaveConflict,
@@ -1972,6 +1976,7 @@ export function ContentEditor({
 			isPublishingRef.current ||
 			isViewingRef.current ||
 			!onPublish ||
+			fieldsLoading ||
 			hasInvalidUrls(room ? room.fields.read(urlFields) : formDataRef.current) ||
 			hasUnsupportedPortableTextMarks ||
 			hasSaveConflictRef.current
@@ -2018,6 +2023,7 @@ export function ContentEditor({
 		revealBlockIssue,
 		hasUnsupportedPortableTextMarks,
 		onPublish,
+		fieldsLoading,
 		room,
 		urlFields,
 	]);
@@ -2038,6 +2044,9 @@ export function ContentEditor({
 			}
 			if (isViewingRef.current) {
 				return Promise.reject(new Error(t`Go back to editing first.`));
+			}
+			if (fieldsLoading) {
+				return Promise.reject(new Error(t`This entry is still loading.`));
 			}
 			const blockIssue = firstBlockIssue(readBlockData());
 			if (
@@ -2099,6 +2108,7 @@ export function ContentEditor({
 			revealBlockIssue,
 			hasUnsupportedPortableTextMarks,
 			t,
+			fieldsLoading,
 			room,
 			urlFields,
 		],
