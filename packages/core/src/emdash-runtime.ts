@@ -30,6 +30,7 @@ import {
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
 import {
+	liveReferenceData,
 	liveReferenceSelection,
 	mergeStagedReferenceBaselines,
 	mergeStagedReferences,
@@ -39,6 +40,7 @@ import {
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
+import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
 	EmDashConfig,
@@ -58,6 +60,8 @@ import {
 	type RuntimeMigrationMode,
 } from "./database/migrations/policy.js";
 import {
+	getAppliedMigrationCount,
+	isMigrationCountCurrent,
 	MIGRATION_RACE_WAIT_MS,
 	MigrationFailedError,
 	MigrationLockHeldError,
@@ -67,6 +71,7 @@ import { AuditRepository } from "./database/repositories/audit.js";
 import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
+import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
@@ -81,6 +86,7 @@ import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-dia
 import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { pluginToolName } from "./mcp/plugin-tool-name.js";
 import { normalizeMediaValue } from "./media/normalize.js";
+import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
 import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
@@ -92,6 +98,7 @@ import {
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import {
 	scheduledPolicyRejectionKey,
+	toScheduledRejectionReason,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
@@ -102,7 +109,7 @@ import {
 	getSandboxSaveRejectionDetails,
 } from "./plugins/sandbox/proxy.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
-import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
+import { getSandboxRouteErrorDetails, SandboxUnavailableError } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -203,26 +210,6 @@ interface PageContributions {
 import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
-import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
-import {
-	runSystemCleanup,
-	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
-} from "./cleanup.js";
-import {
-	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
-	defaultCommentModerate,
-} from "./comments/moderator.js";
-import { submitPublicComment } from "./comments/public-submission.js";
-import {
-	CommentStatusConflictError,
-	createComment,
-	moderateComment,
-	type CommentCreateInput,
-	type CommentCreateResult,
-	type CommentHookRunner,
-} from "./comments/service.js";
-import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
-import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
 	handleContentAuthors,
@@ -245,6 +232,9 @@ import {
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,
+} from "./api/handlers/content.js";
+import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
+import {
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
@@ -252,26 +242,48 @@ import {
 	handleMediaUpdate,
 	handleMediaReplaceMetadata,
 	handleMediaDelete,
+} from "./api/handlers/media.js";
+import {
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
-	SchemaRegistry,
-	SchemaError,
-	normalizeBlocksData,
-	resolveBlockTypes,
-	type Database,
-	type Storage,
-} from "./index.js";
+} from "./api/handlers/revision.js";
+import {
+	runSystemCleanup,
+	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
+} from "./cleanup.js";
+import {
+	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+	defaultCommentModerate,
+} from "./comments/moderator.js";
+import { submitPublicComment } from "./comments/public-submission.js";
+import {
+	CommentStatusConflictError,
+	createComment,
+	moderateComment,
+	type CommentCreateInput,
+	type CommentCreateResult,
+	type CommentHookRunner,
+} from "./comments/service.js";
+import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
+import { OptionsRepository } from "./database/repositories/options.js";
+import type { Database } from "./database/types.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
+import {
+	createSmtpEmailDeliverFromDb,
+	isSmtpEnvConfigured,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
 	EXCLUSIVE_HOOK_KEY_PREFIX,
 	getActiveContentSaveHookName,
+	HookTimeoutError,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -292,13 +304,21 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
 import type { PluginState } from "./plugins/state.js";
-import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
+import {
+	generateIndexName,
+	getStorageIndexDefinitions,
+	syncDeclaredStorageIndexes,
+	type StorageIndexSyncResult,
+} from "./plugins/storage-indexes.js";
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
+import { normalizeBlocksData, resolveBlockTypes } from "./schema/block-values.js";
+import { SchemaError, SchemaRegistry } from "./schema/registry.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
+import type { Storage } from "./storage/types.js";
 import { assertSiteWriteAllowed } from "./transfer/fence.js";
 
 const DRAFT_ONLY_UPDATE_KEYS = new Set([
@@ -316,6 +336,8 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
+/** Publish errors a scheduled retry cannot clear: the entry has to change first. */
+const SCHEDULED_REFUSAL_CODES: ReadonlySet<string> = new Set(["VALIDATION_ERROR", "SLUG_CONFLICT"]);
 
 type ContentPolicyHookName =
 	| "content:beforePublish"
@@ -343,6 +365,8 @@ type ContentPolicyCheck =
  */
 export interface SandboxedPluginEntry {
 	id: string;
+	displayName?: string;
+	description?: string;
 	version: string;
 	options: Record<string, unknown>;
 	code: string;
@@ -661,6 +685,16 @@ function getDbHolder(): DbHolder {
  */
 const DB_INIT_FAILURE_BACKOFF_MS = 30_000;
 
+/** The failure a db init is still backing off from, if any. */
+function activeInitFailure(holder: DbHolder, cacheKey: string) {
+	const failure = holder.failures.get(cacheKey);
+	if (!failure) return undefined;
+	if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) return failure;
+	// Expired — drop it so the map only ever holds active backoffs.
+	holder.failures.delete(cacheKey);
+	return undefined;
+}
+
 /**
  * The most content rows auto mode migrates inside a deployed Worker request.
  * Datetime normalization (079) issues about one statement per row it changes,
@@ -819,8 +853,17 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
-	/** Guards the once-per-process plugin storage-index sync. */
-	private storageIndexesSynced = false;
+	/**
+	 * Plugin IDs whose declared storage indexes have been materialized without
+	 * errors. Per-plugin tracking lets retries target only the plugins that
+	 * failed a previous synchronization, and it keeps newly-installed plugins
+	 * from being treated as ready before their own indexes exist.
+	 */
+	private storageIndexesReady = new Set<string>();
+	private storageIndexesSyncPromises = new Map<
+		string,
+		{ declaration: object; promise: Promise<StorageIndexSyncResult> }
+	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
@@ -973,6 +1016,16 @@ export class EmDashRuntime {
 		if (options.invalidateContentCache) {
 			this.pluginContentCacheInvalidator = options.invalidateContentCache;
 		}
+
+		// Try to materialize plugin-declared indexes before any scheduled plugin
+		// work runs. A partial result leaves failed plugins unmarked so the next
+		// tick retries them.
+		try {
+			await this.ensureStorageIndexesSynced();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
@@ -1016,8 +1069,10 @@ export class EmDashRuntime {
 
 		await this.runSystemCleanupIfDue(currentTime);
 
+		// Retry any plugin storage-index sync that did not complete earlier in
+		// this tick or in a previous tick.
 		try {
-			await this.syncPluginStorageIndexesOnce();
+			await this.ensureStorageIndexesSynced();
 		} catch (error) {
 			console.error("[plugins] Storage index sync failed:", error);
 		}
@@ -1046,21 +1101,141 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Materialize plugin-declared storage indexes, once per process.
-	 *
-	 * Called from the scheduler path, not from request handlers — configured
-	 * plugins have no install handler, so the tick is their only sync moment.
+	 * Build the deduplicated set of plugins that may declare storage indexes.
+	 * Includes configured/trusted plugins, adapted sandboxed plugins, and cached
+	 * marketplace/registry manifests for plugins that may not have been loaded
+	 * into the pipeline yet.
 	 */
-	async syncPluginStorageIndexesOnce(): Promise<void> {
-		if (this.storageIndexesSynced) return;
-		this.storageIndexesSynced = true;
-		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
-		// their manifests are cached at bundle load. Without them, plugins
-		// installed before this feature shipped would never get their indexes.
-		await syncDeclaredStorageIndexes(this.db, [
-			...this.allPipelinePlugins,
-			...marketplaceManifestCache.values(),
-		]);
+	private getStorageIndexPlugins(): Map<
+		string,
+		{
+			id: string;
+			storage?: Record<
+				string,
+				{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+			>;
+		}
+	> {
+		const map = new Map<
+			string,
+			{
+				id: string;
+				storage?: Record<
+					string,
+					{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+				>;
+			}
+		>();
+		for (const plugin of this.allPipelinePlugins) {
+			map.set(plugin.id, plugin);
+		}
+		for (const manifest of marketplaceManifestCache.values()) {
+			if (!map.has(manifest.id)) {
+				map.set(manifest.id, manifest);
+			}
+		}
+		return map;
+	}
+
+	private async runStorageIndexSync(pluginId: string): Promise<StorageIndexSyncResult> {
+		const candidates = [...this.getStorageIndexPlugins().values()].filter(
+			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
+		);
+		const errors: StorageIndexSyncResult["errors"] = [];
+
+		for (const plugin of candidates) {
+			try {
+				const stored = await this.db
+					.selectFrom("_plugin_indexes")
+					.select(["collection", "index_name"])
+					.where("plugin_id", "=", plugin.id)
+					.execute();
+				const storage = { ...plugin.storage };
+				const expected = new Map<string, Set<string>>();
+				for (const [collection, config] of Object.entries(storage)) {
+					expected.set(
+						collection,
+						new Set(
+							getStorageIndexDefinitions(config.indexes, config).map((entry) =>
+								generateIndexName(plugin.id, collection, entry.fields, {
+									unique: entry.unique,
+								}),
+							),
+						),
+					);
+				}
+				let hasExtra = false;
+				for (const row of stored) {
+					if (!expected.get(row.collection)?.delete(row.index_name)) hasExtra = true;
+					// Removed collections still need their old indexes dropped.
+					if (!Object.hasOwn(storage, row.collection)) storage[row.collection] = { indexes: [] };
+				}
+				const hasMissing = [...expected.values()].some((names) => names.size > 0);
+				if (hasExtra || hasMissing) {
+					const result = await syncDeclaredStorageIndexes(this.db, [{ id: plugin.id, storage }]);
+					errors.push(...result.errors);
+					if (!result.ok) continue;
+				}
+
+				// A version change can invalidate a pass while its database work is in flight.
+				if (this.getStorageIndexPlugins().get(plugin.id) === plugin) {
+					this.storageIndexesReady.add(plugin.id);
+				}
+			} catch (error) {
+				console.error(`[plugins] Failed to check storage indexes for ${plugin.id}:`, error);
+				errors.push({
+					pluginId: plugin.id,
+					collection: "(sync)",
+					index: "(sync)",
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		}
+
+		return { ok: errors.length === 0, errors };
+	}
+
+	private invalidateStorageIndexReadiness(pluginId: string): void {
+		// Keep the flight: its DDL must finish before a replacement version can sync.
+		this.storageIndexesReady.delete(pluginId);
+	}
+
+	/**
+	 * Ensure declared storage indexes are ready before state-changing plugin
+	 * work runs. Returns `true` only when the requested plugin (or all plugins,
+	 * when no ID is given) has been successfully synchronized. Uses a single
+	 * in-flight sync per plugin, shared by targeted and all-plugin callers.
+	 */
+	async ensureStorageIndexesSynced(pluginId?: string): Promise<boolean> {
+		if (!pluginId) {
+			const results = await Promise.all(
+				Array.from(this.getStorageIndexPlugins().keys(), (id) =>
+					this.ensureStorageIndexesSynced(id),
+				),
+			);
+			return results.every(Boolean);
+		}
+		if (this.storageIndexesReady.has(pluginId)) return true;
+
+		const declaration = this.getStorageIndexPlugins().get(pluginId);
+		if (!declaration) return false;
+		let flight = this.storageIndexesSyncPromises.get(pluginId);
+		if (!flight) {
+			const promise = this.runStorageIndexSync(pluginId).finally(() => {
+				if (this.storageIndexesSyncPromises.get(pluginId)?.promise === promise) {
+					this.storageIndexesSyncPromises.delete(pluginId);
+				}
+			});
+			flight = { declaration, promise };
+			this.storageIndexesSyncPromises.set(pluginId, flight);
+		}
+
+		await flight.promise;
+		if (this.getStorageIndexPlugins().get(pluginId) !== declaration) return false;
+		if (flight.declaration !== declaration) {
+			return this.ensureStorageIndexesSynced(pluginId);
+		}
+		return this.storageIndexesReady.has(pluginId);
 	}
 
 	/**
@@ -1097,10 +1272,20 @@ export class EmDashRuntime {
 	async setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void> {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
-			this.setSandboxedPluginActive(pluginId, true);
-			this.enabledPlugins.add(pluginId);
-			await this.rebuildHookPipeline();
-			await this._hooks.runPluginActivate(pluginId);
+			try {
+				this.setSandboxedPluginActive(pluginId, true);
+				this.enabledPlugins.add(pluginId);
+				await this.rebuildHookPipeline();
+				const results = await this._hooks.runPluginActivate(pluginId);
+				const failure = results.find((result) => !result.success);
+				if (failure) throw failure.error ?? new Error("Plugin activation failed");
+			} catch (error) {
+				this.pluginStates.set(pluginId, "inactive");
+				this.setSandboxedPluginActive(pluginId, false);
+				this.enabledPlugins.delete(pluginId);
+				await this.rebuildHookPipeline();
+				throw error;
+			}
 		} else {
 			try {
 				// Deactivate hooks retain access until their cleanup has finished.
@@ -1159,12 +1344,13 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Run install → activate once for each native plugin registered in the
+	 * Run install → activate once for each loaded plugin registered in the
 	 * integration config that has no `_plugin_state` row.
 	 *
 	 * Only the isolate whose insert creates the row runs the hooks. A plugin
-	 * whose hooks fail is recorded as inactive rather than retried on later
-	 * boots; re-enabling it from the admin runs `plugin:activate`.
+	 * whose own hooks fail is recorded as inactive rather than retried on later
+	 * boots; re-enabling it from the admin runs `plugin:activate`. Sandbox
+	 * unavailability leaves no state so the next boot can retry.
 	 */
 	private async installUnrecordedConfigPlugins(
 		configPlugins: ResolvedPlugin[],
@@ -1172,7 +1358,33 @@ export class EmDashRuntime {
 	): Promise<void> {
 		const stateRepo = new PluginStateRepository(this.db);
 		const failed: ResolvedPlugin[] = [];
-		const recordFailure = (plugin: ResolvedPlugin, hook: string, error: Error | undefined) => {
+		let sandboxReadinessFailed = false;
+		let sandboxReadiness: Promise<void> | undefined;
+		const recordFailure = async (
+			plugin: ResolvedPlugin,
+			hook: string,
+			error: Error | undefined,
+		) => {
+			if (
+				this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+				(error?.name === "SandboxUnavailableError" ||
+					(error instanceof HookTimeoutError && sandboxRunner && !sandboxRunner.isHealthy()))
+			) {
+				sandboxReadiness = undefined;
+				await this.db
+					.deleteFrom("_plugin_state")
+					.where("plugin_id", "=", plugin.id)
+					.where("version", "=", plugin.version)
+					.where("source", "=", "config")
+					.where("status", "=", "active")
+					.execute();
+				this.pluginStates.delete(plugin.id);
+				console.warn(
+					`EmDash: Sandbox unavailable for config plugin "${plugin.id}"; retrying on next boot:`,
+					error,
+				);
+				return;
+			}
 			console.error(
 				`EmDash: ${hook} failed for config plugin "${plugin.id}"; disabling it:`,
 				error,
@@ -1184,20 +1396,60 @@ export class EmDashRuntime {
 			if (recordedStates.has(plugin.id)) continue;
 
 			try {
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					(plugin.hooks["plugin:install"] || plugin.hooks["plugin:activate"])
+				) {
+					if (sandboxReadinessFailed) continue;
+					try {
+						// Readiness has its own deadline, not the hook's execution budget.
+						await (sandboxReadiness ??=
+							sandboxRunner?.ensureRunning?.({ waitForPendingRestart: true }) ?? Promise.resolve());
+						if (sandboxRunner && !sandboxRunner.isHealthy()) {
+							throw new SandboxUnavailableError(
+								plugin.id,
+								sandboxRunner.unavailableReason?.() ?? "not ready",
+							);
+						}
+					} catch (error) {
+						sandboxReadinessFailed = true;
+						console.warn(
+							`EmDash: Sandbox not ready for config plugin "${plugin.id}"; retrying on next boot:`,
+							error,
+						);
+						continue;
+					}
+				}
 				if (!(await stateRepo.createActiveIfAbsent(plugin.id, plugin.version, "config"))) continue;
 				this.pluginStates.set(plugin.id, "active");
 
 				const install = await this._hooks.runPluginInstall(plugin.id);
 				const installFailure = install.find((result) => !result.success);
 				if (installFailure) {
-					recordFailure(plugin, "plugin:install", installFailure.error);
+					await recordFailure(plugin, "plugin:install", installFailure.error);
 					continue;
 				}
 
+				if (
+					this.sandboxedPlugins.has(`${plugin.id}:${plugin.version}`) &&
+					plugin.hooks["plugin:activate"] &&
+					sandboxRunner &&
+					!sandboxRunner.isHealthy()
+				) {
+					await recordFailure(
+						plugin,
+						"plugin:activate",
+						new SandboxUnavailableError(
+							plugin.id,
+							sandboxRunner.unavailableReason?.() ?? "not ready",
+						),
+					);
+					continue;
+				}
 				const activate = await this._hooks.runPluginActivate(plugin.id);
 				const activateFailure = activate.find((result) => !result.success);
 				if (activateFailure) {
-					recordFailure(plugin, "plugin:activate", activateFailure.error);
+					await recordFailure(plugin, "plugin:activate", activateFailure.error);
 				}
 			} catch (error) {
 				console.error(`EmDash: Config plugin "${plugin.id}" install/activate failed:`, error);
@@ -1213,6 +1465,7 @@ export class EmDashRuntime {
 				console.error(`EmDash: Failed to record config plugin "${plugin.id}" as disabled:`, error);
 			}
 			this.pluginStates.set(plugin.id, "inactive");
+			this.setSandboxedPluginActive(plugin.id, false);
 			this.enabledPlugins.delete(plugin.id);
 		}
 		await this.rebuildHookPipeline();
@@ -1388,6 +1641,7 @@ export class EmDashRuntime {
 				}
 
 				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+				this.invalidateStorageIndexReadiness(pluginId);
 				sandboxedPluginCache.set(key, loaded);
 				sandboxedManifestCache.set(key, bundle.manifest);
 				this.sandboxedPlugins.set(key, loaded);
@@ -1432,6 +1686,7 @@ export class EmDashRuntime {
 	 * Mutates allPipelinePlugins and configuredPlugins in place.
 	 */
 	private removePluginFromLists(pluginId: string): void {
+		this.invalidateStorageIndexReadiness(pluginId);
 		const allIdx = this.allPipelinePlugins.findIndex((p) => p.id === pluginId);
 		if (allIdx !== -1) this.allPipelinePlugins.splice(allIdx, 1);
 		const configIdx = this.configuredPlugins.findIndex((p) => p.id === pluginId);
@@ -1542,6 +1797,7 @@ export class EmDashRuntime {
 				const existing = this.allPipelinePlugins.find((p) => p.id === pluginId);
 				if (existing && existing.version === bundle.manifest.version) continue;
 
+				this.invalidateStorageIndexReadiness(pluginId);
 				// Remove any older version
 				if (existing) {
 					this.removePluginFromLists(pluginId);
@@ -1623,10 +1879,231 @@ export class EmDashRuntime {
 			}
 		};
 
+		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
+		// surfaces in startup logs. Plugin secret-setting operations re-read
+		// the key and fail closed at their own boundary, so validation here
+		// does not block unrelated request paths.
+		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
+
+		// FTS verify/repair is deferred off the cold-start hot path.
+		// See EmDashRuntime.ensureSearchHealthy().
+
+		// Initialize storage (sync)
+		const storage = EmDashRuntime.getStorage(deps);
+
+		const configuredLocales: string[] =
+			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
+
+		// Seeding must only touch the configured singleton, never a borrowed
+		// per-request db (playground / DO preview) or the loader-fallback db.
+		const reqCtx = getRequestContext();
+		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
+
+		// Run the init reads on a coalescing connection so the concurrent
+		// same-turn reads flush as one batch() round trip. The singleton can't:
+		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
+		// Kysely's connection mutex serializes concurrent reads into N round
+		// trips. The connection is per-init and discarded — the long-lived
+		// singleton must never coalesce or one request's reads could land in
+		// another's batch. Backends without a coalescing dialect (Node/SQLite)
+		// fall back to the singleton, where serialization costs nothing.
+		let coalescingDb: Kysely<Database> | undefined;
+		let readDbDisposable: Kysely<Database> | undefined;
+		const disposeReadDb = async () => {
+			const disposable = readDbDisposable;
+			readDbDisposable = undefined;
+			if (!disposable) return;
+			try {
+				await disposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		};
+		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
+			try {
+				const dialect = deps.createCoalescingDialect(deps.config.database.config);
+				if (dialect) {
+					coalescingDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+					readDbDisposable = coalescingDb;
+				}
+			} catch {
+				// Fall back to the singleton below.
+			}
+		}
+		let missingManualSchemaError: unknown;
+		const captureMissingManualSchema = (error: unknown) => {
+			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
+				missingManualSchemaError ??= error;
+			}
+		};
+
+		const readSiteInfo = async (readDb: Kysely<Database>) => {
+			const siteOpts = await new OptionsRepository(readDb).getMany([
+				"site:title",
+				"emdash:site_title",
+				"site:url",
+				"emdash:site_url",
+				"emdash:locale",
+				LOCALE_CASING_REPAIR_OPTION,
+				AUTO_SEED_COMPLETE_OPTION,
+				SETUP_COMPLETE_OPTION,
+			]);
+			const siteTitle = resolveSiteTitle(
+				siteOpts.get("site:title"),
+				siteOpts.get("emdash:site_title"),
+			);
+			const siteUrl = resolveSiteOrigin(
+				deps.config,
+				siteOpts.get("site:url"),
+				siteOpts.get("emdash:site_url"),
+			);
+			const locale = siteOpts.get("emdash:locale");
+			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
+			return {
+				siteInfo: {
+					siteName: deps.siteInfo?.name ?? siteTitle,
+					siteUrl: deps.siteInfo?.url ?? siteUrl,
+					locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
+					// trailingSlash is a build-time Astro routing decision, not a
+					// user-editable setting, so it comes from the Astro config
+					// (virtual:emdash/config), not the options table.
+					trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
+				},
+				storedLocaleCasingRepairVersion:
+					typeof repairVersion === "string" ? repairVersion : undefined,
+				seedComplete: siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true,
+				setupDone: siteOpts.get(SETUP_COMPLETE_OPTION) === true,
+			};
+		};
+
+		// Each pass returns its own results, so a pass that runs again after
+		// migrations replaces the first pass's results whole.
+		const runColdStartReads = async (readDb: Kysely<Database>) => {
+			const reads: {
+				pluginStates: Map<string, string>;
+				pluginStatesRead: boolean;
+				installedPluginStates: PluginState[];
+				exclusiveHookSelections?: Map<string, string | undefined>;
+				site?: Awaited<ReturnType<typeof readSiteInfo>>;
+				seedCollectionsReadable: boolean;
+			} = {
+				pluginStates: new Map(),
+				pluginStatesRead: false,
+				installedPluginStates: [],
+				seedCollectionsReadable: false,
+			};
+			const coldStartReads: Array<Promise<void>> = [
+				phase("rt.plugins", "Plugin states", async () => {
+					try {
+						const states = await readDb.selectFrom("_plugin_state").selectAll().execute();
+						reads.pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
+						reads.pluginStatesRead = true;
+						reads.installedPluginStates = states
+							.filter((s) => s.source === "marketplace" || s.source === "registry")
+							.map(rowToPluginState);
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// _plugin_state may not exist yet on a pre-migration db.
+					}
+				}),
+				phase("rt.site", "Site info options", async () => {
+					try {
+						reads.site = await readSiteInfo(readDb);
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// options may not exist yet on a pre-migration db.
+					}
+				}),
+				phase("rt.hookselections", "Exclusive hook selections", async () => {
+					// Built-in and sandboxed providers register after these reads, so
+					// only configured plugins' hooks and the always-present
+					// comment:moderate and email:deliver are known here. Hook
+					// resolution reads the rest.
+					const keys = Array.from(
+						new Set([
+							"comment:moderate",
+							"email:deliver",
+							...deps.plugins.flatMap((plugin) =>
+								Object.entries(plugin.hooks)
+									.filter(([, hook]) => hook?.exclusive)
+									.map(([name]) => name),
+							),
+						]),
+						(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
+					);
+					try {
+						const stored = await new OptionsRepository(readDb).getMany<string>(keys);
+						reads.exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
+					} catch (error) {
+						captureMissingManualSchema(error);
+						// Hook resolution reads the selections itself when this fails.
+					}
+				}),
+			];
+
+			if (ownsConfiguredDb) {
+				coldStartReads.push(
+					phase("rt.seedcheck", "Auto-seed gate", async () => {
+						try {
+							// Selecting the slugs instead of COUNT(*) costs the same
+							// round trip and primes the registered-collections cache,
+							// so the first render on this isolate skips its own lookup.
+							const collectionRows = await readDb
+								.selectFrom("_emdash_collections")
+								.select("slug")
+								.execute();
+							primeRegisteredCollections(collectionRows.map((row) => row.slug));
+							reads.seedCollectionsReadable = true;
+						} catch (error) {
+							captureMissingManualSchema(error);
+							// Leave collections unreadable so a read failure never triggers
+							// a seed onto a half-built db.
+						}
+					}),
+				);
+			}
+
+			await Promise.all(coldStartReads);
+			return reads;
+		};
+
+		// The applied-migration count rides in the cold-start batch on the
+		// coalescing connection instead of costing its own round trip first. In
+		// auto mode the policy uses it for its fast path. Reads in a batch whose
+		// count was current saw a fully migrated schema; otherwise they run again
+		// once the policy has finished.
+		let migrationsCurrent = false;
+		let foldedColdStartReads: ReturnType<typeof runColdStartReads> | undefined;
+		let appliedMigrationCount: Promise<number | null | undefined> | undefined;
+		// Only fold when getDatabase will actually initialize: a cached db needs
+		// no count, and during a backoff getDatabase throws without touching the
+		// database, so neither should the reads.
+		if (
+			coalescingDb &&
+			(deps.migrationMode ?? "auto") === "auto" &&
+			EmDashRuntime.databaseNeedsInit(deps)
+		) {
+			// A read error leaves the policy to read the count itself.
+			appliedMigrationCount = getAppliedMigrationCount(coalescingDb).catch(() => undefined);
+			foldedColdStartReads = runColdStartReads(coalescingDb);
+		}
+
 		// Initialize the database and enforce its configured migration policy.
-		const db = await phase("rt.db", "DB init + migration policy", () =>
-			EmDashRuntime.getDatabase(deps),
-		);
+		let db: Kysely<Database>;
+		try {
+			db = await phase("rt.db", "DB init + migration policy", async () => {
+				const count = await appliedMigrationCount;
+				migrationsCurrent = isMigrationCountCurrent(count);
+				return EmDashRuntime.getDatabase(deps, { appliedMigrationCount: count });
+			});
+		} catch (error) {
+			// Drain the folded reads without letting a secondary read failure
+			// replace the migration/init error we want to report.
+			await foldedColdStartReads?.catch(() => undefined);
+			await disposeReadDb();
+			throw error;
+		}
 
 		// Resolver for the live connection, mirroring the `get db()` getter
 		// below (which can't be used here — the runtime instance doesn't exist
@@ -1644,187 +2121,22 @@ export class EmDashRuntime {
 			return (ctx?.db as Kysely<Database> | undefined) ?? db;
 		};
 
-		// Validate EMDASH_ENCRYPTION_KEY once here so a malformed value
-		// surfaces in startup logs. Plugin secret-setting operations re-read
-		// the key and fail closed at their own boundary, so validation here
-		// does not block unrelated request paths.
-		await phase("rt.secrets", "Validate encryption key", () => validateEncryptionKeyAtStartup());
-
-		// FTS verify/repair is deferred off the cold-start hot path.
-		// See EmDashRuntime.ensureSearchHealthy().
-
-		// Initialize storage (sync)
-		const storage = EmDashRuntime.getStorage(deps);
-
-		let pluginStates: Map<string, string> = new Map();
-		let pluginStatesRead = false;
-		let installedPluginStates: PluginState[] = [];
-		let exclusiveHookSelections: Map<string, string | undefined> | undefined;
-		const configuredLocales: string[] =
-			virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
-		const localeCasingRepairVersion = getLocaleCasingRepairVersion(configuredLocales);
-		let storedLocaleCasingRepairVersion: string | undefined;
-		let siteInfo:
-			| {
-					siteName?: string;
-					siteUrl?: string;
-					locale?: string;
-					trailingSlash?: "always" | "never" | "ignore";
-			  }
-			| undefined;
+		const readDb = coalescingDb ?? db;
+		const foldedReads = await foldedColdStartReads;
+		const reads = foldedReads && migrationsCurrent ? foldedReads : await runColdStartReads(readDb);
+		const {
+			pluginStates,
+			pluginStatesRead,
+			installedPluginStates,
+			exclusiveHookSelections,
+			seedCollectionsReadable,
+		} = reads;
+		let siteInfo = reads.site?.siteInfo;
+		const storedLocaleCasingRepairVersion = reads.site?.storedLocaleCasingRepairVersion;
 		// "Already complete" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
-		let seedComplete = true;
-		let setupDone = true;
-		let seedCollectionsReadable = false;
-
-		// Seeding must only touch the configured singleton, never a borrowed
-		// per-request db (playground / DO preview) or the loader-fallback db.
-		const reqCtx = getRequestContext();
-		const ownsConfiguredDb = !!deps.config.database && !(reqCtx?.dbIsIsolated && reqCtx.db);
-
-		// Run the init reads on a coalescing connection so the concurrent
-		// same-turn reads flush as one batch() round trip. The singleton can't:
-		// its plain SqliteAdapter reports supportsMultipleConnections=false, so
-		// Kysely's connection mutex serializes concurrent reads into N round
-		// trips. The connection is per-init and discarded — the long-lived
-		// singleton must never coalesce or one request's reads could land in
-		// another's batch. Backends without a coalescing dialect (Node/SQLite)
-		// fall back to the singleton, where serialization costs nothing.
-		let readDb = db;
-		let readDbDisposable: Kysely<Database> | undefined;
-		const disposeReadDb = async () => {
-			const disposable = readDbDisposable;
-			readDbDisposable = undefined;
-			if (!disposable) return;
-			try {
-				await disposable.destroy();
-			} catch {
-				// Non-fatal — the underlying binding is shared and needs no teardown.
-			}
-		};
-		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
-			try {
-				const dialect = deps.createCoalescingDialect(deps.config.database.config);
-				if (dialect) {
-					readDb = new Kysely<Database>({ dialect, log: kyselyLogOption() });
-					readDbDisposable = readDb;
-				}
-			} catch {
-				readDb = db;
-			}
-		}
-		const optionsRepo = new OptionsRepository(readDb);
-		let missingManualSchemaError: unknown;
-		const captureMissingManualSchema = (error: unknown) => {
-			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
-				missingManualSchemaError ??= error;
-			}
-		};
-
-		const readSiteInfo = async () => {
-			const siteOpts = await optionsRepo.getMany([
-				"emdash:site_title",
-				"site:url",
-				"emdash:site_url",
-				"emdash:locale",
-				LOCALE_CASING_REPAIR_OPTION,
-				AUTO_SEED_COMPLETE_OPTION,
-				SETUP_COMPLETE_OPTION,
-			]);
-			const siteTitle = siteOpts.get("emdash:site_title");
-			const siteUrl = resolveSiteOrigin(
-				deps.config,
-				siteOpts.get("site:url"),
-				siteOpts.get("emdash:site_url"),
-			);
-			const locale = siteOpts.get("emdash:locale");
-			const repairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
-			storedLocaleCasingRepairVersion =
-				typeof repairVersion === "string" ? repairVersion : undefined;
-			seedComplete = siteOpts.get(AUTO_SEED_COMPLETE_OPTION) === true;
-			setupDone = siteOpts.get(SETUP_COMPLETE_OPTION) === true;
-			return {
-				siteName: deps.siteInfo?.name ?? (typeof siteTitle === "string" ? siteTitle : undefined),
-				siteUrl: deps.siteInfo?.url ?? siteUrl,
-				locale: deps.siteInfo?.locale ?? (typeof locale === "string" ? locale : undefined),
-				// trailingSlash is a build-time Astro routing decision, not a
-				// user-editable setting, so it comes from the Astro config
-				// (virtual:emdash/config), not the options table.
-				trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
-			};
-		};
-
-		const coldStartReads: Array<Promise<void>> = [
-			phase("rt.plugins", "Plugin states", async () => {
-				try {
-					const states = await readDb.selectFrom("_plugin_state").selectAll().execute();
-					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-					pluginStatesRead = true;
-					installedPluginStates = states
-						.filter((s) => s.source === "marketplace" || s.source === "registry")
-						.map(rowToPluginState);
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// _plugin_state may not exist yet on a pre-migration db.
-				}
-			}),
-			phase("rt.site", "Site info options", async () => {
-				try {
-					siteInfo = await readSiteInfo();
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// options may not exist yet on a pre-migration db.
-				}
-			}),
-			phase("rt.hookselections", "Exclusive hook selections", async () => {
-				// Built-in and sandboxed providers register after these reads, so
-				// only configured plugins' hooks and the always-present
-				// comment:moderate are known here. Hook resolution reads the rest.
-				const keys = Array.from(
-					new Set([
-						"comment:moderate",
-						...deps.plugins.flatMap((plugin) =>
-							Object.entries(plugin.hooks)
-								.filter(([, hook]) => hook?.exclusive)
-								.map(([name]) => name),
-						),
-					]),
-					(name) => `${EXCLUSIVE_HOOK_KEY_PREFIX}${name}`,
-				);
-				try {
-					const stored = await optionsRepo.getMany<string>(keys);
-					exclusiveHookSelections = new Map(keys.map((key) => [key, stored.get(key)]));
-				} catch (error) {
-					captureMissingManualSchema(error);
-					// Hook resolution reads the selections itself when this fails.
-				}
-			}),
-		];
-
-		if (ownsConfiguredDb) {
-			coldStartReads.push(
-				phase("rt.seedcheck", "Auto-seed gate", async () => {
-					try {
-						// Selecting the slugs instead of COUNT(*) costs the same
-						// round trip and primes the registered-collections cache,
-						// so the first render on this isolate skips its own lookup.
-						const collectionRows = await readDb
-							.selectFrom("_emdash_collections")
-							.select("slug")
-							.execute();
-						primeRegisteredCollections(collectionRows.map((row) => row.slug));
-						seedCollectionsReadable = true;
-					} catch (error) {
-						captureMissingManualSchema(error);
-						// Leave collections unreadable so a read failure never triggers
-						// a seed onto a half-built db.
-					}
-				}),
-			);
-		}
-
-		await Promise.all(coldStartReads);
+		const seedComplete = reads.site?.seedComplete ?? true;
+		const setupDone = reads.site?.setupDone ?? true;
 		if (missingManualSchemaError) {
 			await disposeReadDb();
 			throw missingManualSchemaError;
@@ -1889,7 +2201,7 @@ export class EmDashRuntime {
 				// The site-info read ran before the seed wrote its defaults, so
 				// refresh the snapshot the plugin context sees.
 				try {
-					siteInfo = await readSiteInfo();
+					siteInfo = (await readSiteInfo(readDb)).siteInfo;
 				} catch {
 					// Non-fatal — plugin context falls back to undefined fields.
 				}
@@ -1943,6 +2255,34 @@ export class EmDashRuntime {
 			} catch (error) {
 				console.warn("[email] Failed to register dev console email provider:", error);
 			}
+		}
+
+		// Register the built-in SMTP email provider, even unconfigured, so it
+		// appears in the Settings → Email provider list. The handler loads its
+		// config (DB first, env fallback) on every send. Secrets read
+		// process.env only: import.meta.env is inlined at build time.
+		try {
+			const smtpPlugin = definePlugin({
+				id: SMTP_EMAIL_PLUGIN_ID,
+				version: "1.0.0",
+				capabilities: ["hooks.email-transport:register"],
+				hooks: {
+					"email:deliver": {
+						exclusive: true,
+						// EHLO, STARTTLS, AUTH and DATA over the public internet need far
+						// more than the 5s default hook timeout.
+						timeout: 30_000,
+						handler: createSmtpEmailDeliverFromDb(
+							resolveDb,
+							process.env.EMDASH_ENCRYPTION_KEY ?? null,
+						),
+					},
+				},
+			});
+			allPipelinePlugins.push(smtpPlugin);
+			enabledPlugins.add(smtpPlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register SMTP email provider:", error);
 		}
 
 		// Register built-in default comment moderator.
@@ -2162,6 +2502,7 @@ export class EmDashRuntime {
 			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
+			imagePlaceholders: deps.config.imagePlaceholders ?? true,
 			siteInfo,
 			commentModerate: (
 				pluginId: string,
@@ -2362,8 +2703,13 @@ export class EmDashRuntime {
 		sandboxRunner?.setContentActions?.(contentActions);
 
 		if (ownsConfiguredDb && pluginStatesRead) {
+			// A sandbox that failed to load must not consume its first-install guard.
+			const configPlugins = [
+				...deps.plugins,
+				...allPipelinePlugins.filter((plugin) => configuredSandboxIds.has(plugin.id)),
+			];
 			await phase("rt.lifecycle", "Config plugin install/activate", () =>
-				runtime.installUnrecordedConfigPlugins(deps.plugins, new Map(pluginStates)),
+				runtime.installUnrecordedConfigPlugins(configPlugins, new Map(pluginStates)),
 			);
 		}
 
@@ -2395,9 +2741,28 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Get or create database instance
+	 * Whether getDatabase would initialize the configured database: it isn't
+	 * cached yet and isn't backing off after a failed init.
 	 */
-	private static async getDatabase(deps: RuntimeDependencies): Promise<Kysely<Database>> {
+	private static databaseNeedsInit(deps: RuntimeDependencies): boolean {
+		const dbConfig = deps.config.database;
+		if (!dbConfig) return false;
+		const holder = getDbHolder();
+		return (
+			!holder.cache.has(dbConfig.entrypoint) && !activeInitFailure(holder, dbConfig.entrypoint)
+		);
+	}
+
+	/**
+	 * Get or create database instance
+	 *
+	 * `appliedMigrationCount` is a count the caller already read from this
+	 * database; the migration policy uses it rather than reading its own.
+	 */
+	private static async getDatabase(
+		deps: RuntimeDependencies,
+		options?: { appliedMigrationCount?: number | null },
+	): Promise<Kysely<Database>> {
 		// Only use the per-request `ctx.db` when it's an isolated instance
 		// (playground / DO preview). Plain D1 Sessions set `ctx.db` on every
 		// anonymous request — if we captured one of those session-bound
@@ -2436,16 +2801,12 @@ export class EmDashRuntime {
 		const holder = getDbHolder();
 
 		const throwIfBackingOff = () => {
-			const failure = holder.failures.get(cacheKey);
+			const failure = activeInitFailure(holder, cacheKey);
 			if (!failure) return;
-			if (Date.now() - failure.at < DB_INIT_FAILURE_BACKOFF_MS) {
-				throw new Error(
-					`Database initialization is backing off after a recent migration failure: ${failure.message}`,
-					{ cause: failure.cause },
-				);
-			}
-			// Expired — drop it so the map only ever holds active backoffs.
-			holder.failures.delete(cacheKey);
+			throw new Error(
+				`Database initialization is backing off after a recent migration failure: ${failure.message}`,
+				{ cause: failure.cause },
+			);
 		};
 		throwIfBackingOff();
 
@@ -2464,6 +2825,7 @@ export class EmDashRuntime {
 				try {
 					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
 						contentRowLimit: autoMigrationContentRowLimit(),
+						appliedCount: options?.appliedMigrationCount,
 					});
 				} catch (error) {
 					// Only a failed migration run, a lock its holder left behind, or
@@ -3011,6 +3373,7 @@ export class EmDashRuntime {
 
 		// The pipeline was created from only enabled plugins, so all providers
 		// in it are active. The isActive check always returns true.
+		const smtpFromEnv = isSmtpEnvConfigured();
 		await resolveExclusiveHooksShared({
 			pipeline,
 			isActive: () => true,
@@ -3030,7 +3393,14 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
-			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
+			// Env-configured SMTP gives way to an email plugin. Without env config,
+			// SMTP serves email only once selected in Settings → Email.
+			fallbackProviders: new Set([
+				DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+				...(smtpFromEnv ? [SMTP_EMAIL_PLUGIN_ID] : []),
+				DEV_CONSOLE_EMAIL_PLUGIN_ID,
+			]),
+			manualProviders: smtpFromEnv ? undefined : new Set([SMTP_EMAIL_PLUGIN_ID]),
 		});
 	}
 
@@ -3378,9 +3748,10 @@ export class EmDashRuntime {
 		id: string,
 		locale?: string,
 		referenceOptions?: { includeDrafts: boolean },
+		draftOptions?: { includeStagedSlug?: boolean },
 	) {
 		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
-		return this.hydrateDraftData(result);
+		return this.hydrateDraftData(result, draftOptions);
 	}
 
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {
@@ -3969,6 +4340,10 @@ export class EmDashRuntime {
 						);
 					}
 
+					const entryGroup = existing.translationGroup;
+					await repo.keepStartingRevision(revisionRepo, collection, existing, () =>
+						liveReferenceData(this.db, collection, entryGroup),
+					);
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
@@ -4601,6 +4976,36 @@ export class EmDashRuntime {
 		};
 	}
 
+	private async unscheduleRefusedPublish(
+		collection: string,
+		id: string,
+		revision: string | undefined,
+		error: { code?: string; message?: string } | undefined,
+	): Promise<void> {
+		if (!error?.code || !SCHEDULED_REFUSAL_CODES.has(error.code)) return;
+		const reason = toScheduledRejectionReason(error.message);
+		if (!reason || revision === undefined) return;
+		const unscheduled = await handleScheduledPolicyRejection(this.db, collection, id, {
+			_rev: revision,
+			rejection: {
+				collection,
+				id,
+				code: error.code,
+				reason,
+				rejectedAt: (this.runtimeDeps.now?.() ?? new Date()).toISOString(),
+			},
+		});
+		if (!unscheduled.success) {
+			console.error(
+				`[scheduled-publish] Failed to unschedule refused ${collection}/${id}:`,
+				unscheduled.error,
+			);
+			return;
+		}
+		await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
+		this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
+	}
+
 	async handleContentPublish(
 		collection: string,
 		id: string,
@@ -4646,6 +5051,9 @@ export class EmDashRuntime {
 			...handlerOptions,
 			_rev: policy.revision,
 		});
+		if (!result.success && options.origin?.source === "scheduler") {
+			await this.unscheduleRefusedPublish(collection, id, policy.revision, result.error);
+		}
 		if (result.success && result.data) {
 			await this.clearScheduledPolicyRejection(
 				collection,
@@ -4832,12 +5240,17 @@ export class EmDashRuntime {
 				error: { code: "NO_STORAGE", message: "Storage not configured" },
 			};
 		}
-		const result = await uploadMedia(this.db, this.storage, input, {
-			beforeUpload: async (file) => {
-				if (!this.hooks.hasHooks("media:beforeUpload")) return file;
-				return (await this.hooks.runMediaBeforeUpload(file)).file;
+		const result = await uploadMedia(
+			this.db,
+			this.storage,
+			{ ...input, placeholders: input.placeholders ?? this.config.imagePlaceholders ?? true },
+			{
+				beforeUpload: async (file) => {
+					if (!this.hooks.hasHooks("media:beforeUpload")) return file;
+					return (await this.hooks.runMediaBeforeUpload(file)).file;
+				},
 			},
-		});
+		);
 		if (result.success && !result.data.deduplicated && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			await this.hooks.runMediaAfterUpload({
@@ -5643,6 +6056,24 @@ export class EmDashRuntime {
 			};
 		}
 
+		// State-changing plugin routes may rely on declared unique indexes and
+		// other constraints. Block them until those indexes are materialized.
+		// Read-only routes skip this check so ordinary logged-out GET requests
+		// don't pay for index DDL.
+		if (normalizedMethod !== "GET" && normalizedMethod !== "HEAD") {
+			const indexesReady = await this.ensureStorageIndexesSynced(pluginId);
+			if (!indexesReady) {
+				return {
+					success: false,
+					status: 503,
+					error: {
+						code: "STORAGE_INDEXES_NOT_READY",
+						message: "Plugin storage indexes are not ready",
+					},
+				};
+			}
+		}
+
 		// Authenticated caller for `ctx.user`. Undefined for public routes
 		// (the catch-all only forwards the caller after private-route auth)
 		// and for machine tokens with no bound user.
@@ -5887,7 +6318,7 @@ export class EmDashRuntime {
 		const headers = new Headers(request.headers);
 		headers.delete("content-length");
 		headers.delete("content-encoding");
-		const internalRequest = new Request(request.url, {
+		const internalRequest = new Request(request, {
 			method: "POST",
 			headers,
 			body: JSON.stringify(input),
@@ -5980,8 +6411,9 @@ export class EmDashRuntime {
 
 	/**
 	 * Normalize field values in content data before validation.
-	 * Turns a blank string in an array-valued field into `null`, and fills
-	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
+	 * Turns a blank string in an array-valued field into `null`, fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from
+	 * providers, and links rich text media named by file URL to its media item.
 	 */
 	private async normalizeFieldValues(
 		collection: string,
@@ -6020,7 +6452,27 @@ export class EmDashRuntime {
 		const blockFields = includeBlocks
 			? collectionInfo.fields.filter((field) => field.type === "blocks")
 			: [];
+		// Collected across top-level and block fields so linking costs one lookup.
+		const portableTextValues: { owner: Record<string, unknown>; slug: string }[] =
+			collectionInfo.fields
+				.filter((field) => field.type === "portableText" && Array.isArray(result[field.slug]))
+				.map((field) => ({ owner: result, slug: field.slug }));
+		const linkPortableTextValues = async () => {
+			if (portableTextValues.length === 0) return;
+			try {
+				const linked = await linkPortableTextFileUrls(
+					portableTextValues.map(({ owner, slug }) => owner[slug]),
+					(storageKeys) => new MediaRepository(this.db).findIdsByStorageKeys(storageKeys),
+				);
+				for (const [index, { owner, slug }] of portableTextValues.entries()) {
+					owner[slug] = linked[index];
+				}
+			} catch {
+				// Don't fail the save if linking file URLs to media items fails
+			}
+		};
 		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			await linkPortableTextValues();
 			return result;
 		}
 
@@ -6107,6 +6559,8 @@ export class EmDashRuntime {
 									} else if (isBlankString(nestedValue)) {
 										normalizedBlock[nestedField.slug] = null;
 									}
+								} else if (nestedField.type === "portableText" && Array.isArray(nestedValue)) {
+									portableTextValues.push({ owner: normalizedBlock, slug: nestedField.slug });
 								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
 									const imageSlugs = (nestedField.validation?.subFields ?? [])
 										.filter((subField) => subField.type === "image")
@@ -6144,6 +6598,7 @@ export class EmDashRuntime {
 			}
 		}
 
+		await linkPortableTextValues();
 		return result;
 	}
 

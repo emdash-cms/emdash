@@ -34,8 +34,8 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
-// Mock FieldEditor — exposes open state, a save trigger, and the error banner
-// a rejected save should produce, without the real dialog's form fields.
+// Mock FieldEditor — exposes open state, a save trigger, and the error a
+// rejected save hands it, without the real dialog's form fields.
 vi.mock("../../src/components/FieldEditor", () => ({
 	FieldEditor: ({
 		open,
@@ -44,12 +44,14 @@ vi.mock("../../src/components/FieldEditor", () => ({
 	}: {
 		open: boolean;
 		onSave: (input: unknown) => void;
-		saveError?: string | null;
+		saveError?: unknown;
 	}) =>
 		open ? (
 			<div data-testid="field-editor-dialog">
 				Field Editor
-				{saveError && <div data-testid="field-save-error">{saveError}</div>}
+				{saveError instanceof Error && (
+					<div data-testid="field-save-error">{saveError.message}</div>
+				)}
 				<button onClick={() => onSave({ slug: "title", label: "Title", type: "string" })}>
 					Save field
 				</button>
@@ -451,6 +453,46 @@ describe("ContentTypeEditor", () => {
 		expect(onDeleteField).not.toHaveBeenCalled();
 	});
 
+	it("keeps Delete Field? open with its progress until the delete lands", async () => {
+		let finish = () => {};
+		const onDeleteField = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finish = resolve;
+				}),
+		);
+		const collection = makeCollection({ fields: [makeField()] });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onDeleteField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: DELETE_FIELD_BUTTON_PATTERN }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete Field?" });
+		const confirm = dialog.getByRole("button", { name: "Delete" }).element();
+		confirm.click();
+		confirm.click();
+
+		await expect.element(dialog.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+		expect(onDeleteField).toHaveBeenCalledTimes(1);
+		finish();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("shows a failed delete inside Delete Field?", async () => {
+		const onDeleteField = vi.fn(() => Promise.reject(new Error("Field could not be deleted")));
+		const collection = makeCollection({ fields: [makeField()] });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onDeleteField })} collection={collection} />,
+		);
+
+		await screen.getByRole("button", { name: DELETE_FIELD_BUTTON_PATTERN }).click();
+		const dialog = screen.getByRole("dialog", { name: "Delete Field?" });
+		dialog.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect.element(dialog.getByRole("alert")).toHaveTextContent("Field could not be deleted");
+		await expect.element(dialog.getByRole("button", { name: "Delete" })).toBeEnabled();
+	});
+
 	// ---- Deleting a reference field offers to delete its relationship ----
 
 	describe("deleting a reference field", () => {
@@ -534,6 +576,21 @@ describe("ContentTypeEditor", () => {
 			screen.getByRole("button", { name: "Delete" }).element().click();
 
 			expect(onDeleteField).toHaveBeenCalledWith("author", { deleteRelation: false });
+		});
+
+		it("holds the relationship choice while the delete runs", async () => {
+			const { screen } = await openDeleteDialog(vi.fn(() => new Promise<void>(() => {})));
+			const dialog = screen.getByRole("dialog", { name: "Delete Field?" });
+
+			dialog.getByRole("button", { name: "Delete" }).element().click();
+
+			await expect.element(dialog.getByRole("button", { name: "Deleting..." })).toBeDisabled();
+			await expect
+				.element(
+					dialog.getByRole("checkbox", { name: "Also delete the relationship this field uses" }),
+				)
+				.toBeDisabled();
+			await expect.element(dialog.getByText("This also removes:")).toBeVisible();
 		});
 
 		it("offers nothing extra for a field that uses no relationship", async () => {
@@ -695,6 +752,145 @@ describe("ContentTypeEditor", () => {
 			.element(screen.getByRole("button", { name: "Save", exact: true }).first())
 			.not.toBeInTheDocument();
 	});
+
+	// ---- Date column source ----
+
+	it("offers system and datetime field date column sources", async () => {
+		const collection = makeCollection({
+			fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+		});
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		const trigger = screen.getByRole("combobox", { name: "Date column source", exact: true });
+		await expect.element(trigger).toHaveTextContent("Last updated (default)");
+		await trigger.click();
+		await expect
+			.element(screen.getByRole("option", { name: "Published", exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("option", { name: "Published on", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it.each([
+		["Published", "publishedAt"],
+		["Created", "createdAt"],
+		["Updated", "updatedAt"],
+	])("saves %s as the date column source", async (label, dateField) => {
+		const onSave = vi.fn();
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={makeCollection()} />,
+		);
+		await screen.getByRole("combobox", { name: "Date column source", exact: true }).click();
+		await screen.getByRole("option", { name: label, exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField }));
+	});
+
+	it("saves and resets the date column source without overriding it when unchanged", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({
+			dateField: "published_on",
+			fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+		});
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(
+			expect.not.objectContaining({ dateField: expect.anything() }),
+		);
+
+		onSave.mockClear();
+		const trigger = screen.getByRole("combobox", { name: "Date column source", exact: true });
+		await trigger.click();
+		await screen.getByRole("option", { name: "Last updated (default)", exact: true }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField: null }));
+	});
+
+	it("resets a deleted date source before saving unrelated settings", async () => {
+		const onSave = vi.fn();
+		function EditorWithRefetch() {
+			const [collection, setCollection] = React.useState(
+				makeCollection({
+					dateField: "published_on",
+					fields: [makeField({ slug: "published_on", label: "Published on", type: "datetime" })],
+				}),
+			);
+			return (
+				<ContentTypeEditor
+					{...defaultProps({ onSave })}
+					collection={collection}
+					onDeleteField={async () => {
+						setCollection({ ...collection, dateField: undefined, fields: [] });
+					}}
+				/>
+			);
+		}
+		const screen = await render(<EditorWithRefetch />);
+		await screen.getByRole("button", { name: "Delete Published on field", exact: true }).click();
+		screen.getByRole("button", { name: "Delete", exact: true }).element().click();
+		await expect
+			.element(screen.getByRole("combobox", { name: "Date column source", exact: true }))
+			.toHaveTextContent("Last updated (default)");
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).last())
+			.toBeDisabled();
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledOnce();
+		expect(onSave.mock.calls[0]![0]).toMatchObject({ label: "Articles" });
+		expect(onSave.mock.calls[0]![0]).not.toHaveProperty("dateField");
+	});
+
+	it.each([
+		["Published", "publishedAt"],
+		["Event date", "event_date"],
+	])(
+		"preserves an unsaved %s source when an unrelated field is deleted",
+		async (label, dateField) => {
+			const onSave = vi.fn();
+			function EditorWithRefetch() {
+				const [collection, setCollection] = React.useState(
+					makeCollection({
+						fields: [
+							makeField({ slug: "title", label: "Title" }),
+							makeField({
+								id: "event-date",
+								slug: "event_date",
+								label: "Event date",
+								type: "datetime",
+							}),
+						],
+					}),
+				);
+				return (
+					<ContentTypeEditor
+						{...defaultProps({ onSave })}
+						collection={collection}
+						onDeleteField={async (slug) => {
+							setCollection({
+								...collection,
+								fields: collection.fields.filter((field) => field.slug !== slug),
+							});
+						}}
+					/>
+				);
+			}
+			const screen = await render(<EditorWithRefetch />);
+			await screen.getByRole("combobox", { name: "Date column source", exact: true }).click();
+			await screen.getByRole("option", { name: label, exact: true }).click();
+			await screen.getByRole("button", { name: "Delete Title field", exact: true }).click();
+			screen.getByRole("button", { name: "Delete", exact: true }).element().click();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Date column source", exact: true }))
+				.toHaveTextContent(label);
+			await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ dateField }));
+		},
+	);
 
 	// ---- URL Pattern field ----
 

@@ -60,9 +60,12 @@ export interface AttachmentInfo {
 
 /** Navigation menu from WordPress */
 export interface NavMenu {
+	/** Menu slug */
 	name: string;
-	slug: string;
-	count: number;
+	/** The menu's name in WordPress */
+	label: string;
+	/** Number of items in the menu */
+	itemCount: number;
 }
 
 /** Custom taxonomy from WordPress */
@@ -149,7 +152,7 @@ export interface ImportConfig {
 	skipExisting: boolean;
 	/** Author mappings (WP author login -> EmDash user ID) */
 	authorMappings?: Record<string, string | null>;
-	/** Import navigation menus (plugin import; default true) */
+	/** Import navigation menus (default true) */
 	importMenus?: boolean;
 	/** Take over site title & tagline (plugin import; default true) */
 	importSiteTitle?: boolean;
@@ -171,7 +174,7 @@ export interface ImportResult {
 	missingTaxonomies?: string[];
 	/** Custom taxonomy defs auto-created during the import (plugin import) */
 	taxonomiesCreated?: string[];
-	/** Navigation menu import summary (plugin import) */
+	/** Navigation menu import summary */
 	menus?: { created: number; items: number };
 	/** Comment import summary (plugin import) */
 	comments?: { imported: number; skipped: number };

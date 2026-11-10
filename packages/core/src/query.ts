@@ -24,6 +24,7 @@
  * import resolves there at typecheck time without our help.
  */
 
+import { primeBylineFieldsVersion } from "./bylines/field-defs-cache.js";
 import type { ContentSeo } from "./database/repositories/types.js";
 import {
 	getFallbackChain,
@@ -41,6 +42,7 @@ import {
 	FOLDED_AUTHOR_BYLINE,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
+	FOLDED_BYLINE_FIELDS_VERSION,
 	FOLDED_TERMS,
 	loadPublishedDates,
 	type WhereRange,
@@ -58,6 +60,7 @@ import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { resetRegisteredCollectionsCache } from "./schema/collection-slugs-cache.js";
 import { compileUrlPattern } from "./schema/url-pattern.js";
+import { getEntryTitleField, setEntryTitleField } from "./seo/title-field.js";
 import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 import {
@@ -809,12 +812,14 @@ function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 // ── Object-cache (L2) serialization for content reads ───────────────────────
 //
 // Content entries can't be stored verbatim: each carries a non-serializable
-// `edit` proxy (a function) and a non-enumerable `CURSOR_RAW_VALUES` symbol on
-// `data` (raw date strings used to reproduce the loader's pagination cursor).
-// We reduce each entry to a JSON-safe snapshot before caching — copying the
-// cursor-raw values into an enumerable field and dropping `edit` — then rebuild
-// the symbol and re-attach a no-op `edit` on the way out. The object cache's
-// codec preserves `Date` instances, so timestamps survive the round-trip.
+// `edit` proxy (a function) and non-enumerable symbols on `data`:
+// `CURSOR_RAW_VALUES` (raw date strings used to reproduce the loader's
+// pagination cursor) and, on a single entry, `ENTRY_TITLE_FIELD` (the
+// collection's `titleField`, which `getSeoMeta()` reads). We reduce each entry
+// to a JSON-safe snapshot before caching — copying the symbol values into
+// enumerable fields and dropping `edit` — then rebuild the symbols and
+// re-attach a no-op `edit` on the way out. The object cache's codec preserves
+// `Date` instances, so timestamps survive the round-trip.
 //
 // L2 is only consulted for anonymous, non-preview, non-edit requests (see
 // `shouldBypass` in object-cache), where `edit` is always the no-op variant —
@@ -823,6 +828,9 @@ function stableOrder(value: Record<string, unknown>): Record<string, unknown> {
 /** Enumerable field carrying the {@link CURSOR_RAW_VALUES} payload in snapshots. */
 const CURSOR_RAW_FIELD = "__emdashCursorRaw";
 
+/** Enumerable field carrying the `ENTRY_TITLE_FIELD` value in snapshots. */
+const TITLE_FIELD_KEY = "__emdashTitleField";
+
 /** Result wrapper distinguishing a cached error from a cacheable success. */
 type ContentSnapshot<S> =
 	| { ok: true; value: S }
@@ -830,20 +838,28 @@ type ContentSnapshot<S> =
 
 function dataSnapshot(data: Record<string, unknown>): Record<string, unknown> {
 	const rawCursor = Reflect.get(data, CURSOR_RAW_VALUES);
-	return { ...data, [CURSOR_RAW_FIELD]: rawCursor ?? {} };
+	const titleField = getEntryTitleField(data);
+	return {
+		...data,
+		[CURSOR_RAW_FIELD]: rawCursor ?? {},
+		...(titleField ? { [TITLE_FIELD_KEY]: titleField } : {}),
+	};
 }
 
 function reviveData(raw: Record<string, unknown>): Record<string, unknown> {
 	const data: Record<string, unknown> = { ...raw };
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- snapshot field written by dataSnapshot
 	const rawCursor = (data[CURSOR_RAW_FIELD] as Record<string, unknown> | undefined) ?? {};
+	const titleField = data[TITLE_FIELD_KEY];
 	delete data[CURSOR_RAW_FIELD];
+	delete data[TITLE_FIELD_KEY];
 	Object.defineProperty(data, CURSOR_RAW_VALUES, {
 		value: rawCursor,
 		enumerable: false,
 		configurable: false,
 		writable: false,
 	});
+	if (typeof titleField === "string") setEntryTitleField(data, titleField);
 	return data;
 }
 
@@ -1269,6 +1285,50 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 				locale,
 			});
 
+			// A staged slug can be absent from the content table or still belong
+			// to another row. Prefer the token's draft only when its slug matches.
+			if (
+				isPreviewMode &&
+				(!baseEntry || entryDatabaseId(baseEntry) !== preview.id) &&
+				(!baseError || baseError.name === "LiveEntryNotFoundError") &&
+				preview.id !== id
+			) {
+				const { entry: tokenEntry, error: tokenError } = await getLiveEntry(COLLECTION_NAME, {
+					type,
+					id: preview.id,
+					locale,
+				});
+				const draftRevisionId = tokenEntry
+					? dataStr(entryData(tokenEntry), "draftRevisionId")
+					: undefined;
+				if (
+					!tokenError &&
+					tokenEntry &&
+					entryDatabaseId(tokenEntry) === preview.id &&
+					draftRevisionId &&
+					(!locale ||
+						getLocaleCandidates(locale).includes(dataStr(entryData(tokenEntry), "locale")))
+				) {
+					const {
+						entry: draftEntry,
+						error: draftError,
+						cacheHint: draftCacheHint,
+					} = await getLiveEntry(COLLECTION_NAME, {
+						type,
+						id: preview.id,
+						revisionId: draftRevisionId,
+						locale,
+					});
+					if (!draftError && draftEntry && dataStr(entryData(draftEntry), "slug") === id) {
+						return successResult(wrapEntry(draftEntry), {
+							isPreview: true,
+							fallbackLocale,
+							cacheHint: draftCacheHint ?? {},
+						});
+					}
+				}
+			}
+
 			if (baseError) {
 				// Astro reports a missing entry as an error; try the next locale.
 				if (baseError.name === "LiveEntryNotFoundError") continue;
@@ -1545,6 +1605,11 @@ interface CachedEntryValue {
  */
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
+
+	const foldedVersion = Reflect.get(entryData(entries[0]), FOLDED_BYLINE_FIELDS_VERSION);
+	if (typeof foldedVersion === "number") {
+		primeBylineFieldsVersion(foldedVersion);
+	}
 
 	// Fast path: bylines were folded into the content query. Parse the JSON
 	// (no extra round trip): explicit credits, plus the author-fallback byline

@@ -104,6 +104,88 @@ function mediaUsageRepairResponse(
 // ---------------------------------------------------------------------------
 
 describe("EmDashClient", () => {
+	it("surfaces setup-required dev bypass errors without calling the API", async () => {
+		const originalFetch = globalThis.fetch;
+		let apiRequestCalled = false;
+		globalThis.fetch = async (input) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.endsWith("/_emdash/api/auth/dev-bypass")) {
+				return new Response(
+					JSON.stringify({
+						error: {
+							code: "SETUP_REQUIRED",
+							message: "Complete setup before using the dev bypass",
+						},
+					}),
+					{ status: 409, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			apiRequestCalled = true;
+			return new Response("unexpected API request", { status: 500 });
+		};
+
+		try {
+			const client = new EmDashClient({ baseUrl: "http://localhost:4321", devBypass: true });
+			await expect(client.collections()).rejects.toMatchObject({
+				status: 409,
+				code: "SETUP_REQUIRED",
+				message: "Complete setup before using the dev bypass",
+			});
+			expect(apiRequestCalled).toBe(false);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it("retries dev authentication after setup on the same client and shares concurrent attempts", async () => {
+		const originalFetch = globalThis.fetch;
+		let setupComplete = false;
+		let bypassRequests = 0;
+		const apiCookies: (string | null)[] = [];
+		globalThis.fetch = async (input) => {
+			const request = new Request(input);
+			if (request.url.endsWith("/_emdash/api/auth/dev-bypass")) {
+				bypassRequests++;
+				if (!setupComplete) {
+					return jsonResponse(
+						{ error: { code: "SETUP_REQUIRED", message: "Complete setup first" } },
+						409,
+					);
+				}
+				return new Response("{}", {
+					headers: { "Set-Cookie": "session=dev-session; Path=/; HttpOnly" },
+				});
+			}
+			apiCookies.push(request.headers.get("cookie"));
+			return jsonResponse({ items: [{ slug: "posts", label: "Posts", supports: [] }] });
+		};
+
+		try {
+			const client = new EmDashClient({ baseUrl: "http://localhost:4321", devBypass: true });
+			const failures = await Promise.allSettled([client.collections(), client.collections()]);
+			for (const result of failures) {
+				expect(result.status).toBe("rejected");
+				if (result.status === "rejected") {
+					expect(result.reason).toBeInstanceOf(EmDashApiError);
+					expect(result.reason).toMatchObject({ status: 409, code: "SETUP_REQUIRED" });
+				}
+			}
+			expect(bypassRequests).toBe(1);
+			expect(apiCookies).toEqual([]);
+
+			setupComplete = true;
+			const recovered = await Promise.all([client.collections(), client.collections()]);
+			for (const collections of recovered) {
+				expect(collections).toMatchObject([{ slug: "posts" }]);
+			}
+			await client.collections();
+			expect(bypassRequests).toBe(2);
+			expect(apiCookies).toEqual(Array(3).fill("session=dev-session"));
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	describe("_rev token flow", () => {
 		it("blind update (no _rev) succeeds", async () => {
 			const backend = createMockBackend([
@@ -330,6 +412,61 @@ describe("EmDashClient", () => {
 		});
 	});
 
+	describe("content dates", () => {
+		function captureBodies() {
+			const bodies: Array<{ path: string; body: unknown }> = [];
+			const backend: Interceptor = async (req) => {
+				const path = new URL(req.url).pathname;
+				const text = await req.text();
+				bodies.push({ path, body: text ? JSON.parse(text) : undefined });
+				return jsonResponse({ item: { id: "abc" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+			return { client, bodies };
+		}
+
+		it("sends publishedAt when updating, including null to clear it", async () => {
+			const { client, bodies } = captureBodies();
+
+			await client.update("posts", "abc", { publishedAt: "2019-04-01T00:00:00.000Z" });
+			await client.update("posts", "abc", { publishedAt: null });
+			await client.update("posts", "abc", { slug: "renamed" });
+
+			expect(bodies.map(({ body }) => body)).toEqual([
+				{ publishedAt: "2019-04-01T00:00:00.000Z" },
+				{ publishedAt: null },
+				{ slug: "renamed" },
+			]);
+		});
+
+		it("sends publishedAt when publishing", async () => {
+			const { client, bodies } = captureBodies();
+
+			await client.publish("posts", "abc", { publishedAt: "2019-04-01T00:00:00.000Z" });
+			await client.publish("posts", "abc", {
+				publishedAt: "2019-04-01T00:00:00.000Z",
+				overrideLock: true,
+			});
+			await client.publish("posts", "abc");
+
+			expect(bodies).toEqual([
+				{
+					path: "/_emdash/api/content/posts/abc/publish",
+					body: { publishedAt: "2019-04-01T00:00:00.000Z" },
+				},
+				{
+					path: "/_emdash/api/content/posts/abc/publish",
+					body: { publishedAt: "2019-04-01T00:00:00.000Z", overrideLock: true },
+				},
+				{ path: "/_emdash/api/content/posts/abc/publish", body: undefined },
+			]);
+		});
+	});
+
 	describe("API error handling", () => {
 		it("throws EmDashApiError on 4xx responses", async () => {
 			const backend = createMockBackend([
@@ -537,6 +674,30 @@ describe("EmDashClient", () => {
 	});
 
 	describe("schema methods", () => {
+		it("deleteCollection sends force to the API as a query parameter", async () => {
+			const calledPaths: string[] = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				calledPaths.push(`${req.method} ${url.pathname}${url.search}`);
+				return jsonResponse({});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.deleteCollection("posts");
+			await client.deleteCollection("posts", { force: false });
+			await client.deleteCollection("posts", { force: true });
+
+			expect(calledPaths).toEqual([
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts",
+				"DELETE /_emdash/api/schema/collections/posts?force=true",
+			]);
+		});
+
 		it("schema route wraps JSON exports in the API data envelope", async () => {
 			const db = await setupTestDatabaseWithCollections();
 

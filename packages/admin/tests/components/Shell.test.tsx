@@ -4,14 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Shell } from "../../src/components/Shell";
 import { render } from "../utils/render.tsx";
 
-vi.mock("@tanstack/react-router", () => ({
-	useMatches: ({ select }: { select: (matches: unknown[]) => boolean }) =>
-		select([{ staticData: { fullBleed: false } }]),
-}));
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
+	return {
+		...actual,
+		useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) =>
+			select([{ pathname: "/", params: {}, staticData: { fullBleed: false } }]),
+		useLocation: ({ select }: { select: (location: { href: string }) => unknown }) =>
+			select({ href: "/_emdash/admin/" }),
+	};
+});
 
 const mocks = vi.hoisted(() => ({ user: null as null | { role: number } }));
 
-vi.mock("../../src/lib/api/current-user", () => ({
+vi.mock("../../src/lib/api/current-user", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/lib/api/current-user")>()),
 	useCurrentUser: () => ({ data: mocks.user }),
 }));
 
@@ -19,12 +26,16 @@ vi.mock("../../src/locales/useLocale.js", () => ({
 	useLocale: () => ({ locale: "en" }),
 }));
 
-vi.mock("../../src/components/Sidebar", () => ({
-	Sidebar: {
-		Provider: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
-	},
-	SidebarNav: () => <nav />,
-}));
+vi.mock("../../src/components/Sidebar", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../../src/components/Sidebar")>();
+	return {
+		...actual,
+		Sidebar: {
+			Provider: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
+		},
+		SidebarNav: () => <nav />,
+	};
+});
 
 vi.mock("../../src/components/Header", () => ({ Header: () => <header /> }));
 vi.mock("../../src/components/WelcomeModal", () => ({ WelcomeModal: () => null }));

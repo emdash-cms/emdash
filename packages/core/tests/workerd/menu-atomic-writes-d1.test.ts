@@ -103,6 +103,27 @@ describe("menu writes on D1", () => {
 		expect(await itemRows()).toEqual(before);
 	});
 
+	it("deletes an item together with its nested items", async () => {
+		const { menu, items } = await createMenu(["A", "B"]);
+		const [a] = items;
+		if (!a) throw new Error("Expected an item");
+		const child = await repo.createItem(menu.id, "en", {
+			type: "custom",
+			label: "A child",
+			customUrl: "/",
+			parentId: a.id,
+		});
+		await repo.createItem(menu.id, "en", {
+			type: "custom",
+			label: "A grandchild",
+			customUrl: "/",
+			parentId: child.id,
+		});
+
+		expect(await repo.deleteItem(menu.id, a.id)).toBe(true);
+		expect((await itemRows()).map((row) => row.label)).toEqual(["B"]);
+	});
+
 	it("creates no translation when copying one of its items fails", async () => {
 		const { menu } = await createMenu(["A", "Fail"]);
 		await sql`
