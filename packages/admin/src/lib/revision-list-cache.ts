@@ -2,16 +2,23 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import type { RevisionAuthor, RevisionListItem, RevisionListResponse } from "./api";
 
-const autosavedDrafts = new WeakMap<QueryClient, Set<string>>();
+const autosavedDrafts = new WeakMap<QueryClient, Map<string, string>>();
 
-/** The draft revisions this client's autosaves wrote. */
-export function autosavedDraftIds(queryClient: QueryClient): Set<string> {
-	let ids = autosavedDrafts.get(queryClient);
-	if (!ids) {
-		ids = new Set();
-		autosavedDrafts.set(queryClient, ids);
+/**
+ * The draft revision this client's latest autosave of each entry wrote, keyed by
+ * {@link autosavedDraftKey}.
+ */
+export function lastAutosavedDrafts(queryClient: QueryClient): Map<string, string> {
+	let drafts = autosavedDrafts.get(queryClient);
+	if (!drafts) {
+		drafts = new Map();
+		autosavedDrafts.set(queryClient, drafts);
 	}
-	return ids;
+	return drafts;
+}
+
+export function autosavedDraftKey(collection: string, entryId: string): string {
+	return JSON.stringify([collection, entryId]);
 }
 
 export interface AutosavedDraft {
