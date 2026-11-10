@@ -15,7 +15,7 @@ import { setupBody } from "#api/schemas.js";
 import { getAuthMode } from "#auth/mode.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeedWithinBudget, type SeedApplyBudget } from "#seed/apply.js";
-import { loadSeed } from "#seed/load.js";
+import { loadSeed, loadSeedMediaBasePath } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
 import { invalidateSiteSettingsCache, setSiteSettings } from "#settings/index.js";
 
@@ -83,6 +83,7 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 
 		// Load seed file (user seed or built-in default)
 		const seed = await loadSeed();
+		const mediaBasePath = await loadSeedMediaBasePath();
 
 		// Override seed settings with form values
 		seed.settings = {
@@ -105,6 +106,7 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 				{
 					includeContent: body.includeContent,
 					onConflict: "skip",
+					mediaBasePath,
 					storage: emdash.storage ?? undefined,
 				},
 				SEED_BUDGET_PER_REQUEST,
