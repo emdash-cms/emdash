@@ -5,7 +5,7 @@ status: proposed
 authors:
   - Kevin Kyburz (@swissky)
 champion: Kevin Kyburz (@swissky)
-sponsor: TBD
+sponsor: Kevin Kyburz (@swissky)
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/4405
 created: 2026-10-25
