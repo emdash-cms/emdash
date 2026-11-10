@@ -8,6 +8,10 @@
     "emdash": "./dist/cli/index.mjs",
     "em": "./dist/cli/index.mjs"
   },
+  "sideEffects": [
+    "**/*.astro",
+    "**/*.css"
+  ],
   "files": [
     "dist",
     "src",

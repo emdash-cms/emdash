@@ -443,6 +443,63 @@ export function pluginDataWriteExpr(
 	return sql<string>`${expr}`;
 }
 
+/**
+ * A text column holding a JSON object, as a JSON value. `NULL` and non-object
+ * values read as `{}`, so a key write always produces an object.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+function jsonObjectBaseExpr(db: Kysely<any>, column: string): RawBuilder<unknown> {
+	validateIdentifier(column, "JSON column name");
+	const ref = sql.ref(column);
+	if (isPostgres(db)) {
+		return sql`CASE WHEN jsonb_typeof(${ref}::jsonb) = 'object' THEN ${ref}::jsonb ELSE '{}'::jsonb END`;
+	}
+	return sql`CASE WHEN json_type(${ref}) = 'object' THEN ${ref} ELSE '{}' END`;
+}
+
+/**
+ * New value of a text JSON-object column with one top-level key set to the
+ * serialized `valueJson`. Every other stored key keeps its value, so writers
+ * of different keys never overwrite each other and need no fresh read.
+ *
+ * sqlite:   json_set(<base>, '$.key', json(?))
+ * postgres: (jsonb_set(<base>, '{key}', ?::jsonb))::text
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function jsonObjectSetKeyExpr(
+	db: Kysely<any>,
+	column: string,
+	key: string,
+	valueJson: string,
+): RawBuilder<string> {
+	validateJsonFieldName(key, "JSON object key");
+	const base = jsonObjectBaseExpr(db, column);
+	if (isPostgres(db)) {
+		return sql<string>`(jsonb_set(${base}, ${sql.lit(`{${key}}`)}, ${valueJson}::jsonb))::text`;
+	}
+	return sql<string>`json_set(${base}, ${sql.lit(`$.${key}`)}, json(${valueJson}))`;
+}
+
+/**
+ * New value of a text JSON-object column without one top-level key.
+ *
+ * sqlite:   json_remove(<base>, '$.key')
+ * postgres: (<base> - 'key')::text
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function jsonObjectRemoveKeyExpr(
+	db: Kysely<any>,
+	column: string,
+	key: string,
+): RawBuilder<string> {
+	validateJsonFieldName(key, "JSON object key");
+	const base = jsonObjectBaseExpr(db, column);
+	if (isPostgres(db)) {
+		return sql<string>`(${base} - ${sql.lit(key)})::text`;
+	}
+	return sql<string>`json_remove(${base}, ${sql.lit(`$.${key}`)})`;
+}
+
 export function pluginDataUpdateGuard(
 	db: Kysely<Database>,
 	deltaEntries: Array<[string, number]>,

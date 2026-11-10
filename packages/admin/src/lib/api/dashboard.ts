@@ -43,7 +43,10 @@ export interface DashboardStats {
 	policyRejections?: Array<{
 		collection: string;
 		id: string;
-		pluginId: string;
+		/** Absent when the publish itself was refused rather than a plugin. */
+		pluginId?: string;
+		/** The refused publish's error code, when there was one. */
+		code?: string;
 		reason: string;
 		rejectedAt: string;
 		_rev: string;
