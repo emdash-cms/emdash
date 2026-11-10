@@ -448,21 +448,49 @@ describe("ContentEditPage revision view", () => {
 			);
 		});
 		await vi.waitFor(() => expect(cachedList(screen.queryClient)).toBeDefined());
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
 		const sent = Date.now();
-		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Typed and autosaved");
+		let releaseRead = server.holdNextListRead();
+		await title.fill("Typed and autosaved");
 		await vi.waitFor(
 			() => expect(cachedList(screen.queryClient)?.items[0]?.id).toBe("revision-autosaved-1"),
 			{ timeout: 5000 },
 		);
 
+		// This client didn't write the draft it followed, so the patch keeps it.
 		const list = cachedList(screen.queryClient)!;
-		expect(list.items.map((item) => item.id)).toEqual(["revision-autosaved-1", "revision-old"]);
-		expect(list.total).toBe(2);
+		expect(list.items.map((item) => item.id)).toEqual([
+			"revision-autosaved-1",
+			"revision-draft",
+			"revision-old",
+		]);
+		expect(list.total).toBe(3);
 		expect(list.items[0]?.data).toMatchObject({
 			title: "Typed and autosaved",
 			...DRAFT_INTERNALS,
 		});
 		expect(Date.parse(list.items[0]!.createdAt)).toBeGreaterThanOrEqual(sent);
+
+		releaseRead();
+		await vi.waitFor(() =>
+			expect(cachedList(screen.queryClient)?.items.map((item) => item.id)).toEqual([
+				"revision-autosaved-1",
+				"revision-old",
+			]),
+		);
+
+		// It wrote this one, so the next autosave's patch replaces it.
+		releaseRead = server.holdNextListRead();
+		await title.fill("Typed and autosaved again");
+		await vi.waitFor(
+			() => expect(cachedList(screen.queryClient)?.items[0]?.id).toBe("revision-autosaved-2"),
+			{ timeout: 5000 },
+		);
+		expect(cachedList(screen.queryClient)?.items.map((item) => item.id)).toEqual([
+			"revision-autosaved-2",
+			"revision-old",
+		]);
+		releaseRead();
 	});
 	it("keeps an autosave's draft in the list when a read sent before it lands after it", async () => {
 		server = createMockServer();
