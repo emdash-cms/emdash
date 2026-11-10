@@ -5,12 +5,14 @@
  */
 
 import { Editor, type JSONContent } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
 import { liftTarget } from "@tiptap/pm/transform";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { PORTABLE_TEXT_KEY_ATTR } from "../../src/components/editor/portableTextIdentity";
 import {
 	portableTextExtensions,
 	portableTextToProsemirror,
@@ -36,6 +38,12 @@ const text = (value: string): JSONContent => ({ type: "text", text: value });
 const p = (value?: string): JSONContent => ({
 	type: "paragraph",
 	...(value ? { content: [text(value)] } : {}),
+});
+/** A paragraph with a block key, as every block opened from saved content has. */
+const keyed = (key: string, value: string): JSONContent => ({
+	type: "paragraph",
+	attrs: { [PORTABLE_TEXT_KEY_ATTR]: key },
+	content: [text(value)],
 });
 const li = (...content: JSONContent[]): JSONContent => ({ type: "listItem", content });
 const ul = (...content: JSONContent[]): JSONContent => ({ type: "bulletList", content });
@@ -433,6 +441,132 @@ describe("shapes", () => {
 		expect(remote.state.doc.eq(rendered)).toBe(true);
 		expect(outline(remote.state.doc)).toBe(
 			'doc(bulletList(listItem(bulletList(listItem(paragraph("c"))))), paragraph("end"))',
+		);
+	});
+
+	it("moves up only the nested line this client's edit cut into from the item's start", () => {
+		const editor = createEditor(
+			ul(li(p("Item A"), ul(li(p("Sub one")), li(p("Sub two")))), li(p("Item B"))),
+			p("end"),
+		);
+		editor
+			.chain()
+			.setTextSelection({
+				from: textblock(editor, "Item A") + 1,
+				to: textblock(editor, "Sub one") + 5,
+			})
+			.deleteSelection()
+			.run();
+		expect(outline(editor.state.doc)).toBe(
+			'doc(bulletList(listItem(paragraph("one"), bulletList(listItem(paragraph("Sub two")))), listItem(paragraph("Item B"))), paragraph("end"))',
+		);
+
+		const deeper = createEditor(
+			ul(li(p("aa"), ul(li(p("bb"), ul(li(p("cc")))), li(p("dd")))), li(p("ee"))),
+			p("end"),
+		);
+		deeper
+			.chain()
+			.setTextSelection({ from: textblock(deeper, "aa") + 1, to: textblock(deeper, "bb") + 2 })
+			.deleteSelection()
+			.run();
+		expect(outline(deeper.state.doc)).toBe(
+			'doc(bulletList(listItem(paragraph("b"), bulletList(listItem(paragraph("cc")), listItem(paragraph("dd")))), listItem(paragraph("ee"))), paragraph("end"))',
+		);
+
+		const nextStartsNested = createEditor(
+			ul(li(p("a"), ul(li(p("bc")))), li(ul(li(p("x"))))),
+			p("end"),
+		);
+		nextStartsNested
+			.chain()
+			.setTextSelection({
+				from: textblock(nextStartsNested, "a") + 1,
+				to: textblock(nextStartsNested, "bc") + 2,
+			})
+			.deleteSelection()
+			.run();
+		expect(outline(nextStartsNested.state.doc)).toBe(
+			'doc(bulletList(listItem(paragraph("c")), listItem(bulletList(listItem(paragraph("x"))))), paragraph("end"))',
+		);
+	});
+
+	it("moves up a nested line this client's edit cut to its end", () => {
+		const toEnd = createEditor(
+			ul(li(p("Item A"), ul(li(p("Sub one")), li(p("Sub two"))))),
+			p("end"),
+		);
+		toEnd
+			.chain()
+			.setTextSelection({
+				from: textblock(toEnd, "Item A") + 1,
+				to: textblock(toEnd, "Sub one") + 8,
+			})
+			.deleteSelection()
+			.run();
+		expect(outline(toEnd.state.doc)).toBe(
+			'doc(bulletList(listItem(paragraph, bulletList(listItem(paragraph("Sub two"))))), paragraph("end"))',
+		);
+	});
+
+	it("moves up a nested line this client's edit reached through deeper levels", () => {
+		const throughDeeper = createEditor(
+			ul(li(p("Item A"), ul(li(p("Sub one"), ul(li(p("Deep one")))), li(p("Sub two"))))),
+			p("end"),
+		);
+		throughDeeper
+			.chain()
+			.setTextSelection({
+				from: textblock(throughDeeper, "Item A") + 1,
+				to: textblock(throughDeeper, "Deep one") + 6,
+			})
+			.deleteSelection()
+			.run();
+		expect(outline(throughDeeper.state.doc)).toBe(
+			'doc(bulletList(listItem(paragraph("one"), bulletList(listItem(paragraph("Sub two"))))), paragraph("end"))',
+		);
+	});
+
+	it("leaves what undo restores as it was", () => {
+		const editor = createEditor(
+			keyed("k1", "before"),
+			ul(li(ul(li(keyed("k2", "nested first")))), li(keyed("k3", "top"))),
+			keyed("k4", "after"),
+		);
+		const opened = editor.state.doc;
+		apply(editor, (t) => t.insertText("!", textblock(editor, "after") + 6));
+		editor.view.dispatch(closeHistory(editor.state.tr));
+		const typed = editor.state.doc;
+		editor
+			.chain()
+			.setTextSelection({
+				from: textblock(editor, "before") + 4,
+				to: textblock(editor, "after!") + 1,
+			})
+			.deleteSelection()
+			.run();
+		editor.view.dispatch(closeHistory(editor.state.tr));
+
+		editor.commands.undo();
+		expect(editor.state.doc.eq(typed)).toBe(true);
+		editor.commands.undo();
+		expect(editor.state.doc.eq(opened)).toBe(true);
+	});
+
+	it("leaves a list item that started with a nested list where this client's edit moves it", () => {
+		const editor = createEditor(
+			keyed("k1", "before"),
+			ul(li(ul(li(keyed("k2", "a")))), li(keyed("k3", "b"))),
+			keyed("k4", "after"),
+		);
+		const list = find(editor, (node) => node.type.name === "bulletList");
+		const node = nodeOf(editor, list);
+		apply(editor, (t) => {
+			t.delete(list, list + node.nodeSize);
+			t.insert(0, node);
+		});
+		expect(outline(editor.state.doc)).toBe(
+			'doc(bulletList(listItem(bulletList(listItem(paragraph("a")))), listItem(paragraph("b"))), paragraph("before"), paragraph("after"))',
 		);
 	});
 
