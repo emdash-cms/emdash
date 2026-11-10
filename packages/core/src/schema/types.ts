@@ -148,7 +148,9 @@ export type CollectionSupport =
 	| "drafts"
 	| "revisions"
 	| "preview"
+	/** @deprecated Scheduling is enabled by default. Use "no-scheduling" to disable it. */
 	| "scheduling"
+	| "no-scheduling"
 	| "search"
 	| "seo";
 
@@ -275,17 +277,21 @@ export interface Collection {
 	hasSeo: boolean;
 	/** Field slug powering the admin list Title column. Defaults to the standard title display. */
 	titleField?: string;
-	/** Field slug powering the admin list Date column. Must be a `datetime` field. Defaults to last-updated. */
+	/**
+	 * Field slug powering the admin list Date column, or a system timestamp
+	 * (`publishedAt`, `createdAt`, or `updatedAt`). Defaults to last-updated.
+	 */
 	dateField?: string;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
 	/** Whether published entries require a public slug. Defaults to true. */
 	routable?: boolean;
 	/**
-	 * Omit this collection's auto-generated sidebar entry and dashboard quick
-	 * action. The collection stays fully functional everywhere else (API, MCP,
-	 * hooks, direct `/content/:collection` URLs), so a plugin that owns the
-	 * collection can point editors at its own admin UI.
+	 * Omit this collection's auto-generated sidebar entry, dashboard quick
+	 * action, and dashboard Content card row. The collection stays fully
+	 * functional everywhere else (API, MCP, hooks, direct `/content/:collection`
+	 * URLs), so a plugin that owns the collection can point editors at its own
+	 * admin UI.
 	 */
 	hidden: boolean;
 	/**
@@ -358,7 +364,7 @@ export interface CreateCollectionInput {
 	urlPattern?: string;
 	routable?: boolean;
 	hasSeo?: boolean;
-	/** Omit the auto-generated sidebar entry and dashboard quick action (defaults to false) */
+	/** Omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row (defaults to false) */
 	hidden?: boolean;
 	/** Explicit admin sidebar position (omit for the alphabetical fallback) */
 	sortOrder?: number | null;
@@ -382,7 +388,7 @@ export interface UpdateCollectionInput {
 	urlPattern?: string | null;
 	routable?: boolean;
 	hasSeo?: boolean;
-	/** Omit the auto-generated sidebar entry and dashboard quick action */
+	/** Omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row */
 	hidden?: boolean;
 	/** Explicit admin sidebar position; `null` clears it back to alphabetical */
 	sortOrder?: number | null;
@@ -396,7 +402,10 @@ export interface UpdateCollectionInput {
 	editLocking?: boolean;
 	/** Field slug for the Title column; `null`/`""` clears back to the default. */
 	titleField?: string | null;
-	/** Datetime field slug for the Date column; `null`/`""` clears back to the default. */
+	/**
+	 * Datetime field slug or system timestamp (`publishedAt`, `createdAt`, or
+	 * `updatedAt`) for the Date column; `null`/`""` clears back to the default.
+	 */
 	dateField?: string | null;
 }
 

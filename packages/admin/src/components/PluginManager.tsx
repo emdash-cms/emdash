@@ -6,7 +6,15 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Checkbox, Link as KumoLink, Switch, Toast } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	LayerDialog,
+	Link as KumoLink,
+	Switch,
+	useKumoToastManager,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -53,6 +61,7 @@ import {
 	type RegistryUpdateOpts,
 	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
+import { useConfirmPress } from "../lib/dialog-form.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
@@ -97,7 +106,7 @@ export interface PluginManagerProps {
 export function PluginManager({ manifest }: PluginManagerProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 	const hasRegistry = !!manifest?.registry;
 	const canInstallFromRegistry = hasRegistry && manifest?.sandboxEnabled === true;
 
@@ -134,7 +143,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			toastManager.add({
 				title: t`Failed to enable plugin`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -153,7 +162,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 			toastManager.add({
 				title: t`Failed to disable plugin`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
-				type: "error",
+				variant: "error",
 			});
 		},
 	});
@@ -210,7 +219,9 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							{t`Registry`}
 						</RouterLinkButton>
 					)}
-					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
+					<span className="text-sm text-kumo-subtle">
+						{plural(plugins?.length ?? 0, { one: "# plugin", other: "# plugins" })}
+					</span>
 				</div>
 			</div>
 
@@ -264,7 +275,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 	const [registryVerification, setRegistryVerification] =
 		React.useState<RegistryRecordVerificationSummary | null>(null);
 	const queryClient = useQueryClient();
-	const toastManager = Toast.useToastManager();
+	const toastManager = useKumoToastManager();
 
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
@@ -327,11 +338,11 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
-			} else {
+			} else if (!showUpdateConsent) {
 				toastManager.add({
 					title: t`Failed to update plugin`,
 					description: err instanceof Error ? err.message : t`An error occurred`,
-					type: "error",
+					variant: "error",
 				});
 			}
 		},
@@ -783,38 +794,42 @@ export function UninstallConfirmDialog({
 }: UninstallConfirmDialogProps) {
 	const { t } = useLingui();
 	const [deleteData, setDeleteData] = React.useState(false);
+	const confirm = useConfirmPress(onConfirm, isPending, error);
 
 	return (
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center"
-			role="dialog"
-			aria-modal="true"
-			aria-label={t`Uninstall confirmation`}
+		<LayerDialog.Root
+			open
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen && !isPending) onCancel();
+			}}
+			dismissDisabled={isPending}
 		>
-			<div className="absolute inset-0 bg-black/50" onClick={() => !isPending && onCancel()} />
-			<div className="relative w-full max-w-sm rounded-lg border bg-kumo-base shadow-lg">
-				<div className="p-6 space-y-4">
-					<h2 className="text-lg font-semibold">{t`Uninstall ${pluginName}?`}</h2>
-					<p className="text-sm text-kumo-subtle">
-						{t`This will remove the plugin and its bundle from your site.`}
-					</p>
-					<Checkbox
-						checked={deleteData}
-						onCheckedChange={(checked) => setDeleteData(checked)}
-						label={t`Also delete plugin storage data`}
-					/>
-					<DialogError message={error} />
-				</div>
-				<div className="flex justify-end gap-3 border-t px-6 py-4">
-					<Button variant="ghost" onClick={onCancel} disabled={isPending}>
-						{t`Cancel`}
-					</Button>
-					<Button variant="destructive" onClick={() => onConfirm(deleteData)} disabled={isPending}>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{t`Uninstall ${pluginName}?`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{t`This will remove the plugin and its bundle from your site.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="space-y-4">
+						<Checkbox
+							checked={deleteData}
+							onCheckedChange={(checked) => setDeleteData(checked)}
+							label={t`Also delete plugin storage data`}
+						/>
+						<DialogError message={error} />
+					</div>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
+						variant="destructive"
+						onClick={() => confirm(deleteData)}
+						disabled={isPending}
+					>
 						{isPending ? t`Uninstalling...` : t`Uninstall`}
-					</Button>
-				</div>
-			</div>
-		</div>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

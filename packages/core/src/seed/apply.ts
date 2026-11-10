@@ -44,7 +44,11 @@ import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../i18n/c
 import { localeMatches, localeOrder } from "../i18n/query.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
+import {
+	coalesceObjectCacheWrites,
+	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
+} from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -346,7 +350,8 @@ async function applySeedWrites(
 		db,
 		storage: storage ?? null,
 		skipMediaDownload,
-		mediaCache: new Map(), // Cache downloaded media by URL to avoid re-downloading
+		mediaBasePath: options.mediaBasePath,
+		mediaCache: new Map(),
 		budget,
 	};
 
@@ -848,6 +853,7 @@ async function applySeedWrites(
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				const clearedTaxonomyGroups = new Set<string>();
 				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
 				const collectionRoutable = collectionInfo?.routable !== false;
 				const referenceFields = referenceFieldsOf(collectionInfo);
@@ -950,7 +956,15 @@ async function applySeedWrites(
 										seedBylineIdMap,
 										true,
 									);
-									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+									await applyContentTaxonomies(
+										trx,
+										collectionSlug,
+										existing.id,
+										entry,
+										existing.locale ?? entryLocale,
+										existing.translationGroup ?? existing.id,
+										clearedTaxonomyGroups,
+									);
 									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
 									// Seed is declarative — when status is "published", promote to a live
@@ -1080,7 +1094,15 @@ async function applySeedWrites(
 								entry,
 								seedBylineIdMap,
 							);
-							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+							await applyContentTaxonomies(
+								trx,
+								collectionSlug,
+								item.id,
+								entry,
+								entryLocale,
+								undefined,
+								clearedTaxonomyGroups,
+							);
 							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
@@ -1259,54 +1281,58 @@ async function applySeedWrites(
 
 	// 10. Widget Areas and Widgets
 	if (seed.widgetAreas) {
-		const areaIds: string[] = [];
-		const widgetRows: Insertable<WidgetTable>[] = [];
-		for (const area of seed.widgetAreas) {
-			// Check if area exists
-			const lookup = db
-				.selectFrom("_emdash_widget_areas")
-				.selectAll()
-				.where("name", "=", area.name);
-			const existingArea = await lookup.executeTakeFirst();
+		try {
+			const areaIds: string[] = [];
+			const widgetRows: Insertable<WidgetTable>[] = [];
+			for (const area of seed.widgetAreas) {
+				// Check if area exists
+				const lookup = db
+					.selectFrom("_emdash_widget_areas")
+					.selectAll()
+					.where("name", "=", area.name);
+				const existingArea = await lookup.executeTakeFirst();
 
-			let areaId: string;
+				let areaId: string;
 
-			if (existingArea) {
-				areaId = existingArea.id;
-			} else {
-				// Create area
-				areaId = ulid();
-				const inserted = await db
-					.insertInto("_emdash_widget_areas")
-					.values({
-						id: areaId,
-						name: area.name,
-						label: area.label,
-						description: area.description ?? null,
-					})
-					.onConflict((conflict) => conflict.column("name").doNothing())
-					.returning("id")
-					.executeTakeFirst();
-				if (inserted) {
-					result.widgetAreas.created++;
+				if (existingArea) {
+					areaId = existingArea.id;
 				} else {
-					areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					// Create area
+					areaId = ulid();
+					const inserted = await db
+						.insertInto("_emdash_widget_areas")
+						.values({
+							id: areaId,
+							name: area.name,
+							label: area.label,
+							description: area.description ?? null,
+						})
+						.onConflict((conflict) => conflict.column("name").doNothing())
+						.returning("id")
+						.executeTakeFirst();
+					if (inserted) {
+						result.widgetAreas.created++;
+					} else {
+						areaId = (await lookup.executeTakeFirstOrThrow()).id;
+					}
+				}
+
+				areaIds.push(areaId);
+				for (let i = 0; i < area.widgets.length; i++) {
+					const widget = area.widgets[i];
+					widgetRows.push(createSeedWidgetRow(areaId, widget, i));
+					result.widgetAreas.widgets++;
 				}
 			}
-
-			areaIds.push(areaId);
-			for (let i = 0; i < area.widgets.length; i++) {
-				const widget = area.widgets[i];
-				widgetRows.push(createSeedWidgetRow(areaId, widget, i));
-				result.widgetAreas.widgets++;
-			}
+			await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
+				...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
+				...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
+					target.insertInto("_emdash_widgets").values(rows),
+				),
+			]);
+		} finally {
+			invalidateWidgetObjectCache();
 		}
-		await replaceSeedChildren(db, "_emdash_widget_areas", areaIds, (target) => [
-			...areaIds.map((id) => target.deleteFrom("_emdash_widgets").where("area_id", "=", id)),
-			...chunks(widgetRows, SEED_WIDGET_INSERT_BATCH_SIZE).map((rows) =>
-				target.insertInto("_emdash_widgets").values(rows),
-			),
-		]);
 	}
 
 	// 11. Sections
@@ -2087,18 +2113,22 @@ async function applyContentTaxonomies(
 	collectionSlug: string,
 	contentId: string,
 	entry: { taxonomies?: Record<string, string[]> },
-	isUpdate: boolean,
+	locale: string,
+	updateGroup: string | undefined,
+	clearedGroups: Set<string>,
 ): Promise<void> {
 	const termRepo = new TaxonomyRepository(db);
-	// In update mode, clear existing taxonomy assignments first
-	if (isUpdate) {
+	// Assignments are shared by all translations; later translations add to the same set.
+	const shouldClear = updateGroup !== undefined && !clearedGroups.has(updateGroup);
+	if (shouldClear) {
 		await termRepo.clearEntryTerms(collectionSlug, contentId);
+		clearedGroups.add(updateGroup);
 	}
 
 	if (!entry.taxonomies) {
 		// In update mode we may have just deleted rows above; invalidate so
 		// hydration doesn't serve stale "has terms" cached value.
-		if (isUpdate) {
+		if (shouldClear) {
 			const { invalidateTermCache } = await import("../taxonomies/index.js");
 			invalidateTermCache();
 		}
@@ -2107,10 +2137,14 @@ async function applyContentTaxonomies(
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
 		for (const termSlug of termSlugs) {
-			const term = await termRepo.findBySlug(taxonomyName, termSlug);
-			if (term) {
-				await termRepo.attachToEntry(collectionSlug, contentId, term.id);
+			const term = await termRepo.findBySlug(taxonomyName, termSlug, locale);
+			if (!term) {
+				console.warn(
+					`content.${collectionSlug}: taxonomy term "${taxonomyName}/${termSlug}" not found in locale "${locale}". Skipping assignment.`,
+				);
+				continue;
 			}
+			await termRepo.attachToEntry(collectionSlug, contentId, term.id);
 		}
 	}
 
@@ -2247,7 +2281,8 @@ interface MediaContext {
 	db: Kysely<Database>;
 	storage: Storage | null;
 	skipMediaDownload: boolean;
-	mediaCache: Map<string, MediaValue>; // URL -> resolved MediaValue
+	mediaBasePath?: string;
+	mediaCache: Map<string, MediaValue>;
 	budget: SeedBudget | null;
 }
 
@@ -2262,8 +2297,8 @@ function isSeedMediaReference(value: unknown): value is SeedMediaReference {
 	return (
 		typeof media === "object" &&
 		media !== null &&
-		"url" in media &&
-		typeof (media as Record<string, unknown>).url === "string"
+		(("url" in media && typeof media.url === "string") ||
+			("file" in media && typeof media.file === "string"))
 	);
 }
 
@@ -2391,18 +2426,27 @@ async function deleteMediaRow(db: Kysely<Database>, id: string): Promise<void> {
 }
 
 /**
- * Resolve a $media reference by downloading and uploading the media
+ * Resolve a $media reference by reading or downloading and uploading the media
  */
 async function resolveMedia(
 	ref: SeedMediaReference,
 	ctx: MediaContext,
 	result: SeedApplyResult,
 ): Promise<MediaValue | null> {
-	const { url, alt, filename, caption, libraryCaption } = ref.$media;
+	const { alt, filename, caption, libraryCaption } = ref.$media;
+	const url = ref.$media.url ?? undefined;
+	const file = ref.$media.file ?? undefined;
+	const source = file ?? url;
+	const cacheKey = file === undefined ? `url:${url}` : `file:${file}`;
+	if ((file !== undefined && url !== undefined) || !source) {
+		console.warn("  ⚠️ $media requires exactly one non-empty url or file");
+		result.media.skipped++;
+		return null;
+	}
 
 	// Check cache first. The cached caption is the library default; a reference's
 	// caption is only an override for the content value being resolved.
-	const cached = ctx.mediaCache.get(url);
+	const cached = ctx.mediaCache.get(cacheKey);
 	if (cached) {
 		result.media.skipped++;
 		return {
@@ -2415,54 +2459,79 @@ async function resolveMedia(
 	// When skipMediaDownload is set, resolve $media to an external URL reference
 	// without downloading or storing anything. Used by playground mode.
 	if (ctx.skipMediaDownload) {
+		if (file !== undefined) {
+			console.warn(`Skipping local $media file (skipMediaDownload is enabled): ${file}`);
+			result.media.skipped++;
+			return null;
+		}
 		const defaultCaption = libraryCaption ?? undefined;
 		const mediaValue: MediaValue = {
 			provider: "external",
 			id: ulid(),
-			src: url,
+			src: source,
 			alt: alt ?? undefined,
 			caption: caption ?? defaultCaption,
 			filename: filename ?? undefined,
 		};
-		ctx.mediaCache.set(url, { ...mediaValue, caption: defaultCaption });
+		ctx.mediaCache.set(cacheKey, { ...mediaValue, caption: defaultCaption });
 		result.media.skipped++;
 		return mediaValue;
 	}
 
 	// Storage is required for $media resolution
 	if (!ctx.storage) {
-		console.warn(`Skipping $media reference (no storage configured): ${url}`);
+		console.warn(`Skipping $media reference (no storage configured): ${source}`);
 		result.media.skipped++;
 		return null;
 	}
 
 	try {
-		// SSRF protection: validate URL before downloading
-		validateExternalUrl(url);
-
-		// Download the media (ssrfSafeFetch re-validates redirect targets)
-		console.log(`  📥 Downloading: ${url}`);
-		ctx.budget?.countMediaDownload();
-		const response = await ssrfSafeFetch(url, {
-			headers: {
-				// Some services like Unsplash require a user-agent
-				"User-Agent": "EmDash-CMS/1.0",
-			},
-		});
-
-		if (!response.ok) {
-			console.warn(`  ⚠️ Failed to download ${url}: ${response.status}`);
-			result.media.skipped++;
-			return null;
+		let body: Uint8Array;
+		let contentType: string;
+		let ext: string;
+		let sourceFilename: string;
+		if (file !== undefined) {
+			if (!ctx.mediaBasePath) {
+				throw new Error("$media.file requires mediaBasePath");
+			}
+			const { readFile, realpath } = await import("node:fs/promises");
+			const { basename, extname, isAbsolute, relative, resolve, sep } = await import("node:path");
+			const base = await realpath(ctx.mediaBasePath);
+			const withinBase = (target: string) => {
+				const path = relative(base, target);
+				return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+			};
+			const target = resolve(base, file);
+			if (isAbsolute(file) || !withinBase(target)) {
+				throw new Error("$media.file must be relative to and remain within mediaBasePath");
+			}
+			const realTarget = await realpath(target);
+			if (!withinBase(realTarget)) {
+				throw new Error("$media.file must remain within mediaBasePath after resolving symlinks");
+			}
+			ctx.budget?.countMediaDownload();
+			body = new Uint8Array(await readFile(realTarget));
+			contentType = mime.getType(file) || "application/octet-stream";
+			ext = getExtensionFromContentType(contentType) || extname(file) || ".bin";
+			sourceFilename = basename(file);
+		} else {
+			// ssrfSafeFetch also validates redirect targets.
+			validateExternalUrl(source);
+			console.log(`  📥 Downloading: ${url}`);
+			ctx.budget?.countMediaDownload();
+			const response = await ssrfSafeFetch(source, {
+				headers: { "User-Agent": "EmDash-CMS/1.0" },
+			});
+			if (!response.ok) {
+				console.warn(`  ⚠️ Failed to download ${url}: ${response.status}`);
+				result.media.skipped++;
+				return null;
+			}
+			contentType = response.headers.get("content-type") || "application/octet-stream";
+			ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(source) || ".bin";
+			body = new Uint8Array(await response.arrayBuffer());
+			sourceFilename = generateFilename(source, ext);
 		}
-
-		// Get content type and determine extension
-		const contentType = response.headers.get("content-type") || "application/octet-stream";
-		const ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(url) || ".bin";
-
-		// Get the body as buffer
-		const arrayBuffer = await response.arrayBuffer();
-		const body = new Uint8Array(arrayBuffer);
 
 		// Deduplicate by content hash so re-running a seed does not mint a
 		// fresh media row for a file that already exists in the library.
@@ -2481,7 +2550,7 @@ async function resolveMedia(
 				filename: existing.filename,
 				meta: { storageKey: existing.storageKey },
 			};
-			ctx.mediaCache.set(url, { ...mediaValue, caption: existing.caption ?? undefined });
+			ctx.mediaCache.set(cacheKey, { ...mediaValue, caption: existing.caption ?? undefined });
 			result.media.skipped++;
 			console.log(`  ✅ Reused: ${existing.filename}`);
 			return mediaValue;
@@ -2489,7 +2558,7 @@ async function resolveMedia(
 
 		// Generate filename and storage key
 		const storageId = ulid();
-		const finalFilename = filename || generateFilename(url, ext);
+		const finalFilename = filename || sourceFilename;
 		const storageKey = `${storageId}${ext}`;
 
 		// Get image dimensions if it's an image
@@ -2536,7 +2605,7 @@ async function resolveMedia(
 		};
 
 		// Cache the library default for reuse; this reference may have a per-use override.
-		ctx.mediaCache.set(url, {
+		ctx.mediaCache.set(cacheKey, {
 			...mediaValue,
 			caption: media.caption ?? undefined,
 		});
@@ -2546,7 +2615,7 @@ async function resolveMedia(
 		return mediaValue;
 	} catch (error) {
 		console.warn(
-			`  ⚠️ Error processing $media ${url}:`,
+			`  ⚠️ Error processing $media ${source}:`,
 			error instanceof Error ? error.message : error,
 		);
 		result.media.skipped++;

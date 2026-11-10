@@ -325,7 +325,7 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	headers.delete("content-length");
 	headers.delete("content-encoding");
 	headers.set("Content-Type", "application/json");
-	const pluginRequest = new Request(request.url, {
+	const pluginRequest = new Request(request, {
 		method: "POST",
 		headers,
 		body: JSON.stringify(input),

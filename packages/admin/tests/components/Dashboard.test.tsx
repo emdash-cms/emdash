@@ -61,7 +61,8 @@ vi.mock("../../src/lib/api/transfer.js", async () => {
 	return { ...actual, fetchTransferCapabilities: () => mockFetchTransferCapabilities() };
 });
 
-vi.mock("../../src/lib/api/current-user", () => ({
+vi.mock("../../src/lib/api/current-user", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/lib/api/current-user")>()),
 	useCurrentUser: () => mockUseCurrentUser(),
 }));
 
@@ -292,19 +293,43 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect
-			.element(screen.getByText("Publication policy blocked scheduled content"))
+			.element(screen.getByText("Scheduled content was not published"))
 			.toBeInTheDocument();
 		await expect.element(screen.getByText("Approval is required.")).toBeInTheDocument();
 		await expect.element(screen.getByText("posts/post-1")).toBeInTheDocument();
-		await expect
-			.element(screen.getByText("One more blocked entry is not shown."))
-			.toBeInTheDocument();
+		await expect.element(screen.getByText("One more entry is not shown.")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Dismiss" }).click();
 		expect(mockDismissScheduledPolicyRejection).toHaveBeenCalledWith(
 			"posts",
 			"post-1",
 			"rejection-revision",
 		);
+	});
+
+	it("lists a scheduled publish the publish itself refused", async () => {
+		const stats = makeStats([]);
+		stats.policyRejectedScheduled = 1;
+		stats.policyRejections = [
+			{
+				collection: "posts",
+				id: "post-1",
+				code: "VALIDATION_ERROR",
+				reason: "This post needs an excerpt before it can be published.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+				_rev: "rejection-revision",
+			},
+		];
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Scheduled content was not published"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("This post needs an excerpt before it can be published."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("posts/post-1")).toBeInTheDocument();
 	});
 
 	it("refreshes a stale policy rejection after dismissal conflicts", async () => {
@@ -356,7 +381,7 @@ describe("Dashboard", () => {
 		const screen = await render(<Dashboard manifest={manifest} />);
 
 		await expect
-			.element(screen.getByText("Publication policy blocked scheduled content"))
+			.element(screen.getByText("Scheduled content was not published"))
 			.toBeInTheDocument();
 		await expect
 			.element(screen.getByText("Scheduled publishing needs attention"))
@@ -425,6 +450,35 @@ describe("Dashboard", () => {
 		await expect.element(screen.getByRole("link", { name: "Page" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "Sync run" })).not.toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "Setting" })).not.toBeInTheDocument();
+	});
+
+	it("omits hidden collections from the Content card", async () => {
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats([
+				{ slug: "pages", label: "Pages", total: 2, published: 1, draft: 1, scheduled: 0 },
+				{ slug: "sync_runs", label: "Sync runs", total: 5, published: 5, draft: 0, scheduled: 0 },
+			]),
+		);
+		const withHidden: AdminManifest = {
+			...manifest,
+			collections: {
+				...manifest.collections,
+				sync_runs: {
+					...manifest.collections.pages!,
+					label: "Sync runs",
+					labelSingular: "Sync run",
+					hidden: true,
+				},
+			},
+		};
+
+		const screen = await render(<Dashboard manifest={withHidden} />);
+
+		await expect
+			.element(screen.getByRole("link", { name: /^Pages/ }))
+			.toHaveAttribute("href", "/content/pages");
+		await expect.element(screen.getByRole("link", { name: /Sync runs/ })).not.toBeInTheDocument();
+		expect(screen.container.querySelector('a[href="/content/sync_runs"]')).toBeNull();
 	});
 
 	it("uses the same heading level for every dashboard card title", async () => {

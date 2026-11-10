@@ -7,7 +7,7 @@
  */
 
 import { createReadStream } from "node:fs";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { access, readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { gutenbergToPortableText } from "@emdash-cms/gutenberg-to-portable-text";
@@ -15,9 +15,15 @@ import pc from "picocolors";
 
 import { slugify } from "#utils/slugify.js";
 
+import { parseWxrDate } from "../../../import/sources/wxr.js";
 import { validateExternalUrl, ssrfSafeFetch } from "../../../import/ssrf.js";
-import { INTERNAL_POST_TYPES, isInternalPostType } from "../../../import/utils.js";
-import { parseWxr, type WxrData, type WxrPost, type WxrAttachment } from "../../wxr/parser.js";
+import {
+	INTERNAL_POST_TYPES,
+	isInternalPostType,
+	mapPostTypeToCollection,
+	sanitizeCollectionSlug,
+} from "../../../import/utils.js";
+import { parseWxr, type WxrData, type WxrPost } from "../../wxr/parser.js";
 
 // Regex patterns for WordPress import
 const NUMBER_PATTERN = /^-?\d+(\.\d+)?$/;
@@ -26,6 +32,8 @@ const NON_ALPHANUMERIC_UNDERSCORE_PATTERN = /[^a-zA-Z0-9_]/g;
 const TRAILING_SLASH_PATTERN = /\/$/;
 const PHP_STRING_PATTERN = /s:\d+:"(.*)";/;
 const PHP_ARRAY_PATTERN = /s:(\d+):"([^"]+)";(?:s:(\d+):"([^"]+)"|i:(\d+)|b:([01]))/g;
+const SHELL_SAFE_ARG_PATTERN = /^[\w@%+=:,./-]+$/;
+const UPLOAD_PATH_PATTERN = /\/wp-content\/uploads\/(.+)$/;
 
 /** Type guard for Record<string, unknown> */
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -77,6 +85,7 @@ export interface FieldMapping {
 export interface PrepareOptions {
 	outputDir: string;
 	configPath: string;
+	force?: boolean;
 	verbose: boolean;
 	dryRun: boolean;
 	json: boolean;
@@ -172,6 +181,17 @@ export async function prepareWordPressImport(
 	}
 	log(pc.dim(`File: ${filePath}`));
 
+	if (!options.force && (await fileExists(options.configPath))) {
+		const msg = `Migration config already exists: ${options.configPath}`;
+		log(pc.red(msg));
+		log(pc.dim("Pass --force to overwrite it, or run with --execute to use it."));
+		result.success = false;
+		result.errors.push({ message: msg });
+		result.summary.errors = 1;
+		if (options.json) console.log(JSON.stringify(result, null, 2));
+		return result;
+	}
+
 	// Parse WXR
 	const stream = createReadStream(filePath, { encoding: "utf-8" });
 	const wxr = await parseWxr(stream);
@@ -236,8 +256,7 @@ export async function prepareWordPressImport(
 	result.nextSteps = [
 		`Review and edit: ${options.configPath}`,
 		`Review suggested config: ${liveConfigPath}`,
-		"Copy relevant parts to your src/live.config.ts",
-		`Run: emdash import wordpress ${filePath} --execute`,
+		`Run: ${importCommandLine(filePath, options, "--execute")}`,
 	];
 
 	log(pc.cyan("\n=== Next Steps ===\n"));
@@ -418,21 +437,6 @@ function generateMigrationConfig(wxr: WxrData, analysis: ContentAnalysis): Migra
 	};
 }
 
-function mapPostTypeToCollection(postType: string): string {
-	const mapping: Record<string, string> = {
-		post: "posts",
-		page: "pages",
-		attachment: "media",
-		product: "products",
-		portfolio: "portfolio",
-		testimonial: "testimonials",
-		team: "team",
-		event: "events",
-		faq: "faqs",
-	};
-	return mapping[postType] || postType;
-}
-
 function mapMetaKeyToField(key: string): string {
 	// SEO plugins
 	if (key === "_yoast_wpseo_title") return "seo.title";
@@ -610,10 +614,26 @@ export async function executeWordPressImport(
 		imported: 0,
 		skipped: 0,
 		resumed: 0,
-		errors: 0,
 		byCollection: new Map<string, number>(),
 	};
+	const redirectPath = join(options.outputDir, "_redirects.json");
 	const redirects = new Map<string, string>();
+	if (options.resume) {
+		try {
+			const existing: unknown = JSON.parse(await readFile(redirectPath, "utf-8"));
+			if (isRecord(existing)) {
+				for (const [from, to] of Object.entries(existing)) {
+					if (typeof to === "string") redirects.set(from, to);
+				}
+			}
+		} catch {
+			// No redirect map from an earlier run
+		}
+	}
+
+	if (!options.dryRun) {
+		await mkdir(options.outputDir, { recursive: true });
+	}
 
 	// Process posts
 	for (const post of wxr.posts) {
@@ -625,18 +645,21 @@ export async function executeWordPressImport(
 			stats.skipped++;
 			continue;
 		}
+		const collection = sanitizeCollectionSlug(mapping.collection);
 
 		// Skip if already imported (resume mode)
 		if (post.id && alreadyImported.has(post.id)) {
 			stats.resumed++;
 			if (options.verbose) {
-				log(pc.dim(`  [skip] ${mapping.collection}/${post.title} (already imported)`));
+				log(pc.dim(`  [skip] ${collection}/${post.title} (already imported)`));
 			}
 			continue;
 		}
 
+		if (post.id) clearProgressError(progress, post.id, "post");
+		const importedBefore = stats.imported;
 		try {
-			const converted = convertPostWithConfig(post, mapping.collection, config, mediaMap);
+			const converted = convertPostWithConfig(post, collection, config, mediaMap);
 
 			const outputPath = join(options.outputDir, converted.collection, `${converted.slug}.json`);
 
@@ -657,22 +680,18 @@ export async function executeWordPressImport(
 				}
 
 				if (options.verbose) {
-					log(pc.green(`  ${mapping.collection}/${converted.slug}`));
+					log(pc.green(`  ${collection}/${converted.slug}`));
 				}
 			}
 
 			stats.imported++;
-			stats.byCollection.set(
-				mapping.collection,
-				(stats.byCollection.get(mapping.collection) || 0) + 1,
-			);
+			stats.byCollection.set(collection, (stats.byCollection.get(collection) || 0) + 1);
 
 			// Track redirect
 			if (post.link && converted.slug) {
 				redirects.set(post.link, `/${converted.collection}/${converted.slug}`);
 			}
 		} catch (error) {
-			stats.errors++;
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			result.errors.push({
 				id: post.id,
@@ -689,9 +708,12 @@ export async function executeWordPressImport(
 		}
 
 		// Save progress periodically (every 50 items)
-		if (!options.dryRun && stats.imported % 50 === 0) {
+		if (!options.dryRun && stats.imported > importedBefore && stats.imported % 50 === 0) {
 			progress.updatedAt = new Date().toISOString();
 			await writeFile(progressPath, JSON.stringify(progress, null, 2));
+			if (redirects.size > 0) {
+				await writeFile(redirectPath, JSON.stringify(Object.fromEntries(redirects), null, 2));
+			}
 		}
 	}
 
@@ -701,21 +723,34 @@ export async function executeWordPressImport(
 	if (!options.skipMedia && options.mediaDir && wxr.attachments.length > 0) {
 		log(pc.dim("\nDownloading media..."));
 		for (const attachment of wxr.attachments) {
-			// Skip if already downloaded (resume mode)
-			if (attachment.id && alreadyDownloaded.has(attachment.id)) {
-				mediaSkipped++;
-				continue;
-			}
-
+			if (attachment.id) clearProgressError(progress, attachment.id, "media");
 			try {
+				const mediaPath = attachment.url
+					? mediaFilePath(attachment.url, attachment.id, options.mediaDir)
+					: undefined;
+
+				// Skip if already downloaded (resume mode) and still on disk
+				if (
+					attachment.id &&
+					alreadyDownloaded.has(attachment.id) &&
+					(!mediaPath || (await fileExists(mediaPath)))
+				) {
+					mediaSkipped++;
+					continue;
+				}
+
 				if (options.dryRun) {
 					if (options.verbose) {
 						log(pc.yellow(`  [would download] ${attachment.url}`));
 					}
+					if (mediaPath) result.files.push({ path: mediaPath, action: "would_create" });
 				} else {
-					await downloadMedia(attachment, options.mediaDir);
+					if (attachment.url && mediaPath) {
+						await downloadMedia(attachment.url, mediaPath);
+						result.files.push({ path: mediaPath, action: "created" });
+					}
 
-					if (attachment.id) {
+					if (attachment.id && !alreadyDownloaded.has(attachment.id)) {
 						progress.downloadedMedia.push(attachment.id);
 						progress.stats.downloadedMedia++;
 					}
@@ -749,7 +784,6 @@ export async function executeWordPressImport(
 	}
 
 	// Write redirects
-	const redirectPath = join(options.outputDir, "_redirects.json");
 	if (redirects.size > 0) {
 		if (options.dryRun) {
 			result.files.push({ path: redirectPath, action: "would_create" });
@@ -763,7 +797,7 @@ export async function executeWordPressImport(
 	if (!options.dryRun) {
 		progress.updatedAt = new Date().toISOString();
 		progress.stats.skippedPosts = stats.skipped;
-		progress.stats.errorCount = stats.errors;
+		progress.stats.errorCount = progress.errors.length;
 		await writeFile(progressPath, JSON.stringify(progress, null, 2));
 	}
 
@@ -772,7 +806,7 @@ export async function executeWordPressImport(
 	result.summary.postsSkipped = stats.skipped + stats.resumed;
 	result.summary.mediaDownloaded = mediaDownloaded;
 	result.summary.mediaSkipped = mediaSkipped;
-	result.summary.errors = stats.errors + result.errors.length;
+	result.summary.errors = result.errors.length;
 
 	// Summary
 	const prefix = options.dryRun ? "[DRY RUN] " : "";
@@ -782,8 +816,8 @@ export async function executeWordPressImport(
 		log(`Resumed (skipped): ${pc.blue(stats.resumed.toString())}`);
 	}
 	log(`Skipped (disabled): ${pc.yellow(stats.skipped.toString())}`);
-	if (stats.errors > 0) {
-		log(`Errors: ${pc.red(stats.errors.toString())}`);
+	if (result.errors.length > 0) {
+		log(`Errors: ${pc.red(result.errors.length.toString())}`);
 	}
 
 	log(pc.bold("\nBy collection:"));
@@ -799,16 +833,16 @@ export async function executeWordPressImport(
 	if (options.dryRun) {
 		result.nextSteps = [
 			`Run without --dry-run to perform the import`,
-			`emdash import wordpress ${filePath} --execute`,
+			importCommandLine(filePath, options, "--execute"),
 		];
-	} else if (stats.errors > 0) {
+	} else if (result.errors.length > 0) {
 		result.nextSteps = [
 			`Fix errors and run with --resume to continue`,
-			`emdash import wordpress ${filePath} --execute --resume`,
+			importCommandLine(filePath, options, "--execute --resume"),
 		];
 	} else {
 		result.nextSteps = [
-			`Verify import: emdash migrate:verify --source ${filePath}`,
+			`Review the converted files in: ${options.outputDir}`,
 			`Progress saved to: ${progressPath}`,
 		];
 	}
@@ -824,6 +858,35 @@ export async function executeWordPressImport(
 	}
 
 	return result;
+}
+
+function importCommandLine(
+	filePath: string,
+	options: { outputDir: string; configPath: string },
+	flags: string,
+): string {
+	let command = `emdash import wordpress ${shellQuote(filePath)} -o ${shellQuote(options.outputDir)}`;
+	if (options.configPath !== join(options.outputDir, "migration-config.json")) {
+		command += ` --config ${shellQuote(options.configPath)}`;
+	}
+	return `${command} ${flags}`;
+}
+
+function shellQuote(arg: string): string {
+	return SHELL_SAFE_ARG_PATTERN.test(arg) ? arg : `'${arg.replaceAll("'", "'\\''")}'`;
+}
+
+function clearProgressError(progress: ImportProgress, id: number, type: string): void {
+	progress.errors = progress.errors.filter((entry) => entry.id !== id || entry.type !== type);
+}
+
+async function fileExists(path: string): Promise<boolean> {
+	try {
+		await access(path);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 function createFreshProgress(sourceFile: string, configFile: string): ImportProgress {
@@ -864,12 +927,19 @@ function convertPostWithConfig(
 	// Extract slug
 	const slug = extractSlug(post.link) || slugify(post.title || "untitled");
 
+	const status = mapStatus(post.status);
+	const scheduled = status === "scheduled";
+
 	// Build data object
 	const data: Record<string, unknown> = {
 		title: post.title,
 		content,
-		status: mapStatus(post.status),
-		publishedAt: post.pubDate ? new Date(post.pubDate).toISOString() : null,
+		status,
+		publishedAt: post.pubDate && !scheduled ? new Date(post.pubDate).toISOString() : null,
+		...(scheduled && {
+			scheduledAt:
+				parseWxrDate(post.postDateGmt, post.pubDate, post.postDate)?.toISOString() ?? null,
+		}),
 		createdAt: post.postDate ? new Date(post.postDate).toISOString() : null,
 		author: post.creator,
 		excerpt: post.excerpt,
@@ -947,17 +1017,24 @@ function convertPostWithConfig(
 	return { slug, collection, data };
 }
 
-async function downloadMedia(attachment: WxrAttachment, mediaDir: string): Promise<void> {
-	if (!attachment.url) return;
-
+/**
+ * Keep the path below wp-content/uploads so attachments that share a file
+ * name land in different files. Other URLs go in a directory named after the
+ * attachment ID.
+ */
+function mediaFilePath(url: string, id: number | undefined, mediaDir: string): string {
 	// Validate URL is not targeting internal/private addresses
-	const parsed = validateExternalUrl(attachment.url);
-	const filename = parsed.pathname.split("/").pop() || `media-${attachment.id}`;
-	const filePath = join(mediaDir, filename);
+	const { pathname } = validateExternalUrl(url);
+	const uploadPath = UPLOAD_PATH_PATTERN.exec(pathname)?.[1];
+	if (uploadPath) return join(mediaDir, uploadPath);
+	const filename = pathname.split("/").pop() || "file";
+	return id ? join(mediaDir, String(id), filename) : join(mediaDir, filename);
+}
 
+async function downloadMedia(url: string, filePath: string): Promise<void> {
 	await mkdir(dirname(filePath), { recursive: true });
 
-	const response = await ssrfSafeFetch(attachment.url);
+	const response = await ssrfSafeFetch(url);
 	if (!response.ok) {
 		throw new Error(`HTTP ${response.status}`);
 	}
@@ -986,6 +1063,8 @@ function mapStatus(wpStatus: string | undefined): string {
 			return "draft";
 		case "pending":
 			return "pending";
+		case "future":
+			return "scheduled";
 		case "private":
 			return "private";
 		case "trash":

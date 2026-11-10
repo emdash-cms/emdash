@@ -13,15 +13,17 @@ import mime from "mime/lite";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
-import { isInternalPostType } from "#import/utils.js";
-import { RESERVED_COLLECTION_SLUGS } from "#schema/types.js";
+import type { NavMenuAnalysis } from "#import/types.js";
+import {
+	isInternalPostType,
+	mapPostTypeToCollection,
+	sanitizeCollectionSlug as sanitizeSlug,
+} from "#import/utils.js";
 import type { EmDashHandlers } from "#types";
 
 export const prerender = false;
 
 const NUMERIC_PATTERN = /^-?\d+(\.\d+)?$/;
-const INVALID_SLUG_CHARS = /[^a-z0-9_]/g;
-const LEADING_NON_ALPHA = /^[^a-z]+/;
 
 /** Field compatibility status */
 export type FieldCompatibility =
@@ -110,6 +112,8 @@ export interface WxrAnalysis {
 		suggestedType: "string" | "number" | "boolean" | "date" | "json";
 		isInternal: boolean;
 	}>;
+	/** Navigation menus in the export, which the import brings in */
+	navMenus?: NavMenuAnalysis[];
 }
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -321,6 +325,14 @@ function analyzeWxr(
 			postCount: a.login ? authorPostCounts.get(a.login) || 0 : 0,
 		})),
 		customFields,
+		navMenus:
+			wxr.navMenus.length > 0
+				? wxr.navMenus.map((menu) => ({
+						name: menu.name,
+						label: menu.label,
+						itemCount: menu.items.length,
+					}))
+				: undefined,
 	};
 }
 
@@ -439,31 +451,6 @@ function isInternalMetaKey(key: string): boolean {
 	if (key.startsWith("_")) return true;
 
 	return false;
-}
-
-function sanitizeSlug(slug: string): string {
-	const sanitized = slug
-		.toLowerCase()
-		.replace(INVALID_SLUG_CHARS, "_")
-		.replace(LEADING_NON_ALPHA, "");
-	if (!sanitized) return "imported";
-	if (RESERVED_COLLECTION_SLUGS.includes(sanitized)) return `wp_${sanitized}`;
-	return sanitized;
-}
-
-function mapPostTypeToCollection(postType: string): string {
-	const mapping: Record<string, string> = {
-		post: "posts",
-		page: "pages",
-		attachment: "media",
-		product: "products",
-		portfolio: "portfolio",
-		testimonial: "testimonials",
-		team: "team",
-		event: "events",
-		faq: "faqs",
-	};
-	return mapping[postType] || sanitizeSlug(postType);
 }
 
 function mapMetaKeyToField(key: string): string {

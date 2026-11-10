@@ -1357,6 +1357,23 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		},
 	);
 
+	it.each([
+		{ input: "- ", selector: "li p", hint: "List" },
+		{ input: "> ", selector: "blockquote p", hint: "Quote" },
+	])(
+		"shows $hint after typing $input into an empty paragraph",
+		async ({ input, selector, hint }) => {
+			const { editor, pm } = await renderAndGetEditor();
+
+			simulateTyping(editor, input);
+
+			const paragraph = pm.querySelector(selector)!;
+			expect(paragraph).toBeTruthy();
+			expect(paragraph.getAttribute("data-placeholder")).toBe(hint);
+			expect(getComputedStyle(paragraph, "::before").content).toContain(hint);
+		},
+	);
+
 	it("keeps the quote placeholder visible in an empty blockquote", async () => {
 		await render(<PortableTextEditor value={[textBlock("", { style: "blockquote" })]} />);
 		const pm = await waitForEditor();
@@ -1504,6 +1521,25 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 // =============================================================================
 
 describe("Editor component behaviour", () => {
+	it("names the editable textbox when no field label is supplied", async () => {
+		const screen = await render(<PortableTextEditor />);
+		const textbox = screen.getByRole("textbox", { name: "Rich text editor", exact: true });
+		await expect.element(textbox).toBeVisible();
+		expect(textbox.element().isContentEditable).toBe(true);
+	});
+
+	it("names the editable textbox from its field label", async () => {
+		const screen = await render(
+			<>
+				<span id="rich-text-label">Article body</span>
+				<PortableTextEditor aria-labelledby="rich-text-label" />
+			</>,
+		);
+		const textbox = screen.getByRole("textbox", { name: "Article body", exact: true });
+		await expect.element(textbox).toBeVisible();
+		expect(textbox.element().isContentEditable).toBe(true);
+	});
+
 	it("shows placeholder text in empty editor", async () => {
 		await render(<PortableTextEditor placeholder="Write something..." />);
 		const pm = await waitForEditor();

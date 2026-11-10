@@ -17,7 +17,8 @@ import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { apiFetch, fetchManifest, parseApiResponse } from "../lib/api/client";
+import { useAdminBranding } from "../lib/admin-branding-context.js";
+import { apiFetch, parseApiResponse } from "../lib/api/client";
 import { useAuthProviderList, type AuthProviderModule } from "../lib/auth-provider-context";
 import { navigateTo } from "../lib/navigation.js";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
@@ -467,6 +468,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 
 export function SetupWizard() {
 	const { t } = useLingui();
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const [currentStep, setCurrentStep] = React.useState<WizardStep>("site");
 	const [startWith, setStartWith] = React.useState<StartWith>("sample");
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
@@ -502,12 +504,6 @@ export function SetupWizard() {
 			return parseApiResponse<SetupStatusResponse>(response, t`Failed to fetch setup status`);
 		},
 		retry: false,
-	});
-
-	// Fetch manifest for admin branding
-	const { data: manifest } = useQuery({
-		queryKey: ["manifest"],
-		queryFn: fetchManifest,
 	});
 
 	// Check if using Cloudflare Access auth
@@ -618,11 +614,7 @@ export function SetupWizard() {
 			<div className="w-full max-w-lg">
 				{/* Header */}
 				<div className="text-center mb-6">
-					<BrandLogo
-						logoUrl={manifest?.admin?.logo}
-						siteName={manifest?.admin?.siteName}
-						className="h-10 mx-auto mb-2"
-					/>
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{currentStep === "site" && t`Set up your site`}
 						{currentStep === "admin" && t`Create your account`}

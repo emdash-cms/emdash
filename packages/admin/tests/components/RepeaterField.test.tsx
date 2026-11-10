@@ -41,6 +41,124 @@ describe("RepeaterField", () => {
 				expect.objectContaining({ recall_date: "2026-02-26T09:30:00.000Z" }),
 			]);
 		});
+
+		it("initializes an optional datetime sub-field as null when adding an item", async () => {
+			const onChange = vi.fn();
+			const existingItem = { recall_date: "2026-02-26T09:30:00.000Z" };
+			const screen = await render(
+				<RepeaterField
+					label="Recalls"
+					id="recalls"
+					value={[existingItem]}
+					onChange={onChange}
+					subFields={[{ slug: "recall_date", type: "datetime", label: "Recall date" }]}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Add Item", exact: true }).click();
+
+			expect(onChange).toHaveBeenLastCalledWith([existingItem, { recall_date: null }]);
+			await expect.element(screen.getByLabelText("Recall date").last()).toHaveValue("");
+		});
+
+		it("emits null when an optional datetime sub-field is cleared", async () => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<RepeaterField
+					label="Recalls"
+					id="recalls"
+					value={[{ recall_date: "2026-02-26T09:30:00.000Z" }]}
+					onChange={onChange}
+					subFields={[{ slug: "recall_date", type: "datetime", label: "Recall date" }]}
+				/>,
+			);
+
+			await screen.getByLabelText("Recall date").fill("");
+
+			expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ recall_date: null })]);
+		});
+	});
+
+	describe("select sub-field", () => {
+		const subFields = [
+			{ slug: "service", type: "select", label: "Service", options: ["MRI", "CT", "PET"] },
+		];
+
+		it("initializes an optional select sub-field as null when adding an item", async () => {
+			const onChange = vi.fn();
+			const existingItem = { service: "CT" };
+			const screen = await render(
+				<RepeaterField
+					label="Services"
+					id="services"
+					value={[existingItem]}
+					onChange={onChange}
+					subFields={subFields}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Add Item", exact: true }).click();
+
+			expect(onChange).toHaveBeenLastCalledWith([existingItem, { service: null }]);
+			await expect.element(screen.getByRole("combobox").last()).toHaveValue("");
+		});
+
+		it("emits null when an optional select sub-field is cleared", async () => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<RepeaterField
+					label="Services"
+					id="services"
+					value={[{ service: "CT" }]}
+					onChange={onChange}
+					subFields={subFields}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Clear selection" }).click();
+
+			expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ service: null })]);
+		});
+	});
+
+	describe("url sub-field", () => {
+		const subFields = [{ slug: "link", type: "url", label: "Link" }];
+
+		it("initializes an optional url sub-field as null when adding an item", async () => {
+			const onChange = vi.fn();
+			const existingItem = { link: "https://example.com" };
+			const screen = await render(
+				<RepeaterField
+					label="Links"
+					id="links"
+					value={[existingItem]}
+					onChange={onChange}
+					subFields={subFields}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Add Item", exact: true }).click();
+
+			expect(onChange).toHaveBeenLastCalledWith([existingItem, { link: null }]);
+			await expect.element(screen.getByLabelText("Link").last()).toHaveValue("");
+		});
+
+		it("emits null when an optional url sub-field is cleared", async () => {
+			const onChange = vi.fn();
+			const screen = await render(
+				<RepeaterField
+					label="Links"
+					id="links"
+					value={[{ link: "https://example.com" }]}
+					onChange={onChange}
+					subFields={subFields}
+				/>,
+			);
+
+			await screen.getByLabelText("Link").fill("");
+
+			expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ link: null })]);
+		});
 	});
 });
 

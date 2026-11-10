@@ -33,6 +33,9 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { PORTABLE_TEXT_BLOCK_ATTR } from "./portableTextIdentity.js";
+
+const EMPTY_REGISTRY = new Map<string, PluginBlockDef>();
 
 /**
  * Plugin block definition for slash commands
@@ -68,6 +71,8 @@ export function registerPluginBlocks(
 	const storage = editor.storage.pluginBlock;
 	if (storage) {
 		storage.registry = registry;
+		const listeners = storage.registryListeners as Set<() => void> | undefined;
+		listeners?.forEach((listener) => listener());
 	}
 }
 
@@ -76,7 +81,7 @@ function getRegistry(editor: {
 	storage: Record<string, Record<string, unknown>>;
 }): Map<string, PluginBlockDef> {
 	const storage = editor.storage.pluginBlock;
-	return (storage?.registry as Map<string, PluginBlockDef>) ?? new Map();
+	return (storage?.registry as Map<string, PluginBlockDef>) ?? EMPTY_REGISTRY;
 }
 
 /** Named icon map: icon key → React component */
@@ -195,9 +200,21 @@ function PluginBlockNodeView({
 		typeof node.attrs.data === "object" && node.attrs.data !== null
 			? (node.attrs.data as Record<string, unknown>)
 			: {};
-	const registry = getRegistry(
-		editor as unknown as { storage: Record<string, Record<string, unknown>> },
+	const registryEditor = editor as unknown as { storage: Record<string, Record<string, unknown>> };
+	const subscribe = React.useCallback(
+		(listener: () => void) => {
+			const listeners = registryEditor.storage.pluginBlock?.registryListeners as
+				| Set<() => void>
+				| undefined;
+			listeners?.add(listener);
+			return () => {
+				listeners?.delete(listener);
+			};
+		},
+		[registryEditor],
 	);
+	const getSnapshot = React.useCallback(() => getRegistry(registryEditor), [registryEditor]);
+	const registry = React.useSyncExternalStore(subscribe, getSnapshot);
 	const { Icon, label, color, placeholder, placeholderFallback } = getEmbedMeta(
 		blockType,
 		registry,
@@ -206,6 +223,10 @@ function PluginBlockNodeView({
 	// Check if this block type has fields defined in the registry
 	const blockDef = registry.get(blockType);
 	const hasFields = blockDef?.fields && blockDef.fields.length > 0;
+	const original = node.attrs[PORTABLE_TEXT_BLOCK_ATTR] as Record<string, unknown> | null;
+	const hasIdentity = !!id || typeof original?.id === "string" || typeof original?.url === "string";
+	const canEditUrl = !hasFields && (!!blockDef || hasIdentity);
+	const canEdit = !!blockDef || canEditUrl;
 
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editValue, setEditValue] = React.useState(id || "");
@@ -220,7 +241,7 @@ function PluginBlockNodeView({
 	}, [isEditing, id]);
 
 	const handleSave = () => {
-		if (editValue.trim()) {
+		if (canEditUrl && editValue.trim()) {
 			updateAttributes({ id: editValue.trim() });
 		}
 		setIsEditing(false);
@@ -284,11 +305,15 @@ function PluginBlockNodeView({
 						{/* Label and ID */}
 						<div className="flex-1 min-w-0">
 							<div className="text-sm font-medium">{label}</div>
-							{!isEditing && (
+							{!canEdit ? (
+								<p className="text-xs text-kumo-subtle">
+									{t`No editor is available for this block type. Its content is preserved.`}
+								</p>
+							) : !isEditing ? (
 								<div className="text-xs text-kumo-subtle truncate font-mono">
 									<bdi dir="ltr">{displayId}</bdi>
 								</div>
-							)}
+							) : null}
 						</div>
 
 						{/* Action buttons - visible on hover or when selected */}
@@ -298,7 +323,7 @@ function PluginBlockNodeView({
 								selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
 							)}
 						>
-							{id && (
+							{canEdit && id && (
 								<>
 									<Button
 										type="button"
@@ -324,38 +349,40 @@ function PluginBlockNodeView({
 									</Button>
 								</>
 							)}
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-8 w-8"
-								onClick={() => {
-									if (hasFields) {
-										// Open Block Kit modal via editor storage callback
-										const storage = (
-											editor.storage as unknown as Record<string, Record<string, unknown>>
-										).pluginBlock;
-										const onEdit = storage?.onEditBlock as
-											| ((attrs: {
-													blockType: string;
-													id: string;
-													data: Record<string, unknown>;
-													pos: number;
-											  }) => void)
-											| null;
-										if (onEdit) {
-											const pos = (typeof getPos === "function" ? getPos() : 0) ?? 0;
-											onEdit({ blockType, id, data, pos });
+							{canEdit && (
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									className="h-8 w-8"
+									onClick={() => {
+										if (hasFields) {
+											// Open Block Kit modal via editor storage callback
+											const storage = (
+												editor.storage as unknown as Record<string, Record<string, unknown>>
+											).pluginBlock;
+											const onEdit = storage?.onEditBlock as
+												| ((attrs: {
+														blockType: string;
+														id: string;
+														data: Record<string, unknown>;
+														pos: number;
+												  }) => void)
+												| null;
+											if (onEdit) {
+												const pos = (typeof getPos === "function" ? getPos() : 0) ?? 0;
+												onEdit({ blockType, id, data, pos });
+											}
+										} else {
+											setIsEditing(true);
 										}
-									} else {
-										setIsEditing(true);
-									}
-								}}
-								title={hasFields ? t`Edit` : t`Edit URL`}
-								aria-label={hasFields ? t`Edit` : t`Edit URL`}
-							>
-								<Pencil className="h-4 w-4" />
-							</Button>
+									}}
+									title={hasFields ? t`Edit` : t`Edit URL`}
+									aria-label={hasFields ? t`Edit` : t`Edit URL`}
+								>
+									<Pencil className="h-4 w-4" />
+								</Button>
+							)}
 							<Button
 								type="button"
 								variant="ghost"
@@ -371,7 +398,7 @@ function PluginBlockNodeView({
 					</div>
 
 					{/* Inline URL editor - slides down when editing */}
-					{isEditing && (
+					{canEditUrl && isEditing && (
 						<div className="px-4 pb-3 pt-0">
 							<div className="flex gap-2">
 								<Input
@@ -447,6 +474,7 @@ export const PluginBlockExtension = Node.create({
 		return {
 			/** Per-editor registry of plugin block definitions */
 			registry: new Map<string, PluginBlockDef>(),
+			registryListeners: new Set<() => void>(),
 			/** Callback set by PortableTextEditor to open the Block Kit modal for editing */
 			onEditBlock: null as
 				| ((attrs: {

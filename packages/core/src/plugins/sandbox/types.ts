@@ -33,7 +33,7 @@ export interface ResourceLimits {
 	cpuMs?: number;
 	/** Memory limit in MB (default: 128MB) */
 	memoryMb?: number;
-	/** Maximum subrequests per invocation (default: 10) */
+	/** Maximum subrequests per invocation (default: 30) */
 	subrequests?: number;
 	/** Wall-clock time limit in milliseconds (default: 30000ms) */
 	wallTimeMs?: number;
@@ -311,6 +311,15 @@ export interface SandboxRunner {
 	 * child process has crashed and hasn't been restarted yet.
 	 */
 	isHealthy(): boolean;
+
+	/**
+	 * Start a deferred sandbox runtime and wait for readiness.
+	 * Hosts can call this before starting a plugin hook's timeout.
+	 * Pass `waitForPendingRestart` to wait for a crash restart's backoff timer.
+	 * Without the opt-in, a pending backoff does not delay the caller.
+	 * Optional for runners that are ready as soon as load() completes.
+	 */
+	ensureRunning?(options?: { waitForPendingRestart?: boolean }): Promise<void>;
 
 	/**
 	 * Why the runner cannot run plugins, once isAvailable() or isHealthy()

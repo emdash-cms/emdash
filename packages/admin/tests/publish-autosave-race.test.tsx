@@ -442,7 +442,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		expect(mutations[2]?.body).toMatchObject({ _rev: "rev-publish-1" });
 	});
 
-	it("keeps edits made after a coalesced publish click dirty", async () => {
+	it("keeps edits made while publishing dirty", async () => {
 		const save = deferredResponse();
 		server = createMockServer({
 			onPut: (request, index) => {
@@ -470,7 +470,9 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await publishNow(screen);
 		await vi.waitFor(() => expect(contentMutations(server!.requests)).toHaveLength(1));
 		await title.fill("Second edit");
-		await publishNow(screen);
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeDisabled();
 
 		save.resolve(
 			contentResponse(
@@ -580,7 +582,10 @@ describe("ContentEditPage publish and autosave ordering", () => {
 				])?.data,
 			).toMatchObject({ title: "After schedule" });
 		});
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Saved", exact: true }).query()).toBeNull();
 
 		const removeSchedule = screen.getByRole("button", { name: "Remove schedule" });
 		await expect.element(removeSchedule).toBeInTheDocument();

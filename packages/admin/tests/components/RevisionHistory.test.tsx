@@ -92,7 +92,7 @@ function makeDiff(changes: ChangeItem[]): RevisionDiff {
 }
 
 async function renderExpanded(view: RevisionViewContextValue | null) {
-	const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+	const history = <RevisionHistory collection="posts" entryId="entry-1" />;
 	const screen = await render(
 		view ? <RevisionViewProvider value={view}>{history}</RevisionViewProvider> : history,
 	);
@@ -106,6 +106,31 @@ beforeEach(() => {
 });
 
 describe("RevisionHistory", () => {
+	it.each(["", "not a date", "0000-00-00 00:00:00", undefined])(
+		"keeps revisions usable when a timestamp is %s",
+		async (createdAt) => {
+			mockFetchRevisions.mockResolvedValue({
+				items: [makeRevision({ id: "rev-bad", createdAt }), ...threeVersions.items],
+				total: 4,
+			});
+			const view = makeView();
+			const screen = await renderExpanded(view);
+
+			await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeVisible();
+			const row = document.querySelector<HTMLElement>('[data-revision-id="rev-bad"]')!;
+			expect(row).not.toBeNull();
+			const time = row.querySelector("time")!;
+			expect(time.textContent).toBe("");
+			expect(time.hasAttribute("datetime")).toBe(false);
+			expect(row.querySelector(".sr-only")?.textContent).not.toContain(", ,");
+			expect(
+				document.querySelector('[data-revision-id="rev-3"] time')?.getAttribute("datetime"),
+			).toBe(new Date(threeVersions.items[0]!.createdAt.replace(" ", "T") + "Z").toISOString());
+			row.click();
+			expect(view.view).toHaveBeenCalledWith("rev-bad", { opener: row });
+		},
+	);
+
 	it("does not fetch until expanded", async () => {
 		const screen = await render(
 			<RevisionViewProvider value={makeView()}>
@@ -188,7 +213,7 @@ describe("RevisionHistory", () => {
 	});
 
 	it("moves focus from the version that was restored to the new current one", async () => {
-		const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+		const history = <RevisionHistory collection="posts" entryId="entry-1" />;
 		const screen = await renderExpanded(makeView());
 		const sam = screen.getByRole("button", { name: SAM_ROW });
 		await expect.element(sam).toBeInTheDocument();
@@ -206,7 +231,7 @@ describe("RevisionHistory", () => {
 	});
 
 	it("leaves focus where the writer moved it after the restore", async () => {
-		const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+		const history = <RevisionHistory collection="posts" entryId="entry-1" />;
 		const screen = await renderExpanded(makeView());
 		const sam = screen.getByRole("button", { name: SAM_ROW });
 		const unknown = screen.getByRole("button", { name: UNKNOWN_ROW });
@@ -420,14 +445,5 @@ describe("RevisionHistory", () => {
 		await screen.getByRole("button", { name: "Try again" }).click();
 
 		await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeInTheDocument();
-	});
-
-	it("reserves a separate trailing area for an external header control", async () => {
-		const screen = await render(
-			<RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />,
-		);
-
-		const trigger = screen.getByRole("button", { name: REVISIONS_TRIGGER }).element();
-		expect(trigger.style.width).toBe("calc(100% - 1.5rem)");
 	});
 });

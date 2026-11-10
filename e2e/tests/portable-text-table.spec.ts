@@ -267,6 +267,10 @@ test.describe("Portable Text tables", () => {
 			await more.click();
 			const menu = page.locator('[role="menu"]:visible');
 			await expect(menu).toBeVisible();
+			await expect(menu).not.toHaveAttribute("data-starting-style");
+			await menu.evaluate((element) =>
+				Promise.all(element.getAnimations().map((animation) => animation.finished)),
+			);
 			for (const index of [0, 1, 0, 1]) {
 				const toggle = menu.getByRole("menuitemcheckbox").nth(index);
 				await toggle.scrollIntoViewIfNeeded();
@@ -460,6 +464,10 @@ test.describe("Portable Text tables", () => {
 		];
 		expect(new Set(keys).size).toBe(keys.length);
 
+		// A reload that lands while Firefox is still rendering the edit page stops
+		// that render partway, and React then logs an error.
+		await expect(page.locator(EDITOR).getByText("Rich", { exact: true })).toBeVisible();
+		await admin.waitForLoading();
 		await page.reload();
 		await admin.waitForShell();
 		await expect(page.locator(EDITOR).getByText("Rich", { exact: true })).toBeVisible();
@@ -545,6 +553,7 @@ test.describe("Portable Text table responsive accessibility", () => {
 			{ width: 1440, height: 900 },
 		]) {
 			await page.setViewportSize(viewport);
+			await expect(page.locator("[data-ending-style]")).toHaveCount(0);
 			const geometry = await wrapper.evaluate((element) => ({
 				page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
 				scroll: element.scrollWidth,
@@ -722,7 +731,7 @@ test.describe("Portable Text table performance evidence", () => {
 			contentType: "application/json",
 		});
 		await admin.clickSave();
-		await expect(page.getByRole("button", { name: "Saved", exact: true }).first()).toBeVisible();
+		await admin.waitForSaveComplete();
 		const lifecycle = [];
 		for (let cycle = 0; cycle < 5; cycle++) {
 			await page.getByRole("link", { name: "Posts", exact: true }).click();

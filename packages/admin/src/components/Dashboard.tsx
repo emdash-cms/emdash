@@ -24,7 +24,11 @@ import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
-import { resolvePluginWidgetTitle, visibleCollectionEntries } from "./Sidebar.js";
+import {
+	declaredLabelTranslator,
+	resolvePluginWidgetTitle,
+	visibleCollectionEntries,
+} from "./Sidebar.js";
 
 const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	published: "published",
@@ -85,7 +89,10 @@ export function Dashboard({ manifest }: DashboardProps) {
 					<SummaryMetrics
 						stats={stats}
 						loading={isLoading}
-						linkCalendar={(user?.role ?? 0) >= ROLE_CONTRIBUTOR}
+						linkCalendar={
+							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+							!manifest.admin?.hiddenNavItems?.includes("calendar")
+						}
 					/>
 
 					{/* Collections + Recent activity */}
@@ -161,11 +168,11 @@ function SchedulerWarning({
 				<div className="space-y-2">
 					<Banner
 						variant="alert"
-						title={t`Publication policy blocked scheduled content`}
+						title={t`Scheduled content was not published`}
 						description={plural(policyRejected, {
-							one: "Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.",
+							one: "Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.",
 							other:
-								"Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.",
+								"Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.",
 						})}
 						role="alert"
 					/>
@@ -209,8 +216,8 @@ function SchedulerWarning({
 					{policyRejected > policyRejections.length && (
 						<p className="text-sm text-kumo-subtle">
 							{plural(policyRejected - policyRejections.length, {
-								one: "One more blocked entry is not shown.",
-								other: "# more blocked entries are not shown.",
+								one: "One more entry is not shown.",
+								other: "# more entries are not shown.",
 							})}
 						</p>
 					)}
@@ -344,9 +351,11 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
-			<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
-				{t`Upload Media`}
-			</RouterLinkButton>
+			{!manifest.admin?.hiddenNavItems?.includes("media") && (
+				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
+					{t`Upload Media`}
+				</RouterLinkButton>
+			)}
 		</div>
 	);
 }
@@ -483,6 +492,7 @@ function CollectionList({
 	loading: boolean;
 }) {
 	const { t } = useLingui();
+	const visibleCollections = collections.filter((col) => !manifest.collections[col.slug]?.hidden);
 
 	return (
 		<LayerCard className="h-full">
@@ -490,13 +500,13 @@ function CollectionList({
 			<LayerCard.Primary className="flex-1">
 				{loading ? (
 					<SkeletonRows count={3} />
-				) : collections.length === 0 ? (
+				) : visibleCollections.length === 0 ? (
 					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
 						{t`No collections configured`}
 					</p>
 				) : (
 					<div className="space-y-1">
-						{collections.map((col) => {
+						{visibleCollections.map((col) => {
 							const config = manifest.collections[col.slug];
 							return (
 								<Link
@@ -668,7 +678,11 @@ function PluginWidgetCard({
 }) {
 	const { i18n } = useLingui();
 	const WidgetComponent = usePluginWidget(widget.pluginId, widget.id);
-	const title = resolvePluginWidgetTitle(widget.title, widget.id, (id) => i18n._(id));
+	const title = resolvePluginWidgetTitle(
+		widget.title,
+		widget.id,
+		declaredLabelTranslator(i18n, (id) => i18n._(id)),
+	);
 
 	return (
 		<LayerCard className="h-full">
