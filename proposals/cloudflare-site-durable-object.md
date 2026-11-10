@@ -7,7 +7,7 @@ authors:
 champion: Kevin Kyburz (@swissky)
 sponsor: Kevin Kyburz (@swissky)
 discussions:
-  - https://github.com/emdash-cms/emdash/discussions/TBD
+  - https://github.com/emdash-cms/emdash/discussions/4789
 created: 2026-11-09
 ---
 
