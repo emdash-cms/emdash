@@ -1,7 +1,8 @@
 /**
  * The shared document's layout. Each `portableText` field is the XML fragment `field:{slug}`.
- * Every other field except references is a plain JSON value in the `fields` map under its slug,
- * and the entry slug is under `slug` in the same map. Clients depend on this layout.
+ * Every other field with a column, including a reference without a relation, is a plain JSON
+ * value in the `fields` map under its slug, and the entry slug is under `slug` in the same map.
+ * Clients depend on this layout.
  */
 
 import { updateYFragment, yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
