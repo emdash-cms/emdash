@@ -431,8 +431,8 @@ msgstr "{0, plural, one {קובץ מדיה} two {קובצי מדיה} other {ק�
 
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
-msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr "{0, plural, one {פריט חסום נוסף אחד אינו מוצג.} two {שני פריטים חסומים נוספים אינם מוצגים.} other {# פריטים חסומים נוספים אינם מוצגים.}}"
+msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
+msgstr ""
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -935,8 +935,8 @@ msgid "{plural} go live now; draft edits stay unpublished."
 msgstr "{plural} מתפרסמים מיד; עריכות בטיוטה נשארות לא מפורסמות."
 
 #: packages/admin/src/components/Dashboard.tsx:172
-msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr "{policyRejected, plural, one {פתחו את הפריט המושפע, טפלו בסיבת המדיניות ותזמנו אותו שוב. תזמון או פרסום מוצלחים מסירים הודעה זו.} two {פתחו את הפריטים המושפעים, טפלו בסיבות המדיניות ותזמנו אותם שוב. תזמון או פרסום מוצלחים מסירים כל הודעה.} other {פתחו את הפריטים המושפעים, טפלו בסיבות המדיניות ותזמנו אותם שוב. תזמון או פרסום מוצלחים מסירים כל הודעה.}}"
+msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
+msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -6517,7 +6517,7 @@ msgid "Failed to discard draft"
 msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:227
-#: packages/admin/src/lib/api/dashboard.ts:73
+#: packages/admin/src/lib/api/dashboard.ts:76
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr "סגירת דחיית הפרסום המתוזמן נכשלה"
 
@@ -6628,7 +6628,7 @@ msgstr ""
 msgid "Failed to fetch content authors"
 msgstr ""
 
-#: packages/admin/src/lib/api/dashboard.ts:58
+#: packages/admin/src/lib/api/dashboard.ts:61
 msgid "Failed to fetch dashboard stats"
 msgstr "אחזור נתוני לוח הבקרה נכשל"
 
@@ -11475,10 +11475,6 @@ msgstr "נתיבים ציבוריים"
 msgid "Publication date"
 msgstr "תאריך פרסום"
 
-#: packages/admin/src/components/Dashboard.tsx:171
-msgid "Publication policy blocked scheduled content"
-msgstr "מדיניות הפרסום חסמה תוכן מתוזמן"
-
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
@@ -12866,6 +12862,10 @@ msgstr "מתוזמן"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "שינויים מתוזמנים"
+
+#: packages/admin/src/components/Dashboard.tsx:171
+msgid "Scheduled content was not published"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."

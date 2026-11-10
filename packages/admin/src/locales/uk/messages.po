@@ -430,8 +430,8 @@ msgstr "{0, plural, one {Медіафайл} few {Медіафайли} many {М
 
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
-msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr "{0, plural, one {Ще # заблокований запис не показано.} few {Ще # заблоковані записи не показано.} many {Ще # заблокованих записів не показано.} other {Ще # заблокованого запису не показано.}}"
+msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
+msgstr ""
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -934,8 +934,8 @@ msgid "{plural} go live now; draft edits stay unpublished."
 msgstr "{plural} з'являться на сайті одразу; зміни в чернетках залишаться неопублікованими."
 
 #: packages/admin/src/components/Dashboard.tsx:172
-msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr "{policyRejected, plural, =1 {Відкрийте заблокований запис, усуньте причину, указану політикою, і заплануйте його знову. Сповіщення зникне після успішного планування чи публікації.} one {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.} few {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.} many {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.} other {Відкрийте заблоковані записи, усуньте причини, указані політикою, і заплануйте їх знову. Сповіщення про кожен запис зникне після його успішного планування чи публікації.}}"
+msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
+msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -6516,7 +6516,7 @@ msgid "Failed to discard draft"
 msgstr "Не вдалося відкинути зміни чернетки"
 
 #: packages/admin/src/components/Dashboard.tsx:227
-#: packages/admin/src/lib/api/dashboard.ts:73
+#: packages/admin/src/lib/api/dashboard.ts:76
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr "Не вдалося закрити сповіщення про відхилену заплановану публікацію"
 
@@ -6627,7 +6627,7 @@ msgstr "Не вдалося отримати вміст"
 msgid "Failed to fetch content authors"
 msgstr "Не вдалося отримати авторів вмісту"
 
-#: packages/admin/src/lib/api/dashboard.ts:58
+#: packages/admin/src/lib/api/dashboard.ts:61
 msgid "Failed to fetch dashboard stats"
 msgstr "Не вдалося отримати статистику панелі"
 
@@ -11474,10 +11474,6 @@ msgstr "Публічні маршрути"
 msgid "Publication date"
 msgstr "Дата публікації"
 
-#: packages/admin/src/components/Dashboard.tsx:171
-msgid "Publication policy blocked scheduled content"
-msgstr "Політика публікації заблокувала запланований вміст"
-
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
@@ -12865,6 +12861,10 @@ msgstr "Заплановано"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "Заплановані зміни"
+
+#: packages/admin/src/components/Dashboard.tsx:171
+msgid "Scheduled content was not published"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."
