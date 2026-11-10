@@ -81,7 +81,7 @@ export interface CreateRevisionInput {
 	editedBy?: readonly string[] | null;
 }
 
-const EDITOR_SETS_LIMIT = 100;
+const EDITOR_SETS_PAGE = 100;
 
 export function normalizeRevisionLimit(value: unknown): number {
 	const numeric = Number(value);
@@ -261,28 +261,39 @@ export class RevisionRepository {
 	 * Everyone the entry's revisions newer than `sinceId` credit, newest first and once each, or
 	 * everyone its revisions credit when `sinceId` is `null`. A revision credits its editors, or its
 	 * author when none are recorded; one that records no one credits no one. An entry is `null` for
-	 * an account that no longer exists. Revisions that credit the same people are read once, and only
-	 * the newest {@link EDITOR_SETS_LIMIT} such sets.
+	 * an account that no longer exists. Revisions that credit the same people are read as one set,
+	 * {@link EDITOR_SETS_PAGE} sets per query.
 	 */
 	async findEditorsSince(
 		collection: string,
 		entryId: string,
 		sinceId: string | null,
 	): Promise<Array<RevisionAuthor | null>> {
-		let query = this.db
-			.selectFrom("revisions")
-			.select((eb) => ["author_id", "edited_by", eb.fn.max("id").as("newest")])
-			.where("collection", "=", collection)
-			.where("entry_id", "=", entryId)
-			.groupBy(["author_id", "edited_by"])
-			.orderBy("newest", "desc")
-			.limit(EDITOR_SETS_LIMIT);
-		if (sinceId) query = query.where("id", ">", sinceId);
+		const ids = new Set<string>();
+		let before: string | null = null;
+		for (;;) {
+			let query = this.db
+				.selectFrom("revisions")
+				.select((eb) => ["author_id", "edited_by", eb.fn.max("id").as("newest")])
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.groupBy(["author_id", "edited_by"])
+				.orderBy("newest", "desc")
+				.limit(EDITOR_SETS_PAGE);
+			if (sinceId) query = query.where("id", ">", sinceId);
+			if (before) query = query.having((eb) => eb(eb.fn.max("id"), "<", before));
 
-		const rows = await query.execute();
-		const ids = new Set(
-			rows.flatMap((row) => parseEditedBy(row.edited_by) ?? (row.author_id ? [row.author_id] : [])),
-		);
+			// oxlint-disable-next-line no-await-in-loop -- each page starts below the last one
+			const rows = await query.execute();
+			for (const row of rows) {
+				for (const id of parseEditedBy(row.edited_by) ?? (row.author_id ? [row.author_id] : [])) {
+					ids.add(id);
+				}
+			}
+			const last = rows.at(-1);
+			if (rows.length < EDITOR_SETS_PAGE || !last) break;
+			before = last.newest;
+		}
 		const authors = await this.findAuthors([...ids]);
 		return Array.from(ids, (id) => authors.get(id) ?? null);
 	}
