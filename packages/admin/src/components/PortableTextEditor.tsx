@@ -2734,6 +2734,8 @@ export function PortableTextEditor({
 	);
 
 	const editorLabel = t`Rich text editor`;
+	// Tiptap gives the editor a textbox role, so a read-only editor has to say so itself.
+	const editableRef = React.useRef(true);
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -2743,19 +2745,21 @@ export function PortableTextEditor({
 			// it, scrolls the caret out from under them.
 			scrollThreshold: isDocument ? { top: 96, right: 0, bottom: 0, left: 0 } : 0,
 			scrollMargin: isDocument ? { top: 96, right: 5, bottom: 5, left: 5 } : 5,
-			attributes: {
+			attributes: (): Record<string, string> => ({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
+				...(editableRef.current ? {} : { "aria-readonly": "true" }),
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
-			},
+			}),
 		}),
 		[ariaLabelledby, editorLabel, isDocument],
 	);
 
 	const editorEditable = editable && unsupportedMarks.length === 0 && tableConversionError === null;
+	editableRef.current = editorEditable;
 	const editor = useEditor({
 		extensions,
 		content: collaboration ? "" : (initialContent as Parameters<typeof useEditor>[0]["content"]),

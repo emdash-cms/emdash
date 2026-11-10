@@ -37,3 +37,15 @@ it("turns read-only and back after mounting, without reporting a change", async 
 	expect(onChange).not.toHaveBeenCalled();
 	await screen.unmount();
 });
+
+it("tells assistive technology while it's read-only", async () => {
+	const screen = await render(<PortableTextEditor value={VALUE} onChange={vi.fn()} />);
+	const textbox = screen.getByRole("textbox", { name: "Rich text editor" });
+	await expect.element(textbox).not.toHaveAttribute("aria-readonly");
+
+	await screen.rerender(<PortableTextEditor value={VALUE} onChange={vi.fn()} editable={false} />);
+	await expect.element(textbox).toHaveAttribute("aria-readonly", "true");
+	await screen.rerender(<PortableTextEditor value={VALUE} onChange={vi.fn()} />);
+	await expect.element(textbox).not.toHaveAttribute("aria-readonly");
+	await screen.unmount();
+});
