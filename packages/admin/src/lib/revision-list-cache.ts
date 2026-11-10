@@ -1,10 +1,26 @@
+import type { QueryClient } from "@tanstack/react-query";
+
 import type { RevisionAuthor, RevisionListItem, RevisionListResponse } from "./api";
+
+const autosavedDrafts = new WeakMap<QueryClient, Set<string>>();
+
+/** The draft revisions this client's autosaves wrote. */
+export function autosavedDraftIds(queryClient: QueryClient): Set<string> {
+	let ids = autosavedDrafts.get(queryClient);
+	if (!ids) {
+		ids = new Set();
+		autosavedDrafts.set(queryClient, ids);
+	}
+	return ids;
+}
 
 export interface AutosavedDraft {
 	/** The draft revision the autosave wrote. */
 	draft: RevisionListItem;
 	/** The entry's draft revision before the autosave. */
 	previousDraftId: string | null;
+	/** Whether this client's own autosave wrote `previousDraftId`. */
+	previousIsAutosave: boolean;
 	liveRevisionId: string | null;
 	/** How many revisions the cached list asked for. */
 	limit: number;
@@ -12,15 +28,17 @@ export interface AutosavedDraft {
 
 /**
  * The revision list as it most likely stands after an autosave, without reading it again: the new
- * draft revision on top, naming its own editors and then those of the draft it follows, which is
- * removed unless that one is also the live revision. The server removes that draft only when it was
- * an autosave too, so the list is read again afterwards to correct the guess.
+ * draft revision on top. The server replaces the draft it follows only when that one was an
+ * autosave, so it's removed, and its editors named after the new draft's, only when this client's
+ * own autosave wrote it and it isn't the live revision. The list is read again afterwards to
+ * correct the guess.
  */
 export function withAutosavedDraft(
 	list: RevisionListResponse,
-	{ draft, previousDraftId, liveRevisionId, limit }: AutosavedDraft,
+	{ draft, previousDraftId, previousIsAutosave, liveRevisionId, limit }: AutosavedDraft,
 ): RevisionListResponse {
-	const replacesPrevious = previousDraftId !== null && previousDraftId !== liveRevisionId;
+	const replacesPrevious =
+		previousIsAutosave && previousDraftId !== null && previousDraftId !== liveRevisionId;
 	const previous = replacesPrevious
 		? list.items.find((item) => item.id === previousDraftId)
 		: undefined;
