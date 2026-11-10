@@ -167,6 +167,8 @@ function createServer(initial: ContentItem) {
 			unknown
 		>,
 		refuseRecovery: false,
+		/** Answers a recovery revision in place of the server, when set. */
+		recoveryReply: null as Promise<Response> | null,
 		refuseWrites: false,
 		/** The reference field's entries, as a read returns them. */
 		authors: AUTHORS,
@@ -233,6 +235,7 @@ function createServer(initial: ContentItem) {
 		}
 		if (path === "/_emdash/api/content/posts/post_1/lock") return json({ data: server.lock });
 		if (method === "POST" && path === "/_emdash/api/content/posts/post_1/revisions") {
+			if (server.recoveryReply) return server.recoveryReply;
 			if (server.refuseRecovery) {
 				return json({ error: { code: "PAYLOAD_TOO_LARGE", message: "Too large to keep" } }, 413);
 			}
@@ -880,6 +883,32 @@ describe("joining a room from single-editor mode", () => {
 			.element(screen.getByText(/Your unsaved edits are in a recovery revision\. Reload the page/))
 			.toBeVisible();
 		await expect.element(title).toHaveValue("Unsaved title");
+	});
+
+	it("asks before leaving while the recovery revision for edits from before joining is on its way", async () => {
+		const { screen, server } = await openWithUnsavedEdits("room");
+		let reply: (response: Response) => void = () => undefined;
+		server.recoveryReply = new Promise((resolve) => {
+			reply = resolve;
+		});
+		const asksBeforeUnload = () => {
+			const event = new Event("beforeunload", { cancelable: true });
+			window.dispatchEvent(event);
+			return event.defaultPrevented;
+		};
+
+		await screen.getByRole("button", { name: "Join", exact: true }).click();
+		answer(roomView(createRoom({ title: "First post", slug: "post-one" })));
+		await vi.waitFor(() => expect(server.find("POST", REVISIONS)).toBeDefined());
+
+		expect(asksBeforeUnload()).toBe(true);
+		expect(screen.getByRole("dialog").query()).toBeNull();
+
+		reply(new Response(JSON.stringify({ data: { id: "revision-recovery" } }), { status: 201 }));
+		await expect
+			.element(screen.getByText("Your unsaved edits are in a recovery revision"))
+			.toBeVisible();
+		expect(asksBeforeUnload()).toBe(false);
 	});
 
 	it("holds on to edits whose recovery revision failed, to copy or keep again", async () => {

@@ -1358,7 +1358,8 @@ function ContentEditPage() {
 	const [unkeptEdits, setUnkeptEdits] = React.useState<{
 		identity: string;
 		form: RecoveryInput;
-		error: string;
+		/** Null until a recovery revision has failed. */
+		error: string | null;
 		retrying: boolean;
 	} | null>(null);
 	if (unkeptEdits && unkeptEdits.identity !== revisionIdentity) setUnkeptEdits(null);
@@ -1380,11 +1381,11 @@ function ContentEditPage() {
 	let roomSync: SyncProblem | null | undefined;
 	if (coEditing.mode === "pending") {
 		roomSync = { kind: "joining", waiting: coEditing.waiting };
-	} else if (roomView && unkeptEdits) {
-		const { identity, form } = unkeptEdits;
+	} else if (roomView && unkeptEdits?.error != null) {
+		const { identity, form, error } = unkeptEdits;
 		roomSync = {
 			kind: "not-kept",
-			error: unkeptEdits.error,
+			error,
 			retrying: unkeptEdits.retrying,
 			copy: () => copyEditsText(collectionFields, (name) => form.data[name]),
 			retry: () => {
@@ -1482,6 +1483,12 @@ function ContentEditPage() {
 		if (!snapshot || coEditing === snapshot.from || coEditing.mode === "pending") return;
 		joinSnapshotRef.current = null;
 		if (coEditing.mode !== "room" || snapshot.identity !== revisionIdentity) return;
+		setUnkeptEdits({
+			identity: snapshot.identity,
+			form: snapshot.form,
+			error: null,
+			retrying: true,
+		});
 		void keepEdits(snapshot.identity, snapshot.form);
 	}, [coEditing]);
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
@@ -2631,6 +2638,7 @@ function ContentEditPage() {
 			roomResetting={resetting}
 			fieldsLoading={resetting || leavingRoom}
 			roomSync={roomSync}
+			unkeptEdits={unkeptEdits !== null}
 			roomBlocked={roomBlocked}
 			onSaveOutsideValues={saveOutsideValues}
 			onPreviewNotSaved={handlePreviewNotSaved}

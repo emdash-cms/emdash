@@ -739,6 +739,8 @@ export interface ContentEditorProps {
 	 * and explains, such as joining the room or being offline.
 	 */
 	roomSync?: SyncProblem | null;
+	/** Edits from before joining that no recovery revision holds yet, which leaving would lose. */
+	unkeptEdits?: boolean;
 	/** In a room: saving is refused, offline, without edit access, or for good. */
 	roomBlocked?: boolean;
 	/**
@@ -823,6 +825,7 @@ export function ContentEditor({
 	roomResetting = false,
 	fieldsLoading = false,
 	roomSync,
+	unkeptEdits = false,
 	roomBlocked = false,
 	onSaveOutsideValues,
 	onPreviewNotSaved,
@@ -1371,7 +1374,7 @@ export function ContentEditor({
 	// In a room, "Saved" means a checkpoint holds this tab's last edit.
 	const isDirty = roomSaveState ? !roomSaveState.covered : formIsDirty;
 	// Edits from before joining that no recovery revision holds are lost on leaving too.
-	const editsNotKept = roomSync?.kind === "not-kept";
+	const editsNotKept = unkeptEdits;
 	const editsNotKeptRef = React.useRef(editsNotKept);
 	editsNotKeptRef.current = editsNotKept;
 	const outsideListsUnsent = Boolean(room) && currentListSavers().some((saver) => saver.unsent);
