@@ -271,7 +271,7 @@ const schemaUpdateCollectionToolSchema = z.object({
 		"Field slug to use as the Title column in admin lists; pass null to fall back to the default",
 	),
 	dateField: updateCollectionBody.shape.dateField.describe(
-		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+		"Datetime field slug or system timestamp (publishedAt, createdAt, updatedAt) to use as the Date column and default sort in admin lists; pass null to fall back to last-updated",
 	),
 });
 
@@ -2391,7 +2391,8 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"preview), 'no-scheduling' (disables timed publishing, which is otherwise allowed), " +
+				"'search' (full-text indexing), " +
 				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
@@ -2403,7 +2404,7 @@ export function createMcpServer(
 				description: z.string().optional().describe("Description of this collection"),
 				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
-					"Features to enable (default: ['drafts', 'revisions'])",
+					"Collection capabilities and opt-outs (default: ['drafts', 'revisions']); scheduling is allowed unless 'no-scheduling' is present",
 				),
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",
@@ -3757,7 +3758,7 @@ export function createMcpServer(
 			title: "Get Site Settings",
 			description:
 				"Get all site-wide settings (title, tagline, logo, favicon, URL, " +
-				"date/time formatting, social links, SEO defaults). Media references " +
+				"date/time formatting, social links, SEO defaults, and staging status). Media references " +
 				"(logo, favicon, defaultOgImage) include resolved URLs. Unset values " +
 				"are omitted from the response.",
 			inputSchema: z.object({}),
@@ -3807,6 +3808,12 @@ export function createMcpServer(
 					])
 					.optional()
 					.describe("Canonical site URL (http or https). Empty string clears it."),
+				staging: z
+					.boolean()
+					.optional()
+					.describe(
+						"true asks search engines not to index the site (noindex); false makes it live",
+					),
 				postsPerPage: z
 					.number()
 					.int()

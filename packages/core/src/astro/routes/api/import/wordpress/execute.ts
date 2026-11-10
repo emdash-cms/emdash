@@ -50,6 +50,7 @@ interface WxrChunkCursor {
 /** Cross-chunk state carried by the client. */
 interface WxrChunkState {
 	translationGroups: Record<string, string>;
+	bylines?: Record<string, string>;
 }
 
 /** Chunked response shape mirrors the wordpress-plugin execute endpoint. */
@@ -410,6 +411,9 @@ async function runContentChunk(
 	const translationGroupMap = new Map<string, string>(
 		Object.entries(incomingChunk?.translationGroups ?? {}),
 	);
+	// Likewise for bylines: an author without a user mapping is matched only
+	// through this map, so a fresh one per chunk gives them a new byline each time.
+	const bylineCache = new Map<string, string>(Object.entries(incomingChunk?.bylines ?? {}));
 
 	const result = await importContent(
 		posts,
@@ -422,6 +426,7 @@ async function runContentChunk(
 		taxonomyPlan,
 		translationGroupMap,
 		wxr.site.link,
+		bylineCache,
 	);
 
 	const nextOffset = offset + posts.length;
@@ -432,7 +437,10 @@ async function runContentChunk(
 		result,
 		done,
 		cursor: { offset: nextOffset, source, taxonomiesReady: true },
-		chunk: { translationGroups: Object.fromEntries(translationGroupMap) },
+		chunk: {
+			translationGroups: Object.fromEntries(translationGroupMap),
+			bylines: Object.fromEntries(bylineCache),
+		},
 	};
 }
 
@@ -470,6 +478,7 @@ export async function importContent(
 	taxonomyPlan: TaxonomyImportPlan,
 	translationGroupMap = new Map<string, string>(),
 	siteUrl = "",
+	bylineCache = new Map<string, string>(),
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -488,7 +497,6 @@ export async function importContent(
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
-	const bylineCache = new Map<string, string>();
 
 	for (const post of posts) {
 		const postType = post.postType || "post";
@@ -603,7 +611,10 @@ export async function importContent(
 			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
 			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
 			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
-			const publishedAt = status === "published" && createdAt ? createdAt : undefined;
+			const scheduledAt =
+				post.status === "future" && createdAt && Date.parse(createdAt) > Date.now()
+					? createdAt
+					: undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -615,7 +626,8 @@ export async function importContent(
 				locale: postLocale,
 				translationOf,
 				createdAt,
-				publishedAt,
+				// Scheduled posts get their publication date from the final schedule.
+				publishedAt: scheduledAt ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
@@ -684,16 +696,11 @@ export async function importContent(
 					}
 				}
 
-				if (
-					createdItem &&
-					post.status === "future" &&
-					createdAt &&
-					Date.parse(createdAt) > Date.now()
-				) {
+				if (createdItem && scheduledAt) {
 					const scheduled = await emdash.handleContentSchedule(
 						collection,
 						createdItem.id,
-						createdAt,
+						scheduledAt,
 					);
 					if (!scheduled.success) {
 						result.errors.push({

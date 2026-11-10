@@ -20,6 +20,8 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
+const currentUser = vi.hoisted(() => ({ role: 50 }));
+
 // Mock API
 vi.mock("../../src/lib/api/client", async () => {
 	const actual = await vi.importActual("../../src/lib/api/client");
@@ -34,7 +36,7 @@ vi.mock("../../src/lib/api/client", async () => {
 								id: "1",
 								name: "Matt Kane",
 								email: "matt@test.com",
-								role: 50,
+								role: currentUser.role,
 							},
 						}),
 						{ status: 200 },
@@ -70,6 +72,7 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 describe("Header", () => {
 	beforeEach(() => {
+		currentUser.role = 50;
 		localStorage.clear();
 		document.documentElement.removeAttribute("data-mode");
 	});
@@ -103,5 +106,36 @@ describe("Header", () => {
 			</TestWrapper>,
 		);
 		await expect.element(screen.getByText("View Site")).toBeInTheDocument();
+	});
+
+	it("links a staging site to its status setting and hides the badge once live", async () => {
+		const screen = await render(
+			<TestWrapper>
+				<Header staging />
+			</TestWrapper>,
+		);
+		await expect
+			.element(screen.getByRole("link", { name: "Staging" }))
+			.toHaveAttribute("href", "/settings/general");
+
+		await screen.rerender(
+			<TestWrapper>
+				<Header />
+			</TestWrapper>,
+		);
+		expect(screen.getByText("Staging").query()).toBeNull();
+	});
+
+	it("shows the staging badge without a settings link to users who cannot change settings", async () => {
+		currentUser.role = 40;
+		const screen = await render(
+			<TestWrapper>
+				<Header staging />
+			</TestWrapper>,
+		);
+
+		await expect.element(screen.getByText("Matt Kane")).toBeInTheDocument();
+		await expect.element(screen.getByText("Staging")).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "Staging" }).query()).toBeNull();
 	});
 });

@@ -90,6 +90,8 @@ const MEDIA_DATE_FORMAT: Intl.DateTimeFormatOptions = {
 	minute: "2-digit",
 };
 
+const HTTPS_URL = /^https:\/\//i;
+
 const CLOSE_FALLBACK_MS = 500;
 const DIALOG_RESIZE_DURATION_MS = 340;
 const DIALOG_RESIZE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -1270,7 +1272,16 @@ export function MediaDetailPanel({
 								)
 							) : (
 								<div className="flex h-64 items-center justify-center overflow-hidden rounded-xl bg-kumo-tint ring ring-kumo-line md:h-80">
-									{isVideo && playback ? (
+									{isVideo && item.playerUrl && HTTPS_URL.test(item.playerUrl) ? (
+										<iframe
+											src={item.playerUrl}
+											title={t`Video player for ${item.filename}`}
+											allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+											allowFullScreen
+											sandbox="allow-scripts allow-same-origin allow-presentation"
+											className="h-full w-full border-0"
+										/>
+									) : isVideo && playback ? (
 										<video
 											poster={item.url || undefined}
 											controls

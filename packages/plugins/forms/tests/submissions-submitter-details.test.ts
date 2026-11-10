@@ -46,6 +46,18 @@ const handlers = {
 	"submissions/get": (ctx: RouteContext) => submissionGetHandler(ctx as never),
 };
 
+describe("submissions/list management capability", () => {
+	it.each([
+		[false, { role: EDITOR }],
+		[true, { role: ADMIN }],
+		[true, { role: 60 }],
+		[false, undefined],
+	] as const)("returns canManage=%s for user %o", async (canManage, user) => {
+		const result = await submissionsListHandler(ctxWith(storedSubmission(), user));
+		expect(result.canManage).toBe(canManage);
+	});
+});
+
 describe.each(Object.entries(handlers))("%s submitter details", (_route, read) => {
 	it("returns IP, user agent and referer to admins", async () => {
 		const item = await read(ctxWith(storedSubmission(), { role: ADMIN }));

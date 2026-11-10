@@ -21,6 +21,14 @@
 		"unicorn/prefer-add-event-listener": "off",
 		"typescript/no-unsafe-type-assertion": "warn",
 		"typescript/unbound-method": "off",
+		"typescript/no-floating-promises": [
+			"error",
+			{
+				"allowForKnownSafeCalls": [
+					{ "from": "package", "package": "node:test", "name": ["describe", "it", "suite", "test"] }
+				]
+			}
+		],
 		"typescript/no-unnecessary-boolean-literal-compare": "off",
 		// Noisy/stylistic rules added in newer oxlint. Disabled while we triage them
 		// (see https://github.com/emdash-cms/emdash/issues — track follow-ups before

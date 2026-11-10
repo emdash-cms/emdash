@@ -41,7 +41,7 @@ The following built-in component widgets are available:
 | `core:search` | A search form that submits to `/search` |
 | `core:archives` | Monthly or yearly post archive links |
 
-The `core:recent-posts` link template accepts the same tokens as LiveSearch's `routeMap`: `:collection`, `:id` (the content ULID), `:slug` (the bare slug), and `:path` (slug or ID). Without a template, links keep their existing shape, including any Astro i18n locale prefix.
+The `core:recent-posts` link template accepts the same tokens as LiveSearch's `routeMap`: `:collection`, `:id` (the content ULID), `:slug` (the bare slug), and `:path` (slug or ID). Without a template, posts link to `/posts/<slug>`. On a multilingual site, both forms go under the page's locale prefix, such as `/en/posts/<slug>`, unless the template already starts with it. A template that starts with Astro's `base` gets the prefix after the base.
 
 ## Place the area in a template
 
@@ -96,9 +96,9 @@ Astro component styles are scoped by default. Use a global style block when styl
 
 ## Menus and taxonomies in widgets
 
-Menu, category, and tag widgets query data in the current request locale. Menu references also resolve to the translated content or term when one exists.
+Category, tag, recent-post, and archive widgets list the terms, posts, and months of the page's locale. Their links go under that locale's prefix, for example `/en/category/news`.
 
-The built-in widget renderer uses the root-relative URL returned by the menu or taxonomy helper. It does not add Astro's locale prefix. On a multilingual site, render navigation and taxonomy lists with the [menu rendering pattern](/guides/menus/#render-a-menu) or [taxonomy list pattern](/guides/taxonomies/#query-a-term-list) when those links need locale prefixes. Content, search, recent-post, and archive widgets can still use the standard `WidgetArea` component.
+Menu widgets query data in the current request locale. Menu references also resolve to the translated content or term when one exists. The built-in widget renderer uses the root-relative URL returned by the menu helper and does not add Astro's locale prefix. On a multilingual site, render navigation with the [menu rendering pattern](/guides/menus/#render-a-menu) when menu links need locale prefixes.
 
 <Aside type="tip">
 	A content widget is rendered as Portable Text. Use a component widget when the output needs to
@@ -189,4 +189,4 @@ function menuHref(url: string) {
 
 This focused renderer produces no output for component widgets. Keep component widgets in the standard `WidgetArea`, or add explicit component-ID cases for the site components you support.
 
-The [runtime API reference](/reference/api/#widget-areas) documents `getWidgetArea()` and `getWidgetAreas()`. For programmatic changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [widget area endpoints](/reference/rest-api/#widget-area-endpoints) for request bodies and responses.
+The [runtime API reference](/reference/api/#widget-areas) documents `getWidgetArea()` and `getWidgetAreas()`. For programmatic changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [widget area endpoints](/reference/rest-api/#widgets) for the available operations.

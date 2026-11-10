@@ -66,6 +66,16 @@
  * Override Tailwind's --font-sans so all font-sans utilities use it.
  */
 @theme {
+	/* A strong ease-out: fast to respond, gentle to settle. */
+	--ease-emdash: cubic-bezier(0.22, 1, 0.36, 1);
+	/*
+	 * For anything that moves rows: a gentler start, so no frame carries the rows below a panel
+	 * too far. `DISCLOSURE_EASE` in block-field-styles.ts is the same curve.
+	 */
+	--ease-emdash-disclosure: cubic-bezier(0.33, 1, 0.68, 1);
+	--animate-emdash-popup-in: emdash-popup-in 150ms var(--ease-emdash);
+	/* A hover wash that darkens or lightens whatever surface it's on, so nested rows and cards hover alike. */
+	--color-emdash-hover: light-dark(oklch(0% 0 0 / 0.045), oklch(100% 0 0 / 0.06));
 	--text-color-emdash-media-folder: light-dark(var(--color-blue-500), var(--color-blue-400));
 	--font-sans: var(
 		--font-emdash,
@@ -908,6 +918,76 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	}
 }
 
+/* The blocks field's add and drag controls sit in the editor page's gutter, which needs room and a hovering pointer. */
+@custom-variant blocks-gutter (@media (min-width: 40rem) and (hover: hover) and (pointer: fine));
+
+/*
+ * A blocks field's popups (menus, the block picker, a quiet select) open with this animation, which
+ * moves them from their first frame.
+ */
+@keyframes emdash-popup-in {
+	from {
+		opacity: 0;
+		scale: 0.97;
+	}
+	to {
+		opacity: 1;
+		scale: 1;
+	}
+}
+
+/*
+ * Kumo's Select popup takes no class, so a quiet select's options mark it. It sizes to its
+ * options instead of its trigger, stays short enough to scroll, opens like the field's menus and
+ * goes at once after a choice.
+ */
+div:has(> [role="listbox"] > .emdash-block-option) {
+	min-width: min(12rem, var(--available-width));
+	max-width: min(20rem, var(--available-width));
+	max-height: min(17.5rem, var(--available-height));
+	transform-origin: var(--transform-origin);
+}
+
+div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
+	animation: var(--animate-emdash-popup-in);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
+		animation: none;
+	}
+}
+
+/* Rich text inside a block reads at the block's value size. */
+[data-block-body] [data-emdash-editor-variant="boxed"] .ProseMirror {
+	min-height: 6rem;
+	padding-block: 0.75rem;
+	font-size: 0.875rem;
+}
+
+[data-block-body] .ProseMirror.prose > p {
+	font-size: 0.875rem;
+	line-height: 1.5;
+}
+
+/*
+ * A blocks field marks keyboard focus with rings, and the active option in its popups with a wash,
+ * neither of which forced colors paint. Its problem dot is a fill, which they would paint over.
+ */
+@media (forced-colors: active) {
+	[data-blocks-field] :focus-visible,
+	.emdash-block-option[data-highlighted],
+	[data-block-type-option][aria-selected="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: -2px;
+	}
+
+	[data-blocks-field] [data-error-dot] {
+		forced-color-adjust: none;
+		background-color: CanvasText;
+	}
+}
+
 [data-emdash-editor-variant="document"] .emdash-document {
 	margin-inline: calc(var(--emdash-editor-gutter, 0rem) * -1);
 	padding-inline: var(--emdash-editor-gutter, 0rem);
@@ -1307,6 +1387,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 		padding-inline: 1rem;
 	}
 
+	/* With no handles beside it, rich text inside a block starts on the block's text edge. */
+	[data-block-body] [data-emdash-editor-variant="boxed"] .ProseMirror {
+		padding-inline: 0.5rem;
+	}
+
 	/* The narrow padding leaves block handles no room beside the text. */
 	[data-emdash-editor-variant="boxed"] .drag-handle {
 		display: none;
@@ -1459,6 +1544,61 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
  */
 [role="region"][aria-label="Notifications"] {
 	z-index: 10000 !important;
+}
+
+/*
+ * Kumo's toasts are the dialogs directly inside its live region, found by role rather than by the
+ * region's name, which a translation can change.
+ */
+
+/* A toast's close button takes a 44px square on a coarse pointer, at the same size. */
+@media (pointer: coarse) {
+	[role="region"][aria-live]
+		> :is([role="dialog"], [role="alertdialog"])
+		[data-kumo-part="close"]::after {
+		content: "";
+		position: absolute;
+		inset: -12px;
+	}
+}
+
+/*
+ * Toasts fade in and out where they rest instead of sliding. Without its transition, Kumo's exit
+ * transform would drop a toast below the screen at once, so one on its way out keeps its resting
+ * transform, Kumo's own collapsed or expanded one. One swiped away still goes the way it was swiped.
+ */
+@media (prefers-reduced-motion: reduce) {
+	[role="region"][aria-live] > :is([role="dialog"], [role="alertdialog"]) {
+		transition-property: opacity !important;
+	}
+
+	[role="region"][aria-live] > :is([role="dialog"], [role="alertdialog"])[data-starting-style] {
+		opacity: 0;
+	}
+
+	[role="region"][aria-live]
+		> :is([role="dialog"], [role="alertdialog"])[data-ending-style]:not([data-swipe-direction]) {
+		transform: translateX(var(--toast-swipe-movement-x))
+			translateY(
+				calc(
+					var(--toast-swipe-movement-y) - (var(--toast-index) * var(--peek)) -
+						(var(--shrink) * var(--height))
+				)
+			)
+			scale(var(--scale));
+	}
+
+	[role="region"][aria-live]
+		> :is([role="dialog"], [role="alertdialog"])[data-ending-style][data-expanded]:not(
+			[data-swipe-direction]
+		) {
+		transform: translateX(var(--toast-swipe-movement-x)) translateY(var(--offset-y));
+	}
+}
+
+/* While a toast covers a blocks field (useToastClearance), focus brought into view stays clear of it. */
+[data-emdash-editor-canvas]:has([data-blocks-field][data-toast-over]) {
+	scroll-padding-bottom: 8.5rem;
 }
 
 /* ==========================================================================
