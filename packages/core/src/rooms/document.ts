@@ -10,7 +10,7 @@ import {
 	FRAGMENT_PREFIX,
 	fragmentName,
 } from "@emdash-cms/admin/co-editing";
-import { portableTextToProsemirror } from "@emdash-cms/admin/portable-text";
+import { portableTextToProsemirror } from "@emdash-cms/admin/internal/portable-text";
 import { prosemirrorJSONToYXmlFragment } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 

@@ -81,6 +81,8 @@ export interface CreateRevisionInput {
 	editedBy?: readonly string[] | null;
 }
 
+const EDITOR_SETS_LIMIT = 100;
+
 export function normalizeRevisionLimit(value: unknown): number {
 	const numeric = Number(value);
 	if (!Number.isFinite(numeric)) return 50;
@@ -259,7 +261,8 @@ export class RevisionRepository {
 	 * Everyone the entry's revisions newer than `sinceId` credit, newest first and once each, or
 	 * everyone its revisions credit when `sinceId` is `null`. A revision credits its editors, or its
 	 * author when none are recorded; one that records no one credits no one. An entry is `null` for
-	 * an account that no longer exists.
+	 * an account that no longer exists. Revisions that credit the same people are read once, and only
+	 * the newest {@link EDITOR_SETS_LIMIT} such sets.
 	 */
 	async findEditorsSince(
 		collection: string,
@@ -268,10 +271,12 @@ export class RevisionRepository {
 	): Promise<Array<RevisionAuthor | null>> {
 		let query = this.db
 			.selectFrom("revisions")
-			.select(["author_id", "edited_by"])
+			.select((eb) => ["author_id", "edited_by", eb.fn.max("id").as("newest")])
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
-			.orderBy("id", "desc");
+			.groupBy(["author_id", "edited_by"])
+			.orderBy("newest", "desc")
+			.limit(EDITOR_SETS_LIMIT);
 		if (sinceId) query = query.where("id", ">", sinceId);
 
 		const rows = await query.execute();

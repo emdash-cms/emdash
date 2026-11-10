@@ -4976,7 +4976,8 @@ export class EmDashRuntime {
 		const id = roomId(entry);
 		if (options.overwrite && (await rooms.isOpen(id))) {
 			// The editor schema loads only where a room is open.
-			const { findUnsupportedPortableTextMarks } = await import("@emdash-cms/admin/portable-text");
+			const { findUnsupportedPortableTextMarks } =
+				await import("@emdash-cms/admin/internal/portable-text");
 			const values = await options.overwrite();
 			const collection = await this.schemaRegistry.getCollectionWithFields(entry.collection);
 			for (const field of collection?.fields ?? []) {

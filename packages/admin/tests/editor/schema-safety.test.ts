@@ -17,7 +17,7 @@ import { Editor } from "@tiptap/core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import { portableTextExtensions } from "../../src/portable-text.js";
+import { portableTextExtensions } from "../../src/internal/portable-text.js";
 import {
 	COMMANDS,
 	addToSummary,
