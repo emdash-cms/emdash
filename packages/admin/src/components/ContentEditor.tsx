@@ -921,6 +921,8 @@ export function ContentEditor({
 	entryRef.current = { collection, entryId: item?.id, fields };
 	// The savers belong to one entry: after a switch, the earlier entry's saves send nothing more.
 	const saversRef = React.useRef<OutsideListSavers | null>(null);
+	// The latest read of each reference field's pages, which alone may show what it read.
+	const referenceReadsRef = React.useRef(new Map<string, number>());
 	// Renders again once a list's unsent state may have changed, which the leave guard reads.
 	const [, listsChanged] = React.useReducer((count: number) => count + 1, 0);
 	const currentListSavers = React.useCallback((): ListSaver<unknown>[] => {
@@ -974,6 +976,7 @@ export function ContentEditor({
 			reference(fieldSlug) {
 				const existing = references.get(fieldSlug);
 				if (existing) return existing;
+				let readEveryPage = false;
 				const saver = new ListSaver<ReferenceEntryRow>({
 					changed: listsChanged,
 					key: (row) => row.id,
@@ -991,6 +994,7 @@ export function ContentEditor({
 								entryFields[fieldSlug],
 								latest.references?.[fieldSlug],
 							);
+							readEveryPage = complete;
 							const ids = build(rows, complete).map((row) => row.id);
 							// Only every page of the field says what the server holds. The entries pointing
 							// at this one have no limit, so they can be more than a save can name.
@@ -1006,7 +1010,15 @@ export function ContentEditor({
 						setReferenceState((prev) => {
 							const shown = prev[fieldSlug];
 							return shown
-								? { ...prev, [fieldSlug]: { ...shown, baseline: saved, current: saved } }
+								? {
+										...prev,
+										[fieldSlug]: {
+											...shown,
+											baseline: saved,
+											current: saved,
+											nextCursor: readEveryPage ? undefined : shown.nextCursor,
+										},
+									}
 								: prev;
 						});
 					},
@@ -1018,6 +1030,36 @@ export function ContentEditor({
 		saversRef.current = savers;
 		return savers;
 	}, []);
+	const readReferencePages = React.useCallback(
+		(
+			fieldSlug: string,
+			firstPage: { children: EntryRef[]; nextCursor?: string } | undefined,
+			seeded: ReferenceGroupState,
+			kept: ReferenceGroupState,
+		) => {
+			const read = (referenceReadsRef.current.get(fieldSlug) ?? 0) + 1;
+			referenceReadsRef.current.set(fieldSlug, read);
+			const identity = editorIdentityRef.current;
+			const { collection: entryCollection, entryId, fields: entryFields } = entryRef.current;
+			const show = (state: ReferenceGroupState) => {
+				if (referenceReadsRef.current.get(fieldSlug) !== read) return;
+				if (editorIdentityRef.current !== identity) return;
+				// A change made meanwhile shows its own save's result.
+				if (saversRef.current?.references.get(fieldSlug)?.unsent) return;
+				// Whatever wrote the field since, such as a refetch, an edit or a save's result, is newer.
+				setReferenceState((prev) =>
+					prev[fieldSlug] === kept ? { ...prev, [fieldSlug]: state } : prev,
+				);
+			};
+			void readReferenceRows(entryCollection, entryId, entryFields[fieldSlug], firstPage).then(
+				({ rows, complete }) =>
+					show(complete ? { baseline: rows, current: rows, loading: false } : seeded),
+				// The first page, from which the field pages as it does on load.
+				() => show(seeded),
+			);
+		},
+		[],
+	);
 
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
@@ -1244,12 +1286,18 @@ export function ContentEditor({
 				setInternalBylines(bylines);
 				if (item.references) {
 					const seeded = seedReferenceState(item);
-					for (const [fieldSlug, saver] of savers.references) {
+					for (const [fieldSlug, latest] of Object.entries(seeded)) {
 						const shown = referenceStateRef.current[fieldSlug];
-						const latest = seeded[fieldSlug];
-						if (!shown || !latest || !saver.unsent) continue;
-						const current = saver.adopt(latest.current, shown.current, !latest.nextCursor);
-						seeded[fieldSlug] = { ...latest, current: [...current] };
+						if (!shown) continue;
+						const saver = savers.references.get(fieldSlug);
+						if (saver?.unsent) {
+							const current = saver.adopt(latest.current, shown.current, !latest.nextCursor);
+							seeded[fieldSlug] = { ...latest, current: [...current] };
+						} else if (latest.nextCursor && !shown.nextCursor && !shown.loading) {
+							// Every page is shown, so it stays until every page of the entry's latest is read.
+							seeded[fieldSlug] = shown;
+							readReferencePages(fieldSlug, item.references[fieldSlug], latest, shown);
+						}
 					}
 					referenceStateRef.current = seeded;
 					setReferenceState(seeded);

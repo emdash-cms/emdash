@@ -1306,6 +1306,149 @@ describe("ContentEditor's values outside a room's document", () => {
 				},
 			]);
 	});
+	it("keeps every page of a reference field shown through a refetch, then shows its latest pages", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const entry = (id: string) => ({ id, slug: id, title: id, locale: "en", translationGroup: id });
+		const firstPage = () =>
+			makeItem({
+				references: { related: { children: [entry("one"), entry("two")], nextCursor: "page-2" } },
+			});
+		vi.mocked(fetchReferenceChildren).mockResolvedValueOnce({
+			children: [entry("three")],
+		} as never);
+		const props = editorProps(fake.room, {
+			fields: {
+				...FIELDS,
+				related: {
+					kind: "reference",
+					label: "Related",
+					validation: { relation: "rel-1", targetCollection: "posts", multiple: true },
+				},
+			},
+			item: firstPage(),
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByRole("button", { name: "Remove three" })).toBeInTheDocument();
+
+		const readsBefore = vi.mocked(fetchReferenceChildren).mock.calls.length;
+		let secondPage: (page: { children: ReturnType<typeof entry>[] }) => void = () => {};
+		vi.mocked(fetchReferenceChildren).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					secondPage = resolve as typeof secondPage;
+				}) as never,
+		);
+		await screen.rerender(<ContentEditor {...props} item={firstPage()} />);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "Remove three" }).query()).not.toBeNull();
+
+		// Someone else added an entry on the second page.
+		secondPage({ children: [entry("three"), entry("four")] });
+		await expect.element(screen.getByRole("button", { name: "Remove four" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Remove three" }).query()).not.toBeNull();
+		expect(vi.mocked(fetchReferenceChildren).mock.calls.length - readsBefore).toBe(1);
+	});
+	it("doesn't show a refetch's pages over a reference change made while it read them", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const entry = (id: string) => ({ id, slug: id, title: id, locale: "en", translationGroup: id });
+		const firstPage = () =>
+			makeItem({
+				references: { related: { children: [entry("one"), entry("two")], nextCursor: "page-2" } },
+			});
+		vi.mocked(fetchReferenceChildren).mockResolvedValueOnce({
+			children: [entry("three")],
+		} as never);
+		const { sent, replies, onSaveOutsideValues } = outsideSaves(firstPage);
+		const props = editorProps(fake.room, {
+			fields: {
+				...FIELDS,
+				related: {
+					kind: "reference",
+					label: "Related",
+					validation: { relation: "rel-1", targetCollection: "posts", multiple: true },
+				},
+			},
+			item: firstPage(),
+			onSaveOutsideValues,
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByRole("button", { name: "Remove three" })).toBeInTheDocument();
+
+		let refetchedPage: (page: { children: ReturnType<typeof entry>[] }) => void = () => {};
+		vi.mocked(fetchReferenceChildren)
+			.mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						refetchedPage = resolve as typeof refetchedPage;
+					}) as never,
+			)
+			.mockResolvedValueOnce({ children: [entry("three")] } as never);
+		await screen.rerender(<ContentEditor {...props} item={firstPage()} />);
+		await screen.getByRole("button", { name: "Remove one" }).click();
+		await expect.poll(() => sent).toHaveLength(1);
+		replies[0]!.resolve();
+		await expect
+			.element(screen.getByRole("button", { name: "Remove one" }))
+			.not.toBeInTheDocument();
+
+		refetchedPage({ children: [entry("three"), entry("four")] });
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "Remove one" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Remove four" }).query()).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Remove three" })).toBeInTheDocument();
+	});
+	it("shows a later refetch's list over the pages an earlier one was still reading", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const entry = (id: string) => ({ id, slug: id, title: id, locale: "en", translationGroup: id });
+		const paged = () =>
+			makeItem({
+				references: { related: { children: [entry("one"), entry("two")], nextCursor: "page-2" } },
+			});
+		vi.mocked(fetchReferenceChildren).mockResolvedValueOnce({
+			children: [entry("three")],
+		} as never);
+		const props = editorProps(fake.room, {
+			fields: {
+				...FIELDS,
+				related: {
+					kind: "reference",
+					label: "Related",
+					validation: { relation: "rel-1", targetCollection: "posts", multiple: true },
+				},
+			},
+			item: paged(),
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByRole("button", { name: "Remove three" })).toBeInTheDocument();
+
+		let earlierPages: (page: { children: ReturnType<typeof entry>[] }) => void = () => {};
+		vi.mocked(fetchReferenceChildren).mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					earlierPages = resolve as typeof earlierPages;
+				}) as never,
+		);
+		await screen.rerender(<ContentEditor {...props} item={paged()} />);
+		// Someone else removed entries, so the field now fits on one page.
+		await screen.rerender(
+			<ContentEditor
+				{...props}
+				item={makeItem({ references: { related: { children: [entry("one")] } } })}
+			/>,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Remove two" }))
+			.not.toBeInTheDocument();
+
+		earlierPages({ children: [entry("three")] });
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("button", { name: "Remove two" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Remove three" }).query()).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Remove one" })).toBeInTheDocument();
+	});
 });
 
 describe("ContentEditor's editor-draft plugins in a room", () => {
