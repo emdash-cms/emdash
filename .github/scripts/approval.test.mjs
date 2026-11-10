@@ -222,6 +222,7 @@ describe("Maintainer review status", () => {
 			files: [
 				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
 				workflowEdit(".github/workflows/visual.yml", "-      - run: pnpm test:e2e"),
+				workflowEdit(".github/workflows/query-counts.yml", "+    name: Measure queries"),
 				{ filename: ".github/scripts/test-plan.mjs", status: "modified" },
 			],
 		});
@@ -239,6 +240,8 @@ describe("Maintainer review status", () => {
 		["adds a pull_request_target trigger", "+  pull_request_target:"],
 		["adds a workflow_run trigger", "+  workflow_run:"],
 		["adds an issue_comment trigger", "+  issue_comment:"],
+		["renames the workflow", "+name: Format"],
+		["renames the workflow with a quoted key", '+"name": Format'],
 	]) {
 		it(`keeps two approvals when an edit to a read-only workflow ${change}`, async () => {
 			await assertNeedsTwo([workflowEdit(".github/workflows/ci.yml", line)]);

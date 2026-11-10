@@ -142,9 +142,10 @@ jobs:
             ];
             // Expressions ignore case, and an escape in a double-quoted YAML
             // string can spell any of these words, so case is ignored and any
-            // backslash counts.
+            // backslash counts. A `workflow_run` trigger picks the workflow it
+            // follows by name, so a change to the top-level `name:` counts too.
             const privilegeChange = new RegExp(
-              `permissions|secrets|\\bwrite\\b|\\\\|\\b(?:${privilegedEvents.join('|')})\\b|(?:^[+-]\\s*|[{,]\\s*)(?:${permissionScopes.join('|')})\\s*:`,
+              `permissions|secrets|\\bwrite\\b|\\\\|\\b(?:${privilegedEvents.join('|')})\\b|(?:^[+-]\\s*|[{,]\\s*)(?:${permissionScopes.join('|')})\\s*:|^[+-]["']?name["']?\\s*:`,
               'i',
             );
 
