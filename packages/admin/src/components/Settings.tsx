@@ -13,6 +13,7 @@ import {
 	ArrowsLeftRight,
 	CaretDown,
 	Images,
+	SidebarSimple,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -134,8 +135,14 @@ export function Settings() {
 					</SettingsSection>
 				) : null}
 
-				{SUPPORTED_LOCALES.length > 1 && (
-					<SettingsSection title={t`Language`}>
+				<SettingsSection title={t`Personal`}>
+					<SettingsNavRow
+						to="/settings/sidebars"
+						icon={<SidebarSimple className="h-5 w-5" />}
+						title={t`Sidebars`}
+						description={t`Choose what the navigation and editor sidebars show, and in what order`}
+					/>
+					{SUPPORTED_LOCALES.length > 1 && (
 						<div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="flex min-w-0 items-center gap-3">
 								<span
@@ -180,8 +187,8 @@ export function Settings() {
 								</Combobox.Content>
 							</Combobox>
 						</div>
-					</SettingsSection>
-				)}
+					)}
+				</SettingsSection>
 			</div>
 		</div>
 	);

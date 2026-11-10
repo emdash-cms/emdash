@@ -164,6 +164,13 @@ function pluginWrapper(pluginAdmins: PluginAdmins) {
 	};
 }
 
+function sectionIds(container: HTMLElement): string[] {
+	return Array.from(
+		container.querySelectorAll<HTMLElement>("section[data-settings-section]"),
+		(section) => section.dataset.settingsSection ?? "",
+	);
+}
+
 function makePanelProps(
 	overrides: Partial<ContentSettingsPanelProps> = {},
 ): ContentSettingsPanelProps {
@@ -223,13 +230,18 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Drag to reorder SEO" }))
-			.toBeInTheDocument();
 
-		const taxonomySection = screen.getByTestId("taxonomy-sidebar").element().closest("section");
-		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
-		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
+		expect(sectionIds(screen.container)).toEqual([
+			"publish",
+			"url-language",
+			"ownership",
+			"bylines",
+			"translations",
+			"taxonomies",
+			"seo",
+			"outline",
+			"revisions",
+		]);
 	});
 
 	it("shows the collection's titleField value as the SEO Title placeholder", async () => {
@@ -646,9 +658,6 @@ describe("ContentSettingsPanel", () => {
 				.element(screen.getByRole("heading", { name: "Content insights" }))
 				.toBeInTheDocument();
 			await expect.element(screen.getByTestId("insights-panel")).toHaveTextContent("(en)");
-			expect(
-				screen.getByRole("button", { name: "Drag to reorder Content insights" }).query(),
-			).not.toBeNull();
 		},
 	);
 
@@ -1155,9 +1164,6 @@ describe("ContentSettingsPanel", () => {
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Inhoudsinzichten" }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("button", { name: "Drag to reorder Inhoudsinzichten" }))
 				.toBeInTheDocument();
 		} finally {
 			i18n.activate(previousLocale);
@@ -1688,7 +1694,6 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
-		expect(screen.getByRole("button", { name: "Drag to reorder Publish" }).query()).toBeNull();
 		await expect.element(screen.getByRole("heading", { name: "URL & language" })).toBeVisible();
 		// No trash, no translations, no taxonomies, no SEO, no revisions for new items
 		expect(screen.container.textContent).not.toContain("Move to Trash");
@@ -1714,54 +1719,22 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
 	});
 
-	it("keeps the saved section order when sections are reordered on a new entry", async () => {
-		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
-		const savedLayout = JSON.stringify({
-			version: 1,
-			order: ["seo", "taxonomies", "url-language", "ownership", "bylines"],
-		});
-		window.localStorage.setItem(storageKey, savedLayout);
-		try {
-			const screen = await render(
-				<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
-			);
-			const headings = () =>
-				Array.from(
-					screen.container.querySelectorAll("section h3"),
-					(heading) => heading.textContent,
-				);
-			await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
-			expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership"));
+	it("a new entry follows the saved editor order", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: null,
+					isNew: true,
+					adminLayout: { order: ["bylines", "publish", "url-language"], hidden: ["ownership"] },
+				})}
+			/>,
+		);
 
-			const handle = screen.getByRole("button", { name: "Drag to reorder Bylines" }).element();
-			handle.focus();
-			for (const [target, key, code] of [
-				[handle, " ", "Space"],
-				[document, "ArrowUp", "ArrowUp"],
-				[document, " ", "Space"],
-			] as const) {
-				await act(async () => {
-					fireEvent.keyDown(target, { key, code });
-					await new Promise((resolve) => setTimeout(resolve, 0));
-				});
-			}
-
-			await vi.waitFor(() =>
-				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
-			);
-			expect(window.localStorage.getItem(storageKey)).toBe(savedLayout);
-		} finally {
-			window.localStorage.removeItem(storageKey);
-		}
+		await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
+		expect(sectionIds(screen.container)).toEqual(["bylines", "publish", "url-language", "outline"]);
 	});
 
-	it("preserves pending panel positions while reordering another section", async () => {
-		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
-		const savedLayout = JSON.stringify({
-			version: 1,
-			order: ["seo", "plugin:insights:summary", "outline", "ownership", "bylines"],
-		});
-		window.localStorage.setItem(storageKey, savedLayout);
+	it("shows a pending panel at its saved position once its visibility check allows it", async () => {
 		let resolveVisibility!: (visible: boolean) => void;
 		const visibility = new Promise<boolean>((resolve) => {
 			resolveVisibility = resolve;
@@ -1778,82 +1751,26 @@ describe("ContentSettingsPanel", () => {
 				],
 			},
 		};
-		const panelProps = makePanelProps({ manifest: TEST_MANIFEST });
-		try {
-			const screen = await render(<ContentSettingsPanel {...panelProps} />, {
-				wrapper: pluginWrapper(pluginAdmins),
-			});
-			expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					adminLayout: { order: ["seo", "plugin:insights:summary", "outline"], hidden: [] },
+				})}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		await expect.element(screen.getByRole("heading", { name: "SEO" })).toBeVisible();
+		expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
 
-			const headings = () =>
-				Array.from(
-					screen.container.querySelectorAll("section h3"),
-					(heading) => heading.textContent,
-				);
-			await vi.waitFor(() =>
-				expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership")),
-			);
-			const pendingPanelHandle = screen
-				.getByRole("button", { name: "Drag to reorder Bylines" })
-				.element();
-			const bylinesSection = pendingPanelHandle.closest("section")!;
-			const ownershipSection = screen
-				.getByRole("heading", { name: "Ownership" })
-				.element()
-				.closest("section")!;
-			pendingPanelHandle.focus();
-			await userEvent.keyboard(" ");
-			await vi.waitFor(() => expect(bylinesSection.dataset.sorting).toBe("true"));
-			// Collapsing the sections changes the geometry used by the keyboard sensor.
-			await act(async () => {
-				await new Promise<void>((resolve) => {
-					requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-				});
-			});
-			await userEvent.keyboard("{ArrowUp}");
-			await vi.waitFor(() =>
-				expect(bylinesSection.getBoundingClientRect().top).toBeLessThan(
-					ownershipSection.getBoundingClientRect().top,
-				),
-			);
-			await userEvent.keyboard(" ");
-			await vi.waitFor(() => expect(bylinesSection.dataset.sorting).toBe("false"));
+		await act(async () => resolveVisibility(true));
 
-			await vi.waitFor(() =>
-				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
-			);
-			const reorderedLayout = JSON.parse(window.localStorage.getItem(storageKey) ?? "null");
-			expect(reorderedLayout.order).toEqual(
-				expect.arrayContaining([
-					"seo",
-					"plugin:insights:summary",
-					"outline",
-					"bylines",
-					"ownership",
-				]),
-			);
-			expect(reorderedLayout.order.indexOf("seo")).toBeLessThan(
-				reorderedLayout.order.indexOf("plugin:insights:summary"),
-			);
-			expect(reorderedLayout.order.indexOf("plugin:insights:summary")).toBeLessThan(
-				reorderedLayout.order.indexOf("outline"),
-			);
-
-			await act(async () => resolveVisibility(true));
-			await expect
-				.element(screen.getByRole("heading", { name: "Content insights" }))
-				.toBeInTheDocument();
-			const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
-			const pluginSection = screen
-				.getByRole("heading", { name: "Content insights" })
-				.element()
-				.closest("section");
-			const outlineSection = screen.getByTestId("doc-outline").element().closest("section");
-			expect(seoSection?.nextElementSibling).toBe(pluginSection);
-			expect(pluginSection?.nextElementSibling).toBe(outlineSection);
-		} finally {
-			window.localStorage.removeItem(storageKey);
-		}
+		await expect
+			.element(screen.getByRole("heading", { name: "Content insights" }))
+			.toBeInTheDocument();
+		const ids = sectionIds(screen.container);
+		expect(ids.indexOf("plugin:insights:summary")).toBe(ids.indexOf("seo") + 1);
+		expect(ids.indexOf("outline")).toBe(ids.indexOf("plugin:insights:summary") + 1);
 	});
 
 	it("does not render an empty publishing summary for a new collection without drafts", async () => {
@@ -1889,30 +1806,6 @@ describe("ContentSettingsPanel", () => {
 		const root = screen.container.firstElementChild;
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
-	});
-
-	it("hides destructive actions without collapsing their space while reordering", async () => {
-		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
-		const trashActions = screen.getByTestId("content-trash-actions").element();
-		const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
-
-		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).not.toHaveAttribute("aria-hidden");
-
-		handle.focus();
-		await act(async () => {
-			fireEvent.keyDown(handle, { key: " ", code: "Space" });
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		});
-		expect(trashActions).toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).toHaveAttribute("aria-hidden", "true");
-
-		await act(async () => {
-			fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		});
-		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).not.toHaveAttribute("aria-hidden");
 	});
 });
 
