@@ -8,6 +8,7 @@
  */
 
 import { Extension, type AnyExtension } from "@tiptap/core";
+import { isHistoryTransaction } from "@tiptap/pm/history";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, Transaction, type EditorState } from "@tiptap/pm/state";
 import { canJoin, liftTarget, type Step } from "@tiptap/pm/transform";
@@ -162,11 +163,11 @@ function firstChangeStart(transactions: readonly Transaction[]): number | null {
 
 /**
  * Whether the list item at `pos`, which starts with a nested list and started
- * at `before` before the transactions, gives that list's items its place.
+ * at `before` before the transactions, gives that list's first items its place.
  * ProseMirror did that when items had to start with a paragraph and an edit
- * that started inside the item left text on the nested list's first line, by
- * cutting into that line or pasting it. Otherwise it gave the item an empty
- * paragraph.
+ * that started inside the item reached the nested list's first line, by cutting
+ * into it, cutting it to its end, or pasting it. Otherwise it gave the item an
+ * empty paragraph.
  */
 function liftsNestedItems(
 	node: ProseMirrorNode,
@@ -190,38 +191,109 @@ function liftsNestedItems(
 	if (lineBefore === null) return true;
 	const $line = oldDoc.resolve(lineBefore);
 	if ($line.parentOffset === 0 && $line.parent.content.eq(line.content)) return false;
-	return $line.parentOffset < $line.parent.content.size;
+	if ($line.parentOffset < $line.parent.content.size) return true;
+	return line.content.size === 0 && $line.parent.content.size > 0;
 }
 
 /**
- * Moves the items of the nested list that the list item at `pos` starts with up
- * into the item's own list. What the item holds after that list stays in an
- * item of its own, joined to the last moved item when it starts with a list.
+ * Whether the node at `pos` is one the transactions left as it was, here or
+ * moved.
  */
-function liftNestedItems(tr: Transaction, pos: number) {
-	const item = tr.doc.nodeAt(pos)!;
-	const nested = item.firstChild!;
-	const $start = tr.doc.resolve(pos + 2);
-	const range = $start.blockRange(tr.doc.resolve(pos + 2 + nested.content.size));
-	const target = range ? liftTarget(range) : null;
-	if (!range || target === null) return;
-	const rest = pos + 1 + nested.nodeSize;
-	const steps = tr.steps.length;
-	tr.lift(range, target);
-	if (item.childCount < 2 || item.child(1).type.name === "paragraph") return;
-	const leftover = tr.mapping.slice(steps).map(rest) - 1;
-	if (canJoin(tr.doc, leftover)) tr.join(leftover);
+function unchanged(
+	node: ProseMirrorNode,
+	pos: number,
+	transactions: readonly Transaction[],
+	oldDoc: ProseMirrorNode,
+): boolean {
+	const before = positionBefore(transactions, pos);
+	return before !== null && oldDoc.nodeAt(before)?.eq(node) === true;
+}
+
+/**
+ * Moves the items the edit made at the start of the nested list that the list
+ * item at `pos` starts with up into the item's place, and again while the item
+ * there starts with a nested list. Items the edit left as they were stay
+ * nested. What the item holds after the moved items stays in an item of its
+ * own, joined to the last moved item when it starts with a list, and that list
+ * joins the moved item's own nested list.
+ */
+function liftEditedNestedItems(
+	tr: Transaction,
+	pos: number,
+	transactions: readonly Transaction[],
+	oldDoc: ProseMirrorNode,
+) {
+	for (;;) {
+		const item = tr.doc.nodeAt(pos);
+		const nested = item?.firstChild;
+		if (!item || !nested || nested.type.name === "paragraph" || nested.childCount === 0) return;
+		let count = 1;
+		let size = nested.child(0).nodeSize;
+		while (count < nested.childCount) {
+			const next = nested.child(count);
+			if (unchanged(next, tr.mapping.invert().map(pos + 2 + size), transactions, oldDoc)) break;
+			size += next.nodeSize;
+			count++;
+		}
+		const last = nested.child(count - 1);
+		const range = tr.doc.resolve(pos + 2).blockRange(tr.doc.resolve(pos + 2 + size));
+		const target = range ? liftTarget(range) : null;
+		if (!range || target === null) return;
+		tr.lift(range, target);
+		if (count < nested.childCount || item.childCount > 1) {
+			const leftover = pos + size;
+			if (
+				tr.doc.nodeAt(leftover)?.firstChild?.type.name !== "paragraph" &&
+				canJoin(tr.doc, leftover)
+			) {
+				tr.join(leftover);
+				const lists = leftover - last.nodeSize + 1 + last.content.size;
+				const $lists = tr.doc.resolve(lists);
+				if ($lists.nodeBefore?.type === $lists.nodeAfter?.type && canJoin(tr.doc, lists)) {
+					tr.join(lists);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * The positions of the items on the first-line chain of the list item at `pos`:
+ * the first item of the list it starts with, and so on while each starts with a
+ * list.
+ */
+function firstLineChain(node: ProseMirrorNode, pos: number): number[] {
+	const chain: number[] = [];
+	let item = node;
+	while (item.firstChild?.type.name !== "paragraph" && item.firstChild?.firstChild) {
+		item = item.firstChild.firstChild;
+		pos += 2;
+		chain.push(pos);
+	}
+	return chain;
+}
+
+/** The containers in `doc` that `misshapen` accepts. */
+function misshapenNodes(doc: ProseMirrorNode): Set<ProseMirrorNode> {
+	const nodes = new Set<ProseMirrorNode>();
+	doc.descendants((node) => {
+		if (node.isTextblock) return false;
+		if (misshapen(node)) nodes.add(node);
+		return true;
+	});
+	return nodes;
 }
 
 /**
  * Gives back the shapes a local edit took from containers. A list item it left
- * without a leading paragraph gets one, or gives the items of the nested list it
- * starts with its place, and an empty list, quote or cell it added gets an item
- * or a paragraph. A list, list item or quote it emptied is removed, as it was
+ * without a leading paragraph gets one, or gives the items the edit made at
+ * the start of the nested list it starts with its place, and an empty list,
+ * quote or cell it added gets an item or a paragraph. A list, list item or quote it emptied is removed, as it was
  * when they couldn't be empty, and so is a list or list item that removal leaves
  * empty; a cell it emptied gets a paragraph. A container that already had its
- * shape, such as one a merge left, is left alone, and only what the edit itself
- * emptied is removed, so this can't remove what another client added.
+ * shape, such as one a merge left or one the edit only moved, is left alone,
+ * and only what the edit itself emptied is removed, so this can't remove what
+ * another client added.
  */
 function reshapeContainers(
 	state: EditorState,
@@ -233,11 +305,14 @@ function reshapeContainers(
 	const refills = new Set<number>();
 	const removals = new Set<number>();
 	const lifts = new Set<number>();
+	const chained = new Set<number>();
+	let existing: Set<ProseMirrorNode> | undefined;
+	const existed = (node: ProseMirrorNode) => (existing ??= misshapenNodes(oldState.doc)).has(node);
 	for (const range of changedRanges(transactions)) {
 		const { from, to } = clamp(doc, range);
 		doc.nodesBetween(from, to, (node, pos) => {
 			if (node.isTextblock) return false;
-			if (!misshapen(node)) return true;
+			if (!misshapen(node) || chained.has(pos)) return true;
 			const before = positionBefore(transactions, pos);
 			const previous = before === null ? null : oldState.doc.nodeAt(before);
 			if (
@@ -247,11 +322,16 @@ function reshapeContainers(
 				previous.childCount > 0
 			) {
 				removals.add(pos);
-			} else if (previous?.type !== node.type || !misshapen(previous)) {
-				const lifted =
+			} else if ((previous?.type !== node.type || !misshapen(previous)) && !existed(node)) {
+				if (
 					node.type.name === "listItem" &&
-					liftsNestedItems(node, pos, before, transactions, oldState.doc);
-				(lifted ? lifts : refills).add(pos);
+					liftsNestedItems(node, pos, before, transactions, oldState.doc)
+				) {
+					lifts.add(pos);
+					for (const item of firstLineChain(node, pos)) chained.add(item);
+				} else {
+					refills.add(pos);
+				}
 			}
 			return true;
 		});
@@ -261,7 +341,7 @@ function reshapeContainers(
 		const mapped = tr.mapping.mapResult(pos);
 		if (mapped.deleted) continue;
 		if (lifts.has(pos)) {
-			liftNestedItems(tr, mapped.pos);
+			liftEditedNestedItems(tr, mapped.pos, transactions, oldState.doc);
 			continue;
 		}
 		const $inside = tr.doc.resolve(mapped.pos + 1);
@@ -306,10 +386,17 @@ function unmarkLineBreaks(
 	}
 }
 
+/**
+ * Undo and redo already hold the steps this appended to the edits they replay,
+ * and the history doesn't map its other entries through steps appended to them.
+ */
 function shapePlugin(): Plugin {
 	return new Plugin({
 		appendTransaction(transactions, oldState, state) {
 			if (!transactions.some((transaction) => transaction.docChanged)) return null;
+			if (transactions.some((transaction) => isHistoryTransaction(rootOf(transaction)))) {
+				return null;
+			}
 			const tr = state.tr;
 			unmarkLineBreaks(state, transactions, tr);
 			reshapeContainers(state, oldState, transactions, tr);
