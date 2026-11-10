@@ -22,7 +22,7 @@ Record the current permalink structure, canonical origin, redirects, menus, acti
 
 | Method | Use it when | Included data |
 | --- | --- | --- |
-| WXR upload | You can export from **Tools → Export** | Data represented in the export, including posts, pages, custom post types, taxonomy terms, reusable blocks, authors, and attachment URLs |
+| WXR upload | You can export from **Tools → Export** | Data represented in the export, including posts, pages, custom post types, taxonomy terms, menus, reusable blocks, authors, and attachment URLs |
 | EmDash Exporter | You control the WordPress site and can install the exporter | Authenticated content plus supported site settings, SEO fields, taxonomies, and media metadata; comments, menus, the logo, and the favicon with exporter 1.2.0 or later |
 
 Entering a site URL without the exporter only probes the public WordPress REST API. The probe can detect WordPress and count public posts, pages, and media, but it cannot perform a direct REST import.
@@ -96,7 +96,7 @@ To import from a WordPress site that runs on your computer, give it a public add
 
 4. Map WordPress authors to EmDash users. An unmapped source author can be represented by a guest byline, so presentation credit does not depend on granting an EmDash login.
 
-5. For an exporter import, choose whether to import menus, site title and tagline, logo and favicon, and supported SEO values. These switches are not part of the WXR path.
+5. Choose whether to import menus. For an exporter import, also choose whether to import the site title and tagline, logo and favicon, and supported SEO values. These switches are not part of the WXR path.
 
 6. Start the import. EmDash creates missing compatible collections and fields before it creates entries.
 
@@ -197,7 +197,7 @@ Check the imported site against the source:
 - Open representative Gutenberg, Classic Editor, shortcode, and page-builder content.
 - Confirm featured images and inline media resolve from EmDash URLs.
 - Check authors, bylines, categories, tags, custom taxonomies, and translations.
-- Test menus, comments, site identity, and SEO fields when imported through the exporter.
+- Test menus. After an exporter import, also test comments, site identity, and SEO fields.
 - Crawl old public URLs and prepare redirects for every changed route.
 - Verify drafts remain inaccessible to logged-out visitors.
 
