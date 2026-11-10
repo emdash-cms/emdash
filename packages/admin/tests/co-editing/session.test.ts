@@ -31,7 +31,14 @@ const joining = (
 });
 const connecting = (
 	patch: Partial<Extract<SessionState, { kind: "connecting" }>> = {},
-): SessionState => ({ kind: "connecting", replica: null, away: null, welcomed: null, ...patch });
+): SessionState => ({
+	kind: "connecting",
+	replica: null,
+	away: null,
+	takeover: false,
+	welcomed: null,
+	...patch,
+});
 const waiting = (
 	replica: ReplicaInfo | null,
 	away: Away,
@@ -356,6 +363,20 @@ const ROWS: Row[] = [
 	],
 	["synced before welcome", connecting(), { type: "synced", at: AT }, connecting(), []],
 	[
+		"the replica chunk fails to load after Take over, which joins with takeover again",
+		connecting({ takeover: true }),
+		{ type: "load-failed" },
+		joining({ takeover: true, singleEditor: "load-failed" }),
+		[join(true, true)],
+	],
+	[
+		"Take over that answers a room keeps the takeover while it connects",
+		joining({ takeover: true }),
+		joined(ROOM),
+		connecting({ takeover: true }),
+		[connect(true)],
+	],
+	[
 		"the replica chunk fails to load",
 		connecting({ away: AWAY }),
 		{ type: "load-failed" },
@@ -446,6 +467,20 @@ const ROWS: Row[] = [
 		[retryIn(4000)],
 	],
 	[
+		"third socket that never opened after Take over joins pinned with takeover",
+		connecting({ takeover: true }),
+		closed(1006, { opened: false, noWebSockets: true }),
+		joining({ away: NEW_AWAY, takeover: true, singleEditor: "pinned" }),
+		[join(true, true)],
+	],
+	[
+		"a Take over's socket that drops before live retries with takeover",
+		connecting({ takeover: true }),
+		closed(1006, { opened: false }),
+		waiting(null, { ...NEW_AWAY, attempt: 1 }, "offline", { takeover: true, singleEditor: null }),
+		[retryIn(0)],
+	],
+	[
 		"third socket that never opened",
 		connecting(),
 		closed(1006, { opened: false, noWebSockets: true }),
@@ -493,6 +528,13 @@ const ROWS: Row[] = [
 		live,
 		{ type: "offline", at: AT },
 		waiting(EDIT, { ...NEW_AWAY, attempt: 1 }, "offline"),
+		[CLOSE, retryIn(0)],
+	],
+	[
+		"a Take over that goes offline before live retries with takeover",
+		connecting({ takeover: true }),
+		{ type: "offline", at: AT },
+		waiting(null, { ...NEW_AWAY, attempt: 1 }, "offline", { takeover: true, singleEditor: null }),
 		[CLOSE, retryIn(0)],
 	],
 	["offline while joining", joining(), { type: "offline", at: AT }, joining(), []],

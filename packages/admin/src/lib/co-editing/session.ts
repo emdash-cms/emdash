@@ -70,6 +70,8 @@ export type SessionState =
 			readonly kind: "connecting";
 			readonly replica: ReplicaInfo | null;
 			readonly away: Away | null;
+			/** The join was a Take over, which a join after a failed chunk load asks for again. */
+			readonly takeover: boolean;
 			readonly welcomed: ReplicaInfo | null;
 	  }
 	| {
@@ -177,7 +179,7 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 			return state.kind === "joining" ? joined(state, event) : stay(state);
 		case "load-failed":
 			return state.kind === "connecting"
-				? joining(null, state.away, false, "load-failed")
+				? joining(null, state.away, state.takeover, "load-failed")
 				: stay(state);
 		case "welcome":
 			return state.kind === "connecting" && !state.welcomed ? welcomed(state, event) : stay(state);
@@ -194,9 +196,12 @@ export function transition(state: SessionState, event: SessionEvent): Transition
 				: stay(state);
 		case "offline":
 			return state.kind === "connecting" || state.kind === "live"
-				? retryOffline(state.replica, continuedAway(state, event.at) ?? freshAway(event.at), [
-						CLOSE,
-					])
+				? retryOffline(
+						state.replica,
+						continuedAway(state, event.at) ?? freshAway(event.at),
+						[CLOSE],
+						{ takeover: state.kind === "connecting" && state.takeover, singleEditor: null },
+					)
 				: stay(state);
 		case "online":
 			return state.kind === "waiting" && state.reason === "offline"
@@ -234,7 +239,7 @@ function joined(
 	switch (outcome.kind) {
 		case "room":
 			return {
-				state: { kind: "connecting", replica, away, welcomed: null },
+				state: { kind: "connecting", replica, away, takeover, welcomed: null },
 				effects: [
 					{ type: "connect", url: outcome.url, token: outcome.token, fresh: replica === null },
 				],
@@ -300,23 +305,28 @@ function closed(
 	const away = continued ?? freshAway(event.at);
 	const rejoined = { ...away, rejoins: continued ? away.rejoins + 1 : 0 };
 	const rejoinNow = rejoined.rejoins < REJOINS_BEFORE_WAIT;
+	// A Take over that never reached live hasn't taken the lock yet, so the next join asks again.
+	const takeover = state.kind === "connecting" && state.takeover;
+	const intent: JoinIntent = { takeover, singleEditor: null };
 	switch (event.code) {
 		case CLOSE_CODES.rejoin:
-			return rejoinNow ? joining(replica, rejoined, false, null) : retryBusy(replica, rejoined);
+			return rejoinNow
+				? joining(replica, rejoined, takeover, null)
+				: retryBusy(replica, rejoined, intent);
 		case CLOSE_CODES.reset:
 		case CLOSE_TOO_LARGE:
 			if (replica && event.uncovered) return recover(replica, { kind: "rejoin" });
 			return rejoinNow
-				? joining(null, rejoined, false, null, [DISCARD])
-				: retryBusy(null, rejoined, PLAIN_JOIN, [DISCARD]);
+				? joining(null, rejoined, takeover, null, [DISCARD])
+				: retryBusy(null, rejoined, intent, [DISCARD]);
 		case CLOSE_CODES.deleted:
 			if (replica && event.uncovered) return keep(replica, "deleted");
 			return leave("deleted");
 		case CLOSE_CODES.busy:
-			return retryBusy(replica, away);
+			return retryBusy(replica, away, intent);
 		default:
-			if (!event.opened && event.noWebSockets) return joining(replica, away, false, "pinned");
-			return retryOffline(replica, away);
+			if (!event.opened && event.noWebSockets) return joining(replica, away, takeover, "pinned");
+			return retryOffline(replica, away, [], intent);
 	}
 }
 
