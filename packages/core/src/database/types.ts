@@ -445,7 +445,7 @@ export interface CollectionTable {
 	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	title_field: string | null; // field slug for the admin list Title column (NULL = default)
-	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
+	date_field: string | null; // datetime field slug or publishedAt/createdAt/updatedAt for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
 	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row

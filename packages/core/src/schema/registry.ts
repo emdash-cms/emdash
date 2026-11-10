@@ -95,6 +95,8 @@ const COLUMN_TYPE_TO_DATA_TYPE = {
 } satisfies Record<ColumnType, ColumnDataType>;
 const TEXT_ALIAS_FIELD_TYPES: ReadonlySet<FieldType> = new Set(["string", "text", "slug"]);
 
+const SYSTEM_DATE_FIELDS: ReadonlySet<string> = new Set(["publishedAt", "createdAt", "updatedAt"]);
+
 /** Field types usable as a `titleField` — plain text that reads well as a title. */
 const TITLE_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
 
@@ -460,7 +462,8 @@ export class SchemaRegistry {
 
 	/**
 	 * Validate `titleField`/`dateField` against the collection's fields:
-	 * `titleField` must be a text-like field; `dateField` must be a `datetime` field.
+	 * `titleField` must be a text-like field; `dateField` must be a `datetime`
+	 * field or a system timestamp (`publishedAt`, `createdAt`, or `updatedAt`).
 	 * Only truthy values are checked (undefined = unchanged, null/"" = cleared).
 	 */
 	private async validateTitleDateFields(
@@ -469,7 +472,9 @@ export class SchemaRegistry {
 		input: { titleField?: string | null; dateField?: string | null },
 		db: Kysely<Database> = this.db,
 	): Promise<void> {
-		const slugs = [input.titleField, input.dateField].filter((slug): slug is string => !!slug);
+		const customDateField =
+			input.dateField && !SYSTEM_DATE_FIELDS.has(input.dateField) ? input.dateField : undefined;
+		const slugs = [input.titleField, customDateField].filter((slug): slug is string => !!slug);
 		if (slugs.length === 0) return;
 
 		const rows = await db
@@ -496,7 +501,7 @@ export class SchemaRegistry {
 			}
 		}
 
-		if (input.dateField) {
+		if (input.dateField && !SYSTEM_DATE_FIELDS.has(input.dateField)) {
 			const type = typeBySlug.get(input.dateField);
 			if (type === undefined) {
 				throw new SchemaError(
