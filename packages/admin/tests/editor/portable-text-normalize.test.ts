@@ -11,7 +11,10 @@ import { liftTarget } from "@tiptap/pm/transform";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { portableTextExtensions, portableTextToProsemirror } from "../../src/portable-text";
+import {
+	portableTextExtensions,
+	portableTextToProsemirror,
+} from "../../src/internal/portable-text";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
 import { PortableTextYSync } from "../../src/portable-text/y-sync";
 

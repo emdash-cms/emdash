@@ -25,7 +25,7 @@ import {
 	portableTextSchema,
 	portableTextToProsemirror,
 	prosemirrorToPortableText,
-} from "../../src/portable-text";
+} from "../../src/internal/portable-text";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
 import { PortableTextYSync } from "../../src/portable-text/y-sync";
 import { render } from "../utils/render";

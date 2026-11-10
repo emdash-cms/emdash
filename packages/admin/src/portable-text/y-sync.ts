@@ -130,6 +130,10 @@ const showsSnapshot = (state: EditorState) => {
 	return sync?.snapshot != null || sync?.prevSnapshot != null;
 };
 
+/**
+ * Works around https://github.com/ueberdosis/tiptap/issues/8735. Remove it once the y-tiptap pin
+ * includes a fix.
+ */
 function alignBeforeWrites(binding: ProsemirrorBinding) {
 	if (aligned.has(binding)) return;
 	aligned.add(binding);
