@@ -430,7 +430,7 @@ msgstr "{0, plural, one {Archivo multimedia} other {Archivos multimedia}}"
 
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
-msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
+msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
 msgstr ""
 
 #. placeholder {0}: bulkDeleteIds.length
@@ -934,7 +934,7 @@ msgid "{plural} go live now; draft edits stay unpublished."
 msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:172
-msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
+msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
@@ -6516,7 +6516,7 @@ msgid "Failed to discard draft"
 msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:227
-#: packages/admin/src/lib/api/dashboard.ts:73
+#: packages/admin/src/lib/api/dashboard.ts:76
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr ""
 
@@ -6627,7 +6627,7 @@ msgstr ""
 msgid "Failed to fetch content authors"
 msgstr ""
 
-#: packages/admin/src/lib/api/dashboard.ts:58
+#: packages/admin/src/lib/api/dashboard.ts:61
 msgid "Failed to fetch dashboard stats"
 msgstr "No se pudieron obtener las estadísticas del panel"
 
@@ -11474,10 +11474,6 @@ msgstr ""
 msgid "Publication date"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:171
-msgid "Publication policy blocked scheduled content"
-msgstr ""
-
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
@@ -12864,6 +12860,10 @@ msgstr "Programado"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
+msgstr ""
+
+#: packages/admin/src/components/Dashboard.tsx:171
+msgid "Scheduled content was not published"
 msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74

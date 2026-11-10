@@ -430,8 +430,8 @@ msgstr "{0, plural, one {Medya dosyası} other {Medya dosyası}}"
 
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
-msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr "{0, plural, one {Engellenen bir kayıt daha gösterilmiyor.} other {Engellenen # kayıt daha gösterilmiyor.}}"
+msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
+msgstr ""
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -934,8 +934,8 @@ msgid "{plural} go live now; draft edits stay unpublished."
 msgstr "{plural} şimdi yayımlanır; taslak düzenlemeler yayımlanmaz."
 
 #: packages/admin/src/components/Dashboard.tsx:172
-msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr "{policyRejected, plural, one {Etkilenen kaydı açın, politika engelini giderin ve yeniden zamanlayın. Başarılı bir zamanlama veya yayınlama işlemi bu bildirimi kaldırır.} other {Etkilenen kayıtları açın, politika engellerini giderin ve yeniden zamanlayın. Başarılı bir zamanlama veya yayınlama işlemi ilgili bildirimi kaldırır.}}"
+msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
+msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -6516,7 +6516,7 @@ msgid "Failed to discard draft"
 msgstr "Taslak değişikliklerinden vazgeçilemedi"
 
 #: packages/admin/src/components/Dashboard.tsx:227
-#: packages/admin/src/lib/api/dashboard.ts:73
+#: packages/admin/src/lib/api/dashboard.ts:76
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr "Zamanlanmış yayın engeli bildirimi kapatılamadı"
 
@@ -6627,7 +6627,7 @@ msgstr "İçerik alınamadı"
 msgid "Failed to fetch content authors"
 msgstr "İçerik yazarları alınamadı"
 
-#: packages/admin/src/lib/api/dashboard.ts:58
+#: packages/admin/src/lib/api/dashboard.ts:61
 msgid "Failed to fetch dashboard stats"
 msgstr "Kontrol paneli istatistikleri getirilemedi"
 
@@ -11474,10 +11474,6 @@ msgstr "Herkese açık yollar"
 msgid "Publication date"
 msgstr "Yayın tarihi"
 
-#: packages/admin/src/components/Dashboard.tsx:171
-msgid "Publication policy blocked scheduled content"
-msgstr "Yayın politikası zamanlanmış içeriği engelledi"
-
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
@@ -12865,6 +12861,10 @@ msgstr "Zamanlandı"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "Zamanlanmış değişiklikler"
+
+#: packages/admin/src/components/Dashboard.tsx:171
+msgid "Scheduled content was not published"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."

@@ -430,8 +430,8 @@ msgstr "{0, plural, one {メディアファイル} other {メディアファイ�
 
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
-msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr "{0, plural, one {ブロックされたコンテンツがほかに#件あります（表示していません）。} other {ブロックされたコンテンツがほかに#件あります（表示していません）。}}"
+msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
+msgstr ""
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -934,8 +934,8 @@ msgid "{plural} go live now; draft edits stay unpublished."
 msgstr "{plural}はすぐに公開版へ反映されます。下書きの変更は公開されません。"
 
 #: packages/admin/src/components/Dashboard.tsx:172
-msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr "{policyRejected, plural, one {対象のコンテンツを開き、ブロックされた理由を解消してから、もう一度予約公開してください。予約公開または公開に成功すると、この通知は消えます。} other {対象のコンテンツを開き、ブロックされた理由を解消してから、もう一度予約公開してください。予約公開または公開に成功すると、この通知は消えます。}}"
+msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
+msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -6516,7 +6516,7 @@ msgid "Failed to discard draft"
 msgstr "下書きの破棄に失敗しました"
 
 #: packages/admin/src/components/Dashboard.tsx:227
-#: packages/admin/src/lib/api/dashboard.ts:73
+#: packages/admin/src/lib/api/dashboard.ts:76
 msgid "Failed to dismiss scheduled publication rejection"
 msgstr "予約公開のブロック通知を閉じられませんでした"
 
@@ -6627,7 +6627,7 @@ msgstr "コンテンツの取得に失敗しました"
 msgid "Failed to fetch content authors"
 msgstr "コンテンツの投稿者の取得に失敗しました"
 
-#: packages/admin/src/lib/api/dashboard.ts:58
+#: packages/admin/src/lib/api/dashboard.ts:61
 msgid "Failed to fetch dashboard stats"
 msgstr "ダッシュボード統計の取得に失敗しました"
 
@@ -11474,10 +11474,6 @@ msgstr "公開ルート"
 msgid "Publication date"
 msgstr "公開日時"
 
-#: packages/admin/src/components/Dashboard.tsx:171
-msgid "Publication policy blocked scheduled content"
-msgstr "公開ポリシーにより予約公開がブロックされました"
-
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:39
 msgid "visualEditing.publish"
@@ -12865,6 +12861,10 @@ msgstr "予約済み"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Scheduled changes"
 msgstr "公開予約済みの変更"
+
+#: packages/admin/src/components/Dashboard.tsx:171
+msgid "Scheduled content was not published"
+msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."
