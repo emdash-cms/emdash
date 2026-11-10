@@ -13,6 +13,8 @@ import type { CoEditing, RoomEditing, RoomEvent } from "./types.js";
 const RETRY_BUSY_MS = 5000;
 const OFFLINE_NOTICE_MS = 5000;
 const OFFLINE_RETRY_MS = [0, 1000, 2000, 4000, 5000];
+/** How often a retry held while the browser is offline checks whether it's back. */
+const OFFLINE_RECHECK_MS = 5000;
 /** Rejoins after a `rejoin` or reset close that never stayed live before waiting as for `busy`. */
 const REJOINS_BEFORE_WAIT = 2;
 /** A connection that stayed live this long starts a new absence when it closes. */
@@ -545,7 +547,6 @@ export function createCoEditingSession(
 	let generation = 0;
 	let retryTimer: unknown = null;
 	let offlineTimer: unknown = null;
-	let online = deps.online();
 	// A retry that fell due while the browser was offline, which runs once it's back online.
 	let heldRetry = false;
 	let lockFallback: (() => void) | null = null;
@@ -610,11 +611,7 @@ export function createCoEditingSession(
 				return;
 			case "retry-in":
 				clearTimer("retry");
-				retryTimer = deps.clock.setTimeout(() => {
-					retryTimer = null;
-					if (online) dispatch({ type: "retry" });
-					else heldRetry = true;
-				}, effect.ms);
+				retryTimer = deps.clock.setTimeout(retryWhenOnline, effect.ms);
 				return;
 			case "reload":
 				if (effect.outdated) deps.health.recordOutdatedReload(deps.clock.now());
@@ -647,7 +644,7 @@ export function createCoEditingSession(
 			uncovered: uncovered(),
 			unsavedForm: takeover && unsavedForm,
 			reloadedRecently: deps.health.reloadedRecently(at),
-			online,
+			online: deps.online(),
 			at,
 		});
 	}
@@ -769,14 +766,29 @@ export function createCoEditingSession(
 		for (const listener of listeners) listener();
 	}
 
+	/**
+	 * Retries now, or holds the retry while the browser is offline. The `online` event ends the
+	 * hold, and so does a later check, since a network switch can leave that event out.
+	 */
+	function retryWhenOnline(): void {
+		retryTimer = null;
+		if (deps.online()) {
+			heldRetry = false;
+			dispatch({ type: "retry" });
+			return;
+		}
+		heldRetry = true;
+		retryTimer = deps.clock.setTimeout(retryWhenOnline, OFFLINE_RECHECK_MS);
+	}
+
 	const stopNetwork = deps.listenNetwork((isOnline) => {
-		online = isOnline;
 		if (!isOnline) {
 			dispatch({ type: "offline", at: deps.clock.now() });
 			return;
 		}
 		dispatch({ type: "online" });
 		if (heldRetry) {
+			clearTimer("retry");
 			heldRetry = false;
 			dispatch({ type: "retry" });
 		}

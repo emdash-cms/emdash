@@ -80,6 +80,7 @@ export function startSession(
 	const recoveries: RecoveryInput[] = [];
 	const replicas: Replica[] = [];
 	const network = new Set<(online: boolean) => void>();
+	let online = true;
 	let reloads = 0;
 	let tokens = 0;
 	let recoveryFails = false;
@@ -109,7 +110,7 @@ export function startSession(
 		health: createTransportHealth(),
 		reload: () => reloads++,
 		clock,
-		online: () => true,
+		online: () => online,
 		listenNetwork(listener) {
 			network.add(listener);
 			return () => network.delete(listener);
@@ -136,7 +137,11 @@ export function startSession(
 		/** The next unanswered join's answer. Without one, a join gets a room. */
 		answer: (outcome: JoinOutcome) => answers.push(outcome),
 		failRecovery: () => (recoveryFails = true),
-		setOnline: (online: boolean) => network.forEach((listener) => listener(online)),
+		/** Changes the browser's connection, with its `online` or `offline` event unless `event` is false. */
+		setOnline(next: boolean, { event = true } = {}) {
+			online = next;
+			if (event) network.forEach((listener) => listener(next));
+		},
 		view: (): CoEditing => session.getView(),
 		/** The current replica, once one exists. */
 		replica: (): Replica => {

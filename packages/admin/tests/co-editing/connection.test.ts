@@ -244,6 +244,20 @@ describe("closes and retries", () => {
 		expect(s.view().mode).toBe("room");
 	});
 
+	it("retries once the browser is back online, even when its online event is missed", async () => {
+		const room = new LoopbackRoom();
+		const s = open(room);
+		s.answer({ kind: "failed" });
+		s.setOnline(false);
+		await s.after(60_000);
+		expect(s.joins).toHaveLength(1);
+
+		s.setOnline(true, { event: false });
+		await s.after(5000);
+		expect(s.joins).toHaveLength(2);
+		expect(s.view().mode).toBe("room");
+	});
+
 	it("waits for the network in a tab opened offline", async () => {
 		const room = new LoopbackRoom();
 		const s = open(room, { online: () => false });
