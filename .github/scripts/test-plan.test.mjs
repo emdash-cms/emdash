@@ -147,6 +147,14 @@ describe("test plan", () => {
 		assert.deepEqual(plan.unit_packages, ["@emdash-cms/marketplace", "@emdash-cms/aggregator"]);
 	});
 
+	it("selects monitor tests without unrelated runtime or browser suites", () => {
+		const plan = createTestPlan(["infra/perf-monitor/src/measure.test.ts"]);
+
+		assert.equal(plan.unit_mode, "focused");
+		assert.deepEqual(plan.unit_packages, ["@emdash-cms/perf-monitor"]);
+		for (const lane of TEST_LANES) assert.equal(plan[lane], lane === "unit", lane);
+	});
+
 	it("runs core shards for packages consumed by core", () => {
 		for (const path of [
 			"packages/auth/src/index.ts",

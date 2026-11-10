@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
 
-import { runMeasurements } from "../../../../infra/perf-monitor/src/measure.js";
-import { REGIONS } from "../../../../infra/perf-monitor/src/routes.js";
-import type { Site } from "../../../../infra/perf-monitor/src/routes.js";
+import { runMeasurements } from "./measure.js";
+import { REGIONS } from "./routes.js";
+import type { Site } from "./routes.js";
 
 const sites: Site[] = [
 	{ id: "managed", label: "Managed", targetUrl: "https://managed.example", workerName: "managed" },

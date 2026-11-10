@@ -45,6 +45,7 @@ const UNIT_PACKAGE_BY_PATH = new Map([
 	["packages/registry-verification/", "@emdash-cms/registry-verification"],
 	["apps/aggregator/", "@emdash-cms/aggregator"],
 	["apps/labeler/", "@emdash-cms/labeler"],
+	["infra/perf-monitor/", "@emdash-cms/perf-monitor"],
 	["apps/release-action/", "@emdash-cms/release-action"],
 	["apps/release-service/", "@emdash-cms/release-service"],
 	["apps/release-verifier/", "@emdash-cms/release-verifier"],
@@ -146,7 +147,10 @@ const RULES = [
 	},
 	{
 		name: "service with unit coverage",
-		matches: (path) => path.startsWith("apps/aggregator/") || path.startsWith("apps/labeler/"),
+		matches: (path) =>
+			path.startsWith("apps/aggregator/") ||
+			path.startsWith("apps/labeler/") ||
+			path.startsWith("infra/perf-monitor/"),
 		lanes: ["unit"],
 	},
 	{
