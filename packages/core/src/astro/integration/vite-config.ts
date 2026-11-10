@@ -482,6 +482,7 @@ const ROOM_ENGINE_DEPS = [
  * and discovering these then would re-optimize and reload the admin.
  */
 const ROOM_CLIENT_DEPS = [
+	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
 	"emdash > @emdash-cms/admin > yjs",
 	"emdash > @emdash-cms/admin > y-protocols/awareness",
 	"emdash > @emdash-cms/admin > y-protocols/sync",
