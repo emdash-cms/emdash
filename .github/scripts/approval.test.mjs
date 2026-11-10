@@ -242,6 +242,7 @@ describe("Maintainer review status", () => {
 		["adds an issue_comment trigger", "+  issue_comment:"],
 		["renames the workflow", "+name: Format"],
 		["renames the workflow with a quoted key", '+"name": Format'],
+		["removes its name", "-name: CI"],
 	]) {
 		it(`keeps two approvals when an edit to a read-only workflow ${change}`, async () => {
 			await assertNeedsTwo([workflowEdit(".github/workflows/ci.yml", line)]);
