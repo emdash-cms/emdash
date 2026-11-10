@@ -1,6 +1,10 @@
 import { once } from "node:events";
 
-import { decodeMessage, encodeSyncStep1, encodeUpdate } from "@emdash-cms/admin/internal/co-editing";
+import {
+	decodeMessage,
+	encodeSyncStep1,
+	encodeUpdate,
+} from "@emdash-cms/admin/internal/co-editing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
