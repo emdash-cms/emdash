@@ -65,7 +65,7 @@
       "types": "./dist/worker.d.mts",
       "default": "./dist/worker.mjs"
     },
-    "./rooms": {
+    "./internal/rooms": {
       "types": "./dist/rooms/host.d.mts",
       "default": "./dist/rooms/host.mjs"
     },

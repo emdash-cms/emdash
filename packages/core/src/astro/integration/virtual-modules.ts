@@ -583,7 +583,7 @@ export function generateRoomsModule(adapterName: string | undefined, coEditing: 
 		return `export { createRoomHost } from "emdash/internal/co-editing/node";\n`;
 	}
 	if (coEditing && adapterName === "@astrojs/cloudflare") {
-		return `export { createRoomHost } from "@emdash-cms/cloudflare/rooms";\n`;
+		return `export { createRoomHost } from "@emdash-cms/cloudflare/internal/rooms";\n`;
 	}
 	return `export const createRoomHost = null;\n`;
 }

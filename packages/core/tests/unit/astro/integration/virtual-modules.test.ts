@@ -108,7 +108,7 @@ describe("generateRoomsModule", () => {
 
 	it("loads the Durable Object room host on @astrojs/cloudflare with co-editing on", () => {
 		expect(generateRoomsModule("@astrojs/cloudflare", true)).toContain(
-			'export { createRoomHost } from "@emdash-cms/cloudflare/rooms"',
+			'export { createRoomHost } from "@emdash-cms/cloudflare/internal/rooms"',
 		);
 	});
 
