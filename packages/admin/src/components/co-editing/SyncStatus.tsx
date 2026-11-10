@@ -10,7 +10,17 @@ import { cn } from "../../lib/utils";
 export type SyncProblem =
 	| { readonly kind: "joining"; readonly waiting: boolean }
 	| { readonly kind: "offline" }
-	| { readonly kind: "not-saved"; readonly reason: KeptReason; readonly reload: () => void };
+	| { readonly kind: "not-saved"; readonly reason: KeptReason; readonly reload: () => void }
+	| {
+			/** Edits from before joining that a recovery revision couldn't keep. */
+			readonly kind: "not-kept";
+			/** Why the recovery revision failed. */
+			readonly error: string;
+			/** The edits as plain text. */
+			readonly copy: () => string;
+			readonly retry: () => void;
+			readonly retrying: boolean;
+	  };
 
 const COPIED_MS = 1600;
 
@@ -30,17 +40,17 @@ export interface SyncStatusProps {
  * saved. The button stays mounted through every state, so its live region announces each change.
  */
 export function SyncStatus({ problem, readOnly = false, onCopyEdits, children }: SyncStatusProps) {
+	const { t } = useLingui();
 	const anchorRef = React.useRef<HTMLButtonElement>(null);
 	const popupRef = React.useRef<HTMLDivElement>(null);
 	const kind = problem?.kind ?? null;
 	// Opened by itself, it leaves focus in the field the user may be typing in.
-	const [open, setOpen] = React.useState<false | "selected" | "auto">(
-		kind === "not-saved" ? "auto" : false,
-	);
+	const opensItself = kind === "not-saved" || kind === "not-kept";
+	const [open, setOpen] = React.useState<false | "selected" | "auto">(opensItself ? "auto" : false);
 	const [shownKind, setShownKind] = React.useState(kind);
 	if (shownKind !== kind) {
 		setShownKind(kind);
-		setOpen(kind === "not-saved" ? "auto" : false);
+		setOpen(opensItself ? "auto" : false);
 	}
 
 	const button = React.cloneElement(
@@ -90,7 +100,24 @@ export function SyncStatus({ problem, readOnly = false, onCopyEdits, children }:
 								<div ref={popupRef} className="contents">
 									<SyncExplanation problem={problem} readOnly={readOnly} />
 									{problem.kind === "not-saved" && (
-										<NotSavedActions onCopyEdits={onCopyEdits} onReload={problem.reload} />
+										<NotSavedActions onCopyEdits={onCopyEdits}>
+											<Button type="button" size="sm" variant="primary" onClick={problem.reload}>
+												{t`Reload`}
+											</Button>
+										</NotSavedActions>
+									)}
+									{problem.kind === "not-kept" && (
+										<NotSavedActions onCopyEdits={problem.copy}>
+											<Button
+												type="button"
+												size="sm"
+												variant="primary"
+												loading={problem.retrying}
+												onClick={problem.retry}
+											>
+												{t`Try again`}
+											</Button>
+										</NotSavedActions>
 									)}
 								</div>
 							</Popover.Popup>
@@ -129,27 +156,37 @@ function SyncExplanation({ problem, readOnly }: { problem: SyncProblem; readOnly
 						? t`This entry was moved to Trash or deleted. Your edits are still on this page.`
 						: t`EmDash couldn’t merge them or keep them as a recovery revision. Your edits are still on this page.`;
 			break;
+		case "not-kept":
+			title = t`Your earlier edits weren’t kept`;
+			body = t`EmDash couldn’t keep the edits you made before joining as a recovery revision. Copy them, or try again.`;
+			break;
 	}
 
 	return (
 		<>
 			<Popover.Title className="flex items-center gap-2">
-				{problem.kind === "not-saved" && (
+				{(problem.kind === "not-saved" || problem.kind === "not-kept") && (
 					<CloudWarning aria-hidden="true" className="size-4 shrink-0 text-kumo-warning" />
 				)}
 				{title}
 			</Popover.Title>
 			<Popover.Description>{body}</Popover.Description>
+			{problem.kind === "not-kept" && (
+				<p role="alert" className="mt-2 text-sm text-kumo-subtle">
+					{problem.error}
+				</p>
+			)}
 		</>
 	);
 }
 
 function NotSavedActions({
 	onCopyEdits,
-	onReload,
+	children,
 }: {
 	onCopyEdits?: () => string;
-	onReload: () => void;
+	/** The action that ends the problem, after **Copy my edits**. */
+	children: React.ReactNode;
 }) {
 	const { t } = useLingui();
 	const [copy, setCopy] = React.useState<"idle" | "copied" | "failed">("idle");
@@ -193,9 +230,7 @@ function NotSavedActions({
 						</span>
 					</Button>
 				)}
-				<Button type="button" size="sm" variant="primary" onClick={onReload}>
-					{t`Reload`}
-				</Button>
+				{children}
 			</div>
 		</>
 	);

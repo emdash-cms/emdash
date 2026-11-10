@@ -23,7 +23,7 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	/**
 	 * A co-editing problem to show instead of the save state. The button then stays enabled, to
 	 * explain the problem. Set it, to a kind or null, wherever the button can show one, so the
-	 * button keeps one width across all six states.
+	 * button keeps one width across every state.
 	 */
 	sync?: SyncKind | null;
 }
@@ -54,6 +54,7 @@ export const SaveButton = forwardRef<HTMLButtonElement, SaveButtonProps>(functio
 		joining: t`Joining…`,
 		offline: t`Offline`,
 		"not-saved": t`Not saved`,
+		"not-kept": t`Not saved`,
 	};
 	const isBusy = isSaving || Boolean(loading);
 	const activeState: SaveState = sync ? sync : isBusy ? "saving" : isDirty ? "save" : "saved";
@@ -61,7 +62,7 @@ export const SaveButton = forwardRef<HTMLButtonElement, SaveButtonProps>(functio
 	const stateIds: SaveState[] =
 		sync === undefined
 			? ["save", "saving", "saved"]
-			: ["save", "saving", "saved", "joining", "offline", "not-saved"];
+			: ["save", "saving", "saved", "joining", "offline", "not-saved", "not-kept"];
 	const states = stateIds.map((id) => ({ id, label: labels[id] }));
 	const [displayedState, setDisplayedState] = useState<SaveState>(activeState);
 	const [swapPhase, setSwapPhase] = useState<"idle" | "exit" | "enter-start">("idle");
@@ -79,7 +80,7 @@ export const SaveButton = forwardRef<HTMLButtonElement, SaveButtonProps>(functio
 			<Loader size="sm" />
 		) : displayedState === "offline" ? (
 			<CloudSlash />
-		) : displayedState === "not-saved" ? (
+		) : displayedState === "not-saved" || displayedState === "not-kept" ? (
 			<CloudWarning />
 		) : (
 			<Check />
@@ -152,7 +153,8 @@ export const SaveButton = forwardRef<HTMLButtonElement, SaveButtonProps>(functio
 						"t-text-swap",
 						swapPhase === "exit" && "is-exit",
 						swapPhase === "enter-start" && "is-enter-start",
-						displayedState === "not-saved" && "text-kumo-warning",
+						(displayedState === "not-saved" || displayedState === "not-kept") &&
+							"text-kumo-warning",
 					)}
 				>
 					<span className="flex items-center justify-center gap-1.5 leading-none">

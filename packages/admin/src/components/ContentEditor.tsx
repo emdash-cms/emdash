@@ -1361,7 +1361,14 @@ export function ContentEditor({
 	const roomSaveState = useRoomSaveState(room);
 	// In a room, "Saved" means a checkpoint holds this tab's last edit.
 	const isDirty = roomSaveState ? !roomSaveState.covered : formIsDirty;
-	const readRoomUnsaved = React.useCallback(() => !room?.getSaveState().covered, [room]);
+	// Edits from before joining that no recovery revision holds are lost on leaving too.
+	const editsNotKept = roomSync?.kind === "not-kept";
+	const editsNotKeptRef = React.useRef(editsNotKept);
+	editsNotKeptRef.current = editsNotKept;
+	const readRoomUnsaved = React.useCallback(
+		() => editsNotKeptRef.current || !room?.getSaveState().covered,
+		[room],
+	);
 	// A new entry is always "dirty" so it can be saved, but one nobody has
 	// touched has nothing to lose on leaving.
 	const [newEntryInitialState] = React.useState(currentData);
@@ -1436,7 +1443,7 @@ export function ContentEditor({
 	 */
 	const saveBeforeLeaving = React.useCallback((): boolean | Promise<boolean> => {
 		// The room saves 2 s after the last update, so waiting a little usually saves the edits.
-		if (room) return coveredWithin(room, ROOM_LEAVE_WAIT_MS);
+		if (room) return editsNotKeptRef.current ? false : coveredWithin(room, ROOM_LEAVE_WAIT_MS);
 		const { saveKey, dirty, saveInFlight, autosaveFailed } = leaveStateRef.current;
 		// The guard unsubscribes in an effect, and a save can land before the next render.
 		if (!dirty || savedSaveKeyRef.current === saveKey) return true;
@@ -2979,7 +2986,7 @@ export function ContentEditor({
 					? t`Joining…`
 					: roomSync?.kind === "offline"
 						? t`Offline`
-						: roomSync?.kind === "not-saved"
+						: roomSync?.kind === "not-saved" || roomSync?.kind === "not-kept"
 							? t`Not saved`
 							: roomSync !== undefined
 								? roomSaveState?.saving
@@ -3028,7 +3035,7 @@ export function ContentEditor({
 				/>
 			) : null}
 			<UnsavedChangesGuard
-				when={isNew ? hasUnsavedNewEntry : isDirty}
+				when={isNew ? hasUnsavedNewEntry : isDirty || editsNotKept}
 				saveBeforeLeaving={isNew ? undefined : saveBeforeLeaving}
 				isUnsaved={room ? readRoomUnsaved : undefined}
 			/>

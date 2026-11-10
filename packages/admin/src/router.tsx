@@ -167,6 +167,7 @@ import {
 import { saveRecoveryRevision, type RecoveryInput } from "./lib/api/rooms.js";
 import { runBulkAction } from "./lib/bulk";
 import { parseCalendarSearch } from "./lib/calendar";
+import { copyEditsText } from "./lib/co-editing/copy-edits.js";
 import { useCoEditing } from "./lib/co-editing/hooks.js";
 import { RoomOperationsContext } from "./lib/co-editing/operations.js";
 import { whenOutsideValuesUnfocused } from "./lib/co-editing/outside-values.js";
@@ -1353,9 +1354,44 @@ function ContentEditPage() {
 	const roomBlocked = roomView
 		? roomView.offline || !roomView.editable || roomView.kept !== null
 		: resetting || leavingRoom;
+	/** Edits from before joining whose recovery revision failed, which the person can copy or keep again. */
+	const [unkeptEdits, setUnkeptEdits] = React.useState<{
+		identity: string;
+		form: RecoveryInput;
+		error: string;
+		retrying: boolean;
+	} | null>(null);
+	if (unkeptEdits && unkeptEdits.identity !== revisionIdentity) setUnkeptEdits(null);
+	const keepEdits = async (identity: string, form: RecoveryInput) => {
+		try {
+			await saveRecoveryRevision({ collection, id, locale: activeLocale }, form);
+		} catch (error) {
+			setUnkeptEdits({
+				identity,
+				form,
+				error: error instanceof Error ? error.message : t`An error occurred`,
+				retrying: false,
+			});
+			return;
+		}
+		setUnkeptEdits(null);
+		handleRoomEvent({ kind: "recovered" });
+	};
 	let roomSync: SyncProblem | null | undefined;
 	if (coEditing.mode === "pending") {
 		roomSync = { kind: "joining", waiting: coEditing.waiting };
+	} else if (roomView && unkeptEdits) {
+		const { identity, form } = unkeptEdits;
+		roomSync = {
+			kind: "not-kept",
+			error: unkeptEdits.error,
+			retrying: unkeptEdits.retrying,
+			copy: () => copyEditsText(collectionFields, (name) => form.data[name]),
+			retry: () => {
+				setUnkeptEdits({ ...unkeptEdits, retrying: true });
+				void keepEdits(identity, form);
+			},
+		};
 	} else if (roomView?.kept) {
 		roomSync = {
 			kind: "not-saved",
@@ -1446,16 +1482,7 @@ function ContentEditPage() {
 		if (!snapshot || coEditing === snapshot.from || coEditing.mode === "pending") return;
 		joinSnapshotRef.current = null;
 		if (coEditing.mode !== "room" || snapshot.identity !== revisionIdentity) return;
-		void saveRecoveryRevision({ collection, id, locale: activeLocale }, snapshot.form).then(
-			() => handleRoomEvent({ kind: "recovered" }),
-			(error: unknown) => {
-				toastManagerRef.current.add({
-					title: t`Your unsaved edits couldn’t be kept`,
-					description: error instanceof Error ? error.message : t`An error occurred`,
-					variant: "error",
-				});
-			},
-		);
+		void keepEdits(snapshot.identity, snapshot.form);
 	}, [coEditing]);
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());

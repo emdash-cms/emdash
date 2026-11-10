@@ -852,15 +852,43 @@ describe("joining a room from single-editor mode", () => {
 		await expect.element(title).toHaveValue("Unsaved title");
 	});
 
-	it("says the unsaved edits couldn't be kept when the recovery revision fails", async () => {
+	it("holds on to edits whose recovery revision failed, to copy or keep again", async () => {
 		const { screen, server } = await openWithUnsavedEdits("room");
 		server.refuseRecovery = true;
+		const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+		const asksBeforeUnload = () => {
+			const event = new Event("beforeunload", { cancelable: true });
+			window.dispatchEvent(event);
+			return event.defaultPrevented;
+		};
+		const recoveries = () =>
+			server.requests.filter((request) => request.method === "POST" && request.url === REVISIONS);
+		try {
+			await screen.getByRole("button", { name: "Join", exact: true }).click();
+			answer(roomView(createRoom({ title: "First post", slug: "post-one" })));
 
-		await screen.getByRole("button", { name: "Join", exact: true }).click();
-		answer(roomView(createRoom({ title: "First post", slug: "post-one" })));
+			const popover = screen.getByRole("dialog", { name: "Your earlier edits weren’t kept" });
+			await expect.element(popover).toHaveTextContent("Too large to keep");
+			expect(asksBeforeUnload()).toBe(true);
 
-		await expect.element(screen.getByText("Your unsaved edits couldn’t be kept")).toBeVisible();
-		await expect.element(screen.getByText("Too large to keep")).toBeVisible();
+			await popover.getByRole("button", { name: "Copy my edits" }).click();
+			expect(writeText).toHaveBeenCalledWith("Title\nUnsaved title");
+
+			server.refuseRecovery = false;
+			await popover.getByRole("button", { name: "Try again" }).click();
+
+			await expect
+				.element(screen.getByText("Your unsaved edits are in a recovery revision"))
+				.toBeVisible();
+			expect(recoveries().map((request) => request.body)).toEqual([
+				{ data: { title: "Unsaved title" }, slug: "post-one" },
+				{ data: { title: "Unsaved title" }, slug: "post-one" },
+			]);
+			await expect.element(popover).not.toBeInTheDocument();
+			expect(asksBeforeUnload()).toBe(false);
+		} finally {
+			writeText.mockRestore();
+		}
 	});
 });
 
