@@ -756,7 +756,7 @@ export function EditorActions({
 	const saveVariant = (!isDirty && !busy) || sync ? "ghost" : isNew ? "primary" : "secondary";
 	const saveButton = (
 		<SaveButton
-			announce={sync !== undefined}
+			announce={false}
 			onFocus={() => {
 				saveHadFocus.current = true;
 			}}

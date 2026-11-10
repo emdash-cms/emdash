@@ -592,6 +592,8 @@ describe("ContentEditor's save button in a room", () => {
 		await expect.poll(announcements).toEqual(["Saved"]);
 		fake.setSaveState(SAVING);
 		await expect.poll(announcements).toEqual(["Saving..."]);
+		fake.setSaveState(UNSAVED);
+		await expect.poll(announcements).toEqual(["Unsaved changes"]);
 	});
 
 	it("explains Offline when selected, without saving", async () => {
@@ -643,7 +645,14 @@ describe("ContentEditor's save button in a room", () => {
 		const screen = await render(<ContentEditor {...props} />);
 		unmounts.push(() => screen.unmount());
 		const button = saveButton();
-		const announced = () => button.querySelector('[role="status"]')?.textContent;
+		// Outside the button, whose contents screen readers may not announce.
+		const announced = () =>
+			Array.from(document.querySelectorAll('[role="status"]'), (region) =>
+				region.textContent?.trim(),
+			)
+				.filter(Boolean)
+				.join(" | ");
+		expect(button.querySelector('[role="status"]')).toBeNull();
 		const summary = screen.getByRole("textbox", { name: "Summary" });
 		await summary.click();
 

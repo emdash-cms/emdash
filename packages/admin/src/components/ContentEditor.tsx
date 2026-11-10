@@ -2906,19 +2906,28 @@ export function ContentEditor({
 				<MobileSidebarPortalGuard />
 				<RevisionViewSheetSync sheetRef={revisionView.sheetRef} />
 			</Sidebar.Provider>
-			{/* In a room, the save button announces the room's save state. */}
 			<span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-				{roomSync !== undefined
-					? null
-					: saveFeedbackActive || autosaveFeedbackActive
-						? t`Saving...`
-						: saveError || hasAutosaveError || hasSaveConflict
-							? (saveError?.title ?? t`Failed to save`)
-							: isNew
-								? t`Not saved yet`
-								: isDirty
-									? t`Unsaved changes`
-									: t`Saved`}
+				{roomSync?.kind === "joining"
+					? t`Joining…`
+					: roomSync?.kind === "offline"
+						? t`Offline`
+						: roomSync?.kind === "not-saved"
+							? t`Not saved`
+							: roomSync !== undefined
+								? roomSaveState?.saving
+									? t`Saving...`
+									: roomSaveState && !roomSaveState.covered
+										? t`Unsaved changes`
+										: t`Saved`
+								: saveFeedbackActive || autosaveFeedbackActive
+									? t`Saving...`
+									: saveError || hasAutosaveError || hasSaveConflict
+										? (saveError?.title ?? t`Failed to save`)
+										: isNew
+											? t`Not saved yet`
+											: isDirty
+												? t`Unsaved changes`
+												: t`Saved`}
 			</span>
 			{/* Outside the sidebar, which is inert while the phone sheet is closed. */}
 			<p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
