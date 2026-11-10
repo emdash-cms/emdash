@@ -30,20 +30,22 @@ export interface RunOptions {
 	prNumber?: number | null;
 	note?: string | null;
 	/**
-	 * Sites to measure. Defaults to every site in {@link SITES}. Pass a subset
-	 * when a caller wants to target only one deployment (e.g. manual triggers).
+	 * Sites to measure, subject to deploy opt-outs. Defaults to {@link SITES}.
+	 * Pass a subset when a caller wants to target only one deployment.
 	 */
 	sites?: readonly Site[];
 }
 
-/** Dispatch measurements to all regional probes in parallel, for every site. */
+/** Dispatch measurements to all regional probes for the eligible sites in parallel. */
 export async function runMeasurements(env: Env, opts: RunOptions): Promise<InsertParams[]> {
 	const { source, sha = null, prNumber = null, note = null, sites = SITES } = opts;
 
 	// Fan out across (site × region). We run all probes in parallel -- each one
 	// issues N requests per route on its own, so the measurement load on the
 	// demos is bounded regardless of how many sites we have.
-	const probePromises = sites.flatMap((site) =>
+	const measuredSites =
+		source === "deploy" ? sites.filter((site) => site.deployMeasurements !== false) : sites;
+	const probePromises = measuredSites.flatMap((site) =>
 		REGIONS.map(async (region) => {
 			const binding = PROBE_BINDINGS[region];
 			const probe = env[binding];

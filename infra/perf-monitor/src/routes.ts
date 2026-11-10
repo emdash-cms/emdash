@@ -32,6 +32,8 @@ export interface Site {
 	targetUrl: string;
 	/** Cloudflare Worker name — matched against build.succeeded events. */
 	workerName: string;
+	/** Whether baseline deploy events measure this site at the attributed commit. */
+	deployMeasurements?: boolean;
 }
 
 export const SITES: readonly Site[] = [
@@ -58,6 +60,13 @@ export const SITES: readonly Site[] = [
 		label: "DO single primary",
 		targetUrl: "https://do-solo-demo.emdashcms.com",
 		workerName: "emdash-demo-do-solo",
+	},
+	{
+		id: "do-render",
+		label: "DO full render (external)",
+		targetUrl: "https://emfast-perf-render.thismatters.workers.dev",
+		workerName: "emfast-perf-render",
+		deployMeasurements: false,
 	},
 ] as const;
 
