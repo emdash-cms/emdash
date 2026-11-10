@@ -3,7 +3,7 @@ import {
 	portableTextToProsemirror,
 	prosemirrorToPortableText,
 	type PortableTextBlock,
-} from "@emdash-cms/admin/portable-text";
+} from "@emdash-cms/admin/internal/portable-text";
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
 import * as Y from "yjs";
 

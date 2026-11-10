@@ -45,7 +45,7 @@ function packagesLoadedBy(entry: string): Set<string> {
 	return packages;
 }
 
-describe("@emdash-cms/admin/portable-text", () => {
+describe("@emdash-cms/admin/internal/portable-text", () => {
 	it("loads no Yjs code, since sites import it on the server", () => {
 		const packages = [...packagesLoadedBy("src/portable-text.ts")];
 		expect(packages).toContain("@tiptap/core");
