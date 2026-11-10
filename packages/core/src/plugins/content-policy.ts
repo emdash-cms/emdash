@@ -1,10 +1,19 @@
 export const MAX_CONTENT_POLICY_REASON_LENGTH = 500;
 export const SCHEDULED_POLICY_REJECTION_PREFIX = "emdash:scheduled-policy-rejection:";
 
+/**
+ * Why a scheduled publication did not happen and the entry was unscheduled.
+ * Written when a plugin's `content:beforePublish` hook cancels it, or when the
+ * publish itself is refused (a validation error or a slug conflict), so the
+ * admin can say why instead of leaving the entry overdue.
+ */
 export interface ScheduledPolicyRejection {
 	collection: string;
 	id: string;
-	pluginId: string;
+	/** The plugin that cancelled. Absent when the publish itself was refused. */
+	pluginId?: string;
+	/** The refused publish's error code. Absent when a plugin cancelled. */
+	code?: string;
 	reason: string;
 	rejectedAt: string;
 }
@@ -18,12 +27,37 @@ export function isScheduledPolicyRejection(value: unknown): value is ScheduledPo
 	if (
 		typeof value.collection !== "string" ||
 		typeof value.id !== "string" ||
-		typeof value.pluginId !== "string" ||
+		(value.pluginId !== undefined && typeof value.pluginId !== "string") ||
+		(value.code !== undefined && typeof value.code !== "string") ||
 		typeof value.rejectedAt !== "string"
 	) {
 		return false;
 	}
 	return inspectContentPolicyDecision({ cancel: true, reason: value.reason }).kind === "cancel";
+}
+
+/**
+ * An error message as a stored rejection reason: control characters become
+ * spaces and it is cut to {@link MAX_CONTENT_POLICY_REASON_LENGTH} code points,
+ * so it passes {@link isScheduledPolicyRejection} and is listed, not just
+ * counted. Returns undefined for a message with nothing left to show.
+ */
+export function toScheduledRejectionReason(message: string | undefined): string | undefined {
+	if (!message) return undefined;
+	let cleaned = "";
+	for (const character of message) {
+		const code = character.codePointAt(0)!;
+		cleaned += code < 32 || code === 127 ? " " : character;
+	}
+	// Counted in code points, as isScheduledPolicyRejection measures the limit.
+	let reason = "";
+	let length = 0;
+	for (const character of cleaned.trim()) {
+		if (length++ >= MAX_CONTENT_POLICY_REASON_LENGTH) break;
+		reason += character;
+	}
+	reason = reason.trim();
+	return reason.length > 0 ? reason : undefined;
 }
 
 export function scheduledPolicyRejectionKey(collection: string, id: string): string {
