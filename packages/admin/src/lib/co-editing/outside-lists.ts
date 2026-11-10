@@ -1,7 +1,9 @@
 /**
- * Lists a room saves outside its document, such as bylines and reference selections, save whole.
- * So that one tab's save keeps what other people saved since it last read the entry, each change
- * goes out re-based on the list as the server has it, one save at a time.
+ * Lists saved outside a room's document, such as bylines, reference selections and taxonomy terms,
+ * save whole. So that one tab's save keeps what other people saved since it last read the entry,
+ * each change goes out re-based on the list as the server has it, one save at a time. The save
+ * sends that list too, and the server refuses it with `LIST_CONFLICT` if the list changed before
+ * the write, so the caller reads it again and re-bases once more.
  */
 
 export interface ListOptions<T> {

@@ -137,6 +137,7 @@ import {
 	renameMediaFolder,
 	deleteMediaFolder,
 	ApiResponseError,
+	isListConflict,
 	isTerminalRequestError,
 	useCurrentUser,
 	type AdminManifest,
@@ -146,6 +147,7 @@ import {
 	type BylineCreditInput,
 	type ContentSeoInput,
 	type ContentItem,
+	type UpdateContentInput,
 	type CurrentUser,
 	type MediaUploadOptions,
 	type Revision,
@@ -205,6 +207,7 @@ interface ContentUpdateChanges {
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
 	references?: Record<string, string[]>;
+	expected?: UpdateContentInput["expected"];
 	/** Optimistic-concurrency token from the latest response. */
 	_rev?: string;
 }
@@ -220,8 +223,11 @@ interface ContentUpdateMutationInput {
 /** The values outside a room's document that save through the entry's update route. */
 type OutsideValueChanges = Pick<
 	ContentUpdateChanges,
-	"seo" | "authorId" | "bylines" | "references"
+	"seo" | "authorId" | "bylines" | "references" | "expected"
 >;
+
+/** How many times a list change is rebased on a fresh read before its failure shows. */
+const LIST_SAVE_ATTEMPTS = 3;
 
 interface AutosaveMutationInput {
 	targetId: string;
@@ -1777,6 +1783,8 @@ function ContentEditPage() {
 		},
 		onError: async (error, variables) => {
 			if (await recoverInEditor(error, variables.targetId)) return;
+			// The outside save reads the entry again and retries, and reports the last failure.
+			if (variables.source === "outside" && isListConflict(error)) return;
 			handleContentUpdateError(error, variables.targetId, variables.source);
 		},
 		onSettled: (_, __, variables) => {
@@ -2109,27 +2117,40 @@ function ContentEditPage() {
 				| OutsideValueChanges
 				| ((latest: ContentItem) => OutsideValueChanges | Promise<OutsideValueChanges>),
 		): Promise<ContentItem> => {
-			let changes = values;
-			if (typeof changes === "function") {
+			for (let attempt = 1; ; attempt++) {
+				let changes = values;
+				if (typeof changes === "function") {
+					try {
+						// oxlint-disable-next-line no-await-in-loop -- a retry rebases on a fresh read
+						const latest = await queryClient.fetchQuery({
+							queryKey: ["content", collection, id, { locale: activeLocale }],
+							queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
+							staleTime: 0,
+						});
+						// oxlint-disable-next-line no-await-in-loop -- a retry rebases on a fresh read
+						changes = await changes(latest);
+					} catch (error) {
+						handleContentUpdateError(error, id, "outside");
+						throw error;
+					}
+				}
 				try {
-					const latest = await queryClient.fetchQuery({
-						queryKey: ["content", collection, id, { locale: activeLocale }],
-						queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
-						staleTime: 0,
+					// oxlint-disable-next-line no-await-in-loop -- one attempt at a time
+					return await updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "outside",
+						// Reference edges save as autosaves do, without a revision.
+						changes: changes.references ? { ...changes, skipRevision: true } : changes,
 					});
-					changes = await changes(latest);
 				} catch (error) {
-					handleContentUpdateError(error, id, "outside");
-					throw error;
+					if (!isListConflict(error)) throw error;
+					if (typeof values !== "function" || attempt >= LIST_SAVE_ATTEMPTS) {
+						handleContentUpdateError(error, id, "outside");
+						throw error;
+					}
 				}
 			}
-			return updateMutation.mutateAsync({
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "outside",
-				// Reference edges save as autosaves do, without a revision.
-				changes: changes.references ? { ...changes, skipRevision: true } : changes,
-			});
 		},
 		[
 			activeLocale,

@@ -1107,7 +1107,9 @@ describe("ContentEditor's values outside a room's document", () => {
 		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
 		await expect
 			.poll(() => sent)
-			.toEqual([{ bylines: [{ bylineId: "byline-mina", roleLabel: null }] }]);
+			.toEqual([
+				{ bylines: [{ bylineId: "byline-mina", roleLabel: null }], expected: { bylines: [] } },
+			]);
 		expect(fake.set).not.toHaveBeenCalled();
 
 		replies[0]!.reject(new Error("Refused"));
@@ -1145,7 +1147,15 @@ describe("ContentEditor's values outside a room's document", () => {
 
 		replies[0]!.resolve();
 		await expect.poll(() => sent).toHaveLength(2);
-		expect(sent[1]).toEqual({ bylines: [{ bylineId: "byline-oscar", roleLabel: null }] });
+		expect(sent[1]).toEqual({
+			bylines: [{ bylineId: "byline-oscar", roleLabel: null }],
+			expected: {
+				bylines: [
+					{ bylineId: "byline-mina", roleLabel: null },
+					{ bylineId: "byline-oscar", roleLabel: null },
+				],
+			},
+		});
 		replies[1]!.resolve();
 		await expect
 			.element(screen.getByRole("button", { name: "More actions for Oscar" }))
@@ -1200,7 +1210,9 @@ describe("ContentEditor's values outside a room's document", () => {
 
 		await expect
 			.poll(() => sent)
-			.toEqual([{ bylines: [{ bylineId: "byline-mina", roleLabel: null }] }]);
+			.toEqual([
+				{ bylines: [{ bylineId: "byline-mina", roleLabel: null }], expected: { bylines: [] } },
+			]);
 		await expect
 			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))
 			.toBeInTheDocument();
@@ -1232,7 +1244,14 @@ describe("ContentEditor's values outside a room's document", () => {
 		expect(onSaveOutsideValues).not.toHaveBeenCalled();
 		await screen.rerender(<ContentEditor {...props} room={fake.room} />);
 
-		await expect.poll(() => sent).toEqual([{ references: { related: ["two"] } }]);
+		await expect
+			.poll(() => sent)
+			.toEqual([
+				{
+					references: { related: ["two"] },
+					expected: { references: { related: ["one", "two"] } },
+				},
+			]);
 		expect(screen.getByRole("button", { name: "Remove one" }).query()).toBeNull();
 	});
 
@@ -1270,7 +1289,14 @@ describe("ContentEditor's values outside a room's document", () => {
 			children: [entry("three"), entry("four")],
 		} as never);
 		await screen.getByRole("button", { name: "Remove one" }).click();
-		await expect.poll(() => sent).toEqual([{ references: { related: ["two", "three", "four"] } }]);
+		await expect
+			.poll(() => sent)
+			.toEqual([
+				{
+					references: { related: ["two", "three", "four"] },
+					expected: { references: { related: ["one", "two", "three", "four"] } },
+				},
+			]);
 	});
 });
 

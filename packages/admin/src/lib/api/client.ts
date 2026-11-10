@@ -56,6 +56,11 @@ export class ApiResponseError extends Error {
 	}
 }
 
+/** A list a change was based on changed on the server, so the change needs a fresh read. */
+export function isListConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "LIST_CONFLICT";
+}
+
 /**
  * Extract per-field validation issue messages from a `VALIDATION_ERROR`
  * response's `error.details.issues` array (see `packages/core/src/api/parse.ts`).

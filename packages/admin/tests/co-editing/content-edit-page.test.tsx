@@ -168,6 +168,10 @@ function createServer(initial: ContentItem) {
 		>,
 		refuseRecovery: false,
 		refuseWrites: false,
+		/** The reference field's entries, as a read returns them. */
+		authors: AUTHORS,
+		/** Answers a reference save in place of the server, when it returns a response. */
+		answerReferenceWrite: null as (() => Response | undefined) | null,
 		requests: [] as RecordedRequest[],
 		/** Requests other than reads, and the room's saves, in the order they happened. */
 		log: [] as string[],
@@ -222,7 +226,7 @@ function createServer(initial: ContentItem) {
 		if (method === "GET" && path === "/_emdash/api/content/posts/post_1") {
 			return json({
 				data: {
-					item: { ...server.item, references: { authors: { children: AUTHORS } } },
+					item: { ...server.item, references: { authors: { children: server.authors } } },
 					_rev: "rev-server",
 				},
 			});
@@ -237,6 +241,10 @@ function createServer(initial: ContentItem) {
 		if (path.startsWith("/_emdash/api/content/posts/post_1")) {
 			if (method === "PUT" && server.refuseWrites) {
 				return json({ error: { code: "FORBIDDEN", message: "Not allowed" } }, 403);
+			}
+			if (method === "PUT" && body?.references) {
+				const answer = server.answerReferenceWrite?.();
+				if (answer) return answer;
 			}
 			if (method === "PUT" && body?.seo) {
 				server.item = { ...server.item, seo: { ...server.item.seo!, ...body.seo } };
@@ -638,8 +646,41 @@ describe("values outside the document in a room", () => {
 		await vi.waitFor(() => expect(server.log).toEqual(["PUT /_emdash/api/content/posts/post_1"]));
 		expect(server.find("PUT", "/_emdash/api/content/posts/post_1")?.body).toEqual({
 			references: { authors: ["author_ada"] },
+			expected: { references: { authors: ["author_ada", "author_grace"] } },
 			skipRevision: true,
 		});
+	});
+
+	it("saves a reference edit again on top of another person's, when theirs landed first", async () => {
+		const { screen, server } = await openInRoom(entry());
+		const alan: EntryRef = {
+			id: "author_alan",
+			slug: "alan",
+			collection: "authors",
+			title: "Alan Turing",
+			locale: "en",
+			translationGroup: "author_alan",
+		};
+		server.answerReferenceWrite = () => {
+			server.answerReferenceWrite = null;
+			server.authors = [...AUTHORS, alan];
+			return json({ error: { code: "LIST_CONFLICT", message: "The list changed" } }, 409);
+		};
+
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+
+		const puts = () =>
+			server.requests.filter(
+				(request) => request.method === "PUT" && request.url.startsWith("/_emdash/api/content"),
+			);
+		await vi.waitFor(() => expect(puts()).toHaveLength(2));
+		expect(puts()[1]?.body).toEqual({
+			references: { authors: ["author_ada", "author_alan"] },
+			expected: { references: { authors: ["author_ada", "author_grace", "author_alan"] } },
+			skipRevision: true,
+		});
+		await expect.element(screen.getByRole("button", { name: "Remove Alan Turing" })).toBeVisible();
+		expect(screen.getByText("The list changed").query()).toBeNull();
 	});
 
 	it("reloads a value saved elsewhere once its input loses focus", async () => {
@@ -762,6 +803,7 @@ describe("joining a room from single-editor mode", () => {
 		await vi.waitFor(() =>
 			expect(server.find("PUT", "/_emdash/api/content/posts/post_1")?.body).toEqual({
 				references: { authors: ["author_ada"] },
+				expected: { references: { authors: ["author_ada", "author_grace"] } },
 				skipRevision: true,
 			}),
 		);

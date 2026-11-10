@@ -444,6 +444,8 @@ type ReferenceGroupState = {
 interface OutsideListChanges {
 	bylines?: BylineCreditInput[];
 	references?: Record<string, string[]>;
+	/** The lists the change was rebased on, which the server checks before it writes. */
+	expected?: { bylines?: BylineCreditInput[]; references?: Record<string, string[]> };
 }
 
 interface OutsideListSavers {
@@ -922,9 +924,10 @@ export function ContentEditor({
 				same: (a, b) => a.roleLabel === b.roleLabel,
 				shown: () => internalBylinesRef.current,
 				save: (build) =>
-					save(async (latest) => ({
-						bylines: build(resolveEditorBylines(latest).explicitCredits, true),
-					})),
+					save(async (latest) => {
+						const credits = resolveEditorBylines(latest).explicitCredits;
+						return { bylines: build(credits, true), expected: { bylines: credits } };
+					}),
 				settled: (saved) => {
 					if (!saved || !current()) return;
 					internalBylinesRef.current = saved;
@@ -952,7 +955,14 @@ export function ContentEditor({
 								entryFields[fieldSlug],
 								latest.references?.[fieldSlug],
 							);
-							return { references: { [fieldSlug]: build(rows, complete).map((row) => row.id) } };
+							const ids = build(rows, complete).map((row) => row.id);
+							// Only every page of the field says what the server holds.
+							return complete
+								? {
+										references: { [fieldSlug]: ids },
+										expected: { references: { [fieldSlug]: rows.map((row) => row.id) } },
+									}
+								: { references: { [fieldSlug]: ids } };
 						}),
 					settled: (saved) => {
 						if (!saved || !current()) return;
