@@ -4912,6 +4912,7 @@ describe("ContentEditor revision view", () => {
 					? withAutosavedDraft(list, {
 							draft,
 							previousDraftId: null,
+							previousIsAutosave: false,
 							liveRevisionId: "rev-draft",
 							limit: 21,
 						})

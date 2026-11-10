@@ -176,7 +176,7 @@ import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/conte
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
-import { withAutosavedDraft } from "./lib/revision-list-cache.js";
+import { autosavedDraftIds, withAutosavedDraft } from "./lib/revision-list-cache.js";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { usePagedQuery } from "./lib/use-paged-query";
 import { useEntryLock } from "./lib/useEntryLock";
@@ -332,6 +332,9 @@ function patchAutosaveQueries(
 			author: me ? { id: me.id, name: me.name?.trim() || null } : null,
 			editedBy: null,
 		};
+		const autosaved = autosavedDraftIds(queryClient);
+		const previousIsAutosave = previousDraftId !== null && autosaved.has(previousDraftId);
+		autosaved.add(draftRevisionId);
 		for (const [queryKey, list] of lists) {
 			if (!list) continue;
 			queryClient.setQueryData(
@@ -339,6 +342,7 @@ function patchAutosaveQueries(
 				withAutosavedDraft(list, {
 					draft,
 					previousDraftId,
+					previousIsAutosave,
 					liveRevisionId: savedItem.liveRevisionId ?? null,
 					limit: revisionListLimit(queryKey),
 				}),
