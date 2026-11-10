@@ -736,6 +736,37 @@ describe("joining a room from single-editor mode", () => {
 		},
 	);
 
+	it("saves a reference edit it hadn't sent once Join opens a room", async () => {
+		const takeOver = vi.fn();
+		const { screen, server } = await openInRoom(entry(), {
+			view: { mode: "single-editor", canJoin: true, deleted: false, takeOver },
+			prepare(fake) {
+				fake.lock = { enabled: true, holder: null, heldByCaller: true, room: false };
+			},
+		});
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+		server.lock = {
+			enabled: true,
+			holder: { userId: "user_2", userName: "Ana Lima", acquiredAt: "", expiresAt: "" },
+			heldByCaller: false,
+			room: true,
+		};
+		document.dispatchEvent(new Event("visibilitychange"));
+		const join = screen.getByRole("button", { name: "Join", exact: true });
+		await expect.element(join).toBeVisible();
+		expect(server.find("PUT", "/_emdash/api/content/posts/post_1")).toBeUndefined();
+
+		await join.click();
+		answer(roomView(createRoom({ title: "First post", slug: "post-one" })));
+
+		await vi.waitFor(() =>
+			expect(server.find("PUT", "/_emdash/api/content/posts/post_1")?.body).toEqual({
+				references: { authors: ["author_ada"] },
+				skipRevision: true,
+			}),
+		);
+	});
+
 	it("keeps unsaved edits in a recovery revision when Join finds the admin out of date", async () => {
 		const { screen, server, title } = await openWithUnsavedEdits("room");
 

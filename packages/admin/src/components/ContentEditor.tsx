@@ -1123,6 +1123,35 @@ export function ContentEditor({
 		setHasAppliedEditorDraftPatch(false);
 	}
 
+	// A room's document replaces the form's fields, but bylines and references stay outside it.
+	// Their unsaved changes from the form become this tab's changes in the room, which saves them
+	// on top of the entry's lists. Runs before the item effect below, which would adopt those lists.
+	const lastSavedDataRef = React.useRef(lastSavedData);
+	lastSavedDataRef.current = lastSavedData;
+	const bylinesTouchedRef = React.useRef(bylinesTouched);
+	bylinesTouchedRef.current = bylinesTouched;
+	const formHeldFieldsRef = React.useRef(!room && !fieldsLoading);
+	React.useEffect(() => {
+		const fromForm = formHeldFieldsRef.current;
+		formHeldFieldsRef.current = !room && !fieldsLoading;
+		if (!room || !fromForm) return;
+		const savers = outsideListSavers();
+		const { bylines: savedBylines } = JSON.parse(lastSavedDataRef.current) as {
+			bylines: BylineCreditInput[];
+		};
+		if (
+			bylinesTouchedRef.current &&
+			JSON.stringify(savedBylines) !== JSON.stringify(internalBylinesRef.current)
+		) {
+			savers.bylines.change(savedBylines);
+		}
+		for (const [fieldSlug, state] of Object.entries(referenceStateRef.current)) {
+			if (!sameReferenceIds(state.baseline, state.current)) {
+				savers.reference(fieldSlug).change(state.baseline);
+			}
+		}
+	}, [room, fieldsLoading, outsideListSavers]);
+
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);

@@ -1181,6 +1181,61 @@ describe("ContentEditor's values outside a room's document", () => {
 		expect(screen.getByRole("button", { name: "More actions for Mina Patel" }).query()).toBeNull();
 	});
 
+	it("saves a byline change it hadn't sent once the tab joins a room", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const { sent, onSaveOutsideValues } = outsideSaves(() => makeItem());
+		const props = editorProps(null, {
+			currentUser: { id: "u-1", role: 50 },
+			availableBylines: [MINA],
+			availableBylinesLoaded: true,
+			onSaveOutsideValues,
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+
+		await screen.getByRole("button", { name: "Choose bylines" }).click();
+		await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+		expect(onSaveOutsideValues).not.toHaveBeenCalled();
+		await screen.rerender(<ContentEditor {...props} room={fake.room} />);
+
+		await expect
+			.poll(() => sent)
+			.toEqual([{ bylines: [{ bylineId: "byline-mina", roleLabel: null }] }]);
+		await expect
+			.element(screen.getByRole("button", { name: "More actions for Mina Patel" }))
+			.toBeInTheDocument();
+	});
+
+	it("saves a reference change it hadn't sent once the tab joins a room", async () => {
+		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
+		const entry = (id: string) => ({ id, slug: id, title: id, locale: "en", translationGroup: id });
+		const item = makeItem({
+			references: { related: { children: [entry("one"), entry("two")] } },
+		});
+		const { sent, onSaveOutsideValues } = outsideSaves(() => item);
+		const props = editorProps(null, {
+			fields: {
+				...FIELDS,
+				related: {
+					kind: "reference",
+					label: "Related",
+					validation: { relation: "rel-1", targetCollection: "posts", multiple: true },
+				},
+			},
+			item,
+			onSaveOutsideValues,
+		});
+		const screen = await render(<ContentEditor {...props} />);
+		unmounts.push(() => screen.unmount());
+
+		await screen.getByRole("button", { name: "Remove one" }).click();
+		expect(onSaveOutsideValues).not.toHaveBeenCalled();
+		await screen.rerender(<ContentEditor {...props} room={fake.room} />);
+
+		await expect.poll(() => sent).toEqual([{ references: { related: ["two"] } }]);
+		expect(screen.getByRole("button", { name: "Remove one" }).query()).toBeNull();
+	});
+
 	it("re-bases a reference change on every page of the field", async () => {
 		const fake = createRoom({ title: "My Post", summary: "", slug: "my-post" });
 		const entry = (id: string) => ({ id, slug: id, title: id, locale: "en", translationGroup: id });
