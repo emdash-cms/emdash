@@ -14,8 +14,8 @@ import {
 	PortableTextFilledDefaults,
 	portableTextExtensions,
 	type PortableTextBlock,
-} from "@emdash-cms/admin/portable-text";
-import { PortableTextYSync } from "@emdash-cms/admin/portable-text-y-sync";
+} from "@emdash-cms/admin/internal/portable-text";
+import { PortableTextYSync } from "@emdash-cms/admin/internal/portable-text-y-sync";
 import { Editor, Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";

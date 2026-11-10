@@ -29,8 +29,8 @@ import {
 	EmDashTableRow,
 	TableIdentity,
 } from "../components/editor/TableExtensions.js";
+import { isDimension, isString } from "../internal/video-block.js";
 import { TABLE_CELL_MIN_WIDTH } from "../portable-text-table.js";
-import { isDimension, isString } from "../video-block.js";
 import { PortableTextKeys } from "./keys.js";
 import { PortableTextNormalizers, withLocalOnlyPlugins } from "./normalize.js";
 

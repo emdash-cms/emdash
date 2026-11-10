@@ -4,7 +4,7 @@ import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
-import { portableTextSchema } from "../../src/portable-text";
+import { portableTextSchema } from "../../src/internal/portable-text";
 import { render } from "../utils/render";
 
 vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () => null }));

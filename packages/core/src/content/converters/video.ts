@@ -3,11 +3,11 @@
  * its ProseMirror attributes.
  */
 
-import { isVideoBlock } from "@emdash-cms/admin/video-block";
+import { isVideoBlock } from "@emdash-cms/admin/internal/video-block";
 
 import type { PortableTextVideoBlock } from "./types.js";
 
-export { videoBlockFields, videoNodeAttrs } from "@emdash-cms/admin/video-block";
+export { videoBlockFields, videoNodeAttrs } from "@emdash-cms/admin/internal/video-block";
 
 /**
  * Whether a block is the editor's own video block. A `video` block with other
