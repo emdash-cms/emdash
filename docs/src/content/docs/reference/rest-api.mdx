@@ -350,6 +350,23 @@ Creation and update bodies accept byline credits, and content responses include 
 
 The lifecycle operations distinguish a soft delete from permanent deletion. Restore returns trashed content as a draft with no schedule; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
 
+### Change bylines, references or terms based on a read
+
+Bylines, reference selections and taxonomy terms are lists that other writers can change while your client edits them, and `_rev` alone can't keep a list change safe when other saves move the token. To change one of these lists without dropping someone else's change, send the list you read as `expected`:
+
+```http
+PUT /_emdash/api/content/articles/01JARTICLE0000000000000000
+Authorization: Bearer $EMDASH_TOKEN
+Content-Type: application/json
+
+{
+	"bylines": [{ "bylineId": "01JBYLINEADA0000000000000" }, { "bylineId": "01JBYLINEGRACE00000000000" }],
+	"expected": { "bylines": [{ "bylineId": "01JBYLINEADA0000000000000", "roleLabel": null }] }
+}
+```
+
+`expected` takes `bylines`, in order with their role labels, and `references`, keyed by field slug, with every entry the field selects. `POST /content/{collection}/{id}/terms/{taxonomy}` takes `expected` as a list of term IDs. When a stored list differs from `expected`, nothing is written and the request fails with `409 LIST_CONFLICT`. Read the entry again, apply your change to the list it holds now, and retry.
+
 ### Entry edit lock
 
 Collections can take a seven-minute edit lock when an editor opens an entry. Use the three operations on `/content/{collection}/{id}/lock` to read, acquire or refresh, and release the lease.

@@ -17,6 +17,8 @@ export const ErrorCode = {
 	INVALID_JSON: "INVALID_JSON",
 	INVALID_CURSOR: "INVALID_CURSOR",
 	CONFLICT: "CONFLICT",
+	/** A list the save was based on changed; read the entry again and rebase the change. */
+	LIST_CONFLICT: "LIST_CONFLICT",
 	SLUG_CONFLICT: "SLUG_CONFLICT",
 	NOT_CONFIGURED: "NOT_CONFIGURED",
 	BINDING_NOT_FOUND: "BINDING_NOT_FOUND",
@@ -517,6 +519,7 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 409 Conflict
 		case ErrorCode.CONFLICT:
+		case ErrorCode.LIST_CONFLICT:
 		case ErrorCode.SLUG_CONFLICT:
 		case ErrorCode.COLLECTION_EXISTS:
 		case ErrorCode.COLLECTION_TABLE_ORPHANED:

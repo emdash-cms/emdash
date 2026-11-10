@@ -272,6 +272,16 @@ export const contentUpdateBody = z
 			description:
 				"Reference selections as { fieldSlug: [entryId, ...] }, in display order. Written as content-reference links in the same transaction as the entry. A field bound to the child end of its relation selects the entries pointing at this one, which carry no order.",
 		}),
+		expected: z
+			.object({
+				bylines: z.array(contentBylineInputSchema).optional(),
+				references: z.record(z.string(), z.array(z.string()).max(1000)).optional(),
+			})
+			.optional()
+			.meta({
+				description:
+					"The bylines and reference selections this save was based on, as a read of the entry returned them (every page of a reference field). When a stored list no longer matches, nothing is written and the save fails with 409 LIST_CONFLICT, so the client can read the entry again and rebase its change.",
+			}),
 		publishedAt: contentDateOverride,
 		migrateBlocks: z.boolean().optional(),
 		replaceBlocks: z.boolean().optional(),
@@ -330,6 +340,10 @@ export const contentPreviewUrlBody = z
 export const contentTermsBody = z
 	.object({
 		termIds: z.array(z.string()),
+		expected: z.array(z.string()).optional().meta({
+			description:
+				"The term ids this change was based on, as a read of the entry's terms returned them. When the entry's terms no longer match, nothing is written and the request fails with 409 LIST_CONFLICT.",
+		}),
 	})
 	.meta({ id: "ContentTermsBody" });
 
