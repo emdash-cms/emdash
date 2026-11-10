@@ -3403,7 +3403,7 @@ msgstr "このコンテンツを公開する日時を選択します。"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:687
 msgid "Choose which date appears in the content list."
-msgstr ""
+msgstr "コンテンツ一覧に表示する日付を選択します。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
@@ -4546,7 +4546,7 @@ msgstr "日付と時刻を選択"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
 msgid "Date column source"
-msgstr ""
+msgstr "日付列に使用する日付"
 
 #: packages/admin/src/components/ContentList.tsx:1098
 msgid "Date field to filter on"
@@ -8807,7 +8807,7 @@ msgstr "最終更新日時"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:676
 msgid "Last updated (default)"
-msgstr ""
+msgstr "最終更新日（標準）"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
 #: packages/admin/src/components/settings/PasskeyItem.tsx:134
