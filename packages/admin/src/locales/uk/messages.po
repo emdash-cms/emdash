@@ -212,7 +212,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# колекція} few {# колекції} many {# колекцій} other {# колекцій}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2312
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# коментар імпортовано} few {# коментарі імпортовано} many {# коментарів імпортовано} other {# коментарів імпортовано}}"
 
@@ -227,12 +227,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# коментар} few {# коментарі} many {# коментарів} other {# коментарів}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2331
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# помилка вмісту} few {# помилки вмісту} many {# помилок вмісту} other {# помилок вмісту}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2272
+#: packages/admin/src/components/WordPressImport.tsx:2264
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {# елемент вмісту імпортовано} few {# елементи вмісту імпортовано} many {# елементів вмісту імпортовано} other {# елементів вмісту імпортовано}}"
 
@@ -298,22 +298,22 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP-інструмент} few {# MCP-інструменти} many {# MCP-інструментів} other {# MCP-інструмента}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2336
+#: packages/admin/src/components/WordPressImport.tsx:2328
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# помилка медіа} few {# помилки медіа} many {# помилок медіа} other {# помилок медіа}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2288
+#: packages/admin/src/components/WordPressImport.tsx:2280
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# медіафайл імпортовано} few {# медіафайли імпортовано} many {# медіафайлів імпортовано} other {# медіафайлів імпортовано}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2312
+#: packages/admin/src/components/WordPressImport.tsx:2304
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# меню імпортовано} few {# меню імпортовано} many {# меню імпортовано} other {# меню імпортовано}}"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1960
+#: packages/admin/src/components/WordPressImport.tsx:1952
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# меню буде імпортовано} few {# меню буде імпортовано} many {# меню буде імпортовано} other {# меню буде імпортовано}}"
 
@@ -334,7 +334,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr "{0, plural, one {# плагін} few {# плагіни} many {# плагінів} other {# плагіна}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2545
+#: packages/admin/src/components/WordPressImport.tsx:2537
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# допис} few {# дописи} many {# дописів} other {# дописів}}"
 
@@ -364,17 +364,17 @@ msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} oth
 msgstr "Виділено {0, plural, one {# рядок} few {# рядки} many {# рядків} other {# рядка}} × {1, plural, one {# стовпець} few {# стовпці} many {# стовпців} other {# стовпця}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2280
+#: packages/admin/src/components/WordPressImport.tsx:2272
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {# пропущено (вже існує)} few {# пропущено (вже існують)} many {# пропущено (вже існує)} other {# пропущено (вже існує)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2304
+#: packages/admin/src/components/WordPressImport.tsx:2296
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {# призначення таксономії} few {# призначення таксономій} many {# призначень таксономій} other {# призначень таксономій}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2296
+#: packages/admin/src/components/WordPressImport.tsx:2288
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {# таксономію створено} few {# таксономії створено} many {# таксономій створено} other {# таксономій створено}}"
 
@@ -476,7 +476,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "Термін {0} не можна перемістити сюди — його батьківський термін не перекладено для цієї локалі, тож цей список не є його групою."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/WordPressImport.tsx:1358
 msgid "{0} detected"
 msgstr "{0} виявлено"
 
@@ -512,12 +512,12 @@ msgstr "{0} тепер активний"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2030
+#: packages/admin/src/components/WordPressImport.tsx:2022
 msgid "{0} items → {1}"
 msgstr "Елементів: {0} → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1953
+#: packages/admin/src/components/WordPressImport.tsx:1945
 msgid "{0} items will be imported"
 msgstr "Буде імпортовано елементів: {0}"
 
@@ -660,17 +660,17 @@ msgstr "{count, plural, one {# блок} few {# блоки} many {# блоків
 msgid "{count, plural, one {# entry} other {# entries}}"
 msgstr "{count, plural, one {# запис} few {# записи} many {# записів} other {# запису}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2129
+#: packages/admin/src/components/WordPressImport.tsx:2121
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# файл} few {# файли} many {# файлів} other {# файлів}}"
 
 #: packages/admin/src/components/BlockListField.tsx:165
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2408
+#: packages/admin/src/components/WordPressImport.tsx:2400
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# елемент} few {# елементи} many {# елементів} other {# елементів}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2200
+#: packages/admin/src/components/WordPressImport.tsx:2192
 msgid "{current} of {total}"
 msgstr "{current} з {total}"
 
@@ -794,11 +794,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# елемент відповідає \"{searchQuery}\"} few {# елементи відповідають \"{searchQuery}\"} many {# елементів відповідають \"{searchQuery}\"} other {# елементів відповідають \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2532
+#: packages/admin/src/components/WordPressImport.tsx:2524
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount} з {totalCount} призначено"
 
-#: packages/admin/src/components/WordPressImport.tsx:2520
+#: packages/admin/src/components/WordPressImport.tsx:2512
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} з {totalCount} авторів зіставлено за email"
 
@@ -896,11 +896,11 @@ msgstr ""
 msgid "{name}: this site already has some"
 msgstr "{name}: уже є на цьому сайті"
 
-#: packages/admin/src/components/WordPressImport.tsx:1936
+#: packages/admin/src/components/WordPressImport.tsx:1928
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {# нову колекцію буде створено} few {# нові колекції буде створено} many {# нових колекцій буде створено} other {# нових колекцій буде створено}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1945
+#: packages/admin/src/components/WordPressImport.tsx:1937
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Поля буде додано до # наявної колекції} few {Поля буде додано до # наявних колекцій} many {Поля буде додано до # наявних колекцій} other {Поля буде додано до # наявних колекцій}}"
 
@@ -1093,21 +1093,21 @@ msgstr "/new-page або /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page або /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2150
+#: packages/admin/src/components/WordPressImport.tsx:2142
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• Файли завантажуються з вашого сайту WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:2151
+#: packages/admin/src/components/WordPressImport.tsx:2143
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• Завантажуються до сховища медіа EmDash"
 
-#: packages/admin/src/components/WordPressImport.tsx:2152
+#: packages/admin/src/components/WordPressImport.tsx:2144
 msgid "• URLs in your content are updated automatically"
 msgstr "• URL у вашому вмісті оновлюються автоматично"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 #: packages/admin/src/components/SetupWizard.tsx:341
-#: packages/admin/src/components/WordPressImport.tsx:1656
+#: packages/admin/src/components/WordPressImport.tsx:1657
 msgid "← Back"
 msgstr "← Назад"
 
@@ -1154,11 +1154,11 @@ msgstr "Оновлено 1 запис"
 msgid "1 year"
 msgstr "1 рік"
 
-#: packages/admin/src/components/WordPressImport.tsx:1577
+#: packages/admin/src/components/WordPressImport.tsx:1578
 msgid "1. Log into your WordPress admin"
 msgstr "1. Увійдіть до адмін-панелі WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:1329
+#: packages/admin/src/components/WordPressImport.tsx:1330
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. Увійдіть до панелі керування WordPress"
 
@@ -1166,11 +1166,11 @@ msgstr "1. Увійдіть до панелі керування WordPress"
 msgid "16:9"
 msgstr "16:9"
 
-#: packages/admin/src/components/WordPressImport.tsx:77
+#: packages/admin/src/components/WordPressImport.tsx:78
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. Перейдіть у розділ <0>Інструменти → Експорт</0>"
 
-#: packages/admin/src/components/WordPressImport.tsx:1578
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "2. Go to Users → Profile"
 msgstr "2. Перейдіть до Користувачі → Профіль"
 
@@ -1178,11 +1178,11 @@ msgstr "2. Перейдіть до Користувачі → Профіль"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1579
+#: packages/admin/src/components/WordPressImport.tsx:1580
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. Прокрутіть до \"Паролів додатків\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1333
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "3. Select \"All content\""
 msgstr "3. Виберіть \"Увесь вміст\""
 
@@ -1210,11 +1210,11 @@ msgstr "308 Постійне (суворе)"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1334
+#: packages/admin/src/components/WordPressImport.tsx:1335
 msgid "4. Click \"Download Export File\""
 msgstr "4. Натисніть \"Завантажити файл експорту\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1580
+#: packages/admin/src/components/WordPressImport.tsx:1581
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Введіть \"EmDash\" і натисніть \"Додати\""
 
@@ -1230,11 +1230,11 @@ msgstr "410 Вміст видалено (Gone)"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 Недоступно з юридичних причин"
 
-#: packages/admin/src/components/WordPressImport.tsx:1581
+#: packages/admin/src/components/WordPressImport.tsx:1582
 msgid "5. Copy the generated password"
 msgstr "5. Скопіюйте згенерований пароль"
 
-#: packages/admin/src/components/WordPressImport.tsx:1335
+#: packages/admin/src/components/WordPressImport.tsx:1336
 msgid "5. Upload the file here"
 msgstr "5. Завантажте файл тут"
 
@@ -1425,7 +1425,7 @@ msgstr "Обліковий запис існує"
 msgid "Account Info"
 msgstr "Інформація про обліковий запис"
 
-#: packages/admin/src/components/WordPressImport.tsx:1208
+#: packages/admin/src/components/WordPressImport.tsx:1209
 msgid "ACF Fields"
 msgstr "Поля ACF"
 
@@ -1615,7 +1615,7 @@ msgstr "Додати домен"
 msgid "Add Field"
 msgstr "Додати поле"
 
-#: packages/admin/src/components/WordPressImport.tsx:2041
+#: packages/admin/src/components/WordPressImport.tsx:2033
 msgid "Add fields"
 msgstr "Додати поля"
 
@@ -1835,7 +1835,7 @@ msgstr "Додавання..."
 msgid "Adding…"
 msgstr "Додавання…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1810
+#: packages/admin/src/components/WordPressImport.tsx:1805
 msgid "Additional data to import."
 msgstr "Додаткові дані для імпорту."
 
@@ -1847,7 +1847,7 @@ msgstr "Додаткові відомості"
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr "Додає до robots.txt правила, які просять ботів ШІ не використовувати цей сайт для навчання. Пошукові системи й надалі зможуть його індексувати."
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1539
 msgid "admin"
 msgstr "admin"
 
@@ -1957,7 +1957,7 @@ msgstr "Усі колекції"
 msgid "All comments require approval"
 msgstr "Усі коментарі потребують схвалення"
 
-#: packages/admin/src/components/WordPressImport.tsx:2577
+#: packages/admin/src/components/WordPressImport.tsx:2569
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Увесь імпортований вміст буде без автора. Пізніше ви зможете призначити авторів у редакторі вмісту."
 
@@ -2072,7 +2072,7 @@ msgstr "Для папок альтернативний текст не вказ�
 msgid "Alt text set"
 msgstr "Альтернативний текст встановлено"
 
-#: packages/admin/src/components/WordPressImport.tsx:1449
+#: packages/admin/src/components/WordPressImport.tsx:1450
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Або експортуйте з WordPress (Інструменти → Експорт) і завантажте файл."
 
@@ -2154,11 +2154,11 @@ msgstr "Сталася неочікувана помилка."
 msgid "An unknown error occurred"
 msgstr "Сталася невідома помилка"
 
-#: packages/admin/src/components/WordPressImport.tsx:1630
+#: packages/admin/src/components/WordPressImport.tsx:1631
 msgid "Analyzing export file..."
 msgstr "Аналіз файлу експорту..."
 
-#: packages/admin/src/components/WordPressImport.tsx:855
+#: packages/admin/src/components/WordPressImport.tsx:856
 msgid "Analyzing WordPress site..."
 msgstr "Аналіз сайту WordPress..."
 
@@ -2244,7 +2244,7 @@ msgstr "API-токени"
 msgid "Appears on posts and pages"
 msgstr "З'являється в дописах і на сторінках"
 
-#: packages/admin/src/components/WordPressImport.tsx:1545
+#: packages/admin/src/components/WordPressImport.tsx:1546
 msgid "Application Password"
 msgstr "Пароль додатка"
 
@@ -2355,7 +2355,7 @@ msgstr "Попросіть адміністратора завершити це 
 msgid "Aspect ratio"
 msgstr "Співвідношення сторін"
 
-#: packages/admin/src/components/WordPressImport.tsx:2515
+#: packages/admin/src/components/WordPressImport.tsx:2507
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Призначте авторів WordPress користувачам EmDash. Дописи будуть приписані обраному користувачу."
 
@@ -2425,7 +2425,7 @@ msgstr "Автентифікацію скасовано або час вичер
 msgid "Author"
 msgstr "Автор"
 
-#: packages/admin/src/components/WordPressImport.tsx:2530
+#: packages/admin/src/components/WordPressImport.tsx:2522
 msgid "Author Mapping"
 msgstr "Зіставлення авторів"
 
@@ -2546,8 +2546,8 @@ msgstr "Назад"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
-#: packages/admin/src/components/WordPressImport.tsx:1565
-#: packages/admin/src/components/WordPressImport.tsx:2586
+#: packages/admin/src/components/WordPressImport.tsx:1566
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "Back"
 msgstr "Назад"
 
@@ -2723,7 +2723,7 @@ msgstr "Жирний"
 msgid "Boolean"
 msgstr "Логічний"
 
-#: packages/admin/src/components/WordPressImport.tsx:1314
+#: packages/admin/src/components/WordPressImport.tsx:1315
 msgid "Bot protection blocked the connection"
 msgstr "Захист від ботів заблокував з'єднання"
 
@@ -2751,8 +2751,8 @@ msgstr "Переглядайте та встановлюйте плагіни д
 msgid "Browse files"
 msgstr "Обрати файли"
 
-#: packages/admin/src/components/WordPressImport.tsx:1174
-#: packages/admin/src/components/WordPressImport.tsx:1649
+#: packages/admin/src/components/WordPressImport.tsx:1175
+#: packages/admin/src/components/WordPressImport.tsx:1650
 msgid "Browse Files"
 msgstr "Обрати файли"
 
@@ -2927,7 +2927,7 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/TaxonomyManager.tsx:1021
 #: packages/admin/src/components/users/InviteUserModal.tsx:232
 #: packages/admin/src/components/Widgets.tsx:524
-#: packages/admin/src/components/WordPressImport.tsx:1974
+#: packages/admin/src/components/WordPressImport.tsx:1966
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:9
 msgid "Cancel"
 msgstr "Скасувати"
@@ -3002,11 +3002,11 @@ msgid "Categories"
 msgstr "Категорії"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1842
+#: packages/admin/src/components/WordPressImport.tsx:1834
 msgid "Categories ({0})"
 msgstr "Категорії ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1196
+#: packages/admin/src/components/WordPressImport.tsx:1197
 msgid "Categories & Tags"
 msgstr "Категорії та теги"
 
@@ -3199,7 +3199,7 @@ msgstr "Перевірте параметр registry.policy.minimumReleaseAge в
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "Перевірте параметр registry.policy.minimumReleaseAgeExclude в astro.config.mjs, а потім перезапустіть EmDash."
 
-#: packages/admin/src/components/WordPressImport.tsx:1145
+#: packages/admin/src/components/WordPressImport.tsx:1146
 msgid "Check Site"
 msgstr "Перевірити сайт"
 
@@ -3221,7 +3221,7 @@ msgstr "Перевірте з'єднання та спробуйте ще раз
 msgid "Check your email"
 msgstr "Перевірте email"
 
-#: packages/admin/src/components/WordPressImport.tsx:821
+#: packages/admin/src/components/WordPressImport.tsx:822
 msgid "Checking {urlInput}..."
 msgstr "Перевірка {urlInput}..."
 
@@ -3534,7 +3534,7 @@ msgstr "Закрити панель"
 msgid "Close settings"
 msgstr "Закрити налаштування"
 
-#: packages/admin/src/components/WordPressImport.tsx:93
+#: packages/admin/src/components/WordPressImport.tsx:94
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
 msgstr "Захист від ботів Cloudflare відповів сторінкою перевірки, тому EmDash не може звернутися до EmDash Exporter API. Дозвольте запити до /wp-json/emdash/v1/ (а на сайтах із простим форматом постійних посилань — до ?rest_route=/emdash/v1/), наприклад власним правилом WAF, яке оминає захист від ботів, або призупиніть захист від ботів на час міграції. Потім спробуйте ще раз."
 
@@ -3605,7 +3605,7 @@ msgstr "Колекції"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Колекції та поля, увесь вміст разом із чернетками, ревізіями, запланованими публікаціями й кошиком, переклади, таксономії, підписи авторів, медіафайли, меню, віджети, секції, перенаправлення, SEO та налаштування сайту."
 
-#: packages/admin/src/components/WordPressImport.tsx:2384
+#: packages/admin/src/components/WordPressImport.tsx:2376
 msgid "Collections created:"
 msgstr "Створено колекцій:"
 
@@ -3719,17 +3719,17 @@ msgstr "Підтвердьте за допомогою Face ID, Touch ID або 
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "Підтвердьте відбитком пальця, обличчям або PIN-кодом."
 
-#: packages/admin/src/components/WordPressImport.tsx:746
-#: packages/admin/src/components/WordPressImport.tsx:1102
+#: packages/admin/src/components/WordPressImport.tsx:747
+#: packages/admin/src/components/WordPressImport.tsx:1103
 msgid "Connect"
 msgstr "Підключити"
 
-#: packages/admin/src/components/WordPressImport.tsx:1562
+#: packages/admin/src/components/WordPressImport.tsx:1563
 msgid "Connect & Analyze"
 msgstr "Підключити й проаналізувати"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1511
+#: packages/admin/src/components/WordPressImport.tsx:1512
 msgid "Connect to {0}"
 msgstr "Підключитися до {0}"
 
@@ -3743,7 +3743,7 @@ msgstr "Підключатися до будь-яких мережевих хо�
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "Підключатися до мережевих хостів і завантажувати зовнішні зображення на сторінках плагіна в адмін-панелі"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1428
 msgid "Connect with WordPress"
 msgstr "Підключитися до WordPress"
 
@@ -3785,11 +3785,11 @@ msgid "Content digest"
 msgstr "Контрольна сума вмісту"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2439
+#: packages/admin/src/components/WordPressImport.tsx:2431
 msgid "Content Errors ({0})"
 msgstr "Помилки вмісту ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1371
+#: packages/admin/src/components/WordPressImport.tsx:1372
 msgid "Content found:"
 msgstr "Знайдено вмісту:"
 
@@ -3842,7 +3842,7 @@ msgstr "Результати пошуку вмісту"
 msgid "Content that credits this byline loses the credit."
 msgstr "Вміст, де вказано цей підпис, втратить його."
 
-#: packages/admin/src/components/WordPressImport.tsx:1788
+#: packages/admin/src/components/WordPressImport.tsx:1783
 msgid "Content to Import"
 msgstr "Вміст для імпорту"
 
@@ -3865,7 +3865,7 @@ msgstr "Типи вмісту з однаковою групою об'єдную
 msgid "Content using this media item may show a broken reference."
 msgstr "Вміст, де використано цей медіафайл, може містити непрацююче посилання."
 
-#: packages/admin/src/components/WordPressImport.tsx:2367
+#: packages/admin/src/components/WordPressImport.tsx:2359
 msgid "Content was skipped because it already exists"
 msgstr "Вміст пропущено, бо він уже існує"
 
@@ -3884,7 +3884,7 @@ msgstr "Продовжити"
 msgid "Continue →"
 msgstr "Продовжити →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2588
+#: packages/admin/src/components/WordPressImport.tsx:2580
 msgid "Continue Import"
 msgstr "Продовжити імпорт"
 
@@ -4059,7 +4059,7 @@ msgstr "Не вдалося додати пункт меню"
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "Не вдалося перевірити, чи ще існують медіафайл або обрана папка. Спробуйте ще раз."
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
+#: packages/admin/src/components/WordPressImport.tsx:1316
 msgid "Couldn't detect WordPress"
 msgstr "Не вдалося виявити WordPress"
 
@@ -4259,7 +4259,7 @@ msgstr "Створити новий термін ({singularLower})"
 msgid "Create New Token"
 msgstr "Створити новий токен"
 
-#: packages/admin/src/components/WordPressImport.tsx:1556
+#: packages/admin/src/components/WordPressImport.tsx:1557
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Створіть у WordPress: Користувачі → Профіль → Паролі додатків"
 
@@ -4299,7 +4299,7 @@ msgstr "Створити зв'язок"
 msgid "Create Relation"
 msgstr "Створити зв'язок"
 
-#: packages/admin/src/components/WordPressImport.tsx:1978
+#: packages/admin/src/components/WordPressImport.tsx:1970
 msgid "Create Schema & Import"
 msgstr "Створити схему й імпортувати"
 
@@ -4403,7 +4403,7 @@ msgstr "Створено"
 msgid "Creating collections and fields"
 msgstr "Створення колекцій і полів"
 
-#: packages/admin/src/components/WordPressImport.tsx:932
+#: packages/admin/src/components/WordPressImport.tsx:933
 msgid "Creating collections and fields..."
 msgstr "Створення колекцій і полів..."
 
@@ -4497,7 +4497,7 @@ msgstr "Власний вміст robots.txt. Залиште порожнім д
 msgid "Custom Section"
 msgstr "Власна секція"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Custom Taxonomies"
 msgstr "Власні таксономії"
 
@@ -5200,7 +5200,7 @@ msgstr "Не зіставляти"
 #: packages/admin/src/components/ContentList.tsx:1224
 #: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
-#: packages/admin/src/components/WordPressImport.tsx:2185
+#: packages/admin/src/components/WordPressImport.tsx:2177
 msgid "Done"
 msgstr "Готово"
 
@@ -5262,7 +5262,7 @@ msgstr "Завантажте цей сайт як один файл пакета
 msgid "Downloaded"
 msgstr "Завантажено"
 
-#: packages/admin/src/components/WordPressImport.tsx:2183
+#: packages/admin/src/components/WordPressImport.tsx:2175
 msgid "Downloading"
 msgstr "Завантаження"
 
@@ -5299,7 +5299,7 @@ msgstr "чернетка, опубліковано або заархівован
 msgid "Drafts"
 msgstr "Чернетки"
 
-#: packages/admin/src/components/WordPressImport.tsx:1216
+#: packages/admin/src/components/WordPressImport.tsx:1217
 msgid "Drafts & Private"
 msgstr "Чернетки та приватні"
 
@@ -5307,7 +5307,7 @@ msgstr "Чернетки та приватні"
 msgid "Drag and drop files here"
 msgstr "Перетягніть файли сюди"
 
-#: packages/admin/src/components/WordPressImport.tsx:1169
+#: packages/admin/src/components/WordPressImport.tsx:1170
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Перетягніть або клацніть для вибору (.xml)"
 
@@ -5358,7 +5358,7 @@ msgstr "Перетягуйте по одному зображенню."
 msgid "Drop to add widget"
 msgstr "Відпустіть, щоб додати віджет"
 
-#: packages/admin/src/components/WordPressImport.tsx:1643
+#: packages/admin/src/components/WordPressImport.tsx:1644
 msgid "Drop your WordPress export file here"
 msgstr "Перетягніть файл експорту WordPress сюди"
 
@@ -5686,7 +5686,7 @@ msgstr ""
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Редактори зможуть обрати друге зображення, яке сайт показуватиме в темному режимі."
 
-#: packages/admin/src/components/WordPressImport.tsx:1092
+#: packages/admin/src/components/WordPressImport.tsx:1093
 msgid "em1.…"
 msgstr "em1.…"
 
@@ -5798,7 +5798,7 @@ msgstr "EmDash не зберігає попереднє зображення."
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash не зберігає зображення до обрізання."
 
-#: packages/admin/src/components/WordPressImport.tsx:1361
+#: packages/admin/src/components/WordPressImport.tsx:1362
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "Виявлено плагін EmDash Exporter! Можна імпортувати напряму."
 
@@ -6041,7 +6041,7 @@ msgstr "Введіть ціле число, не менше ніж 2."
 msgid "Enter an email address."
 msgstr "Введіть адресу електронної пошти."
 
-#: packages/admin/src/components/WordPressImport.tsx:1434
+#: packages/admin/src/components/WordPressImport.tsx:1435
 msgid "Enter credentials manually"
 msgstr "Введіть облікові дані вручну"
 
@@ -6083,12 +6083,12 @@ msgstr "Введіть URL..."
 msgid "Enter your handle to sign in."
 msgstr "Введіть свій псевдонім, щоб увійти."
 
-#: packages/admin/src/components/WordPressImport.tsx:1513
+#: packages/admin/src/components/WordPressImport.tsx:1514
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "Введіть облікові дані WordPress для прямого імпорту вмісту."
 
-#: packages/admin/src/components/WordPressImport.tsx:1130
-#: packages/admin/src/components/WordPressImport.tsx:1142
+#: packages/admin/src/components/WordPressImport.tsx:1131
+#: packages/admin/src/components/WordPressImport.tsx:1143
 msgid "Enter your WordPress site URL"
 msgstr "Введіть URL сайту WordPress"
 
@@ -6195,7 +6195,7 @@ msgstr "Наявні {pluralLower} залишаться без змін."
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "Наявний вміст проіндексовано. Нові зміни відстежуються автоматично."
 
-#: packages/admin/src/components/WordPressImport.tsx:2067
+#: packages/admin/src/components/WordPressImport.tsx:2059
 msgid "Exists"
 msgstr "Існує"
 
@@ -6234,7 +6234,7 @@ msgstr "Термін дії"
 msgid "Export"
 msgstr "Експорт"
 
-#: packages/admin/src/components/WordPressImport.tsx:1327
+#: packages/admin/src/components/WordPressImport.tsx:1328
 msgid "Export from WordPress manually"
 msgstr "Експорт з WordPress вручну"
 
@@ -6250,7 +6250,7 @@ msgstr "{requester} просить дозволу на експорт"
 msgid "Export site"
 msgstr "Експортувати сайт"
 
-#: packages/admin/src/components/WordPressImport.tsx:1451
+#: packages/admin/src/components/WordPressImport.tsx:1452
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Експортуйте вміст з WordPress, щоб імпортувати все, включно з чернетками."
 
@@ -6284,7 +6284,7 @@ msgstr "Невдача"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2187
+#: packages/admin/src/components/WordPressImport.tsx:2179
 msgid "Failed"
 msgstr "Не вдалося"
 
@@ -6312,7 +6312,7 @@ msgstr "Не вдалося додати ключ доступу"
 msgid "Failed to add term to entries"
 msgstr "Не вдалося додати термін до записів"
 
-#: packages/admin/src/lib/api/import.ts:378
+#: packages/admin/src/lib/api/import.ts:381
 msgid "Failed to analyze file"
 msgstr "Не вдалося проаналізувати файл"
 
@@ -6320,8 +6320,8 @@ msgstr "Не вдалося проаналізувати файл"
 msgid "Failed to analyze import"
 msgstr "Не вдалося проаналізувати імпорт"
 
-#: packages/admin/src/components/WordPressImport.tsx:433
-#: packages/admin/src/lib/api/import.ts:768
+#: packages/admin/src/components/WordPressImport.tsx:434
+#: packages/admin/src/lib/api/import.ts:771
 msgid "Failed to analyze WordPress site"
 msgstr "Не вдалося проаналізувати сайт WordPress"
 
@@ -6444,7 +6444,7 @@ msgstr "Не вдалося створити зв'язок"
 msgid "Failed to create section"
 msgstr "Не вдалося створити секцію"
 
-#: packages/admin/src/components/WordPressImport.tsx:1771
+#: packages/admin/src/components/WordPressImport.tsx:1766
 msgid "Failed to create some collections"
 msgstr "Не вдалося створити деякі колекції"
 
@@ -6621,7 +6621,7 @@ msgstr "Не вдалося увімкнути пошук"
 msgid "Failed to enable user"
 msgstr "Не вдалося увімкнути користувача"
 
-#: packages/admin/src/components/WordPressImport.tsx:355
+#: packages/admin/src/components/WordPressImport.tsx:356
 msgid "Failed to execute import"
 msgstr "Не вдалося виконати імпорт"
 
@@ -6899,18 +6899,18 @@ msgstr "Не вдалося отримати параметри реєстрац
 msgid "Failed to get upload URL"
 msgstr "Не вдалося отримати URL завантаження"
 
-#: packages/admin/src/lib/api/import.ts:432
+#: packages/admin/src/lib/api/import.ts:435
 msgid "Failed to import"
 msgstr "Не вдалося імпортувати"
 
-#: packages/admin/src/components/WordPressImport.tsx:462
-#: packages/admin/src/lib/api/import.ts:257
+#: packages/admin/src/components/WordPressImport.tsx:463
+#: packages/admin/src/lib/api/import.ts:260
 msgid "Failed to import from WordPress"
 msgstr "Не вдалося імпортувати з WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:380
-#: packages/admin/src/lib/api/import.ts:534
-#: packages/admin/src/lib/api/import.ts:539
+#: packages/admin/src/components/WordPressImport.tsx:381
+#: packages/admin/src/lib/api/import.ts:537
+#: packages/admin/src/lib/api/import.ts:542
 msgid "Failed to import media"
 msgstr "Не вдалося імпортувати медіа"
 
@@ -7055,12 +7055,12 @@ msgstr "Не вдалося виконати масову дію"
 msgid "Failed to permanently delete content"
 msgstr "Не вдалося остаточно видалити вміст"
 
-#: packages/admin/src/components/WordPressImport.tsx:334
-#: packages/admin/src/lib/api/import.ts:390
+#: packages/admin/src/components/WordPressImport.tsx:335
+#: packages/admin/src/lib/api/import.ts:393
 msgid "Failed to prepare import"
 msgstr "Не вдалося підготувати імпорт"
 
-#: packages/admin/src/lib/api/import.ts:712
+#: packages/admin/src/lib/api/import.ts:715
 msgid "Failed to probe URL"
 msgstr "Не вдалося перевірити URL"
 
@@ -7149,8 +7149,8 @@ msgstr "Не вдалося відновити ревізію"
 msgid "Failed to revoke API token"
 msgstr "Не вдалося відкликати API-токен"
 
-#: packages/admin/src/components/WordPressImport.tsx:393
-#: packages/admin/src/lib/api/import.ts:729
+#: packages/admin/src/components/WordPressImport.tsx:394
+#: packages/admin/src/lib/api/import.ts:732
 msgid "Failed to rewrite URLs"
 msgstr "Не вдалося переписати URL"
 
@@ -7391,11 +7391,11 @@ msgstr "FAQ"
 msgid "Favicon"
 msgstr "Favicon"
 
-#: packages/admin/src/components/WordPressImport.tsx:1230
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "Feature"
 msgstr "Функція"
 
-#: packages/admin/src/components/WordPressImport.tsx:1198
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Featured Images"
 msgstr "Головні зображення"
 
@@ -7404,7 +7404,7 @@ msgstr "Головні зображення"
 msgid "Features"
 msgstr "Функції"
 
-#: packages/admin/src/components/WordPressImport.tsx:856
+#: packages/admin/src/components/WordPressImport.tsx:857
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "Отримання вмісту з EmDash Exporter API."
 
@@ -7446,7 +7446,7 @@ msgstr "field_slug"
 msgid "Fields"
 msgstr "Поля"
 
-#: packages/admin/src/components/WordPressImport.tsx:2390
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Fields created:"
 msgstr "Створено полів:"
 
@@ -7455,7 +7455,7 @@ msgid "File"
 msgstr "Файл"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2215
+#: packages/admin/src/components/WordPressImport.tsx:2207
 msgid "File {0}"
 msgstr "Файл {0}"
 
@@ -7647,11 +7647,11 @@ msgstr "Навігація папками"
 msgid "Fonts"
 msgstr "Шрифти"
 
-#: packages/admin/src/components/WordPressImport.tsx:1452
+#: packages/admin/src/components/WordPressImport.tsx:1453
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "Для повного імпорту, включно з чернетками та всім вмістом, експортуйте з WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:68
+#: packages/admin/src/components/WordPressImport.tsx:69
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Щоб імпорт пройшов якнайкраще, встановіть на сайті WordPress плагін <0>EmDash Exporter</0>."
 
@@ -7689,7 +7689,7 @@ msgid "From URL"
 msgstr "За URL"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1206
 msgid "Full"
 msgstr "Повний"
 
@@ -7762,7 +7762,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr "Буде опубліковано {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2477
+#: packages/admin/src/components/WordPressImport.tsx:2469
 #: packages/admin/src/router.tsx:3552
 msgid "Go to Dashboard"
 msgstr "Перейти до панелі"
@@ -8011,7 +8011,7 @@ msgstr "Як створюється slug?"
 msgid "How many"
 msgstr "Кількість"
 
-#: packages/admin/src/components/WordPressImport.tsx:1575
+#: packages/admin/src/components/WordPressImport.tsx:1576
 msgid "How to create an Application Password"
 msgstr "Як створити пароль додатка"
 
@@ -8060,7 +8060,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1138
+#: packages/admin/src/components/WordPressImport.tsx:1139
 msgid "https://yoursite.com"
 msgstr "https://yoursite.com"
 
@@ -8206,12 +8206,12 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:605
-#: packages/admin/src/components/WordPressImport.tsx:783
+#: packages/admin/src/components/WordPressImport.tsx:784
 msgid "Import"
 msgstr "Імпорт"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:2015
+#: packages/admin/src/components/WordPressImport.tsx:2007
 msgid "Import {0}"
 msgstr "Імпорт {0}"
 
@@ -8223,7 +8223,7 @@ msgstr "Імпортувати пакет сайту"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "Імпортувати пакет сайту в цей сайт, поки він порожній, із заміною початкового вмісту. Входить до області \"Адмін\"; оберіть цю область замість \"Адмін\", щоб надати агентові вужчий доступ."
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1421
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Імпортуйте весь вміст безпосередньо, включно з чернетками, користувацькими типами записів, полями ACF та SEO-даними. Завантаження файлу не потрібне."
 
@@ -8231,11 +8231,11 @@ msgstr "Імпортуйте весь вміст безпосередньо, в�
 msgid "Import an existing EmDash site"
 msgstr "Імпортувати наявний сайт EmDash"
 
-#: packages/admin/src/components/WordPressImport.tsx:2475
+#: packages/admin/src/components/WordPressImport.tsx:2467
 msgid "Import Another File"
 msgstr "Імпортувати інший файл"
 
-#: packages/admin/src/components/WordPressImport.tsx:1224
+#: packages/admin/src/components/WordPressImport.tsx:1225
 msgid "Import Capabilities"
 msgstr "Можливості імпорту"
 
@@ -8244,32 +8244,32 @@ msgstr "Можливості імпорту"
 msgid "Import complete"
 msgstr "Імпорт завершено"
 
-#: packages/admin/src/components/WordPressImport.tsx:2361
+#: packages/admin/src/components/WordPressImport.tsx:2353
 msgid "Import Complete"
 msgstr "Імпорт завершено"
 
-#: packages/admin/src/components/WordPressImport.tsx:2362
+#: packages/admin/src/components/WordPressImport.tsx:2354
 msgid "Import Completed with Errors"
 msgstr "Імпорт завершено з помилками"
 
-#: packages/admin/src/components/WordPressImport.tsx:1756
+#: packages/admin/src/components/WordPressImport.tsx:1751
 msgid "Import failed"
 msgstr "Імпорт не вдався"
 
-#: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/components/WordPressImport.tsx:737
 #: packages/admin/src/router.tsx:2887
 msgid "Import from WordPress"
 msgstr "Імпорт з WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:2164
+#: packages/admin/src/components/WordPressImport.tsx:2156
 msgid "Import Media"
 msgstr "Імпорт медіа"
 
-#: packages/admin/src/components/WordPressImport.tsx:2117
+#: packages/admin/src/components/WordPressImport.tsx:2109
 msgid "Import Media Files"
 msgstr "Імпорт медіафайлів"
 
-#: packages/admin/src/components/WordPressImport.tsx:738
+#: packages/admin/src/components/WordPressImport.tsx:739
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "Імпорт записів, сторінок і користувацьких типів записів з WordPress."
 
@@ -8277,7 +8277,7 @@ msgstr "Імпорт записів, сторінок і користуваць�
 msgid "Import requested by {requester}"
 msgstr "{requester} просить дозволу на імпорт"
 
-#: packages/admin/src/components/WordPressImport.tsx:1871
+#: packages/admin/src/components/WordPressImport.tsx:1863
 msgid "Import site configuration from WordPress."
 msgstr "Імпорт конфігурації сайту з WordPress."
 
@@ -8285,7 +8285,7 @@ msgstr "Імпорт конфігурації сайту з WordPress."
 msgid "Import this package?"
 msgstr "Імпортувати цей пакет?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1418
+#: packages/admin/src/components/WordPressImport.tsx:1419
 msgid "Import via EmDash Exporter"
 msgstr "Імпорт через EmDash Exporter"
 
@@ -8293,7 +8293,7 @@ msgstr "Імпорт через EmDash Exporter"
 msgid "Imported"
 msgstr "Імпортовано"
 
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Imported by Collection"
 msgstr "Імпортовано за колекціями"
 
@@ -8302,7 +8302,7 @@ msgid "Importing"
 msgstr "Імпорт"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:950
 msgid "Importing comments... {0}"
 msgstr "Імпорт коментарів... {0}"
 
@@ -8310,25 +8310,25 @@ msgstr "Імпорт коментарів... {0}"
 msgid "Importing content"
 msgstr "Імпорт вмісту"
 
-#: packages/admin/src/components/WordPressImport.tsx:967
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "Importing content..."
 msgstr "Імпорт вмісту..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:947
+#: packages/admin/src/components/WordPressImport.tsx:948
 msgid "Importing content... {0}"
 msgstr "Імпорт вмісту... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:946
+#: packages/admin/src/components/WordPressImport.tsx:947
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "Імпорт вмісту... {0} з {totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2196
+#: packages/admin/src/components/WordPressImport.tsx:2188
 msgid "Importing Media"
 msgstr "Імпорт медіа"
 
-#: packages/admin/src/components/WordPressImport.tsx:950
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing menus and site settings..."
 msgstr "Імпорт меню та налаштувань сайту..."
 
@@ -8336,7 +8336,7 @@ msgstr "Імпорт меню та налаштувань сайту..."
 msgid "Importing menus, widgets, and settings"
 msgstr "Імпорт меню, віджетів і налаштувань"
 
-#: packages/admin/src/components/WordPressImport.tsx:951
+#: packages/admin/src/components/WordPressImport.tsx:952
 msgid "Importing reusable blocks..."
 msgstr "Імпорт багаторазових блоків..."
 
@@ -8365,7 +8365,7 @@ msgstr "Експортувати коментарі"
 msgid "Include inferred bylines"
 msgstr "Враховувати автоматичні підписи"
 
-#: packages/admin/src/components/WordPressImport.tsx:2037
+#: packages/admin/src/components/WordPressImport.tsx:2029
 msgid "Incompatible"
 msgstr "Несумісний"
 
@@ -8504,7 +8504,7 @@ msgstr "Встановити"
 msgid "Install blocked"
 msgstr "Встановлення заблоковано"
 
-#: packages/admin/src/components/WordPressImport.tsx:1086
+#: packages/admin/src/components/WordPressImport.tsx:1087
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "Встановіть плагін EmDash Exporter на сайті WordPress і згенеруйте ключ у розділі Інструменти → EmDash Migration."
 
@@ -8720,7 +8720,7 @@ msgstr "Залишити поточне (порожньо)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "Залишити поточне: \"{targetValue}\""
 
-#: packages/admin/src/components/WordPressImport.tsx:963
+#: packages/admin/src/components/WordPressImport.tsx:964
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "Тримайте цю вкладку відкритою. Імпорт виконується невеликими кроками і його можна безпечно перезапустити при перериванні."
 
@@ -8844,7 +8844,7 @@ msgstr "Покинути"
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2556
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Leave unassigned"
 msgstr "Залишити без призначення"
 
@@ -9255,7 +9255,7 @@ msgstr "Вийти"
 msgid "Logo"
 msgstr "Логотип"
 
-#: packages/admin/src/components/WordPressImport.tsx:1889
+#: packages/admin/src/components/WordPressImport.tsx:1881
 msgid "Logo & favicon"
 msgstr "Логотип і favicon"
 
@@ -9340,12 +9340,12 @@ msgstr "Керується вашим провайдером ідентифік�
 msgid "Manual"
 msgstr "Вручну"
 
-#: packages/admin/src/components/WordPressImport.tsx:2513
+#: packages/admin/src/components/WordPressImport.tsx:2505
 msgid "Map Authors"
 msgstr "Зіставити авторів"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2561
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Зіставити користувача WordPress {0} з користувачем EmDash"
 
@@ -9424,9 +9424,9 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:500
-#: packages/admin/src/components/WordPressImport.tsx:797
-#: packages/admin/src/components/WordPressImport.tsx:1195
-#: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/components/WordPressImport.tsx:798
+#: packages/admin/src/components/WordPressImport.tsx:1196
+#: packages/admin/src/components/WordPressImport.tsx:1389
 #: packages/admin/src/router.tsx:2143
 msgid "Media"
 msgstr "Медіа"
@@ -9436,7 +9436,7 @@ msgid "Media details"
 msgstr "Деталі медіафайлу"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2457
+#: packages/admin/src/components/WordPressImport.tsx:2449
 msgid "Media Errors ({0})"
 msgstr "Помилки медіа ({0})"
 
@@ -9445,15 +9445,15 @@ msgstr "Помилки медіа ({0})"
 msgid "Media folders"
 msgstr "Папки медіатеки"
 
-#: packages/admin/src/components/WordPressImport.tsx:2419
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "Media Import"
 msgstr "Імпорт медіа"
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2352
 msgid "Media Import Complete"
 msgstr "Імпорт медіа завершено"
 
-#: packages/admin/src/components/WordPressImport.tsx:2371
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media import was skipped"
 msgstr "Імпорт медіа пропущено"
 
@@ -9585,13 +9585,13 @@ msgstr "Меню перейменовано"
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:521
-#: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/components/WordPressImport.tsx:1200
 #: packages/admin/src/router.tsx:2895
 msgid "Menus"
 msgstr "Меню"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1824
+#: packages/admin/src/components/WordPressImport.tsx:1817
 msgid "Menus ({0})"
 msgstr "Меню ({0})"
 
@@ -9616,7 +9616,7 @@ msgstr "Вміст meta-тегу для перевірки Bing Webmaster Tools"
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Вміст meta-тегу для перевірки Google Search Console"
 
-#: packages/admin/src/components/WordPressImport.tsx:1902
+#: packages/admin/src/components/WordPressImport.tsx:1894
 msgid "Meta titles, descriptions, and social images"
 msgstr "Мета-заголовки, описи та зображення для соцмереж"
 
@@ -9624,7 +9624,7 @@ msgstr "Мета-заголовки, описи та зображення для
 msgid "Migration guide"
 msgstr "Посібник із міграції"
 
-#: packages/admin/src/components/WordPressImport.tsx:1099
+#: packages/admin/src/components/WordPressImport.tsx:1100
 msgid "Migration key"
 msgstr "Ключ міграції"
 
@@ -10014,7 +10014,7 @@ msgstr "Новий підпис"
 msgid "New byline field"
 msgstr "Нове поле підпису"
 
-#: packages/admin/src/components/WordPressImport.tsx:2039
+#: packages/admin/src/components/WordPressImport.tsx:2031
 msgid "New collection"
 msgstr "Нова колекція"
 
@@ -10276,7 +10276,7 @@ msgstr "Email-провайдер не налаштовано"
 msgid "No email provider configured. Share this link manually."
 msgstr "Email-провайдер не налаштовано. Поділіться цим посиланням вручну."
 
-#: packages/admin/src/components/WordPressImport.tsx:2575
+#: packages/admin/src/components/WordPressImport.tsx:2567
 msgid "No EmDash users found"
 msgstr "Користувачів EmDash не знайдено"
 
@@ -10654,7 +10654,7 @@ msgstr "Кількість записів на сторінці в списко�
 msgid "Numbered List"
 msgstr "Нумерований список"
 
-#: packages/admin/src/components/WordPressImport.tsx:541
+#: packages/admin/src/components/WordPressImport.tsx:542
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "Авторизація OAuth потребує HTTPS. Використовуйте облікові дані вручну."
 
@@ -10783,7 +10783,7 @@ msgstr "Відкрийте сторінку входу за новою адре�
 msgid "Open Windows settings"
 msgstr "Відкрити параметри Windows"
 
-#: packages/admin/src/components/WordPressImport.tsx:1589
+#: packages/admin/src/components/WordPressImport.tsx:1590
 msgid "Open WordPress Profile"
 msgstr "Відкрити профіль WordPress"
 
@@ -10833,11 +10833,11 @@ msgstr "Варіанти (по одному на рядок)"
 msgid "Or browse files from your computer"
 msgstr "Або оберіть файли на комп'ютері"
 
-#: packages/admin/src/components/WordPressImport.tsx:1645
+#: packages/admin/src/components/WordPressImport.tsx:1646
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "Або натисніть для вибору. Приймаються .xml файли, експортовані з WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1120
 msgid "or connect by URL"
 msgstr "або підключити за URL"
 
@@ -10847,11 +10847,11 @@ msgstr "або підключити за URL"
 msgid "Or continue with"
 msgstr "Або продовжити з"
 
-#: packages/admin/src/components/WordPressImport.tsx:1445
+#: packages/admin/src/components/WordPressImport.tsx:1446
 msgid "Or upload an export file"
 msgstr "Або завантажити файл експорту"
 
-#: packages/admin/src/components/WordPressImport.tsx:1157
+#: packages/admin/src/components/WordPressImport.tsx:1158
 msgid "or upload directly"
 msgstr "або завантажити безпосередньо"
 
@@ -10949,7 +10949,7 @@ msgid "Page size"
 msgstr "Кількість на сторінці"
 
 #: packages/admin/src/components/PluginManager.tsx:489
-#: packages/admin/src/components/WordPressImport.tsx:1382
+#: packages/admin/src/components/WordPressImport.tsx:1383
 msgid "Pages"
 msgstr "Сторінки"
 
@@ -10976,7 +10976,7 @@ msgstr "Батьківський"
 msgid "Part of a redirect loop"
 msgstr "Частина циклу перенаправлення"
 
-#: packages/admin/src/components/WordPressImport.tsx:1203
+#: packages/admin/src/components/WordPressImport.tsx:1204
 msgid "Partial"
 msgstr "Частково"
 
@@ -11072,7 +11072,7 @@ msgstr "Вставте код для вбудовування або посил�
 msgid "Paste the address of what to embed."
 msgstr "Вставте адресу вмісту, який потрібно вбудувати."
 
-#: packages/admin/src/components/WordPressImport.tsx:1084
+#: packages/admin/src/components/WordPressImport.tsx:1085
 msgid "Paste your migration key"
 msgstr "Вставте ключ міграції"
 
@@ -11207,7 +11207,7 @@ msgstr "Введіть дійсну адресу електронної пошт
 msgid "Please enter a valid URL"
 msgstr "Введіть дійсну URL-адресу"
 
-#: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/components/WordPressImport.tsx:1233
 #: packages/admin/src/router.tsx:3395
 msgid "Plugin"
 msgstr "Плагін"
@@ -11407,11 +11407,11 @@ msgstr "URL записів (по одному на рядок)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:510
 #: packages/admin/src/components/RelationForm.tsx:369
-#: packages/admin/src/components/WordPressImport.tsx:1376
+#: packages/admin/src/components/WordPressImport.tsx:1377
 msgid "Posts"
 msgstr "Записи"
 
-#: packages/admin/src/components/WordPressImport.tsx:1194
+#: packages/admin/src/components/WordPressImport.tsx:1195
 msgid "Posts & Pages"
 msgstr "Записи та сторінки"
 
@@ -11423,7 +11423,7 @@ msgstr "Записів на сторінку"
 msgid "Pre-release"
 msgstr "Передрелізна версія"
 
-#: packages/admin/src/components/WordPressImport.tsx:943
+#: packages/admin/src/components/WordPressImport.tsx:944
 msgid "Preparing categories and tags..."
 msgstr "Підготовка категорій і тегів..."
 
@@ -11435,7 +11435,7 @@ msgstr "Підготовка реєстрації..."
 msgid "Preparing this site"
 msgstr "Підготовка цього сайту"
 
-#: packages/admin/src/components/WordPressImport.tsx:2236
+#: packages/admin/src/components/WordPressImport.tsx:2228
 msgid "Preparing to download files from WordPress..."
 msgstr "Підготовка до завантаження файлів з WordPress..."
 
@@ -11691,7 +11691,7 @@ msgstr "Під час швидкого створення зв'язок отри
 msgid "Quote"
 msgstr "Цитата"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1213
 msgid "Raw meta"
 msgstr "Необроблені метадані"
 
@@ -11783,7 +11783,7 @@ msgstr "Читання пакета"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2043
+#: packages/admin/src/components/WordPressImport.tsx:2035
 msgid "Ready"
 msgstr "Готово"
 
@@ -12367,7 +12367,7 @@ msgstr "Вимагати slug перед публікацією вмісту"
 msgid "Required"
 msgstr "Обов'язкове"
 
-#: packages/admin/src/components/WordPressImport.tsx:2056
+#: packages/admin/src/components/WordPressImport.tsx:2048
 msgid "Required fields:"
 msgstr "Обов'язкові поля:"
 
@@ -12584,7 +12584,7 @@ msgstr "Багаторазові блоки вмісту, які можна вс
 msgid "Reverted to published version"
 msgstr "Повернуто до опублікованої версії"
 
-#: packages/admin/src/components/WordPressImport.tsx:769
+#: packages/admin/src/components/WordPressImport.tsx:770
 msgid "Review"
 msgstr "Переглянути"
 
@@ -12982,11 +12982,11 @@ msgstr "Запланована публікація"
 msgid "Scheduled publishing needs attention"
 msgstr "Планування публікацій потребує уваги"
 
-#: packages/admin/src/components/WordPressImport.tsx:2379
+#: packages/admin/src/components/WordPressImport.tsx:2371
 msgid "Schema Changes"
 msgstr "Зміни схеми"
 
-#: packages/admin/src/components/WordPressImport.tsx:1756
+#: packages/admin/src/components/WordPressImport.tsx:1751
 msgid "Schema preparation failed"
 msgstr "Підготовка схеми не вдалася"
 
@@ -13485,7 +13485,7 @@ msgstr "За раз можна обрати щонайбільше 50 запис
 msgid "Select video"
 msgstr "Обрати відео"
 
-#: packages/admin/src/components/WordPressImport.tsx:1789
+#: packages/admin/src/components/WordPressImport.tsx:1784
 msgid "Select which content types to import."
 msgstr "Оберіть типи вмісту для імпорту."
 
@@ -13594,7 +13594,7 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
-#: packages/admin/src/components/WordPressImport.tsx:1900
+#: packages/admin/src/components/WordPressImport.tsx:1892
 msgid "SEO settings"
 msgstr "Налаштування SEO"
 
@@ -13679,7 +13679,7 @@ msgstr "Налаштування..."
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
-#: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/components/WordPressImport.tsx:1860
 #: packages/admin/src/router.tsx:2611
 msgid "Settings"
 msgstr "Налаштування"
@@ -13900,7 +13900,7 @@ msgstr "Ідентичність сайту"
 msgid "Site Identity"
 msgstr "Ідентичність сайту"
 
-#: packages/admin/src/components/WordPressImport.tsx:2327
+#: packages/admin/src/components/WordPressImport.tsx:2319
 msgid "site identity applied (title, tagline, logo)"
 msgstr "ідентичність сайту застосовано (назва, слоган, логотип)"
 
@@ -13927,7 +13927,7 @@ msgstr "Налаштування сайту"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:407
-#: packages/admin/src/components/WordPressImport.tsx:1201
+#: packages/admin/src/components/WordPressImport.tsx:1202
 msgid "Site Settings"
 msgstr "Налаштування сайту"
 
@@ -13948,7 +13948,7 @@ msgstr "Назва сайту"
 msgid "Site Title"
 msgstr "Назва сайту"
 
-#: packages/admin/src/components/WordPressImport.tsx:1880
+#: packages/admin/src/components/WordPressImport.tsx:1872
 msgid "Site title & tagline"
 msgstr "Назва сайту та слоган"
 
@@ -13989,11 +13989,11 @@ msgstr "Для папок розмір не вказується"
 msgid "Size:"
 msgstr "Розмір:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2161
+#: packages/admin/src/components/WordPressImport.tsx:2153
 msgid "Skip Media Import"
 msgstr "Пропустити імпорт медіа"
 
-#: packages/admin/src/components/WordPressImport.tsx:2186
+#: packages/admin/src/components/WordPressImport.tsx:2178
 msgid "Skipped"
 msgstr "Пропущено"
 
@@ -14107,7 +14107,7 @@ msgstr "Частина вмісту посилається на медіафай
 msgid "Some content may not appear here yet."
 msgstr "Частина вмісту може ще не відображатися тут."
 
-#: packages/admin/src/components/WordPressImport.tsx:1917
+#: packages/admin/src/components/WordPressImport.tsx:1909
 msgid "Some content types cannot be imported"
 msgstr "Деякі типи вмісту не можна імпортувати"
 
@@ -14236,7 +14236,7 @@ msgstr "Почати новий імпорт"
 msgid "Start import"
 msgstr "Почати імпорт"
 
-#: packages/admin/src/components/WordPressImport.tsx:1979
+#: packages/admin/src/components/WordPressImport.tsx:1971
 msgid "Start Import"
 msgstr "Почати імпорт"
 
@@ -14337,11 +14337,11 @@ msgstr "Зберігається для кожної локалі — кожен
 msgid "Strikethrough"
 msgstr "Закреслення"
 
-#: packages/admin/src/components/WordPressImport.tsx:1809
+#: packages/admin/src/components/WordPressImport.tsx:1804
 msgid "Structure"
 msgstr "Структура"
 
-#: packages/admin/src/components/WordPressImport.tsx:1214
+#: packages/admin/src/components/WordPressImport.tsx:1215
 msgid "Structured"
 msgstr "Структурований"
 
@@ -14460,7 +14460,7 @@ msgid "Tags"
 msgstr "Теги"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1854
+#: packages/admin/src/components/WordPressImport.tsx:1846
 msgid "Tags ({0})"
 msgstr "Теги ({0})"
 
@@ -14678,7 +14678,7 @@ msgstr "Доступ пристрою не буде надано."
 msgid "The download stopped"
 msgstr "Завантаження зупинилося"
 
-#: packages/admin/src/components/WordPressImport.tsx:1919
+#: packages/admin/src/components/WordPressImport.tsx:1911
 msgid "The existing collection has fields with incompatible types."
 msgstr "Існуюча колекція містить поля з несумісними типами."
 
@@ -14718,11 +14718,11 @@ msgstr "Імпорт можна виконати, але спершу перев
 msgid "The import can’t start until these are resolved."
 msgstr "Імпорт не почнеться, доки їх не буде усунено."
 
-#: packages/admin/src/lib/api/import.ts:470
+#: packages/admin/src/lib/api/import.ts:473
 msgid "The import did not return a completion cursor"
 msgstr "Імпорт не повернув курсор для етапу завершення"
 
-#: packages/admin/src/lib/api/import.ts:455
+#: packages/admin/src/lib/api/import.ts:458
 msgid "The import did not return a preparation cursor"
 msgstr "Імпорт не повернув курсор для етапу підготовки"
 
@@ -15140,7 +15140,7 @@ msgstr "Цей день не завантажено. У цьому діапаз�
 msgid "This device is requesting permission to use:"
 msgstr "Цей пристрій запитує такі дозволи:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1107
+#: packages/admin/src/components/WordPressImport.tsx:1108
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Це не схоже на дійсний ключ міграції. Згенеруйте новий у плагіні та вставте повний рядок, що починається з \"em1.\"."
 
@@ -15267,7 +15267,7 @@ msgstr "Цей імпорт уже розпочато"
 msgid "This is a custom section."
 msgstr "Це власна секція."
 
-#: packages/admin/src/components/WordPressImport.tsx:1362
+#: packages/admin/src/components/WordPressImport.tsx:1363
 msgid "This is a WordPress site."
 msgstr "Це сайт WordPress."
 
@@ -15291,7 +15291,7 @@ msgstr "Посилання діє 7 днів і може бути викорис
 msgid "This link expires in 7 days."
 msgstr "Посилання діє 7 днів."
 
-#: packages/admin/src/components/WordPressImport.tsx:968
+#: packages/admin/src/components/WordPressImport.tsx:969
 msgid "This may take a while for large exports."
 msgstr "Для великих експортів це може зайняти деякий час."
 
@@ -15748,7 +15748,7 @@ msgstr "Спробуйте змінити пошук або фільтри."
 msgid "Try again"
 msgstr "Спробувати ще раз"
 
-#: packages/admin/src/components/WordPressImport.tsx:1637
+#: packages/admin/src/components/WordPressImport.tsx:1638
 msgid "Try Again"
 msgstr "Спробувати ще раз"
 
@@ -15773,8 +15773,8 @@ msgstr "Спробуйте іншу назву файлу або скиньте 
 msgid "Try another filename, or clear your search and filters."
 msgstr "Спробуйте іншу назву файлу або скиньте пошук і фільтри."
 
-#: packages/admin/src/components/WordPressImport.tsx:1340
-#: packages/admin/src/components/WordPressImport.tsx:1462
+#: packages/admin/src/components/WordPressImport.tsx:1341
+#: packages/admin/src/components/WordPressImport.tsx:1463
 msgid "Try Another URL"
 msgstr "Спробувати іншу URL-адресу"
 
@@ -15857,7 +15857,7 @@ msgid "Type caption for video (optional)"
 msgstr "Введіть підпис до відео (необов'язково)"
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2075
+#: packages/admin/src/components/WordPressImport.tsx:2067
 msgid "Type mismatch ({0})"
 msgstr "Невідповідність типу ({0})"
 
@@ -16098,7 +16098,7 @@ msgstr "Оновлено"
 msgid "Updated At"
 msgstr "Оновлено"
 
-#: packages/admin/src/components/WordPressImport.tsx:993
+#: packages/admin/src/components/WordPressImport.tsx:994
 msgid "Updating content URLs..."
 msgstr "Оновлення URL-адрес у вмісті..."
 
@@ -16136,7 +16136,7 @@ msgstr "Завантажте файл, щоб почати"
 msgid "Upload a video to get started"
 msgstr "Завантажте відео, щоб почати"
 
-#: packages/admin/src/components/WordPressImport.tsx:1445
+#: packages/admin/src/components/WordPressImport.tsx:1446
 msgid "Upload an export file"
 msgstr "Завантажте файл експорту"
 
@@ -16153,8 +16153,8 @@ msgstr "Завантаження та видалення медіа"
 msgid "Upload and manage media"
 msgstr "Завантаження та керування медіа"
 
-#: packages/admin/src/components/WordPressImport.tsx:1338
-#: packages/admin/src/components/WordPressImport.tsx:1459
+#: packages/admin/src/components/WordPressImport.tsx:1339
+#: packages/admin/src/components/WordPressImport.tsx:1460
 msgid "Upload Export File"
 msgstr "Завантажити файл експорту"
 
@@ -16211,7 +16211,7 @@ msgstr "Завантажити в {0}"
 msgid "Upload to {providerName}"
 msgstr "Завантаження файлів: {providerName}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1168
+#: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Upload WordPress export file"
 msgstr "Завантажити файл експорту WordPress"
 
@@ -16225,7 +16225,7 @@ msgstr "Завантажено:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2184
+#: packages/admin/src/components/WordPressImport.tsx:2176
 msgid "Uploading"
 msgstr "Завантаження"
 
@@ -16675,11 +16675,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "Ми перевірили це ще до відкриття вікна браузера, щоб ви могли обрати, що робити далі."
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1320
+#: packages/admin/src/components/WordPressImport.tsx:1321
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "Не вдалося підключитися до сайту WordPress за адресою {0}. Можливо, це не WordPress, REST API вимкнено або сайт недоступний."
 
-#: packages/admin/src/components/WordPressImport.tsx:1132
+#: packages/admin/src/components/WordPressImport.tsx:1133
 msgid "We'll check what import options are available for your site."
 msgstr "Перевіримо, які варіанти імпорту доступні для вашого сайту."
 
@@ -16734,7 +16734,7 @@ msgstr "Як називається кожна сторона. Ці назви �
 msgid "What happens next?"
 msgstr "Що далі?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2148
+#: packages/admin/src/components/WordPressImport.tsx:2140
 msgid "What happens when you import:"
 msgstr "Що відбувається під час імпорту:"
 
@@ -16758,7 +16758,7 @@ msgstr "Що містить пакет"
 msgid "What will be imported"
 msgstr "Що буде імпортовано"
 
-#: packages/admin/src/components/WordPressImport.tsx:1931
+#: packages/admin/src/components/WordPressImport.tsx:1923
 msgid "What will happen when you import"
 msgstr "Що станеться під час імпорту"
 
@@ -16878,7 +16878,7 @@ msgstr "Віджет оновлено"
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:535
 #: packages/admin/src/components/Widgets.tsx:456
-#: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/components/WordPressImport.tsx:1208
 #: packages/admin/src/router.tsx:2929
 msgid "Widgets"
 msgstr "Віджети"
@@ -16896,7 +16896,7 @@ msgstr "Ширина стовпців"
 msgid "Will be cleared on save"
 msgstr "Буде очищено під час збереження"
 
-#: packages/admin/src/components/WordPressImport.tsx:2071
+#: packages/admin/src/components/WordPressImport.tsx:2063
 msgid "Will create"
 msgstr "Буде створено"
 
@@ -16916,11 +16916,11 @@ msgstr "З ключем доступу не потрібно запам'ятов
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Без поштового провайдера посилання-запрошення треба надсилати вручну."
 
-#: packages/admin/src/components/WordPressImport.tsx:235
+#: packages/admin/src/components/WordPressImport.tsx:236
 msgid "WordPress authorization was rejected"
 msgstr "Авторизацію WordPress відхилено"
 
-#: packages/admin/src/components/WordPressImport.tsx:1530
+#: packages/admin/src/components/WordPressImport.tsx:1531
 msgid "WordPress Username"
 msgstr "Ім’я користувача WordPress"
 
@@ -16956,7 +16956,7 @@ msgstr "Введіть вміст віджета..."
 msgid "Writing the file index"
 msgstr "Запис переліку файлів"
 
-#: packages/admin/src/components/WordPressImport.tsx:1231
+#: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "WXR File"
 msgstr "Файл WXR"
 
@@ -16964,7 +16964,7 @@ msgstr "Файл WXR"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1552
+#: packages/admin/src/components/WordPressImport.tsx:1553
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -16987,7 +16987,7 @@ msgstr "Так"
 msgid "Yesterday"
 msgstr "Вчора"
 
-#: packages/admin/src/components/WordPressImport.tsx:1210
+#: packages/admin/src/components/WordPressImport.tsx:1211
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
@@ -17078,7 +17078,7 @@ msgstr "Ви приєднаєтеся як <0>{0}</0>"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Вас попросять скористатися біометрією, ключем безпеки або PIN-кодом на пристрої."
 
-#: packages/admin/src/components/WordPressImport.tsx:1423
+#: packages/admin/src/components/WordPressImport.tsx:1424
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "Вас перенаправлять до WordPress для авторизації з’єднання."
 
@@ -17238,7 +17238,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr "Незбережені зміни медіа буде втрачено."
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2119
+#: packages/admin/src/components/WordPressImport.tsx:2111
 msgid "Your WordPress export contains {0} media files."
 msgstr "Медіафайлів у вашому експорті WordPress: {0}."
 
