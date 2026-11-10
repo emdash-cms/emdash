@@ -95,7 +95,17 @@ function redirectResponse(
 	}
 	recordHitInBackground(repo, redirect.id);
 	const code = isRedirectCode(redirect.type) ? redirect.type : 301;
-	return context.redirect(destination, code);
+	return context.redirect(encodeLocation(destination), code);
+}
+
+const NON_ASCII = /[^\p{ASCII}]+/gu;
+
+/**
+ * Percent-encode non-ASCII characters, since a Location header only accepts
+ * ByteStrings. Everything else is left as is so the path is not re-resolved.
+ */
+function encodeLocation(destination: string): string {
+	return destination.replace(NON_ASCII, encodeURIComponent);
 }
 
 /** Whether Astro's route cache will store the response: it does once a max age or a tag is set. */

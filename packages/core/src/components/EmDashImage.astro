@@ -32,6 +32,7 @@ import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
 	formatContentType,
+	canOptimizeImage,
 	toAbsoluteMediaUrl,
 	responsiveSizes,
 	responsiveWidths,
@@ -134,6 +135,7 @@ function generateSrcset(
 // an explicit `fallbackFormat`, every `formats` entry stays a `<source>`.
 const imgFormat = formats?.length ? (fallbackFormat ?? formats.at(-1)) : undefined;
 const sourceFormats = formats?.length ? (fallbackFormat ? formats : formats.slice(0, -1)) : [];
+const outputFormats = [...new Set([imgFormat, ...sourceFormats])];
 
 interface ResolvedImage {
 	src: string;
@@ -170,7 +172,20 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
 		const absoluteSrc = toAbsoluteMediaUrl(src, publicOrigin);
 		if (finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
-			astroImageSrc = absoluteSrc;
+			const optimizedFormats = await Promise.all(
+				outputFormats.map((format) =>
+					canOptimizeImage(getImage, {
+						src: absoluteSrc,
+						width: finalWidth,
+						height: finalHeight,
+						...(format !== undefined ? { format } : {}),
+						...(quality !== undefined ? { quality } : {}),
+					}),
+				),
+			);
+			if (optimizedFormats.every(Boolean)) {
+				astroImageSrc = absoluteSrc;
+			}
 		} else {
 			const optimized = await buildResponsiveImage(getImage, {
 				src: absoluteSrc,

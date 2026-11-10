@@ -84,15 +84,3 @@ export {
 	fetchPluginMedia,
 	fetchPluginTaxonomies,
 } from "./sources/wordpress-plugin.js";
-
-// Auto-register built-in sources
-import { registerSource } from "./registry.js";
-import { wordpressPluginSource } from "./sources/wordpress-plugin.js";
-import { wordpressRestSource } from "./sources/wordpress-rest.js";
-import { wxrSource } from "./sources/wxr.js";
-
-// Register in priority order (most specific first)
-// Plugin source first - if they have our plugin, use it
-registerSource(wordpressPluginSource);
-registerSource(wordpressRestSource);
-registerSource(wxrSource);

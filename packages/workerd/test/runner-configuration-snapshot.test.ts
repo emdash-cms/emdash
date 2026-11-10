@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { PassThrough } from "node:stream";
 
 import type { Database, PluginManifest } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
@@ -35,9 +36,11 @@ describe("workerd configuration readiness", () => {
 		await db?.destroy();
 		vi.unstubAllGlobals();
 		vi.restoreAllMocks();
+		vi.useRealTimers();
 	});
 
-	it("propagates a failed startup to concurrent callers and retries on the next invocation", async () => {
+	it("propagates a failed startup and retries after the restart backoff", async () => {
+		vi.useFakeTimers();
 		db = new Kysely<Database>({
 			dialect: new SqliteDialect({ database: new DatabaseDriver(":memory:") }),
 		});
@@ -59,8 +62,32 @@ describe("workerd configuration readiness", () => {
 		expect(runner["needsRestart"]).toBe(true);
 
 		await runner.ensureRunning();
+		expect(starts).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(1000);
+		await runner.ensureRunning();
 		expect(starts).toBe(2);
 		expect(runner["needsRestart"]).toBe(false);
+	});
+
+	it("rejects a failed spawn without waiting for an exit event", async () => {
+		runner = new WorkerdSandboxRunner({ db: null as never });
+		runner["scheduleEagerStart"] = () => {};
+		vi.mocked(spawn).mockImplementation(() => {
+			const child = new ChildProcess();
+			const control = new PassThrough();
+			Object.defineProperty(child, "stdio", { value: [null, null, null, control] });
+			queueMicrotask(() => {
+				child.emit("error", new Error("spawn workerd ENOENT"));
+				control.end();
+				child.emit("close", -2, null);
+			});
+			return child;
+		});
+		await runner.load(manifest("1.0.0"), "export default {};");
+		await expect(runner.ensureRunning()).rejects.toThrow("spawn workerd ENOENT");
+		expect(runner.isHealthy()).toBe(false);
+		expect(runner["workerdProcess"]).toBeNull();
 	});
 
 	it("probes only plugins included in each spawned configuration", async () => {
@@ -68,20 +95,20 @@ describe("workerd configuration readiness", () => {
 			dialect: new SqliteDialect({ database: new DatabaseDriver(":memory:") }),
 		});
 		runner = new WorkerdSandboxRunner({ db });
-		let now = Date.now();
-		vi.spyOn(Date, "now").mockImplementation(() => now);
 		let runningPorts = new Set<number>();
 		const configurations: number[][] = [];
+		let spawnCount = 0;
 
 		vi.mocked(spawn).mockImplementation((_command, args) => {
 			if (!Array.isArray(args) || typeof args[1] !== "string") {
 				throw new Error("Expected a workerd configuration path");
 			}
 			const config = readFileSync(args[1], "utf8");
-			const ports = Array.from(
-				config.matchAll(/name = "socket-[^"]+", address = "127\.0\.0\.1:(\d+)"/g),
-				(match) => Number(match[1]),
+			const socketNames = Array.from(
+				config.matchAll(/name = "(socket-[^"]+)"/g),
+				(match) => match[1],
 			);
+			const ports = socketNames.map((_name, index) => 41000 + ++spawnCount + index);
 			runningPorts = new Set(ports);
 			configurations.push(ports);
 			if (configurations.length === 1) {
@@ -89,6 +116,17 @@ describe("workerd configuration readiness", () => {
 			}
 
 			const child = new ChildProcess();
+			const control = new PassThrough();
+			const stderr = new PassThrough();
+			Object.defineProperty(child, "stdio", { value: [null, null, stderr, control] });
+			Object.defineProperty(child, "stderr", { value: stderr });
+			queueMicrotask(() => {
+				for (const [index, name] of socketNames.entries()) {
+					control.write(
+						`${JSON.stringify({ event: "listen", socket: name, port: ports[index] })}\n`,
+					);
+				}
+			});
 			vi.spyOn(child, "kill").mockImplementation(() => {
 				queueMicrotask(() => {
 					child.exitCode = 0;
@@ -103,7 +141,6 @@ describe("workerd configuration readiness", () => {
 			vi.fn<typeof fetch>(async (input) => {
 				const url = new URL(input instanceof Request ? input.url : input);
 				const ready = runningPorts.has(Number(url.port));
-				if (!ready) now += 10_000;
 				return new Response(ready ? "ok" : "unavailable", { status: ready ? 200 : 503 });
 			}),
 		);
