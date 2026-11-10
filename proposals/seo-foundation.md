@@ -6,7 +6,7 @@ authors:
   - Kevin Kyburz (@swissky)
   - Evgenii Zinner (@Evgenii-Zinner)
 champion: Kevin Kyburz (@swissky)
-sponsor: null
+sponsor: Kevin Kyburz (@swissky)
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/4621
   - https://github.com/emdash-cms/emdash/discussions/4614
