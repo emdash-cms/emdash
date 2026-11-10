@@ -22,13 +22,13 @@ The `stats` block already colors trends, with `text-green-600` for `up` and `tex
 
 A column with `format: "percent_change"` takes a number in each row: the change as a ratio, where `0.25` means 25% higher and `-0.1` means 10% lower. The admin renders it as a signed percentage in the viewer's locale with an arrow:
 
-| Cell value | Rendered | Color |
-| --- | --- | --- |
-| `0.25` | ↑ +25% | green, as in the `stats` block's `up` trend |
-| `-0.1` | ↓ -10% | red, as in the `stats` block's `down` trend |
-| `0` | 0% | `text-kumo-subtle`, no arrow |
-| `null` or absent | empty cell | — |
-| `"New"` | New | default text color |
+| Cell value       | Rendered   | Color                                       |
+| ---------------- | ---------- | ------------------------------------------- |
+| `0.25`           | ↑ +25%     | green, as in the `stats` block's `up` trend |
+| `-0.1`           | ↓ -10%     | red, as in the `stats` block's `down` trend |
+| `0`              | 0%         | `text-kumo-subtle`, no arrow                |
+| `null` or absent | empty cell | —                                           |
+| `"New"`          | New        | default text color                          |
 
 ```ts
 {
