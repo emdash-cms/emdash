@@ -73,6 +73,7 @@ import { GeneralSettings } from "./components/settings/GeneralSettings";
 import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
+import { SidebarsSettings } from "./components/settings/SidebarsSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
 import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
@@ -152,6 +153,7 @@ import {
 	type RevisionListResponse,
 	type UserListItem,
 } from "./lib/api";
+import { useAdminLayout } from "./lib/api/admin-layout.js";
 import {
 	fetchComments,
 	fetchCommentCounts,
@@ -535,8 +537,13 @@ function RootComponent() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	// The navigation follows the user's sidebar layout, so wait for the first
+	// load of the user. Later resets (authorization recovery) must not unmount the admin.
+	const currentUser = useCurrentUser();
+	const [userSettled, setUserSettled] = React.useState(false);
+	if (!userSettled && !currentUser.isLoading) setUserSettled(true);
 
-	if (isLoading) {
+	if (isLoading || !userSettled) {
 		return <ConfigurationLoadingScreen />;
 	}
 
@@ -931,6 +938,7 @@ function ContentNewPage() {
 	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1067,6 +1075,7 @@ function ContentNewPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			manifest={manifest ?? null}
 			timezone={manifest.timezone ?? "UTC"}
 		/>
@@ -1109,7 +1118,6 @@ function ContentEditPage() {
 	const navigate = useNavigate();
 	const toastManager = useKumoToastManager();
 	const isEditorDirtyRef = React.useRef(false);
-	const [isEditorDirty, setIsEditorDirty] = React.useState(false);
 	const [editorItemReset, setEditorItemReset] = React.useState({
 		entryId: "",
 		token: 0,
@@ -1123,11 +1131,7 @@ function ContentEditPage() {
 	);
 	const handleEditorDirtyChange = React.useCallback((isDirty: boolean) => {
 		isEditorDirtyRef.current = isDirty;
-		setIsEditorDirty(isDirty);
 	}, []);
-	// The ref is updated synchronously from editor interaction callbacks so a
-	// clean refetch that resolves in the same render batch as an edit still sees
-	// dirty=true when the token adoption layout effect runs.
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -1150,6 +1154,7 @@ function ContentEditPage() {
 			!(queryError instanceof ApiResponseError && queryError.status === 404) && failureCount < 1,
 	});
 	const { data: currentUser } = useCurrentUser();
+	const adminLayout = useAdminLayout();
 
 	// Nothing is withheld until the current user has loaded; the server still
 	// refuses what the role can't do.
@@ -1468,14 +1473,20 @@ function ContentEditPage() {
 		},
 		[],
 	);
+	// Explicit resets can apply a read while the parent still sees a dirty form.
+	const handleEditorItemApplied = React.useCallback(
+		(item: ContentItem) => {
+			const storedVersion = revisionVersionsRef.current.get(item.id);
+			if (shouldAdoptRevision(storedVersion, item._rev)) {
+				recordWriteRevision(item.id, item);
+			}
+		},
+		[recordWriteRevision],
+	);
 	React.useLayoutEffect(() => {
-		if (!rawItem?._rev) return;
-		if (isEditorDirtyRef.current) return;
-		const storedVersion = revisionVersionsRef.current.get(rawItem.id);
-		if (shouldAdoptRevision(storedVersion, rawItem._rev)) {
-			recordWriteRevision(rawItem.id, rawItem);
-		}
-	}, [rawItem?._rev, rawItem?.id, isEditorDirty, recordWriteRevision]);
+		if (!rawItem?._rev || isEditorDirtyRef.current) return;
+		handleEditorItemApplied(rawItem);
+	}, [rawItem?._rev, rawItem?.id, handleEditorItemApplied]);
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
 	// Written together with the conflict state rather than on render, so a save
@@ -2520,6 +2531,7 @@ function ContentEditPage() {
 			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onDirtyChange={handleEditorDirtyChange}
+			onItemApplied={handleEditorItemApplied}
 			itemResetToken={editorItemReset.entryId === id ? editorItemReset.token : 0}
 			itemResetDiscards={editorItemReset.entryId === id && editorItemReset.discarded}
 			onSave={handleSave}
@@ -2550,6 +2562,7 @@ function ContentEditPage() {
 			supportsRevisions={collectionConfig.supports.includes("revisions")}
 			supportsPreview={collectionConfig.supports.includes("preview")}
 			currentUser={currentUser}
+			adminLayout={adminLayout.editor}
 			users={usersData?.items}
 			onAuthorChange={handleAuthorChange}
 			i18n={i18n}
@@ -3141,6 +3154,19 @@ const transferSettingsRoute = createRoute({
 function TransferSettingsPage() {
 	const { start } = transferSettingsRoute.useSearch();
 	return <TransferSettings focusImport={start === "import"} />;
+}
+
+const sidebarsSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/sidebars",
+	component: SidebarsSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
+		search.tab === "editor" ? { tab: "editor" } : {},
+});
+
+function SidebarsSettingsPage() {
+	const { tab } = sidebarsSettingsRoute.useSearch();
+	return <SidebarsSettings tab={tab ?? "navigation"} />;
 }
 
 // General settings route
@@ -3895,6 +3921,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	emailSettingsRoute,
 	backupSettingsRoute,
 	transferSettingsRoute,
+	sidebarsSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);

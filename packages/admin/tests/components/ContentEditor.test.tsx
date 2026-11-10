@@ -197,7 +197,11 @@ vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
 		...actual,
-		Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+		Link: ({ children, search, ...props }: any) => (
+			<a {...props} data-search={search ? JSON.stringify(search) : undefined}>
+				{children}
+			</a>
+		),
 		useBlocker: () => ({ status: "idle" }),
 	};
 });
@@ -243,6 +247,16 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 		draftRevisionId: null,
 		...overrides,
 	};
+}
+
+function deferred<T = void>() {
+	let resolve!: (value: T | PromiseLike<T>) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((promiseResolve, promiseReject) => {
+		resolve = promiseResolve;
+		reject = promiseReject;
+	});
+	return { promise, resolve, reject };
 }
 
 function renderEditor(props: Partial<ContentEditorProps> = {}) {
@@ -764,6 +778,60 @@ describe("ContentEditor", () => {
 			} finally {
 				media.restore();
 			}
+		});
+	});
+
+	describe("customize sidebar link", () => {
+		function customizeLink() {
+			const link = [...document.querySelectorAll("a")].find(
+				(anchor) => anchor.textContent === "Customize sidebar",
+			);
+			expect(link).toBeDefined();
+			return link!;
+		}
+
+		it("links to the Editor tab of Settings → Sidebars after the last section", async () => {
+			await renderEditor({ isNew: false, item: makeItem() });
+
+			const link = customizeLink();
+			expect(link.getAttribute("to")).toBe("/settings/sidebars");
+			expect(JSON.parse(link.dataset.search ?? "null")).toEqual({ tab: "editor" });
+			const lastSection = [...document.querySelectorAll("[data-settings-section]")].at(-1);
+			expect(lastSection).toBeDefined();
+			expect(
+				lastSection!.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+			).toBeTruthy();
+			expect(link.closest('[data-sidebar="footer"]')).toBeNull();
+		});
+
+		it("stays outside the read-only lock", async () => {
+			const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
+
+			await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+			expect(customizeLink().closest("fieldset:disabled")).toBeNull();
+		});
+
+		it("is not shown while a block panel replaces the sections", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				fields: { content: { kind: "portableText", label: "Content" } },
+			});
+			await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+			customizeLink();
+
+			const open = portableTextProps.current?.onBlockSidebarOpen as (panel: unknown) => void;
+			open({
+				type: "image",
+				attrs: { src: "https://example.com/image.png", alt: "Example" },
+				onUpdate: vi.fn(),
+				onReplace: vi.fn(),
+				onDelete: vi.fn(),
+				onClose: vi.fn(),
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+			expect(screen.getByText("Customize sidebar").query()).toBeNull();
 		});
 	});
 
@@ -2379,6 +2447,63 @@ describe("ContentEditor", () => {
 			expect(onPublish).toHaveBeenCalledOnce();
 		});
 
+		it.each([
+			{
+				name: "Publish now",
+				item: makeItem({ status: "draft" }),
+				props: {},
+				settlement: "resolve" as const,
+			},
+			{
+				name: "Publish now",
+				item: makeItem({ status: "draft" }),
+				props: {},
+				settlement: "reject" as const,
+			},
+			{
+				name: "Publish changes",
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				props: { supportsDrafts: true },
+				settlement: "resolve" as const,
+			},
+			{
+				name: "Publish changes",
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				props: { supportsDrafts: true },
+				settlement: "reject" as const,
+			},
+		])(
+			"disables $name while the publish request is in flight and re-enables after it $settlement",
+			async ({ name, item, props, settlement }) => {
+				const pending = deferred();
+				const onPublish = vi.fn(() => pending.promise);
+				const screen = await renderEditor({ isNew: false, item, onPublish, ...props });
+				const publish = screen.getByRole("button", { name, exact: true });
+
+				await publish.click();
+				const dialogName = name === "Publish changes" ? "Publish changes?" : "Publish now?";
+				screen
+					.getByRole("dialog", { name: dialogName })
+					.getByRole("button", { name, exact: true })
+					.element()
+					.click();
+				await vi.waitFor(() => expect(onPublish).toHaveBeenCalledOnce());
+				await expect.element(publish).toBeDisabled();
+
+				if (settlement === "resolve") pending.resolve();
+				else pending.reject(new Error("publish failed"));
+				await expect.element(publish).not.toBeDisabled();
+			},
+		);
+
 		it("shows Preview in normal mode when previews are supported", async () => {
 			const item = makeItem({ status: "draft" });
 			const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
@@ -2473,10 +2598,10 @@ describe("ContentEditor", () => {
 		it("keeps the settings sheet open when a sortable handle restores focus after drop", async () => {
 			const media = installMatchMedia(true);
 			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const screen = await renderBylineContent([savedCredit(makeByline())]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
-				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				const handle = screen.getByRole("button", { name: "Reorder Jane Smith" }).element();
 				handle.focus();
 				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
 
@@ -2511,10 +2636,10 @@ describe("ContentEditor", () => {
 		it("keeps the settings sheet open when keyboard sorting is cancelled", async () => {
 			const media = installMatchMedia(true);
 			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const screen = await renderBylineContent([savedCredit(makeByline())]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
-				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				const handle = screen.getByRole("button", { name: "Reorder Jane Smith" }).element();
 				handle.focus();
 				await userEvent.keyboard(" ");
 
@@ -2534,10 +2659,10 @@ describe("ContentEditor", () => {
 		it("lets Escape close the settings sheet when sorting is idle", async () => {
 			const media = installMatchMedia(true);
 			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const screen = await renderBylineContent([savedCredit(makeByline())]);
 
 				await screen.getByRole("button", { name: "Settings" }).click();
-				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				const handle = screen.getByRole("button", { name: "Reorder Jane Smith" }).element();
 				handle.focus();
 				await userEvent.keyboard("{Escape}");
 
@@ -2733,6 +2858,34 @@ describe("ContentEditor", () => {
 			await unpublishBtn.click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
+
+		it.each(["resolve", "reject"] as const)(
+			"disables Unpublish while the request is pending and re-enables after it %s",
+			async (settlement) => {
+				const pending = deferred();
+				const onUnpublish = vi.fn(() => pending.promise);
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-1",
+						draftRevisionId: "rev-1",
+					}),
+					onUnpublish,
+					supportsDrafts: true,
+				});
+				const unpublish = screen
+					.getByRole("button", { name: "Unpublish Post", exact: true })
+					.element();
+
+				unpublish.click();
+				await vi.waitFor(() => expect(onUnpublish).toHaveBeenCalledOnce());
+				await expect.element(unpublish).toBeDisabled();
+				if (settlement === "resolve") pending.resolve();
+				else pending.reject(new Error("unpublish failed"));
+				await expect.element(unpublish).not.toBeDisabled();
+			},
+		);
 	});
 
 	describe("distraction-free mode", () => {
