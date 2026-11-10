@@ -311,7 +311,7 @@ async function openInRoom(
 	await expect
 		.element(screen.getByRole("textbox", { name: "Title", exact: true }))
 		.toHaveValue("First post");
-	return { screen, fake, server, queryClient };
+	return { screen, fake, server, queryClient, router };
 }
 
 /** Clicks a dialog's action once it shows, past the layer its opening animation puts over it. */
@@ -636,6 +636,36 @@ describe("values outside the document in a room", () => {
 		await expect.element(screen.getByText("Not allowed")).toBeVisible();
 		expect(screen.getByRole("button", { name: "Remove Grace Hopper" }).query()).toBeNull();
 		await expect.element(screen.getByRole("button", { name: "Remove Ada Lovelace" })).toBeVisible();
+	});
+
+	it("asks before leaving while a list save failed, and sends it again on the way out", async () => {
+		const { screen, server, router } = await openInRoom(entry(), {
+			prepare: (fake) => (fake.refuseWrites = true),
+		});
+		const puts = () =>
+			server.requests.filter(
+				(request) => request.method === "PUT" && request.url.startsWith("/_emdash/api/content"),
+			);
+		const asksBeforeUnload = () => {
+			const event = new Event("beforeunload", { cancelable: true });
+			window.dispatchEvent(event);
+			return event.defaultPrevented;
+		};
+
+		await screen.getByRole("button", { name: "Remove Grace Hopper" }).click();
+		await expect.element(screen.getByText("Not allowed")).toBeVisible();
+		expect(asksBeforeUnload()).toBe(true);
+
+		void router.navigate({ to: "/" });
+		await confirm(screen, "Leave without saving?", "Stay");
+		expect(puts()).toHaveLength(2);
+		expect(router.state.location.pathname).toBe("/content/posts/post_1");
+
+		server.refuseWrites = false;
+		await router.navigate({ to: "/" });
+		await vi.waitFor(() => expect(router.state.location.pathname).toBe("/"));
+		expect(puts()).toHaveLength(3);
+		expect(puts()[2]?.body).toMatchObject({ references: { authors: ["author_ada"] } });
 	});
 
 	it("saves a reference edit at once without _rev or a revision", async () => {

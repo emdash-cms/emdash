@@ -63,6 +63,8 @@ export interface ListSaverOptions<T> extends ListOptions<T> {
 	save: (build: (latest: readonly T[], complete: boolean) => T[]) => Promise<unknown>;
 	/** Once nothing is left to send: the list the server now has, or null after a failed save. */
 	settled: (saved: T[] | null) => void;
+	/** Whenever `unsent` may have changed. */
+	changed?: () => void;
 }
 
 /**
@@ -74,6 +76,7 @@ export class ListSaver<T> {
 	/** The server's list this tab's unsent change started from, or null with nothing unsent. */
 	#base: T[] | null = null;
 	#sending = false;
+	readonly #waiting: ((saved: boolean) => void)[] = [];
 
 	constructor(options: ListSaverOptions<T>) {
 		this.#options = options;
@@ -88,6 +91,21 @@ export class ListSaver<T> {
 	change(before: readonly T[]): void {
 		this.#base ??= [...before];
 		void this.#send();
+		this.#options.changed?.();
+	}
+
+	/** Sends a change whose save failed again. */
+	retry(): void {
+		void this.#send();
+	}
+
+	/**
+	 * Resolves once nothing is left to send: true when the server has every change, false after a
+	 * failed save. A failed change waits for `retry` or the next change.
+	 */
+	whenSettled(): Promise<boolean> {
+		if (!this.unsent) return Promise.resolve(true);
+		return new Promise((resolve) => this.#waiting.push(resolve));
 	}
 
 	/**
@@ -123,11 +141,17 @@ export class ListSaver<T> {
 			this.#base = base;
 			this.#sending = false;
 			if (later) void this.#send();
-			else this.#options.settled(null);
+			else this.#settle(null);
 			return;
 		}
 		this.#sending = false;
 		if (this.#base !== null) void this.#send();
-		else this.#options.settled(saved);
+		else this.#settle(saved);
+	}
+
+	#settle(saved: T[] | null): void {
+		this.#options.settled(saved);
+		for (const resolve of this.#waiting.splice(0)) resolve(saved !== null);
+		this.#options.changed?.();
 	}
 }

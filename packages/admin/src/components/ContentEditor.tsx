@@ -910,6 +910,13 @@ export function ContentEditor({
 	entryRef.current = { collection, entryId: item?.id, fields };
 	// The savers belong to one entry: after a switch, the earlier entry's saves send nothing more.
 	const saversRef = React.useRef<OutsideListSavers | null>(null);
+	// Renders again once a list's unsent state may have changed, which the leave guard reads.
+	const [, listsChanged] = React.useReducer((count: number) => count + 1, 0);
+	const currentListSavers = React.useCallback((): ListSaver<unknown>[] => {
+		const savers = saversRef.current;
+		if (!savers || savers.identity !== editorIdentityRef.current) return [];
+		return [savers.bylines, ...savers.references.values()] as ListSaver<unknown>[];
+	}, []);
 	const outsideListSavers = React.useCallback((): OutsideListSavers => {
 		const identity = editorIdentityRef.current;
 		if (saversRef.current?.identity === identity) return saversRef.current;
@@ -922,6 +929,7 @@ export function ContentEditor({
 		const savers: OutsideListSavers = {
 			identity,
 			bylines: new ListSaver<BylineCreditInput>({
+				changed: listsChanged,
 				key: (credit) => credit.bylineId,
 				same: (a, b) => a.roleLabel === b.roleLabel,
 				shown: () => internalBylinesRef.current,
@@ -942,6 +950,7 @@ export function ContentEditor({
 				const existing = references.get(fieldSlug);
 				if (existing) return existing;
 				const saver = new ListSaver<ReferenceEntryRow>({
+					changed: listsChanged,
 					key: (row) => row.id,
 					shown: () => referenceStateRef.current[fieldSlug]?.current ?? [],
 					save: (build) =>
@@ -1365,9 +1374,13 @@ export function ContentEditor({
 	const editsNotKept = roomSync?.kind === "not-kept";
 	const editsNotKeptRef = React.useRef(editsNotKept);
 	editsNotKeptRef.current = editsNotKept;
+	const outsideListsUnsent = Boolean(room) && currentListSavers().some((saver) => saver.unsent);
 	const readRoomUnsaved = React.useCallback(
-		() => editsNotKeptRef.current || !room?.getSaveState().covered,
-		[room],
+		() =>
+			editsNotKeptRef.current ||
+			!room?.getSaveState().covered ||
+			currentListSavers().some((saver) => saver.unsent),
+		[room, currentListSavers],
 	);
 	// A new entry is always "dirty" so it can be saved, but one nobody has
 	// touched has nothing to lose on leaving.
@@ -1443,7 +1456,16 @@ export function ContentEditor({
 	 */
 	const saveBeforeLeaving = React.useCallback((): boolean | Promise<boolean> => {
 		// The room saves 2 s after the last update, so waiting a little usually saves the edits.
-		if (room) return editsNotKeptRef.current ? false : coveredWithin(room, ROOM_LEAVE_WAIT_MS);
+		if (room) {
+			if (editsNotKeptRef.current) return false;
+			// A byline or reference change whose save failed gets one more try on the way out.
+			const lists = currentListSavers();
+			for (const saver of lists) saver.retry();
+			return Promise.all([
+				coveredWithin(room, ROOM_LEAVE_WAIT_MS),
+				...lists.map((saver) => settledWithin(saver, ROOM_LEAVE_WAIT_MS)),
+			]).then((done) => done.every(Boolean));
+		}
 		const { saveKey, dirty, saveInFlight, autosaveFailed } = leaveStateRef.current;
 		// The guard unsubscribes in an effect, and a save can land before the next render.
 		if (!dirty || savedSaveKeyRef.current === saveKey) return true;
@@ -1451,7 +1473,7 @@ export function ContentEditor({
 		// No render has shown a just-flushed autosave in flight yet.
 		const autosaveSent = !autosaveFailed && pendingAutosaveKeyRef.current === saveKey;
 		return autosaveSent || (saveInFlight && sentSaveKeyRef.current === saveKey);
-	}, [flushPendingAutosave, room]);
+	}, [flushPendingAutosave, room, currentListSavers]);
 	const isContentOperationPending = Boolean(isSaving);
 	// Fields that wait for the entry's content still hold the values the page loaded with.
 	const isContentSaveBlocked =
@@ -3035,7 +3057,7 @@ export function ContentEditor({
 				/>
 			) : null}
 			<UnsavedChangesGuard
-				when={isNew ? hasUnsavedNewEntry : isDirty || editsNotKept}
+				when={isNew ? hasUnsavedNewEntry : isDirty || editsNotKept || outsideListsUnsent}
 				saveBeforeLeaving={isNew ? undefined : saveBeforeLeaving}
 				isUnsaved={room ? readRoomUnsaved : undefined}
 			/>
@@ -4256,6 +4278,15 @@ function withRoomAutoSlug(
 }
 
 /** Whether a checkpoint covers the room's edits within `ms`. Never rejects. */
+/** Whether a list saver has nothing left to send within `ms`. */
+function settledWithin(saver: ListSaver<unknown>, ms: number): Promise<boolean> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<boolean>((resolve) => {
+		timer = setTimeout(resolve, ms, false);
+	});
+	return Promise.race([saver.whenSettled(), timeout]).finally(() => clearTimeout(timer));
+}
+
 function coveredWithin(room: RoomEditing, ms: number): Promise<boolean> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const timeout = new Promise<boolean>((resolve) => {

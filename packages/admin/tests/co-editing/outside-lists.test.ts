@@ -89,6 +89,24 @@ function harness(server: Credit[]) {
 const flush = () => new Promise((resolve) => setTimeout(resolve));
 
 describe("ListSaver", () => {
+	it("settles false after a failed save, and true once a retry sends it", async () => {
+		const list = harness([credit("a")]);
+		list.change([credit("a"), credit("b")]);
+		const first = list.saver.whenSettled();
+		await flush();
+		list.replies[0]!.reject(new Error("Refused"));
+		expect(await first).toBe(false);
+		expect(list.saver.unsent).toBe(true);
+
+		list.saver.retry();
+		const second = list.saver.whenSettled();
+		await flush();
+		list.replies[1]!.resolve();
+		expect(await second).toBe(true);
+		expect(ids(list.sent[1]!)).toEqual(["a", "b"]);
+		expect(list.saver.unsent).toBe(false);
+	});
+
 	it("keeps the rows past the start of the list in its base when it adopts only that start", async () => {
 		const list = harness([credit("a"), credit("b"), credit("c")]);
 		list.change([credit("a"), credit("b"), credit("c"), credit("d")]);
