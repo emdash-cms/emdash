@@ -5,7 +5,7 @@ import {
 	readSlug,
 	touchedFields,
 	writeField,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 

@@ -46,13 +46,13 @@
       "types": "./dist/internal/portable-text-y-sync.d.ts",
       "default": "./dist/internal/portable-text-y-sync.js"
     },
-    "./co-editing": {
-      "types": "./dist/co-editing.d.ts",
-      "default": "./dist/co-editing.js"
+    "./internal/co-editing": {
+      "types": "./dist/internal/co-editing.d.ts",
+      "default": "./dist/internal/co-editing.js"
     },
-    "./co-editing/types": {
-      "types": "./dist/co-editing/types.d.ts",
-      "default": "./dist/co-editing/types.js"
+    "./internal/co-editing/types": {
+      "types": "./dist/internal/co-editing/types.d.ts",
+      "default": "./dist/internal/co-editing/types.js"
     },
     "./html-block": {
       "types": "./dist/html-block.d.ts",

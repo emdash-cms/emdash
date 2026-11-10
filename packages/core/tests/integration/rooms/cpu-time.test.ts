@@ -17,7 +17,7 @@ import {
 	encodeSyncStep2,
 	encodeUpdate,
 	fragmentName,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

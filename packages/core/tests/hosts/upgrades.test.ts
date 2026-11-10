@@ -1,4 +1,4 @@
-import { decodeMessage } from "@emdash-cms/admin/co-editing";
+import { decodeMessage } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it, vi } from "vitest";
 import { WebSocketServer } from "ws";
 

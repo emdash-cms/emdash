@@ -1,4 +1,4 @@
-import { decodeMessage } from "@emdash-cms/admin/co-editing";
+import { decodeMessage } from "@emdash-cms/admin/internal/co-editing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTestServer, type TestServerContext } from "../integration/server.js";

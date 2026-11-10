@@ -15,8 +15,8 @@ export {
 	encodeSyncStep1,
 	encodeSyncStep2,
 	encodeUpdate,
-} from "./co-editing/protocol.js";
-export { snapshotContains } from "./co-editing/snapshot.js";
+} from "../co-editing/protocol.js";
+export { snapshotContains } from "../co-editing/snapshot.js";
 export {
 	ENTRY_SLUG,
 	FIELDS_MAP,
@@ -28,10 +28,10 @@ export {
 	readSlug,
 	touchedFields,
 	writeField,
-} from "./co-editing/layout.js";
-export { CLOSE_CODES } from "./co-editing/types.js";
+} from "../co-editing/layout.js";
+export { CLOSE_CODES } from "../co-editing/types.js";
 
-export type { LayoutField } from "./co-editing/layout.js";
+export type { LayoutField } from "../co-editing/layout.js";
 export type {
 	AwarenessEntry,
 	CloseCode,
@@ -40,4 +40,4 @@ export type {
 	OutsideValue,
 	RoomAccess,
 	RoomMessage,
-} from "./co-editing/types.js";
+} from "../co-editing/types.js";

@@ -1,4 +1,4 @@
-import { readFields, writeField } from "@emdash-cms/admin/co-editing";
+import { readFields, writeField } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 
 import { buildDocument, documentFields } from "../../src/rooms/document.js";

@@ -1,4 +1,4 @@
-import { readField, readFields } from "@emdash-cms/admin/co-editing";
+import { readField, readFields } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 

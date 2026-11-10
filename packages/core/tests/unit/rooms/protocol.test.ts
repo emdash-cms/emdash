@@ -10,7 +10,7 @@ import {
 	encodeUpdate,
 	type Message,
 	type RoomMessage,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
 import { describe, expect, it } from "vitest";

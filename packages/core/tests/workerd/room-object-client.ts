@@ -12,7 +12,7 @@ import {
 	encodeUpdate,
 	type AwarenessEntry,
 	type Message,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { env } from "cloudflare:workers";
 import { COMMIT, VERSION } from "emdash/internal/co-editing";
 import { expect, vi } from "vitest";

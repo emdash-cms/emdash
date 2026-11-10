@@ -1,4 +1,4 @@
-import { snapshotContains } from "@emdash-cms/admin/co-editing";
+import { snapshotContains } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 

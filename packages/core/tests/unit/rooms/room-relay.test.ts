@@ -3,7 +3,7 @@ import {
 	encodeRoomMessage,
 	encodeSyncStep2,
 	encodeUpdate,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 

@@ -18,7 +18,7 @@ import {
 	encodeSyncStep2,
 	encodeUpdate,
 	snapshotContains,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import {
 	PortableTextFilledDefaults,
 	portableTextExtensions,

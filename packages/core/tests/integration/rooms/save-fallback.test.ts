@@ -4,7 +4,7 @@ import {
 	encodeSyncStep1,
 	encodeSyncStep2,
 	encodeUpdate,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

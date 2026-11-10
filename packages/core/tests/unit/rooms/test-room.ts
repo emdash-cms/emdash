@@ -14,7 +14,7 @@ import {
 	type AwarenessEntry,
 	type Message,
 	type Notice,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { vi } from "vitest";
 import * as Y from "yjs";
 

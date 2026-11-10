@@ -3,7 +3,7 @@ import {
 	encodeSyncStep1,
 	encodeSyncStep2,
 	encodeUpdate,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { Role } from "@emdash-cms/auth";
 import type { APIContext, APIRoute } from "astro";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

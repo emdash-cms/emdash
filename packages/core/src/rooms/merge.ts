@@ -3,7 +3,7 @@
  * field slugs, and `slug` for the entry slug.
  */
 
-import { ENTRY_SLUG } from "@emdash-cms/admin/co-editing";
+import { ENTRY_SLUG } from "@emdash-cms/admin/internal/co-editing";
 
 import type { ContentWrite } from "../api/content-save.js";
 import { hashValue } from "./hash.js";

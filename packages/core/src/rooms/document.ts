@@ -1,5 +1,5 @@
 /**
- * Builds and reads an entry's shared document, in the layout `@emdash-cms/admin/co-editing`
+ * Builds and reads an entry's shared document, in the layout `@emdash-cms/admin/internal/co-editing`
  * defines for the room and its clients.
  */
 
@@ -9,7 +9,7 @@ import {
 	FIELDS_MAP,
 	FRAGMENT_PREFIX,
 	fragmentName,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { portableTextToProsemirror } from "@emdash-cms/admin/internal/portable-text";
 import { prosemirrorJSONToYXmlFragment } from "@tiptap/y-tiptap";
 import * as Y from "yjs";

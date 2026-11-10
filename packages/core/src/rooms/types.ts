@@ -3,13 +3,13 @@
  * internal and can change until co-editing is stable.
  */
 
-import type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/co-editing/types";
+import type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/internal/co-editing/types";
 
 import type { ContentWrite } from "../api/content-save.js";
 import type { FieldType, FieldValidation } from "../schema/types.js";
 
-export { CLOSE_CODES } from "@emdash-cms/admin/co-editing/types";
-export type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/co-editing/types";
+export { CLOSE_CODES } from "@emdash-cms/admin/internal/co-editing/types";
+export type { CloseCode, OutsideValue, RoomAccess } from "@emdash-cms/admin/internal/co-editing/types";
 
 export type EntryRef = { collection: string; id: string };
 

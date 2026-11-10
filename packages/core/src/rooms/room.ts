@@ -19,7 +19,7 @@ import {
 	writeField,
 	type AwarenessEntry,
 	type Notice,
-} from "@emdash-cms/admin/co-editing";
+} from "@emdash-cms/admin/internal/co-editing";
 import { findUnsupportedPortableTextMarks } from "@emdash-cms/admin/internal/portable-text";
 import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import * as Y from "yjs";
