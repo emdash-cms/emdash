@@ -431,7 +431,7 @@ msgstr "{0, plural, one {メディアファイル} other {メディアファイ�
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
 msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
-msgstr ""
+msgstr "{0, plural, one {ほかに1件のコンテンツが表示されていません。} other {ほかに#件のコンテンツが表示されていません。}}"
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -944,7 +944,7 @@ msgstr "{plural}はすぐに公開版へ反映されます。下書きの変更�
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr ""
+msgstr "{policyRejected, plural, one {対象のコンテンツを開き、表示された原因を解消してから、もう一度公開を予約してください。予約または公開に成功すると、この通知は消えます。} other {対象のコンテンツをそれぞれ開き、表示された原因を解消してから、もう一度公開を予約してください。予約または公開に成功すると、それぞれの通知が消えます。}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -12962,7 +12962,7 @@ msgstr "公開予約済みの変更"
 
 #: packages/admin/src/components/Dashboard.tsx:171
 msgid "Scheduled content was not published"
-msgstr ""
+msgstr "予約したコンテンツが公開されませんでした"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."
