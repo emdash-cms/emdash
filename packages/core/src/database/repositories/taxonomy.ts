@@ -867,12 +867,9 @@ export class TaxonomyRepository {
 	}
 
 	/**
-	 * Replace all assignments of a given taxonomy for one content entry.
-	 * Term ids OR translation_groups are accepted and normalised to groups.
-	 */
-	/**
-	 * Replace an entry's terms in one taxonomy. With `basedOn`, the terms the change was made
-	 * from, only the change is written, so a concurrent change to other terms stays.
+	 * Replace an entry's terms in one taxonomy. Term ids or translation groups are accepted and
+	 * normalised to groups. With `basedOn`, the terms the change was made from, only the change is
+	 * written, so a concurrent change to other terms stays.
 	 */
 	async setTermsForEntry(
 		collection: string,

@@ -369,6 +369,8 @@ Content-Type: application/json
 
 In a collection with revisions, a save with `expected` can't change draft values, such as `data` or `references`, together with live values, such as `bylines`. That request fails with `400 VALIDATION_ERROR`. Send the two changes as separate saves.
 
+On Cloudflare D1, the check and the write run as separate statements. Two changes to the same byline or reference list that reach the server at almost the same moment can both pass the check, and the later write then replaces the earlier one. Where that matters, read the entry after the save to confirm that your change is there. A terms change with `expected` writes only its own change, so both changes stay.
+
 ### Entry edit lock
 
 Collections can take a seven-minute edit lock when an editor opens an entry. Use the three operations on `/content/{collection}/{id}/lock` to read, acquire or refresh, and release the lease.
