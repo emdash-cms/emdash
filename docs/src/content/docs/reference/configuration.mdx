@@ -32,6 +32,10 @@ export default defineConfig({
 
 ## Integration options
 
+`emdash()` checks the type of each option when Astro loads the config, so `astro dev`, `astro build` and `astro sync` stop on a value of the wrong type, such as `mcp: "yes"`. The error lists every invalid option by its path, for example `→ at mcp`. Adapter, plugin and provider descriptors are checked only for their outer shape. `registry`, `migrations`, `middleware`, `admin.locales` and `admin.hiddenNavItems` keep their own, more specific errors.
+
+A top-level option EmDash doesn't recognize is ignored with a warning. When the name is close to a known option, the warning suggests it, so a typo like `sitUrl` points you to `siteUrl`.
+
 ### `database`
 
 **Required.** Database adapter configuration. Choose one adapter:
@@ -113,6 +117,22 @@ emdash({
 });
 ```
 
+### `imagePlaceholders`
+
+**Optional.** Controls whether EmDash generates blurhash and dominant-color placeholders for uploaded images. The default is `true` on every runtime, including Cloudflare Workers.
+
+`imagePlaceholders` is one site-wide switch for every upload and import. Set it to `false` to skip all blurhash and dominant-color generation, including from client thumbnails. Image dimensions, upload validation, content hashing, and responsive image variants remain unchanged.
+
+WordPress imports, MCP uploads, plugin uploads, and custom clients without thumbnails still decode originals when placeholders are enabled. Sites with constrained CPU budgets may choose to turn the switch off to avoid that decoding cost across all uploads and imports.
+
+```js
+emdash({
+	imagePlaceholders: false,
+});
+```
+
+The admin and visual-editing toolbar create a small browser thumbnail for every image the browser can decode and send it with uploads. These thumbnails also enable placeholders for opaque images in formats such as WebP and AVIF. New uploads and imports do not generate placeholders for transparent images, including PNGs, so placeholder backgrounds do not show through transparent areas. Previously stored placeholders are not removed. EmDash uses that thumbnail for placeholder generation instead of decoding the full original when the upload path provides one. A client can also provide a thumbnail in the signed-upload confirmation request; see [`POST /_emdash/api/media/{id}/confirm`](/reference/rest-api/#upload-target-flow).
+
 ### `mediaProviders`
 
 **Optional.** Adds media services to the media library. The storage-backed local provider remains available automatically; each descriptor in this array adds another place editors can browse or upload media.
@@ -127,7 +147,7 @@ emdash({
 });
 ```
 
-Provider credentials are resolved at runtime. The empty configurations above use the default Cloudflare environment variables described in the [`cloudflareImages(config)`](#cloudflareimagesconfig) and [`cloudflareStream(config)`](#cloudflarestreamconfig) adapter sections. See [Media Library: Media providers](/guides/media-library/#media-providers) for binding and rendering setup.
+Provider credentials are resolved at runtime. The empty configurations above use the default Cloudflare environment variables described in the [`cloudflareImages(config)`](#cloudflareimagesconfig) and [`cloudflareStream(config)`](#cloudflarestreamconfig) adapter sections. See [Media Library: storage and providers](/guides/media-library/#configure-storage-and-providers) for the differences between storage-backed media and media from external providers.
 
 ### `objectCache`
 
@@ -413,7 +433,7 @@ Built-in providers:
 - `microsoft()` — reads `EMDASH_OAUTH_MICROSOFT_CLIENT_ID` / `EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET` / `EMDASH_OAUTH_MICROSOFT_TENANT_ID` (or unprefixed fallbacks). Accepts `{ emailVerified }`. See [Microsoft](/guides/authentication/#microsoft).
 - `atproto()` — Atmosphere account login (Bluesky and the wider AT Protocol network). No env vars needed. Accepts `{ allowedDIDs, allowedHandles, defaultRole }`. See the [Atmosphere login guide](/guides/atmosphere-auth/).
 
-Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
+Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Build a provider](/guides/authentication/#build-a-provider).
 
 ### `mcp`
 
@@ -639,6 +659,21 @@ emdash({
 | `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
 | `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
 | `locales`     | `string[]`        | Admin languages to include, such as `["en", "de"]`. Catalogs for other languages are left out of the admin bundle, and only the listed languages appear in the language switcher. Users whose preferred languages are not listed see English. `en` is always included as the fallback, even if you omit it, so `admin: { locales: ["en-GB"] }` ships both English and British English. An unknown code fails the build and the error lists the available codes. |
+| `hiddenNavItems` | `string[]`     | Built-in admin areas to leave out of the sidebar and the command palette. The dashboard hides the Upload Media button when `media` is listed and keeps the Scheduled count but drops its link to the calendar when `calendar` is listed. Valid names (TypeScript accepts only these): `calendar`, `media`, `comments`, `menus`, `redirects`, `widgets`, `sections`, `bylines`, `import`. An unknown name fails the build and the error lists the valid names. |
+
+To keep the sidebar focused on what a site uses, hide the built-in areas it doesn't need:
+
+```js
+emdash({
+	admin: {
+		hiddenNavItems: ["comments", "redirects", "widgets"],
+	},
+});
+```
+
+Hiding an area only removes the links to it. The pages, API routes, and permissions stay unchanged, so anyone with the URL and the required role can still open them.
+
+`hiddenNavItems` applies to every user. Each user can also hide and reorder the entries they see under **Settings > Sidebars**, as the [content guide](/guides/working-with-content/#arrange-the-sidebars) describes. Areas hidden by `hiddenNavItems` do not appear on that page.
 
 ### `updateCheck`
 
@@ -1045,7 +1080,7 @@ Adds Cloudflare Stream for browsing, searching, uploading, deleting, and playing
 mediaProviders: [cloudflareStream({ controls: true })];
 ```
 
-See [Media Library: Media providers](/guides/media-library/#media-providers) for the required bindings and rendering components.
+See [Media Library: storage and providers](/guides/media-library/#configure-storage-and-providers) for the differences between storage-backed media and media from external providers.
 
 ## Live collections
 

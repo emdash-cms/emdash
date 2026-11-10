@@ -118,6 +118,7 @@ export function useRevisionFormat(): RevisionFormat {
 		};
 		const time = (date: Date) => formatDate(date, locale, { hour: "numeric", minute: "2-digit" });
 		const when = (date: Date, now?: Date) => {
+			if (Number.isNaN(date.getTime())) return "";
 			const dayLabel = day(date, now);
 			const timeLabel = time(date);
 			return t`${dayLabel}, ${timeLabel}`;

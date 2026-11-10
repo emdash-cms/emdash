@@ -36,6 +36,8 @@ Content and taxonomy menu items store a reference rather than a finished URL. Wh
 | Collection archive | `/{collection}/` |
 | Custom link | The external URL or root-relative path entered by the editor |
 
+`getMenu()` leaves out a content item when none of its entry's translations is published, for example because the entry is deleted, in the trash, or still a draft. A translation in the trash or not yet published counts as missing, so the item falls back to another translation. When an item is left out, its child items are left out with it. In edit mode, items that link to unpublished entries stay in the menu.
+
 Each returned item also contains its label, optional target, title attribute, CSS classes, and nested `children`. The rendering example below uses those values directly.
 
 ## Render a menu
@@ -125,6 +127,6 @@ A menu widget places an existing menu inside a [widget area](/guides/widgets/). 
 
 Use `getMenus()` when a template needs the available menu definitions rather than one menu's items. The [runtime API reference](/reference/api/#menus) documents the query signatures and return values.
 
-For programmatic menu changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [menu endpoints](/reference/rest-api/#menu-endpoints) for request bodies and responses.
+For programmatic menu changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [menu endpoints](/reference/rest-api/#menus) for the available operations.
 
 See [Internationalization](/guides/internationalization/) for locale routing and fallback configuration.

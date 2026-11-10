@@ -408,9 +408,10 @@ describe("Video block editor", () => {
 	});
 
 	it("saves a caption and keeps writing below it on Enter", async () => {
-		const { editor, latest } = await renderEditor({ value: [videoBlock()] });
+		const { editor, latest, screen } = await renderEditor({ value: [videoBlock()] });
 
-		await userEvent.click(caption());
+		await userEvent.click(screen.getByRole("button", { name: "Add caption" }));
+		expect(document.activeElement).toBe(caption());
 		await userEvent.keyboard("Launch day");
 		await vi.waitFor(() => expect(videos(latest())[0]?.caption).toBe("Launch day"));
 
@@ -512,6 +513,7 @@ describe("Video block editor", () => {
 	it("moves through the player, caption and actions with Tab, and back to the block", async () => {
 		const { editor, pm, screen } = await renderEditor({ value: [INTRO, videoBlock()] });
 		const replace = screen.getByRole("button", { name: "Replace video" }).element();
+		const addCaption = screen.getByRole("button", { name: "Add caption" }).element();
 		const remove = screen.getByRole("button", { name: "Delete video" }).element();
 
 		selectVideo(editor);
@@ -522,10 +524,12 @@ describe("Video block editor", () => {
 		await userEvent.keyboard("{Tab}");
 		expect(document.activeElement).toBe(replace);
 		await userEvent.keyboard("{Tab}");
+		expect(document.activeElement).toBe(addCaption);
+		await userEvent.keyboard("{Tab}");
 		expect(document.activeElement).toBe(remove);
 
 		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
-		expect(document.activeElement).toBe(replace);
+		expect(document.activeElement).toBe(addCaption);
 		await userEvent.keyboard("{Escape}");
 		expect(document.activeElement).toBe(pm);
 		expect(selectedNodeName(editor)).toBe("videoBlock");

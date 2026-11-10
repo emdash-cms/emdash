@@ -395,6 +395,7 @@ export function BulkTagDialog({
 								</div>
 							) : (
 								<InputArea
+									dir="ltr"
 									className="w-full"
 									label={t`Post URLs (one per line)`}
 									rows={4}

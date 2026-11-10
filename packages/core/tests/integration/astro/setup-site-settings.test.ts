@@ -12,6 +12,7 @@ const templateSettings = vi.hoisted(() => ({
 vi.mock("virtual:emdash/seed", () => ({
 	seed: { version: "1", settings: { ...templateSettings }, collections: [] },
 	userSeed: null,
+	mediaBasePath: undefined,
 }));
 
 import { POST as postSetup } from "../../../src/astro/routes/api/setup/index.js";

@@ -1,4 +1,6 @@
 import { Button, Input, Label } from "@cloudflare/kumo";
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, X } from "@phosphor-icons/react";
 import * as React from "react";
@@ -14,7 +16,15 @@ interface Preset {
 const PRESETS: ReadonlyArray<Preset> = [
 	{
 		key: "images",
-		mimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/jxl"],
+		mimeTypes: [
+			"image/png",
+			"image/jpeg",
+			"image/gif",
+			"image/webp",
+			"image/avif",
+			"image/bmp",
+			"image/jxl",
+		],
 	},
 	{ key: "pdf", mimeTypes: ["application/pdf"] },
 	{
@@ -42,7 +52,7 @@ const PRESETS: ReadonlyArray<Preset> = [
 	{ key: "fonts", mimeTypes: ["font/"] },
 ];
 
-function expandShorthand(entry: string): string | null {
+export function expandShorthand(entry: string): string | null {
 	const trimmed = entry.trim();
 	if (!trimmed) return null;
 	if (trimmed.includes("/")) return VALID_MIME_RE.test(trimmed) ? trimmed : null;
@@ -50,15 +60,34 @@ function expandShorthand(entry: string): string | null {
 	return null;
 }
 
+/** Why a typed entry can't be added, when it can't. An empty one has nothing to add. */
+export function draftProblem(entry: string): MessageDescriptor | undefined {
+	const draft = entry.trim();
+	if (!draft || expandShorthand(draft)) return undefined;
+	return msg`Couldn't map "${draft}" to a MIME type. Type the MIME directly.`;
+}
+
 export interface AllowedTypesEditorProps {
 	value: string[];
 	onChange: (next: string[]) => void;
+	/** The entry typed but not added yet, which saving the field adds too. */
+	draft: string;
+	onDraftChange: (draft: string) => void;
+	/** Why the typed entry keeps the field from saving. */
+	error?: string;
 }
 
-export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps) {
+export function AllowedTypesEditor({
+	value,
+	onChange,
+	draft,
+	onDraftChange,
+	error,
+}: AllowedTypesEditorProps) {
 	const { t } = useLingui();
-	const [draft, setDraft] = React.useState("");
+	const errorId = React.useId();
 	const [warning, setWarning] = React.useState<string | null>(null);
+	const message = error ?? warning;
 
 	const presetLabels: Record<string, string> = {
 		images: t`Images`,
@@ -88,12 +117,13 @@ export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps)
 	const addDraft = () => {
 		const expanded = expandShorthand(draft);
 		if (!expanded) {
-			setWarning(t`Couldn't map "${draft}" to a MIME type. Type the MIME directly.`);
+			const problem = draftProblem(draft);
+			setWarning(problem ? t(problem) : null);
 			return;
 		}
 		setWarning(null);
 		if (!set.has(expanded)) onChange([...value, expanded]);
-		setDraft("");
+		onDraftChange("");
 	};
 
 	const removeEntry = (entry: string) => {
@@ -138,7 +168,7 @@ export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps)
 							key={entry}
 							className="flex items-center gap-1 bg-kumo-tint rounded px-2 py-1 text-xs"
 						>
-							<code>{entry}</code>
+							<code dir="ltr">{entry}</code>
 							<Button
 								type="button"
 								shape="square"
@@ -156,15 +186,19 @@ export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps)
 
 			<div className="flex gap-2">
 				<Input
+					dir="ltr"
 					value={draft}
 					onChange={(e) => {
-						setDraft(e.target.value);
+						onDraftChange(e.target.value);
 						setWarning(null);
 					}}
 					placeholder={t`e.g. application/zip or .pdf`}
 					aria-label={t`Add MIME type or extension`}
+					aria-invalid={message ? true : undefined}
+					aria-describedby={message ? errorId : undefined}
 					onKeyDown={(e) => {
-						if (e.key === "Enter") {
+						// With nothing typed, Enter saves the field like any other input.
+						if (e.key === "Enter" && draft.trim()) {
 							e.preventDefault();
 							addDraft();
 						}
@@ -174,7 +208,11 @@ export function AllowedTypesEditor({ value, onChange }: AllowedTypesEditorProps)
 					{t`Add`}
 				</Button>
 			</div>
-			{warning && <p className="text-xs text-kumo-danger">{warning}</p>}
+			{message && (
+				<p id={errorId} className="text-sm leading-snug text-kumo-danger">
+					{message}
+				</p>
+			)}
 		</div>
 	);
 }

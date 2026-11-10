@@ -30,8 +30,10 @@ export interface RecentItem {
 
 export interface DashboardStats {
 	collections: CollectionStats[];
-	mediaCount: number;
-	userCount: number;
+	/** Absent when the user lacks `media:read`. */
+	mediaCount?: number;
+	/** Absent when the user lacks `users:read`. */
+	userCount?: number;
 	recentItems: RecentItem[];
 	schedulerHealth?: {
 		status: "healthy" | "stale" | "unknown";
@@ -41,7 +43,10 @@ export interface DashboardStats {
 	policyRejections?: Array<{
 		collection: string;
 		id: string;
-		pluginId: string;
+		/** Absent when the publish itself was refused rather than a plugin. */
+		pluginId?: string;
+		/** The refused publish's error code, when there was one. */
+		code?: string;
 		reason: string;
 		rejectedAt: string;
 		_rev: string;

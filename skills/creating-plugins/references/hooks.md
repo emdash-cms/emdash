@@ -54,17 +54,24 @@ The current isolated runtime dispatches these hooks to Cloudflare and Node/worke
 
 ### `plugin:install`
 
-Runs once on first install. Use to seed defaults.
+Runs during initial plugin setup. For config-declared sandboxed plugins, sandbox unavailability before activation completes can leave no saved installation state. The next boot runs install again, even if the earlier install hook succeeded. Make initialization idempotent so a retry preserves existing settings and data.
+
+This example initializes only missing values and assumes the manifest declares an `items` storage collection:
 
 ```typescript
 "plugin:install": async (_event, ctx) => {
-	await ctx.settings.set("enabled", true);
-	await ctx.storage.items!.put("default", { name: "Default" });
-}
+	ctx.log.info("Installing plugin...");
+	if ((await ctx.settings.get<boolean>("enabled")) === null) {
+		await ctx.settings.set("enabled", true);
+	}
+	if ((await ctx.storage.items.get("default")) === null) {
+		await ctx.storage.items.put("default", { name: "Default Item" });
+	}
+},
 ```
 
 Event: `{}`
-Returns: `void`
+Returns: `Promise<void>`
 
 ### `plugin:activate`
 
@@ -116,7 +123,9 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-	const { content } = event;
+	const { content, isNew } = event;
+	if (!isNew && !("title" in content)) return;
+
 	if (!content.title) {
 		return {
 			__emdashSandboxHookResult: true,
@@ -134,7 +143,7 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. `content` holds field values only: the entry's slug is not part of it, and a `slug` key returned from the hook fails validation as an unknown field. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item and `content` holds only the submitted field values. The entry's slug is not part of `content`, and a `slug` key returned from the hook fails validation as an unknown field. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
 Returns: `Record<string, unknown> | SandboxHookErrorEnvelope | void`
 
 ### `content:afterSave`

@@ -26,9 +26,9 @@
  *      output; the probe only reads `default.hooks` / `default.routes`
  *      *keys*, which minification doesn't rename (object literal keys
  *      stay stable). The probe bundles Zod so MCP schemas can be evaluated
- *      from the temporary output. Sandboxed plugins must not import
- *      from `emdash` at runtime (types come from `emdash/plugin` and
- *      are erased before bundling).
+ *      from the temporary output. Sandboxed plugins must not import from
+ *      the main `emdash` entry at runtime. The CLI bundles lightweight
+ *      `emdash/plugin` and `emdash/client` helpers; type-only imports are erased.
  *
  * Errors throw `BuildPipelineError` with a structured code. Wrappers translate
  * to their own error classes so the CLI's `BuildError` / `BundleError`
@@ -293,7 +293,13 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
-			noExternal: ["emdash/plugin", "zod", "@emdash-cms/blocks", "@emdash-cms/blocks/server"],
+			noExternal: [
+				"emdash/plugin",
+				"emdash/client",
+				"zod",
+				"@emdash-cms/blocks",
+				"@emdash-cms/blocks/server",
+			],
 			inlineOnly: false,
 			treeshake: true,
 		});
@@ -563,8 +569,8 @@ export interface RuntimeFiles {
  * the `mcp` property and schema declarations unused by hooks/routes. The result
  * is minified because this output runs in the
  * isolate (loader string-embeds it) or is imported in-process. Imports from
- * the lightweight `emdash/plugin` authoring subpath and Zod are bundled so
- * route handlers can use them inside the isolate. Imports from the main
+ * the lightweight `emdash/plugin` and `emdash/client` subpaths and Zod are bundled
+ * so route handlers can use them inside the isolate. Imports from the main
  * `emdash` package remain unsupported.
  */
 export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFiles> {
@@ -589,7 +595,13 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 			dts: false,
 			platform: "neutral",
 			external: [],
-			noExternal: ["emdash/plugin", "zod", "@emdash-cms/blocks", "@emdash-cms/blocks/server"],
+			noExternal: [
+				"emdash/plugin",
+				"emdash/client",
+				"zod",
+				"@emdash-cms/blocks",
+				"@emdash-cms/blocks/server",
+			],
 			inlineOnly: false,
 			minify: true,
 			plugins: [runtimeSourcePlugin],

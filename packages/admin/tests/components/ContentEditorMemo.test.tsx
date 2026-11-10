@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import { ContentEditor, type ContentEditorProps } from "../../src/components/ContentEditor";
 import type { FieldDescriptor } from "../../src/components/ContentEditor";
+import type { ListLayout } from "../../src/lib/admin-layout";
 import type { ContentItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -40,6 +41,7 @@ vi.mock("@tanstack/react-router", async () => {
 	return {
 		...actual,
 		Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+		useBlocker: () => ({ status: "idle" }),
 	};
 });
 
@@ -47,6 +49,8 @@ const fields: Record<string, FieldDescriptor> = {
 	title: { kind: "string", label: "Title", required: true },
 	body: { kind: "string", label: "Body" },
 };
+
+const adminLayout: ListLayout = { order: ["seo", "publish"], hidden: ["revisions"] };
 
 function makeItem(): ContentItem {
 	return {
@@ -77,6 +81,7 @@ describe("ContentSettingsPanel memo contract", () => {
 			onAutosave: vi.fn(),
 			onPublish: vi.fn(),
 			onDelete: vi.fn(),
+			adminLayout,
 		};
 
 		const screen = await render(<ContentEditor {...props} />);

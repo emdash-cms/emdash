@@ -1273,6 +1273,7 @@ export function InlinePortableTextEditor({
 		immediatelyRender: false,
 		editorProps: {
 			attributes: {
+				"aria-label": "Rich text editor",
 				class: "prose prose-sm sm:prose-base dark:prose-invert max-w-none emdash-inline-editor",
 				dir: "auto",
 			},

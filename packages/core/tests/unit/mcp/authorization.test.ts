@@ -1415,7 +1415,7 @@ describe("MCP Authorization", () => {
 			expect(handlers.handleRevisionList).not.toHaveBeenCalled();
 		});
 
-		it("filters non-published translations for SUBSCRIBER", async () => {
+		it.each(["t-en", "p"])("filters non-published translations for SUBSCRIBER (%s)", async (id) => {
 			const handlers = createMockHandlers();
 			handlers.handleContentTranslations = vi.fn().mockResolvedValue({
 				success: true,
@@ -1435,13 +1435,42 @@ describe("MCP Authorization", () => {
 
 			const result = await client.callTool({
 				name: "content_translations",
-				arguments: { collection: "post", id: CONTENT_ID },
+				arguments: { collection: "post", id },
 			});
 
 			expect(result.isError).toBeFalsy();
 			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
 			expect(text).toContain("t-en");
 			expect(text).not.toContain("t-fr");
+		});
+
+		it("reports a non-published entry's translations as not found to SUBSCRIBER", async () => {
+			const handlers = createMockHandlers();
+			handlers.handleContentTranslations = vi.fn().mockResolvedValue({
+				success: true,
+				data: {
+					translationGroup: "tg-1",
+					translations: [
+						{ id: "t-en", locale: "en", slug: "p", status: "published", updatedAt: "" },
+						{ id: "t-fr", locale: "fr", slug: "p-fr", status: "draft", updatedAt: "" },
+					],
+				},
+			});
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.SUBSCRIBER,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_translations",
+				arguments: { collection: "post", id: "p-fr" },
+			});
+
+			expect(result.isError).toBe(true);
+			const text = (result.content as Array<{ text: string }>)[0]?.text ?? "";
+			expect(text).toMatch(/not found/i);
+			expect(text).not.toContain("tg-1");
 		});
 
 		it("allows CONTRIBUTOR to see all translations", async () => {

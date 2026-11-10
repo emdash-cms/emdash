@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, it, expect } from "vitest";
 
 import {
 	getPublicOrigin,
+	getPublicSiteUrl,
 	getPublicUrl,
 	getEnvAllowedOrigins,
 	_resetEnvCache,
@@ -166,5 +167,30 @@ describe("getPublicUrl()", () => {
 		expect(getPublicUrl(url, undefined, "/_emdash/admin/login")).toBe(
 			"http://localhost:4321/_emdash/admin/login",
 		);
+	});
+});
+
+describe("getPublicSiteUrl()", () => {
+	it.each([
+		["https://example.com", "/field-notes", "https://example.com/field-notes"],
+		["https://example.com/", "/field-notes/", "https://example.com/field-notes"],
+		["https://example.com/field-notes/", "/field-notes/", "https://example.com/field-notes"],
+		["https://example.com", "/example.com", "https://example.com/example.com"],
+		["https://example.com/legacy/", "/", "https://example.com/legacy"],
+	])("combines stored URL %s with base %s", (stored, base, expected) => {
+		expect(getPublicSiteUrl(new URL("http://localhost:4321"), undefined, stored, base)).toBe(
+			expected,
+		);
+	});
+
+	it("preserves the configured proxy origin when adding the base", () => {
+		expect(
+			getPublicSiteUrl(
+				new URL("http://localhost:4321"),
+				{ siteUrl: "https://public.example.com" },
+				undefined,
+				"/field-notes/",
+			),
+		).toBe("https://public.example.com/field-notes");
 	});
 });

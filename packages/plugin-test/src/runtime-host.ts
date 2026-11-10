@@ -49,6 +49,7 @@ import {
 	TaxonomyRepository,
 	validateEditorDraftPatch,
 	validateEditorDraftRequest,
+	waitForDeferredTasks,
 	type UserInfo,
 } from "emdash/internal/plugin-test-runtime";
 import { Kysely } from "kysely";
@@ -335,6 +336,8 @@ export interface PluginRuntimeTestHost {
 		requests(): PluginHttpTestRequest[];
 		clear(): void;
 	};
+	/** Wait for queued deferred runtime work, including after-hooks and work they enqueue. */
+	waitForDeferredTasks(): Promise<void>;
 	restart(): Promise<void>;
 	dispose(): Promise<void>;
 }
@@ -523,6 +526,17 @@ export async function createPluginRuntimeTestHost(
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the caller supplies the expected JSON value type for this inspector
 			data: JSON.parse(row.data) as T,
 		}));
+	};
+	const readKv = async <T>(key?: string) => {
+		assertActive();
+		const prefix = `plugin:${manifest.id}:`;
+		const values =
+			key === undefined
+				? await optionRepo.getByPrefix<T>(prefix)
+				: await optionRepo.getMany<T>([`${prefix}${key}`]);
+		return Array.from(values, ([name, data]) => ({ id: name.slice(prefix.length), data })).filter(
+			({ id }) => !id.startsWith("settings:"),
+		);
 	};
 	const invokeAdmin = async (
 		interaction: BlockInteraction,
@@ -968,7 +982,7 @@ export async function createPluginRuntimeTestHost(
 						.run();
 				},
 				kv(key, value) {
-					return this.storage("__kv", key, value);
+					return optionRepo.set(`plugin:${manifest.id}:${key}`, value);
 				},
 			},
 		},
@@ -1087,9 +1101,9 @@ export async function createPluginRuntimeTestHost(
 			},
 			kv: {
 				async get<T>(key: string) {
-					return (await readStorage<T>("__kv", key))[0]?.data ?? null;
+					return (await readKv<T>(key))[0]?.data ?? null;
 				},
-				list: () => readStorage("__kv"),
+				list: () => readKv(),
 			},
 			setting: (key) => optionRepo.get(`plugin:${manifest.id}:settings:${key}`),
 			settings: {
@@ -1195,6 +1209,10 @@ export async function createPluginRuntimeTestHost(
 				capturedHttpRequests.length = 0;
 				httpResponses.clear();
 			},
+		},
+		async waitForDeferredTasks() {
+			assertActive();
+			await waitForDeferredTasks();
 		},
 		async restart() {
 			assertActive();

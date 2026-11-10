@@ -15,7 +15,9 @@ import {
 	createRoute,
 	createRouter,
 } from "@tanstack/react-router";
+import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 
 import { RelationList } from "../../src/components/RelationList";
 import type { SchemaCollection } from "../../src/lib/api";
@@ -123,7 +125,9 @@ describe("RelationList", () => {
 		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
 		await expect.element(screen.getByText("posts.author")).toBeInTheDocument();
 		await expect.element(screen.getByText("picks Authors")).toBeInTheDocument();
-		await expect.element(screen.getByText("12 links")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "12 links", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("says which end a child-side field picks from", async () => {
@@ -150,7 +154,32 @@ describe("RelationList", () => {
 		);
 
 		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
-		await expect.element(screen.getByText("No fields")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("cell", { name: "No fields", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("opens a relation's edit dialog from its slug", async () => {
+		const { screen } = await renderWithRoutes(<RelationList {...listProps()} />);
+
+		await screen.getByText("posts_authors", { exact: true }).click();
+
+		await expect.element(screen.getByRole("dialog")).toBeVisible();
+		await expect
+			.element(screen.getByLabelText("Slug", { exact: true }))
+			.toHaveValue("posts_authors");
+	});
+
+	it("opens a relation's edit dialog from its row's menu", async () => {
+		const { screen } = await renderWithRoutes(<RelationList {...listProps()} />);
+
+		await screen.getByRole("button", { name: "Actions for posts_authors" }).click();
+		await screen.getByRole("menuitem", { name: "Edit", exact: true }).click();
+
+		await expect.element(screen.getByRole("dialog")).toBeVisible();
+		await expect
+			.element(screen.getByLabelText("Slug", { exact: true }))
+			.toHaveValue("posts_authors");
 	});
 
 	// Editing a relation is a dialog over the list, not a page of its own: the
@@ -164,6 +193,14 @@ describe("RelationList", () => {
 		await screen.getByRole("button", { name: "Edit posts_authors" }).click();
 
 		await expect.element(screen.getByLabelText("Slug", { exact: true })).toBeDisabled();
+		await screen.getByRole("button", { name: "More information about Slug" }).hover();
+		await expect
+			.element(
+				page.getByRole("tooltip", {
+					name: "The content types and slug cannot be changed after a relation is created.",
+				}),
+			)
+			.toBeVisible();
 		await screen.getByLabelText("Linked side (plural)").fill("Writers");
 		screen.getByRole("button", { name: "Save Relation" }).element().click();
 
@@ -199,11 +236,72 @@ describe("RelationList", () => {
 
 		// Blank means the editor has not said how many yet. Saving it as "any
 		// number" is the opposite of what they picked.
-		await expect.element(screen.getByLabelText("Maximum")).toHaveValue(null);
-		await expect.element(screen.getByRole("button", { name: "Save Relation" })).toBeDisabled();
+		const maximum = screen.getByLabelText("Maximum");
+		await expect.element(maximum).toHaveValue(null);
+		screen.getByRole("button", { name: "Save Relation" }).element().click();
+		await expect.element(screen.getByText("Enter a whole number of 2 or more.")).toBeVisible();
+		await expect.element(maximum).toHaveAttribute("aria-invalid", "true");
+		await expect.element(maximum).toHaveFocus();
+		expect(onUpdateRelation).not.toHaveBeenCalled();
 
-		await screen.getByLabelText("Maximum").fill("3");
-		await expect.element(screen.getByRole("button", { name: "Save Relation" })).toBeEnabled();
+		await maximum.fill("3");
+		await expect
+			.element(screen.getByText("Enter a whole number of 2 or more."))
+			.not.toBeInTheDocument();
+		screen.getByRole("button", { name: "Save Relation" }).element().click();
+		await vi.waitFor(() =>
+			expect(onUpdateRelation).toHaveBeenCalledWith(
+				"rel-1",
+				expect.objectContaining({ maxChildrenPerParent: 3 }),
+			),
+		);
+	});
+
+	it("will not save an 'At most…' limit that isn't a whole number", async () => {
+		const onUpdateRelation = vi.fn(async () => ({}));
+		const { screen } = await renderWithRoutes(
+			<RelationList {...listProps({ onUpdateRelation })} />,
+		);
+
+		await screen.getByRole("button", { name: "Edit posts_authors" }).click();
+		const trigger = screen.getByRole("combobox", { name: "Each Post links to", exact: true });
+		await expect.element(trigger).toBeInTheDocument();
+		trigger.element().click();
+		await vi.waitFor(() => {
+			screen.getByRole("option", { name: "At most…", exact: true }).element().click();
+		});
+
+		const maximum = screen.getByLabelText("Maximum");
+		await maximum.fill("2.5");
+		screen.getByRole("button", { name: "Save Relation" }).element().click();
+		await expect.element(screen.getByText("Enter a whole number of 2 or more.")).toBeVisible();
+		await expect.element(maximum).toHaveAttribute("aria-invalid", "true");
+		await expect.element(maximum).toHaveFocus();
+		expect(onUpdateRelation).not.toHaveBeenCalled();
+	});
+
+	it("counts a switch from 'Any number' to 'At most…' as a change, so Save can say what's missing", async () => {
+		const onUpdateRelation = vi.fn(async () => ({}));
+		const { screen } = await renderWithRoutes(
+			<RelationList {...listProps({ onUpdateRelation })} />,
+		);
+
+		await screen.getByRole("button", { name: "Edit posts_authors" }).click();
+		const trigger = screen.getByRole("combobox", {
+			name: "Each Author is linked from",
+			exact: true,
+		});
+		await expect.element(trigger).toBeInTheDocument();
+		trigger.element().click();
+		await vi.waitFor(() => {
+			screen.getByRole("option", { name: "At most…", exact: true }).element().click();
+		});
+
+		const save = screen.getByRole("button", { name: "Save Relation" });
+		await expect.element(save).toBeEnabled();
+		save.element().click();
+		await expect.element(screen.getByText("Enter a whole number of 2 or more.")).toBeVisible();
+		expect(onUpdateRelation).not.toHaveBeenCalled();
 	});
 
 	// The delete cascades to the fields on both ends, so the dialog says so
@@ -214,7 +312,8 @@ describe("RelationList", () => {
 			<RelationList {...listProps({ onDeleteRelation })} />,
 		);
 
-		await screen.getByRole("button", { name: "Delete posts_authors" }).click();
+		await screen.getByRole("button", { name: "Actions for posts_authors" }).click();
+		await screen.getByRole("menuitem", { name: "Delete posts_authors" }).click();
 
 		await expect
 			.element(screen.getByText(/the author field on posts, which picks entries it links to/))
@@ -225,14 +324,28 @@ describe("RelationList", () => {
 	});
 
 	it("keeps the dialog up when the delete fails, with the error and a retry", async () => {
-		const onDeleteRelation = vi.fn(() => Promise.reject(new Error("Relation is in use")));
-		const { screen } = await renderWithRoutes(
-			<RelationList
-				{...listProps({ onDeleteRelation, deleteError: new Error("Relation is in use") })}
-			/>,
-		);
+		const onDeleteRelation = vi.fn();
+		// The router hands the list its delete mutation's error once the delete fails.
+		function FailingDelete() {
+			const [deleteError, setDeleteError] = React.useState<unknown>(null);
+			return (
+				<RelationList
+					{...listProps({
+						deleteError,
+						onDeleteRelation: (id: string) => {
+							onDeleteRelation(id);
+							const error = new Error("Relation is in use");
+							setDeleteError(error);
+							return Promise.reject(error);
+						},
+					})}
+				/>
+			);
+		}
+		const { screen } = await renderWithRoutes(<FailingDelete />);
 
-		await screen.getByRole("button", { name: "Delete posts_authors" }).click();
+		await screen.getByRole("button", { name: "Actions for posts_authors" }).click();
+		await screen.getByRole("menuitem", { name: "Delete posts_authors" }).click();
 		screen.getByRole("button", { name: "Delete", exact: true }).element().click();
 		await expect.element(screen.getByText("Relation is in use")).toBeInTheDocument();
 

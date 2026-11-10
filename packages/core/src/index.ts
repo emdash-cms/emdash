@@ -256,6 +256,7 @@ export {
 	invalidateTaxonomyObjectCache,
 	invalidateBylineObjectCache,
 	invalidateMenuObjectCache,
+	invalidateWidgetObjectCache,
 	invalidateSchemaObjectCache,
 	invalidateCommentObjectCache,
 	contentNamespace,
@@ -445,6 +446,15 @@ export type {
 	CommentAccess,
 	CommentListOptions,
 	CommentCountOptions,
+
+	// Email hook types
+	EmailMessage,
+	EmailBeforeSendEvent,
+	EmailDeliverEvent,
+	EmailAfterSendEvent,
+	EmailBeforeSendHandler,
+	EmailDeliverHandler,
+	EmailAfterSendHandler,
 
 	// Scheduler types
 	CronScheduler,
@@ -714,6 +724,7 @@ export type {
 
 // Search
 export {
+	SearchUnavailableError,
 	SEARCH_TOKENIZERS,
 	FTSManager,
 	search,

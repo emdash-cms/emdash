@@ -16,7 +16,7 @@
 			"label": "Posts",
 			"labelSingular": "Post",
 			"urlPattern": "/posts/{slug}",
-			"supports": ["drafts", "revisions", "preview", "scheduling", "search", "seo"],
+			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"commentsEnabled": true,
 			"fields": [
 				{
