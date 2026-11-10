@@ -5,7 +5,7 @@ status: proposed
 authors:
   - Daniel Mueller (@danielmlr)
 champion: Daniel Mueller (@danielmlr)
-sponsor: null
+sponsor: Daniel Mueller (@danielmlr)
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/4540
 created: 2026-11-01
@@ -170,7 +170,7 @@ type UpdateTrigger =
 updateCheck?: boolean | { minimumReleaseAge?: string | number; trigger?: UpdateTrigger };
 ```
 
-`emdash()` validates the trigger when Astro loads the configuration and fails the build with the option path on a wrong shape. `repository` must match `owner/name`. `workflow` must be a file name that ends in `.yml` or `.yaml` and holds no path separator, or a number, and it is URL-encoded into the dispatch path. `url` and `apiUrl` must use `https:`, except on `localhost` in development. The trigger holds no secret, so it can sit in the configuration and the virtual config module.
+The trigger's shape joins the `updateCheck` entry of the options schema in `packages/core/src/config/options-schema.ts`, so a wrong shape stops `astro dev` and `astro build` with its option path, such as `updateCheck.trigger.repository`. The schema leaves rules beyond the shape to helpers, and the trigger's rules go to one that `emdash()` runs when Astro loads the configuration. `repository` must match `owner/name`. `workflow` must be a file name that ends in `.yml` or `.yaml` and holds no path separator, or a number, and it is URL-encoded into the dispatch path. `url` and `apiUrl` must use `https:`, except on `localhost` in development. The trigger holds no secret, so it can sit in the configuration and the virtual config module.
 
 The secret is read from `process.env` when a request is sent, never from `import.meta.env`, so it is never inlined into the build:
 
@@ -332,7 +332,7 @@ Every change is additive:
 - No database migration. Older code ignores the `emdash:core_update_request` key, so a rollback leaves an unused option behind.
 - Templates gain one workflow file. Existing sites copy it from the update guide, since template changes don't reach existing projects.
 
-If [the configuration validation plan (#4328)](https://github.com/emdash-cms/emdash/pull/4328) lands first, the trigger gets an entry in its schema. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a custom role can hold `updates:request`, as it can hold `updates:read`. If [read-only mode (#4461)](https://github.com/emdash-cms/emdash/pull/4461) lands, it refuses update requests while the site is frozen, as it refuses other fenced writes.
+If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a custom role can hold `updates:request`, as it can hold `updates:read`. If [read-only mode (#4461)](https://github.com/emdash-cms/emdash/pull/4461) lands, it refuses update requests while the site is frozen, as it refuses other fenced writes.
 
 ## Security and privacy
 
@@ -397,7 +397,16 @@ The admin could install packages and rebuild in place. On Workers and in contain
 
 ### A plugin only
 
-A sandboxed plugin can render a dashboard widget with a button, call a URL, keep an encrypted setting and register its own MCP tool. It can't add the button to the core banner, add a CLI command, use an approval that only a session can give, or keep its token out of the database. A plugin remains a good home for other pipelines' status views, as [Discussion #4216](https://github.com/emdash-cms/emdash/discussions/4216) suggests for deploys.
+A plugin can already update a site from the admin. [emdash-updater](https://github.com/swissky/emdash-updater) adds an Astro integration and an Updates page. It connects a private GitHub App for the site, writes the new versions to `package.json` and the lockfile on the live branch, and follows the build the hosting reports to GitHub. It also offers a backup download before the update, an undo, and on Workers with D1 a test version with a copy of the content.
+
+It makes different choices from this RFC:
+
+- It moves the live branch forward instead of opening a pull request, so nobody reviews the update before the hosting deploys it. It doesn't run the `.emdash/UPGRADE.md` work order or report added migrations.
+- It keeps the GitHub App's key encrypted in the plugin settings, the choice that [The token in site settings](#the-token-in-site-settings) weighs.
+- It needs a GitHub repository and hosting that deploys on a push. The webhook trigger here also covers other pipelines.
+- It shows the build and deploy state, which this RFC leaves open. See [Open questions](#open-questions).
+
+No plugin can change the core surfaces: the update banner, the `emdash site` commands, the core MCP tools, or the `updates:request` permission and token scope. A sandboxed plugin also can't read a deployment secret, so its token has to live in the database. The shipped workflow and the `upgrade-emdash` options don't depend on core and could serve a plugin as well. A plugin remains a good home for other pipelines' status views, as [Discussion #4216](https://github.com/emdash-cms/emdash/discussions/4216) suggests for deploys.
 
 ### Reuse the transfer approval grants
 
@@ -429,7 +438,7 @@ An HMAC signature over a timestamp and the body would let a receiver detect repl
 
 ## Open questions
 
-- **Status after sending:** should the admin show the pull request and deploy state? Options are a callback route the pipeline calls with a scoped token, or EmDash reading the run with an Actions: read token. Either overlaps with deploy status in Discussion #4216, and one shared piece could serve both.
+- **Status after sending:** should the admin show the pull request and deploy state? Options are a callback route the pipeline calls with a scoped token, or EmDash reading the run with an Actions: read token. Either overlaps with deploy status in Discussion #4216, and one shared piece could serve both. emdash-updater reads the state from the check runs, commit statuses and deployments that the hosting reports to GitHub.
 - **Migrations before installation:** the update check already downloads the full npm packument, which includes each version's `package.json`. A field written at publish time, such as the core migrations a release adds, would let the banner say "this update changes the database" before anything is installed. Is that worth a release-process change?
-- **Updates for some admins only:** a developer may want the banner and Start update for themselves while the client's Administrators see nothing. `updateCheck: false` can't do that, because it applies to every user. It needs control per user or per role, such as removing `updates:read` from a custom role ([#4156](https://github.com/emdash-cms/emdash/pull/4156)). Is that worth solving in this RFC, or does it wait for custom roles?
+- **Updates for some admins only:** a developer may want the banner and Start update for themselves while the client's Administrators see nothing. `updateCheck: false` can't do that, because it applies to every user. It needs control per user or per role, such as removing `updates:read` from a custom role ([#4156](https://github.com/emdash-cms/emdash/pull/4156)), or a list of allowed users in the configuration, as emdash-updater's `allowedUsers` option does. Is that worth solving in this RFC, or does it wait for custom roles?
 - **Templates:** should all templates include the workflow, or only the ones that deploy from Git? A dispatch-only workflow does nothing until triggered, but it is one more file for sites that never use GitHub.
