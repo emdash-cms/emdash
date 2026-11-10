@@ -39,20 +39,20 @@
       "default": "./dist/portable-text-table.js"
     },
     "./internal/portable-text": {
-      "types": "./dist/portable-text.d.ts",
-      "default": "./dist/portable-text.js"
+      "types": "./dist/internal/portable-text.d.ts",
+      "default": "./dist/internal/portable-text.js"
     },
     "./internal/portable-text-y-sync": {
-      "types": "./dist/portable-text-y-sync.d.ts",
-      "default": "./dist/portable-text-y-sync.js"
+      "types": "./dist/internal/portable-text-y-sync.d.ts",
+      "default": "./dist/internal/portable-text-y-sync.js"
     },
     "./html-block": {
       "types": "./dist/html-block.d.ts",
       "default": "./dist/html-block.js"
     },
     "./internal/video-block": {
-      "types": "./dist/video-block.d.ts",
-      "default": "./dist/video-block.js"
+      "types": "./dist/internal/video-block.d.ts",
+      "default": "./dist/internal/video-block.js"
     }
   },
   "scripts": {

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import { PORTABLE_TEXT_KEY_ATTR } from "../../src/components/editor/portableTextIdentity.js";
-import { portableTextExtensions, portableTextSchema } from "../../src/portable-text.js";
+import { portableTextExtensions, portableTextSchema } from "../../src/internal/portable-text.js";
 import { PortableTextYSync } from "../../src/portable-text/y-sync.js";
 
 const REMOTE = Symbol("remote");

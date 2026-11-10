@@ -13,6 +13,7 @@ import {
 	PORTABLE_TEXT_SPAN_MARK,
 } from "../components/editor/portableTextIdentity.js";
 import { htmlBlockFields } from "../html-block.js";
+import { isVideoBlock, videoBlockFields, videoNodeAttrs } from "../internal/video-block.js";
 import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
@@ -25,7 +26,6 @@ import {
 	proseMirrorTableToPortableText,
 	type PortableTextTableProseMirrorNode,
 } from "../portable-text-table.js";
-import { isVideoBlock, videoBlockFields, videoNodeAttrs } from "../video-block.js";
 
 interface PortableTextSpan {
 	_type: "span";

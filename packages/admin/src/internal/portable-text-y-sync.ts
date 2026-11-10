@@ -6,4 +6,4 @@
  * which sites load on the server.
  */
 
-export { PortableTextYSync } from "./portable-text/y-sync.js";
+export { PortableTextYSync } from "../portable-text/y-sync.js";
