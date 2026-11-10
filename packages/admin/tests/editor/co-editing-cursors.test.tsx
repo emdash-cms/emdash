@@ -20,13 +20,13 @@ import { editorSchema, fragmentName } from "../../src/co-editing/layout";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
 import { FieldPresence } from "../../src/components/presence/FieldPresence";
 import { PresenceAvatars } from "../../src/components/presence/PresenceAvatars";
-import { CURSOR_LABEL_MS } from "../../src/lib/co-editing/replica/cursors";
-import type { RoomEditing } from "../../src/lib/co-editing/types";
 import {
 	portableTextExtensions,
 	portableTextToProsemirror,
 	type PortableTextBlock,
-} from "../../src/portable-text";
+} from "../../src/internal/portable-text";
+import { CURSOR_LABEL_MS } from "../../src/lib/co-editing/replica/cursors";
+import type { RoomEditing } from "../../src/lib/co-editing/types";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
 import { PortableTextYSync } from "../../src/portable-text/y-sync";
 import { LoopbackRoom, settle } from "../co-editing/loopback-room";

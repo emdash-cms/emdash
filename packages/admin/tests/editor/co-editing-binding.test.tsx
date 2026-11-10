@@ -22,14 +22,14 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
-import { uploadMedia } from "../../src/lib/api/media";
-import type { RoomEditing } from "../../src/lib/co-editing/types";
 import {
 	portableTextExtensions,
 	portableTextToProsemirror,
 	prosemirrorToPortableText,
 	type PortableTextBlock,
-} from "../../src/portable-text";
+} from "../../src/internal/portable-text";
+import { uploadMedia } from "../../src/lib/api/media";
+import type { RoomEditing } from "../../src/lib/co-editing/types";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
 import { PortableTextYSync } from "../../src/portable-text/y-sync";
 import { LoopbackRoom, settle } from "../co-editing/loopback-room";
