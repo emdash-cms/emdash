@@ -9,6 +9,7 @@ vi.mock("virtual:emdash/seed", () => ({
 		collections: [],
 	},
 	userSeed: null,
+	mediaBasePath: undefined,
 }));
 
 import { POST as postSetup } from "../../../src/astro/routes/api/setup/index.js";

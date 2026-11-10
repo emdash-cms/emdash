@@ -4,6 +4,8 @@
  * Uses EMDASH_TEST_DB env var for the database path so each
  * test run gets an isolated database.
  */
+import { fileURLToPath } from "node:url";
+
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { colorPlugin } from "@emdash-cms/plugin-color";
@@ -29,6 +31,14 @@ export default defineConfig({
 		react(),
 		emdash({
 			database: sqlite({ url: dbUrl }),
+			auth:
+				process.env.EMDASH_TEST_EXTERNAL_AUTH === "1"
+					? {
+							type: "test-external",
+							entrypoint: fileURLToPath(new URL("./external-auth.ts", import.meta.url)),
+							config: {},
+						}
+					: undefined,
 			storage: local({ directory: uploadsDir, baseUrl: "/_emdash/api/media/file" }),
 			maxUploadSize,
 			plugins: [colorPlugin()],

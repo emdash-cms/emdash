@@ -98,6 +98,7 @@ import {
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import {
 	scheduledPolicyRejectionKey,
+	toScheduledRejectionReason,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
@@ -209,26 +210,6 @@ interface PageContributions {
 import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
 import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
-import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
-import {
-	runSystemCleanup,
-	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
-} from "./cleanup.js";
-import {
-	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
-	defaultCommentModerate,
-} from "./comments/moderator.js";
-import { submitPublicComment } from "./comments/public-submission.js";
-import {
-	CommentStatusConflictError,
-	createComment,
-	moderateComment,
-	type CommentCreateInput,
-	type CommentCreateResult,
-	type CommentHookRunner,
-} from "./comments/service.js";
-import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
-import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
 	handleContentAuthors,
@@ -251,6 +232,9 @@ import {
 	handleContentDiscardDraft,
 	handleContentCompare,
 	handleContentTranslations,
+} from "./api/handlers/content.js";
+import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
+import {
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
@@ -258,16 +242,32 @@ import {
 	handleMediaUpdate,
 	handleMediaReplaceMetadata,
 	handleMediaDelete,
+} from "./api/handlers/media.js";
+import {
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
-	SchemaRegistry,
-	SchemaError,
-	normalizeBlocksData,
-	resolveBlockTypes,
-	type Database,
-	type Storage,
-} from "./index.js";
+} from "./api/handlers/revision.js";
+import {
+	runSystemCleanup,
+	shouldRunSystemCleanup as shouldRunSystemCleanupNow,
+} from "./cleanup.js";
+import {
+	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+	defaultCommentModerate,
+} from "./comments/moderator.js";
+import { submitPublicComment } from "./comments/public-submission.js";
+import {
+	CommentStatusConflictError,
+	createComment,
+	moderateComment,
+	type CommentCreateInput,
+	type CommentCreateResult,
+	type CommentHookRunner,
+} from "./comments/service.js";
+import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
+import { OptionsRepository } from "./database/repositories/options.js";
+import type { Database } from "./database/types.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
@@ -306,7 +306,7 @@ import { PluginStateRepository, rowToPluginState } from "./plugins/state.js";
 import type { PluginState } from "./plugins/state.js";
 import {
 	generateIndexName,
-	normalizeIndexes,
+	getStorageIndexDefinitions,
 	syncDeclaredStorageIndexes,
 	type StorageIndexSyncResult,
 } from "./plugins/storage-indexes.js";
@@ -314,8 +314,11 @@ import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registr
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
+import { normalizeBlocksData, resolveBlockTypes } from "./schema/block-values.js";
+import { SchemaError, SchemaRegistry } from "./schema/registry.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
+import type { Storage } from "./storage/types.js";
 import { assertSiteWriteAllowed } from "./transfer/fence.js";
 
 const DRAFT_ONLY_UPDATE_KEYS = new Set([
@@ -333,6 +336,8 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
+/** Publish errors a scheduled retry cannot clear: the entry has to change first. */
+const SCHEDULED_REFUSAL_CODES: ReadonlySet<string> = new Set(["VALIDATION_ERROR", "SLUG_CONFLICT"]);
 
 type ContentPolicyHookName =
 	| "content:beforePublish"
@@ -1148,18 +1153,15 @@ export class EmDashRuntime {
 				const storage = { ...plugin.storage };
 				const expected = new Map<string, Set<string>>();
 				for (const [collection, config] of Object.entries(storage)) {
-					const unique = normalizeIndexes(config.uniqueIndexes ?? []);
-					const uniqueFields = new Set(unique.map((fields) => JSON.stringify(fields)));
 					expected.set(
 						collection,
-						new Set([
-							...normalizeIndexes(config.indexes)
-								.filter((fields) => !uniqueFields.has(JSON.stringify(fields)))
-								.map((fields) => generateIndexName(plugin.id, collection, fields)),
-							...unique.map((fields) =>
-								generateIndexName(plugin.id, collection, fields, { unique: true }),
+						new Set(
+							getStorageIndexDefinitions(config.indexes, config).map((entry) =>
+								generateIndexName(plugin.id, collection, entry.fields, {
+									unique: entry.unique,
+								}),
 							),
-						]),
+						),
 					);
 				}
 				let hasExtra = false;
@@ -4974,6 +4976,36 @@ export class EmDashRuntime {
 		};
 	}
 
+	private async unscheduleRefusedPublish(
+		collection: string,
+		id: string,
+		revision: string | undefined,
+		error: { code?: string; message?: string } | undefined,
+	): Promise<void> {
+		if (!error?.code || !SCHEDULED_REFUSAL_CODES.has(error.code)) return;
+		const reason = toScheduledRejectionReason(error.message);
+		if (!reason || revision === undefined) return;
+		const unscheduled = await handleScheduledPolicyRejection(this.db, collection, id, {
+			_rev: revision,
+			rejection: {
+				collection,
+				id,
+				code: error.code,
+				reason,
+				rejectedAt: (this.runtimeDeps.now?.() ?? new Date()).toISOString(),
+			},
+		});
+		if (!unscheduled.success) {
+			console.error(
+				`[scheduled-publish] Failed to unschedule refused ${collection}/${id}:`,
+				unscheduled.error,
+			);
+			return;
+		}
+		await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
+		this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
+	}
+
 	async handleContentPublish(
 		collection: string,
 		id: string,
@@ -5019,6 +5051,9 @@ export class EmDashRuntime {
 			...handlerOptions,
 			_rev: policy.revision,
 		});
+		if (!result.success && options.origin?.source === "scheduler") {
+			await this.unscheduleRefusedPublish(collection, id, policy.revision, result.error);
+		}
 		if (result.success && result.data) {
 			await this.clearScheduledPolicyRejection(
 				collection,
@@ -6283,7 +6318,7 @@ export class EmDashRuntime {
 		const headers = new Headers(request.headers);
 		headers.delete("content-length");
 		headers.delete("content-encoding");
-		const internalRequest = new Request(request.url, {
+		const internalRequest = new Request(request, {
 			method: "POST",
 			headers,
 			body: JSON.stringify(input),
