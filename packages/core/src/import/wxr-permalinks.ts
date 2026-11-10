@@ -1,8 +1,8 @@
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely } from "kysely";
 
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import type { ContentItem } from "../database/repositories/types.js";
-import type { Database, RedirectTable } from "../database/types.js";
+import type { Database } from "../database/types.js";
 import { getI18nConfig } from "../i18n/config.js";
 import { localizePath, resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
 import { publishRedirectChanges } from "../redirects/artifacts.js";
@@ -10,7 +10,6 @@ import { isSiteRelativeDestination } from "../redirects/destination.js";
 import { wouldCreateLoop, type RedirectEdge } from "../redirects/loops.js";
 import { shouldSkipRedirectPath } from "../redirects/paths.js";
 import { normalizeSourcePath } from "../redirects/patterns.js";
-import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { findLivePermalinkSources } from "./wxr-permalink-routes.js";
 
 export interface WxrPermalinkEntry {
@@ -30,8 +29,12 @@ interface PermalinkError {
 const TRAILING_SLASH = /\/$/;
 const UNRESOLVED_TOKEN = /[{}]/;
 
+function storedPath(path: string): string {
+	return path.replace(TRAILING_SLASH, "") || "/";
+}
+
 function pathKey(path: string): string {
-	return normalizeSourcePath(path).replace(TRAILING_SLASH, "") || "/";
+	return storedPath(normalizeSourcePath(path));
 }
 
 function countPermalinkSources(links: readonly (string | undefined)[]): Map<string, number> {
@@ -51,15 +54,15 @@ function countPermalinkSources(links: readonly (string | undefined)[]): Map<stri
 }
 
 async function importPermalinkRoots(): Promise<Set<string>> {
-	const base = pathKey(import.meta.env.BASE_URL || "/");
-	const roots = new Set(["/", base]);
+	const base = storedPath(import.meta.env.BASE_URL || "/");
+	const roots = new Set(["/", pathKey(base)]);
 	for (const locale of getI18nConfig()?.locales ?? []) {
 		const localized = await localizePath("/", locale);
 		for (const path of [`/${locale}`, localized]) {
 			if (!path) continue;
 			const root = pathKey(path);
 			roots.add(root);
-			if (base !== "/") roots.add(pathKey(`${base}${root === "/" ? "" : root}`));
+			if (base !== "/") roots.add(pathKey(`${base}${path === "/" ? "" : path}`));
 		}
 	}
 	return roots;
@@ -70,22 +73,16 @@ async function findCanonicalRedirects(
 	canonicalPaths: Set<string>,
 	eligibleOnly = true,
 ) {
-	const sources = [...canonicalPaths].flatMap((path) =>
-		path === "/" ? [path] : [path, `${path}/`],
-	);
-	const matches: Selectable<RedirectTable>[] = [];
-	for (const batch of chunks(sources, SQL_BATCH_SIZE)) {
-		let query = db
-			.selectFrom("_emdash_redirects")
-			.selectAll()
-			.where("auto", "=", 1)
-			.where("group_name", "=", "WordPress import")
-			.where("source", "in", batch);
-		if (eligibleOnly)
-			query = query.where("enabled", "=", 1).where("is_pattern", "=", 0).where("type", "=", 301);
-		matches.push(...(await query.execute()));
-	}
-	return matches;
+	if (canonicalPaths.size === 0) return [];
+	let query = db
+		.selectFrom("_emdash_redirects")
+		.selectAll()
+		.where("auto", "=", 1)
+		.where("group_name", "=", "WordPress import");
+	if (eligibleOnly)
+		query = query.where("enabled", "=", 1).where("is_pattern", "=", 0).where("type", "=", 301);
+	// Stored sources retain escaping, so SQL equality cannot identify every URI alias.
+	return (await query.execute()).filter((row) => canonicalPaths.has(pathKey(row.source)));
 }
 
 /** Preserve WXR links without deriving WordPress's stored local date from its GMT date. */
@@ -101,7 +98,6 @@ export async function importWxrPermalinks(
 	const candidates: Array<{
 		title: string;
 		source: string;
-		pathname: string;
 		destination: string;
 	}> = [];
 	const canonicalPaths = new Set<string>();
@@ -147,10 +143,11 @@ export async function importWxrPermalinks(
 				});
 				continue;
 			}
-			const source = pathKey(url.pathname);
-			if (roots.has(source)) {
-				canonicalPaths.add(source);
-				canonicalTitles.set(source, [...(canonicalTitles.get(source) ?? []), entry.title]);
+			const source = storedPath(url.pathname);
+			const sourceKey = pathKey(source);
+			if (roots.has(sourceKey)) {
+				canonicalPaths.add(sourceKey);
+				canonicalTitles.set(sourceKey, [...(canonicalTitles.get(sourceKey) ?? []), entry.title]);
 				continue;
 			}
 			if (destination === null || UNRESOLVED_TOKEN.test(destination)) {
@@ -161,7 +158,7 @@ export async function importWxrPermalinks(
 				continue;
 			}
 			if (shouldSkipRedirectPath(source)) {
-				if (pathKey(source) !== pathKey(destination)) {
+				if (sourceKey !== pathKey(destination)) {
 					errors.push({
 						title: entry.title,
 						error:
@@ -177,8 +174,8 @@ export async function importWxrPermalinks(
 				});
 				continue;
 			}
-			if (pathKey(source) !== pathKey(destination)) {
-				candidates.push({ title: entry.title, source, pathname: url.pathname, destination });
+			if (sourceKey !== pathKey(destination)) {
+				candidates.push({ title: entry.title, source, destination });
 			}
 		} catch {
 			errors.push({
@@ -220,16 +217,11 @@ export async function importWxrPermalinks(
 		if (candidates.length === 0 && cleanup.length === 0) return errors;
 		const repo = new RedirectRepository(db);
 		await repo.withWriteLock(async (fence, repository) => {
-			// Raw paths retain identifier escaping; stored keys also need alias protection.
 			const liveSources =
 				candidates.length > 0
 					? await findLivePermalinkSources(
 							repository.db,
-							candidates.flatMap((candidate) =>
-								candidate.pathname === candidate.source
-									? [candidate.pathname]
-									: [candidate.pathname, candidate.source],
-							),
+							candidates.map((candidate) => candidate.source),
 						)
 					: new Set<string>();
 			const existingRows =
@@ -274,8 +266,8 @@ export async function importWxrPermalinks(
 			);
 			let edges: RedirectEdge[] = rows.map((row) => ({
 				id: row.id,
-				source: pathKey(row.source),
-				destination: pathKey(row.destination),
+				source: storedPath(row.source),
+				destination: storedPath(row.destination),
 				enabled: row.enabled === 1,
 				isPattern: row.is_pattern === 1,
 			}));
@@ -294,9 +286,7 @@ export async function importWxrPermalinks(
 				if (
 					sourceKey === destinationKey ||
 					canonicalPaths.has(sourceKey) ||
-					canonicalPaths.has(candidate.source) ||
-					liveSources.has(sourceKey) ||
-					liveSources.has(candidate.source)
+					liveSources.has(sourceKey)
 				) {
 					if (existing?.owned && existing.enabled && !existing.isPattern && existing.type === 301) {
 						if (!(await repository.delete(existing.id, undefined, fence)))
@@ -338,7 +328,7 @@ export async function importWxrPermalinks(
 				)
 					continue;
 				const otherEdges = edges.filter((edge) => edge.id !== existing?.id);
-				if (wouldCreateLoop(sourceKey, destinationKey, otherEdges)) {
+				if (wouldCreateLoop(candidate.source, storedPath(candidate.destination), otherEdges)) {
 					errors.push({
 						title: candidate.title,
 						error:
@@ -349,7 +339,7 @@ export async function importWxrPermalinks(
 				const redirect = existing
 					? await repository.update(
 							existing.id,
-							{ source: candidate.source, destination: candidate.destination },
+							{ source: candidate.source, destination: candidate.destination, isPattern: false },
 							undefined,
 							fence,
 						)
@@ -378,8 +368,8 @@ export async function importWxrPermalinks(
 				edges = otherEdges;
 				edges.push({
 					id: redirect.id,
-					source: sourceKey,
-					destination: destinationKey,
+					source: candidate.source,
+					destination: storedPath(candidate.destination),
 					enabled: true,
 					isPattern: false,
 				});

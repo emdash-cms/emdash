@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
@@ -282,6 +284,113 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		]);
 	});
 
+	it("preserves a doubly encoded original link and retargets it on a skipped rerun", async () => {
+		const text = wxr(item({ id: 1, title: "Overview", link: "/literal%2541/" }));
+		expect(await importContent(harness, text)).toMatchObject({
+			imported: 1,
+			skipped: 0,
+			errors: [],
+		});
+		invalidateRedirectCache();
+		await waitForDeferredTasks();
+		expect(await redirects(harness)).toEqual([
+			{ source: "/literal%2541", destination: "/pages/overview" },
+		]);
+
+		for (const path of ["/literal%2541", "/literal%2541/"]) {
+			const response = await redirectMiddleware(
+				redirectContext(path, harness.db),
+				async () => new Response("not found", { status: 404 }),
+			);
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe("/pages/overview");
+		}
+		for (const path of ["/literalA", "/literal%41"]) {
+			const response = await redirectMiddleware(
+				redirectContext(path, harness.db),
+				async () => new Response("not found", { status: 404 }),
+			);
+			expect(response.status).toBe(404);
+		}
+
+		await new SchemaRegistry(harness.db).updateCollection("pages", {
+			urlPattern: "/updated/{slug}",
+		});
+		expect(await importContent(harness, text)).toMatchObject({
+			imported: 0,
+			skipped: 1,
+			errors: [],
+		});
+		invalidateRedirectCache();
+		await waitForDeferredTasks();
+		expect(
+			await harness.db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination", "is_pattern", "enabled", "type"])
+				.execute(),
+		).toEqual([
+			{
+				source: "/literal%2541",
+				destination: "/updated/overview",
+				is_pattern: 0,
+				enabled: 1,
+				type: 301,
+			},
+		]);
+	});
+
+	it.each([
+		{ link: "/old/%5Bslug%5D/", source: "/old/%5Bslug%5D" },
+		{ link: "/old/[slug]/", source: "/old/[slug]" },
+	])(
+		"keeps an imported bracket permalink exact across skipped reruns ($link)",
+		async ({ link, source }) => {
+			const text = wxr(item({ id: 1, title: "Overview", link }));
+			expect(await importContent(harness, text)).toMatchObject({
+				imported: 1,
+				skipped: 0,
+				errors: [],
+			});
+			invalidateRedirectCache();
+			await waitForDeferredTasks();
+
+			await new SchemaRegistry(harness.db).updateCollection("pages", {
+				urlPattern: "/updated/{slug}",
+			});
+			for (let rerun = 0; rerun < 2; rerun++) {
+				expect(await importContent(harness, text)).toMatchObject({
+					imported: 0,
+					skipped: 1,
+					errors: [],
+				});
+				invalidateRedirectCache();
+				await waitForDeferredTasks();
+			}
+
+			expect(
+				await harness.db
+					.selectFrom("_emdash_redirects")
+					.select(["source", "destination", "is_pattern", "enabled", "type"])
+					.execute(),
+			).toEqual([
+				{ source, destination: "/updated/overview", is_pattern: 0, enabled: 1, type: 301 },
+			]);
+			for (const path of [source, `${source}/`]) {
+				const response = await redirectMiddleware(
+					redirectContext(path, harness.db),
+					async () => new Response("not found", { status: 404 }),
+				);
+				expect(response.status).toBe(301);
+				expect(response.headers.get("Location")).toBe("/updated/overview");
+			}
+			const unrelated = await redirectMiddleware(
+				redirectContext("/old/unrelated", harness.db),
+				async () => new Response("not found", { status: 404 }),
+			);
+			expect(unrelated.status).toBe(404);
+		},
+	);
+
 	it("imports and serves escaped WordPress post names", async () => {
 		const text = wxr(item({ id: 1, title: "Пр", slug: "%d0%bf%d1%80", link: "/%d0%bf%d1%80/" }));
 		const result = await importContent(harness, text, false);
@@ -292,7 +401,7 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 			slug: "%d0%bf%d1%80",
 		});
 		expect(await redirects(harness)).toEqual([
-			{ source: "/%D0%BF%D1%80", destination: "/pages/%25d0%25bf%25d1%2580" },
+			{ source: "/%d0%bf%d1%80", destination: "/pages/%25d0%25bf%25d1%2580" },
 		]);
 
 		invalidateRedirectCache();

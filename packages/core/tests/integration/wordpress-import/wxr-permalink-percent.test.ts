@@ -119,13 +119,14 @@ describeEachDialect("WordPress permalink percent-encoding route matching", (dial
 	);
 
 	it.each([
-		{ pattern: "/~user/{slug}", source: "/%7euser/x/" },
-		{ pattern: "/50%/{slug}", source: "/50%25/x/" },
+		{ pattern: "/~user/{slug}", source: "/%7euser/literal%2541/", slug: "literal%41" },
+		{ pattern: "/50%/{slug}", source: "/50%25/x/", slug: "x" },
+		{ pattern: "/~{slug}", source: "/%7eliteral%2541/", slug: "literal%41" },
 	])(
 		"protects canonical pages behind encoded literal prefixes ($source)",
-		async ({ pattern, source }) => {
+		async ({ pattern, source, slug }) => {
 			await createCollection(ctx, "prefixed", pattern);
-			await createExisting(ctx, { id: "prefixed-existing", slug: "x" }, "prefixed");
+			await createExisting(ctx, { id: "prefixed-existing", slug }, "prefixed");
 			const before = await ctx.db.selectFrom("ec_prefixed").selectAll().execute();
 			expect(
 				await importWxrPermalinks(ctx.db, [

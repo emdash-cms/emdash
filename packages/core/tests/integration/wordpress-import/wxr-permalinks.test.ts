@@ -209,6 +209,76 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		expect(await repo.findById(rule.id)).toEqual(rule);
 	});
 
+	it("does not decode an existing exact redirect destination twice while checking loops", async () => {
+		const manual = await new RedirectRepository(ctx.db).create({
+			source: "/target",
+			destination: "/literal%2541",
+			type: 301,
+			enabled: true,
+			auto: false,
+		});
+
+		const result = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/literalA/", post({ id: "target", slug: "target" }), {
+				pattern: "/{slug}",
+			}),
+		]);
+
+		expect(result).toEqual([]);
+		expect(await new RedirectRepository(ctx.db).findById(manual.id)).toMatchObject({
+			source: "/target",
+			destination: "/literal%2541",
+		});
+		expect(await redirects()).toEqual([
+			{
+				source: "/target",
+				destination: "/literal%2541",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+			{
+				source: "/literalA",
+				destination: "/target",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+	});
+
+	it("reports a loop when the imported source is an existing exact destination", async () => {
+		await new RedirectRepository(ctx.db).create({
+			source: "/target",
+			destination: "/literal%2541",
+			type: 301,
+			enabled: true,
+			auto: false,
+		});
+
+		const result = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/literal%2541/", post({ id: "target", slug: "target" }), {
+				pattern: "/{slug}",
+			}),
+		]);
+
+		expect(result).toEqual([
+			{
+				title: "target",
+				error: "Could not create redirect: the WordPress permalink would create a redirect loop",
+			},
+		]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/target",
+				destination: "/literal%2541",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+	});
+
 	it("rejects a redirect that would loop through an existing pattern", async () => {
 		await ctx.db
 			.insertInto("_emdash_redirects")
@@ -391,6 +461,52 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 				isPattern: 1,
 			},
 		]);
+	});
+
+	it("does not treat a doubly encoded source as a loop with its canonical destination", async () => {
+		const result = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/literal%2541/", post({ id: "literal-a", slug: "literalA" }), {
+				pattern: "/{slug}",
+			}),
+		]);
+		expect(result).toEqual([]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/literal%2541",
+				destination: "/literalA",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+	});
+
+	it("removes an encoded importer source when a newly imported entry claims it canonically", async () => {
+		expect(
+			await importWxrPermalinks(ctx.db, [
+				entry("https://wp.test/literal%2541/", post({ id: "prior", slug: "prior" }), {
+					pattern: "/{slug}",
+				}),
+			]),
+		).toEqual([]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/literal%2541",
+				destination: "/prior",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+
+		expect(
+			await importWxrPermalinks(ctx.db, [
+				entry("https://wp.test/literal%2541/", post({ id: "canonical", slug: "literal%41" }), {
+					pattern: "/{slug}",
+				}),
+			]),
+		).toEqual([]);
+		expect(await redirects()).toEqual([]);
 	});
 
 	it("rejects loops, invalid links, and unresolved dates without writing redirects", async () => {

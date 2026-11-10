@@ -109,7 +109,7 @@ describeEachDialect("WordPress extension-bearing permalink middleware boundary",
 			.selectFrom("_emdash_redirects")
 			.select(["source", "destination"])
 			.executeTakeFirstOrThrow();
-		expect(rule).toEqual({ source: "/%D0%BF%D1%80", destination: "/posts/%D0%BF%D1%80" });
+		expect(rule).toEqual({ source: "/%d0%bf%d1%80", destination: "/posts/%D0%BF%D1%80" });
 
 		let selects = 0;
 		const countedDb = ctx.db.withPlugin({

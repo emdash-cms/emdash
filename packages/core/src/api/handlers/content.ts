@@ -876,6 +876,7 @@ async function removeShadowingAutoRedirect(
 
 	const sources = new Set<string>();
 	const importerSources = new Set<string>();
+	const importerKeys = new Set<string>();
 	// Legacy unprefixed aliases may belong to a different locale's imported entry.
 	addRedirectCleanupSource(url, sources);
 
@@ -891,8 +892,27 @@ async function removeShadowingAutoRedirect(
 		});
 		if (localized) {
 			const base = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASH, "");
-			addRedirectCleanupSource(`${base}${localized}`, importerSources);
-			for (const source of importerSources) sources.add(source);
+			const canonical = `${base}${localized}`;
+			addRedirectCleanupSource(canonical, sources);
+			for (const key of redirectPathVariants(normalizeSourcePath(canonical))) importerKeys.add(key);
+		}
+	}
+
+	if (importerKeys.size > 0) {
+		const imported = await db
+			.selectFrom("_emdash_redirects")
+			.select("source")
+			.where("auto", "=", 1)
+			.where("group_name", "=", "WordPress import")
+			.where("enabled", "=", 1)
+			.where("is_pattern", "=", 0)
+			.where("type", "=", 301)
+			.execute();
+		for (const row of imported) {
+			if (importerKeys.has(normalizeSourcePath(row.source))) {
+				importerSources.add(row.source);
+				sources.add(row.source);
+			}
 		}
 	}
 

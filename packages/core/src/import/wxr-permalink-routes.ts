@@ -41,13 +41,55 @@ function normalizeUrlPattern(pattern: string): string {
 	return normalized + normalizePatternLiteral(pattern.slice(previousIndex));
 }
 
+const REGEX_SPECIAL_CHARACTERS = /[.*+?^${}()|[\]\\]/g;
+
+function escapeRegex(literal: string): string {
+	return literal.replace(REGEX_SPECIAL_CHARACTERS, "\\$&");
+}
+
+// Match literal URI aliases without decoding captured identifiers.
+function compileAliasLiteral(literal: string): string {
+	const normalized = literal
+		.split("/")
+		.map((segment) => normalizeSourcePath(`/_${segment}_`).slice(2, -1))
+		.join("/");
+	return Array.from(normalized, (character) => {
+		const code = character.charCodeAt(0);
+		if (code < 0x20 || code > 0x7e || character === "/") return escapeRegex(character);
+		return `(?:%${code.toString(16).padStart(2, "0").toUpperCase()}|${escapeRegex(character)})`;
+	}).join("");
+}
+
+type CompiledPermalinkPattern = {
+	regex: RegExp;
+	aliasRegex: RegExp;
+	paramNames: string[];
+};
+
+function compilePermalinkPattern(pattern: string): CompiledPermalinkPattern {
+	const normalized = normalizeUrlPattern(pattern);
+	const compiled = compileUrlPattern(normalized);
+	let aliasSource = "";
+	let previousIndex = 0;
+	for (const match of pattern.matchAll(URL_TOKEN)) {
+		aliasSource += compileAliasLiteral(pattern.slice(previousIndex, match.index));
+		aliasSource += "([^/]+)";
+		previousIndex = match.index + match[0].length;
+	}
+	aliasSource += compileAliasLiteral(pattern.slice(previousIndex));
+	return {
+		...compiled,
+		aliasRegex: new RegExp(`^${aliasSource}$`),
+	};
+}
+
 function pathKey(path: string): string {
 	return normalizeSourcePath(path).replace(TRAILING_SLASHES, "") || "/";
 }
 
 function basePath(): string {
 	const base = import.meta.env.BASE_URL || "/";
-	return pathKey(base);
+	return base.replace(TRAILING_SLASHES, "") || "/";
 }
 
 type Collection = Awaited<ReturnType<SchemaRegistry["listCollections"]>>[number];
@@ -105,14 +147,19 @@ export function findPageRouteSources(
 	base = basePath(),
 ): Set<string> {
 	const served = new Set<string>();
+	const baseKey = pathKey(base);
 	const patterns = pageRoutes.map((route) => new RegExp(route.source, route.flags));
 	for (const source of sources) {
 		const key = pathKey(source);
-		if (base !== "/" && !key.startsWith(`${base}/`)) continue;
-		const relative = base === "/" ? key : key.slice(base.length);
+		if (baseKey !== "/" && !key.startsWith(`${baseKey}/`)) continue;
+		const relative = baseKey === "/" ? key : key.slice(baseKey.length);
 		let decoded = relative;
 		try {
-			decoded = decodeURI(relative).normalize();
+			const decodedSource = decodeURI(source).normalize().replace(TRAILING_SLASHES, "") || "/";
+			const decodedBase = decodeURI(base).normalize();
+			if (decodedBase === "/") decoded = decodedSource;
+			else if (decodedSource.startsWith(`${decodedBase}/`))
+				decoded = decodedSource.slice(decodedBase.length);
 		} catch {
 			// Invalid escapes still need to be checked against literal route patterns.
 		}
@@ -144,7 +191,13 @@ export async function findLivePermalinkSources(
 	const routeBase = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASHES, "");
 	const patterns = new Map<
 		string,
-		{ collection: Collection; locale: string; regex: RegExp; paramNames: string[] }
+		{
+			collection: Collection;
+			locale: string;
+			regex: RegExp;
+			aliasRegex: RegExp;
+			paramNames: string[];
+		}
 	>();
 
 	for (const collection of collections) {
@@ -152,13 +205,11 @@ export async function findLivePermalinkSources(
 			try {
 				const prefix = await localizePath("/", locale);
 				if (prefix === null) continue;
-				const compiled = compileUrlPattern(
-					normalizeUrlPattern(
-						`${routeBase}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
-							TRAILING_SLASHES,
-							"",
-						) || "/",
-					),
+				const compiled = compilePermalinkPattern(
+					`${routeBase}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
+						TRAILING_SLASHES,
+						"",
+					) || "/",
 				);
 				patterns.set(`${collection.slug}:${locale}`, { collection, locale, ...compiled });
 			} catch {
@@ -174,8 +225,8 @@ export async function findLivePermalinkSources(
 		const matches: Candidate[] = candidates.get(sourceKey) ?? [];
 		// Comparison keys may have decoded %25; route captures must retain that layer.
 		const routePath = encodedRoutePath(source).replace(TRAILING_SLASHES, "") || "/";
-		for (const { collection, locale, regex, paramNames } of patterns.values()) {
-			const match = regex.exec(routePath);
+		for (const { collection, locale, regex, aliasRegex, paramNames } of patterns.values()) {
+			const match = regex.exec(routePath) ?? aliasRegex.exec(routePath);
 			if (!match) continue;
 			const slugIndex = paramNames.indexOf("slug");
 			const idIndex = paramNames.indexOf("id");

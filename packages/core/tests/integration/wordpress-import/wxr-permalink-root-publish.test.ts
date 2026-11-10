@@ -307,21 +307,64 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 	);
 
 	it.each([
-		{ base: "/", source: "/contact/", destination: "/posts/contact", i18n: false },
+		{
+			base: "/",
+			source: "/contact/",
+			destination: "/posts/contact",
+			i18n: false,
+		},
 		{
 			base: "/archive/",
 			source: "/archive/contact/",
 			destination: "/archive/posts/contact",
 			i18n: false,
 		},
+		{
+			base: "/",
+			source: "/%d0%bf%d1%80/",
+			destination: "/posts/contact",
+			pageSlug: "пр",
+			i18n: false,
+		},
+		{
+			base: "/archive/",
+			source: "/archive/%d0%bf%d1%80/",
+			destination: "/archive/posts/contact",
+			pageSlug: "пр",
+			i18n: false,
+		},
+		{
+			base: "/",
+			source: "/literal%2541/",
+			destination: "/posts/contact",
+			pageSlug: "literal%41",
+			extraRuleSource: "/literalA",
+			i18n: false,
+		},
+		{
+			base: "/",
+			source: "/literal%2541/",
+			destination: "/posts/contact",
+			pageSlug: "literal%41",
+			extraRuleSource: "/literal%41",
+			i18n: false,
+		},
 		{ base: "/", source: "/contact/", destination: "/posts/contact", i18n: true },
 	])(
 		"removes the imported redirect when a page is published at the canonical path (base=$base, i18n=$i18n)",
-		async ({ base, source, destination, i18n }) => {
+		async ({ base, source, destination, pageSlug = "contact", extraRuleSource, i18n }) => {
 			if (base !== "/") vi.stubEnv("BASE_URL", base);
 			if (i18n) {
 				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: false });
 				_resetAstroI18nCacheForTests();
+			}
+			if (extraRuleSource) {
+				await new RedirectRepository(harness.db).create({
+					source: extraRuleSource,
+					destination: "/keep",
+					auto: true,
+					groupName: "WordPress import",
+				});
 			}
 			const result = await executeImport(
 				wxr(wxrItem({ type: "post", id: 1, slug: "contact", link: source })),
@@ -330,24 +373,33 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 			);
 			expect(result.data.result).toMatchObject({ imported: 1, errors: [] });
 			expect(
-				await harness.db
-					.selectFrom("_emdash_redirects")
-					.select(["source", "destination"])
-					.execute(),
-			).toEqual([{ source: source.slice(0, -1), destination }]);
+				await new RedirectRepository(harness.db).findBySource(source.slice(0, -1)),
+			).toMatchObject({ destination });
 
 			const created = await harness.runtime.handleContentCreate("pages", {
 				data: { title: "Contact" },
-				slug: "contact",
+				slug: pageSlug,
 			});
 			expect(created.success).toBe(true);
 			expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toHaveLength(
-				1,
+				extraRuleSource ? 2 : 1,
 			);
 			if (!created.success) return;
 			const published = await harness.runtime.handleContentPublish("pages", created.data.item.id);
 			expect(published.success).toBe(true);
-			expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
+			expect(await new RedirectRepository(harness.db).findBySource(source.slice(0, -1))).toBeNull();
+			if (extraRuleSource) {
+				expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toHaveLength(
+					1,
+				);
+				expect(
+					await new RedirectRepository(harness.db).findBySource(extraRuleSource),
+				).toMatchObject({
+					destination: "/keep",
+				});
+			} else {
+				expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
+			}
 		},
 	);
 
