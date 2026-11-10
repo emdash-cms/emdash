@@ -3,6 +3,10 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes site transfer imports failing with `TRANSFER_TARGET_NOT_EMPTY` after an import is interrupted while removing seeded scaffold collections. Imports now advance their own scaffold deletion cleanup instead of treating an in-progress deletion as a non-empty target.
+Fixes site transfer imports failing with `TRANSFER_TARGET_NOT_EMPTY` after an interruption while removing starter collections created during setup. Resuming the import now continues that cleanup instead of treating the collection as existing content.
 
-New imports are blocked by failed collection deletions. An administrator must first POST `{"collectionId":"<id>"}` to `/_emdash/api/admin/media-usage/collection-deletions/retry`, using the blocker's `id` from transfer capabilities. Active `pending`, `leased`, and `retry` cleanup does not block import. The importer advances cleanup for collections it removes or recreates, yielding while that cleanup is leased or backing off. See the [site transfer guide](https://docs.emdashcms.com/guides/site-transfer/#resolve-failed-collection-cleanup) for recovery steps.
+**Settings → Transfer** now identifies collections whose deletion failed and explains how to retry them before importing. Deletions that are still in progress do not block a new import; the importer advances their cleanup.
+
+#### What should I do?
+
+If your import was interrupted, reopen **Settings → Transfer** to continue it, or run `emdash site import resume <operation-id>`. If the import or a collection deletion failed, follow the guide's [retry and recovery steps](https://docs.emdashcms.com/guides/site-transfer/#resolve-failed-collection-cleanup) before starting another import.
