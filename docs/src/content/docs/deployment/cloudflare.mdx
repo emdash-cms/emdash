@@ -498,12 +498,16 @@ The preview environment must repeat every binding the preview Worker uses. The c
 
 Use the preview UUID written by Wrangler. Repeat optional KV, AI Search, email, and other bindings when the preview uses those features. Add preview-only secrets with `pnpm wrangler secret put <NAME> --env preview`.
 
-Build and deploy the preview environment. Its first request applies pending core migrations through the default `auto` mode.
+Set `CLOUDFLARE_ENV` to `preview` when you build, then deploy that build.
 
 ```bash
-pnpm build
-pnpm wrangler deploy --env preview
+CLOUDFLARE_ENV=preview pnpm build
+pnpm wrangler deploy
 ```
+
+The Cloudflare adapter applies the environment at build time. A build made without `CLOUDFLARE_ENV` keeps the top-level Worker name and bindings, and `wrangler deploy --env preview` does not change them, so Wrangler would deploy that build to the production Worker.
+
+The preview's first request applies pending core migrations to its own database through the default `auto` mode.
 
 Verify the preview URL, admin sign-in, media upload, and any optional binding before sharing it.
 

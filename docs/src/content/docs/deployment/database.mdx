@@ -534,4 +534,4 @@ Until the setup wizard has been completed, EmDash also applies the schema and st
 
 Give development, preview, staging, and production their own database. A preview deployment pointed at production can run core migrations or destructive content-model commands against live data.
 
-For Cloudflare, define each D1 or Hyperdrive binding under the matching Wrangler environment and pass `--env` to Wrangler commands. For Node.js, inject a different database URL into each runtime environment. Keep credentials in runtime secrets, not in `astro.config.mjs`.
+For Cloudflare, define each D1 or Hyperdrive binding under the matching Wrangler environment. Set `CLOUDFLARE_ENV` to that environment when you build, then deploy that build, as described in [Named environments](/deployment/cloudflare/#named-environments). Pass `--env` to Wrangler commands that work on a resource directly, such as `wrangler d1 execute`. For Node.js, inject a different database URL into each runtime environment. Keep credentials in runtime secrets, not in `astro.config.mjs`.

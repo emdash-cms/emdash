@@ -112,15 +112,17 @@ A destructive schema change (removing a field, restructuring a collection) is sa
 
    The preview site rebuilds its search index on the first call to the search API, as described in that section.
 
-3. Build the project, deploy it to the preview environment, then run the schema change against the preview URL:
+3. Build the project for the preview environment, deploy it, then run the schema change against the preview URL:
 
    ```bash
-   npm run build
-   npx wrangler deploy --env preview
+   CLOUDFLARE_ENV=preview npm run build
+   npx wrangler deploy
    npx emdash schema remove-field posts legacy_field --url https://preview.example.com
    ```
 
-4. Verify the public pages, admin forms, generated types, and any template that reads the changed fields. Take a fresh production database backup, then run the same commands once against production.
+   Wrangler deploys a build made without `CLOUDFLARE_ENV` to the production Worker, even when you pass `--env preview`, as described in [Named environments](/deployment/cloudflare/#named-environments).
+
+4. Verify the public pages, admin forms, generated types, and any template that reads the changed fields. Take a fresh production database backup, then build without `CLOUDFLARE_ENV`, deploy, and run the schema change once against production.
 
 </Steps>
 
