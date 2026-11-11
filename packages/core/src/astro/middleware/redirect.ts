@@ -24,6 +24,8 @@ import { createRedirectSource } from "../../redirects/artifacts.js";
 import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
+import { shouldSkipRedirectPath } from "../../redirects/paths.js";
+import { normalizeSourcePath } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { peekRequestCache } from "../../request-cache.js";
 import {
@@ -32,12 +34,6 @@ import {
 	type EmDashRequestContext,
 } from "../../request-context.js";
 import { invalidateSiteSettingsSnapshot, peekSiteSettingsSnapshot } from "../../settings/index.js";
-
-/** Paths that should never be intercepted by redirects */
-const SKIP_PREFIXES = ["/_emdash", "/_image"];
-
-/** Static asset extensions -- don't redirect file requests */
-const ASSET_EXTENSION = /\.\w{1,10}$/;
 
 type RedirectCode = 301 | 302 | 303 | 307 | 308;
 
@@ -68,12 +64,14 @@ interface RedirectMatch {
 
 /** Exact rules first, with or without a trailing slash, then patterns in precedence order. */
 function matchRedirect(cached: CachedRedirects, pathname: string): RedirectMatch | null {
-	let exact = cached.exact.get(pathname);
-	if (!exact && pathname.length > 1) {
-		const alt = pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
+	const normalized = normalizeSourcePath(pathname);
+	let exact = cached.exact.get(normalized);
+	if (!exact && normalized.length > 1) {
+		const alt = normalized.endsWith("/") ? normalized.slice(0, -1) : `${normalized}/`;
 		exact = cached.exact.get(alt);
 	}
 	if (exact) return { redirect: exact, destination: exact.destination };
+	// Pattern captures are interpolated into Location; preserve their original escaping.
 	return matchCachedPatterns(cached.patterns, pathname);
 }
 
@@ -119,10 +117,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const { pathname } = context.url;
 
 	// Skip internal paths and static assets
-	if (SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-		return next();
-	}
-	if (ASSET_EXTENSION.test(pathname)) {
+	if (shouldSkipRedirectPath(pathname)) {
 		return next();
 	}
 

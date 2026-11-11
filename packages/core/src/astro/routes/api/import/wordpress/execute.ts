@@ -15,13 +15,18 @@ import {
 	type WxrPost,
 	parseWxrDate,
 } from "emdash";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
+import type { ContentItem } from "#db/repositories/types.js";
 import { importMenusFromWxr, type WxrMenuArchive, type WxrMenuTarget } from "#import/menus.js";
 import { relativizeContentLinks, resolveImportByline } from "#import/utils.js";
+import { findStoredSlugLocales } from "#import/wxr-permalink-routes.js";
+import { importWxrPermalinks, type WxrPermalinkEntry } from "#import/wxr-permalinks.js";
 import {
 	attachPostTaxonomies,
 	isWxrTaxonomyConflictError,
@@ -34,7 +39,12 @@ import {
 import type { EmDashHandlers, EmDashManifest } from "#types";
 import { slugify } from "#utils/slugify.js";
 
-import { resolveContentCreateLocale } from "../../../../../i18n/config.js";
+import {
+	getI18nConfig,
+	isI18nEnabled,
+	resolveConfiguredLocale,
+	resolveContentCreateLocale,
+} from "../../../../../i18n/config.js";
 import { sanitizeSlug } from "./analyze.js";
 
 export const prerender = false;
@@ -443,6 +453,7 @@ async function runContentChunk(
 		translationGroupMap,
 		wxr.site.link,
 		bylineCache,
+		wxr.posts,
 	);
 
 	const nextOffset = offset + posts.length;
@@ -483,6 +494,10 @@ async function prepareTaxonomies(
 	return taxonomyPlan;
 }
 
+function unlocalizedSlugKey(collection: string, slug: string): string {
+	return JSON.stringify([collection, slug]);
+}
+
 export async function importContent(
 	posts: WxrPost[],
 	config: ImportConfig,
@@ -495,6 +510,7 @@ export async function importContent(
 	translationGroupMap = new Map<string, string>(),
 	siteUrl = "",
 	bylineCache = new Map<string, string>(),
+	sourcePosts = posts,
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -513,6 +529,54 @@ export async function importContent(
 	// Create content repository for checking existing items
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
+	const permalinks: WxrPermalinkEntry[] = [];
+	const sourceSlugs = new Map<WxrPost, string>();
+	const seenIdentities = new Set<string>();
+	const ambiguousIdentities = new Set<string>();
+	const plannedLocales = new Map<string, Set<string>>();
+	const sourceRouteKeys = new Map<WxrPost, string>();
+	const defaultLocale = locale ?? getI18nConfig()?.defaultLocale ?? "en";
+	const i18nEnabled = isI18nEnabled();
+	const identityFor = (collection: string, slug: string, postLocale: string | undefined) =>
+		JSON.stringify([
+			collection,
+			slug,
+			resolveConfiguredLocale(postLocale ?? defaultLocale).toLowerCase(),
+		]);
+	// Slug ownership must be unambiguous across the full WXR, not only this chunk.
+	if (config.skipExisting || !i18nEnabled) {
+		for (const post of sourcePosts) {
+			const mapping = config.postTypeMappings[post.postType || "post"];
+			if (!mapping?.enabled) continue;
+			const slug = wxrPostSlug(post);
+			const collection = sanitizeSlug(mapping.collection);
+			if (config.skipExisting) {
+				sourceSlugs.set(post, slug);
+				const key = identityFor(collection, slug, post.locale ?? locale);
+				if (seenIdentities.has(key)) ambiguousIdentities.add(key);
+				seenIdentities.add(key);
+			}
+			if (!i18nEnabled) {
+				const key = unlocalizedSlugKey(collection, slug);
+				sourceRouteKeys.set(post, key);
+				const variants = plannedLocales.get(key) ?? new Set<string>();
+				variants.add(resolveConfiguredLocale(post.locale ?? locale ?? defaultLocale).toLowerCase());
+				plannedLocales.set(key, variants);
+			}
+		}
+	}
+	const queuePermalink = (post: WxrPost, collection: string, item: ContentItem) => {
+		const schema = manifest.collections[collection];
+		if (schema?.routable === false) return;
+		permalinks.push({
+			title: post.title || "Untitled",
+			link: post.link,
+			collection,
+			pattern: schema?.urlPattern ?? null,
+			trailingSlash: virtualConfig?.trailingSlash,
+			item,
+		});
+	};
 
 	for (const post of posts) {
 		const postType = post.postType || "post";
@@ -541,7 +605,7 @@ export async function importContent(
 			const content = post.content ? gutenbergToPortableText(post.content) : [];
 			if (siteUrl) relativizeContentLinks(content, siteUrl);
 
-			const slug = wxrPostSlug(post);
+			const slug = sourceSlugs.get(post) ?? wxrPostSlug(post);
 
 			// Per-post locale: prefer the value extracted from WPML/Polylang
 			// metadata; fall back to the upload-wide locale. Two translations
@@ -549,14 +613,28 @@ export async function importContent(
 			// `UNIQUE(slug, locale)` constraint when they share a locale, so
 			// honouring the per-post value is what makes multilingual imports
 			// land correctly. See issue #1080.
-			const postLocale = post.locale ?? locale;
+			const requestedLocale = post.locale ?? locale;
+			const postLocale = resolveConfiguredLocale(requestedLocale ?? defaultLocale);
 
-			// Check if already exists (idempotency). Match against the
-			// per-post locale so the same slug in different locales doesn't
-			// false-positive as duplicate.
+			// Explicit source locales identify separate stored entries, even without i18n.
+			// An omitted locale retains the legacy unscoped skip-existing lookup in either mode.
 			if (config.skipExisting) {
-				const existing = await contentRepo.findBySlug(collection, slug, postLocale);
+				const existing = await contentRepo.findBySlug(
+					collection,
+					slug,
+					requestedLocale !== undefined ? postLocale : undefined,
+				);
 				if (existing) {
+					result.skipped++;
+					const ambiguous = ambiguousIdentities.has(identityFor(collection, slug, postLocale));
+					if (ambiguous) {
+						result.errors.push({
+							title: post.title || "Untitled",
+							error:
+								"Skipped item has an ambiguous collection, slug and locale in this WXR; no permalink redirect was created",
+						});
+						continue;
+					}
 					// Record the translation group mapping so later
 					// translations in this WXR can link to the existing
 					// item. We deliberately trust the WXR's grouping over
@@ -570,7 +648,7 @@ export async function importContent(
 					if (post.translationGroup) {
 						translationGroupMap.set(post.translationGroup, existing.id);
 					}
-					result.skipped++;
+					queuePermalink(post, collection, existing);
 					continue;
 				}
 			}
@@ -655,7 +733,8 @@ export async function importContent(
 				// typed as `unknown` to avoid coupling the route surface to
 				// internal handler types, so we narrow here.
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler contract documented at handleContentCreate
-				const createdItem = (createResult.data as { item: { id: string } } | undefined)?.item;
+				const createdItem = (createResult.data as { item: ContentItem } | undefined)?.item;
+				if (createdItem) queuePermalink(post, collection, createdItem);
 
 				// Track translation group: the first imported post in a group
 				// becomes the anchor that later translations link to.
@@ -742,6 +821,47 @@ export async function importContent(
 		}
 	}
 
+	const suppressedRoutes = new Set<string>();
+	if (!i18nEnabled) {
+		for (const [key, variants] of plannedLocales) {
+			if (variants.size > 1) suppressedRoutes.add(key);
+		}
+		const checkedRoutes = new Set<string>();
+		for (const entry of permalinks) {
+			if (!entry.link || entry.item.status !== "published" || !entry.item.slug) continue;
+			const key = unlocalizedSlugKey(entry.collection, entry.item.slug);
+			if (suppressedRoutes.has(key) || checkedRoutes.has(key)) continue;
+			checkedRoutes.add(key);
+			try {
+				if ((await findStoredSlugLocales(emdash.db, entry.collection, entry.item.slug)).size > 1)
+					suppressedRoutes.add(key);
+			} catch (error) {
+				console.error("[WXR_IMPORT] Could not verify redirect locale ownership:", error);
+				suppressedRoutes.add(key);
+				result.errors.push({
+					title: entry.title,
+					error: "Could not verify redirect ownership; retry with skip existing",
+				});
+			}
+		}
+		// Keep canonical claims for the imported data, but do not invent a locale's public target.
+		for (const entry of permalinks) {
+			if (
+				entry.item.slug &&
+				suppressedRoutes.has(unlocalizedSlugKey(entry.collection, entry.item.slug))
+			)
+				entry.link = undefined;
+		}
+	}
+	const sourceLinks = sourcePosts.flatMap((post) => {
+		const mapping = config.postTypeMappings[post.postType || "post"];
+		if (!mapping?.enabled) return [];
+		const routeKey = sourceRouteKeys.get(post);
+		if (routeKey && suppressedRoutes.has(routeKey)) return [];
+		const schema = manifest.collections[sanitizeSlug(mapping.collection)];
+		return schema && schema.routable !== false && post.link ? [post.link] : [];
+	});
+	result.errors.push(...(await importWxrPermalinks(emdash.db, permalinks, sourceLinks)));
 	result.success = result.errors.length === 0;
 	return result;
 }

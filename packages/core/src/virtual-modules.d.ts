@@ -38,6 +38,10 @@ declare module "virtual:emdash/config" {
 	export default config;
 }
 
+declare module "virtual:emdash/page-routes" {
+	export const pageRoutes: Array<{ source: string; flags: string }>;
+}
+
 declare module "virtual:emdash/dialect" {
 	import type { Dialect, Kysely } from "kysely";
 

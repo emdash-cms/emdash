@@ -59,9 +59,11 @@ function parseUtcDate(date: string | Date): Date {
 /**
  * Substitute WordPress-style date tokens (`{year}`, `{month}`, `{day}`,
  * `{hour}`, `{minute}`, `{second}`) from a publish date. Month/day/time parts
- * are zero-padded, mirroring WordPress (`%monthnum%`, `%day%`, ...). Tokens are
- * left untouched when no valid date is available, so callers without a date
- * (or unpublished entries) never produce a half-resolved URL.
+ * are zero-padded and use UTC; the token names mirror WordPress
+ * (`%monthnum%`, `%day%`, ...), but the values do not derive a WordPress
+ * site's local `post_date`. Tokens are left untouched when no valid date is
+ * available, so callers without a date (or unpublished entries) never produce
+ * a half-resolved URL.
  */
 function applyDateTokens(path: string, date: string | Date | null | undefined): string {
 	const d = date == null ? null : parseUtcDate(date);

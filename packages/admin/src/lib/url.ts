@@ -48,9 +48,11 @@ const OFFSETLESS_DATETIME = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2}(?:\.\
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 /**
- * Substitute WordPress-style date tokens from a publish date (zero-padded).
- * Tokens are left untouched when no valid date is available. Kept in sync with
- * the core `interpolateUrlPattern` resolver used for sitemap/canonical URLs.
+ * Substitute WordPress-style date tokens from a publish date (zero-padded,
+ * using UTC). The token names mirror WordPress, but values do not derive a
+ * site's local `post_date`. Tokens are left untouched when no valid date is
+ * available. Kept in sync with the core `interpolateUrlPattern` resolver used
+ * for sitemap/canonical URLs.
  */
 function applyDateTokens(path: string, date?: string | null): string {
 	if (date == null) return path;
