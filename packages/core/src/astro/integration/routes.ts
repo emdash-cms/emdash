@@ -161,6 +161,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/revisions/editors",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/revisions/editors.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/preview-url",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/preview-url.ts"),
 	});

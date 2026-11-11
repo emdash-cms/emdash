@@ -616,6 +616,11 @@ export interface RevisionAuthor {
 export interface RevisionListItem extends Revision {
 	/** `null` when no author was recorded or the account no longer exists. */
 	author: RevisionAuthor | null;
+	/**
+	 * Everyone who edited the revision since the one before it, latest first. An entry is `null`
+	 * when the account no longer exists. `null` means its author alone.
+	 */
+	editedBy: Array<RevisionAuthor | null> | null;
 }
 
 export interface RevisionListResponse {
@@ -637,6 +642,28 @@ export async function fetchRevisions(
 	const url = `${API_BASE}/content/${collection}/${entryId}/revisions${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url, { signal: options?.signal });
 	return parseApiResponse<RevisionListResponse>(response, i18n._(msg`Failed to fetch revisions`));
+}
+
+/**
+ * Everyone who edited a content item in the revisions newer than `since`, newest first and once
+ * each, or everyone who edited it when `since` is `null`. An entry is `null` when the account no
+ * longer exists.
+ */
+export async function fetchRevisionEditors(
+	collection: string,
+	entryId: string,
+	options: { since: string | null; signal?: AbortSignal },
+): Promise<Array<RevisionAuthor | null>> {
+	const params = new URLSearchParams();
+	if (options.since) params.set("since", options.since);
+
+	const url = `${API_BASE}/content/${collection}/${entryId}/revisions/editors${params.toString() ? `?${params}` : ""}`;
+	const response = await apiFetch(url, { signal: options.signal });
+	const data = await parseApiResponse<{ items: Array<RevisionAuthor | null> }>(
+		response,
+		i18n._(msg`Failed to fetch revision editors`),
+	);
+	return data.items;
 }
 
 /**

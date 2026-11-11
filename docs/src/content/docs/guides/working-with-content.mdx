@@ -153,14 +153,16 @@ an [HTML block](#add-html-css-and-javascript).
 After the first save, the editor autosaves changes two seconds after you stop typing. On tablet and
 desktop, the toolbar's **Save** control appears while changes are unsaved, shows **Saving...** while
 the request is in progress, and disappears after a successful save. There is no persistent **Saved**
-label. A screen-reader-only status announces **Saving...** and **Saved**. Autosave replaces the
-current draft revision instead of filling revision history with a checkpoint for every pause.
+label. A screen-reader-only status announces **Saving...** and **Saved**. An autosave replaces the
+version before it when that version is also an autosave, so a run of autosaves leaves one version in
+revision history. The new version keeps the names of everyone who edited the one it replaced.
 
 On a phone, entries with drafts and revision history offer **Settings** > **Save draft** even after
 autosave finishes. To retain the autosaved version in history, wait for autosave before using this
 action. On tablet and desktop, the toolbar's **Save** action is only offered while there are unsaved
-changes. Both actions retain the preceding draft revision; later autosaves can still replace the
-current draft.
+changes. Both actions retain the preceding draft revision, and autosave never replaces the version
+they save. Autosave also never replaces a version EmDash creates itself, such as the draft that
+unpublishing an entry leaves.
 
 If a save fails, the editor keeps the unsaved fields in place, shows a dismissible error banner below
 the editor header, and displays an error toast. Dismissing the banner does not save the data. Retry
@@ -210,6 +212,9 @@ Publishing and scheduling use separate controls:
 - **Remove schedule** cancels an existing schedule.
 - **Unpublish** removes the live revision from public queries, cancels any schedule, and keeps an
   editable draft.
+
+In collections with revision support, the publish confirmation names everyone who edited the entry
+since the published version, or everyone who edited it when no version is published.
 
 To schedule an entry, save it first, select **Schedule** below the publishing summary, and choose a
 future date and time. The editor displays the time zone used for the schedule. Until that time, the
@@ -279,14 +284,16 @@ later days as not loaded.
 ## Review and restore revisions
 
 Collections with revision support show **Revisions** in the settings panel. Expand it to see the
-entry's saved versions, grouped by day, with the time and the person who saved each one.
+entry's saved versions, grouped by day. Each version shows its time and everyone who edited it since
+the version before it, such as "Ana, Ben, and 1 other person".
 **Current version** marks the version in the editor, and **Published** marks the version visitors
 see. The list shows the 20 newest versions; select **Show older versions** to see the rest.
 
 Select a version to show it in the editor, read-only:
 
 - Added text is highlighted and removed text is struck through, in the color of the person who
-  saved the version. The dot next to their name in the list shows that color.
+  edited the version, or in a neutral color when several people edited it. The dot next to the
+  names in the list shows that color.
 - The version's entry in the list describes each change, such as "Changed the title" or
   "Edited “Most teams plan posts in…”". Select a change to scroll to it.
 - Turn off **Show changes** to read the version without highlights.

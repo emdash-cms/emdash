@@ -11,6 +11,8 @@ export interface RevisionTable {
 	data: string; // JSON snapshot
 	author_id: string | null;
 	created_at: Generated<string>;
+	kind: Generated<string | null>; // 'autosave' | 'recovery'; NULL for a kept revision
+	edited_by: Generated<string | null>; // JSON array of user IDs, latest first; NULL = author alone
 }
 
 export interface RevisionPruneQueueTable {

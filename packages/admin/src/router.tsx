@@ -165,7 +165,11 @@ import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/conte
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
-import { withAutosavedDraft } from "./lib/revision-list-cache.js";
+import {
+	autosavedDraftKey,
+	lastAutosavedDrafts,
+	withAutosavedDraft,
+} from "./lib/revision-list-cache.js";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { usePagedQuery } from "./lib/use-paged-query";
 import { useEntryLock } from "./lib/useEntryLock";
@@ -312,7 +316,13 @@ function patchAutosaveQueries(
 			authorId: me?.id ?? savedItem.authorId,
 			createdAt,
 			author: me ? { id: me.id, name: me.name?.trim() || null } : null,
+			editedBy: null,
 		};
+		const autosaved = lastAutosavedDrafts(queryClient);
+		const autosavedKey = autosavedDraftKey(collection, id);
+		const previousIsAutosave =
+			previousDraftId !== null && autosaved.get(autosavedKey) === previousDraftId;
+		autosaved.set(autosavedKey, draftRevisionId);
 		for (const [queryKey, list] of lists) {
 			if (!list) continue;
 			queryClient.setQueryData(
@@ -320,6 +330,7 @@ function patchAutosaveQueries(
 				withAutosavedDraft(list, {
 					draft,
 					previousDraftId,
+					previousIsAutosave,
 					liveRevisionId: savedItem.liveRevisionId ?? null,
 					limit: revisionListLimit(queryKey),
 				}),
@@ -332,9 +343,10 @@ function patchAutosaveQueries(
 				.cancelQueries({ queryKey: listsKey })
 				.then(() => queryClient.invalidateQueries({ queryKey: listsKey }));
 		} else {
-			// The patched lists stay on screen; the next list that mounts, or view that opens,
-			// reads the exact server copy.
-			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "none" });
+			// The patch is a guess: the server keeps a previous draft that wasn't an autosave, and
+			// the new draft can name people this client doesn't know about. Open lists read the
+			// server's copy now, and the rest when they next mount.
+			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "active" });
 		}
 	}
 

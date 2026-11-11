@@ -2983,8 +2983,22 @@ export class ContentRepository {
 		revisionId: string,
 		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
 	): Promise<boolean> {
+		return (await this.stageDraftRevision(type, id, revisionId, expected)) !== null;
+	}
+
+	/**
+	 * `replaceDraftRevision`, returning the `version` and `updatedAt` the entry has after the
+	 * update, or null when the entry no longer matches `expected`. Scheduling moves `updatedAt`
+	 * without bumping `version`, so the entry's `_rev` can't be derived from `expected`.
+	 */
+	async stageDraftRevision(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
+	): Promise<Pick<ContentItem, "version" | "updatedAt"> | null> {
 		const tableName = getTableName(type);
-		const result = await sql`
+		const result = await sql<{ version: number; updated_at: string }>`
 			UPDATE ${sql.ref(tableName)}
 			SET draft_revision_id = ${revisionId},
 				version = version + 1
@@ -2999,8 +3013,10 @@ export class ContentRepository {
 				AND revisions.collection = ${type}
 				AND revisions.entry_id = ${id}
 			)
+			RETURNING version, updated_at
 		`.execute(this.db);
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const row = result.rows[0];
+		return row ? { version: row.version, updatedAt: row.updated_at } : null;
 	}
 
 	/**
