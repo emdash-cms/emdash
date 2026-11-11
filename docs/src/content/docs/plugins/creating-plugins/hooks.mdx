@@ -206,7 +206,9 @@ Do not put HTML in `reason`. The admin renders the value as text.
 
 From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) instead. The API returns `SAVE_REJECTED` with your message. Any other exception from either execution mode fails the save with a generic `CONTENT_HOOK_ERROR` response.
 
-**Event:** `{ content, collection, isNew, id, actor }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`. The entry's slug is not part of `content`, and a `slug` key returned from the hook fails validation as an unknown field. Authenticated REST, visual editing, and MCP saves include `actor.id` and the numeric `actor.role`. Internal writes without an authenticated user omit `actor`.
+**Event:** `{ content, collection, isNew, id, actor, editedBy }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`. The entry's slug is not part of `content`, and a `slug` key returned from the hook fails validation as an unknown field. Authenticated REST, visual editing, and MCP saves include `actor.id` and the numeric `actor.role`. Internal writes without an authenticated user omit `actor`.
+
+`editedBy` lists the IDs of the users whose edits the save holds, latest first, and is absent from saves without an `actor`. A hook that checks `actor.role` before it accepts content must check the role of every user in `editedBy`, as the [hooks reference](/reference/hooks/#contentbeforesave) explains.
 
 ### `content:afterSave`
 
@@ -228,7 +230,7 @@ Runs after content is successfully saved. Use for side effects like notification
 },
 ```
 
-**Event:** `{ content, collection, isNew, actor }` — **Returns:** `Promise<void>`. Authenticated saves include the same optional `actor` snapshot as `content:beforeSave`.
+**Event:** `{ content, collection, isNew, actor, editedBy }` — **Returns:** `Promise<void>`. Authenticated saves include the same optional `actor` snapshot and `editedBy` list as `content:beforeSave`.
 
 ### `content:beforeDelete`
 

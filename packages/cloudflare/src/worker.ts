@@ -2,8 +2,10 @@
  * Cloudflare Worker entry for EmDash sites.
  *
  * Wraps the Astro Cloudflare server handler with a `scheduled()` handler for
- * general maintenance. Re-exports the `PluginBridge` Durable Object so the
- * sandbox binding resolves against the entry module.
+ * general maintenance, and forwards co-editing room upgrades to their Durable
+ * Object. Re-exports the `PluginBridge` Durable Object so the sandbox binding
+ * resolves against the entry module, and the co-editing room classes so the
+ * `EMDASH_ROOMS` binding and the rooms' site loopback do too.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -14,7 +16,12 @@
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
 
+import { handleRoomUpgrade } from "./rooms/upgrade.js";
+
 export { PluginBridge } from "./sandbox/bridge.js";
+export { EmDashRoom } from "./rooms/object.js";
+export { EmDashRoomSite } from "./rooms/site.js";
+export { handleRoomUpgrade };
 
 const APP_KEY = Symbol.for("@emdash-cms/cloudflare:astro-app");
 const CACHE_PROVIDER_KEY = Symbol.for("@emdash-cms/cloudflare:cache-provider");
@@ -124,5 +131,12 @@ const handler = astroHandler as ExportedHandler;
 
 export default {
 	...handler,
+	// Room upgrades go to their Durable Object before Astro runs.
+	fetch(request, env, ctx) {
+		const upgrade = handleRoomUpgrade(request, env);
+		if (upgrade) return upgrade;
+		if (!handler.fetch) throw new Error("The Astro handler has no fetch");
+		return handler.fetch(request, env, ctx);
+	},
 	scheduled: createScheduledHandler(),
 } satisfies ExportedHandler;

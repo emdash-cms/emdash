@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 
 import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { notifyRoom } from "../../rooms/notifications.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { Database } from "../types.js";
 import type { ContentSeo, ContentSeoInput } from "./types.js";
@@ -155,6 +156,7 @@ export class SeoRepository {
 		`.execute(this.db);
 
 		invalidateCollectionCache(collection);
+		notifyRoom({ collection, id: contentId }, ["seo"]);
 		return this.get(collection, contentId);
 	}
 

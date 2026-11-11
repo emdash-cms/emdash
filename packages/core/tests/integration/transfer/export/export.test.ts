@@ -9,6 +9,7 @@ import {
 	teardownForDialect,
 	type DialectTestContext,
 } from "../../../utils/test-db.js";
+import { fixtureId } from "../../../utils/transfer/golden-package.js";
 import { createMemoryStorage, type MemoryStorage } from "../../../utils/transfer/memory-storage.js";
 import { buildOriginSite, type OriginSite } from "../../../utils/transfer/origin-site.js";
 import { packageFiles, packageRecords, runExport } from "./helpers.js";
@@ -280,6 +281,53 @@ describeEachDialect("site export", (dialect) => {
 		);
 		expect(transformations["avatar_nulled:byline"]).toBe(1);
 		expect(transformations["media_not_ready_dropped:media"]).toBe(2);
+	});
+
+	it("leaves out what kind of save wrote a revision and who edited it", async () => {
+		await ctx.db
+			.updateTable("revisions")
+			.set({ kind: "autosave", edited_by: JSON.stringify([site.ids.bob, site.ids.alice]) })
+			.where("id", "=", site.ids.helloDraft)
+			.execute();
+
+		const records = await packageRecords((await runExport(ctx.db, storage)).reader);
+
+		expect(byId(records.get("revision")).get(site.ids.helloDraft)).toEqual({
+			kind: "revision",
+			id: site.ids.helloDraft,
+			collection: "posts",
+			entryId: site.ids.hello,
+			data: expect.objectContaining({ title: "Hello world (edited)" }),
+			authorPrincipal: site.ids.bob,
+			createdAt: expect.any(String),
+		});
+	});
+
+	it("leaves recovery revisions out without declaring them dropped", async () => {
+		const recovery = fixtureId(9500);
+		await ctx.db
+			.insertInto("revisions")
+			.values({
+				id: recovery,
+				collection: "posts",
+				entry_id: site.ids.hello,
+				data: JSON.stringify({ title: "Unsaved", _slug: "hello-world" }),
+				author_id: site.ids.bob,
+				kind: "recovery",
+				created_at: "2026-04-01T00:00:00.000Z",
+			})
+			.execute();
+
+		const { result, reader } = await runExport(ctx.db, storage);
+
+		expect(result.outcome).toBe("complete");
+		const records = await packageRecords(reader);
+		expect(byId(records.get("revision")).has(recovery)).toBe(false);
+		const manifest = await reader.manifest();
+		expect(manifest.records.revision?.count).toBe(3);
+		expect(manifest.transformations.filter((t) => t.kind === "revision")).toEqual([
+			expect.objectContaining({ code: "media_url_relativized" }),
+		]);
 	});
 
 	it("fails when a ready media file is missing", async () => {

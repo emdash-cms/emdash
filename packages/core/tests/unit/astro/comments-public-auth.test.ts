@@ -29,7 +29,11 @@ beforeEach(() => {
 	resolveSessionUser.mockReset();
 });
 
-function createContext(pathname = "/_emdash/api/comments/posts/post-1", method = "POST") {
+function createContext(
+	pathname = "/_emdash/api/comments/posts/post-1",
+	method = "POST",
+	hasSessionCookie = false,
+) {
 	const url = new URL(pathname, "https://site.example.com");
 	const locals: Record<string, unknown> & {
 		user?: { id: string; email: string; disabled: boolean };
@@ -56,6 +60,7 @@ function createContext(pathname = "/_emdash/api/comments/posts/post-1", method =
 		next,
 		context: {
 			url,
+			cookies: { get: () => (hasSessionCookie ? { value: "session-id" } : undefined) },
 			request: new Request(url, requestInit),
 			locals,
 			session,
@@ -72,7 +77,7 @@ describe("session auth on the public comments API", () => {
 			email: "admin@example.com",
 			disabled: false,
 		});
-		const { context, locals, next } = createContext();
+		const { context, locals, next } = createContext(undefined, undefined, true);
 
 		const response = await onRequest(
 			context as Parameters<AuthMiddlewareModule["onRequest"]>[0],
@@ -96,6 +101,7 @@ describe("session auth on the public comments API", () => {
 		expect(response.status).toBe(200);
 		expect(next).toHaveBeenCalledOnce();
 		expect(locals.user).toBeUndefined();
+		expect(resolveSessionUser).not.toHaveBeenCalled();
 	});
 
 	it.each([
@@ -108,7 +114,7 @@ describe("session auth on the public comments API", () => {
 			email: "admin@example.com",
 			disabled: false,
 		});
-		const { context, locals, next } = createContext(pathname, method);
+		const { context, locals, next } = createContext(pathname, method, true);
 
 		const response = await onRequest(
 			context as Parameters<AuthMiddlewareModule["onRequest"]>[0],

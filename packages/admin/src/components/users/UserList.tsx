@@ -14,6 +14,7 @@ import {
 	tertiaryColumn,
 } from "../DataTable.js";
 import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
+import { UserAvatar } from "../UserAvatar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
 
@@ -183,18 +184,7 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 		<tr>
 			<td>
 				<div className="flex items-center gap-3">
-					{/* Avatar */}
-					{user.avatarUrl ? (
-						<img
-							src={user.avatarUrl}
-							alt=""
-							className="h-8 w-8 shrink-0 rounded-full object-cover"
-						/>
-					) : (
-						<div className="h-8 w-8 shrink-0 rounded-full bg-kumo-tint flex items-center justify-center text-sm font-medium">
-							{(user.name || user.email)?.[0]?.toUpperCase() ?? "?"}
-						</div>
-					)}
+					<UserAvatar user={user} size={32} />
 					<div className="wrap-anywhere">
 						<RowTitleButton dir="auto" onClick={onSelect}>
 							{displayName}

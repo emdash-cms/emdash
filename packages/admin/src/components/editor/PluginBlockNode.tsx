@@ -27,12 +27,12 @@ import {
 	Cube,
 	ListBullets,
 } from "@phosphor-icons/react";
-import { Node, mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { PluginBlockNode } from "../../portable-text/schema.js";
 import { PORTABLE_TEXT_BLOCK_ATTR } from "./portableTextIdentity.js";
 
 const EMPTY_REGISTRY = new Map<string, PluginBlockDef>();
@@ -445,31 +445,7 @@ function PluginBlockNodeView({
 /**
  * TipTap Node extension for plugin blocks (embeds)
  */
-export const PluginBlockExtension = Node.create({
-	name: "pluginBlock",
-	group: "block",
-	atom: true,
-	draggable: true,
-	selectable: true,
-
-	addAttributes() {
-		return {
-			blockType: {
-				default: null,
-			},
-			id: {
-				default: null,
-			},
-			data: {
-				default: {},
-				parseHTML: (el: HTMLElement) => JSON.parse(el.getAttribute("data-plugin-data") || "{}"),
-				renderHTML: (attrs: Record<string, unknown>) => ({
-					"data-plugin-data": JSON.stringify(attrs.data),
-				}),
-			},
-		};
-	},
-
+export const PluginBlockExtension = PluginBlockNode.extend({
 	addStorage() {
 		return {
 			/** Per-editor registry of plugin block definitions */
@@ -485,18 +461,6 @@ export const PluginBlockExtension = Node.create({
 				  }) => void)
 				| null,
 		};
-	},
-
-	parseHTML() {
-		return [
-			{
-				tag: "div[data-plugin-block]",
-			},
-		];
-	},
-
-	renderHTML({ HTMLAttributes }) {
-		return ["div", mergeAttributes(HTMLAttributes, { "data-plugin-block": "" })];
 	},
 
 	addNodeView() {

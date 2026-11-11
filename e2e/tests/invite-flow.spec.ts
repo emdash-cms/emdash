@@ -16,110 +16,13 @@
  * fetch with the PAT.
  */
 
-import { readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
-import { expect, test } from "../fixtures";
-import { addVirtualWebAuthnAuthenticator } from "../fixtures/virtual-authenticator";
+import { AdminPage, expect, test } from "../fixtures";
+import { createInvite, createUser, Role } from "../fixtures/users";
 
 // Regex patterns
 const ADMIN_URL_PATTERN = /\/_emdash\/admin\/?$/;
 const INVITE_URL_REGEX = /https?:\/\/[^\s]+\/admin\/invite\/accept\?token=[^\s]+/;
-const URL_IN_TEXT_REGEX = /https?:\/\/[^\s]+/;
 const PASSKEY_ACTION_REGEX = /^(Create passkey|Use another device|Use a security key)$/;
-
-const SERVER_INFO_PATH = join(tmpdir(), "emdash-pw-server.json");
-
-function getServerInfo(): { baseUrl: string; token: string; sessionCookie: string } {
-	return JSON.parse(readFileSync(SERVER_INFO_PATH, "utf-8"));
-}
-
-/**
- * Create an invite via the API using the PAT from serverInfo.
- * Uses Node.js fetch (not browser) to avoid module isolation issues
- * with the dev email store.
- *
- * When the dev console email provider is active, the invite email is
- * captured in memory. We retrieve it via GET /_emdash/api/dev/emails.
- */
-async function createInviteViaApi(email: string, role = 30): Promise<string> {
-	const { baseUrl, token, sessionCookie } = getServerInfo();
-
-	// Clear previously captured emails
-	await fetch(`${baseUrl}/_emdash/api/dev/emails`, {
-		method: "DELETE",
-		headers: {
-			"X-EmDash-Request": "1",
-			Cookie: sessionCookie,
-		},
-	});
-
-	// The shared fixture also registers a sandboxed email delivery provider.
-	const selectionRes = await fetch(`${baseUrl}/_emdash/api/admin/hooks/exclusive/email:deliver`, {
-		method: "PUT",
-		headers: {
-			"Content-Type": "application/json",
-			"X-EmDash-Request": "1",
-			Authorization: `Bearer ${token}`,
-		},
-		body: JSON.stringify({ pluginId: "emdash-console-email" }),
-	});
-	expect(selectionRes.status, await selectionRes.text()).toBe(200);
-
-	// Create the invite
-	const createRes = await fetch(`${baseUrl}/_emdash/api/auth/invite`, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			"X-EmDash-Request": "1",
-			Authorization: `Bearer ${token}`,
-		},
-		body: JSON.stringify({ email, role }),
-	});
-
-	if (!createRes.ok) {
-		const body = await createRes.text();
-		throw new Error(`Invite creation failed (${createRes.status}): ${body}`);
-	}
-
-	const createBody = (await createRes.json()) as {
-		data?: { inviteUrl?: string };
-	};
-
-	// If no email provider, the response includes the URL directly
-	if (createBody.data?.inviteUrl) {
-		return createBody.data.inviteUrl;
-	}
-
-	// Otherwise, retrieve the invite URL from captured dev emails
-	const emailsRes = await fetch(`${baseUrl}/_emdash/api/dev/emails`, {
-		headers: {
-			Authorization: `Bearer ${token}`,
-		},
-	});
-
-	if (!emailsRes.ok) {
-		throw new Error(`Dev emails endpoint failed (${emailsRes.status}): ${await emailsRes.text()}`);
-	}
-
-	const emailsBody = (await emailsRes.json()) as {
-		data?: { items?: Array<{ message: { text: string } }> };
-	};
-
-	const emails = emailsBody.data?.items;
-	if (!emails?.length) {
-		throw new Error("No emails captured by dev console provider after invite creation");
-	}
-
-	const latestEmail = emails[0]!;
-	const match = latestEmail.message.text.match(URL_IN_TEXT_REGEX);
-	if (!match) {
-		throw new Error(`No URL found in invite email text: ${latestEmail.message.text}`);
-	}
-
-	return match[0];
-}
 
 test.describe("Invite Accept Page", () => {
 	test.describe("Error states", () => {
@@ -147,7 +50,7 @@ test.describe("Invite Accept Page", () => {
 
 	test.describe("Valid invite token", () => {
 		test("shows registration form with email and role", async ({ admin }) => {
-			const inviteUrl = await createInviteViaApi("invite-ui@example.com", 30);
+			const inviteUrl = await createInvite("invite-ui@example.com", Role.AUTHOR);
 			const token = new URL(inviteUrl).searchParams.get("token")!;
 
 			await admin.page.goto(`/_emdash/admin/invite/accept?token=${token}`);
@@ -171,7 +74,7 @@ test.describe("Invite Accept Page", () => {
 
 test.describe("Invite creation via API", () => {
 	test("admin can create an invite and get invite URL", async () => {
-		const inviteUrl = await createInviteViaApi("api-test@example.com", 20);
+		const inviteUrl = await createInvite("api-test@example.com", Role.CONTRIBUTOR);
 
 		expect(inviteUrl).toMatch(INVITE_URL_REGEX);
 
@@ -180,13 +83,13 @@ test.describe("Invite creation via API", () => {
 	});
 
 	test("invite URL contains the admin invite accept path", async () => {
-		const inviteUrl = await createInviteViaApi("prefix-test@example.com");
+		const inviteUrl = await createInvite("prefix-test@example.com");
 
 		expect(inviteUrl).toContain("/admin/invite/accept");
 	});
 
-	test("creating invite for existing user returns error", async () => {
-		const { baseUrl, token } = getServerInfo();
+	test("creating invite for existing user returns error", async ({ serverInfo }) => {
+		const { baseUrl, token } = serverInfo;
 
 		const res = await fetch(`${baseUrl}/_emdash/api/auth/invite`, {
 			method: "POST",
@@ -203,46 +106,15 @@ test.describe("Invite creation via API", () => {
 });
 
 test.describe("Full invite flow with passkey registration", () => {
-	test("completes invite registration with virtual authenticator", async ({ admin, page }) => {
+	test("completes invite registration with virtual authenticator", async ({ browser }) => {
 		test.setTimeout(120_000);
 
-		// Step 1: Create invite via server-side API
-		const inviteEmail = `invited-user-${crypto.randomUUID()}@example.com`;
-		const inviteUrl = await createInviteViaApi(inviteEmail, 30);
-		const inviteToken = new URL(inviteUrl).searchParams.get("token")!;
-
-		// Step 2: Set up virtual authenticator
-		const removeAuth = await addVirtualWebAuthnAuthenticator(page);
-
+		const context = await createUser(browser, { role: Role.AUTHOR, name: "Invited User" });
 		try {
-			// Step 3: Navigate to invite accept page
-			await page.goto(`/_emdash/admin/invite/accept?token=${inviteToken}`);
-			await admin.waitForHydration();
+			const page = context.pages()[0]!;
+			const admin = new AdminPage(page);
 
-			// Step 4: Verify the registration form renders
-			await expect(page.locator("h1")).toContainText("Accept Invite", { timeout: 15000 });
-			await expect(page.locator("text=You've been invited!")).toBeVisible();
-			await expect(page.getByLabel("Email")).toHaveValue(inviteEmail);
-			await expect(page.locator("text=AUTHOR")).toBeVisible();
-
-			// Step 5: Fill in name and create a passkey
-			const nameInput = page.getByLabel("Your name (optional)");
-			await nameInput.fill("Invited User");
-
-			const completionResponsePromise = page
-				.waitForResponse((response) => {
-					return new URL(response.url()).pathname === "/_emdash/api/auth/invite/complete";
-				})
-				.then((response) => response.status());
-			await page.getByRole("button", { name: "Create passkey" }).click();
-			expect(await completionResponsePromise).toBe(200);
-
-			// Step 6: Confirm the completed passkey flow and continue
-			await expect(page.getByRole("heading", { name: "Passkey created" })).toBeVisible();
-			await page.getByRole("button", { name: "Open the dashboard" }).click();
-
-			// Step 7: Wait for the dashboard redirect
-			await expect(page).toHaveURL(ADMIN_URL_PATTERN, { timeout: 60_000 });
+			await expect(page).toHaveURL(ADMIN_URL_PATTERN);
 			const welcomeDialog = page.getByRole("dialog", { name: /Welcome to EmDash/ });
 			await expect(welcomeDialog).toBeVisible({ timeout: 15_000 });
 			await welcomeDialog.getByRole("button", { name: "Get Started" }).click();
@@ -254,7 +126,7 @@ test.describe("Full invite flow with passkey registration", () => {
 			await expect(page.locator("text=Registration was cancelled or timed out")).toHaveCount(0);
 			await expect(page.locator("text=Invalid origin")).toHaveCount(0);
 		} finally {
-			await removeAuth();
+			await context.close();
 		}
 	});
 });

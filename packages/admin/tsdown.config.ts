@@ -54,7 +54,8 @@ function localeManifestPlugin(): Plugin {
 export default defineConfig({
 	// locales/config and locales/emails are separate server-safe entries:
 	// EmDash core imports them from API routes, where the locales barrel's
-	// React/Kumo graph must not be pulled into the server bundle.
+	// React/Kumo graph must not be pulled into the server bundle. Likewise,
+	// internal/co-editing/types keeps Yjs out of core code that only needs room types.
 	entry: [
 		"src/index.ts",
 		"src/locales/index.ts",
@@ -62,7 +63,12 @@ export default defineConfig({
 		"src/locales/config.ts",
 		"src/locales/emails.ts",
 		"src/portable-text-table.ts",
+		"src/internal/portable-text.ts",
+		"src/internal/portable-text-y-sync.ts",
+		"src/internal/co-editing.ts",
+		"src/internal/co-editing/types.ts",
 		"src/html-block.ts",
+		"src/internal/video-block.ts",
 		"src/slugify.ts",
 	],
 	format: ["esm"],
