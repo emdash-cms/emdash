@@ -30,6 +30,7 @@ declare module "virtual:emdash/config" {
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
 		robotsTxtOverridden?: boolean;
+		sessionCookieName?: string;
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
 	}
