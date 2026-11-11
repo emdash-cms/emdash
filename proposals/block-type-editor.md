@@ -27,8 +27,8 @@ The Block types section on Content types gets a **New block type** button. Each 
 **New block type** opens a page with:
 
 - **Label**, and a **Slug** generated from it. The slug can be edited until the first save.
-- **Description**, **Icon** and **Category**. The icon is a Phosphor icon name with a preview, as on the content type form. The picker in the editor already shows all three.
-- **Fields**. **Add field** opens the field editor that content types use. It offers only the 13 types a block field supports, and only the settings a block field accepts: required, length limits, pattern, number range, options, list sub-fields and item limits, allowed file types, and the dark variant for images. Unique, searchable, indexed, translatable and relation settings don't appear.
+- **Description**, **Icon** and **Category**. The icon is a Phosphor icon name, as on the content type form, and the page previews it. The picker in the editor already shows all three.
+- **Fields**. **Add field** opens the field editor that content types use. It offers only the 13 types a block field supports, and only the settings a block field accepts: required, length limits, pattern, number range, options, list sub-fields and item limits, allowed file types, and the dark variant for images. Unique, searchable, indexed and relation settings don't appear.
 
 Nothing is stored until **Save**. Saving creates version 1, which is active. The page then says that editors can use the block type once it's added to a blocks field, and that the site needs a component for it first.
 
@@ -38,8 +38,8 @@ A block type's page shows the same form, filled with the active version's fields
 
 The page has one **Save** for the whole block type, because its fields belong to one version. What happens next depends on the change:
 
-- **Compatible changes** are saved into the active version. These are the label, description, icon and category, field labels, field order, a new optional field, and looser validation.
-- **Breaking changes** need a new version. These are a removed field, a changed field type, a field that becomes required, a new required field, and tighter validation. The admin shows a dialog that lists each change by the field's label, explains what happens, and asks for confirmation. Confirming creates the new version, inactive.
+- **Compatible changes** are saved into the active version. These are the label, description, icon and category, field labels, field order, a new optional field, a field that becomes optional, looser validation, and turning on an image's dark variant.
+- **Breaking changes** need a new version. These are a removed field, a changed field type, a field that becomes required, a new required field, tighter validation, and turning off an image's dark variant. The admin shows a dialog that lists each change by the field's label, explains what happens, and asks for confirmation. Confirming creates the new version, inactive.
 
 For example, the Hero block type is on version 2. An admin removes its Subheading field, makes Button link required, and saves. The dialog says:
 
@@ -74,7 +74,7 @@ An inactive version has an **Activate** button. Activating, whether to a newer o
 - Rendering components. They stay in the site's code.
 - Moving stored blocks to a new version (`migrateBlocks`). The content editor handles blocks on older versions as it does today.
 - Deleting block types or versions. The API has no delete operation for either.
-- Editing an inactive version. The API changes only the active version, so every confirmed breaking save creates a new version.
+- Editing an inactive version. The API changes only the active version, so a confirmed breaking save never edits an inactive one.
 - Editing default values. The field editor has no input for them, and saving keeps any default a field already has.
 - Changes to the blocks field settings or the content editor, which the [blocks field redesign](./blocks-field-redesign.md) covers.
 - New settings for block fields, such as help text.
@@ -95,12 +95,12 @@ The implementation updates the "Change a block schema" steps in the blocks guide
 
 ## Errors and edge cases
 
-- **Changed by someone else.** Every update and activation sends the fingerprint of the active version the page loaded. If the block type changed in the meantime, the server refuses with `CONFLICT`. The page keeps the unsaved form and offers to reload the block type.
+- **Changed by someone else.** Every update and activation sends the fingerprint of the active version the page loaded. If someone else changed the active version's fields or activated another version in the meantime, the server refuses with `CONFLICT`. The page keeps the unsaved form and offers to reload the block type. The fingerprint leaves out field labels, the block type's label, description, icon and category, and inactive versions, so a change to only those doesn't make a later save fail.
 - **Slug already taken.** `BLOCK_TYPE_EXISTS` on create shows an error under the slug. Invalid and reserved slugs show their error there too.
-- **Unknown field types.** A version saved by a newer EmDash release can contain field types this release doesn't know. The server refuses to update such a block type with `UNSUPPORTED_FIELD_TYPE`. Its page opens read-only with a notice, and **Activate** is disabled for versions that contain an unknown type, which the server refuses as well.
-- **Block types from a seed** can be edited like any other. Their page notes that applying the seed again with `--on-conflict update` replaces the label, description, icon and category, rewrites the versions the seed declares, and sets the active version back to the seed's.
+- **Unknown field types.** A version saved by a newer EmDash release can contain field types this release doesn't know. If the active version has one, the server refuses to update the block type with `UNSUPPORTED_FIELD_TYPE`, so its page opens read-only with a notice, and **Activate** is disabled for versions that contain an unknown type, which the server refuses as well.
+- **Block types from a seed** can be edited like any other. Their page notes that applying the seed again with `--on-conflict update` replaces the label, description, icon and category, rewrites the versions the seed declares, and sets the active version back to the seed's. If an edit here made one of those versions accept more, such as a new field or looser validation, that seed run stops with `BLOCK_TYPE_VERSION_CONFLICT` instead.
 - **Renaming a field** means removing it and adding a new one, because stored values are matched by slug. The confirmation dialog lists that as a breaking change.
-- **A second breaking save before activation** creates another version. The confirmation dialog names the version number it will create.
+- **A second breaking save before activation** creates another version. The confirmation dialog names the version number it will create. If the new fields exactly match an existing inactive version, the server keeps that version instead of creating one.
 - **Unsaved changes.** Leaving the page or closing the tab with unsaved changes asks first.
 
 ## Verification
@@ -112,7 +112,7 @@ Admin component tests:
 - A `BLOCK_TYPE_BREAKING_CHANGE` response opens the dialog with one line per difference, named by field label. Confirming repeats the `PUT` with `breaking: true`, and cancelling sends nothing.
 - **Activate** sends the active version's fingerprint, after the warning.
 - A `CONFLICT` response keeps the form's changes.
-- A block type with an unknown field type opens read-only.
+- A block type whose active version has an unknown field type opens read-only.
 - Saving keeps a field's existing default value.
 
 Browser test: create a block type with a required string field and a list, add it to a blocks field and add a block to an entry. Then remove a field, confirm the new version, activate it and add a second block. The new block uses version 2, and the first block shows "Inactive version".
