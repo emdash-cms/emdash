@@ -1,11 +1,12 @@
 import { sql, type Kysely } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { handleImportAdvance } from "../../../../src/api/handlers/transfer.js";
 import type { Database } from "../../../../src/database/types.js";
 import { activateMediaUsageCapture } from "../../../../src/media/usage/activation.js";
+import { processMediaUsageCollectionDeletion } from "../../../../src/media/usage/collection-deletion-processor.js";
 import { MediaUsageCollectionDeletionRepository } from "../../../../src/media/usage/collection-deletion.js";
-import { SchemaRegistry } from "../../../../src/schema/registry.js";
+import { SchemaError, SchemaRegistry } from "../../../../src/schema/registry.js";
 import { findSiteWriteFenceError } from "../../../../src/transfer/fence.js";
 import { canonicalJson } from "../../../../src/transfer/format/canonical.js";
 import {
@@ -732,6 +733,308 @@ describeEachDialect("site import resumption", (dialect) => {
 			.where("id", "in", [ids.posts, ids.pages])
 			.execute();
 		expect(collections).toEqual([]);
+	});
+
+	it.each(["pending", "leased", "retry", "failed"] as const)(
+		"handles an interrupted %s deletion without advancing the scaffold cursor",
+		async (state) => {
+			await activateCapture(ctx.db);
+			const staged = await stageGoldenImport(ctx.db, storage, dialect);
+			const { db, faults } = withFaults(ctx.db);
+			let collectionId: string | undefined;
+			faults.afterCheckpoint = async () => {
+				if (collectionId) return;
+				const operation = await new TransferOperationRepository(ctx.db).require(staged.operationId);
+				if (operation.stage !== "clear_scaffold") return;
+				const collection = await ctx.db
+					.selectFrom("_emdash_collections")
+					.select(["id", "slug"])
+					.orderBy("slug")
+					.executeTakeFirstOrThrow();
+				collectionId = collection.id;
+				await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
+					collectionId,
+					collectionSlug: collection.slug,
+					forceDelete: false,
+				});
+				await ctx.db
+					.updateTable("_emdash_media_usage_collection_deletions")
+					.set({
+						state,
+						next_attempt_at: "2999-01-01T00:00:00.000Z",
+						...(state === "leased"
+							? { lease_token: "interrupted-worker", lease_expires_at: "2999-01-01T00:00:00.000Z" }
+							: {}),
+					})
+					.where("collection_id", "=", collectionId)
+					.execute();
+			};
+			const first = await advanceImport({
+				db,
+				storage,
+				operationId: staged.operationId,
+				verify: verifyOk,
+			});
+			expect(collectionId).toBeDefined();
+			expect(first.operation.cursor).toEqual({ stage: "clear_scaffold", step: 0 });
+			if (state === "failed") {
+				expect(first.operation.state).toBe("failed");
+				expect(first.operation.errorCode).toBe("TRANSFER_IMPORT_ERROR");
+				expect(first.operation.errorDetail).toMatchObject({
+					reason: "COLLECTION_DELETION_FAILED",
+					deletedCollectionId: collectionId,
+				});
+				expect(first.operation.errorDetail?.message).toContain(
+					`emdash site import abandon ${staged.operationId}`,
+				);
+				expect(first.operation.errorDetail?.message).toContain(
+					"POST /_emdash/api/admin/media-usage/collection-deletions/retry",
+				);
+				expect(first.nextRequestInMs).toBeNull();
+				return;
+			}
+			expect(first.operation.state).toBe("running");
+			expect(first.operation.errorCode).toBeNull();
+			expect(first.nextRequestInMs).toBe(IMPORT_RETRY_MS);
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({
+					next_attempt_at: "2000-01-01T00:00:00.000Z",
+					lease_expires_at: "2000-01-01T00:00:00.000Z",
+				})
+				.where("collection_id", "=", collectionId!)
+				.execute();
+			const results = await driveImport(ctx.db, storage, staged.operationId);
+			expect(results.at(-1)!.operation.state).toBe("complete");
+			await expectTargetMatchesGolden(ctx.db, staged.golden, staged.plan);
+		},
+	);
+
+	it("continues when another worker finishes scaffold deletion after a conflict", async () => {
+		await activateCapture(ctx.db);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
+		let targetSlug: string | undefined;
+		let finished = false;
+		faults.afterCheckpoint = async () => {
+			if (targetSlug) return;
+			const operation = await new TransferOperationRepository(ctx.db).require(staged.operationId);
+			if (operation.stage !== "clear_scaffold") return;
+			const collection = await ctx.db
+				.selectFrom("_emdash_collections")
+				.select(["id", "slug"])
+				.orderBy("slug")
+				.executeTakeFirstOrThrow();
+			targetSlug = collection.slug;
+			await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
+				collectionId: collection.id,
+				collectionSlug: collection.slug,
+				forceDelete: false,
+			});
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({
+					state: "leased",
+					lease_token: "other-worker",
+					lease_expires_at: "2999-01-01T00:00:00.000Z",
+				})
+				.where("collection_id", "=", collection.id)
+				.execute();
+		};
+		const originalDelete = SchemaRegistry.prototype.deleteCollection;
+		const deleteSpy = vi
+			.spyOn(SchemaRegistry.prototype, "deleteCollection")
+			.mockImplementation(async function (this: SchemaRegistry, slug, options) {
+				try {
+					await originalDelete.call(this, slug, options);
+				} catch (error) {
+					if (!(error instanceof SchemaError) || error.code !== "CONFLICT" || slug !== targetSlug)
+						throw error;
+					await ctx.db
+						.updateTable("_emdash_media_usage_collection_deletions")
+						.set({ lease_expires_at: "2000-01-01T00:00:00.000Z" })
+						.where("collection_slug", "=", slug)
+						.execute();
+					const repository = new MediaUsageCollectionDeletionRepository(ctx.db);
+					for (let tick = 0; tick < 20; tick++) {
+						const deletion = await repository.findBySlug(slug);
+						if (!deletion) break;
+						await processMediaUsageCollectionDeletion(ctx.db, deletion);
+					}
+					expect(await repository.findBySlug(slug)).toBeNull();
+					finished = true;
+					throw error;
+				}
+			});
+		try {
+			const result = await advanceImport({
+				db,
+				storage,
+				operationId: staged.operationId,
+				verify: verifyOk,
+			});
+			expect(finished).toBe(true);
+			expect(result.operation.state).toBe("complete");
+			await expectTargetMatchesGolden(ctx.db, staged.golden, staged.plan);
+		} finally {
+			deleteSpy.mockRestore();
+		}
+	});
+
+	it("reports a scaffold deletion that fails after its item checkpoint", async () => {
+		await activateCapture(ctx.db);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
+		let failedId: string | undefined;
+		faults.afterCheckpoint = async () => {
+			if (failedId) return;
+			const operation = await new TransferOperationRepository(ctx.db).require(staged.operationId);
+			if (operation.cursor?.stage !== "clear_scaffold" || operation.cursor.step !== 1) return;
+			const deletion = await ctx.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select("collection_id")
+				.executeTakeFirstOrThrow();
+			failedId = deletion.collection_id;
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({ state: "failed" })
+				.where("collection_id", "=", failedId)
+				.execute();
+		};
+		const result = await advanceImport({
+			db,
+			storage,
+			operationId: staged.operationId,
+			verify: verifyOk,
+		});
+		expect(failedId).toBeDefined();
+		expect(result.operation.state).toBe("failed");
+		expect(result.operation.errorCode).toBe("TRANSFER_IMPORT_ERROR");
+		expect(result.operation.errorDetail).toMatchObject({
+			reason: "COLLECTION_DELETION_FAILED",
+			deletedCollectionId: failedId,
+		});
+	});
+
+	it("preserves the deletion diagnostic when cleanup fails terminally during the drain", async () => {
+		await activateCapture(ctx.db);
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const { db, faults } = withFaults(ctx.db);
+		let failedId: string | undefined;
+		faults.afterCheckpoint = async () => {
+			if (failedId) return;
+			const operation = await new TransferOperationRepository(ctx.db).require(staged.operationId);
+			if (operation.cursor?.stage !== "clear_scaffold" || operation.cursor.step !== 1) return;
+			const deletion = await ctx.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select(["collection_id", "collection_slug"])
+				.executeTakeFirstOrThrow();
+			failedId = deletion.collection_id;
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({ phase: "finalize", attempt_count: 4 })
+				.where("collection_id", "=", failedId)
+				.execute();
+			await sql`CREATE TABLE ${sql.ref(`ec_${deletion.collection_slug}`)} (id text PRIMARY KEY)`.execute(
+				ctx.db,
+			);
+		};
+		const result = await advanceImport({
+			db,
+			storage,
+			operationId: staged.operationId,
+			verify: verifyOk,
+		});
+		expect(failedId).toBeDefined();
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select(["state", "last_error_code"])
+				.where("collection_id", "=", failedId!)
+				.executeTakeFirst(),
+		).toMatchObject({
+			state: "failed",
+			last_error_code: "MEDIA_USAGE_COLLECTION_DELETION_FAILED",
+		});
+		expect(result.operation.state).toBe("failed");
+		expect(result.operation.errorCode).toBe("TRANSFER_IMPORT_ERROR");
+		expect(result.operation.errorDetail).toMatchObject({
+			reason: "COLLECTION_DELETION_FAILED",
+			deletedCollectionId: failedId,
+		});
+		expect(result.operation.errorDetail?.message).toContain(
+			`emdash site import abandon ${staged.operationId}`,
+		);
+		expect(result.operation.errorDetail?.message).toContain(`{"collectionId":"${failedId}"}`);
+		expect(result.operation.errorDetail?.message).toContain(
+			"POST /_emdash/api/admin/media-usage/collection-deletions/retry",
+		);
+	});
+
+	it("continues importing when unrelated cleanup fails terminally during the scaffold drain", async () => {
+		await activateCapture(ctx.db);
+		await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
+			collectionId: "deleted-archive",
+			collectionSlug: "archive",
+			forceDelete: true,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ phase: "finalize", attempt_count: 4, next_attempt_at: "2000-01-01T00:00:00.000Z" })
+			.where("collection_id", "=", "deleted-archive")
+			.execute();
+		await ctx.db
+			.insertInto("_emdash_media_usage_sources")
+			.values({
+				source_key: "archive-source",
+				source_type: "content",
+				collection_id: "deleted-archive",
+				collection_slug: "archive",
+				content_id: "archived-post",
+				source_variant: "columns",
+				current_generation: "generation-old",
+			})
+			.execute();
+
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		const results = await driveImport(ctx.db, storage, staged.operationId);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_collection_deletions")
+				.select(["state", "last_error_code"])
+				.where("collection_id", "=", "deleted-archive")
+				.executeTakeFirst(),
+		).toMatchObject({
+			state: "failed",
+			last_error_code: "MEDIA_USAGE_COLLECTION_DELETION_FAILED",
+		});
+		expect(results.at(-1)!.operation.state).toBe("complete");
+		expect(results.every((result) => result.operation.errorCode === null)).toBe(true);
+		await expectTargetMatchesGolden(ctx.db, staged.golden, staged.plan);
+	});
+
+	it("rejects a deletion that failed after analysis before mutation begins", async () => {
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
+			collectionId: "old-collection",
+			collectionSlug: "old_posts",
+			forceDelete: false,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ state: "failed" })
+			.where("collection_id", "=", "old-collection")
+			.execute();
+		const result = await advanceImport({
+			db: ctx.db,
+			storage,
+			operationId: staged.operationId,
+			verify: verifyOk,
+		});
+		expect(result.operation.state).toBe("failed");
+		expect(result.operation.errorCode).toBe("TRANSFER_TARGET_NOT_EMPTY");
+		expect(result.operation.mutationStartedAt).toBeNull();
+		expect(await findSiteWriteFenceError(ctx.db)).toBeNull();
 	});
 
 	it("fails without fencing the site when content appeared after analysis", async () => {
