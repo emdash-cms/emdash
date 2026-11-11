@@ -708,9 +708,16 @@ async function buildTaxonomyPlan(
 	const terms: WxrTerm[] = [];
 
 	for (const taxonomy of taxonomies) {
+		const slugById = new Map(taxonomy.terms.map((term) => [term.id, term.slug]));
 		for (const term of taxonomy.terms) {
+			const parent = term.parent ? slugById.get(term.parent) : undefined;
 			if (taxonomy.name === "category") {
-				categories.push({ nicename: term.slug, name: term.name, description: term.description });
+				categories.push({
+					nicename: term.slug,
+					name: term.name,
+					description: term.description,
+					parent,
+				});
 			} else if (taxonomy.name === "post_tag") {
 				tags.push({ slug: term.slug, name: term.name, description: term.description });
 			} else if (taxonomy.name !== "nav_menu" && taxonomy.name !== "post_format") {
@@ -720,6 +727,7 @@ async function buildTaxonomyPlan(
 					slug: term.slug,
 					name: term.name,
 					description: term.description,
+					parent,
 				});
 			}
 		}

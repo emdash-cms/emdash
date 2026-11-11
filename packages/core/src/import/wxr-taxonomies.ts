@@ -31,6 +31,7 @@ import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../cli/wxr/parser.js
 import {
 	findTaxonomyStructure,
 	selectTaxonomyDefs,
+	type TaxonomyStructure,
 } from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { Database } from "../database/types.js";
@@ -185,10 +186,36 @@ interface TermDescriptor {
 	slug: string;
 	label: string;
 	description?: string;
+	/** Slug of the parent term in the same taxonomy */
+	parentSlug?: string;
 }
 
 function termKey(taxonomyName: string, slug: string): string {
 	return `${taxonomyName}\u0000${slug}`;
+}
+
+/**
+ * Order descriptors so a parent is created before its children. The exporter
+ * lists terms by name, so a child can come first. A parent cycle is cut where
+ * the walk meets a descriptor it has already placed.
+ */
+function parentsFirst(descriptors: TermDescriptor[]): TermDescriptor[] {
+	const byKey = new Map(descriptors.map((d) => [termKey(d.taxonomyName, d.slug), d]));
+	const placed = new Set<string>();
+	const ordered: TermDescriptor[] = [];
+	for (const descriptor of descriptors) {
+		const chain: TermDescriptor[] = [];
+		let current: TermDescriptor | undefined = descriptor;
+		while (current && !placed.has(termKey(current.taxonomyName, current.slug))) {
+			placed.add(termKey(current.taxonomyName, current.slug));
+			chain.push(current);
+			current = current.parentSlug
+				? byKey.get(termKey(current.taxonomyName, current.parentSlug))
+				: undefined;
+		}
+		ordered.push(...chain.toReversed());
+	}
+	return ordered;
 }
 
 /**
@@ -254,14 +281,21 @@ async function ensureTermsBatch(
 		if (!translationOfByKey.has(key)) translationOfByKey.set(key, row.id);
 	}
 
-	for (const d of stillNeeded) {
+	for (const d of parentsFirst(stillNeeded)) {
+		const translationOf = translationOfByKey.get(termKey(d.taxonomyName, d.slug));
+		// A translation takes its group's parent; naming one here could move the group.
+		const parentId =
+			translationOf || !d.parentSlug
+				? undefined
+				: state.plan.termIdByNameAndSlug.get(d.taxonomyName)?.get(d.parentSlug);
 		const created = await repo.create({
 			name: d.taxonomyName,
 			slug: d.slug,
 			label: d.label,
+			parentId,
 			data: d.description ? { description: d.description } : undefined,
 			locale,
-			translationOf: translationOfByKey.get(termKey(d.taxonomyName, d.slug)),
+			translationOf,
 		});
 		bump(state.plan.termsCreated, d.taxonomyName);
 		rememberTerm(state, d.taxonomyName, d.slug, created.id);
@@ -346,8 +380,8 @@ export async function preImportWxrTaxonomies(
 	// Cache def lookups for the duration of the import. Keyed by name; value
 	// is `null` when we've already determined the taxonomy is missing (so we
 	// only report the "missing" warning once per taxonomy).
-	const defCache = new Map<string, { id: string; collections: string[] } | null>();
-	const lookupDef = async (name: string): Promise<{ id: string; collections: string[] } | null> => {
+	const defCache = new Map<string, (TaxonomyStructure & { id: string }) | null>();
+	const lookupDef = async (name: string): Promise<(TaxonomyStructure & { id: string }) | null> => {
 		if (defCache.has(name)) return defCache.get(name) ?? null;
 		// A taxonomy's structure is the same in every locale, so a definition in
 		// any locale counts, as it does for the runtime's `getTaxonomyDef`.
@@ -373,6 +407,7 @@ export async function preImportWxrTaxonomies(
 				slug: cat.nicename,
 				label: cat.name,
 				description: cat.description,
+				parentSlug: categoryDef.hierarchical ? cat.parent : undefined,
 			});
 		}
 	} else if (categories.length > 0) {
@@ -411,6 +446,7 @@ export async function preImportWxrTaxonomies(
 			slug: term.slug,
 			label: term.name,
 			description: term.description,
+			parentSlug: def.hierarchical ? term.parent : undefined,
 		});
 	}
 

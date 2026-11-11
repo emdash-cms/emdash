@@ -171,6 +171,8 @@ A mapped WordPress author becomes the entry owner. Presentation credits use byli
 
 Categories and tags are imported into the matching EmDash taxonomy definitions. The exporter path can create definitions for custom taxonomies. A WXR custom taxonomy without a matching EmDash definition is reported as missing and its assignments are skipped.
 
+When the EmDash taxonomy is hierarchical, a category or term keeps its WordPress parent. A term that already exists in EmDash keeps its current parent, so importing again does not move it.
+
 ### Media
 
 Media deduplication compares a SHA-1 hash of the downloaded bytes. An existing media row with the same hash is reused. Filenames and WordPress IDs are not the deduplication key.

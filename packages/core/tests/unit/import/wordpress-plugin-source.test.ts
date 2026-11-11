@@ -13,6 +13,7 @@ import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordp
 import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { PluginMenu } from "../../../src/import/menus.js";
 import { importMenusFromPlugin } from "../../../src/import/menus.js";
 import {
@@ -972,6 +973,96 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 			expect(json.error.code).toBe("WP_SITE_CHALLENGE");
 		},
 	);
+});
+
+describe("WordPress Plugin execute: term parents", () => {
+	beforeEach(() => {
+		clearSources();
+		registerSource(wordpressPluginSource);
+	});
+
+	afterAll(() => {
+		clearSources();
+	});
+
+	it("nests categories and terms under their parents when the exporter lists a child first", async () => {
+		const db = await setupTestDatabaseWithCollections();
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/emdash/v1/taxonomies")) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify([
+							{
+								name: "category",
+								label: "Categories",
+								hierarchical: true,
+								terms: [
+									{ id: 12, name: "Munich", slug: "munich", description: "", parent: 11, count: 1 },
+									{
+										id: 11,
+										name: "Bavaria",
+										slug: "bavaria",
+										description: "",
+										parent: null,
+										count: 0,
+									},
+								],
+							},
+							{
+								name: "region",
+								label: "Regions",
+								hierarchical: true,
+								post_types: ["post"],
+								terms: [
+									{ id: 22, name: "Alps", slug: "alps", description: "", parent: 21, count: 1 },
+									{
+										id: 21,
+										name: "Europe",
+										slug: "europe",
+										description: "",
+										parent: null,
+										count: 0,
+									},
+								],
+							},
+						]),
+					),
+				);
+			}
+			if (url.includes("/emdash/v1/content")) return Promise.resolve(contentResponse([]));
+			return Promise.resolve(new Response("{}", { status: 404 }));
+		});
+		const body = {
+			url: "https://example.com",
+			token: "test-token",
+			phase: "content",
+			config: { postTypeMappings: { post: { collection: "post", enabled: true } } },
+		};
+		const emdash = {
+			db,
+			handleContentCreate: vi.fn(),
+			getManifest: async () => ({ collections: { post: {} } }),
+		};
+
+		try {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal Astro context
+			const response = await executeRoute(routeContext("execute", body, emdash) as any);
+			expect(response.status).toBe(200);
+
+			const repo = new TaxonomyRepository(db);
+			const bavaria = await repo.findBySlug("category", "bavaria");
+			const munich = await repo.findBySlug("category", "munich");
+			expect(bavaria?.parentId).toBeNull();
+			expect(munich?.parentId).toBe(bavaria?.translationGroup);
+			const europe = await repo.findBySlug("region", "europe");
+			const alps = await repo.findBySlug("region", "alps");
+			expect(europe?.parentId).toBeNull();
+			expect(alps?.parentId).toBe(europe?.translationGroup);
+		} finally {
+			await teardownTestDatabase(db);
+		}
+	});
 });
 
 describe("WordPress Plugin execute: menus", () => {
