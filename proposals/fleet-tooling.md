@@ -8,14 +8,13 @@ champion: Daniel Mueller (@danielmlr)
 sponsor: Daniel Mueller (@danielmlr)
 discussions:
   - https://github.com/emdash-cms/emdash/discussions/139
-  - https://github.com/emdash-cms/emdash/discussions/3636
-  - https://github.com/emdash-cms/emdash/discussions/3079
+  - https://github.com/emdash-cms/emdash/discussions/2929
 created: 2026-11-10
 ---
 
 # Run many sites from one place
 
-> **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. Acceptance waits on the [acceptance gates](#acceptance-gates) that are still open: tests for two setup-secret paths and a run on a real account.
+> **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. Two [acceptance gates](#acceptance-gates) are still open: tests for two setup-secret paths and a run on a real account. Acceptance also waits on linking every gate's results from the design pull request.
 
 ## Summary
 
@@ -289,7 +288,7 @@ A site can leave the fleet at any time: deleting its entry changes nothing on th
 
 `fleet update` and provisioning a `repo` site use #4577's request route, its `updates:request` token scope, its error codes, its `updateCheck.trigger` option and its shipped workflow file. This RFC is written against #4577's current revision. If #4577 changes before this RFC is accepted, this RFC is amended in the same revision so that every name above matches #4577's text. If #4577 is accepted with changes after this RFC, the implementation follows #4577 and this proposal is amended by a design pull request. If #4577 is withdrawn, `fleet update` and `repo` provisioning are removed from this RFC before acceptance; `repo` sites can then still be adopted for `status`.
 
-If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) lands, fleet commands take the same `--env-file` option. #4683 adds it to `emdash migrate` only, so the fleet commands add it themselves. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a fleet token can belong to a role limited to what the tool needs.
+If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) lands, fleet commands take the same `--env-file` option. #4683 adds it to `emdash migrate` only, so the fleet commands add it themselves. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a fleet token can belong to a role limited to what the tool needs. If [the Durable Object site mode (#4790)](https://github.com/emdash-cms/emdash/pull/4790) lands, a site in that mode can be adopted for `status` and `update`. It has no D1 database and runs its migrations inside the object, so provisioning and deploying it needs an amendment to this RFC.
 
 ## Security and privacy
 
@@ -309,7 +308,7 @@ Page requests don't change. The logged-out routes run the same queries, and the 
 
 The tool's own cost is outbound requests from the operator's machine or CI: one health request per site for `status`, plus one admin request when a token is present. In the prototype, `status` over three local sites took 385–411 ms, of which about 200 ms is loading the CLI.
 
-Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the quota step reads each Worker's schedules, one request per Worker. The **migrate** step costs more: `emdash migrate` sends each SQL statement to D1 as its own API request, and the core migrations on an empty database run about 600 statements. One `provision` on an account with N Workers costs about 610 + N API requests, plus one `wrangler deploy`. At 250 Workers that's about 860 requests, against the API's limit of 1,200 requests per five minutes per user, so a second `provision` within five minutes can reach the limit. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
+Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the quota step reads each Worker's schedules, one request per Worker. The **migrate** step costs more: `emdash migrate` sends each SQL statement to D1 as its own API request, and the core migrations on an empty database run about 600 statements. One `provision` on an account with N Workers costs about 610 + N API requests, plus one `wrangler deploy`. At 250 Workers that's about 860 requests, against the API's limit of 1,200 requests per five minutes per user, so a second `provision` within five minutes can reach the limit. [Failure handling](#failure-handling) says how the tool stays under it. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
 
 ## Failure handling
 
@@ -324,6 +323,7 @@ Account limits matter more than speed. The Cloudflare API has no account-wide co
 - **An update request is rejected:** #4577's error code (`UPDATE_NOT_AVAILABLE`, `UPDATE_ALREADY_REQUESTED`, `UPDATE_TRIGGER_NOT_READY` and the others) is printed for that site.
 - **The repository already exists** during `repo` provisioning: the tool uses it only if it's empty or holds the tool's own first commit, and stops otherwise.
 - **`fleet.yaml` changed during a run:** the tool doesn't write and prints the records it would have written, so they can be added by hand or recovered with `reconcile`.
+- **The Cloudflare API rate limit:** the tool reads the `Ratelimit` header of every Cloudflare API response, from its own requests and from the `emdash migrate` runs it starts, and waits when the remaining quota wouldn't cover the next step. If a request still gets a 429, the run stops cleanly: finished steps stay recorded, no further step or wave starts, and the output names the limit and the `retry-after` time. Running the command again continues from there.
 - **Observability:** every command prints one line per site and step, and `--json` gives the same as structured output for CI logs.
 
 ## Verification
@@ -331,14 +331,14 @@ Account limits matter more than speed. The Cloudflare API has no account-wide co
 - Unit tests for the file format: validation errors with their path, `defaults`, comment-preserving writes, and the refusal to write after a concurrent change.
 - Command tests against a local fleet of three sites with the local providers: `status` with and without tokens, `deploy` in waves with one injected failing migration, a fingerprint mismatch, and `update` against a stub of #4577's request route with one site that never reports the new version.
 - Provisioning tests for both layouts that fail at each step and then run `provision` again, and `reconcile` finishing a half-done site.
-- Provider tests at the HTTP boundary for Cloudflare and GitHub: request shapes, the quota check, idempotent creation when the resource exists, and token redaction in errors. `--dry-run` prints every API call.
+- Provider tests at the HTTP boundary for Cloudflare and GitHub: request shapes, the quota check, idempotent creation when the resource exists, waiting on a low `Ratelimit` quota, a clean stop on a 429, and token redaction in errors. `--dry-run` prints every API call.
 - Setup secret tests on a real SQLite database for each path in the table: refused without the token, succeeds with it, and no change when the secret isn't set. The cookie's `SameSite` and `Secure` attributes behind a proxy. Admin tests for the message, including Arabic.
 - The query-count snapshot shows no change.
 - A manual run of `provision` (both layouts), `deploy`, `update` and `remove` on a throwaway Cloudflare account and GitHub organization.
 
 ### Acceptance gates
 
-This RFC moves to `accepted` only when these results are linked from the design pull request:
+This RFC moves to `accepted` only when these results are linked from the design pull request. **Met** below means the check has run; its results are linked before acceptance.
 
 - **Fleet prototype** (a local branch, not a pull request, as `proposals/README.md` asks). Run on 2026-11-10 against `main` at `4269455b21`:
   - `status` over three local `wrangler dev` sites, with and without tokens, and with one site stopped (exit code 1). **Met.**
