@@ -9,7 +9,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import type { AuthProviderDescriptor } from "../../auth/types.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
@@ -510,10 +510,11 @@ export function generateWaitUntilModule(adapterName: string | undefined): string
  * routes can read Worker bindings/secrets without touching
  * `Astro.locals.runtime.env`, which Astro 6+ removed (accessing it throws
  * rather than returning undefined, so `locals.runtime?.env` optional-chaining
- * doesn't help -- see #1736). For any other adapter, exports `undefined` so
- * callers fall back to `import.meta.env`. Mirrors generateWaitUntilModule:
- * core stays adapter-agnostic, with no direct `cloudflare:workers` import
- * that would fail to resolve under a Node build.
+ * doesn't help). For any other adapter, exports `undefined`. Callers that
+ * need runtime secrets then prefer `process.env` over `import.meta.env`,
+ * which Vite replaces with the environment present at build time. Mirrors
+ * generateWaitUntilModule: core stays adapter-agnostic, with no direct
+ * `cloudflare:workers` import that would fail to resolve under a Node build.
  */
 export function generateEnvModule(adapterName: string | undefined): string {
 	if (adapterName === "@astrojs/cloudflare") {
@@ -584,6 +585,7 @@ export function createScheduler(executor) {
  */
 export function generateSeedModule(projectRoot: string, warnOnFallback = false): string {
 	let userSeedJson: string | null = null;
+	let mediaBasePath: string | undefined;
 
 	// Try .emdash/seed.json
 	try {
@@ -591,6 +593,7 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 		const content = readFileSync(seedPath, "utf-8");
 		JSON.parse(content); // validate
 		userSeedJson = content;
+		mediaBasePath = dirname(seedPath);
 	} catch {
 		// Not found, try next
 	}
@@ -607,6 +610,7 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 				const content = readFileSync(seedPath, "utf-8");
 				JSON.parse(content); // validate
 				userSeedJson = content;
+				mediaBasePath = dirname(seedPath);
 			}
 		} catch {
 			// Not found
@@ -620,13 +624,18 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 			const content = readFileSync(seedPath, "utf-8");
 			JSON.parse(content); // validate
 			userSeedJson = content;
+			mediaBasePath = dirname(seedPath);
 		} catch {
 			// Not found
 		}
 	}
 
 	if (userSeedJson) {
-		return [`export const userSeed = ${userSeedJson};`, `export const seed = userSeed;`].join("\n");
+		return [
+			`export const userSeed = ${userSeedJson};`,
+			`export const seed = userSeed;`,
+			`export const mediaBasePath = ${JSON.stringify(mediaBasePath)};`,
+		].join("\n");
 	}
 
 	// No user seed — inline the default. Caller (the Vite plugin) gates this
@@ -640,6 +649,7 @@ export function generateSeedModule(projectRoot: string, warnOnFallback = false):
 	return [
 		`export const userSeed = null;`,
 		`export const seed = ${JSON.stringify(defaultSeed)};`,
+		`export const mediaBasePath = undefined;`,
 	].join("\n");
 }
 

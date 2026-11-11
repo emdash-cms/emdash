@@ -8,6 +8,10 @@
     "emdash": "./dist/cli/index.mjs",
     "em": "./dist/cli/index.mjs"
   },
+  "sideEffects": [
+    "**/*.astro",
+    "**/*.css"
+  ],
   "files": [
     "dist",
     "src",
@@ -326,6 +330,7 @@
     "mime": "^4.1.0",
     "modern-tar": "^0.7.5",
     "picocolors": "^1.1.1",
+    "proper-lockfile": "^4.1.2",
     "sanitize-html": "^2.17.1",
     "sax": "^1.4.1",
     "smol-toml": "^1.6.0",
@@ -359,6 +364,7 @@
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
     "@types/pg": "^8.16.0",
+    "@types/proper-lockfile": "^4.1.4",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@types/sanitize-html": "^2.16.0",

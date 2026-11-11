@@ -727,6 +727,14 @@ export interface EmDashConfig {
 	 * `env:astro` requirement can be evaluated against the real host version.
 	 */
 	astroVersion?: string;
+
+	/**
+	 * Whether the host site defines its own `src/pages/robots.txt` route, which
+	 * replaces the injected one and its `seo.robotsTxt` and
+	 * `seo.disallowAiTraining` output. Populated by the integration's
+	 * `astro:config:setup` hook (not authored by the user).
+	 */
+	robotsTxtOverridden?: boolean;
 }
 
 const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");
