@@ -93,10 +93,9 @@ describe("UserAvatar", () => {
 	});
 
 	it("is hidden from screen readers without a label", async () => {
-		const screen = await render(<UserAvatar user={{ ...user, avatarUrl: PICTURE }} size={32} />);
-		const picture = screen.container.querySelector("img")!;
-		await expect.poll(() => getComputedStyle(picture).opacity).toBe("1");
+		const screen = await render(<UserAvatar user={user} size={32} />);
 
+		expect(letters(screen.container)).toBe("NP");
 		expect(screen.getByRole("img").query()).toBeNull();
 	});
 

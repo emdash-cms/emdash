@@ -137,6 +137,8 @@ function GeneratedAvatar({
 					y="50"
 					dy=".35em"
 					textAnchor="middle"
+					direction="ltr"
+					unicodeBidi="isolate"
 					fontSize={shown.length > 1 ? 38 : 44}
 					fontWeight={600}
 					fill="#fff"

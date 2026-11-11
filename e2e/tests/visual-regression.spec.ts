@@ -174,6 +174,7 @@ async function installTimestampNormalizer(
 
 async function pinCurrentUserId(admin: AdminPage): Promise<void> {
 	await admin.page.route("**/_emdash/api/auth/me", async (route) => {
+		if (route.request().method() !== "GET") return route.fallback();
 		const response = await route.fetch();
 		const body = (await response.json()) as { data?: Record<string, unknown> };
 		if (body.data) body.data.id = VISUAL_USER_ID;
