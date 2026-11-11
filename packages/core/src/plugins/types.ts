@@ -457,6 +457,7 @@ export interface CollectionSchemaInfo {
 	supports: string[];
 	hasSeo: boolean;
 	titleField: string | null;
+	/** Custom datetime field slug or system timestamp (`publishedAt`, `createdAt`, `updatedAt`); null means last-updated. */
 	dateField: string | null;
 	urlPattern: string | null;
 	routable: boolean;

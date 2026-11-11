@@ -1,5 +1,5 @@
 import { sql, type Kysely } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	handleContentCreate,
@@ -9,6 +9,11 @@ import {
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import {
+	createRedirectSource,
+	publishRedirectArtifacts,
+} from "../../../src/redirects/artifacts.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	type DialectTestContext,
@@ -305,5 +310,164 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 		});
 
 		await expect(redirects.findBySource("/blog/a")).resolves.toBeNull();
+	});
+
+	describe("with a URL pattern that ends in a slash", () => {
+		beforeEach(async () => {
+			const schema = new SchemaRegistry(db);
+			await schema.createCollection({
+				slug: "events",
+				label: "Events",
+				urlPattern: "/whats-on/{slug}/",
+			});
+			await schema.createField("events", { slug: "title", label: "Title", type: "string" });
+		});
+
+		async function publishEvent(slug: string): Promise<string> {
+			const entry = await new ContentRepository(db).create({
+				type: "events",
+				slug,
+				status: "published",
+				data: { title: slug },
+			});
+			return entry.id;
+		}
+
+		async function rows() {
+			return db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination", "auto"])
+				.orderBy("source")
+				.execute();
+		}
+
+		it("keeps the slash and collapses a chain into the old URL", async () => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({
+				source: "/somewhere",
+				destination: "/whats-on/old/",
+			});
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/somewhere", destination: "/whats-on/new/" }),
+				expect.objectContaining({
+					source: "/whats-on/old/",
+					destination: "/whats-on/new/",
+					auto: 1,
+				}),
+			]);
+		});
+
+		it("removes a redirect from the new URL written without the slash", async () => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({
+				source: "/whats-on/new",
+				destination: "/elsewhere",
+			});
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old/", destination: "/whats-on/new/" }),
+			]);
+		});
+
+		it("updates a redirect from the old URL written without the slash", async () => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({
+				source: "/whats-on/old",
+				destination: "/elsewhere",
+			});
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old", destination: "/whats-on/new/" }),
+			]);
+		});
+
+		it("updates both forms of a redirect from the old URL", async () => {
+			const id = await publishEvent("old");
+			const redirects = new RedirectRepository(db);
+			await redirects.create({ source: "/whats-on/old", destination: "/elsewhere" });
+			await redirects.create({ source: "/whats-on/old/", destination: "/elsewhere" });
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old", destination: "/whats-on/new/" }),
+				expect.objectContaining({ source: "/whats-on/old/", destination: "/whats-on/new/" }),
+			]);
+		});
+
+		it.each([
+			{ rule: "disabled", input: { destination: "/elsewhere", enabled: false } },
+			{ rule: "410", input: { destination: "", type: 410 } },
+		])("redirects the old URL when its other form has a $rule rule", async ({ input }) => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({ source: "/whats-on/old", ...input });
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old", destination: input.destination }),
+				expect.objectContaining({
+					source: "/whats-on/old/",
+					destination: "/whats-on/new/",
+					auto: 1,
+				}),
+			]);
+		});
+
+		it.each([
+			{ rule: "disabled", input: { destination: "/elsewhere", enabled: false } },
+			{ rule: "410", input: { destination: "", type: 410 } },
+		])("leaves a $rule rule at the exact old URL unchanged", async ({ input }) => {
+			const id = await publishEvent("old");
+			await new RedirectRepository(db).create({ source: "/whats-on/old/", ...input });
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+
+			await expect(rows()).resolves.toEqual([
+				expect.objectContaining({ source: "/whats-on/old/", destination: input.destination }),
+			]);
+		});
+
+		it("republishes redirects collapsed next to a kept rule at the old URL", async () => {
+			const id = await publishEvent("old");
+			const repo = new RedirectRepository(db);
+			await repo.create({ source: "/whats-on/old/", destination: "", type: 410 });
+			await repo.create({ source: "/somewhere", destination: "/whats-on/old/" });
+			await publishRedirectArtifacts(db);
+
+			await handleContentUpdate(db, "events", id, { slug: "new" });
+			await waitForDeferredTasks();
+
+			const source = createRedirectSource(db);
+			const { version } = await source.load();
+			expect(version).not.toBeNull();
+			expect(await source.isCurrent(version!)).toBe(true);
+		});
+
+		it("removes the auto-redirect when a new entry is published at the old URL", async () => {
+			const id = await publishEvent("a");
+			await handleContentUpdate(db, "events", id, { slug: "b" });
+			await new ContentRepository(db).delete("events", id);
+			await new RedirectRepository(db).create({
+				source: "/whats-on/c",
+				destination: "/whats-on/d/",
+				auto: true,
+			});
+
+			for (const slug of ["a", "c"]) {
+				await expect(
+					handleContentCreate(db, "events", { slug, status: "published", data: { title: slug } }),
+				).resolves.toMatchObject({ success: true });
+			}
+
+			await expect(rows()).resolves.toEqual([]);
+		});
 	});
 });

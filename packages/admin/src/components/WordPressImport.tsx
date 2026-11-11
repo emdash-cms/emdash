@@ -57,6 +57,7 @@ import {
 	type AttachmentInfo,
 	type ProbeResult,
 	type AuthorMapping,
+	type NavMenu,
 	type UserListItem,
 } from "../lib/api";
 import { cn } from "../lib/utils";
@@ -1664,13 +1665,7 @@ function UploadStep({
 // Menu Info (Type-safe helper for navMenus)
 // =============================================================================
 
-interface NavMenuItem {
-	name: string;
-	slug: string;
-	count: number;
-}
-
-function getNavMenus(analysis: ImportAnalysis): NavMenuItem[] | undefined {
+function getNavMenus(analysis: ImportAnalysis): NavMenu[] | undefined {
 	if ("navMenus" in analysis && Array.isArray(analysis.navMenus)) {
 		return analysis.navMenus;
 	}
@@ -1810,27 +1805,24 @@ function ReviewStep({
 						<p className="text-sm text-kumo-subtle mt-1">{t`Additional data to import.`}</p>
 					</div>
 					<div className="divide-y">
-						{/* Menus — only the plugin import can import them; for WXR the
-						    entries are informational */}
-						{isPluginSource && (
-							<div className="p-4">
-								<Switch
-									checked={importMenus}
-									onCheckedChange={(checked) => onImportMenusChange(checked)}
-									label={
-										<div className="flex items-center gap-2">
-											<List className="h-4 w-4 text-kumo-subtle" />
-											<div>
-												<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
-												<p className="text-sm text-kumo-subtle">
-													{navMenus.map((m) => m.name).join(", ")}
-												</p>
-											</div>
+						{/* Menus — both the WXR and the plugin import bring them in */}
+						<div className="p-4">
+							<Switch
+								checked={importMenus}
+								onCheckedChange={(checked) => onImportMenusChange(checked)}
+								label={
+									<div className="flex items-center gap-2">
+										<List className="h-4 w-4 text-kumo-subtle" />
+										<div>
+											<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
+											<p className="text-sm text-kumo-subtle">
+												{navMenus.map((m) => m.label || m.name).join(", ")}
+											</p>
 										</div>
-									}
-								/>
-							</div>
-						)}
+									</div>
+								}
+							/>
+						</div>
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (

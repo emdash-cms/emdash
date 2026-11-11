@@ -180,11 +180,17 @@ const settingsSeoSchema = z.object({
 		.string()
 		.max(5000)
 		.optional()
-		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+		.describe(
+			"Custom robots.txt body. Leave unset for the EmDash default. Changes are rejected " +
+				"when the site serves its own src/pages/robots.txt.",
+		),
 	disallowAiTraining: z
 		.boolean()
 		.optional()
-		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
+		.describe(
+			"Add robots.txt rules asking AI crawlers not to use the site for training. " +
+				"Changes are rejected when the site serves its own src/pages/robots.txt.",
+		),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -271,7 +277,7 @@ const schemaUpdateCollectionToolSchema = z.object({
 		"Field slug to use as the Title column in admin lists; pass null to fall back to the default",
 	),
 	dateField: updateCollectionBody.shape.dateField.describe(
-		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+		"Datetime field slug or system timestamp (publishedAt, createdAt, updatedAt) to use as the Date column and default sort in admin lists; pass null to fall back to last-updated",
 	),
 });
 
@@ -2391,7 +2397,8 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"preview), 'no-scheduling' (disables timed publishing, which is otherwise allowed), " +
+				"'search' (full-text indexing), " +
 				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
@@ -2403,7 +2410,7 @@ export function createMcpServer(
 				description: z.string().optional().describe("Description of this collection"),
 				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
-					"Features to enable (default: ['drafts', 'revisions'])",
+					"Collection capabilities and opt-outs (default: ['drafts', 'revisions']); scheduling is allowed unless 'no-scheduling' is present",
 				),
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",
@@ -3831,6 +3838,25 @@ export function createMcpServer(
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
 			try {
+				const seo = args.seo;
+				if (
+					ec.config.robotsTxtOverridden &&
+					seo &&
+					(Boolean(seo.robotsTxt) || seo.disallowAiTraining === true)
+				) {
+					const { getSiteSettingWithDb } = await import("../settings/index.js");
+					const stored = await getSiteSettingWithDb("seo", ec.db);
+					const changesRobotsTxt = Boolean(seo.robotsTxt) && seo.robotsTxt !== stored?.robotsTxt;
+					const enablesAiRule =
+						seo.disallowAiTraining === true && stored?.disallowAiTraining !== true;
+					if (changesRobotsTxt || enablesAiRule) {
+						return respondError(
+							"ROBOTS_TXT_OVERRIDDEN",
+							"This site serves its own src/pages/robots.txt, so seo.robotsTxt and " +
+								"seo.disallowAiTraining would have no effect. Edit that file instead.",
+						);
+					}
+				}
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
 				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
 					siteSettingsTag(),

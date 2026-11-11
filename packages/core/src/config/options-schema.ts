@@ -77,6 +77,7 @@ const configShape = {
 		error: 'Expected "server", "client" or `false`',
 	}),
 	astroVersion: z.string(),
+	robotsTxtOverridden: z.boolean(),
 } satisfies { [K in keyof Required<EmDashConfig>]: z.ZodType };
 
 const configSchema = z.looseObject(

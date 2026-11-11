@@ -29,6 +29,7 @@ declare module "virtual:emdash/config" {
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
+		robotsTxtOverridden?: boolean;
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
 	}
@@ -189,8 +190,9 @@ declare module "virtual:emdash/wait-until" {
 declare module "virtual:emdash/env" {
 	/**
 	 * Worker bindings/secrets. Resolves to Cloudflare's `env` (from
-	 * `cloudflare:workers`) under @astrojs/cloudflare; `undefined` on Node,
-	 * where callers should fall back to `import.meta.env`.
+	 * `cloudflare:workers`) under @astrojs/cloudflare. `undefined` on Node,
+	 * where callers that need runtime secrets prefer `process.env` over the
+	 * build-time `import.meta.env` snapshot.
 	 */
 	export const env: Record<string, unknown> | undefined;
 }
