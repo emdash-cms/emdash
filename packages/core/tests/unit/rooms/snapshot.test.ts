@@ -1,11 +1,8 @@
+import { snapshotContains } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
-import {
-	decodeCheckpoint,
-	encodeCheckpoint,
-	snapshotContains,
-} from "../../../src/rooms/snapshot.js";
+import { decodeCheckpoint, encodeCheckpoint } from "../../../src/rooms/snapshot.js";
 
 /** A snapshot as a room record stores and loads it. */
 function recorded(doc: Y.Doc): Y.Snapshot {

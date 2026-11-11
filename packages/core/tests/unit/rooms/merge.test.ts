@@ -1,3 +1,4 @@
+import { readField, readFields } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
@@ -5,8 +6,6 @@ import type { ContentWrite } from "../../../src/api/content-save.js";
 import {
 	buildDocument,
 	documentFields,
-	readField,
-	readFields,
 	storedValues,
 	type DocumentField,
 } from "../../../src/rooms/document.js";

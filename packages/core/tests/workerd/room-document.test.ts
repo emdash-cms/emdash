@@ -1,6 +1,7 @@
+import { readFields, writeField } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 
-import { buildDocument, documentFields, readFields, writeField } from "../../src/rooms/document.js";
+import { buildDocument, documentFields } from "../../src/rooms/document.js";
 import { hashValue } from "../../src/rooms/hash.js";
 
 const span = (key: string, text: string, marks: string[] = []) => ({
@@ -15,7 +16,7 @@ const PLUGIN_TYPES = ["callout"];
 const FIELDS = [
 	{ slug: "title", type: "string" as const },
 	{ slug: "body", type: "portableText" as const },
-	{ slug: "related", type: "reference" as const },
+	{ slug: "related", type: "reference" as const, validation: { relation: "posts_related" } },
 ];
 
 const ENTRY_DATA = {

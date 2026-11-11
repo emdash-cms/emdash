@@ -4,6 +4,22 @@
  * and operations run one at a time through a serial queue; client updates apply at once.
  */
 
+import {
+	decodeMessage,
+	encodeAwareness,
+	encodeRoomMessage,
+	encodeSyncStep1,
+	encodeSyncStep2,
+	encodeUpdate,
+	ENTRY_SLUG,
+	readField,
+	readFields,
+	snapshotContains,
+	touchedFields,
+	writeField,
+	type AwarenessEntry,
+	type Notice,
+} from "@emdash-cms/admin/internal/co-editing";
 import { findUnsupportedPortableTextMarks } from "@emdash-cms/admin/internal/portable-text";
 import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import * as Y from "yjs";
@@ -11,13 +27,8 @@ import * as Y from "yjs";
 import {
 	buildDocument,
 	documentFields,
-	ENTRY_SLUG,
 	layoutFields,
-	readField,
-	readFields,
 	storedValues,
-	touchedFields,
-	writeField,
 	type DocumentField,
 } from "./document.js";
 import { hashValue } from "./hash.js";
@@ -48,17 +59,7 @@ import {
 	mergeBaseAfterSave,
 	type FieldDecision,
 } from "./merge.js";
-import {
-	decodeMessage,
-	encodeAwareness,
-	encodeRoomMessage,
-	encodeSyncStep1,
-	encodeSyncStep2,
-	encodeUpdate,
-	type AwarenessEntry,
-	type Notice,
-} from "./protocol.js";
-import { decodeCheckpoint, encodeCheckpoint, snapshotContains } from "./snapshot.js";
+import { decodeCheckpoint, encodeCheckpoint } from "./snapshot.js";
 import {
 	CLOSE_CODES,
 	RoomClaimLostError,
@@ -117,6 +118,8 @@ interface LoadedState {
 	/** `editors` changed since the last record write. */
 	editorsChanged: boolean;
 	autosaveQueued: boolean;
+	/** The latest save ended in a conflict, so the next notification's merge saves again. */
+	saveConflicted: boolean;
 	/** Each user's latest credit, in credit order, to tell who updated after a save's snapshot. */
 	credits: Map<string, number>;
 	creditCount: number;
@@ -629,6 +632,7 @@ export class Room {
 			mergeUpdates: [],
 			editorsChanged: false,
 			autosaveQueued: false,
+			saveConflicted: false,
 			credits: new Map(),
 			creditCount: 0,
 			storedBytes: 0,
@@ -851,6 +855,7 @@ export class Room {
 		if (outcome && !outcome.ok && outcome.reason === "NOT_FOUND" && this.#live(state)) {
 			await this.#runMerge(state, {});
 		}
+		state.saveConflicted = outcome?.ok === false && outcome.reason === "CONFLICT";
 		return outcome;
 	}
 
@@ -1004,7 +1009,8 @@ export class Room {
 			const resumed = state ? null : await this.#resume();
 			const current = resumed?.state ?? state ?? this.#loaded();
 			if (current && this.#live(current)) {
-				await this.#runMerge(current, { entry: resumed?.entry });
+				const merged = await this.#runMerge(current, { entry: resumed?.entry });
+				if (merged === "merged" && this.#savesAfterMerge(current)) this.#queueAutosave();
 			}
 		});
 		this.#mergeQueued = queued;
@@ -1445,6 +1451,13 @@ export class Room {
 
 	#isUncovered(state: LoadedState): boolean {
 		return !snapshotContains(state.checkpoint, Y.snapshot(state.doc));
+	}
+
+	/** After a save gave up on a conflict, a notification's merge saves what no timer will. */
+	#savesAfterMerge(state: LoadedState): boolean {
+		return (
+			state.saveConflicted && state.cancelSave === null && this.isOpen() && this.#isUncovered(state)
+		);
 	}
 
 	#hasWork(state: LoadedState): boolean {

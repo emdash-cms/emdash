@@ -3,11 +3,8 @@
  * speak the room protocol.
  */
 
-import { vi } from "vitest";
-import * as Y from "yjs";
-
-import { readField, type DocumentField } from "../../../src/rooms/document.js";
 import {
+	readField,
 	decodeMessage,
 	encodeAwareness,
 	encodeRoomMessage,
@@ -17,7 +14,11 @@ import {
 	type AwarenessEntry,
 	type Message,
 	type Notice,
-} from "../../../src/rooms/protocol.js";
+} from "@emdash-cms/admin/internal/co-editing";
+import { vi } from "vitest";
+import * as Y from "yjs";
+
+import { type DocumentField } from "../../../src/rooms/document.js";
 import { Room } from "../../../src/rooms/room.js";
 import type {
 	Build,

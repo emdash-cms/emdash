@@ -1,3 +1,9 @@
+import {
+	decodeMessage,
+	encodeSyncStep1,
+	encodeSyncStep2,
+	encodeUpdate,
+} from "@emdash-cms/admin/internal/co-editing";
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,12 +15,6 @@ import type { Database } from "../../../src/database/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { runInFreshRequestContext } from "../../../src/request-context.js";
 import { RoomRegistry, type AcceptedConnection } from "../../../src/rooms/node/registry.js";
-import {
-	decodeMessage,
-	encodeSyncStep1,
-	encodeSyncStep2,
-	encodeUpdate,
-} from "../../../src/rooms/protocol.js";
 import { createRoomSite } from "../../../src/rooms/site.js";
 import { roomId, type RoomConnection } from "../../../src/rooms/types.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";

@@ -136,6 +136,11 @@ export interface UpdateContentInput {
 	/** Reference-field edges to replace atomically, keyed by field slug. */
 	references?: Record<string, string[]>;
 	/**
+	 * The bylines and reference selections this save was based on, as a read returned them. The
+	 * server refuses the save with `LIST_CONFLICT` when a stored list differs.
+	 */
+	expected?: { bylines?: BylineCreditInput[]; references?: Record<string, string[]> };
+	/**
 	 * Optimistic-concurrency token from the last read. When present, the
 	 * server rejects the write with 409 if the entry changed since that read,
 	 * preventing a stale editor from silently overwriting a newer draft

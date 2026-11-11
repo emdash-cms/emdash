@@ -867,35 +867,40 @@ export class TaxonomyRepository {
 	}
 
 	/**
-	 * Replace all assignments of a given taxonomy for one content entry.
-	 * Term ids OR translation_groups are accepted and normalised to groups.
+	 * Replace an entry's terms in one taxonomy. Term ids or translation groups are accepted and
+	 * normalised to groups. With `basedOn`, the terms the change was made from, only the change is
+	 * written, so a concurrent change to other terms stays.
 	 */
 	async setTermsForEntry(
 		collection: string,
 		entryId: string,
 		taxonomyName: string,
 		termIds: string[],
+		basedOn?: string[],
 	): Promise<void> {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return;
 
-		const groups: string[] = [];
-		for (const id of termIds) {
-			const group = await this.resolveTranslationGroup(id);
-			if (group) groups.push(group);
-		}
-		const newGroups = new Set(groups);
-
-		const current = await this.db
-			.selectFrom("content_taxonomies")
-			.innerJoin("taxonomies", "taxonomies.translation_group", "content_taxonomies.taxonomy_id")
-			.select(["content_taxonomies.taxonomy_id as group"])
-			.distinct()
-			.where("content_taxonomies.collection", "=", collection)
-			.where("content_taxonomies.entry_id", "=", entryGroup)
-			.where("taxonomies.name", "=", taxonomyName)
-			.execute();
-		const currentGroups = new Set(current.map((r) => r.group));
+		const newGroups = await this.resolveTranslationGroups(termIds);
+		const currentGroups = basedOn
+			? await this.resolveTranslationGroups(basedOn)
+			: new Set(
+					(
+						await this.db
+							.selectFrom("content_taxonomies")
+							.innerJoin(
+								"taxonomies",
+								"taxonomies.translation_group",
+								"content_taxonomies.taxonomy_id",
+							)
+							.select(["content_taxonomies.taxonomy_id as group"])
+							.distinct()
+							.where("content_taxonomies.collection", "=", collection)
+							.where("content_taxonomies.entry_id", "=", entryGroup)
+							.where("taxonomies.name", "=", taxonomyName)
+							.execute()
+					).map((r) => r.group),
+				);
 
 		const toRemove = [...currentGroups].filter((g) => !newGroups.has(g));
 		const toAdd = [...newGroups].filter((g) => !currentGroups.has(g));
@@ -908,6 +913,16 @@ export class TaxonomyRepository {
 		if (toRemove.length > 0 || toAdd.length > 0) {
 			await this.notifyEntryGroups(collection, [entryGroup]);
 		}
+	}
+
+	private async resolveTranslationGroups(termIds: string[]): Promise<Set<string>> {
+		const groups = new Set<string>();
+		for (const id of termIds) {
+			// oxlint-disable-next-line no-await-in-loop -- few terms, each its own lookup
+			const group = await this.resolveTranslationGroup(id);
+			if (group) groups.add(group);
+		}
+		return groups;
 	}
 
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {

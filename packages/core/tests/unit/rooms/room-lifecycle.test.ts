@@ -1,3 +1,4 @@
+import { encodeSyncStep1 } from "@emdash-cms/admin/internal/co-editing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
@@ -6,7 +7,6 @@ import {
 	MAX_ROOM_CONNECTIONS,
 	MAX_USER_CONNECTIONS,
 } from "../../../src/rooms/limits.js";
-import { encodeSyncStep1 } from "../../../src/rooms/protocol.js";
 import { CLOSE_CODES, isRoomToken } from "../../../src/rooms/types.js";
 import {
 	advance,

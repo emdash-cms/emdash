@@ -577,12 +577,19 @@ export function createScheduler(executor) {
  * and `null` otherwise, which gives every join single-editor mode. Only this
  * module imports either host, so the Node.js host's code never reaches a
  * Workers bundle.
+ *
+ * `@emdash-cms/cloudflare` isn't a dependency of `emdash`, so a Cloudflare site
+ * without it gets no room host rather than a failed build.
  */
-export function generateRoomsModule(adapterName: string | undefined, coEditing: boolean): string {
+export function generateRoomsModule(
+	adapterName: string | undefined,
+	coEditing: boolean,
+	cloudflareRoomsResolves: boolean,
+): string {
 	if (coEditing && adapterName === "@astrojs/node") {
 		return `export { createRoomHost } from "emdash/internal/co-editing/node";\n`;
 	}
-	if (coEditing && adapterName === "@astrojs/cloudflare") {
+	if (coEditing && adapterName === "@astrojs/cloudflare" && cloudflareRoomsResolves) {
 		return `export { createRoomHost } from "@emdash-cms/cloudflare/internal/rooms";\n`;
 	}
 	return `export const createRoomHost = null;\n`;

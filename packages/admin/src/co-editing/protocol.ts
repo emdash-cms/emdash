@@ -16,37 +16,11 @@ import {
 } from "y-protocols/sync";
 import * as Y from "yjs";
 
-import type { OutsideValue, RoomAccess } from "./types.js";
+import type { AwarenessEntry, Message, Notice, OutsideValue, RoomMessage } from "./types.js";
 
 export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_ROOM = 100;
-
-export type Notice =
-	| { kind: "operation"; by: string }
-	| { kind: "outside"; fields: string[] }
-	| { kind: "values"; values: OutsideValue[] }
-	| { kind: "refused"; code: string; message: string };
-
-export type RoomMessage =
-	| { type: "welcome"; lineage: string; access: RoomAccess; snapshot: Uint8Array }
-	| { type: "save" }
-	| { type: "checkpoint"; editedBy: string[]; rev: string; snapshot: Uint8Array }
-	| { type: "notice"; notice: Notice };
-
-/** One client's awareness state, in y-protocols' wire format. A null state removes the client. */
-export interface AwarenessEntry {
-	clientId: number;
-	clock: number;
-	state: Record<string, unknown> | null;
-}
-
-export type Message =
-	| { type: "sync-step-1"; stateVector: Uint8Array }
-	| { type: "sync-step-2"; update: Uint8Array }
-	| { type: "sync-update"; update: Uint8Array }
-	| { type: "awareness"; entries: AwarenessEntry[] }
-	| RoomMessage;
 
 const OUTSIDE_VALUES = {
 	seo: true,
@@ -170,7 +144,7 @@ function readAwareness(update: Uint8Array): Message | null {
 		if (state !== null && !isRecord(state)) return null;
 		entries.push({ clientId, clock, state });
 	}
-	return decoding.hasContent(decoder) ? null : { type: "awareness", entries };
+	return decoding.hasContent(decoder) ? null : { type: "awareness", entries, update };
 }
 
 function readRoomMessage(decoder: decoding.Decoder): RoomMessage | null {

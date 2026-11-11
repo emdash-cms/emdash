@@ -3,7 +3,6 @@ import { Table } from "@tiptap/extension-table";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
-import { closeHistory } from "@tiptap/pm/history";
 import type { ResolvedPos } from "@tiptap/pm/model";
 import { Plugin, Selection, TextSelection, type EditorState } from "@tiptap/pm/state";
 import {
@@ -18,6 +17,8 @@ import type { EditorView } from "@tiptap/pm/view";
 
 import { MAX_TABLE_REPAIRED_SLOTS, MAX_TABLE_SPAN } from "../../portable-text-table.js";
 import { changedRanges, localOnly } from "../../portable-text/normalize.js";
+import { closeHistoryGroup } from "./history.js";
+import { yPluginKeys } from "./y-plugin-keys.js";
 
 const TABLE_NODE_ROLES = new Set(["table", "row", "cell", "header_cell"]);
 const TABLE_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
@@ -177,7 +178,7 @@ function deleteSelectedTableAxis(view: EditorView, event: KeyboardEvent): boolea
 	const command = row ? deleteRow : deleteColumn;
 	const handled = command(view.state, (transaction) => {
 		view.dispatch(
-			closeHistory(transaction).setMeta(
+			closeHistoryGroup(view.state, transaction).setMeta(
 				row ? "emdashDeletedTableRows" : "emdashDeletedTableColumns",
 				row ? rect.bottom - rect.top : rect.right - rect.left,
 			),
@@ -461,6 +462,9 @@ export const TableIdentity = Extension.create({
 					for (const repair of repairs) {
 						transaction.setNodeMarkup(repair.position, undefined, repair.attributes);
 					}
+					// y-tiptap writes a whole dispatch with its last transaction's flag, which would leave
+					// the edit this repairs out of the undo history.
+					if (yPluginKeys(newState)?.sync.getState(newState)) return transaction;
 					return transaction.setMeta("addToHistory", false);
 				},
 			}),

@@ -41,6 +41,11 @@ import {
 	type StagedReferenceBaselines,
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
+import {
+	LIST_CONFLICT_MESSAGE,
+	listsMatch,
+	type ListPreconditions,
+} from "./api/list-preconditions.js";
 import { encodeRev, validateRev } from "./api/rev.js";
 import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
@@ -599,6 +604,13 @@ export interface EmDashRuntimeParts {
 	};
 	runtimeDeps: RuntimeDependencies;
 	pipelineRef: { current: HookPipeline };
+}
+
+function listConflict() {
+	return {
+		success: false as const,
+		error: { code: "LIST_CONFLICT", message: LIST_CONFLICT_MESSAGE },
+	};
 }
 
 /**
@@ -4135,6 +4147,8 @@ export class EmDashRuntime {
 			};
 			taxonomies?: Record<string, string[]>;
 			references?: Record<string, string[]>;
+			/** The lists this save was based on. A stored list that differs fails it with `LIST_CONFLICT`. */
+			expected?: ListPreconditions;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Replace the previous autosave revision after staging this save. */
@@ -4157,6 +4171,7 @@ export class EmDashRuntime {
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
+		const checksLists = Boolean(body.expected?.bylines || body.expected?.references);
 
 		// Validate _rev early — before draft revision writes which modify the version.
 		// The token is checked again against the row the draft UPDATE is conditioned
@@ -4171,6 +4186,7 @@ export class EmDashRuntime {
 			}
 			const revCheck = validateRev(body._rev, resolvedItem);
 			if (!revCheck.valid) {
+				if (checksLists) return listConflict();
 				return {
 					success: false as const,
 					error: { code: "CONFLICT", message: revCheck.message },
@@ -4183,8 +4199,22 @@ export class EmDashRuntime {
 			editedBy: passedEditors,
 			migrateBlocks,
 			replaceBlocks,
+			expected,
 			...bodyWithoutRev
 		} = body;
+		// The lists are compared once, so every write below is conditioned on the entry as it was
+		// read before them: a write in between changes its version.
+		let revGuard = body._rev;
+		if (expected && checksLists) {
+			if (!resolvedItem) {
+				return {
+					success: false as const,
+					error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
+				};
+			}
+			if (!(await listsMatch(this.db, collection, resolvedItem, expected))) return listConflict();
+			revGuard ??= encodeRev(resolvedItem);
+		}
 		const editedBy = passedEditors?.length ? [...new Set(passedEditors)] : undefined;
 		const blockWriteOptions = { migrateBlocks, replaceBlocks };
 		const saveHookEditors: ContentSaveHookDetails = {
@@ -4200,6 +4230,24 @@ export class EmDashRuntime {
 				? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
 				: null;
 		const knownFieldSlugs = new Set((collectionInfo?.fields ?? []).map((f) => f.slug));
+		// Staging a draft and writing live columns are two writes, so a list conflict between them
+		// would leave the draft staged. A save based on a read of the lists makes only one of them.
+		if (
+			checksLists &&
+			collectionInfo?.supports?.includes("revisions") &&
+			Object.entries(bodyWithoutRev).some(
+				([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+			)
+		) {
+			return {
+				success: false as const,
+				error: {
+					code: "VALIDATION_ERROR",
+					message:
+						"A save with `expected` can't change draft and live values together in a collection with revisions. Send them as two saves.",
+				},
+			};
+		}
 
 		// A collection that keeps drafts merges `data` into a revision instead of
 		// writing columns, so a reference field's slug would land in the revision
@@ -4361,9 +4409,10 @@ export class EmDashRuntime {
 
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
-				if (body._rev && existing) {
-					const revCheck = validateRev(body._rev, existing);
+				if (revGuard && existing) {
+					const revCheck = validateRev(revGuard, existing);
 					if (!revCheck.valid) {
+						if (checksLists) return listConflict();
 						return {
 							success: false as const,
 							error: { code: "CONFLICT", message: revCheck.message },
@@ -4472,6 +4521,7 @@ export class EmDashRuntime {
 								cleanupError,
 							);
 						}
+						if (checksLists) return listConflict();
 						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
 							const error = new ContentMutationConflictError();
 							return {
@@ -4534,13 +4584,16 @@ export class EmDashRuntime {
 				? await handleContentGet(this.db, collection, resolvedId)
 				: await handleContentUpdate(this.db, collection, resolvedId, {
 						...bodyWithoutRev,
-						_rev: draftStorageChanged ? undefined : body._rev,
+						// Staging advanced the version a client token holds, so only the lists' own guard
+						// carries over, as the version staging left.
+						_rev: draftStorageChanged ? (checksLists ? stagedWrite?.rev : undefined) : revGuard,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
 						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
 						authorId: bodyWithoutRev.authorId,
 						bylines: bodyWithoutRev.bylines,
 					});
+		if (!result.success && checksLists && result.error.code === "CONFLICT") return listConflict();
 		if (result.success && bodyWithoutRev.references) {
 			notifyRoom({ collection, id: resolvedId }, ["references"]);
 		}

@@ -103,17 +103,23 @@ import {
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Extension, InputRule, type EditorEvents, type Range } from "@tiptap/core";
+import {
+	Extension,
+	InputRule,
+	type EditorEvents,
+	type MappablePosition,
+	type Range,
+} from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import { isAllowedUri } from "@tiptap/extension-link";
 import Typography from "@tiptap/extension-typography";
-import { closeHistory, undo, undoDepth } from "@tiptap/pm/history";
 import type { Mark as ProseMirrorMark, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
 	AllSelection,
 	NodeSelection,
 	Plugin,
+	PluginKey,
 	Selection,
 	TextSelection,
 	type EditorState,
@@ -128,6 +134,7 @@ import * as React from "react";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
+import type { RichTextBinding } from "../lib/co-editing/types.js";
 import { guardUnsavedInput, revealErrors } from "../lib/dialog-form.js";
 import {
 	canonicalMediaProviderId,
@@ -149,6 +156,7 @@ import {
 	type PortableTextBlock,
 } from "../portable-text/convert.js";
 import { generateKey } from "../portable-text/keys.js";
+import { isRemote } from "../portable-text/normalize.js";
 import {
 	CodeMarkExtension,
 	EmDashOrderedList,
@@ -204,6 +212,12 @@ import {
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
+import {
+	closeHistoryGroup,
+	endHistoryGroup,
+	historyDepth,
+	undoLastGroup,
+} from "./editor/history.js";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
@@ -438,7 +452,7 @@ function insertTopLevelBlock(
 	range?: Range,
 	position?: number,
 ) {
-	const tr = closeHistory(editor.state.tr);
+	const tr = closeHistoryGroup(editor.state, editor.state.tr);
 	if (range) tr.delete(range.from, range.to);
 	if (position === undefined && tr.selection.empty && !tr.selection.$from.parent.content.size) {
 		prepareBlockInsert(tr);
@@ -674,11 +688,24 @@ interface SlashMenuState {
 
 /** The slash the block insert button typed, while its menu is open. */
 interface InsertedSlashLine {
-	slashPos: number;
+	/** Where the slash is, once the button has typed it. */
+	slash: MappablePosition | null;
 	/** The button added the paragraph, rather than typing into an empty one. */
 	addedParagraph: boolean;
 	/** The undo history's depth just after the button typed the line. */
 	undoDepth: number;
+}
+
+/** Where `position` is after a dispatch: its transaction and the ones plugins appended. */
+function positionAfter(
+	editor: Editor,
+	position: MappablePosition,
+	{ transaction, appendedTransactions }: EditorEvents["transaction"],
+): MappablePosition {
+	return [transaction, ...appendedTransactions].reduce(
+		(current, tr) => editor.utils.getUpdatedPosition(current, tr).position,
+		position,
+	);
 }
 
 /** The nearest element around `element` that scrolls vertically. */
@@ -699,11 +726,19 @@ function addedSlashParagraph(
 	range: Range,
 	line: InsertedSlashLine | null,
 ): Range | null {
-	if (!line?.addedParagraph || line.slashPos !== range.from) return null;
+	if (!line?.addedParagraph || line.slash?.position !== range.from) return null;
 	const $slash = doc.resolve(range.from);
 	if ($slash.parent.content.size !== range.to - range.from) return null;
 	return { from: $slash.before(), to: $slash.after() };
 }
+
+/** The slash the menu was dismissed on, as other clients' edits move it. */
+interface DismissedSlash {
+	from: number;
+	position: MappablePosition;
+}
+
+const dismissedSlashKey = new PluginKey<DismissedSlash | null>("dismissedSlash");
 
 /**
  * Create the slash commands TipTap extension
@@ -720,20 +755,42 @@ function createSlashCommandsExtension(options: {
 }) {
 	const { filterCommands, onStateChange, getState, onCommand, onDismiss, onExit } = options;
 
+	const dismissedSlashFrom = (state: EditorState) =>
+		dismissedSlashKey.getState(state)?.from ?? getState().dismissedSlashFrom;
+
 	return Extension.create({
 		name: "slashCommands",
 		onTransaction() {
 			const state = getState();
 			if (state.dismissedSlashFrom === null) return;
-			const to = Math.min(state.dismissedSlashFrom + 1, this.editor.state.doc.content.size);
-			if (this.editor.state.doc.textBetween(state.dismissedSlashFrom, to) !== "/") {
-				onStateChange((prev) => ({ ...prev, dismissedSlashFrom: null }));
+			const from = dismissedSlashFrom(this.editor.state)!;
+			const to = Math.min(from + 1, this.editor.state.doc.content.size);
+			const dismissed = this.editor.state.doc.textBetween(from, to) === "/" ? from : null;
+			if (dismissed !== state.dismissedSlashFrom) {
+				onStateChange((prev) => ({ ...prev, dismissedSlashFrom: dismissed }));
 			}
 		},
 
 		addProseMirrorPlugins() {
 			const { editor } = this;
 			return [
+				// Before the suggestion, which reads where the dismissed slash is now.
+				new Plugin<DismissedSlash | null>({
+					key: dismissedSlashKey,
+					state: {
+						init: () => null,
+						apply: (tr, dismissed) => {
+							const from = getState().dismissedSlashFrom;
+							if (from === null) return null;
+							if (dismissed?.from !== from) {
+								return { from, position: editor.utils.createMappablePosition(from) };
+							}
+							if (!isRemote(tr)) return dismissed;
+							const { position } = editor.utils.getUpdatedPosition(dismissed.position, tr);
+							return { from: position.position, position };
+						},
+					},
+				}),
 				Suggestion({
 					editor,
 					char: "/",
@@ -744,7 +801,7 @@ function createSlashCommandsExtension(options: {
 					// Titles such as "Code Block" can be typed whole; a space after no match ends the query.
 					allowSpaces: true,
 					allow: ({ state, range }) => {
-						if (this.editor.isActive("table") || getState().dismissedSlashFrom === range.from) {
+						if (this.editor.isActive("table") || dismissedSlashFrom(state) === range.from) {
 							return false;
 						}
 						const query = state.doc.textBetween(range.from + 1, range.to);
@@ -1162,28 +1219,66 @@ function pluginBlockProblems(
  * The plugin block the modal edits, by its key, or by its position while no
  * other block has the same key. A null position means the block was deleted.
  */
-type EditedPluginBlock = { key: string } | { pos: number | null };
+type EditedPluginBlock = { key: string } | PositionedPluginBlock;
 
-function editedPluginBlockAt(doc: ProseMirrorNode, pos: number): EditedPluginBlock | null {
+/** A plugin block followed by position, with the type and ID it had when the modal opened. */
+interface PositionedPluginBlock {
+	position: MappablePosition | null;
+	blockType: unknown;
+	id: unknown;
+}
+
+function editedPluginBlockAt(editor: Editor, pos: number): EditedPluginBlock | null {
+	const { doc } = editor.state;
 	const node = doc.nodeAt(pos);
 	if (node?.type.name !== "pluginBlock") return null;
+	const positioned = (): PositionedPluginBlock => ({
+		position: editor.utils.createMappablePosition(pos),
+		blockType: node.attrs.blockType,
+		id: node.attrs.id,
+	});
 	const key: unknown = node.attrs[PORTABLE_TEXT_KEY_ATTR];
-	if (typeof key !== "string" || !key) return { pos };
+	if (typeof key !== "string" || !key) return positioned();
 	let holders = 0;
 	doc.forEach((child) => {
 		if (child.type.name === "pluginBlock" && child.attrs[PORTABLE_TEXT_KEY_ATTR] === key) holders++;
 	});
-	return holders === 1 ? { key } : { pos };
+	return holders === 1 ? { key } : positioned();
+}
+
+/**
+ * Finds a positioned plugin block again after another client's change, which
+ * replaces the whole document: where its position now points while a block of
+ * the same type and ID is there, or else the only top-level block of that type
+ * and ID.
+ */
+function refindPluginBlock(
+	editor: Editor,
+	block: PositionedPluginBlock,
+	position: MappablePosition,
+): MappablePosition | null {
+	const same = (node: ProseMirrorNode | null) =>
+		node?.type.name === "pluginBlock" &&
+		node.attrs.blockType === block.blockType &&
+		node.attrs.id === block.id;
+	const { doc } = editor.state;
+	if (same(doc.nodeAt(position.position))) return position;
+	const found: number[] = [];
+	doc.forEach((child, offset) => {
+		if (same(child)) found.push(offset);
+	});
+	return found.length === 1 ? editor.utils.createMappablePosition(found[0]!) : null;
 }
 
 function findPluginBlock(
 	doc: ProseMirrorNode,
 	block: EditedPluginBlock,
 ): { node: ProseMirrorNode; pos: number } | null {
-	if ("pos" in block) {
-		if (block.pos === null) return null;
-		const node = doc.nodeAt(block.pos);
-		return node?.type.name === "pluginBlock" ? { node, pos: block.pos } : null;
+	if ("position" in block) {
+		if (block.position === null) return null;
+		const pos = block.position.position;
+		const node = doc.nodeAt(pos);
+		return node?.type.name === "pluginBlock" ? { node, pos } : null;
 	}
 	let pos = 0;
 	for (let index = 0; index < doc.childCount; index++) {
@@ -2050,6 +2145,12 @@ export interface PortableTextEditorProps {
 	 * host can move focus to the field above, such as the page title.
 	 */
 	onArrowUpAtStart?: () => void;
+	/**
+	 * Binds the editor to a field of a co-editing room, read once on mount. The
+	 * room's document is then the content: `value` is ignored, `onChange` is
+	 * never called, and undo is the room's own, limited to this editor's edits.
+	 */
+	collaboration?: RichTextBinding;
 }
 
 // For external providers, src is only used for admin preview; the frontend Image
@@ -2123,8 +2224,14 @@ export function PortableTextEditor({
 	onBlockSidebarClose,
 	variant = "boxed",
 	onArrowUpAtStart,
+	collaboration: collaborationProp,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const [collaboration] = React.useState(collaborationProp);
+	// The drag handle's plugin moves the handle's element out of React's tree, so the handle can't
+	// unmount while the editor lives. Once mounted it stays, and hides itself while read-only.
+	const [dragHandleMounted, setDragHandleMounted] = React.useState(editable);
+	if (editable && !dragHandleMounted) setDragHandleMounted(true);
 	const onArrowUpAtStartRef = React.useRef(onArrowUpAtStart);
 	onArrowUpAtStartRef.current = onArrowUpAtStart;
 	const isDocument = variant === "document";
@@ -2238,7 +2345,7 @@ export function PortableTextEditor({
 
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
-	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const pendingBlockInsertPosRef = React.useRef<MappablePosition | null>(null);
 	const openToolbarImagePicker = React.useCallback(() => {
 		pendingBlockInsertPosRef.current = null;
 		setMediaPickerOpen(true);
@@ -2352,7 +2459,7 @@ export function PortableTextEditor({
 			...item,
 			deferInsertion: true,
 			command: ({ editor, range }) => {
-				const position = pendingBlockInsertPosRef.current;
+				const position = pendingBlockInsertPosRef.current?.position ?? null;
 				pendingBlockInsertPosRef.current = null;
 				if (position === null) insert(editor, range);
 				else insert(editor, undefined, position);
@@ -2475,8 +2582,9 @@ export function PortableTextEditor({
 	};
 
 	// Convert initial value to ProseMirror format
+	// A room never holds content with marks the editor can't keep.
 	const initialUnsupportedMarks = React.useMemo(
-		() => findUnsupportedPortableTextMarks(value || []),
+		() => (collaboration ? [] : findUnsupportedPortableTextMarks(value || [])),
 		[],
 	);
 	const unsupportedMarks = React.useMemo(
@@ -2485,7 +2593,7 @@ export function PortableTextEditor({
 	);
 	const initialConversion = React.useMemo(() => {
 		const emptyDocument = { type: "doc" as const, content: [{ type: "paragraph" }] };
-		if (initialUnsupportedMarks.length > 0) {
+		if (collaboration || initialUnsupportedMarks.length > 0) {
 			return { content: emptyDocument, tableError: null };
 		}
 		try {
@@ -2514,7 +2622,7 @@ export function PortableTextEditor({
 	 */
 	const reportChange = React.useCallback((changedEditor: Editor) => {
 		const cb = onChangeRef.current;
-		if (!cb) return;
+		if (!cb || collaboration) return;
 		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
 			return;
 		lastReportedDocRef.current ??= changedEditor.schema.nodeFromJSON(initialContent);
@@ -2556,7 +2664,7 @@ export function PortableTextEditor({
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
 			LinkBoundaryExit,
-			EditorStarterKit,
+			collaboration ? EditorStarterKit.configure({ undoRedo: false }) : EditorStarterKit,
 			TopBlockDocument,
 			EmDashOrderedList,
 			CodeMarkExtension,
@@ -2620,11 +2728,14 @@ export function PortableTextEditor({
 				mode: "all",
 			}),
 			Typography,
+			...(collaboration?.extensions ?? []),
 		],
 		[], // Created once — all mutable state accessed via refs
 	);
 
 	const editorLabel = t`Rich text editor`;
+	// Tiptap gives the editor a textbox role, so a read-only editor has to say so itself.
+	const editableRef = React.useRef(true);
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -2634,26 +2745,36 @@ export function PortableTextEditor({
 			// it, scrolls the caret out from under them.
 			scrollThreshold: isDocument ? { top: 96, right: 0, bottom: 0, left: 0 } : 0,
 			scrollMargin: isDocument ? { top: 96, right: 5, bottom: 5, left: 5 } : 5,
-			attributes: {
+			attributes: (): Record<string, string> => ({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
+				...(editableRef.current ? {} : { "aria-readonly": "true" }),
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
-			},
+			}),
 		}),
 		[ariaLabelledby, editorLabel, isDocument],
 	);
 
+	const editorEditable = editable && unsupportedMarks.length === 0 && tableConversionError === null;
+	editableRef.current = editorEditable;
 	const editor = useEditor({
 		extensions,
-		content: initialContent as Parameters<typeof useEditor>[0]["content"],
-		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
+		content: collaboration ? "" : (initialContent as Parameters<typeof useEditor>[0]["content"]),
+		editable: editorEditable,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => reportChange(updatedEditor),
 	});
+	// useEditor reads its options once, so a later `editable` reaches the editor here, without the
+	// update event that would report a change.
+	React.useEffect(() => {
+		if (editor && !editor.isDestroyed && editor.isEditable !== editorEditable) {
+			editor.setEditable(editorEditable, false);
+		}
+	}, [editor, editorEditable]);
 
 	/**
 	 * Takes the line the block insert button typed back out, or only its slash
@@ -2662,19 +2783,18 @@ export function PortableTextEditor({
 	 * is undone instead, so no undo step is left behind that does nothing.
 	 */
 	const removeInsertedLine = React.useCallback(
-		(activeEditor: Editor, line: InsertedSlashLine, range: Range): Transaction => {
+		(activeEditor: Editor, line: InsertedSlashLine, range: Range) => {
 			const { state, view } = activeEditor;
-			const undone: Transaction[] = [];
+			const dispatch = (tr: Transaction) => view.dispatch(tr);
 			// Text typed after the caret moved back sits outside the range, and undoing would take it too.
 			const onlyCommand =
 				state.doc.resolve(range.from).parent.content.size === range.to - range.from;
-			if (onlyCommand && undoDepth(state) === line.undoDepth) undo(state, (tr) => undone.push(tr));
+			if (onlyCommand && historyDepth(state) === line.undoDepth && undoLastGroup(state, dispatch)) {
+				return;
+			}
 			const removed = addedSlashParagraph(state.doc, range, line) ?? range;
-			const tr =
-				undone[0] ??
-				closeHistory(state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false));
-			view.dispatch(tr);
-			return tr;
+			const tr = state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false);
+			dispatch(closeHistoryGroup(state, tr));
 		},
 		[],
 	);
@@ -2682,14 +2802,14 @@ export function PortableTextEditor({
 	/**
 	 * Closes the menu without running a command, keeping what was typed. The
 	 * line the block insert button typed goes again if nothing followed its
-	 * slash; the transaction that removed it is returned.
+	 * slash.
 	 */
-	const closeSlashMenu = React.useCallback((): Transaction | null => {
+	const closeSlashMenu = React.useCallback(() => {
 		const { range } = slashMenuStateRef.current;
 		const untouched =
 			editor !== null &&
 			range !== null &&
-			insertedLineRef.current?.slashPos === range.from &&
+			insertedLineRef.current?.slash?.position === range.from &&
 			editor.state.doc.textBetween(range.from, range.to) === "/" &&
 			editor.state.doc.resolve(range.from).parent.content.size === 1;
 		setSlashMenuState((prev) => ({
@@ -2698,12 +2818,12 @@ export function PortableTextEditor({
 			mode: "commands",
 			dismissedSlashFrom: untouched || !range ? prev.dismissedSlashFrom : range.from,
 		}));
-		if (!editor || !range) return null;
+		if (!editor || !range) return;
 		if (!untouched) {
 			exitSuggestion(editor.view);
-			return null;
+			return;
 		}
-		return removeInsertedLine(editor, insertedLineRef.current!, range);
+		removeInsertedLine(editor, insertedLineRef.current!, range);
 	}, [editor, removeInsertedLine, setSlashMenuState]);
 
 	/**
@@ -2713,8 +2833,17 @@ export function PortableTextEditor({
 	const openBlockInsertMenuAt = React.useCallback(
 		(insertPos: number) => {
 			if (!editor) return;
-			const closed = slashMenuStateRef.current.isOpen ? closeSlashMenu() : null;
-			const pos = closed ? closed.mapping.map(insertPos) : insertPos;
+			let pos = insertPos;
+			if (slashMenuStateRef.current.isOpen) {
+				let insert = editor.utils.createMappablePosition(insertPos);
+				const follow = ({ transaction }: EditorEvents["transaction"]) => {
+					insert = editor.utils.getUpdatedPosition(insert, transaction).position;
+				};
+				editor.on("transaction", follow);
+				closeSlashMenu();
+				editor.off("transaction", follow);
+				pos = insert.position;
+			}
 			const { doc } = editor.state;
 			if (pos < 0 || pos > doc.content.size || doc.resolve(pos).depth !== 0) return;
 			const { nodeBefore, nodeAfter } = doc.resolve(pos);
@@ -2724,19 +2853,23 @@ export function PortableTextEditor({
 			const slashPos = reuseBefore ? pos - 1 : pos + 1;
 			// A stale dismissed position could block this slash; opening a menu forgets it anyway.
 			setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: null }));
-			const inserted: InsertedSlashLine = { slashPos, addedParagraph: !reuse, undoDepth: -1 };
+			const inserted: InsertedSlashLine = { slash: null, addedParagraph: !reuse, undoDepth: -1 };
 			insertedLineRef.current = inserted;
 			editor
 				.chain()
 				.focus()
-				.command(({ tr }) => {
-					closeHistory(tr);
+				.command(({ state, tr }) => {
+					closeHistoryGroup(state, tr);
 					if (!reuse) tr.insert(pos, tr.doc.type.schema.nodes.paragraph!.create());
 					tr.insertText("/", slashPos).setSelection(TextSelection.create(tr.doc, slashPos + 1));
 					return true;
 				})
 				.run();
-			inserted.undoDepth = undoDepth(editor.state);
+			// An upload that lands while the menu is open must not join the slash's undo step, which
+			// dismissing the menu undoes.
+			endHistoryGroup(editor.state);
+			inserted.slash = editor.utils.createMappablePosition(slashPos);
+			inserted.undoDepth = historyDepth(editor.state);
 			// Scrolls far enough for the menu, up to 21rem tall, to open below the line, without
 			// scrolling the line under the toolbar.
 			const line = editor.view.coordsAtPos(slashPos);
@@ -2763,19 +2896,23 @@ export function PortableTextEditor({
 		(activeEditor: Editor, range: Range, deferred: boolean): Range => {
 			pendingBlockInsertPosRef.current = null;
 			const line = insertedLineRef.current;
-			if (line?.slashPos !== range.from) return range;
+			const slash = line?.slash;
+			if (!line || slash?.position !== range.from) return range;
 			const paragraph = addedSlashParagraph(activeEditor.state.doc, range, line);
 			if (paragraph && !deferred) {
-				const tr = activeEditor.state.tr.delete(range.from, range.to);
-				activeEditor.view.dispatch(closeHistory(tr.setMeta("addToHistory", false)));
+				const { state } = activeEditor;
+				const tr = state.tr.delete(range.from, range.to).setMeta("addToHistory", false);
+				activeEditor.view.dispatch(closeHistoryGroup(state, tr));
 			} else {
 				removeInsertedLine(activeEditor, line, range);
 				if (paragraph) {
-					pendingBlockInsertPosRef.current = paragraph.from;
+					pendingBlockInsertPosRef.current = activeEditor.utils.createMappablePosition(
+						paragraph.from,
+					);
 				} else {
 					const { state } = activeEditor;
 					activeEditor.view.dispatch(
-						state.tr.setSelection(TextSelection.create(state.doc, line.slashPos)),
+						state.tr.setSelection(TextSelection.create(state.doc, slash.position)),
 					);
 				}
 			}
@@ -2885,7 +3022,7 @@ export function PortableTextEditor({
 		}) => {
 			const blockDef = pluginBlocks.find((b) => b.type === attrs.blockType);
 			if (!blockDef) return;
-			const block = editedPluginBlockAt(editor.state.doc, attrs.pos);
+			const block = editedPluginBlockAt(editor, attrs.pos);
 			if (block === null) return;
 			editingBlockRef.current = block;
 			const data =
@@ -2933,12 +3070,28 @@ export function PortableTextEditor({
 	React.useEffect(() => {
 		if (!editor) return;
 		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
-			const position = pendingBlockInsertPosRef.current;
+			let position = pendingBlockInsertPosRef.current;
 			if (position === null) return;
-			pendingBlockInsertPosRef.current = [transaction, ...appendedTransactions].reduce(
-				(pos, tr) => tr.mapping.map(pos, -1),
-				position,
-			);
+			for (const tr of [transaction, ...appendedTransactions]) {
+				const updated = editor.utils.getUpdatedPosition(position, tr);
+				// A block added right at the position stays after the one the picker inserts there.
+				if (updated.mapResult) updated.position.position = tr.mapping.map(position.position, -1);
+				position = updated.position;
+			}
+			pendingBlockInsertPosRef.current = position;
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
+	// The insert button's slash follows the document, which other clients change while its menu is open.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = (event: EditorEvents["transaction"]) => {
+			const line = insertedLineRef.current;
+			if (line?.slash) line.slash = positionAfter(editor, line.slash, event);
 		};
 		editor.on("transaction", follow);
 		return () => {
@@ -2951,14 +3104,17 @@ export function PortableTextEditor({
 		if (!editor) return;
 		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
 			const block = editingBlockRef.current;
-			if (!block || !("pos" in block) || block.pos === null) return;
-			let pos: number | null = block.pos;
+			if (!block || !("position" in block) || block.position === null) return;
+			let position: MappablePosition | null = block.position;
+			let remote = false;
 			for (const tr of [transaction, ...appendedTransactions]) {
-				if (pos === null) break;
-				const mapped = tr.mapping.mapResult(pos);
-				pos = mapped.deleted ? null : mapped.pos;
+				if (position === null) break;
+				const { position: next, mapResult } = editor.utils.getUpdatedPosition(position, tr);
+				position = mapResult?.deleted ? null : next;
+				remote ||= mapResult === null;
 			}
-			editingBlockRef.current = { pos };
+			if (remote && position !== null) position = refindPluginBlock(editor, block, position);
+			editingBlockRef.current = { ...block, position };
 		};
 		editor.on("transaction", follow);
 		return () => {
@@ -2971,7 +3127,7 @@ export function PortableTextEditor({
 		(item: MediaItem) => {
 			if (editor) {
 				const attrs = mediaItemToImageAttrs(item);
-				const insertPos = pendingBlockInsertPosRef.current;
+				const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
 					chain
@@ -2993,7 +3149,7 @@ export function PortableTextEditor({
 		(item: MediaItem) => {
 			if (editor?.isEditable) {
 				const video = editor.schema.nodes.videoBlock!.create(mediaItemToVideoAttrs(item));
-				const position = pendingBlockInsertPosRef.current ?? undefined;
+				const position = pendingBlockInsertPosRef.current?.position;
 				insertTopLevelBlock(editor, video, undefined, position);
 				editor.view.focus();
 			}
@@ -3008,7 +3164,7 @@ export function PortableTextEditor({
 		(items: MediaItem[]) => {
 			if (editor && items.length > 0) {
 				const attrs = { images: items.map(mediaItemToGalleryImage), columns: 3 };
-				const insertPos = pendingBlockInsertPosRef.current;
+				const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
 					chain
@@ -3072,7 +3228,7 @@ export function PortableTextEditor({
 						data,
 					},
 				};
-				const insertPos = pendingBlockInsertPosRef.current;
+				const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
 					chain
@@ -3165,7 +3321,7 @@ export function PortableTextEditor({
 			setSectionInsertErrorMarks([]);
 			setSectionInsertTableError(false);
 
-			const insertPos = pendingBlockInsertPosRef.current;
+			const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 			const chain = editor.chain().focus();
 			if (insertPos === null) {
 				chain
@@ -3352,7 +3508,13 @@ export function PortableTextEditor({
 					}
 				>
 					<EditorContent editor={editor} />
-					{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
+					{dragHandleMounted && (
+						<DragHandleWrapper
+							editor={editor}
+							onInsertBlock={openBlockInsertMenuAt}
+							editable={editable}
+						/>
+					)}
 				</div>
 				{isDocument ? (
 					<DocumentEnd editor={editor} editable={editable}>
@@ -4127,6 +4289,11 @@ function getSelectedImage(state: EditorState): NodeSelection | null {
 		: null;
 }
 
+function selectedImagePosition(editor: Editor): MappablePosition | null {
+	const image = getSelectedImage(editor.state);
+	return image ? editor.utils.createMappablePosition(image.from) : null;
+}
+
 /**
  * Image Bubble Menu - appears above a selected image.
  * Replace, alt text, alignment, link, settings and delete.
@@ -4156,7 +4323,7 @@ function ImageBubbleMenu({
 	// hands focus back, so its focus return can land on the Replace button.
 	const pickerRef = React.useRef<"idle" | "open" | "closing">("idle");
 	// Position of the image the open alt or link draft belongs to.
-	const editingPosRef = React.useRef<number | null>(null);
+	const editingPosRef = React.useRef<MappablePosition | null>(null);
 	const editSessionRef = React.useRef(0);
 	const image = useEditorState({
 		editor,
@@ -4223,16 +4390,20 @@ function ImageBubbleMenu({
 	// Replay the entrance when the selection moves to another image, and drop a
 	// draft once its image is no longer the selection.
 	React.useEffect(() => {
-		let selectedPos = getSelectedImage(editor.state)?.from ?? null;
-		const onTransaction = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
-			const map = (position: number) =>
-				[transaction, ...appendedTransactions].reduce((pos, tr) => tr.mapping.map(pos), position);
+		let selectedPos = selectedImagePosition(editor);
+		const onTransaction = (event: EditorEvents["transaction"]) => {
 			const current = getSelectedImage(editor.state)?.from ?? null;
-			if (current !== null && selectedPos !== null && current !== map(selectedPos)) playEntrance();
-			selectedPos = current;
+			if (
+				current !== null &&
+				selectedPos !== null &&
+				current !== positionAfter(editor, selectedPos, event).position
+			) {
+				playEntrance();
+			}
+			selectedPos = selectedImagePosition(editor);
 			if (editingPosRef.current === null) return;
-			editingPosRef.current = map(editingPosRef.current);
-			if (current !== editingPosRef.current) showControls();
+			editingPosRef.current = positionAfter(editor, editingPosRef.current, event);
+			if (current !== editingPosRef.current.position) showControls();
 		};
 		editor.on("transaction", onTransaction);
 		return () => {
@@ -4316,7 +4487,7 @@ function ImageBubbleMenu({
 	}, [mode]);
 
 	const startEditing = (next: "alt" | "link") => {
-		editingPosRef.current = getSelectedImage(editor.state)?.from ?? null;
+		editingPosRef.current = selectedImagePosition(editor);
 		if (editingPosRef.current === null) return;
 		// Hold focus in the toolbar while the focused button unmounts, or the focus gate hides it.
 		if (menuRef.current?.contains(document.activeElement)) {

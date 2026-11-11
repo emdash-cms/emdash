@@ -451,15 +451,24 @@ See [MCP Server Reference](/reference/mcp-server/) for token creation and client
 
 ### `coEditing`
 
-**Optional.** Runs a co-editing room for each entry in collections with revision support. The default is `false`. Rooms run on Node.js sites that use the `@astrojs/node` adapter, except in `node:cluster` workers, and on Cloudflare Workers sites with the `EMDASH_ROOMS` Durable Object binding. Changing the option needs a rebuild.
+**Optional.** Lets several people edit an entry in the admin at the same time. The default is `false`. Co-editing applies to collections with revision support, and runs on these hosts:
 
-The admin editor doesn't join these rooms, so opening an entry still takes an edit lock.
+- Node.js sites that use the `@astrojs/node` adapter, except in `node:cluster` workers. [Co-editing on Node.js](/deployment/nodejs/#co-editing) covers reverse proxies, several processes and shutdown.
+- Cloudflare Workers sites with the `EMDASH_ROOMS` Durable Object binding and the room classes exported from the Worker entry point. The Cloudflare templates include both; [Co-editing on Cloudflare](/deployment/cloudflare/#co-editing) shows the setup for an existing site.
+
+On other hosts, and on a Cloudflare site without the binding, the editor uses single-editor mode, where opening an entry takes an [edit lock](/guides/working-with-content/#edit-locks). [Edit with other people](/guides/working-with-content/#edit-with-other-people) describes what editors see.
+
+Set the option to `true` to turn co-editing on:
 
 ```js
 emdash({
 	coEditing: true,
 });
 ```
+
+The change takes effect when the site is rebuilt and deployed. Admin tabs opened before then use single-editor mode until they reload.
+
+When co-editing is turned off again, open editors save any unsaved edits as a recovery revision and continue in single-editor mode. On Node.js, EmDash then adds no `upgrade` listener to the site's server and doesn't handle `SIGTERM` or `SIGINT`. Edits that a room still holds unsaved stay in its storage until co-editing is on again, and are saved as a recovery revision when the room next drops its state.
 
 ### `siteUrl`
 

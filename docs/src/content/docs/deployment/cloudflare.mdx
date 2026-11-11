@@ -15,7 +15,7 @@ This guide deploys an EmDash site to Cloudflare Workers with D1 for its database
 
 ## Configure bindings
 
-The Cloudflare templates include the complete Worker entry point and named D1 and R2 bindings. On the first deploy, Wrangler creates either resource if its configured name does not already exist. Keep the names in `wrangler.jsonc`; Wrangler reconnects later deploys to the same resources.
+The Cloudflare templates include the complete Worker entry point, named D1 and R2 bindings, and the Durable Object binding for co-editing. On the first deploy, Wrangler creates the D1 database and R2 bucket if their configured names do not already exist. Keep the names in `wrangler.jsonc`; Wrangler reconnects later deploys to the same resources.
 
 The template uses the following bindings:
 
@@ -40,12 +40,18 @@ The template uses the following bindings:
 			"bucket_name": "my-emdash-media",
 		},
 	],
+	"durable_objects": {
+		"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+	},
+	"exports": {
+		"EmDashRoom": { "type": "durable-object", "storage": "sqlite" },
+	},
 	"worker_loaders": [{ "binding": "LOADER" }],
 	"triggers": { "crons": ["* * * * *"] },
 }
 ```
 
-The `DB`, `MEDIA`, and `LOADER` names must match the EmDash adapters. The Cron Trigger runs scheduled publishing, plugin tasks, backups, and maintenance. See [Plugin sandbox](/deployment/plugin-sandbox/#cloudflare-workers) if the site uses sandboxed plugins.
+The `DB`, `MEDIA`, and `LOADER` names must match the EmDash adapters. `EMDASH_ROOMS` binds the `EmDashRoom` Durable Object class, which runs [co-editing](#co-editing) rooms, and EmDash finds it by that binding name. The Cron Trigger runs scheduled publishing, plugin tasks, backups, and maintenance. See [Plugin sandbox](/deployment/plugin-sandbox/#cloudflare-workers) if the site uses sandboxed plugins.
 
 ## Configure EmDash
 
@@ -76,18 +82,25 @@ If the site does not use marketplace, registry, or `sandboxed` plugins, omit `sa
 
 ## Add the Worker entry point
 
-The Worker entry point connects Astro to the Cron Trigger and exports the plugin bridge:
+The Worker entry point connects Astro to the Cron Trigger, forwards co-editing connections to their rooms, and exports the plugin bridge and the room classes:
 
 ```ts title="src/worker.ts"
-import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import handler, {
+	createScheduledHandler,
+	EmDashRoom,
+	EmDashRoomSite,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
 
-export { PluginBridge };
+export { EmDashRoom, EmDashRoomSite, PluginBridge };
 
 export default {
 	...handler,
 	scheduled: createScheduledHandler(),
 } satisfies ExportedHandler;
 ```
+
+The spread `handler` includes a `fetch` that sends room connections to their Durable Object before Astro runs. A Worker with its own `fetch` must [call `handleRoomUpgrade` first](#a-custom-fetch-handler).
 
 The `PluginBridge` export is harmless when no sandboxed plugin is installed. Keep it if the same project may enable plugins later.
 
@@ -132,6 +145,65 @@ Deploy after adding or changing the Cron Trigger or the `scheduled` handler. Clo
 To watch the trigger, run `pnpm wrangler tail`. Each run prints a line such as `"* * * * *" @ 9/29/2026, 10:01:00 AM - Ok`. `Ok` means the run ended without an uncaught error. EmDash catches and logs publishing errors, so `Ok` does not confirm that entries were published. A run that publishes entries also logs a message such as `[scheduled] Published 1 scheduled item(s)`, and errors from the run appear in the same output.
 
 After deployment, the admin dashboard shows **Scheduled publishing needs attention** when a scheduled entry is past its scheduled time and no scheduler run has completed in the last five minutes. If the Cron Trigger runs less often than every five minutes, the notice can also appear between runs until the next run publishes the entry.
+
+## Co-editing
+
+[Co-editing](/guides/working-with-content/#edit-with-other-people) is off by default. Set [`coEditing: true`](/reference/configuration/#coediting) to turn it on. On Cloudflare, each entry's room is an `EmDashRoom` Durable Object, which keeps the room's state in its own SQLite storage. Rooms need the following, which the Cloudflare templates include:
+
+- The `EMDASH_ROOMS` binding and the `exports` entry for `EmDashRoom`, as shown in [Configure bindings](#configure-bindings).
+- `EmDashRoom` and `EmDashRoomSite` exported from the Worker entry point, as shown in [Add the Worker entry point](#add-the-worker-entry-point). Rooms load and save entries through `EmDashRoomSite`, a named entrypoint that isn't reachable from the internet.
+- A `fetch` handler that forwards room connections. The default export of `@emdash-cms/cloudflare/worker` has one.
+
+Without the `EMDASH_ROOMS` binding, the editor uses [single-editor mode](/guides/working-with-content/#single-editor-mode), with edit locks. That includes Worker Previews and named environments that don't list the binding. If the Worker doesn't forward room connections, they never open, and each browser session switches to single-editor mode after its first three connections fail.
+
+Under `astro dev`, rooms run in a local Durable Object.
+
+### Workers that use `migrations`
+
+The `exports` field can't be combined with the `migrations` array. If `wrangler.jsonc` already has a `migrations` array, declare `EmDashRoom` there instead, and add the binding beside any other Durable Object bindings:
+
+```jsonc title="wrangler.jsonc"
+{
+	"durable_objects": {
+		"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+	},
+	"migrations": [
+		// Your existing migrations come first
+		{ "tag": "emdash-rooms", "new_sqlite_classes": ["EmDashRoom"] },
+	],
+}
+```
+
+### A custom `fetch` handler
+
+A Worker entry point with its own `fetch` must call `handleRoomUpgrade` before anything else. It returns the room's response for a room connection, and `null` for any other request:
+
+```ts title="src/worker.ts"
+import handler, {
+	createScheduledHandler,
+	EmDashRoom,
+	EmDashRoomSite,
+	handleRoomUpgrade,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
+
+export { EmDashRoom, EmDashRoomSite, PluginBridge };
+
+export default {
+	...handler,
+	fetch(request, env, ctx) {
+		const upgrade = handleRoomUpgrade(request, env);
+		if (upgrade) return upgrade;
+		// Your own routing
+		return handler.fetch(request, env, ctx);
+	},
+	scheduled: createScheduledHandler(),
+} satisfies ExportedHandler;
+```
+
+### Turn co-editing off
+
+Remove `coEditing: true` from the `emdash()` options, and leave the binding, the `exports` entry and the room exports in place. The Worker then leaves the room engine out of its upload. A room that still holds unsaved edits keeps them in its storage until co-editing is on again, and then saves them as a recovery revision.
 
 ## Place the Worker near D1
 
@@ -435,7 +507,7 @@ Verify the preview URL, admin sign-in, media upload, and any optional binding be
 
 ## Verify the deployment
 
-After deployment, request one public page, sign in to `/_emdash/admin`, upload and retrieve a test media file, and confirm the scheduled handler appears in `pnpm wrangler tail`.
+After deployment, request one public page, sign in to `/_emdash/admin`, upload and retrieve a test media file, and confirm the scheduled handler appears in `pnpm wrangler tail`. If co-editing is on, open one entry in two browser windows and type in one; the text must appear in the other.
 
 A site created through the setup wizard starts in staging, hidden from search engines. When it's ready to be found, [go live](/guides/seo/#hide-a-site-until-it-goes-live).
 
@@ -458,6 +530,10 @@ Check that the R2 bucket is correctly bound:
 // Must match: r2({ binding: "MEDIA" })
 "binding": "MEDIA"
 ```
+
+### "[co-editing] The Worker doesn't export EmDashRoomSite"
+
+Rooms load and save entries through `EmDashRoomSite`. Export it from the Worker entry point, as shown in [Add the Worker entry point](#add-the-worker-entry-point), and deploy again.
 
 ### Migration errors
 

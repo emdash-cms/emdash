@@ -481,6 +481,76 @@ describe("ContentEditor", () => {
 		}
 	});
 
+	it("saves nothing while its fields wait for the entry's content", async () => {
+		vi.useFakeTimers();
+		try {
+			const onSave = vi.fn();
+			const onAutosave = vi.fn();
+			const props: ContentEditorProps = {
+				collection: "posts",
+				collectionLabel: "Post",
+				fields: { title: { kind: "string", label: "Title" } },
+				isNew: false,
+				item: makeItem({ data: { title: "My Post" } }),
+				onSave,
+				onAutosave,
+			};
+			const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+
+			await screen.getByLabelText("Title").fill("Changed title");
+			// A tab that left its room waits for the entry's current content, so its form is stale.
+			await screen.rerender(<ContentEditor {...props} fieldsLoading />);
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("doesn't publish the form while its fields wait for the entry's content", async () => {
+		const onPublish = vi.fn();
+		const props: ContentEditorProps = {
+			collection: "posts",
+			collectionLabel: "Post",
+			fields: { title: { kind: "string", label: "Title" } },
+			isNew: false,
+			item: makeItem({ status: "draft", data: { title: "My Post" } }),
+			onSave: vi.fn(),
+			onPublish,
+		};
+		const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+		await screen.getByRole("button", { name: "Publish now", exact: true }).click();
+		const dialog = screen.getByRole("dialog", { name: "Publish now?" });
+		await expect.element(dialog).toBeVisible();
+
+		await screen.rerender(<ContentEditor {...props} fieldsLoading />);
+		dialog.getByRole("button", { name: "Publish now", exact: true }).element().click();
+		expect(onPublish).not.toHaveBeenCalled();
+	});
+
+	it("doesn't schedule the form while its fields wait for the entry's content", async () => {
+		const onSchedule = vi.fn().mockResolvedValue(undefined);
+		const props: ContentEditorProps = {
+			collection: "posts",
+			collectionLabel: "Post",
+			fields: { title: { kind: "string", label: "Title" } },
+			isNew: false,
+			item: makeItem({ status: "draft", data: { title: "My Post" } }),
+			onSave: vi.fn(),
+			onSchedule,
+		};
+		const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
+		await expect.element(dialog).toBeVisible();
+
+		await screen.rerender(<ContentEditor {...props} fieldsLoading />);
+		dialog.getByRole("button", { name: "Schedule", exact: true }).element().click();
+		await expect.element(screen.getByText("This entry is still loading.")).toBeVisible();
+		expect(onSchedule).not.toHaveBeenCalled();
+	});
+
 	it("makes an entry read-only when its schema contains an unsupported field type", async () => {
 		vi.useFakeTimers();
 		try {

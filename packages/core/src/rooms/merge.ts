@@ -3,8 +3,9 @@
  * field slugs, and `slug` for the entry slug.
  */
 
+import { ENTRY_SLUG } from "@emdash-cms/admin/internal/co-editing";
+
 import type { ContentWrite } from "../api/content-save.js";
-import { ENTRY_SLUG } from "./document.js";
 import { hashValue } from "./hash.js";
 import type { CheckpointInput, MergeBase } from "./types.js";
 

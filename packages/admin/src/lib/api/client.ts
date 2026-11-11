@@ -56,6 +56,11 @@ export class ApiResponseError extends Error {
 	}
 }
 
+/** A list a change was based on changed on the server, so the change needs a fresh read. */
+export function isListConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "LIST_CONFLICT";
+}
+
 /**
  * Extract per-field validation issue messages from a `VALIDATION_ERROR`
  * response's `error.details.issues` array (see `packages/core/src/api/parse.ts`).
@@ -149,6 +154,8 @@ export interface FindManyResult<T> {
  */
 export interface AdminManifest {
 	version: string;
+	/** The commit EmDash was built from, when known. */
+	commit?: string;
 	/** Version of Astro the host is built with, when resolvable. */
 	astroVersion?: string;
 	/** Site title used for browser tab titles. */
@@ -284,6 +291,8 @@ export interface AdminManifest {
 	signupEnabled?: boolean;
 	/** Whether the site is in staging (hidden from search engines). */
 	staging?: boolean;
+	/** Whether this host runs co-editing rooms. When false, the editor doesn't ask to join one. */
+	coEditing?: boolean;
 	/**
 	 * i18n configuration. Present when multiple locales are configured.
 	 */

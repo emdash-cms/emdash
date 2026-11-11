@@ -1,7 +1,7 @@
+import { decodeMessage } from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it, vi } from "vitest";
 import { WebSocketServer } from "ws";
 
-import { decodeMessage } from "../../src/rooms/protocol.js";
 import { CLOSE_CODES } from "../../src/rooms/types.js";
 import { get, openSocket, rawUpgrade, roomPath, serve } from "./helpers.js";
 import { useRoomHost } from "./room-host.js";

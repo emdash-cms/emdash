@@ -1,17 +1,19 @@
+import {
+	ENTRY_SLUG,
+	readField,
+	readFields,
+	readSlug,
+	touchedFields,
+	writeField,
+} from "@emdash-cms/admin/internal/co-editing";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 
 import {
 	buildDocument,
 	documentFields,
-	ENTRY_SLUG,
 	layoutFields,
-	readField,
-	readFields,
-	readSlug,
 	storedValues,
-	touchedFields,
-	writeField,
 	type DocumentField,
 } from "../../../src/rooms/document.js";
 import {
@@ -26,9 +28,15 @@ const tags: DocumentField = { slug: "tags", type: "multiSelect" };
 const meta: DocumentField = { slug: "meta", type: "json" };
 const count: DocumentField = { slug: "count", type: "integer" };
 const featured: DocumentField = { slug: "featured", type: "boolean" };
-const related: DocumentField = { slug: "related", type: "reference" };
+const related: DocumentField = {
+	slug: "related",
+	type: "reference",
+	validation: { relation: "posts_related" },
+};
+/** A reference from before relations, which keeps a column holding one entry ID. */
+const legacy: DocumentField = { slug: "legacy", type: "reference" };
 
-const fields = [title, body, summary, tags, meta, count, featured, related];
+const fields = [title, body, summary, tags, meta, count, featured, related, legacy];
 
 function entry(
 	data: Record<string, unknown>,
@@ -73,7 +81,7 @@ describe("buildDocument and readField", () => {
 		},
 	);
 
-	it("lays out rich text as fragments and every other value in one map, without references", () => {
+	it("lays out rich text as fragments and every other value in one map, without relation references", () => {
 		const doc = buildDocument(
 			entry({
 				title: "Hello",
@@ -83,6 +91,7 @@ describe("buildDocument and readField", () => {
 				count: 3,
 				featured: false,
 				related: "entry-2",
+				legacy: "entry-3",
 			}),
 		);
 
@@ -93,6 +102,7 @@ describe("buildDocument and readField", () => {
 			meta: { nested: { list: [1, 2] } },
 			count: 3,
 			featured: false,
+			legacy: "entry-3",
 			slug: "post",
 		});
 		expect(doc.getXmlFragment("field:body").length).toBe(1);
@@ -106,6 +116,7 @@ describe("buildDocument and readField", () => {
 			meta: { a: 1 },
 			featured: true,
 			related: "entry-2",
+			legacy: "entry-3",
 		};
 		const doc = buildDocument(entry(data));
 
@@ -117,15 +128,21 @@ describe("buildDocument and readField", () => {
 			meta: { a: 1 },
 			count: null,
 			featured: true,
+			legacy: "entry-3",
 			slug: "post",
 		});
 		expect(readSlug(doc)).toBe("post");
 		expect(readSlug(buildDocument(entry(data, null)))).toBeNull();
 	});
 
-	it("keys stored values as the document does, leaving references out", () => {
+	it("keys stored values as the document does, leaving relation references out", () => {
 		expect(
-			storedValues(entry({ title: "Hello", related: "entry-2", other: "not a field" }, "post")),
+			storedValues(
+				entry(
+					{ title: "Hello", related: "entry-2", legacy: "entry-3", other: "not a field" },
+					"post",
+				),
+			),
 		).toEqual({
 			title: "Hello",
 			body: undefined,
@@ -134,6 +151,7 @@ describe("buildDocument and readField", () => {
 			meta: undefined,
 			count: undefined,
 			featured: undefined,
+			legacy: "entry-3",
 			slug: "post",
 		});
 	});
