@@ -69,7 +69,7 @@ The prepare step is additive. It does not change the type of an existing field t
 
 ## Status mapping
 
-The content routes store two statuses from a WordPress import:
+The content routes store three statuses from a WordPress import:
 
 | WordPress status | EmDash status |
 | --- | --- |
@@ -77,10 +77,13 @@ The content routes store two statuses from a WordPress import:
 | `draft` | `draft` |
 | `pending` | `draft` |
 | `private` | `draft` |
-| `future`, `trash`, or another value | `draft` |
+| `future` with a date later than the import | `scheduled` |
+| `future` with a past or missing date, `trash`, or another value | `draft` |
 | Any status on a password-protected post (WXR import) | `draft` |
 
-The importer does not preserve WordPress pending, private, scheduled, or trash semantics. Review those entries before publishing them in EmDash.
+In a collection with [`no-scheduling`](/concepts/collections/#collection-behavior) in its `supports` settings, a `future` post with a date later than the import stays a draft, and the import result lists a scheduling error for it.
+
+The importer does not preserve WordPress pending, private, or trash semantics. Review those entries before publishing them in EmDash.
 
 ## Content and identifiers
 
