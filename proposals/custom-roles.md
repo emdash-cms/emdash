@@ -32,15 +32,15 @@ The work has four phases:
 
 `packages/auth/src/rbac.ts` maps 51 permission names to a minimum role level, and a check is `user.role >= Permissions[permission]`. `AGENTS.md` states that authorization is permission-based and that this map is authoritative. Most REST routes follow that rule. Four areas compare the role number instead:
 
-- **User management.** The routes for users, invites, allowed signup domains, API tokens and OAuth clients compare the caller's role to `Role.ADMIN`, in 19 checks across 12 route files. Seven permissions in the map are never checked by core, among them `users:read` and `users:invite`, and `users:manage` is checked in one settings route.
+- **User management.** The routes for users, invites, allowed signup domains, API tokens and OAuth clients compare the caller's role to `Role.ADMIN`, in 19 checks across 12 route files. Six permissions in the map are never checked by core, among them `users:invite`. `users:read` decides only whether the dashboard includes the user count, and `users:manage` is checked in one settings route.
 - **MCP.** The MCP server calls `requireRole` with a role level at 53 call sites, next to the permission names that the matching REST routes use. The two can drift apart, and [#3433](https://github.com/emdash-cms/emdash/pull/3433) fixed one such case in `content_duplicate`.
 - **Visual editing.** The middleware that enables edit mode on site pages compares `user.role >= 30`, and the toolbar script makes the same comparison on the role number from `/auth/me`.
-- **Admin.** `GET /_emdash/api/auth/me` returns the role number and no permissions, and the admin package does not depend on `@emdash-cms/auth`. The admin declares 26 numeric role constants in 13 files and decides what to show by comparing against them.
+- **Admin.** `GET /_emdash/api/auth/me` returns the role number and no permissions, and the admin package does not depend on `@emdash-cms/auth`. The admin declares 27 numeric role constants in 15 files and decides what to show by comparing against them.
 
 Open reports follow from that split:
 
 - [#1132](https://github.com/emdash-cms/emdash/discussions/1132): a Subscriber sees the collections, plugin pages, settings pages and delete buttons, and the API then rejects the actions.
-- [#3034](https://github.com/emdash-cms/emdash/discussions/3034) and [#3033](https://github.com/emdash-cms/emdash/issues/3033): plugin pages are listed for every role, while a plugin route without a `permission` requires `plugins:manage`.
+- [#3034](https://github.com/emdash-cms/emdash/discussions/3034): plugin pages are listed for every role, while a plugin route without a `permission` requires `plugins:manage`. [#3033](https://github.com/emdash-cms/emdash/issues/3033) reported this for the forms plugin, which has since named a permission on its read routes.
 - The entry editor loads the users list for the author picker when the role is Editor or higher, and `GET /_emdash/api/admin/users` refuses everyone below Admin.
 
 The Contributor role showed the same split: a Contributor could create an entry (201) and was refused on the next save (403), because the map grants `content:create` from Contributor and `content:edit_own` from Author. [#4133](https://github.com/emdash-cms/emdash/pull/4133) closed that gap with a new `content:edit_own_drafts` permission at Contributor; the admin still learns about it only through the role number.
@@ -218,7 +218,7 @@ Code that authorizes a stored user id outside a request reads the user through t
 
 The join requires the migration. The runtime's `auto` mode applies it, and `check` mode answers 503 before serving a request while it is pending. A `manual` deployment can serve the new build before the migration has run. For that window, the adapter catches the error for a missing `_emdash_roles` table or a missing `role_id` column, falls back to the plain `users` select and retries the join a minute later. Until the migration runs, every user acts with the built-in role in `users.role`, instead of every sign-in failing. The fallback costs nothing once the table exists.
 
-An edited role applies on the user's next request, because the role row is read with the user row every time. The admin caches `/auth/me` for five minutes, so another open admin session shows its old navigation until then.
+An edited role applies on the user's next request, because the role row is read with the user row every time. The admin caches `/auth/me` for five minutes and fetches it again when its window regains focus, so another open admin session shows its old navigation until one of the two happens.
 
 ### Compatibility level
 
