@@ -17,6 +17,13 @@
 			"bucket_name": "emdash-e2e-media",
 		},
 	],
+	// Co-editing rooms, one Durable Object per entry being edited
+	"durable_objects": {
+		"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+	},
+	"exports": {
+		"EmDashRoom": { "type": "durable-object", "storage": "sqlite" },
+	},
 	"worker_loaders": [
 		{
 			"binding": "LOADER",

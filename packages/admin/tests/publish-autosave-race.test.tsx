@@ -864,7 +864,11 @@ describe("ContentEditPage publish and autosave ordering", () => {
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);
 		await vi.waitFor(() => {
-			expect(server!.requests.filter((request) => request.method === "POST")).toHaveLength(1);
+			expect(
+				server!.requests.filter(
+					(request) => request.method === "POST" && request.url.includes("/schedule"),
+				),
+			).toHaveLength(1);
 		});
 
 		await title.fill("After schedule");

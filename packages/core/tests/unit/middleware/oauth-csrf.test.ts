@@ -64,6 +64,7 @@ async function runAuthMiddleware(opts: {
 	const response = await onRequest(
 		{
 			url,
+			cookies: { get: () => undefined },
 			request: new Request(url, {
 				method,
 				headers,

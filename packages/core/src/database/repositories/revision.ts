@@ -1,4 +1,4 @@
-import { sql, type Kysely, type Selectable } from "kysely";
+import { sql, type Insertable, type Kysely, type Selectable } from "kysely";
 import { B32_CHARACTERS, decodeTime, encodeTime, monotonicFactory, ULID_REGEX } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
@@ -41,6 +41,19 @@ export interface Revision {
 	createdAt: string;
 }
 
+export type RevisionKind = "autosave" | "recovery";
+
+/** What kind of save wrote a revision, and who edited it. */
+export interface RevisionCredit {
+	/** `null` for a kept revision. */
+	kind: RevisionKind | null;
+	/**
+	 * Users who edited the revision since the one before it, latest first. `null` means its author
+	 * alone.
+	 */
+	editedBy: string[] | null;
+}
+
 export interface RevisionAuthor {
 	id: string;
 	/** `null` when the account has no display name. */
@@ -50,6 +63,11 @@ export interface RevisionAuthor {
 export interface RevisionWithAuthor extends Revision {
 	/** `null` when no author was recorded or the account no longer exists. */
 	author: RevisionAuthor | null;
+	/**
+	 * Everyone who edited the revision since the one before it, latest first. An entry is `null`
+	 * when the account no longer exists. `null` means its author alone.
+	 */
+	editedBy: Array<RevisionAuthor | null> | null;
 }
 
 export interface CreateRevisionInput {
@@ -57,7 +75,13 @@ export interface CreateRevisionInput {
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId?: string;
+	/** Absent or `null` for a kept revision. */
+	kind?: RevisionKind | null;
+	/** Users whose edits the revision holds, latest first. None means the author alone. */
+	editedBy?: readonly string[] | null;
 }
+
+const EDITOR_SETS_PAGE = 100;
 
 export function normalizeRevisionLimit(value: unknown): number {
 	const numeric = Number(value);
@@ -86,14 +110,19 @@ export class RevisionRepository {
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
 		const id = createRevisionId();
-		const data = await this.datetimes.normalizeData(input.collection, input.data);
+		const data =
+			input.kind === "recovery"
+				? input.data
+				: await this.datetimes.normalizeData(input.collection, input.data);
 
-		const row: Omit<RevisionTable, "created_at"> = {
+		const row: Insertable<RevisionTable> = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
 			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
+			kind: input.kind ?? null,
+			edited_by: input.editedBy?.length ? JSON.stringify(input.editedBy) : null,
 		};
 
 		await this.db.insertInto("revisions").values(row).execute();
@@ -151,13 +180,23 @@ export class RevisionRepository {
 	 * Find revision by ID
 	 */
 	async findById(id: string): Promise<Revision | null> {
-		const row = await this.db
-			.selectFrom("revisions")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirst();
-
+		const row = await this.findRow(id);
 		return row ? this.normalizeRow(row) : null;
+	}
+
+	/** Find a draft revision a save builds on, with what kind of save wrote it and who edited it. */
+	async findDraftBase(id: string): Promise<(Revision & RevisionCredit) | null> {
+		const row = await this.findRow(id);
+		if (!row) return null;
+		return {
+			...(await this.normalizeRow(row)),
+			kind: parseRevisionKind(row.kind),
+			editedBy: parseEditedBy(row.edited_by),
+		};
+	}
+
+	private findRow(id: string) {
+		return this.db.selectFrom("revisions").selectAll().where("id", "=", id).executeTakeFirst();
 	}
 
 	/** Shallow-merge `patch` into a stored revision's data. */
@@ -201,20 +240,78 @@ export class RevisionRepository {
 		}
 
 		const rows = await query.execute();
-		const data = await this.datetimes.normalizeDataMany(
-			collection,
-			rows.map((row) => JSON.parse(row.data)),
-		);
+		const data = await this.normalizeRows(collection, rows);
+		const editorIds = rows.map((row) => parseEditedBy(row.edited_by));
+		const editors = await this.findAuthors(editorIds.flatMap((ids) => ids ?? []));
 		return rows.map((row, index) => {
 			const normalized = data[index];
 			if (!normalized) throw new Error("Failed to normalize revision data");
+			const ids = editorIds[index];
 			return {
 				...this.rowToRevision(row, normalized),
 				author: row.author_user_id
 					? { id: row.author_user_id, name: row.author_name?.trim() || null }
 					: null,
+				editedBy: ids ? ids.map((id) => editors.get(id) ?? null) : null,
 			};
 		});
+	}
+
+	/**
+	 * Everyone the entry's revisions newer than `sinceId` credit, newest first and once each, or
+	 * everyone its revisions credit when `sinceId` is `null`. A revision credits its editors, or its
+	 * author when none are recorded; one that records no one credits no one. An entry is `null` for
+	 * an account that no longer exists. Revisions that credit the same people are read as one set,
+	 * {@link EDITOR_SETS_PAGE} sets per query.
+	 */
+	async findEditorsSince(
+		collection: string,
+		entryId: string,
+		sinceId: string | null,
+	): Promise<Array<RevisionAuthor | null>> {
+		const ids = new Set<string>();
+		let before: string | null = null;
+		for (;;) {
+			let query = this.db
+				.selectFrom("revisions")
+				.select((eb) => ["author_id", "edited_by", eb.fn.max("id").as("newest")])
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.groupBy(["author_id", "edited_by"])
+				.orderBy("newest", "desc")
+				.limit(EDITOR_SETS_PAGE);
+			if (sinceId) query = query.where("id", ">", sinceId);
+			if (before) query = query.having((eb) => eb(eb.fn.max("id"), "<", before));
+
+			// oxlint-disable-next-line no-await-in-loop -- each page starts below the last one
+			const rows = await query.execute();
+			for (const row of rows) {
+				for (const id of parseEditedBy(row.edited_by) ?? (row.author_id ? [row.author_id] : [])) {
+					ids.add(id);
+				}
+			}
+			const last = rows.at(-1);
+			if (rows.length < EDITOR_SETS_PAGE || !last) break;
+			before = last.newest;
+		}
+		const authors = await this.findAuthors([...ids]);
+		return Array.from(ids, (id) => authors.get(id) ?? null);
+	}
+
+	/** The accounts among `userIds` that still exist, keyed by ID. */
+	private async findAuthors(userIds: readonly string[]): Promise<Map<string, RevisionAuthor>> {
+		const authors = new Map<string, RevisionAuthor>();
+		for (const batch of chunks([...new Set(userIds)], SQL_BATCH_SIZE)) {
+			const users = await this.db
+				.selectFrom("users")
+				.select(["id", "name"])
+				.where("id", "in", batch)
+				.execute();
+			for (const user of users) {
+				authors.set(user.id, { id: user.id, name: user.name?.trim() || null });
+			}
+		}
+		return authors;
 	}
 
 	async findByIds(collection: string, ids: string[]): Promise<Revision[]> {
@@ -260,10 +357,7 @@ export class RevisionRepository {
 			ORDER BY revisions.id DESC
 			LIMIT ${limit}
 		`.execute(this.db);
-		const data = await this.datetimes.normalizeDataMany(
-			collection,
-			result.rows.map((row) => JSON.parse(row.data)),
-		);
+		const data = await this.normalizeRows(collection, result.rows);
 		return result.rows.map((row, index) => {
 			const normalized = data[index];
 			if (!normalized) throw new Error("Failed to normalize revision data");
@@ -414,10 +508,15 @@ export class RevisionRepository {
 		return pruned;
 	}
 
+	/**
+	 * With `autosaveOnly`, deletes the revision only while it is still an autosave, so one marked
+	 * kept after the caller decided to replace it survives.
+	 */
 	async deleteIfUnreferenced(
 		collection: string,
 		entryId: string,
 		revisionId: string,
+		options: { autosaveOnly?: boolean } = {},
 	): Promise<boolean> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
@@ -426,6 +525,7 @@ export class RevisionRepository {
 			WHERE id = ${revisionId}
 			AND collection = ${collection}
 			AND entry_id = ${entryId}
+			${options.autosaveOnly ? sql`AND kind = 'autosave'` : sql``}
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
 				WHERE content.live_revision_id = revisions.id
@@ -443,11 +543,27 @@ export class RevisionRepository {
 		collection: string;
 		entry_id: string;
 		data: string;
+		kind: string | null;
 		author_id: string | null;
 		created_at: string;
 	}): Promise<Revision> {
-		const data = await this.datetimes.normalizeData(row.collection, JSON.parse(row.data));
-		return this.rowToRevision(row, data);
+		const [data] = await this.normalizeRows(row.collection, [row]);
+		return this.rowToRevision(row, data ?? {});
+	}
+
+	/** Recovery revisions keep their data as sent; restoring one validates it. */
+	private async normalizeRows(
+		collection: string,
+		rows: readonly { data: string; kind: string | null }[],
+	): Promise<Record<string, unknown>[]> {
+		const data: Record<string, unknown>[] = rows.map((row) => JSON.parse(row.data));
+		const kept = rows.flatMap((row, index) => (row.kind === "recovery" ? [] : [index]));
+		const normalized = await this.datetimes.normalizeDataMany(
+			collection,
+			kept.map((index) => data[index]),
+		);
+		for (const [position, index] of kept.entries()) data[index] = normalized[position];
+		return data;
 	}
 
 	private rowToRevision(
@@ -470,4 +586,23 @@ export class RevisionRepository {
 			createdAt: row.created_at,
 		};
 	}
+}
+
+function parseRevisionKind(value: string | null): RevisionKind | null {
+	return value === "autosave" || value === "recovery" ? value : null;
+}
+
+function parseEditedBy(value: string | null): string[] | null {
+	if (value === null) return null;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		return null;
+	}
+	return Array.isArray(parsed) &&
+		parsed.length > 0 &&
+		parsed.every((id): id is string => typeof id === "string")
+		? parsed
+		: null;
 }

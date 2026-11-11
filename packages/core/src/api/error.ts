@@ -109,14 +109,14 @@ export function requireDb(db: unknown): Response | null {
  *
  * Collapses the handler-to-response boilerplate:
  * - Success: returns `apiSuccess(result.data, successStatus)`
- * - Error: returns `apiError(code, message, mapErrorStatus(code))`
+ * - Error: returns `apiError(code, message, status ?? mapErrorStatus(code))`
  */
 export function unwrapResult<T>(result: ApiResult<T>, successStatus = 200): Response {
 	if (!result.success) {
 		return apiError(
 			result.error.code,
 			result.error.message,
-			mapErrorStatus(result.error.code),
+			result.status ?? mapErrorStatus(result.error.code),
 			result.error.details,
 		);
 	}
