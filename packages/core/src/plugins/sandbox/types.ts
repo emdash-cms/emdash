@@ -11,6 +11,7 @@ import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { ContentActionCallbacks } from "../context.js";
 import type {
 	ContentCreateOptions,
@@ -102,6 +103,8 @@ export interface SandboxOptions {
 	storage?: PluginCodeStorage;
 	/** Database for bridge operations */
 	db: Kysely<Database>;
+	/** Serializable adapter configuration for bridges running outside the host event. */
+	database?: DatabaseDescriptor;
 	/**
 	 * Called immediately before a sandboxed plugin content mutation; it throws
 	 * to refuse the write. When it returns a function, the bridge calls that

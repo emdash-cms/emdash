@@ -23,13 +23,39 @@ const bridgeContext = {
 	},
 };
 
+type TestStatement = {
+	all?: () => Promise<{ results: unknown[]; meta: { changes: number } }>;
+	first?: () => Promise<unknown>;
+};
+
+type TestDatabase = {
+	prepare(sql: string): TestStatement;
+};
+
+function adaptD1(db: TestDatabase): TestDatabase {
+	return {
+		prepare(sql) {
+			const statement = db.prepare(sql);
+			if (!statement.all && statement.first) {
+				statement.all = async () => {
+					const row = await statement.first!();
+					return { results: row == null ? [] : [row], meta: { changes: 1 } };
+				};
+			}
+			return statement;
+		},
+	};
+}
+
 function makeBridge(db: unknown, i18nConfig?: { defaultLocale: string; locales: string[] } | null) {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test doubles implement only the D1 methods they exercise
+	const adaptedDb = adaptD1(db as TestDatabase);
 	return new PluginBridge(
 		{
 			...bridgeContext,
 			props: { ...bridgeContext.props, i18nConfig },
 		} as never,
-		{ DB: db } as never,
+		{ DB: adaptedDb } as never,
 	);
 }
 
@@ -135,8 +161,8 @@ describe("PluginBridge content write fence", () => {
 		};
 
 		await expect(makeBridge(db).contentDelete("posts", "post-id")).resolves.toBe(true);
-		expect(queries[1]).toContain("write_epoch = write_epoch + 1");
-		expect(queries[2]).toContain("UPDATE ec_posts SET deleted_at");
+		expect(queries[1]).toContain(`"write_epoch" = write_epoch + 1`);
+		expect(queries[2]).toContain(`update "ec_posts" set "deleted_at"`);
 	});
 
 	it("keeps the media usage fence before the transfer tables are migrated", async () => {
@@ -276,7 +302,7 @@ describe("PluginBridge content write fence", () => {
 		};
 
 		const created = await makeBridge(db, config).contentCreate("posts", {}, options);
-		const insert = statements.find(({ sql }) => sql.startsWith("INSERT INTO"));
+		const insert = statements.find(({ sql }) => sql.startsWith("insert into"));
 
 		expect(insert?.sql).toContain('"locale"');
 		expect(insert?.values).toContain(expected);

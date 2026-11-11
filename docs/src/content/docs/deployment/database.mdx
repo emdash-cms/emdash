@@ -488,10 +488,6 @@ This is the [two-configuration pattern](https://developers.cloudflare.com/hyperd
 	Cross-isolate post-write routing uses the configured distributed Object Cache backend to share the last-content-write timestamp. Without a distributed Object Cache, the prefer-uncached window is known only to the Worker isolate that handled the write.
 </Aside>
 
-<Aside>
-	**Sandboxed plugins are D1-only.** The sandbox plugin bridge talks to a D1 binding directly, independent of the configured adapter, so sandboxed plugins aren't available on a Hyperdrive deployment.
-</Aside>
-
 #### Optional: use a separate cached role
 
 Migrations, setup, authenticated requests, and explicit write requests always use the primary `binding`. A separate role for `cachedBinding` does not need schema ownership or `CREATE`, but it needs `CONNECT`, schema `USAGE`, and `SELECT` on every table used by the public site.

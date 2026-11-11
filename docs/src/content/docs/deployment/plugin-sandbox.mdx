@@ -15,7 +15,7 @@ The following table summarizes what each runner needs and enforces.
 | ------------------ | ------------------------------------------------------------------------------------------------- | --------------------------------------- |
 | `sandboxRunner`    | `sandbox()` from `@emdash-cms/cloudflare`                                                          | `"@emdash-cms/sandbox-workerd/sandbox"` |
 | Requirements       | Workers Paid plan, a `worker_loaders` binding, `PluginBridge` exported from the Worker entry point | The `workerd` package                   |
-| Database access    | The `DB` D1 binding, independent of the configured adapter                                        | The configured database                 |
+| Database access    | The configured D1, Hyperdrive, or Durable Objects SQL database                                    | The configured database                 |
 | Enforced limits    | CPU time, subrequests, wall time                                                                  | Wall time                               |
 
 ## Cloudflare Workers
@@ -90,9 +90,7 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
 
 </Steps>
 
-<Aside>
-	The bridge that sandboxed plugins use for database access talks to the D1 binding named `DB` directly, independent of the configured adapter. Sandboxed plugins are not available on a [Hyperdrive deployment](/deployment/database/).
-</Aside>
+The bridge uses the site's configured `d1()`, `hyperdrive()`, or `durableObjects()` database, so sandboxed plugins read and write the same database as the rest of the site. Sandboxed plugins are supported on [Hyperdrive deployments](/deployment/database/).
 
 ## Node.js
 

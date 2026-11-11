@@ -42,7 +42,7 @@ function fakeD1(rows: Row[], recorded: RecordedQuery[]) {
 				},
 				async all() {
 					recorded.push({ sql, params: statement.params });
-					return { results: rows };
+					return { results: rows, meta: { changes: 0 } };
 				},
 				async first() {
 					recorded.push({ sql, params: statement.params });
@@ -247,7 +247,7 @@ describe("taxonomyList", () => {
 
 		expect(recorded[0]?.sql).not.toContain("locale");
 		expect(recorded[0]?.params).toEqual([]);
-		expect(recorded[1]?.sql).toContain("WHERE locale = ?");
+		expect(recorded[1]?.sql).toContain(`where "locale" = ?`);
 		expect(recorded[1]?.params).toEqual(["de"]);
 	});
 });
@@ -281,9 +281,9 @@ describe("taxonomyTerms", () => {
 		await bridge.taxonomyTerms("category");
 		await bridge.taxonomyTerms("category", { locale: "fr" });
 
-		expect(recorded[0]?.sql).toContain("WHERE name = ?");
+		expect(recorded[0]?.sql).toContain(`where "name" = ?`);
 		expect(recorded[0]?.params).toEqual(["category"]);
-		expect(recorded[1]?.sql).toContain("AND locale = ?");
+		expect(recorded[1]?.sql).toContain(`and "locale" = ?`);
 		expect(recorded[1]?.params).toEqual(["category", "fr"]);
 	});
 
@@ -294,7 +294,7 @@ describe("taxonomyTerms", () => {
 		const { bridge, recorded } = makeBridge(["taxonomies:read"]);
 		await bridge.taxonomyTerms("category");
 
-		expect(recorded[0]?.sql).toContain("ORDER BY sort_order ASC, label ASC, id ASC");
+		expect(recorded[0]?.sql).toContain(`order by "sort_order" asc, "label" asc, "id" asc`);
 	});
 });
 
@@ -304,7 +304,7 @@ describe("taxonomyEntryTerms", () => {
 		const terms = await bridge.taxonomyEntryTerms("posts", "post-1");
 
 		expect(recorded[0]?.sql).toContain(
-			"JOIN taxonomies ON taxonomies.translation_group = content_taxonomies.taxonomy_id",
+			`inner join "taxonomies" on "taxonomies"."translation_group" = "content_taxonomies"."taxonomy_id"`,
 		);
 		expect(recorded[0]?.params).toEqual(["posts", "post-1"]);
 		expect(terms[0]?.taxonomy).toBe("category");
@@ -314,8 +314,8 @@ describe("taxonomyEntryTerms", () => {
 		const { bridge, recorded } = makeBridge(["taxonomies:read"]);
 		await bridge.taxonomyEntryTerms("posts", "post-1", { taxonomy: "tag", locale: "de" });
 
-		expect(recorded[0]?.sql).toContain("AND taxonomies.name = ?");
-		expect(recorded[0]?.sql).toContain("AND taxonomies.locale = ?");
+		expect(recorded[0]?.sql).toContain(`and "taxonomies"."name" = ?`);
+		expect(recorded[0]?.sql).toContain(`and "taxonomies"."locale" = ?`);
 		expect(recorded[0]?.params).toEqual(["posts", "post-1", "tag", "de"]);
 	});
 });

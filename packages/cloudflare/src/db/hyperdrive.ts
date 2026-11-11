@@ -44,12 +44,6 @@
  * Runtime migrations and the per-isolate singleton always use the primary binding.
  * Omit `cachedBinding` and the adapter behaves exactly as before.
  *
- * Known limitation — sandboxed plugins are D1-only. The sandbox plugin bridge
- * (a Durable Object) talks to a D1 binding directly, independent of the
- * configured adapter, so sandboxed plugins are not available on a Hyperdrive
- * deployment. This is a pre-existing bridge constraint, unrelated to connection
- * scoping; tracked in https://github.com/emdash-cms/emdash/issues/1623.
- *
  * This module imports directly from cloudflare:workers to access the binding.
  * Do NOT import it at config time — use { hyperdrive } from
  * "@emdash-cms/cloudflare" instead.

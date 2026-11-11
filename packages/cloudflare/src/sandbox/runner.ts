@@ -24,6 +24,7 @@ import {
 	type SandboxCommentModerateCallback,
 	type SandboxContentCreateCallback,
 	type ContentActionCallbacks,
+	type DatabaseDescriptor,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
 	type SerializedRequest,
@@ -68,6 +69,7 @@ const DEFAULT_LIMITS = {
 export interface PluginBridgeProps {
 	pluginId: string;
 	pluginVersion: string;
+	database?: DatabaseDescriptor;
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
@@ -271,6 +273,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.taxonomyWriteRuntimeId,
 			this.httpFetchKey,
 			this.mediaStorageKey,
+			this.options.database,
 			// RPC parameters retain the originating isolate; loopback props only carry data.
 			(invocationId) =>
 				new PluginRuntimeBridge(
@@ -349,6 +352,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		private taxonomyWriteRuntimeId?: string,
 		private readonly httpFetchKey?: string,
 		private readonly mediaStorageKey?: string,
+		private readonly database?: DatabaseDescriptor,
 		private readonly createRuntimeBridge?: (invocationId: string) => PluginRuntimeBridge,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
@@ -386,6 +390,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			props: {
 				pluginId: this.manifest.id,
 				pluginVersion: this.manifest.version || "0.0.0",
+				database: this.database,
 				capabilities,
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),

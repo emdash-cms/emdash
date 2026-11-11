@@ -6,6 +6,9 @@ import type {
 	TaxonomyAccessWithWrite,
 	SandboxOptions,
 } from "emdash";
+import { createDialect } from "emdash/db/sqlite";
+import { getRequestContext, runWithContext } from "emdash/request-context";
+import { Kysely } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import atprotoPlugin from "../../../plugins/atproto/src/plugin.js";
@@ -156,6 +159,47 @@ const manifest = (capabilities: PluginCapability[]) => ({
 });
 
 describe("Cloudflare sandbox runner runtime targets", () => {
+	it("restores each invocation's database when a runtime callback enters without request context", async () => {
+		setupLoader({
+			routes: {
+				ops: async (_route: unknown, ctx: any) =>
+					runWithContext({ editMode: false }, () => ctx.content.create("posts", {})),
+			},
+		});
+		const instance = runner();
+		instance.setContentCreate(async () => {
+			const db = getRequestContext()?.db as Kysely<{ markers: { id: string } }> | undefined;
+			if (!db) throw new Error("request database was lost");
+			const row = await db.selectFrom("markers").selectAll().executeTakeFirstOrThrow();
+			return { id: row.id } as never;
+		});
+		const plugin = await instance.load(manifest(["content:write"]), "");
+		const databases = await Promise.all(
+			["first", "second"].map(async (id) => {
+				const db = new Kysely<{ markers: { id: string } }>({
+					dialect: createDialect({ url: ":memory:" }),
+				});
+				await db.schema
+					.createTable("markers")
+					.addColumn("id", "text", (column) => column.notNull())
+					.execute();
+				await db.insertInto("markers").values({ id }).execute();
+				return db;
+			}),
+		);
+		try {
+			const results = await Promise.all(
+				databases.map((db) =>
+					runWithContext({ editMode: false, db }, () => plugin.invokeRoute("ops", {}, request)),
+				),
+			);
+			expect(results).toEqual([{ id: "first" }, { id: "second" }]);
+		} finally {
+			await instance.terminateAll();
+			await Promise.all(databases.map((db) => db.destroy()));
+		}
+	});
+
 	it("threads the runner write guard and records only successful creates", async () => {
 		const writes: string[] = [];
 		let blocked = true;
