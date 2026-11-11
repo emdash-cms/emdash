@@ -107,7 +107,7 @@ npx emdash fleet deploy --group clients --wave-size 2
 ```txt
 wave 1  bakery   migrate 1 pending -> applied   deploy ok   health 1.5.0
 wave 1  corner   migrate 1 pending -> applied   deploy ok   health 1.5.0
-wave 2  lantern  migrate 1 pending -> FAILED (MIGRATION_LOCK_HELD)
+wave 2  lantern  migrate 1 pending -> FAILED (migration lock held)
 stopped after wave 2: 1 failed (lantern, still on 1.4.0), 1 skipped (harbour, repo layout)
 ```
 
@@ -129,7 +129,7 @@ stopped after wave 2: 1 failed (lantern, still on 1.4.0), 1 skipped (harbour, re
 - A hosted console, a registry service or a web dashboard. A later proposal can build one on the same site list.
 - Creating sites on Node.js, Docker or other hosts. Sites there can be adopted, and `status` and `update` work for them.
 - Creating repositories on Git hosts other than GitHub. A site on another host can be adopted and updated through #4577's webhook trigger.
-- One sign-in across sites. The deployment guide describes Cloudflare Access for that, and its seat limit, without tooling.
+- One sign-in across sites. The guide page for running many sites describes Cloudflare Access for that, and its seat limit, without tooling.
 - Fleet commands over MCP. An agent that acts across sites is a separate security decision.
 - Sharing content between sites, a network role above Admin, or a site switcher in the admin.
 
@@ -161,7 +161,7 @@ Every command that changes something takes an explicit selection: `--site <key>`
 - **GitHub token:** `GITHUB_TOKEN` from the environment, only for provisioning a `repo` site. The same rules apply.
 - **Generated site secrets:** `provision` generates `EMDASH_ENCRYPTION_KEY` and `EMDASH_SETUP_TOKEN` per site and sets them as Worker secrets. They never reach `fleet.yaml`. The setup token is printed once, inside the setup link.
 
-The permissions each token needs are listed in [Appendix D](#appendix-d-limits-and-permissions). `status`, `update`, `adopt` and `list` don't need a Cloudflare token.
+The permissions each token needs are listed in [Appendix D](#appendix-d-limits-and-permissions). `list`, `status` and `update` don't need a Cloudflare token, and neither does `adopt` for a `repo` site. Adopting a `shared` site reads its target fingerprint with `emdash migrate --status`, which needs one.
 
 ### Commands
 
@@ -289,11 +289,11 @@ A site can leave the fleet at any time: deleting its entry changes nothing on th
 
 `fleet update` and provisioning a `repo` site use #4577's request route, its `updates:request` token scope, its error codes, its `updateCheck.trigger` option and its shipped workflow file. This RFC is written against #4577's current revision. If #4577 changes before this RFC is accepted, this RFC is amended in the same revision so that every name above matches #4577's text. If #4577 is accepted with changes after this RFC, the implementation follows #4577 and this proposal is amended by a design pull request. If #4577 is withdrawn, `fleet update` and `repo` provisioning are removed from this RFC before acceptance; `repo` sites can then still be adopted for `status`.
 
-If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) lands, its `--env-file` option works for fleet commands the same way. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a fleet token can belong to a role limited to what the tool needs.
+If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) lands, fleet commands take the same `--env-file` option. #4683 adds it to `emdash migrate` only, so the fleet commands add it themselves. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a fleet token can belong to a role limited to what the tool needs.
 
 ## Security and privacy
 
-- **The Cloudflare token** is the most valuable secret in the system. Creating a Worker needs product-level Workers Admin, so a token that can provision can also delete every Worker on the account. It stays in the operator's environment or CI secrets and is never stored by the tool. The docs recommend a token per environment, and a separate account where customers must be separated.
+- **The Cloudflare token** is the most valuable secret in the system. Creating a Worker needs product-level Workers Admin, so a token that can provision can also delete every Worker on the account. It stays in the operator's environment or CI secrets and is never stored by the tool. The guide page for running many sites recommends a token per environment, and a separate account where customers must be separated.
 - **Repo layout:** the tool never copies a Cloudflare token into a repository's secrets. It prints which secrets the repository's pipeline needs, and the operator creates them. A deploy token can be scoped to that site's Worker, which the Cloudflare docs allow once the Worker exists. A deploy token isn't multiplied across many repositories by the tool.
 - **The GitHub token** can create repositories in the target owner and push to them. It's needed only during `repo` provisioning.
 - **EmDash tokens** are per site and scoped. `status` needs `admin` today and only `updates:request` with #4577; `deploy` and `provision` need no EmDash token; `remove` needs `transfer:export`. A token for one site can't act on another, because each site has its own users and token table.
@@ -301,15 +301,15 @@ If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) l
 - **The site list** holds account IDs, database IDs, repository names and hostnames, no secrets. Those identifiers aren't credentials, but they tell a reader which customers an agency has, so operators keep the file in a private repository.
 - **Dry runs:** `--dry-run` output and every error message redact the Cloudflare token and every generated secret value.
 - **Untrusted input:** responses from sites are parsed as data. A site that reports an unexpected version or JSON shape fails its step, and nothing from a response is used as a URL or a command.
-- **Privacy:** each site's users and content stay in that site's database. The tool reads only version and update state. `remove` writes an export file that holds personal data, and the docs say to treat it like a backup.
+- **Privacy:** each site's users and content stay in that site's database. The tool reads only version and update state. `remove` writes an export file that holds personal data, and the guide page for running many sites says to treat it like a backup.
 
 ## Performance
 
-No request path changes. The logged-out routes run the same queries, and the query-count snapshot stays the same. The setup secret check runs only on setup and first sign-in routes, and only while setup is incomplete.
+Page requests don't change. The logged-out routes run the same queries, and the query-count snapshot stays the same. The setup secret check runs only on setup and first sign-in routes, and only while setup is incomplete.
 
 The tool's own cost is outbound requests from the operator's machine or CI: one health request per site for `status`, plus one admin request when a token is present. In the prototype, `status` over three local sites took 385–411 ms, of which about 200 ms is loading the CLI.
 
-Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the quota step reads each Worker's schedules: one `provision` costs 8 + N API requests on an account with N Workers, plus one `wrangler deploy`. At 250 Workers that's 258 requests, against the API's limit of 1,200 requests per five minutes per user. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
+Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the quota step reads each Worker's schedules, one request per Worker. The **migrate** step costs more: `emdash migrate` sends each SQL statement to D1 as its own API request, and the core migrations on an empty database run about 600 statements. One `provision` on an account with N Workers costs about 610 + N API requests, plus one `wrangler deploy`. At 250 Workers that's about 860 requests, against the API's limit of 1,200 requests per five minutes per user, so a second `provision` within five minutes can reach the limit. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
 
 ## Failure handling
 
@@ -397,7 +397,7 @@ A dispatch namespace removes the per-account Worker limit. Scheduled publishing 
 
 ### A shared database with a tenant column
 
-This is what Payload's multi-tenant plugin does. Every query has to carry the filter, raw SQL for content writes and search doesn't pass through a Kysely plugin, and each EmDash site keeps its own schema, which a shared table can't hold. Discussion #3079's pass-through remains useful for scoping inside one site.
+This is what Payload's multi-tenant plugin does. Every query has to carry the filter. Content writes and search use raw SQL, which a Kysely plugin receives only as text it can't add a filter to. Each EmDash site also keeps its own schema, which a shared table can't hold. Discussion #3079's pass-through remains useful for scoping inside one site.
 
 ### A separate tool outside the project
 
@@ -564,7 +564,7 @@ Each step records `done`, `failed` or `waiting` under `state.steps.<name>` befor
 2. **database:** creates the D1 database with the configured location hint.
 3. **bucket:** creates the R2 bucket.
 4. **kv:** creates the KV namespace the build's `SESSION` binding uses for Astro sessions.
-5. **config:** writes `.emdash/fleet/<key>/wrangler.json` from the build's own config (`dist/server/wrangler.json`). It sets the Worker name, points `DB`, `MEDIA` and `SESSION` at the recorded resources, and keeps the project's other bindings as they are. It keeps the project's `triggers.crons`, or uses `* * * * *` when there is none, because `createScheduledHandler()` ignores any trigger that differs from its `generalCron`. It sets `workers_dev: false` and `preview_urls: false`. The custom domain isn't in the config yet. The step refuses to write without the database and namespace IDs.
+5. **config:** writes `.emdash/fleet/<key>/wrangler.json` from the build's own config (`dist/server/wrangler.json`). It sets the Worker name, points `DB`, `MEDIA` and `SESSION` at the recorded resources, and keeps the project's other bindings as they are. It keeps the project's `triggers.crons`, or uses `* * * * *` when there is none, because a handler created with `createScheduledHandler({ generalCron })` ignores any other expression. It sets `workers_dev: false` and `preview_urls: false`. The custom domain isn't in the config yet. The step refuses to write without the database and namespace IDs.
 6. **migrate:** applies the core migrations and records the target fingerprint under `state`.
 7. **deploy:** deploys the Worker. It has no public URL at this point.
 8. **encryption-key:** generates and sets `EMDASH_ENCRYPTION_KEY`, once. A later run never generates it again, because the secret can't be read back and a new key would make the site's stored plugin secrets unreadable.
@@ -608,7 +608,7 @@ Read in the Cloudflare docs on 2026-11-10 and 2026-11-11.
 
 Workers Cache purges always use the Free purge limits, whatever the plan: 5 requests per minute per account, with a bucket of 25. Every site on the account shares that budget when editors publish.
 
-The Cloudflare API allows 1,200 requests per five minutes per user, counted across the dashboard, API keys and API tokens.
+The Cloudflare API allows 1,200 requests per five minutes per user, counted across the dashboard, API keys and API tokens. The D1 queries that `emdash migrate` sends count toward it. A user who goes over gets every API call refused for the next five minutes.
 
 ### Cloudflare token permissions
 
