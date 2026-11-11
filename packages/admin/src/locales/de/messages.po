@@ -431,7 +431,7 @@ msgstr "{0, plural, one {Mediendatei} other {Mediendateien}}"
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
 msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
-msgstr ""
+msgstr "{0, plural, one {Ein weiterer Eintrag wird nicht angezeigt.} other {# weitere Einträge werden nicht angezeigt.}}"
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -752,7 +752,7 @@ msgstr "{label} in {menuName}"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "{label} is always shown"
-msgstr ""
+msgstr "{label} wird immer angezeigt"
 
 #. placeholder {0}: newIndex + 1
 #. placeholder {1}: images.length
@@ -768,7 +768,7 @@ msgstr "{label} an Position {0} verschoben."
 #: packages/admin/src/components/settings/LayoutList.tsx:436
 #: packages/admin/src/components/settings/LayoutList.tsx:468
 msgid "{label} moved to position {position} of {count}."
-msgstr ""
+msgstr "{label} wurde auf Position {position} von {count} verschoben."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:537
 msgid "{label} options"
@@ -944,7 +944,7 @@ msgstr "{plural} sind sofort live; Änderungen im Entwurf werden dabei nicht ver
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr ""
+msgstr "{policyRejected, plural, one {Öffne den betroffenen Eintrag, behebe das angezeigte Problem und plane ihn erneut. Sobald er erfolgreich geplant oder veröffentlicht ist, verschwindet dieser Hinweis.} other {Öffne die betroffenen Einträge, behebe die angezeigten Probleme und plane die Einträge erneut. Sobald ein Eintrag erfolgreich geplant oder veröffentlicht ist, verschwindet sein Hinweis.}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -1386,7 +1386,7 @@ msgstr "Akzeptieren & aktualisieren"
 
 #: packages/admin/src/router.tsx:470
 msgid "Accept invitation"
-msgstr ""
+msgstr "Einladung annehmen"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:245
 #: packages/admin/src/locales/emails.ts:57
@@ -2078,7 +2078,7 @@ msgstr "Alternativ kannst du den Export in WordPress unter Werkzeuge → Export 
 
 #: packages/admin/src/components/settings/LayoutList.tsx:154
 msgid "Always shown"
-msgstr ""
+msgstr "Immer angezeigt"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:324
 msgid "An earlier import of this package stopped after it started writing to this site. Abandon that import, then reset this site or set up a new one before importing again."
@@ -2250,7 +2250,7 @@ msgstr "Anwendungspasswort"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:127
 msgid "Applies to every collection. Sections a collection doesn't use are skipped."
-msgstr ""
+msgstr "Gilt für alle Sammlungen. Bereiche, die eine Sammlung nicht verwendet, erscheinen dort nicht."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
 #: packages/admin/src/components/PortableTextEditor.tsx:6738
@@ -2443,7 +2443,7 @@ msgstr "Autorisieren"
 
 #: packages/admin/src/router.tsx:481
 msgid "Authorize device"
-msgstr ""
+msgstr "Gerät autorisieren"
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:208
 msgid "Authorize Device"
@@ -2960,7 +2960,7 @@ msgstr "Diesen Import stoppen?"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:447
 msgid "Cancelled. {label} is back at position {position} of {count}."
-msgstr ""
+msgstr "Abgebrochen. {label} ist wieder auf Position {position} von {count}."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:357
 msgid "Cancelling…"
@@ -3387,11 +3387,11 @@ msgstr "Wähle, welche Art von Inhalt das Feld aufnimmt."
 
 #: packages/admin/src/components/Settings.tsx:143
 msgid "Choose what the navigation and editor sidebars show, and in what order"
-msgstr ""
+msgstr "Inhalt und Reihenfolge der Navigation und der Editor-Seitenleiste festlegen"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:81
 msgid "Choose what your sidebars show and in what order. Only you see your layout, and it follows you to any browser."
-msgstr ""
+msgstr "Wähle, was deine Seitenleisten anzeigen und in welcher Reihenfolge. Nur du siehst deine Anordnung, und sie gilt in jedem Browser, den du verwendest."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
@@ -3403,7 +3403,7 @@ msgstr "Wähle, wann dieser Eintrag veröffentlicht wird."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:687
 msgid "Choose which date appears in the content list."
-msgstr ""
+msgstr "Wähle, welches Datum in der Inhaltsliste erscheint."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
@@ -3705,7 +3705,7 @@ msgstr "Bestätigen"
 
 #: packages/admin/src/router.tsx:444
 msgid "Confirm magic link"
-msgstr ""
+msgstr "Anmeldelink bestätigen"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
@@ -4117,7 +4117,7 @@ msgstr "Versionen konnten nicht geladen werden"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:88
 msgid "Couldn't load your sidebars"
-msgstr ""
+msgstr "Deine Seitenleisten konnten nicht geladen werden"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -4133,7 +4133,7 @@ msgstr "Der Importplan konnte nicht neu geladen werden"
 
 #: packages/admin/src/lib/api/admin-layout.ts:277
 msgid "Couldn't save your sidebars"
-msgstr ""
+msgstr "Deine Seitenleisten konnten nicht gespeichert werden"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
@@ -4504,7 +4504,7 @@ msgstr "Benutzerdefinierte Taxonomien"
 #: packages/admin/src/components/ContentEditor.tsx:2464
 #: packages/admin/src/components/Sidebar.tsx:796
 msgid "Customize sidebar"
-msgstr ""
+msgstr "Seitenleiste anpassen"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Daily automatic backups"
@@ -4546,7 +4546,7 @@ msgstr "Datums- und Uhrzeitauswahl"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
 msgid "Date column source"
-msgstr ""
+msgstr "Datumsspalte"
 
 #: packages/admin/src/components/ContentList.tsx:1098
 msgid "Date field to filter on"
@@ -5206,7 +5206,7 @@ msgstr "Fertig"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:289
 msgid "Down arrow"
-msgstr ""
+msgstr "Pfeil nach unten"
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:321
@@ -5336,7 +5336,7 @@ msgstr "Ziehe Widgets in einen Bereich, um sie hinzuzufügen"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:283
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
-msgstr ""
+msgstr "Ziehen oder <0>Alt <1/></0> <2>Alt <3/></2> drücken"
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:149
 msgid "Drop an image here or <0>browse</0>"
@@ -5364,11 +5364,11 @@ msgstr "Lege deine WordPress-Exportdatei hier ab"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:442
 msgid "Dropped {label} at position {position} of {count}."
-msgstr ""
+msgstr "{label} auf Position {position} von {count} abgelegt."
 
 #: packages/admin/src/components/settings/LayoutList.tsx:440
 msgid "Dropped {label}."
-msgstr ""
+msgstr "{label} abgelegt."
 
 #: packages/admin/src/components/ContentList.tsx:1617
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
@@ -5467,7 +5467,7 @@ msgstr "{itemLabel} bearbeiten"
 
 #: packages/admin/src/components/ContentEditor.tsx:1828
 msgid "Edit {itemLabel}: {tabEntryTitle}"
-msgstr ""
+msgstr "{itemLabel} bearbeiten: {tabEntryTitle}"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:418
 #: packages/admin/src/components/TaxonomySidebar.tsx:427
@@ -5502,11 +5502,11 @@ msgstr "Bildunterschrift bearbeiten"
 
 #: packages/admin/src/router.tsx:1058
 msgid "Edit content"
-msgstr ""
+msgstr "Inhalt bearbeiten"
 
 #: packages/admin/src/router.tsx:3198
 msgid "Edit content type"
-msgstr ""
+msgstr "Inhaltstyp bearbeiten"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "Edit dark mode asset"
@@ -5557,7 +5557,7 @@ msgstr "Alt-Text, Bildunterschriften und Fokuspunkte von Medien bearbeiten"
 
 #: packages/admin/src/router.tsx:2902
 msgid "Edit menu"
-msgstr ""
+msgstr "Menü bearbeiten"
 
 #: packages/admin/src/components/MenuEditor.tsx:838
 msgid "Edit Menu Item"
@@ -5587,7 +5587,7 @@ msgstr "Rolle bearbeiten"
 
 #: packages/admin/src/router.tsx:2951
 msgid "Edit section"
-msgstr ""
+msgstr "Abschnitt bearbeiten"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
@@ -5672,15 +5672,15 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:110
 msgid "Editor sidebar"
-msgstr ""
+msgstr "Editor-Seitenleiste"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:64
 msgid "Editor sidebar reset"
-msgstr ""
+msgstr "Editor-Seitenleiste zurückgesetzt"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:148
 msgid "Editor sidebar sections"
-msgstr ""
+msgstr "Bereiche der Editor-Seitenleiste"
 
 #: packages/admin/src/components/FieldEditor.tsx:1790
 msgid "Editors can select a second image that the site shows in dark mode."
@@ -6172,7 +6172,7 @@ msgstr "Alle Beziehungen, an denen dieser Inhaltstyp beteiligt ist, werden ebenf
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:65
 msgid "Everything is shown again, in the default order."
-msgstr ""
+msgstr "Alles wird wieder in der Standardreihenfolge angezeigt."
 
 #: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
@@ -7181,7 +7181,7 @@ msgstr "Speichern der Einstellungen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/admin-layout.ts:113
 msgid "Failed to save sidebar layout"
-msgstr ""
+msgstr "Speichern der Seitenleisten-Anordnung fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:433
 msgid "Failed to schedule content"
@@ -8807,7 +8807,7 @@ msgstr "Zuletzt aktualisiert"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:676
 msgid "Last updated (default)"
-msgstr ""
+msgstr "Zuletzt aktualisiert (Standard)"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
 #: packages/admin/src/components/settings/PasskeyItem.tsx:134
@@ -9243,7 +9243,7 @@ msgstr "Gesperrt, weil dieses Feld gespeicherte Werte hat. Lösche die Werte (od
 
 #: packages/admin/src/router.tsx:430
 msgid "Log in"
-msgstr ""
+msgstr "Anmelden"
 
 #: packages/admin/src/components/Header.tsx:125
 msgid "Log out"
@@ -9492,7 +9492,7 @@ msgstr "Medienergebnisse"
 
 #: packages/admin/src/router.tsx:2618
 msgid "Media Usage"
-msgstr ""
+msgstr "Medienverwendung"
 
 #: packages/admin/src/components/Settings.tsx:79
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
@@ -9969,7 +9969,7 @@ msgstr "Navigation"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:64
 msgid "Navigation reset"
-msgstr ""
+msgstr "Navigation zurückgesetzt"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:458
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:462
@@ -10020,11 +10020,11 @@ msgstr "Neue Sammlung"
 
 #: packages/admin/src/router.tsx:894
 msgid "New content"
-msgstr ""
+msgstr "Neuer Inhalt"
 
 #: packages/admin/src/router.tsx:3101
 msgid "New content type"
-msgstr ""
+msgstr "Neuer Inhaltstyp"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:468
 #: packages/admin/src/components/ContentTypeList.tsx:159
@@ -10932,7 +10932,7 @@ msgstr "Paket heruntergeladen"
 
 #: packages/admin/src/router.tsx:3419
 msgid "Page not found"
-msgstr ""
+msgstr "Seite nicht gefunden"
 
 #: packages/admin/src/router.tsx:3547
 msgid "Page Not Found"
@@ -11145,7 +11145,7 @@ msgstr "Berechtigungen"
 
 #: packages/admin/src/components/Settings.tsx:138
 msgid "Personal"
-msgstr ""
+msgstr "Persönlich"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Phosphor icon name, e.g. calendar-blank or trophy"
@@ -11157,7 +11157,7 @@ msgstr "PHP"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:430
 msgid "Picked up {label}, position {position} of {count}."
-msgstr ""
+msgstr "{label} aufgenommen, Position {position} von {count}."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
@@ -11248,7 +11248,7 @@ msgstr "Details zum Plugin"
 #: packages/admin/src/router.tsx:2820
 #: packages/admin/src/router.tsx:2827
 msgid "Plugin Details"
-msgstr ""
+msgstr "Details zum Plugin"
 
 #: packages/admin/src/components/PluginManager.tsx:157
 msgid "Plugin disabled"
@@ -11273,7 +11273,7 @@ msgstr "Die Installation des Plugins erfordert eine ausdrückliche Zustimmung"
 
 #: packages/admin/src/router.tsx:2812
 msgid "Plugin Marketplace"
-msgstr ""
+msgstr "Plugin-Marktplatz"
 
 #: packages/admin/src/components/PluginManager.tsx:412
 msgid "Plugin MCP access updated"
@@ -11332,7 +11332,7 @@ msgstr "Das Plugin hat mit {0} geantwortet: {text}"
 
 #: packages/admin/src/router.tsx:3382
 msgid "Plugin Settings"
-msgstr ""
+msgstr "Plugin-Einstellungen"
 
 #. placeholder {0}: plugin.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:533
@@ -12221,7 +12221,7 @@ msgstr "{0} neu anordnen"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:311
 msgid "Reorder {label}"
-msgstr ""
+msgstr "{label} neu anordnen"
 
 #: packages/admin/src/components/FieldEditor.tsx:746
 msgid "Repeater"
@@ -12413,11 +12413,11 @@ msgstr "Zuschnitt zurücksetzen"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:119
 msgid "Reset editor sidebar"
-msgstr ""
+msgstr "Editor-Seitenleiste zurücksetzen"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:119
 msgid "Reset navigation"
-msgstr ""
+msgstr "Navigation zurücksetzen"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:677
 msgid "Reset to original"
@@ -12962,7 +12962,7 @@ msgstr "Geplante Änderungen"
 
 #: packages/admin/src/components/Dashboard.tsx:171
 msgid "Scheduled content was not published"
-msgstr ""
+msgstr "Geplante Inhalte wurden nicht veröffentlicht"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."
@@ -13699,7 +13699,7 @@ msgstr "Einstellungen erfolgreich gespeichert"
 
 #: packages/admin/src/router.tsx:422
 msgid "Setup"
-msgstr ""
+msgstr "Einrichtung"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:474
 msgid "Setup couldn’t continue. Try again."
@@ -13737,7 +13737,7 @@ msgstr "Anzeigen"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:165
 msgid "Show {label}"
-msgstr ""
+msgstr "{label} anzeigen"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:223
 msgid "Show changes"
@@ -13799,7 +13799,7 @@ msgstr "Zeigt eine Schaltfläche zum Erstellen eines neuen Eintrags an"
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
 msgid "Sidebars"
-msgstr ""
+msgstr "Seitenleisten"
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
@@ -13852,7 +13852,7 @@ msgstr "Melde dich mit deinem Bluesky-/Atmosphere-Handle an"
 
 #: packages/admin/src/router.tsx:462
 msgid "Sign up"
-msgstr ""
+msgstr "Registrieren"
 
 #. placeholder {0}: user.email
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:222
@@ -14092,7 +14092,7 @@ msgstr "Profile in sozialen Netzwerken"
 
 #: packages/admin/src/router.tsx:2734
 msgid "Social Settings"
-msgstr ""
+msgstr "Einstellungen für soziale Netzwerke"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:155
 msgid "Some byline avatars were left out"
@@ -14166,7 +14166,7 @@ msgstr "Themes sortieren"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:259
 msgid "sortable"
-msgstr ""
+msgstr "sortierbar"
 
 #: packages/admin/src/components/ContentTypeList.tsx:221
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:563
@@ -15030,7 +15030,7 @@ msgstr "Theme „{id}“ nicht gefunden"
 
 #: packages/admin/src/router.tsx:2866
 msgid "Theme Details"
-msgstr ""
+msgstr "Details zum Theme"
 
 #. placeholder {0}: section.themeId
 #: packages/admin/src/components/SectionEditor.tsx:329
@@ -15039,7 +15039,7 @@ msgstr "Theme-ID: {0}"
 
 #: packages/admin/src/router.tsx:2858
 msgid "Theme Marketplace"
-msgstr ""
+msgstr "Theme-Marktplatz"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:91
 msgid "Theme not found"
@@ -15570,7 +15570,7 @@ msgstr "Um eine Website auf eine andere EmDash-Installation umzuziehen, nutze de
 
 #: packages/admin/src/components/settings/LayoutList.tsx:453
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
-msgstr ""
+msgstr "Drücke die Leertaste oder Enter, um ein Element aufzunehmen. Verschiebe es mit den Pfeiltasten nach oben und unten und drücke dann die Leertaste oder Enter, um es abzulegen, oder Escape, um abzubrechen. Mit Alt und der Pfeiltaste nach oben oder unten verschiebst du es sofort um eine Position."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:502
 msgid "to select"
@@ -15627,7 +15627,7 @@ msgstr "Tooltip-Text"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:138
 msgid "Top"
-msgstr ""
+msgstr "Oberer Bereich"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 msgid "Track content history"
@@ -15800,7 +15800,7 @@ msgstr "Umwandeln in"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:126
 msgid "Turn off pages you don't use, and drag to reorder them within their group."
-msgstr ""
+msgstr "Blende Seiten aus, die du nicht verwendest. Innerhalb ihrer Gruppe kannst du die Seiten per Drag-and-drop neu anordnen."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Turn on"
@@ -16032,7 +16032,7 @@ msgstr "Ungenutzte Referenzen wurden nicht berücksichtigt"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:286
 msgid "Up arrow"
-msgstr ""
+msgstr "Pfeil nach oben"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
@@ -17050,7 +17050,7 @@ msgstr "Du benötigst Admin-Berechtigungen, um diese Website umzuziehen."
 
 #: packages/admin/src/components/RequireAdmin.tsx:26
 msgid "You need admin permissions to view this page."
-msgstr ""
+msgstr "Du benötigst Admin-Berechtigungen, um diese Seite anzuzeigen."
 
 #: packages/admin/src/router.tsx:2567
 msgid "You need Editor permissions to moderate comments."
