@@ -6,5 +6,7 @@
  */
 
 export { portableTextExtensions, portableTextSchema } from "../portable-text/schema.js";
+export { PortableTextFilledDefaults } from "../portable-text/schema.js";
 export { portableTextToProsemirror, prosemirrorToPortableText } from "../portable-text/convert.js";
 export type { PortableTextBlock } from "../portable-text/convert.js";
+export { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";

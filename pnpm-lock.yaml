@@ -288,6 +288,9 @@ catalogs:
     kysely:
       specifier: ^0.29.0
       version: 0.29.2
+    lib0:
+      specifier: ^0.2.117
+      version: 0.2.117
     lightningcss:
       specifier: ^1.33.0
       version: 1.33.0
@@ -2201,6 +2204,9 @@ importers:
       '@tiptap/suggestion':
         specifier: 'catalog:'
         version: 3.32.0(@floating-ui/dom@1.7.6)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+      '@tiptap/y-tiptap':
+        specifier: 'catalog:'
+        version: 3.2.0(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.8)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)
       '@unpic/placeholder':
         specifier: ^0.1.2
         version: 0.1.2
@@ -2237,6 +2243,9 @@ importers:
       kysely:
         specifier: 'catalog:'
         version: 0.29.2
+      lib0:
+        specifier: 'catalog:'
+        version: 0.2.117
       lowlight:
         specifier: 'catalog:'
         version: 3.3.0
@@ -2276,6 +2285,12 @@ importers:
       upng-js:
         specifier: ^2.1.0
         version: 2.1.0
+      y-protocols:
+        specifier: 'catalog:'
+        version: 1.0.7(yjs@13.6.29)
+      yjs:
+        specifier: 'catalog:'
+        version: 13.6.29
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -2298,9 +2313,6 @@ importers:
       '@emdash-cms/atproto-test-utils':
         specifier: workspace:*
         version: link:../atproto-test-utils
-      '@tiptap/y-tiptap':
-        specifier: 'catalog:'
-        version: 3.2.0(prosemirror-model@1.25.12)(prosemirror-state@1.4.4)(prosemirror-view@1.42.8)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29)
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
@@ -2328,6 +2340,9 @@ importers:
       image-size:
         specifier: 'catalog:'
         version: 2.0.2(patch_hash=77c12533e3a635c4066c55da8952f4912e8210416539dc1249550fa639271595)
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
       publint:
         specifier: 'catalog:'
         version: 0.3.17
@@ -2343,9 +2358,6 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(@vitest/browser-playwright@4.1.10)(@vitest/ui@4.1.10)(jsdom@26.1.0)(vite@6.4.1(@types/node@25.9.1)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.21.0)(yaml@2.9.0))
-      yjs:
-        specifier: 'catalog:'
-        version: 13.6.29
       zod-openapi:
         specifier: ^5.4.6
         version: 5.4.6(zod@4.6.7)
