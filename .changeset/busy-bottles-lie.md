@@ -2,4 +2,4 @@
 "@emdash-cms/sandbox-workerd": patch
 ---
 
-Fixes workerd processes surviving their Node.js host on Linux and macOS, including after SIGKILL when `/bin/sh` is available, and keeping plugin ports open. SIGTERM and SIGINT now stop the sandbox without suppressing the host's default exit behavior or application signal handlers.
+Fixes production workerd sandboxes outliving their Node.js host and holding plugin ports open. On Linux and macOS, sandboxes now stop when the host exits, including after SIGKILL when `/bin/sh` is available. SIGTERM and SIGINT stop the sandbox without suppressing the host's default exit or application signal handlers.
