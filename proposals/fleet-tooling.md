@@ -394,7 +394,7 @@ It would remove the Worker and the Cron Trigger per site that cap a fleet at 250
 
 ### Workers for Platforms
 
-A dispatch namespace removes the per-account Worker limit. Scheduled publishing depends on a Cron Trigger per site, and the Workers for Platforms docs don't say whether a user Worker in a dispatch namespace can have its own Cron Trigger, or whether the Workers Cache works for it. They do say that `caches.default` is disabled for namespaced scripts and that user Workers can't use gradual deployments. The provider interface leaves room for a Workers for Platforms provider once a test on a real account settles the open points.
+A dispatch namespace removes the per-account Worker limit. Scheduled publishing depends on a Cron Trigger per site, and the Workers for Platforms docs don't say whether a user Worker in a dispatch namespace can have its own Cron Trigger, or whether the Workers Cache works for it. They do say that `caches.default` is disabled for namespaced scripts and that user Workers can't use gradual deployments. If a user Worker can't have its own Cron Trigger, the dispatch Worker's cron would have to run each site's scheduled work. EmDash has no production route for that today (`/_emdash/api/dev/scheduled-tasks` answers only in development), so that path would need a core change. The provider interface leaves room for a Workers for Platforms provider once a test on a real account settles the open points.
 
 ### A shared database with a tenant column
 
