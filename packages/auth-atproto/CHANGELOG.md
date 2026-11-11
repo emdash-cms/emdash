@@ -1,5 +1,13 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.51
+
+### Patch Changes
+
+- [#4713](https://github.com/emdash-cms/emdash/pull/4713) [`0719747`](https://github.com/emdash-cms/emdash/commit/0719747755934bcbb00d4f1ad69c40fb513f2884) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes Atmosphere sign-in and setup forms ignoring the admin language by making their labels, buttons, setup description, and fallback error available for translation.
+- Updated dependencies [[`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610)]:
+  - @emdash-cms/auth@1.5.0
+
 ## 0.2.50
 
 ### Patch Changes
