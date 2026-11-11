@@ -180,11 +180,17 @@ const settingsSeoSchema = z.object({
 		.string()
 		.max(5000)
 		.optional()
-		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+		.describe(
+			"Custom robots.txt body. Leave unset for the EmDash default. Changes are rejected " +
+				"when the site serves its own src/pages/robots.txt.",
+		),
 	disallowAiTraining: z
 		.boolean()
 		.optional()
-		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
+		.describe(
+			"Add robots.txt rules asking AI crawlers not to use the site for training. " +
+				"Changes are rejected when the site serves its own src/pages/robots.txt.",
+		),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -3832,6 +3838,25 @@ export function createMcpServer(
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
 			try {
+				const seo = args.seo;
+				if (
+					ec.config.robotsTxtOverridden &&
+					seo &&
+					(Boolean(seo.robotsTxt) || seo.disallowAiTraining === true)
+				) {
+					const { getSiteSettingWithDb } = await import("../settings/index.js");
+					const stored = await getSiteSettingWithDb("seo", ec.db);
+					const changesRobotsTxt = Boolean(seo.robotsTxt) && seo.robotsTxt !== stored?.robotsTxt;
+					const enablesAiRule =
+						seo.disallowAiTraining === true && stored?.disallowAiTraining !== true;
+					if (changesRobotsTxt || enablesAiRule) {
+						return respondError(
+							"ROBOTS_TXT_OVERRIDDEN",
+							"This site serves its own src/pages/robots.txt, so seo.robotsTxt and " +
+								"seo.disallowAiTraining would have no effect. Edit that file instead.",
+						);
+					}
+				}
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
 				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
 					siteSettingsTag(),
