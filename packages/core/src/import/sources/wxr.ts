@@ -196,6 +196,8 @@ function analyzeWxrData(
 			url: att.url,
 			filename,
 			mimeType,
+			alt: att.meta.get("_wp_attachment_image_alt") || undefined,
+			caption: att.caption,
 		};
 	});
 

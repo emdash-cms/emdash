@@ -294,6 +294,8 @@ export async function importMediaWithProgress(
 				height: enriched.height,
 				blurhash: enriched.blurhash,
 				dominantColor: enriched.dominantColor,
+				alt: attachment.alt || undefined,
+				caption: attachment.caption || undefined,
 			});
 
 			// Build the new URL

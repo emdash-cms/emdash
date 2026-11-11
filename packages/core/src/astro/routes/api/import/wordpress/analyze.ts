@@ -80,6 +80,8 @@ export interface AttachmentInfo {
 	url?: string;
 	filename?: string;
 	mimeType?: string;
+	alt?: string;
+	caption?: string;
 }
 
 /** Author info from WordPress */
@@ -302,6 +304,8 @@ function analyzeWxr(
 			url: att.url,
 			filename,
 			mimeType,
+			alt: att.meta.get("_wp_attachment_image_alt") || undefined,
+			caption: att.caption,
 		};
 	});
 
