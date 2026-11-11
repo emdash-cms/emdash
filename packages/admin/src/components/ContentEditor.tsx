@@ -25,6 +25,7 @@ import {
 	X,
 	CaretUp,
 	CaretDown,
+	PencilSimple,
 	Plus,
 	Trash,
 } from "@phosphor-icons/react";
@@ -33,6 +34,7 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import type { ListLayout } from "../lib/admin-layout.js";
 import type {
 	BylineCreditInput,
 	BylineSummary,
@@ -536,6 +538,8 @@ export interface ContentEditorProps {
 	hasSaveConflict?: boolean;
 	/** Called when the dirty state of the editor form changes. */
 	onDirtyChange?: (isDirty: boolean) => void;
+	/** Called when an item read is applied to the form, not when a dirty form skips it. */
+	onItemApplied?: (item: ContentItem) => void;
 	/** Advanced after an explicit save, discard, or restore has refreshed the item. */
 	itemResetToken?: number;
 	/** Whether the latest item reset follows a discard, which replaces unsaved edits too. */
@@ -601,6 +605,8 @@ export interface ContentEditorProps {
 	supportsPreview?: boolean;
 	/** Current user (for permission checks) */
 	currentUser?: CurrentUserInfo;
+	/** The user's editor sidebar layout; must keep its identity across renders. */
+	adminLayout?: ListLayout;
 	/** Available users for author selection (only shown to editors+) */
 	users?: UserListItem[];
 	/** Callback when author is changed */
@@ -668,6 +674,7 @@ export function ContentEditor({
 	saveError,
 	hasSaveConflict,
 	onDirtyChange,
+	onItemApplied,
 	itemResetToken = 0,
 	itemResetDiscards = false,
 	onPublish,
@@ -685,6 +692,7 @@ export function ContentEditor({
 	supportsRevisions = false,
 	supportsPreview = false,
 	currentUser,
+	adminLayout,
 	users,
 	onAuthorChange,
 	availableBylines,
@@ -940,6 +948,8 @@ export function ContentEditor({
 	);
 	const autosaveCompletionTokenRef = React.useRef(autosaveCompletionToken ?? 0);
 	const itemResetTokenRef = React.useRef(itemResetToken);
+	const onItemAppliedRef = React.useRef(onItemApplied);
+	onItemAppliedRef.current = onItemApplied;
 	React.useEffect(() => {
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
@@ -1018,6 +1028,8 @@ export function ContentEditor({
 				setSlugTouched(!!item.slug);
 				setInternalBylines(nextBylines);
 				setBylinesTouched(false);
+				// Retained edits still belong to the saved version, not this newer read.
+				if (keepEdits(formDataRef.current) === item.data) onItemAppliedRef.current?.(item);
 			}
 			setLastSavedData(
 				serializeEditorState({
@@ -1924,7 +1936,7 @@ export function ContentEditor({
 		hasPendingChanges,
 		scheduledAt: item?.scheduledAt,
 	});
-	const publishingPending = Boolean(isScheduling || isUnscheduling);
+	const publishingPending = Boolean(isPublishing || isScheduling || isUnscheduling);
 	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
 	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
 	const handleOpenSchedule = React.useCallback(() => setScheduleDialogOpen(true), []);
@@ -2275,11 +2287,11 @@ export function ContentEditor({
 						className={settingsPanel.asideClassName}
 						{...settingsPanel.asideProps}
 					>
-						<fieldset disabled={readOnly} className="contents">
-							<div
-								className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
-								style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
-							>
+						<div
+							className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
+							style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
+						>
+							<fieldset disabled={readOnly} className="contents">
 								{isBelowLg && blockSidebarPanel?.type !== "image" && (
 									<div className="flex justify-end px-4 pt-3">
 										<MobileSettingsCloseButton />
@@ -2335,6 +2347,7 @@ export function ContentEditor({
 										onDelete={onDelete}
 										isDeleting={isDeleting}
 										currentUser={currentUser}
+										adminLayout={adminLayout}
 										users={users}
 										onAuthorChange={onAuthorChange}
 										activeBylines={activeBylines}
@@ -2358,8 +2371,21 @@ export function ContentEditor({
 										onEntryRefresh={onEntryRefresh}
 									/>
 								</RevisionViewProvider>
-							</div>
-						</fieldset>
+							</fieldset>
+							{!blockSidebarPanel && (
+								<div className={cn("px-4 pb-4", (isNew || !onDelete) && "border-t pt-4")}>
+									<RouterLinkButton
+										to="/settings/sidebars"
+										search={{ tab: "editor" }}
+										variant="ghost"
+										icon={<PencilSimple aria-hidden="true" />}
+										className="w-full min-w-0 justify-start ps-2.5 pb-0.5 text-kumo-subtle hover:text-kumo-default [--kumo-button-text-lift:1px] [&>svg:first-child]:translate-y-(--kumo-button-text-lift)"
+									>
+										<span className="truncate">{t`Customize sidebar`}</span>
+									</RouterLinkButton>
+								</div>
+							)}
+						</div>
 						{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 					</Sidebar>
 				</div>

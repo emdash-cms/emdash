@@ -45,6 +45,7 @@ import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
+	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 	injectBuiltinAuthRoutes,
 	injectAuthProviderRoutes,
@@ -665,6 +666,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
+				serializableConfig.robotsTxtOverridden = hasUserDefinedPublicRoute(
+					astroConfig.srcDir,
+					"robots.txt",
+				);
 				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
 				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
 

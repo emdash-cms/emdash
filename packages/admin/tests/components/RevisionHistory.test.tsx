@@ -92,7 +92,7 @@ function makeDiff(changes: ChangeItem[]): RevisionDiff {
 }
 
 async function renderExpanded(view: RevisionViewContextValue | null) {
-	const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+	const history = <RevisionHistory collection="posts" entryId="entry-1" />;
 	const screen = await render(
 		view ? <RevisionViewProvider value={view}>{history}</RevisionViewProvider> : history,
 	);
@@ -213,7 +213,7 @@ describe("RevisionHistory", () => {
 	});
 
 	it("moves focus from the version that was restored to the new current one", async () => {
-		const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+		const history = <RevisionHistory collection="posts" entryId="entry-1" />;
 		const screen = await renderExpanded(makeView());
 		const sam = screen.getByRole("button", { name: SAM_ROW });
 		await expect.element(sam).toBeInTheDocument();
@@ -231,7 +231,7 @@ describe("RevisionHistory", () => {
 	});
 
 	it("leaves focus where the writer moved it after the restore", async () => {
-		const history = <RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />;
+		const history = <RevisionHistory collection="posts" entryId="entry-1" />;
 		const screen = await renderExpanded(makeView());
 		const sam = screen.getByRole("button", { name: SAM_ROW });
 		const unknown = screen.getByRole("button", { name: UNKNOWN_ROW });
@@ -445,14 +445,5 @@ describe("RevisionHistory", () => {
 		await screen.getByRole("button", { name: "Try again" }).click();
 
 		await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeInTheDocument();
-	});
-
-	it("reserves a separate trailing area for an external header control", async () => {
-		const screen = await render(
-			<RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />,
-		);
-
-		const trigger = screen.getByRole("button", { name: REVISIONS_TRIGGER }).element();
-		expect(trigger.style.width).toBe("calc(100% - 1.5rem)");
 	});
 });

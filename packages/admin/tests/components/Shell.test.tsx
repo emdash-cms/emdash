@@ -17,7 +17,8 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 
 const mocks = vi.hoisted(() => ({ user: null as null | { role: number } }));
 
-vi.mock("../../src/lib/api/current-user", () => ({
+vi.mock("../../src/lib/api/current-user", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/lib/api/current-user")>()),
 	useCurrentUser: () => ({ data: mocks.user }),
 }));
 
