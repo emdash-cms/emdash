@@ -5168,7 +5168,7 @@ export class EmDashRuntime {
 		name: ContentPolicyHookName,
 		collection: string,
 		id: string,
-		options: ContentPolicyMutationOptions,
+		options: ContentPolicyMutationOptions & { expectedScheduledAt?: string },
 		rejectionCode: "PUBLISH_REJECTED" | "SCHEDULE_REJECTED" | "UNPUBLISH_REJECTED",
 		failureCode: "CONTENT_PUBLISH_ERROR" | "CONTENT_SCHEDULE_ERROR" | "CONTENT_UNPUBLISH_ERROR",
 		scheduledAt?: string,
@@ -5195,6 +5195,18 @@ export class EmDashRuntime {
 				allowed: false,
 				revision,
 				error: { code: "CONFLICT", message: "Revision precondition did not match" },
+			};
+		}
+		// A scheduled publish that another publish or edit already handled must not
+		// run policy hooks: a cancellation would record a rejection for that entry.
+		if (
+			options.expectedScheduledAt !== undefined &&
+			current.data.item.scheduledAt !== options.expectedScheduledAt
+		) {
+			return {
+				allowed: false,
+				revision,
+				error: { code: "NOT_DUE", message: "Content is no longer scheduled to publish" },
 			};
 		}
 

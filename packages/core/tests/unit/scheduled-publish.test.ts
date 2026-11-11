@@ -19,6 +19,7 @@ import {
 	scheduledPolicyRejectionKey,
 	toScheduledRejectionReason,
 } from "../../src/plugins/content-policy.js";
+import { definePlugin } from "../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import {
 	publishDueContent,
@@ -41,13 +42,14 @@ function buildRuntime(
 	db: Kysely<Database>,
 	now?: () => Date,
 	sleep?: (ms: number) => Promise<void>,
+	plugins: ReturnType<typeof definePlugin>[] = [],
 ): EmDashRuntime {
 	const config: EmDashConfig = {};
 	const pipelineFactoryOptions = { db } as const;
-	const hooks = createHookPipeline([], pipelineFactoryOptions);
+	const hooks = createHookPipeline(plugins, pipelineFactoryOptions);
 	const runtimeDeps = {
 		config,
-		plugins: [],
+		plugins,
 		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not used in this test");
@@ -63,11 +65,11 @@ function buildRuntime(
 	return new EmDashRuntime({
 		db,
 		storage: null,
-		configuredPlugins: [],
+		configuredPlugins: plugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
 		hooks,
-		enabledPlugins: new Set(),
+		enabledPlugins: new Set(plugins.map((plugin) => plugin.id)),
 		pluginStates: new Map(),
 		config,
 		mediaProviders: new Map(),
@@ -75,7 +77,7 @@ function buildRuntime(
 		cronExecutor: null,
 		cronScheduler: null,
 		emailPipeline: null,
-		allPipelinePlugins: [],
+		allPipelinePlugins: plugins,
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef: { current: hooks },
@@ -591,6 +593,39 @@ describe("EmDashRuntime.runScheduledTasks() with publishUpcomingWithinMs", () =>
 		expect(sleep).not.toHaveBeenCalled();
 		expect(errors).not.toHaveBeenCalled();
 		expect((await repo.findById("post", post.id))?.status).toBe("scheduled");
+	});
+
+	it("skips publication policy hooks for an entry another run already published", async () => {
+		const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+		const created = await repo.create(createPostFixture({ slug: "already-live" }));
+		await repo.update("post", created.id, { status: "scheduled", scheduledAt });
+		const policy = vi
+			.fn()
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValue({ cancel: true as const, reason: "Publishing is paused" });
+		const plugin = definePlugin({
+			id: "publish-once-policy",
+			version: "1.0.0",
+			capabilities: ["hooks.content-policy:register"],
+			hooks: { "content:beforePublish": policy },
+		});
+		const runtime = buildRuntime(db, undefined, undefined, [plugin]);
+		const publish = () =>
+			runtime.handleContentPublish("post", created.id, {
+				publishedAt: scheduledAt,
+				requireScheduledDue: true,
+				expectedScheduledAt: scheduledAt,
+				origin: { source: "scheduler" },
+			});
+
+		expect(await publish()).toMatchObject({ success: true });
+		expect(await publish()).toMatchObject({ success: false, error: { code: "NOT_DUE" } });
+
+		expect(policy).toHaveBeenCalledOnce();
+		expect(
+			await new OptionsRepository(db).getVersioned(scheduledPolicyRejectionKey("post", created.id)),
+		).toBeNull();
+		expect((await repo.findById("post", created.id))?.status).toBe("published");
 	});
 
 	it("does not publish early when the clock does not reach the scheduled time", async () => {
