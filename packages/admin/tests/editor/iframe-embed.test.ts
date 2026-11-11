@@ -21,6 +21,65 @@ describe("parseIframeInput", () => {
 		});
 	});
 
+	it("keeps the original snippet when an iframe needs companion code", () => {
+		const html =
+			'<div class="chart"><iframe src="https://embed.example.com/chart" width="100%" height="450" data-theme="auto"></iframe><script src="https://embed.example.com/resize.js"></script></div>';
+
+		expect(parseIframeInput(html)).toEqual({ ok: false, reason: "requires-html", html });
+	});
+
+	it("keeps iframe metadata that cannot fit in a plain iframe block", () => {
+		const html = '<iframe src="https://embed.example.com/chart" data-theme="dark"></iframe>';
+
+		expect(parseIframeInput(html)).toEqual({ ok: false, reason: "requires-html", html });
+	});
+
+	it("keeps script-only embed code and its surrounding whitespace", () => {
+		const html = '\n  <script src="https://embed.example.com/widget.js"></script>\n';
+
+		expect(parseIframeInput(html)).toEqual({ ok: false, reason: "requires-html", html });
+	});
+
+	it.each([
+		'class="chart"',
+		'id="chart"',
+		'style="height: 400px"',
+		'height="100%"',
+		'width="80%"',
+		'frameborder="1"',
+		'loading="eager"',
+		'referrerpolicy="no-referrer"',
+		'srcdoc="Chart"',
+	])("keeps a snippet whose %s attribute changes the embed", (attribute) => {
+		const html = `<iframe src="https://embed.example.com/chart" ${attribute}></iframe>`;
+
+		expect(parseIframeInput(html)).toEqual({ ok: false, reason: "requires-html", html });
+	});
+
+	it("accepts equivalent player defaults and full-width sizing", () => {
+		expect(
+			parseIframeInput(
+				'<iframe src="https://player.vimeo.com/video/76979871" width="100%" height="360" frameborder="0" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
+			),
+		).toEqual({
+			ok: true,
+			embed: {
+				src: "https://player.vimeo.com/video/76979871",
+				height: 360,
+				allow: "autoplay; fullscreen; picture-in-picture",
+				allowFullscreen: true,
+			},
+		});
+	});
+
+	it("rejects an insecure iframe before offering HTML conversion", () => {
+		expect(
+			parseIframeInput(
+				'<div><iframe src="javascript:alert(1)" data-theme="auto"></iframe><script src="https://embed.example.com/resize.js"></script></div>',
+			),
+		).toEqual({ ok: false, reason: "not-https" });
+	});
+
 	it("turns YouTube links into the player", () => {
 		for (const link of [
 			"https://www.youtube.com/watch?v=dQw4w9WgXcQ",

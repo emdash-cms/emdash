@@ -6,12 +6,14 @@
  * `{ _type: "iframe", _key, src, title?, width?, height?, allow?, allowFullscreen? }`.
  */
 
-import { Button } from "@cloudflare/kumo";
+import { Banner, Button } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Code, Eye, Play } from "@phosphor-icons/react";
+import { Code, Eye, Info, Play } from "@phosphor-icons/react";
 import { Node, mergeAttributes } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { NodeViewProps } from "@tiptap/react";
 import * as React from "react";
 
@@ -34,6 +36,7 @@ import {
 	iframeEmbedToCode,
 	parseIframeInput,
 	type IframeEmbed,
+	type IframeParseResult,
 } from "./iframe-embed";
 
 const TABS: readonly EmbedBlockTab[] = [
@@ -41,7 +44,13 @@ const TABS: readonly EmbedBlockTab[] = [
 	{ value: "preview", label: msg`Preview`, Icon: Eye },
 ];
 
-const REASONS: Record<"no-iframe" | "not-https", MessageDescriptor> = {
+type IframeError = Extract<IframeParseResult, { ok: false }>;
+type IframeDraft =
+	| { kind: "saved" }
+	| { kind: "pending"; source: string; node: ProseMirrorNode }
+	| { kind: "parsed"; source: string; node: ProseMirrorNode; result: IframeParseResult };
+
+const REASONS: Record<Exclude<IframeError["reason"], "requires-html">, MessageDescriptor> = {
 	"no-iframe": msg`No iframe found in this code. For an embed that runs a script, use an HTML block.`,
 	"not-https": msg`Only https links can be embedded.`,
 };
@@ -93,7 +102,7 @@ function IframePreview({ embed, url }: { embed: IframeEmbed; url: URL }) {
 				: { aspectRatio: "16 / 9" };
 
 	return (
-		<div ref={containerRef} style={size}>
+		<div ref={containerRef} style={visible ? undefined : size}>
 			{visible && (
 				<iframe
 					src={url.href}
@@ -103,7 +112,11 @@ function IframePreview({ embed, url }: { embed: IframeEmbed; url: URL }) {
 					allowFullScreen={embed.allowFullscreen === true}
 					// Players such as YouTube's refuse to play without a referrer.
 					referrerPolicy="strict-origin-when-cross-origin"
-					style={{ height: "100%" }}
+					height={embed.height && !embed.width ? embed.height : undefined}
+					style={{
+						aspectRatio:
+							embed.width && embed.height ? `${embed.width} / ${embed.height}` : "16 / 9",
+					}}
 					className={cn("block w-full border-0", dragging && "pointer-events-none")}
 				/>
 			)}
@@ -113,7 +126,20 @@ function IframePreview({ embed, url }: { embed: IframeEmbed; url: URL }) {
 
 function IframeBlockNodeView({ editor, node, getPos, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
-	const editable = editor.isEditable;
+	const subscribeEditable = React.useCallback(
+		(onChange: () => void) => {
+			editor.on("update", onChange);
+			return () => {
+				editor.off("update", onChange);
+			};
+		},
+		[editor],
+	);
+	const editable = React.useSyncExternalStore(
+		subscribeEditable,
+		() => editor.isEditable,
+		() => editor.isEditable,
+	);
 	const embed = iframeEmbedFromAttrs(node.attrs);
 	const code = embed.src ? iframeEmbedToCode(embed) : "";
 	// Blocks from the API or clipboard skip the Code tab's checks.
@@ -127,52 +153,67 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes }: NodeVie
 	// loads someone else's page. Addresses written here load right away.
 	const [loadable, setLoadable] = React.useState<string | null>(null);
 	const [revision, setRevision] = React.useState(0);
-	const [error, setError] = React.useState<keyof typeof REASONS | null>(null);
-	const pending = React.useRef<string | null>(null);
-	const typed = React.useRef<string | null>(null);
-	const valid = React.useRef(true);
+	const [error, setError] = React.useState<IframeError | null>(null);
+	const draft = React.useRef<IframeDraft>({ kind: "saved" });
+	const nodeRef = React.useRef(node);
+	nodeRef.current = node;
 	const known = React.useRef(code);
 	const timer = React.useRef<number | undefined>(undefined);
+	React.useEffect(() => () => window.clearTimeout(timer.current), []);
+
+	const currentBlock = React.useCallback(() => {
+		if (editor.isDestroyed || !editor.isEditable) return;
+		const position = getPos();
+		if (typeof position !== "number") return;
+		const currentNode = editor.state.doc.nodeAt(position);
+		if (!currentNode?.eq(nodeRef.current)) return;
+		return { position, node: currentNode };
+	}, [editor, getPos]);
 
 	// Parse what was typed: valid input is written, blank input clears the
 	// embed, and invalid input writes nothing and shows why.
 	const flush = React.useCallback((): boolean => {
 		window.clearTimeout(timer.current);
-		const text = pending.current;
-		if (text === null) return false;
-		const result = parseIframeInput(text);
-		valid.current = result.ok;
+		if (draft.current.kind !== "pending") return false;
+		const { source, node: sourceNode } = draft.current;
+		const result = parseIframeInput(source);
 		if (!result.ok) {
-			pending.current = null;
-			setError(result.reason);
+			draft.current = { kind: "parsed", source, node: sourceNode, result };
+			setError(result);
 			return false;
 		}
 		setError(null);
 		// Input that can't be written now waits for the next flush.
-		if (editor.isDestroyed || !editor.isEditable || typeof getPos() !== "number") return false;
-		pending.current = null;
+		if (!currentBlock()?.node.eq(sourceNode)) return false;
+		draft.current = { kind: "parsed", source, node: sourceNode, result };
 		known.current = result.embed ? iframeEmbedToCode(result.embed) : "";
 		updateAttributes(iframeEmbedAttrs(result.embed));
 		setLoadable(result.embed?.src ?? null);
 		return true;
-	}, [editor, getPos, updateAttributes]);
+	}, [currentBlock, updateAttributes]);
 
 	const focus = useEmbedBlockFocus({ editor, getPos, flush, isEmpty });
 
 	// Undo, redo and other tools change the attributes directly. Show their
 	// code and drop the text waiting to be parsed.
 	React.useEffect(() => {
-		if (code === known.current) return;
+		const current = draft.current;
+		if (
+			code === known.current &&
+			(current.kind === "saved" ||
+				current.node.eq(node) ||
+				(current.kind === "parsed" && current.result.ok))
+		)
+			return;
 		known.current = code;
-		pending.current = null;
-		typed.current = null;
+		draft.current = { kind: "saved" };
 		setError(null);
-		setRevision((current) => current + 1);
-	}, [code]);
+		setRevision((previous) => previous + 1);
+	}, [code, node]);
 
 	const handleChange = (value: string) => {
-		pending.current = value;
-		typed.current = value;
+		draft.current = { kind: "pending", source: value, node };
+		setError(null);
 		window.clearTimeout(timer.current);
 		timer.current = window.setTimeout(flush, PARSE_DELAY_MS);
 	};
@@ -185,19 +226,46 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes }: NodeVie
 		// Runs after the blur's own flush. Leaving the window keeps the text and caret.
 		queueMicrotask(() => {
 			// Text still waiting to be written stays until it is.
-			if (!document.hasFocus() || !valid.current || pending.current !== null) return;
-			if (typed.current === null || typed.current === known.current) return;
-			typed.current = null;
-			setRevision((current) => current + 1);
+			const current = draft.current;
+			if (!document.hasFocus() || current.kind !== "parsed" || !current.result.ok) return;
+			if (current.source === known.current) return;
+			draft.current = { kind: "saved" };
+			setRevision((previous) => previous + 1);
 		});
 	};
 
-	// Rejected text isn't kept, so neither is its error.
 	const handleTabChange = (value: string) => {
 		flush();
-		typed.current = null;
-		setError(null);
+		if (draft.current.kind === "parsed" && draft.current.result.ok) {
+			draft.current = { kind: "saved" };
+		}
 		setTab(value);
+	};
+
+	const useHtmlBlock = () => {
+		const current = currentBlock();
+		const htmlBlock = editor.schema.nodes.htmlBlock;
+		if (
+			!current ||
+			!htmlBlock ||
+			draft.current.kind === "saved" ||
+			!current.node.eq(draft.current.node)
+		)
+			return;
+		const result = parseIframeInput(draft.current.source);
+		if (result.ok || result.reason !== "requires-html") {
+			flush();
+			return;
+		}
+		window.clearTimeout(timer.current);
+		draft.current = { kind: "saved" };
+		editor.view.dispatch(
+			closeHistory(editor.state.tr).setNodeMarkup(current.position, htmlBlock, {
+				...current.node.attrs,
+				html: result.html,
+				isolated: true,
+			}),
+		);
 	};
 
 	return (
@@ -237,7 +305,7 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes }: NodeVie
 					<EmbedCodeEditor
 						key={revision}
 						language="html"
-						value={code}
+						value={draft.current.kind === "saved" ? code : draft.current.source}
 						onChange={handleChange}
 						onFocusChange={handleFocusChange}
 						onEscape={focus.onEscape}
@@ -247,11 +315,31 @@ function IframeBlockNodeView({ editor, node, getPos, updateAttributes }: NodeVie
 						placeholder={t`Paste an embed code or an https link…`}
 						describedBy={errorId}
 					/>
-					<div id={errorId} aria-live="polite" className="px-3 text-xs text-kumo-danger">
-						{error && <p className="py-2">{t(REASONS[error])}</p>}
-					</div>
 				</>
 			)}
+			<div id={errorId} aria-live="polite">
+				{error?.reason === "requires-html" ? (
+					<div className="p-3">
+						<Banner
+							variant="secondary"
+							icon={<Info className="size-4" aria-hidden="true" />}
+							title={t`Keep the complete embed`}
+							description={
+								<div className="flex flex-col items-start gap-3 text-base">
+									<p>{t`This code includes extra HTML, attributes, or scripts. Convert it to an HTML block before saving.`}</p>
+									<Button type="button" disabled={!editable} onClick={useHtmlBlock}>
+										{t`Use as HTML block`}
+									</Button>
+								</div>
+							}
+						/>
+					</div>
+				) : (
+					error && (
+						<p className="px-3 py-2 text-base text-kumo-danger">{t(REASONS[error.reason])}</p>
+					)
+				)}
+			</div>
 		</EmbedBlockCard>
 	);
 }
