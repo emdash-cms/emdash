@@ -2,7 +2,7 @@
  * Kysely database adapter for @emdash-cms/auth
  */
 
-import type { Kysely, Insertable, Selectable, Updateable } from "kysely";
+import type { Kysely, Insertable, Selectable, Updateable, Generated } from "kysely";
 import { ulid } from "ulidx";
 
 import {
@@ -38,6 +38,7 @@ export interface AuthTables {
 }
 
 interface UserTable {
+	last_login_at?: Generated<string | null>;
 	id: string;
 	email: string;
 	name: string | null;
@@ -271,7 +272,11 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				data: row.data ? JSON.parse(row.data) : null,
 				createdAt: new Date(row.created_at),
 				updatedAt: new Date(row.updated_at),
-				lastLogin: row.last_login ? new Date(row.last_login) : null,
+				lastLogin: row.last_login_at
+					? new Date(row.last_login_at)
+					: row.last_login
+						? new Date(row.last_login)
+						: null,
 				credentialCount: row.credential_count ?? 0,
 				oauthProviders: oauthByUser.get(row.id) ?? [],
 			}));
@@ -306,11 +311,13 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				kdb.selectFrom("oauth_accounts").selectAll().where("user_id", "=", id).execute(),
 			]);
 
-			// Find last login from most recent credential use
-			const lastLogin = credentials.reduce<Date | null>((latest, cred) => {
-				const lastUsed = new Date(cred.last_used_at);
-				return !latest || lastUsed > latest ? lastUsed : latest;
-			}, null);
+			// Retain passkey history for users who have not signed in since the migration.
+			const lastLogin = user.last_login_at
+				? new Date(user.last_login_at)
+				: credentials.reduce<Date | null>((latest, cred) => {
+						const lastUsed = new Date(cred.last_used_at);
+						return !latest || lastUsed > latest ? lastUsed : latest;
+					}, null);
 
 			return {
 				user: rowToUser(user),
@@ -673,6 +680,7 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 0,
   disabled INTEGER NOT NULL DEFAULT 0,
   data TEXT,
+  last_login_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

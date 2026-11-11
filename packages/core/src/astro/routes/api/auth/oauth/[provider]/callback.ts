@@ -22,6 +22,7 @@ import { getPublicOrigin } from "#api/public-url.js";
 import { finalizeSetup } from "#api/setup-complete.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
+import { startUserSession } from "#auth/start-user-session.js";
 import type { AuthProviderDescriptor } from "#auth/types.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -251,7 +252,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 			console.log(`[oauth] Setup complete: created admin user via ${provider} (${user.email})`);
 		}
 
-		session.set("user", { id: user.id });
+		await startUserSession(emdash.db, session, user.id);
 
 		// Redirect to admin dashboard
 		return redirect("/_emdash/admin");
