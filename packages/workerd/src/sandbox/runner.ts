@@ -226,30 +226,35 @@ export function makeWorkerdExitHandler(
 
 /**
  * Send SIGTERM and resolve when the process exits, escalating to SIGKILL
- * after `timeoutMs` if it ignores the term signal.
+ * after `timeoutMs` if it ignores the term signal. Forced stops send SIGKILL
+ * immediately.
  *
  * The fallback timer is cleared on clean exit so it does not keep the Node
  * event loop alive past termination -- previously a stale timer would
  * delay `terminateAll()` and process shutdown by up to 5 seconds. Exported
  * for testing.
  */
-export function waitForProcessExit(proc: ChildProcess, timeoutMs = 5000): Promise<void> {
+export function waitForProcessExit(
+	proc: ChildProcess,
+	timeoutMs = 5000,
+	options: { force?: boolean } = {},
+): Promise<void> {
 	let killTimer: ReturnType<typeof setTimeout> | null = null;
 	const exitPromise = new Promise<void>((resolve) => {
-		proc.once("exit", () => {
-			if (killTimer !== null) {
-				clearTimeout(killTimer);
-				killTimer = null;
-			}
-			resolve();
-		});
+		proc.once("exit", () => resolve());
 	});
-	proc.kill("SIGTERM");
-	killTimer = setTimeout(() => {
-		killTimer = null;
-		if (proc.exitCode === null) proc.kill("SIGKILL");
-	}, timeoutMs);
-	return exitPromise;
+	if (options.force) {
+		proc.kill("SIGKILL");
+	} else {
+		proc.kill("SIGTERM");
+		killTimer = setTimeout(() => {
+			killTimer = null;
+			if (proc.exitCode === null) proc.kill("SIGKILL");
+		}, timeoutMs);
+	}
+	return exitPromise.finally(() => {
+		if (killTimer !== null) clearTimeout(killTimer);
+	});
 }
 
 /** Decoded claims encoded in a per-plugin auth token. */
@@ -377,8 +382,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.contentActionsCallback = options.contentActions ?? null;
 
 		// Warn about unenforceable resource limits. Standalone workerd
-		// only supports wall-time enforcement on the Node path (via
-		// Promise.race). cpuMs, memoryMb, and subrequests are Cloudflare
+		// only supports wall-time enforcement on the Node path. cpuMs,
+		// memoryMb, and subrequests are Cloudflare
 		// platform features and are not enforced here.
 		if (
 			options.limits &&
@@ -420,14 +425,14 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private resolveWorkerdBinary(): string {
 		try {
-			// workerd package: main is lib/main.js, bin is bin/workerd
 			const esmRequire = createRequire(import.meta.url);
-			const workerdMain = esmRequire.resolve("workerd");
-			// workerdMain = .../node_modules/workerd/lib/main.js
-			// binary = .../node_modules/workerd/bin/workerd
-			const pkgDir = join(workerdMain, "..", "..");
-			const binName = process.platform === "win32" ? "workerd.exe" : "workerd";
-			return join(pkgDir, "bin", binName);
+			// workerd exports the native executable path. Its CLI entry can be
+			// a Node shim, whose exit would leave the actual isolate running.
+			const workerd: unknown = esmRequire("workerd");
+			if (!isRecord(workerd) || typeof workerd.default !== "string") {
+				throw new Error("workerd did not export a binary path");
+			}
+			return workerd.default;
 		} catch {
 			// Fallback: try workerd on PATH
 			return "workerd";
@@ -771,6 +776,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			plugins.set(pluginId, { ...plugin });
 		}
 		await this.stopWorkerd();
+		if (this.shuttingDown) return;
 
 		// Ensure backing server is running
 		if (!this.backingServer) {
@@ -806,7 +812,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// Generate capnp config. Note: cpuMs/memoryMb/subrequests from
 		// this.limits are NOT passed here because standalone workerd doesn't
 		// support per-worker enforcement of those limits (Cloudflare-only).
-		// Only wallTimeMs is enforced (via Promise.race in invokeHook/invokeRoute).
+		// Wall-time enforcement stops and restarts workerd on timeout.
 		const capnpConfig = generateCapnpConfig({
 			plugins,
 			backingServiceAddress: this.backingServiceAddress,
@@ -816,6 +822,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		const configPath = join(this.configDir, "workerd.capnp");
 		await writeFile(configPath, capnpConfig);
+		if (this.shuttingDown) return;
 
 		// Spawn workerd using resolved binary (not npx). Capture into a local
 		// `proc` immediately so the exit handler closure can gate on identity
@@ -876,7 +883,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * this, every intentional reload (plugin install/uninstall) would
 	 * cascade into a phantom crash-restart cycle.
 	 */
-	private stopWorkerd(): Promise<void> {
+	private stopWorkerd(force = false): Promise<void> {
 		if (this.stoppingPromise) return this.stoppingPromise;
 		if (!this.workerdProcess) return Promise.resolve();
 		this.healthy = false;
@@ -885,9 +892,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const proc = this.workerdProcess;
 		this.workerdProcess = null;
 
-		// Fast path: process already exited (exitCode is set after exit)
-		// waitForProcessExit force-kills after five seconds if SIGTERM is ignored.
-		const completion = proc.exitCode === null ? waitForProcessExit(proc) : Promise.resolve();
+		// A timeout must bypass SIGTERM: a spinning isolate may never handle it.
+		const completion =
+			proc.exitCode === null && !proc.signalCode
+				? waitForProcessExit(proc, 5000, { force })
+				: Promise.resolve();
 		this.stoppingPromise = completion;
 		return completion.finally(() => {
 			this.intentionalStop = false;
@@ -1042,6 +1051,16 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.siteInfo;
 	}
 
+	/** Recover only the process that handled the timed-out invocation. */
+	recoverFromTimeout(epoch: number): void {
+		if (epoch !== this.epoch || !this.workerdProcess || this.shuttingDown) return;
+		this.needsRestart = true;
+		// stopWorkerd invalidates the listener synchronously, before another
+		// invocation can reach the doomed process. ensureRunning shares recovery.
+		void this.stopWorkerd(true);
+		void this.ensureRunning().catch(() => {});
+	}
+
 	/** Get the current epoch (incremented on each workerd restart) */
 	get currentEpoch() {
 		return this.epoch;
@@ -1186,6 +1205,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		options?: SandboxInvocationOptions,
 	): Promise<T> {
 		const wallTimeMs = this.limits.wallTimeMs;
+		const epoch = this.runner.currentEpoch;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const invocationId = crypto.randomUUID();
 		this.runner.contentActions?.begin?.(
@@ -1202,6 +1222,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
 					),
 				);
+				try {
+					this.runner.recoverFromTimeout(epoch);
+				} catch (error) {
+					console.error("[emdash:workerd] timeout recovery failed:", error);
+				}
 			}, wallTimeMs);
 		});
 
