@@ -109,6 +109,8 @@ const LIFECYCLE_KEY = Symbol.for("emdash.workerd-runner-lifecycle");
 const lifecycleGlobal = globalThis as typeof globalThis & {
 	[LIFECYCLE_KEY]?: {
 		runners: Set<WorkerdSandboxRunner>;
+		removedSignalHandlers: Set<"SIGTERM" | "SIGINT">;
+		onRemoveListener: typeof onRemoveListener;
 		onSigterm: () => void;
 		onSigint: () => void;
 		onExit: () => void;
@@ -116,6 +118,8 @@ const lifecycleGlobal = globalThis as typeof globalThis & {
 };
 const lifecycle = (lifecycleGlobal[LIFECYCLE_KEY] ??= {
 	runners: new Set<WorkerdSandboxRunner>(),
+	removedSignalHandlers: new Set<"SIGTERM" | "SIGINT">(),
+	onRemoveListener,
 	onSigterm,
 	onSigint,
 	onExit: onHostExit,
@@ -124,13 +128,25 @@ const activeRunners = lifecycle.runners;
 
 function handleSignal(signal: "SIGTERM" | "SIGINT"): void {
 	const handler = signal === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
-	const hasOtherHandlers = process.listeners(signal).some((listener) => listener !== handler);
+	const hasOtherHandlers =
+		lifecycle.removedSignalHandlers.has(signal) ||
+		process.listeners(signal).some((listener) => listener !== handler);
 	for (const runner of activeRunners) void runner.terminateAll();
 	if (!hasOtherHandlers) {
 		onHostExit();
 		process.off(signal, handler);
 		process.kill(process.pid, signal);
 	}
+}
+
+function onRemoveListener(event: string | symbol, listener: (...args: never[]) => unknown): void {
+	if (event !== "SIGTERM" && event !== "SIGINT") return;
+	const handler = event === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	if (listener === handler) return;
+	// A once-listener removes itself before later signal listeners run. Keep
+	// its ownership until the synchronous dispatch has finished.
+	lifecycle.removedSignalHandlers.add(event);
+	queueMicrotask(() => lifecycle.removedSignalHandlers.delete(event));
 }
 
 function onSigterm(): void {
@@ -147,6 +163,7 @@ function onHostExit(): void {
 
 function registerSigHandler(runner: WorkerdSandboxRunner): void {
 	if (activeRunners.size === 0) {
+		process.on("removeListener", lifecycle.onRemoveListener);
 		process.prependListener("SIGTERM", lifecycle.onSigterm);
 		process.prependListener("SIGINT", lifecycle.onSigint);
 		process.on("exit", lifecycle.onExit);
@@ -160,6 +177,7 @@ function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
 		process.off("SIGTERM", lifecycle.onSigterm);
 		process.off("SIGINT", lifecycle.onSigint);
 		process.off("exit", lifecycle.onExit);
+		process.off("removeListener", lifecycle.onRemoveListener);
 	}
 }
 

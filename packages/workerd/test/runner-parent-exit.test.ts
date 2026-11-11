@@ -18,11 +18,17 @@ try {
 	// The integration test is optional when the peer binary is unavailable.
 }
 
-const hostSource = (modulePath: string, listener: "none" | "on" | "once") => `
+const hostSource = (
+	modulePath: string,
+	listener: "none" | "on" | "once" | "prependOnceListener" | "removed",
+	signal: "SIGTERM" | "SIGINT",
+) => `
 import { createSandboxRunner } from ${JSON.stringify(modulePath)};
 import { stdin, stdout } from "node:process";
-${listener !== "none" ? `process.${listener}("SIGTERM", () => stdout.write("HANDLED\\n"));` : ""}
+${listener === "on" || listener === "once" ? `process.${listener}(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
 const runner = createSandboxRunner({ db: null, siteInfo: { name: "exit-test", url: "http://localhost", locale: "en" } });
+${listener === "prependOnceListener" ? `process.prependOnceListener(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
+${listener === "removed" ? `const removedHandler = () => stdout.write("UNEXPECTED\\n"); process.prependOnceListener(${JSON.stringify(signal)}, removedHandler); process.off(${JSON.stringify(signal)}, removedHandler);` : ""}
 const plugin = await runner.load(
   { id: "exit-test", version: "1.0.0", capabilities: [], allowedHosts: [], storage: {}, hooks: ["test"], routes: [], admin: {} },
   'export default { hooks: { test: async () => ({ ok: true }) } };',
@@ -156,7 +162,16 @@ async function waitForPortClosed(port: number): Promise<void> {
 }
 
 async function runMode(
-	mode: "exit" | "SIGTERM" | "SIGINT" | "SIGKILL" | "handled" | "handled-once",
+	mode:
+		| "exit"
+		| "SIGTERM"
+		| "SIGINT"
+		| "SIGKILL"
+		| "handled"
+		| "handled-once"
+		| "handled-prepend"
+		| "removed-prepend",
+	signal: "SIGTERM" | "SIGINT" = "SIGTERM",
 ): Promise<void> {
 	const host = spawn(
 		process.execPath,
@@ -165,7 +180,16 @@ async function runMode(
 			"-e",
 			hostSource(
 				sandboxModule,
-				mode === "handled" ? "on" : mode === "handled-once" ? "once" : "none",
+				mode === "handled"
+					? "on"
+					: mode === "handled-once"
+						? "once"
+						: mode === "handled-prepend"
+							? "prependOnceListener"
+							: mode === "removed-prepend"
+								? "removed"
+								: "none",
+				signal,
 			),
 		],
 		{
@@ -187,7 +211,7 @@ async function runMode(
 		knownDescendants = descendants(host.pid!);
 		if (mode.startsWith("handled")) {
 			const handled = waitForLine(host, (line) => line === "HANDLED");
-			host.kill("SIGTERM");
+			host.kill(signal);
 			expect(await handled).toBe("HANDLED");
 			await waitForPortClosed(ready.port);
 			await expect.poll(() => [ready!.configDir, ready!.socketPath].some(existsSync)).toBe(false);
@@ -199,10 +223,10 @@ async function runMode(
 		}
 		const exited = waitForExit(host);
 		if (mode === "exit") host.stdin.write("exit\n");
-		else host.kill(mode);
+		else host.kill(mode === "removed-prepend" ? signal : mode);
 		const result = await exited;
 		if (mode === "exit") expect(result).toEqual({ code: 0, signal: null });
-		else expect(result.signal).toBe(mode);
+		else expect(result.signal).toBe(mode === "removed-prepend" ? signal : mode);
 		await waitForPortClosed(ready.port);
 		if (mode !== "SIGKILL") {
 			expect(existsSync(ready.configDir)).toBe(false);
@@ -236,4 +260,14 @@ describe.skipIf(isWindows || !workerdAvailable)("runner parent exit cleanup", ()
 	it.skipIf(!existsSync("/bin/sh"))("cleans up on SIGKILL", () => runMode("SIGKILL"), 20_000);
 	it("does not suppress an application SIGTERM listener", () => runMode("handled"), 20_000);
 	it("preserves an application once-only SIGTERM listener", () => runMode("handled-once"), 20_000);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"preserves a prepended once-only %s listener installed after construction",
+		(signal) => runMode("handled-prepend", signal),
+		20_000,
+	);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"keeps default %s exit after an application listener was removed before dispatch",
+		(signal) => runMode("removed-prepend", signal),
+		20_000,
+	);
 });
