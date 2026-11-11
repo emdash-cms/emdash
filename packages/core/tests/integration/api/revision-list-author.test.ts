@@ -1,4 +1,4 @@
-import { Role } from "@emdash-cms/auth";
+import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
@@ -15,6 +15,7 @@ import {
 
 const ENTRY_ID = "revision-author-entry";
 const contributor = { id: "user-contributor", role: Role.CONTRIBUTOR };
+const authorCaller = { id: "user-author", role: Role.AUTHOR };
 
 describeEachDialect("revision list author", (dialect) => {
 	let ctx: DialectTestContext;
@@ -62,7 +63,7 @@ describeEachDialect("revision list author", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
-	function get(query = "") {
+	function get(query = "", user: { id: string; role: RoleLevel } = contributor) {
 		return listRevisions({
 			params: { collection: "post", id: ENTRY_ID },
 			url: new URL(`http://localhost/_emdash/api/content/post/${ENTRY_ID}/revisions${query}`),
@@ -71,7 +72,7 @@ describeEachDialect("revision list author", (dialect) => {
 					handleRevisionList: (collection: string, entryId: string, params: { limit?: number }) =>
 						handleRevisionList(ctx.db, collection, entryId, params),
 				},
-				user: contributor,
+				user,
 			},
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal route context
 		} as unknown as APIContext);
@@ -104,5 +105,46 @@ describeEachDialect("revision list author", (dialect) => {
 			{ id: revisionIds.none, authorId: null, author: null },
 		]);
 		expect(JSON.stringify(body)).not.toContain("@example.com");
+	});
+
+	it("names everyone who edited each revision, in order, for an Author", async () => {
+		const revisions = new RevisionRepository(ctx.db);
+		const shared = await revisions.create({
+			collection: "post",
+			entryId: ENTRY_ID,
+			data: { title: "Autosaved by three people" },
+			authorId: "user-linus",
+			kind: "autosave",
+			editedBy: ["user-linus", "user-gone", "user-ada"],
+		});
+		const solo = await revisions.create({
+			collection: "post",
+			entryId: ENTRY_ID,
+			data: { title: "Autosaved by Ada" },
+			authorId: "user-ada",
+			kind: "autosave",
+			editedBy: ["user-ada"],
+		});
+
+		const res = await get("", authorCaller);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			data: { items: Array<{ id: string; editedBy: unknown }> };
+		};
+
+		expect(body.data.items.map(({ id, editedBy }) => ({ id, editedBy }))).toEqual([
+			{ id: solo.id, editedBy: [{ id: "user-ada", name: "Ada" }] },
+			{
+				id: shared.id,
+				editedBy: [{ id: "user-linus", name: null }, null, { id: "user-ada", name: "Ada" }],
+			},
+			{ id: revisionIds.gone, editedBy: null },
+			{ id: revisionIds.grace, editedBy: null },
+			{ id: revisionIds.linus, editedBy: null },
+			{ id: revisionIds.ada, editedBy: null },
+			{ id: revisionIds.none, editedBy: null },
+		]);
+		expect(JSON.stringify(body)).not.toContain("@example.com");
+		expect(JSON.stringify(body)).not.toContain('"kind"');
 	});
 });

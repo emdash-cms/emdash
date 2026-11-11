@@ -13,6 +13,7 @@ import {
 	ArrowsLeftRight,
 	CaretDown,
 	Images,
+	SidebarSimple,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -47,26 +48,28 @@ export function Settings() {
 			</header>
 
 			<div className="mt-6 grid gap-8">
-				<SettingsSection title={t`Site`}>
-					<SettingsNavRow
-						to="/settings/general"
-						icon={<Gear className="h-5 w-5" />}
-						title={t`General`}
-						description={t`Site identity, logo, favicon, and reading preferences`}
-					/>
-					<SettingsNavRow
-						to="/settings/social"
-						icon={<ShareNetwork className="h-5 w-5" />}
-						title={t`Social Links`}
-						description={t`Social media profile links`}
-					/>
-					<SettingsNavRow
-						to="/settings/seo"
-						icon={<MagnifyingGlass className="h-5 w-5" />}
-						title={t`SEO`}
-						description={t`Search engine optimization and verification`}
-					/>
-				</SettingsSection>
+				{isAdmin ? (
+					<SettingsSection title={t`Site`}>
+						<SettingsNavRow
+							to="/settings/general"
+							icon={<Gear className="h-5 w-5" />}
+							title={t`General`}
+							description={t`Site identity, logo, favicon, and reading preferences`}
+						/>
+						<SettingsNavRow
+							to="/settings/social"
+							icon={<ShareNetwork className="h-5 w-5" />}
+							title={t`Social Links`}
+							description={t`Social media profile links`}
+						/>
+						<SettingsNavRow
+							to="/settings/seo"
+							icon={<MagnifyingGlass className="h-5 w-5" />}
+							title={t`SEO`}
+							description={t`Search engine optimization and verification`}
+						/>
+					</SettingsSection>
+				) : null}
 
 				{showMediaUsageSettings ? (
 					<SettingsSection title={t`Media`}>
@@ -87,49 +90,59 @@ export function Settings() {
 							title={t`Security`}
 							description={t`Manage your passkeys and authentication`}
 						/>
-						<SettingsNavRow
-							to="/settings/allowed-domains"
-							icon={<Globe className="h-5 w-5" />}
-							title={t`Self-Signup Domains`}
-							description={t`Allow users from specific domains to sign up`}
-						/>
+						{isAdmin ? (
+							<SettingsNavRow
+								to="/settings/allowed-domains"
+								icon={<Globe className="h-5 w-5" />}
+								title={t`Self-Signup Domains`}
+								description={t`Allow users from specific domains to sign up`}
+							/>
+						) : null}
 					</SettingsSection>
 				)}
 
-				<SettingsSection title={t`API Tokens`}>
-					<SettingsNavRow
-						to="/settings/api-tokens"
-						icon={<Key className="h-5 w-5" />}
-						title={t`API Tokens`}
-						description={t`Create personal access tokens for programmatic API access`}
-					/>
-				</SettingsSection>
+				{isAdmin ? (
+					<SettingsSection title={t`API Tokens`}>
+						<SettingsNavRow
+							to="/settings/api-tokens"
+							icon={<Key className="h-5 w-5" />}
+							title={t`API Tokens`}
+							description={t`Create personal access tokens for programmatic API access`}
+						/>
+					</SettingsSection>
+				) : null}
 
-				<SettingsSection title={t`Email Settings`}>
-					<SettingsNavRow
-						to="/settings/email"
-						icon={<Envelope className="h-5 w-5" />}
-						title={t`Email`}
-						description={t`View email provider status and send test emails`}
-					/>
-					<SettingsNavRow
-						to="/settings/backups"
-						icon={<DownloadSimple className="h-5 w-5" />}
-						title={t`Backups`}
-						description={t`Download backups and schedule automatic backups to storage`}
-					/>
-					{isAdmin ? (
+				{isAdmin ? (
+					<SettingsSection title={t`Email Settings`}>
+						<SettingsNavRow
+							to="/settings/email"
+							icon={<Envelope className="h-5 w-5" />}
+							title={t`Email`}
+							description={t`View email provider status and send test emails`}
+						/>
+						<SettingsNavRow
+							to="/settings/backups"
+							icon={<DownloadSimple className="h-5 w-5" />}
+							title={t`Backups`}
+							description={t`Download backups and schedule automatic backups to storage`}
+						/>
 						<SettingsNavRow
 							to="/settings/transfer"
 							icon={<ArrowsLeftRight className="h-5 w-5" />}
 							title={t`Transfer`}
 							description={t`Move this site to another EmDash installation, or import a site package`}
 						/>
-					) : null}
-				</SettingsSection>
+					</SettingsSection>
+				) : null}
 
-				{SUPPORTED_LOCALES.length > 1 && (
-					<SettingsSection title={t`Language`}>
+				<SettingsSection title={t`Personal`}>
+					<SettingsNavRow
+						to="/settings/sidebars"
+						icon={<SidebarSimple className="h-5 w-5" />}
+						title={t`Sidebars`}
+						description={t`Choose what the navigation and editor sidebars show, and in what order`}
+					/>
+					{SUPPORTED_LOCALES.length > 1 && (
 						<div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="flex min-w-0 items-center gap-3">
 								<span
@@ -174,8 +187,8 @@ export function Settings() {
 								</Combobox.Content>
 							</Combobox>
 						</div>
-					</SettingsSection>
-				)}
+					)}
+				</SettingsSection>
 			</div>
 		</div>
 	);

@@ -1,6 +1,7 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n, setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -15,7 +16,13 @@ import {
 	type EditorActionsProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
+import {
+	fetchRevisionEditors,
+	type AdminManifest,
+	type BylineSummary,
+	type ContentItem,
+	type RevisionAuthor,
+} from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import {
@@ -62,6 +69,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchRevisionEditors: vi.fn(),
 	};
 });
 
@@ -164,6 +172,13 @@ function pluginWrapper(pluginAdmins: PluginAdmins) {
 	};
 }
 
+function sectionIds(container: HTMLElement): string[] {
+	return Array.from(
+		container.querySelectorAll<HTMLElement>("section[data-settings-section]"),
+		(section) => section.dataset.settingsSection ?? "",
+	);
+}
+
 function makePanelProps(
 	overrides: Partial<ContentSettingsPanelProps> = {},
 ): ContentSettingsPanelProps {
@@ -237,13 +252,18 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
-		await expect
-			.element(screen.getByRole("button", { name: "Drag to reorder SEO" }))
-			.toBeInTheDocument();
 
-		const taxonomySection = screen.getByTestId("taxonomy-sidebar").element().closest("section");
-		const seoSection = screen.getByRole("heading", { name: "SEO" }).element().closest("section");
-		expect(taxonomySection?.nextElementSibling).toBe(seoSection);
+		expect(sectionIds(screen.container)).toEqual([
+			"publish",
+			"url-language",
+			"ownership",
+			"bylines",
+			"translations",
+			"taxonomies",
+			"seo",
+			"outline",
+			"revisions",
+		]);
 	});
 
 	it("shows the collection's titleField value as the SEO Title placeholder", async () => {
@@ -589,6 +609,548 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.getByText("Draft version", { exact: true }).query()).toBeNull();
 	});
 
+	it("does not render a trusted panel section while visibility is pending", async () => {
+		let resolveVisibility!: (visible: boolean) => void;
+		const visibility = new Promise<boolean>((resolve) => {
+			resolveVisibility = resolve;
+		});
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+						isVisible: () => visibility,
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
+		expect(screen.getByTestId("insights-panel").query()).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "Drag to reorder Content insights" }).query(),
+		).toBeNull();
+
+		await act(async () => resolveVisibility(true));
+		await expect
+			.element(screen.getByRole("heading", { name: "Content insights" }))
+			.toBeInTheDocument();
+	});
+
+	it.each([false, Promise.resolve(false)])(
+		"keeps a panel absent when visibility is %s",
+		async (result) => {
+			const pluginAdmins: PluginAdmins = {
+				insights: {
+					contentEditorPanels: [
+						{
+							id: "summary",
+							title: "Content insights",
+							component: InsightsPanel,
+							isVisible: () => result,
+						},
+					],
+				},
+			};
+			const screen = await render(
+				<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+				{ wrapper: pluginWrapper(pluginAdmins) },
+			);
+
+			await vi.waitFor(() => {
+				expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
+			});
+			expect(screen.getByTestId("insights-panel").query()).toBeNull();
+		},
+	);
+
+	it.each([true, Promise.resolve(true)])(
+		"renders a panel after synchronous and asynchronous visibility checks allow it",
+		async (result) => {
+			const pluginAdmins: PluginAdmins = {
+				insights: {
+					contentEditorPanels: [
+						{
+							id: "summary",
+							title: "Content insights",
+							component: InsightsPanel,
+							isVisible: () => result,
+						},
+					],
+				},
+			};
+			const screen = await render(
+				<ContentSettingsPanel
+					{...makePanelProps({
+						manifest: TEST_MANIFEST,
+						entryLocale: "en",
+						item: makeItem({ locale: "en" }),
+					})}
+				/>,
+				{ wrapper: pluginWrapper(pluginAdmins) },
+			);
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Content insights" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByTestId("insights-panel")).toHaveTextContent("(en)");
+		},
+	);
+
+	it("hides failed visibility checks without unmounting healthy panels or editor sections", async () => {
+		const error = new Error("visibility failed");
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		function HealthyPanel() {
+			return <div data-testid="healthy-panel">Healthy</div>;
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "broken",
+						title: "Broken insights",
+						component: InsightsPanel,
+						isVisible: () => {
+							throw error;
+						},
+					},
+					{
+						id: "rejected",
+						title: "Rejected insights",
+						component: InsightsPanel,
+						isVisible: () => Promise.reject(error),
+					},
+					{
+						id: "healthy",
+						title: "Healthy insights",
+						component: HealthyPanel,
+						isVisible: () => true,
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await vi.waitFor(() => {
+			expect(screen.getByRole("heading", { name: "Broken insights" }).query()).toBeNull();
+			expect(screen.getByRole("heading", { name: "Rejected insights" }).query()).toBeNull();
+		});
+		await expect
+			.element(screen.getByRole("heading", { name: "Healthy insights" }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByTestId("healthy-panel")).toBeInTheDocument();
+		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
+		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Plugin "insights"'), error);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('panel "broken"'), error);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('panel "rejected"'), error);
+	});
+
+	it("uses the entry locale, then the entryLocale fallback, in visibility context", async () => {
+		const isVisible = vi.fn(() => true);
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "context", title: "Context", component: InsightsPanel, isVisible },
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					entryLocale: "fr",
+					item: makeItem({ locale: undefined }),
+				})}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByTestId("insights-panel")).toHaveTextContent("(fr)");
+		expect(isVisible).toHaveBeenCalledWith(
+			expect.objectContaining({
+				collection: "posts",
+				entry: expect.objectContaining({ id: "item-1" }),
+				locale: "fr",
+			}),
+		);
+
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					entryLocale: "fr",
+					item: makeItem({ locale: "de" }),
+				})}
+			/>,
+		);
+		expect(isVisible).toHaveBeenLastCalledWith(expect.objectContaining({ locale: "de" }));
+	});
+
+	it("does not let a stale visibility result expose a panel after context changes", async () => {
+		const deferreds: Array<{ resolve: (value: boolean) => void }> = [];
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "stale",
+						title: "Stale insights",
+						component: InsightsPanel,
+						isVisible: () => new Promise<boolean>((resolve) => deferreds.push({ resolve })),
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		await vi.waitFor(() => expect(deferreds).toHaveLength(1));
+		await act(async () => deferreds[0]?.resolve(true));
+		await expect
+			.element(screen.getByRole("heading", { name: "Stale insights" }))
+			.toBeInTheDocument();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					collection: "pages",
+					item: makeItem({ type: "pages" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+		await vi.waitFor(() => expect(deferreds).toHaveLength(2));
+		expect(screen.getByRole("heading", { name: "Stale insights" }).query()).toBeNull();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: makeItem({ id: "item-2" }), manifest: TEST_MANIFEST })}
+			/>,
+		);
+		await vi.waitFor(() => expect(deferreds).toHaveLength(3));
+		await act(async () => deferreds[1]?.resolve(true));
+		expect(screen.getByRole("heading", { name: "Stale insights" }).query()).toBeNull();
+		await act(async () => deferreds[2]?.resolve(false));
+		await vi.waitFor(() =>
+			expect(screen.getByRole("heading", { name: "Stale insights" }).query()).toBeNull(),
+		);
+	});
+
+	it("preserves a panel and its local state while same-entry visibility rechecks settle", async () => {
+		const checks: Array<{ resolve: (value: boolean) => void; reject: (error: unknown) => void }> =
+			[];
+		function StatefulPanel() {
+			const [value, setValue] = React.useState("");
+			return (
+				<div data-testid="stateful-panel">
+					<input
+						aria-label="Panel note"
+						value={value}
+						onChange={(event) => setValue(event.target.value)}
+					/>
+				</div>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: StatefulPanel,
+						isVisible: ({ entry }) =>
+							entry.status === "draft"
+								? true
+								: new Promise<boolean>((resolve, reject) => checks.push({ resolve, reject })),
+					},
+				],
+			},
+		};
+		const props = makePanelProps({ manifest: TEST_MANIFEST });
+		const screen = await render(<ContentSettingsPanel {...props} />, {
+			wrapper: pluginWrapper(pluginAdmins),
+		});
+		const input = screen.getByRole("textbox", { name: "Panel note" });
+		await expect.element(input).toBeInTheDocument();
+		const inputNode = input.element();
+		fireEvent.change(inputNode, { target: { value: "keep this" } });
+		const panel = screen.getByTestId("stateful-panel").element();
+
+		await screen.rerender(
+			<ContentSettingsPanel {...props} item={makeItem({ updatedAt: "2025-01-15T10:30:30Z" })} />,
+		);
+		expect(screen.getByTestId("stateful-panel").element()).toBe(panel);
+		await expect.element(input).toHaveValue("keep this");
+
+		const rerenderSaved = async (updatedAt: string, expectedChecks: number) => {
+			await screen.rerender(
+				<ContentSettingsPanel
+					{...props}
+					item={makeItem({
+						status: "published",
+						updatedAt,
+						data: { title: `Saved ${updatedAt}` },
+					})}
+				/>,
+			);
+			await vi.waitFor(() => expect(checks).toHaveLength(expectedChecks));
+			expect(screen.getByTestId("stateful-panel").element()).toBe(panel);
+			expect(screen.getByRole("textbox", { name: "Panel note" }).element()).toBe(inputNode);
+			await expect
+				.element(screen.getByRole("textbox", { name: "Panel note" }))
+				.toHaveValue("keep this");
+		};
+
+		await rerenderSaved("2025-01-15T10:31:00Z", 1);
+		await act(async () => checks[0]?.resolve(true));
+		await rerenderSaved("2025-01-15T10:32:00Z", 2);
+		await act(async () => checks[1]?.resolve(true));
+		await rerenderSaved("2025-01-15T10:33:00Z", 3);
+		await act(async () => checks[2]?.resolve(false));
+		await vi.waitFor(() => expect(screen.getByTestId("stateful-panel").query()).toBeNull());
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...props}
+				item={makeItem({ status: "published", updatedAt: "2025-01-15T10:34:00Z" })}
+			/>,
+		);
+		await vi.waitFor(() => expect(checks).toHaveLength(4));
+		expect(screen.getByTestId("stateful-panel").query()).toBeNull();
+		await act(async () => checks[3]?.resolve(true));
+		await expect.element(screen.getByTestId("stateful-panel")).toBeInTheDocument();
+	});
+
+	it("hides only after the newest same-entry check settles, including non-boolean and errors", async () => {
+		const checks: Array<{ resolve: (value: boolean) => void; reject: (error: unknown) => void }> =
+			[];
+		const error = new Error("visibility failed");
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+						isVisible: ({ entry }) =>
+							entry.status === "draft"
+								? true
+								: new Promise<boolean>((resolve, reject) => checks.push({ resolve, reject })),
+					},
+				],
+			},
+		};
+		const props = makePanelProps({ manifest: TEST_MANIFEST });
+		const screen = await render(<ContentSettingsPanel {...props} />, {
+			wrapper: pluginWrapper(pluginAdmins),
+		});
+		const rerender = async (updatedAt: string, expectedChecks: number) => {
+			await screen.rerender(
+				<ContentSettingsPanel {...props} item={makeItem({ status: "published", updatedAt })} />,
+			);
+			await vi.waitFor(() => expect(checks).toHaveLength(expectedChecks));
+		};
+		await rerender("2025-01-15T10:31:00Z", 1);
+		await rerender("2025-01-15T10:32:00Z", 2);
+		expect(screen.getByTestId("insights-panel").query()).not.toBeNull();
+		await act(async () => checks[0]?.reject(error));
+		expect(screen.getByTestId("insights-panel").query()).not.toBeNull();
+		expect(errorSpy).not.toHaveBeenCalled();
+		await act(async () => checks[1]?.resolve(true));
+		await rerender("2025-01-15T10:33:00Z", 3);
+		await act(async () => checks[2]?.resolve("truthy" as unknown as boolean));
+		await vi.waitFor(() => expect(screen.getByTestId("insights-panel").query()).toBeNull());
+		await rerender("2025-01-15T10:34:00Z", 4);
+		await act(async () => checks[3]?.reject(error));
+		await vi.waitFor(() => expect(screen.getByTestId("insights-panel").query()).toBeNull());
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Plugin "insights"'), error);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('panel "summary"'), error);
+	});
+
+	it.each([
+		["collection", { collection: "pages" }],
+		["entry ID", { item: makeItem({ id: "item-2" }) }],
+		["resolved locale", { entryLocale: "fr" }],
+	] as const)("hides the first check for a changed %s", async (_name, overrides) => {
+		const checks: Array<{ resolve: (value: boolean) => void }> = [];
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "context-change",
+						title: "Context change",
+						component: InsightsPanel,
+						isVisible: () => new Promise<boolean>((resolve) => checks.push({ resolve })),
+					},
+				],
+			},
+		};
+		const props = makePanelProps({ manifest: TEST_MANIFEST, entryLocale: "en" });
+		const screen = await render(<ContentSettingsPanel {...props} />, {
+			wrapper: pluginWrapper(pluginAdmins),
+		});
+		await vi.waitFor(() => expect(checks).toHaveLength(1));
+		expect(screen.getByTestId("insights-panel").query()).toBeNull();
+		await act(async () => checks[0]?.resolve(true));
+		await expect.element(screen.getByTestId("insights-panel")).toBeInTheDocument();
+
+		await screen.rerender(<ContentSettingsPanel {...props} {...overrides} />);
+		await vi.waitFor(() => expect(checks).toHaveLength(2));
+		expect(screen.getByTestId("insights-panel").query()).toBeNull();
+		await act(async () => checks[1]?.resolve(true));
+		await expect.element(screen.getByTestId("insights-panel")).toBeInTheDocument();
+	});
+
+	it("does not log or hide for stale rejected checks or checks after unmount", async () => {
+		const checks: Array<{ resolve: (value: boolean) => void; reject: (error: unknown) => void }> =
+			[];
+		const staleError = new Error("stale visibility failed");
+		const newestError = new Error("newest visibility failed");
+		const thrownError = new Error("thrown visibility failed");
+		let throwNext = false;
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "errors",
+						title: "Error checks",
+						component: InsightsPanel,
+						isVisible: ({ entry }) => {
+							if (throwNext) throw thrownError;
+							return entry.status === "draft"
+								? true
+								: new Promise<boolean>((resolve, reject) => checks.push({ resolve, reject }));
+						},
+					},
+				],
+			},
+		};
+		const props = makePanelProps({ manifest: TEST_MANIFEST });
+		const screen = await render(<ContentSettingsPanel {...props} />, {
+			wrapper: pluginWrapper(pluginAdmins),
+		});
+		const rerender = async (updatedAt: string, expectedChecks: number) => {
+			await screen.rerender(
+				<ContentSettingsPanel {...props} item={makeItem({ status: "published", updatedAt })} />,
+			);
+			await vi.waitFor(() => expect(checks).toHaveLength(expectedChecks));
+		};
+		await rerender("2025-01-15T10:31:00Z", 1);
+		await rerender("2025-01-15T10:32:00Z", 2);
+		await act(async () => checks[0]?.reject(staleError));
+		expect(screen.getByTestId("insights-panel").query()).not.toBeNull();
+		expect(errorSpy).not.toHaveBeenCalled();
+		await act(async () => checks[1]?.resolve(true));
+		await rerender("2025-01-15T10:33:00Z", 3);
+		await screen.unmount();
+		await act(async () => checks[2]?.reject(staleError));
+		expect(errorSpy).not.toHaveBeenCalled();
+
+		const latestScreen = await render(<ContentSettingsPanel {...props} />, {
+			wrapper: pluginWrapper(pluginAdmins),
+		});
+		await latestScreen.rerender(
+			<ContentSettingsPanel
+				{...props}
+				item={makeItem({ status: "published", updatedAt: "2025-01-15T10:34:00Z" })}
+			/>,
+		);
+		await vi.waitFor(() => expect(checks).toHaveLength(4));
+		await act(async () => checks[3]?.reject(newestError));
+		await vi.waitFor(() => expect(latestScreen.getByTestId("insights-panel").query()).toBeNull());
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Plugin "insights"'),
+			newestError,
+		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('panel "errors"'), newestError);
+		await latestScreen.rerender(<ContentSettingsPanel {...props} />);
+		await expect.element(latestScreen.getByTestId("insights-panel")).toBeInTheDocument();
+		throwNext = true;
+		await latestScreen.rerender(
+			<ContentSettingsPanel
+				{...props}
+				item={makeItem({ status: "published", updatedAt: "2025-01-15T10:35:00Z" })}
+			/>,
+		);
+		await vi.waitFor(() => expect(latestScreen.getByTestId("insights-panel").query()).toBeNull());
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Plugin "insights"'),
+			thrownError,
+		);
+		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('panel "errors"'), thrownError);
+	});
+
+	it("applies static filters before invoking visibility checks", async () => {
+		const collectionVisibility = vi.fn(() => true);
+		const roleVisibility = vi.fn(() => true);
+		const applicableVisibility = vi.fn(() => true);
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "collection",
+						title: "Pages only",
+						component: InsightsPanel,
+						collections: ["pages"],
+						isVisible: collectionVisibility,
+					},
+					{
+						id: "role",
+						title: "Admins only",
+						component: InsightsPanel,
+						minRole: 50,
+						isVisible: roleVisibility,
+					},
+					{
+						id: "applicable",
+						title: "Applicable",
+						component: InsightsPanel,
+						isVisible: applicableVisibility,
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByRole("heading", { name: "Applicable" })).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: "Pages only" }).query()).toBeNull();
+		expect(screen.getByRole("heading", { name: "Admins only" }).query()).toBeNull();
+		expect(collectionVisibility).not.toHaveBeenCalled();
+		expect(roleVisibility).not.toHaveBeenCalled();
+		expect(applicableVisibility).toHaveBeenCalledOnce();
+	});
+
+	it("does not recheck visibility for unrelated prop changes", async () => {
+		const isVisible = vi.fn(() => true);
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "stable", title: "Stable", component: InsightsPanel, isVisible },
+				],
+			},
+		};
+		const panelProps = makePanelProps({ manifest: TEST_MANIFEST });
+		const screen = await render(<ContentSettingsPanel {...panelProps} />, {
+			wrapper: pluginWrapper(pluginAdmins),
+		});
+		await expect.element(screen.getByRole("heading", { name: "Stable" })).toBeInTheDocument();
+		expect(isVisible).toHaveBeenCalledOnce();
+		await screen.rerender(<ContentSettingsPanel {...panelProps} slug="changed" />);
+		expect(isVisible).toHaveBeenCalledOnce();
+	});
+
 	it("renders applicable trusted plugin panels in host-owned sections", async () => {
 		const pluginAdmins: PluginAdmins = {
 			insights: {
@@ -644,9 +1206,6 @@ describe("ContentSettingsPanel", () => {
 
 			await expect
 				.element(screen.getByRole("heading", { name: "Inhoudsinzichten" }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("button", { name: "Drag to reorder Inhoudsinzichten" }))
 				.toBeInTheDocument();
 		} finally {
 			i18n.activate(previousLocale);
@@ -1171,11 +1730,12 @@ describe("ContentSettingsPanel", () => {
 
 	it("hides item-dependent sections for new entries", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, supportsDrafts: false })}
+			/>,
 		);
 
 		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
-		expect(screen.getByRole("button", { name: "Drag to reorder Publish" }).query()).toBeNull();
 		await expect.element(screen.getByRole("heading", { name: "URL & language" })).toBeVisible();
 		// No trash, no translations, no taxonomies, no SEO, no revisions for new items
 		expect(screen.container.textContent).not.toContain("Move to Trash");
@@ -1185,45 +1745,74 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
 	});
 
-	it("keeps the saved section order when sections are reordered on a new entry", async () => {
-		const storageKey = "emdash:content-settings-layout:v1:u1:posts";
-		const savedLayout = JSON.stringify({
-			version: 1,
-			order: ["seo", "taxonomies", "url-language", "ownership", "bylines"],
+	it("explains that saving a new entry keeps it as a draft", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
+		);
+
+		const summary = screen.getByRole("group", { name: "Publishing summary" });
+		await expect.element(summary).toBeVisible();
+		await expect
+			.element(summary)
+			.toHaveTextContent(
+				"Saving creates a draft that stays off the site. You can publish it after the first save.",
+			);
+		expect(screen.container.textContent).not.toContain("Move to Trash");
+		expect(screen.getByLabelText("SEO Title").query()).toBeNull();
+	});
+
+	it("a new entry follows the saved editor order", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: null,
+					isNew: true,
+					adminLayout: { order: ["bylines", "publish", "url-language"], hidden: ["ownership"] },
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
+		expect(sectionIds(screen.container)).toEqual(["bylines", "publish", "url-language", "outline"]);
+	});
+
+	it("shows a pending panel at its saved position once its visibility check allows it", async () => {
+		let resolveVisibility!: (visible: boolean) => void;
+		const visibility = new Promise<boolean>((resolve) => {
+			resolveVisibility = resolve;
 		});
-		window.localStorage.setItem(storageKey, savedLayout);
-		try {
-			const screen = await render(
-				<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
-			);
-			const headings = () =>
-				Array.from(
-					screen.container.querySelectorAll("section h3"),
-					(heading) => heading.textContent,
-				);
-			await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeVisible();
-			expect(headings().indexOf("Bylines")).toBeGreaterThan(headings().indexOf("Ownership"));
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+						isVisible: () => visibility,
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					adminLayout: { order: ["seo", "plugin:insights:summary", "outline"], hidden: [] },
+				})}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		await expect.element(screen.getByRole("heading", { name: "SEO" })).toBeVisible();
+		expect(screen.getByRole("heading", { name: "Content insights" }).query()).toBeNull();
 
-			const handle = screen.getByRole("button", { name: "Drag to reorder Bylines" }).element();
-			handle.focus();
-			for (const [target, key, code] of [
-				[handle, " ", "Space"],
-				[document, "ArrowUp", "ArrowUp"],
-				[document, " ", "Space"],
-			] as const) {
-				await act(async () => {
-					fireEvent.keyDown(target, { key, code });
-					await new Promise((resolve) => setTimeout(resolve, 0));
-				});
-			}
+		await act(async () => resolveVisibility(true));
 
-			await vi.waitFor(() =>
-				expect(headings().indexOf("Bylines")).toBeLessThan(headings().indexOf("Ownership")),
-			);
-			expect(window.localStorage.getItem(storageKey)).toBe(savedLayout);
-		} finally {
-			window.localStorage.removeItem(storageKey);
-		}
+		await expect
+			.element(screen.getByRole("heading", { name: "Content insights" }))
+			.toBeInTheDocument();
+		const ids = sectionIds(screen.container);
+		expect(ids.indexOf("plugin:insights:summary")).toBe(ids.indexOf("seo") + 1);
+		expect(ids.indexOf("outline")).toBe(ids.indexOf("plugin:insights:summary") + 1);
 	});
 
 	it("does not render an empty publishing summary for a new collection without drafts", async () => {
@@ -1259,30 +1848,6 @@ describe("ContentSettingsPanel", () => {
 		const root = screen.container.firstElementChild;
 		const lastSection = root?.lastElementChild;
 		expect(lastSection?.textContent).toContain("Move to Trash");
-	});
-
-	it("hides destructive actions without collapsing their space while reordering", async () => {
-		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
-		const trashActions = screen.getByTestId("content-trash-actions").element();
-		const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
-
-		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).not.toHaveAttribute("aria-hidden");
-
-		handle.focus();
-		await act(async () => {
-			fireEvent.keyDown(handle, { key: " ", code: "Space" });
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		});
-		expect(trashActions).toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).toHaveAttribute("aria-hidden", "true");
-
-		await act(async () => {
-			fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		});
-		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).not.toHaveAttribute("aria-hidden");
 	});
 });
 
@@ -1380,8 +1945,35 @@ describe("EditorActions", () => {
 		expect(props.onPreview).toHaveBeenCalled();
 	});
 
+	it("labels the first save of a draft-enabled entry as Save draft", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save draft", exact: true }))
+			.toBeEnabled();
+
+		await screen.rerender(
+			<EditorActions {...makeBarProps({ isNew: false, supportsDrafts: true, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+	});
+
+	it("keeps the Save label for new entries in collections without drafts", async () => {
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, supportsDrafts: false, isDirty: true })} />,
+		);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+	});
+
 	it("hides the publish cluster for new items", async () => {
-		const screen = await render(<EditorActions {...makeBarProps({ isNew: true })} />);
+		const screen = await render(
+			<EditorActions {...makeBarProps({ isNew: true, isDirty: true })} />,
+		);
 
 		expect(screen.container.textContent).not.toContain("Publish");
 		expect(screen.container.textContent).not.toContain("Unpublish");
@@ -1394,7 +1986,6 @@ describe("EditorActions", () => {
 			<EditorActions {...makeBarProps({ isDirty: true, isAutosaving: true })} />,
 		);
 		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-		expect(screen.getByRole("status").element().textContent).toBe("Saving...");
 	});
 
 	it("marks the Save button dirty state", async () => {
@@ -1403,4 +1994,103 @@ describe("EditorActions", () => {
 			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.toBeInTheDocument();
 	});
+
+	describe("who edited the entry, in the publish confirmation", () => {
+		const ana: RevisionAuthor = { id: "u-ana", name: "Ana Lima" };
+		const sam: RevisionAuthor = { id: "u-sam", name: "Sam Okafor" };
+
+		const withLiveVersion = () =>
+			makeBarProps({
+				isLive: true,
+				hasPendingChanges: true,
+				revisions: { collection: "posts", entryId: "item-1", liveRevisionId: "rev-2" },
+			});
+
+		const openConfirmation = async (screen: Awaited<ReturnType<typeof render>>) => {
+			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+			const dialog = screen.getByRole("dialog", { name: "Publish changes?" });
+			await expect.element(dialog).toBeVisible();
+			return dialog;
+		};
+
+		it("names everyone who edited it since the live version, read when it opens", async () => {
+			vi.mocked(fetchRevisionEditors).mockResolvedValue([ana, sam]);
+			const screen = await render(<EditorActions {...withLiveVersion()} />);
+			await expect
+				.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+				.toBeVisible();
+			expect(fetchRevisionEditors).not.toHaveBeenCalled();
+
+			const dialog = await openConfirmation(screen);
+
+			await expect
+				.element(
+					dialog.getByText(`Edited by ${isolated("Ana Lima")} and ${isolated("Sam Okafor")}`, {
+						exact: true,
+					}),
+				)
+				.toBeVisible();
+			expect(fetchRevisionEditors).toHaveBeenCalledWith(
+				"posts",
+				"item-1",
+				expect.objectContaining({ since: "rev-2" }),
+			);
+		});
+
+		it("names no one from the list it read before, only from a read since it opened", async () => {
+			vi.mocked(fetchRevisionEditors).mockResolvedValueOnce([ana]);
+			// Keeps reads fresh for a minute, as the admin does.
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { staleTime: 60_000, retry: false } },
+			});
+			const screen = await render(<EditorActions {...withLiveVersion()} />, {
+				wrapper: ({ children }) => (
+					<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+				),
+			});
+			let dialog = await openConfirmation(screen);
+			await expect.element(dialog.getByText("Edited by Ana Lima", { exact: true })).toBeVisible();
+			dialog.getByRole("button", { name: "Cancel" }).element().click();
+			await expect.element(dialog).not.toBeInTheDocument();
+
+			let respond!: (editors: RevisionAuthor[]) => void;
+			vi.mocked(fetchRevisionEditors).mockReturnValueOnce(
+				new Promise((resolve) => {
+					respond = resolve;
+				}),
+			);
+			dialog = await openConfirmation(screen);
+			await vi.waitFor(() => expect(fetchRevisionEditors).toHaveBeenCalledTimes(2));
+			expect(dialog.element().textContent).not.toContain("Edited by");
+
+			respond([sam, ana]);
+			await expect
+				.element(
+					dialog.getByText(`Edited by ${isolated("Sam Okafor")} and ${isolated("Ana Lima")}`, {
+						exact: true,
+					}),
+				)
+				.toBeVisible();
+		});
+
+		it("names no one, and still publishes, when the editors can't be read", async () => {
+			vi.mocked(fetchRevisionEditors).mockRejectedValue(
+				new Error("Failed to fetch revision editors"),
+			);
+			const props = withLiveVersion();
+			const screen = await render(<EditorActions {...props} />);
+			const dialog = await openConfirmation(screen);
+			await vi.waitFor(() => expect(fetchRevisionEditors).toHaveBeenCalled());
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(dialog.element().textContent).not.toContain("Edited by");
+			dialog.getByRole("button", { name: "Publish changes", exact: true }).element().click();
+			expect(props.onPublish).toHaveBeenCalledOnce();
+		});
+	});
 });
+
+/** A name in a sentence that names several people, isolated from the text around it. */
+function isolated(name: string): string {
+	return `\u2068${name}\u2069`;
+}

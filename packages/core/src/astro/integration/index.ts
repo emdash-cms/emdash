@@ -19,6 +19,7 @@ import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddlewa
 
 import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { unknownOptionWarning, validateConfigShape } from "../../config/options-schema.js";
 import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
 import { normalizeAstroI18n } from "../../i18n/normalize.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
@@ -44,6 +45,7 @@ import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
+	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 	injectBuiltinAuthRoutes,
 	injectAuthProviderRoutes,
@@ -79,9 +81,9 @@ function resolveAstroVersion(): string | undefined {
 }
 
 /**
- * `@emdash-cms/cloudflare` depends on the exact `emdash` version it was
- * released with. A site that upgrades only one of the two installs a second
- * copy of `emdash` for the adapter, so warn when the installed adapter's
+ * `@emdash-cms/cloudflare` requires the exact `emdash` version it was
+ * released with. npm refuses a mismatched install, but pnpm and Yarn only
+ * print a peer dependency warning, so warn when the installed adapter's
  * version differs from this one.
  *
  * @internal Exported for unit testing.
@@ -102,8 +104,8 @@ export function adapterVersionMismatchWarning(
 		}
 		if (typeof pkg.version !== "string" || pkg.version === version) return undefined;
 		return (
-			`@emdash-cms/cloudflare ${pkg.version} does not match emdash ${version}, ` +
-			`so the adapter runs against its own copy of emdash ${pkg.version}. ` +
+			`@emdash-cms/cloudflare ${pkg.version} requires emdash ${pkg.version}, ` +
+			`but emdash ${version} is installed. ` +
 			`Install the same version of both packages, for example:\n\n` +
 			`  npm install emdash@${version} @emdash-cms/cloudflare@${version}`
 		);
@@ -233,6 +235,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
+		imagePlaceholders: resolvedConfig.imagePlaceholders,
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
 		updateCheck: resolvedConfig.updateCheck,
@@ -458,6 +461,7 @@ function assertNoRemovedRegistryOption(config: EmDashConfig): void {
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	assertNoRemovedRegistryOption(config);
+	const unknownOptions = validateConfigShape(config);
 
 	const registry = resolveRegistryConfigForSandbox({
 		registry: config.registry,
@@ -635,6 +639,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					allowLocalhost: command === "dev" || command === "sync",
 				});
 				printBanner(logger);
+				for (const key of unknownOptions) logger.warn(unknownOptionWarning(key));
 				if (command === "dev") {
 					// In Node `astro dev`, Vite loads `.env` into `import.meta.env`
 					// but not `process.env`. The plugin-secret encryption key
@@ -661,6 +666,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
+				serializableConfig.robotsTxtOverridden = hasUserDefinedPublicRoute(
+					astroConfig.srcDir,
+					"robots.txt",
+				);
 				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
 				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
 
@@ -802,6 +811,11 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// port isn't known yet here. Nothing useful to print for build.
 			},
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
+				const cookie = finalConfig.session ? finalConfig.session.cookie : undefined;
+				serializableConfig.sessionCookieName =
+					typeof cookie === "string"
+						? cookie || "astro-session"
+						: (cookie?.name ?? "astro-session");
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

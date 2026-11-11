@@ -52,7 +52,7 @@ function domainCheckFailure(error: unknown): string | undefined {
 				? i18n._(msg`${origin} redirects to ${target}. Enter that address instead.`)
 				: i18n._(msg`${origin} redirects elsewhere`);
 		case "NOT_SERVING":
-			return i18n._(msg`${origin} does not serve this site yet`);
+			return i18n._(msg`Could not verify that ${origin} serves this site`);
 		default:
 			return undefined;
 	}
@@ -97,6 +97,10 @@ export function ChangeDomainDialog({
 	const domainRejected =
 		checkError instanceof ApiResponseError &&
 		(checkError.code === "VALIDATION_ERROR" || checkError.code === "DOMAIN_CHECK_FAILED");
+	const showWorkersHint =
+		checkError instanceof ApiResponseError &&
+		checkError.code === "DOMAIN_CHECK_FAILED" &&
+		(checkError.details?.reason === "NOT_SERVING" || checkError.details?.reason === "UNREACHABLE");
 	const formatHint = t`Enter a domain such as example.com, without a path or port`;
 	const fieldError = domainRejected
 		? checkError.code === "VALIDATION_ERROR"
@@ -180,9 +184,14 @@ export function ChangeDomainDialog({
 						<DialogError message={errorMessage} />
 						{fallbackUrl && (
 							<div className="grid gap-2 rounded-md border border-kumo-line p-3 text-sm">
-								<p>
+								<p id={`${formId}-fallback`}>
 									{t`If the site can't be reached from the internet yet, for example on localhost or behind a login, you can use the address without the check.`}
 								</p>
+								{showWorkersHint && (
+									<p id={`${formId}-workers`}>
+										{t`On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway.`}
+									</p>
+								)}
 								<div>
 									<Button
 										type="button"
@@ -191,6 +200,11 @@ export function ChangeDomainDialog({
 										disabled={isPending}
 										loading={uncheckedMutation.isPending}
 										onClick={() => saveUnchecked(fallbackUrl)}
+										aria-describedby={
+											showWorkersHint
+												? `${formId}-fallback ${formId}-workers`
+												: `${formId}-fallback`
+										}
 									>
 										{t`Use ${fallbackUrl} anyway`}
 									</Button>

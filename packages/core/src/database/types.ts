@@ -11,6 +11,8 @@ export interface RevisionTable {
 	data: string; // JSON snapshot
 	author_id: string | null;
 	created_at: Generated<string>;
+	kind: Generated<string | null>; // 'autosave' | 'recovery'; NULL for a kept revision
+	edited_by: Generated<string | null>; // JSON array of user IDs, latest first; NULL = author alone
 }
 
 export interface RevisionPruneQueueTable {
@@ -445,7 +447,7 @@ export interface CollectionTable {
 	search_config: string | null; // JSON: SearchConfig
 	has_seo: number; // 0 or 1 — opt-in SEO fields for this collection
 	title_field: string | null; // field slug for the admin list Title column (NULL = default)
-	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
+	date_field: string | null; // datetime field slug or publishedAt/createdAt/updatedAt for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
 	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row
@@ -821,6 +823,8 @@ export interface Database {
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 	_emdash_entry_locks: EntryLockTable;
+	_emdash_rooms: RoomTable;
+	_emdash_room_updates: RoomUpdateTable;
 	_emdash_transfer_operations: TransferOperationTable;
 	_emdash_transfer_identity_map: TransferIdentityMapTable;
 	_emdash_transfer_staged_files: TransferStagedFileTable;
@@ -1048,4 +1052,22 @@ export interface EntryLockTable {
 	token: string; // identifies the holder's editing session, one per tab
 	acquired_at: string; // ISO 8601 with milliseconds
 	expires_at: string; // ISO 8601 with milliseconds
+}
+
+// Co-editing room storage on Node.js
+
+export interface RoomTable {
+	room_id: string; // {collection}:{entry ID}
+	part: number;
+	record: string | null; // JSON, split by characters across parts; null on part 0 until the room initializes
+	host: string | null; // part 0: the claiming process's random ID
+	claimed_at: string | null; // part 0: ISO 8601 with milliseconds
+	updated_at: string; // part 0: the last write or closed connection, ISO 8601 with milliseconds
+}
+
+export interface RoomUpdateTable {
+	room_id: string;
+	seq: number;
+	part: number;
+	data: Uint8Array;
 }

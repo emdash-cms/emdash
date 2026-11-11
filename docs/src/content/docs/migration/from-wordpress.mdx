@@ -22,7 +22,7 @@ Record the current permalink structure, canonical origin, redirects, menus, acti
 
 | Method | Use it when | Included data |
 | --- | --- | --- |
-| WXR upload | You can export from **Tools → Export** | Data represented in the export, including posts, pages, custom post types, taxonomy terms, reusable blocks, authors, and attachment URLs |
+| WXR upload | You can export from **Tools → Export** | Data represented in the export, including posts, pages, custom post types, taxonomy terms, menus, reusable blocks, authors, and attachment URLs |
 | EmDash Exporter | You control the WordPress site and can install the exporter | Authenticated content plus supported site settings, SEO fields, taxonomies, and media metadata; comments, menus, the logo, and the favicon with exporter 1.2.0 or later |
 
 Entering a site URL without the exporter only probes the public WordPress REST API. The probe can detect WordPress and count public posts, pages, and media, but it cannot perform a direct REST import.
@@ -37,7 +37,52 @@ Check the exporter version on the WordPress **Plugins** screen. Comments, menus,
 
 With exporter 1.2.0 or later, open **Tools → EmDash Migration** in WordPress and generate a migration key. Paste the key into the EmDash import page.
 
-With any exporter version, you can enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. On local HTTP development sites, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
+With any exporter version, you can enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. When you open the EmDash admin on `localhost` or `127.0.0.1`, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
+
+### Import from a local WordPress site
+
+EmDash connects to WordPress from its server and only to public addresses. It rejects `localhost` and private IP addresses, and it looks up hostnames in public DNS, so a name that exists only on your computer, such as `mysite.local` or `mysite.test`, does not resolve. This applies to the site URL, the exporter import, and the attachment downloads in the media step. For a site at such an address, the import page shows "Couldn't detect WordPress", and the media step can't download the attachments of a WXR file exported from it.
+
+To import from a WordPress site that runs on your computer, give it a public address for the duration of the import:
+
+<Steps>
+
+1. Start a tunnel to the port that your site's own web server listens on. The following command starts a [Cloudflare quick tunnel](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) to a site on port 8080 and prints a public `trycloudflare.com` address:
+
+   ```sh
+   cloudflared tunnel --url http://127.0.0.1:8080
+   ```
+
+   Point the tunnel at the site's port, not at its local hostname. In its default Site Domains mode, [Local](https://localwp.com/) serves all its sites on port 80 and picks one by hostname, so a tunnel to `http://mysite.local` gets Local's "Site Not Found" page. Local also gives each site its own port, and a tunnel to that port reaches the site. Local lists that port in its `sites.json` file (`~/Library/Application Support/Local/sites.json` on macOS), as `services.nginx.ports.HTTP` in the site's entry.
+
+   Laravel Valet serves all its sites through one web server and picks one by hostname, with no port for each site, so these steps don't work for Valet as written. Laravel Herd's documentation describes reaching its sites only by hostname, so the same likely applies to Herd.
+
+2. Make WordPress use the tunnel's address and HTTPS. The tunnel forwards requests to WordPress over plain HTTP, and WordPress accepts application passwords only over HTTPS unless `WP_ENVIRONMENT_TYPE` is `local`. Add the following lines to `wp-config.php`, above the "That's all, stop editing!" comment, so that WordPress treats tunnel requests as HTTPS and puts the tunnel address in API responses and attachment URLs:
+
+   ```php title="wp-config.php"
+   if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+       $_SERVER['HTTPS'] = 'on';
+   }
+   if (isset($_SERVER['HTTP_HOST'])) {
+       $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+       define('WP_HOME', $protocol . '://' . $_SERVER['HTTP_HOST']);
+       define('WP_SITEURL', $protocol . '://' . $_SERVER['HTTP_HOST']);
+   }
+   ```
+
+3. Replace the site's local address with the tunnel address in the WordPress database. Post content keeps each image at the address the site had when the image was inserted, and the media step rewrites only the image URLs that match an attachment's address. The following [`wp search-replace`](https://developer.wordpress.org/cli/commands/search-replace/) command replaces `http://mysite.local` with a tunnel address. Replace `http://mysite.local` with your site's own address, which can differ from the address the tunnel points at, and the example tunnel address with the one the tunnel printed:
+
+   ```sh
+   wp search-replace 'http://mysite.local' 'https://example.trycloudflare.com' --skip-columns=guid
+   ```
+
+   A quick tunnel gets a new address each time it starts, and an import keeps the addresses it read when it started. Keep the tunnel running until step 5. If it restarts before step 4, run the command again from the old tunnel address to the new one.
+
+4. Use the tunnel address for the import: enter it as the site URL, generate the migration key from WordPress opened at that address, or download the WXR file from there so its attachment URLs point at the tunnel.
+
+5. After the media step finishes, run `wp search-replace` again with the two addresses swapped, remove the lines from `wp-config.php`, and stop the tunnel. While the tunnel runs, anyone with the address can reach the site, including its login page.
+
+</Steps>
 
 ## Import through the admin
 
@@ -51,7 +96,7 @@ With any exporter version, you can enter the WordPress site URL. When the export
 
 4. Map WordPress authors to EmDash users. An unmapped source author can be represented by a guest byline, so presentation credit does not depend on granting an EmDash login.
 
-5. For an exporter import, choose whether to import menus, site title and tagline, logo and favicon, and supported SEO values. These switches are not part of the WXR path.
+5. Choose whether to import menus. For an exporter import, also choose whether to import the site title and tagline, logo and favicon, and supported SEO values. These switches are not part of the WXR path.
 
 6. Start the import. EmDash creates missing compatible collections and fields before it creates entries.
 
@@ -71,9 +116,30 @@ The importer maps WordPress statuses as follows:
 | `draft` | `draft` |
 | `pending` | `draft` |
 | `private` | `draft` |
-| `future`, `trash`, or an unknown status | `draft` |
+| `future` with a date later than the import | `scheduled` |
+| `future` with a past or missing date, `trash`, or an unknown status | `draft` |
+| Any status on a password-protected post (WXR import) | `draft` |
 
-Scheduled dates and WordPress visibility rules are not reconstructed from these statuses. Review every imported draft before publication.
+EmDash has no per-entry passwords. A WXR import brings in a password-protected post as a draft whatever its WordPress status, and the **Import Complete** screen lists each one. A password-protected `future` post with a date later than the import is not scheduled and has no publication date, so publishing it sets the current time. The EmDash Exporter does not send post passwords, so an exporter import maps a password-protected post by its status alone, and a published one arrives published.
+
+WordPress visibility rules are not reconstructed from these statuses. Review every imported draft before publication.
+
+### Publication dates
+
+The admin importer preserves the source date for entries imported as drafts as well as published entries. Publishing an imported draft keeps that date, including when the draft came from a WordPress `pending`, `private`, or unrecognized status. This also applies to genuine WordPress drafts: if the source date is an old save date, first publishing the draft in EmDash backdates its publication date and any date-based permalink. Check the date before publishing.
+
+The date source depends on the import method:
+
+- **WXR:** `wp:post_date_gmt` (UTC), then `pubDate` (with its timezone), then `wp:post_date` (site-local time).
+- **EmDash Exporter:** `date_gmt` (UTC), then `date` (site-local time).
+
+The WordPress zero-date sentinel (`0000-00-00 00:00:00`) is skipped for GMT dates. A local date has no timezone information, so that fallback is approximate. If no usable source date exists, the draft has no publication date; publishing it sets the current time.
+
+A WordPress `future` post with a date later than the import is scheduled rather than given a publication date immediately. Its publication date comes from its final schedule, so you can reschedule it or unschedule it and publish immediately. A `future` post with a date already in the past (a missed schedule) remains a draft and keeps that source date when published.
+
+If an imported draft already has a publication date, scheduling it for later also keeps that date and its dated permalink. The schedule controls when it becomes visible, not its stored publication date. Edit the publication date separately if you want it to match the new schedule. This applies to genuine drafts and missed schedules.
+
+These rules apply when creating entries during an import. They do not repair dates on previously imported entries; skipping existing entries on a retry leaves their dates unchanged.
 
 ### Rich text and reusable blocks
 
@@ -109,7 +175,7 @@ Categories and tags are imported into the matching EmDash taxonomy definitions. 
 
 Media deduplication compares a SHA-1 hash of the downloaded bytes. An existing media row with the same hash is reused. Filenames and WordPress IDs are not the deduplication key.
 
-The source site must remain reachable while EmDash downloads attachments. Redirects from an attachment URL are validated before they are followed.
+The source site must remain reachable at a public address while EmDash downloads attachments. For a site on your computer, see [Import from a local WordPress site](#import-from-a-local-wordpress-site). Redirects from an attachment URL are validated before they are followed.
 
 ## Retry a partial import
 
@@ -120,7 +186,7 @@ The admin import is designed to skip existing entries, but its matching boundary
 - Rerunning the media step reuses already stored byte-identical files by content hash.
 - The exporter flow sends bounded chunks. Restarting the browser flow reruns content pages and rebuilds relationship maps from skipped entries.
 
-The admin does not persist a WXR resume file. The `--resume` flag on `emdash import wordpress` belongs to a separate CLI workflow that writes converted JSON files to disk; it does not resume an admin database import.
+The admin does not persist a WXR resume file. The `--resume` flag on [`emdash import wordpress`](/reference/cli/#import-wordpress-file) belongs to a separate CLI workflow that writes converted JSON files to disk; it does not resume an admin database import.
 
 <Aside type="caution">
   Do not delete or redirect the WordPress origin after an interrupted import. First compare collection counts, inspect errors, finish media downloads, and verify rewritten links.
@@ -134,7 +200,7 @@ Check the imported site against the source:
 - Open representative Gutenberg, Classic Editor, shortcode, and page-builder content.
 - Confirm featured images and inline media resolve from EmDash URLs.
 - Check authors, bylines, categories, tags, custom taxonomies, and translations.
-- Test menus, comments, site identity, and SEO fields when imported through the exporter.
+- Test menus. After an exporter import, also test comments, site identity, and SEO fields.
 - Crawl old public URLs and prepare redirects for every changed route.
 - Verify drafts remain inaccessible to logged-out visitors.
 

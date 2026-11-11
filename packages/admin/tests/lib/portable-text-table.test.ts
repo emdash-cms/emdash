@@ -593,12 +593,9 @@ describe("Portable Text table plain-JSON adapters", () => {
 				path: "root:0",
 				createKey: keyFactory("generated"),
 				inlineToSpans: (content) => ({
-					content: [
-						span(
-							`inline-${String((content[0] as { text?: string } | undefined)?.text)}`,
-							String((content[0] as { text?: string } | undefined)?.text ?? ""),
-						),
-					],
+					content: content.map((entry, index) =>
+						span(`inline-${index}`, entry.type === "hardBreak" ? "\n" : (entry.text ?? "")),
+					),
 					markDefs: [],
 				}),
 			},

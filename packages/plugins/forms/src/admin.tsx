@@ -915,7 +915,7 @@ function FieldRow({
 							onChange={(e) => onChange({ name: e.target.value })}
 						/>
 					</div>
-					<div className="flex items-center gap-4">
+					<div className="flex items-end gap-4">
 						<Select
 							label="Type"
 							hideLabel={false}
@@ -930,11 +930,13 @@ function FieldRow({
 							onValueChange={(v) => onChange({ width: v ?? "full" })}
 							items={WIDTH_ITEMS}
 						/>
-						<Checkbox
-							label="Required"
-							checked={field.required}
-							onCheckedChange={(checked) => onChange({ required: checked })}
-						/>
+						<div className="flex h-9 items-center">
+							<Checkbox
+								label="Required"
+								checked={field.required}
+								onCheckedChange={(checked) => onChange({ required: checked })}
+							/>
+						</div>
 					</div>
 				</div>
 				<div className="flex items-center gap-0.5 pt-6">
@@ -1118,10 +1120,22 @@ function OptionsEditor({
 // Submissions Page
 // =============================================================================
 
+function latestSubmittedForm(forms: FormItem[]): FormItem | undefined {
+	let latest: FormItem | undefined;
+	for (const form of forms) {
+		if (form.submissionCount === 0) continue;
+		if (!latest || (form.lastSubmissionAt ?? "") > (latest.lastSubmissionAt ?? "")) {
+			latest = form;
+		}
+	}
+	return latest ?? forms[0];
+}
+
 function SubmissionsPage() {
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [selectedFormId, setSelectedFormId] = React.useState<string>("");
 	const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
+	const [canManage, setCanManage] = React.useState(false);
 	const [statusFilter, setStatusFilter] = React.useState<string>("");
 	const [loading, setLoading] = React.useState(true);
 	const [subsLoading, setSubsLoading] = React.useState(false);
@@ -1140,8 +1154,9 @@ function SubmissionsPage() {
 				}
 				const data = await parseApiResponse<{ items: FormItem[] }>(res);
 				setForms(data.items);
-				if (data.items.length > 0 && data.items[0]) {
-					setSelectedFormId(data.items[0].id);
+				const initialForm = latestSubmittedForm(data.items);
+				if (initialForm) {
+					setSelectedFormId(initialForm.id);
 				}
 			} catch {
 				setError(FORMS_LOAD_FAILED);
@@ -1155,6 +1170,7 @@ function SubmissionsPage() {
 		if (!selectedFormId) return;
 		let stale = false;
 		setSubsLoading(true);
+		setCanManage(false);
 		setSubsError(null);
 		setActionError(null);
 		setSelectedSub(null);
@@ -1172,9 +1188,13 @@ function SubmissionsPage() {
 					setSubsError(submissionsLoadError(res));
 					return;
 				}
-				const data = await parseApiResponse<{ items: SubmissionItem[] }>(res);
+				const data = await parseApiResponse<{
+					items: SubmissionItem[];
+					canManage?: boolean;
+				}>(res);
 				if (stale) return;
 				setSubmissions(data.items);
+				setCanManage(data.canManage === true);
 			} catch {
 				if (stale) return;
 				setSubmissions([]);
@@ -1303,24 +1323,26 @@ function SubmissionsPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<h1 className="text-3xl font-bold">Submissions</h1>
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						icon={<Export />}
-						onClick={() => void handleExport("csv")}
-						disabled={submissions.length === 0}
-					>
-						CSV
-					</Button>
-					<Button
-						variant="outline"
-						icon={<Export />}
-						onClick={() => void handleExport("json")}
-						disabled={submissions.length === 0}
-					>
-						JSON
-					</Button>
-				</div>
+				{canManage && (
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							icon={<Export />}
+							onClick={() => void handleExport("csv")}
+							disabled={submissions.length === 0}
+						>
+							CSV
+						</Button>
+						<Button
+							variant="outline"
+							icon={<Export />}
+							onClick={() => void handleExport("json")}
+							disabled={submissions.length === 0}
+						>
+							JSON
+						</Button>
+					</div>
+				)}
 			</div>
 
 			{actionError && (
@@ -1390,7 +1412,7 @@ function SubmissionsPage() {
 										<th className="text-start p-3 font-medium">Date</th>
 										<th className="text-start p-3 font-medium">Preview</th>
 										<th className="text-start p-3 font-medium">Status</th>
-										<th className="text-end p-3 font-medium">Actions</th>
+										{canManage && <th className="text-end p-3 font-medium">Actions</th>}
 									</tr>
 								</thead>
 								<tbody>
@@ -1410,20 +1432,29 @@ function SubmissionsPage() {
 												onClick={() => setSelectedSub(sub)}
 											>
 												<td className="p-3">
-													<button
-														type="button"
-														onClick={(e) => {
-															e.stopPropagation();
-															void handleToggleStar(sub);
-														}}
-														className="text-yellow-500 hover:text-yellow-600"
-													>
-														{sub.starred ? (
-															<StarIcon className="h-4 w-4" weight="fill" />
-														) : (
-															<StarIcon className="h-4 w-4" />
-														)}
-													</button>
+													{canManage ? (
+														<button
+															type="button"
+															onClick={(e) => {
+																e.stopPropagation();
+																void handleToggleStar(sub);
+															}}
+															className="text-yellow-500 hover:text-yellow-600"
+														>
+															{sub.starred ? (
+																<StarIcon className="h-4 w-4" weight="fill" />
+															) : (
+																<StarIcon className="h-4 w-4" />
+															)}
+														</button>
+													) : (
+														<span className="text-yellow-500" aria-hidden="true">
+															<StarIcon
+																className="h-4 w-4"
+																weight={sub.starred ? "fill" : "regular"}
+															/>
+														</span>
+													)}
 												</td>
 												<td className="p-3 text-muted-foreground whitespace-nowrap">
 													{formatDate(sub.createdAt)}
@@ -1446,33 +1477,35 @@ function SubmissionsPage() {
 														{sub.status}
 													</Badge>
 												</td>
-												<td className="p-3 text-end">
-													<div className="flex items-center justify-end gap-1">
-														<Button
-															variant="ghost"
-															shape="square"
-															onClick={(e: React.MouseEvent) => {
-																e.stopPropagation();
-																void handleMarkRead(sub);
-															}}
-															aria-label="Toggle status"
-														>
-															<Eye className="h-4 w-4" />
-														</Button>
-														<Button
-															variant="ghost"
-															shape="square"
-															className="text-destructive"
-															onClick={(e: React.MouseEvent) => {
-																e.stopPropagation();
-																void handleDelete(sub);
-															}}
-															aria-label="Delete"
-														>
-															<Trash className="h-4 w-4" />
-														</Button>
-													</div>
-												</td>
+												{canManage && (
+													<td className="p-3 text-end">
+														<div className="flex items-center justify-end gap-1">
+															<Button
+																variant="ghost"
+																shape="square"
+																onClick={(e: React.MouseEvent) => {
+																	e.stopPropagation();
+																	void handleMarkRead(sub);
+																}}
+																aria-label="Toggle status"
+															>
+																<Eye className="h-4 w-4" />
+															</Button>
+															<Button
+																variant="ghost"
+																shape="square"
+																className="text-destructive"
+																onClick={(e: React.MouseEvent) => {
+																	e.stopPropagation();
+																	void handleDelete(sub);
+																}}
+																aria-label="Delete"
+															>
+																<Trash className="h-4 w-4" />
+															</Button>
+														</div>
+													</td>
+												)}
 											</tr>
 										);
 									})}
@@ -1549,10 +1582,11 @@ function RecentSubmissionsWidget() {
 				const formsData = await parseApiResponse<{ items: FormItem[] }>(formsRes);
 				setForms(formsData.items);
 
-				if (formsData.items.length > 0 && formsData.items[0]) {
+				const latestForm = latestSubmittedForm(formsData.items);
+				if (latestForm) {
 					failure = SUBMISSIONS_LOAD_FAILED;
 					const subsRes = await apiFetch("submissions/list", {
-						formId: formsData.items[0].id,
+						formId: latestForm.id,
 						limit: 5,
 					});
 					if (!subsRes.ok) {

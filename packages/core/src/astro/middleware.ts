@@ -25,6 +25,8 @@ import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-pr
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
 // @ts-ignore - virtual module
+import { createRoomHost as virtualCreateRoomHost } from "virtual:emdash/rooms";
+// @ts-ignore - virtual module
 import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
@@ -56,6 +58,7 @@ import {
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
 	type CreateSchedulerFn,
+	type CreateRoomHostFn,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
@@ -142,6 +145,14 @@ function markSetupVerified(): void {
 	setupFlagStore[SETUP_VERIFIED_KEY] = true;
 }
 
+/** Nested request contexts copy this one, so call it before creating them. */
+function providePublicMediaUrl(storage: Storage | null): (storageKey: string) => string {
+	const resolve = createPublicMediaUrlResolver(storage);
+	const ctx = getRequestContext();
+	if (ctx) ctx.publicMediaUrl = resolve;
+	return resolve;
+}
+
 /** Whether i18n config has been initialized from the virtual module */
 let i18nInitialized = false;
 
@@ -208,6 +219,7 @@ function buildDependencies(
 			| undefined,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
+		createRoomHost: virtualCreateRoomHost as CreateRoomHostFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
@@ -255,6 +267,7 @@ async function getRuntime(
 			}
 			if (isCurrentClaim()) {
 				holder.instance = runtime;
+				runtime.rooms?.activate();
 			} else {
 				// This init was reclaimed mid-flight (it ran past the deadline
 				// and a waiter started its own). Don't overwrite the
@@ -264,6 +277,9 @@ async function getRuntime(
 				// request that built it.
 				runtime.stopCron().catch((error: unknown) => {
 					console.error("[emdash] failed to stop superseded runtime's cron:", error);
+				});
+				runtime.rooms?.shutdown().catch((error: unknown) => {
+					console.error("[co-editing] failed to shut down superseded runtime's rooms:", error);
 				});
 			}
 			return runtime;
@@ -795,11 +811,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// (KV / Durable Object) so we want to avoid re-fetching on the hot path.
 		// Skipped entirely for:
 		//   - prerendered requests (no session at build time)
-		//   - requests without an `astro-session` cookie (no session to look up)
+		//   - requests without the configured session cookie (no session to look up)
 		// The cookie check matters on Cloudflare Workers, where Astro's session
 		// backend is KV: calling session.get() on every anonymous public request
 		// turns normal traffic into a flood of KV read misses. See #733.
-		const hasSessionCookie = cookies.get("astro-session") !== undefined;
+		const hasSessionCookie =
+			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
@@ -901,6 +918,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						const runtime = await runtimeInit;
 						markSetupVerified();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
+						const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
 						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
 						locals.emdash = {
 							handlePublicPluginApiRoute,
@@ -908,7 +926,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 								getPublicPluginRouteMeta(runtime, pluginId, path),
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
-							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							getPublicMediaUrl,
 							storage: runtime.storage,
 						} as EmDashHandlers;
 					} catch (error) {
@@ -1103,6 +1121,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Revision handlers
 					handleRevisionList: runtime.handleRevisionList.bind(runtime),
+					handleRevisionEditors: runtime.handleRevisionEditors.bind(runtime),
 					handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
 					handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
 
@@ -1146,7 +1165,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					get db() {
 						return runtime.db;
 					},
-					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+					getPublicMediaUrl: providePublicMediaUrl(runtime.storage),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
@@ -1159,6 +1178,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// demand. `requestCached` inside `getManifest` dedupes within
 					// a single request.
 					getManifest: runtime.getManifest.bind(runtime),
+
+					// Co-editing rooms, or null when this host can't run them
+					rooms: runtime.rooms,
 
 					// Clear the URL pattern cache after schema mutations that
 					// affect collection URL patterns.

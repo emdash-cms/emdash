@@ -1161,13 +1161,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		await this.assertSiteWriteAllowed();
-		const now = new Date().toISOString();
-		const result = await this.env.DB.prepare(
-			`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
-		)
-			.bind(now, now, id)
-			.run();
-		return (result.meta?.changes ?? 0) > 0;
+		const { ContentRepository } = await loadBridgeRuntime();
+		return new ContentRepository(await this.db()).delete(collection, id);
 	}
 
 	async commentGet(id: string): Promise<PluginComment | null> {

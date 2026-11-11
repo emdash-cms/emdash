@@ -8,25 +8,33 @@ import { ConfirmDialog } from "./ConfirmDialog.js";
  * While `when` is true, asks before leaving the page: a link to another page
  * opens a dialog, and reloading or closing the tab shows the browser's prompt.
  * A link first calls `saveBeforeLeaving` and leaves without asking when it
- * returns true. A navigation the app starts after a save or a delete must
- * pass `ignoreBlocker`.
+ * returns, or resolves to, true. A navigation the app starts after a save or a
+ * delete must pass `ignoreBlocker`.
  */
 export function UnsavedChangesGuard({
 	when,
 	saveBeforeLeaving,
+	isUnsaved,
 }: {
 	when: boolean;
-	saveBeforeLeaving?: () => boolean;
+	saveBeforeLeaving?: () => boolean | Promise<boolean>;
+	/** Read when the tab closes or reloads, for changes saved since the last render. */
+	isUnsaved?: () => boolean;
 }) {
 	const { t } = useLingui();
 	const shouldBlockFn = React.useCallback<ShouldBlockFn>(
-		({ current, next }) => current.pathname !== next.pathname && !saveBeforeLeaving?.(),
+		({ current, next }) => {
+			if (current.pathname === next.pathname) return false;
+			const saved = saveBeforeLeaving?.();
+			return saved instanceof Promise ? saved.then((done) => !done) : !saved;
+		},
 		[saveBeforeLeaving],
 	);
 	const blocker = useBlocker({
 		shouldBlockFn,
 		disabled: !when,
 		withResolver: true,
+		enableBeforeUnload: isUnsaved ?? true,
 	});
 
 	return (
