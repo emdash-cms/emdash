@@ -39,7 +39,7 @@ A block type's page shows the same form, filled with the active version's fields
 The page has one **Save** for the whole block type, because its fields belong to one version. What happens next depends on the change:
 
 - **Compatible changes** are saved into the active version. These are the label, description, icon and category, field labels, field order, a new optional field, a field that becomes optional, looser validation, and turning on an image's dark variant.
-- **Breaking changes** need a new version. These are a removed field, a changed field type, a field that becomes required, a new required field, tighter validation, and turning off an image's dark variant. The admin shows a dialog that lists each change by the field's label, explains what happens, and asks for confirmation. Confirming creates the new version, inactive.
+- **Breaking changes** need a new version. These are a removed field, a changed field type, a field that becomes required, a new required field, tighter validation, a new or changed pattern, and turning off an image's dark variant. The admin shows a dialog that lists each change by the field's label, explains what happens, and asks for confirmation. Confirming creates the new version, inactive.
 
 For example, the Hero block type is on version 2. An admin removes its Subheading field, makes Button link required, and saves. The dialog says:
 
@@ -48,7 +48,7 @@ For example, the Hero block type is on version 2. An admin removes its Subheadin
 > - Subheading: removed
 > - Button link: now required
 
-**Create version 3** saves it. **Cancel** goes back to the form with the changes kept. After saving, the page names the version the server actually returned, which can differ from the dialog's number, and points to its **Activate** button.
+**Create version 3** saves it. **Cancel** goes back to the form with the changes kept. After saving, the page names the version that now holds the changes, which can differ from the dialog's number, and points to its **Activate** button.
 
 ### Versions
 
