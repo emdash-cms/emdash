@@ -150,7 +150,7 @@ stopped after wave 2: 1 failed (lantern, still on 1.4.0), 2 skipped (orchard, no
 
 The file holds no secret. Before every command, the tool validates the file and stops with the path of the first wrong value. Before it writes, it checks that the file hasn't changed since it read it, so two runs can't overwrite each other's records. Within one run, writes are serialized, so sites that finish at the same time in a wave can't drop each other's records.
 
-An entry the operator writes by hand, without `state`, counts as adopted. The first command that records something for it writes `state: { origin: adopted, status: active }`.
+An entry the operator writes by hand, without `state`, counts as adopted. The first command that records something for it writes `state: { origin: adopted, status: active }`. `provision` is the exception: it records `origin: provisioned` and `status: provisioning`.
 
 Every command that changes something takes an explicit selection: `--site <key>` (repeatable), `--group <name>` (repeatable) or `--all`. Without one it stops.
 
@@ -233,7 +233,7 @@ The config step writes no config without the recorded database and namespace IDs
 
 `--dry-run` writes no record, runs no migration and creates nothing. It prints every Cloudflare API call with secret values redacted, and the config it would write with a placeholder database ID, because the real IDs only exist after the steps that create them.
 
-#### `fleet reconcile [--site <key>]`
+#### `fleet reconcile`
 
 Compares each selected site's recorded state with what exists. It completes provisioning steps that are missing or `waiting`, reports a Worker, database, bucket or repository that exists but isn't recorded (or the other way round), and reports a site whose Cron Trigger or custom domain is missing. With `--abandon`, it deletes the resources of a provisioning that never reached the setup step, after a confirmation. The tool can't see a site's setup state without an EmDash token, so its own **setup-link** step stands in for it: once the link has been printed, `--abandon` refuses. It never deletes a database whose setup may be complete, and never deletes a repository.
 
@@ -289,7 +289,7 @@ A site can leave the fleet at any time: deleting its entry changes nothing on th
 
 `fleet update` and provisioning a `repo` site use #4577's request route, its `updates:request` token scope, its error codes, its `updateCheck.trigger` option and its shipped workflow file. This RFC is written against #4577's current revision. If #4577 changes before this RFC is accepted, this RFC is amended in the same revision so that every name above matches #4577's text. If #4577 is accepted with changes after this RFC, the implementation follows #4577 and this proposal is amended by a design pull request. If #4577 is withdrawn, `fleet update` and `repo` provisioning are removed from this RFC before acceptance; `repo` sites can then still be adopted for `status`.
 
-If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) lands, fleet commands take the same `--env-file` option. #4683 adds it to `emdash migrate` only, so the fleet commands add it themselves. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a fleet token can belong to a role limited to what the tool needs. If [the Durable Object site mode (#4790)](https://github.com/emdash-cms/emdash/pull/4790) lands, a site in that mode can be adopted for `status` and `update`. It has no D1 database and runs its migrations inside the object, so provisioning and deploying it needs an amendment to this RFC.
+If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) lands, fleet commands take the same `--env-file` option. #4683 adds it to `emdash migrate` only, so the fleet commands add it themselves. If [custom roles (#4156)](https://github.com/emdash-cms/emdash/pull/4156) land, a fleet token can come from a user whose role holds only what the tool needs. If [the Durable Object site mode (#4790)](https://github.com/emdash-cms/emdash/pull/4790) lands, a site in that mode can be adopted for `status` and `update`. It has no D1 database and runs its migrations inside the object, so provisioning and deploying it needs an amendment to this RFC.
 
 ## Security and privacy
 
@@ -553,7 +553,7 @@ interface SiteEntry {
 }
 ```
 
-`defaults` apply to every site that doesn't set the key itself; nested objects merge one level deep. Resource names derive from the key: Worker `emdash-<key>`, database `emdash-<key>`, bucket `emdash-<key>-media`, KV namespace `emdash-<key>-session`, repository `<owner>/<key>-site` unless `github.repository` is set. `provider` defaults to `cloudflare` when the entry has a `cloudflare` block.
+`defaults` apply to every site that doesn't set the key itself; nested objects merge one level deep. Resource names derive from the key: Worker `emdash-<key>`, database `emdash-<key>`, bucket `emdash-<key>-media` and KV namespace `emdash-<key>-session`. `provider` defaults to `cloudflare` when the entry has a `cloudflare` block.
 
 ## Appendix C: Provision steps
 
@@ -572,7 +572,7 @@ Each step records `done`, `failed` or `waiting` under `state.steps.<name>` befor
 9. **setup-token:** generates and sets `EMDASH_SETUP_TOKEN`. Until **setup-link** is done, every run repeats this step, because the tool can't read back whether the token it holds is the one on the Worker.
 10. **domain:** adds the custom domain to the config and attaches it.
 11. **health:** waits until the URL reports EmDash and the build's version.
-12. **seed** (with `--title`): runs the site step of setup through `POST /_emdash/api/setup` with the setup token, so the template's seed and the title are applied on the final hostname.
+12. **seed** (with `--title`): runs the site step of setup through `POST /_emdash/api/setup` with the setup token, so the template's seed and the title are applied on the final hostname. With `--import`, it leaves out the seed's sample content, because an import needs a site without content.
 13. **setup-link:** prints the link, on an interactive terminal or with `--print-setup-link`. Otherwise the step stays `waiting` and the site stays `provisioning`.
 14. **import** (with `--import <file.emdash>`): imports a site package through `emdash site import`. An import needs an Admin token, so this step stays `waiting` until setup is finished and the operator has run `emdash login`. `reconcile` completes it.
 
