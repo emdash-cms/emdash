@@ -14,7 +14,7 @@ created: 2026-11-11
 
 The link field in the rich text editor takes only a URL. An author can't make a link open in a new tab, and can't mark a link as `sponsored`, `nofollow` or `ugc`. Image links already have an **Open in new tab** checkbox in the image details panel. Text links don't.
 
-Search engines ask sites to mark paid and affiliate links with `rel="sponsored"` or `rel="nofollow"`, and links added by visitors with `rel="ugc"` ([Google: qualify outbound links](https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links)). That choice belongs to the individual link, so a site-wide rule in the theme can't make it.
+Google asks sites to mark paid links, such as ads, with `rel="sponsored"` or `rel="nofollow"`, and links added by visitors, such as in comments, with `rel="ugc"` ([Qualify your outbound links to Google](https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links)). That choice belongs to the individual link, so a site-wide rule in the theme can't make it.
 
 The stored data and the renderer already go part of the way. A link's entry in `markDefs` can hold `blank: true`, and the built-in `Link` mark component then renders `target="_blank"` and `rel="noopener noreferrer"`. The WordPress importer writes `blank: true` for links that opened in a new tab. Links added in the editor can't get it, so imported and new posts behave differently. In [Discussion #4745](https://github.com/emdash-cms/emdash/discussions/4745), one migrated blog has 672 of 780 text links with `blank: true` after the import. There's no field for `rel` at all.
 
@@ -22,14 +22,14 @@ The author of #4745 works around this with a native plugin. It lists a saved ent
 
 ## Proposed behavior
 
-The link field gets a **Link settings** button next to **Apply link**. It shows these options under the URL:
+The link field gets a **Link settings** button next to the button that applies the link. It shows these options under the URL:
 
 - **Open in new tab**, the same label as on image links.
 - **Sponsored** (`sponsored`): a paid, affiliate or sponsored link.
 - **No follow** (`nofollow`): don't pass ranking credit to the linked page.
 - **User-generated** (`ugc`): a link someone else added, such as in a comment.
 
-Each option is a checkbox with a one-line description. The options open already expanded when the link has any of them set. They apply together with the URL, on **Apply link** or Enter, so a link can be changed in one step. Removing the link removes its options. Changing the URL keeps them.
+Each option is a checkbox with a one-line description. The options open already expanded when the link has any of them set. They apply together with the URL, whether the author clicks the apply button, presses Enter or picks an entry from the search results, so a link can be changed in one step. Removing the link removes its options. Changing the URL keeps them.
 
 This applies to both places where the admin edits a text link (the floating toolbar on a selection and the editor toolbar's link button) and to the link bar of the visual editor, which matches the admin's toolbar since [#4117](https://github.com/emdash-cms/emdash/pull/4117).
 
@@ -83,8 +83,8 @@ renders as
 - **REST, CLI and MCP.** Writes already accept any extra fields inside a rich text value, so `rel` in Portable Text JSON passes through unchanged.
 - **Markdown.** CLI and MCP can read rich text as Markdown and write it back. Today a link in a paragraph becomes `[text](url)`, so a write back drops its `blank` and `title`, and would drop `rel`. A table whose links carry such fields is already written as an opaque `<!--ec:block {…} -->` line, which comes back unchanged. Paragraphs, headings and list items get the same rule: a block whose links carry fields beyond `href` is written as an opaque line. Links with only `href` stay plain Markdown. This also stops the loss of `blank` and `title`, so it can land first as a bug fix.
 - **WordPress import.** `@emdash-cms/gutenberg-to-portable-text` reads `rel` on each `<a>` it converts, keeps `nofollow`, `sponsored` and `ugc` regardless of case, and drops the rest. `noopener` and `noreferrer` are dropped because the renderer adds them for links that open in a new tab. Links with the same URL but different values keep separate entries. Design PR [#4670](https://github.com/emdash-cms/emdash/pull/4670) moves the importer into its own package but keeps this converter, so the two plans don't conflict. Content imported before this change has no `rel`.
-- **Other pending designs.** [#4636](https://github.com/emdash-cms/emdash/pull/4636) keeps unknown marks in the editors and leaves links unchanged. Both plans change the same converters, so whichever is implemented second adapts to the other.
-- **Compatibility.** No migration and no new API. Links without `rel` behave as before. An older EmDash version renders content with `rel` as if the field weren't there.
+- **Other designs.** [#4636](https://github.com/emdash-cms/emdash/pull/4636) keeps unknown marks in the editors and leaves links unchanged. Both plans change the same converters, so whichever is implemented second adapts to the other. [Real-time co-editing](real-time-co-editing.md) moves the admin editor's converter into a shared export that co-editing also uses to save entries, so co-edited entries keep `rel` through the same change.
+- **Compatibility.** No migration, and no new route, function or option. Links without `rel` behave as before. An older EmDash version renders content with `rel` as if the field weren't there.
 
 ## Errors and edge cases
 
