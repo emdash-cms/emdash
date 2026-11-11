@@ -260,13 +260,13 @@ The GitHub part of `repo` provisioning sits behind its own small interface in co
 
 A new optional secret, `EMDASH_SETUP_TOKEN`, read from `process.env` like the other site secrets. When it isn't set, setup behaves exactly as today. When it's set, and until setup is complete, every path that can create the first Admin requires it:
 
-| Path | Without a valid token |
-| --- | --- |
-| The setup wizard and `POST /_emdash/api/setup` | 403 `SETUP_TOKEN_REQUIRED` |
-| `POST /_emdash/api/setup/admin` and `POST /_emdash/api/setup/admin/verify` (passkey) | 403 `SETUP_TOKEN_REQUIRED` |
-| The first sign-in through an OAuth provider while setup isn't complete | refused, no user is created |
-| The AT Protocol provider's setup route and its first sign-in while setup isn't complete | refused, no user is created |
-| The dev bypass routes | unchanged (development only) |
+| Path                                                                                    | Without a valid token        |
+| --------------------------------------------------------------------------------------- | ---------------------------- |
+| The setup wizard and `POST /_emdash/api/setup`                                          | 403 `SETUP_TOKEN_REQUIRED`   |
+| `POST /_emdash/api/setup/admin` and `POST /_emdash/api/setup/admin/verify` (passkey)    | 403 `SETUP_TOKEN_REQUIRED`   |
+| The first sign-in through an OAuth provider while setup isn't complete                  | refused, no user is created  |
+| The AT Protocol provider's setup route and its first sign-in while setup isn't complete | refused, no user is created  |
+| The dev bypass routes                                                                   | unchanged (development only) |
 
 The token reaches the site in the setup link's `token` query parameter. When `/_emdash/admin/setup?token=…` is opened, the middleware sets the token in an HttpOnly cookie scoped to `/_emdash` for 24 hours, so the admin's setup screen needs no change to send it. The cookie is `SameSite=Lax`, not `Strict`: a Strict cookie isn't sent on the top-level redirect back from an OAuth or AT Protocol provider, which is the request the cookie exists for. It's `Secure` when the site's public origin is HTTPS, as `getPublicOrigin()` reports it, so it stays `Secure` behind a proxy that terminates TLS. Scripts can send the token in an `X-EmDash-Setup-Token` header instead. The comparison is constant-time. The token stops working once setup is complete, so a link that leaks after setup grants nothing. With external authentication (Cloudflare Access), the provider's policy decides who reaches the site; see [Open questions](#open-questions).
 
@@ -481,7 +481,11 @@ interface RepositoryHost {
 		site: SiteEntry,
 		template: string,
 	): Promise<{ repository: string; created: boolean; empty: boolean }>;
-	commitFiles(site: SiteEntry, files: Record<string, string>, message: string): Promise<{ commit: string }>;
+	commitFiles(
+		site: SiteEntry,
+		files: Record<string, string>,
+		message: string,
+	): Promise<{ commit: string }>;
 	checkout(site: SiteEntry, dir: string): Promise<void>;
 }
 ```
@@ -600,14 +604,14 @@ Read in the Cloudflare docs on 2026-11-10 and 2026-11-11.
 
 ### Account limits
 
-| Resource | Workers Free | Workers Paid |
-| --- | --- | --- |
-| Workers per account | 100 | 500 |
-| Cron Triggers per account | 5 | 250 |
-| D1 databases per account | 10 | 1,000,000 (first 100,000 included) |
-| R2 buckets per account | unlimited, default limit 100,000 | unlimited, default limit 100,000 |
-| KV namespaces per account | 1,000 | default limit 1,000 |
-| Custom domains per zone | 100 | 100 |
+| Resource                  | Workers Free                     | Workers Paid                       |
+| ------------------------- | -------------------------------- | ---------------------------------- |
+| Workers per account       | 100                              | 500                                |
+| Cron Triggers per account | 5                                | 250                                |
+| D1 databases per account  | 10                               | 1,000,000 (first 100,000 included) |
+| R2 buckets per account    | unlimited, default limit 100,000 | unlimited, default limit 100,000   |
+| KV namespaces per account | 1,000                            | default limit 1,000                |
+| Custom domains per zone   | 100                              | 100                                |
 
 Workers Cache purges always use the Free purge limits, whatever the plan: 5 requests per minute per account, with a bucket of 25. Every site on the account shares that budget when editors publish.
 
@@ -615,24 +619,24 @@ The Cloudflare API allows 1,200 requests per five minutes per user, counted acro
 
 ### Cloudflare token permissions
 
-| Use | Permission |
-| --- | --- |
+| Use                                           | Permission                                                   |
+| --------------------------------------------- | ------------------------------------------------------------ |
 | Create Workers, set secrets and Cron Triggers | Workers: Admin at product scope (creating a Worker needs it) |
-| Deploy an existing site | Workers: Editor for that Worker |
-| Create D1 databases | D1: Admin |
-| Migrate a database | D1: Editor |
-| Create R2 buckets | R2: Admin |
-| Create KV namespaces | Admin at a scope that includes KV |
-| Attach or remove a custom domain | Zone: Workers Routes: Write on the site's zone |
+| Deploy an existing site                       | Workers: Editor for that Worker                              |
+| Create D1 databases                           | D1: Admin                                                    |
+| Migrate a database                            | D1: Editor                                                   |
+| Create R2 buckets                             | R2: Admin                                                    |
+| Create KV namespaces                          | Admin at a scope that includes KV                            |
+| Attach or remove a custom domain              | Zone: Workers Routes: Write on the site's zone               |
 
 ### GitHub token permissions
 
 Read in the GitHub docs on 2026-11-11. A fine-grained token for `repo` provisioning needs:
 
-| Use | Permission |
-| --- | --- |
+| Use                                                        | Permission                                                                                           |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Create the repository in the target owner, from a template | Administration: write on the owner (the generate endpoint also needs Contents: read on the template) |
-| Commit the Wrangler config and the EmDash configuration | Contents: write on the new repository |
-| Commit `.github/workflows/emdash-update.yml` | Workflows: write on the new repository |
+| Commit the Wrangler config and the EmDash configuration    | Contents: write on the new repository                                                                |
+| Commit `.github/workflows/emdash-update.yml`               | Workflows: write on the new repository                                                               |
 
 An organization can require approval for fine-grained tokens. Until an owner approves it, such a token can only read public resources.
