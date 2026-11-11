@@ -209,12 +209,12 @@ describe("RoomRegistry", () => {
 		const claim = KyselyRoomStore.prototype.claim;
 		let open!: () => void;
 		const gate = new Promise<void>((resolve) => (open = resolve));
-		vi.spyOn(KyselyRoomStore.prototype, "claim").mockImplementationOnce(
-			async function (this: KyselyRoomStore) {
-				await gate;
-				return claim.call(this);
-			},
-		);
+		vi.spyOn(KyselyRoomStore.prototype, "claim").mockImplementationOnce(async function (
+			this: KyselyRoomStore,
+		) {
+			await gate;
+			return claim.call(this);
+		});
 		const { registry } = start();
 
 		const issued = registry.issueToken(ROOM, claims());

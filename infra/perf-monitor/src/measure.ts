@@ -71,26 +71,24 @@ export async function runMeasurements(env: Env, opts: RunOptions): Promise<Inser
 
 				const data = await response.json<MeasureResponse>();
 
-				return data.results.map(
-					(r): InsertParams => ({
-						id: generateId(),
-						sha,
-						prNumber,
-						route: r.path,
-						region,
-						coldTtfbMs: r.coldTtfbMs,
-						warmTtfbMs: r.warmTtfbMs,
-						p95TtfbMs: r.p95TtfbMs,
-						statusCode: r.statusCode,
-						cfColo: r.cfColo,
-						cfPlacement: r.cfPlacement,
-						coldServerTimings: r.coldServerTimings,
-						warmServerTimings: r.warmServerTimings,
-						note,
-						source,
-						site: site.id,
-					}),
-				);
+				return data.results.map((r): InsertParams => ({
+					id: generateId(),
+					sha,
+					prNumber,
+					route: r.path,
+					region,
+					coldTtfbMs: r.coldTtfbMs,
+					warmTtfbMs: r.warmTtfbMs,
+					p95TtfbMs: r.p95TtfbMs,
+					statusCode: r.statusCode,
+					cfColo: r.cfColo,
+					cfPlacement: r.cfPlacement,
+					coldServerTimings: r.coldServerTimings,
+					warmServerTimings: r.warmServerTimings,
+					note,
+					source,
+					site: site.id,
+				}));
 			} catch (err) {
 				console.error(`Probe ${region} error for site=${site.id}:`, err);
 				return [];

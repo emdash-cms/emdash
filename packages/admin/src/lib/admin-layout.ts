@@ -322,16 +322,15 @@ export function resolveNav<T extends { id: string }>(
 			label: group.label,
 			entries: group.entries
 				.filter((entry) => !entry.hidden)
-				.map(
-					(entry): NavEntry<T> =>
-						entry.kind === "item"
-							? { kind: "item", item: entry.item }
-							: {
-									kind: "folder",
-									label: entry.label,
-									iconName: entry.iconName,
-									items: entry.items.filter((item) => !item.hidden).map((item) => item.item),
-								},
+				.map((entry): NavEntry<T> =>
+					entry.kind === "item"
+						? { kind: "item", item: entry.item }
+						: {
+								kind: "folder",
+								label: entry.label,
+								iconName: entry.iconName,
+								items: entry.items.filter((item) => !item.hidden).map((item) => item.item),
+							},
 				),
 		}));
 }
