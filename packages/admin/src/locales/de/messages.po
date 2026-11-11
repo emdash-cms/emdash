@@ -1421,7 +1421,7 @@ msgstr "Konto existiert bereits"
 msgid "Account exists"
 msgstr "Konto existiert bereits"
 
-#: packages/admin/src/components/users/UserDetail.tsx:229
+#: packages/admin/src/components/users/UserDetail.tsx:220
 msgid "Account Info"
 msgstr "Kontoinformationen"
 
@@ -1472,8 +1472,8 @@ msgstr ""
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
 msgstr "Die Aktivierung kann nicht bestätigt werden. Setze die Bearbeitung noch nicht fort und aktualisiere den Status."
 
-#: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:221
+#: packages/admin/src/components/users/UserDetail.tsx:210
+#: packages/admin/src/components/users/UserList.tsx:211
 msgid "Active"
 msgstr "Aktiv"
 
@@ -1965,8 +1965,8 @@ msgstr "Alle importierten Inhalte bleiben ohne Zuordnung. Du kannst die Autoren 
 msgid "All locales"
 msgstr "Alle Sprachen"
 
-#: packages/admin/src/components/users/UserList.tsx:51
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:52
+#: packages/admin/src/components/users/UserList.tsx:56
 msgid "All roles"
 msgstr "Alle Rollen"
 
@@ -2040,7 +2040,7 @@ msgstr "Auch die Beziehung löschen, die dieses Feld verwendet"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr "Hat ein Eintrag keine eigene Autorenangabe, zählt die seines Autors."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:382
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
 msgstr "Ebenfalls angefordert, für deine Rolle aber nicht verfügbar:"
 
@@ -2429,15 +2429,15 @@ msgstr "Autor"
 msgid "Author Mapping"
 msgstr "Autoren-Zuordnung"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "Authorization denied"
 msgstr "Autorisierung verweigert"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:152
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:153
 msgid "Authorization failed"
 msgstr "Autorisierung fehlgeschlagen"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
 msgstr "Autorisieren"
 
@@ -2445,7 +2445,7 @@ msgstr "Autorisieren"
 msgid "Authorize device"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:208
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Authorize Device"
 msgstr "Gerät autorisieren"
 
@@ -2453,7 +2453,7 @@ msgstr "Gerät autorisieren"
 msgid "Authorized approvers"
 msgstr "Freigabeberechtigte"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
 msgstr "Wird autorisiert..."
 
@@ -3225,11 +3225,11 @@ msgstr "Prüfe dein E-Mail-Postfach"
 msgid "Checking {urlInput}..."
 msgstr "{urlInput} wird überprüft..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:187
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "Checking authentication..."
 msgstr "Authentifizierung wird überprüft..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:341
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
 msgstr "Code wird geprüft..."
 
@@ -3436,7 +3436,7 @@ msgstr "Abgeschlossene entfernen"
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
-#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/components/users/UserList.tsx:126
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "Filter zurücksetzen"
@@ -3526,7 +3526,7 @@ msgstr "Galerie-Einstellungen schließen"
 msgid "Close image settings"
 msgstr "Bildeinstellungen schließen"
 
-#: packages/admin/src/components/users/UserDetail.tsx:124
+#: packages/admin/src/components/users/UserDetail.tsx:125
 msgid "Close panel"
 msgstr "Bereich schließen"
 
@@ -3748,7 +3748,7 @@ msgid "Connect with WordPress"
 msgstr "Mit WordPress verbinden"
 
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "Connected {0}"
 msgstr "Verbunden am {0}"
 
@@ -3983,11 +3983,11 @@ msgstr "Medien werden kopiert"
 msgid "Could not add {singularLower}"
 msgstr "{singularLower} konnte nicht hinzugefügt werden"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:111
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:112
 msgid "Could not check this code"
 msgstr "Dieser Code konnte nicht geprüft werden"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:347
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
 msgstr "Dieser Code konnte nicht geprüft werden."
 
@@ -4372,7 +4372,7 @@ msgstr "Inhalte erstellen, aktualisieren und löschen"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
-#: packages/admin/src/components/users/UserDetail.tsx:232
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Created"
 msgstr "Erstellt"
 
@@ -4382,7 +4382,7 @@ msgid "Created \"{0}\"."
 msgstr "„{0}“ erstellt."
 
 #. placeholder {0}: isolate(formatDate(cred.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:279
+#: packages/admin/src/components/users/UserDetail.tsx:270
 msgid "Created {0}"
 msgstr "Erstellt am {0}"
 
@@ -4914,7 +4914,7 @@ msgstr "Benutzer herabstufen?"
 msgid "Demoting..."
 msgstr "Wird herabgestuft..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:305
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "Verweigern"
@@ -4980,15 +4980,15 @@ msgstr "Destruktiv"
 msgid "Details"
 msgstr "Details"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:218
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:219
 msgid "Device authorized"
 msgstr "Gerät autorisiert"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:261
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:260
 msgid "Device code"
 msgstr "Gerätecode"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Device-bound"
 msgstr "Gerätegebunden"
 
@@ -5012,7 +5012,7 @@ msgstr "Unterschiede zur Quell-Website"
 msgid "Dimensions:"
 msgstr "Abmessungen:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Disable"
 msgstr "Deaktivieren"
 
@@ -5039,8 +5039,8 @@ msgstr "Benutzer deaktivieren?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Redirects.tsx:706
-#: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserDetail.tsx:205
+#: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
 msgstr "Deaktiviert"
 
@@ -5698,7 +5698,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
-#: packages/admin/src/components/users/UserDetail.tsx:167
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Email"
 msgstr "E-Mail"
 
@@ -5751,7 +5751,7 @@ msgstr ""
 msgid "Email users"
 msgstr "Benutzer per E-Mail benachrichtigen"
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Email verified"
 msgstr "E-Mail-Adresse bestätigt"
 
@@ -5841,7 +5841,7 @@ msgstr "Leere Galerie — öffne die Einstellungen, um Bilder hinzuzufügen"
 msgid "Empty site"
 msgstr "Leere Website"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Enable"
 msgstr "Aktivieren"
 
@@ -6054,7 +6054,7 @@ msgstr "Anmeldedaten manuell eingeben"
 msgid "Enter distraction-free mode"
 msgstr "Ablenkungsfreien Modus aktivieren"
 
-#: packages/admin/src/components/users/UserDetail.tsx:171
+#: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "E-Mail-Adresse eingeben"
 
@@ -6062,7 +6062,7 @@ msgstr "E-Mail-Adresse eingeben"
 msgid "Enter markdown content..."
 msgstr "Markdown-Inhalt eingeben..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:153
 msgid "Enter name"
 msgstr "Name eingeben"
 
@@ -6070,7 +6070,7 @@ msgstr "Name eingeben"
 msgid "Enter SMTP password"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:210
 msgid "Enter the code from your terminal"
 msgstr "Gib den Code ein, der in deinem Terminal angezeigt wird"
 
@@ -7527,7 +7527,7 @@ msgstr "Nach Zeitraum filtern: {rangeLabel}"
 msgid "Filter by group"
 msgstr "Nach Gruppe filtern"
 
-#: packages/admin/src/components/users/UserList.tsx:83
+#: packages/admin/src/components/users/UserList.tsx:84
 msgid "Filter by role"
 msgstr "Nach Rolle filtern"
 
@@ -7921,8 +7921,8 @@ msgstr "hero, banner, cta"
 msgid "Hidden from search engines"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:61
-#: packages/admin/src/components/Header.tsx:65
+#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:63
 msgid "Hidden from search engines until you go live"
 msgstr ""
 
@@ -8584,7 +8584,7 @@ msgid "Invite Link Created"
 msgstr "Einladungslink erstellt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/users/UserList.tsx:65
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Invite User"
 msgstr "Benutzer einladen"
 
@@ -8592,7 +8592,7 @@ msgstr "Benutzer einladen"
 msgid "Invite validation failed"
 msgstr "Verifizierung der Einladung fehlgeschlagen"
 
-#: packages/admin/src/components/users/UserList.tsx:132
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "Lade dein erstes Teammitglied ein"
 
@@ -8600,7 +8600,7 @@ msgstr "Lade dein erstes Teammitglied ein"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "MCP-Tools aller aktivierten Plugins aufrufen"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:411
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
 msgstr "MCP-Tools des Plugins {pluginId} aufrufen"
 
@@ -8789,11 +8789,11 @@ msgstr "Zuletzt bearbeitet"
 msgid "Last enabled:"
 msgstr "Zuletzt aktiviert:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:244
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Last login"
 msgstr "Letzte Anmeldung"
 
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:105
 msgid "Last Login"
 msgstr "Letzte Anmeldung"
 
@@ -8806,7 +8806,7 @@ msgstr "Letzte Seite"
 msgid "Last seen"
 msgstr "Zuletzt aufgerufen"
 
-#: packages/admin/src/components/users/UserDetail.tsx:238
+#: packages/admin/src/components/users/UserDetail.tsx:229
 msgid "Last updated"
 msgstr "Zuletzt aktualisiert"
 
@@ -8820,7 +8820,7 @@ msgid "Last used"
 msgstr "Zuletzt genutzt"
 
 #. placeholder {0}: isolate(formatDate(cred.lastUsedAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:281
+#: packages/admin/src/components/users/UserDetail.tsx:272
 msgid "Last used {0}"
 msgstr "Zuletzt verwendet am {0}"
 
@@ -8912,7 +8912,7 @@ msgid "Link URL"
 msgstr "Link-URL"
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:295
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
 msgstr "Verbundene Konten ({0})"
 
@@ -9021,7 +9021,7 @@ msgstr "Mehr laden"
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1277
-#: packages/admin/src/components/users/UserList.tsx:157
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "Mehr laden"
 
@@ -9192,7 +9192,7 @@ msgstr "Widgets werden geladen..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:147
 #: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "Wird geladen..."
@@ -9250,7 +9250,7 @@ msgstr "Gesperrt, weil dieses Feld gespeicherte Werte hat. Lösche die Werte (od
 msgid "Log in"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:125
+#: packages/admin/src/components/Header.tsx:121
 msgid "Log out"
 msgstr "Abmelden"
 
@@ -9337,7 +9337,7 @@ msgstr "Verwaltet von {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Verwaltet von einem externen Medienanbieter"
 
-#: packages/admin/src/components/users/UserDetail.tsx:155
+#: packages/admin/src/components/users/UserDetail.tsx:146
 msgid "Managed by your identity provider. Change the name there."
 msgstr "Wird von deinem Identitätsanbieter verwaltet. Ändere den Namen dort."
 
@@ -9948,8 +9948,8 @@ msgstr "Mein wunderbarer Blog"
 #: packages/admin/src/components/TaxonomyManager.tsx:980
 #: packages/admin/src/components/TaxonomyManager.tsx:1320
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:143
+#: packages/admin/src/components/users/UserDetail.tsx:150
 #: packages/admin/src/components/Widgets.tsx:491
 msgid "Name"
 msgstr "Name"
@@ -9987,8 +9987,8 @@ msgstr ""
 msgid "Needs attention"
 msgstr "Erfordert Aufmerksamkeit"
 
-#: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:240
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "Nie"
 
@@ -10138,7 +10138,7 @@ msgid "Next, the browser's passkey window will open"
 msgstr "Als Nächstes öffnet sich das Passkey-Fenster des Browsers"
 
 #: packages/admin/src/components/ContentList.tsx:1651
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
 msgstr "Nein"
@@ -10445,7 +10445,7 @@ msgstr "Keine Moderation (alle automatisch freigeben)"
 msgid "No parent (top level)"
 msgstr "Kein übergeordnetes Element (oberste Ebene)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:267
+#: packages/admin/src/components/users/UserDetail.tsx:258
 msgid "No passkeys registered"
 msgstr "Keine Passkeys registriert"
 
@@ -10550,11 +10550,11 @@ msgstr "Keine erfassten Verweise gefunden"
 msgid "No usage to show yet"
 msgstr "Noch keine Verwendung vorhanden"
 
-#: packages/admin/src/components/users/UserList.tsx:116
+#: packages/admin/src/components/users/UserList.tsx:117
 msgid "No users found matching your filters."
 msgstr "Keine Benutzer entsprechen deinen Filtern."
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:131
 msgid "No users yet."
 msgstr "Noch keine Benutzer."
 
@@ -10697,7 +10697,7 @@ msgstr "Lade nach der Einrichtung ein .emdash-Paket hoch, das aus einer anderen 
 msgid "One"
 msgstr "Einer"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:311
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
 msgstr "Autorisiere nur Codes, die du wiedererkennst."
 
@@ -11019,12 +11019,12 @@ msgid "Passkey renamed"
 msgstr "Passkey umbenannt"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:108
 msgid "Passkeys"
 msgstr "Passkeys"
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
 msgstr "Passkeys ({0})"
 
@@ -11284,7 +11284,7 @@ msgstr ""
 msgid "Plugin MCP access updated"
 msgstr "MCP-Zugriff des Plugins aktualisiert"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
 msgstr "MCP-Tools von Plugins"
@@ -11842,7 +11842,7 @@ msgid "Records without a parent were left out"
 msgstr "Datensätze ohne übergeordneten Eintrag wurden nicht berücksichtigt"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:355
+#: packages/admin/src/components/users/UserDetail.tsx:346
 msgid "Recovery link sent to {0}"
 msgstr "Link zur Wiederherstellung wurde an {0} gesendet"
 
@@ -11850,7 +11850,7 @@ msgstr "Link zur Wiederherstellung wurde an {0} gesendet"
 msgid "Redirect loop detected"
 msgstr "Weiterleitungsschleife erkannt"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:195
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:196
 msgid "Redirecting to login..."
 msgstr "Du wirst zur Anmeldung weitergeleitet..."
 
@@ -12698,9 +12698,9 @@ msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:182
-#: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserDetail.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:99
 msgid "Role"
 msgstr "Rolle"
 
@@ -12809,7 +12809,7 @@ msgstr "Trotzdem speichern"
 msgid "Save changes"
 msgstr "Änderungen speichern"
 
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 msgid "Save Changes"
 msgstr "Änderungen speichern"
 
@@ -12904,7 +12904,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Saving..."
 msgstr "Wird gespeichert..."
@@ -13083,7 +13083,7 @@ msgstr "Blöcke durchsuchen"
 msgid "Search by filename..."
 msgstr "Nach Dateiname suchen..."
 
-#: packages/admin/src/components/users/UserList.tsx:71
+#: packages/admin/src/components/users/UserList.tsx:72
 msgid "Search by name or email..."
 msgstr "Nach Name oder E-Mail suchen..."
 
@@ -13225,7 +13225,7 @@ msgstr "Zeitzonen suchen…"
 msgid "Search to narrow the list"
 msgstr "Nutze die Suche, um die Liste einzugrenzen"
 
-#: packages/admin/src/components/users/UserList.tsx:74
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Search users"
 msgstr "Benutzer durchsuchen"
 
@@ -13334,7 +13334,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "Sicherheitsfehler. Bitte stelle sicher, dass du eine sichere Verbindung verwendest."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:105
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -13556,7 +13556,7 @@ msgstr "Einladung senden"
 msgid "Send magic link"
 msgstr "Anmeldelink senden"
 
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Send Recovery Link"
 msgstr "Wiederherstellungslink senden"
 
@@ -13586,7 +13586,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Sending..."
 msgstr "Wird gesendet..."
 
@@ -13680,7 +13680,7 @@ msgstr "Wird eingerichtet..."
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
-#: packages/admin/src/components/Header.tsx:117
+#: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
@@ -13860,7 +13860,7 @@ msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:222
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 msgid "Signed in as {0}"
 msgstr "Angemeldet als {0}"
 
@@ -14226,8 +14226,8 @@ msgstr "Quadratisch (1:1)"
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr "Feste Kennung, über die deine Website das Menü abruft, etwa primary oder footer."
 
-#: packages/admin/src/components/Header.tsx:62
-#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:64
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
 msgstr ""
@@ -14300,7 +14300,7 @@ msgstr "Status"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:102
 msgid "Status"
 msgstr "Status"
 
@@ -14404,7 +14404,7 @@ msgstr "Zum Dark Mode wechseln"
 msgid "Switch to light"
 msgstr "Zum Light Mode wechseln"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Synced"
 msgstr "Synchronisiert"
 
@@ -14675,7 +14675,7 @@ msgstr "Der Passwortmanager auf dem Smartphone oder Tablet, das du wählst, spei
 msgid "The cropped image could not be created."
 msgstr "Das zugeschnittene Bild konnte nicht erstellt werden."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:231
 msgid "The device will not be granted access."
 msgstr "Dem Gerät wird kein Zugriff gewährt."
 
@@ -15117,11 +15117,11 @@ msgstr "Dieser Browser hält das gesamte Paket im Arbeitsspeicher, bis der Downl
 msgid "This cannot be undone"
 msgstr "Dies kann nicht rückgängig gemacht werden"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:351
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
 msgstr "Dieser Code ist abgelaufen. Starte die Anmeldung erneut in deinem Terminal, um einen neuen zu erhalten."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:349
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
 msgstr "Dieser Code ist ungültig oder wurde bereits verwendet."
 
@@ -15141,7 +15141,7 @@ msgstr "Dieser Inhalt ist sofort auf der Website sichtbar."
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Dieser Tag wurde nicht geladen. Der Zeitraum enthält mehr Einträge, als der Kalender anzeigen kann."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:371
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
 msgstr "Dieses Gerät fordert Berechtigungen für Folgendes an:"
 
@@ -15765,7 +15765,7 @@ msgstr "Versuche es erneut."
 msgid "Try again. If it keeps failing, check the server logs."
 msgstr "Versuche es erneut. Wenn es weiterhin fehlschlägt, prüfe die Server-Logs."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:239
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:240
 msgid "Try another code"
 msgstr "Versuche es mit einem anderen Code"
 
@@ -15953,7 +15953,7 @@ msgid "Unlock aspect ratio"
 msgstr "Seitenverhältnis entsperren"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
-#: packages/admin/src/components/users/UserDetail.tsx:273
+#: packages/admin/src/components/users/UserDetail.tsx:264
 msgid "Unnamed passkey"
 msgstr "Unbenannter Passkey"
 
@@ -16423,10 +16423,10 @@ msgstr "Wird in URLs und API-Endpunkten verwendet"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "Dient der Kennzeichnung dieses Abschnitts. Nur Kleinbuchstaben, Ziffern und Bindestriche."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:255
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:254
 #: packages/admin/src/components/Header.tsx:46
-#: packages/admin/src/components/Header.tsx:97
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "User"
 msgstr "Benutzer"
 
@@ -16439,7 +16439,7 @@ msgstr "Der Benutzerzugriff wird von einem externen Anbieter verwaltet ({0}). Do
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
 msgstr "Benutzerkonten, Passkeys, API-Tokens, Secrets und Plugin-Daten werden nie exportiert. Name und E-Mail-Adresse jedes Autors sind enthalten, damit die Autoren Benutzern auf der anderen Website zugeordnet werden können."
 
-#: packages/admin/src/components/users/UserDetail.tsx:119
+#: packages/admin/src/components/users/UserDetail.tsx:120
 msgid "User Details"
 msgstr "Benutzerdetails"
 
@@ -16448,7 +16448,7 @@ msgstr "Benutzerdetails"
 msgid "User for {0}"
 msgstr "Benutzer für {0}"
 
-#: packages/admin/src/components/users/UserDetail.tsx:315
+#: packages/admin/src/components/users/UserDetail.tsx:306
 msgid "User not found"
 msgstr "Benutzer nicht gefunden"
 
@@ -16462,7 +16462,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:2963
 msgid "Users"
 msgstr "Benutzer"
@@ -16604,7 +16604,7 @@ msgstr "Veröffentlichte Version ansehen"
 msgid "View setup"
 msgstr "Einrichtung anzeigen"
 
-#: packages/admin/src/components/Header.tsx:73
+#: packages/admin/src/components/Header.tsx:71
 msgid "View Site"
 msgstr "Website ansehen"
 
@@ -16982,7 +16982,7 @@ msgid "Yearly"
 msgstr "Jährlich"
 
 #: packages/admin/src/components/ContentList.tsx:1653
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "Yes"
@@ -16996,7 +16996,7 @@ msgstr "Gestern"
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:220
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
 msgstr "Du kannst diese Seite schließen und zu deinem Terminal zurückkehren."
 
@@ -17020,7 +17020,7 @@ msgstr "Du kannst die Website ansehen und mitwirken."
 msgid "You can view, rename, or add more passkeys later in Security settings."
 msgstr "In den Sicherheitseinstellungen kannst du deine Passkeys später ansehen, umbenennen oder weitere hinzufügen."
 
-#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserDetail.tsx:179
 msgid "You cannot change your own role"
 msgstr "Du kannst deine eigene Rolle nicht ändern"
 
@@ -17207,7 +17207,7 @@ msgstr "Mit deiner Rolle kannst du eigene Einträge nur bearbeiten, solange sie 
 msgid "Your role can't edit this entry."
 msgstr "Mit deiner Rolle kannst du diesen Eintrag nicht bearbeiten."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:376
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "Deine Rolle erlaubt keine der Berechtigungen, die dieses Gerät angefordert hat."
 

@@ -1421,7 +1421,7 @@ msgstr "El compte ja existeix"
 msgid "Account exists"
 msgstr "El compte existeix"
 
-#: packages/admin/src/components/users/UserDetail.tsx:229
+#: packages/admin/src/components/users/UserDetail.tsx:220
 msgid "Account Info"
 msgstr "Informació del compte"
 
@@ -1472,8 +1472,8 @@ msgstr ""
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
 msgstr "No es pot confirmar l'activació. Mantén l'edició en pausa i actualitza l'estat."
 
-#: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:221
+#: packages/admin/src/components/users/UserDetail.tsx:210
+#: packages/admin/src/components/users/UserList.tsx:211
 msgid "Active"
 msgstr "Actiu"
 
@@ -1965,8 +1965,8 @@ msgstr "Tot el contingut importat quedarà sense assignar. Pots reassignar els a
 msgid "All locales"
 msgstr "Tots els idiomes"
 
-#: packages/admin/src/components/users/UserList.tsx:51
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:52
+#: packages/admin/src/components/users/UserList.tsx:56
 msgid "All roles"
 msgstr "Tots els rols"
 
@@ -2040,7 +2040,7 @@ msgstr "Elimina també la relació que utilitza aquest camp"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr "Coincideix també amb la signatura enllaçada a l'autor d'una entrada quan aquesta no en té cap d'assignada."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:382
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
 msgstr "També sol·licitat, però no disponible per al teu rol:"
 
@@ -2429,15 +2429,15 @@ msgstr "Autor"
 msgid "Author Mapping"
 msgstr "Assignació d'autors"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "Authorization denied"
 msgstr "Autorització denegada"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:152
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:153
 msgid "Authorization failed"
 msgstr "Ha fallat l'autorització"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
 msgstr "Autoritza"
 
@@ -2445,7 +2445,7 @@ msgstr "Autoritza"
 msgid "Authorize device"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:208
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Authorize Device"
 msgstr "Autoritza el dispositiu"
 
@@ -2453,7 +2453,7 @@ msgstr "Autoritza el dispositiu"
 msgid "Authorized approvers"
 msgstr "Aprovadors autoritzats"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
 msgstr "S'està autoritzant..."
 
@@ -3225,11 +3225,11 @@ msgstr "Comprova el teu correu electrònic"
 msgid "Checking {urlInput}..."
 msgstr "S'està comprovant {urlInput}..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:187
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "Checking authentication..."
 msgstr "S'està comprovant l'autenticació..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:341
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
 msgstr "S'està comprovant el codi..."
 
@@ -3436,7 +3436,7 @@ msgstr "Esborra les completades"
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
-#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/components/users/UserList.tsx:126
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "Neteja els filtres"
@@ -3526,7 +3526,7 @@ msgstr "Tanca la configuració de la galeria"
 msgid "Close image settings"
 msgstr "Tanca la configuració de la imatge"
 
-#: packages/admin/src/components/users/UserDetail.tsx:124
+#: packages/admin/src/components/users/UserDetail.tsx:125
 msgid "Close panel"
 msgstr "Tanca el tauler"
 
@@ -3748,7 +3748,7 @@ msgid "Connect with WordPress"
 msgstr "Connecta amb WordPress"
 
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "Connected {0}"
 msgstr "{0} connectat"
 
@@ -3983,11 +3983,11 @@ msgstr "S'està copiant el multimèdia"
 msgid "Could not add {singularLower}"
 msgstr "No s'ha pogut afegir {singularLower}"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:111
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:112
 msgid "Could not check this code"
 msgstr "No s'ha pogut comprovar aquest codi"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:347
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
 msgstr "No s'ha pogut comprovar aquest codi."
 
@@ -4372,7 +4372,7 @@ msgstr "Crea, actualitza i elimina contingut"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
-#: packages/admin/src/components/users/UserDetail.tsx:232
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Created"
 msgstr "Creat"
 
@@ -4382,7 +4382,7 @@ msgid "Created \"{0}\"."
 msgstr "S'ha creat \"{0}\"."
 
 #. placeholder {0}: isolate(formatDate(cred.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:279
+#: packages/admin/src/components/users/UserDetail.tsx:270
 msgid "Created {0}"
 msgstr "S'ha creat {0}"
 
@@ -4914,7 +4914,7 @@ msgstr "Vols degradar l'usuari?"
 msgid "Demoting..."
 msgstr "S'està degradant..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:305
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "Denega"
@@ -4980,15 +4980,15 @@ msgstr "Destructiu"
 msgid "Details"
 msgstr "Detalls"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:218
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:219
 msgid "Device authorized"
 msgstr "Dispositiu autoritzat"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:261
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:260
 msgid "Device code"
 msgstr "Codi del dispositiu"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Device-bound"
 msgstr "Vinculat al dispositiu"
 
@@ -5012,7 +5012,7 @@ msgstr "Diferències respecte del lloc d'origen"
 msgid "Dimensions:"
 msgstr "Dimensions:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Disable"
 msgstr "Desactiva"
 
@@ -5039,8 +5039,8 @@ msgstr "Vols desactivar l'usuari?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Redirects.tsx:706
-#: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserDetail.tsx:205
+#: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
 msgstr "Desactivat"
 
@@ -5698,7 +5698,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
-#: packages/admin/src/components/users/UserDetail.tsx:167
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Email"
 msgstr "Correu electrònic"
 
@@ -5751,7 +5751,7 @@ msgstr ""
 msgid "Email users"
 msgstr "Envia un correu als usuaris"
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Email verified"
 msgstr "Correu electrònic verificat"
 
@@ -5841,7 +5841,7 @@ msgstr "Galeria buida — obre la configuració per afegir imatges"
 msgid "Empty site"
 msgstr "Lloc buit"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Enable"
 msgstr "Activa"
 
@@ -6054,7 +6054,7 @@ msgstr "Introdueix les credencials manualment"
 msgid "Enter distraction-free mode"
 msgstr "Entra al mode sense distraccions"
 
-#: packages/admin/src/components/users/UserDetail.tsx:171
+#: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "Introdueix el correu electrònic"
 
@@ -6062,7 +6062,7 @@ msgstr "Introdueix el correu electrònic"
 msgid "Enter markdown content..."
 msgstr "Introdueix contingut en Markdown..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:153
 msgid "Enter name"
 msgstr "Introdueix el nom"
 
@@ -6070,7 +6070,7 @@ msgstr "Introdueix el nom"
 msgid "Enter SMTP password"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:210
 msgid "Enter the code from your terminal"
 msgstr "Introdueix el codi del teu terminal"
 
@@ -7527,7 +7527,7 @@ msgstr "Filtra per interval de dates: {rangeLabel}"
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:83
+#: packages/admin/src/components/users/UserList.tsx:84
 msgid "Filter by role"
 msgstr "Filtra per rol"
 
@@ -7921,8 +7921,8 @@ msgstr "destacat, bàner, cta"
 msgid "Hidden from search engines"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:61
-#: packages/admin/src/components/Header.tsx:65
+#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:63
 msgid "Hidden from search engines until you go live"
 msgstr ""
 
@@ -8584,7 +8584,7 @@ msgid "Invite Link Created"
 msgstr "S'ha creat l'enllaç d'invitació"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/users/UserList.tsx:65
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Invite User"
 msgstr "Convida un usuari"
 
@@ -8592,7 +8592,7 @@ msgstr "Convida un usuari"
 msgid "Invite validation failed"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:132
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "Convida el primer membre del teu equip"
 
@@ -8600,7 +8600,7 @@ msgstr "Convida el primer membre del teu equip"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "Invoca eines MCP de tots els connectors habilitats"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:411
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
 msgstr "Invoca eines MCP del connector {pluginId}"
 
@@ -8789,11 +8789,11 @@ msgstr "Darrera edició"
 msgid "Last enabled:"
 msgstr "Última activació:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:244
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Last login"
 msgstr "Últim inici de sessió"
 
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:105
 msgid "Last Login"
 msgstr "Últim inici de sessió"
 
@@ -8806,7 +8806,7 @@ msgstr "Última pàgina"
 msgid "Last seen"
 msgstr "Vist per última vegada"
 
-#: packages/admin/src/components/users/UserDetail.tsx:238
+#: packages/admin/src/components/users/UserDetail.tsx:229
 msgid "Last updated"
 msgstr "Última actualització"
 
@@ -8820,7 +8820,7 @@ msgid "Last used"
 msgstr "Últim ús"
 
 #. placeholder {0}: isolate(formatDate(cred.lastUsedAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:281
+#: packages/admin/src/components/users/UserDetail.tsx:272
 msgid "Last used {0}"
 msgstr "Últim ús {0}"
 
@@ -8912,7 +8912,7 @@ msgid "Link URL"
 msgstr "URL de l'enllaç"
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:295
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
 msgstr "Comptes enllaçats ({0})"
 
@@ -9021,7 +9021,7 @@ msgstr "Carrega'n més"
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1277
-#: packages/admin/src/components/users/UserList.tsx:157
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "Carrega'n més"
 
@@ -9192,7 +9192,7 @@ msgstr "S'estan carregant els ginys..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:147
 #: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "S'està carregant..."
@@ -9250,7 +9250,7 @@ msgstr "Bloquejat perquè aquest camp té valors emmagatzemats. Elimina els valo
 msgid "Log in"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:125
+#: packages/admin/src/components/Header.tsx:121
 msgid "Log out"
 msgstr "Tanca la sessió"
 
@@ -9337,7 +9337,7 @@ msgstr "Gestionat per {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Gestionat per un proveïdor multimèdia extern"
 
-#: packages/admin/src/components/users/UserDetail.tsx:155
+#: packages/admin/src/components/users/UserDetail.tsx:146
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
@@ -9948,8 +9948,8 @@ msgstr "El meu blog"
 #: packages/admin/src/components/TaxonomyManager.tsx:980
 #: packages/admin/src/components/TaxonomyManager.tsx:1320
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:143
+#: packages/admin/src/components/users/UserDetail.tsx:150
 #: packages/admin/src/components/Widgets.tsx:491
 msgid "Name"
 msgstr "Nom"
@@ -9987,8 +9987,8 @@ msgstr ""
 msgid "Needs attention"
 msgstr "Necessita atenció"
 
-#: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:240
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "Mai"
 
@@ -10138,7 +10138,7 @@ msgid "Next, the browser's passkey window will open"
 msgstr "A continuació, s'obrirà la finestra de claus d'accés del navegador"
 
 #: packages/admin/src/components/ContentList.tsx:1651
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
 msgstr "No"
@@ -10445,7 +10445,7 @@ msgstr "Sense moderació (aprova-ho tot automàticament)"
 msgid "No parent (top level)"
 msgstr "Sense pare (nivell superior)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:267
+#: packages/admin/src/components/users/UserDetail.tsx:258
 msgid "No passkeys registered"
 msgstr "No hi ha cap clau d'accés registrada"
 
@@ -10550,11 +10550,11 @@ msgstr "No s'ha trobat cap referència seguida"
 msgid "No usage to show yet"
 msgstr "Encara no hi ha ús per mostrar"
 
-#: packages/admin/src/components/users/UserList.tsx:116
+#: packages/admin/src/components/users/UserList.tsx:117
 msgid "No users found matching your filters."
 msgstr "No s'ha trobat cap usuari que coincideixi amb els teus filtres."
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:131
 msgid "No users yet."
 msgstr "Encara no hi ha cap usuari."
 
@@ -10697,7 +10697,7 @@ msgstr "Un cop feta la configuració, puja un paquet .emdash exportat des d'un a
 msgid "One"
 msgstr "Un"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:311
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
 msgstr "Autoritza només els codis que reconeguis."
 
@@ -11019,12 +11019,12 @@ msgid "Passkey renamed"
 msgstr "S'ha canviat el nom de la clau d'accés"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:108
 msgid "Passkeys"
 msgstr "Claus d'accés"
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
 msgstr "Claus d'accés ({0})"
 
@@ -11284,7 +11284,7 @@ msgstr ""
 msgid "Plugin MCP access updated"
 msgstr "Accés MCP del connector actualitzat"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
 msgstr "Eines MCP del connector"
@@ -11842,7 +11842,7 @@ msgid "Records without a parent were left out"
 msgstr "S'han omès els registres sense pare"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:355
+#: packages/admin/src/components/users/UserDetail.tsx:346
 msgid "Recovery link sent to {0}"
 msgstr "S'ha enviat l'enllaç de recuperació a {0}"
 
@@ -11850,7 +11850,7 @@ msgstr "S'ha enviat l'enllaç de recuperació a {0}"
 msgid "Redirect loop detected"
 msgstr "S'ha detectat un bucle de redirecció"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:195
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:196
 msgid "Redirecting to login..."
 msgstr "S'està redirigint a l'inici de sessió..."
 
@@ -12698,9 +12698,9 @@ msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:182
-#: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserDetail.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:99
 msgid "Role"
 msgstr "Rol"
 
@@ -12809,7 +12809,7 @@ msgstr "Desa igualment"
 msgid "Save changes"
 msgstr "Desa els canvis"
 
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 msgid "Save Changes"
 msgstr "Desa els canvis"
 
@@ -12904,7 +12904,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Saving..."
 msgstr "S'està desant..."
@@ -13083,7 +13083,7 @@ msgstr "Cerca blocs"
 msgid "Search by filename..."
 msgstr "Cerca per nom de fitxer..."
 
-#: packages/admin/src/components/users/UserList.tsx:71
+#: packages/admin/src/components/users/UserList.tsx:72
 msgid "Search by name or email..."
 msgstr "Cerca per nom o correu electrònic..."
 
@@ -13225,7 +13225,7 @@ msgstr "Cerca fusos horaris…"
 msgid "Search to narrow the list"
 msgstr "Cerca per reduir la llista"
 
-#: packages/admin/src/components/users/UserList.tsx:74
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Search users"
 msgstr "Cerca usuaris"
 
@@ -13334,7 +13334,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "Error de seguretat. Assegura't que estàs en una connexió segura."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:105
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -13556,7 +13556,7 @@ msgstr "Envia la invitació"
 msgid "Send magic link"
 msgstr "Envia l'enllaç màgic"
 
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Send Recovery Link"
 msgstr "Envia l'enllaç de recuperació"
 
@@ -13586,7 +13586,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Sending..."
 msgstr "S'està enviant..."
 
@@ -13680,7 +13680,7 @@ msgstr "S'està configurant..."
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
-#: packages/admin/src/components/Header.tsx:117
+#: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
@@ -13860,7 +13860,7 @@ msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:222
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 msgid "Signed in as {0}"
 msgstr "Sessió iniciada com a {0}"
 
@@ -14226,8 +14226,8 @@ msgstr "Quadrada (1:1)"
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr "Identificador estable per al teu lloc, com ara primary o footer."
 
-#: packages/admin/src/components/Header.tsx:62
-#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:64
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
 msgstr ""
@@ -14300,7 +14300,7 @@ msgstr "Estat"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:102
 msgid "Status"
 msgstr "Estat"
 
@@ -14404,7 +14404,7 @@ msgstr "Canvia a fosc"
 msgid "Switch to light"
 msgstr "Canvia a clar"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Synced"
 msgstr "Sincronitzat"
 
@@ -14675,7 +14675,7 @@ msgstr "El gestor de credencials del telèfon o tauleta que triïs el desa. EmDa
 msgid "The cropped image could not be created."
 msgstr "No s'ha pogut crear la imatge retallada."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:231
 msgid "The device will not be granted access."
 msgstr "No es concedirà accés al dispositiu."
 
@@ -15117,11 +15117,11 @@ msgstr "Aquest navegador manté tot el paquet a la memòria fins que acaba la ba
 msgid "This cannot be undone"
 msgstr "Això no es pot desfer"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:351
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
 msgstr "Aquest codi ha caducat. Inicia la sessió de nou des del teu terminal per obtenir-ne un de nou."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:349
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
 msgstr "Aquest codi no és vàlid o ja s'ha utilitzat."
 
@@ -15141,7 +15141,7 @@ msgstr "Aquest contingut serà visible al lloc immediatament."
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Aquest dia no s'ha carregat. L'interval té més entrades de les que pot mostrar el calendari."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:371
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
 msgstr "Aquest dispositiu sol·licita permís per utilitzar:"
 
@@ -15765,7 +15765,7 @@ msgstr "Torna-ho a provar."
 msgid "Try again. If it keeps failing, check the server logs."
 msgstr "Torna-ho a provar. Si segueix fallant, comprova els registres del servidor."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:239
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:240
 msgid "Try another code"
 msgstr "Prova un altre codi"
 
@@ -15953,7 +15953,7 @@ msgid "Unlock aspect ratio"
 msgstr "Desbloqueja la relació d'aspecte"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
-#: packages/admin/src/components/users/UserDetail.tsx:273
+#: packages/admin/src/components/users/UserDetail.tsx:264
 msgid "Unnamed passkey"
 msgstr "Clau d'accés sense nom"
 
@@ -16423,10 +16423,10 @@ msgstr "S'utilitza als URL i als extrems d'API"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "S'utilitza per identificar aquesta secció. Només lletres minúscules, números i guions."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:255
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:254
 #: packages/admin/src/components/Header.tsx:46
-#: packages/admin/src/components/Header.tsx:97
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "User"
 msgstr "Usuari"
 
@@ -16439,7 +16439,7 @@ msgstr "L'accés dels usuaris el gestiona un proveïdor extern ({0}). La configu
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
 msgstr "Els comptes d'usuari, les claus d'accés, els tokens d'API, els secrets i les dades dels connectors no s'exporten mai. El nom i l'adreça electrònica de cada autor s'inclouen per poder-los associar amb usuaris de l'altre lloc."
 
-#: packages/admin/src/components/users/UserDetail.tsx:119
+#: packages/admin/src/components/users/UserDetail.tsx:120
 msgid "User Details"
 msgstr "Detalls de l'usuari"
 
@@ -16448,7 +16448,7 @@ msgstr "Detalls de l'usuari"
 msgid "User for {0}"
 msgstr "Usuari per a {0}"
 
-#: packages/admin/src/components/users/UserDetail.tsx:315
+#: packages/admin/src/components/users/UserDetail.tsx:306
 msgid "User not found"
 msgstr "No s'ha trobat l'usuari"
 
@@ -16462,7 +16462,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:2963
 msgid "Users"
 msgstr "Usuaris"
@@ -16604,7 +16604,7 @@ msgstr ""
 msgid "View setup"
 msgstr "Mostra la configuració"
 
-#: packages/admin/src/components/Header.tsx:73
+#: packages/admin/src/components/Header.tsx:71
 msgid "View Site"
 msgstr "Mostra el lloc"
 
@@ -16982,7 +16982,7 @@ msgid "Yearly"
 msgstr "Anual"
 
 #: packages/admin/src/components/ContentList.tsx:1653
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "Yes"
@@ -16996,7 +16996,7 @@ msgstr ""
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:220
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
 msgstr "Pots tancar aquesta pàgina i tornar al teu terminal."
 
@@ -17020,7 +17020,7 @@ msgstr "Pots veure el lloc i contribuir-hi."
 msgid "You can view, rename, or add more passkeys later in Security settings."
 msgstr "Pots veure, canviar el nom o afegir més claus d'accés més tard a la configuració de Seguretat."
 
-#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserDetail.tsx:179
 msgid "You cannot change your own role"
 msgstr "No pots canviar el teu propi rol"
 
@@ -17207,7 +17207,7 @@ msgstr ""
 msgid "Your role can't edit this entry."
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:376
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "El teu rol no permet cap dels permisos que ha sol·licitat aquest dispositiu."
 

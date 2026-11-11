@@ -1421,7 +1421,7 @@ msgstr "الحساب موجود بالفعل"
 msgid "Account exists"
 msgstr "الحساب موجود"
 
-#: packages/admin/src/components/users/UserDetail.tsx:229
+#: packages/admin/src/components/users/UserDetail.tsx:220
 msgid "Account Info"
 msgstr "معلومات الحساب"
 
@@ -1472,8 +1472,8 @@ msgstr ""
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
 msgstr "لا يمكن تأكيد التفعيل. أبقِ التعديل متوقفًا مؤقتًا وحدّث الحالة."
 
-#: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:221
+#: packages/admin/src/components/users/UserDetail.tsx:210
+#: packages/admin/src/components/users/UserList.tsx:211
 msgid "Active"
 msgstr "نشط"
 
@@ -1965,8 +1965,8 @@ msgstr "سيكون جميع المحتوى المستورد غير مُسنَد.
 msgid "All locales"
 msgstr "جميع المَحليات"
 
-#: packages/admin/src/components/users/UserList.tsx:51
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:52
+#: packages/admin/src/components/users/UserList.tsx:56
 msgid "All roles"
 msgstr "جميع الأدوار"
 
@@ -2040,7 +2040,7 @@ msgstr "حذف العلاقة التي يستخدمها هذا الحقل أيض
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr "مطابقة الكاتب المرتبط بمؤلف الإدخال أيضًا عندما لا يكون للإدخال كاتب معيّن."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:382
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
 msgstr "مطلوب أيضًا، لكنه غير متاح لدورك:"
 
@@ -2429,15 +2429,15 @@ msgstr "مؤلف"
 msgid "Author Mapping"
 msgstr "تعيين المؤلفين"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "Authorization denied"
 msgstr "تم رفض التفويض"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:152
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:153
 msgid "Authorization failed"
 msgstr "فشل التفويض"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
 msgstr "تفويض"
 
@@ -2445,7 +2445,7 @@ msgstr "تفويض"
 msgid "Authorize device"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:208
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Authorize Device"
 msgstr "تفويض الجهاز"
 
@@ -2453,7 +2453,7 @@ msgstr "تفويض الجهاز"
 msgid "Authorized approvers"
 msgstr "الموافقون المخوّلون"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
 msgstr "جاري التفويض..."
 
@@ -3225,11 +3225,11 @@ msgstr "يرجى تفقد بريدك الإلكتروني"
 msgid "Checking {urlInput}..."
 msgstr "جاري التحقق من {urlInput}..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:187
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "Checking authentication..."
 msgstr "جاري التحقق من المصادقة..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:341
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
 msgstr "جارٍ فحص الرمز..."
 
@@ -3436,7 +3436,7 @@ msgstr "مسح المكتملة"
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
-#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/components/users/UserList.tsx:126
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "مسح الفلاتر"
@@ -3526,7 +3526,7 @@ msgstr "إغلاق إعدادات المعرض"
 msgid "Close image settings"
 msgstr "إغلاق إعدادات الصورة"
 
-#: packages/admin/src/components/users/UserDetail.tsx:124
+#: packages/admin/src/components/users/UserDetail.tsx:125
 msgid "Close panel"
 msgstr "إغلاق اللوحة"
 
@@ -3748,7 +3748,7 @@ msgid "Connect with WordPress"
 msgstr "الاتصال بـ WordPress"
 
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "Connected {0}"
 msgstr "متصل {0}"
 
@@ -3983,11 +3983,11 @@ msgstr "جارٍ نسخ الوسائط"
 msgid "Could not add {singularLower}"
 msgstr "تعذّرت إضافة {singularLower}"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:111
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:112
 msgid "Could not check this code"
 msgstr "تعذّر التحقق من هذا الرمز"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:347
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
 msgstr "تعذّر التحقق من هذا الرمز."
 
@@ -4372,7 +4372,7 @@ msgstr "إنشاء، تحديث، حذف المحتوى"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
-#: packages/admin/src/components/users/UserDetail.tsx:232
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Created"
 msgstr "تم الإنشاء"
 
@@ -4382,7 +4382,7 @@ msgid "Created \"{0}\"."
 msgstr "أُنشئ \"{0}\"."
 
 #. placeholder {0}: isolate(formatDate(cred.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:279
+#: packages/admin/src/components/users/UserDetail.tsx:270
 msgid "Created {0}"
 msgstr "تم إنشاء {0}"
 
@@ -4914,7 +4914,7 @@ msgstr "تخفيض صلاحية المستخدم؟"
 msgid "Demoting..."
 msgstr "جارٍ التخفيض..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:305
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "رفض"
@@ -4980,15 +4980,15 @@ msgstr "إتلافي"
 msgid "Details"
 msgstr "التفاصيل"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:218
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:219
 msgid "Device authorized"
 msgstr "تم تفويض الجهاز"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:261
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:260
 msgid "Device code"
 msgstr "رمز الجهاز"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Device-bound"
 msgstr "مرتبط بالجهاز"
 
@@ -5012,7 +5012,7 @@ msgstr "الاختلافات عن الموقع المصدر"
 msgid "Dimensions:"
 msgstr "الأبعاد:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Disable"
 msgstr "تعطيل"
 
@@ -5039,8 +5039,8 @@ msgstr "تعطيل المستخدم؟"
 
 #: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Redirects.tsx:706
-#: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserDetail.tsx:205
+#: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
 msgstr "معطل"
 
@@ -5698,7 +5698,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
-#: packages/admin/src/components/users/UserDetail.tsx:167
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Email"
 msgstr "البريد الإلكتروني"
 
@@ -5751,7 +5751,7 @@ msgstr ""
 msgid "Email users"
 msgstr ""
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Email verified"
 msgstr "تم التحقق من البريد الإلكتروني"
 
@@ -5841,7 +5841,7 @@ msgstr "معرض فارغ — افتح الإعدادات لإضافة صور"
 msgid "Empty site"
 msgstr "موقع فارغ"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Enable"
 msgstr "تفعيل"
 
@@ -6054,7 +6054,7 @@ msgstr "إدخال بيانات الاعتماد يدويًا"
 msgid "Enter distraction-free mode"
 msgstr "الدخول إلى وضع الخلو من التشتت"
 
-#: packages/admin/src/components/users/UserDetail.tsx:171
+#: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "أدخل البريد الإلكتروني"
 
@@ -6062,7 +6062,7 @@ msgstr "أدخل البريد الإلكتروني"
 msgid "Enter markdown content..."
 msgstr "أدخل محتوى Markdown..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:153
 msgid "Enter name"
 msgstr "أدخل الاسم"
 
@@ -6070,7 +6070,7 @@ msgstr "أدخل الاسم"
 msgid "Enter SMTP password"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:210
 msgid "Enter the code from your terminal"
 msgstr "أدخل الرمز من الطرفية الخاصة بك"
 
@@ -7527,7 +7527,7 @@ msgstr "التصفية حسب النطاق الزمني: {rangeLabel}"
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:83
+#: packages/admin/src/components/users/UserList.tsx:84
 msgid "Filter by role"
 msgstr "تصفية حسب الدور"
 
@@ -7921,8 +7921,8 @@ msgstr "رئيسية، لافتة، دعوة للإجراء"
 msgid "Hidden from search engines"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:61
-#: packages/admin/src/components/Header.tsx:65
+#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:63
 msgid "Hidden from search engines until you go live"
 msgstr ""
 
@@ -8584,7 +8584,7 @@ msgid "Invite Link Created"
 msgstr "تم إنشاء رابط الدعوة"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/users/UserList.tsx:65
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Invite User"
 msgstr "دعوة مستخدم"
 
@@ -8592,7 +8592,7 @@ msgstr "دعوة مستخدم"
 msgid "Invite validation failed"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:132
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "ادعُ أول عضو في فريقك"
 
@@ -8600,7 +8600,7 @@ msgstr "ادعُ أول عضو في فريقك"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "استدعاء أدوات MCP من جميع الإضافات المفعّلة"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:411
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
 msgstr "استدعاء أدوات MCP من الإضافة {pluginId}"
 
@@ -8789,11 +8789,11 @@ msgstr ""
 msgid "Last enabled:"
 msgstr "آخر تفعيل:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:244
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Last login"
 msgstr "آخر تسجيل دخول"
 
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:105
 msgid "Last Login"
 msgstr "آخر تسجيل دخول"
 
@@ -8806,7 +8806,7 @@ msgstr "الصفحة الأخيرة"
 msgid "Last seen"
 msgstr "آخر ظهور"
 
-#: packages/admin/src/components/users/UserDetail.tsx:238
+#: packages/admin/src/components/users/UserDetail.tsx:229
 msgid "Last updated"
 msgstr "آخر تحديث"
 
@@ -8820,7 +8820,7 @@ msgid "Last used"
 msgstr "آخر استخدام"
 
 #. placeholder {0}: isolate(formatDate(cred.lastUsedAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:281
+#: packages/admin/src/components/users/UserDetail.tsx:272
 msgid "Last used {0}"
 msgstr "آخر استخدام في {0}"
 
@@ -8912,7 +8912,7 @@ msgid "Link URL"
 msgstr "عنوان URL للرابط"
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:295
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
 msgstr "الحسابات المربوطة ({0})"
 
@@ -9021,7 +9021,7 @@ msgstr "تحميل المزيد"
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1277
-#: packages/admin/src/components/users/UserList.tsx:157
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "تحميل المزيد"
 
@@ -9192,7 +9192,7 @@ msgstr "جارٍ تحميل عناصر الواجهة..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:147
 #: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "جاري التحميل..."
@@ -9250,7 +9250,7 @@ msgstr "مقفل لأن هذا الحقل يحتوي على قيم مخزنة. �
 msgid "Log in"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:125
+#: packages/admin/src/components/Header.tsx:121
 msgid "Log out"
 msgstr "تسجيل الخروج"
 
@@ -9337,7 +9337,7 @@ msgstr "يديره {providerName}"
 msgid "Managed by an external media provider"
 msgstr "يديره مزوّد وسائط خارجي"
 
-#: packages/admin/src/components/users/UserDetail.tsx:155
+#: packages/admin/src/components/users/UserDetail.tsx:146
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
@@ -9948,8 +9948,8 @@ msgstr "مدونتي الرائعة"
 #: packages/admin/src/components/TaxonomyManager.tsx:980
 #: packages/admin/src/components/TaxonomyManager.tsx:1320
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:143
+#: packages/admin/src/components/users/UserDetail.tsx:150
 #: packages/admin/src/components/Widgets.tsx:491
 msgid "Name"
 msgstr "الاسم"
@@ -9987,8 +9987,8 @@ msgstr ""
 msgid "Needs attention"
 msgstr "يحتاج إلى انتباه"
 
-#: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:240
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "أبدًا"
 
@@ -10138,7 +10138,7 @@ msgid "Next, the browser's passkey window will open"
 msgstr "بعد ذلك، ستُفتح نافذة مفتاح المرور في المتصفح"
 
 #: packages/admin/src/components/ContentList.tsx:1651
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
 msgstr "لا"
@@ -10445,7 +10445,7 @@ msgstr "بدون إشراف (موافقة تلقائية على الجميع)"
 msgid "No parent (top level)"
 msgstr "بلا أصل (المستوى الأعلى)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:267
+#: packages/admin/src/components/users/UserDetail.tsx:258
 msgid "No passkeys registered"
 msgstr "لم يتم تسجيل مفاتيح مرور"
 
@@ -10550,11 +10550,11 @@ msgstr "لم يُعثر على مراجع متتبَّعة"
 msgid "No usage to show yet"
 msgstr "لا يوجد استخدام لعرضه بعد"
 
-#: packages/admin/src/components/users/UserList.tsx:116
+#: packages/admin/src/components/users/UserList.tsx:117
 msgid "No users found matching your filters."
 msgstr "لا يوجد مستخدمون يطابقون الفلاتر المحددة."
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:131
 msgid "No users yet."
 msgstr "لا يوجد مستخدمون بعد."
 
@@ -10697,7 +10697,7 @@ msgstr "بعد انتهاء الإعداد، ارفع حزمة ‎.emdash مصد
 msgid "One"
 msgstr "واحد"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:311
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
 msgstr "قم بتفويض الرموز التي تعرفها فقط."
 
@@ -11019,12 +11019,12 @@ msgid "Passkey renamed"
 msgstr "تم إعادة تسمية مفتاح المرور"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:108
 msgid "Passkeys"
 msgstr "مفاتيح المرور"
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
 msgstr "مفاتيح المرور ({0})"
 
@@ -11284,7 +11284,7 @@ msgstr ""
 msgid "Plugin MCP access updated"
 msgstr "حُدّث وصول MCP للإضافة"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
 msgstr "أدوات MCP للإضافة"
@@ -11842,7 +11842,7 @@ msgid "Records without a parent were left out"
 msgstr "تم استبعاد السجلات التي ليس لها أصل"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:355
+#: packages/admin/src/components/users/UserDetail.tsx:346
 msgid "Recovery link sent to {0}"
 msgstr "تم إرسال رابط الاستعادة إلى {0}"
 
@@ -11850,7 +11850,7 @@ msgstr "تم إرسال رابط الاستعادة إلى {0}"
 msgid "Redirect loop detected"
 msgstr "تم اكتشاف حلقة إعادة توجيه لا منتهية"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:195
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:196
 msgid "Redirecting to login..."
 msgstr "جاري إعادة التوجيه إلى تسجيل الدخول..."
 
@@ -12698,9 +12698,9 @@ msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:182
-#: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserDetail.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:99
 msgid "Role"
 msgstr "الدور"
 
@@ -12809,7 +12809,7 @@ msgstr "الحفظ على أي حال"
 msgid "Save changes"
 msgstr "حفظ التغييرات"
 
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 msgid "Save Changes"
 msgstr "حفظ التغييرات"
 
@@ -12904,7 +12904,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Saving..."
 msgstr "جاري الحفظ..."
@@ -13083,7 +13083,7 @@ msgstr "البحث في الكتل"
 msgid "Search by filename..."
 msgstr "البحث حسب اسم الملف..."
 
-#: packages/admin/src/components/users/UserList.tsx:71
+#: packages/admin/src/components/users/UserList.tsx:72
 msgid "Search by name or email..."
 msgstr "ابحث بالاسم أو البريد الإلكتروني..."
 
@@ -13225,7 +13225,7 @@ msgstr ""
 msgid "Search to narrow the list"
 msgstr "ابحث لتضييق القائمة"
 
-#: packages/admin/src/components/users/UserList.tsx:74
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Search users"
 msgstr "البحث عن مستخدمين"
 
@@ -13334,7 +13334,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "خطأ أمني. تأكد من أنك على اتصال آمن."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:105
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -13556,7 +13556,7 @@ msgstr "إرسال الدعوة"
 msgid "Send magic link"
 msgstr "إرسال رابط سحري"
 
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Send Recovery Link"
 msgstr "إرسال رابط الاسترداد"
 
@@ -13586,7 +13586,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Sending..."
 msgstr "جاري الإرسال..."
 
@@ -13680,7 +13680,7 @@ msgstr "جاري الإعداد..."
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
-#: packages/admin/src/components/Header.tsx:117
+#: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
@@ -13860,7 +13860,7 @@ msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:222
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 msgid "Signed in as {0}"
 msgstr "تم تسجيل الدخول بوصفك {0}"
 
@@ -14226,8 +14226,8 @@ msgstr "مربع (1:1)"
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr "معرّف ثابت لموقعك، مثل primary أو footer."
 
-#: packages/admin/src/components/Header.tsx:62
-#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:64
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
 msgstr ""
@@ -14300,7 +14300,7 @@ msgstr ""
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:102
 msgid "Status"
 msgstr "الحالة"
 
@@ -14404,7 +14404,7 @@ msgstr "التبديل إلى الداكن"
 msgid "Switch to light"
 msgstr "التبديل إلى الفاتح"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Synced"
 msgstr "متزامن"
 
@@ -14675,7 +14675,7 @@ msgstr "يحفظه مدير بيانات الاعتماد على الهاتف أ
 msgid "The cropped image could not be created."
 msgstr "تعذّر إنشاء الصورة المقصوصة."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:231
 msgid "The device will not be granted access."
 msgstr "لن يتم منح الجهاز إذن الوصول."
 
@@ -15117,11 +15117,11 @@ msgstr "يحتفظ هذا المتصفح بالحزمة كاملة في الذا
 msgid "This cannot be undone"
 msgstr "لا يمكن التراجع عن هذا الإجراء"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:351
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
 msgstr "انتهت صلاحية هذا الرمز. ابدأ تسجيل الدخول مرة أخرى من الطرفية للحصول على رمز جديد."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:349
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
 msgstr "هذا الرمز غير صالح أو استُخدم بالفعل."
 
@@ -15141,7 +15141,7 @@ msgstr "سيظهر هذا المحتوى على الموقع فورًا."
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:371
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
 msgstr "يطلب هذا الجهاز إذنًا باستخدام:"
 
@@ -15765,7 +15765,7 @@ msgstr "حاول مرة أخرى."
 msgid "Try again. If it keeps failing, check the server logs."
 msgstr "حاول مرة أخرى. إذا استمر الفشل، فتحقق من سجلات الخادم."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:239
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:240
 msgid "Try another code"
 msgstr "جرّب رمزًا آخر"
 
@@ -15953,7 +15953,7 @@ msgid "Unlock aspect ratio"
 msgstr "إلغاء تثبيت نسبة العرض إلى الارتفاع"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
-#: packages/admin/src/components/users/UserDetail.tsx:273
+#: packages/admin/src/components/users/UserDetail.tsx:264
 msgid "Unnamed passkey"
 msgstr "مفتاح مرور بدون اسم"
 
@@ -16423,10 +16423,10 @@ msgstr "يُستخدم في الروابط ونقاط نهاية API"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "يُستخدم لتحديد هوية هذا القسم. أحرف صغيرة وأرقام وشرطات فقط."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:255
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:254
 #: packages/admin/src/components/Header.tsx:46
-#: packages/admin/src/components/Header.tsx:97
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "User"
 msgstr "المستخدم"
 
@@ -16439,7 +16439,7 @@ msgstr "تتم إدارة وصول المستخدمين بواسطة مزود خ
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
 msgstr "لا تُصدَّر أبدًا حسابات المستخدمين أو مفاتيح المرور أو رموز API المميزة أو الأسرار أو بيانات الإضافات. يُضمَّن اسم كل مؤلف وعنوان بريده الإلكتروني لمطابقتهم مع المستخدمين على الموقع الآخر."
 
-#: packages/admin/src/components/users/UserDetail.tsx:119
+#: packages/admin/src/components/users/UserDetail.tsx:120
 msgid "User Details"
 msgstr "تفاصيل المستخدم"
 
@@ -16448,7 +16448,7 @@ msgstr "تفاصيل المستخدم"
 msgid "User for {0}"
 msgstr "مستخدم {0}"
 
-#: packages/admin/src/components/users/UserDetail.tsx:315
+#: packages/admin/src/components/users/UserDetail.tsx:306
 msgid "User not found"
 msgstr "لم يتم العثور على المستخدم"
 
@@ -16462,7 +16462,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:2963
 msgid "Users"
 msgstr "المستخدمون"
@@ -16604,7 +16604,7 @@ msgstr ""
 msgid "View setup"
 msgstr "عرض الإعداد"
 
-#: packages/admin/src/components/Header.tsx:73
+#: packages/admin/src/components/Header.tsx:71
 msgid "View Site"
 msgstr "عرض الموقع"
 
@@ -16982,7 +16982,7 @@ msgid "Yearly"
 msgstr "سنوي"
 
 #: packages/admin/src/components/ContentList.tsx:1653
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "Yes"
@@ -16996,7 +16996,7 @@ msgstr ""
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:220
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
 msgstr "يمكنك إغلاق هذه الصفحة والعودة إلى الطرفية الخاصة بك."
 
@@ -17020,7 +17020,7 @@ msgstr "يمكنك الاطلاع والمساهمة في الموقع."
 msgid "You can view, rename, or add more passkeys later in Security settings."
 msgstr "يمكنك عرض مفاتيح المرور أو إعادة تسميتها أو إضافة المزيد منها لاحقًا في إعدادات الأمان."
 
-#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserDetail.tsx:179
 msgid "You cannot change your own role"
 msgstr "لا يمكنك تغيير دورك الخاص"
 
@@ -17207,7 +17207,7 @@ msgstr ""
 msgid "Your role can't edit this entry."
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:376
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "لا يسمح دورك بأي من الأذونات التي طلبها هذا الجهاز."
 

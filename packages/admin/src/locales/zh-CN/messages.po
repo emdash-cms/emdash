@@ -1421,7 +1421,7 @@ msgstr "账户已存在"
 msgid "Account exists"
 msgstr "账户已存在"
 
-#: packages/admin/src/components/users/UserDetail.tsx:229
+#: packages/admin/src/components/users/UserDetail.tsx:220
 msgid "Account Info"
 msgstr "账户信息"
 
@@ -1472,8 +1472,8 @@ msgstr ""
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
 msgstr "无法确认激活状态。请保持编辑暂停并刷新状态。"
 
-#: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:221
+#: packages/admin/src/components/users/UserDetail.tsx:210
+#: packages/admin/src/components/users/UserList.tsx:211
 msgid "Active"
 msgstr "活跃"
 
@@ -1965,8 +1965,8 @@ msgstr "所有导入的内容将被取消分配。您可以稍后在内容编辑
 msgid "All locales"
 msgstr "所有语言"
 
-#: packages/admin/src/components/users/UserList.tsx:51
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:52
+#: packages/admin/src/components/users/UserList.tsx:56
 msgid "All roles"
 msgstr "所有角色"
 
@@ -2040,7 +2040,7 @@ msgstr "同时删除此字段使用的关联关系"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr "当条目未指定署名时，也匹配其作者关联的署名。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:382
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
 msgstr "也请求了，但您的角色不可用："
 
@@ -2429,15 +2429,15 @@ msgstr "作者"
 msgid "Author Mapping"
 msgstr "作者映射"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "Authorization denied"
 msgstr "授权已拒绝"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:152
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:153
 msgid "Authorization failed"
 msgstr "授权失败"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
 msgstr "授权"
 
@@ -2445,7 +2445,7 @@ msgstr "授权"
 msgid "Authorize device"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:208
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Authorize Device"
 msgstr "授权设备"
 
@@ -2453,7 +2453,7 @@ msgstr "授权设备"
 msgid "Authorized approvers"
 msgstr "已授权的审批人"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
 msgstr "授权中..."
 
@@ -3225,11 +3225,11 @@ msgstr "查看您的邮箱"
 msgid "Checking {urlInput}..."
 msgstr "正在检查 {urlInput}..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:187
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "Checking authentication..."
 msgstr "正在检查认证..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:341
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
 msgstr "正在检查代码…"
 
@@ -3436,7 +3436,7 @@ msgstr "清除已完成"
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
-#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/components/users/UserList.tsx:126
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "清除筛选"
@@ -3526,7 +3526,7 @@ msgstr "关闭图库设置"
 msgid "Close image settings"
 msgstr "关闭图片设置"
 
-#: packages/admin/src/components/users/UserDetail.tsx:124
+#: packages/admin/src/components/users/UserDetail.tsx:125
 msgid "Close panel"
 msgstr "关闭面板"
 
@@ -3748,7 +3748,7 @@ msgid "Connect with WordPress"
 msgstr "连接 WordPress"
 
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "Connected {0}"
 msgstr "已连接 {0}"
 
@@ -3983,11 +3983,11 @@ msgstr "正在复制媒体"
 msgid "Could not add {singularLower}"
 msgstr "无法添加{singularLower}"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:111
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:112
 msgid "Could not check this code"
 msgstr "无法检查此代码"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:347
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
 msgstr "无法检查此代码。"
 
@@ -4372,7 +4372,7 @@ msgstr "创建、更新、删除内容"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
-#: packages/admin/src/components/users/UserDetail.tsx:232
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Created"
 msgstr "已创建"
 
@@ -4382,7 +4382,7 @@ msgid "Created \"{0}\"."
 msgstr "已创建 \"{0}\"."
 
 #. placeholder {0}: isolate(formatDate(cred.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:279
+#: packages/admin/src/components/users/UserDetail.tsx:270
 msgid "Created {0}"
 msgstr "创建于 {0}"
 
@@ -4914,7 +4914,7 @@ msgstr "降级用户？"
 msgid "Demoting..."
 msgstr "正在降级..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:305
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "拒绝"
@@ -4980,15 +4980,15 @@ msgstr "破坏性"
 msgid "Details"
 msgstr "详情"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:218
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:219
 msgid "Device authorized"
 msgstr "设备已授权"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:261
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:260
 msgid "Device code"
 msgstr "设备代码"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Device-bound"
 msgstr "设备绑定"
 
@@ -5012,7 +5012,7 @@ msgstr "与源站点的差异"
 msgid "Dimensions:"
 msgstr "尺寸："
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Disable"
 msgstr "禁用"
 
@@ -5039,8 +5039,8 @@ msgstr "禁用用户？"
 
 #: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Redirects.tsx:706
-#: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserDetail.tsx:205
+#: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
 msgstr "已禁用"
 
@@ -5698,7 +5698,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
-#: packages/admin/src/components/users/UserDetail.tsx:167
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Email"
 msgstr "邮箱"
 
@@ -5751,7 +5751,7 @@ msgstr ""
 msgid "Email users"
 msgstr "向用户发送邮件"
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Email verified"
 msgstr "邮箱已验证"
 
@@ -5841,7 +5841,7 @@ msgstr "图库为空 — 打开设置以添加图片"
 msgid "Empty site"
 msgstr "空站点"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Enable"
 msgstr "启用"
 
@@ -6054,7 +6054,7 @@ msgstr "手动输入凭据"
 msgid "Enter distraction-free mode"
 msgstr "进入无干扰模式"
 
-#: packages/admin/src/components/users/UserDetail.tsx:171
+#: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "输入邮箱"
 
@@ -6062,7 +6062,7 @@ msgstr "输入邮箱"
 msgid "Enter markdown content..."
 msgstr "输入 Markdown 内容..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:153
 msgid "Enter name"
 msgstr "输入名称"
 
@@ -6070,7 +6070,7 @@ msgstr "输入名称"
 msgid "Enter SMTP password"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:210
 msgid "Enter the code from your terminal"
 msgstr "输入终端中的代码"
 
@@ -7527,7 +7527,7 @@ msgstr "按日期范围筛选：{rangeLabel}"
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:83
+#: packages/admin/src/components/users/UserList.tsx:84
 msgid "Filter by role"
 msgstr "按角色筛选"
 
@@ -7921,8 +7921,8 @@ msgstr "主视觉, 横幅, CTA 按钮"
 msgid "Hidden from search engines"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:61
-#: packages/admin/src/components/Header.tsx:65
+#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:63
 msgid "Hidden from search engines until you go live"
 msgstr ""
 
@@ -8584,7 +8584,7 @@ msgid "Invite Link Created"
 msgstr "邀请链接已创建"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/users/UserList.tsx:65
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Invite User"
 msgstr "邀请用户"
 
@@ -8592,7 +8592,7 @@ msgstr "邀请用户"
 msgid "Invite validation failed"
 msgstr "邀请验证失败"
 
-#: packages/admin/src/components/users/UserList.tsx:132
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "邀请您的第一位团队成员"
 
@@ -8600,7 +8600,7 @@ msgstr "邀请您的第一位团队成员"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "调用所有已启用插件的 MCP 工具"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:411
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
 msgstr "调用 {pluginId} 插件的 MCP 工具"
 
@@ -8789,11 +8789,11 @@ msgstr "上次编辑"
 msgid "Last enabled:"
 msgstr "最后启用："
 
-#: packages/admin/src/components/users/UserDetail.tsx:244
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Last login"
 msgstr "最后登录"
 
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:105
 msgid "Last Login"
 msgstr "上次登录"
 
@@ -8806,7 +8806,7 @@ msgstr "最后一页"
 msgid "Last seen"
 msgstr "最后访问"
 
-#: packages/admin/src/components/users/UserDetail.tsx:238
+#: packages/admin/src/components/users/UserDetail.tsx:229
 msgid "Last updated"
 msgstr "最后更新"
 
@@ -8820,7 +8820,7 @@ msgid "Last used"
 msgstr "最后使用"
 
 #. placeholder {0}: isolate(formatDate(cred.lastUsedAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:281
+#: packages/admin/src/components/users/UserDetail.tsx:272
 msgid "Last used {0}"
 msgstr "最后使用于 {0}"
 
@@ -8912,7 +8912,7 @@ msgid "Link URL"
 msgstr "链接 URL"
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:295
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
 msgstr "已关联账户 ({0})"
 
@@ -9021,7 +9021,7 @@ msgstr "加载更多"
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1277
-#: packages/admin/src/components/users/UserList.tsx:157
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "加载更多"
 
@@ -9192,7 +9192,7 @@ msgstr "正在加载小部件..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:147
 #: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "加载中..."
@@ -9250,7 +9250,7 @@ msgstr "已锁定，因为此字段有存储值。删除这些值（或删除该
 msgid "Log in"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:125
+#: packages/admin/src/components/Header.tsx:121
 msgid "Log out"
 msgstr "退出登录"
 
@@ -9337,7 +9337,7 @@ msgstr "由 {providerName} 管理"
 msgid "Managed by an external media provider"
 msgstr "由外部媒体服务商管理"
 
-#: packages/admin/src/components/users/UserDetail.tsx:155
+#: packages/admin/src/components/users/UserDetail.tsx:146
 msgid "Managed by your identity provider. Change the name there."
 msgstr "由您的身份提供商管理。请在该处修改名称。"
 
@@ -9948,8 +9948,8 @@ msgstr "我的精彩博客"
 #: packages/admin/src/components/TaxonomyManager.tsx:980
 #: packages/admin/src/components/TaxonomyManager.tsx:1320
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:143
+#: packages/admin/src/components/users/UserDetail.tsx:150
 #: packages/admin/src/components/Widgets.tsx:491
 msgid "Name"
 msgstr "名称"
@@ -9987,8 +9987,8 @@ msgstr ""
 msgid "Needs attention"
 msgstr "需要注意"
 
-#: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:240
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "从未"
 
@@ -10138,7 +10138,7 @@ msgid "Next, the browser's passkey window will open"
 msgstr "接下来将打开浏览器的通行密钥窗口"
 
 #: packages/admin/src/components/ContentList.tsx:1651
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
 msgstr "否"
@@ -10445,7 +10445,7 @@ msgstr "无审核（自动批准所有）"
 msgid "No parent (top level)"
 msgstr "无父级（顶层）"
 
-#: packages/admin/src/components/users/UserDetail.tsx:267
+#: packages/admin/src/components/users/UserDetail.tsx:258
 msgid "No passkeys registered"
 msgstr "未注册通行密钥"
 
@@ -10550,11 +10550,11 @@ msgstr "未找到跟踪的引用"
 msgid "No usage to show yet"
 msgstr "暂无用量可显示"
 
-#: packages/admin/src/components/users/UserList.tsx:116
+#: packages/admin/src/components/users/UserList.tsx:117
 msgid "No users found matching your filters."
 msgstr "未找到匹配您筛选条件的用户。"
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:131
 msgid "No users yet."
 msgstr "尚无用户。"
 
@@ -10697,7 +10697,7 @@ msgstr "设置完成后，上传从另一个 EmDash 站点导出的 .emdash 包�
 msgid "One"
 msgstr "一个"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:311
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
 msgstr "仅授权您认识的代码。"
 
@@ -11019,12 +11019,12 @@ msgid "Passkey renamed"
 msgstr "通行密钥已重命名"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:108
 msgid "Passkeys"
 msgstr "通行密钥"
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
 msgstr "通行密钥 ({0})"
 
@@ -11284,7 +11284,7 @@ msgstr ""
 msgid "Plugin MCP access updated"
 msgstr "插件 MCP 访问已更新"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
 msgstr "插件 MCP 工具"
@@ -11842,7 +11842,7 @@ msgid "Records without a parent were left out"
 msgstr "未包含无父级的记录"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:355
+#: packages/admin/src/components/users/UserDetail.tsx:346
 msgid "Recovery link sent to {0}"
 msgstr "恢复链接已发送至 {0}"
 
@@ -11850,7 +11850,7 @@ msgstr "恢复链接已发送至 {0}"
 msgid "Redirect loop detected"
 msgstr "检测到重定向循环"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:195
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:196
 msgid "Redirecting to login..."
 msgstr "正在重定向到登录..."
 
@@ -12698,9 +12698,9 @@ msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:182
-#: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserDetail.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:99
 msgid "Role"
 msgstr "角色"
 
@@ -12809,7 +12809,7 @@ msgstr "仍要保存"
 msgid "Save changes"
 msgstr "保存更改"
 
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 msgid "Save Changes"
 msgstr "保存更改"
 
@@ -12904,7 +12904,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Saving..."
 msgstr "保存中..."
@@ -13083,7 +13083,7 @@ msgstr "搜索区块"
 msgid "Search by filename..."
 msgstr "按文件名搜索..."
 
-#: packages/admin/src/components/users/UserList.tsx:71
+#: packages/admin/src/components/users/UserList.tsx:72
 msgid "Search by name or email..."
 msgstr "按名称或邮箱搜索..."
 
@@ -13225,7 +13225,7 @@ msgstr "搜索时区…"
 msgid "Search to narrow the list"
 msgstr "搜索以缩小列表范围"
 
-#: packages/admin/src/components/users/UserList.tsx:74
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Search users"
 msgstr "搜索用户"
 
@@ -13334,7 +13334,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "安全错误。请确保您使用的是安全连接。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:105
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -13556,7 +13556,7 @@ msgstr "发送邀请"
 msgid "Send magic link"
 msgstr "发送免密登录链接"
 
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Send Recovery Link"
 msgstr "发送恢复链接"
 
@@ -13586,7 +13586,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Sending..."
 msgstr "发送中..."
 
@@ -13680,7 +13680,7 @@ msgstr "正在设置..."
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
-#: packages/admin/src/components/Header.tsx:117
+#: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
@@ -13860,7 +13860,7 @@ msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:222
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 msgid "Signed in as {0}"
 msgstr "已作为 {0} 登录"
 
@@ -14226,8 +14226,8 @@ msgstr "正方形 (1:1)"
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr "站点的稳定标识，例如 primary 或 footer。"
 
-#: packages/admin/src/components/Header.tsx:62
-#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:64
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
 msgstr ""
@@ -14300,7 +14300,7 @@ msgstr "状态"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:102
 msgid "Status"
 msgstr "状态"
 
@@ -14404,7 +14404,7 @@ msgstr "切换到深色"
 msgid "Switch to light"
 msgstr "切换到浅色"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Synced"
 msgstr "已同步"
 
@@ -14675,7 +14675,7 @@ msgstr "您选择的手机或平板上的凭据管理器会保存它。EmDash �
 msgid "The cropped image could not be created."
 msgstr "无法创建裁剪后的图片。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:231
 msgid "The device will not be granted access."
 msgstr "设备将不会被授予访问权限。"
 
@@ -15117,11 +15117,11 @@ msgstr "此浏览器会在下载完成前将整个包保存在内存中。对于
 msgid "This cannot be undone"
 msgstr "此操作无法撤销"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:351
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
 msgstr "此代码已过期。请从终端重新开始登录以获取新代码。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:349
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
 msgstr "此代码无效或已被使用。"
 
@@ -15141,7 +15141,7 @@ msgstr "此内容将立即在站点上可见。"
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "此日期未加载。该范围内的条目多于日历可显示的数量。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:371
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
 msgstr "此设备请求使用以下内容的权限："
 
@@ -15765,7 +15765,7 @@ msgstr "重试。"
 msgid "Try again. If it keeps failing, check the server logs."
 msgstr "重试。如果仍然失败，请检查服务器日志。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:239
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:240
 msgid "Try another code"
 msgstr "尝试其他代码"
 
@@ -15953,7 +15953,7 @@ msgid "Unlock aspect ratio"
 msgstr "解锁宽高比"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
-#: packages/admin/src/components/users/UserDetail.tsx:273
+#: packages/admin/src/components/users/UserDetail.tsx:264
 msgid "Unnamed passkey"
 msgstr "未命名通行密钥"
 
@@ -16423,10 +16423,10 @@ msgstr "用于 URL 和 API 端点"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "用于标识此区块。仅限小写字母、数字和连字符。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:255
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:254
 #: packages/admin/src/components/Header.tsx:46
-#: packages/admin/src/components/Header.tsx:97
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "User"
 msgstr "用户"
 
@@ -16439,7 +16439,7 @@ msgstr "用户访问由外部提供商管理 ({0})。使用外部认证时，自
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
 msgstr "用户帐户、通行密钥、API 令牌、密钥和插件数据永不导出。包含每位作者的姓名和电子邮件地址，以便与另一站点的用户匹配。"
 
-#: packages/admin/src/components/users/UserDetail.tsx:119
+#: packages/admin/src/components/users/UserDetail.tsx:120
 msgid "User Details"
 msgstr "用户详情"
 
@@ -16448,7 +16448,7 @@ msgstr "用户详情"
 msgid "User for {0}"
 msgstr "{0} 的用户"
 
-#: packages/admin/src/components/users/UserDetail.tsx:315
+#: packages/admin/src/components/users/UserDetail.tsx:306
 msgid "User not found"
 msgstr "未找到用户"
 
@@ -16462,7 +16462,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:2963
 msgid "Users"
 msgstr "用户"
@@ -16604,7 +16604,7 @@ msgstr ""
 msgid "View setup"
 msgstr "查看设置"
 
-#: packages/admin/src/components/Header.tsx:73
+#: packages/admin/src/components/Header.tsx:71
 msgid "View Site"
 msgstr "查看站点"
 
@@ -16982,7 +16982,7 @@ msgid "Yearly"
 msgstr "每年"
 
 #: packages/admin/src/components/ContentList.tsx:1653
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "Yes"
@@ -16996,7 +16996,7 @@ msgstr "昨天"
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:220
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
 msgstr "您可以关闭此页面并返回终端。"
 
@@ -17020,7 +17020,7 @@ msgstr "您可以查看和贡献网站内容。"
 msgid "You can view, rename, or add more passkeys later in Security settings."
 msgstr "您稍后可以在安全设置中查看、重命名或添加更多通行密钥。"
 
-#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserDetail.tsx:179
 msgid "You cannot change your own role"
 msgstr "您无法更改自己的角色"
 
@@ -17207,7 +17207,7 @@ msgstr "你的角色只能编辑处于草稿状态的自有条目。"
 msgid "Your role can't edit this entry."
 msgstr "你的角色无法编辑此条目。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:376
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "您的角色不允许此设备请求的任何权限。"
 

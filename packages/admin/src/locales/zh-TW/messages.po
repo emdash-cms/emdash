@@ -1421,7 +1421,7 @@ msgstr "帳號已存在"
 msgid "Account exists"
 msgstr "帳號已存在"
 
-#: packages/admin/src/components/users/UserDetail.tsx:229
+#: packages/admin/src/components/users/UserDetail.tsx:220
 msgid "Account Info"
 msgstr "帳號資訊"
 
@@ -1472,8 +1472,8 @@ msgstr ""
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
 msgstr "無法確認是否已啟用。請繼續暫停編輯，並重新整理狀態。"
 
-#: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:221
+#: packages/admin/src/components/users/UserDetail.tsx:210
+#: packages/admin/src/components/users/UserList.tsx:211
 msgid "Active"
 msgstr "啟用"
 
@@ -1965,8 +1965,8 @@ msgstr "所有匯入內容將不會指派給任何人。之後可在內容編輯
 msgid "All locales"
 msgstr "所有語系"
 
-#: packages/admin/src/components/users/UserList.tsx:51
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:52
+#: packages/admin/src/components/users/UserList.tsx:56
 msgid "All roles"
 msgstr "所有角色"
 
@@ -2040,7 +2040,7 @@ msgstr "一併刪除此欄位使用的關聯"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr "內容未指定署名時，也比對與其作者連結的署名。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:382
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
 msgstr "也要求了以下權限，但你的角色無法使用："
 
@@ -2429,15 +2429,15 @@ msgstr "作者"
 msgid "Author Mapping"
 msgstr "作者對應"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "Authorization denied"
 msgstr "授權遭拒"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:152
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:153
 msgid "Authorization failed"
 msgstr "授權失敗"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
 msgstr "授權"
 
@@ -2445,7 +2445,7 @@ msgstr "授權"
 msgid "Authorize device"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:208
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Authorize Device"
 msgstr "授權裝置"
 
@@ -2453,7 +2453,7 @@ msgstr "授權裝置"
 msgid "Authorized approvers"
 msgstr "有權核准的人員"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
 msgstr "正在授權…"
 
@@ -3225,11 +3225,11 @@ msgstr "請查看您的電子郵件"
 msgid "Checking {urlInput}..."
 msgstr "正在檢查 {urlInput}..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:187
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "Checking authentication..."
 msgstr "正在檢查驗證狀態..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:341
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
 msgstr "正在檢查代碼..."
 
@@ -3436,7 +3436,7 @@ msgstr "清除已完成項目"
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
-#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/components/users/UserList.tsx:126
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "清除篩選條件"
@@ -3526,7 +3526,7 @@ msgstr "關閉圖庫設定"
 msgid "Close image settings"
 msgstr "關閉圖片設定"
 
-#: packages/admin/src/components/users/UserDetail.tsx:124
+#: packages/admin/src/components/users/UserDetail.tsx:125
 msgid "Close panel"
 msgstr "關閉面板"
 
@@ -3748,7 +3748,7 @@ msgid "Connect with WordPress"
 msgstr "連線至 WordPress"
 
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "Connected {0}"
 msgstr "已連線 {0}"
 
@@ -3983,11 +3983,11 @@ msgstr "正在複製媒體"
 msgid "Could not add {singularLower}"
 msgstr "無法加入 {singularLower}"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:111
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:112
 msgid "Could not check this code"
 msgstr "無法檢查這個代碼"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:347
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
 msgstr "無法檢查這個代碼。"
 
@@ -4372,7 +4372,7 @@ msgstr "建立、更新、刪除內容"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
-#: packages/admin/src/components/users/UserDetail.tsx:232
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Created"
 msgstr "建立時間"
 
@@ -4382,7 +4382,7 @@ msgid "Created \"{0}\"."
 msgstr "已建立「{0}」。"
 
 #. placeholder {0}: isolate(formatDate(cred.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:279
+#: packages/admin/src/components/users/UserDetail.tsx:270
 msgid "Created {0}"
 msgstr "建立於 {0}"
 
@@ -4914,7 +4914,7 @@ msgstr "要調降使用者權限嗎？"
 msgid "Demoting..."
 msgstr "正在降低角色…"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:305
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "拒絕"
@@ -4980,15 +4980,15 @@ msgstr "破壞性操作"
 msgid "Details"
 msgstr "詳細資料"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:218
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:219
 msgid "Device authorized"
 msgstr "已授權裝置"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:261
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:260
 msgid "Device code"
 msgstr "裝置代碼"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Device-bound"
 msgstr "裝置綁定"
 
@@ -5012,7 +5012,7 @@ msgstr "與來源網站的差異"
 msgid "Dimensions:"
 msgstr "尺寸:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Disable"
 msgstr "停用"
 
@@ -5039,8 +5039,8 @@ msgstr "要停用使用者嗎？"
 
 #: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Redirects.tsx:706
-#: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserDetail.tsx:205
+#: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
 msgstr "已停用"
 
@@ -5698,7 +5698,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
-#: packages/admin/src/components/users/UserDetail.tsx:167
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Email"
 msgstr "電子郵件"
 
@@ -5751,7 +5751,7 @@ msgstr ""
 msgid "Email users"
 msgstr "寄送電子郵件給使用者"
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Email verified"
 msgstr "電子郵件地址已驗證"
 
@@ -5841,7 +5841,7 @@ msgstr "空白圖庫 — 開啟設定以新增圖片"
 msgid "Empty site"
 msgstr "空白網站"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Enable"
 msgstr "啟用"
 
@@ -6054,7 +6054,7 @@ msgstr "手動輸入認證資訊"
 msgid "Enter distraction-free mode"
 msgstr "進入專注模式"
 
-#: packages/admin/src/components/users/UserDetail.tsx:171
+#: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "輸入電子郵件地址"
 
@@ -6062,7 +6062,7 @@ msgstr "輸入電子郵件地址"
 msgid "Enter markdown content..."
 msgstr "輸入 Markdown 內容..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:153
 msgid "Enter name"
 msgstr "輸入名稱"
 
@@ -6070,7 +6070,7 @@ msgstr "輸入名稱"
 msgid "Enter SMTP password"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:210
 msgid "Enter the code from your terminal"
 msgstr "輸入終端機顯示的代碼"
 
@@ -7527,7 +7527,7 @@ msgstr "依日期範圍篩選：{rangeLabel}"
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:83
+#: packages/admin/src/components/users/UserList.tsx:84
 msgid "Filter by role"
 msgstr "依角色篩選"
 
@@ -7921,8 +7921,8 @@ msgstr "hero, banner, cta, 主視覺, 橫幅"
 msgid "Hidden from search engines"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:61
-#: packages/admin/src/components/Header.tsx:65
+#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:63
 msgid "Hidden from search engines until you go live"
 msgstr ""
 
@@ -8584,7 +8584,7 @@ msgid "Invite Link Created"
 msgstr "已建立邀請連結"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/users/UserList.tsx:65
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Invite User"
 msgstr "邀請使用者"
 
@@ -8592,7 +8592,7 @@ msgstr "邀請使用者"
 msgid "Invite validation failed"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:132
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "邀請第一位團隊成員"
 
@@ -8600,7 +8600,7 @@ msgstr "邀請第一位團隊成員"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "呼叫所有已啟用外掛的 MCP 工具"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:411
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
 msgstr "呼叫 {pluginId} 外掛的 MCP 工具"
 
@@ -8789,11 +8789,11 @@ msgstr "上次編輯"
 msgid "Last enabled:"
 msgstr "上次啟用時間:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:244
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Last login"
 msgstr "上次登入時間"
 
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:105
 msgid "Last Login"
 msgstr "上次登入時間"
 
@@ -8806,7 +8806,7 @@ msgstr "最後一頁"
 msgid "Last seen"
 msgstr "上次出現時間"
 
-#: packages/admin/src/components/users/UserDetail.tsx:238
+#: packages/admin/src/components/users/UserDetail.tsx:229
 msgid "Last updated"
 msgstr "上次更新時間"
 
@@ -8820,7 +8820,7 @@ msgid "Last used"
 msgstr "上次使用時間"
 
 #. placeholder {0}: isolate(formatDate(cred.lastUsedAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:281
+#: packages/admin/src/components/users/UserDetail.tsx:272
 msgid "Last used {0}"
 msgstr "上次使用時間為 {0}"
 
@@ -8912,7 +8912,7 @@ msgid "Link URL"
 msgstr "連結網址"
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:295
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
 msgstr "已連結的帳號 ({0})"
 
@@ -9021,7 +9021,7 @@ msgstr "載入更多"
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1277
-#: packages/admin/src/components/users/UserList.tsx:157
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "載入更多"
 
@@ -9192,7 +9192,7 @@ msgstr "正在載入小工具…"
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:147
 #: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "正在載入…"
@@ -9250,7 +9250,7 @@ msgstr "這個欄位已有儲存值，因此已鎖定。請刪除這些值 (或�
 msgid "Log in"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:125
+#: packages/admin/src/components/Header.tsx:121
 msgid "Log out"
 msgstr "登出"
 
@@ -9337,7 +9337,7 @@ msgstr "由 {providerName} 管理"
 msgid "Managed by an external media provider"
 msgstr "由外部媒體服務提供者管理"
 
-#: packages/admin/src/components/users/UserDetail.tsx:155
+#: packages/admin/src/components/users/UserDetail.tsx:146
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
@@ -9948,8 +9948,8 @@ msgstr "我的精彩網誌"
 #: packages/admin/src/components/TaxonomyManager.tsx:980
 #: packages/admin/src/components/TaxonomyManager.tsx:1320
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:143
+#: packages/admin/src/components/users/UserDetail.tsx:150
 #: packages/admin/src/components/Widgets.tsx:491
 msgid "Name"
 msgstr "名稱"
@@ -9987,8 +9987,8 @@ msgstr ""
 msgid "Needs attention"
 msgstr "需要處理"
 
-#: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:240
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "從未"
 
@@ -10138,7 +10138,7 @@ msgid "Next, the browser's passkey window will open"
 msgstr "接著會開啟瀏覽器的通行密鑰視窗"
 
 #: packages/admin/src/components/ContentList.tsx:1651
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
 msgstr "否"
@@ -10445,7 +10445,7 @@ msgstr "不進行審核 (全部自動核准)"
 msgid "No parent (top level)"
 msgstr "沒有上層項目 (最上層)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:267
+#: packages/admin/src/components/users/UserDetail.tsx:258
 msgid "No passkeys registered"
 msgstr "尚未註冊通行密鑰"
 
@@ -10550,11 +10550,11 @@ msgstr "找不到已追蹤的參照項目"
 msgid "No usage to show yet"
 msgstr "尚無可顯示的使用資訊"
 
-#: packages/admin/src/components/users/UserList.tsx:116
+#: packages/admin/src/components/users/UserList.tsx:117
 msgid "No users found matching your filters."
 msgstr "找不到符合篩選條件的使用者。"
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:131
 msgid "No users yet."
 msgstr "目前沒有使用者。"
 
@@ -10697,7 +10697,7 @@ msgstr "設定完成後，請上傳從另一個 EmDash 網站匯出的 .emdash �
 msgid "One"
 msgstr "1 個"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:311
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
 msgstr "只授權您能辨識的代碼。"
 
@@ -11019,12 +11019,12 @@ msgid "Passkey renamed"
 msgstr "已重新命名通行密鑰"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:108
 msgid "Passkeys"
 msgstr "通行密鑰"
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
 msgstr "通行密鑰 ({0})"
 
@@ -11284,7 +11284,7 @@ msgstr ""
 msgid "Plugin MCP access updated"
 msgstr "外掛 MCP 存取權已更新"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
 msgstr "外掛 MCP 工具"
@@ -11842,7 +11842,7 @@ msgid "Records without a parent were left out"
 msgstr "已略過沒有上層項目的記錄"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:355
+#: packages/admin/src/components/users/UserDetail.tsx:346
 msgid "Recovery link sent to {0}"
 msgstr "復原連結已傳送至 {0}"
 
@@ -11850,7 +11850,7 @@ msgstr "復原連結已傳送至 {0}"
 msgid "Redirect loop detected"
 msgstr "偵測到重新導向迴圈"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:195
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:196
 msgid "Redirecting to login..."
 msgstr "正在重新導向至登入頁面..."
 
@@ -12698,9 +12698,9 @@ msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:182
-#: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserDetail.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:99
 msgid "Role"
 msgstr "角色"
 
@@ -12809,7 +12809,7 @@ msgstr "仍要儲存"
 msgid "Save changes"
 msgstr "儲存變更"
 
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 msgid "Save Changes"
 msgstr "儲存變更"
 
@@ -12904,7 +12904,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Saving..."
 msgstr "正在儲存…"
@@ -13083,7 +13083,7 @@ msgstr "搜尋區塊"
 msgid "Search by filename..."
 msgstr "依檔名搜尋..."
 
-#: packages/admin/src/components/users/UserList.tsx:71
+#: packages/admin/src/components/users/UserList.tsx:72
 msgid "Search by name or email..."
 msgstr "依名稱或電子郵件地址搜尋…"
 
@@ -13225,7 +13225,7 @@ msgstr "搜尋時區…"
 msgid "Search to narrow the list"
 msgstr "透過搜尋縮小清單範圍"
 
-#: packages/admin/src/components/users/UserList.tsx:74
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Search users"
 msgstr "搜尋使用者"
 
@@ -13334,7 +13334,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "發生安全性錯誤。請確認您使用安全連線。"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:105
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -13556,7 +13556,7 @@ msgstr "傳送邀請"
 msgid "Send magic link"
 msgstr "傳送快速登入連結"
 
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Send Recovery Link"
 msgstr "傳送復原連結"
 
@@ -13586,7 +13586,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Sending..."
 msgstr "正在傳送..."
 
@@ -13680,7 +13680,7 @@ msgstr "正在設定…"
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
-#: packages/admin/src/components/Header.tsx:117
+#: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
@@ -13860,7 +13860,7 @@ msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:222
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 msgid "Signed in as {0}"
 msgstr "已以 {0} 的身分登入"
 
@@ -14226,8 +14226,8 @@ msgstr "正方形 (1:1)"
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr "網站中的固定識別碼，例如 primary 或 footer。"
 
-#: packages/admin/src/components/Header.tsx:62
-#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:64
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
 msgstr ""
@@ -14300,7 +14300,7 @@ msgstr "狀態"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:102
 msgid "Status"
 msgstr "狀態"
 
@@ -14404,7 +14404,7 @@ msgstr "切換為深色模式"
 msgid "Switch to light"
 msgstr "切換為淺色模式"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Synced"
 msgstr "已同步"
 
@@ -14675,7 +14675,7 @@ msgstr "你所選手機或平板上的憑證管理程式會儲存通行密鑰。
 msgid "The cropped image could not be created."
 msgstr "無法建立裁切後的圖片。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:231
 msgid "The device will not be granted access."
 msgstr "不會授予此裝置存取權。"
 
@@ -15117,11 +15117,11 @@ msgstr "這個瀏覽器會將整個套件保留在記憶體中，直到下載完
 msgid "This cannot be undone"
 msgstr "此操作無法復原"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:351
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
 msgstr "這個驗證碼已過期。請從終端機重新登入，以取得新的驗證碼。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:349
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
 msgstr "這個驗證碼無效或已使用過。"
 
@@ -15141,7 +15141,7 @@ msgstr "這份內容會立即顯示在網站上。"
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "這一天尚未載入。這個範圍的內容項目數量超過行事曆可顯示的上限。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:371
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
 msgstr "這個裝置要求使用下列權限："
 
@@ -15765,7 +15765,7 @@ msgstr "請再試一次。"
 msgid "Try again. If it keeps failing, check the server logs."
 msgstr "請再試一次。如果持續失敗，請檢查伺服器記錄。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:239
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:240
 msgid "Try another code"
 msgstr "嘗試其他代碼"
 
@@ -15953,7 +15953,7 @@ msgid "Unlock aspect ratio"
 msgstr "解除鎖定長寬比"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
-#: packages/admin/src/components/users/UserDetail.tsx:273
+#: packages/admin/src/components/users/UserDetail.tsx:264
 msgid "Unnamed passkey"
 msgstr "未命名的通行密鑰"
 
@@ -16423,10 +16423,10 @@ msgstr "用於網址與 API 端點"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "用來識別這個區段。只能使用小寫字母、數字及連字號。"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:255
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:254
 #: packages/admin/src/components/Header.tsx:46
-#: packages/admin/src/components/Header.tsx:97
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "User"
 msgstr "使用者"
 
@@ -16439,7 +16439,7 @@ msgstr "使用者存取權由外部服務提供者 ({0}) 管理。使用外部�
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
 msgstr "使用者帳號、通行密鑰、API 認證權杖、機密資料與外掛資料一律不會匯出。每位作者的姓名與電子郵件地址會納入套件，以便對應至另一個網站上的使用者。"
 
-#: packages/admin/src/components/users/UserDetail.tsx:119
+#: packages/admin/src/components/users/UserDetail.tsx:120
 msgid "User Details"
 msgstr "使用者詳細資料"
 
@@ -16448,7 +16448,7 @@ msgstr "使用者詳細資料"
 msgid "User for {0}"
 msgstr "{0} 對應的使用者"
 
-#: packages/admin/src/components/users/UserDetail.tsx:315
+#: packages/admin/src/components/users/UserDetail.tsx:306
 msgid "User not found"
 msgstr "找不到使用者"
 
@@ -16462,7 +16462,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:2963
 msgid "Users"
 msgstr "使用者"
@@ -16604,7 +16604,7 @@ msgstr ""
 msgid "View setup"
 msgstr "查看設定"
 
-#: packages/admin/src/components/Header.tsx:73
+#: packages/admin/src/components/Header.tsx:71
 msgid "View Site"
 msgstr "檢視網站"
 
@@ -16982,7 +16982,7 @@ msgid "Yearly"
 msgstr "每年"
 
 #: packages/admin/src/components/ContentList.tsx:1653
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "Yes"
@@ -16996,7 +16996,7 @@ msgstr ""
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:220
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
 msgstr "您可以關閉此頁面並返回終端機。"
 
@@ -17020,7 +17020,7 @@ msgstr "您可以檢視網站並參與內容編輯。"
 msgid "You can view, rename, or add more passkeys later in Security settings."
 msgstr "你可以稍後在安全性設定中查看、重新命名或新增通行密鑰。"
 
-#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserDetail.tsx:179
 msgid "You cannot change your own role"
 msgstr "您無法變更自己的角色"
 
@@ -17207,7 +17207,7 @@ msgstr ""
 msgid "Your role can't edit this entry."
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:376
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "你的角色不允許使用這個裝置要求的任何權限。"
 
