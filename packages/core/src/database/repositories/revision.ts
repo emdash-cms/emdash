@@ -110,7 +110,10 @@ export class RevisionRepository {
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
 		const id = createRevisionId();
-		const data = await this.datetimes.normalizeData(input.collection, input.data);
+		const data =
+			input.kind === "recovery"
+				? input.data
+				: await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Insertable<RevisionTable> = {
 			id,
@@ -237,10 +240,7 @@ export class RevisionRepository {
 		}
 
 		const rows = await query.execute();
-		const data = await this.datetimes.normalizeDataMany(
-			collection,
-			rows.map((row) => JSON.parse(row.data)),
-		);
+		const data = await this.normalizeRows(collection, rows);
 		const editorIds = rows.map((row) => parseEditedBy(row.edited_by));
 		const editors = await this.findAuthors(editorIds.flatMap((ids) => ids ?? []));
 		return rows.map((row, index) => {
@@ -357,10 +357,7 @@ export class RevisionRepository {
 			ORDER BY revisions.id DESC
 			LIMIT ${limit}
 		`.execute(this.db);
-		const data = await this.datetimes.normalizeDataMany(
-			collection,
-			result.rows.map((row) => JSON.parse(row.data)),
-		);
+		const data = await this.normalizeRows(collection, result.rows);
 		return result.rows.map((row, index) => {
 			const normalized = data[index];
 			if (!normalized) throw new Error("Failed to normalize revision data");
@@ -511,10 +508,15 @@ export class RevisionRepository {
 		return pruned;
 	}
 
+	/**
+	 * With `autosaveOnly`, deletes the revision only while it is still an autosave, so one marked
+	 * kept after the caller decided to replace it survives.
+	 */
 	async deleteIfUnreferenced(
 		collection: string,
 		entryId: string,
 		revisionId: string,
+		options: { autosaveOnly?: boolean } = {},
 	): Promise<boolean> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
@@ -523,6 +525,7 @@ export class RevisionRepository {
 			WHERE id = ${revisionId}
 			AND collection = ${collection}
 			AND entry_id = ${entryId}
+			${options.autosaveOnly ? sql`AND kind = 'autosave'` : sql``}
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
 				WHERE content.live_revision_id = revisions.id
@@ -540,11 +543,27 @@ export class RevisionRepository {
 		collection: string;
 		entry_id: string;
 		data: string;
+		kind: string | null;
 		author_id: string | null;
 		created_at: string;
 	}): Promise<Revision> {
-		const data = await this.datetimes.normalizeData(row.collection, JSON.parse(row.data));
-		return this.rowToRevision(row, data);
+		const [data] = await this.normalizeRows(row.collection, [row]);
+		return this.rowToRevision(row, data ?? {});
+	}
+
+	/** Recovery revisions keep their data as sent; restoring one validates it. */
+	private async normalizeRows(
+		collection: string,
+		rows: readonly { data: string; kind: string | null }[],
+	): Promise<Record<string, unknown>[]> {
+		const data: Record<string, unknown>[] = rows.map((row) => JSON.parse(row.data));
+		const kept = rows.flatMap((row, index) => (row.kind === "recovery" ? [] : [index]));
+		const normalized = await this.datetimes.normalizeDataMany(
+			collection,
+			kept.map((index) => data[index]),
+		);
+		for (const [position, index] of kept.entries()) data[index] = normalized[position];
+		return data;
 	}
 
 	private rowToRevision(

@@ -370,6 +370,16 @@ export interface EmDashConfig {
 	mcp?: boolean;
 
 	/**
+	 * Real-time co-editing of entries in collections with revisions.
+	 *
+	 * Needs `@astrojs/node`. Sites on other adapters, and `node:cluster`
+	 * workers, keep single-editor mode. Changing it needs a rebuild.
+	 *
+	 * @default false
+	 */
+	coEditing?: boolean;
+
+	/**
 	 * Plugin marketplace URL
 	 *
 	 * Existing marketplace-installed plugins use this URL for updates.

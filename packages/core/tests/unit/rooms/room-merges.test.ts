@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RoomSaveError } from "../../../src/rooms/room.js";
-import { CLOSE_CODES } from "../../../src/rooms/types.js";
+import { CLOSE_CODES, RoomSaveError } from "../../../src/rooms/types.js";
 import {
 	advance,
 	blocksText,

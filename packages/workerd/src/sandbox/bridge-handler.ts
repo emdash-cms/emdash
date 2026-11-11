@@ -61,7 +61,7 @@ import type {
 	SiteInfo,
 	TaxonomyAccessWithWrite,
 } from "emdash";
-import { createKVAccess } from "emdash/internal/plugins/host";
+import { createKVAccess, withTransaction } from "emdash/internal/plugins/host";
 import type { Kysely } from "kysely";
 
 const CONTENT_CREATE_ERROR_CODES = new Set([
@@ -1788,18 +1788,7 @@ async function contentDelete(
 	id: string,
 ): Promise<boolean> {
 	validateCollectionName(collection);
-	const table = `ec_${collection}`;
-
-	// Soft-delete: set deleted_at timestamp (matching Cloudflare bridge)
-	const now = new Date().toISOString();
-	const result = await asContentDb(db)
-		.updateTable(table)
-		.set({ deleted_at: now, updated_at: now })
-		.where("id", "=", id)
-		.where("deleted_at", "is", null)
-		.executeTakeFirst();
-
-	return BigInt(result.numUpdatedRows) > 0n;
+	return new ContentRepository(db).delete(collection, id);
 }
 
 // ── Batch Content Operations ─────────────────────────────────────────────
@@ -1824,7 +1813,7 @@ async function contentCreateMany(
 	if (items.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		const results = [];
 		for (const data of items) {
 			results.push(await contentCreate(trx, collection, data, locale));
@@ -1850,7 +1839,7 @@ async function contentUpdateMany(
 	if (items.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		const results = [];
 		for (const item of items) {
 			results.push(await contentUpdate(trx, collection, item.id, item.data));
@@ -1867,7 +1856,7 @@ async function contentDeleteMany(
 	if (ids.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${ids.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		let count = 0;
 		for (const id of ids) {
 			const deleted = await contentDelete(trx, collection, id);

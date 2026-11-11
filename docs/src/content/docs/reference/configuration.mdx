@@ -449,6 +449,18 @@ emdash({
 
 See [MCP Server Reference](/reference/mcp-server/) for token creation and client configuration.
 
+### `coEditing`
+
+**Optional.** Runs a co-editing room for each entry in collections with revision support. The default is `false`. Rooms run on Node.js sites that use the `@astrojs/node` adapter, except in `node:cluster` workers. Changing the option needs a rebuild.
+
+The admin editor doesn't join these rooms, so opening an entry still takes an edit lock.
+
+```js
+emdash({
+	coEditing: true,
+});
+```
+
 ### `siteUrl`
 
 The public browser-facing origin for the site (scheme + host + optional port, **no path**). Set it before running production setup, unless the site is deployed to Cloudflare Workers. Only loopback development hosts can otherwise complete setup without a configured origin.

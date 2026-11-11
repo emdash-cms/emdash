@@ -219,6 +219,15 @@ declare module "virtual:emdash/scheduler" {
 	export const createScheduler: CreateSchedulerFn | null;
 }
 
+declare module "virtual:emdash/rooms" {
+	import type { CreateRoomHostFn } from "./emdash-runtime.js";
+	/**
+	 * Factory for the in-process room host on `@astrojs/node` with co-editing
+	 * on; `null` otherwise, which gives every join single-editor mode.
+	 */
+	export const createRoomHost: CreateRoomHostFn | null;
+}
+
 declare module "virtual:emdash/admin-loader" {
 	export function loadPluginAdmins(): Promise<typeof import("virtual:emdash/admin-registry")>;
 }

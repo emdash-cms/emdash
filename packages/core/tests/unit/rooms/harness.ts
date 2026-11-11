@@ -1,9 +1,10 @@
 /**
  * Clients with the shipped editor and `ySyncPlugin`, each on its own Y document, edit one entry
- * through a `Room` over the memory store and fake site, from a fixed seed. Every link delivers in
- * order and the seed only interleaves links. Rooms restart, saves go unrecorded, outside writes
- * and operations land, and at the end every client rejoins and the run checks that replicas
- * converge, checkpoints only grow, no covered word is lost and no word is stored twice.
+ * through a `Room` over the memory store, or over room storage in a database, and the fake site,
+ * from a fixed seed. Every link delivers in order and the seed only interleaves links. Rooms
+ * restart, saves go unrecorded, outside writes and operations land, and at the end every client
+ * rejoins and the run checks that replicas converge, checkpoints only grow, no covered word is
+ * lost and no word is stored twice.
  *
  * Each inserted word is one CJK character, so no deletion can leave part of a word behind or
  * join two parts into another.
@@ -19,12 +20,16 @@ import { Editor, Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { ySyncPlugin, yXmlFragmentToProsemirrorJSON } from "@tiptap/y-tiptap";
+import type { Kysely } from "kysely";
 import { vi } from "vitest";
 import * as Y from "yjs";
 
+import { timestampOffset } from "../../../src/database/repositories/entry-locks.js";
+import type { Database } from "../../../src/database/types.js";
 import { readField, type DocumentField } from "../../../src/rooms/document.js";
 import { hashValue } from "../../../src/rooms/hash.js";
-import { OPERATION_HOLD_MS } from "../../../src/rooms/limits.js";
+import { KyselyRoomStore } from "../../../src/rooms/kysely-store.js";
+import { CLAIM_EXPIRY_MS, OPERATION_HOLD_MS } from "../../../src/rooms/limits.js";
 import {
 	decodeMessage,
 	encodeRoomMessage,
@@ -32,10 +37,12 @@ import {
 	encodeSyncStep2,
 	encodeUpdate,
 } from "../../../src/rooms/protocol.js";
-import { Room, RoomSaveError } from "../../../src/rooms/room.js";
+import { Room } from "../../../src/rooms/room.js";
 import { decodeCheckpoint, snapshotContains } from "../../../src/rooms/snapshot.js";
 import {
 	CLOSE_CODES,
+	RoomSaveError,
+	roomId,
 	type CheckpointInput,
 	type CloseCode,
 	type EntryRef,
@@ -65,6 +72,7 @@ const FIELDS: DocumentField[] = [
 	{ slug: BODY, type: "portableText" },
 ];
 const DOCUMENT_FIELDS: DocumentField[] = [...FIELDS, { slug: "slug", type: "slug" }];
+const ROOM_ID = roomId(ENTRY);
 const FIRST_WORD = 0x4e00;
 const LAST_WORD = 0x9fff;
 
@@ -323,13 +331,19 @@ interface SiteCall {
 
 /**
  * One process running a `Room`. Once dead, its store calls and timers never resolve or fire, its
- * sockets are gone, and the site still commits what it already sent.
+ * sockets are gone, and the site still commits what it already sent. In a takeover run its claim
+ * stays until it expires.
  */
 class RoomInstance {
 	dead = false;
+	/** When it died, on the run's clock. */
+	diedAt = 0;
 	readonly room: Room;
 
-	constructor(run: Run) {
+	constructor(
+		run: Run,
+		readonly host: string,
+	) {
 		this.room = new Room({
 			entry: ENTRY,
 			site: run.siteFor(this),
@@ -342,8 +356,8 @@ class RoomInstance {
 
 const never = <T>() => new Promise<T>(() => {});
 
-/** Records every checkpoint the room stores, and the words each one contains. */
-class HarnessStore extends MemoryRoomStore {
+/** Records every checkpoint room storage holds, and the words each one contains. */
+class HarnessStore {
 	readonly #ledger: Ledger;
 	#lineage: string | null = null;
 	#checkpoint: string | null = null;
@@ -351,8 +365,7 @@ class HarnessStore extends MemoryRoomStore {
 	#shadow: Y.Doc | null = null;
 	writes = 0;
 
-	constructor(ledger: Ledger, now: () => number) {
-		super(now);
+	constructor(ledger: Ledger) {
 		this.#ledger = ledger;
 	}
 
@@ -360,34 +373,47 @@ class HarnessStore extends MemoryRoomStore {
 		return this.#checkpoint === null ? null : decodeCheckpoint(this.#checkpoint);
 	}
 
-	override async append(updates: Uint8Array[]): Promise<void> {
-		await super.append(updates);
-		this.writes++;
-		for (const update of updates) this.#shadowApply(update);
+	/** A process's room storage, recording each write that succeeds. `stored` reads every update back. */
+	track(store: RoomStore, stored: () => Uint8Array[] | Promise<Uint8Array[]>): RoomStore {
+		return {
+			load: () => store.load(),
+			append: async (updates) => {
+				await store.append(updates);
+				this.writes++;
+				for (const update of updates) this.#shadowApply(update);
+			},
+			writeRecord: async (record, update) => {
+				await store.writeRecord(record, update);
+				this.writes++;
+				const fresh = record.lineage === this.#lineage ? null : stored();
+				this.#recorded(record, update, fresh instanceof Promise ? await fresh : fresh);
+			},
+			compact: async (state) => {
+				await store.compact(state);
+				this.writes++;
+				this.#shadowApply(state);
+			},
+			drop: async () => {
+				await store.drop();
+				this.writes++;
+				this.#lineage = null;
+				this.#checkpoint = null;
+				this.#shadow = null;
+			},
+			touch: () => store.touch(),
+			claim: () => store.claim(),
+			renew: () => store.renew(),
+			release: () => store.release(),
+		};
 	}
 
-	override async compact(state: Uint8Array): Promise<void> {
-		await super.compact(state);
-		this.writes++;
-		this.#shadowApply(state);
-	}
-
-	override async drop(): Promise<void> {
-		await super.drop();
-		this.writes++;
-		this.#lineage = null;
-		this.#checkpoint = null;
-		this.#shadow = null;
-	}
-
-	override async writeRecord(record: RoomRecord, update?: Uint8Array): Promise<void> {
-		await super.writeRecord(record, update);
-		this.writes++;
-		if (record.lineage !== this.#lineage) {
+	/** `stored` holds every stored update when the record starts a new lineage. */
+	#recorded(record: RoomRecord, update: Uint8Array | undefined, stored: Uint8Array[] | null): void {
+		if (stored) {
 			this.#lineage = record.lineage;
 			this.#checkpoint = null;
 			this.#shadow = new Y.Doc({ gc: false });
-			for (const stored of this.updates) this.#shadowApply(stored);
+			for (const each of stored) this.#shadowApply(each);
 		} else if (update) {
 			this.#shadowApply(update);
 		}
@@ -789,6 +815,11 @@ class Run {
 	readonly clock = new VirtualClock();
 	readonly site: FakeSite;
 	readonly store: HarnessStore;
+	/** Room storage in memory, or null when rooms store in the database. */
+	readonly #memory: MemoryRoomStore | null;
+	readonly #db: Kysely<Database> | null;
+	readonly #dead: RoomInstance[] = [];
+	#hosts = 0;
 	readonly clients: Client[];
 	readonly calls: SiteCall[] = [];
 	readonly events: string[] = [];
@@ -799,7 +830,7 @@ class Run {
 	#keys = 0;
 	#joins = 0;
 
-	constructor(seed: number) {
+	constructor(seed: number, db: Kysely<Database> | null) {
 		this.rng = mulberry32(seed);
 		const word = () => this.word();
 		this.site = new FakeSite({
@@ -820,8 +851,10 @@ class Run {
 			},
 		});
 		this.site.notify = (outside) => this.instance.room.notify(outside);
-		this.store = new HarnessStore(this.ledger, () => this.clock.now);
-		this.instance = new RoomInstance(this);
+		this.#db = db;
+		this.#memory = db ? null : new MemoryRoomStore(() => this.clock.now);
+		this.store = new HarnessStore(this.ledger);
+		this.instance = this.#newInstance();
 		this.clients = Array.from(
 			{ length: CLIENTS },
 			(_, index) => new Client(index, `user-${index}`),
@@ -870,8 +903,12 @@ class Run {
 		};
 	}
 
+	#newInstance(): RoomInstance {
+		return new RoomInstance(this, `host-${++this.#hosts}`);
+	}
+
 	storeFor(instance: RoomInstance): RoomStore {
-		const store = this.store;
+		const store = this.#storeOf(instance);
 		const guard = <T>(call: () => Promise<T>): Promise<T> => (instance.dead ? never() : call());
 		return {
 			load: () => guard(() => store.load()),
@@ -884,6 +921,50 @@ class Run {
 			renew: () => guard(() => store.renew()),
 			release: () => guard(() => store.release()),
 		};
+	}
+
+	#storeOf(instance: RoomInstance): RoomStore {
+		const memory = this.#memory;
+		if (memory) return this.store.track(memory, () => memory.updates);
+		const db = this.#db!;
+		const tracked = this.store.track(new KyselyRoomStore(db, ROOM_ID, instance.host), () =>
+			storedUpdates(db),
+		);
+		return {
+			...tracked,
+			claim: async () => {
+				await this.#expireClaims(db);
+				return tracked.claim();
+			},
+		};
+	}
+
+	/**
+	 * Expires the claims of processes that died at least a minute ago on the run's clock, as the
+	 * database clock would have by then.
+	 */
+	async #expireClaims(db: Kysely<Database>): Promise<void> {
+		const due = this.#dead
+			.filter((instance) => this.clock.now - instance.diedAt >= CLAIM_EXPIRY_MS)
+			.map((instance) => instance.host);
+		if (due.length === 0) return;
+		await db
+			.updateTable("_emdash_rooms")
+			.set({ claimed_at: timestampOffset(db, -(CLAIM_EXPIRY_MS / 1000 + 1)) })
+			.where("room_id", "=", ROOM_ID)
+			.where("part", "=", 0)
+			.where("host", "in", due)
+			.execute();
+	}
+
+	/** Whether a dead process could still renew its claim, which would let it write again. */
+	async deadCanRenew(): Promise<boolean> {
+		const db = this.#db;
+		if (!db) return false;
+		for (const instance of this.#dead) {
+			if (await new KyselyRoomStore(db, ROOM_ID, instance.host).renew()) return true;
+		}
+		return false;
 	}
 
 	/** Lets the oldest site call through. The site commits even if its caller has died. */
@@ -918,19 +999,25 @@ class Run {
 		await drain();
 	}
 
-	/** The room's process dies: what it didn't store is lost, and its sockets close. */
+	/**
+	 * The room's process dies: what it didn't store is lost, and its sockets close. With room
+	 * storage in the database its claim holds until it expires, so the next process takes the
+	 * room over only then.
+	 */
 	restart(why: string): void {
 		this.log(`restart:${why}`);
 		const old = this.instance;
 		old.dead = true;
-		this.store.claimed = false;
+		old.diedAt = this.clock.now;
+		if (this.#memory) this.#memory.claimed = false;
+		else this.#dead.push(old);
 		this.operation = null;
 		this.ledger.overwriting = 0;
 		for (const client of this.clients) {
 			client.join = null;
 			if (client.link?.instance === old) this.dropLink(client);
 		}
-		this.instance = new RoomInstance(this);
+		this.instance = this.#newInstance();
 	}
 
 	dropLink(client: Client): void {
@@ -1293,10 +1380,43 @@ class Run {
 
 const describe = (word: string) => `U+${word.charCodeAt(0).toString(16).toUpperCase()}`;
 
+/** Every update stored for the room, in order. */
+async function storedUpdates(db: Kysely<Database>): Promise<Uint8Array[]> {
+	const rows = await db
+		.selectFrom("_emdash_room_updates")
+		.select(["seq", "data"])
+		.where("room_id", "=", ROOM_ID)
+		.orderBy("seq")
+		.orderBy("part")
+		.execute();
+	const updates = new Map<number, Uint8Array[]>();
+	for (const row of rows) {
+		const parts = updates.get(Number(row.seq)) ?? [];
+		parts.push(Uint8Array.from(row.data));
+		updates.set(Number(row.seq), parts);
+	}
+	return Array.from(updates.values(), (parts) => Uint8Array.from(Buffer.concat(parts)));
+}
+
+export interface RunOptions {
+	/**
+	 * Stores rooms in this database through `KyselyRoomStore`, one host per process, so a process
+	 * that dies keeps its claim until it expires and the next one takes the room over.
+	 */
+	db?: Kysely<Database>;
+}
+
 /** Runs one seed: its events, then a settle, then the checks. */
-export async function runSeed(seed: number): Promise<RunResult> {
+export async function runSeed(seed: number, options: RunOptions = {}): Promise<RunResult> {
+	const db = options.db ?? null;
+	if (db) {
+		await db.deleteFrom("_emdash_room_updates").execute();
+		await db.deleteFrom("_emdash_rooms").execute();
+	}
 	const restore = installDeterminism(seed);
-	const run = new Run(seed);
+	const run = new Run(seed, db);
+	// The store reads stored times on the process clock, which has to be the run's.
+	const clock = db ? vi.spyOn(Date, "now").mockImplementation(() => run.clock.now) : null;
 	// Nothing in a run makes the site or store fail, so anything the room logs is unexpected.
 	const logged = (...args: unknown[]) => {
 		const message = args.map(String).join(" ");
@@ -1309,6 +1429,7 @@ export async function runSeed(seed: number): Promise<RunResult> {
 		await run.settle();
 		for (let step = 0; step < STEPS; step++) await run.step();
 		run.check(await run.settle());
+		if (await run.deadCanRenew()) run.ledger.fail("a dead process can still renew its claim");
 	} catch (error) {
 		run.ledger.fail(`the run threw: ${error instanceof Error ? error.stack : String(error)}`);
 	} finally {
@@ -1316,6 +1437,7 @@ export async function runSeed(seed: number): Promise<RunResult> {
 		activeLedger = null;
 		silence.mockRestore();
 		warn.mockRestore();
+		clock?.mockRestore();
 		restore();
 	}
 	return { seed, failures: run.ledger.failures, events: run.events };

@@ -113,6 +113,11 @@ export function validateEditorDraftRequest(input: {
 	patchSelector?: PluginEditorDraftFieldSelector;
 	canRead: boolean;
 	canPatch: boolean;
+	/**
+	 * Room saves change the entry's revision every few seconds, so while its room is open the
+	 * request's base revision is taken as sent, and echoed back.
+	 */
+	roomOpen?: boolean;
 }): ValidatedEditorDraftRequest | EditorDraftValidationError {
 	if (!isBrowserDraftRequest(input.request)) {
 		return fail("EDITOR_DRAFT_INVALID", "Invalid editor draft snapshot");
@@ -125,9 +130,10 @@ export function validateEditorDraftRequest(input: {
 	) {
 		return fail("EDITOR_DRAFT_STALE", "Editor draft identity is stale");
 	}
-	if (request.baseRevision !== input.entry.revision) {
+	if (!input.roomOpen && request.baseRevision !== input.entry.revision) {
 		return fail("EDITOR_DRAFT_STALE", "Editor draft base revision is stale");
 	}
+	const baseRevision = input.roomOpen ? request.baseRevision : input.entry.revision;
 	if (
 		!Number.isSafeInteger(request.generation) ||
 		request.generation < 0 ||
@@ -199,7 +205,7 @@ export function validateEditorDraftRequest(input: {
 			collection: input.collection.slug,
 			entryId: input.entry.id,
 			locale: input.entry.locale,
-			baseRevision: input.entry.revision,
+			baseRevision,
 			invocationId: request.invocationId,
 			fields,
 			fieldDefinitions,
@@ -207,7 +213,7 @@ export function validateEditorDraftRequest(input: {
 		receipt: {
 			entryId: input.entry.id,
 			locale: input.entry.locale,
-			baseRevision: input.entry.revision,
+			baseRevision,
 			generation: request.generation,
 			invocationId: request.invocationId,
 			fieldDefinitions: patchFieldDefinitions,

@@ -823,6 +823,8 @@ export interface Database {
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 	_emdash_entry_locks: EntryLockTable;
+	_emdash_rooms: RoomTable;
+	_emdash_room_updates: RoomUpdateTable;
 	_emdash_transfer_operations: TransferOperationTable;
 	_emdash_transfer_identity_map: TransferIdentityMapTable;
 	_emdash_transfer_staged_files: TransferStagedFileTable;
@@ -1050,4 +1052,22 @@ export interface EntryLockTable {
 	token: string; // identifies the holder's editing session, one per tab
 	acquired_at: string; // ISO 8601 with milliseconds
 	expires_at: string; // ISO 8601 with milliseconds
+}
+
+// Co-editing room storage on Node.js
+
+export interface RoomTable {
+	room_id: string; // {collection}:{entry ID}
+	part: number;
+	record: string | null; // JSON, split by characters across parts; null on part 0 until the room initializes
+	host: string | null; // part 0: the claiming process's random ID
+	claimed_at: string | null; // part 0: ISO 8601 with milliseconds
+	updated_at: string; // part 0: the last write or closed connection, ISO 8601 with milliseconds
+}
+
+export interface RoomUpdateTable {
+	room_id: string;
+	seq: number;
+	part: number;
+	data: Uint8Array;
 }

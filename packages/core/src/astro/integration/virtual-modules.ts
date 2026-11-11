@@ -76,6 +76,9 @@ export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
 export const VIRTUAL_BUILD_ID = "virtual:emdash/build";
 export const RESOLVED_VIRTUAL_BUILD_ID = "\0" + VIRTUAL_BUILD_ID;
 
+export const VIRTUAL_ROOMS_ID = "virtual:emdash/rooms";
+export const RESOLVED_VIRTUAL_ROOMS_ID = "\0" + VIRTUAL_ROOMS_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -563,6 +566,19 @@ export function createScheduler(executor) {
 	return new NodeCronScheduler(executor);
 }
 `;
+}
+
+/**
+ * Generates the rooms virtual module: the in-process room host on
+ * `@astrojs/node` with co-editing on, and `null` otherwise, which gives every
+ * join single-editor mode. Only this module imports the Node.js host, so its
+ * code never reaches a Workers bundle.
+ */
+export function generateRoomsModule(adapterName: string | undefined, coEditing: boolean): string {
+	if (coEditing && adapterName === "@astrojs/node") {
+		return `export { createRoomHost } from "emdash/internal/co-editing/node";\n`;
+	}
+	return `export const createRoomHost = null;\n`;
 }
 
 /**

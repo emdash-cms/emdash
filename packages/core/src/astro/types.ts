@@ -396,7 +396,11 @@ export interface EmDashHandlers {
 		}
 	>;
 
-	handleContentDelete: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentDelete: (
+		collection: string,
+		id: string,
+		options?: { actor?: ActorInfo },
+	) => Promise<HandlerResponse>;
 
 	// Trash handlers
 	handleContentListTrashed: (
@@ -452,7 +456,7 @@ export interface EmDashHandlers {
 	handleContentUnschedule: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo },
 	) => Promise<HandlerResponse>;
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
@@ -460,7 +464,7 @@ export interface EmDashHandlers {
 	handleContentDiscardDraft: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo },
 	) => Promise<HandlerResponse>;
 
 	handleContentCompare: (collection: string, id: string) => Promise<HandlerResponse>;
@@ -556,7 +560,15 @@ export interface EmDashHandlers {
 		}>
 	>;
 
-	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
+	/**
+	 * A recovery revision restores as a save by the caller, with `role` or else their current
+	 * role.
+	 */
+	handleRevisionRestore: (
+		revisionId: string,
+		callerUserId: string,
+		role?: import("@emdash-cms/auth").RoleLevel,
+	) => Promise<HandlerResponse>;
 
 	// Plugin API route handler. `user` is the authenticated caller for
 	// private routes, exposed to plugin handlers as `ctx.user`.
@@ -675,6 +687,10 @@ export interface EmDashHandlers {
 	// routes; logged-out requests don't need it. Per-request, deduplicated
 	// by `requestCached`.
 	getManifest: () => Promise<EmDashManifest>;
+
+	// Co-editing rooms. Null where co-editing is off or the host can't run
+	// rooms, which gives every join single-editor mode.
+	rooms: import("../rooms/types.js").RuntimeRoomHost | null;
 
 	// Clear the cached URL patterns used by `resolveEmDashPath`. Call after
 	// any schema mutation that creates/updates/deletes a collection's
