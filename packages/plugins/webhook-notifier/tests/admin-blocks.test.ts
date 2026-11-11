@@ -59,6 +59,29 @@ describe("webhook-notifier admin responses", () => {
 		expect(validateBlockResponse(response, policy)).toEqual({ valid: true, errors: [] });
 	});
 
+	it.each([
+		["enabled", true, 7, 2],
+		["enabled by default", undefined, 0, 0],
+	])(
+		"returns valid delivery counts when webhooks are %s",
+		async (_name, enabled, successful, failed) => {
+			const ctx = createCtx({
+				"settings:webhookUrl": "https://hooks.example.com/emdash",
+				"settings:enabled": enabled,
+			});
+			ctx.storage.deliveries.count.mockResolvedValueOnce(successful).mockResolvedValueOnce(failed);
+			const response = await admin({ type: "page_load", page: "widget:status" }, ctx);
+			expect(validateBlockResponse(response, policy)).toEqual({ valid: true, errors: [] });
+			expect(response.blocks).toContainEqual({
+				type: "stats",
+				items: [
+					{ label: "Delivered", value: String(successful) },
+					{ label: "Failed", value: String(failed) },
+				],
+			});
+		},
+	);
+
 	it("returns valid Block Kit after sending a test webhook", async () => {
 		const ctx = createCtx({ "settings:webhookUrl": "https://hooks.example.com/emdash" });
 		const response = await admin({ type: "block_action", action_id: "test_webhook" }, ctx);
