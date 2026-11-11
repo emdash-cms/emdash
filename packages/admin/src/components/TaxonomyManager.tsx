@@ -687,7 +687,7 @@ function TermFormDialog({
 			return;
 		}
 		if (term) {
-			submitUpdate({ slug, label, parentId: parentId || undefined, description });
+			submitUpdate({ slug, label, parentId: parentId || null, description });
 		} else {
 			submitCreate({
 				slug,
