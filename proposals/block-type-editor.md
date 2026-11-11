@@ -48,7 +48,7 @@ For example, the Hero block type is on version 2. An admin removes its Subheadin
 > - Subheading: removed
 > - Button link: now required
 
-**Create version 3** saves it. **Cancel** goes back to the form with the changes kept.
+**Create version 3** saves it. **Cancel** goes back to the form with the changes kept. After saving, the page names the version the server actually returned, which can differ from the dialog's number, and points to its **Activate** button.
 
 ### Versions
 
