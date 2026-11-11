@@ -85,8 +85,8 @@ describe("UserList layout", () => {
 
 		const avatars = [
 			photo,
-			screen.getByText("A", { exact: true }).element(),
-			screen.getByText("J", { exact: true }).element(),
+			userCell("Ada Lovelace").querySelector("svg")!,
+			userCell("Jonas Weber").querySelector("svg")!,
 		];
 		for (const avatar of avatars) {
 			const { width, height } = avatar.getBoundingClientRect();

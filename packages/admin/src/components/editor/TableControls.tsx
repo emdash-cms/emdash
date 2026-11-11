@@ -4,7 +4,6 @@ import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import * as Icons from "@phosphor-icons/react";
 import type { Editor, Range } from "@tiptap/core";
-import { closeHistory } from "@tiptap/pm/history";
 import { NodeSelection, type SelectionBookmark, type Transaction } from "@tiptap/pm/state";
 import { CellSelection, cellAround } from "@tiptap/pm/tables";
 import { useEditorState } from "@tiptap/react";
@@ -12,6 +11,7 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils.js";
 import { prepareBlockInsert } from "./blockTypes.js";
+import { closeHistoryGroup } from "./history.js";
 import { getTableControlState, runTableAction, type TableActionId } from "./TableActions.js";
 import { selectionIsContainedInTableCells } from "./TableExtensions.js";
 
@@ -45,8 +45,8 @@ export function insertTable(
 	const chain = editor
 		.chain()
 		.focus()
-		.command(({ tr }) => {
-			closeHistory(tr);
+		.command(({ state, tr }) => {
+			closeHistoryGroup(state, tr);
 			return true;
 		});
 	if (range) chain.deleteRange(range);

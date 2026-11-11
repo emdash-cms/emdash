@@ -14,6 +14,7 @@ import {
 	revisionAuthorColor,
 	revisionAuthorColors,
 	revisionDate,
+	revisionNamed,
 	useRevisionFormat,
 	type AuthorColor,
 } from "./revision-format.js";
@@ -224,7 +225,7 @@ function VersionRow({
 	const format = useRevisionFormat();
 	const date = revisionDate(item.createdAt);
 	const when = format.when(date);
-	const author = format.author(item.author);
+	const author = format.people(revisionNamed(item));
 	const isCurrent = view?.currentRevisionId === item.id;
 	const isPublished = view?.liveRevisionId === item.id;
 	const isSelected = view?.viewingId === item.id;
@@ -259,7 +260,10 @@ function VersionRow({
 			</span>
 			<span aria-hidden="true" className="grid min-w-0">
 				<span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-					<time dateTime={date.toISOString()} className="text-base font-medium tabular-nums">
+					<time
+						dateTime={Number.isNaN(date.getTime()) ? undefined : date.toISOString()}
+						className="text-base font-medium tabular-nums"
+					>
 						<bdi>{format.time(date)}</bdi>
 					</time>
 					{isCurrent && <Badge variant="secondary">{t`Current version`}</Badge>}

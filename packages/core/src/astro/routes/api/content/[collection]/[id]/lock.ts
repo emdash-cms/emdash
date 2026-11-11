@@ -2,7 +2,8 @@
  * Entry edit lock
  *
  * GET    /_emdash/api/content/{collection}/{id}/lock - Read the current holder
- * POST   /_emdash/api/content/{collection}/{id}/lock - Take or refresh the lock
+ * POST   /_emdash/api/content/{collection}/{id}/lock - Take or refresh the lock, or, while a
+ *        co-editing room is open, delete every lock on the entry
  * DELETE /_emdash/api/content/{collection}/{id}/lock - Release the caller's lock
  */
 
@@ -81,7 +82,9 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 	if (resolved instanceof Response) return resolved;
 
 	return unwrapResult(
-		await handleEntryLockRead(locals.emdash.db, collection, resolved.resolvedId, resolved.userId),
+		await handleEntryLockRead(locals.emdash.db, collection, resolved.resolvedId, resolved.userId, {
+			rooms: locals.emdash.rooms,
+		}),
 	);
 };
 
@@ -105,7 +108,7 @@ export const POST: APIRoute = async ({ params, request, locals, url }) => {
 			collection,
 			resolved.resolvedId,
 			resolved.userId,
-			{ takeover: body?.takeover, token: body?.token },
+			{ takeover: body?.takeover, token: body?.token, rooms: locals.emdash.rooms },
 		),
 	);
 };

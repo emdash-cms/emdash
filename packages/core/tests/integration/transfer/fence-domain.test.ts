@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
+import { MediaUsageCollectionDeletionRepository } from "../../../src/media/usage/collection-deletion.js";
 import { createContentAccessWithWrite } from "../../../src/plugins/context.js";
 import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import { defaultSeed } from "../../../src/seed/default.js";
 import { getSiteSettingsWithDb, setSiteSettings } from "../../../src/settings/index.js";
+import { inspectTargetDomain } from "../../../src/transfer/analyze/target.js";
 import { inspectPortableDomain } from "../../../src/transfer/domain.js";
 import {
 	assertSiteWriteAllowed,
@@ -299,6 +301,43 @@ describeEachDialect("transfer fence, domain, and site id", (dialect) => {
 			expect(
 				defs.flatMap((item) => (item.type === "taxonomy_def" ? [item.name] : [])).toSorted(),
 			).toEqual(["category", "tag"]);
+		});
+
+		it("blocks analysis for a failed collection deletion, even without a registry row", async () => {
+			const state = "failed";
+			await seedDefault();
+			await new MediaUsageCollectionDeletionRepository(ctx.db).createTombstone({
+				collectionId: "deleted-collection",
+				collectionSlug: "old_posts",
+				forceDelete: false,
+			});
+			await ctx.db
+				.updateTable("_emdash_media_usage_collection_deletions")
+				.set({ state, phase: "sources" })
+				.where("collection_id", "=", "deleted-collection")
+				.execute();
+
+			const result = await inspectPortableDomain(ctx.db);
+			expect(result.empty).toBe(false);
+			expect(result.blockers).toContainEqual({
+				code: "collection_deletion_unfinished",
+				id: "deleted-collection",
+				slug: "old_posts",
+				state,
+				phase: "sources",
+			});
+			const target = await inspectTargetDomain(ctx.db, ["posts"]);
+			expect(target.blockers).toContainEqual(
+				expect.objectContaining({
+					code: "target_not_empty",
+					detail: {
+						reason: "collection_deletion_unfinished",
+						collection: "old_posts",
+						state,
+						phase: "sources",
+					},
+				}),
+			);
 		});
 
 		it("treats theme sections, menus, widgets, and unassigned terms as scaffold", async () => {

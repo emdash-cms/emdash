@@ -7,6 +7,8 @@ import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { getLocaleCandidates } from "../../i18n/config.js";
 import { canonicalLocaleColumn, localeMatches, localeOrder } from "../../i18n/query.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { notifyRoom } from "../../rooms/notifications.js";
+import type { OutsideValue } from "../../rooms/types.js";
 import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
@@ -49,6 +51,10 @@ const MAX_INDEXED_FIELD_FILTERS = 20;
 const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
 const MAX_FILTER_STRING_LENGTH = 2048;
 
+function readyToPublishCondition(now: string): RawBuilder<unknown> {
+	return sql`scheduled_at IS NOT NULL AND scheduled_at <= ${now} AND deleted_at IS NULL`;
+}
+
 type NormalizedFilterScalar = string | number;
 export type ContentRevisionPrecondition = Pick<ContentItem, "version" | "updatedAt">;
 
@@ -70,6 +76,14 @@ type ResolvedFieldFilter =
 			kind: "range";
 			bounds: Partial<Record<"gt" | "gte" | "lt" | "lte", NormalizedFilterScalar>>;
 	  };
+
+/** The values outside a room's document that an update writes. */
+function outsideValuesWritten(input: UpdateContentInput): OutsideValue[] {
+	const outside: OutsideValue[] = [];
+	if (input.authorId !== undefined) outside.push("author");
+	if (input.publishedAt !== undefined) outside.push("publishedAt");
+	return outside;
+}
 
 function nullableColumnMatch(column: string, value: string | null): ReturnType<typeof sql> {
 	validateIdentifier(column, "content column");
@@ -300,6 +314,39 @@ const SYSTEM_COLUMNS = new Set([
 function getTableName(type: string): string {
 	validateIdentifier(type, "collection type");
 	return `ec_${type}`;
+}
+
+/**
+ * Which of `types` have at least one entry `findReadyToPublish` would return
+ * at `currentTime`, ignoring its cursor and limit.
+ *
+ * One statement per `SQL_BATCH_SIZE` collections, one column each: every column
+ * binds `now` once, and D1 caps both bound parameters and result columns at 100.
+ */
+export async function findTypesWithDueContent(
+	db: Kysely<Database>,
+	types: string[],
+	currentTime: Date,
+): Promise<Set<string>> {
+	const now = currentTime.toISOString();
+	const due = new Set<string>();
+
+	for (const chunk of chunks(types, SQL_BATCH_SIZE)) {
+		const columns = chunk.map(
+			(type, index) => sql`CASE WHEN EXISTS (
+				SELECT 1 FROM ${sql.ref(getTableName(type))}
+				WHERE ${readyToPublishCondition(now)}
+			) THEN 1 ELSE 0 END AS ${sql.ref(`due_${index}`)}`,
+		);
+		const result = await sql<Record<string, unknown>>`SELECT ${sql.join(columns)}`.execute(db);
+		const row = result.rows[0];
+		if (!row) throw new Error("Due-content check returned no row");
+		for (const [index, type] of chunk.entries()) {
+			if (Number(row[`due_${index}`]) === 1) due.add(type);
+		}
+	}
+
+	return due;
 }
 
 function assertPageOffset(offset: number | undefined, cursor: string | undefined): void {
@@ -1148,6 +1195,9 @@ export class ContentRepository {
 		}
 
 		if (hasColumnWrites) invalidateCollectionCache(type);
+		if (result.numUpdatedRows > 0n) {
+			notifyRoom({ collection: type, id }, outsideValuesWritten(input));
+		}
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -1258,6 +1308,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
+		notifyRoom({ collection: type, id });
 		const item = await this.findById(type, id);
 		if (!item) throw new Error("Content not found");
 
@@ -1331,6 +1382,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
+		notifyRoom({ collection: type, id });
 		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return revisionId;
 	}
@@ -1554,6 +1606,7 @@ export class ContentRepository {
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
 		if (changed && liveMetadataChanged) invalidateCollectionCache(type);
+		if (changed) notifyRoom({ collection: type, id }, outsideValuesWritten(input));
 		return changed;
 	}
 
@@ -1707,7 +1760,10 @@ export class ContentRepository {
 				throw error;
 			}
 
-			if (synced) return true;
+			if (synced) {
+				notifyRoom({ collection: type, id: current.id });
+				return true;
+			}
 			await cleanUp();
 			sibling = await this.findByIdIncludingTrashed(type, current.id);
 		}
@@ -1733,6 +1789,7 @@ export class ContentRepository {
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
 		if (changed) {
 			invalidateCollectionCache(type);
+			notifyRoom({ collection: type, id });
 		}
 		return changed;
 	}
@@ -1774,6 +1831,7 @@ export class ContentRepository {
 		if (!restored) throw new ContentMutationConflictError("Content changed while restoring");
 
 		invalidateCollectionCache(type);
+		notifyRoom({ collection: type, id: existing.id });
 		return this.mapRow(type, restored);
 	}
 
@@ -1800,7 +1858,10 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
-		if (changed) invalidateCollectionCache(type);
+		if (changed) {
+			invalidateCollectionCache(type);
+			notifyRoom({ collection: type, id });
+		}
 		return changed;
 	}
 
@@ -2245,6 +2306,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
+		notifyRoom({ collection: type, id });
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -2296,6 +2358,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
+		if ((result.numAffectedRows ?? 0n) > 0n) notifyRoom({ collection: type, id });
 
 		const updated = await this.findById(type, id);
 		if (!updated) {
@@ -2338,9 +2401,7 @@ export class ContentRepository {
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
-			WHERE scheduled_at IS NOT NULL
-			AND scheduled_at <= ${now}
-			AND deleted_at IS NULL
+			WHERE ${readyToPublishCondition(now)}
 			${afterClause}
 			ORDER BY scheduled_at ASC, id ASC
 			${limitClause}
@@ -2667,6 +2728,7 @@ export class ContentRepository {
 				}
 
 				invalidateCollectionCache(type);
+				notifyRoom({ collection: type, id }, ["publishedAt"]);
 				const updated = await this.findById(type, id);
 				if (!updated) throw new Error("Content not found");
 				return updated;
@@ -2807,6 +2869,7 @@ export class ContentRepository {
 			}
 
 			invalidateCollectionCache(type);
+			notifyRoom({ collection: type, id }, ["publishedAt"]);
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");
@@ -2892,6 +2955,7 @@ export class ContentRepository {
 			if ((result.numAffectedRows ?? 0n) === 0n) throw new ContentMutationConflictError();
 
 			invalidateCollectionCache(type);
+			notifyRoom({ collection: type, id });
 			const updated = await this.findById(type, id);
 			if (!updated) throw new Error("Content not found");
 			return updated;
@@ -2948,8 +3012,22 @@ export class ContentRepository {
 		revisionId: string,
 		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
 	): Promise<boolean> {
+		return (await this.stageDraftRevision(type, id, revisionId, expected)) !== null;
+	}
+
+	/**
+	 * `replaceDraftRevision`, returning the `version` and `updatedAt` the entry has after the
+	 * update, or null when the entry no longer matches `expected`. Scheduling moves `updatedAt`
+	 * without bumping `version`, so the entry's `_rev` can't be derived from `expected`.
+	 */
+	async stageDraftRevision(
+		type: string,
+		id: string,
+		revisionId: string,
+		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
+	): Promise<Pick<ContentItem, "version" | "updatedAt"> | null> {
 		const tableName = getTableName(type);
-		const result = await sql`
+		const result = await sql<{ version: number; updated_at: string }>`
 			UPDATE ${sql.ref(tableName)}
 			SET draft_revision_id = ${revisionId},
 				version = version + 1
@@ -2964,8 +3042,39 @@ export class ContentRepository {
 				AND revisions.collection = ${type}
 				AND revisions.entry_id = ${id}
 			)
+			RETURNING version, updated_at
 		`.execute(this.db);
-		return (result.numAffectedRows ?? 0n) > 0n;
+		const row = result.rows[0];
+		if (!row) return null;
+		notifyRoom({ collection: type, id });
+		return { version: row.version, updatedAt: row.updated_at };
+	}
+
+	/**
+	 * Marks the entry's draft revision kept if it is an autosave and the entry still has
+	 * `expected`'s `version` and `updatedAt`, in one statement. Changes neither. Resolves to
+	 * whether a revision was marked.
+	 */
+	async markDraftRevisionKept(
+		type: string,
+		id: string,
+		expected: Pick<ContentItem, "version" | "updatedAt">,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const result = await sql<{ id: string }>`
+			UPDATE revisions
+			SET kind = NULL
+			WHERE kind = 'autosave'
+			AND id = (
+				SELECT draft_revision_id FROM ${sql.ref(tableName)}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${expected.version}
+				AND updated_at = ${expected.updatedAt}
+			)
+			RETURNING id
+		`.execute(this.db);
+		return result.rows.length > 0;
 	}
 
 	/**
@@ -3009,6 +3118,7 @@ export class ContentRepository {
 			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
 		if ((result.numAffectedRows ?? 0n) === 0n) throw new ContentMutationConflictError();
+		notifyRoom({ collection: type, id });
 
 		const updated = await this.findById(type, id);
 		if (!updated) {

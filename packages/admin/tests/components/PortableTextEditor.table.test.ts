@@ -55,7 +55,8 @@ describe("Table conversion: PortableText ↔ ProseMirror", () => {
 			const result = _portableTextToProsemirror(ptBlocks);
 
 			expect(result.type).toBe("doc");
-			expect(result.content).toHaveLength(1);
+			expect(result.content).toHaveLength(2);
+			expect(result.content[1]).toEqual({ type: "paragraph" });
 
 			const table = result.content[0];
 			expect(table.type).toBe("table");
