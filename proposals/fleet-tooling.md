@@ -225,7 +225,7 @@ Sends an update request to each selected `repo` site through #4577's `POST /_emd
 Creates a new site from its entry. Each step is idempotent: before it creates something, it looks for a resource under the name derived from the site key, and it records the result under `state.steps` before it moves on. The full list of steps for both layouts is in [Appendix C](#appendix-c-provision-steps). In short:
 
 - **Shared layout:** quota check, D1 database, R2 bucket, KV namespace for sessions, a generated Wrangler config with the bindings and a Cron Trigger, core migrations, a first deploy without a public URL, the site secrets, the custom domain, a health check and the setup link. Optionally, the template's seed and title through the setup API, and a site package import once an Admin exists.
-- **Repo layout:** the same Cloudflare resources, plus a new GitHub repository from a template, with the Wrangler config, the update trigger and #4577's workflow committed to it. The tool makes the first deploy from a checkout, then hands deploys to the repository's pipeline and prints which secrets the operator must set for it.
+- **Repo layout:** the same Cloudflare resources, plus a new GitHub repository from a template, with the Wrangler config, the update trigger and #4577's workflow committed to it. The tool builds a checkout of it with the package manager and `build` script the template declares, and makes the first deploy from there. Then it hands deploys to the repository's pipeline and prints which secrets the operator must set for it.
 
 The Worker isn't reachable until its secrets are set: the generated config sets `workers_dev` and `preview_urls` to `false`, and the custom domain is attached only after `EMDASH_SETUP_TOKEN` exists. The setup link uses the site's final URL, because EmDash stores the site URL once during setup and passkeys are bound to that origin.
 
@@ -235,7 +235,7 @@ The config step writes no config without the recorded database and namespace IDs
 
 #### `fleet reconcile`
 
-Compares each selected site's recorded state with what exists. It completes provisioning steps that are missing or `waiting`, reports a Worker, database, bucket or repository that exists but isn't recorded (or the other way round), and reports a site whose Cron Trigger or custom domain is missing. With `--abandon`, it deletes the resources of a provisioning that never reached the setup step, after a confirmation. The tool can't see a site's setup state without an EmDash token, so its own **setup-link** step stands in for it: once the link has been printed, `--abandon` refuses. It never deletes a database whose setup may be complete, and never deletes a repository.
+Compares each selected site's recorded state with what exists. It completes provisioning steps that are missing or `waiting`, reports a Worker, database, bucket or repository that exists but isn't recorded (or the other way round), and reports a site whose Cron Trigger or custom domain is missing. A site marked `removed` is brought back only when it's named with `--site`: `reconcile` attaches its custom domain and sets its Cron Trigger again, then marks it `active`. Selected through `--group` or `--all`, a removed site is only listed. A target fingerprint that differs from the recorded one is reported, and recorded only with `--accept-fingerprint`. With `--abandon`, it deletes the resources of a provisioning that never reached the setup step, after a confirmation. The tool can't see a site's setup state without an EmDash token, so its own **setup-link** step stands in for it: once the link has been printed, `--abandon` refuses. It never deletes a database whose setup may be complete, and never deletes a repository.
 
 #### `fleet remove <key>`
 
@@ -246,7 +246,7 @@ Takes a site out of service without deleting its data. Before it changes anythin
 3. Removes the Cron Trigger, so it stops counting against the account limit.
 4. Marks the entry `removed`.
 
-The database, the bucket, the Worker script and, for a `repo` site, the repository stay. Deleting them is left to the operator. A removed site can be brought back with `reconcile`. For a `repo` site, the repository's pipeline would put the Cron Trigger back on its next deploy, so `remove` tells the operator to disable that pipeline.
+The database, the bucket, the Worker script and, for a `repo` site, the repository stay. Deleting them is left to the operator. A removed site can be brought back with `reconcile --site <key>`. For a `repo` site, the repository's pipeline would put the Cron Trigger back on its next deploy, so `remove` tells the operator to disable that pipeline.
 
 ### Provider interface
 
@@ -318,7 +318,7 @@ Account limits matter more than speed. The Cloudflare API has no account-wide co
 - **No interactive terminal for the setup link:** the **setup-link** step stays `waiting` and the site stays `provisioning`. A later run on a terminal, or with `--print-setup-link`, issues a new token and prints its link.
 - **The quota is reached:** `provision` stops before creating anything and names the limit. Options are a second account or a higher limit from Cloudflare.
 - **A migration fails or the lock is held:** the wave stops, the site keeps its old Worker, and the output names the error from `emdash migrate`. The documented migration lock rules and the `--release-lock` and `--take-over-lock` options apply.
-- **The target fingerprint changed:** the site stops before anything runs. The operator checks the database and records the new fingerprint with `adopt` or `reconcile`.
+- **The target fingerprint changed:** the site stops before anything runs. The operator checks the database and records the new fingerprint with `reconcile --site <key> --accept-fingerprint`.
 - **A site doesn't report the new version in time:** it counts as failed, and no further wave starts. For a `repo` site this is often a pull request waiting for review.
 - **A site is unreachable:** `status` reports it and moves on. `deploy` and `update` count it as failed.
 - **An update request is rejected:** #4577's error code (`UPDATE_NOT_AVAILABLE`, `UPDATE_ALREADY_REQUESTED`, `UPDATE_TRIGGER_NOT_READY` and the others) is printed for that site.
@@ -331,7 +331,7 @@ Account limits matter more than speed. The Cloudflare API has no account-wide co
 
 - Unit tests for the file format: validation errors with their path, `defaults`, comment-preserving writes, and the refusal to write after a concurrent change.
 - Command tests against a local fleet of three sites with the local providers: `status` with and without tokens, `deploy` in waves with one injected failing migration, a fingerprint mismatch, and `update` against a stub of #4577's request route with one site that never reports the new version.
-- Provisioning tests for both layouts that fail at each step and then run `provision` again, and `reconcile` finishing a half-done site.
+- Provisioning tests for both layouts that fail at each step and then run `provision` again, and `reconcile` finishing a half-done site, bringing back a removed site only when it's named with `--site`, and recording a changed fingerprint only with `--accept-fingerprint`.
 - Provider tests at the HTTP boundary for Cloudflare and GitHub: request shapes, the quota check, idempotent creation when the resource exists, waiting on a low `Ratelimit` quota, a clean stop on a 429, and token redaction in errors. `--dry-run` prints every API call.
 - Setup secret tests on a real SQLite database for each path in the table: refused without the token, succeeds with it, and no change when the secret isn't set. The cookie's `SameSite` and `Secure` attributes behind a proxy. Admin tests for the message, including Arabic.
 - The query-count snapshot shows no change.
@@ -447,6 +447,7 @@ interface FleetProvider {
 	setSecrets(site: SiteEntry, secrets: Record<string, string>): Promise<void>;
 	attachDomain(site: SiteEntry): Promise<void>;
 	detachDomain(site: SiteEntry): Promise<void>;
+	setSchedule(site: SiteEntry): Promise<void>;
 	removeSchedule(site: SiteEntry): Promise<void>;
 	inspect(site: SiteEntry): Promise<ResourceReport>;
 	deleteResources(site: SiteEntry, which: ResourceKind[]): Promise<void>;
@@ -581,16 +582,17 @@ Each step records `done`, `failed` or `waiting` under `state.steps.<name>` befor
 1. **quota**, **database**, **bucket** and **kv** as above.
 2. **repository:** creates `github.repository` from `github.template` (by default the template the operator names with `--template`). An existing repository is used only if it's empty or holds the tool's own first commit.
 3. **files:** commits `wrangler.jsonc` (the bindings, Cron Trigger and public-URL settings of step **config** above, without the custom domain), the `updateCheck.trigger` for this repository in the EmDash configuration, and #4577's `.github/workflows/emdash-update.yml`.
-4. **migrate:** as above, from a checkout of the new repository.
-5. **deploy:** the first deploy from the checkout. It has no public URL at this point.
-6. **encryption-key** and **setup-token:** as above.
-7. **domain:** adds the custom domain to `wrangler.jsonc`, commits it and attaches it.
-8. **health**, **seed** and **setup-link** as above.
-9. **handover:** prints the secrets the operator must create, and where:
-   - a Cloudflare token for the repository's deploy pipeline, scoped to this site's Worker (plus D1: Editor if the pipeline runs migrations), as a repository secret;
-   - `EMDASH_UPDATE_TOKEN`, #4577's GitHub token with Actions: write on this repository, as a Worker secret.
+4. **build:** checks out the new repository, installs its dependencies with the package manager its `package.json` names in `packageManager` (or, without that field, the one its lockfile belongs to) and runs its `build` script. The step fails when it finds neither. Both commands run without the Cloudflare and GitHub tokens in their environment, so the template's dependencies never see them. This is the one place the tool builds: a fresh checkout has no build, and the template declares how to make one.
+5. **migrate:** as above, from the checkout's build.
+6. **deploy:** the first deploy of that build. It has no public URL at this point.
+7. **encryption-key** and **setup-token:** as above.
+8. **domain:** adds the custom domain to `wrangler.jsonc`, commits it and attaches it.
+9. **health**, **seed** and **setup-link** as above.
+10. **handover:** prints the secrets the operator must create, and where:
+    - a Cloudflare token for the repository's deploy pipeline, scoped to this site's Worker (plus D1: Editor if the pipeline runs migrations), as a repository secret;
+    - `EMDASH_UPDATE_TOKEN`, #4577's GitHub token with Actions: write on this repository, as a Worker secret.
 
-   Until both exist, `fleet status` shows the site's update trigger as not ready.
+    Until both exist, `fleet status` shows the site's update trigger as not ready.
 
 ## Appendix D: Limits and permissions
 
