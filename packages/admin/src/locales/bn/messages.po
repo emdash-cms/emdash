@@ -746,7 +746,7 @@ msgstr ""
 msgid "{label} actions"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:261
+#: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{label} in {menuName}"
 msgstr "{menuName}-এ {label}"
 
@@ -1076,7 +1076,7 @@ msgstr ""
 msgid "{when}, Published, {author}"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:268
+#: packages/admin/src/components/settings/transfer/labels.ts:275
 msgid "{widgetType} in {areaName}"
 msgstr "{areaName}-এ {widgetType}"
 
@@ -1250,19 +1250,19 @@ msgstr "90 দিন"
 msgid "A brief description of this content type"
 msgstr "এই কনটেন্ট টাইপের একটি সংক্ষিপ্ত বিবরণ"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:184
+#: packages/admin/src/components/settings/transfer/labels.ts:191
 msgid "A file does not match the package manifest. The package may be damaged."
 msgstr "একটি ফাইল প্যাকেজ ম্যানিফেস্টের সাথে মেলে না। প্যাকেজটি ক্ষতিগ্রস্ত হতে পারে।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:214
+#: packages/admin/src/components/settings/transfer/labels.ts:221
 msgid "A file in the package does not match the manifest. The package may be damaged."
 msgstr "প্যাকেজের একটি ফাইল ম্যানিফেস্টের সাথে মেলে না। প্যাকেজটি ক্ষতিগ্রস্ত হতে পারে।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:213
+#: packages/admin/src/components/settings/transfer/labels.ts:220
 msgid "A file in the package is not the size the manifest declares."
 msgstr "প্যাকেজের একটি ফাইলের আকার ম্যানিফেস্টে উল্লেখিত আকারের সাথে মেলে না।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:185
+#: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "A file is not the size the package manifest declares. The package may be damaged."
 msgstr "একটি ফাইলের আকার প্যাকেজ ম্যানিফেস্টে উল্লেখিত আকারের সাথে মেলে না। প্যাকেজটি ক্ষতিগ্রস্ত হতে পারে।"
 
@@ -1270,11 +1270,11 @@ msgstr "একটি ফাইলের আকার প্যাকেজ ম�
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "হেডিং, টেক্সট এবং CTA বাটনসহ একটি পূর্ণ-প্রস্থ হিরো ব্যানার"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:132
+#: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "A media file is larger than this site accepts"
 msgstr "একটি মিডিয়া ফাইল এই সাইটের অনুমোদিত আকারের চেয়ে বড়"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:131
+#: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A media file is missing from the package"
 msgstr "প্যাকেজ থেকে একটি মিডিয়া ফাইল অনুপস্থিত"
 
@@ -1283,15 +1283,15 @@ msgstr "প্যাকেজ থেকে একটি মিডিয়া �
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:137
+#: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "A number is too large for this site’s database"
 msgstr "একটি সংখ্যা এই সাইটের ডেটাবেসের জন্য অনেক বড়"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:123
+#: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "A package file does not match the manifest"
 msgstr "একটি প্যাকেজ ফাইল ম্যানিফেস্টের সাথে মেলে না"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:122
+#: packages/admin/src/components/settings/transfer/labels.ts:129
 msgid "A package file is missing"
 msgstr "একটি প্যাকেজ ফাইল অনুপস্থিত"
 
@@ -1305,11 +1305,11 @@ msgstr "প্রকাশের সময় নির্বাচন করা
 msgid "A publishing action is already in progress"
 msgstr "একটি প্রকাশনা কার্যক্রম ইতিমধ্যে চলছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:124
+#: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A record in the package is not valid"
 msgstr "প্যাকেজের একটি রেকর্ড বৈধ নয়"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:128
+#: packages/admin/src/components/settings/transfer/labels.ts:135
 msgid "A record refers to something missing from the package"
 msgstr "একটি রেকর্ড এমন কিছুর উল্লেখ করে যা প্যাকেজে নেই"
 
@@ -1347,7 +1347,7 @@ msgstr "উৎস এবং লক্ষ্য লোকেল আবশ্য�
 msgid "A step failed and will be retried ({0})."
 msgstr "একটি ধাপ ব্যর্থ হয়েছে এবং আবার চেষ্টা করা হবে ({0})।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:138
+#: packages/admin/src/components/settings/transfer/labels.ts:145
 msgid "A value does not fit this site’s database"
 msgstr "একটি মান এই সাইটের ডেটাবেসের সাথে খাপ খায় না"
 
@@ -2183,7 +2183,7 @@ msgstr ""
 msgid "Another folder already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:192
+#: packages/admin/src/components/settings/transfer/labels.ts:199
 msgid "Another import is already using this package."
 msgstr "অন্য একটি ইমপোর্ট ইতিমধ্যে এই প্যাকেজটি ব্যবহার করছে।"
 
@@ -2464,7 +2464,7 @@ msgstr "অনুমোদন দেওয়া হচ্ছে..."
 msgid "Authors"
 msgstr "লেখকরা"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:163
+#: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
 msgstr "লেখকদের এই সাইটের ব্যবহারকারীদের সাথে যুক্ত করা হবে"
 
@@ -2685,7 +2685,7 @@ msgid "Block actions - drag to reorder, click for menu"
 msgstr "ব্লক অ্যাকশন - পুনর্বিন্যাস করতে টেনে আনুন, মেনুর জন্য ক্লিক করুন"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:108
+#: packages/admin/src/components/settings/transfer/labels.ts:115
 msgid "Block type “{0}” was created on this site"
 msgstr "ব্লক টাইপ “{0}” এই সাইটে তৈরি করা হয়েছিল"
 
@@ -2735,7 +2735,7 @@ msgstr ""
 msgid "Brief summary shown below the title in search results"
 msgstr "সার্চ ফলাফলে শিরোনামের নিচে দেখানো সংক্ষিপ্ত সারাংশ"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:160
+#: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Broken references were cleared"
 msgstr "ভাঙা রেফারেন্সগুলো সরিয়ে ফেলা হয়েছে"
 
@@ -3578,7 +3578,7 @@ msgid "Collection “{0}” has entries"
 msgstr "কালেকশন “{0}”-এ এন্ট্রি আছে"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:106
+#: packages/admin/src/components/settings/transfer/labels.ts:113
 msgid "Collection “{0}” was created on this site"
 msgstr "কালেকশন “{0}” এই সাইটে তৈরি করা হয়েছিল"
 
@@ -3818,11 +3818,11 @@ msgstr "কনটেন্ট পড়া"
 msgid "Content references"
 msgstr "কনটেন্ট রেফারেন্স"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:130
+#: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "Content refers to media in an invalid way"
 msgstr "কনটেন্ট অবৈধভাবে মিডিয়া রেফারেন্স করে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:140
+#: packages/admin/src/components/settings/transfer/labels.ts:147
 msgid "Content refers to media that is not in the package"
 msgstr "কনটেন্ট এমন মিডিয়া রেফারেন্স করে যা প্যাকেজে নেই"
 
@@ -4887,6 +4887,11 @@ msgstr "মোছা হচ্ছে..."
 msgid "Deleting…"
 msgstr "মোছা হচ্ছে…"
 
+#. placeholder {0}: blocker.slug
+#: packages/admin/src/components/settings/transfer/labels.ts:109
+msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
 msgid "Deliver all email your site sends"
@@ -5376,7 +5381,7 @@ msgstr ""
 msgid "Duplicate"
 msgstr "ডুপ্লিকেট করুন"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:156
+#: packages/admin/src/components/settings/transfer/labels.ts:163
 msgid "Duplicate redirects were left out"
 msgstr "ডুপ্লিকেট রিডাইরেক্টগুলো বাদ দেওয়া হয়েছে"
 
@@ -6292,7 +6297,7 @@ msgstr "ব্যর্থ"
 msgid "Failed security audit"
 msgstr "নিরাপত্তা অডিটে ব্যর্থ"
 
-#: packages/admin/src/lib/api/transfer.ts:491
+#: packages/admin/src/lib/api/transfer.ts:498
 msgid "Failed to abandon import"
 msgstr "ইমপোর্ট পরিত্যাগ করতে ব্যর্থ হয়েছে"
 
@@ -6316,7 +6321,7 @@ msgstr ""
 msgid "Failed to analyze file"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:442
+#: packages/admin/src/lib/api/transfer.ts:449
 msgid "Failed to analyze import"
 msgstr "ইমপোর্ট বিশ্লেষণ করতে ব্যর্থ হয়েছে"
 
@@ -6325,11 +6330,11 @@ msgstr "ইমপোর্ট বিশ্লেষণ করতে ব্যর
 msgid "Failed to analyze WordPress site"
 msgstr "WordPress সাইট বিশ্লেষণ করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:525
+#: packages/admin/src/lib/api/transfer.ts:532
 msgid "Failed to approve request"
 msgstr "অনুরোধ অনুমোদন করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:482
+#: packages/admin/src/lib/api/transfer.ts:489
 msgid "Failed to cancel import"
 msgstr "ইমপোর্ট বাতিল করতে ব্যর্থ হয়েছে"
 
@@ -6353,11 +6358,11 @@ msgstr ""
 msgid "Failed to confirm upload"
 msgstr "আপলোড নিশ্চিত করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:324
+#: packages/admin/src/lib/api/transfer.ts:331
 msgid "Failed to continue export"
 msgstr "এক্সপোর্ট চালিয়ে যেতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:466
+#: packages/admin/src/lib/api/transfer.ts:473
 msgid "Failed to continue import"
 msgstr "ইমপোর্ট চালিয়ে যেতে ব্যর্থ হয়েছে"
 
@@ -6562,7 +6567,7 @@ msgstr "উইজেট মুছতে ব্যর্থ হয়েছে"
 msgid "Failed to delete widget area"
 msgstr "উইজেট এরিয়া মুছতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:526
+#: packages/admin/src/lib/api/transfer.ts:533
 msgid "Failed to deny request"
 msgstr "অনুরোধ প্রত্যাখ্যান করতে ব্যর্থ হয়েছে"
 
@@ -6592,7 +6597,7 @@ msgstr "নির্ধারিত প্রকাশনার প্রত্�
 msgid "Failed to dismiss welcome"
 msgstr "স্বাগত বার্তা সরাতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:360
+#: packages/admin/src/lib/api/transfer.ts:367
 msgid "Failed to download a package file"
 msgstr "একটি প্যাকেজ ফাইল ডাউনলোড করতে ব্যর্থ হয়েছে"
 
@@ -6927,7 +6932,7 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr "বাইলাইন ফিল্ডের তালিকা আনতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:415
+#: packages/admin/src/lib/api/transfer.ts:422
 msgid "Failed to list files to upload"
 msgstr "আপলোডের জন্য ফাইলের তালিকা আনতে ব্যর্থ হয়েছে"
 
@@ -6940,7 +6945,7 @@ msgstr "অ্যাডমিন লোড করতে ব্যর্থ হ�
 msgid "Failed to load allowed domains"
 msgstr "অনুমোদিত ডোমেইন লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:511
+#: packages/admin/src/lib/api/transfer.ts:518
 msgid "Failed to load approval requests"
 msgstr "অনুমোদনের অনুরোধ লোড করতে ব্যর্থ হয়েছে"
 
@@ -6958,12 +6963,12 @@ msgstr "বাইলাইন লোড করতে ব্যর্থ হয�
 msgid "Failed to load email settings"
 msgstr "ইমেইল সেটিংস লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:329
-#: packages/admin/src/lib/api/transfer.ts:347
+#: packages/admin/src/lib/api/transfer.ts:336
+#: packages/admin/src/lib/api/transfer.ts:354
 msgid "Failed to load export manifest"
 msgstr "এক্সপোর্ট ম্যানিফেস্ট লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:298
+#: packages/admin/src/lib/api/transfer.ts:305
 msgid "Failed to load exports"
 msgstr "এক্সপোর্টগুলো লোড করতে ব্যর্থ হয়েছে"
 
@@ -6971,19 +6976,19 @@ msgstr "এক্সপোর্টগুলো লোড করতে ব্য
 msgid "Failed to load image"
 msgstr "ছবি লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:388
+#: packages/admin/src/lib/api/transfer.ts:395
 msgid "Failed to load import"
 msgstr "ইমপোর্ট লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:449
+#: packages/admin/src/lib/api/transfer.ts:456
 msgid "Failed to load import plan"
 msgstr "ইমপোর্ট পরিকল্পনা লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:473
+#: packages/admin/src/lib/api/transfer.ts:480
 msgid "Failed to load import receipt"
 msgstr "ইমপোর্টের রসিদ লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:380
+#: packages/admin/src/lib/api/transfer.ts:387
 msgid "Failed to load imports"
 msgstr "ইমপোর্টগুলো লোড করতে ব্যর্থ হয়েছে"
 
@@ -7025,7 +7030,7 @@ msgstr ""
 msgid "Failed to load theme"
 msgstr "থিম লোড করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:284
+#: packages/admin/src/lib/api/transfer.ts:291
 msgid "Failed to load transfer capabilities"
 msgstr "ট্রান্সফারের সক্ষমতা লোড করতে ব্যর্থ হয়েছে"
 
@@ -7216,12 +7221,12 @@ msgstr "এন্ট্রির টার্ম নির্ধারণ কর
 msgid "Failed to start AT Protocol login"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:317
+#: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to start export"
 msgstr "এক্সপোর্ট শুরু করতে ব্যর্থ হয়েছে"
 
-#: packages/admin/src/lib/api/transfer.ts:405
-#: packages/admin/src/lib/api/transfer.ts:459
+#: packages/admin/src/lib/api/transfer.ts:412
+#: packages/admin/src/lib/api/transfer.ts:466
 msgid "Failed to start import"
 msgstr "ইমপোর্ট শুরু করতে ব্যর্থ হয়েছে"
 
@@ -7353,7 +7358,7 @@ msgstr ""
 msgid "Failed to update widget"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:431
+#: packages/admin/src/lib/api/transfer.ts:438
 msgid "Failed to upload a package file"
 msgstr "একটি প্যাকেজ ফাইল আপলোড করতে ব্যর্থ হয়েছে"
 
@@ -9215,7 +9220,7 @@ msgstr "স্থানীয় সময়"
 msgid "Locale"
 msgstr "লোকেল"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:169
+#: packages/admin/src/components/settings/transfer/labels.ts:176
 msgid "Locales will use this site’s capitalization"
 msgstr "লোকেলগুলো এই সাইটের বড়/ছোট হাতের অক্ষরের ধরন অনুসরণ করবে"
 
@@ -9473,7 +9478,7 @@ msgstr ""
 msgid "Media Library"
 msgstr "মিডিয়া লাইব্রেরি"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:158
+#: packages/admin/src/components/settings/transfer/labels.ts:165
 msgid "Media links were made relative"
 msgstr "মিডিয়া লিঙ্কগুলো আপেক্ষিক (relative) করা হয়েছে"
 
@@ -9711,7 +9716,7 @@ msgstr "বিকল্প টেক্সট (alt text) সম্পর্ক�
 msgid "More information about Display size"
 msgstr "প্রদর্শনের আকার সম্পর্কে আরও তথ্য"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:144
+#: packages/admin/src/components/settings/transfer/labels.ts:151
 msgid "More issues were found than are listed"
 msgstr "তালিকায় দেখানোর চেয়ে বেশি সমস্যা পাওয়া গেছে"
 
@@ -11820,19 +11825,19 @@ msgstr "সম্প্রতি আপডেট হয়েছে"
 msgid "Recipient email"
 msgstr "প্রাপকের ইমেইল"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:125
+#: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "Record counts do not match the manifest"
 msgstr "রেকর্ডের সংখ্যা ম্যানিফেস্টের সাথে মেলে না"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:126
+#: packages/admin/src/components/settings/transfer/labels.ts:133
 msgid "Records are out of order"
 msgstr "রেকর্ডগুলো সঠিক ক্রমে নেই"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:129
+#: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Records refer to each other in a loop"
 msgstr "রেকর্ডগুলো লুপে একে অপরকে নির্দেশ করে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:159
+#: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Records without a parent were left out"
 msgstr "প্যারেন্ট ছাড়া রেকর্ডগুলো বাদ দেওয়া হয়েছে"
 
@@ -11858,7 +11863,7 @@ msgstr "লগইন পেজে নিয়ে যাওয়া হচ্�
 msgid "Redirects"
 msgstr "রিডাইরেক্ট"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:166
+#: packages/admin/src/components/settings/transfer/labels.ts:173
 msgid "Redirects that loop will be imported turned off"
 msgstr "লুপ তৈরি করা রিডাইরেক্টগুলো বন্ধ অবস্থায় ইমপোর্ট করা হবে"
 
@@ -13224,7 +13229,7 @@ msgstr "তালিকা ছোট করতে অনুসন্ধান �
 msgid "Search users"
 msgstr "ব্যবহারকারী অনুসন্ধান করুন"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:167
+#: packages/admin/src/components/settings/transfer/labels.ts:174
 msgid "Search will be turned off for some collections"
 msgstr "কিছু কালেকশনের জন্য অনুসন্ধান বন্ধ হয়ে যাবে"
 
@@ -14094,11 +14099,11 @@ msgstr "সোশ্যাল প্রোফাইল"
 msgid "Social Settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:155
+#: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some byline avatars were left out"
 msgstr "কিছু বাইলাইন অ্যাভাটার বাদ দেওয়া হয়েছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:162
+#: packages/admin/src/components/settings/transfer/labels.ts:169
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
 msgstr "কিছু কনটেন্ট এমন মিডিয়া ফাইলের লিঙ্ক দেয় যা উৎস সাইটে নেই; সেই লিঙ্কগুলো কাজ করবে না"
 
@@ -14111,27 +14116,27 @@ msgstr "কিছু কনটেন্ট হয়তো এখনও এখ�
 msgid "Some content types cannot be imported"
 msgstr "কিছু কনটেন্ট টাইপ ইমপোর্ট করা যাবে না"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:164
+#: packages/admin/src/components/settings/transfer/labels.ts:171
 msgid "Some content will have no author"
 msgstr "কিছু কনটেন্টের কোনো লেখক থাকবে না"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:168
+#: packages/admin/src/components/settings/transfer/labels.ts:175
 msgid "Some decimal numbers will be rounded"
 msgstr "কিছু দশমিক সংখ্যা রাউন্ড করা হবে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:216
+#: packages/admin/src/components/settings/transfer/labels.ts:223
 msgid "Some files listed in the manifest are not in this package."
 msgstr "ম্যানিফেস্টে তালিকাভুক্ত কিছু ফাইল এই প্যাকেজে নেই।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:141
+#: packages/admin/src/components/settings/transfer/labels.ts:148
 msgid "Some media is hosted by an external provider"
 msgstr "কিছু মিডিয়া একটি বাহ্যিক প্রোভাইডার দ্বারা হোস্ট করা"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:161
+#: packages/admin/src/components/settings/transfer/labels.ts:168
 msgid "Some media links could not be matched to files"
 msgstr "কিছু মিডিয়া লিঙ্ক ফাইলের সাথে মেলানো যায়নি"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:142
+#: packages/admin/src/components/settings/transfer/labels.ts:149
 msgid "Some references point to content that is not in the package"
 msgstr "কিছু রেফারেন্স এমন কনটেন্ট নির্দেশ করে যা প্যাকেজে নেই"
 
@@ -14262,7 +14267,7 @@ msgstr "লেখা শুরু করুন, অথবা কমান্ড�
 msgid "Starter content that will be removed"
 msgstr "যে স্টার্টার কনটেন্ট সরিয়ে ফেলা হবে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:165
+#: packages/admin/src/components/settings/transfer/labels.ts:172
 msgid "Starter content will be removed"
 msgstr "স্টার্টার কনটেন্ট সরিয়ে ফেলা হবে"
 
@@ -14499,7 +14504,7 @@ msgid "Taxonomy"
 msgstr ""
 
 #. placeholder {0}: blocker.name
-#: packages/admin/src/components/settings/transfer/labels.ts:110
+#: packages/admin/src/components/settings/transfer/labels.ts:117
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "ট্যাক্সোনমি “{0}” এই সাইটের কনটেন্টে ব্যবহৃত হচ্ছে"
 
@@ -14686,7 +14691,7 @@ msgstr "বিদ্যমান কালেকশনে অসামঞ্জ�
 msgid "The export stopped"
 msgstr "এক্সপোর্ট থেমে গেছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:217
+#: packages/admin/src/components/settings/transfer/labels.ts:224
 msgid "The export’s files no longer match the export. Start a new export."
 msgstr "এক্সপোর্টের ফাইলগুলো আর এক্সপোর্টের সাথে মেলে না। নতুন একটি এক্সপোর্ট শুরু করুন।"
 
@@ -14694,7 +14699,7 @@ msgstr "এক্সপোর্টের ফাইলগুলো আর এক
 msgid "The exported package and this import change the content in these ways."
 msgstr "এক্সপোর্ট করা প্যাকেজ এবং এই ইমপোর্ট কনটেন্টে এই পরিবর্তনগুলো আনবে।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:186
+#: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "The file is not a valid EmDash site package."
 msgstr "ফাইলটি একটি বৈধ EmDash সাইট প্যাকেজ নয়।"
 
@@ -14730,7 +14735,7 @@ msgstr ""
 msgid "The import failed"
 msgstr "ইমপোর্ট ব্যর্থ হয়েছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:189
+#: packages/admin/src/components/settings/transfer/labels.ts:196
 msgid "The import has blockers that must be resolved first."
 msgstr "ইমপোর্টে কিছু বাধা আছে যেগুলো আগে সমাধান করতে হবে।"
 
@@ -14738,7 +14743,7 @@ msgstr "ইমপোর্টে কিছু বাধা আছে যেগ�
 msgid "The import plan changed"
 msgstr "ইমপোর্ট পরিকল্পনা পরিবর্তিত হয়েছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:190
+#: packages/admin/src/components/settings/transfer/labels.ts:197
 msgid "The import plan changed. Review it again before importing."
 msgstr "ইমপোর্ট পরিকল্পনা পরিবর্তিত হয়েছে। ইমপোর্ট করার আগে এটি আবার পর্যালোচনা করুন।"
 
@@ -14759,7 +14764,7 @@ msgstr "ইমপোর্ট তার বর্তমান ধাপের �
 msgid "The import was cancelled"
 msgstr "ইমপোর্ট বাতিল করা হয়েছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:188
+#: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The imported site did not match the package when it was checked."
 msgstr "যাচাইয়ের সময় ইমপোর্ট করা সাইট প্যাকেজের সাথে মেলেনি।"
 
@@ -14805,27 +14810,27 @@ msgstr "আপনার সাইটের নাম, যা হেডার ও
 msgid "The order controls how block types appear in the picker."
 msgstr "পিকারে ব্লক টাইপগুলো কোন ক্রমে দেখাবে তা এই ক্রম নির্ধারণ করে।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:191
+#: packages/admin/src/components/settings/transfer/labels.ts:198
 msgid "The package changed. Choose it again before importing."
 msgstr "প্যাকেজটি পরিবর্তিত হয়েছে। ইমপোর্ট করার আগে এটি আবার বেছে নিন।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:127
+#: packages/admin/src/components/settings/transfer/labels.ts:134
 msgid "The package contains a duplicate ID"
 msgstr "প্যাকেজে একটি ডুপ্লিকেট ID আছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:212
+#: packages/admin/src/components/settings/transfer/labels.ts:219
 msgid "The package contains a file larger than this site accepts."
 msgstr "প্যাকেজে এমন একটি ফাইল আছে যা এই সাইটের অনুমোদিত আকারের চেয়ে বড়।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:210
+#: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The package contains a file that is not part of the site package format."
 msgstr "প্যাকেজে এমন একটি ফাইল আছে যা সাইট প্যাকেজ ফরম্যাটের অংশ নয়।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:209
+#: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "The package contains an entry that is not a regular file."
 msgstr "প্যাকেজে এমন একটি এন্ট্রি আছে যা সাধারণ ফাইল নয়।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:211
+#: packages/admin/src/components/settings/transfer/labels.ts:218
 msgid "The package contains the same file twice."
 msgstr "প্যাকেজে একই ফাইল দুবার আছে।"
 
@@ -14833,7 +14838,7 @@ msgstr "প্যাকেজে একই ফাইল দুবার আছ�
 msgid "The package couldn’t be uploaded"
 msgstr "প্যাকেজটি আপলোড করা যায়নি"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:126
 msgid "The package format is not supported by this version of EmDash"
 msgstr "প্যাকেজের ফরম্যাটটি EmDash-এর এই সংস্করণে সমর্থিত নয়"
 
@@ -14841,31 +14846,31 @@ msgstr "প্যাকেজের ফরম্যাটটি EmDash-এর �
 msgid "The package is checked against this site before anything changes. You can leave this page and come back."
 msgstr "কোনো কিছু পরিবর্তনের আগে প্যাকেজটি এই সাইটের সাথে মিলিয়ে যাচাই করা হয়। আপনি এই পেজ ছেড়ে গিয়ে পরে ফিরে আসতে পারেন।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:121
+#: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "The package is larger than this site allows"
 msgstr "প্যাকেজটি এই সাইটের অনুমোদিত আকারের চেয়ে বড়"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:187
+#: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The package is larger than this site allows."
 msgstr "প্যাকেজটি এই সাইটের অনুমোদিত আকারের চেয়ে বড়।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:118
+#: packages/admin/src/components/settings/transfer/labels.ts:125
 msgid "The package is not valid"
 msgstr "প্যাকেজটি বৈধ নয়"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:181
+#: packages/admin/src/components/settings/transfer/labels.ts:188
 msgid "The package manifest is not valid."
 msgstr "প্যাকেজ ম্যানিফেস্ট বৈধ নয়।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:120
+#: packages/admin/src/components/settings/transfer/labels.ts:127
 msgid "The package needs a feature this version of EmDash does not support"
 msgstr "প্যাকেজটির এমন একটি ফিচার প্রয়োজন যা EmDash-এর এই সংস্করণ সমর্থন করে না"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:135
+#: packages/admin/src/components/settings/transfer/labels.ts:142
 msgid "The package uses a field type this site does not know"
 msgstr "প্যাকেজটি এমন একটি ফিল্ড টাইপ ব্যবহার করে যা এই সাইট চেনে না"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:134
+#: packages/admin/src/components/settings/transfer/labels.ts:141
 msgid "The package uses a locale this site does not have"
 msgstr "প্যাকেজটি এমন একটি লোকেল ব্যবহার করে যা এই সাইটে নেই"
 
@@ -14877,7 +14882,7 @@ msgstr "প্যাকেজটি এই সাইটের সাথে ম�
 msgid "The package’s content is written to this site. The import can’t be undone once it starts; to go back you would need a backup of this site."
 msgstr "প্যাকেজের কনটেন্ট এই সাইটে লেখা হবে। একবার শুরু হলে ইমপোর্ট পূর্বাবস্থায় ফেরানো যাবে না; আগের অবস্থায় ফিরতে আপনার এই সাইটের একটি ব্যাকআপ প্রয়োজন হবে।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:208
+#: packages/admin/src/components/settings/transfer/labels.ts:215
 msgid "The package’s file index is not valid."
 msgstr "প্যাকেজের ফাইল ইনডেক্স বৈধ নয়।"
 
@@ -14956,7 +14961,7 @@ msgstr "নির্বাচিত ফোল্ডারটি আর নেই
 msgid "The selected image could not be read."
 msgstr "নির্বাচিত ছবিটি পড়া যায়নি।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:194
+#: packages/admin/src/components/settings/transfer/labels.ts:201
 msgid "The server was updated while this ran. Reload the page and try again."
 msgstr "এটি চলার সময় সার্ভার আপডেট হয়েছে। পেজটি রিলোড করে আবার চেষ্টা করুন।"
 
@@ -14964,11 +14969,11 @@ msgstr "এটি চলার সময় সার্ভার আপডে�
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
 msgstr "স্বাক্ষরিত প্রকাশক রেকর্ড ও প্যাকেজ বৈধ। বিল্ডের উৎস-প্রমাণ দেওয়া হয়নি।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:179
+#: packages/admin/src/components/settings/transfer/labels.ts:186
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
 msgstr "এক্সপোর্টের সময় সাইটটি ক্রমাগত পরিবর্তিত হচ্ছিল। সম্পাদনা কম হলে আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:195
+#: packages/admin/src/components/settings/transfer/labels.ts:202
 msgid "The site’s storage could not be read or written."
 msgstr "সাইটের স্টোরেজ পড়া বা লেখা যায়নি।"
 
@@ -15061,7 +15066,7 @@ msgstr "থিমের দেওয়া সেকশন মুছে ফে�
 msgid "Themes"
 msgstr "থিম"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:143
+#: packages/admin/src/components/settings/transfer/labels.ts:150
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "ইমপোর্টের আগে লুপ পরীক্ষা করার জন্য রিডাইরেক্টের সংখ্যা অনেক বেশি"
 
@@ -15239,11 +15244,11 @@ msgstr ""
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:206
+#: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "This file is not a readable EmDash site package."
 msgstr "এই ফাইলটি পাঠযোগ্য কোনো EmDash সাইট প্যাকেজ নয়।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:207
+#: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "এই ফাইলটি কোনো EmDash সাইট প্যাকেজ নয়: এটিকে অবশ্যই manifest.json দিয়ে শুরু হতে হবে।"
 
@@ -15271,7 +15276,7 @@ msgstr "এটি একটি কাস্টম সেকশন।"
 msgid "This is a WordPress site."
 msgstr "এটি একটি WordPress সাইট।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:215
+#: packages/admin/src/components/settings/transfer/labels.ts:222
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "এটি সেই প্যাকেজ নয় যা দিয়ে ইমপোর্ট শুরু হয়েছিল। একই ফাইল আবার বেছে নিন।"
 
@@ -15308,15 +15313,15 @@ msgstr "এই মিডিয়া আইটেমটি আর নেই।"
 msgid "This month wasn't loaded"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:193
+#: packages/admin/src/components/settings/transfer/labels.ts:200
 msgid "This operation expired. Start again."
 msgstr "এই অপারেশনের মেয়াদ শেষ হয়ে গেছে। আবার শুরু করুন।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:183
+#: packages/admin/src/components/settings/transfer/labels.ts:190
 msgid "This package needs features this version of EmDash does not support."
 msgstr "এই প্যাকেজের জন্য এমন কিছু ফিচার প্রয়োজন যা EmDash-এর এই সংস্করণ সমর্থন করে না।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:182
+#: packages/admin/src/components/settings/transfer/labels.ts:189
 msgid "This package was made by a newer or different version of EmDash."
 msgstr "এই প্যাকেজটি EmDash-এর নতুন বা ভিন্ন কোনো সংস্করণ দিয়ে তৈরি করা হয়েছে।"
 
@@ -15426,12 +15431,12 @@ msgstr "এই সাইন-ইন লিঙ্কের মেয়াদ শ�
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
 msgstr "এই সাইন-ইন লিঙ্কটি অবৈধ অথবা ইতিমধ্যে ব্যবহার করা হয়েছে। লগইন পেজ থেকে নতুন একটি লিঙ্কের অনুরোধ করুন।"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:112
-#: packages/admin/src/components/settings/transfer/labels.ts:133
+#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:140
 msgid "This site already has content"
 msgstr "এই সাইটে ইতিমধ্যে কনটেন্ট আছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:180
+#: packages/admin/src/components/settings/transfer/labels.ts:187
 msgid "This site already has content, so it can’t receive an import."
 msgstr "এই সাইটে ইতিমধ্যে কনটেন্ট আছে, তাই এটি কোনো ইমপোর্ট গ্রহণ করতে পারবে না।"
 
@@ -15826,11 +15831,11 @@ msgstr "চালু করা হচ্ছে…"
 msgid "Twitter"
 msgstr "Twitter"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:136
+#: packages/admin/src/components/settings/transfer/labels.ts:143
 msgid "Two authors with bylines in the same locale are mapped to the same user"
 msgstr "একই লোকেলে বাইলাইনসহ দুজন লেখক একই ব্যবহারকারীর সাথে ম্যাপ করা হয়েছে"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:139
+#: packages/admin/src/components/settings/transfer/labels.ts:146
 msgid "Two records have the same value where it must be unique"
 msgstr "দুটি রেকর্ডে একই মান রয়েছে যেখানে মানটি অনন্য হতে হবে"
 
@@ -15898,7 +15903,7 @@ msgstr "আন্ডারলাইন"
 msgid "Undo"
 msgstr "পূর্বাবস্থায় ফেরান"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:157
+#: packages/admin/src/components/settings/transfer/labels.ts:164
 msgid "Unfinished media uploads were left out"
 msgstr "অসম্পূর্ণ মিডিয়া আপলোডগুলো বাদ দেওয়া হয়েছে"
 
@@ -16026,7 +16031,7 @@ msgstr "শিরোনামহীন ফাইল"
 msgid "Untitled Widget"
 msgstr "শিরোনামহীন উইজেট"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:154
+#: packages/admin/src/components/settings/transfer/labels.ts:161
 msgid "Unused references were left out"
 msgstr "অব্যবহৃত রেফারেন্সগুলো বাদ দেওয়া হয়েছে"
 

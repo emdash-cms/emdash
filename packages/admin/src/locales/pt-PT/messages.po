@@ -746,7 +746,7 @@ msgstr ""
 msgid "{label} actions"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:261
+#: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{label} in {menuName}"
 msgstr "{label} em {menuName}"
 
@@ -1076,7 +1076,7 @@ msgstr ""
 msgid "{when}, Published, {author}"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:268
+#: packages/admin/src/components/settings/transfer/labels.ts:275
 msgid "{widgetType} in {areaName}"
 msgstr "{widgetType} em {areaName}"
 
@@ -1250,19 +1250,19 @@ msgstr "90 dias"
 msgid "A brief description of this content type"
 msgstr "Uma breve descrição deste tipo de conteúdo"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:184
+#: packages/admin/src/components/settings/transfer/labels.ts:191
 msgid "A file does not match the package manifest. The package may be damaged."
 msgstr "Um ficheiro não corresponde ao manifesto do pacote. O pacote pode estar danificado."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:214
+#: packages/admin/src/components/settings/transfer/labels.ts:221
 msgid "A file in the package does not match the manifest. The package may be damaged."
 msgstr "Um ficheiro do pacote não corresponde ao manifesto. O pacote pode estar danificado."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:213
+#: packages/admin/src/components/settings/transfer/labels.ts:220
 msgid "A file in the package is not the size the manifest declares."
 msgstr "Um ficheiro do pacote não tem o tamanho declarado no manifesto."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:185
+#: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "A file is not the size the package manifest declares. The package may be damaged."
 msgstr "Um ficheiro não tem o tamanho declarado no manifesto do pacote. O pacote pode estar danificado."
 
@@ -1270,11 +1270,11 @@ msgstr "Um ficheiro não tem o tamanho declarado no manifesto do pacote. O pacot
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "Um banner de destaque em largura total, com título, texto e botão de chamada para a ação"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:132
+#: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "A media file is larger than this site accepts"
 msgstr "Um ficheiro multimédia é maior do que este site aceita"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:131
+#: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A media file is missing from the package"
 msgstr "Falta um ficheiro multimédia no pacote"
 
@@ -1283,15 +1283,15 @@ msgstr "Falta um ficheiro multimédia no pacote"
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:137
+#: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "A number is too large for this site’s database"
 msgstr "Um número é demasiado grande para a base de dados deste site"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:123
+#: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "A package file does not match the manifest"
 msgstr "Um ficheiro do pacote não corresponde ao manifesto"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:122
+#: packages/admin/src/components/settings/transfer/labels.ts:129
 msgid "A package file is missing"
 msgstr "Falta um ficheiro do pacote"
 
@@ -1305,11 +1305,11 @@ msgstr "Não foi selecionada uma hora de publicação"
 msgid "A publishing action is already in progress"
 msgstr "Já está em curso uma ação de publicação"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:124
+#: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A record in the package is not valid"
 msgstr "Um registo do pacote não é válido"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:128
+#: packages/admin/src/components/settings/transfer/labels.ts:135
 msgid "A record refers to something missing from the package"
 msgstr "Um registo refere-se a algo que não está no pacote"
 
@@ -1347,7 +1347,7 @@ msgstr "É necessário um idioma de origem e um de destino"
 msgid "A step failed and will be retried ({0})."
 msgstr "Um passo falhou e será repetido ({0})."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:138
+#: packages/admin/src/components/settings/transfer/labels.ts:145
 msgid "A value does not fit this site’s database"
 msgstr "Um valor não cabe na base de dados deste site"
 
@@ -2183,7 +2183,7 @@ msgstr ""
 msgid "Another folder already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:192
+#: packages/admin/src/components/settings/transfer/labels.ts:199
 msgid "Another import is already using this package."
 msgstr "Outra importação já está a utilizar este pacote."
 
@@ -2464,7 +2464,7 @@ msgstr "A autorizar..."
 msgid "Authors"
 msgstr "Autores"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:163
+#: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
 msgstr "Os autores serão associados a utilizadores deste site"
 
@@ -2685,7 +2685,7 @@ msgid "Block actions - drag to reorder, click for menu"
 msgstr "Ações do bloco: arraste para reordenar, clique para abrir o menu"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:108
+#: packages/admin/src/components/settings/transfer/labels.ts:115
 msgid "Block type “{0}” was created on this site"
 msgstr "O tipo de bloco “{0}” foi criado neste site"
 
@@ -2735,7 +2735,7 @@ msgstr "Os dois campos de referência associados a esta relação partilham este
 msgid "Brief summary shown below the title in search results"
 msgstr "Breve resumo mostrado por baixo do título nos resultados de pesquisa"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:160
+#: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Broken references were cleared"
 msgstr "As referências quebradas foram limpas"
 
@@ -3578,7 +3578,7 @@ msgid "Collection “{0}” has entries"
 msgstr "A coleção “{0}” tem entradas"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:106
+#: packages/admin/src/components/settings/transfer/labels.ts:113
 msgid "Collection “{0}” was created on this site"
 msgstr "A coleção “{0}” foi criada neste site"
 
@@ -3818,11 +3818,11 @@ msgstr "Leitura de conteúdo"
 msgid "Content references"
 msgstr "Referências de conteúdo"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:130
+#: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "Content refers to media in an invalid way"
 msgstr "O conteúdo refere-se a multimédia de forma inválida"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:140
+#: packages/admin/src/components/settings/transfer/labels.ts:147
 msgid "Content refers to media that is not in the package"
 msgstr "O conteúdo refere-se a multimédia que não está no pacote"
 
@@ -4887,6 +4887,11 @@ msgstr "A eliminar..."
 msgid "Deleting…"
 msgstr "A eliminar…"
 
+#. placeholder {0}: blocker.slug
+#: packages/admin/src/components/settings/transfer/labels.ts:109
+msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
 msgid "Deliver all email your site sends"
@@ -5376,7 +5381,7 @@ msgstr ""
 msgid "Duplicate"
 msgstr "Duplicar"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:156
+#: packages/admin/src/components/settings/transfer/labels.ts:163
 msgid "Duplicate redirects were left out"
 msgstr "Os redirecionamentos duplicados foram omitidos"
 
@@ -6292,7 +6297,7 @@ msgstr "Falhou"
 msgid "Failed security audit"
 msgstr "Reprovado na auditoria de segurança"
 
-#: packages/admin/src/lib/api/transfer.ts:491
+#: packages/admin/src/lib/api/transfer.ts:498
 msgid "Failed to abandon import"
 msgstr "Não foi possível abandonar a importação"
 
@@ -6316,7 +6321,7 @@ msgstr ""
 msgid "Failed to analyze file"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:442
+#: packages/admin/src/lib/api/transfer.ts:449
 msgid "Failed to analyze import"
 msgstr "Não foi possível analisar a importação"
 
@@ -6325,11 +6330,11 @@ msgstr "Não foi possível analisar a importação"
 msgid "Failed to analyze WordPress site"
 msgstr "Não foi possível analisar o site WordPress"
 
-#: packages/admin/src/lib/api/transfer.ts:525
+#: packages/admin/src/lib/api/transfer.ts:532
 msgid "Failed to approve request"
 msgstr "Não foi possível aprovar o pedido"
 
-#: packages/admin/src/lib/api/transfer.ts:482
+#: packages/admin/src/lib/api/transfer.ts:489
 msgid "Failed to cancel import"
 msgstr "Não foi possível cancelar a importação"
 
@@ -6353,11 +6358,11 @@ msgstr ""
 msgid "Failed to confirm upload"
 msgstr "Não foi possível confirmar o carregamento"
 
-#: packages/admin/src/lib/api/transfer.ts:324
+#: packages/admin/src/lib/api/transfer.ts:331
 msgid "Failed to continue export"
 msgstr "Não foi possível continuar a exportação"
 
-#: packages/admin/src/lib/api/transfer.ts:466
+#: packages/admin/src/lib/api/transfer.ts:473
 msgid "Failed to continue import"
 msgstr "Não foi possível continuar a importação"
 
@@ -6562,7 +6567,7 @@ msgstr "Não foi possível eliminar o widget"
 msgid "Failed to delete widget area"
 msgstr "Não foi possível eliminar a área de widgets"
 
-#: packages/admin/src/lib/api/transfer.ts:526
+#: packages/admin/src/lib/api/transfer.ts:533
 msgid "Failed to deny request"
 msgstr "Não foi possível recusar o pedido"
 
@@ -6592,7 +6597,7 @@ msgstr "Não foi possível dispensar a rejeição da publicação agendada"
 msgid "Failed to dismiss welcome"
 msgstr "Não foi possível fechar a mensagem de boas-vindas"
 
-#: packages/admin/src/lib/api/transfer.ts:360
+#: packages/admin/src/lib/api/transfer.ts:367
 msgid "Failed to download a package file"
 msgstr "Não foi possível transferir um ficheiro do pacote"
 
@@ -6927,7 +6932,7 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr "Não foi possível listar os campos de crédito"
 
-#: packages/admin/src/lib/api/transfer.ts:415
+#: packages/admin/src/lib/api/transfer.ts:422
 msgid "Failed to list files to upload"
 msgstr "Não foi possível listar os ficheiros a carregar"
 
@@ -6940,7 +6945,7 @@ msgstr "Não foi possível carregar a administração"
 msgid "Failed to load allowed domains"
 msgstr "Não foi possível carregar os domínios permitidos"
 
-#: packages/admin/src/lib/api/transfer.ts:511
+#: packages/admin/src/lib/api/transfer.ts:518
 msgid "Failed to load approval requests"
 msgstr "Não foi possível carregar os pedidos de aprovação"
 
@@ -6958,12 +6963,12 @@ msgstr "Não foi possível carregar os créditos: {0}"
 msgid "Failed to load email settings"
 msgstr "Não foi possível carregar as definições de email"
 
-#: packages/admin/src/lib/api/transfer.ts:329
-#: packages/admin/src/lib/api/transfer.ts:347
+#: packages/admin/src/lib/api/transfer.ts:336
+#: packages/admin/src/lib/api/transfer.ts:354
 msgid "Failed to load export manifest"
 msgstr "Não foi possível carregar o manifesto da exportação"
 
-#: packages/admin/src/lib/api/transfer.ts:298
+#: packages/admin/src/lib/api/transfer.ts:305
 msgid "Failed to load exports"
 msgstr "Não foi possível carregar as exportações"
 
@@ -6971,19 +6976,19 @@ msgstr "Não foi possível carregar as exportações"
 msgid "Failed to load image"
 msgstr "Não foi possível carregar a imagem"
 
-#: packages/admin/src/lib/api/transfer.ts:388
+#: packages/admin/src/lib/api/transfer.ts:395
 msgid "Failed to load import"
 msgstr "Não foi possível carregar a importação"
 
-#: packages/admin/src/lib/api/transfer.ts:449
+#: packages/admin/src/lib/api/transfer.ts:456
 msgid "Failed to load import plan"
 msgstr "Não foi possível carregar o plano de importação"
 
-#: packages/admin/src/lib/api/transfer.ts:473
+#: packages/admin/src/lib/api/transfer.ts:480
 msgid "Failed to load import receipt"
 msgstr "Não foi possível carregar o comprovativo da importação"
 
-#: packages/admin/src/lib/api/transfer.ts:380
+#: packages/admin/src/lib/api/transfer.ts:387
 msgid "Failed to load imports"
 msgstr "Não foi possível carregar as importações"
 
@@ -7025,7 +7030,7 @@ msgstr "Não foi possível carregar o calendário"
 msgid "Failed to load theme"
 msgstr "Não foi possível carregar o tema"
 
-#: packages/admin/src/lib/api/transfer.ts:284
+#: packages/admin/src/lib/api/transfer.ts:291
 msgid "Failed to load transfer capabilities"
 msgstr "Não foi possível carregar as capacidades de transferência"
 
@@ -7216,12 +7221,12 @@ msgstr "Não foi possível definir os termos da entrada"
 msgid "Failed to start AT Protocol login"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:317
+#: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to start export"
 msgstr "Não foi possível iniciar a exportação"
 
-#: packages/admin/src/lib/api/transfer.ts:405
-#: packages/admin/src/lib/api/transfer.ts:459
+#: packages/admin/src/lib/api/transfer.ts:412
+#: packages/admin/src/lib/api/transfer.ts:466
 msgid "Failed to start import"
 msgstr "Não foi possível iniciar a importação"
 
@@ -7353,7 +7358,7 @@ msgstr ""
 msgid "Failed to update widget"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:431
+#: packages/admin/src/lib/api/transfer.ts:438
 msgid "Failed to upload a package file"
 msgstr "Não foi possível carregar um ficheiro do pacote"
 
@@ -9215,7 +9220,7 @@ msgstr "Hora local"
 msgid "Locale"
 msgstr "Idioma"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:169
+#: packages/admin/src/components/settings/transfer/labels.ts:176
 msgid "Locales will use this site’s capitalization"
 msgstr "Os idiomas vão utilizar as maiúsculas e minúsculas deste site"
 
@@ -9473,7 +9478,7 @@ msgstr ""
 msgid "Media Library"
 msgstr "Biblioteca multimédia"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:158
+#: packages/admin/src/components/settings/transfer/labels.ts:165
 msgid "Media links were made relative"
 msgstr "As ligações multimédia passaram a relativas"
 
@@ -9711,7 +9716,7 @@ msgstr "Mais informações sobre o texto alternativo"
 msgid "More information about Display size"
 msgstr "Mais informações sobre o tamanho de apresentação"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:144
+#: packages/admin/src/components/settings/transfer/labels.ts:151
 msgid "More issues were found than are listed"
 msgstr "Foram encontrados mais problemas do que os indicados"
 
@@ -11820,19 +11825,19 @@ msgstr "Atualizados recentemente"
 msgid "Recipient email"
 msgstr "Email do destinatário"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:125
+#: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "Record counts do not match the manifest"
 msgstr "As contagens de registos não correspondem ao manifesto"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:126
+#: packages/admin/src/components/settings/transfer/labels.ts:133
 msgid "Records are out of order"
 msgstr "Os registos estão fora de ordem"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:129
+#: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Records refer to each other in a loop"
 msgstr "Os registos referem-se uns aos outros em ciclo"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:159
+#: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Records without a parent were left out"
 msgstr "Os registos sem pai foram omitidos"
 
@@ -11858,7 +11863,7 @@ msgstr "A redirecionar para o início de sessão..."
 msgid "Redirects"
 msgstr "Redirecionamentos"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:166
+#: packages/admin/src/components/settings/transfer/labels.ts:173
 msgid "Redirects that loop will be imported turned off"
 msgstr "Os redirecionamentos em ciclo serão importados desativados"
 
@@ -13224,7 +13229,7 @@ msgstr "Pesquise para restringir a lista"
 msgid "Search users"
 msgstr "Pesquisar utilizadores"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:167
+#: packages/admin/src/components/settings/transfer/labels.ts:174
 msgid "Search will be turned off for some collections"
 msgstr "A pesquisa será desativada em algumas coleções"
 
@@ -14094,11 +14099,11 @@ msgstr "Perfis sociais"
 msgid "Social Settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:155
+#: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some byline avatars were left out"
 msgstr "Alguns avatares de créditos foram omitidos"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:162
+#: packages/admin/src/components/settings/transfer/labels.ts:169
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
 msgstr "Algum conteúdo tem ligações para ficheiros multimédia que o site de origem não tem; essas ligações não vão funcionar"
 
@@ -14111,27 +14116,27 @@ msgstr "Algum conteúdo pode ainda não aparecer aqui."
 msgid "Some content types cannot be imported"
 msgstr "Alguns tipos de conteúdo não podem ser importados"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:164
+#: packages/admin/src/components/settings/transfer/labels.ts:171
 msgid "Some content will have no author"
 msgstr "Algum conteúdo ficará sem autor"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:168
+#: packages/admin/src/components/settings/transfer/labels.ts:175
 msgid "Some decimal numbers will be rounded"
 msgstr "Alguns números decimais serão arredondados"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:216
+#: packages/admin/src/components/settings/transfer/labels.ts:223
 msgid "Some files listed in the manifest are not in this package."
 msgstr "Alguns ficheiros indicados no manifesto não estão neste pacote."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:141
+#: packages/admin/src/components/settings/transfer/labels.ts:148
 msgid "Some media is hosted by an external provider"
 msgstr "Alguma multimédia está alojada num fornecedor externo"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:161
+#: packages/admin/src/components/settings/transfer/labels.ts:168
 msgid "Some media links could not be matched to files"
 msgstr "Não foi possível associar algumas ligações multimédia a ficheiros"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:142
+#: packages/admin/src/components/settings/transfer/labels.ts:149
 msgid "Some references point to content that is not in the package"
 msgstr "Algumas referências apontam para conteúdo que não está no pacote"
 
@@ -14262,7 +14267,7 @@ msgstr "Comece a escrever ou introduza '/' para ver os comandos"
 msgid "Starter content that will be removed"
 msgstr "Conteúdo inicial que será removido"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:165
+#: packages/admin/src/components/settings/transfer/labels.ts:172
 msgid "Starter content will be removed"
 msgstr "O conteúdo inicial será removido"
 
@@ -14499,7 +14504,7 @@ msgid "Taxonomy"
 msgstr "Taxonomia"
 
 #. placeholder {0}: blocker.name
-#: packages/admin/src/components/settings/transfer/labels.ts:110
+#: packages/admin/src/components/settings/transfer/labels.ts:117
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "A taxonomia “{0}” é utilizada por conteúdo deste site"
 
@@ -14686,7 +14691,7 @@ msgstr "A coleção existente tem campos com tipos incompatíveis."
 msgid "The export stopped"
 msgstr "A exportação parou"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:217
+#: packages/admin/src/components/settings/transfer/labels.ts:224
 msgid "The export’s files no longer match the export. Start a new export."
 msgstr "Os ficheiros da exportação já não correspondem à exportação. Inicie uma nova exportação."
 
@@ -14694,7 +14699,7 @@ msgstr "Os ficheiros da exportação já não correspondem à exportação. Inic
 msgid "The exported package and this import change the content in these ways."
 msgstr "O pacote exportado e esta importação alteram o conteúdo das seguintes formas."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:186
+#: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "The file is not a valid EmDash site package."
 msgstr "O ficheiro não é um pacote de site EmDash válido."
 
@@ -14730,7 +14735,7 @@ msgstr "A importação não devolveu um cursor de preparação"
 msgid "The import failed"
 msgstr "A importação falhou"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:189
+#: packages/admin/src/components/settings/transfer/labels.ts:196
 msgid "The import has blockers that must be resolved first."
 msgstr "A importação tem bloqueios que têm de ser resolvidos primeiro."
 
@@ -14738,7 +14743,7 @@ msgstr "A importação tem bloqueios que têm de ser resolvidos primeiro."
 msgid "The import plan changed"
 msgstr "O plano de importação mudou"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:190
+#: packages/admin/src/components/settings/transfer/labels.ts:197
 msgid "The import plan changed. Review it again before importing."
 msgstr "O plano de importação mudou. Reveja-o novamente antes de importar."
 
@@ -14759,7 +14764,7 @@ msgstr "A importação para após o passo atual. O conteúdo já importado perma
 msgid "The import was cancelled"
 msgstr "A importação foi cancelada"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:188
+#: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The imported site did not match the package when it was checked."
 msgstr "O site importado não correspondia ao pacote quando foi verificado."
 
@@ -14805,27 +14810,27 @@ msgstr "O nome do site, utilizado no cabeçalho e nos metadados"
 msgid "The order controls how block types appear in the picker."
 msgstr "A ordem define como os tipos de bloco aparecem no seletor."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:191
+#: packages/admin/src/components/settings/transfer/labels.ts:198
 msgid "The package changed. Choose it again before importing."
 msgstr "O pacote mudou. Escolha-o novamente antes de importar."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:127
+#: packages/admin/src/components/settings/transfer/labels.ts:134
 msgid "The package contains a duplicate ID"
 msgstr "O pacote contém um ID duplicado"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:212
+#: packages/admin/src/components/settings/transfer/labels.ts:219
 msgid "The package contains a file larger than this site accepts."
 msgstr "O pacote contém um ficheiro maior do que este site aceita."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:210
+#: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The package contains a file that is not part of the site package format."
 msgstr "O pacote contém um ficheiro que não faz parte do formato de pacote de site."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:209
+#: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "The package contains an entry that is not a regular file."
 msgstr "O pacote contém uma entrada que não é um ficheiro normal."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:211
+#: packages/admin/src/components/settings/transfer/labels.ts:218
 msgid "The package contains the same file twice."
 msgstr "O pacote contém o mesmo ficheiro duas vezes."
 
@@ -14833,7 +14838,7 @@ msgstr "O pacote contém o mesmo ficheiro duas vezes."
 msgid "The package couldn’t be uploaded"
 msgstr "Não foi possível carregar o pacote"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:126
 msgid "The package format is not supported by this version of EmDash"
 msgstr "O formato do pacote não é suportado por esta versão do EmDash"
 
@@ -14841,31 +14846,31 @@ msgstr "O formato do pacote não é suportado por esta versão do EmDash"
 msgid "The package is checked against this site before anything changes. You can leave this page and come back."
 msgstr "O pacote é verificado em relação a este site antes de qualquer alteração. Pode sair desta página e voltar mais tarde."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:121
+#: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "The package is larger than this site allows"
 msgstr "O pacote é maior do que este site permite"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:187
+#: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The package is larger than this site allows."
 msgstr "O pacote é maior do que este site permite."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:118
+#: packages/admin/src/components/settings/transfer/labels.ts:125
 msgid "The package is not valid"
 msgstr "O pacote não é válido"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:181
+#: packages/admin/src/components/settings/transfer/labels.ts:188
 msgid "The package manifest is not valid."
 msgstr "O manifesto do pacote não é válido."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:120
+#: packages/admin/src/components/settings/transfer/labels.ts:127
 msgid "The package needs a feature this version of EmDash does not support"
 msgstr "O pacote precisa de uma funcionalidade que esta versão do EmDash não suporta"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:135
+#: packages/admin/src/components/settings/transfer/labels.ts:142
 msgid "The package uses a field type this site does not know"
 msgstr "O pacote utiliza um tipo de campo que este site não conhece"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:134
+#: packages/admin/src/components/settings/transfer/labels.ts:141
 msgid "The package uses a locale this site does not have"
 msgstr "O pacote utiliza um idioma que este site não tem"
 
@@ -14877,7 +14882,7 @@ msgstr "O pacote foi verificado em relação a este site. Reveja o que será imp
 msgid "The package’s content is written to this site. The import can’t be undone once it starts; to go back you would need a backup of this site."
 msgstr "O conteúdo do pacote é escrito neste site. A importação não pode ser anulada depois de começar; para voltar atrás, precisaria de uma cópia de segurança deste site."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:208
+#: packages/admin/src/components/settings/transfer/labels.ts:215
 msgid "The package’s file index is not valid."
 msgstr "O índice de ficheiros do pacote não é válido."
 
@@ -14956,7 +14961,7 @@ msgstr "A pasta selecionada já não existe. Escolha outra localização e guard
 msgid "The selected image could not be read."
 msgstr "Não foi possível ler a imagem selecionada."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:194
+#: packages/admin/src/components/settings/transfer/labels.ts:201
 msgid "The server was updated while this ran. Reload the page and try again."
 msgstr "O servidor foi atualizado durante esta operação. Recarregue a página e tente novamente."
 
@@ -14964,11 +14969,11 @@ msgstr "O servidor foi atualizado durante esta operação. Recarregue a página 
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
 msgstr "Os registos assinados do autor e o pacote são válidos. Não foi fornecida a proveniência da compilação."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:179
+#: packages/admin/src/components/settings/transfer/labels.ts:186
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
 msgstr "O site continuou a mudar durante a exportação. Tente novamente quando houver menos edição em curso."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:195
+#: packages/admin/src/components/settings/transfer/labels.ts:202
 msgid "The site’s storage could not be read or written."
 msgstr "Não foi possível ler ou escrever no armazenamento do site."
 
@@ -15061,7 +15066,7 @@ msgstr "As secções fornecidas pelo tema não podem ser eliminadas. Edite a sec
 msgid "Themes"
 msgstr "Temas"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:143
+#: packages/admin/src/components/settings/transfer/labels.ts:150
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Há demasiados redirecionamentos para verificar se existem ciclos antes da importação"
 
@@ -15239,11 +15244,11 @@ msgstr "Este campo irá mostrar as entradas de <0>{0}</0> a que esta entrada de 
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Este campo irá mostrar a entrada de <0>{linkingSide}</0> que liga a esta entrada de {linkedSide}"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:206
+#: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "This file is not a readable EmDash site package."
 msgstr "Este ficheiro não é um pacote de site EmDash legível."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:207
+#: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "Este ficheiro não é um pacote de site EmDash: tem de começar por manifest.json."
 
@@ -15271,7 +15276,7 @@ msgstr "Esta é uma secção personalizada."
 msgid "This is a WordPress site."
 msgstr "Este é um site WordPress."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:215
+#: packages/admin/src/components/settings/transfer/labels.ts:222
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Este não é o pacote com que a importação foi iniciada. Escolha novamente o mesmo ficheiro."
 
@@ -15308,15 +15313,15 @@ msgstr "Este item multimédia já não existe."
 msgid "This month wasn't loaded"
 msgstr "Este mês não foi carregado"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:193
+#: packages/admin/src/components/settings/transfer/labels.ts:200
 msgid "This operation expired. Start again."
 msgstr "Esta operação expirou. Comece novamente."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:183
+#: packages/admin/src/components/settings/transfer/labels.ts:190
 msgid "This package needs features this version of EmDash does not support."
 msgstr "Este pacote precisa de funcionalidades que esta versão do EmDash não suporta."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:182
+#: packages/admin/src/components/settings/transfer/labels.ts:189
 msgid "This package was made by a newer or different version of EmDash."
 msgstr "Este pacote foi criado por uma versão mais recente ou diferente do EmDash."
 
@@ -15426,12 +15431,12 @@ msgstr "Esta ligação de início de sessão expirou. Peça uma nova na página 
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
 msgstr "Esta ligação de início de sessão é inválida ou já foi utilizada. Peça uma nova na página de início de sessão."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:112
-#: packages/admin/src/components/settings/transfer/labels.ts:133
+#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:140
 msgid "This site already has content"
 msgstr "Este site já tem conteúdo"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:180
+#: packages/admin/src/components/settings/transfer/labels.ts:187
 msgid "This site already has content, so it can’t receive an import."
 msgstr "Este site já tem conteúdo, por isso não pode receber uma importação."
 
@@ -15826,11 +15831,11 @@ msgstr "A ativar…"
 msgid "Twitter"
 msgstr "Twitter"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:136
+#: packages/admin/src/components/settings/transfer/labels.ts:143
 msgid "Two authors with bylines in the same locale are mapped to the same user"
 msgstr "Dois autores com créditos no mesmo idioma estão associados ao mesmo utilizador"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:139
+#: packages/admin/src/components/settings/transfer/labels.ts:146
 msgid "Two records have the same value where it must be unique"
 msgstr "Dois registos têm o mesmo valor num campo que tem de ser único"
 
@@ -15898,7 +15903,7 @@ msgstr "Sublinhado"
 msgid "Undo"
 msgstr "Anular"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:157
+#: packages/admin/src/components/settings/transfer/labels.ts:164
 msgid "Unfinished media uploads were left out"
 msgstr "Os carregamentos multimédia não concluídos foram omitidos"
 
@@ -16026,7 +16031,7 @@ msgstr "Ficheiro sem título"
 msgid "Untitled Widget"
 msgstr "Widget sem título"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:154
+#: packages/admin/src/components/settings/transfer/labels.ts:161
 msgid "Unused references were left out"
 msgstr "As referências não utilizadas foram omitidas"
 

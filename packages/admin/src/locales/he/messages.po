@@ -747,7 +747,7 @@ msgstr ""
 msgid "{label} actions"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:261
+#: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{label} in {menuName}"
 msgstr "{label} בתפריט {menuName}"
 
@@ -1077,7 +1077,7 @@ msgstr ""
 msgid "{when}, Published, {author}"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:268
+#: packages/admin/src/components/settings/transfer/labels.ts:275
 msgid "{widgetType} in {areaName}"
 msgstr "{widgetType} באזור {areaName}"
 
@@ -1251,19 +1251,19 @@ msgstr "90 ימים"
 msgid "A brief description of this content type"
 msgstr "תיאור קצר של סוג התוכן הזה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:184
+#: packages/admin/src/components/settings/transfer/labels.ts:191
 msgid "A file does not match the package manifest. The package may be damaged."
 msgstr "קובץ אינו תואם ל-manifest של החבילה. ייתכן שהחבילה פגומה."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:214
+#: packages/admin/src/components/settings/transfer/labels.ts:221
 msgid "A file in the package does not match the manifest. The package may be damaged."
 msgstr "קובץ בחבילה אינו תואם ל-manifest. ייתכן שהחבילה פגומה."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:213
+#: packages/admin/src/components/settings/transfer/labels.ts:220
 msgid "A file in the package is not the size the manifest declares."
 msgstr "גודל של קובץ בחבילה שונה מהגודל שמוצהר ב-manifest."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:185
+#: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "A file is not the size the package manifest declares. The package may be damaged."
 msgstr "גודל של קובץ שונה מהגודל שמוצהר ב-manifest של החבילה. ייתכן שהחבילה פגומה."
 
@@ -1271,11 +1271,11 @@ msgstr "גודל של קובץ שונה מהגודל שמוצהר ב-manifest ש
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "באנר גיבור ברוחב מלא עם כותרת, טקסט וכפתור CTA"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:132
+#: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "A media file is larger than this site accepts"
 msgstr "קובץ מדיה גדול יותר ממה שהאתר הזה מקבל"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:131
+#: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A media file is missing from the package"
 msgstr "קובץ מדיה חסר בחבילה"
 
@@ -1284,15 +1284,15 @@ msgstr "קובץ מדיה חסר בחבילה"
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:137
+#: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "A number is too large for this site’s database"
 msgstr "מספר גדול מדי עבור מסד הנתונים של האתר הזה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:123
+#: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "A package file does not match the manifest"
 msgstr "קובץ בחבילה אינו תואם ל-manifest"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:122
+#: packages/admin/src/components/settings/transfer/labels.ts:129
 msgid "A package file is missing"
 msgstr "קובץ בחבילה חסר"
 
@@ -1306,11 +1306,11 @@ msgstr "לא נבחר זמן פרסום"
 msgid "A publishing action is already in progress"
 msgstr "פעולת פרסום כבר מתבצעת"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:124
+#: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A record in the package is not valid"
 msgstr "רשומה בחבילה אינה תקינה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:128
+#: packages/admin/src/components/settings/transfer/labels.ts:135
 msgid "A record refers to something missing from the package"
 msgstr "רשומה מפנה למשהו שחסר בחבילה"
 
@@ -1348,7 +1348,7 @@ msgstr "נדרשות שפת מקור ושפת יעד"
 msgid "A step failed and will be retried ({0})."
 msgstr "שלב נכשל וינוסה שוב ({0})."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:138
+#: packages/admin/src/components/settings/transfer/labels.ts:145
 msgid "A value does not fit this site’s database"
 msgstr "ערך אינו מתאים למסד הנתונים של האתר הזה"
 
@@ -2184,7 +2184,7 @@ msgstr ""
 msgid "Another folder already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:192
+#: packages/admin/src/components/settings/transfer/labels.ts:199
 msgid "Another import is already using this package."
 msgstr "ייבוא אחר כבר משתמש בחבילה הזו."
 
@@ -2465,7 +2465,7 @@ msgstr "מתבצע אישור..."
 msgid "Authors"
 msgstr "כותבים/ות"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:163
+#: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
 msgstr "המחברים ישויכו למשתמשים באתר הזה"
 
@@ -2686,7 +2686,7 @@ msgid "Block actions - drag to reorder, click for menu"
 msgstr "פעולות בלוק - גררו לשינוי סדר, לחצו לתפריט"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:108
+#: packages/admin/src/components/settings/transfer/labels.ts:115
 msgid "Block type “{0}” was created on this site"
 msgstr "סוג הבלוק “{0}” נוצר באתר הזה"
 
@@ -2736,7 +2736,7 @@ msgstr "שני שדות הקישור שמשויכים לקשר הזה חולקי
 msgid "Brief summary shown below the title in search results"
 msgstr "תקציר קצר שמוצג מתחת לכותרת בתוצאות החיפוש"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:160
+#: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Broken references were cleared"
 msgstr "קישורים שבורים נוקו"
 
@@ -3579,7 +3579,7 @@ msgid "Collection “{0}” has entries"
 msgstr "באוסף “{0}” יש פריטים"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:106
+#: packages/admin/src/components/settings/transfer/labels.ts:113
 msgid "Collection “{0}” was created on this site"
 msgstr "האוסף “{0}” נוצר באתר הזה"
 
@@ -3819,11 +3819,11 @@ msgstr "קריאת תוכן"
 msgid "Content references"
 msgstr "קישורי תוכן"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:130
+#: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "Content refers to media in an invalid way"
 msgstr "התוכן מפנה למדיה בצורה לא תקינה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:140
+#: packages/admin/src/components/settings/transfer/labels.ts:147
 msgid "Content refers to media that is not in the package"
 msgstr "התוכן מפנה למדיה שאינה בחבילה"
 
@@ -4888,6 +4888,11 @@ msgstr "במחיקה..."
 msgid "Deleting…"
 msgstr "במחיקה…"
 
+#. placeholder {0}: blocker.slug
+#: packages/admin/src/components/settings/transfer/labels.ts:109
+msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
 msgid "Deliver all email your site sends"
@@ -5377,7 +5382,7 @@ msgstr ""
 msgid "Duplicate"
 msgstr "שכפול"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:156
+#: packages/admin/src/components/settings/transfer/labels.ts:163
 msgid "Duplicate redirects were left out"
 msgstr "הפניות כפולות הושמטו"
 
@@ -6293,7 +6298,7 @@ msgstr "נכשל"
 msgid "Failed security audit"
 msgstr "בדיקת האבטחה נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:491
+#: packages/admin/src/lib/api/transfer.ts:498
 msgid "Failed to abandon import"
 msgstr "נטישת הייבוא נכשלה"
 
@@ -6317,7 +6322,7 @@ msgstr ""
 msgid "Failed to analyze file"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:442
+#: packages/admin/src/lib/api/transfer.ts:449
 msgid "Failed to analyze import"
 msgstr "ניתוח הייבוא נכשל"
 
@@ -6326,11 +6331,11 @@ msgstr "ניתוח הייבוא נכשל"
 msgid "Failed to analyze WordPress site"
 msgstr "ניתוח אתר WordPress נכשל"
 
-#: packages/admin/src/lib/api/transfer.ts:525
+#: packages/admin/src/lib/api/transfer.ts:532
 msgid "Failed to approve request"
 msgstr "אישור הבקשה נכשל"
 
-#: packages/admin/src/lib/api/transfer.ts:482
+#: packages/admin/src/lib/api/transfer.ts:489
 msgid "Failed to cancel import"
 msgstr "ביטול הייבוא נכשל"
 
@@ -6354,11 +6359,11 @@ msgstr ""
 msgid "Failed to confirm upload"
 msgstr "אישור ההעלאה נכשל"
 
-#: packages/admin/src/lib/api/transfer.ts:324
+#: packages/admin/src/lib/api/transfer.ts:331
 msgid "Failed to continue export"
 msgstr "המשך הייצוא נכשל"
 
-#: packages/admin/src/lib/api/transfer.ts:466
+#: packages/admin/src/lib/api/transfer.ts:473
 msgid "Failed to continue import"
 msgstr "המשך הייבוא נכשל"
 
@@ -6563,7 +6568,7 @@ msgstr "מחיקת וידג׳ט נכשלה"
 msgid "Failed to delete widget area"
 msgstr "מחיקת אזור וידג׳טים נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:526
+#: packages/admin/src/lib/api/transfer.ts:533
 msgid "Failed to deny request"
 msgstr "דחיית הבקשה נכשלה"
 
@@ -6593,7 +6598,7 @@ msgstr "סגירת דחיית הפרסום המתוזמן נכשלה"
 msgid "Failed to dismiss welcome"
 msgstr "סגירת הודעת הפתיחה נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:360
+#: packages/admin/src/lib/api/transfer.ts:367
 msgid "Failed to download a package file"
 msgstr "הורדת קובץ חבילה נכשלה"
 
@@ -6928,7 +6933,7 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr "הצגת שדות קרדיט נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:415
+#: packages/admin/src/lib/api/transfer.ts:422
 msgid "Failed to list files to upload"
 msgstr "הצגת רשימת הקבצים להעלאה נכשלה"
 
@@ -6941,7 +6946,7 @@ msgstr "טעינת הניהול נכשלה"
 msgid "Failed to load allowed domains"
 msgstr "טעינת דומיינים מורשים נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:511
+#: packages/admin/src/lib/api/transfer.ts:518
 msgid "Failed to load approval requests"
 msgstr "טעינת בקשות האישור נכשלה"
 
@@ -6959,12 +6964,12 @@ msgstr "טעינת קרדיטים נכשלה: {0}"
 msgid "Failed to load email settings"
 msgstr "טעינת הגדרות אימייל נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:329
-#: packages/admin/src/lib/api/transfer.ts:347
+#: packages/admin/src/lib/api/transfer.ts:336
+#: packages/admin/src/lib/api/transfer.ts:354
 msgid "Failed to load export manifest"
 msgstr "טעינת manifest הייצוא נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:298
+#: packages/admin/src/lib/api/transfer.ts:305
 msgid "Failed to load exports"
 msgstr "טעינת הייצואים נכשלה"
 
@@ -6972,19 +6977,19 @@ msgstr "טעינת הייצואים נכשלה"
 msgid "Failed to load image"
 msgstr "טעינת תמונה נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:388
+#: packages/admin/src/lib/api/transfer.ts:395
 msgid "Failed to load import"
 msgstr "טעינת הייבוא נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:449
+#: packages/admin/src/lib/api/transfer.ts:456
 msgid "Failed to load import plan"
 msgstr "טעינת תוכנית הייבוא נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:473
+#: packages/admin/src/lib/api/transfer.ts:480
 msgid "Failed to load import receipt"
 msgstr "טעינת אישור הייבוא נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:380
+#: packages/admin/src/lib/api/transfer.ts:387
 msgid "Failed to load imports"
 msgstr "טעינת הייבואים נכשלה"
 
@@ -7026,7 +7031,7 @@ msgstr "טעינת לוח השנה נכשלה"
 msgid "Failed to load theme"
 msgstr "טעינת ערכת עיצוב נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:284
+#: packages/admin/src/lib/api/transfer.ts:291
 msgid "Failed to load transfer capabilities"
 msgstr "טעינת יכולות ההעברה נכשלה"
 
@@ -7217,12 +7222,12 @@ msgstr "הגדרת מונחי פריט נכשלה"
 msgid "Failed to start AT Protocol login"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:317
+#: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to start export"
 msgstr "התחלת הייצוא נכשלה"
 
-#: packages/admin/src/lib/api/transfer.ts:405
-#: packages/admin/src/lib/api/transfer.ts:459
+#: packages/admin/src/lib/api/transfer.ts:412
+#: packages/admin/src/lib/api/transfer.ts:466
 msgid "Failed to start import"
 msgstr "התחלת הייבוא נכשלה"
 
@@ -7354,7 +7359,7 @@ msgstr ""
 msgid "Failed to update widget"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:431
+#: packages/admin/src/lib/api/transfer.ts:438
 msgid "Failed to upload a package file"
 msgstr "העלאת קובץ חבילה נכשלה"
 
@@ -9216,7 +9221,7 @@ msgstr "זמן מקומי"
 msgid "Locale"
 msgstr "שפה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:169
+#: packages/admin/src/components/settings/transfer/labels.ts:176
 msgid "Locales will use this site’s capitalization"
 msgstr "קודי השפות יותאמו לאותיות הגדולות והקטנות של האתר הזה"
 
@@ -9474,7 +9479,7 @@ msgstr "ספריית המדיה"
 msgid "Media Library"
 msgstr "ספריית המדיה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:158
+#: packages/admin/src/components/settings/transfer/labels.ts:165
 msgid "Media links were made relative"
 msgstr "קישורי המדיה הפכו ליחסיים"
 
@@ -9712,7 +9717,7 @@ msgstr "מידע נוסף על טקסט חלופי"
 msgid "More information about Display size"
 msgstr "מידע נוסף על גודל תצוגה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:144
+#: packages/admin/src/components/settings/transfer/labels.ts:151
 msgid "More issues were found than are listed"
 msgstr "נמצאו יותר בעיות ממה שמוצג ברשימה"
 
@@ -11821,19 +11826,19 @@ msgstr "עודכן לאחרונה"
 msgid "Recipient email"
 msgstr "אימייל נמען"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:125
+#: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "Record counts do not match the manifest"
 msgstr "מספרי הרשומות לא תואמים ל-manifest"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:126
+#: packages/admin/src/components/settings/transfer/labels.ts:133
 msgid "Records are out of order"
 msgstr "הרשומות אינן בסדר הנכון"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:129
+#: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Records refer to each other in a loop"
 msgstr "רשומות מפנות זו לזו בלולאה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:159
+#: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Records without a parent were left out"
 msgstr "רשומות ללא הורה לא נכללו"
 
@@ -11859,7 +11864,7 @@ msgstr "מתבצעת הפניה להתחברות..."
 msgid "Redirects"
 msgstr "הפניות"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:166
+#: packages/admin/src/components/settings/transfer/labels.ts:173
 msgid "Redirects that loop will be imported turned off"
 msgstr "הפניות שיוצרות לולאה ייובאו כשהן מושבתות"
 
@@ -13225,7 +13230,7 @@ msgstr "חפשו כדי לצמצם את הרשימה"
 msgid "Search users"
 msgstr "חיפוש משתמשים"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:167
+#: packages/admin/src/components/settings/transfer/labels.ts:174
 msgid "Search will be turned off for some collections"
 msgstr "החיפוש יושבת בחלק מהאוספים"
 
@@ -14095,11 +14100,11 @@ msgstr "פרופילים חברתיים"
 msgid "Social Settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:155
+#: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some byline avatars were left out"
 msgstr "חלק מתמונות הפרופיל של הקרדיטים לא נכללו"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:162
+#: packages/admin/src/components/settings/transfer/labels.ts:169
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
 msgstr "חלק מהתוכן מקשר לקובצי מדיה שאין באתר המקור; הקישורים האלה לא יעבדו"
 
@@ -14112,27 +14117,27 @@ msgstr "ייתכן שחלק מהתוכן עדיין לא מופיע כאן."
 msgid "Some content types cannot be imported"
 msgstr "לא ניתן לייבא חלק מסוגי התוכן"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:164
+#: packages/admin/src/components/settings/transfer/labels.ts:171
 msgid "Some content will have no author"
 msgstr "לחלק מהתוכן לא יהיה מחבר"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:168
+#: packages/admin/src/components/settings/transfer/labels.ts:175
 msgid "Some decimal numbers will be rounded"
 msgstr "חלק מהמספרים העשרוניים יעוגלו"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:216
+#: packages/admin/src/components/settings/transfer/labels.ts:223
 msgid "Some files listed in the manifest are not in this package."
 msgstr "חלק מהקבצים שמופיעים ב-manifest אינם בחבילה הזו."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:141
+#: packages/admin/src/components/settings/transfer/labels.ts:148
 msgid "Some media is hosted by an external provider"
 msgstr "חלק מהמדיה מאוחסנת אצל ספק חיצוני"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:161
+#: packages/admin/src/components/settings/transfer/labels.ts:168
 msgid "Some media links could not be matched to files"
 msgstr "לא ניתן היה להתאים חלק מקישורי המדיה לקבצים"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:142
+#: packages/admin/src/components/settings/transfer/labels.ts:149
 msgid "Some references point to content that is not in the package"
 msgstr "חלק מהקישורים מצביעים על תוכן שאינו בחבילה"
 
@@ -14263,7 +14268,7 @@ msgstr "התחילו לכתוב, או הקלידו '/' לפקודות"
 msgid "Starter content that will be removed"
 msgstr "תוכן התחלה שיוסר"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:165
+#: packages/admin/src/components/settings/transfer/labels.ts:172
 msgid "Starter content will be removed"
 msgstr "תוכן ההתחלה יוסר"
 
@@ -14500,7 +14505,7 @@ msgid "Taxonomy"
 msgstr "טקסונומיה"
 
 #. placeholder {0}: blocker.name
-#: packages/admin/src/components/settings/transfer/labels.ts:110
+#: packages/admin/src/components/settings/transfer/labels.ts:117
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "הטקסונומיה „{0}” נמצאת בשימוש בתוכן באתר זה"
 
@@ -14687,7 +14692,7 @@ msgstr "לאוסף הקיים יש שדות עם סוגים לא תואמים."
 msgid "The export stopped"
 msgstr "הייצוא נעצר"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:217
+#: packages/admin/src/components/settings/transfer/labels.ts:224
 msgid "The export’s files no longer match the export. Start a new export."
 msgstr "קובצי הייצוא כבר לא תואמים לייצוא. התחילו ייצוא חדש."
 
@@ -14695,7 +14700,7 @@ msgstr "קובצי הייצוא כבר לא תואמים לייצוא. התחי�
 msgid "The exported package and this import change the content in these ways."
 msgstr "החבילה המיוצאת והייבוא הזה משנים את התוכן באופנים הבאים."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:186
+#: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "The file is not a valid EmDash site package."
 msgstr "הקובץ אינו חבילת אתר תקינה של EmDash."
 
@@ -14731,7 +14736,7 @@ msgstr "הייבוא לא החזיר סמן הכנה"
 msgid "The import failed"
 msgstr "הייבוא נכשל"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:189
+#: packages/admin/src/components/settings/transfer/labels.ts:196
 msgid "The import has blockers that must be resolved first."
 msgstr "לייבוא יש חסמים שצריך לפתור קודם."
 
@@ -14739,7 +14744,7 @@ msgstr "לייבוא יש חסמים שצריך לפתור קודם."
 msgid "The import plan changed"
 msgstr "תוכנית הייבוא השתנתה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:190
+#: packages/admin/src/components/settings/transfer/labels.ts:197
 msgid "The import plan changed. Review it again before importing."
 msgstr "תוכנית הייבוא השתנתה. סקרו אותה שוב לפני הייבוא."
 
@@ -14760,7 +14765,7 @@ msgstr "הייבוא ייעצר אחרי השלב הנוכחי. התוכן שכ�
 msgid "The import was cancelled"
 msgstr "הייבוא בוטל"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:188
+#: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The imported site did not match the package when it was checked."
 msgstr "האתר המיובא לא תאם לחבילה בזמן הבדיקה."
 
@@ -14806,27 +14811,27 @@ msgstr "שם האתר שלכם, המשמש בכותרת ובמטא-נתונים"
 msgid "The order controls how block types appear in the picker."
 msgstr "הסדר קובע איך סוגי הבלוקים מופיעים בבוחר."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:191
+#: packages/admin/src/components/settings/transfer/labels.ts:198
 msgid "The package changed. Choose it again before importing."
 msgstr "החבילה השתנתה. בחרו אותה שוב לפני הייבוא."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:127
+#: packages/admin/src/components/settings/transfer/labels.ts:134
 msgid "The package contains a duplicate ID"
 msgstr "החבילה מכילה מזהה כפול"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:212
+#: packages/admin/src/components/settings/transfer/labels.ts:219
 msgid "The package contains a file larger than this site accepts."
 msgstr "החבילה מכילה קובץ גדול מהגודל שאתר זה מקבל."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:210
+#: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The package contains a file that is not part of the site package format."
 msgstr "החבילה מכילה קובץ שאינו חלק מפורמט חבילת האתר."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:209
+#: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "The package contains an entry that is not a regular file."
 msgstr "החבילה מכילה רשומה שאינה קובץ רגיל."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:211
+#: packages/admin/src/components/settings/transfer/labels.ts:218
 msgid "The package contains the same file twice."
 msgstr "החבילה מכילה את אותו קובץ פעמיים."
 
@@ -14834,7 +14839,7 @@ msgstr "החבילה מכילה את אותו קובץ פעמיים."
 msgid "The package couldn’t be uploaded"
 msgstr "לא ניתן היה להעלות את החבילה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:126
 msgid "The package format is not supported by this version of EmDash"
 msgstr "גרסה זו של EmDash אינה תומכת בפורמט החבילה"
 
@@ -14842,31 +14847,31 @@ msgstr "גרסה זו של EmDash אינה תומכת בפורמט החבילה"
 msgid "The package is checked against this site before anything changes. You can leave this page and come back."
 msgstr "החבילה נבדקת מול אתר זה לפני שמשהו משתנה. אפשר לעזוב את הדף ולחזור אחר כך."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:121
+#: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "The package is larger than this site allows"
 msgstr "החבילה גדולה מהגודל שאתר זה מאפשר"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:187
+#: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The package is larger than this site allows."
 msgstr "החבילה גדולה מהגודל שאתר זה מאפשר."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:118
+#: packages/admin/src/components/settings/transfer/labels.ts:125
 msgid "The package is not valid"
 msgstr "החבילה אינה תקינה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:181
+#: packages/admin/src/components/settings/transfer/labels.ts:188
 msgid "The package manifest is not valid."
 msgstr "ה-manifest של החבילה אינו תקין."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:120
+#: packages/admin/src/components/settings/transfer/labels.ts:127
 msgid "The package needs a feature this version of EmDash does not support"
 msgstr "החבילה דורשת יכולת שגרסה זו של EmDash אינה תומכת בה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:135
+#: packages/admin/src/components/settings/transfer/labels.ts:142
 msgid "The package uses a field type this site does not know"
 msgstr "החבילה משתמשת בסוג שדה שאתר זה אינו מכיר"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:134
+#: packages/admin/src/components/settings/transfer/labels.ts:141
 msgid "The package uses a locale this site does not have"
 msgstr "החבילה משתמשת בשפה שאין באתר זה"
 
@@ -14878,7 +14883,7 @@ msgstr "החבילה נבדקה מול אתר זה. סקרו מה ייובא, ב
 msgid "The package’s content is written to this site. The import can’t be undone once it starts; to go back you would need a backup of this site."
 msgstr "תוכן החבילה נכתב לאתר זה. אי אפשר לבטל את הייבוא אחרי שהוא מתחיל; כדי לחזור אחורה תצטרכו גיבוי של אתר זה."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:208
+#: packages/admin/src/components/settings/transfer/labels.ts:215
 msgid "The package’s file index is not valid."
 msgstr "אינדקס הקבצים של החבילה אינו תקין."
 
@@ -14957,7 +14962,7 @@ msgstr "התיקייה שנבחרה אינה קיימת עוד. בחרו מיק�
 msgid "The selected image could not be read."
 msgstr "לא ניתן לקרוא את התמונה שנבחרה."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:194
+#: packages/admin/src/components/settings/transfer/labels.ts:201
 msgid "The server was updated while this ran. Reload the page and try again."
 msgstr "השרת עודכן בזמן שהפעולה רצה. טענו מחדש את הדף ונסו שוב."
 
@@ -14965,11 +14970,11 @@ msgstr "השרת עודכן בזמן שהפעולה רצה. טענו מחדש א
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
 msgstr "רשומות המפרסם החתומות והחבילה תקינות. מקור הבנייה לא סופק."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:179
+#: packages/admin/src/components/settings/transfer/labels.ts:186
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
 msgstr "האתר המשיך להשתנות בזמן הייצוא. נסו שוב כשיש פחות עריכה."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:195
+#: packages/admin/src/components/settings/transfer/labels.ts:202
 msgid "The site’s storage could not be read or written."
 msgstr "לא ניתן היה לקרוא מאחסון האתר או לכתוב אליו."
 
@@ -15062,7 +15067,7 @@ msgstr "לא ניתן למחוק מקטעים שמספקת ערכת העיצוב
 msgid "Themes"
 msgstr "ערכות עיצוב"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:143
+#: packages/admin/src/components/settings/transfer/labels.ts:150
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "יש יותר מדי הפניות כדי לבדוק אם יש בהן לולאות לפני הייבוא"
 
@@ -15240,11 +15245,11 @@ msgstr "בשדה הזה יוצגו <0>{0}</0> ש{linkingSide} זה מקשר אל
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "בשדה הזה יוצגו <0>{linkingSide}</0> שמקשרים אל {linkedSide} זה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:206
+#: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "This file is not a readable EmDash site package."
 msgstr "הקובץ הזה אינו חבילת אתר קריאה של EmDash."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:207
+#: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "הקובץ הזה אינו חבילת אתר של EmDash: הוא חייב להתחיל ב-manifest.json."
 
@@ -15272,7 +15277,7 @@ msgstr "זהו מקטע מותאם אישית."
 msgid "This is a WordPress site."
 msgstr "זהו אתר WordPress."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:215
+#: packages/admin/src/components/settings/transfer/labels.ts:222
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "זו לא החבילה שאיתה הייבוא התחיל. בחרו שוב את אותו קובץ."
 
@@ -15309,15 +15314,15 @@ msgstr "פריט מדיה זה אינו קיים עוד."
 msgid "This month wasn't loaded"
 msgstr "החודש הזה לא נטען"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:193
+#: packages/admin/src/components/settings/transfer/labels.ts:200
 msgid "This operation expired. Start again."
 msgstr "תוקף הפעולה הזו פג. התחילו מחדש."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:183
+#: packages/admin/src/components/settings/transfer/labels.ts:190
 msgid "This package needs features this version of EmDash does not support."
 msgstr "החבילה הזו דורשת יכולות שגרסה זו של EmDash אינה תומכת בהן."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:182
+#: packages/admin/src/components/settings/transfer/labels.ts:189
 msgid "This package was made by a newer or different version of EmDash."
 msgstr "החבילה הזו נוצרה בגרסה חדשה יותר או שונה של EmDash."
 
@@ -15427,12 +15432,12 @@ msgstr "קישור ההתחברות הזה פג. בקשו חדש מעמוד הה
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
 msgstr "קישור ההתחברות אינו תקין, או שכבר נעשה בו שימוש. בקשו חדש מעמוד ההתחברות."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:112
-#: packages/admin/src/components/settings/transfer/labels.ts:133
+#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:140
 msgid "This site already has content"
 msgstr "באתר זה כבר יש תוכן"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:180
+#: packages/admin/src/components/settings/transfer/labels.ts:187
 msgid "This site already has content, so it can’t receive an import."
 msgstr "באתר זה כבר יש תוכן, ולכן לא ניתן לייבא אליו."
 
@@ -15827,11 +15832,11 @@ msgstr "בהפעלה…"
 msgid "Twitter"
 msgstr "טוויטר"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:136
+#: packages/admin/src/components/settings/transfer/labels.ts:143
 msgid "Two authors with bylines in the same locale are mapped to the same user"
 msgstr "שני כותבים/ות עם קרדיטים באותה שפה ממופים לאותו משתמש"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:139
+#: packages/admin/src/components/settings/transfer/labels.ts:146
 msgid "Two records have the same value where it must be unique"
 msgstr "לשתי רשומות יש אותו ערך בשדה שחייב להיות ייחודי"
 
@@ -15899,7 +15904,7 @@ msgstr "קו תחתון"
 msgid "Undo"
 msgstr "ביטול פעולה"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:157
+#: packages/admin/src/components/settings/transfer/labels.ts:164
 msgid "Unfinished media uploads were left out"
 msgstr "העלאות מדיה שלא הסתיימו הושמטו"
 
@@ -16027,7 +16032,7 @@ msgstr "קובץ ללא שם"
 msgid "Untitled Widget"
 msgstr "וידג׳ט ללא כותרת"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:154
+#: packages/admin/src/components/settings/transfer/labels.ts:161
 msgid "Unused references were left out"
 msgstr "הפניות שאינן בשימוש הושמטו"
 

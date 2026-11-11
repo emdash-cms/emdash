@@ -746,7 +746,7 @@ msgstr ""
 msgid "{label} actions"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:261
+#: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{label} in {menuName}"
 msgstr "{label} u {menuName}"
 
@@ -1076,7 +1076,7 @@ msgstr ""
 msgid "{when}, Published, {author}"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:268
+#: packages/admin/src/components/settings/transfer/labels.ts:275
 msgid "{widgetType} in {areaName}"
 msgstr "{widgetType} u {areaName}"
 
@@ -1250,19 +1250,19 @@ msgstr "90 dana"
 msgid "A brief description of this content type"
 msgstr "Kratak opis ovog tipa sadržaja"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:184
+#: packages/admin/src/components/settings/transfer/labels.ts:191
 msgid "A file does not match the package manifest. The package may be damaged."
 msgstr "Fajl se ne poklapa sa manifestom paketa. Paket je možda oštećen."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:214
+#: packages/admin/src/components/settings/transfer/labels.ts:221
 msgid "A file in the package does not match the manifest. The package may be damaged."
 msgstr "Fajl u paketu se ne poklapa sa manifestom. Paket je možda oštećen."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:213
+#: packages/admin/src/components/settings/transfer/labels.ts:220
 msgid "A file in the package is not the size the manifest declares."
 msgstr "Fajl u paketu nije veličine koju manifest navodi."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:185
+#: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "A file is not the size the package manifest declares. The package may be damaged."
 msgstr "Fajl nije veličine koju manifest paketa navodi. Paket je možda oštećen."
 
@@ -1270,11 +1270,11 @@ msgstr "Fajl nije veličine koju manifest paketa navodi. Paket je možda ošteć
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "Hero baner pune širine sa naslovom, tekstom i CTA dugmetom"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:132
+#: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "A media file is larger than this site accepts"
 msgstr "Medijski fajl je veći nego što ovaj sajt prihvata"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:131
+#: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A media file is missing from the package"
 msgstr "Medijski fajl nedostaje u paketu"
 
@@ -1283,15 +1283,15 @@ msgstr "Medijski fajl nedostaje u paketu"
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:137
+#: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "A number is too large for this site’s database"
 msgstr "Broj je prevelik za bazu podataka ovog sajta"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:123
+#: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "A package file does not match the manifest"
 msgstr "Fajl paketa se ne poklapa sa manifestom"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:122
+#: packages/admin/src/components/settings/transfer/labels.ts:129
 msgid "A package file is missing"
 msgstr "Fajl paketa nedostaje"
 
@@ -1305,11 +1305,11 @@ msgstr "Vreme objavljivanja nije izabrano"
 msgid "A publishing action is already in progress"
 msgstr "Radnja objavljivanja je već u toku"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:124
+#: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A record in the package is not valid"
 msgstr "Zapis u paketu nije važeći"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:128
+#: packages/admin/src/components/settings/transfer/labels.ts:135
 msgid "A record refers to something missing from the package"
 msgstr "Zapis upućuje na nešto što nedostaje u paketu"
 
@@ -1347,7 +1347,7 @@ msgstr "Izvorni i ciljni jezik su obavezni"
 msgid "A step failed and will be retried ({0})."
 msgstr "Korak nije uspeo i ponoviće se ({0})."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:138
+#: packages/admin/src/components/settings/transfer/labels.ts:145
 msgid "A value does not fit this site’s database"
 msgstr "Vrednost se ne uklapa u bazu podataka ovog sajta"
 
@@ -2183,7 +2183,7 @@ msgstr ""
 msgid "Another folder already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:192
+#: packages/admin/src/components/settings/transfer/labels.ts:199
 msgid "Another import is already using this package."
 msgstr "Drugi uvoz već koristi ovaj paket."
 
@@ -2464,7 +2464,7 @@ msgstr "Autorizacija..."
 msgid "Authors"
 msgstr "Autori"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:163
+#: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
 msgstr "Autori se dodeljuju korisnicima na ovom sajtu"
 
@@ -2685,7 +2685,7 @@ msgid "Block actions - drag to reorder, click for menu"
 msgstr "Akcije bloka — prevuci za preuređivanje, klikni za meni"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:108
+#: packages/admin/src/components/settings/transfer/labels.ts:115
 msgid "Block type “{0}” was created on this site"
 msgstr "Tip bloka “{0}” je napravljen na ovom sajtu"
 
@@ -2735,7 +2735,7 @@ msgstr "Oba referentna polja povezana sa ovom relacijom dele ova ograničenja, t
 msgid "Brief summary shown below the title in search results"
 msgstr "Kratak rezime prikazan ispod naslova u rezultatima pretrage"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:160
+#: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Broken references were cleared"
 msgstr "Pokvarene reference su očišćene"
 
@@ -3578,7 +3578,7 @@ msgid "Collection “{0}” has entries"
 msgstr "Kolekcija “{0}” ima unose"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:106
+#: packages/admin/src/components/settings/transfer/labels.ts:113
 msgid "Collection “{0}” was created on this site"
 msgstr "Kolekcija “{0}” je napravljena na ovom sajtu"
 
@@ -3818,11 +3818,11 @@ msgstr "Čitanje sadržaja"
 msgid "Content references"
 msgstr "Reference sadržaja"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:130
+#: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "Content refers to media in an invalid way"
 msgstr "Sadržaj upućuje na medije na nevažeći način"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:140
+#: packages/admin/src/components/settings/transfer/labels.ts:147
 msgid "Content refers to media that is not in the package"
 msgstr "Sadržaj upućuje na medije koji nisu u paketu"
 
@@ -4887,6 +4887,11 @@ msgstr "Brisanje..."
 msgid "Deleting…"
 msgstr "Brisanje…"
 
+#. placeholder {0}: blocker.slug
+#: packages/admin/src/components/settings/transfer/labels.ts:109
+msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
 msgid "Deliver all email your site sends"
@@ -5376,7 +5381,7 @@ msgstr ""
 msgid "Duplicate"
 msgstr "Dupliraj"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:156
+#: packages/admin/src/components/settings/transfer/labels.ts:163
 msgid "Duplicate redirects were left out"
 msgstr "Duplikati preusmerenja su izostavljeni"
 
@@ -6292,7 +6297,7 @@ msgstr "Neuspešno"
 msgid "Failed security audit"
 msgstr "Neuspešna bezbednosna provera"
 
-#: packages/admin/src/lib/api/transfer.ts:491
+#: packages/admin/src/lib/api/transfer.ts:498
 msgid "Failed to abandon import"
 msgstr "Napuštanje uvoza nije uspelo"
 
@@ -6316,7 +6321,7 @@ msgstr ""
 msgid "Failed to analyze file"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:442
+#: packages/admin/src/lib/api/transfer.ts:449
 msgid "Failed to analyze import"
 msgstr "Analiza uvoza nije uspela"
 
@@ -6325,11 +6330,11 @@ msgstr "Analiza uvoza nije uspela"
 msgid "Failed to analyze WordPress site"
 msgstr "Analiza WordPress sajta nije uspela"
 
-#: packages/admin/src/lib/api/transfer.ts:525
+#: packages/admin/src/lib/api/transfer.ts:532
 msgid "Failed to approve request"
 msgstr "Odobravanje zahteva nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:482
+#: packages/admin/src/lib/api/transfer.ts:489
 msgid "Failed to cancel import"
 msgstr "Otkazivanje uvoza nije uspelo"
 
@@ -6353,11 +6358,11 @@ msgstr ""
 msgid "Failed to confirm upload"
 msgstr "Potvrda otpremanja nije uspela"
 
-#: packages/admin/src/lib/api/transfer.ts:324
+#: packages/admin/src/lib/api/transfer.ts:331
 msgid "Failed to continue export"
 msgstr "Nastavljanje izvoza nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:466
+#: packages/admin/src/lib/api/transfer.ts:473
 msgid "Failed to continue import"
 msgstr "Nastavljanje uvoza nije uspelo"
 
@@ -6562,7 +6567,7 @@ msgstr "Brisanje vidžeta nije uspelo"
 msgid "Failed to delete widget area"
 msgstr "Brisanje oblasti vidžeta nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:526
+#: packages/admin/src/lib/api/transfer.ts:533
 msgid "Failed to deny request"
 msgstr "Odbijanje zahteva nije uspelo"
 
@@ -6592,7 +6597,7 @@ msgstr "Odbacivanje obaveštenja o odbijanju zakazane objave nije uspelo"
 msgid "Failed to dismiss welcome"
 msgstr "Odbacivanje dobrodošlice nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:360
+#: packages/admin/src/lib/api/transfer.ts:367
 msgid "Failed to download a package file"
 msgstr "Preuzimanje fajla paketa nije uspelo"
 
@@ -6927,7 +6932,7 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr "Listanje polja potpisa autora nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:415
+#: packages/admin/src/lib/api/transfer.ts:422
 msgid "Failed to list files to upload"
 msgstr "Prikazivanje fajlova za otpremanje nije uspelo"
 
@@ -6940,7 +6945,7 @@ msgstr "Učitavanje admina nije uspelo"
 msgid "Failed to load allowed domains"
 msgstr "Učitavanje dozvoljenih domena nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:511
+#: packages/admin/src/lib/api/transfer.ts:518
 msgid "Failed to load approval requests"
 msgstr "Učitavanje zahteva za odobrenje nije uspelo"
 
@@ -6958,12 +6963,12 @@ msgstr "Učitavanje potpisa autora nije uspelo: {0}"
 msgid "Failed to load email settings"
 msgstr "Učitavanje podešavanja e-pošte nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:329
-#: packages/admin/src/lib/api/transfer.ts:347
+#: packages/admin/src/lib/api/transfer.ts:336
+#: packages/admin/src/lib/api/transfer.ts:354
 msgid "Failed to load export manifest"
 msgstr "Učitavanje manifesta izvoza nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:298
+#: packages/admin/src/lib/api/transfer.ts:305
 msgid "Failed to load exports"
 msgstr "Učitavanje izvoza nije uspelo"
 
@@ -6971,19 +6976,19 @@ msgstr "Učitavanje izvoza nije uspelo"
 msgid "Failed to load image"
 msgstr "Učitavanje slike nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:388
+#: packages/admin/src/lib/api/transfer.ts:395
 msgid "Failed to load import"
 msgstr "Učitavanje uvoza nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:449
+#: packages/admin/src/lib/api/transfer.ts:456
 msgid "Failed to load import plan"
 msgstr "Učitavanje plana uvoza nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:473
+#: packages/admin/src/lib/api/transfer.ts:480
 msgid "Failed to load import receipt"
 msgstr "Učitavanje potvrde uvoza nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:380
+#: packages/admin/src/lib/api/transfer.ts:387
 msgid "Failed to load imports"
 msgstr "Učitavanje uvoza nije uspelo"
 
@@ -7025,7 +7030,7 @@ msgstr "Učitavanje kalendara nije uspelo"
 msgid "Failed to load theme"
 msgstr "Učitavanje teme nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:284
+#: packages/admin/src/lib/api/transfer.ts:291
 msgid "Failed to load transfer capabilities"
 msgstr "Učitavanje mogućnosti prenosa nije uspelo"
 
@@ -7216,12 +7221,12 @@ msgstr "Postavljanje termina unosa nije uspelo"
 msgid "Failed to start AT Protocol login"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:317
+#: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to start export"
 msgstr "Pokretanje izvoza nije uspelo"
 
-#: packages/admin/src/lib/api/transfer.ts:405
-#: packages/admin/src/lib/api/transfer.ts:459
+#: packages/admin/src/lib/api/transfer.ts:412
+#: packages/admin/src/lib/api/transfer.ts:466
 msgid "Failed to start import"
 msgstr "Pokretanje uvoza nije uspelo"
 
@@ -7353,7 +7358,7 @@ msgstr ""
 msgid "Failed to update widget"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:431
+#: packages/admin/src/lib/api/transfer.ts:438
 msgid "Failed to upload a package file"
 msgstr "Otpremanje fajla paketa nije uspelo"
 
@@ -9215,7 +9220,7 @@ msgstr "Lokalno vreme"
 msgid "Locale"
 msgstr "Lokal"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:169
+#: packages/admin/src/components/settings/transfer/labels.ts:176
 msgid "Locales will use this site’s capitalization"
 msgstr "Jezici će koristiti velika i mala slova sa ovog sajta"
 
@@ -9473,7 +9478,7 @@ msgstr "visualEditing.mediaLibrary"
 msgid "Media Library"
 msgstr "Biblioteka medija"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:158
+#: packages/admin/src/components/settings/transfer/labels.ts:165
 msgid "Media links were made relative"
 msgstr "Linkovi medija su napravljeni relativnim"
 
@@ -9711,7 +9716,7 @@ msgstr "Više informacija o alternativnom tekstu"
 msgid "More information about Display size"
 msgstr "Više informacija o veličini prikaza"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:144
+#: packages/admin/src/components/settings/transfer/labels.ts:151
 msgid "More issues were found than are listed"
 msgstr "Pronađeno je više problema nego što je prikazano"
 
@@ -11820,19 +11825,19 @@ msgstr "Nedavno ažurirano"
 msgid "Recipient email"
 msgstr "E-adresa primaoca"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:125
+#: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "Record counts do not match the manifest"
 msgstr "Brojevi zapisa se ne poklapaju sa manifestom"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:126
+#: packages/admin/src/components/settings/transfer/labels.ts:133
 msgid "Records are out of order"
 msgstr "Zapisi su van redosleda"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:129
+#: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Records refer to each other in a loop"
 msgstr "Zapisi upućuju jedan na drugi u petlji"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:159
+#: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Records without a parent were left out"
 msgstr "Izostavljeni su zapisi bez nadređenog"
 
@@ -11858,7 +11863,7 @@ msgstr "Preusmeravanje na prijavu..."
 msgid "Redirects"
 msgstr "Preusmeravanja"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:166
+#: packages/admin/src/components/settings/transfer/labels.ts:173
 msgid "Redirects that loop will be imported turned off"
 msgstr "Preusmerenja koja prave petlju biće uvezena isključena"
 
@@ -13224,7 +13229,7 @@ msgstr "Pretraži da suziš listu"
 msgid "Search users"
 msgstr "Pretraži korisnike"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:167
+#: packages/admin/src/components/settings/transfer/labels.ts:174
 msgid "Search will be turned off for some collections"
 msgstr "Pretraga će biti isključena za neke kolekcije"
 
@@ -14094,11 +14099,11 @@ msgstr "Društveni profili"
 msgid "Social Settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:155
+#: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some byline avatars were left out"
 msgstr "Izostavljeni su neki avatari potpisa"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:162
+#: packages/admin/src/components/settings/transfer/labels.ts:169
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
 msgstr "Neki sadržaj upućuje na medijske fajlove koje izvorni sajt nema; ti linkovi neće raditi"
 
@@ -14111,27 +14116,27 @@ msgstr "Neki sadržaj možda još nije prikazan ovde."
 msgid "Some content types cannot be imported"
 msgstr "Neki tipovi sadržaja se ne mogu uvesti"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:164
+#: packages/admin/src/components/settings/transfer/labels.ts:171
 msgid "Some content will have no author"
 msgstr "Neki sadržaj neće imati autora"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:168
+#: packages/admin/src/components/settings/transfer/labels.ts:175
 msgid "Some decimal numbers will be rounded"
 msgstr "Neki decimalni brojevi biće zaokruženi"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:216
+#: packages/admin/src/components/settings/transfer/labels.ts:223
 msgid "Some files listed in the manifest are not in this package."
 msgstr "Neki fajlovi navedeni u manifestu nisu u ovom paketu."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:141
+#: packages/admin/src/components/settings/transfer/labels.ts:148
 msgid "Some media is hosted by an external provider"
 msgstr "Neke medije hostuje eksterni provajder"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:161
+#: packages/admin/src/components/settings/transfer/labels.ts:168
 msgid "Some media links could not be matched to files"
 msgstr "Neki linkovi medija nisu mogli da se poklope sa fajlovima"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:142
+#: packages/admin/src/components/settings/transfer/labels.ts:149
 msgid "Some references point to content that is not in the package"
 msgstr "Neke reference upućuju na sadržaj koji nije u paketu"
 
@@ -14262,7 +14267,7 @@ msgstr "Počni da pišeš ili ukucaj '/' za komande"
 msgid "Starter content that will be removed"
 msgstr "Početni sadržaj koji će se ukloniti"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:165
+#: packages/admin/src/components/settings/transfer/labels.ts:172
 msgid "Starter content will be removed"
 msgstr "Početni sadržaj će se ukloniti"
 
@@ -14499,7 +14504,7 @@ msgid "Taxonomy"
 msgstr "Taksonomija"
 
 #. placeholder {0}: blocker.name
-#: packages/admin/src/components/settings/transfer/labels.ts:110
+#: packages/admin/src/components/settings/transfer/labels.ts:117
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "Taksonomiju “{0}” koristi sadržaj na ovom sajtu"
 
@@ -14686,7 +14691,7 @@ msgstr "Postojeća kolekcija ima polja sa nekompatibilnim tipovima."
 msgid "The export stopped"
 msgstr "Izvoz je zaustavljen"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:217
+#: packages/admin/src/components/settings/transfer/labels.ts:224
 msgid "The export’s files no longer match the export. Start a new export."
 msgstr "Fajlovi izvoza se više ne poklapaju sa izvozom. Pokreni novi izvoz."
 
@@ -14694,7 +14699,7 @@ msgstr "Fajlovi izvoza se više ne poklapaju sa izvozom. Pokreni novi izvoz."
 msgid "The exported package and this import change the content in these ways."
 msgstr "Izvezeni paket i ovaj uvoz menjaju sadržaj na sledeće načine."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:186
+#: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "The file is not a valid EmDash site package."
 msgstr "Fajl nije važeći EmDash paket sajta."
 
@@ -14730,7 +14735,7 @@ msgstr "Uvoz nije vratio kursor za pripremu"
 msgid "The import failed"
 msgstr "Uvoz nije uspeo"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:189
+#: packages/admin/src/components/settings/transfer/labels.ts:196
 msgid "The import has blockers that must be resolved first."
 msgstr "Uvoz ima blokatore koji prvo moraju da se reše."
 
@@ -14738,7 +14743,7 @@ msgstr "Uvoz ima blokatore koji prvo moraju da se reše."
 msgid "The import plan changed"
 msgstr "Plan uvoza se promenio"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:190
+#: packages/admin/src/components/settings/transfer/labels.ts:197
 msgid "The import plan changed. Review it again before importing."
 msgstr "Plan uvoza se promenio. Pregledaj ga ponovo pre uvoza."
 
@@ -14759,7 +14764,7 @@ msgstr "Uvoz se zaustavlja nakon trenutnog koraka. Već uvezeni sadržaj ostaje 
 msgid "The import was cancelled"
 msgstr "Uvoz je otkazan"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:188
+#: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The imported site did not match the package when it was checked."
 msgstr "Uvezeni sajt se nije poklopio sa paketom pri proveri."
 
@@ -14805,27 +14810,27 @@ msgstr "Naziv tvog sajta, koristi se u zaglavlju i metapodacima"
 msgid "The order controls how block types appear in the picker."
 msgstr "Redosled određuje kako se tipovi blokova prikazuju u biraču."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:191
+#: packages/admin/src/components/settings/transfer/labels.ts:198
 msgid "The package changed. Choose it again before importing."
 msgstr "Paket se promenio. Izaberi ga ponovo pre uvoza."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:127
+#: packages/admin/src/components/settings/transfer/labels.ts:134
 msgid "The package contains a duplicate ID"
 msgstr "Paket sadrži duplirani ID"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:212
+#: packages/admin/src/components/settings/transfer/labels.ts:219
 msgid "The package contains a file larger than this site accepts."
 msgstr "Paket sadrži fajl veći od onog koji ovaj sajt prihvata."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:210
+#: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The package contains a file that is not part of the site package format."
 msgstr "Paket sadrži fajl koji nije deo formata paketa sajta."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:209
+#: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "The package contains an entry that is not a regular file."
 msgstr "Paket sadrži unos koji nije običan fajl."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:211
+#: packages/admin/src/components/settings/transfer/labels.ts:218
 msgid "The package contains the same file twice."
 msgstr "Paket sadrži isti fajl dva puta."
 
@@ -14833,7 +14838,7 @@ msgstr "Paket sadrži isti fajl dva puta."
 msgid "The package couldn’t be uploaded"
 msgstr "Paket nije mogao da se otpremi"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:126
 msgid "The package format is not supported by this version of EmDash"
 msgstr "Ova verzija EmDash-a ne podržava format paketa"
 
@@ -14841,31 +14846,31 @@ msgstr "Ova verzija EmDash-a ne podržava format paketa"
 msgid "The package is checked against this site before anything changes. You can leave this page and come back."
 msgstr "Paket se proverava prema ovom sajtu pre nego što se bilo šta promeni. Možeš da napustiš stranicu i vratiš se."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:121
+#: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "The package is larger than this site allows"
 msgstr "Paket je veći od onog koliko ovaj sajt dozvoljava"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:187
+#: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The package is larger than this site allows."
 msgstr "Paket je veći od onog koliko ovaj sajt dozvoljava."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:118
+#: packages/admin/src/components/settings/transfer/labels.ts:125
 msgid "The package is not valid"
 msgstr "Paket nije važeći"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:181
+#: packages/admin/src/components/settings/transfer/labels.ts:188
 msgid "The package manifest is not valid."
 msgstr "Manifest paketa nije važeći."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:120
+#: packages/admin/src/components/settings/transfer/labels.ts:127
 msgid "The package needs a feature this version of EmDash does not support"
 msgstr "Paketu je potrebna funkcija koju ova verzija EmDash-a ne podržava"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:135
+#: packages/admin/src/components/settings/transfer/labels.ts:142
 msgid "The package uses a field type this site does not know"
 msgstr "Paket koristi tip polja koji ovaj sajt ne poznaje"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:134
+#: packages/admin/src/components/settings/transfer/labels.ts:141
 msgid "The package uses a locale this site does not have"
 msgstr "Paket koristi jezik koji ovaj sajt nema"
 
@@ -14877,7 +14882,7 @@ msgstr "Paket je proveren prema ovom sajtu. Pregledaj šta će se uvesti, izaber
 msgid "The package’s content is written to this site. The import can’t be undone once it starts; to go back you would need a backup of this site."
 msgstr "Sadržaj paketa se upisuje na ovaj sajt. Uvoz ne može da se poništi kada počne; za povratak bi bila potrebna rezervna kopija ovog sajta."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:208
+#: packages/admin/src/components/settings/transfer/labels.ts:215
 msgid "The package’s file index is not valid."
 msgstr "Indeks fajlova paketa nije važeći."
 
@@ -14956,7 +14961,7 @@ msgstr "Izabrana fascikla više ne postoji. Izaberi drugu lokaciju i sačuvaj po
 msgid "The selected image could not be read."
 msgstr "Izabrana slika nije mogla da se pročita."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:194
+#: packages/admin/src/components/settings/transfer/labels.ts:201
 msgid "The server was updated while this ran. Reload the page and try again."
 msgstr "Server je ažuriran dok je ovo radilo. Ponovo učitaj stranicu i pokušaj ponovo."
 
@@ -14964,11 +14969,11 @@ msgstr "Server je ažuriran dok je ovo radilo. Ponovo učitaj stranicu i pokuša
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
 msgstr "Potpisani zapisi izdavača i paket su važeći. Poreklo build-a nije priloženo."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:179
+#: packages/admin/src/components/settings/transfer/labels.ts:186
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
 msgstr "Sajt se stalno menjao tokom izvoza. Pokušaj ponovo kada je uređivanje mirnije."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:195
+#: packages/admin/src/components/settings/transfer/labels.ts:202
 msgid "The site’s storage could not be read or written."
 msgstr "Skladište sajta nije moglo da se čita ni upiše."
 
@@ -15061,7 +15066,7 @@ msgstr "Sekcije koje pruža tema se ne mogu obrisati. Uredi sekciju da kreiraš 
 msgid "Themes"
 msgstr "Teme"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:143
+#: packages/admin/src/components/settings/transfer/labels.ts:150
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Previše je preusmerenja da bi se petlje proverile pre uvoza"
 
@@ -15239,11 +15244,11 @@ msgstr "Ovo polje će prikazivati <0>{0}</0> na koje ovaj {linkingSide} upućuje
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Ovo polje će prikazivati <0>{linkingSide}</0> koji upućuju na ovaj {linkedSide}"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:206
+#: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "This file is not a readable EmDash site package."
 msgstr "Ovaj fajl nije čitljiv EmDash paket sajta."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:207
+#: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "Ovaj fajl nije EmDash paket sajta: mora da počinje sa manifest.json."
 
@@ -15271,7 +15276,7 @@ msgstr "Ovo je prilagođena sekcija."
 msgid "This is a WordPress site."
 msgstr "Ovo je WordPress sajt."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:215
+#: packages/admin/src/components/settings/transfer/labels.ts:222
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Ovo nije paket sa kojim je uvoz pokrenut. Izaberi isti fajl ponovo."
 
@@ -15308,15 +15313,15 @@ msgstr "Ovaj medij više ne postoji."
 msgid "This month wasn't loaded"
 msgstr "Ovaj mesec nije učitan"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:193
+#: packages/admin/src/components/settings/transfer/labels.ts:200
 msgid "This operation expired. Start again."
 msgstr "Ova operacija je istekla. Počni ponovo."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:183
+#: packages/admin/src/components/settings/transfer/labels.ts:190
 msgid "This package needs features this version of EmDash does not support."
 msgstr "Ovom paketu su potrebne funkcije koje ova verzija EmDash-a ne podržava."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:182
+#: packages/admin/src/components/settings/transfer/labels.ts:189
 msgid "This package was made by a newer or different version of EmDash."
 msgstr "Ovaj paket je napravljen novijom ili drugom verzijom EmDash-a."
 
@@ -15426,12 +15431,12 @@ msgstr "Ovaj link za prijavu je istekao. Zatraži novi sa stranice za prijavu."
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
 msgstr "Ovaj link za prijavu nije važeći ili je već iskorišćen. Zatraži novi sa stranice za prijavu."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:112
-#: packages/admin/src/components/settings/transfer/labels.ts:133
+#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:140
 msgid "This site already has content"
 msgstr "Ovaj sajt već ima sadržaj"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:180
+#: packages/admin/src/components/settings/transfer/labels.ts:187
 msgid "This site already has content, so it can’t receive an import."
 msgstr "Ovaj sajt već ima sadržaj, pa ne može da primi uvoz."
 
@@ -15826,11 +15831,11 @@ msgstr "Uključivanje…"
 msgid "Twitter"
 msgstr "Twitter"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:136
+#: packages/admin/src/components/settings/transfer/labels.ts:143
 msgid "Two authors with bylines in the same locale are mapped to the same user"
 msgstr "Dva autora sa potpisima na istom jeziku mapirana su na istog korisnika"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:139
+#: packages/admin/src/components/settings/transfer/labels.ts:146
 msgid "Two records have the same value where it must be unique"
 msgstr "Dva zapisa imaju istu vrednost tamo gde mora da bude jedinstvena"
 
@@ -15898,7 +15903,7 @@ msgstr "Podvučeno"
 msgid "Undo"
 msgstr "Poništi"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:157
+#: packages/admin/src/components/settings/transfer/labels.ts:164
 msgid "Unfinished media uploads were left out"
 msgstr "Izostavljena su nedovršena otpremanja medija"
 
@@ -16026,7 +16031,7 @@ msgstr "Fajl bez naslova"
 msgid "Untitled Widget"
 msgstr "Vidžet bez naslova"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:154
+#: packages/admin/src/components/settings/transfer/labels.ts:161
 msgid "Unused references were left out"
 msgstr "Izostavljene su nekorišćene reference"
 
