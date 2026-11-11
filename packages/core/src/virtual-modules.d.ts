@@ -197,6 +197,7 @@ declare module "virtual:emdash/env" {
 }
 
 declare module "virtual:emdash/build" {
+	export function onBeforeFullReload(callback: () => Promise<void>): void;
 	/**
 	 * Epoch milliseconds at which this build's virtual modules were generated.
 	 * Folded into the route cache validator so a code-only deploy — which

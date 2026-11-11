@@ -32,7 +32,9 @@ const { BUILD_TIME, MOCK_RUNTIME } = vi.hoisted(() => {
 	};
 });
 
-vi.mock("virtual:emdash/build", () => ({ buildTime: BUILD_TIME }), { virtual: true });
+vi.mock("virtual:emdash/build", () => ({ buildTime: BUILD_TIME, onBeforeFullReload: () => {} }), {
+	virtual: true,
+});
 vi.mock(
 	"virtual:emdash/config",
 	() => ({ default: { database: { config: { binding: "DB" } }, auth: { mode: "none" } } }),

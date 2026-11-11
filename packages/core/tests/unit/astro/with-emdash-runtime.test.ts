@@ -172,6 +172,54 @@ describe("withEmDashRuntime (#1887)", () => {
 		await shutdownRuntime();
 	});
 
+	it("does not create a runtime while the previous runtime is shutting down", async () => {
+		let finishShutdown!: () => void;
+		let shutdownFinished = false;
+		MOCK_RUNTIME.shutdown.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					finishShutdown = () => {
+						shutdownFinished = true;
+						resolve();
+					};
+				}),
+		);
+
+		await withEmDashRuntime((runtime) => runtime);
+		const firstShutdown = shutdownRuntime();
+		let secondShutdown: Promise<void> | undefined;
+		try {
+			await vi.waitFor(() => expect(MOCK_RUNTIME.shutdown).toHaveBeenCalledOnce());
+
+			await expect(withEmDashRuntime((runtime) => runtime)).rejects.toThrow(
+				"EmDash dev server has closed",
+			);
+			expect(EmDashRuntime.create).toHaveBeenCalledOnce();
+
+			let secondShutdownFinished = false;
+			secondShutdown = shutdownRuntime().then(() => {
+				secondShutdownFinished = true;
+				return undefined;
+			});
+			await Promise.resolve();
+			expect(secondShutdownFinished).toBe(false);
+			expect(shutdownFinished).toBe(false);
+
+			finishShutdown();
+			await Promise.all([firstShutdown, secondShutdown]);
+		} finally {
+			finishShutdown?.();
+			await firstShutdown;
+			if (secondShutdown) await secondShutdown;
+		}
+
+		const nextRuntime = { ...MOCK_RUNTIME, shutdown: vi.fn(async () => {}) };
+		vi.mocked(EmDashRuntime.create).mockResolvedValueOnce(nextRuntime as never);
+		expect(await withEmDashRuntime((runtime) => runtime)).toBe(nextRuntime);
+		expect(EmDashRuntime.create).toHaveBeenCalledTimes(2);
+		await shutdownRuntime();
+	});
+
 	it("shuts down an initialization that finishes after its dev server closes", async () => {
 		let finishInit!: (runtime: typeof MOCK_RUNTIME) => void;
 		vi.mocked(EmDashRuntime.create).mockReturnValueOnce(
