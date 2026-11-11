@@ -1,5 +1,5 @@
 ---
-title: Run many sites from one place
+title: Run many sites from one place with emdash fleet
 type: rfc
 status: proposed
 authors:
@@ -12,13 +12,13 @@ discussions:
 created: 2026-11-10
 ---
 
-# Run many sites from one place
+# Run many sites from one place with emdash fleet
 
 > **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. Two [acceptance gates](#acceptance-gates) are still open: tests for two setup-secret paths and a run on a real account. Acceptance also waits on linking every gate's results from the design pull request.
 
 ## Summary
 
-An agency or a public body that runs many EmDash sites gets one tool to create, update and watch them: `emdash fleet`. Each site stays an ordinary EmDash site with its own Worker, database, media bucket, users and schema. The tool works through the commands and routes EmDash already has, plus one small core option.
+An agency or a public body that runs many EmDash sites gets one tool to create, update and watch them: `emdash fleet`. Each site stays an ordinary EmDash site with its own deployment, database, media storage, users and schema. The tool works through the commands and routes EmDash already has, plus one small core option.
 
 - **A site list in the operator's repository.** `fleet.yaml` names every site, how it's built, and the resources the tool created for it. It holds no secret.
 - **Commands in the core CLI.** `emdash fleet list`, `adopt`, `status`, `update`, `deploy`, `provision`, `reconcile` and `remove`.
@@ -107,10 +107,11 @@ npx emdash fleet deploy --group clients --wave-size 2
 wave 1  bakery   migrate 1 pending -> applied   deploy ok   health 1.5.0
 wave 1  corner   migrate 1 pending -> applied   deploy ok   health 1.5.0
 wave 2  lantern  migrate 1 pending -> FAILED (migration lock held)
-stopped after wave 2: 1 failed (lantern, still on 1.4.0), 1 skipped (harbour, repo layout)
+wave 2  mill     migrate 1 pending -> applied   deploy ok   health 1.5.0
+stopped after wave 2: 1 failed (lantern, still on 1.4.0), 2 skipped (orchard, not reached; harbour, repo layout)
 ```
 
-`lantern` keeps its old Worker, and the sites in later waves aren't touched. `harbour` has its own repository, so `deploy` skips it. `npx emdash fleet update --site harbour` sends it an update request instead, and its own workflow opens the update pull request.
+`lantern` keeps its old Worker. `mill` was already running in the same wave, so it finishes, and `orchard` in the next wave isn't touched. `harbour` has its own repository, so `deploy` skips it. `npx emdash fleet update --site harbour` sends it an update request instead, and its own workflow opens the update pull request.
 
 ## Goals
 
@@ -295,7 +296,7 @@ If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) l
 - **The Cloudflare token** is the most valuable secret in the system. Creating a Worker needs product-level Workers Admin, so a token that can provision can also delete every Worker on the account. It stays in the operator's environment or CI secrets and is never stored by the tool. The guide page for running many sites recommends a token per environment, and a separate account where customers must be separated.
 - **Repo layout:** the tool never copies a Cloudflare token into a repository's secrets. It prints which secrets the repository's pipeline needs, and the operator creates them. A deploy token can be scoped to that site's Worker, which the Cloudflare docs allow once the Worker exists. A deploy token isn't multiplied across many repositories by the tool.
 - **The GitHub token** can create repositories in the target owner and push to them. It's needed only during `repo` provisioning.
-- **EmDash tokens** are per site and scoped. `status` needs `admin` today and only `updates:request` with #4577; `deploy` and `provision` need no EmDash token; `remove` needs `transfer:export`. A token for one site can't act on another, because each site has its own users and token table.
+- **EmDash tokens** are per site and scoped. `status` needs `admin` today and only `updates:request` with #4577; `deploy` needs no EmDash token, and `provision` needs one only for its optional **import** step; `remove` needs `transfer:export`. A token for one site can't act on another, because each site has its own users and token table.
 - **The setup window:** with `EMDASH_SETUP_TOKEN`, the first Admin can only be created by someone who holds the link. The token is generated per site, set only as a Worker secret and printed once. Anyone who can read the operator's terminal output or CI log at that moment can claim the site, so `provision` prints the link only on an interactive terminal unless `--print-setup-link` is passed. The Worker has no public URL until the secret is set.
 - **The site list** holds account IDs, database IDs, repository names and hostnames, no secrets. Those identifiers aren't credentials, but they tell a reader which customers an agency has, so operators keep the file in a private repository.
 - **Dry runs:** `--dry-run` output and every error message redact the Cloudflare token and every generated secret value.
@@ -306,7 +307,7 @@ If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) l
 
 Page requests don't change. The logged-out routes run the same queries, and the query-count snapshot stays the same. The setup secret check runs only on setup and first sign-in routes, and only while setup is incomplete.
 
-The tool's own cost is outbound requests from the operator's machine or CI: one health request per site for `status`, plus one admin request when a token is present. In the prototype, `status` over three local sites took 385–411 ms, of which about 200 ms is loading the CLI.
+The tool's own cost is outbound requests from the operator's machine or CI: one health request per site for `status`, plus one admin request when a token is present. With `CLOUDFLARE_API_TOKEN` set, `status` also sends two D1 API requests per `shared` site to read its pending migrations. In the prototype, `status` over three local sites took 385–411 ms, of which about 200 ms is loading the CLI.
 
 Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the quota step reads each Worker's schedules, one request per Worker. The **migrate** step costs more: `emdash migrate` sends each SQL statement to D1 as its own API request, and the core migrations on an empty database run about 600 statements. One `provision` on an account with N Workers costs about 610 + N API requests, plus one `wrangler deploy`. At 250 Workers that's about 860 requests, against the API's limit of 1,200 requests per five minutes per user, so a second `provision` within five minutes can reach the limit. [Failure handling](#failure-handling) says how the tool stays under it. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
 
@@ -323,7 +324,7 @@ Account limits matter more than speed. The Cloudflare API has no account-wide co
 - **An update request is rejected:** #4577's error code (`UPDATE_NOT_AVAILABLE`, `UPDATE_ALREADY_REQUESTED`, `UPDATE_TRIGGER_NOT_READY` and the others) is printed for that site.
 - **The repository already exists** during `repo` provisioning: the tool uses it only if it's empty or holds the tool's own first commit, and stops otherwise.
 - **`fleet.yaml` changed during a run:** the tool doesn't write and prints the records it would have written, so they can be added by hand or recovered with `reconcile`.
-- **The Cloudflare API rate limit:** the tool reads the `Ratelimit` header of every Cloudflare API response, from its own requests and from the `emdash migrate` runs it starts, and waits when the remaining quota wouldn't cover the next step. If a request still gets a 429, the run stops cleanly: finished steps stay recorded, no further step or wave starts, and the output names the limit and the `retry-after` time. Running the command again continues from there.
+- **The Cloudflare API rate limit:** the tool reads the `Ratelimit` header of every Cloudflare API response, from its own requests and from the `emdash migrate` runs it starts, and waits when the remaining quota wouldn't cover the next step. If a request still gets a 429, the run stops cleanly: finished steps stay recorded, no further step or wave starts, and the output names the limit and the `retry-after` time. Running the command again continues from there. A 429 during **migrate** can leave the migration lock held, because the request that releases it is refused too. That site then needs the lock options above before it continues.
 - **Observability:** every command prints one line per site and step, and `--json` gives the same as structured output for CI logs.
 
 ## Verification
@@ -545,7 +546,7 @@ interface SiteEntry {
 		origin: "provisioned" | "adopted";
 		status: "provisioning" | "active" | "failed" | "removed";
 		steps?: Record<string, { status: "done" | "failed" | "waiting"; at: string; detail?: string }>;
-		/** The database's migration identity, from `emdash migrate --status`. */
+		/** The target fingerprint that `emdash migrate --status` prints for the site's database. */
 		targetFingerprint?: string;
 		lastVersion?: string;
 	};
@@ -579,11 +580,11 @@ Each step records `done`, `failed` or `waiting` under `state.steps.<name>` befor
 
 1. **quota**, **database**, **bucket** and **kv** as above.
 2. **repository:** creates `github.repository` from `github.template` (by default the template the operator names with `--template`). An existing repository is used only if it's empty or holds the tool's own first commit.
-3. **files:** commits `wrangler.jsonc` (the bindings, Cron Trigger and public-URL settings of step **config** above, plus the custom domain), the `updateCheck.trigger` for this repository in the EmDash configuration, and #4577's `.github/workflows/emdash-update.yml`.
+3. **files:** commits `wrangler.jsonc` (the bindings, Cron Trigger and public-URL settings of step **config** above, without the custom domain), the `updateCheck.trigger` for this repository in the EmDash configuration, and #4577's `.github/workflows/emdash-update.yml`.
 4. **migrate:** as above, from a checkout of the new repository.
-5. **deploy:** the first deploy from the checkout, with the custom domain left out until step 7.
+5. **deploy:** the first deploy from the checkout. It has no public URL at this point.
 6. **encryption-key** and **setup-token:** as above.
-7. **domain:** attaches the custom domain and commits the config change.
+7. **domain:** adds the custom domain to `wrangler.jsonc`, commits it and attaches it.
 8. **health**, **seed** and **setup-link** as above.
 9. **handover:** prints the secrets the operator must create, and where:
    - a Cloudflare token for the repository's deploy pipeline, scoped to this site's Worker (plus D1: Editor if the pipeline runs migrations), as a repository secret;
