@@ -222,8 +222,9 @@ declare module "virtual:emdash/scheduler" {
 declare module "virtual:emdash/rooms" {
 	import type { CreateRoomHostFn } from "./emdash-runtime.js";
 	/**
-	 * Factory for the in-process room host on `@astrojs/node` with co-editing
-	 * on; `null` otherwise, which gives every join single-editor mode.
+	 * Factory for the room host with co-editing on: in-process on
+	 * `@astrojs/node`, Durable Objects on `@astrojs/cloudflare`. `null`
+	 * otherwise, which gives every join single-editor mode.
 	 */
 	export const createRoomHost: CreateRoomHostFn | null;
 }

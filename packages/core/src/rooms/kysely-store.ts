@@ -14,7 +14,8 @@ import {
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { chunks } from "../utils/chunks.js";
-import { CLAIM_EXPIRY_MS, COMPACTION_BYTES, ROOM_STATE_LIFETIME_MS } from "./limits.js";
+import { CLAIM_EXPIRY_MS, ROOM_STATE_LIFETIME_MS } from "./limits.js";
+import { joinParts, splitBytes, splitText } from "./parts.js";
 import { RoomClaimLostError, type RoomRecord, type RoomStore } from "./types.js";
 
 const CLAIM_EXPIRY_SECONDS = CLAIM_EXPIRY_MS / 1000;
@@ -275,52 +276,4 @@ export async function listExpiredRooms(db: Kysely<Database>, host: string): Prom
 		)
 		.execute();
 	return rows.map((row) => row.room_id);
-}
-
-function splitBytes(bytes: Uint8Array): Uint8Array[] {
-	const parts = [bytes.subarray(0, COMPACTION_BYTES)];
-	for (let start = COMPACTION_BYTES; start < bytes.byteLength; start += COMPACTION_BYTES) {
-		parts.push(bytes.subarray(start, start + COMPACTION_BYTES));
-	}
-	return parts;
-}
-
-/** Parts of at most `COMPACTION_BYTES` characters, never splitting a surrogate pair. */
-function splitText(text: string): string[] {
-	const parts: string[] = [];
-	let start = 0;
-	do {
-		let end = Math.min(start + COMPACTION_BYTES, text.length);
-		if (end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) end--;
-		parts.push(text.slice(start, end));
-		start = end;
-	} while (start < text.length);
-	return parts;
-}
-
-function isHighSurrogate(code: number): boolean {
-	return code >= 0xd800 && code <= 0xdbff;
-}
-
-/**
- * Drivers read bytes back as a `Uint8Array` (node:sqlite), an `ArrayBuffer` (libSQL) or a
- * pooled `Buffer` (pg) whose `buffer` holds other values too, so the parts are always copied.
- */
-function joinParts(parts: unknown[]): Uint8Array {
-	const views = parts.map(asBytes);
-	const joined = new Uint8Array(views.reduce((total, view) => total + view.byteLength, 0));
-	let offset = 0;
-	for (const view of views) {
-		joined.set(view, offset);
-		offset += view.byteLength;
-	}
-	return joined;
-}
-
-function asBytes(value: unknown): Uint8Array {
-	if (ArrayBuffer.isView(value)) {
-		return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-	}
-	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	throw new TypeError("Room storage read back a value that isn't bytes");
 }

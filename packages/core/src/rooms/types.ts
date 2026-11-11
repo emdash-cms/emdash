@@ -13,11 +13,40 @@ export function roomId(entry: EntryRef): string {
 	return `${entry.collection}:${entry.id}`;
 }
 
+const ROOM_PATH = /\/_emdash\/api\/content\/([^/]+)\/([^/]+)\/room$/;
+
+/**
+ * The room ID a room upgrade path is for, `/_emdash/api/content/{collection}/{id}/room` under any
+ * base path, or null when it isn't one.
+ */
+export function roomIdFromPath(pathname: string): string | null {
+	const match = ROOM_PATH.exec(pathname);
+	if (!match) return null;
+	try {
+		return roomId({
+			collection: decodeURIComponent(match[1] ?? ""),
+			id: decodeURIComponent(match[2] ?? ""),
+		});
+	} catch {
+		return null;
+	}
+}
+
 /** The entry a room ID names, or null when it isn't one. */
 export function parseRoomId(id: string): EntryRef | null {
 	const colon = id.indexOf(":");
 	if (colon <= 0 || colon === id.length - 1) return null;
 	return { collection: id.slice(0, colon), id: id.slice(colon + 1) };
+}
+
+/** A room token's random bytes. The token is their base64url encoding, without padding. */
+export const ROOM_TOKEN_BYTES = 32;
+const ROOM_TOKEN_LENGTH = Math.ceil((ROOM_TOKEN_BYTES * 4) / 3);
+const BASE64URL = /^[\w-]*$/;
+
+/** Whether a string has the shape of a token a room issues. */
+export function isRoomToken(token: string): boolean {
+	return token.length === ROOM_TOKEN_LENGTH && BASE64URL.test(token);
 }
 
 /** An EmDash build and its editor schema: the admin manifest's `version`, `commit` and `hash`. */

@@ -106,15 +106,22 @@ describe("generateRoomsModule", () => {
 		);
 	});
 
+	it("loads the Durable Object room host on @astrojs/cloudflare with co-editing on", () => {
+		expect(generateRoomsModule("@astrojs/cloudflare", true)).toContain(
+			'export { createRoomHost } from "@emdash-cms/cloudflare/internal/rooms"',
+		);
+	});
+
 	it.each([
 		["@astrojs/node", false],
-		["@astrojs/cloudflare", true],
+		["@astrojs/cloudflare", false],
 		["@astrojs/netlify", true],
 		[undefined, true],
 	])("gives %s with co-editing %s no room host", (adapter, coEditing) => {
 		const out = generateRoomsModule(adapter, coEditing);
 		expect(out).toContain("export const createRoomHost = null");
 		expect(out).not.toContain("co-editing/node");
+		expect(out).not.toContain("@emdash-cms/cloudflare");
 	});
 });
 

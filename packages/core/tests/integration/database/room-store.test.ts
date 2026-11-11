@@ -184,11 +184,15 @@ describeEachDialect("room store", (dialect) => {
 			.where("room_id", "=", ROOM)
 			.orderBy("part")
 			.execute();
-		expect(recordRows.map((row) => row.record?.length)).toEqual([
+		const utf8Length = (text: string | null | undefined) =>
+			new TextEncoder().encode(text ?? "").byteLength;
+		expect(recordRows.map((row) => utf8Length(row.record))).toEqual([
 			COMPACTION_BYTES - 1,
 			COMPACTION_BYTES,
-			JSON.stringify(record({ checkpoint })).length - (2 * COMPACTION_BYTES - 1),
+			utf8Length(JSON.stringify(record({ checkpoint }))) - (2 * COMPACTION_BYTES - 1),
 		]);
+		expect(recordRows[0]?.record?.endsWith("x")).toBe(true);
+		expect(recordRows[1]?.record?.startsWith("😀")).toBe(true);
 	});
 
 	it("keeps a live claim from a second host, which takes it once it expires", async () => {

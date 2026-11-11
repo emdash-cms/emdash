@@ -63,6 +63,7 @@ import {
 	CLOSE_CODES,
 	RoomClaimLostError,
 	RoomSaveError,
+	ROOM_TOKEN_BYTES,
 	roomId,
 	type Build,
 	type CheckpointInput,
@@ -96,7 +97,6 @@ const STORAGE_ORIGIN = Symbol("room-storage");
 const INVALID_CONTENT = "INVALID_CONTENT";
 const SITE_UNAVAILABLE = "SITE_UNAVAILABLE";
 const UNLOADED_MESSAGE = "The room unloaded before the save finished";
-const TOKEN_BYTES = 32;
 const LINEAGE_BYTES = 16;
 
 const encoder = new TextEncoder();
@@ -332,6 +332,13 @@ export class Room {
 	receive(connection: RoomConnection, message: Uint8Array): void {
 		if (!this.#connections.has(connection)) return;
 		if (this.#phase.kind === "unloaded") {
+			const decoded = decodeMessage(message);
+			if (decoded?.type === "awareness") {
+				this.#closeOldConnections();
+				const info = this.#connections.get(connection);
+				if (info) this.#receivePresence(connection, info, decoded.entries);
+				return;
+			}
 			void this.#enqueue(() => this.#resume()).then(() => this.receive(connection, message));
 			return;
 		}
@@ -378,8 +385,12 @@ export class Room {
 		if (!renewed && this.#claimed) this.#claimLost();
 	}
 
-	/** The hourly drop, for the host's alarm or cleanup. */
+	/**
+	 * Closes connections past their lifetime, then applies the hourly drop, for the host's alarm or
+	 * cleanup.
+	 */
 	async expire(): Promise<void> {
+		this.#closeOldConnections();
 		if (this.isOpen() || this.#shuttingDown) return;
 		await this.#enqueue(() => this.#expire());
 		await this.#releaseIfClosed();
@@ -472,7 +483,7 @@ export class Room {
 			if (grant.claims.userId === claims.userId) user++;
 		}
 		if (total >= MAX_ROOM_CONNECTIONS || user >= MAX_USER_CONNECTIONS) return "full";
-		const token = randomId(TOKEN_BYTES);
+		const token = randomId(ROOM_TOKEN_BYTES);
 		const cancel = this.#timers.set(TOKEN_LIFETIME_MS, () => {
 			this.#tokens.delete(token);
 			void this.#releaseIfClosed();
@@ -1147,7 +1158,11 @@ export class Room {
 		}
 		const ended = deferred<{ overwrite: boolean }>();
 		const merged = deferred();
-		const hold: Hold = { id: randomId(TOKEN_BYTES), end: ended.resolve, merged: merged.promise };
+		const hold: Hold = {
+			id: randomId(ROOM_TOKEN_BYTES),
+			end: ended.resolve,
+			merged: merged.promise,
+		};
 		this.#hold = hold;
 		const cancel = this.#timers.set(OPERATION_HOLD_MS, () => ended.resolve({ overwrite: false }));
 		this.#broadcastNotice({ kind: "operation", by: actorId });

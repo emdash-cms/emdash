@@ -7,7 +7,7 @@ import {
 	MAX_USER_CONNECTIONS,
 } from "../../../src/rooms/limits.js";
 import { encodeSyncStep1 } from "../../../src/rooms/protocol.js";
-import { CLOSE_CODES } from "../../../src/rooms/types.js";
+import { CLOSE_CODES, isRoomToken } from "../../../src/rooms/types.js";
 import {
 	advance,
 	blocksText,
@@ -291,6 +291,13 @@ describe("tokens and connecting", () => {
 		expect(cat.closed?.code).toBe(CLOSE_CODES.busy);
 	});
 
+	it("issues tokens in the shape a host checks before it asks the room", async () => {
+		const test = new TestRoom();
+		const result = (await test.room.issueToken(test.claims("ana"))) as { token: string };
+		expect(isRoomToken(result.token)).toBe(true);
+		expect(isRoomToken(`${result.token}A`)).toBe(false);
+	});
+
 	it("sends sync step 1 to co-editors only", async () => {
 		const test = new TestRoom();
 		const ana = await test.join("ana");
@@ -323,6 +330,17 @@ describe("tokens and connecting", () => {
 		expect(ana.closed).toBeNull();
 		ben.type("Hi ");
 		await settle();
+		expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin);
+		expect(ben.closed).toBeNull();
+	});
+
+	it("closes connections older than 15 minutes with rejoin at the hourly drop, without a message", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		await advance(10 * 60 * 1000);
+		const ben = await test.join("ben");
+		await advance(5 * 60 * 1000);
+		await test.room.expire();
 		expect(ana.closed?.code).toBe(CLOSE_CODES.rejoin);
 		expect(ben.closed).toBeNull();
 	});
@@ -491,6 +509,32 @@ describe("restart and shutdown", () => {
 		expect(test.site.saves.at(-1)).toMatchObject({ actorId: "ana" });
 		ana.announce([{ clientId: 7, clock: 1, state: {} }]);
 		expect(info.clientId).toBe(7);
+	});
+
+	it("relays presence after resuming sockets without loading, and loads for an update", async () => {
+		const test = new TestRoom();
+		const ana = await test.join("ana");
+		const ben = await test.join("ben");
+		ana.type("Stored ");
+		await advance(1000);
+		test.restart();
+		test.room.resume(ana, resumedInfo("ana"));
+		test.room.resume(ben, resumedInfo("ben"));
+		test.store.calls = [];
+		const loads = test.site.loads;
+		ben.received = [];
+		ana.announce([{ clientId: 7, clock: 1, state: { cursor: 3, user: { id: "ben" } } }]);
+		await settle();
+		expect(ben.awareness()).toEqual([
+			{ clientId: 7, clock: 1, state: { cursor: 3, user: { id: "ana", name: "Name ana" } } },
+		]);
+		expect(test.site.loads).toBe(loads);
+		expect(test.store.calls).not.toContain("load");
+
+		ana.type("Resumed ");
+		await settle();
+		expect(test.store.calls).toContain("load");
+		expect(ben.text()).toBe("Resumed Stored First paragraph.");
 	});
 
 	it("starts over with a recovery revision when a resumed room loads an entry with another hash", async () => {
