@@ -15,7 +15,7 @@ created: 2026-11-10
 
 # Run many sites from one place
 
-> **Draft.** Acceptance waits on the prototype results for the [acceptance gates](#acceptance-gates).
+> **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. Acceptance waits on the [acceptance gates](#acceptance-gates) that are still open: tests for two setup-secret paths and a run on a real account.
 
 ## Summary
 
@@ -80,24 +80,27 @@ npx emdash fleet provision bakery
 ```
 
 ```txt
-bakery  quota      ok (Workers 41/500, Cron Triggers 41/250)
-bakery  database   created emdash-bakery (weur)
-bakery  bucket     created emdash-bakery-media
-bakery  config     wrote .emdash/fleet/bakery/wrangler.jsonc (cron "* * * * *")
-bakery  migrate    applied 94 migrations (target fingerprint recorded)
-bakery  deploy     deployed emdash-bakery (no public URL yet)
-bakery  secrets    set EMDASH_ENCRYPTION_KEY, EMDASH_SETUP_TOKEN
-bakery  domain     attached bakery.example.com
-bakery  health     https://bakery.example.com reports emdash 1.4.0
-bakery  setup      open within 24 hours:
-                   https://bakery.example.com/_emdash/admin/setup?token=...
+bakery  quota           ok (Workers 41/500, Cron Triggers 41/250)
+bakery  database        created emdash-bakery (weur)
+bakery  bucket          created emdash-bakery-media
+bakery  kv              created emdash-bakery-session
+bakery  config          wrote .emdash/fleet/bakery/wrangler.json (cron "* * * * *")
+bakery  migrate         applied 94 migrations (target fingerprint recorded)
+bakery  deploy          deployed emdash-bakery (no public URL yet)
+bakery  encryption-key  set EMDASH_ENCRYPTION_KEY
+bakery  setup-token     set EMDASH_SETUP_TOKEN
+bakery  domain          attached bakery.example.com
+bakery  health          https://bakery.example.com reports emdash 1.4.0
+bakery  setup-link      open it to create the first Admin:
+                        https://bakery.example.com/_emdash/admin/setup?token=...
 ```
 
-The tool writes the IDs it created back into `fleet.yaml` under `bakery.cloudflare`. The operator opens the setup link, registers a passkey and becomes Admin. Nobody else can start setup on that site.
+The tool writes the IDs it created back into `fleet.yaml` under `bakery.cloudflare`, and the steps it finished under `bakery.state`. The operator opens the setup link, registers a passkey and becomes Admin. Nobody else can start setup on that site.
 
-When EmDash 1.5.0 is out, the operator updates the shared project, builds it once and deploys it to every shared site, two at a time:
+When EmDash 1.5.0 is out, the operator updates the shared project, builds it once with its own build script and deploys it to every shared site, two at a time:
 
 ```bash
+(cd site && npm run build)
 npx emdash fleet deploy --group clients --wave-size 2
 ```
 
@@ -145,7 +148,9 @@ stopped after wave 2: 1 failed (lantern, still on 1.4.0), 1 skipped (harbour, re
 
 `fleet.yaml` sits in the operator's repository. The commands find it in the working directory or take `--fleet <path>`. The operator writes the site entries. The tool writes only the keys it owns under each site (the resource IDs under `cloudflare` and `github`, and `state`), and keeps comments and key order. The full schema is in [Appendix B](#appendix-b-the-site-list).
 
-The file holds no secret. Before every command, the tool validates the file and stops with the path of the first wrong value. Before it writes, it checks that the file hasn't changed since it read it, so two runs can't overwrite each other's records.
+The file holds no secret. Before every command, the tool validates the file and stops with the path of the first wrong value. Before it writes, it checks that the file hasn't changed since it read it, so two runs can't overwrite each other's records. Within one run, writes are serialized, so sites that finish at the same time in a wave can't drop each other's records.
+
+An entry the operator writes by hand, without `state`, counts as adopted. The first command that records something for it writes `state: { origin: adopted, status: active }`.
 
 Every command that changes something takes an explicit selection: `--site <key>` (repeatable), `--group <name>` (repeatable) or `--all`. Without one it stops.
 
@@ -170,7 +175,7 @@ Prints the sites from the file with key, URL, layout, groups and last recorded s
 
 Adds an existing site. The tool reads `/_emdash/api/health` and stops unless the URL answers as EmDash.
 
-- For the `shared` layout, `--worker`, `--database-id` and `--account-id` record the Cloudflare resources, and the tool reads the target fingerprint with `emdash migrate --status`.
+- For the `shared` layout, `--worker`, `--database-id` and `--account-id` record the Cloudflare resources, and the tool records the target fingerprint from `emdash migrate --status` under `state`.
 - For the `repo` layout, `--repository <owner/name>` records the repository. Nothing else is needed, because the site's own pipeline deploys it.
 
 The entry gets `origin: adopted`.
@@ -182,17 +187,23 @@ For each selected site, or every site when nothing is selected:
 - The running version from `/_emdash/api/health`, which needs no token.
 - The newest available version and the update request state from `GET /_emdash/api/admin/core-update`, when the site has a token. Today that route needs a token with the `admin` scope. With #4577 a token with only the `updates:request` scope is enough.
 - Reachable or not, the HTTP status, and the last recorded operation.
+- Pending migrations for `shared` sites, only when `CLOUDFLARE_API_TOKEN` is set, read with `emdash migrate --status` as `deploy` does. Without that token, the column is left out. Core gets no migration-state route for this.
 
 `status` changes nothing.
 
 #### `fleet deploy` (shared layout)
 
-Builds the shared project once, then deploys it to the selected `shared` sites in waves. `repo` sites in the selection are skipped and reported. For each site, the documented "build, migrate, deploy, check" steps run against the site's own target:
+Deploys the shared project's existing build to the selected `shared` sites in waves. `repo` sites in the selection are skipped and reported. The tool doesn't build: the operator runs the project's own build script first, because only the project knows its package manager and build steps. `deploy` reads the build's Wrangler config (`dist/server/wrangler.json`) and stops with exit code 2 when it's missing. The build's EmDash version comes from the migration identity that `emdash migrate` loads from the build.
 
-1. `emdash migrate --status` against the site's database through its generated Wrangler config. A target fingerprint that differs from the recorded one stops this site.
-2. `emdash migrate` with `--expected-target-fingerprint` when migrations are pending.
-3. `wrangler deploy` with the site's generated Wrangler config.
-4. `emdash migrate --check`, then `/_emdash/api/health` until it reports the build's version, for at most `--timeout` (default 2 minutes).
+For each site, the documented "build, migrate, deploy, check" steps run against the site's own target:
+
+1. The tool regenerates the site's Wrangler config from the build's config and the recorded resources (Appendix C, step **config**).
+2. `emdash migrate --status` against the site's database, through the migration target the provider returns. A target fingerprint that differs from the recorded one stops this site.
+3. `emdash migrate` with `--expected-target-fingerprint` when migrations are pending.
+4. `wrangler deploy` with the site's generated Wrangler config.
+5. `emdash migrate --check`, then `/_emdash/api/health` until it reports the build's version, for at most `--timeout` (default 2 minutes).
+
+When the build carries the EmDash version the site already runs (an operator's own code change), the old Worker already reports that version, so health can't prove the new code is live. In that case the site counts as done when `wrangler deploy` succeeded and health answers afterwards. The health route reports no build or deployment ID today; see [Open questions](#open-questions).
 
 `--dry-run` prints the steps and the pending migrations without changing anything.
 
@@ -207,24 +218,28 @@ Sends an update request to each selected `repo` site through #4577's `POST /_emd
 
 #### Waves
 
-`--wave-size <k>` (default 1) sets how many sites run at the same time. Waves run one after another in the order of the file, or the order given by `--order <file>`. When any site in a wave fails, the sites already running finish and no further wave starts. Sites that weren't reached stay on their old version and are listed as skipped. A site counts as done only when its health route reports the target version, because only the running version proves that the update arrived.
+`--wave-size <k>` (default 1) sets how many sites run at the same time. Waves run one after another in the order of the file, or the order given by `--order <file>`. When any site in a wave fails, the sites already running finish and no further wave starts. Sites that weren't reached stay on their old version and are listed as skipped. A site counts as done only when its health route reports the target version, because only the running version proves that the update arrived. The one exception is a `deploy` on an unchanged EmDash version, described under `fleet deploy`.
 
 #### `fleet provision <key>`
 
 Creates a new site from its entry. Each step is idempotent: before it creates something, it looks for a resource under the name derived from the site key, and it records the result under `state.steps` before it moves on. The full list of steps for both layouts is in [Appendix C](#appendix-c-provision-steps). In short:
 
-- **Shared layout:** quota check, D1 database, R2 bucket, a generated Wrangler config with the bindings and a Cron Trigger, core migrations, a first deploy without a public URL, the site secrets, the custom domain, a health check and the setup link. Optionally, the template's seed and title through the setup API, and a site package import once an Admin exists.
+- **Shared layout:** quota check, D1 database, R2 bucket, KV namespace for sessions, a generated Wrangler config with the bindings and a Cron Trigger, core migrations, a first deploy without a public URL, the site secrets, the custom domain, a health check and the setup link. Optionally, the template's seed and title through the setup API, and a site package import once an Admin exists.
 - **Repo layout:** the same Cloudflare resources, plus a new GitHub repository from a template, with the Wrangler config, the update trigger and #4577's workflow committed to it. The tool makes the first deploy from a checkout, then hands deploys to the repository's pipeline and prints which secrets the operator must set for it.
 
 The Worker isn't reachable until its secrets are set: the generated config sets `workers_dev` and `preview_urls` to `false`, and the custom domain is attached only after `EMDASH_SETUP_TOKEN` exists. The setup link uses the site's final URL, because EmDash stores the site URL once during setup and passkeys are bound to that origin.
 
+The config step writes no config without the recorded database and namespace IDs. A binding without an ID would make Wrangler's automatic provisioning create a new, empty resource on deploy instead of failing.
+
+`--dry-run` writes no record, runs no migration and creates nothing. It prints every Cloudflare API call with secret values redacted, and the config it would write with a placeholder database ID, because the real IDs only exist after the steps that create them.
+
 #### `fleet reconcile [--site <key>]`
 
-Compares each selected site's recorded state with what exists. It completes provisioning steps that are missing or `waiting`, reports a Worker, database, bucket or repository that exists but isn't recorded (or the other way round), and reports a site whose Cron Trigger or custom domain is missing. With `--abandon`, it deletes the resources of a provisioning that never reached the setup step, after a confirmation. It never deletes a database whose setup is complete, and never deletes a repository.
+Compares each selected site's recorded state with what exists. It completes provisioning steps that are missing or `waiting`, reports a Worker, database, bucket or repository that exists but isn't recorded (or the other way round), and reports a site whose Cron Trigger or custom domain is missing. With `--abandon`, it deletes the resources of a provisioning that never reached the setup step, after a confirmation. The tool can't see a site's setup state without an EmDash token, so its own **setup-link** step stands in for it: once the link has been printed, `--abandon` refuses. It never deletes a database whose setup may be complete, and never deletes a repository.
 
 #### `fleet remove <key>`
 
-Takes a site out of service without deleting its data:
+Takes a site out of service without deleting its data. Before it changes anything, it checks that it holds a token with the `transfer:export` scope for the site, so a missing token can't leave a site detached without an export. Then:
 
 1. Exports the site with `emdash site export` into `--out <dir>`.
 2. Removes the custom domain, so the site stops serving.
@@ -235,7 +250,9 @@ The database, the bucket, the Worker script and, for a `repo` site, the reposito
 
 ### Provider interface
 
-Core defines the interface and the commands. Everything that talks to the Cloudflare API lives in `@emdash-cms/cloudflare`, as the D1 migration code for `emdash migrate` does today, and core has no Cloudflare API client. The CLI loads the provider from the site's database adapter, the way `emdash migrate` loads the migration executor that the build manifest names. The Cloudflare provider deploys by running the project's Wrangler with the generated config and uses the Cloudflare API for everything else.
+Core defines the interface and the commands. Everything that talks to the Cloudflare API lives in `@emdash-cms/cloudflare`, as the D1 migration code for `emdash migrate` does today, and core has no Cloudflare API client. Each site entry names its provider in `provider` (`cloudflare` in this RFC). The CLI loads that provider's entry point, `@emdash-cms/cloudflare/fleet`, resolved from the site's project, so the provider version matches the project's EmDash version. The build manifest names no provider today, so the provider can't be derived from the adapter.
+
+The Cloudflare provider deploys by running the project's Wrangler with the generated config and uses the Cloudflare API for everything else. It also returns the migration target for a site (Wrangler config, account and database), which `deploy`, `adopt` and `status` pass to `emdash migrate`.
 
 The GitHub part of `repo` provisioning sits behind its own small interface in core, with a GitHub implementation, so that tests can replace it and another host can be added later. Tests replace both with local implementations that create SQLite files, run `wrangler dev` and write to a local Git repository. The interfaces are in [Appendix A](#appendix-a-interfaces).
 
@@ -246,14 +263,14 @@ A new optional secret, `EMDASH_SETUP_TOKEN`, read from `process.env` like the ot
 | Path | Without a valid token |
 | --- | --- |
 | The setup wizard and `POST /_emdash/api/setup` | 403 `SETUP_TOKEN_REQUIRED` |
-| `POST /_emdash/api/setup/admin` and `/setup/admin-verify` (passkey) | 403 `SETUP_TOKEN_REQUIRED` |
+| `POST /_emdash/api/setup/admin` and `POST /_emdash/api/setup/admin/verify` (passkey) | 403 `SETUP_TOKEN_REQUIRED` |
 | The first sign-in through an OAuth provider while setup isn't complete | refused, no user is created |
 | The AT Protocol provider's setup route and its first sign-in while setup isn't complete | refused, no user is created |
 | The dev bypass routes | unchanged (development only) |
 
-The token reaches the site in the setup link's `token` query parameter. The setup page sends it to the API in a header. The first request that presents it sets an HttpOnly, SameSite=Strict cookie scoped to `/_emdash`, so the provider redirects of an OAuth or AT Protocol sign-in carry it. The comparison is constant-time. The token stops working once setup is complete, so a link that leaks after setup grants nothing. With external authentication (Cloudflare Access), the provider's policy decides who reaches the site; see [Open questions](#open-questions).
+The token reaches the site in the setup link's `token` query parameter. When `/_emdash/admin/setup?token=…` is opened, the middleware sets the token in an HttpOnly cookie scoped to `/_emdash` for 24 hours, so the admin's setup screen needs no change to send it. The cookie is `SameSite=Lax`, not `Strict`: a Strict cookie isn't sent on the top-level redirect back from an OAuth or AT Protocol provider, which is the request the cookie exists for. It's `Secure` when the site's public origin is HTTPS, as `getPublicOrigin()` reports it, so it stays `Secure` behind a proxy that terminates TLS. Scripts can send the token in an `X-EmDash-Setup-Token` header instead. The comparison is constant-time. The token stops working once setup is complete, so a link that leaks after setup grants nothing. With external authentication (Cloudflare Access), the provider's policy decides who reaches the site; see [Open questions](#open-questions).
 
-The admin's setup screen shows a short message when the token is missing or wrong, translated like every other admin string. The error code is new and mapped in `mapErrorStatus`.
+The admin's setup screen shows a short message when the token is missing or wrong, and the login page shows it when a first sign-in through OAuth or AT Protocol is refused. The message is translated like every other admin string. The error code is new and mapped in `mapErrorStatus`.
 
 ## Compatibility and migration
 
@@ -263,6 +280,7 @@ Every change is additive:
 - `EMDASH_SETUP_TOKEN` is new and optional. Sites that don't set it see no change, and local development and the documented first-run path stay as they are.
 - The provider interfaces and the Cloudflare provider are new exports.
 - There's no database migration and no change to stored data.
+- The core package gains a `yaml` dependency, for writes to `fleet.yaml` that keep the operator's comments.
 - `fleet.yaml` carries `version: 1`. A later format gets a new version, and the tool refuses a version it doesn't know.
 
 A site can leave the fleet at any time: deleting its entry changes nothing on the site. Rolling back the setup secret means unsetting the Worker secret.
@@ -281,6 +299,7 @@ If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) l
 - **EmDash tokens** are per site and scoped. `status` needs `admin` today and only `updates:request` with #4577; `deploy` and `provision` need no EmDash token; `remove` needs `transfer:export`. A token for one site can't act on another, because each site has its own users and token table.
 - **The setup window:** with `EMDASH_SETUP_TOKEN`, the first Admin can only be created by someone who holds the link. The token is generated per site, set only as a Worker secret and printed once. Anyone who can read the operator's terminal output or CI log at that moment can claim the site, so `provision` prints the link only on an interactive terminal unless `--print-setup-link` is passed. The Worker has no public URL until the secret is set.
 - **The site list** holds account IDs, database IDs, repository names and hostnames, no secrets. Those identifiers aren't credentials, but they tell a reader which customers an agency has, so operators keep the file in a private repository.
+- **Dry runs:** `--dry-run` output and every error message redact the Cloudflare token and every generated secret value.
 - **Untrusted input:** responses from sites are parsed as data. A site that reports an unexpected version or JSON shape fails its step, and nothing from a response is used as a URL or a command.
 - **Privacy:** each site's users and content stay in that site's database. The tool reads only version and update state. `remove` writes an export file that holds personal data, and the docs say to treat it like a backup.
 
@@ -288,11 +307,15 @@ If [the env file plan (#4683)](https://github.com/emdash-cms/emdash/pull/4683) l
 
 No request path changes. The logged-out routes run the same queries, and the query-count snapshot stays the same. The setup secret check runs only on setup and first sign-in routes, and only while setup is incomplete.
 
-The tool's own cost is outbound requests from the operator's machine or CI: one health request per site for `status`, plus one admin request when a token is present. Account limits matter more than speed. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
+The tool's own cost is outbound requests from the operator's machine or CI: one health request per site for `status`, plus one admin request when a token is present. In the prototype, `status` over three local sites took 385–411 ms, of which about 200 ms is loading the CLI.
+
+Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the quota step reads each Worker's schedules: one `provision` costs 8 + N API requests on an account with N Workers, plus one `wrangler deploy`. At 250 Workers that's 258 requests, against the API's limit of 1,200 requests per five minutes per user. With one Worker and one Cron Trigger per site, the Cron Trigger limit (250 per account on Workers Paid) is the number of full sites per account. The limits are in [Appendix D](#appendix-d-limits-and-permissions).
 
 ## Failure handling
 
 - **Provisioning stops halfway** (for example the deploy fails after the database exists): the steps that finished are recorded. Running `provision` or `reconcile` again continues from the first step that isn't done. `reconcile --abandon` removes the half-created resources.
+- **Provisioning resumes after the secrets:** Worker secrets can't be read back. The encryption key is set once and never generated again, and the setup token is issued again, with a new link, on every run until the link has been printed (Appendix C).
+- **No interactive terminal for the setup link:** the **setup-link** step stays `waiting` and the site stays `provisioning`. A later run on a terminal, or with `--print-setup-link`, issues a new token and prints its link.
 - **The quota is reached:** `provision` stops before creating anything and names the limit. Options are a second account or a higher limit from Cloudflare.
 - **A migration fails or the lock is held:** the wave stops, the site keeps its old Worker, and the output names the error from `emdash migrate`. The documented migration lock rules and the `--release-lock` and `--take-over-lock` options apply.
 - **The target fingerprint changed:** the site stops before anything runs. The operator checks the database and records the new fingerprint with `adopt` or `reconcile`.
@@ -309,7 +332,7 @@ The tool's own cost is outbound requests from the operator's machine or CI: one 
 - Command tests against a local fleet of three sites with the local providers: `status` with and without tokens, `deploy` in waves with one injected failing migration, a fingerprint mismatch, and `update` against a stub of #4577's request route with one site that never reports the new version.
 - Provisioning tests for both layouts that fail at each step and then run `provision` again, and `reconcile` finishing a half-done site.
 - Provider tests at the HTTP boundary for Cloudflare and GitHub: request shapes, the quota check, idempotent creation when the resource exists, and token redaction in errors. `--dry-run` prints every API call.
-- Setup secret tests on a real SQLite database for each path in the table: refused without the token, succeeds with it, and no change when the secret isn't set. Admin tests for the message, including Arabic.
+- Setup secret tests on a real SQLite database for each path in the table: refused without the token, succeeds with it, and no change when the secret isn't set. The cookie's `SameSite` and `Secure` attributes behind a proxy. Admin tests for the message, including Arabic.
 - The query-count snapshot shows no change.
 - A manual run of `provision` (both layouts), `deploy`, `update` and `remove` on a throwaway Cloudflare account and GitHub organization.
 
@@ -317,16 +340,17 @@ The tool's own cost is outbound requests from the operator's machine or CI: one 
 
 This RFC moves to `accepted` only when these results are linked from the design pull request:
 
-- **Fleet prototype** (a local branch, not a pull request, as `proposals/README.md` asks):
-  - `status` over three local sites, with and without tokens.
-  - `deploy` waves that stop at an injected migration failure and leave the other sites on their old version, and a fingerprint mismatch that stops one site before anything runs.
-  - `provision` for the `shared` layout with the local provider, run again after a failure at every step, and `reconcile` finishing a half-done site.
-  - The setup secret: every path in the table refuses without the token, setup succeeds with it, and a site without the secret behaves as today.
-  - `update` waves against a stub of #4577's request route, including a site that never reports the new version.
-  - A list of every place where the design needed a decision it doesn't state, each resolved in this text. In particular, whether `deploy` or `status` needs migration state over HTTP.
-- **Isolate per site:** a local check of one parent Worker that loads each site as a Worker Loader child with its own database, with one verdict (works, works with named gaps, or fails) and the measured cold start and memory per site. The verdict decides what [Alternatives](#an-isolate-per-site-behind-one-worker) says. It doesn't change the fleet design unless it shows a path that needs no Worker per site.
-- **Platform facts:** the limits and token permissions in Appendix D re-read in the Cloudflare docs, and whether user Workers in a dispatch namespace support Cron Triggers and the Workers Cache.
-- **A real-account run** of `provision` and `remove` for the `shared` layout on a throwaway Cloudflare account, by the author.
+- **Fleet prototype** (a local branch, not a pull request, as `proposals/README.md` asks). Run on 2026-11-10 against `main` at `4269455b21`:
+  - `status` over three local `wrangler dev` sites, with and without tokens, and with one site stopped (exit code 1). **Met.**
+  - `deploy` waves that stop at an injected migration failure and leave the other sites on their old version, and a fingerprint mismatch that stops one site before anything runs. **Met.**
+  - `provision` for the `shared` layout with the local provider, run again after a failure at each step, creating each resource once, and `reconcile` finishing a half-done site. **Met.** The Cloudflare provider was checked at the HTTP boundary and with `--dry-run` only. The **seed** and **import** steps weren't built.
+  - The setup secret: every path in the table refuses without the token, setup succeeds with it, and a site without the secret behaves as today. **Met for the setup wizard, the site step and both passkey steps** (4 of 5 tests fail with the check turned off). The OAuth and AT Protocol first sign-in are guarded but not yet tested, so this item stays open.
+  - `update` waves against a stub of #4577's request route, including a site that never reports the new version. **Met.**
+  - A list of every place where the design needed a decision it doesn't state, each resolved in this text. **Met:** 23 points, all resolved above or in the appendices. `deploy` and `provision` don't need migration state over HTTP, because both hold the Cloudflare token and read the database through `emdash migrate`.
+  - The query-count snapshot didn't change.
+- **Isolate per site:** a local check of one parent Worker that loads each site as a Worker Loader child with its own database, with one verdict and the measured cold start and memory per site. **Met:** works with named gaps; see [Alternatives](#an-isolate-per-site-behind-one-worker). It doesn't change the fleet design.
+- **Platform facts:** the limits and token permissions in Appendix D re-read in the Cloudflare docs. **Met** (read 2026-11-10 and 2026-11-11). Whether user Workers in a dispatch namespace support Cron Triggers and the Workers Cache isn't stated in the docs; it affects only [Alternatives](#workers-for-platforms) and stays an open question.
+- **A real-account run** of `provision` and `remove` for the `shared` layout on a throwaway Cloudflare account, by the author. Open.
 
 The `repo` layout isn't prototyped before acceptance, because it needs #4577's workflow. Its gate is the manual run in the implementation slice that ships it.
 
@@ -342,7 +366,7 @@ Each slice is usable without the next:
 6. **Waits for #4577's acceptance:** `fleet update`. It ships after #4577's request route and `updates:request` scope.
 7. **Waits for #4577's acceptance:** `fleet provision` for the `repo` layout, with the GitHub interface. It ships after #4577's workflow file and `updateCheck.trigger` option.
 
-A deployment guide page, "Run many sites from one codebase", ships with slice 4 and gains the `repo` layout with slice 7.
+A deployment guide page for running many sites ships with slice 4 and gains the `repo` layout with slice 7.
 
 ## Alternatives
 
@@ -352,11 +376,24 @@ One Worker could pick the database from the hostname, as Discussion #139 asks, e
 
 ### An isolate per site behind one Worker
 
-A parent Worker could load each site as a Worker Loader child and hand it its own database. That would keep sites isolated in one deployment and would need the addressed stub from Discussion #3636. [Pending: the acceptance gate's verdict, with cold start, memory and cron behaviour.]
+A parent Worker could load each site as a Worker Loader child (a Dynamic Worker) and hand it its own database. A local check ran an unmodified starter build this way, one child per hostname, with no change to EmDash. Its verdict is that it works with named gaps. Each site rendered, set up its own Admin by passkey, kept content, media and sessions to itself, and published a scheduled entry when the parent's Cron Trigger called it. Measured locally:
+
+- A child's first request on a migrated database took 271–300 ms, and a warm page 9.9 ms median, against 6.1 ms for the same build deployed as its own Worker.
+- Each loaded child added 92–100 MB to the local process. That's process memory, not the isolate heap, so it doesn't show whether a child fits the 128 MB isolate limit.
+- A site's first request on an empty database took 1.27–1.43 s, because it runs the core migrations.
+
+It isn't the design here:
+
+- The parent embeds the whole build (19.4 MiB), so every site behind one parent runs the same EmDash version. Upgrading in waves, where a failing site stays on its old version, would need per-site code loaded from storage, which wasn't tested.
+- Every query crosses an extra RPC hop through a D1 shim in the parent, and each child needs a wrapper module so the parent's cron can wait for its scheduled work. That's host code the project would own.
+- A Worker request can have at most 4 distinct Dynamic Workers in flight, so one Cron Trigger reaches sites in batches of 4.
+- Production memory per child, startup against the 1 s limit, image transforms, sandboxed plugins and the Workers Cache inside a child are unmeasured.
+
+It would remove the Worker and the Cron Trigger per site that cap a fleet at 250 sites per account, so a later RFC can build a provider on it. The provider interface doesn't rule that out.
 
 ### Workers for Platforms
 
-A dispatch namespace removes the per-account Worker limit. Scheduled publishing depends on a Cron Trigger per site. [Pending: whether user Workers in a dispatch namespace can have Cron Triggers and the Workers Cache, from the Cloudflare docs.] The provider interface leaves room for a Workers for Platforms provider once that's settled.
+A dispatch namespace removes the per-account Worker limit. Scheduled publishing depends on a Cron Trigger per site, and the Workers for Platforms docs don't say whether a user Worker in a dispatch namespace can have its own Cron Trigger, or whether the Workers Cache works for it. They do say that `caches.default` is disabled for namespaced scripts and that user Workers can't use gradual deployments. The provider interface leaves room for a Workers for Platforms provider once a test on a real account settles the open points.
 
 ### A shared database with a tenant column
 
@@ -386,11 +423,11 @@ A registry Worker with a web dashboard matches what agencies know from WordPress
 ## Open questions
 
 - **External authentication:** should `EMDASH_SETUP_TOKEN` also hold back the rule that the first user who passes Cloudflare Access becomes Admin? The Access policy already decides who reaches the site, but an open policy plus that rule reopens the setup window.
-- **The encryption key:** `provision` sets `EMDASH_ENCRYPTION_KEY` as a Worker secret, which can't be read back, and losing it loses every plugin secret on the site. Should the tool write it to an operator-chosen file, print it once, or leave it to the operator's own secret manager?
-- **Migration state over HTTP:** `deploy` reads migration status through `emdash migrate`, which needs the Cloudflare token. A read-only route for an EmDash token would let `status` show pending migrations without it. Is that worth a core change? [Pending: prototype finding.]
+- **The encryption key:** `provision` sets `EMDASH_ENCRYPTION_KEY` once and never generates it again, because the Worker secret can't be read back. Losing it still loses every plugin secret on the site. Should the tool also write it to an operator-chosen file, print it once, or leave the backup to the operator's own secret manager?
+- **A build ID in the health route:** `/_emdash/api/health` reports the EmDash version only, so a `deploy` on an unchanged version can't be confirmed from the running site. Should health also report a build or deployment ID? That would be a second core change, so this RFC leaves it out.
 - **Waiting in `update`:** should there be a mode that sends requests in waves without waiting for the new version, for fleets where every update pull request is reviewed by hand?
 - **Beyond one account:** should one `fleet.yaml` span several Cloudflare accounts, or should an operator keep one file per account?
-- **The isolation unit:** if the isolate-per-site check is inconclusive, does that change anything in this design, or only a later RFC?
+- **Workers for Platforms:** can a user Worker in a dispatch namespace have its own Cron Trigger, and does it count against the 250 per account? Does the Workers Cache work for it? Only a test on a real account answers this, and only the Alternatives depend on it.
 
 ## Appendix A: Interfaces
 
@@ -402,7 +439,9 @@ interface FleetProvider {
 	checkQuota(site: SiteEntry): Promise<QuotaReport>;
 	ensureDatabase(site: SiteEntry): Promise<{ databaseId: string; created: boolean }>;
 	ensureBucket(site: SiteEntry): Promise<{ bucket: string; created: boolean }>;
+	ensureKvNamespace(site: SiteEntry): Promise<{ namespaceId: string; created: boolean }>;
 	writeDeployConfig(site: SiteEntry, projectDir: string): Promise<{ path: string }>;
+	migrationTarget(site: SiteEntry, configPath: string): Promise<MigrationTarget>;
 	deploy(site: SiteEntry, configPath: string): Promise<void>;
 	setSecrets(site: SiteEntry, secrets: Record<string, string>): Promise<void>;
 	attachDomain(site: SiteEntry): Promise<void>;
@@ -412,12 +451,18 @@ interface FleetProvider {
 	deleteResources(site: SiteEntry, which: ResourceKind[]): Promise<void>;
 }
 
+interface MigrationTarget {
+	wranglerConfig: string;
+	accountId: string;
+	database: string;
+}
+
 interface QuotaReport {
 	ok: boolean;
 	limits: { name: string; used: number; limit: number }[];
 }
 
-type ResourceKind = "worker" | "database" | "bucket" | "domain" | "schedule";
+type ResourceKind = "worker" | "database" | "bucket" | "kv" | "domain" | "schedule";
 
 interface ResourceReport {
 	found: Partial<Record<ResourceKind, { id: string; matchesRecord: boolean }>>;
@@ -476,6 +521,8 @@ interface SiteEntry {
 	tokenEnv?: string;
 	/** `shared` layout: path of the Astro project that builds the site. */
 	project?: string;
+	/** The provider that creates and deploys the site. */
+	provider?: "cloudflare";
 	cloudflare?: {
 		accountId: string;
 		zone?: string;
@@ -484,7 +531,7 @@ interface SiteEntry {
 		worker?: string;
 		databaseId?: string;
 		bucket?: string;
-		targetFingerprint?: string;
+		kvNamespaceId?: string;
 	};
 	/** `repo` layout. */
 	github?: {
@@ -498,12 +545,14 @@ interface SiteEntry {
 		origin: "provisioned" | "adopted";
 		status: "provisioning" | "active" | "failed" | "removed";
 		steps?: Record<string, { status: "done" | "failed" | "waiting"; at: string; detail?: string }>;
+		/** The database's migration identity, from `emdash migrate --status`. */
+		targetFingerprint?: string;
 		lastVersion?: string;
 	};
 }
 ```
 
-`defaults` apply to every site that doesn't set the key itself; nested objects merge one level deep. Resource names derive from the key: Worker `emdash-<key>`, database `emdash-<key>`, bucket `emdash-<key>-media`, repository `<owner>/<key>-site` unless `github.repository` is set.
+`defaults` apply to every site that doesn't set the key itself; nested objects merge one level deep. Resource names derive from the key: Worker `emdash-<key>`, database `emdash-<key>`, bucket `emdash-<key>-media`, KV namespace `emdash-<key>-session`, repository `<owner>/<key>-site` unless `github.repository` is set. `provider` defaults to `cloudflare` when the entry has a `cloudflare` block.
 
 ## Appendix C: Provision steps
 
@@ -511,27 +560,29 @@ Each step records `done`, `failed` or `waiting` under `state.steps.<name>` befor
 
 ### Shared layout
 
-1. **quota:** counts the account's Workers and Cron Triggers against their limits and stops with exit code 2 when the site wouldn't fit. The tool never creates a site Worker without a Cron Trigger, because it would never publish scheduled entries.
+1. **quota:** counts the account's Workers and Cron Triggers against their limits and stops with exit code 2 when the site wouldn't fit. Cron Triggers are counted by reading each Worker's schedules, one request per Worker. The tool never creates a site Worker without a Cron Trigger, because it would never publish scheduled entries.
 2. **database:** creates the D1 database with the configured location hint.
 3. **bucket:** creates the R2 bucket.
-4. **config:** writes `.emdash/fleet/<key>/wrangler.jsonc` with the Worker name, the `DB`, `MEDIA` and `LOADER` bindings, `triggers.crons`, `workers_dev: false` and `preview_urls: false`. The custom domain isn't in the config yet.
-5. **migrate:** applies the core migrations and records the target fingerprint.
-6. **deploy:** deploys the Worker. It has no public URL at this point.
-7. **secrets:** generates and sets `EMDASH_ENCRYPTION_KEY` and `EMDASH_SETUP_TOKEN`.
-8. **domain:** adds the custom domain to the config and attaches it.
-9. **health:** waits until the URL reports EmDash and the build's version.
-10. **seed** (with `--title`): runs the site step of setup through `POST /_emdash/api/setup` with the setup token, so the template's seed and the title are applied on the final hostname.
-11. **setup-link:** prints the link, on an interactive terminal or with `--print-setup-link`.
-12. **import** (with `--import <file.emdash>`): imports a site package through `emdash site import`. An import needs an Admin token, so this step stays `waiting` until setup is finished and the operator has run `emdash login`. `reconcile` completes it.
+4. **kv:** creates the KV namespace the build's `SESSION` binding uses for Astro sessions.
+5. **config:** writes `.emdash/fleet/<key>/wrangler.json` from the build's own config (`dist/server/wrangler.json`). It sets the Worker name, points `DB`, `MEDIA` and `SESSION` at the recorded resources, and keeps the project's other bindings as they are. It keeps the project's `triggers.crons`, or uses `* * * * *` when there is none, because `createScheduledHandler()` ignores any trigger that differs from its `generalCron`. It sets `workers_dev: false` and `preview_urls: false`. The custom domain isn't in the config yet. The step refuses to write without the database and namespace IDs.
+6. **migrate:** applies the core migrations and records the target fingerprint under `state`.
+7. **deploy:** deploys the Worker. It has no public URL at this point.
+8. **encryption-key:** generates and sets `EMDASH_ENCRYPTION_KEY`, once. A later run never generates it again, because the secret can't be read back and a new key would make the site's stored plugin secrets unreadable.
+9. **setup-token:** generates and sets `EMDASH_SETUP_TOKEN`. Until **setup-link** is done, every run repeats this step, because the tool can't read back whether the token it holds is the one on the Worker.
+10. **domain:** adds the custom domain to the config and attaches it.
+11. **health:** waits until the URL reports EmDash and the build's version.
+12. **seed** (with `--title`): runs the site step of setup through `POST /_emdash/api/setup` with the setup token, so the template's seed and the title are applied on the final hostname.
+13. **setup-link:** prints the link, on an interactive terminal or with `--print-setup-link`. Otherwise the step stays `waiting` and the site stays `provisioning`.
+14. **import** (with `--import <file.emdash>`): imports a site package through `emdash site import`. An import needs an Admin token, so this step stays `waiting` until setup is finished and the operator has run `emdash login`. `reconcile` completes it.
 
 ### Repo layout
 
-1. **quota**, **database** and **bucket** as above.
+1. **quota**, **database**, **bucket** and **kv** as above.
 2. **repository:** creates `github.repository` from `github.template` (by default the template the operator names with `--template`). An existing repository is used only if it's empty or holds the tool's own first commit.
-3. **files:** commits `wrangler.jsonc` (as in step 4 above, plus the custom domain), the `updateCheck.trigger` for this repository in the EmDash configuration, and #4577's `.github/workflows/emdash-update.yml`.
+3. **files:** commits `wrangler.jsonc` (the bindings, Cron Trigger and public-URL settings of step **config** above, plus the custom domain), the `updateCheck.trigger` for this repository in the EmDash configuration, and #4577's `.github/workflows/emdash-update.yml`.
 4. **migrate:** as above, from a checkout of the new repository.
 5. **deploy:** the first deploy from the checkout, with the custom domain left out until step 7.
-6. **secrets:** as above.
+6. **encryption-key** and **setup-token:** as above.
 7. **domain:** attaches the custom domain and commits the config change.
 8. **health**, **seed** and **setup-link** as above.
 9. **handover:** prints the secrets the operator must create, and where:
@@ -542,7 +593,7 @@ Each step records `done`, `failed` or `waiting` under `state.steps.<name>` befor
 
 ## Appendix D: Limits and permissions
 
-Read in the Cloudflare docs on 2026-11-10.
+Read in the Cloudflare docs on 2026-11-10 and 2026-11-11.
 
 ### Account limits
 
@@ -552,9 +603,12 @@ Read in the Cloudflare docs on 2026-11-10.
 | Cron Triggers per account | 5 | 250 |
 | D1 databases per account | 10 | 1,000,000 (first 100,000 included) |
 | R2 buckets per account | unlimited, default limit 100,000 | unlimited, default limit 100,000 |
+| KV namespaces per account | 1,000 | default limit 1,000 |
 | Custom domains per zone | 100 | 100 |
 
 Workers Cache purges always use the Free purge limits, whatever the plan: 5 requests per minute per account, with a bucket of 25. Every site on the account shares that budget when editors publish.
+
+The Cloudflare API allows 1,200 requests per five minutes per user, counted across the dashboard, API keys and API tokens.
 
 ### Cloudflare token permissions
 
@@ -565,8 +619,17 @@ Workers Cache purges always use the Free purge limits, whatever the plan: 5 requ
 | Create D1 databases | D1: Admin |
 | Migrate a database | D1: Editor |
 | Create R2 buckets | R2: Admin |
+| Create KV namespaces | Admin at a scope that includes KV |
 | Attach or remove a custom domain | Zone: Workers Routes: Write on the site's zone |
 
 ### GitHub token permissions
 
-`repo` provisioning needs a token that can create repositories in the target owner, push to them and add workflow files. [Pending: the exact fine-grained permissions, from the GitHub docs.]
+Read in the GitHub docs on 2026-11-11. A fine-grained token for `repo` provisioning needs:
+
+| Use | Permission |
+| --- | --- |
+| Create the repository in the target owner, from a template | Administration: write on the owner (the generate endpoint also needs Contents: read on the template) |
+| Commit the Wrangler config and the EmDash configuration | Contents: write on the new repository |
+| Commit `.github/workflows/emdash-update.yml` | Workflows: write on the new repository |
+
+An organization can require approval for fine-grained tokens. Until an owner approves it, such a token can only read public resources.
