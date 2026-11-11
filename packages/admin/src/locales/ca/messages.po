@@ -212,7 +212,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# col·lecció} other {# col·leccions}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2313
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# comentari importat} other {# comentaris importats}}"
 
@@ -227,12 +227,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# comentari} other {# comentaris}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2331
+#: packages/admin/src/components/WordPressImport.tsx:2324
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# error de contingut} other {# errors de contingut}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2272
+#: packages/admin/src/components/WordPressImport.tsx:2265
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {# element de contingut importat} other {# elements de contingut importats}}"
 
@@ -298,22 +298,22 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# eina MCP} other {# eines MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2336
+#: packages/admin/src/components/WordPressImport.tsx:2329
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# error multimèdia} other {# errors multimèdia}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2288
+#: packages/admin/src/components/WordPressImport.tsx:2281
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# fitxer multimèdia importat} other {# fitxers multimèdia importats}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2312
+#: packages/admin/src/components/WordPressImport.tsx:2305
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# menú importat} other {# menús importats}}"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1960
+#: packages/admin/src/components/WordPressImport.tsx:1953
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {S'importarà # menú} other {S'importaran # menús}}"
 
@@ -334,7 +334,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2545
+#: packages/admin/src/components/WordPressImport.tsx:2568
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# entrada} other {# entrades}}"
 
@@ -364,17 +364,17 @@ msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} oth
 msgstr "{0, plural, one {# fila} other {# files}} × {1, plural, one {# columna} other {# columnes}} seleccionades"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2280
+#: packages/admin/src/components/WordPressImport.tsx:2273
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {# omès (ja existeix)} other {# omesos (ja existeixen)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2304
+#: packages/admin/src/components/WordPressImport.tsx:2297
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {# assignació de taxonomia} other {# assignacions de taxonomia}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2296
+#: packages/admin/src/components/WordPressImport.tsx:2289
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {# taxonomia creada} other {# taxonomies creades}}"
 
@@ -476,7 +476,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "{0} no es pot moure aquí — el seu element pare no té traducció en aquest idioma, així que aquesta llista no és el grup al qual pertany."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/WordPressImport.tsx:1359
 msgid "{0} detected"
 msgstr "S'ha detectat {0}"
 
@@ -512,12 +512,12 @@ msgstr "{0} ja és actiu"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2030
+#: packages/admin/src/components/WordPressImport.tsx:2023
 msgid "{0} items → {1}"
 msgstr "{0} elements → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1953
+#: packages/admin/src/components/WordPressImport.tsx:1946
 msgid "{0} items will be imported"
 msgstr "S'importaran {0} elements"
 
@@ -660,17 +660,17 @@ msgstr ""
 msgid "{count, plural, one {# entry} other {# entries}}"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2129
+#: packages/admin/src/components/WordPressImport.tsx:2122
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# fitxer} other {# fitxers}}"
 
 #: packages/admin/src/components/BlockListField.tsx:165
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2408
+#: packages/admin/src/components/WordPressImport.tsx:2401
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# element} other {# elements}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2200
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "{current} of {total}"
 msgstr "{current} de {total}"
 
@@ -746,7 +746,7 @@ msgstr ""
 msgid "{label} actions"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:261
+#: packages/admin/src/components/settings/transfer/labels.ts:268
 msgid "{label} in {menuName}"
 msgstr "{label} a {menuName}"
 
@@ -794,11 +794,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# element que coincideix amb \"{searchQuery}\"} other {# elements que coincideixen amb \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2532
+#: packages/admin/src/components/WordPressImport.tsx:2555
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount} de {totalCount} assignats"
 
-#: packages/admin/src/components/WordPressImport.tsx:2520
+#: packages/admin/src/components/WordPressImport.tsx:2543
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} de {totalCount} autors coincidents per correu electrònic"
 
@@ -896,11 +896,11 @@ msgstr ""
 msgid "{name}: this site already has some"
 msgstr "{name}: aquest lloc ja en té alguns"
 
-#: packages/admin/src/components/WordPressImport.tsx:1936
+#: packages/admin/src/components/WordPressImport.tsx:1929
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {Es crearà # col·lecció nova} other {Es crearan # col·leccions noves}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1945
+#: packages/admin/src/components/WordPressImport.tsx:1938
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {S'afegiran camps a # col·lecció existent} other {S'afegiran camps a # col·leccions existents}}"
 
@@ -1076,7 +1076,7 @@ msgstr ""
 msgid "{when}, Published, {author}"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:268
+#: packages/admin/src/components/settings/transfer/labels.ts:275
 msgid "{widgetType} in {areaName}"
 msgstr "{widgetType} a {areaName}"
 
@@ -1093,21 +1093,21 @@ msgstr "/pagina-nova o /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/pagina-antiga o /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2150
+#: packages/admin/src/components/WordPressImport.tsx:2143
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• Els fitxers es baixen del teu lloc de WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:2151
+#: packages/admin/src/components/WordPressImport.tsx:2144
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• Pujats al teu emmagatzematge multimèdia d'EmDash"
 
-#: packages/admin/src/components/WordPressImport.tsx:2152
+#: packages/admin/src/components/WordPressImport.tsx:2145
 msgid "• URLs in your content are updated automatically"
 msgstr "• Els URL del teu contingut s'actualitzen automàticament"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 #: packages/admin/src/components/SetupWizard.tsx:341
-#: packages/admin/src/components/WordPressImport.tsx:1656
+#: packages/admin/src/components/WordPressImport.tsx:1658
 msgid "← Back"
 msgstr "← Enrere"
 
@@ -1154,11 +1154,11 @@ msgstr "1 entrada actualitzada"
 msgid "1 year"
 msgstr "1 any"
 
-#: packages/admin/src/components/WordPressImport.tsx:1577
+#: packages/admin/src/components/WordPressImport.tsx:1579
 msgid "1. Log into your WordPress admin"
 msgstr "1. Inicia la sessió a l'administració de WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:1329
+#: packages/admin/src/components/WordPressImport.tsx:1331
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. Inicia la sessió al tauler d'administració de WordPress"
 
@@ -1166,11 +1166,11 @@ msgstr "1. Inicia la sessió al tauler d'administració de WordPress"
 msgid "16:9"
 msgstr "16:9"
 
-#: packages/admin/src/components/WordPressImport.tsx:77
+#: packages/admin/src/components/WordPressImport.tsx:79
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. Ves a <0>Eines → Exporta</0>"
 
-#: packages/admin/src/components/WordPressImport.tsx:1578
+#: packages/admin/src/components/WordPressImport.tsx:1580
 msgid "2. Go to Users → Profile"
 msgstr "2. Ves a Usuaris → Perfil"
 
@@ -1178,11 +1178,11 @@ msgstr "2. Ves a Usuaris → Perfil"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1579
+#: packages/admin/src/components/WordPressImport.tsx:1581
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. Desplaça't fins a \"Contrasenyes d'aplicació\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1333
+#: packages/admin/src/components/WordPressImport.tsx:1335
 msgid "3. Select \"All content\""
 msgstr "3. Selecciona \"Tot el contingut\""
 
@@ -1210,11 +1210,11 @@ msgstr "308 Permanent (estricte)"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1334
+#: packages/admin/src/components/WordPressImport.tsx:1336
 msgid "4. Click \"Download Export File\""
 msgstr "4. Fes clic a \"Baixa el fitxer d'exportació\""
 
-#: packages/admin/src/components/WordPressImport.tsx:1580
+#: packages/admin/src/components/WordPressImport.tsx:1582
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Introdueix \"EmDash\" i fes clic a \"Afegeix-ne un de nou\""
 
@@ -1230,11 +1230,11 @@ msgstr "410 Contingut suprimit (Gone)"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 No disponible per motius legals"
 
-#: packages/admin/src/components/WordPressImport.tsx:1581
+#: packages/admin/src/components/WordPressImport.tsx:1583
 msgid "5. Copy the generated password"
 msgstr "5. Copia la contrasenya generada"
 
-#: packages/admin/src/components/WordPressImport.tsx:1335
+#: packages/admin/src/components/WordPressImport.tsx:1337
 msgid "5. Upload the file here"
 msgstr "5. Puja el fitxer aquí"
 
@@ -1250,19 +1250,19 @@ msgstr "90 dies"
 msgid "A brief description of this content type"
 msgstr "Una breu descripció d'aquest tipus de contingut"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:184
+#: packages/admin/src/components/settings/transfer/labels.ts:191
 msgid "A file does not match the package manifest. The package may be damaged."
 msgstr "Un fitxer no coincideix amb el manifest del paquet. Potser el paquet està malmès."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:214
+#: packages/admin/src/components/settings/transfer/labels.ts:221
 msgid "A file in the package does not match the manifest. The package may be damaged."
 msgstr "Un fitxer del paquet no coincideix amb el manifest. Potser el paquet està malmès."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:213
+#: packages/admin/src/components/settings/transfer/labels.ts:220
 msgid "A file in the package is not the size the manifest declares."
 msgstr "Un fitxer del paquet no té la mida que declara el manifest."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:185
+#: packages/admin/src/components/settings/transfer/labels.ts:192
 msgid "A file is not the size the package manifest declares. The package may be damaged."
 msgstr "Un fitxer no té la mida que declara el manifest del paquet. Potser el paquet està malmès."
 
@@ -1270,11 +1270,11 @@ msgstr "Un fitxer no té la mida que declara el manifest del paquet. Potser el p
 msgid "A full-width hero banner with heading, text, and CTA button"
 msgstr "Un bàner destacat d'amplada completa amb encapçalament, text i botó de crida a l'acció"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:132
+#: packages/admin/src/components/settings/transfer/labels.ts:139
 msgid "A media file is larger than this site accepts"
 msgstr "Un fitxer multimèdia és més gran del que aquest lloc accepta"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:131
+#: packages/admin/src/components/settings/transfer/labels.ts:138
 msgid "A media file is missing from the package"
 msgstr "Falta un fitxer multimèdia del paquet"
 
@@ -1283,15 +1283,15 @@ msgstr "Falta un fitxer multimèdia del paquet"
 msgid "A name cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:137
+#: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "A number is too large for this site’s database"
 msgstr "Un nombre és massa gran per a la base de dades d'aquest lloc"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:123
+#: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "A package file does not match the manifest"
 msgstr "Un fitxer del paquet no coincideix amb el manifest"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:122
+#: packages/admin/src/components/settings/transfer/labels.ts:129
 msgid "A package file is missing"
 msgstr "Falta un fitxer del paquet"
 
@@ -1305,11 +1305,11 @@ msgstr "No s'ha seleccionat cap hora de publicació"
 msgid "A publishing action is already in progress"
 msgstr "Ja hi ha una acció de publicació en curs"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:124
+#: packages/admin/src/components/settings/transfer/labels.ts:131
 msgid "A record in the package is not valid"
 msgstr "Un registre del paquet no és vàlid"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:128
+#: packages/admin/src/components/settings/transfer/labels.ts:135
 msgid "A record refers to something missing from the package"
 msgstr "Un registre fa referència a alguna cosa que falta del paquet"
 
@@ -1347,7 +1347,7 @@ msgstr "Cal un idioma d'origen i un de destinació"
 msgid "A step failed and will be retried ({0})."
 msgstr "Un pas ha fallat i es tornarà a provar ({0})."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:138
+#: packages/admin/src/components/settings/transfer/labels.ts:145
 msgid "A value does not fit this site’s database"
 msgstr "Un valor no cap a la base de dades d'aquest lloc"
 
@@ -1421,11 +1421,11 @@ msgstr "El compte ja existeix"
 msgid "Account exists"
 msgstr "El compte existeix"
 
-#: packages/admin/src/components/users/UserDetail.tsx:229
+#: packages/admin/src/components/users/UserDetail.tsx:220
 msgid "Account Info"
 msgstr "Informació del compte"
 
-#: packages/admin/src/components/WordPressImport.tsx:1208
+#: packages/admin/src/components/WordPressImport.tsx:1210
 msgid "ACF Fields"
 msgstr "Camps ACF"
 
@@ -1472,8 +1472,8 @@ msgstr ""
 msgid "Activation cannot be confirmed. Keep editing paused and refresh the status."
 msgstr "No es pot confirmar l'activació. Mantén l'edició en pausa i actualitza l'estat."
 
-#: packages/admin/src/components/users/UserDetail.tsx:219
-#: packages/admin/src/components/users/UserList.tsx:221
+#: packages/admin/src/components/users/UserDetail.tsx:210
+#: packages/admin/src/components/users/UserList.tsx:211
 msgid "Active"
 msgstr "Actiu"
 
@@ -1615,7 +1615,7 @@ msgstr "Afegeix un domini"
 msgid "Add Field"
 msgstr "Afegeix un camp"
 
-#: packages/admin/src/components/WordPressImport.tsx:2041
+#: packages/admin/src/components/WordPressImport.tsx:2034
 msgid "Add fields"
 msgstr "Afegeix camps"
 
@@ -1835,7 +1835,7 @@ msgstr "S'està afegint..."
 msgid "Adding…"
 msgstr "S'està afegint…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1810
+#: packages/admin/src/components/WordPressImport.tsx:1806
 msgid "Additional data to import."
 msgstr "Dades addicionals per importar."
 
@@ -1847,7 +1847,7 @@ msgstr "Detalls addicionals"
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1538
+#: packages/admin/src/components/WordPressImport.tsx:1540
 msgid "admin"
 msgstr "admin"
 
@@ -1957,7 +1957,7 @@ msgstr "Totes les col·leccions"
 msgid "All comments require approval"
 msgstr "Tots els comentaris requereixen aprovació"
 
-#: packages/admin/src/components/WordPressImport.tsx:2577
+#: packages/admin/src/components/WordPressImport.tsx:2600
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Tot el contingut importat quedarà sense assignar. Pots reassignar els autors més tard des de l'editor de contingut."
 
@@ -1965,8 +1965,8 @@ msgstr "Tot el contingut importat quedarà sense assignar. Pots reassignar els a
 msgid "All locales"
 msgstr "Tots els idiomes"
 
-#: packages/admin/src/components/users/UserList.tsx:51
-#: packages/admin/src/components/users/UserList.tsx:55
+#: packages/admin/src/components/users/UserList.tsx:52
+#: packages/admin/src/components/users/UserList.tsx:56
 msgid "All roles"
 msgstr "Tots els rols"
 
@@ -2040,7 +2040,7 @@ msgstr "Elimina també la relació que utilitza aquest camp"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr "Coincideix també amb la signatura enllaçada a l'autor d'una entrada quan aquesta no en té cap d'assignada."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:382
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:381
 msgid "Also requested, but not available to your role:"
 msgstr "També sol·licitat, però no disponible per al teu rol:"
 
@@ -2072,7 +2072,7 @@ msgstr "El text alternatiu no s'aplica a les carpetes"
 msgid "Alt text set"
 msgstr "Text alternatiu definit"
 
-#: packages/admin/src/components/WordPressImport.tsx:1449
+#: packages/admin/src/components/WordPressImport.tsx:1451
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Com a alternativa, pots exportar des de WordPress (Eines → Exporta) i pujar el fitxer."
 
@@ -2154,11 +2154,11 @@ msgstr "S'ha produït un error inesperat."
 msgid "An unknown error occurred"
 msgstr "S'ha produït un error desconegut"
 
-#: packages/admin/src/components/WordPressImport.tsx:1630
+#: packages/admin/src/components/WordPressImport.tsx:1632
 msgid "Analyzing export file..."
 msgstr "S'està analitzant el fitxer d'exportació..."
 
-#: packages/admin/src/components/WordPressImport.tsx:855
+#: packages/admin/src/components/WordPressImport.tsx:857
 msgid "Analyzing WordPress site..."
 msgstr "S'està analitzant el lloc de WordPress..."
 
@@ -2183,7 +2183,7 @@ msgstr ""
 msgid "Another folder already uses this name. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:192
+#: packages/admin/src/components/settings/transfer/labels.ts:199
 msgid "Another import is already using this package."
 msgstr "Ja hi ha una altra importació fent servir aquest paquet."
 
@@ -2244,7 +2244,7 @@ msgstr "Tokens d'API"
 msgid "Appears on posts and pages"
 msgstr "Apareix a les entrades i les pàgines"
 
-#: packages/admin/src/components/WordPressImport.tsx:1545
+#: packages/admin/src/components/WordPressImport.tsx:1547
 msgid "Application Password"
 msgstr "Contrasenya d'aplicació"
 
@@ -2355,7 +2355,7 @@ msgstr "Demana a un administrador que completi aquesta configuració."
 msgid "Aspect ratio"
 msgstr "Relació d'aspecte"
 
-#: packages/admin/src/components/WordPressImport.tsx:2515
+#: packages/admin/src/components/WordPressImport.tsx:2538
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Assigna els autors de WordPress a usuaris d'EmDash. Les entrades s'atribuiran a l'usuari seleccionat."
 
@@ -2425,19 +2425,19 @@ msgstr "L'autenticació s'ha cancel·lat o ha excedit el temps d'espera. Torna-h
 msgid "Author"
 msgstr "Autor"
 
-#: packages/admin/src/components/WordPressImport.tsx:2530
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "Author Mapping"
 msgstr "Assignació d'autors"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:229
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
 msgid "Authorization denied"
 msgstr "Autorització denegada"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:152
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:153
 msgid "Authorization failed"
 msgstr "Ha fallat l'autorització"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorize"
 msgstr "Autoritza"
 
@@ -2445,7 +2445,7 @@ msgstr "Autoritza"
 msgid "Authorize device"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:208
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
 msgid "Authorize Device"
 msgstr "Autoritza el dispositiu"
 
@@ -2453,7 +2453,7 @@ msgstr "Autoritza el dispositiu"
 msgid "Authorized approvers"
 msgstr "Aprovadors autoritzats"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:297
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:296
 msgid "Authorizing..."
 msgstr "S'està autoritzant..."
 
@@ -2464,7 +2464,7 @@ msgstr "S'està autoritzant..."
 msgid "Authors"
 msgstr "Autors"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:163
+#: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
 msgstr "Els autors s'assignaran a usuaris d'aquest lloc"
 
@@ -2546,8 +2546,8 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/MediaLibrary.tsx:771
 #: packages/admin/src/components/MenuEditor.tsx:519
-#: packages/admin/src/components/WordPressImport.tsx:1565
-#: packages/admin/src/components/WordPressImport.tsx:2586
+#: packages/admin/src/components/WordPressImport.tsx:1567
+#: packages/admin/src/components/WordPressImport.tsx:2609
 msgid "Back"
 msgstr "Enrere"
 
@@ -2685,7 +2685,7 @@ msgid "Block actions - drag to reorder, click for menu"
 msgstr "Accions del bloc: arrossega per reordenar, fes clic per al menú"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:108
+#: packages/admin/src/components/settings/transfer/labels.ts:115
 msgid "Block type “{0}” was created on this site"
 msgstr "El tipus de bloc “{0}” s'ha creat en aquest lloc"
 
@@ -2723,7 +2723,7 @@ msgstr "Negreta"
 msgid "Boolean"
 msgstr "Booleà"
 
-#: packages/admin/src/components/WordPressImport.tsx:1314
+#: packages/admin/src/components/WordPressImport.tsx:1316
 msgid "Bot protection blocked the connection"
 msgstr ""
 
@@ -2735,7 +2735,7 @@ msgstr "Els dos camps de referència vinculats a aquesta relació comparteixen a
 msgid "Brief summary shown below the title in search results"
 msgstr "Resum breu que es mostra sota el títol als resultats de cerca"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:160
+#: packages/admin/src/components/settings/transfer/labels.ts:167
 msgid "Broken references were cleared"
 msgstr "S'han esborrat les referències trencades"
 
@@ -2751,8 +2751,8 @@ msgstr "Explora i instal·la connectors per ampliar el teu lloc."
 msgid "Browse files"
 msgstr "Explora fitxers"
 
-#: packages/admin/src/components/WordPressImport.tsx:1174
-#: packages/admin/src/components/WordPressImport.tsx:1649
+#: packages/admin/src/components/WordPressImport.tsx:1176
+#: packages/admin/src/components/WordPressImport.tsx:1651
 msgid "Browse Files"
 msgstr "Explora els fitxers"
 
@@ -2927,7 +2927,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/TaxonomyManager.tsx:1021
 #: packages/admin/src/components/users/InviteUserModal.tsx:232
 #: packages/admin/src/components/Widgets.tsx:524
-#: packages/admin/src/components/WordPressImport.tsx:1974
+#: packages/admin/src/components/WordPressImport.tsx:1967
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:9
 msgid "Cancel"
 msgstr "Cancel·la"
@@ -3002,11 +3002,11 @@ msgid "Categories"
 msgstr "Categories"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1842
+#: packages/admin/src/components/WordPressImport.tsx:1835
 msgid "Categories ({0})"
 msgstr "Categories ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1196
+#: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Categories & Tags"
 msgstr "Categories i etiquetes"
 
@@ -3199,7 +3199,7 @@ msgstr "Comprova registry.policy.minimumReleaseAge a astro.config.mjs i reinicia
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "Comprova registry.policy.minimumReleaseAgeExclude a astro.config.mjs i reinicia EmDash."
 
-#: packages/admin/src/components/WordPressImport.tsx:1145
+#: packages/admin/src/components/WordPressImport.tsx:1147
 msgid "Check Site"
 msgstr "Comprova el lloc"
 
@@ -3221,15 +3221,15 @@ msgstr "Comprova la connexió i torna-ho a provar."
 msgid "Check your email"
 msgstr "Comprova el teu correu electrònic"
 
-#: packages/admin/src/components/WordPressImport.tsx:821
+#: packages/admin/src/components/WordPressImport.tsx:823
 msgid "Checking {urlInput}..."
 msgstr "S'està comprovant {urlInput}..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:187
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:188
 msgid "Checking authentication..."
 msgstr "S'està comprovant l'autenticació..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:341
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:340
 msgid "Checking code..."
 msgstr "S'està comprovant el codi..."
 
@@ -3436,7 +3436,7 @@ msgstr "Esborra les completades"
 #: packages/admin/src/components/ContentList.tsx:1121
 #: packages/admin/src/components/MediaLibrary.tsx:1044
 #: packages/admin/src/components/Sections.tsx:369
-#: packages/admin/src/components/users/UserList.tsx:125
+#: packages/admin/src/components/users/UserList.tsx:126
 #: packages/admin/src/routes/bylines.tsx:472
 msgid "Clear filters"
 msgstr "Neteja els filtres"
@@ -3526,7 +3526,7 @@ msgstr "Tanca la configuració de la galeria"
 msgid "Close image settings"
 msgstr "Tanca la configuració de la imatge"
 
-#: packages/admin/src/components/users/UserDetail.tsx:124
+#: packages/admin/src/components/users/UserDetail.tsx:125
 msgid "Close panel"
 msgstr "Tanca el tauler"
 
@@ -3534,7 +3534,7 @@ msgstr "Tanca el tauler"
 msgid "Close settings"
 msgstr "Tanca la configuració"
 
-#: packages/admin/src/components/WordPressImport.tsx:93
+#: packages/admin/src/components/WordPressImport.tsx:95
 msgid "Cloudflare's bot protection answered with a challenge page, so EmDash can't reach the EmDash Exporter API. Allow requests to /wp-json/emdash/v1/ (and ?rest_route=/emdash/v1/ on sites without pretty permalinks), for example with a WAF custom rule that skips bot protection, or pause bot protection during the migration, then try again."
 msgstr ""
 
@@ -3578,7 +3578,7 @@ msgid "Collection “{0}” has entries"
 msgstr "La col·lecció “{0}” té entrades"
 
 #. placeholder {0}: blocker.slug
-#: packages/admin/src/components/settings/transfer/labels.ts:106
+#: packages/admin/src/components/settings/transfer/labels.ts:113
 msgid "Collection “{0}” was created on this site"
 msgstr "La col·lecció “{0}” s'ha creat en aquest lloc"
 
@@ -3605,7 +3605,7 @@ msgstr "Col·leccions"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Col·leccions i camps, tot el contingut amb esborranys, versions, entrades programades i paperera, traduccions, taxonomies, signatures, fitxers multimèdia, menús, ginys, seccions, redireccions, SEO i configuració del lloc."
 
-#: packages/admin/src/components/WordPressImport.tsx:2384
+#: packages/admin/src/components/WordPressImport.tsx:2377
 msgid "Collections created:"
 msgstr "Col·leccions creades:"
 
@@ -3719,17 +3719,17 @@ msgstr "Confirma-ho amb Face ID, Touch ID o el codi d'accés del dispositiu."
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "Confirma-ho amb l'empremta, la cara o el PIN."
 
-#: packages/admin/src/components/WordPressImport.tsx:746
-#: packages/admin/src/components/WordPressImport.tsx:1102
+#: packages/admin/src/components/WordPressImport.tsx:748
+#: packages/admin/src/components/WordPressImport.tsx:1104
 msgid "Connect"
 msgstr "Connecta"
 
-#: packages/admin/src/components/WordPressImport.tsx:1562
+#: packages/admin/src/components/WordPressImport.tsx:1564
 msgid "Connect & Analyze"
 msgstr "Connecta i analitza"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1511
+#: packages/admin/src/components/WordPressImport.tsx:1513
 msgid "Connect to {0}"
 msgstr "Connecta't a {0}"
 
@@ -3743,12 +3743,12 @@ msgstr "Connecta amb qualsevol amfitrió de xarxa i carrega imatges externes de 
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "Connecta amb amfitrions de xarxa i carrega imatges externes de connectors a l'administració"
 
-#: packages/admin/src/components/WordPressImport.tsx:1427
+#: packages/admin/src/components/WordPressImport.tsx:1429
 msgid "Connect with WordPress"
 msgstr "Connecta amb WordPress"
 
 #. placeholder {0}: isolate(formatDate(account.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:305
+#: packages/admin/src/components/users/UserDetail.tsx:296
 msgid "Connected {0}"
 msgstr "{0} connectat"
 
@@ -3785,11 +3785,11 @@ msgid "Content digest"
 msgstr "Resum del contingut"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2439
+#: packages/admin/src/components/WordPressImport.tsx:2462
 msgid "Content Errors ({0})"
 msgstr "Errors de contingut ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1371
+#: packages/admin/src/components/WordPressImport.tsx:1373
 msgid "Content found:"
 msgstr "Contingut trobat:"
 
@@ -3818,11 +3818,11 @@ msgstr "Lectura de contingut"
 msgid "Content references"
 msgstr "Referències de contingut"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:130
+#: packages/admin/src/components/settings/transfer/labels.ts:137
 msgid "Content refers to media in an invalid way"
 msgstr "El contingut fa referència a multimèdia d'una manera no vàlida"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:140
+#: packages/admin/src/components/settings/transfer/labels.ts:147
 msgid "Content refers to media that is not in the package"
 msgstr "El contingut fa referència a multimèdia que no és al paquet"
 
@@ -3842,7 +3842,7 @@ msgstr "Resultats de la cerca de contingut"
 msgid "Content that credits this byline loses the credit."
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1788
+#: packages/admin/src/components/WordPressImport.tsx:1784
 msgid "Content to Import"
 msgstr "Contingut per importar"
 
@@ -3865,7 +3865,7 @@ msgstr "Els tipus de contingut amb el mateix grup comparteixen una carpeta plega
 msgid "Content using this media item may show a broken reference."
 msgstr "El contingut que utilitza aquest element multimèdia pot mostrar una referència trencada."
 
-#: packages/admin/src/components/WordPressImport.tsx:2367
+#: packages/admin/src/components/WordPressImport.tsx:2360
 msgid "Content was skipped because it already exists"
 msgstr "S'ha omès el contingut perquè ja existeix"
 
@@ -3884,7 +3884,7 @@ msgstr "Continua"
 msgid "Continue →"
 msgstr "Continua →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2588
+#: packages/admin/src/components/WordPressImport.tsx:2611
 msgid "Continue Import"
 msgstr "Continua la importació"
 
@@ -3983,11 +3983,11 @@ msgstr "S'està copiant el multimèdia"
 msgid "Could not add {singularLower}"
 msgstr "No s'ha pogut afegir {singularLower}"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:111
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:112
 msgid "Could not check this code"
 msgstr "No s'ha pogut comprovar aquest codi"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:347
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:346
 msgid "Could not check this code."
 msgstr "No s'ha pogut comprovar aquest codi."
 
@@ -4059,7 +4059,7 @@ msgstr ""
 msgid "Couldn’t confirm whether the media item or selected folder still exists. Try again."
 msgstr "No s'ha pogut confirmar si l'element multimèdia o la carpeta seleccionada encara existeixen. Torna-ho a provar."
 
-#: packages/admin/src/components/WordPressImport.tsx:1315
+#: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Couldn't detect WordPress"
 msgstr "No s'ha pogut detectar WordPress"
 
@@ -4259,7 +4259,7 @@ msgstr "Crea {singularLower} nou"
 msgid "Create New Token"
 msgstr "Crea un token nou"
 
-#: packages/admin/src/components/WordPressImport.tsx:1556
+#: packages/admin/src/components/WordPressImport.tsx:1558
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Crea'n una a WordPress: Usuaris → Perfil → Contrasenyes d'aplicació"
 
@@ -4299,7 +4299,7 @@ msgstr "Crea una relació"
 msgid "Create Relation"
 msgstr "Crea una relació"
 
-#: packages/admin/src/components/WordPressImport.tsx:1978
+#: packages/admin/src/components/WordPressImport.tsx:1971
 msgid "Create Schema & Import"
 msgstr "Crea l'esquema i importa"
 
@@ -4372,7 +4372,7 @@ msgstr "Crea, actualitza i elimina contingut"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1052
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
-#: packages/admin/src/components/users/UserDetail.tsx:232
+#: packages/admin/src/components/users/UserDetail.tsx:223
 msgid "Created"
 msgstr "Creat"
 
@@ -4382,7 +4382,7 @@ msgid "Created \"{0}\"."
 msgstr "S'ha creat \"{0}\"."
 
 #. placeholder {0}: isolate(formatDate(cred.createdAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:279
+#: packages/admin/src/components/users/UserDetail.tsx:270
 msgid "Created {0}"
 msgstr "S'ha creat {0}"
 
@@ -4403,7 +4403,7 @@ msgstr "Data de creació"
 msgid "Creating collections and fields"
 msgstr "S'estan creant les col·leccions i els camps"
 
-#: packages/admin/src/components/WordPressImport.tsx:932
+#: packages/admin/src/components/WordPressImport.tsx:934
 msgid "Creating collections and fields..."
 msgstr "S'estan creant les col·leccions i els camps..."
 
@@ -4497,7 +4497,7 @@ msgstr "Contingut personalitzat del robots.txt. Deixa-ho buit per utilitzar el v
 msgid "Custom Section"
 msgstr "Secció personalitzada"
 
-#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1199
 msgid "Custom Taxonomies"
 msgstr "Taxonomies personalitzades"
 
@@ -4887,6 +4887,11 @@ msgstr "S'està eliminant..."
 msgid "Deleting…"
 msgstr "S'està eliminant…"
 
+#. placeholder {0}: blocker.slug
+#: packages/admin/src/components/settings/transfer/labels.ts:109
+msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
 msgid "Deliver all email your site sends"
@@ -4909,7 +4914,7 @@ msgstr "Vols degradar l'usuari?"
 msgid "Demoting..."
 msgstr "S'està degradant..."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:305
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:304
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:108
 msgid "Deny"
 msgstr "Denega"
@@ -4975,15 +4980,15 @@ msgstr "Destructiu"
 msgid "Details"
 msgstr "Detalls"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:218
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:219
 msgid "Device authorized"
 msgstr "Dispositiu autoritzat"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:261
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:260
 msgid "Device code"
 msgstr "Codi del dispositiu"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Device-bound"
 msgstr "Vinculat al dispositiu"
 
@@ -5007,7 +5012,7 @@ msgstr "Diferències respecte del lloc d'origen"
 msgid "Dimensions:"
 msgstr "Dimensions:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Disable"
 msgstr "Desactiva"
 
@@ -5034,8 +5039,8 @@ msgstr "Vols desactivar l'usuari?"
 
 #: packages/admin/src/components/PluginManager.tsx:462
 #: packages/admin/src/components/Redirects.tsx:706
-#: packages/admin/src/components/users/UserDetail.tsx:214
-#: packages/admin/src/components/users/UserList.tsx:178
+#: packages/admin/src/components/users/UserDetail.tsx:205
+#: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
 msgstr "Desactivat"
 
@@ -5200,7 +5205,7 @@ msgstr "No assignis"
 #: packages/admin/src/components/ContentList.tsx:1224
 #: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
-#: packages/admin/src/components/WordPressImport.tsx:2185
+#: packages/admin/src/components/WordPressImport.tsx:2178
 msgid "Done"
 msgstr "Fet"
 
@@ -5262,7 +5267,7 @@ msgstr "Baixa aquest lloc com un únic fitxer de paquet .emdash que un altre llo
 msgid "Downloaded"
 msgstr "Baixat"
 
-#: packages/admin/src/components/WordPressImport.tsx:2183
+#: packages/admin/src/components/WordPressImport.tsx:2176
 msgid "Downloading"
 msgstr "S'està baixant"
 
@@ -5299,7 +5304,7 @@ msgstr "esborrany, publicat o arxivat"
 msgid "Drafts"
 msgstr "Esborranys"
 
-#: packages/admin/src/components/WordPressImport.tsx:1216
+#: packages/admin/src/components/WordPressImport.tsx:1218
 msgid "Drafts & Private"
 msgstr "Esborranys i privat"
 
@@ -5307,7 +5312,7 @@ msgstr "Esborranys i privat"
 msgid "Drag and drop files here"
 msgstr "Arrossega i deixa anar fitxers aquí"
 
-#: packages/admin/src/components/WordPressImport.tsx:1169
+#: packages/admin/src/components/WordPressImport.tsx:1171
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Arrossega i deixa anar o fes clic per explorar (.xml)"
 
@@ -5358,7 +5363,7 @@ msgstr "Deixa anar una imatge cada cop."
 msgid "Drop to add widget"
 msgstr "Deixa anar per afegir el giny"
 
-#: packages/admin/src/components/WordPressImport.tsx:1643
+#: packages/admin/src/components/WordPressImport.tsx:1645
 msgid "Drop your WordPress export file here"
 msgstr "Deixa anar aquí el teu fitxer d'exportació de WordPress"
 
@@ -5376,7 +5381,7 @@ msgstr ""
 msgid "Duplicate"
 msgstr "Duplica"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:156
+#: packages/admin/src/components/settings/transfer/labels.ts:163
 msgid "Duplicate redirects were left out"
 msgstr "S'han omès les redireccions duplicades"
 
@@ -5686,14 +5691,14 @@ msgstr ""
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Els editors poden seleccionar una segona imatge que el lloc mostra en mode fosc."
 
-#: packages/admin/src/components/WordPressImport.tsx:1092
+#: packages/admin/src/components/WordPressImport.tsx:1094
 msgid "em1.…"
 msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
-#: packages/admin/src/components/users/UserDetail.tsx:167
+#: packages/admin/src/components/users/UserDetail.tsx:158
 msgid "Email"
 msgstr "Correu electrònic"
 
@@ -5746,7 +5751,7 @@ msgstr ""
 msgid "Email users"
 msgstr "Envia un correu als usuaris"
 
-#: packages/admin/src/components/users/UserDetail.tsx:254
+#: packages/admin/src/components/users/UserDetail.tsx:245
 msgid "Email verified"
 msgstr "Correu electrònic verificat"
 
@@ -5798,7 +5803,7 @@ msgstr "EmDash no conserva la imatge anterior."
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDash no conserva la imatge sense retallar."
 
-#: packages/admin/src/components/WordPressImport.tsx:1361
+#: packages/admin/src/components/WordPressImport.tsx:1363
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "S'ha detectat el connector EmDash Exporter. Pots importar directament."
 
@@ -5836,7 +5841,7 @@ msgstr "Galeria buida — obre la configuració per afegir imatges"
 msgid "Empty site"
 msgstr "Lloc buit"
 
-#: packages/admin/src/components/users/UserDetail.tsx:338
+#: packages/admin/src/components/users/UserDetail.tsx:329
 msgid "Enable"
 msgstr "Activa"
 
@@ -6041,7 +6046,7 @@ msgstr ""
 msgid "Enter an email address."
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1434
+#: packages/admin/src/components/WordPressImport.tsx:1436
 msgid "Enter credentials manually"
 msgstr "Introdueix les credencials manualment"
 
@@ -6049,7 +6054,7 @@ msgstr "Introdueix les credencials manualment"
 msgid "Enter distraction-free mode"
 msgstr "Entra al mode sense distraccions"
 
-#: packages/admin/src/components/users/UserDetail.tsx:171
+#: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "Introdueix el correu electrònic"
 
@@ -6057,7 +6062,7 @@ msgstr "Introdueix el correu electrònic"
 msgid "Enter markdown content..."
 msgstr "Introdueix contingut en Markdown..."
 
-#: packages/admin/src/components/users/UserDetail.tsx:162
+#: packages/admin/src/components/users/UserDetail.tsx:153
 msgid "Enter name"
 msgstr "Introdueix el nom"
 
@@ -6065,7 +6070,7 @@ msgstr "Introdueix el nom"
 msgid "Enter SMTP password"
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:209
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:210
 msgid "Enter the code from your terminal"
 msgstr "Introdueix el codi del teu terminal"
 
@@ -6083,12 +6088,12 @@ msgstr "Introdueix un URL..."
 msgid "Enter your handle to sign in."
 msgstr "Introdueix el teu identificador per iniciar la sessió."
 
-#: packages/admin/src/components/WordPressImport.tsx:1513
+#: packages/admin/src/components/WordPressImport.tsx:1515
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "Introdueix les teves credencials de WordPress per importar contingut directament."
 
-#: packages/admin/src/components/WordPressImport.tsx:1130
-#: packages/admin/src/components/WordPressImport.tsx:1142
+#: packages/admin/src/components/WordPressImport.tsx:1132
+#: packages/admin/src/components/WordPressImport.tsx:1144
 msgid "Enter your WordPress site URL"
 msgstr "Introdueix l'URL del teu lloc de WordPress"
 
@@ -6195,7 +6200,7 @@ msgstr "Els {pluralLower} existents es queden al seu lloc."
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "El contingut existent està indexat. Els canvis nous es fan un seguiment automàticament."
 
-#: packages/admin/src/components/WordPressImport.tsx:2067
+#: packages/admin/src/components/WordPressImport.tsx:2060
 msgid "Exists"
 msgstr "Existeix"
 
@@ -6234,7 +6239,7 @@ msgstr "Caducitat"
 msgid "Export"
 msgstr "Exporta"
 
-#: packages/admin/src/components/WordPressImport.tsx:1327
+#: packages/admin/src/components/WordPressImport.tsx:1329
 msgid "Export from WordPress manually"
 msgstr "Exporta des de WordPress manualment"
 
@@ -6250,7 +6255,7 @@ msgstr "Exportació sol·licitada per {requester}"
 msgid "Export site"
 msgstr "Exporta el lloc"
 
-#: packages/admin/src/components/WordPressImport.tsx:1451
+#: packages/admin/src/components/WordPressImport.tsx:1453
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Exporta el teu contingut des de WordPress per importar-ho tot, inclosos els esborranys."
 
@@ -6284,7 +6289,7 @@ msgstr "Ha fallat"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2187
+#: packages/admin/src/components/WordPressImport.tsx:2180
 msgid "Failed"
 msgstr "Ha fallat"
 
@@ -6292,7 +6297,7 @@ msgstr "Ha fallat"
 msgid "Failed security audit"
 msgstr "No ha superat l'auditoria de seguretat"
 
-#: packages/admin/src/lib/api/transfer.ts:491
+#: packages/admin/src/lib/api/transfer.ts:498
 msgid "Failed to abandon import"
 msgstr "No s'ha pogut abandonar la importació"
 
@@ -6312,24 +6317,24 @@ msgstr "No s'ha pogut afegir la clau d'accés"
 msgid "Failed to add term to entries"
 msgstr ""
 
-#: packages/admin/src/lib/api/import.ts:378
+#: packages/admin/src/lib/api/import.ts:386
 msgid "Failed to analyze file"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:442
+#: packages/admin/src/lib/api/transfer.ts:449
 msgid "Failed to analyze import"
 msgstr "No s'ha pogut analitzar la importació"
 
-#: packages/admin/src/components/WordPressImport.tsx:433
-#: packages/admin/src/lib/api/import.ts:768
+#: packages/admin/src/components/WordPressImport.tsx:435
+#: packages/admin/src/lib/api/import.ts:776
 msgid "Failed to analyze WordPress site"
 msgstr "No s'ha pogut analitzar el lloc de WordPress"
 
-#: packages/admin/src/lib/api/transfer.ts:525
+#: packages/admin/src/lib/api/transfer.ts:532
 msgid "Failed to approve request"
 msgstr "No s'ha pogut aprovar la sol·licitud"
 
-#: packages/admin/src/lib/api/transfer.ts:482
+#: packages/admin/src/lib/api/transfer.ts:489
 msgid "Failed to cancel import"
 msgstr "No s'ha pogut cancel·lar la importació"
 
@@ -6353,11 +6358,11 @@ msgstr ""
 msgid "Failed to confirm upload"
 msgstr "No s'ha pogut confirmar la pujada"
 
-#: packages/admin/src/lib/api/transfer.ts:324
+#: packages/admin/src/lib/api/transfer.ts:331
 msgid "Failed to continue export"
 msgstr "No s'ha pogut continuar l'exportació"
 
-#: packages/admin/src/lib/api/transfer.ts:466
+#: packages/admin/src/lib/api/transfer.ts:473
 msgid "Failed to continue import"
 msgstr "No s'ha pogut continuar la importació"
 
@@ -6444,7 +6449,7 @@ msgstr ""
 msgid "Failed to create section"
 msgstr "No s'ha pogut crear la secció"
 
-#: packages/admin/src/components/WordPressImport.tsx:1771
+#: packages/admin/src/components/WordPressImport.tsx:1767
 msgid "Failed to create some collections"
 msgstr "No s'han pogut crear algunes col·leccions"
 
@@ -6562,7 +6567,7 @@ msgstr "No s'ha pogut eliminar el giny"
 msgid "Failed to delete widget area"
 msgstr "No s'ha pogut eliminar l'àrea de ginys"
 
-#: packages/admin/src/lib/api/transfer.ts:526
+#: packages/admin/src/lib/api/transfer.ts:533
 msgid "Failed to deny request"
 msgstr "No s'ha pogut denegar la sol·licitud"
 
@@ -6592,7 +6597,7 @@ msgstr "No s'ha pogut descartar el rebuig de la publicació programada"
 msgid "Failed to dismiss welcome"
 msgstr "No s'ha pogut descartar la benvinguda"
 
-#: packages/admin/src/lib/api/transfer.ts:360
+#: packages/admin/src/lib/api/transfer.ts:367
 msgid "Failed to download a package file"
 msgstr "No s'ha pogut baixar un fitxer del paquet"
 
@@ -6621,7 +6626,7 @@ msgstr "No s'ha pogut activar la cerca"
 msgid "Failed to enable user"
 msgstr "No s'ha pogut activar l'usuari"
 
-#: packages/admin/src/components/WordPressImport.tsx:355
+#: packages/admin/src/components/WordPressImport.tsx:357
 msgid "Failed to execute import"
 msgstr "No s'ha pogut executar la importació"
 
@@ -6899,18 +6904,18 @@ msgstr "No s'han pogut obtenir les opcions de registre"
 msgid "Failed to get upload URL"
 msgstr "No s'ha pogut obtenir l'URL de pujada"
 
-#: packages/admin/src/lib/api/import.ts:432
+#: packages/admin/src/lib/api/import.ts:440
 msgid "Failed to import"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:462
-#: packages/admin/src/lib/api/import.ts:257
+#: packages/admin/src/components/WordPressImport.tsx:464
+#: packages/admin/src/lib/api/import.ts:262
 msgid "Failed to import from WordPress"
 msgstr "No s'ha pogut importar des de WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:380
-#: packages/admin/src/lib/api/import.ts:534
-#: packages/admin/src/lib/api/import.ts:539
+#: packages/admin/src/components/WordPressImport.tsx:382
+#: packages/admin/src/lib/api/import.ts:542
+#: packages/admin/src/lib/api/import.ts:547
 msgid "Failed to import media"
 msgstr "No s'han pogut importar els fitxers multimèdia"
 
@@ -6927,7 +6932,7 @@ msgstr ""
 msgid "Failed to list byline fields"
 msgstr "No s'han pogut llistar els camps de signatura"
 
-#: packages/admin/src/lib/api/transfer.ts:415
+#: packages/admin/src/lib/api/transfer.ts:422
 msgid "Failed to list files to upload"
 msgstr "No s'han pogut llistar els fitxers per pujar"
 
@@ -6940,7 +6945,7 @@ msgstr "No s'ha pogut carregar l'administració"
 msgid "Failed to load allowed domains"
 msgstr "No s'han pogut carregar els dominis permesos"
 
-#: packages/admin/src/lib/api/transfer.ts:511
+#: packages/admin/src/lib/api/transfer.ts:518
 msgid "Failed to load approval requests"
 msgstr "No s'han pogut carregar les sol·licituds d'aprovació"
 
@@ -6958,12 +6963,12 @@ msgstr "No s'han pogut carregar les signatures: {0}"
 msgid "Failed to load email settings"
 msgstr "No s'ha pogut carregar la configuració de correu"
 
-#: packages/admin/src/lib/api/transfer.ts:329
-#: packages/admin/src/lib/api/transfer.ts:347
+#: packages/admin/src/lib/api/transfer.ts:336
+#: packages/admin/src/lib/api/transfer.ts:354
 msgid "Failed to load export manifest"
 msgstr "No s'ha pogut carregar el manifest d'exportació"
 
-#: packages/admin/src/lib/api/transfer.ts:298
+#: packages/admin/src/lib/api/transfer.ts:305
 msgid "Failed to load exports"
 msgstr "No s'han pogut carregar les exportacions"
 
@@ -6971,19 +6976,19 @@ msgstr "No s'han pogut carregar les exportacions"
 msgid "Failed to load image"
 msgstr "No s'ha pogut carregar la imatge"
 
-#: packages/admin/src/lib/api/transfer.ts:388
+#: packages/admin/src/lib/api/transfer.ts:395
 msgid "Failed to load import"
 msgstr "No s'ha pogut carregar la importació"
 
-#: packages/admin/src/lib/api/transfer.ts:449
+#: packages/admin/src/lib/api/transfer.ts:456
 msgid "Failed to load import plan"
 msgstr "No s'ha pogut carregar el pla d'importació"
 
-#: packages/admin/src/lib/api/transfer.ts:473
+#: packages/admin/src/lib/api/transfer.ts:480
 msgid "Failed to load import receipt"
 msgstr "No s'ha pogut carregar el rebut d'importació"
 
-#: packages/admin/src/lib/api/transfer.ts:380
+#: packages/admin/src/lib/api/transfer.ts:387
 msgid "Failed to load imports"
 msgstr "No s'han pogut carregar les importacions"
 
@@ -7025,7 +7030,7 @@ msgstr "No s'ha pogut carregar el calendari"
 msgid "Failed to load theme"
 msgstr "No s'ha pogut carregar el tema"
 
-#: packages/admin/src/lib/api/transfer.ts:284
+#: packages/admin/src/lib/api/transfer.ts:291
 msgid "Failed to load transfer capabilities"
 msgstr "No s'han pogut carregar les capacitats de transferència"
 
@@ -7055,12 +7060,12 @@ msgstr "No s'ha pogut dur a terme l'acció massiva"
 msgid "Failed to permanently delete content"
 msgstr "No s'ha pogut eliminar permanentment el contingut"
 
-#: packages/admin/src/components/WordPressImport.tsx:334
-#: packages/admin/src/lib/api/import.ts:390
+#: packages/admin/src/components/WordPressImport.tsx:336
+#: packages/admin/src/lib/api/import.ts:398
 msgid "Failed to prepare import"
 msgstr "No s'ha pogut preparar la importació"
 
-#: packages/admin/src/lib/api/import.ts:712
+#: packages/admin/src/lib/api/import.ts:720
 msgid "Failed to probe URL"
 msgstr ""
 
@@ -7149,8 +7154,8 @@ msgstr "No s'ha pogut restaurar la revisió"
 msgid "Failed to revoke API token"
 msgstr "No s'ha pogut revocar el token d'API"
 
-#: packages/admin/src/components/WordPressImport.tsx:393
-#: packages/admin/src/lib/api/import.ts:729
+#: packages/admin/src/components/WordPressImport.tsx:395
+#: packages/admin/src/lib/api/import.ts:737
 msgid "Failed to rewrite URLs"
 msgstr "No s'han pogut reescriure els URL"
 
@@ -7216,12 +7221,12 @@ msgstr "No s'han pogut definir els termes de l'entrada"
 msgid "Failed to start AT Protocol login"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:317
+#: packages/admin/src/lib/api/transfer.ts:324
 msgid "Failed to start export"
 msgstr "No s'ha pogut iniciar l'exportació"
 
-#: packages/admin/src/lib/api/transfer.ts:405
-#: packages/admin/src/lib/api/transfer.ts:459
+#: packages/admin/src/lib/api/transfer.ts:412
+#: packages/admin/src/lib/api/transfer.ts:466
 msgid "Failed to start import"
 msgstr "No s'ha pogut iniciar la importació"
 
@@ -7353,7 +7358,7 @@ msgstr ""
 msgid "Failed to update widget"
 msgstr ""
 
-#: packages/admin/src/lib/api/transfer.ts:431
+#: packages/admin/src/lib/api/transfer.ts:438
 msgid "Failed to upload a package file"
 msgstr "No s'ha pogut pujar un fitxer del paquet"
 
@@ -7391,11 +7396,11 @@ msgstr "PMF"
 msgid "Favicon"
 msgstr "Icona del lloc"
 
-#: packages/admin/src/components/WordPressImport.tsx:1230
+#: packages/admin/src/components/WordPressImport.tsx:1232
 msgid "Feature"
 msgstr "Funció"
 
-#: packages/admin/src/components/WordPressImport.tsx:1198
+#: packages/admin/src/components/WordPressImport.tsx:1200
 msgid "Featured Images"
 msgstr "Imatges destacades"
 
@@ -7404,7 +7409,7 @@ msgstr "Imatges destacades"
 msgid "Features"
 msgstr "Funcions"
 
-#: packages/admin/src/components/WordPressImport.tsx:856
+#: packages/admin/src/components/WordPressImport.tsx:858
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "S'està obtenint el contingut de l'API d'EmDash Exporter."
 
@@ -7446,7 +7451,7 @@ msgstr ""
 msgid "Fields"
 msgstr "Camps"
 
-#: packages/admin/src/components/WordPressImport.tsx:2390
+#: packages/admin/src/components/WordPressImport.tsx:2383
 msgid "Fields created:"
 msgstr "Camps creats:"
 
@@ -7455,7 +7460,7 @@ msgid "File"
 msgstr "Fitxer"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2215
+#: packages/admin/src/components/WordPressImport.tsx:2208
 msgid "File {0}"
 msgstr "Fitxer {0}"
 
@@ -7522,7 +7527,7 @@ msgstr "Filtra per interval de dates: {rangeLabel}"
 msgid "Filter by group"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:83
+#: packages/admin/src/components/users/UserList.tsx:84
 msgid "Filter by role"
 msgstr "Filtra per rol"
 
@@ -7647,11 +7652,11 @@ msgstr "Navegació de carpetes"
 msgid "Fonts"
 msgstr "Tipus de lletra"
 
-#: packages/admin/src/components/WordPressImport.tsx:1452
+#: packages/admin/src/components/WordPressImport.tsx:1454
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "Per fer una importació completa, inclosos els esborranys i tot el contingut, exporta des de WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:68
+#: packages/admin/src/components/WordPressImport.tsx:70
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Per obtenir la millor experiència d'importació, instal·la el connector <0>EmDash Exporter</0> al teu lloc de WordPress."
 
@@ -7689,7 +7694,7 @@ msgid "From URL"
 msgstr "Des d'URL"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1207
 msgid "Full"
 msgstr "Complet"
 
@@ -7762,7 +7767,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr "Publica {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2477
+#: packages/admin/src/components/WordPressImport.tsx:2500
 #: packages/admin/src/router.tsx:3552
 msgid "Go to Dashboard"
 msgstr "Ves al tauler"
@@ -7916,8 +7921,8 @@ msgstr "destacat, bàner, cta"
 msgid "Hidden from search engines"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:61
-#: packages/admin/src/components/Header.tsx:65
+#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:63
 msgid "Hidden from search engines until you go live"
 msgstr ""
 
@@ -8011,7 +8016,7 @@ msgstr "Com es genera el slug?"
 msgid "How many"
 msgstr "Quants"
 
-#: packages/admin/src/components/WordPressImport.tsx:1575
+#: packages/admin/src/components/WordPressImport.tsx:1577
 msgid "How to create an Application Password"
 msgstr "Com crear una contrasenya d'aplicació"
 
@@ -8060,7 +8065,7 @@ msgstr "https://exemple.com/blog/meu-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://exemple.com/imatge.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1138
+#: packages/admin/src/components/WordPressImport.tsx:1140
 msgid "https://yoursite.com"
 msgstr "https://teulloc.com"
 
@@ -8206,12 +8211,12 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:605
-#: packages/admin/src/components/WordPressImport.tsx:783
+#: packages/admin/src/components/WordPressImport.tsx:785
 msgid "Import"
 msgstr "Importa"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:2015
+#: packages/admin/src/components/WordPressImport.tsx:2008
 msgid "Import {0}"
 msgstr "Importa {0}"
 
@@ -8223,7 +8228,7 @@ msgstr "Importa un paquet de lloc"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "Importa un paquet de lloc en aquest lloc mentre està buit, sobreescrivint la seva configuració inicial. L'opció Administració ho inclou; tria-la en lloc d'Administració per donar a un agent un accés més restringit."
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1422
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Importa tot el contingut directament, inclosos els esborranys, els tipus d'entrada personalitzats, els camps ACF i les dades SEO. No cal baixar cap fitxer."
 
@@ -8231,11 +8236,11 @@ msgstr "Importa tot el contingut directament, inclosos els esborranys, els tipus
 msgid "Import an existing EmDash site"
 msgstr "Importa un lloc EmDash existent"
 
-#: packages/admin/src/components/WordPressImport.tsx:2475
+#: packages/admin/src/components/WordPressImport.tsx:2498
 msgid "Import Another File"
 msgstr "Importa un altre fitxer"
 
-#: packages/admin/src/components/WordPressImport.tsx:1224
+#: packages/admin/src/components/WordPressImport.tsx:1226
 msgid "Import Capabilities"
 msgstr "Capacitats d'importació"
 
@@ -8244,32 +8249,32 @@ msgstr "Capacitats d'importació"
 msgid "Import complete"
 msgstr "Importació completada"
 
-#: packages/admin/src/components/WordPressImport.tsx:2361
+#: packages/admin/src/components/WordPressImport.tsx:2354
 msgid "Import Complete"
 msgstr "Importació completada"
 
-#: packages/admin/src/components/WordPressImport.tsx:2362
+#: packages/admin/src/components/WordPressImport.tsx:2355
 msgid "Import Completed with Errors"
 msgstr "Importació completada amb errors"
 
-#: packages/admin/src/components/WordPressImport.tsx:1756
+#: packages/admin/src/components/WordPressImport.tsx:1752
 msgid "Import failed"
 msgstr "Ha fallat la importació"
 
-#: packages/admin/src/components/WordPressImport.tsx:736
+#: packages/admin/src/components/WordPressImport.tsx:738
 #: packages/admin/src/router.tsx:2887
 msgid "Import from WordPress"
 msgstr "Importa des de WordPress"
 
-#: packages/admin/src/components/WordPressImport.tsx:2164
+#: packages/admin/src/components/WordPressImport.tsx:2157
 msgid "Import Media"
 msgstr "Importa fitxers multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:2117
+#: packages/admin/src/components/WordPressImport.tsx:2110
 msgid "Import Media Files"
 msgstr "Importa fitxers multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:738
+#: packages/admin/src/components/WordPressImport.tsx:740
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "Importa entrades, pàgines i tipus d'entrada personalitzats des de WordPress."
 
@@ -8277,7 +8282,7 @@ msgstr "Importa entrades, pàgines i tipus d'entrada personalitzats des de WordP
 msgid "Import requested by {requester}"
 msgstr "Importació sol·licitada per {requester}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1871
+#: packages/admin/src/components/WordPressImport.tsx:1864
 msgid "Import site configuration from WordPress."
 msgstr "Importa la configuració del lloc des de WordPress."
 
@@ -8285,7 +8290,7 @@ msgstr "Importa la configuració del lloc des de WordPress."
 msgid "Import this package?"
 msgstr "Vols importar aquest paquet?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1418
+#: packages/admin/src/components/WordPressImport.tsx:1420
 msgid "Import via EmDash Exporter"
 msgstr "Importa mitjançant EmDash Exporter"
 
@@ -8293,7 +8298,7 @@ msgstr "Importa mitjançant EmDash Exporter"
 msgid "Imported"
 msgstr "Importat"
 
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2394
 msgid "Imported by Collection"
 msgstr "Importat per col·lecció"
 
@@ -8302,7 +8307,7 @@ msgid "Importing"
 msgstr "S'està important"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Importing comments... {0}"
 msgstr "S'estan important els comentaris... {0}"
 
@@ -8310,25 +8315,25 @@ msgstr "S'estan important els comentaris... {0}"
 msgid "Importing content"
 msgstr "S'està important el contingut"
 
-#: packages/admin/src/components/WordPressImport.tsx:967
+#: packages/admin/src/components/WordPressImport.tsx:969
 msgid "Importing content..."
 msgstr "S'està important el contingut..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:947
+#: packages/admin/src/components/WordPressImport.tsx:949
 msgid "Importing content... {0}"
 msgstr "S'està important el contingut... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:946
+#: packages/admin/src/components/WordPressImport.tsx:948
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "S'està important el contingut... {0} de {totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2196
+#: packages/admin/src/components/WordPressImport.tsx:2189
 msgid "Importing Media"
 msgstr "S'estan important els fitxers multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:950
+#: packages/admin/src/components/WordPressImport.tsx:952
 msgid "Importing menus and site settings..."
 msgstr "S'estan important menús i configuració del lloc..."
 
@@ -8336,7 +8341,7 @@ msgstr "S'estan important menús i configuració del lloc..."
 msgid "Importing menus, widgets, and settings"
 msgstr "S'estan important menús, ginys i configuració"
 
-#: packages/admin/src/components/WordPressImport.tsx:951
+#: packages/admin/src/components/WordPressImport.tsx:953
 msgid "Importing reusable blocks..."
 msgstr "S'estan important blocs reutilitzables..."
 
@@ -8365,7 +8370,7 @@ msgstr "Inclou els comentaris"
 msgid "Include inferred bylines"
 msgstr "Inclou signatures inferides"
 
-#: packages/admin/src/components/WordPressImport.tsx:2037
+#: packages/admin/src/components/WordPressImport.tsx:2030
 msgid "Incompatible"
 msgstr "Incompatible"
 
@@ -8504,7 +8509,7 @@ msgstr "Instal·la"
 msgid "Install blocked"
 msgstr "Instal·lació bloquejada"
 
-#: packages/admin/src/components/WordPressImport.tsx:1086
+#: packages/admin/src/components/WordPressImport.tsx:1088
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "Instal·la el connector EmDash Exporter al teu lloc de WordPress i genera una clau a Eines → Migració d'EmDash."
 
@@ -8579,7 +8584,7 @@ msgid "Invite Link Created"
 msgstr "S'ha creat l'enllaç d'invitació"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:144
-#: packages/admin/src/components/users/UserList.tsx:65
+#: packages/admin/src/components/users/UserList.tsx:66
 msgid "Invite User"
 msgstr "Convida un usuari"
 
@@ -8587,7 +8592,7 @@ msgstr "Convida un usuari"
 msgid "Invite validation failed"
 msgstr ""
 
-#: packages/admin/src/components/users/UserList.tsx:132
+#: packages/admin/src/components/users/UserList.tsx:133
 msgid "Invite your first team member"
 msgstr "Convida el primer membre del teu equip"
 
@@ -8595,7 +8600,7 @@ msgstr "Convida el primer membre del teu equip"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "Invoca eines MCP de tots els connectors habilitats"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:411
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
 msgid "Invoke MCP tools from the {pluginId} plugin"
 msgstr "Invoca eines MCP del connector {pluginId}"
 
@@ -8720,7 +8725,7 @@ msgstr "Conserva el d'aquest lloc (buit)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "Conserva el d'aquest lloc: “{targetValue}”"
 
-#: packages/admin/src/components/WordPressImport.tsx:963
+#: packages/admin/src/components/WordPressImport.tsx:965
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "Mantén aquesta pestanya oberta. La importació s'executa en petits passos i es pot tornar a executar sense problema si s'interromp."
 
@@ -8784,11 +8789,11 @@ msgstr "Darrera edició"
 msgid "Last enabled:"
 msgstr "Última activació:"
 
-#: packages/admin/src/components/users/UserDetail.tsx:244
+#: packages/admin/src/components/users/UserDetail.tsx:235
 msgid "Last login"
 msgstr "Últim inici de sessió"
 
-#: packages/admin/src/components/users/UserList.tsx:104
+#: packages/admin/src/components/users/UserList.tsx:105
 msgid "Last Login"
 msgstr "Últim inici de sessió"
 
@@ -8801,7 +8806,7 @@ msgstr "Última pàgina"
 msgid "Last seen"
 msgstr "Vist per última vegada"
 
-#: packages/admin/src/components/users/UserDetail.tsx:238
+#: packages/admin/src/components/users/UserDetail.tsx:229
 msgid "Last updated"
 msgstr "Última actualització"
 
@@ -8815,7 +8820,7 @@ msgid "Last used"
 msgstr "Últim ús"
 
 #. placeholder {0}: isolate(formatDate(cred.lastUsedAt, i18n.locale))
-#: packages/admin/src/components/users/UserDetail.tsx:281
+#: packages/admin/src/components/users/UserDetail.tsx:272
 msgid "Last used {0}"
 msgstr "Últim ús {0}"
 
@@ -8844,7 +8849,7 @@ msgstr ""
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2556
+#: packages/admin/src/components/WordPressImport.tsx:2579
 msgid "Leave unassigned"
 msgstr "Deixa sense assignar"
 
@@ -8907,7 +8912,7 @@ msgid "Link URL"
 msgstr "URL de l'enllaç"
 
 #. placeholder {0}: user.oauthAccounts.length
-#: packages/admin/src/components/users/UserDetail.tsx:295
+#: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
 msgstr "Comptes enllaçats ({0})"
 
@@ -9016,7 +9021,7 @@ msgstr "Carrega'n més"
 #: packages/admin/src/components/ContentList.tsx:894
 #: packages/admin/src/components/ContentList.tsx:957
 #: packages/admin/src/components/MediaLibrary.tsx:1277
-#: packages/admin/src/components/users/UserList.tsx:157
+#: packages/admin/src/components/users/UserList.tsx:158
 msgid "Load More"
 msgstr "Carrega'n més"
 
@@ -9187,7 +9192,7 @@ msgstr "S'estan carregant els ginys..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
-#: packages/admin/src/components/users/UserList.tsx:146
+#: packages/admin/src/components/users/UserList.tsx:147
 #: packages/admin/src/routes/bylines.tsx:491
 msgid "Loading..."
 msgstr "S'està carregant..."
@@ -9215,7 +9220,7 @@ msgstr "Hora local"
 msgid "Locale"
 msgstr "Idioma"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:169
+#: packages/admin/src/components/settings/transfer/labels.ts:176
 msgid "Locales will use this site’s capitalization"
 msgstr "Els idiomes utilitzaran les majúscules d'aquest lloc"
 
@@ -9245,7 +9250,7 @@ msgstr "Bloquejat perquè aquest camp té valors emmagatzemats. Elimina els valo
 msgid "Log in"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:125
+#: packages/admin/src/components/Header.tsx:121
 msgid "Log out"
 msgstr "Tanca la sessió"
 
@@ -9255,7 +9260,7 @@ msgstr "Tanca la sessió"
 msgid "Logo"
 msgstr "Logotip"
 
-#: packages/admin/src/components/WordPressImport.tsx:1889
+#: packages/admin/src/components/WordPressImport.tsx:1882
 msgid "Logo & favicon"
 msgstr "Logotip i icona del lloc"
 
@@ -9332,7 +9337,7 @@ msgstr "Gestionat per {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Gestionat per un proveïdor multimèdia extern"
 
-#: packages/admin/src/components/users/UserDetail.tsx:155
+#: packages/admin/src/components/users/UserDetail.tsx:146
 msgid "Managed by your identity provider. Change the name there."
 msgstr ""
 
@@ -9340,12 +9345,12 @@ msgstr ""
 msgid "Manual"
 msgstr "Manual"
 
-#: packages/admin/src/components/WordPressImport.tsx:2513
+#: packages/admin/src/components/WordPressImport.tsx:2536
 msgid "Map Authors"
 msgstr "Assigna els autors"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2561
+#: packages/admin/src/components/WordPressImport.tsx:2584
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Assigna l'usuari {0} de WordPress a un usuari d'EmDash"
 
@@ -9424,9 +9429,9 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:500
-#: packages/admin/src/components/WordPressImport.tsx:797
-#: packages/admin/src/components/WordPressImport.tsx:1195
-#: packages/admin/src/components/WordPressImport.tsx:1388
+#: packages/admin/src/components/WordPressImport.tsx:799
+#: packages/admin/src/components/WordPressImport.tsx:1197
+#: packages/admin/src/components/WordPressImport.tsx:1390
 #: packages/admin/src/router.tsx:2143
 msgid "Media"
 msgstr "Multimèdia"
@@ -9436,7 +9441,7 @@ msgid "Media details"
 msgstr "Detalls del multimèdia"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2457
+#: packages/admin/src/components/WordPressImport.tsx:2480
 msgid "Media Errors ({0})"
 msgstr "Errors multimèdia ({0})"
 
@@ -9445,15 +9450,15 @@ msgstr "Errors multimèdia ({0})"
 msgid "Media folders"
 msgstr "Carpetes multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:2419
+#: packages/admin/src/components/WordPressImport.tsx:2442
 msgid "Media Import"
 msgstr "Importació multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2353
 msgid "Media Import Complete"
 msgstr "Importació multimèdia completada"
 
-#: packages/admin/src/components/WordPressImport.tsx:2371
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Media import was skipped"
 msgstr "S'ha omès la importació multimèdia"
 
@@ -9473,7 +9478,7 @@ msgstr "visualEditing.mediaLibrary"
 msgid "Media Library"
 msgstr "Biblioteca multimèdia"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:158
+#: packages/admin/src/components/settings/transfer/labels.ts:165
 msgid "Media links were made relative"
 msgstr "Els enllaços de multimèdia s'han fet relatius"
 
@@ -9585,13 +9590,13 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:521
-#: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/components/WordPressImport.tsx:1201
 #: packages/admin/src/router.tsx:2895
 msgid "Menus"
 msgstr "Menús"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1824
+#: packages/admin/src/components/WordPressImport.tsx:1818
 msgid "Menus ({0})"
 msgstr "Menús ({0})"
 
@@ -9616,7 +9621,7 @@ msgstr "Contingut de l'etiqueta meta per a la verificació de Bing Webmaster Too
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Contingut de l'etiqueta meta per a la verificació de Google Search Console"
 
-#: packages/admin/src/components/WordPressImport.tsx:1902
+#: packages/admin/src/components/WordPressImport.tsx:1895
 msgid "Meta titles, descriptions, and social images"
 msgstr "Meta títols, descripcions i imatges socials"
 
@@ -9624,7 +9629,7 @@ msgstr "Meta títols, descripcions i imatges socials"
 msgid "Migration guide"
 msgstr "Guia de migració"
 
-#: packages/admin/src/components/WordPressImport.tsx:1099
+#: packages/admin/src/components/WordPressImport.tsx:1101
 msgid "Migration key"
 msgstr "Clau de migració"
 
@@ -9711,7 +9716,7 @@ msgstr "Més informació sobre el text alternatiu"
 msgid "More information about Display size"
 msgstr "Més informació sobre la mida de visualització"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:144
+#: packages/admin/src/components/settings/transfer/labels.ts:151
 msgid "More issues were found than are listed"
 msgstr "S'han trobat més problemes dels que es llisten"
 
@@ -9943,8 +9948,8 @@ msgstr "El meu blog"
 #: packages/admin/src/components/TaxonomyManager.tsx:980
 #: packages/admin/src/components/TaxonomyManager.tsx:1320
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
-#: packages/admin/src/components/users/UserDetail.tsx:152
-#: packages/admin/src/components/users/UserDetail.tsx:159
+#: packages/admin/src/components/users/UserDetail.tsx:143
+#: packages/admin/src/components/users/UserDetail.tsx:150
 #: packages/admin/src/components/Widgets.tsx:491
 msgid "Name"
 msgstr "Nom"
@@ -9982,8 +9987,8 @@ msgstr ""
 msgid "Needs attention"
 msgstr "Necessita atenció"
 
-#: packages/admin/src/components/users/UserDetail.tsx:249
-#: packages/admin/src/components/users/UserList.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:240
+#: packages/admin/src/components/users/UserList.tsx:174
 msgid "Never"
 msgstr "Mai"
 
@@ -10014,7 +10019,7 @@ msgstr "Signatura nova"
 msgid "New byline field"
 msgstr "Camp de signatura nou"
 
-#: packages/admin/src/components/WordPressImport.tsx:2039
+#: packages/admin/src/components/WordPressImport.tsx:2032
 msgid "New collection"
 msgstr "Col·lecció nova"
 
@@ -10133,7 +10138,7 @@ msgid "Next, the browser's passkey window will open"
 msgstr "A continuació, s'obrirà la finestra de claus d'accés del navegador"
 
 #: packages/admin/src/components/ContentList.tsx:1651
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "No"
 msgstr "No"
@@ -10276,7 +10281,7 @@ msgstr "No hi ha cap proveïdor de correu configurat"
 msgid "No email provider configured. Share this link manually."
 msgstr "No hi ha cap proveïdor de correu configurat. Comparteix aquest enllaç manualment."
 
-#: packages/admin/src/components/WordPressImport.tsx:2575
+#: packages/admin/src/components/WordPressImport.tsx:2598
 msgid "No EmDash users found"
 msgstr "No s'ha trobat cap usuari d'EmDash"
 
@@ -10440,7 +10445,7 @@ msgstr "Sense moderació (aprova-ho tot automàticament)"
 msgid "No parent (top level)"
 msgstr "Sense pare (nivell superior)"
 
-#: packages/admin/src/components/users/UserDetail.tsx:267
+#: packages/admin/src/components/users/UserDetail.tsx:258
 msgid "No passkeys registered"
 msgstr "No hi ha cap clau d'accés registrada"
 
@@ -10545,11 +10550,11 @@ msgstr "No s'ha trobat cap referència seguida"
 msgid "No usage to show yet"
 msgstr "Encara no hi ha ús per mostrar"
 
-#: packages/admin/src/components/users/UserList.tsx:116
+#: packages/admin/src/components/users/UserList.tsx:117
 msgid "No users found matching your filters."
 msgstr "No s'ha trobat cap usuari que coincideixi amb els teus filtres."
 
-#: packages/admin/src/components/users/UserList.tsx:130
+#: packages/admin/src/components/users/UserList.tsx:131
 msgid "No users yet."
 msgstr "Encara no hi ha cap usuari."
 
@@ -10654,7 +10659,7 @@ msgstr "Nombre d'entrades que es mostren per pàgina a les vistes de llista"
 msgid "Numbered List"
 msgstr "Llista numerada"
 
-#: packages/admin/src/components/WordPressImport.tsx:541
+#: packages/admin/src/components/WordPressImport.tsx:543
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "L'autorització OAuth requereix HTTPS. Fes servir credencials manuals."
 
@@ -10692,7 +10697,7 @@ msgstr "Un cop feta la configuració, puja un paquet .emdash exportat des d'un a
 msgid "One"
 msgstr "Un"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:311
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:310
 msgid "Only authorize codes you recognize."
 msgstr "Autoritza només els codis que reconeguis."
 
@@ -10783,7 +10788,7 @@ msgstr "Obre la pàgina d'inici de sessió a l'adreça nova:"
 msgid "Open Windows settings"
 msgstr "Obre la configuració del Windows"
 
-#: packages/admin/src/components/WordPressImport.tsx:1589
+#: packages/admin/src/components/WordPressImport.tsx:1591
 msgid "Open WordPress Profile"
 msgstr "Obre el perfil de WordPress"
 
@@ -10833,11 +10838,11 @@ msgstr "Opcions (una per línia)"
 msgid "Or browse files from your computer"
 msgstr "O explora fitxers del teu ordinador"
 
-#: packages/admin/src/components/WordPressImport.tsx:1645
+#: packages/admin/src/components/WordPressImport.tsx:1647
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "O fes clic per explorar. Accepta fitxers .xml exportats de WordPress."
 
-#: packages/admin/src/components/WordPressImport.tsx:1119
+#: packages/admin/src/components/WordPressImport.tsx:1121
 msgid "or connect by URL"
 msgstr "o connecta per URL"
 
@@ -10847,11 +10852,11 @@ msgstr "o connecta per URL"
 msgid "Or continue with"
 msgstr "O continua amb"
 
-#: packages/admin/src/components/WordPressImport.tsx:1445
+#: packages/admin/src/components/WordPressImport.tsx:1447
 msgid "Or upload an export file"
 msgstr "O puja un fitxer d'exportació"
 
-#: packages/admin/src/components/WordPressImport.tsx:1157
+#: packages/admin/src/components/WordPressImport.tsx:1159
 msgid "or upload directly"
 msgstr "o puja'l directament"
 
@@ -10949,7 +10954,7 @@ msgid "Page size"
 msgstr "Mida de pàgina"
 
 #: packages/admin/src/components/PluginManager.tsx:489
-#: packages/admin/src/components/WordPressImport.tsx:1382
+#: packages/admin/src/components/WordPressImport.tsx:1384
 msgid "Pages"
 msgstr "Pàgines"
 
@@ -10976,7 +10981,7 @@ msgstr "Pare"
 msgid "Part of a redirect loop"
 msgstr "Forma part d'un bucle de redirecció"
 
-#: packages/admin/src/components/WordPressImport.tsx:1203
+#: packages/admin/src/components/WordPressImport.tsx:1205
 msgid "Partial"
 msgstr "Parcial"
 
@@ -11014,12 +11019,12 @@ msgid "Passkey renamed"
 msgstr "S'ha canviat el nom de la clau d'accés"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:140
-#: packages/admin/src/components/users/UserList.tsx:107
+#: packages/admin/src/components/users/UserList.tsx:108
 msgid "Passkeys"
 msgstr "Claus d'accés"
 
 #. placeholder {0}: user.credentials.length
-#: packages/admin/src/components/users/UserDetail.tsx:264
+#: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
 msgstr "Claus d'accés ({0})"
 
@@ -11064,6 +11069,11 @@ msgstr "Les claus d'accés requereixen HTTPS o http://localhost (amb el teu port
 msgid "Password"
 msgstr ""
 
+#. placeholder {0}: result.passwordProtected.length
+#: packages/admin/src/components/WordPressImport.tsx:2413
+msgid "Password-Protected Entries ({0})"
+msgstr ""
+
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:247
 msgid "Paste an embed code or an https link…"
 msgstr "Enganxa un codi d'incrustació o un enllaç https…"
@@ -11072,7 +11082,7 @@ msgstr "Enganxa un codi d'incrustació o un enllaç https…"
 msgid "Paste the address of what to embed."
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1084
+#: packages/admin/src/components/WordPressImport.tsx:1086
 msgid "Paste your migration key"
 msgstr "Enganxa la teva clau de migració"
 
@@ -11207,7 +11217,7 @@ msgstr "Introdueix una adreça electrònica vàlida"
 msgid "Please enter a valid URL"
 msgstr "Introdueix un URL vàlid"
 
-#: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/components/WordPressImport.tsx:1234
 #: packages/admin/src/router.tsx:3395
 msgid "Plugin"
 msgstr "Connector"
@@ -11279,7 +11289,7 @@ msgstr ""
 msgid "Plugin MCP access updated"
 msgstr "Accés MCP del connector actualitzat"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:410
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:409
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:97
 msgid "Plugin MCP Tools"
 msgstr "Eines MCP del connector"
@@ -11407,11 +11417,11 @@ msgstr "URL d'entrades (una per línia)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:510
 #: packages/admin/src/components/RelationForm.tsx:369
-#: packages/admin/src/components/WordPressImport.tsx:1376
+#: packages/admin/src/components/WordPressImport.tsx:1378
 msgid "Posts"
 msgstr "Entrades"
 
-#: packages/admin/src/components/WordPressImport.tsx:1194
+#: packages/admin/src/components/WordPressImport.tsx:1196
 msgid "Posts & Pages"
 msgstr "Entrades i pàgines"
 
@@ -11423,7 +11433,7 @@ msgstr "Entrades per pàgina"
 msgid "Pre-release"
 msgstr "Preversió"
 
-#: packages/admin/src/components/WordPressImport.tsx:943
+#: packages/admin/src/components/WordPressImport.tsx:945
 msgid "Preparing categories and tags..."
 msgstr "S'estan preparant les categories i les etiquetes..."
 
@@ -11435,7 +11445,7 @@ msgstr "S'està preparant el registre..."
 msgid "Preparing this site"
 msgstr "S'està preparant aquest lloc"
 
-#: packages/admin/src/components/WordPressImport.tsx:2236
+#: packages/admin/src/components/WordPressImport.tsx:2229
 msgid "Preparing to download files from WordPress..."
 msgstr "S'està preparant la baixada de fitxers des de WordPress..."
 
@@ -11691,7 +11701,7 @@ msgstr "La creació ràpida dona a la relació el nom d'aquest camp i d'aquesta 
 msgid "Quote"
 msgstr "Cita"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1214
 msgid "Raw meta"
 msgstr "Meta brut"
 
@@ -11783,7 +11793,7 @@ msgstr "S'està llegint el paquet"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2043
+#: packages/admin/src/components/WordPressImport.tsx:2036
 msgid "Ready"
 msgstr "A punt"
 
@@ -11820,24 +11830,24 @@ msgstr "Actualitzat recentment"
 msgid "Recipient email"
 msgstr "Correu electrònic del destinatari"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:125
+#: packages/admin/src/components/settings/transfer/labels.ts:132
 msgid "Record counts do not match the manifest"
 msgstr "Els recomptes de registres no coincideixen amb el manifest"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:126
+#: packages/admin/src/components/settings/transfer/labels.ts:133
 msgid "Records are out of order"
 msgstr "Els registres estan desordenats"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:129
+#: packages/admin/src/components/settings/transfer/labels.ts:136
 msgid "Records refer to each other in a loop"
 msgstr "Els registres es refereixen entre si en un bucle"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:159
+#: packages/admin/src/components/settings/transfer/labels.ts:166
 msgid "Records without a parent were left out"
 msgstr "S'han omès els registres sense pare"
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/users/UserDetail.tsx:355
+#: packages/admin/src/components/users/UserDetail.tsx:346
 msgid "Recovery link sent to {0}"
 msgstr "S'ha enviat l'enllaç de recuperació a {0}"
 
@@ -11845,7 +11855,7 @@ msgstr "S'ha enviat l'enllaç de recuperació a {0}"
 msgid "Redirect loop detected"
 msgstr "S'ha detectat un bucle de redirecció"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:195
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:196
 msgid "Redirecting to login..."
 msgstr "S'està redirigint a l'inici de sessió..."
 
@@ -11858,7 +11868,7 @@ msgstr "S'està redirigint a l'inici de sessió..."
 msgid "Redirects"
 msgstr "Redireccions"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:166
+#: packages/admin/src/components/settings/transfer/labels.ts:173
 msgid "Redirects that loop will be imported turned off"
 msgstr "Les redireccions que formen un bucle s'importaran desactivades"
 
@@ -12367,7 +12377,7 @@ msgstr "Requereix un slug abans que es pugui publicar el contingut"
 msgid "Required"
 msgstr "Obligatori"
 
-#: packages/admin/src/components/WordPressImport.tsx:2056
+#: packages/admin/src/components/WordPressImport.tsx:2049
 msgid "Required fields:"
 msgstr "Camps obligatoris:"
 
@@ -12584,7 +12594,7 @@ msgstr "Blocs de contingut reutilitzables que pots inserir en qualsevol contingu
 msgid "Reverted to published version"
 msgstr "S'ha revertit a la versió publicada"
 
-#: packages/admin/src/components/WordPressImport.tsx:769
+#: packages/admin/src/components/WordPressImport.tsx:771
 msgid "Review"
 msgstr "Revisa"
 
@@ -12693,9 +12703,9 @@ msgstr "robots.txt"
 
 #: packages/admin/src/components/users/InviteUserModal.tsx:200
 #: packages/admin/src/components/users/InviteUserModal.tsx:203
-#: packages/admin/src/components/users/UserDetail.tsx:182
-#: packages/admin/src/components/users/UserDetail.tsx:194
-#: packages/admin/src/components/users/UserList.tsx:98
+#: packages/admin/src/components/users/UserDetail.tsx:173
+#: packages/admin/src/components/users/UserDetail.tsx:185
+#: packages/admin/src/components/users/UserList.tsx:99
 msgid "Role"
 msgstr "Rol"
 
@@ -12804,7 +12814,7 @@ msgstr "Desa igualment"
 msgid "Save changes"
 msgstr "Desa els canvis"
 
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 msgid "Save Changes"
 msgstr "Desa els canvis"
 
@@ -12899,7 +12909,7 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
 #: packages/admin/src/components/settings/EmailSettings.tsx:325
 #: packages/admin/src/components/TaxonomyManager.tsx:827
-#: packages/admin/src/components/users/UserDetail.tsx:330
+#: packages/admin/src/components/users/UserDetail.tsx:321
 #: packages/admin/src/components/Widgets.tsx:1070
 msgid "Saving..."
 msgstr "S'està desant..."
@@ -12982,11 +12992,11 @@ msgstr "Publicació programada"
 msgid "Scheduled publishing needs attention"
 msgstr "La publicació programada necessita atenció"
 
-#: packages/admin/src/components/WordPressImport.tsx:2379
+#: packages/admin/src/components/WordPressImport.tsx:2372
 msgid "Schema Changes"
 msgstr "Canvis d'esquema"
 
-#: packages/admin/src/components/WordPressImport.tsx:1756
+#: packages/admin/src/components/WordPressImport.tsx:1752
 msgid "Schema preparation failed"
 msgstr "Ha fallat la preparació de l'esquema"
 
@@ -13078,7 +13088,7 @@ msgstr "Cerca blocs"
 msgid "Search by filename..."
 msgstr "Cerca per nom de fitxer..."
 
-#: packages/admin/src/components/users/UserList.tsx:71
+#: packages/admin/src/components/users/UserList.tsx:72
 msgid "Search by name or email..."
 msgstr "Cerca per nom o correu electrònic..."
 
@@ -13220,11 +13230,11 @@ msgstr "Cerca fusos horaris…"
 msgid "Search to narrow the list"
 msgstr "Cerca per reduir la llista"
 
-#: packages/admin/src/components/users/UserList.tsx:74
+#: packages/admin/src/components/users/UserList.tsx:75
 msgid "Search users"
 msgstr "Cerca usuaris"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:167
+#: packages/admin/src/components/settings/transfer/labels.ts:174
 msgid "Search will be turned off for some collections"
 msgstr "Es desactivarà la cerca en algunes col·leccions"
 
@@ -13329,7 +13339,7 @@ msgid "Security error. Make sure you're on a secure connection."
 msgstr "Error de seguretat. Assegura't que estàs en una connexió segura."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:268
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:105
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
@@ -13485,7 +13495,7 @@ msgstr "Selecciona fins a 50 entrades alhora."
 msgid "Select video"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1789
+#: packages/admin/src/components/WordPressImport.tsx:1785
 msgid "Select which content types to import."
 msgstr "Selecciona quins tipus de contingut vols importar."
 
@@ -13551,7 +13561,7 @@ msgstr "Envia la invitació"
 msgid "Send magic link"
 msgstr "Envia l'enllaç màgic"
 
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Send Recovery Link"
 msgstr "Envia l'enllaç de recuperació"
 
@@ -13581,7 +13591,7 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:109
 #: packages/admin/src/components/SignupPage.tsx:171
 #: packages/admin/src/components/users/InviteUserModal.tsx:234
-#: packages/admin/src/components/users/UserDetail.tsx:351
+#: packages/admin/src/components/users/UserDetail.tsx:342
 msgid "Sending..."
 msgstr "S'està enviant..."
 
@@ -13594,7 +13604,7 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
-#: packages/admin/src/components/WordPressImport.tsx:1900
+#: packages/admin/src/components/WordPressImport.tsx:1893
 msgid "SEO settings"
 msgstr "Configuració SEO"
 
@@ -13675,11 +13685,11 @@ msgstr "S'està configurant..."
 #: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ContentEditor.tsx:2772
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
-#: packages/admin/src/components/Header.tsx:117
+#: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
-#: packages/admin/src/components/WordPressImport.tsx:1868
+#: packages/admin/src/components/WordPressImport.tsx:1861
 #: packages/admin/src/router.tsx:2611
 msgid "Settings"
 msgstr "Configuració"
@@ -13855,7 +13865,7 @@ msgid "Sign up"
 msgstr ""
 
 #. placeholder {0}: user.email
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:222
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:223
 msgid "Signed in as {0}"
 msgstr "Sessió iniciada com a {0}"
 
@@ -13900,7 +13910,7 @@ msgstr "Identitat del lloc"
 msgid "Site Identity"
 msgstr "Identitat del lloc"
 
-#: packages/admin/src/components/WordPressImport.tsx:2327
+#: packages/admin/src/components/WordPressImport.tsx:2320
 msgid "site identity applied (title, tagline, logo)"
 msgstr "identitat del lloc aplicada (títol, eslògan, logotip)"
 
@@ -13927,7 +13937,7 @@ msgstr "Configuració del lloc"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:407
-#: packages/admin/src/components/WordPressImport.tsx:1201
+#: packages/admin/src/components/WordPressImport.tsx:1203
 msgid "Site Settings"
 msgstr "Configuració del lloc"
 
@@ -13948,7 +13958,7 @@ msgstr "Títol del lloc"
 msgid "Site Title"
 msgstr "Títol del lloc"
 
-#: packages/admin/src/components/WordPressImport.tsx:1880
+#: packages/admin/src/components/WordPressImport.tsx:1873
 msgid "Site title & tagline"
 msgstr "Títol i eslògan del lloc"
 
@@ -13989,11 +13999,11 @@ msgstr "La mida no s'aplica a les carpetes"
 msgid "Size:"
 msgstr "Mida:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2161
+#: packages/admin/src/components/WordPressImport.tsx:2154
 msgid "Skip Media Import"
 msgstr "Omet la importació multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:2186
+#: packages/admin/src/components/WordPressImport.tsx:2179
 msgid "Skipped"
 msgstr "Omès"
 
@@ -14094,11 +14104,11 @@ msgstr "Perfils socials"
 msgid "Social Settings"
 msgstr ""
 
-#: packages/admin/src/components/settings/transfer/labels.ts:155
+#: packages/admin/src/components/settings/transfer/labels.ts:162
 msgid "Some byline avatars were left out"
 msgstr "S'han omès alguns avatars de signatures"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:162
+#: packages/admin/src/components/settings/transfer/labels.ts:169
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
 msgstr "Alguns enllaços de contingut apunten a fitxers multimèdia que el lloc d'origen no té; aquests enllaços no funcionaran"
 
@@ -14107,31 +14117,31 @@ msgstr "Alguns enllaços de contingut apunten a fitxers multimèdia que el lloc 
 msgid "Some content may not appear here yet."
 msgstr "Pot ser que part del contingut encara no aparegui aquí."
 
-#: packages/admin/src/components/WordPressImport.tsx:1917
+#: packages/admin/src/components/WordPressImport.tsx:1910
 msgid "Some content types cannot be imported"
 msgstr "Alguns tipus de contingut no es poden importar"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:164
+#: packages/admin/src/components/settings/transfer/labels.ts:171
 msgid "Some content will have no author"
 msgstr "Part del contingut no tindrà autor"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:168
+#: packages/admin/src/components/settings/transfer/labels.ts:175
 msgid "Some decimal numbers will be rounded"
 msgstr "Alguns nombres decimals s'arrodoniran"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:216
+#: packages/admin/src/components/settings/transfer/labels.ts:223
 msgid "Some files listed in the manifest are not in this package."
 msgstr "Alguns fitxers llistats al manifest no són en aquest paquet."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:141
+#: packages/admin/src/components/settings/transfer/labels.ts:148
 msgid "Some media is hosted by an external provider"
 msgstr "Part del multimèdia està allotjat per un proveïdor extern"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:161
+#: packages/admin/src/components/settings/transfer/labels.ts:168
 msgid "Some media links could not be matched to files"
 msgstr "Alguns enllaços de multimèdia no s'han pogut associar amb fitxers"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:142
+#: packages/admin/src/components/settings/transfer/labels.ts:149
 msgid "Some references point to content that is not in the package"
 msgstr "Algunes referències apunten a contingut que no és al paquet"
 
@@ -14221,8 +14231,8 @@ msgstr "Quadrada (1:1)"
 msgid "Stable identifier for your site, such as primary or footer."
 msgstr "Identificador estable per al teu lloc, com ara primary o footer."
 
-#: packages/admin/src/components/Header.tsx:62
-#: packages/admin/src/components/Header.tsx:66
+#: packages/admin/src/components/Header.tsx:60
+#: packages/admin/src/components/Header.tsx:64
 #: packages/admin/src/components/settings/GeneralSettings.tsx:114
 msgid "Staging"
 msgstr ""
@@ -14236,7 +14246,7 @@ msgstr "Inicia una importació nova"
 msgid "Start import"
 msgstr "Inicia la importació"
 
-#: packages/admin/src/components/WordPressImport.tsx:1979
+#: packages/admin/src/components/WordPressImport.tsx:1972
 msgid "Start Import"
 msgstr "Inicia la importació"
 
@@ -14262,7 +14272,7 @@ msgstr "Comença a escriure o escriu «/» per als ordres"
 msgid "Starter content that will be removed"
 msgstr "Contingut inicial que s'eliminarà"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:165
+#: packages/admin/src/components/settings/transfer/labels.ts:172
 msgid "Starter content will be removed"
 msgstr "El contingut inicial s'eliminarà"
 
@@ -14295,7 +14305,7 @@ msgstr "Estat"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
-#: packages/admin/src/components/users/UserList.tsx:101
+#: packages/admin/src/components/users/UserList.tsx:102
 msgid "Status"
 msgstr "Estat"
 
@@ -14337,11 +14347,11 @@ msgstr "S'emmagatzema per idioma — cada traducció d'una signatura té el seu 
 msgid "Strikethrough"
 msgstr "Ratllat"
 
-#: packages/admin/src/components/WordPressImport.tsx:1809
+#: packages/admin/src/components/WordPressImport.tsx:1805
 msgid "Structure"
 msgstr "Estructura"
 
-#: packages/admin/src/components/WordPressImport.tsx:1214
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Structured"
 msgstr "Estructurat"
 
@@ -14399,7 +14409,7 @@ msgstr "Canvia a fosc"
 msgid "Switch to light"
 msgstr "Canvia a clar"
 
-#: packages/admin/src/components/users/UserDetail.tsx:275
+#: packages/admin/src/components/users/UserDetail.tsx:266
 msgid "Synced"
 msgstr "Sincronitzat"
 
@@ -14460,7 +14470,7 @@ msgid "Tags"
 msgstr "Etiquetes"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1854
+#: packages/admin/src/components/WordPressImport.tsx:1847
 msgid "Tags ({0})"
 msgstr "Etiquetes ({0})"
 
@@ -14499,7 +14509,7 @@ msgid "Taxonomy"
 msgstr "Taxonomia"
 
 #. placeholder {0}: blocker.name
-#: packages/admin/src/components/settings/transfer/labels.ts:110
+#: packages/admin/src/components/settings/transfer/labels.ts:117
 msgid "Taxonomy “{0}” is used by content on this site"
 msgstr "La taxonomia «{0}» s'utilitza al contingut d'aquest lloc"
 
@@ -14670,7 +14680,7 @@ msgstr "El gestor de credencials del telèfon o tauleta que triïs el desa. EmDa
 msgid "The cropped image could not be created."
 msgstr "No s'ha pogut crear la imatge retallada."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:230
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:231
 msgid "The device will not be granted access."
 msgstr "No es concedirà accés al dispositiu."
 
@@ -14678,7 +14688,7 @@ msgstr "No es concedirà accés al dispositiu."
 msgid "The download stopped"
 msgstr "La baixada s'ha aturat"
 
-#: packages/admin/src/components/WordPressImport.tsx:1919
+#: packages/admin/src/components/WordPressImport.tsx:1912
 msgid "The existing collection has fields with incompatible types."
 msgstr "La col·lecció existent té camps amb tipus incompatibles."
 
@@ -14686,7 +14696,7 @@ msgstr "La col·lecció existent té camps amb tipus incompatibles."
 msgid "The export stopped"
 msgstr "L'exportació s'ha aturat"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:217
+#: packages/admin/src/components/settings/transfer/labels.ts:224
 msgid "The export’s files no longer match the export. Start a new export."
 msgstr "Els fitxers de l'exportació ja no coincideixen amb l'exportació. Inicia una exportació nova."
 
@@ -14694,7 +14704,7 @@ msgstr "Els fitxers de l'exportació ja no coincideixen amb l'exportació. Inici
 msgid "The exported package and this import change the content in these ways."
 msgstr "El paquet exportat i aquesta importació canvien el contingut d'aquestes maneres."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:186
+#: packages/admin/src/components/settings/transfer/labels.ts:193
 msgid "The file is not a valid EmDash site package."
 msgstr "El fitxer no és un paquet de lloc EmDash vàlid."
 
@@ -14718,11 +14728,11 @@ msgstr "La importació pot continuar, però comprova primer aquestes coses."
 msgid "The import can’t start until these are resolved."
 msgstr "La importació no pot començar fins que es resolguin aquestes coses."
 
-#: packages/admin/src/lib/api/import.ts:470
+#: packages/admin/src/lib/api/import.ts:478
 msgid "The import did not return a completion cursor"
 msgstr "La importació no ha retornat cap cursor de compleció"
 
-#: packages/admin/src/lib/api/import.ts:455
+#: packages/admin/src/lib/api/import.ts:463
 msgid "The import did not return a preparation cursor"
 msgstr "La importació no ha retornat cap cursor de preparació"
 
@@ -14730,7 +14740,7 @@ msgstr "La importació no ha retornat cap cursor de preparació"
 msgid "The import failed"
 msgstr "La importació ha fallat"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:189
+#: packages/admin/src/components/settings/transfer/labels.ts:196
 msgid "The import has blockers that must be resolved first."
 msgstr "La importació té bloquejadors que cal resoldre primer."
 
@@ -14738,7 +14748,7 @@ msgstr "La importació té bloquejadors que cal resoldre primer."
 msgid "The import plan changed"
 msgstr "El pla d'importació ha canviat"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:190
+#: packages/admin/src/components/settings/transfer/labels.ts:197
 msgid "The import plan changed. Review it again before importing."
 msgstr "El pla d'importació ha canviat. Revisa'l de nou abans d'importar."
 
@@ -14759,7 +14769,7 @@ msgstr "La importació s'atura després del pas actual. El contingut ja importat
 msgid "The import was cancelled"
 msgstr "La importació s'ha cancel·lat"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:188
+#: packages/admin/src/components/settings/transfer/labels.ts:195
 msgid "The imported site did not match the package when it was checked."
 msgstr "El lloc importat no coincidia amb el paquet quan es va comprovar."
 
@@ -14805,27 +14815,27 @@ msgstr "El nom del teu lloc, utilitzat a la capçalera i les metadades"
 msgid "The order controls how block types appear in the picker."
 msgstr "L'ordre controla com apareixen els tipus de bloc al selector."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:191
+#: packages/admin/src/components/settings/transfer/labels.ts:198
 msgid "The package changed. Choose it again before importing."
 msgstr "El paquet ha canviat. Tria'l de nou abans d'importar."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:127
+#: packages/admin/src/components/settings/transfer/labels.ts:134
 msgid "The package contains a duplicate ID"
 msgstr "El paquet conté un ID duplicat"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:212
+#: packages/admin/src/components/settings/transfer/labels.ts:219
 msgid "The package contains a file larger than this site accepts."
 msgstr "El paquet conté un fitxer més gran del que aquest lloc accepta."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:210
+#: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The package contains a file that is not part of the site package format."
 msgstr "El paquet conté un fitxer que no forma part del format de paquet de lloc."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:209
+#: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "The package contains an entry that is not a regular file."
 msgstr "El paquet conté una entrada que no és un fitxer normal."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:211
+#: packages/admin/src/components/settings/transfer/labels.ts:218
 msgid "The package contains the same file twice."
 msgstr "El paquet conté el mateix fitxer dues vegades."
 
@@ -14833,7 +14843,7 @@ msgstr "El paquet conté el mateix fitxer dues vegades."
 msgid "The package couldn’t be uploaded"
 msgstr "No s'ha pogut pujar el paquet"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:126
 msgid "The package format is not supported by this version of EmDash"
 msgstr "Aquesta versió d'EmDash no admet el format del paquet"
 
@@ -14841,31 +14851,31 @@ msgstr "Aquesta versió d'EmDash no admet el format del paquet"
 msgid "The package is checked against this site before anything changes. You can leave this page and come back."
 msgstr "El paquet es comprova amb aquest lloc abans que canviï res. Pots deixar aquesta pàgina i tornar-hi."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:121
+#: packages/admin/src/components/settings/transfer/labels.ts:128
 msgid "The package is larger than this site allows"
 msgstr "El paquet és més gran del que aquest lloc permet"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:187
+#: packages/admin/src/components/settings/transfer/labels.ts:194
 msgid "The package is larger than this site allows."
 msgstr "El paquet és més gran del que aquest lloc permet."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:118
+#: packages/admin/src/components/settings/transfer/labels.ts:125
 msgid "The package is not valid"
 msgstr "El paquet no és vàlid"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:181
+#: packages/admin/src/components/settings/transfer/labels.ts:188
 msgid "The package manifest is not valid."
 msgstr "El manifest del paquet no és vàlid."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:120
+#: packages/admin/src/components/settings/transfer/labels.ts:127
 msgid "The package needs a feature this version of EmDash does not support"
 msgstr "El paquet necessita una funció que aquesta versió d'EmDash no admet"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:135
+#: packages/admin/src/components/settings/transfer/labels.ts:142
 msgid "The package uses a field type this site does not know"
 msgstr "El paquet utilitza un tipus de camp que aquest lloc no coneix"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:134
+#: packages/admin/src/components/settings/transfer/labels.ts:141
 msgid "The package uses a locale this site does not have"
 msgstr "El paquet utilitza un idioma que aquest lloc no té"
 
@@ -14877,7 +14887,7 @@ msgstr "El paquet s'ha comprovat amb aquest lloc. Revisa què s'importarà, tria
 msgid "The package’s content is written to this site. The import can’t be undone once it starts; to go back you would need a backup of this site."
 msgstr "El contingut del paquet s'escriu en aquest lloc. La importació no es pot desfer un cop iniciada; per tornar enrere necessitaries una còpia de seguretat d'aquest lloc."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:208
+#: packages/admin/src/components/settings/transfer/labels.ts:215
 msgid "The package’s file index is not valid."
 msgstr "L'índex de fitxers del paquet no és vàlid."
 
@@ -14956,7 +14966,7 @@ msgstr "La carpeta seleccionada ja no existeix. Tria una altra ubicació i torna
 msgid "The selected image could not be read."
 msgstr "No s'ha pogut llegir la imatge seleccionada."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:194
+#: packages/admin/src/components/settings/transfer/labels.ts:201
 msgid "The server was updated while this ran. Reload the page and try again."
 msgstr "El servidor s'ha actualitzat mentre això s'executava. Recarrega la pàgina i torna-ho a provar."
 
@@ -14964,11 +14974,11 @@ msgstr "El servidor s'ha actualitzat mentre això s'executava. Recarrega la pàg
 msgid "The signed publisher records and package are valid. Build provenance was not provided."
 msgstr "Els registres signats de l'editor i el paquet són vàlids. No s'ha proporcionat la procedència de la compilació."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:179
+#: packages/admin/src/components/settings/transfer/labels.ts:186
 msgid "The site kept changing while it was exported. Try again when editing is quieter."
 msgstr "El lloc va continuar canviant mentre s'exportava. Torna-ho a provar quan l'edició estigui més tranquil·la."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:195
+#: packages/admin/src/components/settings/transfer/labels.ts:202
 msgid "The site’s storage could not be read or written."
 msgstr "No s'ha pogut llegir ni escriure a l'emmagatzematge del lloc."
 
@@ -15061,9 +15071,13 @@ msgstr "Les seccions proporcionades pel tema no es poden eliminar. Edita la secc
 msgid "Themes"
 msgstr "Temes"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:143
+#: packages/admin/src/components/settings/transfer/labels.ts:150
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Hi ha massa redireccions per comprovar-les en busca de bucles abans d'importar"
+
+#: packages/admin/src/components/WordPressImport.tsx:2416
+msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
+msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
@@ -15112,11 +15126,11 @@ msgstr "Aquest navegador manté tot el paquet a la memòria fins que acaba la ba
 msgid "This cannot be undone"
 msgstr "Això no es pot desfer"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:351
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:350
 msgid "This code has expired. Start the sign-in again from your terminal to get a new one."
 msgstr "Aquest codi ha caducat. Inicia la sessió de nou des del teu terminal per obtenir-ne un de nou."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:349
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:348
 msgid "This code is invalid or has already been used."
 msgstr "Aquest codi no és vàlid o ja s'ha utilitzat."
 
@@ -15136,11 +15150,11 @@ msgstr "Aquest contingut serà visible al lloc immediatament."
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Aquest dia no s'ha carregat. L'interval té més entrades de les que pot mostrar el calendari."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:371
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
 msgstr "Aquest dispositiu sol·licita permís per utilitzar:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1107
+#: packages/admin/src/components/WordPressImport.tsx:1109
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Això no sembla una clau de migració vàlida. Genera'n una de nova al connector i enganxa la cadena completa que comença per \"em1.\"."
 
@@ -15239,11 +15253,11 @@ msgstr "Aquest camp mostrarà <0>{0}</0> amb què enllaça aquest {linkingSide}"
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Aquest camp mostrarà <0>{linkingSide}</0> que enllaça amb aquest {linkedSide}"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:206
+#: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "This file is not a readable EmDash site package."
 msgstr "Aquest fitxer no és un paquet de lloc EmDash llegible."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:207
+#: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr "Aquest fitxer no és un paquet de lloc EmDash: ha de començar per manifest.json."
 
@@ -15267,11 +15281,11 @@ msgstr "Aquesta importació ja s'ha iniciat"
 msgid "This is a custom section."
 msgstr "Aquesta és una secció personalitzada."
 
-#: packages/admin/src/components/WordPressImport.tsx:1362
+#: packages/admin/src/components/WordPressImport.tsx:1364
 msgid "This is a WordPress site."
 msgstr "Aquest és un lloc de WordPress."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:215
+#: packages/admin/src/components/settings/transfer/labels.ts:222
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Aquest no és el paquet amb què es va iniciar la importació. Tria el mateix fitxer una altra vegada."
 
@@ -15291,7 +15305,7 @@ msgstr "Aquest enllaç caduca al cap de 7 dies i només es pot utilitzar una veg
 msgid "This link expires in 7 days."
 msgstr "Aquest enllaç caduca d'aquí a 7 dies."
 
-#: packages/admin/src/components/WordPressImport.tsx:968
+#: packages/admin/src/components/WordPressImport.tsx:970
 msgid "This may take a while for large exports."
 msgstr "Això pot trigar una estona en exportacions grans."
 
@@ -15308,15 +15322,15 @@ msgstr "Aquest element multimèdia ja no existeix."
 msgid "This month wasn't loaded"
 msgstr "Aquest mes no s'ha carregat"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:193
+#: packages/admin/src/components/settings/transfer/labels.ts:200
 msgid "This operation expired. Start again."
 msgstr "Aquesta operació ha caducat. Torna a començar."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:183
+#: packages/admin/src/components/settings/transfer/labels.ts:190
 msgid "This package needs features this version of EmDash does not support."
 msgstr "Aquest paquet necessita funcions que aquesta versió d'EmDash no admet."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:182
+#: packages/admin/src/components/settings/transfer/labels.ts:189
 msgid "This package was made by a newer or different version of EmDash."
 msgstr "Aquest paquet l'ha creat una versió més nova o diferent d'EmDash."
 
@@ -15426,12 +15440,12 @@ msgstr "Aquest enllaç d'inici de sessió ha caducat. Sol·licita'n un de nou de
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
 msgstr "Aquest enllaç d'inici de sessió no és vàlid o ja s'ha utilitzat. Sol·licita'n un de nou des de la pàgina d'inici de sessió."
 
-#: packages/admin/src/components/settings/transfer/labels.ts:112
-#: packages/admin/src/components/settings/transfer/labels.ts:133
+#: packages/admin/src/components/settings/transfer/labels.ts:119
+#: packages/admin/src/components/settings/transfer/labels.ts:140
 msgid "This site already has content"
 msgstr "Aquest lloc ja té contingut"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:180
+#: packages/admin/src/components/settings/transfer/labels.ts:187
 msgid "This site already has content, so it can’t receive an import."
 msgstr "Aquest lloc ja té contingut, així que no pot rebre una importació."
 
@@ -15748,7 +15762,7 @@ msgstr "Prova d'ajustar la teva cerca o els filtres."
 msgid "Try again"
 msgstr "Torna-ho a provar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1637
+#: packages/admin/src/components/WordPressImport.tsx:1639
 msgid "Try Again"
 msgstr "Torna-ho a provar"
 
@@ -15760,7 +15774,7 @@ msgstr "Torna-ho a provar."
 msgid "Try again. If it keeps failing, check the server logs."
 msgstr "Torna-ho a provar. Si segueix fallant, comprova els registres del servidor."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:239
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:240
 msgid "Try another code"
 msgstr "Prova un altre codi"
 
@@ -15773,8 +15787,8 @@ msgstr "Prova un altre nom de fitxer o neteja la cerca."
 msgid "Try another filename, or clear your search and filters."
 msgstr "Prova un altre nom de fitxer, o neteja la cerca i els filtres."
 
-#: packages/admin/src/components/WordPressImport.tsx:1340
-#: packages/admin/src/components/WordPressImport.tsx:1462
+#: packages/admin/src/components/WordPressImport.tsx:1342
+#: packages/admin/src/components/WordPressImport.tsx:1464
 msgid "Try Another URL"
 msgstr "Prova un altre URL"
 
@@ -15826,11 +15840,11 @@ msgstr "S'està activant…"
 msgid "Twitter"
 msgstr "Twitter"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:136
+#: packages/admin/src/components/settings/transfer/labels.ts:143
 msgid "Two authors with bylines in the same locale are mapped to the same user"
 msgstr "Dos autors amb signatures en el mateix idioma s'assignen al mateix usuari"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:139
+#: packages/admin/src/components/settings/transfer/labels.ts:146
 msgid "Two records have the same value where it must be unique"
 msgstr "Dos registres tenen el mateix valor allà on ha de ser únic"
 
@@ -15857,7 +15871,7 @@ msgid "Type caption for video (optional)"
 msgstr ""
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2075
+#: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "Type mismatch ({0})"
 msgstr "Discrepància de tipus ({0})"
 
@@ -15898,7 +15912,7 @@ msgstr "Subratllat"
 msgid "Undo"
 msgstr "Desfés"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:157
+#: packages/admin/src/components/settings/transfer/labels.ts:164
 msgid "Unfinished media uploads were left out"
 msgstr "S'han omès les pujades de multimèdia no acabades"
 
@@ -15948,7 +15962,7 @@ msgid "Unlock aspect ratio"
 msgstr "Desbloqueja la relació d'aspecte"
 
 #: packages/admin/src/components/settings/PasskeyItem.tsx:127
-#: packages/admin/src/components/users/UserDetail.tsx:273
+#: packages/admin/src/components/users/UserDetail.tsx:264
 msgid "Unnamed passkey"
 msgstr "Clau d'accés sense nom"
 
@@ -16026,7 +16040,7 @@ msgstr "Fitxer sense títol"
 msgid "Untitled Widget"
 msgstr "Giny sense títol"
 
-#: packages/admin/src/components/settings/transfer/labels.ts:154
+#: packages/admin/src/components/settings/transfer/labels.ts:161
 msgid "Unused references were left out"
 msgstr "S'han omès les referències no utilitzades"
 
@@ -16098,7 +16112,7 @@ msgstr "Actualitzat"
 msgid "Updated At"
 msgstr "Data d'actualització"
 
-#: packages/admin/src/components/WordPressImport.tsx:993
+#: packages/admin/src/components/WordPressImport.tsx:995
 msgid "Updating content URLs..."
 msgstr "S'estan actualitzant els URL del contingut..."
 
@@ -16136,7 +16150,7 @@ msgstr "Puja un fitxer per començar"
 msgid "Upload a video to get started"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1445
+#: packages/admin/src/components/WordPressImport.tsx:1447
 msgid "Upload an export file"
 msgstr "Puja un fitxer d'exportació"
 
@@ -16153,8 +16167,8 @@ msgstr "Puja i elimina fitxers multimèdia"
 msgid "Upload and manage media"
 msgstr "Puja i gestiona fitxers multimèdia"
 
-#: packages/admin/src/components/WordPressImport.tsx:1338
-#: packages/admin/src/components/WordPressImport.tsx:1459
+#: packages/admin/src/components/WordPressImport.tsx:1340
+#: packages/admin/src/components/WordPressImport.tsx:1461
 msgid "Upload Export File"
 msgstr "Puja el fitxer d'exportació"
 
@@ -16211,7 +16225,7 @@ msgstr "Puja a {0}"
 msgid "Upload to {providerName}"
 msgstr "Puja a {providerName}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1168
+#: packages/admin/src/components/WordPressImport.tsx:1170
 msgid "Upload WordPress export file"
 msgstr "Puja el fitxer d'exportació de WordPress"
 
@@ -16225,7 +16239,7 @@ msgstr "Pujat:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2184
+#: packages/admin/src/components/WordPressImport.tsx:2177
 msgid "Uploading"
 msgstr "S'està pujant"
 
@@ -16418,10 +16432,10 @@ msgstr "S'utilitza als URL i als extrems d'API"
 msgid "Used to identify this section. Lowercase letters, numbers, and hyphens only."
 msgstr "S'utilitza per identificar aquesta secció. Només lletres minúscules, números i guions."
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:255
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:254
 #: packages/admin/src/components/Header.tsx:46
-#: packages/admin/src/components/Header.tsx:97
-#: packages/admin/src/components/users/UserList.tsx:96
+#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/users/UserList.tsx:97
 msgid "User"
 msgstr "Usuari"
 
@@ -16434,7 +16448,7 @@ msgstr "L'accés dels usuaris el gestiona un proveïdor extern ({0}). La configu
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
 msgstr "Els comptes d'usuari, les claus d'accés, els tokens d'API, els secrets i les dades dels connectors no s'exporten mai. El nom i l'adreça electrònica de cada autor s'inclouen per poder-los associar amb usuaris de l'altre lloc."
 
-#: packages/admin/src/components/users/UserDetail.tsx:119
+#: packages/admin/src/components/users/UserDetail.tsx:120
 msgid "User Details"
 msgstr "Detalls de l'usuari"
 
@@ -16443,7 +16457,7 @@ msgstr "Detalls de l'usuari"
 msgid "User for {0}"
 msgstr "Usuari per a {0}"
 
-#: packages/admin/src/components/users/UserDetail.tsx:315
+#: packages/admin/src/components/users/UserDetail.tsx:306
 msgid "User not found"
 msgstr "No s'ha trobat l'usuari"
 
@@ -16457,7 +16471,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/components/users/UserList.tsx:63
+#: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:2963
 msgid "Users"
 msgstr "Usuaris"
@@ -16599,7 +16613,7 @@ msgstr ""
 msgid "View setup"
 msgstr "Mostra la configuració"
 
-#: packages/admin/src/components/Header.tsx:73
+#: packages/admin/src/components/Header.tsx:71
 msgid "View Site"
 msgstr "Mostra el lloc"
 
@@ -16675,11 +16689,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "Hem comprovat abans d'obrir el missatge de clau d'accés del navegador perquè puguis triar què passa després."
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1320
+#: packages/admin/src/components/WordPressImport.tsx:1322
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "No ens hem pogut connectar a cap lloc de WordPress a {0}. Això pot significar que el lloc no és WordPress, que l'API REST està desactivada o que el lloc no és accessible."
 
-#: packages/admin/src/components/WordPressImport.tsx:1132
+#: packages/admin/src/components/WordPressImport.tsx:1134
 msgid "We'll check what import options are available for your site."
 msgstr "Comprovarem quines opcions d'importació hi ha disponibles per al teu lloc."
 
@@ -16734,7 +16748,7 @@ msgstr "Com s'anomena cada banda. Aquests nomenen els camps vinculats a aquesta 
 msgid "What happens next?"
 msgstr "Què passa després?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2148
+#: packages/admin/src/components/WordPressImport.tsx:2141
 msgid "What happens when you import:"
 msgstr "Què passa quan importes:"
 
@@ -16758,7 +16772,7 @@ msgstr "Què inclou el paquet"
 msgid "What will be imported"
 msgstr "Què s'importarà"
 
-#: packages/admin/src/components/WordPressImport.tsx:1931
+#: packages/admin/src/components/WordPressImport.tsx:1924
 msgid "What will happen when you import"
 msgstr "Què passarà quan importis"
 
@@ -16878,7 +16892,7 @@ msgstr "S'ha actualitzat el giny"
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:535
 #: packages/admin/src/components/Widgets.tsx:456
-#: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/components/WordPressImport.tsx:1209
 #: packages/admin/src/router.tsx:2929
 msgid "Widgets"
 msgstr "Ginys"
@@ -16896,7 +16910,7 @@ msgstr "Amplades"
 msgid "Will be cleared on save"
 msgstr "S'esborrarà en desar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2071
+#: packages/admin/src/components/WordPressImport.tsx:2064
 msgid "Will create"
 msgstr "Es crearà"
 
@@ -16916,11 +16930,11 @@ msgstr "Amb una clau d'accés, no cal recordar contrasenyes complexes"
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Sense un proveïdor de correu, els enllaços d'invitació s'han de compartir manualment."
 
-#: packages/admin/src/components/WordPressImport.tsx:235
+#: packages/admin/src/components/WordPressImport.tsx:237
 msgid "WordPress authorization was rejected"
 msgstr "L'autorització de WordPress s'ha rebutjat"
 
-#: packages/admin/src/components/WordPressImport.tsx:1530
+#: packages/admin/src/components/WordPressImport.tsx:1532
 msgid "WordPress Username"
 msgstr "Nom d'usuari de WordPress"
 
@@ -16956,7 +16970,7 @@ msgstr "Escriu el contingut del giny..."
 msgid "Writing the file index"
 msgstr "S'està escrivint l'índex de fitxers"
 
-#: packages/admin/src/components/WordPressImport.tsx:1231
+#: packages/admin/src/components/WordPressImport.tsx:1233
 msgid "WXR File"
 msgstr "Fitxer WXR"
 
@@ -16964,7 +16978,7 @@ msgstr "Fitxer WXR"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1552
+#: packages/admin/src/components/WordPressImport.tsx:1554
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -16977,7 +16991,7 @@ msgid "Yearly"
 msgstr "Anual"
 
 #: packages/admin/src/components/ContentList.tsx:1653
-#: packages/admin/src/components/users/UserDetail.tsx:255
+#: packages/admin/src/components/users/UserDetail.tsx:246
 #: packages/admin/src/routes/byline-schema.tsx:416
 #: packages/admin/src/routes/byline-schema.tsx:419
 msgid "Yes"
@@ -16987,11 +17001,11 @@ msgstr "Sí"
 msgid "Yesterday"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1210
+#: packages/admin/src/components/WordPressImport.tsx:1212
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:220
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
 msgstr "Pots tancar aquesta pàgina i tornar al teu terminal."
 
@@ -17015,7 +17029,7 @@ msgstr "Pots veure el lloc i contribuir-hi."
 msgid "You can view, rename, or add more passkeys later in Security settings."
 msgstr "Pots veure, canviar el nom o afegir més claus d'accés més tard a la configuració de Seguretat."
 
-#: packages/admin/src/components/users/UserDetail.tsx:188
+#: packages/admin/src/components/users/UserDetail.tsx:179
 msgid "You cannot change your own role"
 msgstr "No pots canviar el teu propi rol"
 
@@ -17078,7 +17092,7 @@ msgstr "T'uniràs com a <0>{0}</0>"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Se't demanarà que utilitzis l'autenticació biomètrica, la clau de seguretat o el PIN del teu dispositiu."
 
-#: packages/admin/src/components/WordPressImport.tsx:1423
+#: packages/admin/src/components/WordPressImport.tsx:1425
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "Se't redirigirà a WordPress per autoritzar la connexió."
 
@@ -17202,7 +17216,7 @@ msgstr ""
 msgid "Your role can't edit this entry."
 msgstr ""
 
-#: packages/admin/src/components/DeviceAuthorizePage.tsx:376
+#: packages/admin/src/components/DeviceAuthorizePage.tsx:375
 msgid "Your role does not permit any of the permissions this device requested."
 msgstr "El teu rol no permet cap dels permisos que ha sol·licitat aquest dispositiu."
 
@@ -17238,7 +17252,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr "Es perdran els canvis multimèdia no desats."
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2119
+#: packages/admin/src/components/WordPressImport.tsx:2112
 msgid "Your WordPress export contains {0} media files."
 msgstr "La teva exportació de WordPress conté {0} fitxers multimèdia."
 

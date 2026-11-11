@@ -29,6 +29,8 @@ function writeExport(dir: string, transform: (xml: string) => string): string {
 	return exportPath;
 }
 
+const WORK_IN_PROGRESS_PASSWORD_PATTERN =
+	/(work-in-progress\]\]><\/wp:post_name>[\s\S]*?<wp:post_password><!\[CDATA\[)/;
 const ATTACHMENT_ITEM_PATTERN = /<item>\s*<title>hero<\/title>[\s\S]*?<\/item>/;
 
 function withSecondHeroAttachment(xml: string): string {
@@ -399,6 +401,67 @@ describe("emdash import wordpress", () => {
 			status: "scheduled",
 			scheduledAt: "2099-01-18T09:00:00.000Z",
 			publishedAt: null,
+		});
+	});
+
+	it("converts password-protected posts as unscheduled drafts and lists them", () => {
+		const exportPath = writeExport(dir, (xml) =>
+			xml
+				.replace(
+					"<wp:post_password><![CDATA[]]></wp:post_password>",
+					"<wp:post_password><![CDATA[secret]]></wp:post_password>",
+				)
+				.replace(
+					"<wp:post_date_gmt><![CDATA[2025-01-18 09:00:00]]></wp:post_date_gmt>",
+					"<wp:post_date_gmt><![CDATA[2099-01-18 09:00:00]]></wp:post_date_gmt>",
+				)
+				.replace(
+					"<wp:status><![CDATA[draft]]></wp:status>",
+					"<wp:status><![CDATA[future]]></wp:status>",
+				)
+				.replace(WORK_IN_PROGRESS_PASSWORD_PATTERN, "$1secret"),
+		);
+		runCli("import", "wordpress", exportPath, "-o", outputDir);
+		const helloWorld = join(outputDir, "posts", "hello-world.json");
+		const workInProgress = join(outputDir, "posts", "work-in-progress.json");
+
+		const dryRun = runCli(
+			"import",
+			"wordpress",
+			exportPath,
+			"-o",
+			outputDir,
+			"--execute",
+			"--dry-run",
+			"--skip-media",
+		);
+		expect(dryRun.output).toContain(
+			`Would convert as drafts because they are password-protected in WordPress:\n  Hello World (${helloWorld})\n  Work in Progress (${workInProgress})`,
+		);
+
+		const execute = runCli(
+			"import",
+			"wordpress",
+			exportPath,
+			"-o",
+			outputDir,
+			"--execute",
+			"--skip-media",
+			"--json",
+		);
+
+		expect(execute.status).toBe(0);
+		expect(JSON.parse(execute.stdout)).toMatchObject({
+			passwordProtected: [
+				{ id: 1, title: "Hello World", path: helloWorld },
+				{ id: 3, title: "Work in Progress", path: workInProgress },
+			],
+		});
+		expect(readJson(helloWorld)).toMatchObject({ status: "draft" });
+		expect(readJson(workInProgress)).toMatchObject({ status: "draft", publishedAt: null });
+		expect(readJson(workInProgress)).not.toHaveProperty("scheduledAt");
+		expect(readJson(join(outputDir, "posts", "advanced-features.json"))).toMatchObject({
+			status: "published",
 		});
 	});
 

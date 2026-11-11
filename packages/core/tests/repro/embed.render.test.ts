@@ -83,3 +83,64 @@ describe("Embed video detection", () => {
 		},
 	);
 });
+
+describe("Embed HTML with an iframe from a host the sanitizer blocks", () => {
+	const url = "https://www.google.com/maps/d/embed?mid=abc";
+	const html = `<iframe src="${url}" width="840" height="580"></iframe>`;
+
+	it("renders a link to the embed URL instead of an empty frame", async () => {
+		const rendered = await render(url, { html, caption: "Site plan" });
+		expect(rendered).not.toContain("<iframe");
+		expect(attribute(rendered, "a", "href")).toBe(url);
+		expect(rendered).toContain("Site plan");
+	});
+
+	it("renders a link when sanitizing leaves no content", async () => {
+		const rendered = await render(url, { html: "<script>embed()</script>" });
+		expect(rendered).not.toContain("emdash-embed-html");
+		expect(attribute(rendered, "a", "href")).toBe(url);
+	});
+
+	it("keeps the other HTML and adds the link", async () => {
+		const rendered = await render(url, { html: `<p>Our office</p>${html}` });
+		expect(rendered).toContain("<p>Our office</p>");
+		expect(rendered).not.toContain("<iframe");
+		expect(attribute(rendered, "a", "href")).toBe(url);
+	});
+
+	it.each(["autoplay src=x", "autoplay src="])(
+		"is not fooled by src= inside another attribute value: %s",
+		async (allow) => {
+			const rendered = await render(url, {
+				html: `<iframe allow="${allow}" src="${url}"></iframe>`,
+			});
+			expect(rendered).not.toContain("<iframe");
+			expect(attribute(rendered, "a", "href")).toBe(url);
+		},
+	);
+
+	it("keeps an allowed iframe next to a blocked one", async () => {
+		const src = "https://player.vimeo.com/video/123";
+		const rendered = await render(url, { html: `<iframe src="${src}"></iframe>${html}` });
+		expect(attribute(rendered, "iframe", "src")).toBe(src);
+		expect(rendered.match(/<iframe/g)).toHaveLength(1);
+		expect(attribute(rendered, "a", "href")).toBe(url);
+	});
+
+	it("keeps iframes from allowed hosts without adding a link", async () => {
+		const src = "https://player.vimeo.com/video/123";
+		const rendered = await render("https://example.com/page", {
+			html: `<iframe src="${src}"></iframe>`,
+		});
+		expect(attribute(rendered, "iframe", "src")).toBe(src);
+		expect(rendered).not.toContain("<a ");
+	});
+
+	it("renders provider HTML without an iframe without adding a link", async () => {
+		const rendered = await render("https://twitter.com/user/status/1", {
+			html: `<blockquote class="twitter-tweet"><p>Hello</p></blockquote>`,
+		});
+		expect(rendered).toContain("<p>Hello</p>");
+		expect(rendered).not.toContain('href="https://twitter.com/user/status/1"');
+	});
+});
