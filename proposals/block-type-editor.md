@@ -14,7 +14,7 @@ created: 2026-11-11
 
 Since 0.40, block types live in the database, with numbered versions. The admin lists them under Content types, but it can't create or change one. When an admin adds a `blocks` field and no block type exists yet, the field settings say "Create a block type before adding a blocks field." Nothing in the admin lets them do that.
 
-On a live site, block types can only be created or changed through the REST API or the MCP server. `emdash seed` writes to a local SQLite file, so it can't reach a site on D1. People moving their sites to EmDash have asked for this on Discord. One of them wrote a build script that pushes block types through the API.
+`emdash seed` writes to a local SQLite file, so on a D1 site, block types can only be created or changed through the REST API or the MCP server. People moving their sites to EmDash have asked for this on Discord. One of them wrote a build script that pushes block types through the API.
 
 ## Proposed behavior
 
@@ -95,7 +95,7 @@ The implementation updates the "Change a block schema" steps in the blocks guide
 
 ## Errors and edge cases
 
-- **Changed by someone else.** Every update and activation sends the fingerprint of the active version the page loaded. If someone else changed the active version's fields or activated another version in the meantime, the server refuses with `CONFLICT`. The page keeps the unsaved form and offers to reload the block type. The fingerprint leaves out field labels, the block type's label, description, icon and category, and inactive versions, so a change to only those doesn't make a later save fail.
+- **Changed by someone else.** Every update and activation sends the fingerprint of the active version the page loaded. If someone else changed the active version's fields or activated another version in the meantime, the server refuses with `CONFLICT`. The page keeps the unsaved form and offers to reload the block type. The fingerprint leaves out field labels (but not the labels of list sub-fields), the block type's label, description, icon and category, and inactive versions, so a change to only those doesn't make a later save fail.
 - **Slug already taken.** `BLOCK_TYPE_EXISTS` on create shows an error under the slug. Invalid and reserved slugs show their error there too.
 - **Unknown field types.** A version saved by a newer EmDash release can contain field types this release doesn't know. If the active version has one, the server refuses to update the block type with `UNSUPPORTED_FIELD_TYPE`, so its page opens read-only with a notice, and **Activate** is disabled for versions that contain an unknown type, which the server refuses as well.
 - **Block types from a seed** can be edited like any other. Their page notes that applying the seed again with `--on-conflict update` replaces the label, description, icon and category, rewrites the versions the seed declares, and sets the active version back to the seed's. If an edit here made one of those versions accept more, such as a new field or looser validation, that seed run stops with `BLOCK_TYPE_VERSION_CONFLICT` instead.
