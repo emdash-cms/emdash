@@ -103,20 +103,23 @@ import {
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Extension, InputRule, Mark, type EditorEvents, type Range } from "@tiptap/core";
+import {
+	Extension,
+	InputRule,
+	type EditorEvents,
+	type MappablePosition,
+	type Range,
+} from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import { isAllowedUri } from "@tiptap/extension-link";
-import Subscript from "@tiptap/extension-subscript";
-import Superscript from "@tiptap/extension-superscript";
-import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
-import { closeHistory, undo, undoDepth } from "@tiptap/pm/history";
 import type { Mark as ProseMirrorMark, Node as ProseMirrorNode } from "@tiptap/pm/model";
 import {
 	AllSelection,
 	NodeSelection,
 	Plugin,
+	PluginKey,
 	Selection,
 	TextSelection,
 	type EditorState,
@@ -125,14 +128,13 @@ import {
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import StarterKit from "@tiptap/starter-kit";
 import Suggestion, { exitSuggestion, SuggestionPluginKey } from "@tiptap/suggestion";
 import * as React from "react";
 
-import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
+import type { RichTextBinding } from "../lib/co-editing/types.js";
 import { guardUnsavedInput, revealErrors } from "../lib/dialog-form.js";
 import {
 	canonicalMediaProviderId,
@@ -141,18 +143,40 @@ import {
 } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
-	assertPortableTextMarksSupported,
-	assertProseMirrorMarksSupported,
 	findUnsupportedPortableTextMarks,
 } from "../lib/portable-text-marks.js";
 import { cn } from "../lib/utils";
+import { UnsafePortableTextTableError } from "../portable-text-table.js";
 import {
-	TABLE_CELL_MIN_WIDTH,
-	UnsafePortableTextTableError,
-	portableTextTableToProseMirror,
-	proseMirrorTableToPortableText,
-	type PortableTextTableProseMirrorNode,
-} from "../portable-text-table.js";
+	equalJsonValues,
+	portableTextToProsemirror,
+	prosemirrorToPortableText,
+	withoutTrailingEmptyParagraph,
+	withoutTrailingParagraph,
+	type PortableTextBlock,
+} from "../portable-text/convert.js";
+import { generateKey } from "../portable-text/keys.js";
+import { isRemote } from "../portable-text/normalize.js";
+import {
+	CodeMarkExtension,
+	EmDashOrderedList,
+	EmDashTableCell,
+	EmDashTableHeader,
+	EmDashTableRow,
+	PortableTextFilledDefaults,
+	PortableTextIdentityExtension,
+	PortableTextKeys,
+	PortableTextNormalizers,
+	PortableTextSpanIdentity,
+	PortableTextStarterKit,
+	PortableTextTable,
+	PortableTextTextAlign,
+	SubscriptMark,
+	SuperscriptMark,
+	TableIdentity,
+	TopBlockDocument,
+} from "../portable-text/schema.js";
+import { PortableTextYSync } from "../portable-text/y-sync.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { DialogError } from "./DialogError.js";
@@ -174,7 +198,6 @@ import {
 	type TextBlockTypeId,
 } from "./editor/blockTypes.js";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
-import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import {
 	EditorMenuCheckboxItem,
@@ -186,26 +209,29 @@ import {
 	editorSurfaceClassName,
 	tabToEditor,
 } from "./editor/EditorMenu.js";
-import { TopBlockDocument } from "./editor/EmbedBlockShell";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
-import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
+import { GalleryExtension } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
+import {
+	closeHistoryGroup,
+	endHistoryGroup,
+	historyDepth,
+	undoLastGroup,
+} from "./editor/history.js";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
-import { iframeEmbedFromAttrs, isBuiltInIframeBlock } from "./editor/iframe-embed";
 import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension, type ImageSettingsHandle } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { liftPastedBlocks } from "./editor/liftPastedBlocks";
 import { LinkDestinationInput, normalizeLinkHref } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
-import { EmDashOrderedList } from "./editor/ordered-list";
 import {
 	type PluginBlockDef,
 	PluginBlockExtension,
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
-import { PORTABLE_TEXT_BLOCK_ATTR } from "./editor/portableTextIdentity.js";
+import { PORTABLE_TEXT_KEY_ATTR } from "./editor/portableTextIdentity.js";
 import { runTableAction } from "./editor/TableActions.js";
 import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
 import { createTableClipboard } from "./editor/TableClipboard.js";
@@ -218,23 +244,12 @@ import {
 	useTableControls,
 } from "./editor/TableControls.js";
 import {
-	EmDashTable,
-	EmDashTableCell,
-	EmDashTableHeader,
-	EmDashTableRow,
-	TableIdentity,
 	selectionIsContainedInTableCells,
 	selectionTouchesTable,
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
 import { createTextBlockPlaceholder } from "./editor/TextBlockPlaceholder.js";
-import {
-	VideoExtension,
-	isVideoBlock,
-	mediaItemToVideoAttrs,
-	videoBlockFields,
-	videoNodeAttrs,
-} from "./editor/VideoNode";
+import { VideoExtension, mediaItemToVideoAttrs } from "./editor/VideoNode";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { SectionPickerModal } from "./SectionPickerModal";
@@ -250,196 +265,6 @@ type BubbleMenuCollisionOptions = () => {
 	rootBoundary: { x: number; y: number; width: number; height: number };
 	padding: number;
 };
-
-// Import converters from inline module since we can't import from emdash package
-// These will be duplicated here until we set up proper package exports
-
-interface PortableTextSpan {
-	_type: "span";
-	_key: string;
-	text: string;
-	marks?: string[];
-}
-
-interface PortableTextMarkDef {
-	_type: string;
-	_key: string;
-	[key: string]: unknown;
-}
-
-interface PortableTextTextBlock {
-	_type: "block";
-	_key: string;
-	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
-	listItem?: "bullet" | "number";
-	level?: number;
-	listId?: string;
-	listStart?: number;
-	children: PortableTextSpan[];
-	markDefs?: PortableTextMarkDef[];
-	textAlign?: "left" | "center" | "right" | "justify";
-}
-
-interface PortableTextImageBlock {
-	_type: "image";
-	_key: string;
-	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
-	alt?: string;
-	caption?: string;
-	title?: string;
-	width?: number;
-	height?: number;
-	/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
-	blurhash?: string;
-	/** LQIP dominant color — first-class field (legacy snapshots store it in `asset.meta`). */
-	dominantColor?: string;
-	displayWidth?: number;
-	displayHeight?: number;
-	alignment?: "left" | "center" | "right" | "wide" | "full";
-	/** `{ href, blank? }` from the editor, or a legacy bare string from WordPress imports */
-	link?: string | { href: string; blank?: boolean };
-}
-
-interface PortableTextCodeBlock {
-	_type: "code";
-	_key: string;
-	code: string;
-	language?: string;
-}
-
-interface PortableTextHtmlBlock {
-	_type: "htmlBlock";
-	_key: string;
-	html: string;
-	css?: string;
-	js?: string;
-	isolated?: boolean;
-}
-
-interface PortableTextIframeBlock {
-	_type: "iframe";
-	_key: string;
-	src: string;
-	title?: string;
-	width?: number;
-	height?: number;
-	allow?: string;
-	allowFullscreen?: boolean;
-}
-
-type PortableTextBlock =
-	| PortableTextTextBlock
-	| PortableTextImageBlock
-	| PortableTextCodeBlock
-	| PortableTextHtmlBlock
-	| PortableTextIframeBlock
-	| { _type: string; _key: string; [key: string]: unknown };
-
-// Generate unique key
-function generateKey(): string {
-	return Math.random().toString(36).substring(2, 11);
-}
-
-type ImageMedia = Pick<GalleryImage, "asset" | "alt" | "width" | "height">;
-
-/**
- * Read an image's media reference, alt text, and dimensions from the reference
- * shape or the MediaValue that seeded `$media` stores instead. Keep in sync with
- * `resolveImageMedia` in core's content converters.
- */
-function resolveImageMedia(image: unknown): ImageMedia {
-	const record: Record<string, unknown> = isRecord(image) ? image : {};
-	const asset: Record<string, unknown> = isRecord(record.asset) ? record.asset : {};
-	// The media id is not a storage key, so local files need `url`.
-	const storageKey = isRecord(asset.meta) ? attrStr(asset.meta.storageKey) : undefined;
-	const url =
-		attrStr(asset.url) ??
-		attrStr(asset.src) ??
-		(storageKey ? localMediaFileUrl(storageKey) : undefined);
-	const provider = attrStr(asset.provider);
-	const alt = attrStr(record.alt) ?? attrStr(asset.alt);
-	const width = typeof record.width === "number" ? record.width : asset.width;
-	const height = typeof record.height === "number" ? record.height : asset.height;
-	const media: ImageMedia = {
-		asset: {
-			_type: "reference",
-			_ref: attrStr(asset._ref) ?? attrStr(asset.id) ?? "",
-			...(url ? { url } : {}),
-			...(provider ? { provider } : {}),
-		},
-	};
-	if (alt) media.alt = alt;
-	if (typeof width === "number") media.width = width;
-	if (typeof height === "number") media.height = height;
-	return media;
-}
-
-/**
- * Normalize an untrusted gallery `images` value into well-formed entries.
- * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
- * like the converters themselves — see note above).
- */
-function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[] {
-	if (!Array.isArray(value)) return [];
-	const images: GalleryImage[] = [];
-	for (const entry of value as unknown[]) {
-		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
-		const record = entry as Record<string, unknown>;
-		const asset = record.asset;
-		if (typeof asset !== "object" || asset === null) continue;
-		const { asset: reference, alt, width, height } = resolveImageMedia(record);
-		const image: GalleryImage = {
-			_type: "image",
-			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
-			asset: reference,
-		};
-		if (alt) image.alt = alt;
-		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
-		if (width !== undefined) image.width = width;
-		if (height !== undefined) image.height = height;
-		if (typeof record.focalX === "number") image.focalX = record.focalX;
-		if (typeof record.focalY === "number") image.focalY = record.focalY;
-		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
-		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
-		images.push(image);
-	}
-	return images;
-}
-
-// Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
-const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
-const attrNum = (v: unknown): number | undefined =>
-	typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
-
-const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
-const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function attrsWithPortableTextKey(
-	attrs: Record<string, unknown> | undefined,
-	key: string,
-): Record<string, unknown> {
-	return { ...attrs, [PORTABLE_TEXT_KEY_ATTR]: key };
-}
-
-/**
- * Image links arrive either as `{ href, blank? }` (written by this editor) or as
- * a bare string (legacy WordPress/Gutenberg imports). Mirrors core's
- * `normalizeImageLink`; admin does not depend on the core package.
- */
-function normalizeImageLink(raw: unknown): { href: string; blank?: boolean } | null {
-	if (typeof raw === "string") {
-		const href = raw.trim();
-		return href ? { href } : null;
-	}
-	if (!isRecord(raw)) return null;
-	const href = typeof raw.href === "string" ? raw.href.trim() : "";
-	if (!href) return null;
-	return raw.blank === true ? { href, blank: true } : { href };
-}
 
 /**
  * Point the selected image at `href`, or clear its link when `href` is empty.
@@ -496,12 +321,11 @@ function setSelectedTextLink(editor: Editor, value: string): boolean {
 }
 
 /**
- * Quotes and list items hold only what Portable Text stores for them: quoted
- * paragraphs, and list item text with nested lists. Anything else typed,
- * pasted, or dropped into one lands beside it instead of being lost on save,
- * and `---` typed in one adds the divider the way the slash menu does.
+ * Anything typed, pasted, or dropped into a quote or list item that Portable
+ * Text can't store there lands beside it instead of being lost on save, and
+ * `---` typed in one adds the divider the way the slash menu does.
  */
-const PortableTextStarterKit = StarterKit.extend({
+const EditorStarterKit = PortableTextStarterKit.extend({
 	addProseMirrorPlugins() {
 		return [
 			...(this.parent?.() ?? []),
@@ -510,10 +334,6 @@ const PortableTextStarterKit = StarterKit.extend({
 	},
 	addExtensions() {
 		return (this.parent?.() ?? []).map((extension) => {
-			if (extension.name === "blockquote") return extension.extend({ content: "paragraph+" });
-			if (extension.name === "listItem") {
-				return extension.extend({ content: "paragraph (paragraph | bulletList | orderedList)*" });
-			}
 			if (extension.name !== "horizontalRule") return extension;
 			return extension.extend({
 				addInputRules() {
@@ -569,1338 +389,6 @@ const LinkBoundaryExit = Extension.create({
 		];
 	},
 });
-
-function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
-	return attrStr(attrs?.[PORTABLE_TEXT_KEY_ATTR]);
-}
-
-function portableTextSpanKeyFromMarks(marks: unknown[] | undefined): string | undefined {
-	for (const mark of marks ?? []) {
-		if (!isRecord(mark) || mark.type !== PORTABLE_TEXT_SPAN_MARK || !isRecord(mark.attrs)) continue;
-		const key = attrStr(mark.attrs.key);
-		if (key) return key;
-	}
-	return undefined;
-}
-
-function portableTextMarkDefsFromMarks(marks: unknown[] | undefined): PortableTextMarkDef[] {
-	const identity = (marks ?? []).find(
-		(mark) => isRecord(mark) && mark.type === PORTABLE_TEXT_SPAN_MARK && isRecord(mark.attrs),
-	);
-	if (!isRecord(identity) || !isRecord(identity.attrs) || !Array.isArray(identity.attrs.markDefs)) {
-		return [];
-	}
-	return identity.attrs.markDefs.filter(
-		(markDef): markDef is PortableTextMarkDef =>
-			isRecord(markDef) && typeof markDef._type === "string" && typeof markDef._key === "string",
-	);
-}
-
-function portableTextBlockFromAttrs(
-	attrs: Record<string, unknown> | undefined,
-): PortableTextBlock | undefined {
-	const block = attrs?.[PORTABLE_TEXT_BLOCK_ATTR];
-	if (!isRecord(block) || typeof block._type !== "string" || typeof block._key !== "string") {
-		return undefined;
-	}
-	return block as PortableTextBlock;
-}
-
-function customBlockData(block: PortableTextBlock): Record<string, unknown> {
-	const {
-		_type: _blockType,
-		_key: _blockKey,
-		id: _id,
-		url: _url,
-		...rest
-	} = block as Record<string, unknown>;
-	return Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
-}
-
-function customBlockIdentity(block: PortableTextBlock): string {
-	const record = block as Record<string, unknown>;
-	return attrStr(record.id) ?? attrStr(record.url) ?? "";
-}
-
-function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | undefined {
-	if (Object.hasOwn(block, "id")) return "id";
-	if (Object.hasOwn(block, "url")) return "url";
-	return undefined;
-}
-
-/**
- * TrailingNode adds an empty paragraph after a final block on the first
- * transaction. It isn't content: `prosemirrorToPortableText` drops it too.
- */
-function withoutTrailingEmptyParagraph(doc: ProseMirrorNode): ProseMirrorNode {
-	const last = doc.lastChild;
-	if (
-		doc.childCount > 1 &&
-		last?.type.name === "paragraph" &&
-		last.childCount === 0 &&
-		portableTextKeyFromAttrs(last.attrs) === undefined
-	) {
-		return doc.copy(doc.content.cut(0, doc.content.size - last.nodeSize));
-	}
-	return doc;
-}
-
-function equalJsonValues(left: unknown, right: unknown): boolean {
-	if (Object.is(left, right)) return true;
-	if (Array.isArray(left) || Array.isArray(right)) {
-		return (
-			Array.isArray(left) &&
-			Array.isArray(right) &&
-			left.length === right.length &&
-			left.every((value, index) => equalJsonValues(value, right[index]))
-		);
-	}
-	if (!isRecord(left) || !isRecord(right)) return false;
-	const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
-	const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
-	return (
-		leftKeys.length === rightKeys.length &&
-		leftKeys.every((key) => Object.hasOwn(right, key) && equalJsonValues(left[key], right[key]))
-	);
-}
-
-const PortableTextIdentityExtension = Extension.create({
-	name: "emdashPortableTextIdentity",
-
-	addGlobalAttributes() {
-		const hiddenAttribute = { default: null, rendered: false };
-		return [
-			{
-				types: [
-					"paragraph",
-					"heading",
-					"blockquote",
-					"codeBlock",
-					"htmlBlock",
-					"iframeBlock",
-					"image",
-					"videoBlock",
-					"horizontalRule",
-					"gallery",
-					"table",
-					"tableRow",
-					"tableCell",
-					"tableHeader",
-					"pluginBlock",
-				],
-				attributes: { [PORTABLE_TEXT_KEY_ATTR]: hiddenAttribute },
-			},
-			{
-				types: ["pluginBlock"],
-				attributes: { [PORTABLE_TEXT_BLOCK_ATTR]: hiddenAttribute },
-			},
-		];
-	},
-});
-
-// ProseMirror text nodes cannot carry schema attributes, so a non-rendered mark
-// keeps each Portable Text span's key and referenced mark definitions attached.
-const PortableTextSpanIdentity = Mark.create({
-	name: PORTABLE_TEXT_SPAN_MARK,
-	inclusive: false,
-	spanning: false,
-
-	addAttributes() {
-		return {
-			key: { default: null, rendered: false },
-			markDefs: { default: [], rendered: false },
-		};
-	},
-
-	parseHTML() {
-		return [];
-	},
-
-	renderHTML() {
-		return ["span", 0];
-	},
-});
-
-const MAX_ORDERED_LIST_START = 2_147_483_647;
-
-type OrderedListMetadata = { listId: string; listStart: number };
-type PortableTextProseMirrorNode = {
-	type: string;
-	attrs?: Record<string, unknown>;
-	content?: PortableTextProseMirrorNode[];
-	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
-	text?: string;
-};
-
-function normalizeListId(value: unknown): string | undefined {
-	if (typeof value !== "string") return undefined;
-	const normalized = value.trim();
-	return normalized.length > 0 && normalized.length <= 128 ? normalized : undefined;
-}
-
-function normalizeListStart(value: unknown): number | undefined {
-	return typeof value === "number" &&
-		Number.isInteger(value) &&
-		value >= 1 &&
-		value <= MAX_ORDERED_LIST_START
-		? value
-		: undefined;
-}
-
-function deriveLegacyListId(seed: string): string {
-	const readable = `legacy:${seed}`;
-	if (readable.length <= 128) return readable;
-	let hash = 2_166_136_261;
-	for (let i = 0; i < seed.length; i++) {
-		hash ^= seed.charCodeAt(i);
-		hash = Math.imul(hash, 16_777_619);
-	}
-	return `legacy:${seed.slice(0, 96)}:${(hash >>> 0).toString(36)}:${seed.length.toString(36)}`;
-}
-
-function readOrderedListMetadata(
-	attrs: Record<string, unknown> | undefined,
-	fallbackId: string,
-): OrderedListMetadata {
-	return {
-		listId: normalizeListId(attrs?.listId) ?? deriveLegacyListId(fallbackId),
-		listStart: normalizeListStart(attrs?.listStart) ?? normalizeListStart(attrs?.start) ?? 1,
-	};
-}
-
-function clonePortableTextProseMirrorNode(
-	node: PortableTextProseMirrorNode,
-): PortableTextProseMirrorNode {
-	return {
-		...node,
-		attrs: node.attrs ? { ...node.attrs } : undefined,
-		content: node.content?.map(clonePortableTextProseMirrorNode),
-		marks: node.marks?.map((mark) => ({
-			...mark,
-			attrs: mark.attrs ? { ...mark.attrs } : undefined,
-		})),
-	};
-}
-
-function normalizeOrderedListJson(doc: { type: "doc"; content: PortableTextProseMirrorNode[] }): {
-	type: "doc";
-	content: PortableTextProseMirrorNode[];
-} {
-	type Descriptor = {
-		node: PortableTextProseMirrorNode;
-		path: string;
-		depth: number;
-		context: string;
-	};
-	const normalized = {
-		...doc,
-		content: doc.content.map(clonePortableTextProseMirrorNode),
-	};
-	const lists: Descriptor[] = [];
-	const visit = (
-		node: PortableTextProseMirrorNode,
-		path: string,
-		depth: number,
-		context: string,
-	) => {
-		if (node.type === "orderedList") lists.push({ node, path, depth, context });
-		for (const [index, child] of (node.content ?? []).entries()) {
-			const childPath = `${path}:${index}`;
-			visit(
-				child,
-				childPath,
-				depth + 1,
-				child.type === "listItem" ? `listItem:${childPath}` : context,
-			);
-		}
-	};
-	for (const [index, node] of normalized.content.entries()) {
-		visit(node, `root:${index}`, 0, "root");
-	}
-
-	const canonicalBySourceScope = new Map<string, string>();
-	const assignedIds = new Set<string>();
-	const descriptors = lists.map((list) => {
-		const sourceId =
-			normalizeListId(list.node.attrs?.listId) ??
-			deriveLegacyListId(`pm-json:${list.path}:${list.depth}:${list.context}`);
-		const scope = JSON.stringify([list.depth, list.context]);
-		const sourceScope = JSON.stringify([sourceId, scope]);
-		let listId = canonicalBySourceScope.get(sourceScope);
-		if (!listId) {
-			if (!assignedIds.has(sourceId)) {
-				listId = sourceId;
-			} else {
-				let attempt = 0;
-				do {
-					const suffix = `:${attempt.toString(36)}`;
-					const base = deriveLegacyListId(`repair:${sourceId}:${scope}`);
-					listId = `${base.slice(0, 128 - suffix.length)}${suffix}`;
-					attempt++;
-				} while (assignedIds.has(listId));
-			}
-			canonicalBySourceScope.set(sourceScope, listId);
-			assignedIds.add(listId);
-		}
-		return {
-			...list,
-			listId,
-			scopeKey: JSON.stringify([listId, list.depth, list.context]),
-		};
-	});
-
-	const bases = new Map<string, number>();
-	for (const list of descriptors) {
-		const listStart = normalizeListStart(list.node.attrs?.listStart);
-		if (listStart !== undefined && !bases.has(list.scopeKey)) {
-			bases.set(list.scopeKey, listStart);
-		}
-	}
-	for (const list of descriptors) {
-		if (!bases.has(list.scopeKey)) {
-			bases.set(list.scopeKey, normalizeListStart(list.node.attrs?.start) ?? 1);
-		}
-	}
-
-	const counts = new Map<string, number>();
-	for (const list of descriptors) {
-		const listStart = bases.get(list.scopeKey)!;
-		const count = counts.get(list.scopeKey) ?? 0;
-		const start = normalizeListStart(listStart + count) ?? 1;
-		const directItemCount =
-			list.node.content?.filter((node) => node.type === "listItem").length ?? 0;
-		counts.set(list.scopeKey, count + directItemCount);
-		list.node.attrs = { ...list.node.attrs, listId: list.listId, listStart, start };
-	}
-	return normalized;
-}
-
-// ProseMirror to Portable Text converter
-function prosemirrorToPortableText(doc: {
-	type: string;
-	content?: Array<{
-		type: string;
-		attrs?: Record<string, unknown>;
-		content?: unknown[];
-		marks?: unknown[];
-		text?: string;
-	}>;
-}): PortableTextBlock[] {
-	if (!doc || doc.type !== "doc" || !doc.content) {
-		return [];
-	}
-	assertProseMirrorMarksSupported(doc);
-
-	const blocks: PortableTextBlock[] = [];
-	const usedBlockKeys = new Set<string>();
-
-	for (let i = 0; i < doc.content.length; i++) {
-		const node = doc.content[i]!;
-		if (i === doc.content.length - 1 && isUnkeyedEmptyParagraph(node)) continue;
-		const converted = convertPMNode(node, `root:${i}`);
-		for (const block of converted ? (Array.isArray(converted) ? converted : [converted]) : []) {
-			let key = block._key;
-			if (usedBlockKeys.has(key)) {
-				do key = generateKey();
-				while (usedBlockKeys.has(key));
-			}
-			usedBlockKeys.add(key);
-			blocks.push(key === block._key ? block : { ...block, _key: key });
-		}
-	}
-
-	return blocks;
-}
-
-function isUnkeyedEmptyParagraph(node: {
-	type: string;
-	attrs?: Record<string, unknown>;
-	content?: unknown[];
-}): boolean {
-	return (
-		node.type === "paragraph" &&
-		(node.content?.length ?? 0) === 0 &&
-		portableTextKeyFromAttrs(node.attrs) === undefined
-	);
-}
-
-function convertPMNode(
-	node: {
-		type: string;
-		attrs?: Record<string, unknown>;
-		content?: unknown[];
-		marks?: unknown[];
-		text?: string;
-	},
-	path: string,
-): PortableTextBlock | PortableTextBlock[] | null {
-	switch (node.type) {
-		case "paragraph": {
-			const { children, markDefs } = convertInlineContent(node.content || []);
-			if (children.length === 0) return null;
-			const ta = node.attrs?.textAlign;
-			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
-			return {
-				_type: "block",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				style: "normal",
-				children,
-				...(markDefs.length > 0 ? { markDefs } : {}),
-				...(textAlign ? { textAlign } : {}),
-			};
-		}
-
-		case "heading": {
-			const { children, markDefs } = convertInlineContent(node.content || []);
-			const rawLevel = node.attrs?.level;
-			const level = typeof rawLevel === "number" ? rawLevel : 1;
-			if (children.length === 0) return null;
-			const headingStyle =
-				level >= 1 && level <= 6
-					? (`h${level}` as PortableTextTextBlock["style"])
-					: ("h1" as PortableTextTextBlock["style"]);
-			const ta = node.attrs?.textAlign;
-			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
-			return {
-				_type: "block",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				style: headingStyle,
-				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
-				...(textAlign ? { textAlign } : {}),
-			};
-		}
-
-		case "bulletList":
-			return convertList(node.content || [], "bullet", 1, node.attrs, path);
-
-		case "orderedList":
-			return convertList(node.content || [], "number", 1, node.attrs, path);
-
-		case "blockquote": {
-			const blocks: PortableTextTextBlock[] = [];
-			const blockquoteContent = (node.content || []) as Array<{
-				type: string;
-				attrs?: Record<string, unknown>;
-				content?: unknown[];
-			}>;
-			for (const child of blockquoteContent) {
-				if (child.type === "paragraph") {
-					const { children, markDefs } = convertInlineContent(child.content || []);
-					if (children.length > 0) {
-						blocks.push({
-							_type: "block",
-							_key:
-								portableTextKeyFromAttrs(child.attrs) ??
-								portableTextKeyFromAttrs(node.attrs) ??
-								generateKey(),
-							style: "blockquote",
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				}
-			}
-			if (blocks.length === 1) {
-				return blocks[0]!;
-			}
-			return blocks.length > 0 ? blocks : null;
-		}
-
-		case "codeBlock": {
-			const codeContent = (node.content || []) as Array<{ text?: string }>;
-			const code = codeContent.map((n) => n.text || "").join("");
-			const rawLanguage = node.attrs?.language;
-			return {
-				_type: "code",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				code,
-				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
-			};
-		}
-
-		case "htmlBlock":
-			return {
-				_type: "htmlBlock",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				...htmlBlockFields(node.attrs ?? {}),
-			};
-
-		case "iframeBlock":
-			return {
-				_type: "iframe",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				...iframeEmbedFromAttrs(node.attrs ?? {}),
-			};
-
-		case "videoBlock":
-			return {
-				_type: "video",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				...videoBlockFields(node.attrs ?? {}),
-			};
-
-		case "image": {
-			const attrs = node.attrs ?? {};
-			const provider = attrStr(attrs.provider);
-			const blurhash = attrStr(attrs.blurhash);
-			const dominantColor = attrStr(attrs.dominantColor);
-			const title = attrStr(attrs.title);
-			const caption = Object.hasOwn(attrs, "caption")
-				? (attrStr(attrs.caption) ?? (title ? "" : undefined))
-				: title;
-			// Persist LQIP as first-class block fields, matching the image-field
-			// path (MediaValue.blurhash/dominantColor) so read sites and normalize
-			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
-			// only provider-specific data (we don't reconstruct it here, so any
-			// non-LQIP meta keys are never silently dropped on editor round-trip).
-			// Normalise link: drop when href is missing/empty so half-populated
-			// { blank: true } objects don't leak into Portable Text.
-			let link: { href: string; blank?: boolean } | undefined;
-			const rawLink = attrs.link;
-			if (rawLink && typeof rawLink === "object") {
-				const linkObj = rawLink as { href?: unknown; blank?: unknown };
-				const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
-				if (href) {
-					link = { href };
-					if (linkObj.blank === true) link.blank = true;
-				}
-			}
-			return {
-				_type: "image",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				asset: {
-					_ref: attrStr(attrs.mediaId) ?? "",
-					url: attrStr(attrs.src) ?? "",
-					provider: provider && provider !== "local" ? provider : undefined,
-				},
-				alt: attrStr(attrs.alt),
-				caption,
-				title,
-				width: attrNum(attrs.width),
-				height: attrNum(attrs.height),
-				...(blurhash ? { blurhash } : {}),
-				...(dominantColor ? { dominantColor } : {}),
-				displayWidth: attrNum(attrs.displayWidth),
-				displayHeight: attrNum(attrs.displayHeight),
-				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
-				link,
-			};
-		}
-
-		case "horizontalRule":
-			return {
-				_type: "break",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				style: "lineBreak",
-			};
-
-		case "gallery": {
-			const columns = node.attrs?.columns;
-			return {
-				_type: "gallery",
-				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				images: sanitizeGalleryImages(node.attrs?.images, true),
-				...(typeof columns === "number" ? { columns } : {}),
-			};
-		}
-
-		case "table": {
-			const result = proseMirrorTableToPortableText(node, {
-				path,
-				createKey: generateKey,
-				inlineToSpans: (content) => {
-					const { children, markDefs } = convertInlineContent(content, true);
-					return {
-						content: children,
-						markDefs: markDefs.length > 0 ? markDefs : undefined,
-					};
-				},
-			});
-			if (!result.ok) {
-				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
-			}
-			return result.table;
-		}
-
-		case "pluginBlock": {
-			const attrs = node.attrs ?? {};
-			const blockType = typeof attrs.blockType === "string" ? attrs.blockType : "embed";
-			const pluginId = typeof attrs.id === "string" ? attrs.id : "";
-			const data = isRecord(attrs.data) ? attrs.data : {};
-			const originalBlock = portableTextBlockFromAttrs(attrs);
-
-			if (
-				originalBlock &&
-				originalBlock._type === blockType &&
-				customBlockIdentity(originalBlock) === pluginId &&
-				equalJsonValues(customBlockData(originalBlock), data)
-			) {
-				return { ...originalBlock };
-			}
-
-			const result: Record<string, unknown> = {
-				...(originalBlock
-					? Object.fromEntries(
-							Object.entries(originalBlock).filter(
-								([key]) => key.startsWith("_") && key !== "_type" && key !== "_key",
-							),
-						)
-					: {}),
-				...data,
-				_type: blockType,
-				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
-			};
-			const identityField =
-				(originalBlock ? customBlockIdentityField(originalBlock) : undefined) ??
-				(pluginId ? "id" : undefined);
-			if (identityField) result[identityField] = pluginId;
-			return result as PortableTextBlock;
-		}
-
-		default:
-			return null;
-	}
-}
-
-function convertList(
-	items: unknown[],
-	listItem: "bullet" | "number",
-	level = 1,
-	attrs?: Record<string, unknown>,
-	path = `list:${level}`,
-): PortableTextTextBlock[] {
-	const blocks: PortableTextTextBlock[] = [];
-	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
-	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
-
-	for (let itemIndex = 0; itemIndex < typedItems.length; itemIndex++) {
-		const item = typedItems[itemIndex]!;
-		if (item.type === "listItem") {
-			const listItemContent = (item.content || []) as Array<{
-				type: string;
-				attrs?: Record<string, unknown>;
-				content?: unknown[];
-			}>;
-			for (let childIndex = 0; childIndex < listItemContent.length; childIndex++) {
-				const child = listItemContent[childIndex]!;
-				if (child.type === "paragraph") {
-					const { children, markDefs } = convertInlineContent(child.content || []);
-					if (children.length > 0) {
-						blocks.push({
-							_type: "block",
-							_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
-							style: "normal",
-							listItem,
-							level,
-							...metadata,
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				} else if (child.type === "bulletList") {
-					blocks.push(
-						...convertList(
-							child.content || [],
-							"bullet",
-							level + 1,
-							child.attrs,
-							`${path}:${itemIndex}:${childIndex}`,
-						),
-					);
-				} else if (child.type === "orderedList") {
-					blocks.push(
-						...convertList(
-							child.content || [],
-							"number",
-							level + 1,
-							child.attrs,
-							`${path}:${itemIndex}:${childIndex}`,
-						),
-					);
-				}
-			}
-		}
-	}
-
-	return blocks;
-}
-
-function convertInlineContent(
-	nodes: unknown[],
-	preserveHardBreakBoundary = false,
-): {
-	children: PortableTextSpan[];
-	markDefs: PortableTextMarkDef[];
-} {
-	const children: PortableTextSpan[] = [];
-	const markDefs: PortableTextMarkDef[] = [];
-	const markDefMap = new Map<string, string>();
-	const usedSpanKeys = new Set<string>();
-	const claimSpanKey = (preferred?: string) => {
-		if (preferred && !usedSpanKeys.has(preferred)) {
-			usedSpanKeys.add(preferred);
-			return preferred;
-		}
-		let key: string;
-		do key = generateKey();
-		while (usedSpanKeys.has(key));
-		usedSpanKeys.add(key);
-		return key;
-	};
-
-	const typedNodes = nodes as Array<{
-		type: string;
-		text?: string;
-		marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
-	}>;
-	for (const node of typedNodes) {
-		if (node.type === "text" && node.text) {
-			const marks: string[] = [];
-			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
-
-			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
-				if (markType) {
-					marks.push(markType);
-				}
-			}
-
-			const preferredKey = portableTextSpanKeyFromMarks(node.marks);
-			const normalizedMarks = marks.length > 0 ? marks : undefined;
-			const previous = children.at(-1);
-			if (
-				preferredKey &&
-				previous?._key === preferredKey &&
-				equalJsonValues(previous.marks, normalizedMarks)
-			) {
-				previous.text += node.text;
-				continue;
-			}
-
-			children.push({
-				_type: "span",
-				_key: claimSpanKey(preferredKey),
-				text: node.text,
-				marks: normalizedMarks,
-			});
-		} else if (node.type === "hardBreak") {
-			if (children.length > 0 && !preserveHardBreakBoundary) {
-				const last = children.at(-1);
-				if (last) last.text += "\n";
-			} else {
-				children.push({
-					_type: "span",
-					_key: claimSpanKey(portableTextSpanKeyFromMarks(node.marks)),
-					text: "\n",
-				});
-			}
-		}
-	}
-
-	if (children.length === 0) {
-		children.push({
-			_type: "span",
-			_key: claimSpanKey(),
-			text: "",
-		});
-	}
-
-	return { children, markDefs };
-}
-
-function convertMark(
-	mark: { type: string; attrs?: Record<string, unknown> },
-	markDefs: PortableTextMarkDef[],
-	markDefMap: Map<string, string>,
-	originalMarkDefs: PortableTextMarkDef[],
-): string | null {
-	switch (mark.type) {
-		case "bold":
-		case "strong":
-			return "strong";
-		case "italic":
-		case "em":
-			return "em";
-		case "underline":
-			return "underline";
-		case "strike":
-		case "strikethrough":
-			return "strike-through";
-		case "subscript":
-			return "subscript";
-		case "superscript":
-			return "superscript";
-		case "code":
-			return "code";
-		case PORTABLE_TEXT_SPAN_MARK:
-			return null;
-		case "link": {
-			const rawHref = mark.attrs?.href;
-			const href = typeof rawHref === "string" ? rawHref : "";
-			const blank = mark.attrs?.target === "_blank";
-			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
-			const mapKey = originalMarkDef
-				? `key:${originalMarkDef._key}`
-				: `value:${JSON.stringify([href, blank])}`;
-			if (markDefMap.has(mapKey)) {
-				return markDefMap.get(mapKey)!;
-			}
-			const key = originalMarkDef?._key || generateKey();
-			markDefs.push({
-				...originalMarkDef,
-				_type: "link",
-				_key: key,
-				href,
-				...(originalMarkDef
-					? blank || Object.hasOwn(originalMarkDef, "blank")
-						? { blank }
-						: {}
-					: { blank }),
-			});
-			markDefMap.set(mapKey, key);
-			return key;
-		}
-		default:
-			throw new UnsupportedPortableTextMarksError([mark.type]);
-	}
-}
-
-// Type guards for PortableText block variants
-function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
-	return block._type === "block";
-}
-
-function isQuoteBlock(block: PortableTextBlock): block is PortableTextTextBlock {
-	return isTextBlock(block) && !block.listItem && block.style === "blockquote";
-}
-
-/** A built-in `iframe` block. Any other belongs to a plugin and stays a plugin block. */
-function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
-	return block._type === "iframe" && isBuiltInIframeBlock(block);
-}
-
-function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {
-	const asset = "asset" in block ? block.asset : undefined;
-	return block._type === "image" && typeof asset === "object" && asset !== null;
-}
-
-function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
-	return block._type === "code";
-}
-
-// Portable Text to ProseMirror converter
-/** `pluginTypes`: block types plugins register, which stay plugin blocks. */
-function portableTextToProsemirror(
-	blocks: PortableTextBlock[],
-	pluginTypes: ReadonlySet<string> = new Set(),
-): {
-	type: "doc";
-	content: unknown[];
-} {
-	if (!blocks || blocks.length === 0) {
-		return {
-			type: "doc",
-			content: [{ type: "paragraph" }],
-		};
-	}
-	assertPortableTextMarksSupported(blocks);
-
-	const content: unknown[] = [];
-	let i = 0;
-
-	while (i < blocks.length) {
-		const block = blocks[i]!;
-
-		if (isTextBlock(block) && block.listItem) {
-			const listBlocks: PortableTextTextBlock[] = [];
-			const listType = block.listItem;
-			const runStart = i;
-			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
-
-			// A list "run" is a level=1 anchor block plus everything that nests
-			// under it (level > 1) or repeats it at the same root level/type.
-			// A level=1 block with a different listItem ends the run.
-			while (i < blocks.length) {
-				const current = blocks[i]!;
-				if (!isTextBlock(current) || !current.listItem) break;
-				const level = current.level || 1;
-				const currentId =
-					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
-				const sameRootIdentity =
-					listType !== "number" ||
-					level > 1 ||
-					(rootId ? currentId === rootId : currentId === undefined);
-				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
-					listBlocks.push(current);
-					i++;
-				} else {
-					break;
-				}
-			}
-
-			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
-		} else if (isQuoteBlock(block)) {
-			// Portable Text stores each paragraph of a quote as its own block.
-			const quoteBlocks: PortableTextTextBlock[] = [];
-			while (i < blocks.length && isQuoteBlock(blocks[i]!)) {
-				quoteBlocks.push(blocks[i] as PortableTextTextBlock);
-				i++;
-			}
-			content.push(convertPTQuote(quoteBlocks));
-		} else {
-			const converted = convertPTBlock(block, `root:${i}`, pluginTypes);
-			if (converted) {
-				content.push(converted);
-			}
-			i++;
-		}
-	}
-
-	return normalizeOrderedListJson({
-		type: "doc",
-		content: (content.length > 0
-			? content
-			: [{ type: "paragraph" }]) as PortableTextProseMirrorNode[],
-	});
-}
-
-function getListMetadata(
-	item: PortableTextTextBlock,
-	fallbackSeed: string,
-): { listId: string; listStart?: number } {
-	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
-	const listStart = normalizeListStart(item.listStart);
-	return {
-		listId,
-		...(listStart === undefined ? {} : { listStart }),
-	};
-}
-
-function belongsToNestedGroup(
-	item: PortableTextTextBlock,
-	minLevel: number,
-	parentListType: "bullet" | "number",
-	anchorType: "bullet" | "number",
-	anchorId: string | undefined,
-): boolean {
-	if ((item.level || 2) > minLevel) return true;
-	if ((item.listItem || parentListType) !== anchorType) return false;
-	if (anchorType !== "number") return true;
-	const itemId = normalizeListId(item.listId);
-	return anchorId ? itemId === anchorId : itemId === undefined;
-}
-
-function convertPTBlock(
-	block: PortableTextBlock,
-	path: string,
-	pluginTypes: ReadonlySet<string>,
-): unknown {
-	switch (block._type) {
-		case "block": {
-			if (!isTextBlock(block)) return null;
-			const { style = "normal", children, markDefs = [], textAlign } = block;
-			const pmContent = convertPTSpans(children, markDefs);
-
-			switch (style) {
-				case "h1":
-				case "h2":
-				case "h3":
-				case "h4":
-				case "h5":
-				case "h6": {
-					const level = parseInt(style.substring(1), 10);
-					return {
-						type: "heading",
-						attrs: attrsWithPortableTextKey(
-							{ level, ...(textAlign ? { textAlign } : {}) },
-							block._key,
-						),
-						content: pmContent.length > 0 ? pmContent : undefined,
-					};
-				}
-				case "blockquote":
-					return convertPTQuote([block]);
-				default:
-					return {
-						type: "paragraph",
-						attrs: attrsWithPortableTextKey(textAlign ? { textAlign } : undefined, block._key),
-						content: pmContent.length > 0 ? pmContent : undefined,
-					};
-			}
-		}
-
-		case "image": {
-			if (!isImageBlock(block)) {
-				const malformed = block as unknown as Record<string, unknown>;
-				const title = typeof malformed.title === "string" ? malformed.title : "";
-				return {
-					type: "image",
-					attrs: {
-						src: typeof malformed.url === "string" ? malformed.url : "",
-						alt: typeof malformed.alt === "string" ? malformed.alt : "",
-						title,
-						caption: Object.hasOwn(malformed, "caption")
-							? typeof malformed.caption === "string"
-								? malformed.caption
-								: ""
-							: title,
-					},
-				};
-			}
-			const imageBlock = block;
-			const meta = imageBlock.asset.meta;
-			const { asset, alt, width, height } = resolveImageMedia(imageBlock);
-			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
-			// snapshots persisted before LQIP was promoted out of the provider meta bag.
-			const blurhash =
-				typeof imageBlock.blurhash === "string"
-					? imageBlock.blurhash
-					: typeof meta?.blurhash === "string"
-						? meta.blurhash
-						: null;
-			const dominantColor =
-				typeof imageBlock.dominantColor === "string"
-					? imageBlock.dominantColor
-					: typeof meta?.dominantColor === "string"
-						? meta.dominantColor
-						: null;
-			return {
-				type: "image",
-				attrs: attrsWithPortableTextKey(
-					{
-						src: asset.url || `/_emdash/api/media/file/${asset._ref}`,
-						alt: alt || "",
-						title: imageBlock.title || "",
-						caption: Object.hasOwn(imageBlock, "caption")
-							? imageBlock.caption || ""
-							: imageBlock.title || "",
-						mediaId: asset._ref,
-						provider: canonicalMediaProviderId(asset.provider),
-						width,
-						height,
-						blurhash,
-						dominantColor,
-						displayWidth: imageBlock.displayWidth,
-						displayHeight: imageBlock.displayHeight,
-						alignment: imageBlock.alignment,
-						link: normalizeImageLink(imageBlock.link),
-					},
-					block._key,
-				),
-			};
-		}
-
-		case "code": {
-			if (!isCodeBlock(block)) return null;
-			const codeBlock = block;
-			const language =
-				typeof codeBlock.language === "string" && codeBlock.language.length > 0
-					? codeBlock.language
-					: null;
-			return {
-				type: "codeBlock",
-				attrs: attrsWithPortableTextKey({ language }, block._key),
-				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
-			};
-		}
-
-		case "break":
-			return {
-				type: "horizontalRule",
-				attrs: attrsWithPortableTextKey(undefined, block._key),
-			};
-
-		case "gallery": {
-			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
-			if (!Array.isArray(galleryBlock.images)) {
-				return convertCustomBlock(block);
-			}
-			return {
-				type: "gallery",
-				attrs: attrsWithPortableTextKey(
-					{
-						images: sanitizeGalleryImages(galleryBlock.images),
-						columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
-					},
-					galleryBlock._key,
-				),
-			};
-		}
-
-		case "htmlBlock":
-			return {
-				type: "htmlBlock",
-				attrs: attrsWithPortableTextKey({ ...htmlBlockFields(block) }, block._key),
-			};
-
-		case "iframe":
-			return isIframeBlock(block) && !pluginTypes.has("iframe")
-				? {
-						type: "iframeBlock",
-						attrs: attrsWithPortableTextKey({ ...iframeEmbedFromAttrs(block) }, block._key),
-					}
-				: convertCustomBlock(block);
-
-		case "video":
-			return isVideoBlock(block) && !pluginTypes.has("video")
-				? {
-						type: "videoBlock",
-						attrs: attrsWithPortableTextKey(videoNodeAttrs(block), block._key),
-					}
-				: convertCustomBlock(block);
-
-		case "table": {
-			const result = portableTextTableToProseMirror(block, {
-				path,
-				createKey: generateKey,
-				spansToInline: (content, markDefs) =>
-					convertPTSpans(content, markDefs) as PortableTextTableProseMirrorNode[],
-			});
-			if (!result.ok) {
-				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
-			}
-			return result.node;
-		}
-
-		default: {
-			return convertCustomBlock(block);
-		}
-	}
-}
-
-/** One quote from consecutive quote blocks, one paragraph each. */
-function convertPTQuote(blocks: PortableTextTextBlock[]): unknown {
-	return {
-		type: "blockquote",
-		attrs: attrsWithPortableTextKey(undefined, blocks[0]!._key),
-		content: blocks.map((block, index) => {
-			const content = convertPTSpans(block.children, block.markDefs ?? []);
-			return {
-				type: "paragraph",
-				// The first paragraph is saved under the quote's key.
-				...(index > 0 ? { attrs: attrsWithPortableTextKey(undefined, block._key) } : {}),
-				content: content.length > 0 ? content : undefined,
-			};
-		}),
-	};
-}
-
-function convertCustomBlock(block: PortableTextBlock): unknown {
-	const record = block as Record<string, unknown>;
-	return {
-		type: "pluginBlock",
-		attrs: {
-			blockType: block._type,
-			id: attrStr(record.id) ?? attrStr(record.url) ?? "",
-			data: customBlockData(block),
-			[PORTABLE_TEXT_KEY_ATTR]: block._key,
-			[PORTABLE_TEXT_BLOCK_ATTR]: block,
-		},
-	};
-}
-
-function convertPTList(
-	items: PortableTextTextBlock[],
-	listType: "bullet" | "number",
-	context: string,
-): unknown {
-	// Group items into root-level items (level === 1) and their nested
-	// descendants (level > 1). For each root item, all subsequent items with
-	// level > 1 belong to its nested subtree — recurse on them with level
-	// decremented so the inner pass sees them as its own root level.
-	const rootItems: unknown[] = [];
-	let i = 0;
-
-	while (i < items.length) {
-		const item = items[i]!;
-		const level = item.level || 1;
-
-		if (level === 1) {
-			const nestedItems: PortableTextTextBlock[] = [];
-			i++;
-			while (i < items.length && (items[i]!.level || 1) > 1) {
-				nestedItems.push(items[i]!);
-				i++;
-			}
-			rootItems.push(
-				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
-			);
-		} else {
-			// Orphan nested item with no preceding level=1 anchor — treat as root
-			// so we don't drop content.
-			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
-			i++;
-		}
-	}
-
-	const firstItem = items[0]!;
-	const metadata =
-		listType === "number" ? getListMetadata(firstItem, `${context}:${firstItem._key}`) : undefined;
-
-	return {
-		type: listType === "bullet" ? "bulletList" : "orderedList",
-		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
-		content: rootItems,
-	};
-}
-
-function convertPTListItem(
-	item: PortableTextTextBlock,
-	nestedItems: PortableTextTextBlock[],
-	parentListType: "bullet" | "number",
-	context: string,
-): unknown {
-	const content: unknown[] = [];
-
-	const pmContent = convertPTSpans(item.children, item.markDefs || []);
-	content.push({
-		type: "paragraph",
-		attrs: attrsWithPortableTextKey(undefined, item._key),
-		content: pmContent.length > 0 ? pmContent : undefined,
-	});
-
-	if (nestedItems.length > 0) {
-		// The shallowest level in `nestedItems` is the effective root of this
-		// item's nested subtree. A new sub-list only starts when we hit
-		// another block at that root level with a different `listItem` type;
-		// deeper blocks (level > minLevel) belong to the current group as
-		// descendants regardless of their own `listItem`. A deep mixed tree
-		// like `bullet L1 → number L2 → bullet L3 → number L2` stays nested
-		// under B(L2) and preserves its original level on round-trip.
-		let minLevel = Infinity;
-		for (const ni of nestedItems) {
-			const level = ni.level || 2;
-			if (level < minLevel) minLevel = level;
-		}
-
-		let j = 0;
-		while (j < nestedItems.length) {
-			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
-			const anchorId =
-				anchorType === "number" ? normalizeListId(nestedItems[j]!.listId) : undefined;
-			const nestedGroup: PortableTextTextBlock[] = [];
-
-			do {
-				nestedGroup.push(nestedItems[j]!);
-				j++;
-			} while (
-				j < nestedItems.length &&
-				belongsToNestedGroup(nestedItems[j]!, minLevel, parentListType, anchorType, anchorId)
-			);
-
-			if (nestedGroup.length > 0) {
-				const adjustedGroup = nestedGroup.map((ni) => ({
-					...ni,
-					level: (ni.level || 2) - 1,
-				}));
-				content.push(
-					convertPTList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
-				);
-			}
-		}
-	}
-
-	return {
-		type: "listItem",
-		content,
-	};
-}
-
-function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef[]): unknown[] {
-	const nodes: unknown[] = [];
-	const markDefsMap = new Map(markDefs.map((md) => [md._key, md]));
-
-	for (const span of spans) {
-		if (span._type !== "span") continue;
-		const referencedMarkDefs = markDefs.filter((markDef) => span.marks?.includes(markDef._key));
-
-		const parts = span.text.split("\n");
-
-		for (let i = 0; i < parts.length; i++) {
-			const text = parts[i]!;
-
-			if (text.length > 0) {
-				const marks = [
-					...convertPTMarks(span.marks || [], markDefsMap),
-					{
-						type: PORTABLE_TEXT_SPAN_MARK,
-						attrs: { key: span._key, markDefs: referencedMarkDefs },
-					},
-				];
-				const node: { type: string; text: string; marks?: unknown[] } = {
-					type: "text",
-					text,
-				};
-				node.marks = marks;
-				nodes.push(node);
-			}
-
-			if (i < parts.length - 1) {
-				nodes.push({
-					type: "hardBreak",
-					marks: [
-						{
-							type: PORTABLE_TEXT_SPAN_MARK,
-							attrs: { key: span._key, markDefs: referencedMarkDefs },
-						},
-					],
-				});
-			}
-		}
-	}
-
-	return nodes;
-}
-
-function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkDef>): unknown[] {
-	const pmMarks: unknown[] = [];
-
-	for (const mark of marks) {
-		switch (mark) {
-			case "strong":
-				pmMarks.push({ type: "bold" });
-				break;
-			case "em":
-				pmMarks.push({ type: "italic" });
-				break;
-			case "underline":
-				pmMarks.push({ type: "underline" });
-				break;
-			case "strike-through":
-				pmMarks.push({ type: "strike" });
-				break;
-			case "subscript":
-				pmMarks.push({ type: "subscript" });
-				break;
-			case "superscript":
-				pmMarks.push({ type: "superscript" });
-				break;
-			case "code":
-				pmMarks.push({ type: "code" });
-				break;
-			default: {
-				const markDef = markDefs.get(mark);
-				if (markDef && markDef._type === "link") {
-					pmMarks.push({
-						type: "link",
-						attrs: {
-							href: markDef.href,
-							target: markDef.blank ? "_blank" : null,
-						},
-					});
-				} else {
-					throw new UnsupportedPortableTextMarksError([
-						typeof markDef?._type === "string" ? markDef._type : mark,
-					]);
-				}
-				break;
-			}
-		}
-	}
-
-	return pmMarks;
-}
 
 // =============================================================================
 // Slash Commands
@@ -1964,7 +452,7 @@ function insertTopLevelBlock(
 	range?: Range,
 	position?: number,
 ) {
-	const tr = closeHistory(editor.state.tr);
+	const tr = closeHistoryGroup(editor.state, editor.state.tr);
 	if (range) tr.delete(range.from, range.to);
 	if (position === undefined && tr.selection.empty && !tr.selection.$from.parent.content.size) {
 		prepareBlockInsert(tr);
@@ -2200,11 +688,24 @@ interface SlashMenuState {
 
 /** The slash the block insert button typed, while its menu is open. */
 interface InsertedSlashLine {
-	slashPos: number;
+	/** Where the slash is, once the button has typed it. */
+	slash: MappablePosition | null;
 	/** The button added the paragraph, rather than typing into an empty one. */
 	addedParagraph: boolean;
 	/** The undo history's depth just after the button typed the line. */
 	undoDepth: number;
+}
+
+/** Where `position` is after a dispatch: its transaction and the ones plugins appended. */
+function positionAfter(
+	editor: Editor,
+	position: MappablePosition,
+	{ transaction, appendedTransactions }: EditorEvents["transaction"],
+): MappablePosition {
+	return [transaction, ...appendedTransactions].reduce(
+		(current, tr) => editor.utils.getUpdatedPosition(current, tr).position,
+		position,
+	);
 }
 
 /** The nearest element around `element` that scrolls vertically. */
@@ -2225,11 +726,19 @@ function addedSlashParagraph(
 	range: Range,
 	line: InsertedSlashLine | null,
 ): Range | null {
-	if (!line?.addedParagraph || line.slashPos !== range.from) return null;
+	if (!line?.addedParagraph || line.slash?.position !== range.from) return null;
 	const $slash = doc.resolve(range.from);
 	if ($slash.parent.content.size !== range.to - range.from) return null;
 	return { from: $slash.before(), to: $slash.after() };
 }
+
+/** The slash the menu was dismissed on, as other clients' edits move it. */
+interface DismissedSlash {
+	from: number;
+	position: MappablePosition;
+}
+
+const dismissedSlashKey = new PluginKey<DismissedSlash | null>("dismissedSlash");
 
 /**
  * Create the slash commands TipTap extension
@@ -2246,20 +755,42 @@ function createSlashCommandsExtension(options: {
 }) {
 	const { filterCommands, onStateChange, getState, onCommand, onDismiss, onExit } = options;
 
+	const dismissedSlashFrom = (state: EditorState) =>
+		dismissedSlashKey.getState(state)?.from ?? getState().dismissedSlashFrom;
+
 	return Extension.create({
 		name: "slashCommands",
 		onTransaction() {
 			const state = getState();
 			if (state.dismissedSlashFrom === null) return;
-			const to = Math.min(state.dismissedSlashFrom + 1, this.editor.state.doc.content.size);
-			if (this.editor.state.doc.textBetween(state.dismissedSlashFrom, to) !== "/") {
-				onStateChange((prev) => ({ ...prev, dismissedSlashFrom: null }));
+			const from = dismissedSlashFrom(this.editor.state)!;
+			const to = Math.min(from + 1, this.editor.state.doc.content.size);
+			const dismissed = this.editor.state.doc.textBetween(from, to) === "/" ? from : null;
+			if (dismissed !== state.dismissedSlashFrom) {
+				onStateChange((prev) => ({ ...prev, dismissedSlashFrom: dismissed }));
 			}
 		},
 
 		addProseMirrorPlugins() {
 			const { editor } = this;
 			return [
+				// Before the suggestion, which reads where the dismissed slash is now.
+				new Plugin<DismissedSlash | null>({
+					key: dismissedSlashKey,
+					state: {
+						init: () => null,
+						apply: (tr, dismissed) => {
+							const from = getState().dismissedSlashFrom;
+							if (from === null) return null;
+							if (dismissed?.from !== from) {
+								return { from, position: editor.utils.createMappablePosition(from) };
+							}
+							if (!isRemote(tr)) return dismissed;
+							const { position } = editor.utils.getUpdatedPosition(dismissed.position, tr);
+							return { from: position.position, position };
+						},
+					},
+				}),
 				Suggestion({
 					editor,
 					char: "/",
@@ -2270,7 +801,7 @@ function createSlashCommandsExtension(options: {
 					// Titles such as "Code Block" can be typed whole; a space after no match ends the query.
 					allowSpaces: true,
 					allow: ({ state, range }) => {
-						if (this.editor.isActive("table") || getState().dismissedSlashFrom === range.from) {
+						if (this.editor.isActive("table") || dismissedSlashFrom(state) === range.from) {
 							return false;
 						}
 						const query = state.doc.textBetween(range.from + 1, range.to);
@@ -2685,6 +1216,82 @@ function pluginBlockProblems(
 }
 
 /**
+ * The plugin block the modal edits, by its key, or by its position while no
+ * other block has the same key. A null position means the block was deleted.
+ */
+type EditedPluginBlock = { key: string } | PositionedPluginBlock;
+
+/** A plugin block followed by position, with the type and ID it had when the modal opened. */
+interface PositionedPluginBlock {
+	position: MappablePosition | null;
+	blockType: unknown;
+	id: unknown;
+}
+
+function editedPluginBlockAt(editor: Editor, pos: number): EditedPluginBlock | null {
+	const { doc } = editor.state;
+	const node = doc.nodeAt(pos);
+	if (node?.type.name !== "pluginBlock") return null;
+	const positioned = (): PositionedPluginBlock => ({
+		position: editor.utils.createMappablePosition(pos),
+		blockType: node.attrs.blockType,
+		id: node.attrs.id,
+	});
+	const key: unknown = node.attrs[PORTABLE_TEXT_KEY_ATTR];
+	if (typeof key !== "string" || !key) return positioned();
+	let holders = 0;
+	doc.forEach((child) => {
+		if (child.type.name === "pluginBlock" && child.attrs[PORTABLE_TEXT_KEY_ATTR] === key) holders++;
+	});
+	return holders === 1 ? { key } : positioned();
+}
+
+/**
+ * Finds a positioned plugin block again after another client's change, which
+ * replaces the whole document: where its position now points while a block of
+ * the same type and ID is there, or else the only top-level block of that type
+ * and ID.
+ */
+function refindPluginBlock(
+	editor: Editor,
+	block: PositionedPluginBlock,
+	position: MappablePosition,
+): MappablePosition | null {
+	const same = (node: ProseMirrorNode | null) =>
+		node?.type.name === "pluginBlock" &&
+		node.attrs.blockType === block.blockType &&
+		node.attrs.id === block.id;
+	const { doc } = editor.state;
+	if (same(doc.nodeAt(position.position))) return position;
+	const found: number[] = [];
+	doc.forEach((child, offset) => {
+		if (same(child)) found.push(offset);
+	});
+	return found.length === 1 ? editor.utils.createMappablePosition(found[0]!) : null;
+}
+
+function findPluginBlock(
+	doc: ProseMirrorNode,
+	block: EditedPluginBlock,
+): { node: ProseMirrorNode; pos: number } | null {
+	if ("position" in block) {
+		if (block.position === null) return null;
+		const pos = block.position.position;
+		const node = doc.nodeAt(pos);
+		return node?.type.name === "pluginBlock" ? { node, pos } : null;
+	}
+	let pos = 0;
+	for (let index = 0; index < doc.childCount; index++) {
+		const node = doc.child(index);
+		if (node.type.name === "pluginBlock" && node.attrs[PORTABLE_TEXT_KEY_ATTR] === block.key) {
+			return { node, pos };
+		}
+		pos += node.nodeSize;
+	}
+	return null;
+}
+
+/**
  * Plugin block insertion/editing modal.
  * When the block has `fields`, renders Block Kit elements.
  * Otherwise falls back to a simple URL input.
@@ -2699,11 +1306,13 @@ function PluginBlockModal({
 	/** Pre-populated values when editing an existing block */
 	initialValues?: Record<string, unknown>;
 	onClose: () => void;
-	onInsert: (values: Record<string, unknown>) => void;
+	/** Returns why the values couldn't be saved, leaving the modal open. */
+	onInsert: (values: Record<string, unknown>) => MessageDescriptor | undefined;
 }) {
 	const [formValues, setFormValues] = React.useState<Record<string, unknown>>({});
 	const [touched, setTouched] = React.useState(false);
 	const [submitted, setSubmitted] = React.useState(false);
+	const [insertProblem, setInsertProblem] = React.useState<MessageDescriptor | undefined>();
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const formId = React.useId();
 	const { t } = useLingui();
@@ -2713,6 +1322,7 @@ function PluginBlockModal({
 			setFormValues(buildPluginBlockFormValues(block, initialValues));
 			setTouched(false);
 			setSubmitted(false);
+			setInsertProblem(undefined);
 			if (!block.fields || block.fields.length === 0) {
 				setTimeout(() => inputRef.current?.focus(), 0);
 			}
@@ -2735,10 +1345,10 @@ function PluginBlockModal({
 		// The form is noValidate, so the browser's own checks on fields inside repeater items run here.
 		if (!form.reportValidity()) return;
 		if (block?.fields && block.fields.length > 0) {
-			onInsert(formValues);
+			setInsertProblem(onInsert(formValues));
 		} else {
 			const url = typeof formValues.id === "string" ? formValues.id.trim() : "";
-			onInsert({ id: url });
+			setInsertProblem(onInsert({ id: url }));
 		}
 	};
 
@@ -2812,7 +1422,10 @@ function PluginBlockModal({
 								/>
 							)}
 						</div>
-						<DialogError message={formError} className="mt-4" />
+						<DialogError
+							message={formError ?? (insertProblem ? t(insertProblem) : null)}
+							className="mt-4"
+						/>
 					</form>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={t`Cancel`}>
@@ -3351,8 +1964,6 @@ const WHITESPACE_REGEX = /\s+/;
 const WHITESPACE_START_REGEX = /^\s/;
 const NON_WHITESPACE_REGEX = /\S/;
 const SCROLLING_OVERFLOW_REGEX = /auto|scroll|overlay/;
-const URL_SCHEME_REGEX = /^[a-z][a-z0-9+.-]*:/i;
-const WWW_PREFIX_REGEX = /^www\./i;
 
 // CJK scripts do not separate words with spaces, so a split()-based count treats
 // a whole paragraph as a single word. Count those characters individually.
@@ -3534,6 +2145,12 @@ export interface PortableTextEditorProps {
 	 * host can move focus to the field above, such as the page title.
 	 */
 	onArrowUpAtStart?: () => void;
+	/**
+	 * Binds the editor to a field of a co-editing room, read once on mount. The
+	 * room's document is then the content: `value` is ignored, `onChange` is
+	 * never called, and undo is the room's own, limited to this editor's edits.
+	 */
+	collaboration?: RichTextBinding;
 }
 
 // For external providers, src is only used for admin preview; the frontend Image
@@ -3559,6 +2176,10 @@ const BUILTIN_BLOCKS_PLUGIN_ID = "emdash";
  * along under this name while the form is open.
  */
 const BUTTON_KEY_FIELD = "_editorKey";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 function withButtonKeyField(buttons: unknown): unknown {
 	if (!Array.isArray(buttons)) return buttons;
@@ -3603,8 +2224,14 @@ export function PortableTextEditor({
 	onBlockSidebarClose,
 	variant = "boxed",
 	onArrowUpAtStart,
+	collaboration: collaborationProp,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const [collaboration] = React.useState(collaborationProp);
+	// The drag handle's plugin moves the handle's element out of React's tree, so the handle can't
+	// unmount while the editor lives. Once mounted it stays, and hides itself while read-only.
+	const [dragHandleMounted, setDragHandleMounted] = React.useState(editable);
+	if (editable && !dragHandleMounted) setDragHandleMounted(true);
 	const onArrowUpAtStartRef = React.useRef(onArrowUpAtStart);
 	onArrowUpAtStartRef.current = onArrowUpAtStart;
 	const isDocument = variant === "document";
@@ -3713,12 +2340,12 @@ export function PortableTextEditor({
 	const [pluginBlockInitialValues, setPluginBlockInitialValues] = React.useState<
 		Record<string, unknown> | undefined
 	>(undefined);
-	/** When editing an existing block, store the node position for updateAttributes */
-	const editingBlockPosRef = React.useRef<number | null>(null);
+	/** The plugin block the modal is editing, or null while it inserts one */
+	const editingBlockRef = React.useRef<EditedPluginBlock | null>(null);
 
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
-	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const pendingBlockInsertPosRef = React.useRef<MappablePosition | null>(null);
 	const openToolbarImagePicker = React.useCallback(() => {
 		pendingBlockInsertPosRef.current = null;
 		setMediaPickerOpen(true);
@@ -3832,7 +2459,7 @@ export function PortableTextEditor({
 			...item,
 			deferInsertion: true,
 			command: ({ editor, range }) => {
-				const position = pendingBlockInsertPosRef.current;
+				const position = pendingBlockInsertPosRef.current?.position ?? null;
 				pendingBlockInsertPosRef.current = null;
 				if (position === null) insert(editor, range);
 				else insert(editor, undefined, position);
@@ -3955,8 +2582,9 @@ export function PortableTextEditor({
 	};
 
 	// Convert initial value to ProseMirror format
+	// A room never holds content with marks the editor can't keep.
 	const initialUnsupportedMarks = React.useMemo(
-		() => findUnsupportedPortableTextMarks(value || []),
+		() => (collaboration ? [] : findUnsupportedPortableTextMarks(value || [])),
 		[],
 	);
 	const unsupportedMarks = React.useMemo(
@@ -3965,7 +2593,7 @@ export function PortableTextEditor({
 	);
 	const initialConversion = React.useMemo(() => {
 		const emptyDocument = { type: "doc" as const, content: [{ type: "paragraph" }] };
-		if (initialUnsupportedMarks.length > 0) {
+		if (collaboration || initialUnsupportedMarks.length > 0) {
 			return { content: emptyDocument, tableError: null };
 		}
 		try {
@@ -3994,7 +2622,7 @@ export function PortableTextEditor({
 	 */
 	const reportChange = React.useCallback((changedEditor: Editor) => {
 		const cb = onChangeRef.current;
-		if (!cb) return;
+		if (!cb || collaboration) return;
 		if (insertedLineRef.current && SuggestionPluginKey.getState(changedEditor.state)?.active)
 			return;
 		lastReportedDocRef.current ??= changedEditor.schema.nodeFromJSON(initialContent);
@@ -4036,35 +2664,7 @@ export function PortableTextEditor({
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
 			LinkBoundaryExit,
-			PortableTextStarterKit.configure({
-				// Replaced with TopBlockDocument so top-level-only blocks can't be nested.
-				document: false,
-				heading: {
-					levels: [1, 2, 3, 4, 5, 6],
-				},
-				dropcursor: {
-					color: "#3b82f6",
-					width: 2,
-				},
-				// Replaced with CodeBlockExtension below (adds language picker node view).
-				codeBlock: false,
-				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
-				code: false,
-				orderedList: false,
-				// StarterKit v3 includes Link and Underline
-				link: {
-					shouldAutoLink: (url) => URL_SCHEME_REGEX.test(url) || WWW_PREFIX_REGEX.test(url),
-					openOnClick: false,
-					// TipTap's Link extension defaults HTMLAttributes.target to "_blank".
-					// Without an explicit override every link created via setLink would be
-					// serialized as blank: true, even though there is no UI to enable it.
-					HTMLAttributes: {
-						target: null,
-						class: "text-kumo-link underline",
-					},
-				},
-				underline: {},
-			}),
+			collaboration ? EditorStarterKit.configure({ undoRedo: false }) : EditorStarterKit,
 			TopBlockDocument,
 			EmDashOrderedList,
 			CodeMarkExtension,
@@ -4081,18 +2681,18 @@ export function PortableTextEditor({
 			}),
 			MarkdownLinkExtension,
 			PluginBlockExtension,
-			Subscript.extend({ excludes: "superscript" }),
-			Superscript.extend({ excludes: "subscript" }),
-			EmDashTable.configure({
-				allowTableNodeSelection: true,
-				cellMinWidth: TABLE_CELL_MIN_WIDTH,
-				resizable: false,
-			}),
+			SubscriptMark,
+			SuperscriptMark,
+			PortableTextTable,
 			createTableResize(() => extensionAnnouncementRef.current()),
 			EmDashTableRow,
 			EmDashTableHeader,
 			EmDashTableCell,
 			TableIdentity,
+			PortableTextNormalizers,
+			PortableTextKeys,
+			PortableTextYSync,
+			PortableTextFilledDefaults,
 			BlockFormatShortcuts,
 			BlockSelection.configure({
 				onArrowUpAtStart: () => {
@@ -4110,9 +2710,7 @@ export function PortableTextEditor({
 				extensionAnnouncementRef.current(rows, columns),
 			),
 			createTextBlockPlaceholder((props) => placeholderRef.current(props)),
-			TextAlign.configure({
-				types: ["heading", "paragraph"],
-			}),
+			PortableTextTextAlign,
 			createSlashCommandsExtension({
 				filterCommands: (query: string) => filterCommandsRef.current(query),
 				onStateChange: setSlashMenuState,
@@ -4130,11 +2728,14 @@ export function PortableTextEditor({
 				mode: "all",
 			}),
 			Typography,
+			...(collaboration?.extensions ?? []),
 		],
 		[], // Created once — all mutable state accessed via refs
 	);
 
 	const editorLabel = t`Rich text editor`;
+	// Tiptap gives the editor a textbox role, so a read-only editor has to say so itself.
+	const editableRef = React.useRef(true);
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -4144,26 +2745,36 @@ export function PortableTextEditor({
 			// it, scrolls the caret out from under them.
 			scrollThreshold: isDocument ? { top: 96, right: 0, bottom: 0, left: 0 } : 0,
 			scrollMargin: isDocument ? { top: 96, right: 5, bottom: 5, left: 5 } : 5,
-			attributes: {
+			attributes: (): Record<string, string> => ({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
+				...(editableRef.current ? {} : { "aria-readonly": "true" }),
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
-			},
+			}),
 		}),
 		[ariaLabelledby, editorLabel, isDocument],
 	);
 
+	const editorEditable = editable && unsupportedMarks.length === 0 && tableConversionError === null;
+	editableRef.current = editorEditable;
 	const editor = useEditor({
 		extensions,
-		content: initialContent as Parameters<typeof useEditor>[0]["content"],
-		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
+		content: collaboration ? "" : (initialContent as Parameters<typeof useEditor>[0]["content"]),
+		editable: editorEditable,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => reportChange(updatedEditor),
 	});
+	// useEditor reads its options once, so a later `editable` reaches the editor here, without the
+	// update event that would report a change.
+	React.useEffect(() => {
+		if (editor && !editor.isDestroyed && editor.isEditable !== editorEditable) {
+			editor.setEditable(editorEditable, false);
+		}
+	}, [editor, editorEditable]);
 
 	/**
 	 * Takes the line the block insert button typed back out, or only its slash
@@ -4172,19 +2783,18 @@ export function PortableTextEditor({
 	 * is undone instead, so no undo step is left behind that does nothing.
 	 */
 	const removeInsertedLine = React.useCallback(
-		(activeEditor: Editor, line: InsertedSlashLine, range: Range): Transaction => {
+		(activeEditor: Editor, line: InsertedSlashLine, range: Range) => {
 			const { state, view } = activeEditor;
-			const undone: Transaction[] = [];
+			const dispatch = (tr: Transaction) => view.dispatch(tr);
 			// Text typed after the caret moved back sits outside the range, and undoing would take it too.
 			const onlyCommand =
 				state.doc.resolve(range.from).parent.content.size === range.to - range.from;
-			if (onlyCommand && undoDepth(state) === line.undoDepth) undo(state, (tr) => undone.push(tr));
+			if (onlyCommand && historyDepth(state) === line.undoDepth && undoLastGroup(state, dispatch)) {
+				return;
+			}
 			const removed = addedSlashParagraph(state.doc, range, line) ?? range;
-			const tr =
-				undone[0] ??
-				closeHistory(state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false));
-			view.dispatch(tr);
-			return tr;
+			const tr = state.tr.delete(removed.from, removed.to).setMeta("addToHistory", false);
+			dispatch(closeHistoryGroup(state, tr));
 		},
 		[],
 	);
@@ -4192,14 +2802,14 @@ export function PortableTextEditor({
 	/**
 	 * Closes the menu without running a command, keeping what was typed. The
 	 * line the block insert button typed goes again if nothing followed its
-	 * slash; the transaction that removed it is returned.
+	 * slash.
 	 */
-	const closeSlashMenu = React.useCallback((): Transaction | null => {
+	const closeSlashMenu = React.useCallback(() => {
 		const { range } = slashMenuStateRef.current;
 		const untouched =
 			editor !== null &&
 			range !== null &&
-			insertedLineRef.current?.slashPos === range.from &&
+			insertedLineRef.current?.slash?.position === range.from &&
 			editor.state.doc.textBetween(range.from, range.to) === "/" &&
 			editor.state.doc.resolve(range.from).parent.content.size === 1;
 		setSlashMenuState((prev) => ({
@@ -4208,12 +2818,12 @@ export function PortableTextEditor({
 			mode: "commands",
 			dismissedSlashFrom: untouched || !range ? prev.dismissedSlashFrom : range.from,
 		}));
-		if (!editor || !range) return null;
+		if (!editor || !range) return;
 		if (!untouched) {
 			exitSuggestion(editor.view);
-			return null;
+			return;
 		}
-		return removeInsertedLine(editor, insertedLineRef.current!, range);
+		removeInsertedLine(editor, insertedLineRef.current!, range);
 	}, [editor, removeInsertedLine, setSlashMenuState]);
 
 	/**
@@ -4223,8 +2833,17 @@ export function PortableTextEditor({
 	const openBlockInsertMenuAt = React.useCallback(
 		(insertPos: number) => {
 			if (!editor) return;
-			const closed = slashMenuStateRef.current.isOpen ? closeSlashMenu() : null;
-			const pos = closed ? closed.mapping.map(insertPos) : insertPos;
+			let pos = insertPos;
+			if (slashMenuStateRef.current.isOpen) {
+				let insert = editor.utils.createMappablePosition(insertPos);
+				const follow = ({ transaction }: EditorEvents["transaction"]) => {
+					insert = editor.utils.getUpdatedPosition(insert, transaction).position;
+				};
+				editor.on("transaction", follow);
+				closeSlashMenu();
+				editor.off("transaction", follow);
+				pos = insert.position;
+			}
 			const { doc } = editor.state;
 			if (pos < 0 || pos > doc.content.size || doc.resolve(pos).depth !== 0) return;
 			const { nodeBefore, nodeAfter } = doc.resolve(pos);
@@ -4234,19 +2853,23 @@ export function PortableTextEditor({
 			const slashPos = reuseBefore ? pos - 1 : pos + 1;
 			// A stale dismissed position could block this slash; opening a menu forgets it anyway.
 			setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: null }));
-			const inserted: InsertedSlashLine = { slashPos, addedParagraph: !reuse, undoDepth: -1 };
+			const inserted: InsertedSlashLine = { slash: null, addedParagraph: !reuse, undoDepth: -1 };
 			insertedLineRef.current = inserted;
 			editor
 				.chain()
 				.focus()
-				.command(({ tr }) => {
-					closeHistory(tr);
+				.command(({ state, tr }) => {
+					closeHistoryGroup(state, tr);
 					if (!reuse) tr.insert(pos, tr.doc.type.schema.nodes.paragraph!.create());
 					tr.insertText("/", slashPos).setSelection(TextSelection.create(tr.doc, slashPos + 1));
 					return true;
 				})
 				.run();
-			inserted.undoDepth = undoDepth(editor.state);
+			// An upload that lands while the menu is open must not join the slash's undo step, which
+			// dismissing the menu undoes.
+			endHistoryGroup(editor.state);
+			inserted.slash = editor.utils.createMappablePosition(slashPos);
+			inserted.undoDepth = historyDepth(editor.state);
 			// Scrolls far enough for the menu, up to 21rem tall, to open below the line, without
 			// scrolling the line under the toolbar.
 			const line = editor.view.coordsAtPos(slashPos);
@@ -4273,19 +2896,23 @@ export function PortableTextEditor({
 		(activeEditor: Editor, range: Range, deferred: boolean): Range => {
 			pendingBlockInsertPosRef.current = null;
 			const line = insertedLineRef.current;
-			if (line?.slashPos !== range.from) return range;
+			const slash = line?.slash;
+			if (!line || slash?.position !== range.from) return range;
 			const paragraph = addedSlashParagraph(activeEditor.state.doc, range, line);
 			if (paragraph && !deferred) {
-				const tr = activeEditor.state.tr.delete(range.from, range.to);
-				activeEditor.view.dispatch(closeHistory(tr.setMeta("addToHistory", false)));
+				const { state } = activeEditor;
+				const tr = state.tr.delete(range.from, range.to).setMeta("addToHistory", false);
+				activeEditor.view.dispatch(closeHistoryGroup(state, tr));
 			} else {
 				removeInsertedLine(activeEditor, line, range);
 				if (paragraph) {
-					pendingBlockInsertPosRef.current = paragraph.from;
+					pendingBlockInsertPosRef.current = activeEditor.utils.createMappablePosition(
+						paragraph.from,
+					);
 				} else {
 					const { state } = activeEditor;
 					activeEditor.view.dispatch(
-						state.tr.setSelection(TextSelection.create(state.doc, line.slashPos)),
+						state.tr.setSelection(TextSelection.create(state.doc, slash.position)),
 					);
 				}
 			}
@@ -4395,7 +3022,9 @@ export function PortableTextEditor({
 		}) => {
 			const blockDef = pluginBlocks.find((b) => b.type === attrs.blockType);
 			if (!blockDef) return;
-			editingBlockPosRef.current = attrs.pos;
+			const block = editedPluginBlockAt(editor, attrs.pos);
+			if (block === null) return;
+			editingBlockRef.current = block;
 			const data =
 				blockDef.pluginId === BUILTIN_BLOCKS_PLUGIN_ID && blockDef.type === "buttons"
 					? { ...attrs.data, buttons: withButtonKeyField(attrs.data.buttons) }
@@ -4441,12 +3070,51 @@ export function PortableTextEditor({
 	React.useEffect(() => {
 		if (!editor) return;
 		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
-			const position = pendingBlockInsertPosRef.current;
+			let position = pendingBlockInsertPosRef.current;
 			if (position === null) return;
-			pendingBlockInsertPosRef.current = [transaction, ...appendedTransactions].reduce(
-				(pos, tr) => tr.mapping.map(pos, -1),
-				position,
-			);
+			for (const tr of [transaction, ...appendedTransactions]) {
+				const updated = editor.utils.getUpdatedPosition(position, tr);
+				// A block added right at the position stays after the one the picker inserts there.
+				if (updated.mapResult) updated.position.position = tr.mapping.map(position.position, -1);
+				position = updated.position;
+			}
+			pendingBlockInsertPosRef.current = position;
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
+	// The insert button's slash follows the document, which other clients change while its menu is open.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = (event: EditorEvents["transaction"]) => {
+			const line = insertedLineRef.current;
+			if (line?.slash) line.slash = positionAfter(editor, line.slash, event);
+		};
+		editor.on("transaction", follow);
+		return () => {
+			editor.off("transaction", follow);
+		};
+	}, [editor]);
+
+	// The plugin block modal finds a block with no key by position, so it follows the document too.
+	React.useEffect(() => {
+		if (!editor) return;
+		const follow = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
+			const block = editingBlockRef.current;
+			if (!block || !("position" in block) || block.position === null) return;
+			let position: MappablePosition | null = block.position;
+			let remote = false;
+			for (const tr of [transaction, ...appendedTransactions]) {
+				if (position === null) break;
+				const { position: next, mapResult } = editor.utils.getUpdatedPosition(position, tr);
+				position = mapResult?.deleted ? null : next;
+				remote ||= mapResult === null;
+			}
+			if (remote && position !== null) position = refindPluginBlock(editor, block, position);
+			editingBlockRef.current = { ...block, position };
 		};
 		editor.on("transaction", follow);
 		return () => {
@@ -4459,7 +3127,7 @@ export function PortableTextEditor({
 		(item: MediaItem) => {
 			if (editor) {
 				const attrs = mediaItemToImageAttrs(item);
-				const insertPos = pendingBlockInsertPosRef.current;
+				const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
 					chain
@@ -4481,7 +3149,7 @@ export function PortableTextEditor({
 		(item: MediaItem) => {
 			if (editor?.isEditable) {
 				const video = editor.schema.nodes.videoBlock!.create(mediaItemToVideoAttrs(item));
-				const position = pendingBlockInsertPosRef.current ?? undefined;
+				const position = pendingBlockInsertPosRef.current?.position;
 				insertTopLevelBlock(editor, video, undefined, position);
 				editor.view.focus();
 			}
@@ -4496,7 +3164,7 @@ export function PortableTextEditor({
 		(items: MediaItem[]) => {
 			if (editor && items.length > 0) {
 				const attrs = { images: items.map(mediaItemToGalleryImage), columns: 3 };
-				const insertPos = pendingBlockInsertPosRef.current;
+				const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
 					chain
@@ -4516,8 +3184,8 @@ export function PortableTextEditor({
 
 	// Handle plugin block insertion or update
 	const handlePluginBlockInsert = React.useCallback(
-		(values: Record<string, unknown>) => {
-			if (!editor || !pluginBlockModal) return;
+		(values: Record<string, unknown>): MessageDescriptor | undefined => {
+			if (!editor || !pluginBlockModal) return undefined;
 
 			const { id: formId, ...fieldData } = values;
 			const isBuiltinButtons =
@@ -4528,28 +3196,28 @@ export function PortableTextEditor({
 			const data = isBuiltinButtons
 				? { ...fieldData, buttons: normalizeButtonItems(fieldData.buttons) }
 				: fieldData;
-			const editPos = editingBlockPosRef.current;
+			const editing = editingBlockRef.current;
 
-			if (editPos !== null) {
+			if (editing !== null) {
 				// Editing an existing block — update its attributes in place.
 				// Use the chain API so TipTap's onUpdate fires reliably
 				// (raw view.dispatch may not trigger onUpdate for attribute-only
 				// changes on atom nodes in some TipTap versions).
-				editor
+				const edited = editor
 					.chain()
 					.command(({ tr }) => {
-						const node = tr.doc.nodeAt(editPos);
-						if (node?.type.name === "pluginBlock") {
-							tr.setNodeMarkup(editPos, undefined, {
-								...node.attrs,
-								id: typeof id === "string" ? id : node.attrs.id,
-								data,
-							});
-							return true;
-						}
-						return false;
+						const block = findPluginBlock(tr.doc, editing);
+						if (!block) return false;
+						tr.setNodeMarkup(block.pos, undefined, {
+							...block.node.attrs,
+							[PORTABLE_TEXT_KEY_ATTR]: block.node.attrs[PORTABLE_TEXT_KEY_ATTR] || generateKey(),
+							id: typeof id === "string" ? id : block.node.attrs.id,
+							data,
+						});
+						return true;
 					})
 					.run();
+				if (!edited) return msg`This block was deleted, so your changes can't be saved.`;
 			} else {
 				// Inserting a new block
 				const content = {
@@ -4560,7 +3228,7 @@ export function PortableTextEditor({
 						data,
 					},
 				};
-				const insertPos = pendingBlockInsertPosRef.current;
+				const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 				const chain = editor.chain().focus();
 				if (insertPos === null) {
 					chain
@@ -4576,7 +3244,8 @@ export function PortableTextEditor({
 			pendingBlockInsertPosRef.current = null;
 			setPluginBlockModal(null);
 			setPluginBlockInitialValues(undefined);
-			editingBlockPosRef.current = null;
+			editingBlockRef.current = null;
+			return undefined;
 		},
 		[editor, pluginBlockModal],
 	);
@@ -4633,7 +3302,9 @@ export function PortableTextEditor({
 				: [];
 			let prosemirrorContent: unknown[];
 			try {
-				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent, pluginBlockTypes));
+				prosemirrorContent = withoutTrailingParagraph(
+					portableTextToProsemirror(ptContent, pluginBlockTypes),
+				);
 			} catch (error) {
 				if (error instanceof UnsupportedPortableTextMarksError) {
 					setSectionInsertErrorMarks(error.marks);
@@ -4650,7 +3321,7 @@ export function PortableTextEditor({
 			setSectionInsertErrorMarks([]);
 			setSectionInsertTableError(false);
 
-			const insertPos = pendingBlockInsertPosRef.current;
+			const insertPos = pendingBlockInsertPosRef.current?.position ?? null;
 			const chain = editor.chain().focus();
 			if (insertPos === null) {
 				chain
@@ -4837,7 +3508,13 @@ export function PortableTextEditor({
 					}
 				>
 					<EditorContent editor={editor} />
-					{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
+					{dragHandleMounted && (
+						<DragHandleWrapper
+							editor={editor}
+							onInsertBlock={openBlockInsertMenuAt}
+							editable={editable}
+						/>
+					)}
 				</div>
 				{isDocument ? (
 					<DocumentEnd editor={editor} editable={editable}>
@@ -4912,7 +3589,7 @@ export function PortableTextEditor({
 						pendingBlockInsertPosRef.current = null;
 						setPluginBlockModal(null);
 						setPluginBlockInitialValues(undefined);
-						editingBlockPosRef.current = null;
+						editingBlockRef.current = null;
 					}}
 					onInsert={handlePluginBlockInsert}
 				/>
@@ -5612,6 +4289,11 @@ function getSelectedImage(state: EditorState): NodeSelection | null {
 		: null;
 }
 
+function selectedImagePosition(editor: Editor): MappablePosition | null {
+	const image = getSelectedImage(editor.state);
+	return image ? editor.utils.createMappablePosition(image.from) : null;
+}
+
 /**
  * Image Bubble Menu - appears above a selected image.
  * Replace, alt text, alignment, link, settings and delete.
@@ -5641,7 +4323,7 @@ function ImageBubbleMenu({
 	// hands focus back, so its focus return can land on the Replace button.
 	const pickerRef = React.useRef<"idle" | "open" | "closing">("idle");
 	// Position of the image the open alt or link draft belongs to.
-	const editingPosRef = React.useRef<number | null>(null);
+	const editingPosRef = React.useRef<MappablePosition | null>(null);
 	const editSessionRef = React.useRef(0);
 	const image = useEditorState({
 		editor,
@@ -5708,16 +4390,20 @@ function ImageBubbleMenu({
 	// Replay the entrance when the selection moves to another image, and drop a
 	// draft once its image is no longer the selection.
 	React.useEffect(() => {
-		let selectedPos = getSelectedImage(editor.state)?.from ?? null;
-		const onTransaction = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
-			const map = (position: number) =>
-				[transaction, ...appendedTransactions].reduce((pos, tr) => tr.mapping.map(pos), position);
+		let selectedPos = selectedImagePosition(editor);
+		const onTransaction = (event: EditorEvents["transaction"]) => {
 			const current = getSelectedImage(editor.state)?.from ?? null;
-			if (current !== null && selectedPos !== null && current !== map(selectedPos)) playEntrance();
-			selectedPos = current;
+			if (
+				current !== null &&
+				selectedPos !== null &&
+				current !== positionAfter(editor, selectedPos, event).position
+			) {
+				playEntrance();
+			}
+			selectedPos = selectedImagePosition(editor);
 			if (editingPosRef.current === null) return;
-			editingPosRef.current = map(editingPosRef.current);
-			if (current !== editingPosRef.current) showControls();
+			editingPosRef.current = positionAfter(editor, editingPosRef.current, event);
+			if (current !== editingPosRef.current.position) showControls();
 		};
 		editor.on("transaction", onTransaction);
 		return () => {
@@ -5801,7 +4487,7 @@ function ImageBubbleMenu({
 	}, [mode]);
 
 	const startEditing = (next: "alt" | "link") => {
-		editingPosRef.current = getSelectedImage(editor.state)?.from ?? null;
+		editingPosRef.current = selectedImagePosition(editor);
 		if (editingPosRef.current === null) return;
 		// Hold focus in the toolbar while the focused button unmounts, or the focus gate hides it.
 		if (menuRef.current?.contains(document.activeElement)) {

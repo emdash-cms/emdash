@@ -57,6 +57,7 @@ async function runSearchRequest(sessionUser: { id: string } | null, pathname: st
 	const response = await onRequest(
 		{
 			url,
+			cookies: { get: () => (sessionUser ? { value: "session-id" } : undefined) },
 			request: new Request(url, { method: "GET" }),
 			locals,
 			session,
@@ -65,7 +66,7 @@ async function runSearchRequest(sessionUser: { id: string } | null, pathname: st
 		} as Parameters<AuthMiddlewareModule["onRequest"]>[0],
 		next,
 	);
-	return { response, next, locals };
+	return { response, next, locals, session };
 }
 
 describe("search endpoint soft auth", () => {
@@ -86,12 +87,13 @@ describe("search endpoint soft auth", () => {
 	it.each(["/_emdash/api/search", "/_emdash/api/search/"])(
 		"passes anonymous requests through without a user lookup: %s",
 		async (pathname) => {
-			const { response, next, locals } = await runSearchRequest(null, pathname);
+			const { response, next, locals, session } = await runSearchRequest(null, pathname);
 
 			expect(next).toHaveBeenCalledOnce();
 			expect(response.status).toBe(200);
 			expect(locals.user).toBeUndefined();
 			expect(getUserById).not.toHaveBeenCalled();
+			expect(session.get).not.toHaveBeenCalled();
 		},
 	);
 });

@@ -62,6 +62,8 @@ export EMDASH_SITE_URL=https://example.com
 
 Set the variable both where `npm run build` runs and where the server runs. The build uses it to enable image optimization for locally stored media. If it is missing at build time, images are served as unoptimized originals instead of through Astro's `/_image` endpoint. See [`siteUrl`](/reference/configuration/#siteurl) for how EmDash resolves the public origin.
 
+The proxy must also forward WebSocket upgrades for co-editing. See [Forward WebSocket upgrades](#forward-websocket-upgrades).
+
 ## Build and run
 
 1. Build the project:
@@ -92,6 +94,144 @@ Keep at least one Node.js process running continuously in production. Scheduled 
 ## Plugin sandbox
 
 Marketplace plugins and the plugins listed under `sandboxed: []` need a sandbox runner. On Node.js, the runner is `@emdash-cms/sandbox-workerd`, which runs plugins in a `workerd` child process. [Plugin Sandbox](/deployment/plugin-sandbox/#nodejs) covers the installation, how the `workerd` process runs, and its failure modes.
+
+## Co-editing
+
+[Co-editing](/guides/working-with-content/#edit-with-other-people) is off by default. Set [`coEditing: true`](/reference/configuration/#coediting) to turn it on. On Node.js, each entry's room runs inside a site process. EmDash takes WebSocket upgrades on the room path, `/_emdash/api/content/{collection}/{id}/room` after any base path, from the HTTP server that serves Astro. Rooms store their state in the site database, in the `_emdash_rooms` and `_emdash_room_updates` tables, and the process keeps each open room's document in memory.
+
+Rooms run when the site uses `@astrojs/node` with an HTTP/1.1 `node:http` or `node:https` server:
+
+- in standalone mode;
+- in middleware mode, under a server such as Express or Fastify;
+- under `astro preview`; and
+- under `astro dev`, beside Vite's hot-reload socket.
+
+Sites on other adapters, and [`node:cluster` workers](#run-several-processes), use [single-editor mode](/guides/working-with-content/#single-editor-mode). A process on another kind of server also gives joins single-editor mode, starting a minute after its first join. Room log messages start with `[co-editing]`.
+
+### Forward WebSocket upgrades
+
+A reverse proxy in front of the site must forward WebSocket upgrades on room paths. Otherwise, each browser session switches to single-editor mode after its first three connections fail, and the server logs a warning such as `[co-editing] posts:01JV5Z7Q3W8E2N6R4T9Y0A1B2C: a client's sockets didn't open, so it edits in single-editor mode`.
+
+The following nginx configuration forwards room paths, with their upgrades, to a site on port 4321. In the room location, also set any headers that the rest of the site gets, such as `X-Forwarded-Proto`:
+
+```nginx title="/etc/nginx/conf.d/emdash.conf"
+map $http_upgrade $connection_upgrade {
+	default upgrade;
+	""      close;
+}
+
+server {
+	# listen, server_name and TLS settings
+
+	location ~ ^/_emdash/api/content/[^/]+/[^/]+/room$ {
+		proxy_pass http://127.0.0.1:4321;
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection $connection_upgrade;
+	}
+
+	location / {
+		proxy_pass http://127.0.0.1:4321;
+		proxy_set_header Host $host;
+	}
+}
+```
+
+Add the site's base path to the start of the room location if it has one. nginx's [WebSocket proxying guide](https://nginx.org/en/docs/http/websocket.html) explains the upgrade headers; other proxies need equivalent settings.
+
+EmDash pings each room socket every 30 seconds, so a proxy that closes idle connections must wait longer than that. nginx waits 60 seconds by default.
+
+### Run several processes
+
+Several Node.js processes can serve one site from a shared database. Each entry's room runs in one of them at a time: the first process to open it claims it in the database. People co-edit only when both their join request and their WebSocket, which use the same path, reach that process.
+
+Route each room path to one process, or leave [co-editing](/reference/configuration/#coediting) off. The following nginx upstreams pick one of two processes by hashing the path:
+
+```nginx title="/etc/nginx/conf.d/emdash.conf"
+upstream emdash {
+	server 127.0.0.1:4321;
+	server 127.0.0.1:4322;
+}
+
+upstream emdash_rooms {
+	hash $uri consistent;
+	server 127.0.0.1:4321;
+	server 127.0.0.1:4322;
+}
+```
+
+With these upstreams, the room location from [Forward WebSocket upgrades](#forward-websocket-upgrades) uses `proxy_pass http://emdash_rooms;`, and `location /` uses `proxy_pass http://emdash;`.
+
+Without routing by path, people whose requests reach another process wait read-only, without **Take over**, while the room is open in the first one. With round-robin routing, someone editing alone can need several tries to join, because a missed upgrade holds the room's claim for up to a minute.
+
+Writes that another process handles reach the room late, at its next save or join, even with routing by path:
+
+- Co-editors aren't told to reload values that save separately, such as SEO settings, so one saved from an older form can overwrite a newer change.
+- Publishing, scheduling or discarding changes through another process uses the last saved draft, and restoring a version there merges like any other write.
+
+`node:cluster` workers, including PM2's cluster mode, use single-editor mode, because the cluster's primary process hands out connections without seeing their paths. To co-edit under PM2, use fork mode (`exec_mode: "fork"`).
+
+### Other WebSocket handlers
+
+EmDash adds one `upgrade` listener to the site's server. Any other upgrade handler on that server must leave room paths alone. Handlers that answer every upgrade, such as a `ws` server created with `{ server }`, `express-ws` and `@fastify/websocket`, don't. Replace such a handler with a `ws` server created with `noServer: true` that you hand only your own paths, or leave co-editing off.
+
+The following Express server runs a site built with `node({ mode: "middleware" })` and passes upgrades on `/live` to its own `ws` server, leaving room paths to EmDash:
+
+```js title="server.mjs"
+import express from "express";
+import { WebSocketServer } from "ws";
+import { handler as ssrHandler } from "./dist/server/entry.mjs";
+
+const app = express();
+app.use("/", express.static("dist/client/"));
+app.use(ssrHandler);
+
+const server = app.listen(8080);
+const live = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (request, socket, head) => {
+	if (new URL(request.url, "http://localhost").pathname !== "/live") return;
+	live.handleUpgrade(request, socket, head, (ws) => live.emit("connection", ws, request));
+});
+```
+
+### Older Node.js releases
+
+On Node.js 22.21 or later and 24.9 or later, EmDash sets the server's `shouldUpgradeCallback`, keeping any callback the site set, so that the server hands room upgrades to EmDash and handles every other request as it would without co-editing. Node.js 22.16 to 22.20, 23, and 24.0 to 24.8 have no `shouldUpgradeCallback`. On those releases, a server whose only `upgrade` listener is EmDash's answers upgrade requests on other paths, such as `Upgrade: h2c`, with `404`. Without co-editing, the server serves them as plain requests. If a client of the site sends such requests, upgrade Node.js or leave co-editing off.
+
+### Stop the process
+
+While a process has rooms open, EmDash handles `SIGTERM` and `SIGINT` ahead of other listeners. On either signal, the process stops accepting joins, and its rooms save their edits and close their connections. The process then stops as it would have, at most 5 seconds later.
+
+Give the process more than 5 seconds to stop. Docker waits 10 seconds by default. PM2 waits 1.6 seconds, so raise its `kill_timeout`:
+
+```js title="ecosystem.config.cjs"
+module.exports = {
+	apps: [
+		{
+			name: "my-emdash-site",
+			script: "./dist/server/entry.mjs",
+			kill_timeout: 6000,
+		},
+	],
+};
+```
+
+If the process is killed sooner, or another signal handler exits first, its rooms recover as after a crash. Editors of those entries wait read-only until the process's claims expire, up to a minute later. Edits that the room hadn't stored come back from the editors that hold them.
+
+### CPU time
+
+A room saves 2 seconds after the latest change, and at least every 10 seconds while people keep typing, however many people edit. A write from outside the editor, such as a REST API or MCP update, notifies the entry's room, which merges the change. The following table lists the CPU time each of these took for one room on Node.js on Apple Silicon, with an in-memory SQLite database. Each time includes the database work. About two thirds of a save is the site's own draft save, which an autosave also runs.
+
+| Work                                         | Median  | 95th percentile |
+| -------------------------------------------- | ------- | --------------- |
+| Save a 2,000-word entry after a small edit   | 2.27 ms | 3.83 ms         |
+| Merge a write that changed the title         | 0.80 ms | 1.89 ms         |
+| Merge a write that changed a 2,000-word body | 1.19 ms | 3.06 ms         |
+| Answer a notification with nothing to merge  | 0.67 ms | 1.21 ms         |
+
+A room that isn't open ignores notifications, so they take almost no CPU time.
 
 ## Choose production data services
 
@@ -271,6 +411,7 @@ After starting a new build, verify the same runtime services that production req
 3. Sign in to `/_emdash/admin`, create or edit a disposable draft, and publish it. Confirm that the public page shows the change.
 4. Upload a disposable media file and open its returned URL. Delete the file after verifying it.
 5. If the site uses sandboxed plugins, invoke one plugin route or hook and confirm that the server log has no sandbox-unavailable or `workerd` startup error.
+6. If co-editing is on, open the disposable entry in two browser windows and type in one. The text must appear in the other, and the server log must have no `[co-editing]` warning.
 
 Keep the new instance out of the load balancer until every applicable check passes.
 

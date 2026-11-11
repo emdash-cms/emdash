@@ -8,7 +8,7 @@
  */
 
 import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
-import { Permissions } from "@emdash-cms/auth";
+import { Permissions, toRoleLevel, type RoleLevel } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 import {
 	normalizePluginPagePath,
@@ -22,13 +22,15 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
-import { ErrorCode } from "./api/errors.js";
+import { overlayDraft, saveContent, type ContentWrite } from "./api/content-save.js";
+import { ErrorCode, mapErrorStatus } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
 import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
+import { handleRevisionEditors } from "./api/handlers/revision.js";
 import {
 	liveReferenceData,
 	liveReferenceSelection,
@@ -39,7 +41,12 @@ import {
 	type StagedReferenceBaselines,
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
-import { validateRev } from "./api/rev.js";
+import {
+	LIST_CONFLICT_MESSAGE,
+	listsMatch,
+	type ListPreconditions,
+} from "./api/list-preconditions.js";
+import { encodeRev, validateRev } from "./api/rev.js";
 import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
 import type {
@@ -72,7 +79,12 @@ import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
 import { MediaRepository } from "./database/repositories/media.js";
-import { RevisionRepository } from "./database/repositories/revision.js";
+import {
+	RevisionRepository,
+	type Revision,
+	type RevisionCredit,
+	type RevisionKind,
+} from "./database/repositories/revision.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
 import type {
@@ -313,6 +325,8 @@ import {
 import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { notifyRoom } from "./rooms/notifications.js";
+import { roomId, RoomSaveError, type EntryRef, type RuntimeRoomHost } from "./rooms/types.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { normalizeBlocksData, resolveBlockTypes } from "./schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "./schema/registry.js";
@@ -349,6 +363,20 @@ interface ContentPolicyMutationOptions {
 	actor?: ActorInfo;
 	origin?: ContentActionOrigin;
 	pluginInvocationId?: string;
+}
+
+/** An operation the entry's room refused or couldn't hold for. */
+type RoomOperationFailure = {
+	success: false;
+	error: { code: string; message: string };
+	status?: number;
+};
+
+interface PublishOptions extends ContentPolicyMutationOptions {
+	publishedAt?: string;
+	requireScheduledDue?: boolean;
+	expectedScheduledAt?: string;
+	currentTime?: Date;
 }
 
 type ContentPolicyCheck =
@@ -462,6 +490,12 @@ export interface MediaProviderContext {
 export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
 
 /**
+ * Builds the runtime's co-editing room host. Injected via
+ * `virtual:emdash/rooms`, so only hosts that can run rooms load their code.
+ */
+export type CreateRoomHostFn = (runtime: EmDashRuntime) => RuntimeRoomHost | null;
+
+/**
  * Dependencies injected from virtual modules (middleware reads these)
  */
 export interface RuntimeDependencies {
@@ -496,6 +530,12 @@ export interface RuntimeDependencies {
 	 * integration means core has no adapter-specific runtime checks.
 	 */
 	createScheduler?: CreateSchedulerFn | null;
+	/**
+	 * Factory for the co-editing room host, from the generated
+	 * `virtual:emdash/rooms` module. When absent or null, or when it returns
+	 * null, every join gets single-editor mode.
+	 */
+	createRoomHost?: CreateRoomHostFn | null;
 	/** Media provider entries from virtual module */
 	mediaProviderEntries?: MediaProviderEntry[];
 	sandboxedPluginEntries: SandboxedPluginEntry[];
@@ -566,6 +606,13 @@ export interface EmDashRuntimeParts {
 	pipelineRef: { current: HookPipeline };
 }
 
+function listConflict() {
+	return {
+		success: false as const,
+		error: { code: "LIST_CONFLICT", message: LIST_CONFLICT_MESSAGE },
+	};
+}
+
 /**
  * A `ContentSaveRejectedError` carries a message the plugin wrote for the
  * editor; every other exception stays internal and is replaced by a generic
@@ -597,6 +644,37 @@ function beforeSaveFailure(error: unknown) {
 			message: "A plugin hook failed while saving content",
 		},
 	};
+}
+
+/**
+ * How a draft save's revision is credited. Only an autosave replaces the draft revision it builds
+ * on, and only when that one is an autosave too. An autosave names the save's editors, then the
+ * names it carries from the replaced autosave (or that revision's author when it names none), once
+ * each and latest first. A kept save names only the editors its caller passed, once each.
+ * `replaced` is the draft revision the save builds on, or null when there is none or it is also
+ * the live revision.
+ */
+function revisionCredit(input: {
+	autosave: boolean;
+	actorId: string | undefined;
+	editedBy: readonly string[] | undefined;
+	replaced: (RevisionCredit & { authorId: string | null }) | null;
+}): { kind: RevisionKind | null; editedBy: string[] | null; replaces: boolean } {
+	const { autosave, actorId, editedBy, replaced } = input;
+	if (!autosave) {
+		return {
+			kind: null,
+			editedBy: editedBy?.length ? [...new Set(editedBy)] : null,
+			replaces: false,
+		};
+	}
+	const replaces = replaced?.kind === "autosave";
+	const own = editedBy ?? (actorId ? [actorId] : []);
+	const carried = replaces
+		? (replaced.editedBy ?? (replaced.authorId ? [replaced.authorId] : []))
+		: [];
+	const names = [...new Set([...own, ...carried])];
+	return { kind: "autosave", editedBy: names.length > 0 ? names : null, replaces };
 }
 
 /**
@@ -824,6 +902,7 @@ export class EmDashRuntime {
 	readonly email: EmailPipeline | null;
 
 	private cronScheduler: CronScheduler | null;
+	private _rooms: RuntimeRoomHost | null = null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
 	private readonly activePluginContentActions = new Map<string, number>();
@@ -906,6 +985,11 @@ export class EmDashRuntime {
 			return ctx.db as Kysely<Database>;
 		}
 		return this._db;
+	}
+
+	/** Co-editing rooms, or null where co-editing is off or this host can't run rooms. */
+	get rooms(): RuntimeRoomHost | null {
+		return this._rooms;
 	}
 
 	/** Bind the platform cache provider used by plugin actions, including request-less cron hooks. */
@@ -1098,6 +1182,13 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
+		if (this._rooms) {
+			try {
+				await this._rooms.expireIdle();
+			} catch (error) {
+				console.error("[co-editing] Hourly room drop failed:", error);
+			}
+		}
 	}
 
 	/**
@@ -1250,6 +1341,7 @@ export class EmDashRuntime {
 
 	/** Stop background work and discard loaded sandbox isolates. */
 	async shutdown(): Promise<void> {
+		await this._rooms?.shutdown();
 		await this.stopCron();
 		sandboxRunner?.setCommentModerate?.(null);
 		await sandboxRunner?.terminateAll();
@@ -2713,6 +2805,7 @@ export class EmDashRuntime {
 			);
 		}
 
+		runtime._rooms = deps.createRoomHost?.(runtime) ?? null;
 		return runtime;
 	}
 
@@ -3914,6 +4007,7 @@ export class EmDashRuntime {
 		const saveHookDetails = {
 			locale,
 			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+			...(actor ? { editedBy: [actor.id] } : {}),
 		};
 
 		const collectionInfo = await this.schemaRegistry
@@ -4053,6 +4147,8 @@ export class EmDashRuntime {
 			};
 			taxonomies?: Record<string, string[]>;
 			references?: Record<string, string[]>;
+			/** The lists this save was based on. A stored list that differs fails it with `LIST_CONFLICT`. */
+			expected?: ListPreconditions;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Replace the previous autosave revision after staging this save. */
@@ -4063,6 +4159,8 @@ export class EmDashRuntime {
 			 * passed to content hooks; never changes entry ownership.
 			 */
 			actor?: ActorInfo;
+			/** Users whose edits this save holds, latest first. Defaults to the actor alone. */
+			editedBy?: readonly string[];
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 		},
@@ -4073,6 +4171,7 @@ export class EmDashRuntime {
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
+		const checksLists = Boolean(body.expected?.bylines || body.expected?.references);
 
 		// Validate _rev early — before draft revision writes which modify the version.
 		// The token is checked again against the row the draft UPDATE is conditioned
@@ -4087,6 +4186,7 @@ export class EmDashRuntime {
 			}
 			const revCheck = validateRev(body._rev, resolvedItem);
 			if (!revCheck.valid) {
+				if (checksLists) return listConflict();
 				return {
 					success: false as const,
 					error: { code: "CONFLICT", message: revCheck.message },
@@ -4096,11 +4196,30 @@ export class EmDashRuntime {
 		const {
 			_rev: _discardedRev,
 			actor: _discardedActor,
+			editedBy: passedEditors,
 			migrateBlocks,
 			replaceBlocks,
+			expected,
 			...bodyWithoutRev
 		} = body;
+		// The lists are compared once, so every write below is conditioned on the entry as it was
+		// read before them: a write in between changes its version.
+		let revGuard = body._rev;
+		if (expected && checksLists) {
+			if (!resolvedItem) {
+				return {
+					success: false as const,
+					error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
+				};
+			}
+			if (!(await listsMatch(this.db, collection, resolvedItem, expected))) return listConflict();
+			revGuard ??= encodeRev(resolvedItem);
+		}
+		const editedBy = passedEditors?.length ? [...new Set(passedEditors)] : undefined;
 		const blockWriteOptions = { migrateBlocks, replaceBlocks };
+		const saveHookEditors: ContentSaveHookDetails = {
+			editedBy: editedBy ?? (actor ? [actor.id] : undefined),
+		};
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
@@ -4111,6 +4230,24 @@ export class EmDashRuntime {
 				? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
 				: null;
 		const knownFieldSlugs = new Set((collectionInfo?.fields ?? []).map((f) => f.slug));
+		// Staging a draft and writing live columns are two writes, so a list conflict between them
+		// would leave the draft staged. A save based on a read of the lists makes only one of them.
+		if (
+			checksLists &&
+			collectionInfo?.supports?.includes("revisions") &&
+			Object.entries(bodyWithoutRev).some(
+				([key, value]) => value !== undefined && !DRAFT_ONLY_UPDATE_KEYS.has(key),
+			)
+		) {
+			return {
+				success: false as const,
+				error: {
+					code: "VALIDATION_ERROR",
+					message:
+						"A save with `expected` can't change draft and live values together in a collection with revisions. Send them as two saves.",
+				},
+			};
+		}
 
 		// A collection that keeps drafts merges `data` into a revision instead of
 		// writing columns, so a reference field's slug would land in the revision
@@ -4151,7 +4288,9 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
-						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
+						resolvedItem?.locale
+							? { ...saveHookEditors, locale: resolvedItem.locale }
+							: saveHookEditors,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -4231,6 +4370,7 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
+		let stagedWrite: ContentWrite | undefined;
 		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
@@ -4269,9 +4409,10 @@ export class EmDashRuntime {
 
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
-				if (body._rev && existing) {
-					const revCheck = validateRev(body._rev, existing);
+				if (revGuard && existing) {
+					const revCheck = validateRev(revGuard, existing);
 					if (!revCheck.valid) {
+						if (checksLists) return listConflict();
 						return {
 							success: false as const,
 							error: { code: "CONFLICT", message: revCheck.message },
@@ -4280,13 +4421,10 @@ export class EmDashRuntime {
 				}
 
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
-					let baseData: Record<string, unknown>;
-					if (existing.draftRevisionId) {
-						const draftRevision = await revisionRepo.findById(existing.draftRevisionId);
-						baseData = draftRevision?.data ?? existing.data;
-					} else {
-						baseData = existing.data;
-					}
+					const draftBase = existing.draftRevisionId
+						? await revisionRepo.findDraftBase(existing.draftRevisionId)
+						: null;
+					const baseData = draftBase?.data ?? existing.data;
 					let attemptData = processedData ?? {};
 					try {
 						attemptData = await normalizeBlocksData(
@@ -4344,16 +4482,24 @@ export class EmDashRuntime {
 					await repo.keepStartingRevision(revisionRepo, collection, existing, () =>
 						liveReferenceData(this.db, collection, entryGroup),
 					);
+					const credit = revisionCredit({
+						autosave: bodyWithoutRev.skipRevision === true,
+						actorId: actor?.id,
+						editedBy,
+						replaced: existing.draftRevisionId === existing.liveRevisionId ? null : draftBase,
+					});
 					const revision = await revisionRepo.create({
 						collection,
 						entryId: resolvedId,
 						data: mergedData,
 						authorId: actor?.id,
+						kind: credit.kind,
+						editedBy: credit.editedBy,
 					});
 
-					let staged: boolean;
+					let staged: Pick<ContentItemInternal, "version" | "updatedAt"> | null;
 					try {
-						staged = await repo.replaceDraftRevision(collection, resolvedId, revision.id, existing);
+						staged = await repo.stageDraftRevision(collection, resolvedId, revision.id, existing);
 					} catch (error) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(collection, resolvedId, revision.id);
@@ -4375,6 +4521,7 @@ export class EmDashRuntime {
 								cleanupError,
 							);
 						}
+						if (checksLists) return listConflict();
 						if (body._rev || attempt === MAX_DRAFT_STAGE_ATTEMPTS - 1) {
 							const error = new ContentMutationConflictError();
 							return {
@@ -4388,13 +4535,18 @@ export class EmDashRuntime {
 
 					draftStorageChanged = true;
 					processedData = attemptData;
+					stagedWrite = {
+						rev: encodeRev({ ...existing, ...staged }),
+						...overlayDraft(existing, revision.data),
+					};
 
-					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
+					if (credit.replaces && existing.draftRevisionId) {
 						try {
 							await revisionRepo.deleteIfUnreferenced(
 								collection,
 								resolvedId,
 								existing.draftRevisionId,
+								{ autosaveOnly: true },
 							);
 						} catch (error) {
 							console.error(
@@ -4432,13 +4584,19 @@ export class EmDashRuntime {
 				? await handleContentGet(this.db, collection, resolvedId)
 				: await handleContentUpdate(this.db, collection, resolvedId, {
 						...bodyWithoutRev,
-						_rev: draftStorageChanged ? undefined : body._rev,
+						// Staging advanced the version a client token holds, so only the lists' own guard
+						// carries over, as the version staging left.
+						_rev: draftStorageChanged ? (checksLists ? stagedWrite?.rev : undefined) : revGuard,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
 						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
 						authorId: bodyWithoutRev.authorId,
 						bylines: bodyWithoutRev.bylines,
 					});
+		if (!result.success && checksLists && result.error.code === "CONFLICT") return listConflict();
+		if (result.success && bodyWithoutRev.references) {
+			notifyRoom({ collection, id: resolvedId }, ["references"]);
+		}
 
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched
@@ -4484,17 +4642,26 @@ export class EmDashRuntime {
 				false,
 				actor,
 				undefined,
-				savedLocale ? { locale: savedLocale } : {},
+				savedLocale ? { ...saveHookEditors, locale: savedLocale } : saveHookEditors,
 			);
 		}
 
 		if (hydrated.success) {
+			// Only the draft path knows its own write: the column handler reads the row again after
+			// writing, outside a transaction on D1, so that read can include another write.
+			if (stagedWrite && !liveMetaTouched) {
+				return { ...hydrated, liveContentChanged, saved: stagedWrite };
+			}
 			return { ...hydrated, liveContentChanged };
 		}
 		return hydrated;
 	}
 
-	async handleContentDelete(collection: string, id: string) {
+	async handleContentDelete(collection: string, id: string, options: { actor?: ActorInfo } = {}) {
+		return this.withRoomHold({ collection, id }, options, () => this.trashEntry(collection, id));
+	}
+
+	private async trashEntry(collection: string, id: string) {
 		// Run beforeDelete hooks (trusted plugins)
 		if (this.hooks.hasHooks("content:beforeDelete")) {
 			const { allowed } = await this.hooks.runContentBeforeDelete(id, collection);
@@ -4840,6 +5007,76 @@ export class EmDashRuntime {
 		);
 	}
 
+	/**
+	 * Runs a user's operation on an entry while the entry's room, if one is open in this process,
+	 * holds: the room saves a kept checkpoint as the actor first, and merges the entry once the
+	 * operation ends. `run` gets the caller's `_rev`, or else the checkpoint's. Operations that
+	 * replace the draft pass the values they write as `overwrite`: an open room refuses rich text
+	 * it can't represent, and afterwards writes the stored values over its document. Callers pass
+	 * the entry's ID: a slug finds no room.
+	 */
+	private async withRoomHold<T>(
+		entry: EntryRef,
+		options: {
+			_rev?: string;
+			actor?: { id: string };
+			origin?: ContentActionOrigin;
+			overwrite?: () => Promise<Record<string, unknown> | null | undefined>;
+		},
+		run: (rev: string | undefined) => Promise<T>,
+	): Promise<T | RoomOperationFailure> {
+		const rooms = this._rooms;
+		const actorId = options.actor?.id;
+		const source = options.origin?.source;
+		if (!rooms || actorId === undefined || source === "scheduler" || source === "plugin") {
+			return run(options._rev);
+		}
+		const id = roomId(entry);
+		if (options.overwrite && (await rooms.isOpen(id))) {
+			// The editor schema loads only where a room is open.
+			const { findUnsupportedPortableTextMarks } =
+				await import("@emdash-cms/admin/internal/portable-text");
+			const values = await options.overwrite();
+			const collection = await this.schemaRegistry.getCollectionWithFields(entry.collection);
+			for (const field of collection?.fields ?? []) {
+				const value = values?.[field.slug];
+				if (field.type !== "portableText" || !Array.isArray(value)) continue;
+				const marks = findUnsupportedPortableTextMarks(value);
+				if (marks.length === 0) continue;
+				return {
+					success: false,
+					error: {
+						code: "ROOM_UNSUPPORTED_CONTENT",
+						message: `The ${field.slug} field has formatting the editor can't show while the entry is open: ${marks.join(", ")}`,
+					},
+				};
+			}
+		}
+		let held: Awaited<ReturnType<RuntimeRoomHost["save"]>>;
+		try {
+			held = await rooms.save(id, actorId, options._rev);
+		} catch (error) {
+			if (error instanceof RoomSaveError) return roomSaveFailure(error);
+			throw error;
+		}
+		if (held === null) return run(options._rev);
+		if (held === "conflict") {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: "Revision precondition did not match" },
+			};
+		}
+		try {
+			return await run(options._rev ?? held.rev);
+		} finally {
+			try {
+				await rooms.release(id, held.hold, { overwrite: options.overwrite !== undefined });
+			} catch (error) {
+				console.error(`[co-editing] room ${id} couldn't merge after an operation:`, error);
+			}
+		}
+	}
+
 	private async checkContentPolicy(
 		name: ContentPolicyHookName,
 		collection: string,
@@ -5006,20 +5243,13 @@ export class EmDashRuntime {
 		this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
 	}
 
-	async handleContentPublish(
-		collection: string,
-		id: string,
-		options: {
-			publishedAt?: string;
-			requireScheduledDue?: boolean;
-			expectedScheduledAt?: string;
-			_rev?: string;
-			currentTime?: Date;
-			actor?: ActorInfo;
-			origin?: ContentActionOrigin;
-			pluginInvocationId?: string;
-		} = {},
-	) {
+	async handleContentPublish(collection: string, id: string, options: PublishOptions = {}) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.publishEntry(collection, id, { ...options, _rev }),
+		);
+	}
+
+	private async publishEntry(collection: string, id: string, options: PublishOptions) {
 		const policy = await this.checkContentPolicy(
 			"content:beforePublish",
 			collection,
@@ -5091,6 +5321,16 @@ export class EmDashRuntime {
 		id: string,
 		options: ContentPolicyMutationOptions = {},
 	) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.unpublishEntry(collection, id, { ...options, _rev }),
+		);
+	}
+
+	private async unpublishEntry(
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions,
+	) {
 		const policy = await this.checkContentPolicy(
 			"content:beforeUnpublish",
 			collection,
@@ -5125,6 +5365,17 @@ export class EmDashRuntime {
 		id: string,
 		scheduledAt: string,
 		options: ContentPolicyMutationOptions = {},
+	) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.scheduleEntry(collection, id, scheduledAt, { ...options, _rev }),
+		);
+	}
+
+	private async scheduleEntry(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		options: ContentPolicyMutationOptions,
 	) {
 		const policy = await this.checkContentPolicy(
 			"content:beforeSchedule",
@@ -5170,11 +5421,17 @@ export class EmDashRuntime {
 	async handleContentUnschedule(
 		collection: string,
 		id: string,
-		options: {
-			_rev?: string;
-			origin?: ContentActionOrigin;
-			pluginInvocationId?: string;
-		} = {},
+		options: ContentPolicyMutationOptions = {},
+	) {
+		return this.withRoomHold({ collection, id }, options, (_rev) =>
+			this.unscheduleEntry(collection, id, { ...options, _rev }),
+		);
+	}
+
+	private async unscheduleEntry(
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions,
 	) {
 		const result = await handleContentUnschedule(this.db, collection, id, { _rev: options._rev });
 		if (result.success && result.data) {
@@ -5198,7 +5455,23 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
-	async handleContentDiscardDraft(collection: string, id: string, options: { _rev?: string } = {}) {
+	async handleContentDiscardDraft(
+		collection: string,
+		id: string,
+		options: { _rev?: string; actor?: ActorInfo } = {},
+	) {
+		return this.withRoomHold(
+			{ collection, id },
+			{
+				...options,
+				overwrite: async () =>
+					(await new ContentRepository(this.db).findById(collection, id))?.data,
+			},
+			(_rev) => this.discardEntryDraft(collection, id, { _rev }),
+		);
+	}
+
+	private async discardEntryDraft(collection: string, id: string, options: { _rev?: string }) {
 		const result = await handleContentDiscardDraft(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
@@ -5562,15 +5835,19 @@ export class EmDashRuntime {
 		return handleRevisionList(this.db, collection, entryId, params);
 	}
 
+	async handleRevisionEditors(collection: string, entryId: string, since: string | null) {
+		return handleRevisionEditors(this.db, collection, entryId, since);
+	}
+
 	async handleRevisionGet(revisionId: string) {
 		return handleRevisionGet(this.db, revisionId);
 	}
 
-	async handleRevisionRestore(revisionId: string, callerUserId: string) {
+	/** Without `role`, reads the caller's current role, which only a recovery revision needs. */
+	async handleRevisionRestore(revisionId: string, callerUserId: string, role?: RoleLevel) {
 		// Discover the parent entry up front so we can branch on whether
 		// the collection uses draft revisions.
-		const revisionRepo = new RevisionRepository(this.db);
-		const revision = await revisionRepo.findById(revisionId);
+		const revision = await new RevisionRepository(this.db).findDraftBase(revisionId);
 		if (!revision) {
 			return {
 				success: false as const,
@@ -5579,6 +5856,23 @@ export class EmDashRuntime {
 					message: `Revision not found: ${revisionId}`,
 				},
 			};
+		}
+		return this.withRoomHold(
+			{ collection: revision.collection, id: revision.entryId },
+			{ actor: { id: callerUserId }, overwrite: async () => revision.data },
+			() => this.restoreRevision(revisionId, revision, callerUserId, role),
+		);
+	}
+
+	private async restoreRevision(
+		revisionId: string,
+		revision: Revision & RevisionCredit,
+		callerUserId: string,
+		role: RoleLevel | undefined,
+	) {
+		const revisionRepo = new RevisionRepository(this.db);
+		if (revision.kind === "recovery") {
+			return this.restoreRecoveryRevision(revision, callerUserId, role);
 		}
 
 		const collectionInfo = await this.schemaRegistry.getCollectionWithFields(revision.collection);
@@ -5665,6 +5959,48 @@ export class EmDashRuntime {
 				},
 			};
 		}
+	}
+
+	/**
+	 * Recovery revisions are stored without validation or hooks, so restoring one saves its
+	 * fields and slug as the restoring user, as a kept save.
+	 */
+	private async restoreRecoveryRevision(
+		revision: { collection: string; entryId: string; data: Record<string, unknown> },
+		callerUserId: string,
+		role: RoleLevel | undefined,
+	) {
+		const user =
+			role === undefined ? await this.findEnabledUser(callerUserId) : { id: callerUserId, role };
+		if (!user) {
+			return {
+				success: false as const,
+				error: { code: "FORBIDDEN", message: "Insufficient permissions" },
+			};
+		}
+		const slug = revision.data._slug;
+		return saveContent(this, {
+			collection: revision.collection,
+			id: revision.entryId,
+			user,
+			body: {
+				data: Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				),
+				// A room leaves the slug null when it couldn't read it; that must not clear the entry's.
+				...(typeof slug === "string" ? { slug } : {}),
+			},
+		});
+	}
+
+	private async findEnabledUser(id: string): Promise<{ id: string; role: RoleLevel } | null> {
+		const row = await this.db
+			.selectFrom("users")
+			.select(["role", "disabled"])
+			.where("id", "=", id)
+			.executeTakeFirst();
+		const role = row && !row.disabled ? toRoleLevel(row.role) : null;
+		return role === null ? null : { id, role };
 	}
 
 	private async findSyncedSiblingsForUsageRefresh(
@@ -7008,4 +7344,21 @@ async function normalizePrimaryImageValue(
 		return normalizeMediaValue(value.src, getProvider);
 	}
 	return normalizeMediaValue(value, getProvider);
+}
+
+/** A failed room save fails the operation, with the status its reason gives. */
+function roomSaveFailure(error: RoomSaveError): RoomOperationFailure {
+	return {
+		success: false,
+		error: { code: error.code, message: error.message },
+		status: roomSaveStatus(error),
+	};
+}
+
+function roomSaveStatus({ reason, code }: RoomSaveError): number {
+	if (reason === "CONFLICT") return 409;
+	if (reason === "FORBIDDEN") return 403;
+	if (reason === "NOT_FOUND") return 404;
+	if (code === "UNLOADED" || code === "SITE_UNAVAILABLE") return 503;
+	return mapErrorStatus(code);
 }

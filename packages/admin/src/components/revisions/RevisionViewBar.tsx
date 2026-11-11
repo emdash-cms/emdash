@@ -4,9 +4,15 @@ import { ArrowCounterClockwise, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { ContentItem, RevisionListItem } from "../../lib/api";
+import { useRoomOperations } from "../../lib/co-editing/operations.js";
 import { cn } from "../../lib/utils.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
-import { revisionDate, useRevisionFormat, type AuthorColor } from "./revision-format.js";
+import {
+	revisionDate,
+	revisionNamed,
+	useRevisionFormat,
+	type AuthorColor,
+} from "./revision-format.js";
 import { RevisionRestoreDialog } from "./RevisionRestoreDialog.js";
 import type { RevisionStepDirection } from "./useRevisionView.js";
 
@@ -77,6 +83,7 @@ export function RevisionViewBar({
 	dockRef,
 }: RevisionViewBarProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
 	const format = useRevisionFormat();
 	const titleId = React.useId();
 	const [restoreOpen, setRestoreOpen] = React.useState(false);
@@ -147,7 +154,7 @@ export function RevisionViewBar({
 								aria-hidden="true"
 								className="size-2 shrink-0 rounded-full bg-(--emdash-author)"
 							/>
-							<bdi className="truncate">{format.author(revision.author)}</bdi>
+							<bdi className="truncate">{format.people(revisionNamed(revision))}</bdi>
 						</span>
 						{isPublished && (
 							<span className="flex shrink-0 items-center gap-1.5">
@@ -231,7 +238,7 @@ export function RevisionViewBar({
 							type="button"
 							variant="primary"
 							icon={<ArrowCounterClockwise />}
-							disabled={saveBusy || restorePending}
+							disabled={saveBusy || restorePending || blocked}
 							onClick={() => setRestoreOpen(true)}
 						>
 							{t`Restore`}

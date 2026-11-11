@@ -22,7 +22,7 @@ describe("executeWxrImport", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("drives every phase and aggregates content, taxonomy, and section results", async () => {
+	it("drives every phase and aggregates content, password-protected, taxonomy, and section results", async () => {
 		const cursor = {
 			offset: 0,
 			source: "a".repeat(64),
@@ -55,6 +55,7 @@ describe("executeWxrImport", () => {
 					result: result({
 						imported: 30,
 						byCollection: { posts: 30 },
+						passwordProtected: [{ id: "entry-2", collection: "posts", title: "Members only" }],
 						taxonomies: {
 							termsCreated: {},
 							termsReused: {},
@@ -70,7 +71,11 @@ describe("executeWxrImport", () => {
 					done: true,
 					cursor: { ...cursor, offset: 35 },
 					chunk: { translationGroups: { group: "entry-1" } },
-					result: result({ imported: 5, byCollection: { posts: 5 } }),
+					result: result({
+						imported: 5,
+						byCollection: { posts: 5 },
+						passwordProtected: [{ id: "entry-31", collection: "posts", title: "Coming soon" }],
+					}),
 				}),
 			)
 			.mockResolvedValueOnce(
@@ -95,6 +100,10 @@ describe("executeWxrImport", () => {
 			success: true,
 			imported: 35,
 			byCollection: { posts: 35 },
+			passwordProtected: [
+				{ id: "entry-2", collection: "posts", title: "Members only" },
+				{ id: "entry-31", collection: "posts", title: "Coming soon" },
+			],
 			sections: { created: 1, skipped: 0 },
 			taxonomies: {
 				termsCreated: { category: 2 },

@@ -1,12 +1,14 @@
 import { Button, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Check, FloppyDisk } from "@phosphor-icons/react";
-import { isValidElement, useEffect, useRef, useState } from "react";
+import { Check, CloudSlash, CloudWarning, FloppyDisk } from "@phosphor-icons/react";
+import { forwardRef, isValidElement, useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 
 import { cn } from "../lib/utils";
+import type { SyncProblem } from "./co-editing/SyncStatus";
 
-type SaveState = "save" | "saving" | "saved";
+type SyncKind = SyncProblem["kind"];
+type SaveState = "save" | "saving" | "saved" | SyncKind;
 
 const TEXT_SWAP_DURATION_MS = 150;
 
@@ -18,41 +20,55 @@ export interface SaveButtonProps extends Omit<ComponentProps<typeof Button>, "ch
 	labelClassName?: string;
 	/** Replaces the "Save" label, e.g. "Save draft". */
 	saveLabel?: string;
+	/**
+	 * A co-editing problem to show instead of the save state. The button then stays enabled, to
+	 * explain the problem. Set it, to a kind or null, wherever the button can show one, so the
+	 * button keeps one width across every state.
+	 */
+	sync?: SyncKind | null;
 }
 
-export function SaveButton({
-	isDirty,
-	isSaving,
-	announce = true,
-	labelClassName,
-	saveLabel: customSaveLabel,
-	className,
-	disabled,
-	icon,
-	loading,
-	variant,
-	"aria-label": ariaLabel,
-	...props
-}: SaveButtonProps) {
+export const SaveButton = forwardRef<HTMLButtonElement, SaveButtonProps>(function SaveButton(
+	{
+		isDirty,
+		isSaving,
+		announce = true,
+		labelClassName,
+		saveLabel: customSaveLabel,
+		sync,
+		className,
+		disabled,
+		icon,
+		loading,
+		variant,
+		"aria-label": ariaLabel,
+		...props
+	},
+	ref,
+) {
 	const { t } = useLingui();
-	const saveLabel = customSaveLabel ?? t`Save`;
-	const savingLabel = t`Saving...`;
-	const savedLabel = t`Saved`;
+	const labels: Record<SaveState, string> = {
+		save: customSaveLabel ?? t`Save`,
+		saving: t`Saving...`,
+		saved: t`Saved`,
+		joining: t`Joining…`,
+		offline: t`Offline`,
+		"not-saved": t`Not saved`,
+		"not-kept": t`Not saved`,
+	};
 	const isBusy = isSaving || Boolean(loading);
-	const activeState: SaveState = isBusy ? "saving" : isDirty ? "save" : "saved";
-	const activeLabel =
-		activeState === "save" ? saveLabel : activeState === "saving" ? savingLabel : savedLabel;
-	const states = [
-		{ id: "save", label: saveLabel },
-		{ id: "saving", label: savingLabel },
-		{ id: "saved", label: savedLabel },
-	] as const;
+	const activeState: SaveState = sync ? sync : isBusy ? "saving" : isDirty ? "save" : "saved";
+	const activeLabel = labels[activeState];
+	const stateIds: SaveState[] =
+		sync === undefined
+			? ["save", "saving", "saved"]
+			: ["save", "saving", "saved", "joining", "offline", "not-saved", "not-kept"];
+	const states = stateIds.map((id) => ({ id, label: labels[id] }));
 	const [displayedState, setDisplayedState] = useState<SaveState>(activeState);
 	const [swapPhase, setSwapPhase] = useState<"idle" | "exit" | "enter-start">("idle");
 	const displayedStateRef = useRef(displayedState);
 	const textRef = useRef<HTMLSpanElement>(null);
-	const displayedLabel =
-		displayedState === "save" ? saveLabel : displayedState === "saving" ? savingLabel : savedLabel;
+	const displayedLabel = labels[displayedState];
 	const displayedIcon =
 		displayedState === "save" ? (
 			isValidElement(icon) ? (
@@ -60,8 +76,12 @@ export function SaveButton({
 			) : (
 				<FloppyDisk />
 			)
-		) : displayedState === "saving" ? (
+		) : displayedState === "saving" || displayedState === "joining" ? (
 			<Loader size="sm" />
+		) : displayedState === "offline" ? (
+			<CloudSlash />
+		) : displayedState === "not-saved" || displayedState === "not-kept" ? (
+			<CloudWarning />
 		) : (
 			<Check />
 		);
@@ -101,9 +121,10 @@ export function SaveButton({
 	return (
 		<Button
 			{...props}
+			ref={ref}
 			className={cn("min-w-[100px] justify-center", className)}
-			disabled={disabled || !isDirty || isBusy}
-			variant={variant ?? (isDirty || isBusy ? "primary" : "secondary")}
+			disabled={sync ? disabled : disabled || !isDirty || isBusy}
+			variant={variant ?? ((isDirty || isBusy) && !sync ? "primary" : "secondary")}
 			aria-label={ariaLabel ?? activeLabel}
 			aria-busy={isBusy}
 		>
@@ -132,6 +153,8 @@ export function SaveButton({
 						"t-text-swap",
 						swapPhase === "exit" && "is-exit",
 						swapPhase === "enter-start" && "is-enter-start",
+						(displayedState === "not-saved" || displayedState === "not-kept") &&
+							"text-kumo-warning",
 					)}
 				>
 					<span className="flex items-center justify-center gap-1.5 leading-none">
@@ -150,6 +173,6 @@ export function SaveButton({
 			</span>
 		</Button>
 	);
-}
+});
 
 export default SaveButton;
