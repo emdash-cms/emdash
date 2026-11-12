@@ -282,6 +282,13 @@ export const LOCALES: LocaleDefinition[] = [
 		enabled: true,
 		dateLocale: () => import("react-day-picker/locale/uk").then((m) => m.uk),
 	},
+	// Vietnamese
+	{
+		code: "vi",
+		label: "Tiếng Việt",
+		enabled: true,
+		dateLocale: () => import("react-day-picker/locale/vi").then((m) => m.vi),
+	},
 	// Pseudo-locale for i18n testing - never enabled in the admin UI by default.
 	// Set EMDASH_PSEUDO_LOCALE=1 in .env to expose it in the locale switcher (dev only).
 	{ code: "pseudo", label: "Pseudo", enabled: false },
