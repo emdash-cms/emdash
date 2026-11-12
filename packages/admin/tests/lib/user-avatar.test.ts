@@ -57,7 +57,7 @@ describe("userAvatarVariant", () => {
 		["user_1", { palette: "Apricot", wave: 4, angle: -6, mirrored: true }],
 		["dev-admin", { palette: "Indigo", wave: 6, angle: 0, mirrored: false }],
 		["01HZY3B7C9D2E4F6G8H0J1K2L3", { palette: "Meadow", wave: 5, angle: 9, mirrored: false }],
-	])("gives %s the same avatar as before", (id, expected) => {
+	])("keeps %s's avatar stable", (id, expected) => {
 		expect(describeVariant(id)).toEqual(expected);
 	});
 

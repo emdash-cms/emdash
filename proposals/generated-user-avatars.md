@@ -20,7 +20,7 @@ Without a picture, the admin shows the first letter of the user's name, or of th
 
 Every user without a picture gets a generated avatar: a circle split by a blurred wave into two colors of one palette, with their initials on top. The [interactive prototype](https://emdash-user-avatars-prototype.gifted-market-6ca.workers.dev/) shows it at every size, in both themes, and for the cases below. The prototype also offers flat and outline styles for comparison, and mockups of Revisions and co-editing that only illustrate where avatars could appear later. This plan ships only the gradient style in the three places above.
 
-- **The user ID chooses the look.** A hash of the user ID picks one of 12 color pairs, one of 8 waves, an angle between −12° and 12°, and whether the wave is mirrored. The same user looks the same in every browser, tab and admin screen. Renaming a user changes their initials but not their colors.
+- **The user ID chooses the look.** A hash of the user ID picks one of 18 color pairs, one of 8 waves, an angle between −12° and 12°, and whether the wave is mirrored. The same user looks the same in every browser, tab and admin screen. Renaming a user changes their initials but not their colors.
 - **Initials.** The first letter of the first word and of the last word: "Noah Pham" shows NP, and "María José de la Cruz" shows MC. A one-word name shows one letter. Leading symbols and emoji are ignored, so "🚀 Rocket Team" shows RT.
 - **One character for uncased starts.** When the first character has no upper and lower case, such as a digit, a Chinese character or an Arabic letter, only that character shows. Two joined Arabic letters would read as a word. A name that mixes scripts, such as "Noah 陈伟", shows N陈.
 - **No name.** A user with no name shows the gradient alone, without letters. The email no longer stands in, because its first letter usually says nothing about the person.
@@ -29,22 +29,30 @@ Every user without a picture gets a generated avatar: a circle split by a blurre
 
 ### Palette
 
-Each pair is a light top color over a deeper bottom color. The pairs started from OKLCH targets, so the set reads as one family: lightness 0.93 and chroma 0.085 for every top color, and lightness 0.6 and chroma 0.17 for every bottom color. Ember, Apricot and Meadow got slightly more lightness or chroma, so their bottoms don't look brown. Colors outside sRGB were reduced in chroma until they fit, so the hex values below are the specification, not the targets. Ten pairs use neighboring hues. Dusk and Twilight put a warm top over a cool bottom.
+Each pair is a light top color over a deeper bottom color. The pairs started from OKLCH targets, so the set reads as one family: lightness 0.93 and chroma up to 0.085 for every top color, its hue turned toward yellow from the bottom's, and chroma up to 0.17 for every bottom color. Colors outside sRGB were reduced in chroma until they fit, so the hex values below are the specification, not the targets.
 
-| Pair     | OKLCH hues, top / bottom | Top       | Bottom    | White initials on the 85% mix |
-| -------- | ------------------------ | --------- | --------- | ----------------------------- |
-| Ember    | 80° / 32°                | `#fee4b9` | `#e14c33` | 3.4:1                         |
-| Apricot  | 88° / 48°                | `#ffe6aa` | `#dd6301` | 3.0:1                         |
-| Meadow   | 115° / 148°              | `#e5efae` | `#009b3c` | 3.1:1                         |
-| Jade     | 140° / 175°              | `#caf7c1` | `#07957c` | 3.1:1                         |
-| Lagoon   | 180° / 222°              | `#a7fbea` | `#058eaf` | 3.2:1                         |
-| Sky      | 205° / 248°              | `#aff6fe` | `#0584da` | 3.3:1                         |
-| Indigo   | 240° / 272°              | `#d3ecff` | `#5f74e4` | 3.4:1                         |
-| Iris     | 330° / 295°              | `#ffdbfa` | `#8a66d9` | 3.4:1                         |
-| Orchid   | 0° / 325°                | `#fedee7` | `#b156b7` | 3.5:1                         |
-| Rose     | 45° / 10°                | `#fee1d4` | `#d04a69` | 3.6:1                         |
-| Dusk     | 40° / 262°               | `#ffe0d6` | `#447be4` | 3.4:1                         |
-| Twilight | 85° / 305°               | `#fee5b0` | `#9860d0` | 3.5:1                         |
+Bottoms alternate between two lightness tiers around the hue circle, so neighboring pairs differ in lightness as well as hue. Deep bottoms sit at lightness 0.53, where a co-editing caret in that color keeps 3:1 against the dark editor. Bright bottoms are as light as 3:1 white initials allow, up to 0.63. No two bottoms are closer than 0.07 in OKLab. The hues skip the olive range between Gold and Moss, whose darker shades read as khaki.
+
+| Pair    | OKLCH hues, top / bottom | Top       | Bottom    | Tier   | Bottom lightness | White initials on the 85% mix |
+| ------- | ------------------------ | --------- | --------- | ------ | ---------------- | ----------------------------- |
+| Ember   | 73° / 32°                | `#fee3c2` | `#ba3822` | Deep   | 0.53             | 4.5:1                         |
+| Apricot | 80° / 48°                | `#fee4ba` | `#d7620b` | Bright | 0.63             | 3.1:1                         |
+| Bronze  | 86° / 66°                | `#fee5ae` | `#985c07` | Deep   | 0.53             | 4.1:1                         |
+| Gold    | 94° / 86°                | `#fae8a7` | `#a77f0b` | Bright | 0.62             | 3.0:1                         |
+| Moss    | 112° / 131°              | `#e8eeac` | `#4d7b07` | Deep   | 0.53             | 3.9:1                         |
+| Meadow  | 119° / 148°              | `#e1f1b0` | `#119b40` | Bright | 0.60             | 3.0:1                         |
+| Emerald | 125° / 161°              | `#dbf2b4` | `#098055` | Deep   | 0.53             | 3.9:1                         |
+| Jade    | 135° / 175°              | `#d0f5bc` | `#0d977e` | Bright | 0.61             | 3.0:1                         |
+| Teal    | 159° / 199°              | `#b7fad3` | `#097b7f` | Deep   | 0.53             | 3.9:1                         |
+| Lagoon  | 182° / 222°              | `#a6fbec` | `#0d90b1` | Bright | 0.61             | 3.0:1                         |
+| Ocean   | 207° / 248°              | `#b6f5fe` | `#086fb8` | Deep   | 0.53             | 4.1:1                         |
+| Indigo  | 232° / 272°              | `#ceedfe` | `#657cec` | Bright | 0.62             | 3.0:1                         |
+| Iris    | 334° / 295°              | `#fedcf6` | `#7550c2` | Deep   | 0.53             | 4.3:1                         |
+| Lilac   | 349° / 310°              | `#feddec` | `#a867d5` | Bright | 0.63             | 3.1:1                         |
+| Orchid  | 5° / 325°                | `#fedee4` | `#9a40a1` | Deep   | 0.53             | 4.4:1                         |
+| Fuchsia | 18° / 339°               | `#fedfdf` | `#c859ab` | Bright | 0.63             | 3.2:1                         |
+| Berry   | 33° / 353°               | `#fee0d9` | `#b03574` | Deep   | 0.53             | 4.5:1                         |
+| Rose    | 49° / 10°                | `#fee1d2` | `#db5471` | Bright | 0.63             | 3.2:1                         |
 
 The wave edge runs through the top of the initials, so the initials sit mostly, not entirely, on the bottom color. The ratios are measured against an sRGB mix of 85% bottom and 15% top, the color behind most of the letters, without the letter shadow. Every pair keeps at least 3:1 against that mix. The initials are decorative wherever the avatar appears, so this is a design floor, not a WCAG conformance claim.
 
@@ -77,12 +85,20 @@ Each wave's top edge follows `y = base + a · sin(2πx/100 · f + p) + a2 · sin
 
 The user ID is hashed with cyrb53, which returns two unsigned 32-bit halves, `h1` and `h2`:
 
-- palette: `h1 % 12`, indexing the palette table in order;
+- palette: `h1 % 18`, the length of the palette table (`USER_AVATAR_PALETTES.length`), indexing it in order;
 - wave: `(h1 >>> 8) % 8`, indexing the wave table in order;
 - angle: `(h2 % 25) − 12` degrees;
 - mirrored: bit 7 of `h2`.
 
-The hash, both tables, their order and their lengths are fixed. Adding a palette or a wave changes the modulus and gives almost every existing user a new avatar, so it would need its own decision.
+The hash, both tables, their order and their lengths are fixed. Adding a palette or a wave changes the modulus and gives almost every existing user a new avatar, so it needs its own decision. The palette table grew once, from 12 pairs to 18, so that people in the same entry share a color less often.
+
+### Co-editing and Revisions colors
+
+Each person's color in co-editing and **Revisions** comes from their palette, so they look the same everywhere, and a person with a picture gets the color of their generated avatar.
+
+- The palette's bottom color draws their caret line, their selection at 25% opacity, and the marks and dot of a version that names only them.
+- The gradient behind their name, over their caret and on a field's label, runs between two darker shades of that color, derived in OKLCH rather than listed. At the caret's side the shade is 0.12 darker, and at the far end 0.08 darker with its hue turned 30% toward the top color, each kept at no less than 5:1 and 4.6:1 for white text. The darker end meets the caret in either text direction.
+- People whose avatars share a palette share the color, and their names tell them apart.
 
 ## Goals
 
@@ -97,9 +113,7 @@ The hash, both tables, their order and their lengths are fixed. Adding a palette
 - Uploading, changing or removing a picture, or importing one when a provider is linked later.
 - Letting users choose their own palette or style.
 - Showing avatars in places that don't show one today, such as the content list, Revisions or comments.
-- Cursor and selection colors for co-editing, which the co-editing implementation decides.
 - Byline avatars, which are author credits with their own media field, and plugin avatars in the marketplace.
-- The author colors in **Revisions**, which keep their four badge colors, assigned per list ([Readable revision history](readable-revision-history.md)).
 - Avatars on the public site.
 
 ## Interfaces and compatibility
@@ -116,7 +130,7 @@ The header button hides its name below the `sm` breakpoint. Today the initial is
 - **Case.** Initials are uppercased without the admin's locale, so a user's initials are the same in every admin language.
 - **Right-to-left.** Initials are centered, so text direction doesn't move them, and the wave isn't mirrored in right-to-left layouts. Chinese and Arabic glyphs can sit slightly off center vertically, because the offset centers Latin capitals.
 - **A broken or blocked picture URL** keeps the generated avatar, with no retry.
-- **Shared colors.** Any two users share a palette 1 time in 12. In a group of 4, two people share one about 43% of the time, and in a group of 5 about 62%. Their wave, angle and mirror usually differ but can match too, so names stay beside every avatar.
+- **Shared colors.** Any two users share a palette 1 time in 18. In a group of 4, two people share one about 30% of the time, and in a group of 5 about 46%. Their wave, angle and mirror usually differ but can match too, so names stay beside every avatar.
 - **Forced colors.** The SVG sets `forced-color-adjust: none`, so Windows high-contrast mode keeps its colors instead of replacing the fills, strokes and shadows. The name beside it carries the meaning.
 
 ## Verification
@@ -127,6 +141,7 @@ Unit tests cover these cases.
 - Four fixed user IDs map to pinned palette names, wave numbers, angles and mirrors, so a change to the hash, or to either table's order or length, fails.
 - A fixed, generated set of 1,000 IDs reaches every palette and every wave.
 - White initials keep at least 3:1 against every palette's 85% mix.
+- No two palettes' bottom colors are closer than 0.07 in OKLab.
 
 Component tests cover these cases.
 
