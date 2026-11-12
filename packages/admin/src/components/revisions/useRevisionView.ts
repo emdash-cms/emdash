@@ -5,15 +5,14 @@ import * as React from "react";
 import type { ContentItem, RevisionListItem, RevisionListResponse } from "../../lib/api";
 import { diffVersion, restoresNothing } from "../../lib/revision-diff/index.js";
 import type { DiffFieldDescriptor, RevisionDiff } from "../../lib/revision-diff/types.js";
+import type { UserColor } from "../../lib/user-color.js";
 import { isolate } from "../../lib/utils.js";
 import {
 	revisionAuthorColor,
-	revisionAuthorColors,
 	revisionDate,
 	revisionNamed,
 	revisionTargetElementId,
 	useRevisionFormat,
-	type AuthorColor,
 } from "./revision-format.js";
 import {
 	REVISION_LIST_LIMIT,
@@ -58,7 +57,7 @@ export interface RevisionView {
 	diff: RevisionDiff | null;
 	/** The diff for the viewed revision threw. */
 	diffFailed: boolean;
-	authorColor: AuthorColor;
+	authorColor: UserColor | null;
 	/** Accessible name for the shown version. */
 	label: string;
 	isCurrent: boolean;
@@ -279,8 +278,7 @@ export function useRevisionView({
 		currentItem !== undefined &&
 		restoresNothing(revision.data, currentItem.data, fields);
 
-	const colors = React.useMemo(() => revisionAuthorColors(list?.items ?? []), [list?.items]);
-	const authorColor: AuthorColor = revision ? revisionAuthorColor(colors, revision) : "neutral";
+	const authorColor = revision ? revisionAuthorColor(revision) : null;
 	const when = revision ? isolate(format.when(revisionDate(revision.createdAt))) : "";
 
 	const viewingIdRef = React.useRef(viewingId);

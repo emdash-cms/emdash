@@ -6,6 +6,7 @@ import "../../dist/styles.css";
 import { FieldPresence } from "../../src/components/presence/FieldPresence";
 import { PresenceAvatars } from "../../src/components/presence/PresenceAvatars";
 import type { RoomEditing } from "../../src/lib/co-editing/types";
+import { USER_AVATAR_PALETTES } from "../../src/lib/user-avatar";
 import { createRoom } from "../co-editing/fake-room";
 import { LoopbackRoom, settle } from "../co-editing/loopback-room";
 import {
@@ -15,6 +16,13 @@ import {
 } from "../co-editing/session-harness";
 import { adminRoot } from "../utils/form-layout";
 import { render } from "../utils/render";
+import {
+	ONE_USER_PER_PALETTE,
+	USERS_SHARING_A_PALETTE,
+	contrast,
+	srgb,
+	userWithAnotherPalette,
+} from "../utils/user-colors";
 
 const LABELS: Record<string, string> = { title: "Title", excerpt: "Excerpt", body: "Body" };
 const fieldLabel = (field: string) => LABELS[field] ?? field;
@@ -82,6 +90,16 @@ async function join(room: LoopbackRoom) {
 	const view = session.view();
 	if (view.mode !== "room") throw new Error(`Expected a room, got ${view.mode}`);
 	return Object.assign(session, { editing: view.room });
+}
+
+const COLOR_FUNCTION = /(?:oklch|oklab|lab|lch|rgba?|hsla?|color)\([^)]*\)/g;
+const WHITE = [255, 255, 255];
+
+/** The two colors of a name's flag, in the order the gradient runs. */
+function flagStops(pill: Element): [number[], number[]] {
+	const [from, to] = getComputedStyle(pill).backgroundImage.match(COLOR_FUNCTION) ?? [];
+	if (!from || !to) throw new Error(`No gradient on "${pill.textContent}"`);
+	return [srgb(from), srgb(to)];
 }
 
 const userName = (session: Awaited<ReturnType<typeof join>>) =>
@@ -234,7 +252,7 @@ describe("presence avatars", () => {
 		expect(ben()).toBeNull();
 	});
 
-	it("shows a person's photo when the admin has it, and their initials without one or when it doesn't load", async () => {
+	it("shows a person's photo when the admin has it, and their generated avatar without one or when it doesn't load", async () => {
 		const fake = createRoom({});
 		fake.present("u-ana", "Ana Lima", "title");
 		fake.present("u-ben", "Ben Okafor");
@@ -258,13 +276,13 @@ describe("presence avatars", () => {
 		expect(photo.loading).toBe("lazy");
 		expect(photo.decoding).toBe("async");
 		expect(getComputedStyle(photo).objectFit).toBe("cover");
-		expect(ana.textContent).toBe("");
+		await expect.poll(() => ana.textContent).toBe("");
 		await expect
 			.element(screen.getByRole("button", { name: "Ben Okafor · Viewing" }))
 			.toHaveTextContent("BO");
 		const cleo = screen.getByRole("button", { name: "Cleo Park · Viewing" });
 		await expect.element(cleo).toHaveTextContent("CP");
-		expect(cleo.element().querySelector("img")).toBeNull();
+		await expect.poll(() => cleo.element().querySelector("img")).toBeNull();
 
 		await screen.getByRole("button", { name: "Show 1 more person" }).click();
 		const list = page.getByRole("dialog", { name: "People in this entry" });
@@ -497,6 +515,67 @@ describe("field presence", () => {
 			}
 		}
 	});
+
+	it("colors each name in its person's avatar palette, the same for people who share one", async () => {
+		const [ana, ben] = USERS_SHARING_A_PALETTE;
+		const fake = createRoom({});
+		fake.present(ana, "Ana Lima", "title");
+		fake.present(ben, "Ben Okafor", "title");
+		fake.present(userWithAnotherPalette(ana), "Cleo Park", "excerpt");
+		const screen = await render(<Editor room={fake.room} fields={["title", "excerpt"]} />, {
+			container: adminRoot(),
+		});
+		const flag = (name: string) => {
+			const pill = [...screen.container.querySelectorAll(".emdash-presence-pill")].find(
+				(element) => element.textContent === name,
+			);
+			return pill ? getComputedStyle(pill).backgroundImage : null;
+		};
+		await expect.poll(() => flag("Cleo Park")).toMatch(/gradient/);
+
+		expect(flag("Ana Lima")).toBe(flag("Ben Okafor"));
+		expect(flag("Cleo Park")).not.toBe(flag("Ana Lima"));
+	});
+
+	it.each(["light", "dark"])(
+		"keeps white names at 4.5:1 across every palette's flag, darker at the inline start, in %s mode",
+		async (mode) => {
+			const fake = createRoom({});
+			const fields = ONE_USER_PER_PALETTE.map((id, index) => {
+				fake.present(id, "Wy", `field-${index}`);
+				return `field-${index}`;
+			});
+			const screen = await render(
+				<div data-mode={mode} className="bg-kumo-base">
+					{["ltr", "rtl"].map((dir) => (
+						<div key={dir} dir={dir}>
+							<Editor room={fake.room} fields={fields} />
+						</div>
+					))}
+				</div>,
+				{ container: adminRoot() },
+			);
+			const pills = [...screen.container.querySelectorAll<HTMLElement>(".emdash-presence-pill")];
+			expect(pills).toHaveLength(2 * USER_AVATAR_PALETTES.length);
+
+			const problems = pills.flatMap((pill) => {
+				const [from, to] = flagStops(pill);
+				const text = srgb(getComputedStyle(pill).color);
+				const across = Array.from({ length: 11 }, (_, step) =>
+					from.map((value, channel) => value + ((to[channel]! - value) * step) / 10),
+				);
+				const least = Math.min(...across.map((color) => contrast(color, text)));
+				const rtl = pill.parentElement!.closest("[dir]")!.getAttribute("dir") === "rtl";
+				const runsFromInlineStart =
+					/\bto left\b|270deg/.test(getComputedStyle(pill).backgroundImage) === rtl;
+				const darkerAtStart = contrast(from, WHITE) >= contrast(to, WHITE);
+				return least >= 4.5 && runsFromInlineStart && darkerAtStart
+					? []
+					: [{ palette: pill.dataset.authorColor, rtl, least, runsFromInlineStart, darkerAtStart }];
+			});
+			expect(problems).toEqual([]);
+		},
+	);
 });
 
 describe("re-rendering", () => {

@@ -13,20 +13,28 @@ export interface UserAvatarWave {
 }
 
 // The order and length of both tables choose every user's avatar. Changing
-// either gives almost every existing user a different one.
+// either gives almost every existing user a different one. Bottoms alternate
+// between a deep and a bright lightness around the hue circle, so neighbours
+// differ in lightness as well as hue.
 export const USER_AVATAR_PALETTES: readonly UserAvatarPalette[] = [
-	{ name: "Ember", top: "#fee4b9", bottom: "#e14c33" },
-	{ name: "Apricot", top: "#ffe6aa", bottom: "#dd6301" },
-	{ name: "Meadow", top: "#e5efae", bottom: "#009b3c" },
-	{ name: "Jade", top: "#caf7c1", bottom: "#07957c" },
-	{ name: "Lagoon", top: "#a7fbea", bottom: "#058eaf" },
-	{ name: "Sky", top: "#aff6fe", bottom: "#0584da" },
-	{ name: "Indigo", top: "#d3ecff", bottom: "#5f74e4" },
-	{ name: "Iris", top: "#ffdbfa", bottom: "#8a66d9" },
-	{ name: "Orchid", top: "#fedee7", bottom: "#b156b7" },
-	{ name: "Rose", top: "#fee1d4", bottom: "#d04a69" },
-	{ name: "Dusk", top: "#ffe0d6", bottom: "#447be4" },
-	{ name: "Twilight", top: "#fee5b0", bottom: "#9860d0" },
+	{ name: "Ember", top: "#fee3c2", bottom: "#ba3822" },
+	{ name: "Apricot", top: "#fee4ba", bottom: "#d7620b" },
+	{ name: "Bronze", top: "#fee5ae", bottom: "#985c07" },
+	{ name: "Gold", top: "#fae8a7", bottom: "#a77f0b" },
+	{ name: "Moss", top: "#e8eeac", bottom: "#4d7b07" },
+	{ name: "Meadow", top: "#e1f1b0", bottom: "#119b40" },
+	{ name: "Emerald", top: "#dbf2b4", bottom: "#098055" },
+	{ name: "Jade", top: "#d0f5bc", bottom: "#0d977e" },
+	{ name: "Teal", top: "#b7fad3", bottom: "#097b7f" },
+	{ name: "Lagoon", top: "#a6fbec", bottom: "#0d90b1" },
+	{ name: "Ocean", top: "#b6f5fe", bottom: "#086fb8" },
+	{ name: "Indigo", top: "#ceedfe", bottom: "#657cec" },
+	{ name: "Iris", top: "#fedcf6", bottom: "#7550c2" },
+	{ name: "Lilac", top: "#feddec", bottom: "#a867d5" },
+	{ name: "Orchid", top: "#fedee4", bottom: "#9a40a1" },
+	{ name: "Fuchsia", top: "#fedfdf", bottom: "#c859ab" },
+	{ name: "Berry", top: "#fee0d9", bottom: "#b03574" },
+	{ name: "Rose", top: "#fee1d2", bottom: "#db5471" },
 ];
 
 export const USER_AVATAR_WAVES: readonly UserAvatarWave[] = [
@@ -63,7 +71,7 @@ export interface UserAvatarVariant {
 export function userAvatarVariant(id: string): UserAvatarVariant {
 	const [h1, h2] = cyrb53(id);
 	return {
-		palette: h1 % 12,
+		palette: h1 % USER_AVATAR_PALETTES.length,
 		wave: (h1 >>> 8) % 8,
 		angle: (h2 % 25) - 12,
 		mirrored: ((h2 >>> 7) & 1) === 1,

@@ -16,7 +16,10 @@ import type {
 	TextBlock,
 	TextDiff,
 } from "../../src/lib/revision-diff/types.js";
+import { USER_AVATAR_PALETTES } from "../../src/lib/user-avatar.js";
+import { userColor, userPaletteColor } from "../../src/lib/user-color.js";
 import { render } from "../utils/render.js";
+import { contrast, srgb } from "../utils/user-colors.js";
 
 vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
 	DragHandleWrapper: () => null,
@@ -137,7 +140,7 @@ function renderCanvas(diff: RevisionDiff, showChanges = true) {
 			fields={FIELDS}
 			titleField="title"
 			showChanges={showChanges}
-			authorColor="teal"
+			authorColor={userColor("u-maya")}
 			label="Version from Today, 9:12 AM"
 			timezone="UTC"
 		/>,
@@ -210,6 +213,44 @@ describe("RevisionViewCanvas", () => {
 		expect(ins.querySelector(".sr-only")?.textContent).toBe("Added: ");
 		expect(ins.getBoundingClientRect().left).toBeGreaterThan(del.getBoundingClientRect().right);
 	});
+
+	it.each(["light", "dark"])(
+		"keeps struck words at 4.5:1 on their tint in every avatar palette, in %s mode",
+		async (mode) => {
+			const screen = await render(
+				<div data-mode={mode}>
+					{["bg-kumo-base", "bg-kumo-elevated"].map((surface) => (
+						<div key={surface} className={surface}>
+							{USER_AVATAR_PALETTES.map((palette, index) => (
+								<RevisionViewCanvas
+									key={palette.name}
+									diff={editDiff}
+									fields={FIELDS}
+									titleField="title"
+									showChanges
+									authorColor={userPaletteColor(index)}
+									label="Version from Today, 9:12 AM"
+									timezone="UTC"
+								/>
+							))}
+						</div>
+					))}
+				</div>,
+			);
+			const checked = [...screen.container.firstElementChild!.children].flatMap((surface) => {
+				const page = getComputedStyle(surface).backgroundColor;
+				return Array.from(surface.querySelectorAll("del"), (del) => {
+					const style = getComputedStyle(del);
+					return {
+						palette: del.closest("[data-author-color]")?.getAttribute("data-author-color"),
+						ratio: contrast(srgb(style.color), srgb(page, style.backgroundColor)),
+					};
+				});
+			});
+			expect(new Set(checked.map(({ palette }) => palette)).size).toBe(USER_AVATAR_PALETTES.length);
+			expect(checked.filter(({ ratio }) => ratio < 4.5)).toEqual([]);
+		},
+	);
 
 	it("starts each wrapped line of a replacement's new text at the line's edge", async () => {
 		const screen = await renderCanvas(
@@ -495,7 +536,7 @@ describe("RevisionViewCanvas", () => {
 						fields={FIELDS}
 						titleField="title"
 						showChanges
-						authorColor="blue"
+						authorColor={userColor("u-maya")}
 						label="Version from Today, 9:12 AM"
 						timezone="UTC"
 					/>
@@ -607,7 +648,7 @@ describe("RevisionViewCanvas", () => {
 						])}
 						fields={FIELDS}
 						showChanges
-						authorColor="blue"
+						authorColor={userColor("u-maya")}
 						label="Version from Today, 9:12 AM"
 						timezone="UTC"
 					/>

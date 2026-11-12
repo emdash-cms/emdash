@@ -53,10 +53,10 @@ describe("userAvatarVariant", () => {
 	}
 
 	it.each([
-		["01JBQ8Z6X3K9M2N4P5R7S8T0VW", { palette: "Rose", wave: 3, angle: -5, mirrored: true }],
-		["user_1", { palette: "Iris", wave: 4, angle: -6, mirrored: true }],
-		["dev-admin", { palette: "Twilight", wave: 6, angle: 0, mirrored: false }],
-		["01HZY3B7C9D2E4F6G8H0J1K2L3", { palette: "Twilight", wave: 5, angle: 9, mirrored: false }],
+		["01JBQ8Z6X3K9M2N4P5R7S8T0VW", { palette: "Lagoon", wave: 3, angle: -5, mirrored: true }],
+		["user_1", { palette: "Apricot", wave: 4, angle: -6, mirrored: true }],
+		["dev-admin", { palette: "Indigo", wave: 6, angle: 0, mirrored: false }],
+		["01HZY3B7C9D2E4F6G8H0J1K2L3", { palette: "Meadow", wave: 5, angle: 9, mirrored: false }],
 	])("gives %s the same avatar as before", (id, expected) => {
 		expect(describeVariant(id)).toEqual(expected);
 	});
@@ -74,13 +74,29 @@ describe("userAvatarVariant", () => {
 	});
 });
 
-function luminance(hex: string): number {
+function linear(hex: string): number[] {
 	const n = Number.parseInt(hex.slice(1), 16);
-	const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+	return [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
 		const s = v / 255;
 		return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
 	});
+}
+
+function luminance(hex: string): number {
+	const [r, g, b] = linear(hex);
 	return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+function oklab(hex: string): number[] {
+	const [r, g, b] = linear(hex) as [number, number, number];
+	const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+	const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+	const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+	return [
+		0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+		1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+		0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+	];
 }
 
 describe("palettes", () => {
@@ -92,4 +108,16 @@ describe("palettes", () => {
 			expect(ratio).toBeGreaterThanOrEqual(3);
 		},
 	);
+
+	it("keeps every two palettes' colors apart, so people sharing a room rarely look alike", () => {
+		const close: string[] = [];
+		USER_AVATAR_PALETTES.forEach((a, i) => {
+			for (const b of USER_AVATAR_PALETTES.slice(i + 1)) {
+				const [x, y] = [oklab(a.bottom), oklab(b.bottom)];
+				const distance = Math.hypot(x[0]! - y[0]!, x[1]! - y[1]!, x[2]! - y[2]!);
+				if (distance < 0.07) close.push(`${a.name}/${b.name} ${distance.toFixed(3)}`);
+			}
+		});
+		expect(close).toEqual([]);
+	});
 });
