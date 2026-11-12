@@ -82,6 +82,14 @@ async function invalidateContentTags(tags: string[]): Promise<void> {
 }
 
 /**
+ * How long each Cron Trigger run waits for upcoming scheduled content, so it
+ * goes live at its scheduled time rather than whenever the next trigger
+ * starts. Just over the one-minute trigger interval, so runs overlap as little
+ * as possible.
+ */
+const PUBLISH_UPCOMING_WITHIN_MS = 70 * 1000;
+
+/**
  * Build a Worker `scheduled()` handler for general maintenance.
  */
 export interface ScheduledHandlerOptions {
@@ -114,6 +122,7 @@ export function createScheduledHandler(
 					const { published } = await runScheduledTasks({
 						onPublished: invalidatePublishedTags,
 						invalidateContentCache: invalidateContentTags,
+						publishUpcomingWithinMs: PUBLISH_UPCOMING_WITHIN_MS,
 					});
 					if (published.length > 0) {
 						console.log(`[scheduled] Published ${published.length} scheduled item(s)`);

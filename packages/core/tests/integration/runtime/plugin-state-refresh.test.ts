@@ -3,7 +3,7 @@ import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { SqliteDialect } from "kysely";
+import { type KyselyPlugin, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
@@ -11,6 +11,7 @@ import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { definePlugin, definePluginRoute } from "../../../src/plugins/define-plugin.js";
 import type { PluginContext } from "../../../src/plugins/types.js";
+import { runWithContext } from "../../../src/request-context.js";
 
 const pluginId = "refreshable-plugin";
 const runtimes: EmDashRuntime[] = [];
@@ -141,6 +142,73 @@ describe("runtime plugin state refresh", () => {
 		expect(readerActivations.value).toBe(0);
 		expect(writerActivations.value).toBe(2);
 	}, 15_000);
+
+	it("does not refresh while a disable is waiting for its database write", async () => {
+		const path = databasePath();
+		const entrypoint = randomUUID();
+		const database = new Database(path);
+		const lifecycle = { activate: 0, deactivate: 0 };
+		const runtime = await EmDashRuntime.create(
+			deps(
+				path,
+				entrypoint,
+				{
+					activate: () => lifecycle.activate++,
+					deactivate: () => lifecycle.deactivate++,
+				},
+				database,
+			),
+		);
+		runtimes.push(runtime);
+		vi.useFakeTimers({ toFake: ["Date"] });
+
+		let releaseUpdate!: () => void;
+		const updateCommitted = new Promise<void>((resolve) => {
+			releaseUpdate = resolve;
+		});
+		let updateSeen!: () => void;
+		const updateStarted = new Promise<void>((resolve) => {
+			updateSeen = resolve;
+		});
+		const updateQueryIds = new Set<unknown>();
+		const gatedDb = runtime.db.withPlugin({
+			transformQuery: ({ node, queryId }) => {
+				if (node.kind === "UpdateQueryNode") {
+					updateQueryIds.add(queryId);
+					updateSeen();
+				}
+				return node;
+			},
+			async transformResult({ queryId, result }) {
+				if (updateQueryIds.has(queryId)) await updateCommitted;
+				return result;
+			},
+		} satisfies KyselyPlugin);
+
+		const disable = runWithContext({ editMode: false, db: gatedDb }, () =>
+			runtime.handlePluginDisable(pluginId),
+		);
+		try {
+			await updateStarted;
+			vi.advanceTimersByTime(5_000);
+			let refreshFinished = false;
+			const refresh = runtime.ensurePluginStateFresh().then(() => {
+				refreshFinished = true;
+				return undefined;
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			expect(refreshFinished).toBe(false);
+			expect(lifecycle.deactivate).toBe(0);
+
+			releaseUpdate();
+			await Promise.all([disable, refresh]);
+			expect(lifecycle.deactivate).toBe(1);
+			expect(await mediaHook(runtime)).toHaveLength(0);
+		} finally {
+			releaseUpdate();
+			await disable;
+		}
+	}, 30_000);
 
 	it("coalesces refresh reads and retries after a failed state read", async () => {
 		const path = databasePath();

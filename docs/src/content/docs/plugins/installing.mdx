@@ -82,7 +82,7 @@ If D1 read replicas are enabled, a check can read outdated plugin state. This ca
 
 Changing a configured npm dependency or plugin code requires a new deployment. Admin state changes do not replace that deployment.
 
-If a runtime cannot read the plugin-state snapshot, requests on that runtime fail until a later check succeeds. The runtime retries the read after the five-second check interval. If a plugin bundle cannot load, EmDash skips that bundle for the check and retries it at the next interval; other plugins continue to reconcile.
+If a runtime cannot read the plugin-state snapshot, requests on that runtime fail until a later check succeeds. Scheduled work also requires a successful check, so a read failure can delay publication until a later tick. The runtime retries the read after the five-second check interval. If a plugin bundle cannot load, EmDash skips that bundle for the check and retries it at the next interval; other plugins continue to reconcile.
 
 ## Review permissions
 
