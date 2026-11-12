@@ -48,7 +48,11 @@ afterEach(() => {
 	editor = null;
 });
 
-const text = (value: string) => ({ type: "text", text: value });
+const text = (value: string, marks?: unknown[]) => ({
+	type: "text",
+	text: value,
+	...(marks ? { marks } : {}),
+});
 
 describe("editorial comment highlights", () => {
 	it("finds a text anchor after a hard break, by the text Portable Text stores", () => {
@@ -101,6 +105,48 @@ describe("editorial comment highlights", () => {
 
 		const [highlight] = getEditorialHighlights(ed.state);
 		expect(ed.state.doc.textBetween(highlight!.from, highlight!.to)).toBe("quick");
+	});
+
+	it("marks every piece of a hovered thread and shows its badge", () => {
+		const ed = createEditor([
+			{
+				key: "b1",
+				content: [text("The "), text("quick", [{ type: "bold" }]), text(" brown fox")],
+			},
+		]);
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", kind: "text", from: 1, to: 15, badge: "2" }],
+		});
+		const pieces = () => [...ed.view.dom.querySelectorAll('[data-editorial-thread="t1"]')];
+		const badge = () => ed.view.dom.querySelector(".emdash-editorial-badge");
+
+		expect(pieces().length).toBeGreaterThan(1);
+		expect(badge()).toBeNull();
+
+		pieces()[1]!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+
+		expect(pieces().every((piece) => piece.classList.contains("emdash-editorial-hover"))).toBe(
+			true,
+		);
+		expect(badge()?.textContent).toBe("2");
+
+		ed.view.dom.dispatchEvent(new MouseEvent("mouseleave"));
+
+		expect(pieces().some((piece) => piece.classList.contains("emdash-editorial-hover"))).toBe(
+			false,
+		);
+		expect(badge()).toBeNull();
+	});
+
+	it("shows the active thread's badge without hovering", () => {
+		const ed = createEditor([{ key: "b1", content: [text("The quick brown fox")] }]);
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", kind: "text", from: 5, to: 10, badge: "3" }],
+			activeThreadId: "t1",
+		});
+
+		expect(ed.view.dom.querySelector(".emdash-editorial-badge")?.textContent).toBe("3");
+		expect(ed.state.doc.textContent).toBe("The quick brown fox");
 	});
 
 	it("drops a highlight whose text is deleted", () => {
