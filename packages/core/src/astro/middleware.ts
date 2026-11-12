@@ -59,12 +59,12 @@ import {
 	type MediaProviderEntry,
 	type CreateSchedulerFn,
 	type CreateRoomHostFn,
+	type ScheduledTasksOptions,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
-import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -97,7 +97,7 @@ import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
-export type { EmDashRuntime } from "../emdash-runtime.js";
+export type { EmDashRuntime, ScheduledTasksOptions } from "../emdash-runtime.js";
 
 /**
  * Runtime init lock reclaim deadline. Must be strictly larger than the db
@@ -303,13 +303,11 @@ async function getRuntime(
  * Returns the content promoted by the publishing sweep so the caller can purge
  * edge-cache tags for it. `onPublished` (optional) is awaited after each
  * collection's batch so the caller can invalidate edge-cache tags incrementally
- * rather than only after the whole sweep.
+ * rather than only after the whole sweep. `publishUpcomingWithinMs` keeps the
+ * run open to publish content scheduled within that window at its exact time.
  */
 export async function runScheduledTasks(
-	options: {
-		onPublished?: (refs: PublishedRef[]) => Promise<void>;
-		invalidateContentCache?: PluginContentCacheInvalidator;
-	} = {},
+	options: ScheduledTasksOptions = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
