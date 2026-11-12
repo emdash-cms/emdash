@@ -312,7 +312,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		]);
 	});
 
-	it("reclaims a stranded registry refresh without stale publication", async () => {
+	it("reclaims a stranded registry replacement without retaining old hooks", async () => {
 		const pluginId = "registry-refresh-concurrent";
 		const calls: string[] = [];
 		const storage = new MemoryStorage();
@@ -338,25 +338,52 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		);
 		runtime = await EmDashRuntime.create(deps);
 		const states = new PluginStateRepository(runtime.db);
-		storage.putText(
-			`registry/${pluginId}/1.0.0/manifest.json`,
-			JSON.stringify({
-				id: pluginId,
-				version: "1.0.0",
-				capabilities: ["media:read"],
-				allowedHosts: [],
-				storage: {},
-				hooks: ["media:afterUpload"],
-				routes: [{ name: "ping", public: true }],
-				admin: {},
-			}),
-		);
-		storage.putText(`registry/${pluginId}/1.0.0/backend.js`, "export default {};");
+		const putBundle = (version: string) => {
+			storage.putText(
+				`registry/${pluginId}/${version}/manifest.json`,
+				JSON.stringify({
+					id: pluginId,
+					version,
+					capabilities: ["media:read"],
+					allowedHosts: [],
+					storage: {},
+					hooks: ["media:afterUpload"],
+					routes: [{ name: "ping", public: true }],
+					admin: {},
+				}),
+			);
+			storage.putText(`registry/${pluginId}/${version}/backend.js`, "export default {};");
+		};
+		putBundle("1.0.0");
+		putBundle("2.0.0");
 		await states.upsert(pluginId, "1.0.0", "active", {
 			source: "registry",
 			registryPublisherDid: "did:plc:test",
 			registrySlug: pluginId,
 		});
+
+		await runtime.syncRegistryPlugins();
+		expect(
+			(
+				await runtime.handlePluginApiRoute(
+					pluginId,
+					"GET",
+					"ping",
+					new Request("https://test.local/ping"),
+				)
+			).success,
+		).toBe(true);
+		expect(
+			await runtime.hooks.runMediaAfterUpload({
+				id: "media-before",
+				filename: "image.png",
+				mimeType: "image/png",
+				size: 1,
+				url: "/image.png",
+				createdAt: new Date().toISOString(),
+			}),
+		).toHaveLength(1);
+		await states.upsert(pluginId, "2.0.0", "active", { source: "registry" });
 
 		let releaseDownload!: () => void;
 		const downloadGate = new Promise<void>((resolve) => {
@@ -376,6 +403,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		const dateNow = vi.spyOn(Date, "now").mockReturnValue(now);
 		try {
 			const sync = runtime.syncRegistryPlugins();
+			void sync.catch(() => undefined);
 			await downloadStartedPromise;
 			dateNow.mockReturnValue(now + 5_001);
 			let refreshed = false;
@@ -433,11 +461,209 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 					createdAt: new Date().toISOString(),
 				}),
 			).toHaveLength(0);
-			expect(loadedSandboxVersions).toEqual([]);
+			expect(loadedSandboxVersions).toEqual(["1.0.0"]);
 		} finally {
+			releaseDownload();
 			dateNow.mockRestore();
 		}
 	});
+
+	it.each(["marketplace", "registry"] as const)(
+		"keeps refreshing later %s plugins when an earlier bundle is missing",
+		async (source) => {
+			const storage = new MemoryStorage();
+			const deps = createDeps(
+				vi.fn(),
+				{
+					config: {
+						database: {
+							entrypoint: `test-${source}-ordered-refresh-${randomUUID()}`,
+							config: {},
+							type: "sqlite",
+						},
+						storage: { entrypoint: `memory-${randomUUID()}`, config: {} },
+						...(source === "marketplace"
+							? { marketplace: "https://marketplace.example.com" }
+							: { registry: "https://registry.example.com" }),
+					},
+					createStorage: () => storage,
+					sandboxedPluginEntries: [],
+				},
+				"z-valid",
+			);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			const now = Date.now();
+			const dateNow = vi.spyOn(Date, "now").mockReturnValue(now);
+			const manifest = (id: string) => ({
+				id,
+				version: "1.0.0",
+				capabilities: ["media:read"],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["media:afterUpload"],
+				routes: [{ name: "ping", public: true }],
+				admin: {},
+			});
+			const putBundle = (id: string) => {
+				storage.putText(`${source}/${id}/1.0.0/manifest.json`, JSON.stringify(manifest(id)));
+				storage.putText(`${source}/${id}/1.0.0/backend.js`, "export default {};");
+			};
+			const stateOptions = (id: string) =>
+				source === "marketplace"
+					? { source, marketplaceVersion: "1.0.0" as const }
+					: {
+							source,
+							registryPublisherDid: "did:plc:test",
+							registrySlug: id,
+						};
+			const advanceRefresh = async () => {
+				dateNow.mockReturnValue(dateNow() + 5_001);
+				await runtime!.ensurePluginStateFresh();
+			};
+			const route = (id: string) =>
+				runtime!.handlePluginApiRoute(
+					id,
+					"GET",
+					"/ping",
+					new Request(`https://test.local/_emdash/api/plugins/${id}/ping`),
+				);
+			try {
+				await states.upsert("a-broken", "1.0.0", "active", stateOptions("a-broken"));
+				await states.upsert("z-valid", "1.0.0", "active", stateOptions("z-valid"));
+				putBundle("z-valid");
+				await advanceRefresh();
+
+				expect((await route("a-broken")).success).toBe(false);
+				expect((await route("z-valid")).success).toBe(true);
+				expect(
+					await runtime!.hooks.runMediaAfterUpload({
+						id: "media-1",
+						filename: "image.png",
+						mimeType: "image/png",
+						size: 1,
+						url: "/image.png",
+						createdAt: new Date().toISOString(),
+					}),
+				).toHaveLength(1);
+
+				putBundle("a-broken");
+				await advanceRefresh();
+				expect((await route("a-broken")).success).toBe(true);
+				expect((await route("z-valid")).success).toBe(true);
+				expect(
+					await runtime!.hooks.runMediaAfterUpload({
+						id: "media-2",
+						filename: "image.png",
+						mimeType: "image/png",
+						size: 1,
+						url: "/image.png",
+						createdAt: new Date().toISOString(),
+					}),
+				).toHaveLength(2);
+			} finally {
+				dateNow.mockRestore();
+			}
+		},
+	);
+
+	it.each(["missing", "invalid"] as const)(
+		"keeps later marketplace bypass plugins when the first bundle is %s",
+		async (failure) => {
+			const storage = new MemoryStorage();
+			const deps = createDeps(
+				vi.fn(),
+				{
+					config: {
+						database: {
+							entrypoint: `test-marketplace-bypass-${failure}-${randomUUID()}`,
+							config: {},
+							type: "sqlite",
+						},
+						storage: { entrypoint: `memory-${randomUUID()}`, config: {} },
+						marketplace: "https://marketplace.example.com",
+					},
+					createStorage: () => storage,
+					sandboxedPluginEntries: [],
+					sandboxBypassed: true,
+				},
+				"z-valid",
+			);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			const now = Date.now();
+			const dateNow = vi.spyOn(Date, "now").mockReturnValue(now);
+			const manifest = (id: string) => ({
+				id,
+				version: "1.0.0",
+				capabilities: ["media:read"],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["media:afterUpload"],
+				routes: [{ name: "ping", public: true }],
+				admin: {},
+			});
+			const putBundle = (id: string, backendCode = "export default {};") => {
+				storage.putText(`marketplace/${id}/1.0.0/manifest.json`, JSON.stringify(manifest(id)));
+				storage.putText(`marketplace/${id}/1.0.0/backend.js`, backendCode);
+			};
+			const validBackend = `export default { routes: { ping: { public: true, handler: async () => ({ ok: true }) } }, hooks: { "media:afterUpload": async () => ({ ok: true }) } };`;
+			const advanceRefresh = async () => {
+				dateNow.mockReturnValue(dateNow() + 5_001);
+				await runtime!.ensurePluginStateFresh();
+			};
+			const route = (id: string) =>
+				runtime!.handlePluginApiRoute(
+					id,
+					"GET",
+					"/ping",
+					new Request(`https://test.local/_emdash/api/plugins/${id}/ping`),
+				);
+			try {
+				await states.upsert("a-broken", "1.0.0", "active", {
+					source: "marketplace",
+					marketplaceVersion: "1.0.0",
+				});
+				await states.upsert("z-valid", "1.0.0", "active", {
+					source: "marketplace",
+					marketplaceVersion: "1.0.0",
+				});
+				putBundle("z-valid", validBackend);
+				if (failure === "invalid") putBundle("a-broken", "export default 1;");
+				await advanceRefresh();
+
+				expect((await route("a-broken")).success).toBe(false);
+				expect((await route("z-valid")).success).toBe(true);
+				expect(
+					await runtime!.hooks.runMediaAfterUpload({
+						id: "media-1",
+						filename: "image.png",
+						mimeType: "image/png",
+						size: 1,
+						url: "/image.png",
+						createdAt: new Date().toISOString(),
+					}),
+				).toHaveLength(1);
+
+				putBundle("a-broken", validBackend);
+				await advanceRefresh();
+				expect((await route("a-broken")).success).toBe(true);
+				expect((await route("z-valid")).success).toBe(true);
+				expect(
+					await runtime!.hooks.runMediaAfterUpload({
+						id: "media-2",
+						filename: "image.png",
+						mimeType: "image/png",
+						size: 1,
+						url: "/image.png",
+						createdAt: new Date().toISOString(),
+					}),
+				).toHaveLength(2);
+			} finally {
+				dateNow.mockRestore();
+			}
+		},
+	);
 
 	it.each(["marketplace", "registry"] as const)(
 		"refreshes externally changed %s sandbox state and bundle versions",

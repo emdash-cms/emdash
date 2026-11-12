@@ -1798,6 +1798,7 @@ export class EmDashRuntime {
 			const desired = new Map<string, string>();
 			for (const state of states) {
 				const wasEnabled = this.enabledPlugins.has(state.pluginId);
+				this.pluginPipelineDirty ||= wasEnabled !== (state.status === "active");
 				this.pluginStates.set(state.pluginId, state.status);
 				if (state.status === "active") {
 					this.enabledPlugins.add(state.pluginId);
@@ -1828,6 +1829,7 @@ export class EmDashRuntime {
 				if (!pluginId) continue;
 				const desiredVersion = desired.get(pluginId);
 				if (!desiredVersion) {
+					this.pluginPipelineDirty ||= this.enabledPlugins.has(pluginId);
 					this.pluginStates.delete(pluginId);
 					this.enabledPlugins.delete(pluginId);
 				}
@@ -1856,60 +1858,64 @@ export class EmDashRuntime {
 
 			// Load newly active plugins.
 			for (const [pluginId, version] of desired) {
-				const key = `${pluginId}:${version}`;
-				if (sandboxedPluginCache.has(key)) {
-					keySet.add(key);
-					continue;
-				}
-
-				const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
-				assertCurrent();
-				if (!bundle) {
-					const error = new Error(
-						`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`,
-					);
-					console.warn(error.message);
-					if (snapshot) throw error;
-					continue;
-				}
-
-				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 				try {
+					const key = `${pluginId}:${version}`;
+					if (sandboxedPluginCache.has(key)) {
+						keySet.add(key);
+						continue;
+					}
+
+					const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
 					assertCurrent();
-				} catch (error) {
-					// Runners can share an instance by key with the newer owner.
-					if (!sandboxedPluginCache.has(key)) await loaded.terminate();
-					throw error;
-				}
-				this.invalidateStorageIndexReadiness(pluginId);
-				sandboxedPluginCache.set(key, loaded);
-				sandboxedManifestCache.set(key, bundle.manifest);
-				this.sandboxedPlugins.set(key, loaded);
-				this.allPipelinePlugins.push(createSandboxedPluginProxy(bundle.manifest, loaded));
-				keySet.add(key);
-				pipelineChanged = true;
+					if (!bundle) {
+						console.warn(`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`);
+						continue;
+					}
 
-				// Cache manifest admin config for getManifest()
-				marketplaceManifestCache.set(pluginId, {
-					id: bundle.manifest.id,
-					version: bundle.manifest.version,
-					admin: bundle.manifest.admin,
-					mcp: bundle.manifest.mcp,
-					storage: bundle.manifest.storage,
-					allowedHosts: bundle.manifest.allowedHosts,
-					capabilities: bundle.manifest.capabilities,
-				});
-
-				// Cache route metadata from manifest for auth decisions
-				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
 						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
 					}
-					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
-				} else {
-					sandboxedRouteMetaCache.delete(pluginId);
+					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+					let proxy: ResolvedPlugin;
+					try {
+						assertCurrent();
+						proxy = createSandboxedPluginProxy(bundle.manifest, loaded);
+					} catch (error) {
+						// Runners can share an instance by key with the newer owner.
+						if (!sandboxedPluginCache.has(key)) await loaded.terminate();
+						throw error;
+					}
+					this.invalidateStorageIndexReadiness(pluginId);
+					sandboxedPluginCache.set(key, loaded);
+					sandboxedManifestCache.set(key, bundle.manifest);
+					this.sandboxedPlugins.set(key, loaded);
+					this.pluginPipelineDirty = true;
+					this.allPipelinePlugins.push(proxy);
+					keySet.add(key);
+					pipelineChanged = true;
+
+					// Cache manifest admin config for getManifest()
+					marketplaceManifestCache.set(pluginId, {
+						id: bundle.manifest.id,
+						version: bundle.manifest.version,
+						admin: bundle.manifest.admin,
+						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
+						allowedHosts: bundle.manifest.allowedHosts,
+						capabilities: bundle.manifest.capabilities,
+					});
+
+					// Cache route metadata from manifest for auth decisions
+					if (routeMetaMap.size > 0) {
+						sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
+					} else {
+						sandboxedRouteMetaCache.delete(pluginId);
+					}
+				} catch (error) {
+					assertCurrent();
+					console.error(`EmDash: Failed to load ${source} plugin ${pluginId}@${version}:`, error);
 				}
 			}
 		} catch (error) {
@@ -1928,6 +1934,7 @@ export class EmDashRuntime {
 	 * Mutates allPipelinePlugins and configuredPlugins in place.
 	 */
 	private removePluginFromLists(pluginId: string): void {
+		this.pluginPipelineDirty = true;
 		this.invalidateStorageIndexReadiness(pluginId);
 		const allIdx = this.allPipelinePlugins.findIndex((p) => p.id === pluginId);
 		if (allIdx !== -1) this.allPipelinePlugins.splice(allIdx, 1);
@@ -1969,6 +1976,7 @@ export class EmDashRuntime {
 			const desired = new Map<string, string>();
 			for (const state of marketplaceStates) {
 				const wasEnabled = this.enabledPlugins.has(state.pluginId);
+				this.pluginPipelineDirty ||= wasEnabled !== (state.status === "active");
 				this.pluginStates.set(state.pluginId, state.status);
 				if (state.status === "active") {
 					this.enabledPlugins.add(state.pluginId);
@@ -2028,11 +2036,7 @@ export class EmDashRuntime {
 				const bundle = await loadBundleFromR2(this.storage, pluginId, version);
 				assertCurrent();
 				if (!bundle) {
-					const error = new Error(
-						`EmDash: Marketplace plugin ${pluginId}@${version} not found in R2`,
-					);
-					console.warn(error.message);
-					if (snapshot) throw error;
+					console.warn(`EmDash: Marketplace plugin ${pluginId}@${version} not found in R2`);
 					continue;
 				}
 				marketplaceManifestCache.set(pluginId, {
@@ -2097,6 +2101,7 @@ export class EmDashRuntime {
 						mcp: bundle.manifest.mcp,
 					});
 					pipelineChanged = true;
+					this.pluginPipelineDirty = true;
 					this.allPipelinePlugins.push(adapted);
 					this.configuredPlugins.push(adapted);
 					this.enabledPlugins.add(adapted.id);
@@ -2105,7 +2110,7 @@ export class EmDashRuntime {
 						`EmDash: Failed to load marketplace plugin ${pluginId}@${version} in-process:`,
 						error,
 					);
-					if (snapshot) throw error;
+					assertCurrent();
 				}
 			}
 		} catch (error) {
