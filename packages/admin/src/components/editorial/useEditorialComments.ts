@@ -1,4 +1,3 @@
-import { useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Editor } from "@tiptap/react";
@@ -67,7 +66,7 @@ export function useEditorialComments({
 	initialThreadId?: string;
 }) {
 	const { t } = useLingui();
-	const toastManager = useKumoToastManager();
+	const [notice, setNotice] = React.useState<EditorialNotice | null>(null);
 	const queryClient = useQueryClient();
 	const [activeThreadId, setActiveThreadId] = React.useState<string | null>(
 		initialThreadId ?? null,
@@ -91,13 +90,13 @@ export function useEditorialComments({
 
 	const reportError = React.useCallback(
 		(error: unknown) => {
-			toastManager.add({
+			setNotice({
 				title: t`Comment not saved`,
 				description: error instanceof Error ? error.message : undefined,
 				variant: "error",
 			});
 		},
-		[t, toastManager],
+		[t],
 	);
 
 	const replaceThread = React.useCallback(
@@ -177,9 +176,12 @@ export function useEditorialComments({
 	});
 
 	const [highlights, setHighlights] = React.useState<EditorialHighlight[]>([]);
+	const hasHighlightsRef = React.useRef(false);
 
 	React.useEffect(() => {
 		if (!editor || editor.isDestroyed) return;
+		// The editor holds no highlights until there are threads to show.
+		if (threads.length === 0 && !hasHighlightsRef.current) return;
 		const next: EditorialHighlight[] = [];
 		for (const thread of threads) {
 			if (thread.status !== "open" && thread.id !== activeThreadId) continue;
@@ -190,15 +192,18 @@ export function useEditorialComments({
 			if (range) next.push({ threadId: thread.id, ...range });
 		}
 		setEditorialHighlights(editor.state, editor.view.dispatch, { highlights: next });
+		hasHighlightsRef.current = next.length > 0;
 		setHighlights(next);
 	}, [editor, threads, activeThreadId]);
 
+	const hasSelectionRef = React.useRef(false);
 	React.useEffect(() => {
 		if (!editor || editor.isDestroyed) return;
-		setEditorialHighlights(editor.state, editor.view.dispatch, {
-			activeThreadId,
-			pending: draft?.range ?? null,
-		});
+		const pending = draft?.range ?? null;
+		const selected = activeThreadId !== null || pending !== null;
+		if (!selected && !hasSelectionRef.current) return;
+		setEditorialHighlights(editor.state, editor.view.dispatch, { activeThreadId, pending });
+		hasSelectionRef.current = selected;
 	}, [editor, activeThreadId, draft]);
 
 	const lastSyncedRef = React.useRef<string | null>(null);
@@ -252,19 +257,22 @@ export function useEditorialComments({
 			if (result.ok) {
 				setDraft({ anchor: result.anchor, range: { from: result.from, to: result.to } });
 				setActiveThreadId(null);
+				setNotice(null);
 				return;
 			}
-			toastManager.add({
+			setNotice({
 				title:
 					result.reason === "too-long"
 						? t`That selection is too long to comment on`
 						: t`Select text within one paragraph to comment on it`,
+				variant: "default",
 			});
 			return;
 		}
 		setDraft({ anchor: { type: "entry" }, range: null });
 		setActiveThreadId(null);
-	}, [editor, t, toastManager]);
+		setNotice(null);
+	}, [editor, t]);
 
 	const openCount = threads.filter((thread) => thread.status === "open").length;
 
@@ -278,6 +286,8 @@ export function useEditorialComments({
 		draft,
 		setDraft,
 		startComment,
+		notice,
+		dismissNotice: React.useCallback(() => setNotice(null), []),
 		showResolved,
 		setShowResolved,
 		actions: {
@@ -292,3 +302,10 @@ export function useEditorialComments({
 }
 
 export type EditorialCommentsState = ReturnType<typeof useEditorialComments>;
+
+/** A problem with the last comment action, shown at the head of the margin. */
+export interface EditorialNotice {
+	title: string;
+	description?: string;
+	variant: "default" | "error";
+}
