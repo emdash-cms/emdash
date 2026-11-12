@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes `/_image` media transforms failing with `MissingSharp` (HTTP 500) on standalone Node.js builds when `sharp` is resolved at runtime. Sites deployed with `@astrojs/node` under `pnpm` or other strict package managers still need `sharp` declared in the application's `dependencies`.
+Fixes `/_image` transforms returning HTTP 500 (`MissingSharp`) on standalone Node.js builds (`@astrojs/node`). EmDash now loads `sharp` at runtime instead of bundling it into the server build, so existing Node.js sites, particularly those installed with pnpm, must list `sharp` in their own `dependencies` (`pnpm add sharp`). Cloudflare sites are unaffected.
