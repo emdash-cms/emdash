@@ -1,7 +1,7 @@
 ---
 title: Create and edit block types in the admin
 type: feature-plan
-status: proposed
+status: accepted
 authors:
   - Daniel Mueller (@danielmlr)
 discussion: null
