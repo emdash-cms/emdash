@@ -42,6 +42,7 @@ import type { Database } from "../../../src/database/types.js";
 import { __setObjectCacheBackendForTests, cachedQuery } from "../../../src/object-cache/index.js";
 import { generatePreviewToken } from "../../../src/preview/tokens.js";
 import { getEmDashEntry } from "../../../src/query.js";
+import { requestCached } from "../../../src/request-cache.js";
 import { getRequestContext, runWithContext } from "../../../src/request-context.js";
 import { createPostFixture } from "../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
@@ -84,6 +85,20 @@ afterEach(() => {
 });
 
 describe("route-cache request context", () => {
+	it("reuses warmed reads when a cache-fill render re-enters for a rewrite", async () => {
+		const context = buildContext({ cache: { enabled: true, set: vi.fn() } });
+		const read = vi.fn(async () => "layout data");
+		const response = await onRequest(context, async () => {
+			await requestCached("layout", read);
+			return onRequest(
+				buildContext({ pathname: "/404", cache: context.cache }),
+				async () => new Response(await requestCached("layout", read)),
+			);
+		});
+		expect(await response.text()).toBe("layout data");
+		expect(read).toHaveBeenCalledOnce();
+	});
+
 	it("marks anonymous production cache renders as route-cache fills", async () => {
 		const cache = { enabled: true, set: vi.fn() };
 		const context = buildContext({ cache });

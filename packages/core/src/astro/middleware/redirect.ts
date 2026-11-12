@@ -301,8 +301,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!routeCache?.enabled) return run();
 	const parent = getRequestContext();
 	if (parent) {
+		const previousSettings = parent.siteSettings;
+		requestSettings.live = parent.routeCacheFill === true;
 		parent.siteSettings = requestSettings;
-		return run();
+		try {
+			return await run();
+		} finally {
+			if (previousSettings) parent.siteSettings = previousSettings;
+		}
 	}
 	return runWithContext({ editMode: false, siteSettings: requestSettings }, run);
 });
