@@ -1974,22 +1974,84 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	}
 }
 
-/* Editorial comment highlights */
+/*
+ * Editorial comment highlights. Selections and co-editors already use colored
+ * washes, so comments are told apart by shape and stay neutral: a dotted line
+ * set below real underlines, solid with a gray wash when hovered or active.
+ */
+.ProseMirror {
+	--emdash-editorial-ink: var(--text-color-kumo-default);
+	--emdash-editorial-line: color-mix(in oklab, var(--emdash-editorial-ink) 55%, transparent);
+}
+
 .ProseMirror .emdash-editorial-text {
-	border-bottom: 2px solid color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
-	background-color: color-mix(in srgb, var(--color-kumo-brand) 12%, transparent);
+	text-decoration-line: underline;
+	text-decoration-style: dotted;
+	text-decoration-thickness: 2px;
+	text-decoration-color: var(--emdash-editorial-line);
+	text-decoration-skip-ink: none;
+	text-underline-offset: 6px;
 	cursor: pointer;
 }
 
+.ProseMirror .emdash-editorial-text:is(.emdash-editorial-hover, .emdash-editorial-active) {
+	text-decoration-style: solid;
+	text-decoration-color: var(--emdash-editorial-ink);
+	background-color: color-mix(in oklab, var(--emdash-editorial-ink) 8%, transparent);
+	border-radius: 2px;
+}
+
 .ProseMirror .emdash-editorial-text.emdash-editorial-active {
-	border-bottom-color: var(--color-kumo-brand);
-	background-color: color-mix(in srgb, var(--color-kumo-brand) 24%, transparent);
+	background-color: color-mix(in oklab, var(--emdash-editorial-ink) 15%, transparent);
+}
+
+.ProseMirror .emdash-editorial-badge {
+	position: relative;
+	display: inline-block;
+	inline-size: 0;
+	block-size: 1em;
+	pointer-events: none;
+	user-select: none;
+}
+
+.ProseMirror .emdash-editorial-badge > span {
+	position: absolute;
+	inset-block-end: 0.9em;
+	inset-inline-start: 1px;
+	z-index: 1;
+	min-inline-size: 16px;
+	block-size: 16px;
+	padding-inline: 5px;
+	border-radius: 8px;
+	border-end-start-radius: 2px;
+	background-color: var(--emdash-editorial-ink);
+	color: var(--color-kumo-base);
+	box-shadow: 0 1px 3px oklch(0 0 0 / 0.25);
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 16px;
+	text-align: center;
+	white-space: nowrap;
+	animation: emdash-editorial-badge-in 120ms ease-out;
+}
+
+@keyframes emdash-editorial-badge-in {
+	from {
+		opacity: 0;
+		scale: 0.85;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ProseMirror .emdash-editorial-badge > span {
+		animation: none;
+	}
 }
 
 .ProseMirror .emdash-editorial-block {
-	box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
+	box-shadow: inset 3px 0 0 var(--emdash-editorial-line);
 }
 
 [dir="rtl"] .ProseMirror .emdash-editorial-block {
-	box-shadow: inset -3px 0 0 color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
+	box-shadow: inset -3px 0 0 var(--emdash-editorial-line);
 }

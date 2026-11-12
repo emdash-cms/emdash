@@ -1,7 +1,7 @@
 import { Extension } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
 import {
 	createTextAnchor,
@@ -19,16 +19,21 @@ export interface EditorialHighlight {
 	kind: "text" | "block";
 	from: number;
 	to: number;
+	/** Shown in a badge at the end of a text highlight while it is hovered or active. */
+	badge?: string;
 }
 
 interface PluginState {
 	highlights: EditorialHighlight[];
 	pending: { from: number; to: number } | null;
 	activeThreadId: string | null;
+	hoveredThreadId: string | null;
 	decorations: DecorationSet;
 }
 
-type Meta = Partial<Pick<PluginState, "highlights" | "pending" | "activeThreadId">>;
+type Meta = Partial<
+	Pick<PluginState, "highlights" | "pending" | "activeThreadId" | "hoveredThreadId">
+>;
 
 /**
  * Callbacks from the editor to whoever renders the comments. Read on every
@@ -47,17 +52,26 @@ function buildDecorations(doc: PMNode, state: Omit<PluginState, "decorations">):
 	const decorations: Decoration[] = [];
 	for (const highlight of state.highlights) {
 		const active = highlight.threadId === state.activeThreadId;
-		const attrs = {
-			class: active
-				? `emdash-editorial-${highlight.kind} emdash-editorial-active`
-				: `emdash-editorial-${highlight.kind}`,
-			"data-editorial-thread": highlight.threadId,
-		};
-		decorations.push(
-			highlight.kind === "text"
-				? Decoration.inline(highlight.from, highlight.to, attrs)
-				: Decoration.node(highlight.from, highlight.to, attrs),
-		);
+		const hovered = highlight.threadId === state.hoveredThreadId;
+		const classes = [`emdash-editorial-${highlight.kind}`];
+		if (active) classes.push("emdash-editorial-active");
+		if (hovered) classes.push("emdash-editorial-hover");
+		const attrs = { class: classes.join(" "), "data-editorial-thread": highlight.threadId };
+		if (highlight.kind === "block") {
+			decorations.push(Decoration.node(highlight.from, highlight.to, attrs));
+			continue;
+		}
+		decorations.push(Decoration.inline(highlight.from, highlight.to, attrs));
+		const { badge } = highlight;
+		if (badge && (active || hovered)) {
+			decorations.push(
+				Decoration.widget(highlight.to, () => createBadge(badge), {
+					side: -1,
+					key: `editorial-badge:${highlight.threadId}:${badge}`,
+					ignoreSelection: true,
+				}),
+			);
+		}
 	}
 	if (state.pending) {
 		decorations.push(
@@ -67,6 +81,29 @@ function buildDecorations(doc: PMNode, state: Omit<PluginState, "decorations">):
 		);
 	}
 	return DecorationSet.create(doc, decorations);
+}
+
+/** A zero-width anchor, so the badge floats above the end of the text without moving it. */
+function createBadge(label: string): HTMLElement {
+	const anchor = document.createElement("span");
+	anchor.className = "emdash-editorial-badge";
+	anchor.setAttribute("aria-hidden", "true");
+	const badge = document.createElement("span");
+	badge.textContent = label;
+	anchor.append(badge);
+	return anchor;
+}
+
+function threadIdAt(view: EditorView, target: EventTarget | null): string | null {
+	if (!(target instanceof Element)) return null;
+	const highlight = target.closest("[data-editorial-thread]");
+	if (!highlight || !view.dom.contains(highlight)) return null;
+	return highlight.getAttribute("data-editorial-thread");
+}
+
+function setHoveredThread(view: EditorView, threadId: string | null): void {
+	if (editorialCommentsKey.getState(view.state)?.hoveredThreadId === threadId) return;
+	setEditorialHighlights(view.state, view.dispatch, { hoveredThreadId: threadId });
 }
 
 function mapHighlights(tr: Transaction, highlights: EditorialHighlight[]): EditorialHighlight[] {
@@ -111,7 +148,12 @@ export function createEditorialCommentsExtension(bridge: { current: EditorialCom
 					key: editorialCommentsKey,
 					state: {
 						init: (_, state) => {
-							const empty = { highlights: [], pending: null, activeThreadId: null };
+							const empty = {
+								highlights: [],
+								pending: null,
+								activeThreadId: null,
+								hoveredThreadId: null,
+							};
 							return { ...empty, decorations: buildDecorations(state.doc, empty) };
 						},
 						apply(tr, previous) {
@@ -131,12 +173,26 @@ export function createEditorialCommentsExtension(bridge: { current: EditorialCom
 									meta && "activeThreadId" in meta
 										? (meta.activeThreadId ?? null)
 										: previous.activeThreadId,
+								hoveredThreadId:
+									meta && "hoveredThreadId" in meta
+										? (meta.hoveredThreadId ?? null)
+										: previous.hoveredThreadId,
 							};
 							return { ...next, decorations: buildDecorations(tr.doc, next) };
 						},
 					},
 					props: {
 						decorations: (state) => editorialCommentsKey.getState(state)?.decorations,
+						handleDOMEvents: {
+							mouseover: (view, event) => {
+								setHoveredThread(view, threadIdAt(view, event.target));
+								return false;
+							},
+							mouseleave: (view) => {
+								setHoveredThread(view, null);
+								return false;
+							},
+						},
 						handleClick(view, pos) {
 							const state = editorialCommentsKey.getState(view.state);
 							const hit = state ? highlightAt(state.highlights, pos) : null;

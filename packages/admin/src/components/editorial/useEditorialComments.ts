@@ -65,7 +65,7 @@ export function useEditorialComments({
 	open: boolean;
 	initialThreadId?: string;
 }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const [notice, setNotice] = React.useState<EditorialNotice | null>(null);
 	const queryClient = useQueryClient();
 	const [activeThreadId, setActiveThreadId] = React.useState<string | null>(
@@ -189,12 +189,14 @@ export function useEditorialComments({
 			if (anchor.type !== "text" && anchor.type !== "block") continue;
 			if (anchor.field !== EDITORIAL_DOCUMENT_FIELD) continue;
 			const range = locateAnchor(editor.state.doc, anchor);
-			if (range) next.push({ threadId: thread.id, ...range });
+			if (!range) continue;
+			const count = thread.comments.filter((comment) => !comment.deletedAt).length;
+			next.push({ threadId: thread.id, ...range, badge: i18n.number(count) });
 		}
 		setEditorialHighlights(editor.state, editor.view.dispatch, { highlights: next });
 		hasHighlightsRef.current = next.length > 0;
 		setHighlights(next);
-	}, [editor, threads, activeThreadId]);
+	}, [editor, threads, activeThreadId, i18n]);
 
 	const hasSelectionRef = React.useRef(false);
 	React.useEffect(() => {
