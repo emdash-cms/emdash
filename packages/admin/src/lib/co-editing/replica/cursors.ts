@@ -159,7 +159,8 @@ interface Placement {
 
 /**
  * Reads where the label would sit unshifted. It stays within the editor's width, and goes under
- * the caret only where whatever clips the editor would cut it off above.
+ * the caret where above it would reach the editor's toolbar, as on the first line, or be cut off
+ * by whatever clips the editor.
  */
 function placeLabel(caret: HTMLElement): Placement | undefined {
 	const label = caret.querySelector<HTMLElement>(".emdash-remote-caret-label");
@@ -167,6 +168,11 @@ function placeLabel(caret: HTMLElement): Placement | undefined {
 	if (!label || !editor) return undefined;
 	const box = editor.getBoundingClientRect();
 	const clip = clippingAncestor(editor)?.getBoundingClientRect();
+	const toolbar = editor
+		.closest("[data-emdash-editor-surface]")
+		?.querySelector(":scope > [data-emdash-editor-toolbar]")
+		?.getBoundingClientRect();
+	const ceiling = Math.max(clip?.top ?? 0, toolbar ? toolbar.bottom + LABEL_INSET_PX : -Infinity);
 	const start = Math.max(box.left, clip?.left ?? -Infinity) + LABEL_INSET_PX;
 	const end = Math.min(box.right, clip?.right ?? Infinity) - LABEL_INSET_PX;
 	const at = caret.getBoundingClientRect();
@@ -176,11 +182,11 @@ function placeLabel(caret: HTMLElement): Placement | undefined {
 	const room = rtl ? end - at.right : at.left - start;
 	return {
 		shift: Math.round(Math.max(0, Math.min(overflow, room))),
-		below: at.top - label.offsetHeight < (clip?.top ?? 0),
+		below: at.top - label.offsetHeight < ceiling,
 	};
 }
 
-/** The least space a shifted label keeps from the editor's edge. */
+/** The least space a shifted label keeps from the editor's edge, and a label above from the toolbar. */
 const LABEL_INSET_PX = 4;
 
 const clippers = new WeakMap<Element, Element | null>();

@@ -255,10 +255,18 @@ describe("other people's carets", () => {
 			// oxlint-disable-next-line no-await-in-loop -- one direction at a time
 			const theirs = await mount(b, { width: 260, dir });
 			const box = theirs.view.dom.getBoundingClientRect();
-			const firstLine = theirs.view.coordsAtPos(1).top;
+			// The second line, since a label on the first goes under its caret, clear of the toolbar.
+			const lineTops = [
+				...new Set(
+					Array.from({ length: theirs.state.doc.content.size - 1 }, (_, index) =>
+						Math.round(theirs.view.coordsAtPos(index + 1).top),
+					),
+				),
+			].toSorted((x, y) => x - y);
+			const secondLine = lineTops[1]!;
 			let end = 1;
 			for (let pos = 1; pos < theirs.state.doc.content.size; pos++) {
-				if (Math.abs(theirs.view.coordsAtPos(pos).top - firstLine) < 2) end = pos;
+				if (Math.abs(theirs.view.coordsAtPos(pos).top - secondLine) < 2) end = pos;
 			}
 
 			mine
@@ -280,6 +288,38 @@ describe("other people's carets", () => {
 			}
 			expect(label.bottom).toBeLessThanOrEqual(caret.top + 1);
 		}
+	});
+
+	it("put the name under the caret on the first line, clear of the toolbar, and over it below", async () => {
+		const room = roomWith([paragraph("k-a", "Alpha beta gamma"), paragraph("k-b", "Second line")]);
+		const a = await join(room);
+		const b = await join(room);
+		const mine = await mount(a);
+		const theirs = await mount(b);
+		const toolbar = document
+			.querySelector(`[data-co-editing-room="${b.editing.id}"] [data-emdash-editor-toolbar]`)!
+			.getBoundingClientRect();
+		const place = async (position: number) => {
+			mine.chain().focus().setTextSelection(position).run();
+			await vi.waitFor(() => expect(shows(theirs)).toBe(true));
+			// The label is placed on the next frame.
+			await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+			const caret = caretIn(theirs)!;
+			return {
+				below: caret.hasAttribute("data-below"),
+				caret: caret.getBoundingClientRect(),
+				label: labelOf(caret)!.getBoundingClientRect(),
+			};
+		};
+
+		const first = await place(3);
+		expect(first.below).toBe(true);
+		expect(first.label.top).toBeGreaterThanOrEqual(first.caret.bottom - 1);
+		expect(first.label.top).toBeGreaterThan(toolbar.bottom);
+
+		const later = await place(mine.state.doc.content.size - 3);
+		expect(later.below).toBe(false);
+		expect(later.label.bottom).toBeLessThanOrEqual(later.caret.top + 1);
 	});
 
 	it("draw each person's caret and selection in their avatar's color", async () => {
