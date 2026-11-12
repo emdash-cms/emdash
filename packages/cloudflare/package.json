@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/cloudflare",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Cloudflare adapters for EmDash - D1, R2, Access, and Worker Loader sandbox",
   "type": "module",
   "main": "dist/index.mjs",
@@ -64,6 +64,10 @@
     "./worker": {
       "types": "./dist/worker.d.mts",
       "default": "./dist/worker.mjs"
+    },
+    "./internal/rooms": {
+      "types": "./dist/rooms/host.d.mts",
+      "default": "./dist/rooms/host.mjs"
     },
     "./plugins": {
       "types": "./dist/plugins/index.d.mts",

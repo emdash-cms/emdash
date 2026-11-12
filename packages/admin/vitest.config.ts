@@ -5,6 +5,13 @@ import { configDefaults, defineConfig } from "vitest/config";
 // Pin a non-UTC timezone so timestamp-parsing tests catch local-vs-UTC bugs.
 const contextOptions = { timezoneId: "America/New_York" };
 const touchScreenTests = "tests/**/*.touch.test.{ts,tsx}";
+// Sizes tests/editor/schema-safety.test.ts runs at on demand.
+const schemaSafetyEnv = Object.fromEntries(
+	["RUNS", "EDITS", "SEED_START"].flatMap((name) => {
+		const value = process.env[name];
+		return value ? [[name, value]] : [];
+	}),
+);
 
 export default defineConfig({
 	resolve: { dedupe: ["react", "react-dom"] },
@@ -20,6 +27,10 @@ export default defineConfig({
 			"@codemirror/state",
 			"@codemirror/view",
 			"@lezer/highlight",
+			"lib0/decoding",
+			"lib0/encoding",
+			"y-protocols/awareness",
+			"y-protocols/sync",
 			"react-image-crop",
 			"date-fns",
 			"react-day-picker/locale/*",
@@ -39,6 +50,7 @@ export default defineConfig({
 		globals: true,
 		include: ["tests/**/*.test.{ts,tsx}"],
 		setupFiles: ["./tests/setup.ts"],
+		env: schemaSafetyEnv,
 		browser: {
 			enabled: true,
 			provider: playwright({ contextOptions }),

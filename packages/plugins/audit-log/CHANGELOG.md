@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-audit-log
 
+## 0.2.4
+
+### Patch Changes
+
+- [#2817](https://github.com/emdash-cms/emdash/pull/2817) [`dfbb9fc`](https://github.com/emdash-cms/emdash/commit/dfbb9fc8d8eb24dd17d363918155edc40b26d147) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes config-registered plugins showing their identifier instead of their display name and omitting their description in the admin Plugins list.
+
 ## 0.2.3
 
 No changes in this release.

@@ -165,6 +165,25 @@ describeEachDialect("import verification against the origin", (dialect) => {
 		]);
 	});
 
+	it("leaves recovery revisions on the target out of the row count", async () => {
+		await ctx.db
+			.insertInto("revisions")
+			.values({
+				id: fixtureId(9500),
+				collection: "posts",
+				entry_id: site.ids.hello,
+				data: JSON.stringify({ title: "Unsaved", _slug: "hello-world" }),
+				kind: "recovery",
+				created_at: "2026-04-01T00:00:00.000Z",
+			})
+			.execute();
+
+		const { result } = await verify();
+
+		expect(result.mismatches).toEqual([]);
+		expect(result.counts.revision).toBe(3);
+	});
+
 	it("reports a deleted media object", async () => {
 		const logo = site.media.find((item) => item.id === site.ids.logoMedia)!;
 		storage.files.delete(logo.storageKey);

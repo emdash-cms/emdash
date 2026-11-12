@@ -93,10 +93,13 @@ interface ContentHookEvent {
 	actor?: ActorInfo; // Authenticated user that initiated the save
 	locale?: string; // Locale of the entry being saved
 	translationOf?: string; // Source entry ID when a create adds a translation
+	editedBy?: readonly string[]; // IDs of the users whose edits the save holds, latest first
 }
 ```
 
 On an update, `content` holds only the submitted field values. Load the stored item with `ctx.content.get(event.collection, event.id)` when the hook needs to compare against it. Authenticated REST, visual editing, and MCP saves include `actor`. Internal writes without an authenticated user omit it.
+
+`editedBy` lists the IDs of the users whose edits the save holds, latest first. A save with an `actor` lists only that user, and a save without one omits `editedBy`. A hook that checks the actor's role before it accepts content must check the role of every user in `editedBy`, because the saved content can hold edits from each of them. Look up a user's role with `ctx.users.get()`, which needs the `users:read` capability.
 
 `locale` is the locale the entry is saved in: on a create, the requested locale resolved against the configured locales, or the default locale when the request names none; on an update, the stored entry's locale. `translationOf` is set only when a create comes from the translation flow, and holds the ID of the entry being translated. Use the two together to tell a new entry from a new translation of an existing one, for example to allow one entry per locale in a collection:
 
@@ -158,7 +161,7 @@ hooks: {
 
 #### Event
 
-`content:afterSave` receives `content`, `collection`, `isNew`, the optional authenticated `actor`, and the same `locale` and `translationOf` as `content:beforeSave`. `content` is the complete saved entry, with its database ID in `content.id` and collection fields under `content.data`. The separate optional `id` used by `content:beforeSave` updates is absent after the save.
+`content:afterSave` receives `content`, `collection`, `isNew`, the optional authenticated `actor`, and the same `locale`, `translationOf`, and `editedBy` as `content:beforeSave`. `content` is the complete saved entry, with its database ID in `content.id` and collection fields under `content.data`. The separate optional `id` used by `content:beforeSave` updates is absent after the save.
 
 #### Return value
 

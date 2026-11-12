@@ -26,7 +26,9 @@ const maxUploadSize =
 
 export default defineConfig({
 	output: process.env.EMDASH_TEST_OUTPUT === "static" ? "static" : "server",
-	adapter: node({ mode: "standalone" }),
+	adapter: node({
+		mode: process.env.EMDASH_TEST_NODE_MODE === "middleware" ? "middleware" : "standalone",
+	}),
 	integrations: [
 		react(),
 		emdash({
@@ -42,6 +44,7 @@ export default defineConfig({
 			storage: local({ directory: uploadsDir, baseUrl: "/_emdash/api/media/file" }),
 			maxUploadSize,
 			plugins: [colorPlugin()],
+			coEditing: process.env.EMDASH_TEST_CO_EDITING === "1",
 		}),
 	],
 	i18n: {

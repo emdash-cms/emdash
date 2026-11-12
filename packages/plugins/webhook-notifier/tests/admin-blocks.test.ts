@@ -66,6 +66,28 @@ describe("webhook-notifier admin responses", () => {
 		expect(validateBlockResponse(response, policy)).toEqual({ valid: true, errors: [] });
 	});
 
+	it.each([true, undefined])("returns valid delivery stats when enabled is %s", async (enabled) => {
+		const ctx = createCtx({
+			"settings:webhookUrl": "https://hooks.example.com/emdash",
+			"settings:enabled": enabled,
+		});
+		ctx.storage.deliveries.count.mockResolvedValueOnce(7).mockResolvedValueOnce(2);
+
+		const response = await admin(
+			{ type: "page_load", page: `widget:${manifest.admin.widgets[0]!.id}` },
+			ctx,
+		);
+
+		expect(validateBlockResponse(response, policy)).toEqual({ valid: true, errors: [] });
+		expect(response.blocks).toContainEqual({
+			type: "stats",
+			items: [
+				{ label: "Delivered", value: "7" },
+				{ label: "Failed", value: "2" },
+			],
+		});
+	});
+
 	it("returns valid Block Kit when saving settings fails", async () => {
 		const ctx = createCtx();
 		ctx.kv.set.mockRejectedValueOnce(new Error("KV unavailable"));

@@ -1,3 +1,5 @@
+import { isBuiltin } from "node:module";
+
 import { defineConfig } from "vitest/config";
 
 // Stub the adapter-provided virtual modules that runtime code imports.
@@ -9,6 +11,11 @@ const virtualStubs: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
 	// No timer heartbeat under test — like the Cloudflare adapter's output.
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
+	// No object cache under test — like a site that configures none.
+	"virtual:emdash/object-cache":
+		"export const createObjectCache = undefined; export const objectCacheConfig = {};",
+	// No room host under test — like any adapter with co-editing off.
+	"virtual:emdash/rooms": "export const createRoomHost = null;",
 	// Default-export an empty config so modules that read top-level fields
 	// (e.g. `virtualConfig?.i18n?.defaultLocale`) don't blow up on import.
 	// Tests that need real config still `vi.mock(...)` their own.
@@ -23,6 +30,15 @@ const virtualStubs: Record<string, string> = {
 
 export default defineConfig({
 	plugins: [
+		{
+			// Vitest externalizes the built-ins in `builtinModules`, which on Node.js 22 leaves out
+			// prefix-only ones such as `node:sqlite`, so jsdom tests would try to bundle them.
+			name: "emdash-node-builtins",
+			enforce: "pre",
+			resolveId(id) {
+				return isBuiltin(id) ? { id, external: true } : null;
+			},
+		},
 		{
 			name: "emdash-virtual-stubs",
 			resolveId(id) {
@@ -59,6 +75,8 @@ export default defineConfig({
 			"tests/integration/client/**",
 			"tests/integration/media/**",
 			"tests/integration/fixture/**",
+			// Host tests have their own config: they start servers and child processes.
+			"tests/hosts/**",
 		],
 		coverage: {
 			provider: "v8",

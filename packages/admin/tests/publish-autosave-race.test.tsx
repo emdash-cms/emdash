@@ -442,7 +442,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		expect(mutations[2]?.body).toMatchObject({ _rev: "rev-publish-1" });
 	});
 
-	it("keeps edits made after a coalesced publish click dirty", async () => {
+	it("keeps edits made while publishing dirty", async () => {
 		const save = deferredResponse();
 		server = createMockServer({
 			onPut: (request, index) => {
@@ -470,7 +470,9 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await publishNow(screen);
 		await vi.waitFor(() => expect(contentMutations(server!.requests)).toHaveLength(1));
 		await title.fill("Second edit");
-		await publishNow(screen);
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeDisabled();
 
 		save.resolve(
 			contentResponse(
@@ -862,7 +864,11 @@ describe("ContentEditPage publish and autosave ordering", () => {
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);
 		await vi.waitFor(() => {
-			expect(server!.requests.filter((request) => request.method === "POST")).toHaveLength(1);
+			expect(
+				server!.requests.filter(
+					(request) => request.method === "POST" && request.url.includes("/schedule"),
+				),
+			).toHaveLength(1);
 		});
 
 		await title.fill("After schedule");

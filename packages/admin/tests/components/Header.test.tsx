@@ -2,7 +2,9 @@ import { Sidebar } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { page } from "vitest/browser";
 
+import "../../dist/styles.css";
 import { ThemeProvider } from "../../src/components/ThemeProvider";
 import { render } from "../utils/render.tsx";
 
@@ -97,6 +99,22 @@ describe("Header", () => {
 		);
 		// User data loads async via react-query
 		await expect.element(screen.getByText("Matt Kane")).toBeInTheDocument();
+	});
+
+	it("names the user menu button after the user at phone width, where the name is hidden", async () => {
+		await page.viewport(375, 812);
+		try {
+			const screen = await render(
+				<TestWrapper>
+					<Header />
+				</TestWrapper>,
+			);
+			const userMenu = screen.getByRole("button", { name: "Matt Kane", exact: true });
+			await expect.element(userMenu).toBeVisible();
+			expect(screen.getByText("Matt Kane").element()).not.toBeVisible();
+		} finally {
+			await page.viewport(1280, 800);
+		}
 	});
 
 	it("View Site link is present", async () => {
