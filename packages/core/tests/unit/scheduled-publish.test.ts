@@ -13,6 +13,13 @@ import {
 } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
+import {
+	MAX_CONTENT_POLICY_REASON_LENGTH,
+	isScheduledPolicyRejection,
+	scheduledPolicyRejectionKey,
+	toScheduledRejectionReason,
+} from "../../src/plugins/content-policy.js";
+import { definePlugin } from "../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import {
 	publishDueContent,
@@ -31,13 +38,18 @@ vi.mock("../../src/cleanup.js", async (importOriginal) => {
 	};
 });
 
-function buildRuntime(db: Kysely<Database>, now?: () => Date): EmDashRuntime {
+function buildRuntime(
+	db: Kysely<Database>,
+	now?: () => Date,
+	sleep?: (ms: number) => Promise<void>,
+	plugins: ReturnType<typeof definePlugin>[] = [],
+): EmDashRuntime {
 	const config: EmDashConfig = {};
 	const pipelineFactoryOptions = { db } as const;
-	const hooks = createHookPipeline([], pipelineFactoryOptions);
+	const hooks = createHookPipeline(plugins, pipelineFactoryOptions);
 	const runtimeDeps = {
 		config,
-		plugins: [],
+		plugins,
 		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not used in this test");
@@ -47,16 +59,17 @@ function buildRuntime(db: Kysely<Database>, now?: () => Date): EmDashRuntime {
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 		now,
+		sleep,
 	};
 
 	return new EmDashRuntime({
 		db,
 		storage: null,
-		configuredPlugins: [],
+		configuredPlugins: plugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
 		hooks,
-		enabledPlugins: new Set(),
+		enabledPlugins: new Set(plugins.map((plugin) => plugin.id)),
 		pluginStates: new Map(),
 		config,
 		mediaProviders: new Map(),
@@ -64,7 +77,7 @@ function buildRuntime(db: Kysely<Database>, now?: () => Date): EmDashRuntime {
 		cronExecutor: null,
 		cronScheduler: null,
 		emailPipeline: null,
-		allPipelinePlugins: [],
+		allPipelinePlugins: plugins,
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef: { current: hooks },
@@ -460,6 +473,202 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 	});
 });
 
+describe("EmDashRuntime.runScheduledTasks() with publishUpcomingWithinMs", () => {
+	let db: Kysely<Database>;
+	let repo: ContentRepository;
+	let start: number;
+	let elapsed: number;
+	const now = () => new Date(start + elapsed);
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		repo = new ContentRepository(db);
+		start = Date.now();
+		elapsed = 0;
+	});
+
+	afterEach(async () => {
+		vi.restoreAllMocks();
+		await teardownTestDatabase(db);
+	});
+
+	async function schedulePost(offsetMs: number) {
+		const post = await repo.create(createPostFixture({ slug: `scheduled-${offsetMs}` }));
+		const scheduledAt = new Date(start + offsetMs).toISOString();
+		await repo.schedule("post", post.id, scheduledAt);
+		return { id: post.id, scheduledAt };
+	}
+
+	it("publishes content scheduled within the window at its scheduled time", async () => {
+		const post = await schedulePost(30_000);
+		const statusWhileWaiting: Array<string | undefined> = [];
+		const sleep = vi.fn(async (ms: number) => {
+			statusWhileWaiting.push((await repo.findById("post", post.id))?.status);
+			elapsed += ms;
+		});
+
+		const { published } = await buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: 120_000,
+		});
+
+		expect(sleep).toHaveBeenCalledTimes(1);
+		expect(sleep).toHaveBeenCalledWith(30_000);
+		expect(statusWhileWaiting).toEqual(["scheduled"]);
+		expect(published).toEqual([{ collection: "post", id: post.id }]);
+		const updated = await repo.findById("post", post.id);
+		expect(updated?.status).toBe("published");
+		expect(updated?.publishedAt).toBe(post.scheduledAt);
+	});
+
+	it("waits only when asked, and only for content inside the window", async () => {
+		const soon = await schedulePost(30_000);
+		const outside = await schedulePost(5 * 60_000);
+		const sleep = vi.fn(async (ms: number) => {
+			elapsed += ms;
+		});
+
+		await expect(buildRuntime(db, now, sleep).runScheduledTasks()).resolves.toEqual({
+			published: [],
+		});
+		elapsed = 60_000;
+		await buildRuntime(db, now, sleep).runScheduledTasks({ publishUpcomingWithinMs: 120_000 });
+
+		expect(sleep).not.toHaveBeenCalled();
+		expect((await repo.findById("post", soon.id))?.status).toBe("published");
+		expect((await repo.findById("post", outside.id))?.status).toBe("scheduled");
+	});
+
+	it("does not publish content unscheduled while waiting", async () => {
+		const post = await schedulePost(30_000);
+		const sleep = vi.fn(async (ms: number) => {
+			await repo.unschedule("post", post.id);
+			elapsed += ms;
+		});
+
+		const { published } = await buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: 120_000,
+		});
+
+		expect(published).toEqual([]);
+		const updated = await repo.findById("post", post.id);
+		expect(updated?.status).toBe("draft");
+		expect(updated?.publishedAt).toBeNull();
+	});
+
+	it("publishes at the scheduled time while slower maintenance is still running", async () => {
+		start = Math.ceil(Date.now() / 3_600_000) * 3_600_000;
+		const post = await schedulePost(30_000);
+		let finishCleanup: (() => void) | undefined;
+		vi.mocked(runSystemCleanup).mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					finishCleanup = resolve;
+				}),
+		);
+		const sleep = async (ms: number) => {
+			elapsed += ms;
+		};
+
+		const run = buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: 120_000,
+		});
+
+		await vi.waitFor(async () => {
+			expect((await repo.findById("post", post.id))?.status).toBe("published");
+		});
+		expect(finishCleanup).toBeDefined();
+		finishCleanup?.();
+		await expect(run).resolves.toEqual({ published: [{ collection: "post", id: post.id }] });
+	});
+
+	it("ignores a window that is not a finite number", async () => {
+		const post = await schedulePost(30_000);
+		const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+		const sleep = vi.fn(async () => {});
+
+		await buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: Number.POSITIVE_INFINITY,
+		});
+
+		expect(sleep).not.toHaveBeenCalled();
+		expect(errors).not.toHaveBeenCalled();
+		expect((await repo.findById("post", post.id))?.status).toBe("scheduled");
+	});
+
+	it("skips publication policy hooks for an entry another run already published", async () => {
+		const scheduledAt = new Date(Date.now() - 60_000).toISOString();
+		const created = await repo.create(createPostFixture({ slug: "already-live" }));
+		await repo.update("post", created.id, { status: "scheduled", scheduledAt });
+		const policy = vi
+			.fn()
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValue({ cancel: true as const, reason: "Publishing is paused" });
+		const plugin = definePlugin({
+			id: "publish-once-policy",
+			version: "1.0.0",
+			capabilities: ["hooks.content-policy:register"],
+			hooks: { "content:beforePublish": policy },
+		});
+		const runtime = buildRuntime(db, undefined, undefined, [plugin]);
+		const publish = () =>
+			runtime.handleContentPublish("post", created.id, {
+				publishedAt: scheduledAt,
+				requireScheduledDue: true,
+				expectedScheduledAt: scheduledAt,
+				origin: { source: "scheduler" },
+			});
+
+		expect(await publish()).toMatchObject({ success: true });
+		expect(await publish()).toMatchObject({ success: false, error: { code: "NOT_DUE" } });
+
+		expect(policy).toHaveBeenCalledOnce();
+		expect(
+			await new OptionsRepository(db).getVersioned(scheduledPolicyRejectionKey("post", created.id)),
+		).toBeNull();
+		expect((await repo.findById("post", created.id))?.status).toBe("published");
+	});
+
+	it("does not publish early when the clock does not reach the scheduled time", async () => {
+		const post = await schedulePost(30_000);
+		const sleep = vi.fn(async () => {});
+
+		const { published } = await buildRuntime(db, now, sleep).runScheduledTasks({
+			publishUpcomingWithinMs: 120_000,
+		});
+
+		expect(published).toEqual([]);
+		expect(sleep).toHaveBeenCalledTimes(3);
+		expect((await repo.findById("post", post.id))?.status).toBe("scheduled");
+	});
+
+	it("publishes once without errors when overlapping runs wait for the same time", async () => {
+		const post = await schedulePost(30_000);
+		const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+		let arrived = 0;
+		let release!: () => void;
+		const barrier = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const sleep = async (ms: number) => {
+			if (++arrived === 2) {
+				elapsed += ms;
+				release();
+			}
+			await barrier;
+		};
+
+		const results = await Promise.all([
+			buildRuntime(db, now, sleep).runScheduledTasks({ publishUpcomingWithinMs: 120_000 }),
+			buildRuntime(db, now, sleep).runScheduledTasks({ publishUpcomingWithinMs: 120_000 }),
+		]);
+
+		expect(results.flatMap((result) => result.published)).toEqual([
+			{ collection: "post", id: post.id },
+		]);
+		expect(errors).not.toHaveBeenCalled();
+	});
+});
+
 describe("ContentRepository.publish() requireDue gate", () => {
 	let db: Kysely<Database>;
 	let repo: ContentRepository;
@@ -766,5 +975,150 @@ describe("ContentRepository.publish() requireDue gate", () => {
 		const result = await handleContentPublish(db, "post", post.id);
 
 		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+	});
+});
+
+describe("EmDashRuntime scheduled publish refused by the publish itself", () => {
+	let db: Kysely<Database>;
+	let repo: ContentRepository;
+
+	beforeEach(async () => {
+		db = await setupTestDatabaseWithCollections();
+		repo = new ContentRepository(db);
+		vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+
+	afterEach(async () => {
+		vi.restoreAllMocks();
+		await teardownTestDatabase(db);
+	});
+
+	/** A scheduled draft whose staged slug another entry already holds. */
+	async function scheduleSlugConflict() {
+		await repo.create(createPostFixture({ slug: "taken" }));
+		const post = await repo.create(createPostFixture({ slug: "initial-slug" }));
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "taken" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		return post;
+	}
+
+	async function readRejection(id: string) {
+		return (await new OptionsRepository(db).getVersioned(scheduledPolicyRejectionKey("post", id)))
+			?.value;
+	}
+
+	it("unschedules the entry and records the error for the dashboard", async () => {
+		const post = await scheduleSlugConflict();
+
+		const { published } = await buildRuntime(db).runScheduledTasks();
+
+		expect(published).toEqual([]);
+		const after = await repo.findById("post", post.id);
+		expect(after?.status).not.toBe("scheduled");
+		expect(after?.scheduledAt).toBeNull();
+		const rejection = await readRejection(post.id);
+		expect(isScheduledPolicyRejection(rejection)).toBe(true);
+		expect(rejection).toMatchObject({ collection: "post", id: post.id, code: "SLUG_CONFLICT" });
+		expect(rejection).not.toHaveProperty("pluginId");
+		expect((rejection as { reason: string }).reason).toContain("taken");
+	});
+
+	it("unschedules an entry refused with a validation error and records the message", async () => {
+		const post = await repo.create(createPostFixture({ slug: "has-a-slug" }));
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+
+		const { published } = await buildRuntime(db).runScheduledTasks();
+
+		expect(published).toEqual([]);
+		const after = await repo.findById("post", post.id);
+		expect(after?.scheduledAt).toBeNull();
+		expect(after?.draftRevisionId).toBe(draft.id);
+		const rejection = await readRejection(post.id);
+		expect(isScheduledPolicyRejection(rejection)).toBe(true);
+		expect(rejection).toMatchObject({
+			code: "VALIDATION_ERROR",
+			reason: "Cannot publish routable content without a slug",
+		});
+	});
+
+	it("does not try the refused entry again on the next tick", async () => {
+		const post = await scheduleSlugConflict();
+		const runtime = buildRuntime(db);
+		await runtime.runScheduledTasks();
+		const publish = vi.spyOn(runtime, "handleContentPublish");
+
+		await runtime.runScheduledTasks();
+
+		expect(publish).not.toHaveBeenCalled();
+		expect((await repo.findById("post", post.id))?.scheduledAt).toBeNull();
+	});
+
+	it("clears the record when the entry is published later", async () => {
+		const post = await scheduleSlugConflict();
+		const runtime = buildRuntime(db);
+		await runtime.runScheduledTasks();
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: post.id,
+			data: { ...post.data, _slug: "free" },
+		});
+		await repo.setDraftRevision("post", post.id, draft.id);
+
+		const result = await runtime.handleContentPublish("post", post.id);
+
+		expect(result.success).toBe(true);
+		expect(await readRejection(post.id)).toBeUndefined();
+	});
+
+	it("leaves the entry scheduled when the failure is not a refusal", async () => {
+		const post = await repo.create(createPostFixture());
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await sql`
+			CREATE TRIGGER reject_test_publication
+			BEFORE UPDATE OF status ON ec_post
+			WHEN NEW.status = 'published'
+			BEGIN
+				SELECT RAISE(ABORT, 'test publication failure');
+			END
+		`.execute(db);
+
+		await buildRuntime(db).runScheduledTasks();
+
+		const after = await repo.findById("post", post.id);
+		expect(after).toMatchObject({ status: "scheduled", scheduledAt: past });
+		expect(await readRejection(post.id)).toBeUndefined();
+	});
+});
+
+describe("toScheduledRejectionReason()", () => {
+	it("turns control characters into spaces and trims", () => {
+		expect(toScheduledRejectionReason("  Needs\nan\u0000excerpt.  ")).toBe("Needs an excerpt.");
+	});
+
+	it("cuts a long message to the stored reason limit", () => {
+		const reason = toScheduledRejectionReason("x".repeat(MAX_CONTENT_POLICY_REASON_LENGTH + 50));
+		expect(reason).toHaveLength(MAX_CONTENT_POLICY_REASON_LENGTH);
+		expect(
+			isScheduledPolicyRejection({ collection: "post", id: "1", reason, rejectedAt: "x" }),
+		).toBe(true);
+	});
+
+	it("returns undefined when nothing is left", () => {
+		expect(toScheduledRejectionReason(undefined)).toBeUndefined();
+		expect(toScheduledRejectionReason(" \n ")).toBeUndefined();
 	});
 });

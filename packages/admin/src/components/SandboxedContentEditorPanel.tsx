@@ -52,8 +52,6 @@ interface SandboxedContentEditorPanelProps {
 	captureDraft?: (access: EditorDraftAccessDeclaration) => BrowserEditorDraftRequest | null;
 	onDraftResponse?: (access: EditorDraftAccessDeclaration, response: EditorDraftResponse) => void;
 	onEntryRefresh?: () => void | Promise<void>;
-	/** Reserve the inline end of the disclosure header for an external control. */
-	reserveHeaderEnd?: boolean;
 }
 
 type PanelAction = Exclude<ContentEditorPanelInteraction, { type: "panel_load" }>;
@@ -102,7 +100,6 @@ export function SandboxedContentEditorPanel({
 	captureDraft,
 	onDraftResponse,
 	onEntryRefresh,
-	reserveHeaderEnd = false,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
 	const toastManager = useKumoToastManager();
@@ -347,7 +344,7 @@ export function SandboxedContentEditorPanel({
 						variant="ghost"
 						className="relative justify-between"
 						style={{
-							width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+							width: "calc(100% + 1.5rem)",
 							insetInlineStart: "-0.75rem",
 						}}
 					/>

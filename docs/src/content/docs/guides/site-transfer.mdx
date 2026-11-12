@@ -78,6 +78,7 @@ Import into a site that meets every requirement below. When the target's content
 - **An administrator account.** Import runs as a signed-in administrator or with an API token. Create the target's administrator during setup.
 - **A storage backend.** Both the origin and the target need configured [storage](/deployment/storage/). EmDash stages package files in it.
 - **No content.** The target must not hold entries (including trashed entries), revisions, media or media folders, bylines or byline fields, comments, redirects, term assignments, relations, SEO records, sections created in the admin, or collections or block types created after setup. A site set up from any official template qualifies. What setup created is setup scaffold: the seeded collections and block types, taxonomy definitions and their unassigned terms, menus and their items, widget areas and their widgets, and theme sections. The plan lists the scaffold, and the import removes it after you confirm the plan.
+- **No failed collection deletions.** Have an administrator retry failed cleanup. The importer advances active cleanup, yielding while that cleanup is leased or backing off. See [resolve failed collection cleanup](#resolve-failed-collection-cleanup).
 - **Every locale the package uses.** Add each of the package's locales to the target's [i18n configuration](/guides/internationalization/#configure-locales). A site without i18n configuration accepts only `en`. Locales are matched without regard to case, and the import writes each locale with the target's configured casing, declared as `locale_recased`.
 - **A large enough upload limit.** Every media file must fit the target's [`maxUploadSize`](/reference/configuration/#maxuploadsize), which defaults to 50 MiB.
 - **Format version `1`.** The target must support the package's format version and every required feature.
@@ -88,6 +89,30 @@ The following request returns the supported format versions, features, and limit
 curl https://new.example.com/_emdash/api/admin/transfer/capabilities \
   -H "Authorization: Bearer $EMDASH_TOKEN"
 ```
+
+### Resolve failed collection cleanup
+
+A collection deletion can continue after the collection disappears from the schema. Only a failed deletion blocks a new import. The importer advances active `pending`, `leased`, and `retry` cleanup, including other deletions that are due. It may yield while cleanup is leased or backing off. Active deletions do not block import.
+
+The `portableDomain.blockers` array in the capabilities response identifies a failed deletion with `code: "collection_deletion_unfinished"`. Read its `id`, `slug`, `state`, and `phase` fields. In an import plan, the blocker has code `target_not_empty` and `detail.reason: "collection_deletion_unfinished"`; `detail.collection`, `detail.state`, and `detail.phase` report the collection slug and cleanup status. Use capabilities or the deletion list below to find the collection ID.
+
+You can also list the deletion records. The endpoint defaults to failed records; pass `state=pending`, `state=leased`, or `state=retry` to inspect active cleanup. These requests require an authenticated administrator and a bearer token with the `admin` scope. A transfer-only token is not sufficient.
+
+```bash
+curl "https://new.example.com/_emdash/api/admin/media-usage/collection-deletions?state=failed" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+If the deletion is `failed`, an administrator must reopen it before it can continue. Send its `collectionId` in the retry request:
+
+```bash
+curl -X POST https://new.example.com/_emdash/api/admin/media-usage/collection-deletions/retry \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"collectionId":"01J8ZQ4Y6T2N0D3VJ5R7K9M1PX"}'
+```
+
+After retrying, the importer can advance the cleanup. An import interrupted while removing seeded scaffold collections can resume and advance its own cleanup. If the import failed, [abandon the incomplete import](#abandon-an-incomplete-import) first, retry the failed deletion, and use a newly set-up target for the import.
 
 ## Export a site
 
@@ -336,7 +361,7 @@ A plan lists at most 500 blockers and warnings. An `issues_truncated` warning re
 | `media_ref_invalid` | Content refers to a media record that is not in the package. |
 | `media_blob_missing` | A media record's file is not in the package. |
 | `media_blob_too_large` | A media file is larger than the target's `maxUploadSize`. |
-| `target_not_empty` | The target already has content. The blocker's `detail` names what it found. |
+| `target_not_empty` | The target already has content or a failed collection deletion. The blocker's `detail` names what it found; for `reason: "collection_deletion_unfinished"`, it includes the collection slug, state, and phase. |
 | `locale_not_configured` | The package uses a locale the target's i18n configuration does not include. |
 | `field_type_unknown` | A field or byline field uses a type the target does not support. |
 | `principal_conflict` | Principal mappings would give one user two bylines in the same locale. |
@@ -557,7 +582,7 @@ Transfer errors use stable codes. The HTTP status appears with each code.
 
 | Code | Status | What to do |
 | --- | --- | --- |
-| `TRANSFER_TARGET_NOT_EMPTY` | 409 | The target already has content. Import into a newly set-up site. **Settings → Transfer** and `capabilities` list what makes the site ineligible. |
+| `TRANSFER_TARGET_NOT_EMPTY` | 409 | The target already has content or a failed collection deletion. Import into a newly set-up site. **Settings → Transfer** and `capabilities` list what makes the site ineligible. For a failed collection deletion, follow the [retry steps](#resolve-failed-collection-cleanup) before importing. |
 | `TRANSFER_IMPORT_IN_PROGRESS` | 503 | An import is running on this site, or an incomplete import is still blocking writes. Wait for it to finish, or [abandon](#abandon-an-incomplete-import) a failed or cancelled import. |
 | `TRANSFER_FENCE_CHECK_FAILED` | 503 | EmDash could not check whether an import is running. Retry the write. |
 | `TRANSFER_EXPORT_CONCURRENT_WRITES` | 409 | The site kept changing while the export ran. Export again when editing is quiet. |

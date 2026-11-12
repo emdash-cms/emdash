@@ -397,7 +397,11 @@ describe("Image toolbar", () => {
 		const { editor, img, getPanel } = await setup({ extraImage: true });
 		editor.commands.selectAll();
 		await vi.waitFor(() =>
-			expect(document.querySelectorAll(".ProseMirror .ProseMirror-selectednode")).toHaveLength(2),
+			expect(
+				[...document.querySelectorAll(".ProseMirror img")].filter((image) =>
+					image.closest(".emdash-block-selected"),
+				),
+			).toHaveLength(2),
 		);
 		const toolbar = await selectImage(img);
 

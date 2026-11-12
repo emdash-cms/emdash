@@ -25,6 +25,8 @@ import { mediaProviders as virtualMediaProviders } from "virtual:emdash/media-pr
 // @ts-ignore - virtual module
 import { plugins as virtualPlugins } from "virtual:emdash/plugins";
 // @ts-ignore - virtual module
+import { createRoomHost as virtualCreateRoomHost } from "virtual:emdash/rooms";
+// @ts-ignore - virtual module
 import * as virtualSandboxRunnerModule from "virtual:emdash/sandbox-runner";
 // @ts-ignore - virtual module
 import { sandboxedPlugins as virtualSandboxedPlugins } from "virtual:emdash/sandboxed-plugins";
@@ -56,12 +58,13 @@ import {
 	type SandboxedPluginEntry,
 	type MediaProviderEntry,
 	type CreateSchedulerFn,
+	type CreateRoomHostFn,
+	type ScheduledTasksOptions,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
-import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -94,7 +97,7 @@ import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
-export type { EmDashRuntime } from "../emdash-runtime.js";
+export type { EmDashRuntime, ScheduledTasksOptions } from "../emdash-runtime.js";
 
 /**
  * Runtime init lock reclaim deadline. Must be strictly larger than the db
@@ -216,6 +219,7 @@ function buildDependencies(
 			| undefined,
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
+		createRoomHost: virtualCreateRoomHost as CreateRoomHostFn | null,
 		sandboxEnabled: sandboxModule.sandboxEnabled as boolean,
 		sandboxBypassed: (sandboxModule.sandboxBypassed as boolean) ?? false,
 		sandboxedPluginEntries: (virtualSandboxedPlugins as SandboxedPluginEntry[]) || [],
@@ -263,6 +267,7 @@ async function getRuntime(
 			}
 			if (isCurrentClaim()) {
 				holder.instance = runtime;
+				runtime.rooms?.activate();
 			} else {
 				// This init was reclaimed mid-flight (it ran past the deadline
 				// and a waiter started its own). Don't overwrite the
@@ -272,6 +277,9 @@ async function getRuntime(
 				// request that built it.
 				runtime.stopCron().catch((error: unknown) => {
 					console.error("[emdash] failed to stop superseded runtime's cron:", error);
+				});
+				runtime.rooms?.shutdown().catch((error: unknown) => {
+					console.error("[co-editing] failed to shut down superseded runtime's rooms:", error);
 				});
 			}
 			return runtime;
@@ -295,13 +303,11 @@ async function getRuntime(
  * Returns the content promoted by the publishing sweep so the caller can purge
  * edge-cache tags for it. `onPublished` (optional) is awaited after each
  * collection's batch so the caller can invalidate edge-cache tags incrementally
- * rather than only after the whole sweep.
+ * rather than only after the whole sweep. `publishUpcomingWithinMs` keeps the
+ * run open to publish content scheduled within that window at its exact time.
  */
 export async function runScheduledTasks(
-	options: {
-		onPublished?: (refs: PublishedRef[]) => Promise<void>;
-		invalidateContentCache?: PluginContentCacheInvalidator;
-	} = {},
+	options: ScheduledTasksOptions = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
@@ -803,11 +809,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// (KV / Durable Object) so we want to avoid re-fetching on the hot path.
 		// Skipped entirely for:
 		//   - prerendered requests (no session at build time)
-		//   - requests without an `astro-session` cookie (no session to look up)
+		//   - requests without the configured session cookie (no session to look up)
 		// The cookie check matters on Cloudflare Workers, where Astro's session
 		// backend is KV: calling session.get() on every anonymous public request
 		// turns normal traffic into a flood of KV read misses. See #733.
-		const hasSessionCookie = cookies.get("astro-session") !== undefined;
+		const hasSessionCookie =
+			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
@@ -1112,6 +1119,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Revision handlers
 					handleRevisionList: runtime.handleRevisionList.bind(runtime),
+					handleRevisionEditors: runtime.handleRevisionEditors.bind(runtime),
 					handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
 					handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
 
@@ -1168,6 +1176,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// demand. `requestCached` inside `getManifest` dedupes within
 					// a single request.
 					getManifest: runtime.getManifest.bind(runtime),
+
+					// Co-editing rooms, or null when this host can't run them
+					rooms: runtime.rooms,
 
 					// Clear the URL pattern cache after schema mutations that
 					// affect collection URL patterns.

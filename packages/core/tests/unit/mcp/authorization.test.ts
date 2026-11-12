@@ -1127,6 +1127,7 @@ describe("MCP Authorization", () => {
 			expect(result.isError).toBeFalsy();
 			expect(handlers.handleContentDiscardDraft).toHaveBeenCalledWith("post", CONTENT_ID, {
 				_rev: STUB_REV,
+				actor: { id: AUTHOR_USER_ID, role: Role.AUTHOR, source: "mcp" },
 			});
 		});
 
