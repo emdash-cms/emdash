@@ -1934,6 +1934,11 @@ function ContentEditPage() {
 			if (savedReferences) {
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			}
+			// Refresh cached lists on return without refetching over the editor's publish result.
+			void queryClient.invalidateQueries({
+				queryKey: ["content", collection],
+				refetchType: "none",
+			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
