@@ -5325,6 +5325,7 @@ describe("editorial comments", () => {
 					can: { edit: false, delete: false },
 				},
 			],
+			mentions: [],
 			can: { resolve: true, delete: false },
 		};
 	}
@@ -5477,7 +5478,7 @@ describe("editorial comments", () => {
 
 		await screen.getByRole("button", { name: "Comment on Title" }).click();
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		const composer = margin.getByRole("textbox", { name: "Comment" });
+		const composer = margin.getByRole("combobox", { name: "Comment" });
 		await expect.element(composer).toHaveFocus();
 		await composer.fill("Shorter, please");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
