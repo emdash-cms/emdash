@@ -1,4 +1,4 @@
-import { Badge, Button, DropdownMenu, InputArea } from "@cloudflare/kumo";
+import { Badge, Banner, Button, DropdownMenu, InputArea } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -226,6 +226,20 @@ export function MarginComments({
 				</div>
 			</div>
 
+			{comments.notice && (
+				<Banner
+					size="sm"
+					variant={comments.notice.variant}
+					role={comments.notice.variant === "error" ? "alert" : "status"}
+					title={comments.notice.title}
+					description={comments.notice.description}
+					action={
+						<Button variant="ghost" size="xs" type="button" onClick={comments.dismissNotice}>
+							{t`Dismiss`}
+						</Button>
+					}
+				/>
+			)}
 			{!draftInPlace && draftCard}
 			{listed.map((thread) => (
 				<ThreadCard
