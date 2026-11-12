@@ -9,6 +9,8 @@ import { GET as schemaGET } from "../../../src/astro/routes/api/schema/index.js"
 import { customHeadersInterceptor } from "../../../src/client/cf-access.js";
 import { EmDashClient, EmDashApiError } from "../../../src/client/index.js";
 import type { Interceptor } from "../../../src/client/transport.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 // Regex patterns for route matching
@@ -752,6 +754,54 @@ describe("EmDashClient", () => {
 				expect(body).toContain("byline?: BylineSummary | null;");
 				expect(body).toContain("bylines?: ContentBylineCredit[];");
 				expect(body).toContain("terms?: Record<string, TaxonomyTerm[]>;");
+			} finally {
+				await teardownTestDatabase(db);
+			}
+		});
+
+		it("schema TypeScript export types a blocks field as the union of its retained block versions", async () => {
+			const db = await setupTestDatabaseWithCollections();
+
+			try {
+				const blocks = new BlockTypeRegistry(db);
+				const hero = await blocks.createBlockType({
+					slug: "hero",
+					label: "Hero",
+					fields: [{ slug: "heading", label: "Heading", type: "string", required: true }],
+				});
+				await blocks.updateBlockType("hero", {
+					expectedFingerprint: hero.versions[0]!.fingerprint,
+					breaking: true,
+					fields: [
+						{ slug: "heading", label: "Heading", type: "string", required: true },
+						{ slug: "body", label: "Body", type: "portableText", required: true },
+					],
+				});
+				await new SchemaRegistry(db).createField("page", {
+					slug: "layout",
+					label: "Layout",
+					type: "blocks",
+					validation: { allowedTypes: ["hero"] },
+				});
+
+				const response = await schemaGET({
+					request: new Request("http://localhost:4321/_emdash/api/schema?format=typescript"),
+					locals: {
+						emdash: { db },
+						user: { id: "user_1", role: Role.EDITOR },
+					},
+				} as never);
+
+				expect(response.status).toBe(200);
+				const body = await response.text();
+				expect(body).toContain("  layout?: PageLayoutBlock[];");
+				expect(body).toContain("export type PageLayoutBlock = PageLayoutHeroBlock;");
+				expect(body).toContain(
+					"export type PageLayoutHeroBlock = PageLayoutHeroV1Block | PageLayoutHeroV2Block;",
+				);
+				expect(body).toContain('  _type: "hero";');
+				expect(body).toContain('  "body": PortableTextBlock[];');
+				expect(body).not.toContain("unknown[]");
 			} finally {
 				await teardownTestDatabase(db);
 			}
