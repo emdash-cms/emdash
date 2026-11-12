@@ -466,7 +466,7 @@ async function buildStatusWidget(ctx: PluginContext) {
 		if (isConfigured) {
 			blocks.push({
 				type: "stats",
-				stats: [
+				items: [
 					{ label: "Delivered", value: String(successful) },
 					{ label: "Failed", value: String(failed) },
 				],
