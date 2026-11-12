@@ -2749,9 +2749,9 @@ export function PortableTextEditor({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
 				...(editableRef.current ? {} : { "aria-readonly": "true" }),
-				// The boxed top padding leaves room over the first line for a co-editor's name.
+				// The top padding leaves room over the first line for a co-editor's name.
 				class: isDocument
-					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
+					? "emdash-document flow-root min-h-32 pt-1 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 pt-5 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			}),

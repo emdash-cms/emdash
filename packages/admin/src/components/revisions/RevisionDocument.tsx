@@ -36,7 +36,7 @@ import {
 import { revisionTargetElementId } from "./revision-format.js";
 import { ChangePrefix, DiffText, EmptyValue, RunsText, visibleText } from "./RevisionSegments.js";
 
-const DOCUMENT_ROOT_CLASSES = "emdash-document flow-root min-h-32 pb-2";
+const DOCUMENT_ROOT_CLASSES = "emdash-document flow-root min-h-32 pt-1 pb-2";
 const BOXED_ROOT_CLASSES =
 	"prose prose-sm sm:prose-base flow-root w-full max-w-[calc(75ch+8rem)] mx-auto min-h-[200px] p-4 pt-5 ps-14 pe-14 sm:ps-16 sm:pe-16";
 
