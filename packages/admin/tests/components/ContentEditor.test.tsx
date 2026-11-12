@@ -5269,6 +5269,7 @@ describe("editorial comments", () => {
 					can: { edit: false, delete: false },
 				},
 			],
+			mentions: [],
 			can: { resolve: true, delete: false },
 		};
 	}
@@ -5309,7 +5310,7 @@ describe("editorial comments", () => {
 
 		await screen.getByRole("button", { name: "Comment on Title" }).click();
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Shorter, please");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Shorter, please");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 		await vi.waitFor(() =>
