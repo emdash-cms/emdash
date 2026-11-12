@@ -7,6 +7,16 @@ import ts from "typescript";
 
 const external = [/^astro:/, /^virtual:emdash\//];
 
+export function convertUiComponentToTSX(source: string, filename: string) {
+	return convertToTSX(source, {
+		// Astro embeds this filename in sourcemap JSON without escaping backslashes.
+		filename: filename.replaceAll("\\", "/"),
+		includeScripts: false,
+		includeStyles: false,
+		sourcemap: "external",
+	});
+}
+
 /** Build UI declarations separately: Astro still compiles the runtime source. */
 export async function buildUiTypes(): Promise<void> {
 	const root = import.meta.dirname;
@@ -22,12 +32,10 @@ export async function buildUiTypes(): Promise<void> {
 		for (const file of await readdir(src, { recursive: true })) {
 			if (!file.endsWith(".astro")) continue;
 			const filename = join(src, file);
-			const { code, diagnostics } = await convertToTSX(await readFile(filename, "utf8"), {
+			const { code, diagnostics } = await convertUiComponentToTSX(
+				await readFile(filename, "utf8"),
 				filename,
-				includeScripts: false,
-				includeStyles: false,
-				sourcemap: "external",
-			});
+			);
 			const errors = diagnostics.filter((diagnostic) => Number(diagnostic.severity) === 1);
 			if (errors.length) {
 				throw new Error(
