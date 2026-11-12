@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes Posts and Pages lists showing an old title after editing and publishing an entry, so returning to the list no longer requires a page refresh.
+Fixes admin content lists showing an old title after editing and publishing an entry. Returning to Posts, Pages, or a custom collection's list no longer requires a page refresh to see the updated title.
