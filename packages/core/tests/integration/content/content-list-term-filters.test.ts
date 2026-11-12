@@ -23,6 +23,7 @@ describeEachDialect("content list term filters", (dialect) => {
 
 		for (const [name, collections] of [
 			["topics", ["posts"]],
+			["places", ["posts"]],
 			["genres", ["pages"]],
 		] as const) {
 			const created = await handleTaxonomyCreate(ctx.db, {
@@ -36,8 +37,14 @@ describeEachDialect("content list term filters", (dialect) => {
 		const taxonomies = new TaxonomyRepository(ctx.db);
 		const rodeo = await taxonomies.create({ name: "topics", slug: "rodeo", label: "Rodeo" });
 		const polo = await taxonomies.create({ name: "topics", slug: "polo", label: "Polo" });
+		const kentucky = await taxonomies.create({
+			name: "places",
+			slug: "kentucky",
+			label: "Kentucky",
+		});
 		for (const [slug, groups] of [
-			["rodeo-post", [rodeo.translationGroup!]],
+			// Carries both picked topics, so it must still be listed once.
+			["rodeo-post", [rodeo.translationGroup!, polo.translationGroup!, kentucky.translationGroup!]],
 			["polo-post", [polo.translationGroup!]],
 			["plain-post", []],
 		] as const) {
@@ -57,6 +64,16 @@ describeEachDialect("content list term filters", (dialect) => {
 	it("filters the items and the total", async () => {
 		const result = await handleContentList(ctx.db, "posts", {
 			termFilters: { topics: ["rodeo"] },
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data!.items.map((item) => item.slug)).toEqual(["rodeo-post"]);
+		expect(result.data!.total).toBe(1);
+	});
+
+	it("ORs within a taxonomy and ANDs across taxonomies, one row per entry", async () => {
+		const result = await handleContentList(ctx.db, "posts", {
+			termFilters: { topics: ["rodeo", "polo"], places: ["kentucky"] },
 		});
 
 		expect(result.success).toBe(true);

@@ -25,6 +25,8 @@ declare module "cloudflare:test" {
 const COLLECTION = "term_list_d1";
 const ENTRIES = 400;
 const NARROW_ENTRIES = 3;
+/** More taxonomies than D1's five compound-SELECT terms. */
+const FACETS = ["facet_a", "facet_b", "facet_c", "facet_d", "facet_e", "facet_f"];
 
 let db: Kysely<Database>;
 const rows = { read: 0, log: [] as string[] };
@@ -85,6 +87,15 @@ beforeAll(async () => {
 	const taxonomies = new TaxonomyRepository(db);
 	const broad = await taxonomies.create({ name: "topics", slug: "broad", label: "Broad" });
 	const narrow = await taxonomies.create({ name: "topics", slug: "narrow", label: "Narrow" });
+	const facetGroups: string[] = [];
+	for (const name of FACETS) {
+		// oxlint-disable-next-line no-await-in-loop -- deterministic fixture setup
+		const facet = await handleTaxonomyCreate(db, { name, label: name, collections: [COLLECTION] });
+		if (!facet.success) throw new Error("Failed to create taxonomy");
+		// oxlint-disable-next-line no-await-in-loop -- deterministic fixture setup
+		const term = await taxonomies.create({ name, slug: "picked", label: "Picked" });
+		facetGroups.push(term.translationGroup!);
+	}
 	for (let i = 0; i < ENTRIES; i++) {
 		// oxlint-disable-next-line no-await-in-loop -- deterministic fixture setup
 		const result = await handleContentCreate(db, COLLECTION, {
@@ -93,7 +104,9 @@ beforeAll(async () => {
 		});
 		if (!result.success) throw new Error("Failed to create entry");
 		const groups = [broad.translationGroup!];
-		if (i < NARROW_ENTRIES) groups.push(narrow.translationGroup!);
+		if (i < NARROW_ENTRIES) groups.push(narrow.translationGroup!, ...facetGroups);
+		// Carries every facet but the last, so it must not match all six.
+		if (i === NARROW_ENTRIES) groups.push(...facetGroups.slice(0, -1));
 		// oxlint-disable-next-line no-await-in-loop -- deterministic fixture setup
 		await taxonomies.attachGroupsToEntry(COLLECTION, result.data!.item.id, groups);
 	}
@@ -144,5 +157,28 @@ describe("content list term filters on D1", () => {
 		expect(filtered.result.data!.total).toBe(0);
 		expect(termsOnly.result.success).toBe(true);
 		expect(termsOnly.result.data!.total).toBe(2);
+	});
+
+	it("ANDs more taxonomies than D1 allows compound SELECT terms", async () => {
+		const termFilters = Object.fromEntries(FACETS.map((name) => [name, ["picked"]]));
+		const page = await list({ termFilters, limit: 2 });
+
+		expect(page.result.success, JSON.stringify(page.result.error)).toBe(true);
+		expect(page.result.data!.total).toBe(NARROW_ENTRIES);
+		expect(page.result.data!.items).toHaveLength(2);
+		const next = await list({ termFilters, limit: 2, cursor: page.result.data!.nextCursor });
+		expect(next.result.data!.items).toHaveLength(NARROW_ENTRIES - 2);
+	});
+
+	it("loads five taxonomies with the largest field and byline filters", async () => {
+		const filtered = await list({
+			termFilters: Object.fromEntries(FACETS.slice(0, 5).map((name) => [name, ["picked"]])),
+			fieldFilters: { queue: { in: Array.from({ length: 40 }, (_, index) => `queue-${index}`) } },
+			bylines: Array.from({ length: 25 }, (_, index) => `byline-${index}`),
+			includeInferredBylines: true,
+		});
+
+		expect(filtered.result.success, JSON.stringify(filtered.result.error)).toBe(true);
+		expect(filtered.result.data!.total).toBe(0);
 	});
 });

@@ -2229,12 +2229,19 @@ export class ContentRepository {
 	 * and test every row, which reads the whole collection for a narrow term.
 	 * Starting from the pivot instead (`CROSS JOIN` keeps SQLite from
 	 * reordering) reads the terms' assignments and seeks each entry by
-	 * `translation_group`. `DISTINCT` keeps one row per entry when it carries
-	 * several of a taxonomy's picked terms, and `INTERSECT` applies AND across
-	 * taxonomies without depending on key order.
+	 * `translation_group`.
 	 *
-	 * The primary key is (collection, entry_id, taxonomy_id), so SQLite would
-	 * answer `DISTINCT entry_id` by walking the collection's whole key range in
+	 * One taxonomy (OR within it) is a `DISTINCT` read of its terms' rows. With
+	 * several, every picked term is bound in one JSON value as a `[set, group]`
+	 * pair and an entry matches when its rows cover every set (AND across
+	 * taxonomies). Either way it is one statement with two parameters, so it
+	 * stays under D1's limits of five compound-SELECT terms and 100 bound
+	 * parameters, which an `INTERSECT` per taxonomy did not. The grouped form
+	 * reads about a fifth more rows than `DISTINCT` on D1, so it is kept for
+	 * more than one taxonomy.
+	 *
+	 * The primary key is (collection, entry_id, taxonomy_id), so SQLite could
+	 * answer `GROUP BY entry_id` by walking the collection's whole key range in
 	 * order rather than looking up the picked terms by `taxonomy_id` and
 	 * sorting the few rows found. A unary `+` keeps `collection` out of index
 	 * selection without changing what it matches. SQLite only: Postgres has no
@@ -2245,15 +2252,38 @@ export class ContentRepository {
 	 * cannot start with an underscore.
 	 */
 	private termEntries(termGroups: string[][], type: string) {
-		const collection = isPostgres(this.db) ? sql.ref("collection") : sql`+${sql.ref("collection")}`;
-		const sets = termGroups.map(
-			(groups) =>
-				sql`SELECT DISTINCT ${sql.ref("entry_id")} AS ${sql.ref("_term_entry")}
-					FROM ${sql.table("content_taxonomies")}
-					WHERE ${collection} = ${type}
-						AND ${sql.ref("taxonomy_id")} IN (${jsonTextValues(this.db, groups)})`,
+		const entry = sql.ref("ct.entry_id");
+		const term = sql.ref("ct.taxonomy_id");
+		const collection = isPostgres(this.db)
+			? sql.ref("ct.collection")
+			: sql`+${sql.ref("ct.collection")}`;
+		const [only] = termGroups;
+		if (termGroups.length === 1 && only) {
+			return sql<{ _term_entry: string }>`(SELECT DISTINCT ${entry} AS ${sql.ref("_term_entry")}
+				FROM ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
+				WHERE ${collection} = ${type}
+					AND ${term} IN (${jsonTextValues(this.db, only)}))`;
+		}
+		const picked = JSON.stringify(
+			termGroups.flatMap((groups, set) => Array.from(new Set(groups), (group) => [set, group])),
 		);
-		return sql<{ _term_entry: string }>`(${sql.join(sets, sql` INTERSECT `)})`;
+		const sets = sql.lit(termGroups.length);
+		if (isPostgres(this.db)) {
+			return sql<{ _term_entry: string }>`(SELECT ${entry} AS ${sql.ref("_term_entry")}
+				FROM jsonb_array_elements(${picked}::jsonb) AS ${sql.ref("picked")}
+				CROSS JOIN ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
+				WHERE ${collection} = ${type}
+					AND ${term} = ${sql.ref("picked.value")} ->> 1
+				GROUP BY ${entry}
+				HAVING COUNT(DISTINCT ${sql.ref("picked.value")} ->> 0) = ${sets})`;
+		}
+		return sql<{ _term_entry: string }>`(SELECT ${entry} AS ${sql.ref("_term_entry")}
+			FROM json_each(${picked}) AS ${sql.ref("picked")}
+			CROSS JOIN ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
+			WHERE ${collection} = ${type}
+				AND ${term} = json_extract(${sql.ref("picked.value")}, '$[1]')
+			GROUP BY ${entry}
+			HAVING COUNT(DISTINCT json_extract(${sql.ref("picked.value")}, '$[0]')) = ${sets})`;
 	}
 
 	/**
@@ -2312,11 +2342,10 @@ export class ContentRepository {
 	 * its id, unlike the byline junction, which stores the row id. Getting that
 	 * wrong matches nothing rather than erroring.
 	 *
-	 * Each set is an uncorrelated `IN` over the pivot rather than an `EXISTS`
-	 * per content row, so the planner can seek the content table's
-	 * `translation_group` index from the term's assignments instead of
-	 * checking every row of the collection. The groups are bound as one JSON
-	 * value, so a set costs the same parameters however many terms it holds.
+	 * An uncorrelated `IN` over `termEntries` rather than an `EXISTS` per
+	 * content row, so the planner can seek the content table's
+	 * `translation_group` index from the terms' assignments instead of checking
+	 * every row of the collection.
 	 */
 	private applyTermFilters<QB extends { where: (expression: RawBuilder<boolean>) => QB }>(
 		query: QB,
@@ -2324,19 +2353,9 @@ export class ContentRepository {
 		type: string,
 	): QB {
 		if (!termGroups) return query;
+		if (termGroups.some((groups) => groups.length === 0)) return query.where(sql<boolean>`1 = 0`);
 		const groupColumn = sql.ref(`${getTableName(type)}.translation_group`);
-		for (const groups of termGroups) {
-			if (groups.length === 0) {
-				query = query.where(sql<boolean>`1 = 0`);
-				continue;
-			}
-			query = query.where(sql<boolean>`${groupColumn} IN (
-				SELECT ${sql.ref("ct.entry_id")} FROM ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
-				WHERE ${sql.ref("ct.collection")} = ${type}
-					AND ${sql.ref("ct.taxonomy_id")} IN (${jsonTextValues(this.db, groups)})
-			)`);
-		}
-		return query;
+		return query.where(sql<boolean>`${groupColumn} IN ${this.termEntries(termGroups, type)}`);
 	}
 
 	/**
