@@ -383,6 +383,7 @@ function resolveEditorBylines(item?: ContentItem | null): {
 import type { ContentSeoInput } from "../lib/api";
 import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
 import { openBlankPreviewWindow, openPreviewWindow } from "../lib/preview-window.js";
+import { FieldCommentsButton, fieldThreadsByName } from "./editorial/FieldCommentsButton.js";
 import { MarginComments } from "./editorial/MarginComments.js";
 import { useEditorialComments } from "./editorial/useEditorialComments.js";
 import { MediaPickerModal } from "./MediaPickerModal";
@@ -1472,9 +1473,7 @@ export function ContentEditor({
 	const [newEntryInitialState] = React.useState(currentData);
 
 	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
-	const [commentsOpen, setCommentsOpen] = React.useState<boolean | null>(
-		initialThreadId ? true : null,
-	);
+	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
 	const editorialEntry = React.useMemo(
 		() =>
 			canComment && item ? { collection, id: item.id, locale: entryLocale ?? undefined } : null,
@@ -1485,14 +1484,20 @@ export function ContentEditor({
 		editor: portableTextEditor,
 		rev: item?._rev,
 		isDirty,
-		open: commentsOpen === true,
+		open: commentsOpen,
 		initialThreadId,
 	});
-	// Until someone toggles the margin, it opens by itself when there is something to read.
-	const showComments =
-		canComment && !isDistractionFree && (commentsOpen ?? editorial.openCount > 0);
+	const showComments = canComment && !isDistractionFree && commentsOpen;
 	const showMargin = showComments && !isBelowLg && !isViewing;
 	const startEditorialComment = editorial.startComment;
+	const openEditorialThread = React.useCallback(
+		(threadId: string) => {
+			setCommentsOpen(true);
+			editorial.setActiveThreadId(threadId);
+		},
+		// oxlint-disable-next-line react-hooks/exhaustive-deps -- setActiveThreadId is a stable state setter
+		[],
+	);
 	const editorialBridge = React.useMemo<PortableTextEditorProps["editorialComments"]>(
 		() =>
 			canComment
@@ -1501,14 +1506,24 @@ export function ContentEditor({
 							setCommentsOpen(true);
 							startEditorialComment();
 						},
-						onActivate: (threadId) => {
-							setCommentsOpen(true);
-							editorial.setActiveThreadId(threadId);
-						},
+						onActivate: openEditorialThread,
 					}
 				: undefined,
+		[canComment, startEditorialComment, openEditorialThread],
+	);
+	const setEditorialDraft = editorial.setDraft;
+	const startFieldComment = React.useCallback(
+		(field: string) => {
+			setCommentsOpen(true);
+			editorial.setActiveThreadId(null);
+			setEditorialDraft({ anchor: { type: "field", field }, range: null });
+		},
 		// oxlint-disable-next-line react-hooks/exhaustive-deps -- setActiveThreadId is a stable state setter
-		[canComment, startEditorialComment],
+		[setEditorialDraft],
+	);
+	const fieldThreads = React.useMemo(
+		() => fieldThreadsByName(editorial.threads),
+		[editorial.threads],
 	);
 	const fieldLabels = React.useMemo(
 		() =>
@@ -2973,7 +2988,25 @@ export function ContentEditor({
 													) : (
 														<FieldRenderer key={fieldKey} value={formData[name]} {...fieldProps} />
 													);
-													return fieldEl;
+													const showFieldComments = canComment && !isViewing && !isDocumentBody;
+													return (
+														<div
+															key={name}
+															data-editorial-field={name}
+															className={showFieldComments ? "group relative" : undefined}
+														>
+															{showFieldComments && (
+																<FieldCommentsButton
+																	label={fieldLabels[name] ?? name}
+																	threads={fieldThreads.get(name) ?? []}
+																	activeThreadId={editorial.activeThreadId}
+																	onOpen={openEditorialThread}
+																	onStart={readOnly ? undefined : () => startFieldComment(name)}
+																/>
+															)}
+															{fieldEl}
+														</div>
+													);
 												})}
 											</div>
 										</fieldset>
@@ -3046,6 +3079,7 @@ export function ContentEditor({
 												editor={portableTextEditor}
 												currentUser={currentUser}
 												fieldLabels={fieldLabels}
+												fieldsRef={fieldsRef}
 												positioned={!isBelowLg}
 												canComment={canComment && !readOnly}
 											/>

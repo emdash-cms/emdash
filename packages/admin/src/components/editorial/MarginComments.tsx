@@ -72,11 +72,53 @@ function useAnchorLabel() {
 	};
 }
 
+/**
+ * The field each field thread, or the draft, points at, keyed by thread id or
+ * `draft`, for those fields shown on the page.
+ */
+function useFieldElements(
+	fieldsRef: React.RefObject<HTMLElement | null>,
+	threads: EditorialThread[],
+	draftAnchor: EditorialAnchor | null,
+	enabled: boolean,
+): Map<string, HTMLElement> {
+	const [elements, setElements] = React.useState(() => new Map<string, HTMLElement>());
+	const anchored = [
+		...threads.map((thread) => ({ id: thread.id, anchor: thread.anchor })),
+		...(draftAnchor ? [{ id: "draft", anchor: draftAnchor }] : []),
+	];
+	const signature = anchored
+		.map(({ id, anchor }) => (anchor.type === "field" ? `${id}:${anchor.field}` : ""))
+		.join();
+	React.useLayoutEffect(() => {
+		const root = fieldsRef.current;
+		const next = new Map<string, HTMLElement>();
+		if (root && enabled) {
+			for (const { id, anchor } of anchored) {
+				if (anchor.type !== "field") continue;
+				const element = root.querySelector<HTMLElement>(
+					`[data-editorial-field="${CSS.escape(anchor.field)}"]`,
+				);
+				if (element) next.set(id, element);
+			}
+		}
+		setElements((current) =>
+			current.size === next.size && [...next].every(([id, element]) => current.get(id) === element)
+				? current
+				: next,
+		);
+		// oxlint-disable-next-line react-hooks/exhaustive-deps -- recompute only when the field threads change
+	}, [fieldsRef, signature, enabled]);
+	return elements;
+}
+
 /** Vertical positions for cards beside their anchors, pushed down so none overlap. */
 function useCardLayout(
 	editor: Editor | null,
 	gutterRef: React.RefObject<HTMLDivElement | null>,
+	fieldsRef: React.RefObject<HTMLElement | null>,
 	positionedIds: string[],
+	fieldThreads: Map<string, HTMLElement>,
 	draftFrom: number | null,
 	enabled: boolean,
 ) {
@@ -85,36 +127,43 @@ function useCardLayout(
 	const [version, setVersion] = React.useState(0);
 
 	React.useEffect(() => {
-		if (!editor || !enabled) return;
+		if (!enabled) return;
 		let frame = 0;
 		const bump = () => {
 			cancelAnimationFrame(frame);
 			frame = requestAnimationFrame(() => setVersion((value) => value + 1));
 		};
-		editor.on("transaction", bump);
+		editor?.on("transaction", bump);
 		// Fields above the editor, such as an image that finishes loading, move the text without resizing it.
 		const observer = new ResizeObserver(bump);
-		observer.observe(editor.view.dom.closest(".emdash-editor-page") ?? editor.view.dom);
+		const fields = fieldsRef.current;
+		const page = fields?.closest(".emdash-editor-page") ?? fields ?? editor?.view.dom;
+		if (page) observer.observe(page);
 		if (gutterRef.current) observer.observe(gutterRef.current);
 		return () => {
 			cancelAnimationFrame(frame);
-			editor.off("transaction", bump);
+			editor?.off("transaction", bump);
 			observer.disconnect();
 		};
-	}, [editor, enabled, gutterRef]);
+	}, [editor, enabled, gutterRef, fieldsRef]);
 
 	React.useLayoutEffect(() => {
 		const gutter = gutterRef.current;
-		if (!editor || editor.isDestroyed || !gutter || !enabled) return;
+		if (!gutter || !enabled) return;
+		const view = editor && !editor.isDestroyed ? editor.view : null;
 		const origin = gutter.getBoundingClientRect().top;
 		const ranges = new Map(
-			getEditorialHighlights(editor.state).map((highlight) => [highlight.threadId, highlight]),
+			view
+				? getEditorialHighlights(view.state).map((highlight) => [highlight.threadId, highlight])
+				: [],
 		);
 		const wanted = positionedIds
 			.map((id) => {
+				const field = fieldThreads.get(id);
+				if (field) return { id, top: field.getBoundingClientRect().top - origin };
 				const from = id === "draft" ? draftFrom : ranges.get(id)?.from;
-				if (from == null) return null;
-				return { id, top: editor.view.coordsAtPos(from).top - origin };
+				if (from == null || !view) return null;
+				return { id, top: view.coordsAtPos(from).top - origin };
 			})
 			.filter((item): item is { id: string; top: number } => item !== null)
 			.toSorted((a, b) => a.top - b.top);
@@ -127,7 +176,7 @@ function useCardLayout(
 			floor = top + (cardRefs.current.get(item.id)?.offsetHeight ?? 0) + CARD_GAP_PX;
 		}
 		setTops((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
-	}, [editor, gutterRef, positionedIds, draftFrom, enabled, version]);
+	}, [editor, gutterRef, positionedIds, fieldThreads, draftFrom, enabled, version]);
 
 	const register = React.useCallback(
 		(id: string) => (element: HTMLElement | null) => {
@@ -141,15 +190,17 @@ function useCardLayout(
 }
 
 /**
- * Comment threads in the margin beside the entry. Text and block threads sit
- * next to what they point at; entry, field and detached threads head the
- * column. Below the large breakpoint the cards stack in a list instead.
+ * Comment threads in the margin beside the entry. Text, block and field threads
+ * sit next to what they point at; entry and detached threads, and threads on
+ * fields outside the page, head the column. Below the large breakpoint the
+ * cards stack in a list instead.
  */
 export function MarginComments({
 	comments,
 	editor,
 	currentUser,
 	fieldLabels,
+	fieldsRef,
 	positioned,
 	canComment,
 }: {
@@ -157,6 +208,8 @@ export function MarginComments({
 	editor: Editor | null;
 	currentUser: EditorialCommentsUser | undefined;
 	fieldLabels: Record<string, string>;
+	/** Holds an element marked `data-editorial-field` for each field on the page. */
+	fieldsRef: React.RefObject<HTMLElement | null>;
 	positioned: boolean;
 	canComment: boolean;
 }) {
@@ -168,9 +221,12 @@ export function MarginComments({
 	const visible = threads.filter(
 		(thread) => thread.status === "open" || showResolved || thread.id === activeThreadId,
 	);
-	const inPlace = positioned ? visible.filter((thread) => located.has(thread.id)) : [];
+	const fieldThreads = useFieldElements(fieldsRef, visible, draft?.anchor ?? null, positioned);
+	const inPlace = positioned
+		? visible.filter((thread) => located.has(thread.id) || fieldThreads.has(thread.id))
+		: [];
 	const listed = visible.filter((thread) => !inPlace.includes(thread));
-	const draftInPlace = positioned && draft?.range != null;
+	const draftInPlace = positioned && (draft?.range != null || fieldThreads.has("draft"));
 	const positionedIds = React.useMemo(
 		() => [...inPlace.map((thread) => thread.id), ...(draftInPlace ? ["draft"] : [])],
 		// oxlint-disable-next-line react-hooks/exhaustive-deps -- recompute only when the set of ids changes
@@ -179,7 +235,9 @@ export function MarginComments({
 	const { tops, register } = useCardLayout(
 		editor,
 		gutterRef,
+		fieldsRef,
 		positionedIds,
+		fieldThreads,
 		draft?.range?.from ?? null,
 		positioned,
 	);
