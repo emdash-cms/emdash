@@ -130,6 +130,8 @@ On Cloudflare, EmDash publishes scheduled entries only from the Worker's `schedu
 
 If either is missing, scheduled entries do not go live. In local development with `astro dev`, EmDash publishes scheduled entries on a timer, so a schedule that works locally does not confirm the deployed configuration.
 
+When the Cron Trigger runs every minute (`* * * * *`, as in the starter templates), an entry scheduled about a minute or more ahead goes live at its scheduled time. Each run waits for entries scheduled up to 70 seconds after it starts and publishes each one at its time, so a trigger that starts late does not delay them. Waiting uses no CPU time, but a run that is waiting stays open for up to about a minute, so consecutive runs can overlap in Workers logs. An entry scheduled less than a minute ahead goes live on the next run. A Worker entry point that calls `runScheduledTasks()` from `emdash/middleware` instead of using `createScheduledHandler()` publishes only entries that are already due, unless it passes `publishUpcomingWithinMs` with the number of milliseconds to wait.
+
 Run `emdash doctor` from the project root to check the Cron Trigger and the `scheduled` handler in the local project files:
 
 ```bash

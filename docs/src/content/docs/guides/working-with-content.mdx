@@ -381,8 +381,10 @@ Scheduling is available by default. A collection can disable creating or changin
 `no-scheduling` in its `supports` settings through a seed file, the schema API, or MCP. The Content
 Type editor has no checkbox for this flag. Existing schedules still run and can be removed.
 
-Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
-Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
+Node.js deployments run the scheduled-publishing sweep automatically at the start of every minute, so
+an entry scheduled for a whole minute goes live at that minute. A schedule with seconds, which only
+the API and MCP can set, can go live up to a minute late. Cloudflare Workers require a Cron Trigger. The
+Cloudflare starter templates include it; existing deployments can follow
 [Scheduled publishing](/deployment/cloudflare/#scheduled-publishing) to verify the trigger.
 
 ## Review the publishing calendar

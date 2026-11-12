@@ -349,6 +349,43 @@ export async function findTypesWithDueContent(
 	return due;
 }
 
+/**
+ * Earliest `scheduled_at` across `types` that is after `after` and no later
+ * than `until`, or `null` when nothing is scheduled in that window.
+ */
+export async function findNextScheduledAt(
+	db: Kysely<Database>,
+	types: string[],
+	after: Date,
+	until: Date,
+): Promise<Date | null> {
+	const from = after.toISOString();
+	const to = until.toISOString();
+	let next: Date | null = null;
+
+	// Each subquery binds two values, so halve the chunk to stay within D1's bind limit.
+	for (const chunk of chunks(types, Math.floor(SQL_BATCH_SIZE / 2))) {
+		const columns = chunk.map(
+			(type, index) => sql`(
+				SELECT MIN(scheduled_at) FROM ${sql.ref(getTableName(type))}
+				WHERE scheduled_at > ${from} AND scheduled_at <= ${to} AND deleted_at IS NULL
+			) AS ${sql.ref(`next_${index}`)}`,
+		);
+		const result = await sql<Record<string, unknown>>`SELECT ${sql.join(columns)}`.execute(db);
+		const row = result.rows[0];
+		if (!row) throw new Error("Upcoming-content check returned no row");
+		for (const index of chunk.keys()) {
+			const value = row[`next_${index}`];
+			const scheduledAt =
+				value instanceof Date ? value : typeof value === "string" ? new Date(value) : null;
+			if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) continue;
+			if (!next || scheduledAt < next) next = scheduledAt;
+		}
+	}
+
+	return next;
+}
+
 function assertPageOffset(offset: number | undefined, cursor: string | undefined): void {
 	if (offset === undefined) return;
 	if (cursor !== undefined) {
