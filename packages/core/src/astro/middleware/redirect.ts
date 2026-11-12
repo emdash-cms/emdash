@@ -140,7 +140,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	const routeCache: APIContext["cache"] | undefined = context.cache;
+	const routeCache: APIContext["cache"] | undefined = context.cache?.enabled
+		? context.cache
+		: undefined;
 	const renderedSettings = new Set<string>();
 	let currentSettingsVersion: string | null | undefined;
 	const checkSettings = () => {
@@ -278,8 +280,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				isRedirectCode(response.status) && (location === "/404" || location === "/404/");
 			const missedDirectly = response.status === 404 && pathname !== "/404" && pathname !== "/404/";
 			if (missedDirectly || missedByRedirect) {
-				const referrer = context.request.headers.get("referer") ?? null;
-				const userAgent = context.request.headers.get("user-agent") ?? null;
+				const referrer = context.isPrerendered
+					? null
+					: (context.request.headers.get("referer") ?? null);
+				const userAgent = context.isPrerendered
+					? null
+					: (context.request.headers.get("user-agent") ?? null);
 				after(async () => {
 					try {
 						await repo.log404({
