@@ -11,6 +11,7 @@ This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQ
 
 - Node.js v22.23.4 or higher (v22.16.0 is enough on Astro 7.3 or earlier)
 - A Node.js hosting provider or VPS
+- `sharp` in the application's `dependencies` (included in EmDash's Node.js starter templates) so `/_image` transforms resolve at runtime under strict package managers such as `pnpm`
 - SQLite FTS5 support in the Node.js build when using the built-in SQLite adapter
 
 Search requires FTS5. Its availability depends on how Node.js was compiled, not just the Node.js or SQLite version. Check the exact Node binary used by your server:

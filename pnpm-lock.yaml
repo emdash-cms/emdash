@@ -315,6 +315,9 @@ catalogs:
     semver:
       specifier: ^7.6.3
       version: 7.7.4
+    sharp:
+      specifier: ^0.35.4
+      version: 0.35.4
     tsdown:
       specifier: 0.20.3
       version: 0.20.3
@@ -2206,7 +2209,7 @@ importers:
         version: 3.32.0
       '@tiptap/react':
         specifier: 'catalog:'
-        version: 3.32.0(@floating-ui/dom@1.7.6)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@tiptap/starter-kit':
         specifier: 'catalog:'
         version: 3.32.0
@@ -2837,10 +2840,10 @@ importers:
     devDependencies:
       '@lingui/core':
         specifier: 'catalog:'
-        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))
+        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta))
       '@lingui/react':
         specifier: 'catalog:'
-        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)
+        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta))(react@19.2.4)
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -3247,6 +3250,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.4(@types/node@26.1.1)
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
@@ -3272,6 +3278,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.4(@types/node@26.1.1)
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
@@ -3343,6 +3352,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.4(@types/node@26.1.1)
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
@@ -3414,6 +3426,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.4(@types/node@26.1.1)
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
@@ -3479,6 +3494,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.4(react@19.2.4)
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.4(@types/node@26.1.1)
     devDependencies:
       '@astrojs/check':
         specifier: 'catalog:'
@@ -7558,6 +7576,9 @@ packages:
   '@smithy/core@3.24.6':
     resolution: {integrity: sha512-wBXDRup6UU97VKyaiRo8AssnfStPtG0oAAfpq/bC0a1YYau8pM86YB4kM6ccoVi1mS8l/UHbn9oDM+7uozr/ug==}
     engines: {node: '>=18.0.0'}
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.3.5':
     resolution: {integrity: sha512-yiF8xHpdkaTfzLVqFzsP6WvNghEK+qZzLYWFD13L2SsFhbXwBGlxdocKF95qjr7s5lE5NRage+EJFK4mAsx88Q==}
@@ -10147,6 +10168,7 @@ packages:
   image-size@2.0.2:
     resolution: {integrity: sha512-IRqXKlaXwgSMAMtpNzZa1ZAe8m+Sa1770Dhk8VkSsP9LS+iHD62Zd8FQKs8fbPiagBE7BzoFX23cxFnwshpV6w==}
     engines: {node: '>=16.x'}
+    deprecated: Use latest 2.x please
 
   import-fresh@3.3.1:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
@@ -16043,6 +16065,19 @@ snapshots:
 
   '@lingui/babel-plugin-extract-messages@5.9.5': {}
 
+  '@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta)':
+    dependencies:
+      '@babel/core': 7.29.7
+      '@babel/runtime': 7.29.7
+      '@babel/types': 7.29.7
+      '@lingui/conf': 5.9.5(typescript@6.0.0-beta)
+      '@lingui/core': 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta))
+      '@lingui/message-utils': 5.9.5
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
+    optional: true
+
   '@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3)':
     dependencies:
       '@babel/core': 7.29.7
@@ -16089,6 +16124,17 @@ snapshots:
       - supports-color
       - typescript
 
+  '@lingui/conf@5.9.5(typescript@6.0.0-beta)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      cosmiconfig: 8.3.6(typescript@6.0.0-beta)
+      jest-validate: 29.7.0
+      jiti: 2.7.0
+      picocolors: 1.1.1
+    transitivePeerDependencies:
+      - typescript
+    optional: true
+
   '@lingui/conf@5.9.5(typescript@6.0.3)':
     dependencies:
       '@babel/runtime': 7.29.7
@@ -16098,6 +16144,13 @@ snapshots:
       picocolors: 1.1.1
     transitivePeerDependencies:
       - typescript
+
+  '@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta))':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@lingui/message-utils': 5.9.5
+    optionalDependencies:
+      '@lingui/babel-plugin-lingui-macro': 5.9.5(typescript@6.0.0-beta)
 
   '@lingui/core@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))':
     dependencies:
@@ -16128,6 +16181,14 @@ snapshots:
     dependencies:
       '@messageformat/parser': 5.1.1
       js-sha256: 0.10.1
+
+  '@lingui/react@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta))(react@19.2.4)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@lingui/core': 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.0-beta))
+      react: 19.2.4
+    optionalDependencies:
+      '@lingui/babel-plugin-lingui-macro': 5.9.5(typescript@6.0.0-beta)
 
   '@lingui/react@5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)':
     dependencies:
@@ -17824,6 +17885,13 @@ snapshots:
       '@tiptap/pm': 3.32.0
     optional: true
 
+  '@tiptap/extension-floating-menu@3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/pm': 3.32.0
+    optional: true
+
   '@tiptap/extension-focus@3.32.0(@tiptap/extensions@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0))':
     dependencies:
       '@tiptap/extensions': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
@@ -17971,6 +18039,23 @@ snapshots:
     optionalDependencies:
       '@tiptap/extension-bubble-menu': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
       '@tiptap/extension-floating-menu': 3.32.0(@floating-ui/dom@1.7.6)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+    transitivePeerDependencies:
+      - '@floating-ui/dom'
+
+  '@tiptap/react@3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@tiptap/core': 3.32.0(@tiptap/pm@3.32.0)
+      '@tiptap/pm': 3.32.0
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+      '@types/use-sync-external-store': 0.0.6
+      fast-equals: 5.4.0
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      use-sync-external-store: 1.6.0(react@19.2.4)
+    optionalDependencies:
+      '@tiptap/extension-bubble-menu': 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
+      '@tiptap/extension-floating-menu': 3.32.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)
     transitivePeerDependencies:
       - '@floating-ui/dom'
 
@@ -19328,6 +19413,16 @@ snapshots:
     dependencies:
       object-assign: 4.1.1
       vary: 1.1.2
+
+  cosmiconfig@8.3.6(typescript@6.0.0-beta):
+    dependencies:
+      import-fresh: 3.3.1
+      js-yaml: 4.3.0
+      parse-json: 5.2.0
+      path-type: 4.0.0
+    optionalDependencies:
+      typescript: 6.0.0-beta
+    optional: true
 
   cosmiconfig@8.3.6(typescript@6.0.3):
     dependencies:
@@ -22263,7 +22358,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.4
       '@img/sharp-win32-x64': 0.35.4
       '@types/node': 26.1.1
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
