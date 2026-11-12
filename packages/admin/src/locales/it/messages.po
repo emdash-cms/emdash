@@ -5741,7 +5741,10 @@ msgid ""
 "Editor\n"
 "Reporter\n"
 "Photographer"
-msgstr "Redattore\nReporter\nFotografo"
+msgstr ""
+"Redattore\n"
+"Reporter\n"
+"Fotografo"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:110
 msgid "Editor sidebar"
@@ -10951,7 +10954,10 @@ msgid ""
 "Option 1\n"
 "Option 2\n"
 "Option 3"
-msgstr "Opzione 1\nOpzione 2\nOpzione 3"
+msgstr ""
+"Opzione 1\n"
+"Opzione 2\n"
+"Opzione 3"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:494
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:531
