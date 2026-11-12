@@ -875,10 +875,12 @@ Add common commands as `package.json` scripts for convenience:
 		"dev": "astro dev",
 		"types": "emdash types",
 		"export-seed": "emdash export-seed",
-		"db:reset": "rm -f data.db"
+		"db:reset": "rm -f data.db data.db-wal data.db-shm"
 	}
 }
 ```
+
+Stop the dev server and any other processes using the database before running `db:reset`. This permanently deletes the local SQLite database, including committed data in its write-ahead log (`data.db-wal`). If the main file is missing but `data.db-wal` or `data.db-shm` remains, EmDash refuses to create a replacement database. To recover from an accidental rename, restore the original main file and preserve these sidecars instead of running `db:reset`.
 
 ## General exit codes
 

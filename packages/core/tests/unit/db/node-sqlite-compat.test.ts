@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -118,6 +119,53 @@ describe("openNodeSqliteDatabase", () => {
 		expect(database.prepare("SELECT COUNT(*) AS count FROM rejected_values").all([])).toEqual([
 			{ count: 0 },
 		]);
+	});
+
+	it.each(["-wal", "-shm"])("refuses to create a database with an orphaned %s file", (suffix) => {
+		const path = temporaryDatabasePath();
+		const journal = Buffer.from("existing SQLite sidecar");
+		writeFileSync(`${path}${suffix}`, journal);
+
+		expect(() => open(path, { journalMode: "wal" })).toThrow(/Refusing to create SQLite database/);
+		expect(existsSync(path)).toBe(false);
+		expect(readFileSync(`${path}${suffix}`)).toEqual(journal);
+
+		rmSync(`${path}${suffix}`);
+		const reset = open(path, { journalMode: "wal" });
+		reset.exec("CREATE TABLE posts (title TEXT)");
+		expect(reset.prepare("SELECT title FROM posts").all()).toEqual([]);
+	});
+
+	it("preserves WAL content when the main database is renamed away and restored", () => {
+		const path = temporaryDatabasePath();
+		// Exiting without closing leaves committed content in the WAL, as a stopped dev server can.
+		const result = spawnSync(
+			process.execPath,
+			[
+				"--input-type=module",
+				"-e",
+				`import { DatabaseSync } from "node:sqlite";
+				const db = new DatabaseSync(process.argv[1]);
+				db.exec("PRAGMA journal_mode = WAL; CREATE TABLE posts (title TEXT); INSERT INTO posts VALUES ('Original post');");
+				process.exit(0);`,
+				path,
+			],
+			{ encoding: "utf8", timeout: 10000 },
+		);
+		expect(result.error).toBeUndefined();
+		expect(result.status, result.stderr).toBe(0);
+		const wal = readFileSync(`${path}-wal`);
+		const shm = readFileSync(`${path}-shm`);
+		renameSync(path, `${path}.renamed`);
+
+		expect(() => open(path, { journalMode: "wal" })).toThrow(/Refusing to create SQLite database/);
+		expect(existsSync(path)).toBe(false);
+		expect(readFileSync(`${path}-wal`)).toEqual(wal);
+		expect(readFileSync(`${path}-shm`)).toEqual(shm);
+
+		renameSync(`${path}.renamed`, path);
+		const restored = open(path, { journalMode: "wal" });
+		expect(restored.prepare("SELECT title FROM posts").all()).toEqual([{ title: "Original post" }]);
 	});
 
 	it("applies connection defaults without changing the journal mode", () => {

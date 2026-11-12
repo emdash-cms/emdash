@@ -61,7 +61,7 @@ cd templates/portfolio
 pnpm dev
 ```
 
-Available templates: `blank`, `starter`, `blog`, `portfolio`, `marketing`, plus a `-cloudflare` variant of each runnable template. Seed content is applied automatically on first request. To start fresh, delete the local database (`data.db` or the D1 binding) and restart the dev server.
+Available templates: `blank`, `starter`, `blog`, `portfolio`, `marketing`, plus a `-cloudflare` variant of each runnable template. Seed content is applied automatically on first request. To start fresh with SQLite, stop the dev server and delete `data.db`, `data.db-wal`, and `data.db-shm` before restarting. This permanently discards the local content. For D1, reset the local database binding.
 
 ### Watch mode
 

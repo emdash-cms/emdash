@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 export interface NodeSqliteCompatStatement {
@@ -36,6 +37,18 @@ export class NodeSqliteCompatDatabase {
 	readonly #database: DatabaseSync;
 
 	constructor(path: string, options: NodeSqliteOpenOptions = {}) {
+		// Opening a new main file can overwrite the WAL belonging to a renamed database.
+		if (!options.readOnly && path !== ":memory:" && path !== "" && !existsSync(path)) {
+			const sidecar = ["-wal", "-shm"].map((suffix) => `${path}${suffix}`).find(existsSync);
+			if (sidecar) {
+				throw new Error(
+					`Refusing to create SQLite database "${path}" because "${sidecar}" already exists. ` +
+						"Stop all processes using this database and restore the original database file before restarting. " +
+						"Preserve the -wal and -shm files; they may contain uncheckpointed data. " +
+						`Only if you intend to discard all data and start fresh, remove "${path}-wal" and "${path}-shm" too.`,
+				);
+			}
+		}
 		const database = new DatabaseSync(path, { readOnly: options.readOnly });
 		this.#database = database;
 
