@@ -1358,7 +1358,7 @@ msgstr "您网站的简短描述"
 
 #: packages/admin/src/components/RelationForm.tsx:81
 msgid "A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores."
-msgstr "无法从这些角色名称生成 URL 标识。请手动输入一个仅包含小写字母、数字和下划线的 URL 标识。"
+msgstr "无法从这些角色名称生成标识符。请手动输入一个仅包含小写字母、数字和下划线的标识符。"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:128
 #: packages/admin/src/components/BylineFieldEditor.tsx:372
@@ -1366,12 +1366,12 @@ msgstr "无法从这些角色名称生成 URL 标识。请手动输入一个仅�
 #: packages/admin/src/components/FieldEditor.tsx:439
 #: packages/admin/src/components/FieldEditor.tsx:1178
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
-msgstr "无法从此标签生成 URL 标识。请手动输入一个仅包含小写字母、数字和下划线的 URL 标识。"
+msgstr "无法从此标签生成标识符。请手动输入一个仅包含小写字母、数字和下划线的标识符。"
 
 #: packages/admin/src/components/FieldEditor.tsx:483
 #: packages/admin/src/components/FieldEditor.tsx:1679
 msgid "A slug cannot be generated from this label. Type one manually."
-msgstr "无法从此标签生成 URL 标识。请手动输入一个。"
+msgstr "无法从此标签生成标识符。请手动输入一个。"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:854
 msgid "A source and target locale are required"
@@ -2215,7 +2215,7 @@ msgstr "其他编辑者"
 #: packages/admin/src/components/BylineFieldEditor.tsx:151
 #: packages/admin/src/components/FieldEditor.tsx:519
 msgid "Another field already uses this slug. Enter a different one."
-msgstr "此 URL 标识已被其他字段使用，请换一个。"
+msgstr "此标识符已被其他字段使用，请换一个。"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:105
 msgid "Another folder already uses this name. Enter a different one."
@@ -2235,15 +2235,15 @@ msgstr "此来源路径已被其他重定向使用，请换一个。"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:76
 msgid "Another relation already uses this slug. Enter a different one."
-msgstr "此 URL 标识已被其他关联关系使用，请换一个。"
+msgstr "此标识符已被其他关联关系使用，请换一个。"
 
 #: packages/admin/src/components/Sections.tsx:186
 msgid "Another section already uses this slug. Enter a different one."
-msgstr "此 URL 标识已被其他片段使用，请换一个。"
+msgstr "此标识符已被其他片段使用，请换一个。"
 
 #: packages/admin/src/components/FieldEditor.tsx:489
 msgid "Another sub-field already uses this slug. Enter a different one."
-msgstr "此 URL 标识已被其他子字段使用，请换一个。"
+msgstr "此标识符已被其他子字段使用，请换一个。"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:912
 msgid "Another taxonomy already uses this name. Enter a different one."
@@ -2608,7 +2608,7 @@ msgstr "返回编辑"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:203
 msgid "Back to editing (Esc)"
-msgstr "返回编辑 (Esc)"
+msgstr "返回编辑（Esc）"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:393
 msgid "Back to editing."
@@ -2980,7 +2980,7 @@ msgstr "取消"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:420
 msgid "Cancel (Esc)"
-msgstr "取消 (Esc)"
+msgstr "取消（Esc）"
 
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:144
@@ -3050,7 +3050,7 @@ msgstr "分类"
 #. placeholder {0}: analysis.categories
 #: packages/admin/src/components/WordPressImport.tsx:1835
 msgid "Categories ({0})"
-msgstr "分类 ({0})"
+msgstr "分类（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1198
 msgid "Categories & Tags"
@@ -3290,7 +3290,7 @@ msgstr "正在检查媒体文件"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:52
 msgid "Checking package structure"
-msgstr "正在检查安装包结构"
+msgstr "正在检查站点包结构"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:53
 msgid "Checking records"
@@ -3302,7 +3302,7 @@ msgstr "正在检查引用"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:275
 msgid "Checking the package"
-msgstr "正在检查安装包"
+msgstr "正在检查站点包"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:493
 msgid "Checking this device for passkey support..."
@@ -3405,7 +3405,7 @@ msgstr "请选择其中一个选项"
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:244
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:269
 msgid "Choose package file"
-msgstr "选择安装包文件"
+msgstr "选择站点包文件"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1828
 msgid "Choose replacement image"
@@ -3421,7 +3421,7 @@ msgstr "选择此条目显示的发布日期。"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:261
 msgid "Choose the same package file again to finish uploading it."
-msgstr "再次选择同一个安装包文件以完成上传。"
+msgstr "再次选择同一个站点包文件以完成上传。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
@@ -3837,7 +3837,7 @@ msgstr "内容摘要"
 #. placeholder {0}: result.errors.length
 #: packages/admin/src/components/WordPressImport.tsx:2462
 msgid "Content Errors ({0})"
-msgstr "内容错误 ({0})"
+msgstr "内容错误（{0}）"
 
 #: packages/admin/src/components/WordPressImport.tsx:1373
 msgid "Content found:"
@@ -3874,7 +3874,7 @@ msgstr "内容以无效方式引用了媒体"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:147
 msgid "Content refers to media that is not in the package"
-msgstr "内容引用了安装包中不存在的媒体"
+msgstr "内容引用了站点包中不存在的媒体"
 
 #: packages/admin/src/router.tsx:1962
 msgid "Content removed from public view"
@@ -4013,7 +4013,7 @@ msgstr "复制回执"
 
 #: packages/admin/src/components/Sections.tsx:533
 msgid "Copy slug"
-msgstr "复制 URL 标识"
+msgstr "复制标识符"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
 msgid "Copy this token now — it won't be shown again."
@@ -5312,11 +5312,11 @@ msgstr "下载 {created} 的导出"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:209
 msgid "Download package"
-msgstr "下载安装包"
+msgstr "下载站点包"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:217
 msgid "Download package fetches the export file by file and checks each one, so it works for sites of any size. Download as one file asks the server for a single archive, which is quicker for small sites but can fail for large sites on Cloudflare Workers."
-msgstr "下载安装包会逐个文件获取导出并逐一校验，适用于任何规模的站点。下载为单个文件是向服务器请求单个归档包，小站点更快，但大型站点在 Cloudflare Workers 上可能失败。"
+msgstr "下载站点包会逐个文件获取导出并逐一校验，适用于任何规模的站点。下载为单个文件是向服务器请求单个归档包，小站点更快，但大型站点在 Cloudflare Workers 上可能失败。"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:572
 msgid "Download SBOM"
@@ -5324,7 +5324,7 @@ msgstr "下载 SBOM"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:99
 msgid "Download this site as a single .emdash package file that another EmDash site can import."
-msgstr "将本站点下载为单个 .emdash 安装包文件，可供另一个 EmDash 站点导入。"
+msgstr "将本站点下载为单个 .emdash 站点包文件，可供另一个 EmDash 站点导入。"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:120
 msgid "Downloaded"
@@ -5336,7 +5336,7 @@ msgstr "下载中"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:112
 msgid "Downloading the package"
-msgstr "正在下载安装包"
+msgstr "正在下载站点包"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:53
@@ -5377,7 +5377,7 @@ msgstr "将文件拖放到此处"
 
 #: packages/admin/src/components/WordPressImport.tsx:1171
 msgid "Drag and drop or click to browse (.xml)"
-msgstr "拖放或点击浏览 (.xml)"
+msgstr "拖放或点击浏览（.xml）"
 
 #: packages/admin/src/components/Widgets.tsx:777
 msgid "Drag here to add"
@@ -5764,7 +5764,7 @@ msgstr "编辑者可以选择第二张图片，站点将在深色模式下显示
 
 #: packages/admin/src/components/WordPressImport.tsx:1094
 msgid "em1.…"
-msgstr "em1.……"
+msgstr "em1.…"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:65
 #: packages/admin/src/components/Settings.tsx:120
@@ -5904,7 +5904,7 @@ msgstr "自您打开以来，EmDash 或此条目的字段发生了变化。"
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:39
 msgid "EmDash site package"
-msgstr "EmDash 站点安装包"
+msgstr "EmDash 站点包"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
 msgid "EmDash will continue setup and resume scanning existing content."
@@ -6073,7 +6073,7 @@ msgstr "输入一个可识别的时区以保存"
 #: packages/admin/src/components/Sections.tsx:98
 #: packages/admin/src/components/TaxonomyManager.tsx:106
 msgid "Enter a slug."
-msgstr "请输入 URL 标识。"
+msgstr "请输入标识符。"
 
 #: packages/admin/src/components/Redirects.tsx:106
 msgid "Enter a source path."
@@ -6240,7 +6240,7 @@ msgstr "Esc"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:566
 msgid "Every imported record and media file was read back and matched the package. Keep this receipt as a record of the transfer."
-msgstr "每条导入的记录和媒体文件都已回读并与安装包匹配。请保留此回执作为传输记录。"
+msgstr "每条导入的记录和媒体文件都已回读并与站点包匹配。请保留此回执作为传输记录。"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:660
 msgid "Every other user with an active account gets an email saying the site is now at {siteHost}, with a link to sign in there. Passkeys from another address don't work at {siteHost}, so users sign in with an email link and add a new passkey."
@@ -6352,7 +6352,7 @@ msgstr "已导出"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:268
 msgid "Exported with"
-msgstr "由……导出"
+msgstr "导出工具"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:308
 msgid "Exporting"
@@ -7529,7 +7529,7 @@ msgstr "字段标签"
 
 #: packages/admin/src/components/FieldEditor.tsx:1163
 msgid "Field slugs cannot be changed after creation"
-msgstr "字段的 URL 标识创建后无法更改"
+msgstr "字段的标识符创建后无法更改"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:384
 msgid "Field type cannot be changed after creation."
@@ -8633,7 +8633,7 @@ msgstr "已安装"
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
 #: packages/admin/src/components/PluginManager.tsx:656
 msgid "Installed from marketplace (v{0})"
-msgstr "已从市场安装 (v{0})"
+msgstr "已从市场安装（v{0}）"
 
 #: packages/admin/src/components/PluginManager.tsx:677
 msgid "Installed:"
@@ -9053,7 +9053,7 @@ msgstr "链接 URL"
 #. placeholder {0}: user.oauthAccounts.length
 #: packages/admin/src/components/users/UserDetail.tsx:286
 msgid "Linked Accounts ({0})"
-msgstr "已关联账户 ({0})"
+msgstr "已关联账户（{0}）"
 
 #. placeholder {0}: relation.parentLabel
 #: packages/admin/src/components/RelationsPanel.tsx:178
@@ -9583,7 +9583,7 @@ msgstr "媒体详情"
 #. placeholder {0}: mediaResult.failed.length
 #: packages/admin/src/components/WordPressImport.tsx:2480
 msgid "Media Errors ({0})"
-msgstr "媒体错误 ({0})"
+msgstr "媒体错误（{0}）"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:16
 #: packages/admin/src/components/settings/transfer/labels.ts:85
@@ -9738,7 +9738,7 @@ msgstr "菜单"
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1818
 msgid "Menus ({0})"
-msgstr "菜单 ({0})"
+msgstr "菜单（{0}）"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:82
 msgid "Menus Manage"
@@ -11190,7 +11190,7 @@ msgstr "通行密钥"
 #. placeholder {0}: user.credentials.length
 #: packages/admin/src/components/users/UserDetail.tsx:255
 msgid "Passkeys ({0})"
-msgstr "通行密钥 ({0})"
+msgstr "通行密钥（{0}）"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:141
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
@@ -11477,7 +11477,7 @@ msgstr "未找到插件"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:505
 msgid "Plugin not found. The publisher or slug may be incorrect."
-msgstr "未找到插件。发布者或 URL 标识可能有误。"
+msgstr "未找到插件。发布者或标识符可能有误。"
 
 #: packages/admin/src/components/PluginManager.tsx:558
 msgid "Plugin pages"
@@ -11869,7 +11869,7 @@ msgstr "快速创建关联关系"
 
 #: packages/admin/src/components/FieldEditor.tsx:1415
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
-msgstr "快速创建将根据此字段和此内容集合为关联关系命名，从上方开关获取其容纳条目数，并不对反向链接的条目数设限。<0>自行创建关联关系</0>可设置其 URL 标识、双方的显示名称和两个限制，然后在上方选择它。"
+msgstr "快速创建将根据此字段和此内容集合为关联关系命名，从上方开关获取其容纳条目数，并不对反向链接的条目数设限。<0>自行创建关联关系</0>可设置其标识符、双方的显示名称和两个限制，然后在上方选择它。"
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:562
@@ -12986,7 +12986,7 @@ msgstr "保存"
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:431
 msgid "Save (Enter)"
-msgstr "保存 (Enter)"
+msgstr "保存（Enter）"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4637
 msgid "Save alt text"
@@ -14228,11 +14228,11 @@ msgstr "URL 标识"
 
 #: packages/admin/src/components/Sections.tsx:207
 msgid "Slug copied to clipboard"
-msgstr "URL 标识已复制到剪贴板"
+msgstr "标识符已复制到剪贴板"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:353
 msgid "Slugs cannot be changed after the field is created."
-msgstr "字段创建后无法更改 URL 标识。"
+msgstr "字段创建后无法更改标识符。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:539
 msgid "Small section heading"
@@ -14418,7 +14418,7 @@ msgstr "正方形"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:541
 msgid "Square (1:1)"
-msgstr "正方形 (1:1)"
+msgstr "正方形（1:1）"
 
 #: packages/admin/src/components/MenuList.tsx:218
 msgid "Stable identifier for your site, such as primary or footer."
@@ -14559,7 +14559,7 @@ msgstr "样式已更改："
 
 #: packages/admin/src/components/FieldEditor.tsx:1654
 msgid "Sub-field slugs cannot be changed after creation."
-msgstr "子字段的 URL 标识创建后不可更改。"
+msgstr "子字段的标识符创建后不可更改。"
 
 #: packages/admin/src/components/FieldEditor.tsx:1578
 msgid "Sub-Fields"
@@ -14665,7 +14665,7 @@ msgstr "标签"
 #. placeholder {0}: analysis.tags
 #: packages/admin/src/components/WordPressImport.tsx:1847
 msgid "Tags ({0})"
-msgstr "标签 ({0})"
+msgstr "标签（{0}）"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:80
 #: packages/admin/src/components/EntryLockNotice.tsx:123
@@ -14863,11 +14863,11 @@ msgstr "代码编辑器无法加载。请保存您的工作，然后重新加载
 
 #: packages/admin/src/components/RelationForm.tsx:438
 msgid "The content types and slug cannot be changed after a relation is created."
-msgstr "创建关联关系后，内容类型和 URL 标识不可更改。"
+msgstr "创建关联关系后，内容类型和标识符不可更改。"
 
 #: packages/admin/src/components/RelationFormPanel.tsx:132
 msgid "The content types and the slug are fixed. What each side is called and how many entries it holds are not."
-msgstr "内容类型和 URL 标识是固定的；各端的名称及可容纳的条目数量则不固定。"
+msgstr "内容类型和标识符是固定的；各端的名称及可容纳的条目数量则不固定。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
@@ -15701,7 +15701,7 @@ msgstr "此站点使用初始内容搭建。它没有自己的条目，导入将
 #: packages/admin/src/components/BylineFieldEditor.tsx:161
 #: packages/admin/src/components/FieldEditor.tsx:521
 msgid "This slug is reserved. Enter a different one."
-msgstr "此 URL 标识为保留标识，请换一个。"
+msgstr "此标识符为保留标识符，请换一个。"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3392
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
@@ -16103,7 +16103,7 @@ msgstr "为视频输入说明文字（可选）"
 #. placeholder {0}: status.existingType
 #: packages/admin/src/components/WordPressImport.tsx:2068
 msgid "Type mismatch ({0})"
-msgstr "类型不匹配 ({0})"
+msgstr "类型不匹配（{0}）"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1123
 msgid "Type to filter"
@@ -16167,7 +16167,7 @@ msgstr "唯一"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:131
 msgid "Unique identifier (ULID)"
-msgstr "唯一标识符 (ULID)"
+msgstr "唯一标识符（ULID）"
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:463
 #: packages/admin/src/components/users/useRolesConfig.ts:7
@@ -16673,7 +16673,7 @@ msgstr "用户"
 #. placeholder {0}: manifest?.authMode
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:242
 msgid "User access is managed by an external provider ({0}). Self-signup domain settings are not available when using external authentication."
-msgstr "用户访问由外部提供商管理 ({0})。使用外部认证时，自助注册域设置不可用。"
+msgstr "用户访问由外部提供商管理（{0}）。使用外部认证时，自助注册域设置不可用。"
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:109
 msgid "User accounts, passkeys, API tokens, secrets, and plugin data are never exported. Each author’s name and email address are included so they can be matched to users on the other site."
