@@ -60,6 +60,16 @@ export async function seedPlaygroundComments(db: Kysely<Database>, now: string):
 	if (!row) return;
 	const entry = { collection: "posts", id: row.id };
 
+	// Initialization reruns until setup completes, so earlier attempts may have seeded already.
+	const seeded = await db
+		.selectFrom("_emdash_editorial_threads")
+		.select("id")
+		.where("collection", "=", entry.collection)
+		.where("entry_id", "=", entry.id)
+		.where("created_by", "=", REVIEWER.id)
+		.executeTakeFirst();
+	if (seeded) return;
+
 	const content = withBlockKeys(row.content ? JSON.parse(row.content) : []);
 	await sql`UPDATE ec_posts SET content = ${JSON.stringify(content)} WHERE id = ${row.id}`.execute(
 		db,

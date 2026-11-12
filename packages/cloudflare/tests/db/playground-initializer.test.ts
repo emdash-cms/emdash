@@ -106,4 +106,16 @@ describe("initializePlayground", () => {
 			"playground-admin",
 		]);
 	});
+
+	it("seeds the example threads once when initialization runs again", async () => {
+		const db = createDatabase();
+		databases.push(db);
+
+		await initializePlayground(db, loadPlaygroundSeed());
+		await new OptionsRepository(db).delete("emdash:setup_complete");
+		await initializePlayground(db, loadPlaygroundSeed());
+
+		const threads = await db.selectFrom("_emdash_editorial_threads").select("id").execute();
+		expect(threads).toHaveLength(2);
+	});
 });
