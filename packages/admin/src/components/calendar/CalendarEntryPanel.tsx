@@ -40,6 +40,7 @@ import {
 	type CalendarState,
 } from "../../lib/calendar.js";
 import { canPublishEntry } from "../../lib/content-permissions.js";
+import { invalidateContentViews } from "../../lib/invalidate-content-views.js";
 import { openPreviewWindow } from "../../lib/preview-window.js";
 import { contentUrl } from "../../lib/url.js";
 import { cn } from "../../lib/utils.js";
@@ -211,9 +212,7 @@ function CalendarEntryPanelContent({
 	} as const;
 
 	const refresh = () => {
-		void queryClient.invalidateQueries({ queryKey: ["calendar"] });
-		void queryClient.invalidateQueries({ queryKey: ["content", item.collection] });
-		void queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+		void invalidateContentViews(queryClient);
 	};
 	const reportError = (errorTitle: string, error: unknown) => {
 		toastManager.add({ title: errorTitle, description: getMutationError(error), variant: "error" });
