@@ -284,6 +284,72 @@ describe("RevisionHistory", () => {
 		expect(await colorOf(UNKNOWN_ROW)).toBe("neutral");
 	});
 
+	it("names everyone who edited a version, counting deleted accounts among the others", async () => {
+		const ana = { id: "u-ana", name: "Ana Lima" };
+		const sam = { id: "u-sam", name: "Sam Okafor" };
+		const maya = { id: "u-maya", name: "Maya Chen" };
+		const lee = { id: "u-lee", name: "Lee Park" };
+		mockFetchRevisions.mockResolvedValue({
+			items: [
+				makeRevision({ id: "rev-7", editedBy: [maya] }),
+				makeRevision({ id: "rev-6", editedBy: [sam, maya] }),
+				makeRevision({ id: "rev-5", editedBy: [ana, sam, maya] }),
+				makeRevision({ id: "rev-4", editedBy: [ana, sam, maya, lee] }),
+				makeRevision({ id: "rev-3", editedBy: [sam, null, maya, null] }),
+				makeRevision({ id: "rev-2", editedBy: [null, sam] }),
+				makeRevision({ id: "rev-1", editedBy: [null, null] }),
+			],
+			total: 7,
+		});
+		const screen = await renderExpanded(
+			makeView({ currentRevisionId: null, liveRevisionId: null }),
+		);
+
+		const named = [
+			"Maya Chen",
+			`${isolated("Sam Okafor")} and ${isolated("Maya Chen")}`,
+			`${isolated("Ana Lima")}, ${isolated("Sam Okafor")}, and 1 other person`,
+			`${isolated("Ana Lima")}, ${isolated("Sam Okafor")}, and 2 other people`,
+			`${isolated("Sam Okafor")}, ${isolated("Maya Chen")}, and 2 other people`,
+			`${isolated("Sam Okafor")} and 1 other person`,
+			"Unknown author",
+		];
+		for (const people of named) {
+			const row = screen.getByRole("button", {
+				name: new RegExp(`^Today, 12:00\\sPM, ${people}$`),
+			});
+			await expect.element(row).toBeInTheDocument();
+			await expect.element(row.getByText(people, { exact: true })).toBeVisible();
+		}
+	});
+
+	it("marks a version that names several people in the neutral colour", async () => {
+		const sam = { id: "u-sam", name: "Sam Okafor" };
+		const maya = { id: "u-maya", name: "Maya Chen" };
+		mockFetchRevisions.mockResolvedValue({
+			items: [
+				makeRevision({ id: "rev-4", authorId: "u-sam", author: sam, editedBy: [sam, maya] }),
+				makeRevision({ id: "rev-3", authorId: "u-sam", author: sam, editedBy: [sam, null] }),
+				makeRevision({ id: "rev-2", authorId: "u-sam", author: sam, editedBy: [sam] }),
+				makeRevision({ id: "rev-1", authorId: "u-maya", author: maya, editedBy: null }),
+			],
+			total: 4,
+		});
+		const screen = await renderExpanded(
+			makeView({ currentRevisionId: null, liveRevisionId: null }),
+		);
+
+		const rows = screen.getByRole("list", { name: "Today" }).getByRole("button");
+		await expect.poll(() => rows.elements().length).toBe(4);
+		const [both, samAndDeleted, samAlone, mayaAlone] = rows
+			.elements()
+			.map((row) => row.querySelector("[data-author-color]")?.getAttribute("data-author-color"));
+		expect(both).toBe("neutral");
+		expect(samAndDeleted).toBe("neutral");
+		expect([samAlone, mayaAlone]).not.toContain("neutral");
+		expect(samAlone).not.toBe(mayaAlone);
+	});
+
 	it("shows a version in the canvas when its row is clicked", async () => {
 		const view = makeView();
 		const screen = await renderExpanded(view);
@@ -447,3 +513,8 @@ describe("RevisionHistory", () => {
 		await expect.element(screen.getByRole("button", { name: MAYA_ROW })).toBeInTheDocument();
 	});
 });
+
+/** A name in a sentence that names several people, isolated from the text around it. */
+function isolated(name: string): string {
+	return `\u2068${name}\u2069`;
+}

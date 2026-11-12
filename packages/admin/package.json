@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/admin",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Admin UI for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",
@@ -38,9 +38,29 @@
       "types": "./dist/portable-text-table.d.ts",
       "default": "./dist/portable-text-table.js"
     },
+    "./internal/portable-text": {
+      "types": "./dist/internal/portable-text.d.ts",
+      "default": "./dist/internal/portable-text.js"
+    },
+    "./internal/portable-text-y-sync": {
+      "types": "./dist/internal/portable-text-y-sync.d.ts",
+      "default": "./dist/internal/portable-text-y-sync.js"
+    },
+    "./internal/co-editing": {
+      "types": "./dist/internal/co-editing.d.ts",
+      "default": "./dist/internal/co-editing.js"
+    },
+    "./internal/co-editing/types": {
+      "types": "./dist/internal/co-editing/types.d.ts",
+      "default": "./dist/internal/co-editing/types.js"
+    },
     "./html-block": {
       "types": "./dist/html-block.d.ts",
       "default": "./dist/html-block.js"
+    },
+    "./internal/video-block": {
+      "types": "./dist/internal/video-block.d.ts",
+      "default": "./dist/internal/video-block.js"
     }
   },
   "scripts": {
@@ -111,6 +131,7 @@
     "clsx": "^2.1.1",
     "dompurify": "^3.3.2",
     "highlight.js": "catalog:",
+    "lib0": "catalog:",
     "lowlight": "catalog:",
     "marked": "^17.0.3",
     "modern-tar": "^0.7.5",

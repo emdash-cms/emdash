@@ -1,5 +1,13 @@
 # @emdash-cms/auth
 
+## 1.5.0
+
+### Patch Changes
+
+- [#4483](https://github.com/emdash-cms/emdash/pull/4483) [`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Updates the Zod dependency from 4.5.4 to 4.6.7 to address the reported high-severity `npm audit` warning for the older version. Upgrade EmDash and any separately installed plugin tooling to receive the updated dependency; refreshing a lockfile alone cannot replace the previous exact pin.
+  
+  Oversized repeater arrays now report the array-length error without validating their rows. Arrays within the configured limit still report individual row errors.
+
 ## 1.4.0
 
 No changes in this release.

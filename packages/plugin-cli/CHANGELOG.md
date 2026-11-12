@@ -1,5 +1,26 @@
 # @emdash-cms/registry-cli
 
+## 0.13.6
+
+### Patch Changes
+
+- [#4483](https://github.com/emdash-cms/emdash/pull/4483) [`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Updates the Zod dependency from 4.5.4 to 4.6.7 to address the reported high-severity `npm audit` warning for the older version. Upgrade EmDash and any separately installed plugin tooling to receive the updated dependency; refreshing a lockfile alone cannot replace the previous exact pin.
+  
+  Oversized repeater arrays now report the array-length error without validating their rows. Arrays within the configured limit still report individual row errors.
+
+- [#2817](https://github.com/emdash-cms/emdash/pull/2817) [`dfbb9fc`](https://github.com/emdash-cms/emdash/commit/dfbb9fc8d8eb24dd17d363918155edc40b26d147) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes config-registered plugins showing their identifier instead of their display name and omitting their description in the admin Plugins list.
+
+- [#4467](https://github.com/emdash-cms/emdash/pull/4467) [`4a38041`](https://github.com/emdash-cms/emdash/commit/4a38041a9c8ad8c00387bade212225ab0d17a183) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes generated delegated release workflows so the release Action can upload the selected plugin's `release.artifacts` icon, banner, and screenshots, including when the package requires provenance. Previously, delegated releases included only the package artifact.
+  
+  Use the updated `emdash-cms/emdash/apps/release-action` for existing workflows. Root-level plugins need only the updated Action. For nested plugins, pass `plugin-directory: ${{ steps.prepare.outputs.plugin-directory }}` to the publish Action alongside `bundle-file`. Image paths are relative to that plugin's `emdash-plugin.jsonc` file.
+
+- [#4370](https://github.com/emdash-cms/emdash/pull/4370) [`4e95f4f`](https://github.com/emdash-cms/emdash/commit/4e95f4f23d9efe288b255d5f94963f8f97dac27a) Thanks [@danielmlr](https://github.com/danielmlr)! - Updates the registry search descriptions in the `searchPackages` lexicon, the `emdash-plugin search` help, and `RegistryCollectionFilter.q`: search also matches a package's slug and its publisher's handle without the domain ending (`meekmedia` for `meekmedia.bsky.social`), and matches the last word as a prefix.
+- Updated dependencies [[`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610), [`4e95f4f`](https://github.com/emdash-cms/emdash/commit/4e95f4f23d9efe288b255d5f94963f8f97dac27a)]:
+  - @emdash-cms/plugin-types@0.6.1
+  - @emdash-cms/registry-lexicons@0.7.1
+  - @emdash-cms/registry-verification@0.3.5
+  - @emdash-cms/registry-client@0.7.2
+
 ## 0.13.5
 
 ### Patch Changes

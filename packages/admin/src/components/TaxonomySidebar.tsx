@@ -20,8 +20,14 @@ import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { apiFetch, parseApiResponse, throwResponseError } from "../lib/api/client.js";
+import {
+	apiFetch,
+	isListConflict,
+	parseApiResponse,
+	throwResponseError,
+} from "../lib/api/client.js";
 import { createTerm, createTermTranslation, withLocale } from "../lib/api/taxonomies.js";
+import { ListSaver } from "../lib/co-editing/outside-lists.js";
 import { inlineLabel } from "../lib/inline-label.js";
 import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
 import { foldForMatch, termExactMatches, termMatches } from "../lib/taxonomy-match.js";
@@ -162,19 +168,34 @@ async function fetchEntryTerms(
 	return data;
 }
 
+/** The entry's terms as the picker selects them: an unresolved assignment by its first translation. */
+function assignedTermIds(terms: TaxonomyTerm[], unresolved: UnresolvedAssignment[]): string[] {
+	const ids = terms.map((term) => term.id);
+	for (const assignment of unresolved) {
+		const source = assignment.translations[0];
+		if (source) ids.push(source.id);
+	}
+	return ids;
+}
+
+/** How many times a change is rebased on the entry's latest terms before its failure shows. */
+const TERM_SAVE_ATTEMPTS = 3;
+
 /**
- * Set entry terms
+ * Set entry terms. With `expected`, the terms the change was based on, the server refuses it
+ * when the entry's terms differ.
  */
 async function setEntryTerms(
 	collection: string,
 	entryId: string,
 	taxonomy: string,
 	termIds: string[],
+	expected?: string[],
 ): Promise<void> {
 	const res = await apiFetch(`/_emdash/api/content/${collection}/${entryId}/terms/${taxonomy}`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ termIds }),
+		body: JSON.stringify(expected ? { termIds, expected } : { termIds }),
 	});
 	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to set entry terms`));
 }
@@ -629,6 +650,13 @@ function TermLocaleBadge({ term, entryLocale }: { term: TaxonomyTerm; entryLocal
 	return <Badge variant="secondary">{t`${term.locale.toUpperCase()} fallback`}</Badge>;
 }
 
+/** One entry's term saver, with the selection that entry shows. */
+interface EntryTermSaver {
+	identity: string;
+	shown: string[];
+	saver: ListSaver<string>;
+}
+
 /**
  * Single taxonomy section
  */
@@ -673,39 +701,94 @@ function TaxonomySection({
 	const [partialCreateError, setPartialCreateError] = React.useState<Error | null>(null);
 	const selectedIdsRef = React.useRef(selectedIds);
 
-	const saveMutation = useMutation({
-		scope: {
-			id: `taxonomy:${collection}:${entryId ?? "new"}:${taxonomy.name}:${entryLocale ?? "default"}`,
-		},
-		mutationFn: (termIds: string[]) => {
-			if (!entryId) throw new Error("No entry ID");
-			return setEntryTerms(collection, entryId, taxonomy.name, termIds);
-		},
-		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
-			});
-			toastManager.add({
-				title: t`${taxonomy.label} updated`,
-				description: t`Saved immediately; term changes do not wait for Publish changes.`,
-			});
-		},
-		onError: (error) => {
-			toastManager.add({
-				title: t`Failed to update ${inlineLabel(taxonomy.label, lingui.locale)}`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
-				variant: "error",
-			});
-		},
-	});
+	// Another editor can change the terms at any time, so each change is rebased on the entry's
+	// latest terms and sent one at a time.
+	const context = {
+		collection,
+		entryId,
+		taxonomyName: taxonomy.name,
+		entryLocale,
+		failedTitle: t`Failed to update ${inlineLabel(taxonomy.label, lingui.locale)}`,
+		failedFallback: t`An error occurred`,
+		savedTitle: t`${taxonomy.label} updated`,
+		savedDescription: t`Saved immediately; term changes do not wait for Publish changes.`,
+	};
+	const contextRef = React.useRef(context);
+	contextRef.current = context;
+	// A saver keeps the selection of its own entry, which a change still queued after a switch to
+	// another entry sends.
+	const saverRef = React.useRef<EntryTermSaver | null>(null);
+	const identity = `${collection}:${entryId ?? "new"}:${taxonomy.name}:${entryLocale ?? "default"}`;
+	const termSaver = (): EntryTermSaver => {
+		if (saverRef.current?.identity === identity) return saverRef.current;
+		const {
+			collection: entryCollection,
+			entryId: entry,
+			taxonomyName,
+			entryLocale: locale,
+		} = contextRef.current;
+		const entryTermsKey = ["entry-terms", entryCollection, entry, taxonomyName, locale];
+		const record: EntryTermSaver = {
+			identity,
+			shown: [...selectedIdsRef.current],
+			saver: new ListSaver<string>({
+				key: (termId) => termId,
+				shown: () => record.shown,
+				save: async (build) => {
+					if (!entry) throw new Error("No entry ID");
+					for (let attempt = 1; ; attempt++) {
+						try {
+							// oxlint-disable-next-line no-await-in-loop -- a retry rebases on a fresh read
+							const latest = await queryClient.fetchQuery({
+								queryKey: entryTermsKey,
+								queryFn: () => fetchEntryTerms(entryCollection, entry, taxonomyName),
+								staleTime: 0,
+							});
+							const latestIds = assignedTermIds(
+								latest.terms,
+								latest.unresolved ?? EMPTY_UNRESOLVED_ASSIGNMENTS,
+							);
+							// oxlint-disable-next-line no-await-in-loop -- one attempt at a time
+							await setEntryTerms(
+								entryCollection,
+								entry,
+								taxonomyName,
+								build(latestIds, true),
+								latestIds,
+							);
+							return;
+						} catch (error) {
+							if (isListConflict(error) && attempt < TERM_SAVE_ATTEMPTS) continue;
+							const { failedTitle, failedFallback } = contextRef.current;
+							toastManager.add({
+								title: failedTitle,
+								description: error instanceof Error ? error.message : failedFallback,
+								variant: "error",
+							});
+							throw error;
+						}
+					}
+				},
+				settled: (saved) => {
+					if (!saved) return;
+					void queryClient.invalidateQueries({ queryKey: entryTermsKey });
+					const { savedTitle, savedDescription } = contextRef.current;
+					toastManager.add({ title: savedTitle, description: savedDescription });
+				},
+			}),
+		};
+		saverRef.current = record;
+		return record;
+	};
 	const updateSelection = (newSelected: Set<string>) => {
+		const before = [...selectedIdsRef.current];
 		selectedIdsRef.current = newSelected;
 		setSelectedIds(newSelected);
-		const termIdsArray = [...newSelected];
-		onChange?.(termIdsArray);
-		if (entryId) {
-			saveMutation.mutate(termIdsArray);
-		}
+		onChange?.([...newSelected]);
+		if (!entryId) return;
+		const record = termSaver();
+		record.shown = [...newSelected];
+		record.saver.change(before);
 	};
 
 	const createTermMutation = useMutation({
@@ -795,13 +878,12 @@ function TaxonomySection({
 		},
 	});
 
-	// Sync selected IDs from entry terms
+	// Sync selected IDs from entry terms, with a change still on its way on top
 	React.useEffect(() => {
-		const next = new Set(entryTerms.map((term) => term.id));
-		for (const assignment of unresolved) {
-			const source = assignment.translations[0];
-			if (source) next.add(source.id);
-		}
+		const latest = assignedTermIds(entryTerms, unresolved);
+		const record = saverRef.current?.identity === identity ? saverRef.current : null;
+		const next = new Set(record ? record.saver.adopt(latest, record.shown) : latest);
+		if (record) record.shown = [...next];
 		selectedIdsRef.current = next;
 		setSelectedIds(next);
 	}, [entryTerms, unresolved]);

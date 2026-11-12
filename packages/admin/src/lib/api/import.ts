@@ -168,6 +168,8 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
+	/** Entries imported as drafts because they had a password in WordPress (WXR import) */
+	passwordProtected?: Array<{ id: string; collection: string; title: string }>;
 	/** Number of taxonomy term assignments written (plugin import) */
 	taxonomyAssignments?: number;
 	/** Source taxonomies skipped because no matching EmDash taxonomy def exists */
@@ -268,6 +270,9 @@ function mergeImportResults(into: ImportResult, chunk: ImportResult): void {
 	into.errors.push(...chunk.errors);
 	for (const [collection, count] of Object.entries(chunk.byCollection)) {
 		into.byCollection[collection] = (into.byCollection[collection] || 0) + count;
+	}
+	if (chunk.passwordProtected?.length) {
+		into.passwordProtected = [...(into.passwordProtected ?? []), ...chunk.passwordProtected];
 	}
 	if (chunk.taxonomyAssignments) {
 		into.taxonomyAssignments = (into.taxonomyAssignments ?? 0) + chunk.taxonomyAssignments;

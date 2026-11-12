@@ -1,6 +1,474 @@
 # @emdash-cms/admin
 
-<!-- emdash-changelog-archive: ./changelog/0.39.1-to-0.41.0.md -->
+<!-- emdash-changelog-archive: ./changelog/0.42.0-to-1.3.0.md -->
+
+## 1.5.0
+
+### Minor Changes
+
+- [#4628](https://github.com/emdash-cms/emdash/pull/4628) [`1eedf99`](https://github.com/emdash-cms/emdash/commit/1eedf999dfc4bc119fc82f56b4d39165a46bd728) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds **Settings > Sidebars**, where each admin user hides and reorders entries in the admin navigation and sections in the content editor's settings sidebar. Every role can open it from the user menu. The layout is saved to the user's account, so it follows them to every browser, and it changes nobody else's sidebars.
+  
+  - Navigation entries move within their group or folder. Dashboard always stays first and visible. `admin.hiddenNavItems` still hides entries for everyone, and those entries don't appear on the page.
+  - The editor sidebar order applies to every collection and to new entries. Publish can move but can't be hidden.
+  - Reset restores a list's default and offers Undo.
+  
+  The editor settings sidebar no longer shows a drag handle on each section. A **Customize sidebar** link after the last section opens the new page, and a pencil at the bottom of the navigation does too. Section orders that the drag handles saved in a browser are not carried over, so every user starts from the default order.
+  
+  `GET /_emdash/api/auth/me` returns the stored layout as `adminLayout`, or `null`. `POST /_emdash/api/auth/me` accepts `{ "action": "setAdminLayout", "adminLayout": { ... } }` to replace it, or `"adminLayout": null` to remove it. A layout is limited to 200 IDs per list and 16 KB.
+  
+  Browser tests that used the editor sections' "Drag to reorder …" buttons need to change, because those buttons no longer exist. Byline reorder handles are unchanged.
+
+- [#4731](https://github.com/emdash-cms/emdash/pull/4731) [`84e173f`](https://github.com/emdash-cms/emdash/commit/84e173f1fb7aa4ec19ccd59ca327d9145822dc77) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Adds optional `isVisible(ctx)` checks to native content editor panels. Plugin authors can return a boolean or `Promise<boolean>` using the same collection, saved entry, and locale context as the panel component, for example `isVisible: async ({ collection }) => isEnabledCollection(collection)`.
+  
+  The entire section stays hidden until its first check returns `true`, avoiding empty plugin headings when visibility depends on asynchronously loaded settings. Failed checks hide the panel and log its plugin and panel IDs without unmounting the editor. Panels without `isVisible` retain their existing behavior, and `collections` and `minRole` still filter panels before visibility checks run.
+  
+  The first check for a collection, entry ID, and locale keeps the section hidden until it returns `true`. Checks rerun when the saved entry changes, including after autosaves, saves, and publication. During these rechecks, the section keeps its last visibility decision so visible panels stay mounted and retain local state. A result other than `true`, a throw, or a rejection hides the section when the check settles. Superseded results and errors are ignored.
+
+- [#4573](https://github.com/emdash-cms/emdash/pull/4573) [`8d0250c`](https://github.com/emdash-cms/emdash/commit/8d0250c9cac044fc2fc897bd90115fea7ed42e78) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `blocks` fields in the content editor so editors can scan a page of blocks, add, move or delete one without scrolling through every form, and edit an open block in the order the page shows it. Lists inside blocks take a shape that fits what they hold, and the admin checks block fields before saving. Every site with a blocks field gets the new editor; stored content, the API, block type schemas and how sites render blocks are unchanged.
+  
+  #### The block list
+  
+  - Blocks sit on one sheet and start closed when the edit screen opens. In a read-only entry, every block and list item shows open, since its controls can't be used there. A closed block shows its type's icon, its name, a one-line summary of its text or of its first list's items, and a thumbnail when it has a photo. "Collapse all" and "Expand all" sit next to the field's label, and an open block's header stays pinned while you scroll through its fields. Opening, closing, adding, duplicating, deleting and moving blocks and list items animate briefly, while Expand all, Collapse all and keyboard moves take effect at once. Reduced motion turns every animation off.
+  - Each block's `⋯` menu has Add block above, Add block below, Duplicate, Move up, Move down, Move to top, Move to bottom and Delete. Its footer names the block type and version, such as "Hero · version 2", which replaces the "Version N" badge on every block. "Inactive version", "Retired" and "Unsupported" stay on the block as tags.
+  - On screens at least 40rem wide with a mouse or trackpad, hovering a block shows `+`, which adds a block below (Alt-click adds one above), and a handle that drags the block or opens its menu. Both are for the pointer and stay out of the Tab order, so the handle no longer reorders blocks from the keyboard; the `⋯` menu has the same actions. On touch and phone-width screens, `⋯` is always visible. On touch screens, menu buttons, menu items, Expand all, Add item, photo actions and Undo have larger targets, and tapping Add block or a list item opens it without raising the on-screen keyboard.
+  - Alt+Shift+Up and Alt+Shift+Down move a block or list item one place from its head or its `⋯` button, keeping focus on it, and a screen reader hears the new position.
+  - The block picker opens next to where the block will go, keeps its search, categories and descriptions, shows each block type's icon, and works with the arrow keys and Enter. A block you add opens with its first field focused. A duplicate goes below the original, open or closed like the original, and takes focus.
+  - Deleting a block shows a toast with Undo, which puts the block back in its place. While the toast shows, Cmd+Z (Ctrl+Z outside Apple platforms) does the same, unless focus is in a text field, which keeps its own undo. The toast stays for 6 seconds after a deletion made with the mouse, and for 15 seconds after one made with the keyboard, by touch or by assistive technology. Blocks of a retired type, an older version or an unavailable definition ask for confirmation instead and can't be undone, because the server doesn't accept them as new blocks once the deletion is saved.
+  - At the field's `maxItems`, every add action and Duplicate are disabled, and the add buttons explain the limit. Duplicate is also disabled for blocks on an older version of their type, because the server only accepts new blocks on the active version.
+  
+  #### Fields inside a block
+  
+  - An open block shows its content first: one-line text, text areas, rich text, photos and lists, each under a small label. The block's headline is drawn larger, two or three one-line text fields in a row share a line, a photo's `{image}_caption` field sits under it, and text areas start one line tall and grow as you type.
+  - Settings follow as rows under a divider, with the label beside the value: switches, choices, numbers, dates, files and links. A button's text and its link share one row, such as `cta_label` and `cta_url`. The section ID (`anchor_id`) waits in a closed Advanced row that shows its value. When the field is narrower than 440 px, each row puts its label above its value.
+  - Fields have no box until you hover or focus them, and labels show as written. While a field with a length limit has focus, its character count shows on its label's line, or at the end of its own line in a settings row that sits beside its label. A value that doesn't match the field's `pattern` reads "Invalid link" in a link field and "Check the format" elsewhere.
+  - Enter in a one-line field moves to the next text field in the block or list item instead of saving the entry.
+  
+  #### Lists inside a block
+  
+  - A list (`repeater` field) inside a block takes its shape from its sub-fields. A list with one `string` or `url` sub-field is a bulleted type-in list: Enter adds a line after the current one, Backspace on an empty line removes it, the arrow keys move between lines, and pasting several lines adds one item per line. Blank lines you add are never saved, and leaving the list removes them. A list with up to three `string`, `url`, `number`, `integer`, `select` or `image` sub-fields, at most one of them an image, is a table with a column per sub-field, and its image cells open the media picker. Every other list shows expandable items: a closed item shows its title, up to two more of its values and a thumbnail, and an open item edits its title in its row, with its other sub-fields laid out like a block's.
+  - In a table, Enter moves down a column and adds a row after the last one, and the Up and Down arrow keys move within a column. A blank row added with Enter goes when focus leaves it.
+  - A list with items shows its count next to its label. Hovering an item shows a drag handle and a `⋯` menu with Move up, Move down, Move to top, Move to bottom and Delete; an expandable item's menu also has Add item above, Add item below and Duplicate, in the same order as a block's menu. A duplicated item stays open or closed like the original. On touch and phone-width screens, `⋯` is always visible. Deleting an item, or removing a photo from a block, also shows a toast with Undo. The page has one Undo across its blocks fields, so only the latest deletion can be put back. "Add item" sits at the end of the list and is hidden at the list's `maxItems`, and Delete is disabled at its `minItems`.
+  - A new list item leaves its sub-fields unset, so an empty link, choice or date sub-field no longer stops the entry from saving, and clearing a link writes `null`.
+  
+  The layout of fields and lists follows field types and slugs, never labels. The naming conventions, and how a list's sub-fields pick its shape and its items' titles, are listed in [Build pages with blocks](https://docs.emdashcms.com/guides/blocks/#name-fields-for-the-editor-layout); a field that matches none of them gets a row of its own. Top-level `repeater` fields keep their current editor.
+  
+  #### Checks and autosave
+  
+  - The admin checks block fields with the server's rules: required fields, patterns, lengths, number ranges, whole numbers, choices, safe links, list sizes and required list sub-fields. An empty required field reads "Required". A problem shows in red once you save or publish; before that, a format, length or range problem shows when focus leaves the field, and "Required" turns red when you empty a required field and leave it. Tabbing through empty fields flags nothing. A problem shows on the field's label line, or at the end of a settings row's value, moving to its own line under the value when it doesn't fit. A closed block, list item or Advanced row with a problem shows a red dot.
+  - Save and Publish show every block's problems, open the block, Advanced row and list item that hold the first problem on screen, focus it, and announce how many fields need attention. Until they're fixed, a "N to fix" button next to Expand all goes to the next problem with each press.
+  - While a block field has a problem, autosave waits, as it does for an invalid URL, and once focus leaves that block, an "Autosave paused" notice names the block and field. Its Show button opens the block and focuses the field. Autosave resumes with your next change once every problem is fixed. A new block's switches start off, so a required switch is never missing.
+  
+  #### Block type icons
+  
+  Block types show their `icon` setting, a Phosphor icon name such as `"sparkle"` or `"chart-bar"`, in the block list and the picker. A block type without an icon, or with a name that doesn't match a Phosphor icon, shows a generic block icon. The marketing and portfolio templates now give their block types icons. Sites created from those templates before this release keep their stored block types, which have no icons, so their blocks show the generic icon until each block type gets an `icon`, for example through `PUT /_emdash/api/schema/block-types/{slug}` or the `schema_update_block_type` MCP tool.
+  
+  #### The editor's scrollbar
+  
+  The content editor's scrollbar shows over the page while you scroll, and under the pointer at the page's edge, instead of taking a strip beside it. Where scrollbars take up room, as on Windows and Linux, the page now keeps its width and stays centered whether or not it scrolls, and no longer shifts sideways when it grows long enough to scroll. This applies to every entry, not only ones with a blocks field.
+
+- [#4695](https://github.com/emdash-cms/emdash/pull/4695) [`22b87ed`](https://github.com/emdash-cms/emdash/commit/22b87edc3f68ef173683a698af49275c5201d5fe) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds real-time co-editing to the admin editor, off by default for now. With `coEditing: true`, in collections with revisions, several people can edit an entry at the same time: each person sees the others' avatars, the field each one is in and their cursors in rich text, concurrent rich-text edits merge, and undo reverts only your own edits. A room for each entry saves everyone's edits together, with the same permissions, validation, hooks and revisions as other saves, and changes from the REST API, MCP, the CLI, the visual editor and plugins appear in open editors.
+  
+  Without co-editing, opening an entry takes an edit lock, and everyone else can only **Open read-only** or **Take over**. With it on, edit locks apply only in single-editor mode, which the editor uses, for example, in collections without revisions, on hosts that can't run rooms, and in browsers that can't open WebSocket connections. Admin tabs opened before co-editing is turned on keep single-editor mode until they reload. [Edit with other people](https://docs.emdashcms.com/guides/working-with-content/#edit-with-other-people) describes what editors see.
+  
+  - **Saved** appears once a save holds all of your own edits. After 5 seconds without a connection, the button shows **Offline**: typing continues and merges on reconnect, and **Preview**, publishing and the other operations are disabled until then.
+  - Publishing, scheduling, unpublishing, discarding changes, restoring a version and moving to Trash first save everyone's edits, then run.
+  - Fields other than rich text keep one of two simultaneous changes, except bylines, reference fields and taxonomy terms, which keep what each person adds and removes. **Turn into**, dragging, deleting, wrapping, joining or indenting a block loses text someone else types inside it at the same moment.
+  - Edits that can't merge are saved as a recovery revision.
+  
+  Public pages run no new queries, with co-editing on or off. Where rooms run, opening an entry adds a join request and a WebSocket connection. A room saves 2 seconds after the latest change, and at least every 10 seconds while people keep typing, however many people edit. Measured on Node.js with an in-memory SQLite database, saving a 2,000-word entry took 2.27 ms of CPU time at the median (3.83 ms at the 95th percentile), about two thirds of it the site's own draft save. Merging a write from outside the editor took 0.80 to 1.19 ms, and a notification with nothing to merge 0.67 ms ([CPU time](https://docs.emdashcms.com/deployment/nodejs/#cpu-time)).
+  
+  #### What should I do?
+  
+  Nothing, unless you want co-editing. To turn it on, set the option and rebuild and deploy the site:
+  
+  ```js
+  emdash({
+  	coEditing: true,
+  });
+  ```
+  
+  On Node.js with `@astrojs/node`, in standalone or middleware mode, co-editing runs in the site's own process and the site starts as before. Check these cases first, which [Co-editing on Node.js](https://docs.emdashcms.com/deployment/nodejs/#co-editing) covers in detail:
+  
+  - A reverse proxy must forward WebSocket upgrades on `/_emdash/api/content/{collection}/{id}/room`. Otherwise each browser session falls back to single-editor mode after three failed connections, and the server logs a `[co-editing]` warning.
+  - Several processes on one database: route each room path to one process, for example by hashing the path, or leave co-editing off.
+  - `node:cluster` workers, including PM2's cluster mode, keep single-editor mode.
+  - Another WebSocket handler on the same server must leave room paths alone. Replace a `ws` server created with `{ server }`, `express-ws` or `@fastify/websocket` with a `ws` server created with `noServer: true` that handles only your paths, or leave co-editing off.
+  - On Node.js 22.16 to 22.20, 23, and 24.0 to 24.8, a server whose only `upgrade` listener is EmDash's answers upgrade requests on other paths, such as `Upgrade: h2c`, with `404`. Node.js 22.21 and later, and 24.9 and later, serve them as before.
+  - While rooms are open, EmDash handles `SIGTERM` and `SIGINT` and stops the process up to 5 seconds later. Give process managers a kill timeout over 5 seconds, such as PM2's `kill_timeout`, which defaults to 1.6 seconds.
+  
+  On Cloudflare, sites created from this release's templates already have the binding and the room exports, so they need only `coEditing: true`. For an existing site, also add the binding and the `exports` entry to `wrangler.jsonc`, as [Co-editing on Cloudflare](https://docs.emdashcms.com/deployment/cloudflare/#co-editing) shows:
+  
+  ```jsonc
+  "durable_objects": { "bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }] },
+  "exports": { "EmDashRoom": { "type": "durable-object", "storage": "sqlite" } }
+  ```
+  
+  A Worker that uses the `migrations` array, which can't be combined with `exports`, adds `{ "tag": "emdash-rooms", "new_sqlite_classes": ["EmDashRoom"] }` to it instead. Then re-export the room classes from the Worker entry point:
+  
+  ```ts
+  import handler, {
+  	createScheduledHandler,
+  	EmDashRoom,
+  	EmDashRoomSite,
+  	PluginBridge,
+  } from "@emdash-cms/cloudflare/worker";
+  
+  export { EmDashRoom, EmDashRoomSite, PluginBridge };
+  
+  export default {
+  	...handler,
+  	scheduled: createScheduledHandler(),
+  } satisfies ExportedHandler;
+  ```
+  
+  A Worker with its own `fetch` calls `handleRoomUpgrade(request, env)` first and returns its response when it isn't `null`. A site without the binding keeps single-editor mode.
+  
+  #### Changes for API clients and plugins
+  
+  These apply only on sites with co-editing on.
+  
+  - While people co-edit an entry, it has no edit lock: writes that got `409 ENTRY_LOCKED` land and merge into the editor. Writers that send `_rev` can get `409 CONFLICT` more often, because the room saves every few seconds, and MCP publish, unpublish, schedule and discard conflict while the room holds unsaved edits.
+  - The lock route's `POST` deletes user locks while a room holds the entry, instead of granting one.
+  - A room saves as one user, the actor, but a save can hold several people's edits. A hook that checks the actor's role before accepting content should check everyone in `editedBy`. In a room, `content:beforeSave` hooks get only the fields a save changed, as they do for visual-editor saves.
+  - While a room is open, editor-draft requests skip the `baseRevision` check, and the editor refuses a plugin's patch only when a field it changes was edited after the capture.
+  
+  These apply on every site, with co-editing on or off:
+  
+  - `PUT /_emdash/api/content/{collection}/{id}` takes an optional `expected` object with the `bylines` and reference selections (`references`, every page of a field) that a change was based on, as a read returned them. `POST /_emdash/api/content/{collection}/{id}/terms/{taxonomy}` takes an optional `expected` list of term ids. When a stored list differs, nothing is written and the request fails with `409 LIST_CONFLICT`: read the entry again, apply the change to the list it holds now, and retry. Requests without `expected` work as before.
+  - `POST /_emdash/api/content/{collection}/{id}/room` joins an entry's room. It needs a signed-in session rather than an API token, and answers `{ "mode": "single-editor" }` unless the site runs co-editing.
+  - A migration adds the `_emdash_rooms` and `_emdash_room_updates` tables, which hold co-editing rooms. Site transfer never copies them.
+  - `GET` and `POST /_emdash/api/content/{collection}/{id}/lock` responses include a `room` field, which is `true` only while a co-editing room holds the entry.
+
+- [#4730](https://github.com/emdash-cms/emdash/pull/4730) [`a17a4b3`](https://github.com/emdash-cms/emdash/commit/a17a4b34bd59f6a5074dd061642760113dadb3aa) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Adds support for `publishedAt`, `createdAt`, and `updatedAt` as a collection's `dateField`, so editors can see and sort by publication dates without duplicating system timestamps in a custom field. Choose **Date column source** in the existing content type's settings, or set `dateField` through the collection update API or a seed file.
+  
+  Collections without a configured `dateField` still show and sort by last-updated. Entries with a missing or invalid configured date display their last-updated date, while sorting uses the configured source.
+
+- [#4791](https://github.com/emdash-cms/emdash/pull/4791) [`cdfd98d`](https://github.com/emdash-cms/emdash/commit/cdfd98d8ef532ece23312a1c254aa505858c4adb) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds generated avatars for users without a profile picture. The header, the **Users** list, the user detail panel and the **Authorize device** page show a colorful avatar with the user's initials, chosen from their user ID so each user looks the same everywhere. Users without a name show the avatar without letters instead of their email's first letter. On phones, the header's user menu button is now named after the user for screen readers.
+
+- [#4729](https://github.com/emdash-cms/emdash/pull/4729) [`006cfc0`](https://github.com/emdash-cms/emdash/commit/006cfc0e024ed0b0dd9cd29e7726ac9706d19524) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Adds the `no-scheduling` collection support flag to disable creating or changing schedules in the content editor, calendar, and scheduling API. Scheduling remains enabled by default, and existing schedules continue to run and can be removed.
+  
+  To disable scheduling, add `no-scheduling` to the collection's `supports` in a seed file, or update an existing collection through `PUT /_emdash/api/schema/collections/{slug}` or the `schema_update_collection` MCP tool. For example, a collection with drafts and revisions can use:
+  
+  ```json
+  { "supports": ["drafts", "revisions", "no-scheduling"] }
+  ```
+  
+  Preserve the collection's other support values when updating its list. There is no Content Type editor checkbox for this flag, but saving in that editor preserves it.
+  
+  If you previously omitted `scheduling` expecting scheduling to be disabled, add `no-scheduling` instead. The legacy `scheduling` value is deprecated and has no effect; it remains accepted for compatibility and can be removed from seed files. If both values are present, `no-scheduling` takes precedence. Sites that want to keep scheduling enabled do not need to change anything.
+  
+  WordPress imports into a collection with `no-scheduling` keep future-dated posts as drafts and report a scheduling error for each such post.
+
+- [#4637](https://github.com/emdash-cms/emdash/pull/4637) [`c9696af`](https://github.com/emdash-cms/emdash/commit/c9696af9d29514666c37c358ae700b2122cc06e9) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes autosave deleting versions saved with **Save**, and names everyone who edited each version in revision history.
+  
+  - An autosave replaces the previous version only when that version is also an autosave. A version saved with **Save**, or one EmDash creates itself, such as the draft copy an unpublish leaves, stays in **Revisions**.
+  - Each version names everyone who edited it since the version before it, such as "Ana, Ben, and 1 other person", and marks its changes in a neutral color when several people edited it. The publish confirmation names everyone who edited the entry since the published version.
+  - `GET /_emdash/api/content/{collection}/{id}/revisions` and the MCP `revision_list` tool return `editedBy` on each version: the people who edited it, latest first, as `{ id, name }`, with `null` for an account that no longer exists. `null` means the version names only its `author`.
+  - `GET /_emdash/api/content/{collection}/{id}/revisions/editors?since={revisionId}` returns everyone who edited the entry in the versions newer than `since`, newest first and once each, in the same shape. Without `since`, it returns everyone who edited the entry. It requires `content:read_drafts`.
+  - `content:beforeSave` and `content:afterSave` events include `editedBy`, the IDs of the users whose edits the save holds, latest first. A save with an `actor` lists only that user. A hook that checks the actor's role before accepting content should check everyone in `editedBy`.
+  
+  A migration adds two nullable columns, `kind` and `edited_by`, to the `revisions` table. Existing versions are not backfilled: they name only their author, and autosave never replaces them. Site transfer leaves both columns out, so transferred versions also name only their author. Once a site has run the migration, earlier EmDash versions can't export it or import into it with site transfer.
+
+- [#3716](https://github.com/emdash-cms/emdash/pull/3716) [`284fa80`](https://github.com/emdash-cms/emdash/commit/284fa8049a29113c5f400e2780b002169994ba56) Thanks [@swissky](https://github.com/swissky)! - Adds a staging mode that keeps a site out of search engines until it goes live. Sites created through setup, whether in the setup wizard or by a script that calls the setup API, start in staging:
+  
+  - Pages that render `<EmDashHead>` get a `noindex, nofollow` robots tag, which overrides SEO panel and plugin robots values. Templates without `<EmDashHead>` don't get the tag.
+  - `/robots.txt` keeps its usual content so crawlers can read the tag, and isn't cached while the site is in staging.
+  - The admin header shows a **Staging** badge.
+  
+  To go live, an administrator selects **Go live** in **Settings > General > Site Status**, sends `{ "staging": false }` to the settings API, or uses the MCP `settings_update` tool. **Switch back to staging** hides the site again. Staging is visibility only: visitors can still open every page.
+  
+  Existing sites are not affected: a site without the setting is live. Site transfer and `emdash export-seed` don't copy the staging status.
+
+- [#2156](https://github.com/emdash-cms/emdash/pull/2156) [`25574da`](https://github.com/emdash-cms/emdash/commit/25574da51e580b95799a0ec3d43f680730d33f5f) Thanks [@swissky](https://github.com/swissky)! - Adds a built-in SMTP email provider. It delivers through any standard SMTP server, such as Brevo, Office 365, Fastmail, Amazon SES or a self-hosted Postfix, on Node and on Cloudflare Workers with the `nodejs_compat` flag.
+  
+  #### Configure
+  
+  Choose **SMTP** under Settings → Email, or set environment variables:
+  
+  - Required: `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER` and `EMAIL_SMTP_PASS`.
+  - Optional: `EMAIL_SMTP_PORT` (587 when empty), `EMAIL_SMTP_SECURE`, `EMAIL_SMTP_FROM`, `EMAIL_SMTP_FROM_NAME`, `EMAIL_SMTP_FROM_EMAIL` and `EMAIL_SMTP_REPLY_TO`.
+  
+  Without a sender address, the username is used as the sender, so the admin requires a sender email when the username is not an email address (for example an Amazon SES or SendGrid key). Settings saved in the admin take precedence over environment variables and apply without a restart. Saving them requires `EMDASH_ENCRYPTION_KEY`, which encrypts the password in the database. Changing the host or username requires entering the password again.
+  
+  Port 465 uses implicit TLS and port 587 uses STARTTLS. The provider verifies the server certificate, never signs in before TLS is established, and signs in with `AUTH PLAIN` or `AUTH LOGIN`, whichever the server offers. Port 25 is refused. Invalid environment variables are ignored with a warning in the server log.
+  
+  #### Provider selection
+  
+  Settings → Email now has a provider dropdown that lists SMTP and any installed email plugins. When its environment variables are set, SMTP delivers email unless an email plugin is active or another provider is selected. Without them, SMTP is used only after you select it. A site with a single email plugin still selects that plugin automatically. In `astro dev`, the console provider is used only when no other email provider is active, and that choice is no longer saved to the database.
+  
+  **Send test email** now shows the SMTP server's error, for example a rejected login, instead of a generic failure.
+  
+  #### API
+  
+  `GET /_emdash/api/settings/email` also reports the SMTP settings, without the password. The new `PUT /_emdash/api/settings/email` saves SMTP settings together with the selected provider, or selects a plugin provider. `PUT` with `{ "provider": "smtp" }` and no settings selects SMTP from its saved settings or environment variables. Sending a test email with `POST /_emdash/api/settings/email` returns SMTP delivery errors with status 502.
+
+### Patch Changes
+
+- [#3066](https://github.com/emdash-cms/emdash/pull/3066) [`c108e7b`](https://github.com/emdash-cms/emdash/commit/c108e7b03756005db7df404b0c6c916dc8463fd1) Thanks [@zaochih](https://github.com/zaochih)! - Accepts BMP images in the Media Library. Uploads through the admin, the media API, and the MCP `media_upload` tool no longer fail with `File type not allowed`. BMP files show as thumbnails in the upload dialog, are included in the "Images" preset of the allowed file types editor, and are displayed in the browser instead of downloaded. Fields with their own `allowedMimeTypes` can list them as `.bmp`.
+
+- [#4520](https://github.com/emdash-cms/emdash/pull/4520) [`7bce592`](https://github.com/emdash-cms/emdash/commit/7bce59234985ed110beb063ce1d55a99d5d9a853) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Comments inbox table in the admin to match the content list's look, and fits it on phones.
+  
+  - The Author and Comment columns are now one Comment column, with each author's name and email above their comment. Clicking the author's name or the comment opens the comment's details. Approve stays on each row that can be approved, and Mark as spam, Trash, and, for admins, Delete permanently move into the row's "…" menu.
+  - On right-to-left pages, each author's name and comment keeps its own text direction, so an English comment's closing punctuation stays at its end.
+  - When the table is narrower than 42rem (672px), such as on phones and portrait tablets, the Content and Date columns fold away and show under the comment instead. When the table is narrower than 28rem (448px), such as on phones, the author's email is hidden too.
+  - The bar that appears when comments are selected matches the content list's: it wraps on narrow screens instead of running off the edge, has a Clear button, and disables its buttons while a moderation request is running. Its Delete button now asks for confirmation before permanently deleting the selected comments. When a bulk action fails, the selection is kept for a retry, and a failed permanent delete, from the bar or a comment's menu, keeps its confirmation open with the error.
+  
+  Browser tests that clicked a row's "Mark as spam", "Trash", or "Delete permanently" button need to open the "Actions for comment by {author}" menu first, where those are menu items with the same names. The row's Approve button keeps its name. The select-all checkbox is now named "Select all on this page", and the author's name is a button named after the author alone instead of one that also held their email. The "Author" column header is gone, so tests that locate a `columnheader` named "Author" need to change. The "Actions" column header is now visually hidden and keeps its accessible name.
+
+- [#4174](https://github.com/emdash-cms/emdash/pull/4174) [`3d4faaf`](https://github.com/emdash-cms/emdash/commit/3d4faaff6c06005c5e9e5e046720b2fe502f5020) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the admin continuing to show or hide actions based on a user's old role after an administrator changes that role. The admin now reloads the signed-in user's role when the server refuses a request and when the user returns to the admin tab, instead of keeping the old role for up to five minutes.
+
+- [#4495](https://github.com/emdash-cms/emdash/pull/4495) [`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes how admin dialogs handle mistakes, slow requests and stray clicks, so each dialog says what is wrong and typed input is not lost by accident.
+  
+  In form dialogs, such as the field, relation, byline, menu, section, taxonomy, redirect, folder, domain and invite dialogs, the main action stays available instead of being disabled without a reason. Pressing it with missing or invalid input marks each field that needs attention with a message and moves focus to the first one, and each message clears as its field is corrected. The checks match what the server accepts, so most mistakes are caught before anything is sent, and a name or slug that is already taken is reported on its field in the admin's language. A new select field also needs at least one option, and a new blocks field at least one block type when the site has any, because editors could not fill in either field without them. The field dialog's length and item limits must be whole numbers: before, a limit of 2.5 was saved as 2, and text that isn't a number, such as `1e`, saved the field with no limit. Enter submits these dialogs, a double click sends one request, and a dialog with typed input no longer closes when you click outside it or swipe it down on a phone. Cancel and Escape still close it.
+  
+  Confirmations that send a request, such as deleting a content type, field, comment or entry, discarding draft changes, replacing an image with its crop, or taking over an entry someone else is editing, now stay open while the request runs, show its progress, and show a failure inside the dialog instead of closing first. A failure shown in a dialog is no longer also reported in a toast, apart from a failed save of the entry's unsaved edits before scheduling or changing its publication date.
+  
+  A few dialogs also behave more predictably:
+  
+  - Adding a term whose name is already used under another parent suggests a free slug, such as `accessories-1`, instead of saving it under a different slug than the one shown.
+  - A file type typed into a media field's allowed types but not added is saved with the field.
+  - A plugin install that asks for more permissions lists them without reporting a failure.
+  - Deleting a redirect that was already deleted closes the confirmation instead of showing an error.
+  
+  #### Browser tests
+  
+  Tests that expected a dialog's action to stay disabled until its form was valid should press it and check the field's error instead. Tests that waited for failure toasts such as "Failed to delete" or "Failed to schedule" should look for the error inside the dialog. New toasts such as "Term created" and "Invitation sent to …" use the `dialog` role, so locate dialogs by name.
+
+- [#4495](https://github.com/emdash-cms/emdash/pull/4495) [`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin's confirmation, form and notice dialogs to Kumo's `LayerDialog` design. Each dialog keeps its title in a fixed header, scrolls its content in a card, and puts Cancel and the main action in a tray along the bottom. On phones, dialogs open as bottom sheets, and most can be swiped down to dismiss. Block Kit button confirmations on plugin admin pages use the same design.
+  
+  Inside dialogs, groups of fields share one section heading style, selects fill the width of their column, and paired fields stack on phones. Explanations that used to sit under fields, such as "Slugs cannot be changed after the field is created.", are behind an info button beside the label, which opens on hover, keyboard focus or a tap. Errors, warnings about what an action will do, and format rules the dialog does not check stay visible. Screen readers read an info button's note as the button's description, without opening it.
+  
+  Dialogs with Cancel and an action no longer show a separate close (×) button; Cancel and Escape behave as before. In the byline and media folder dialogs, Delete moves from the bottom bar to a row at the end of the dialog that says what deleting does, and the byline avatar shows as a small circle with its actions beside it. Creating a relationship from the field dialog opens it in a second dialog on top, whose Back button returns to the field, and the relation form no longer says it cannot generate a slug before both side names are filled in. A confirmation's message sits under its title and is the dialog's description for screen readers. Form dialogs, such as the field, menu item and schedule dialogs, now also say what they are for under the title, and screen readers read that sentence instead of the whole form. The media picker, media details, media upload, bulk tagging, content picker and section picker dialogs keep their previous layout.
+  
+  Browser tests that clicked a dialog's "Close" button should click "Cancel" or press Escape instead. A dialog now takes focus itself when it opens, unless one of its fields takes focus, so press Tab to reach its first control. The plugin permissions and uninstall dialogs are now named by their titles, such as "Plugin Permissions" and "Uninstall Gallery?", instead of "Capability consent" and "Uninstall confirmation". A label locator such as `getByLabel("Slug")` can also match the new "More information about Slug" button, so pass `{ exact: true }` or locate the field by its role. An info button's note is also in the page as the button's hidden description, so locate the open note with `getByRole("tooltip")` rather than by its text.
+
+- [#4527](https://github.com/emdash-cms/emdash/pull/4527) [`5a8c620`](https://github.com/emdash-cms/emdash/commit/5a8c6200a78a83bbde4c941a9b0c7f4b63e542a6) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Media Library's list view to match the content list's look, and fits it on phones.
+  
+  - Each file's name is a button, so keyboard users can reach it with Tab and press Enter to open the file's details. Clicking anywhere else on the row still opens the details, and rows can still be dragged onto folders. The open file's row takes the table's selection color instead of a brand tint.
+  - When the table is narrower than 42rem (672px), such as on phones and portrait tablets, the Type, Size, and Alt text columns fold away and show under each file's name instead. Long filenames, file types, and folder names wrap or truncate instead of widening the table, and each folder row keeps its name and Edit button in view.
+  
+  In list view, browser tests can find a file's name as a button named after the file, such as `getByRole("button", { name: "photo.jpg" })`. Rows keep their `data-media-draggable`, `data-media-folder-drop-target`, and `data-drop-active` attributes, and the folder controls keep their "Open folder {name}" and "Edit folder {name}" names. A file's type, size, and alt text status are now in the row twice, under its name and in their own columns, with one copy hidden at any width, so tests that look up that text need to scope it to a cell, such as `getByRole("cell", { name: "image/png" })`.
+
+- [#4462](https://github.com/emdash-cms/emdash/pull/4462) [`968a23e`](https://github.com/emdash-cms/emdash/commit/968a23e2a52e2033d33e57d657b031d88012dda1) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Users and Bylines tables in the admin to match the content list's look.
+  
+  On the Users page, clicking a user's name opens their details. The name is a button, so it can be reached with the keyboard now, and clicking elsewhere in the row no longer opens the details.
+  
+  On the Bylines page, clicking a byline's name opens the edit dialog, and the Edit button moves into the row's "…" menu next to Delete byline.
+  
+  Browser tests that open "More actions for {name}" on the Bylines page should open "Actions for {name}" instead. The byline's name now has the "Edit {name}" accessible name that the Edit button had, so tests that click "Edit {name}" still open the edit dialog. The Bylines panel in the content editor still uses "More actions for {name}". Tests that clicked a row of the Users table should click the user's name.
+
+- [#4494](https://github.com/emdash-cms/emdash/pull/4494) [`b42176d`](https://github.com/emdash-cms/emdash/commit/b42176dcb061c49cddb596c9fce501ed288c3bcc) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the content list, Users, and Bylines tables running past the edge of phones and other narrow screens, which hid each row's "…" menu until you scrolled sideways. Each table now folds its less important columns away while the table itself is narrow, including when the sidebar leaves it little room, and brings them back when there is room. Tables 42rem (672px) and wider still show every column they showed before.
+  
+  - On the content list below 42rem, such as on phones and portrait tablets, each entry's status, locale, and date show under its title, and a sort menu replaces the hidden sortable headers. Columns from the collection's list settings and from plugins are hidden there. The Trash tab shows each entry's locale and deleted date under its title the same way.
+  - On the Users page below 28rem (448px), the role shows under the email, with Disabled for a disabled user. Last Login and Passkeys are hidden below 42rem.
+  - On the Bylines page below 28rem, the byline type shows under the bio or slug. Website is hidden below 42rem, and now shows on any table that wide instead of only on screens 1024px and wider.
+  
+  Hidden values still show when you open the entry, user, or byline, except values that only a plugin column displays. Long emails and slugs wrap, long words in titles break on narrow tables, and long bios truncate, instead of widening the table. The content list and Users page headers move their button to its own line when a long translation leaves no room beside the title.
+
+- [#4528](https://github.com/emdash-cms/emdash/pull/4528) [`8ce12b7`](https://github.com/emdash-cms/emdash/commit/8ce12b760dcf28319502617b6f7fc5b107fd41e2) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Redirects page's redirect and 404 tables to match the content list's look, and fits them on phones.
+  
+  - Each redirect shows its destination under its source, after an arrow, and its group under that, after a folder icon, at every width. Long paths and group names wrap instead of being cut off. A 410 or 451 rule, which has no destination, skips the arrow line. Clicking a redirect's source opens it for editing, and Edit and Delete move into the row's "…" menu. The enable switch, the loop warning, and the "auto" badge stay on the row, and disabled redirects still look faded.
+  - When a table is narrower than 42rem (672px), such as on phones and portrait tablets, the Code and Hits columns fold away and show under each redirect, and the 404 table's Last seen column folds under each path. Below 28rem (448px), such as on phones, the 404 table's Hits column folds under each path too. A folded hit count reads like "12 hits". Nothing scrolls sideways on a 320px screen.
+  - The 404 table's Create redirect and Mark as Gone (410) buttons match the admin's other buttons and keep their names, their tooltips, and the Mark as Gone (410) button's description for screen readers.
+  
+  Browser tests that clicked a redirect's "Delete redirect {source}" button need to open the "Actions for redirect {source}" menu first, where Delete is a menu item with that name. "Edit redirect {source}" now names the source path itself, which is a button, so `button[aria-label^="Edit redirect"]` finds the source. The Source, Destination, and Group headers are one column header, named "Source Destination Group". The 404 buttons no longer have a `title` attribute: their tooltips are popups, and the Mark as Gone (410) button's explanation is its accessible description through `aria-describedby`. A redirect's code and a 404's last seen date are in the row twice, under the path and in their own column, with one copy hidden at any width, so tests that look up that text need to scope it to a cell. A hit count shows as a bare number in the Hits column and as, for example, "12 hits" or "1 hit" under the path.
+
+- [#4497](https://github.com/emdash-cms/emdash/pull/4497) [`e34b8fe`](https://github.com/emdash-cms/emdash/commit/e34b8fe5abc520c6ed450be5b624fc771a03bd1a) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Content Types, Block types, Relations, and Byline Schema tables in the admin to match the content list's look, and fits them on phones.
+  
+  - On the Content Types page, Edit and Delete move into each row's "…" menu, and code-defined collections offer Edit only. Block types now show as a table below content types.
+  - On the Relations page, clicking a relation's slug opens it for editing, and Edit and Delete move into the row's "…" menu.
+  - On the Byline Schema page, clicking a field's label opens it for editing, and Edit, Move up, Move down, and Delete move into the row's "…" menu.
+  
+  On narrow screens, the buttons in the Content Types, Relations, and Byline Schema page headers move onto their own line instead of running off the edge or crowding the page title. On narrow tables, slugs, sources, types, and link, field, and version counts show under each row's name, and the less important columns fold away.
+  
+  Browser tests that clicked a row's own Edit or Delete button, such as "Delete Posts", now need to open the "Actions for Posts" menu first. The Delete items keep their "Delete {name}" names, and the Content Types Edit item keeps "Edit {name}". On Relations and Byline Schema, "Edit {name}" now names the row's slug or label button, which opens the editor without the menu. The byline field reorder items are named "Move up" and "Move down" instead of `Move "{label}" up` and `Move "{label}" down`.
+
+- [#4537](https://github.com/emdash-cms/emdash/pull/4537) [`c2a6857`](https://github.com/emdash-cms/emdash/commit/c2a68573f82571fd21ecf172291c8c1bdd2d1ada) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes keyboard focus jumping to the top of the page when the row holding it leaves an admin table, for example after deleting a redirect from its "…" menu, moving an entry to the trash, or approving a comment in the Pending tab. Focus moves to the same control in the row that takes its place, so keyboard and screen-reader users can carry on down the list. When no row takes its place, such as when the last row leaves, focus moves to the "…" button of the row above it instead of a control that would act on a row you didn't choose. Focus stays where you put it when you move it elsewhere, such as into a search box or by clicking, and a mouse or touch press cancels a move that is still waiting for a menu or dialog to close.
+  
+  On the Redirects page, changes such as toggling a redirect or marking a 404 path as Gone no longer replace the tables with a loading or empty message and drop keyboard focus. After a change, the list still goes back to its first page. Each redirect's switch is now named after its redirect, such as "Disable redirect /old-page", so browser tests that find a switch by its exact name need to include the source path.
+
+- [#4503](https://github.com/emdash-cms/emdash/pull/4503) [`52b430c`](https://github.com/emdash-cms/emdash/commit/52b430c05924d9319e90756aff41a823a93b1971) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the term list on the Categories, Tags, and custom taxonomy pages to the content list's table layout, which fits phones.
+  
+  - Clicking a term's name opens it for editing, and the term's other actions sit in its row's "…" menu. On Categories and custom taxonomies, that menu holds the Edit, Move, Translate, and Delete buttons that were in each row; on Tags, the Edit button moved into it.
+  - A term that is the only one under its parent, or the only top-level term, no longer shows Move up and Move down. A term whose parent has no translation in the current locale shows them disabled, and its menu says why, on touch screens and to screen readers too.
+  - Deeply nested terms keep their "…" menu in view on phones, and the header buttons on Categories and custom taxonomy pages wrap onto a new line on narrow screens instead of running off the edge.
+  
+  Browser tests that clicked a term's Move, Translate, or Delete button need to open "Actions for {name}" first, and tests that opened "More actions for {name}" on a tag open "Actions for {name}" instead. In that menu, Delete is named "Delete {name}" on every taxonomy, and the other items are "Move up", "Move down", and "Translate". The term's name is the button "Edit {name}", which opens the editor without the menu.
+
+- [#4495](https://github.com/emdash-cms/emdash/pull/4495) [`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the info buttons beside admin field labels doing nothing when tapped on a phone or tablet. In the content editor, the content list's byline filter, and the filename, alt text and focal point fields in media details, a tap now shows the help, which stays open until the next tap, a tap elsewhere, or Escape. Hovering over or focusing an info button still shows its help, and a mouse click now keeps it open the same way.
+
+- [#4151](https://github.com/emdash-cms/emdash/pull/4151) [`6d5a10d`](https://github.com/emdash-cms/emdash/commit/6d5a10d0267846e71c7bf87aca02a376e07d2e7e) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fits the admin calendar's month view to the screen.
+  
+  - The month grid fills the window with one-line entries and shows as many per day as fit, folding the rest into "+N more".
+  - On wide screens the entry panel sits beside the calendar instead of covering it, and clicking empty space closes it. On phones it is a bottom sheet that swipes down to close.
+  - The page title and description give their space to the month. The view switcher and Filter sit above the month's name, which has Today and the month arrows beside it.
+  
+  Agenda rows show times in the site's time zone; the side panel and entry tooltips also show the viewer's own time. Month cells no longer draw the red line marking the present; the agenda and the lists of a day's entries still do.
+
+- [#4570](https://github.com/emdash-cms/emdash/pull/4570) [`e737608`](https://github.com/emdash-cms/emdash/commit/e7376088f9a02a473753638ca71d3999d96f5f1b) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes admin pages crashing on missing or unparseable timestamps in imported or legacy data, including publication and scheduling dates in the content editor. Invalid dates now render as empty text, and revision times omit the machine-readable date when it is invalid.
+
+- [#4716](https://github.com/emdash-cms/emdash/pull/4716) [`b766773`](https://github.com/emdash-cms/emdash/commit/b7667732bcee48ed094a3f363578b7d525bff212) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the preview path for Cloudflare Stream videos stuck at `0:00` in the Media Library detail panel. The panel uses Stream's hosted player instead of the browser's native HLS/DASH support. Stream preview URLs ending in `/watch` are converted to the embeddable `/iframe` URL. Media providers can supply an optional `playerUrl` for admin video previews; providers without one keep native video playback.
+  
+  If you use Astro's content security policy, allow the Stream player host in `frame-src` so the preview can load. EmDash's default admin policy already allows HTTPS frames.
+
+- [#4595](https://github.com/emdash-cms/emdash/pull/4595) [`213904f`](https://github.com/emdash-cms/emdash/commit/213904fe0f3b7b01161e74cfb6603906b2928ce9) Thanks [@swissky](https://github.com/swissky)! - Makes Buttons blocks editable in the rich text editor. Imported WordPress button groups now open a form for their layout and for each button's text, URL and style, and `/buttons` inserts a new group. Saving a group clears a link URL that an earlier editor stored on the group itself, so its card no longer shows that link. Sites with a plugin that registers its own `buttons` block keep using that plugin's editor.
+
+- [#4629](https://github.com/emdash-cms/emdash/pull/4629) [`2237d52`](https://github.com/emdash-cms/emdash/commit/2237d52c405228d5396fe4c72db48083530f7d79) Thanks [@dmythro](https://github.com/dmythro)! - Fixes the content editor's back button naming its list with the collection's singular label. Screen readers now hear "Back to Posts list", matching the "Posts" link beside it, and translations that name the list get its plural label.
+
+- [#4477](https://github.com/emdash-cms/emdash/pull/4477) [`cada545`](https://github.com/emdash-cms/emdash/commit/cada5450a080c107b8396430143288cd94b332ab) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes uploads into Media Library folders: empty folders offer an upload action, completed picker uploads stay visible in their destination, and queued or retried files keep their original folder. Each upload into a folder creates a new media item, even if the same file already exists in that folder or elsewhere, rather than reusing or moving existing media. Main-library uploads retain duplicate detection and keep reused items visible in the picker even when the existing item belongs to a folder.
+
+- [#4305](https://github.com/emdash-cms/emdash/pull/4305) [`d891305`](https://github.com/emdash-cms/emdash/commit/d891305440e57b2ac3b90c0443d161783b2aef50) Thanks [@iNerdStack](https://github.com/iNerdStack)! - Fixes the WordPress import review screen labeling the SEO toggle "SEO settings (Yoast)" regardless of which SEO plugin the source site uses. The label now reads "SEO settings", consistent with the rest of the admin and accurate for sites using Rank Math or other SEO plugins.
+
+- [#4733](https://github.com/emdash-cms/emdash/pull/4733) [`612569b`](https://github.com/emdash-cms/emdash/commit/612569b1cf590dd80ce5ca68a40046c6cca2ed1c) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes admin browser tabs to show the current page and Site Title, falling back to configured admin branding and then EmDash when Site Title is empty. Content editor tabs include the collection type and entry title and update during client-side navigation.
+
+- [#4718](https://github.com/emdash-cms/emdash/pull/4718) [`c38a5d5`](https://github.com/emdash-cms/emdash/commit/c38a5d5af364fc7ae0f13a75b57754b7328e7168) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text in the SMTP email settings, the blocks field and its block menu, the Buttons block, field and byline field settings, the site status and domain change settings, the content list's sort menu, comments, redirects, menus, widgets, sections, taxonomies, media folders, user invitations, publishing schedules, the personal sidebar layout settings, the Atmosphere sign-in, the editor's save status, the content type's date column, the dashboard's notice about scheduled content that wasn't published, and the browser tab titles.
+
+- [#4545](https://github.com/emdash-cms/emdash/pull/4545) [`871cbfa`](https://github.com/emdash-cms/emdash/commit/871cbfa09b920e3906373ef2cf1d36284f89ba55) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text in the forms plugin's digest, autoresponder and field condition settings, the dialogs for deleting a menu item or a widget, the content list's row actions, the redirect group filter and its empty results, the search engine verification settings, empty media folders, the welcome dialog and the hint under "Hide from navigation". The redirect search placeholder is shorter so it is no longer cut off.
+
+- [#4535](https://github.com/emdash-cms/emdash/pull/4535) [`46e0a54`](https://github.com/emdash-cms/emdash/commit/46e0a544bbe7865558463a9562889ba0850a7da7) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Adds missing Hindi admin translations and uses Hindi transliteration for authentication terminology.
+
+- [#4308](https://github.com/emdash-cms/emdash/pull/4308) [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.15.0. These packages now require exactly `@cloudflare/kumo@2.15.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together: their earlier releases require Kumo 2.6.0, and these plugin releases need an `emdash` release with this change. Updating only one side leaves Kumo 2.15 next to an admin built for 2.6.
+  
+  In the admin, Select menus now open below their field instead of over it, and text sized `text-base` or `text-lg` has a taller line (1.5), so labels and headings take slightly more height. Kumo's `DropdownMenu` now spaces item icons itself, so plugin admin pages should remove any margin classes such as `me-2` from the elements they pass as an item's `icon`.
+
+- [#4213](https://github.com/emdash-cms/emdash/pull/4213) [`caca761`](https://github.com/emdash-cms/emdash/commit/caca7610831465967c5b84e3022fc4db43cac091) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Reduces CPU usage during image upload confirmation by generating placeholders from small browser thumbnails instead of decoding full-resolution originals. For browser-decodable images, the admin now sends thumbnails fitting a 64-pixel box with both signed and direct uploads, and the visual-editing toolbar sends one with every direct upload. This also enables blurhash and dominant-color placeholders for browser-decodable formats such as WebP and AVIF, which previously had none. New uploads and imports no longer generate placeholders for transparent images, including PNGs, so placeholder backgrounds do not show through transparent areas. Existing media keeps its stored placeholders. Image dimensions, upload validation, content hashing, and responsive image variants remain unchanged.
+  
+  Adds the `imagePlaceholders` configuration option, defaulting to `true` on every runtime, including Cloudflare Workers. This is one site-wide switch for every upload and import: setting it to `false` skips all blurhash and dominant-color generation, including from client thumbnails. WordPress imports, MCP uploads, plugin uploads, and custom clients without thumbnails still decode originals when placeholders are enabled, so sites with constrained CPU budgets may choose to turn this switch off.
+  
+  Custom clients can send an optional `{ thumbnail: { contentType, data } }` in `POST /_emdash/api/media/{id}/confirm`. Confirm thumbnails accept JPEG or PNG, at most 32,768 base64 characters and 4,096 decoded pixels. Unusable thumbnails omit the placeholder rather than falling back to decoding the original. Thumbnails also work when originals exceed the 8 MiB download cap; supply the original `width` and `height` to record dimensions in that case.
+
+- [#4485](https://github.com/emdash-cms/emdash/pull/4485) [`faeca6c`](https://github.com/emdash-cms/emdash/commit/faeca6cf873ce792359aeadfe4699534eafb06ed) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the content editor toolbar on mobile with a four-column action grid that keeps actions visible without horizontal scrolling. Removes the persistent visible Saved label and shows save failures in a dismissible banner beneath the header at all widths. Preserves screen-reader save announcements. On phones, Settings offers **Save draft** for collections with drafts and revisions. Tablet and desktop retain their horizontal action layout, and error toasts remain available when the header has scrolled out of view.
+
+- [#4421](https://github.com/emdash-cms/emdash/pull/4421) [`2bd4a39`](https://github.com/emdash-cms/emdash/commit/2bd4a396c44284635e106f95a54d9e9a698ca218) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the "not found" errors for themes, marketplace plugins, collections, revisions, and users, which stayed in English in an admin set to another language. They can now be translated like the rest of the admin.
+
+- [#3913](https://github.com/emdash-cms/emdash/pull/3913) [`252934b`](https://github.com/emdash-cms/emdash/commit/252934b888453fd18a72f9311e75d1a0bdc109dc) Thanks [@edrpls](https://github.com/edrpls)! - Fixes failed uploads in the media library upload dialog and the media picker showing only "Upload failed". The server's reason, such as a file over the size limit, now appears under the file, as it already does when uploading into an empty image field.
+
+- [#4454](https://github.com/emdash-cms/emdash/pull/4454) [`5a9f1bd`](https://github.com/emdash-cms/emdash/commit/5a9f1bdef6ab92a2c286264aba98eab94bc19b36) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes deleting a menu item on SQLite, libSQL, and Cloudflare D1 so the items nested under it are deleted too, as they already were on PostgreSQL. Before, the nested items stayed behind: the site showed them as top-level menu items, but the menu editor no longer listed them, so they could not be edited or removed.
+  
+  When a menu item has nested items, the menu editor's delete confirmation now says they will be deleted too.
+  
+  Upgrading moves every menu item whose parent is missing from its menu to the top level, where the site already shows it, so the menu editor lists it again.
+  
+  #### What should I do?
+  
+  After upgrading, review your menus in the admin. Items left behind by an earlier delete now appear at the top level, where your site was already showing them. Delete any you no longer want.
+
+- [#4491](https://github.com/emdash-cms/emdash/pull/4491) [`6331f6b`](https://github.com/emdash-cms/emdash/commit/6331f6b4ba2c9f9d6eac778c2ee311e9cbd79768) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes uploads into image and file fields inside blocks ignoring the nested field's `allowedMimeTypes`. Allowed Word documents and other types outside the default upload list can now be uploaded directly from a block's media picker.
+  
+  API clients uploading into a block field can send `blockType` (the block type slug) and `blockVersion` (the block's version number) with the composite `fieldId` (`<outerFieldId>:<blockKey>:<fieldSlug>`) to `POST /_emdash/api/media` or `POST /_emdash/api/media/upload-url`. Use the database ID of the collection's blocks field for `outerFieldId`, and send `blockVersion` as a string in multipart requests or a number in upload-URL JSON requests. Without the block context, the default upload allowlist still applies.
+
+- [#4720](https://github.com/emdash-cms/emdash/pull/4720) [`935cdc7`](https://github.com/emdash-cms/emdash/commit/935cdc7f956302da25105aafac9f35897a6b07fa) Thanks [@danielmlr](https://github.com/danielmlr)! - Updates the SMTP Host placeholder in Settings → Email to `smtp.example.com`, so the form no longer suggests a particular email provider.
+
+- [#4235](https://github.com/emdash-cms/emdash/pull/4235) [`d6c56fc`](https://github.com/emdash-cms/emdash/commit/d6c56fcd98137b6e3d967ee7a374b6d6c46be502) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes Croatian (`hr`), Russian (`ru`) and Serbian Latin (`sr-Latn`) admin messages that described counts such as 21 or 101 as a single item. In Croatian, for example, screen readers now announce "Izbrisan 21 redak" after 21 table rows are deleted, instead of "Redak izbrisan" (row deleted).
+
+- [#4708](https://github.com/emdash-cms/emdash/pull/4708) [`752cbcd`](https://github.com/emdash-cms/emdash/commit/752cbcd4311bf12f394045dc75b9144b2b688aa4) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes site transfer imports failing with `TRANSFER_TARGET_NOT_EMPTY` after an interruption while removing starter collections created during setup. Resuming the import now continues that cleanup instead of treating the collection as existing content.
+  
+  **Settings → Transfer** now identifies collections whose deletion failed and explains how to retry them before importing. Deletions that are still in progress do not block a new import; the importer advances their cleanup.
+  
+  #### What should I do?
+  
+  If your import was interrupted, reopen **Settings → Transfer** to continue it, or run `emdash site import resume <operation-id>`. If the import or a collection deletion failed, follow the guide's [retry and recovery steps](https://docs.emdashcms.com/guides/site-transfer/#resolve-failed-collection-cleanup) before starting another import.
+
+- [#4742](https://github.com/emdash-cms/emdash/pull/4742) [`b8886d9`](https://github.com/emdash-cms/emdash/commit/b8886d9476b922990ee1d50abb73facbbf2d131d) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes WXR imports publishing password-protected WordPress posts for anyone to read on the imported site. The admin import and `emdash import wordpress` now bring in a post with a WordPress password as a draft, whatever its WordPress status, and list each one on the **Import Complete** screen and in the CLI output.
+  
+  Imports through the EmDash Exporter plugin are unchanged: the exporter does not send post passwords, so a published, password-protected post still arrives published.
+  
+  #### What should I do?
+  
+  If you imported a WXR file before this release, or import through the EmDash Exporter, find the entries that WordPress marks as "Password protected" on its **Posts**, **Pages** and custom post type screens, and unpublish them in EmDash if they should stay private.
+
+- [#4291](https://github.com/emdash-cms/emdash/pull/4291) [`40c7657`](https://github.com/emdash-cms/emdash/commit/40c76576d82a0e7714ac99869971c3ae85f4fcfa) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the Revisions and Outline sections and the "Created and updated" dates in the content editor sidebar ignoring the reduced-motion preference when they expand or collapse.
+
+- [#4413](https://github.com/emdash-cms/emdash/pull/4413) [`88e00fe`](https://github.com/emdash-cms/emdash/commit/88e00fedb114e3e98cd32d7b4889bfba3ae3c6c4) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes sandboxed content editor panels giving no feedback during slow button actions or form submissions. Panels keep their controls visible and show a pending indicator while interactions run. Additional interactions run in order instead of cancelling the active request, and consecutive duplicates of a running or queued interaction are ignored. Editing the entry allows a new draft-aware action even while the same button’s earlier request is pending. Saved-version refreshes run in the background without replacing the panel with a skeleton, and superseded loads are cancelled so the latest refresh can start promptly.
+
+- [#4481](https://github.com/emdash-cms/emdash/pull/4481) [`5652829`](https://github.com/emdash-cms/emdash/commit/5652829bd13e8a66583fcbf4ecbe1d1cd390de70) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes saved redirect groups being hidden in the admin Redirects list. Editors can now see each redirect's group and filter by an exact group name, including groups outside the currently loaded page.
+
+- [#4385](https://github.com/emdash-cms/emdash/pull/4385) [`830578b`](https://github.com/emdash-cms/emdash/commit/830578be2ebf1c3192270978d38ade54583ea870) Thanks [@Stormster](https://github.com/Stormster)! - Fixes required file, image and reference fields in the content editor showing "This field is required" (or "Select at least one entry.") as soon as the form opens. The message now appears after the editor tries to save or publish, or when they empty a field they had filled, and is announced to screen readers and linked to the field's button.
+
+- [#4479](https://github.com/emdash-cms/emdash/pull/4479) [`d4d149d`](https://github.com/emdash-cms/emdash/commit/d4d149d08c4d2aa4f18b5bbd8d15d496d6a69a76) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes saving content when an optional select or URL sub-field in a repeater row is left empty or cleared. The save failed with "… has a value that is not one of its options." or "… must be a valid URL."
+  
+  #### What should I do?
+  
+  An entry with a repeater row that was saved empty before this release can still fail with these messages. Fill in that sub-field, or fill it in and clear it again, then save.
+
+- [#4625](https://github.com/emdash-cms/emdash/pull/4625) [`5bcccb8`](https://github.com/emdash-cms/emdash/commit/5bcccb82465011d9229334bbb566984e9d5ed446) Thanks [@swissky](https://github.com/swissky)! - Fixes Select sub-fields in the repeater field dialog: you can now enter their choices (one per line) when you create or edit a repeater, and saving a repeater no longer erases the choices of Select sub-fields defined through the API, the CLI or seed files.
+
+- [#4263](https://github.com/emdash-cms/emdash/pull/4263) [`d3e3021`](https://github.com/emdash-cms/emdash/commit/d3e3021c6db69ba0eb08593df4fd2353f3b858c1) Thanks [@henshaw](https://github.com/henshaw)! - Fixes the content editor's and publishing calendar's **Preview** buttons opening a new browser tab on every click. Previewing an entry again now reloads and brings forward its preview tab when that tab is still open; previews of different entries keep their own tabs.
+
+- [#4418](https://github.com/emdash-cms/emdash/pull/4418) [`34fc9e0`](https://github.com/emdash-cms/emdash/commit/34fc9e0781e0254e6aa950fdda50ea0b7338616e) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the content editor saving outdated rich text over newer content. When the editor picked up a newer version of an entry, for example after a save from another tab, a plugin, or the API, rich text fields and rich text inside blocks kept the old text, and the next keystroke saved it over the newer version without a conflict notice. Discard changes left the discarded text in place the same way. A read that finished after an autosave could also undo it, so a later edit saved the earlier text.
+  
+  Rich text typed while a save is in progress counts as unsaved and goes out with the next save, which shows the conflict notice if the entry changed elsewhere in the meantime.
+
+- [#4695](https://github.com/emdash-cms/emdash/pull/4695) [`22b87ed`](https://github.com/emdash-cms/emdash/commit/22b87edc3f68ef173683a698af49275c5201d5fe) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes read-only rich text fields so screen readers announce them as read-only instead of as editable text boxes.
+
+- [#4485](https://github.com/emdash-cms/emdash/pull/4485) [`faeca6c`](https://github.com/emdash-cms/emdash/commit/faeca6cf873ce792359aeadfe4699534eafb06ed) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes title and other collection-data edits being reverted when a manual save's refresh finishes. Newly edited collection data is retained while untouched collection fields receive refreshed server values.
+
+- [#4640](https://github.com/emdash-cms/emdash/pull/4640) [`8b484aa`](https://github.com/emdash-cms/emdash/commit/8b484aa92e0dc7c644563eb79e7635293c9d0e2d) Thanks [@swissky](https://github.com/swissky)! - Makes the first save of a new entry clearer in collections with drafts. The content editor labels the button **Save draft**, keeps that label visible in narrow editor bars, and the settings sidebar now shows the Publish section with a note that the entry stays off the site until it is published after the first save.
+
+- [#4585](https://github.com/emdash-cms/emdash/pull/4585) [`372bafa`](https://github.com/emdash-cms/emdash/commit/372bafaeb75148997edff09b9312e722a80534e4) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the calendar in the scheduling and publication date dialogs (Schedule publication, Schedule changes, Change schedule, and Change publication date) so each day sits centred under its weekday name. The days used to sit at the start of their columns, out of line with the weekday names above them.
+
+- [#4782](https://github.com/emdash-cms/emdash/pull/4782) [`9db2de8`](https://github.com/emdash-cms/emdash/commit/9db2de8db3cf896d350eabdc91de663b481cbda3) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes a scheduled entry that publishing refuses staying overdue forever. When the scheduler's publish fails with a validation error or a slug conflict, the entry is now unscheduled and the dashboard lists it with the error message, as it already does when a plugin rejects a scheduled publish. Before, the error went only to the server log, the scheduler retried it on every run, and the calendar said scheduled publishing might not be running.
+  
+  `ScheduledPolicyRejection.pluginId` is now optional, and the record gains an optional `code`: a record written for a refused publish has no `pluginId` and carries the publish error's `code` instead. Code that reads `emdash:scheduled-policy-rejection:*` records, or narrows with `isScheduledPolicyRejection`, should handle a missing `pluginId`.
+
+- [#4534](https://github.com/emdash-cms/emdash/pull/4534) [`532e78b`](https://github.com/emdash-cms/emdash/commit/532e78bc3604b43cf9f51c3ed6e586f2f9d6ed68) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the default SEO title ignoring a collection's `titleField`. When an entry's SEO title is empty, `getSeoMeta()` now takes the page title from the collection's title field for entries from `getEmDashEntry()` and `resolveEmDashPath()`, and falls back to the `title` field when the collection sets no `titleField` or the entry leaves that field empty. The **SEO Title** placeholder in the editor shows the same value. Before, both read only the `title` field, so a collection that keeps its titles in a `headline` field got an empty page title.
+  
+  #### What should I do?
+  
+  If a collection's `titleField` names a field other than `title` and the collection also has a `title` field, its pages now take their title from the `titleField` value. To keep using the `title` field, pass it as the default title:
+  
+  ```ts
+  const seo = getSeoMeta(post, { defaultTitle: post.data.title });
+  ```
+
+- [#4717](https://github.com/emdash-cms/emdash/pull/4717) [`089716d`](https://github.com/emdash-cms/emdash/commit/089716d3ff85785c5d81e7fd6aee45547dbe1893) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes non-admin users being able to open admin-only screens in the admin UI. A non-admin who opens a site-level settings page, **Users**, **WordPress import**, or a plugin's settings page by its URL now sees an "Access denied" message instead of a screen that fails to load or cannot save. The **Settings** screen stays open to every role and lists only the pages that role can use.
+  
+  #### Changes for Editors
+  
+  Editors could previously open **Settings → General**, **Social Links**, and **SEO** and read their values, although saving them already required an administrator. They can no longer open these pages.
+
+- [#4558](https://github.com/emdash-cms/emdash/pull/4558) [`c0930c3`](https://github.com/emdash-cms/emdash/commit/c0930c335f35678a2bb75371ca041765a4e600b7) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Completes the Japanese admin translation catalog, including form settings, dialog descriptions and validation messages, content management actions, and redirect controls.
+
+- [#3008](https://github.com/emdash-cms/emdash/pull/3008) [`a3fc555`](https://github.com/emdash-cms/emdash/commit/a3fc555ef0eedf0e562abb7b1a3885c21f353d54) Thanks [@marks-zyz](https://github.com/marks-zyz)! - Fixes the sidebar active state for a plugin admin page declared with `path: "/"`. The nav target for such a page carries a trailing slash (`/plugins/<id>/`) while the router navigates without it, so the exact comparison in `isItemActive` never matched and the item stayed unhighlighted. This affected the shipped forms plugin's "Forms" page. Both sides are now normalized before comparing, and the admin root keeps its exact match.
+
+- [#4510](https://github.com/emdash-cms/emdash/pull/4510) [`1cf644e`](https://github.com/emdash-cms/emdash/commit/1cf644ef37a5dfb8d5c471d8e42b77ed90bb9ffc) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Replaces the Change domain error "does not serve this site yet" with "Could not verify that … serves this site" when the server cannot verify a domain, including Cloudflare Workers Custom Domains. The dialog now explains that a Worker may be unable to reach its own domain and asks you to confirm the new address shows your site in a browser before using it without the check.
+
+- [#4632](https://github.com/emdash-cms/emdash/pull/4632) [`96945d3`](https://github.com/emdash-cms/emdash/commit/96945d3ec0d7bfe6cb887171648029121ef94451) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes rich text block keys changing on every save. Blocks added in the editor now keep the same `_key` from save to save, so saving the same content twice gives identical Portable Text. Saving also stops changing a few stored shapes:
+  
+  - List items that start at a nested level keep their level.
+  - Line breaks inside table cells keep their spans.
+  - A span marked both subscript and superscript keeps subscript.
+  - Two links that share a mark definition keep their own destinations.
+  - An empty last line, such as the one the editor adds after a final image, isn't saved.
+  
+  If a plugin block is deleted while its edit dialog is open, the dialog now stays open, keeps what you typed, and says the changes can't be saved. Before, it closed and dropped the input.
+
+- [#4752](https://github.com/emdash-cms/emdash/pull/4752) [`a5223a9`](https://github.com/emdash-cms/emdash/commit/a5223a96122c4676650c464935b728e25b3d1480) Thanks [@kegren](https://github.com/kegren)! - Translates the Swedish admin strings added since 1.2, including the revision history, email settings, block fields, site visibility and the forms plugin.
+
+- [#4401](https://github.com/emdash-cms/emdash/pull/4401) [`e21e01e`](https://github.com/emdash-cms/emdash/commit/e21e01e5eb3b57de6a8c6c4531ca5fe184985114) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes responsive table widths in the admin editor with Tiptap 3.32.0. Gives both editors' textboxes accessible names for screen readers.
+  
+  Pins the editor's Tiptap dependencies to exactly 3.32.0 so installations use the version covered by the editor tests. Code-block highlighting keeps its existing lowlight extension version. Sites or plugins that share Tiptap dependencies with EmDash should align them to 3.32.0 to avoid installing multiple copies.
+  
+  Links applied at an empty caret now end when you type a space, following Tiptap's updated behavior. In the visual editor, typing a space at the end of an existing link also ends the link. Text typed after that space is not part of the link.
+
+- [#4600](https://github.com/emdash-cms/emdash/pull/4600) [`eefe351`](https://github.com/emdash-cms/emdash/commit/eefe351616cddda020eae4a8b445a6606cf5a17b) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the entry editor's taxonomy picker showing an enabled create button with no name entered. The picker now explains that the input can search or create terms, disables creation for an empty name, and shows a hint to type a name first.
+
+- [#4379](https://github.com/emdash-cms/emdash/pull/4379) [`65b1679`](https://github.com/emdash-cms/emdash/commit/65b1679a84a5af6dcc2e951a5064a21e2353c843) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Fixes category and tag pickers creating or selecting terms when Enter confirms an IME composition.
+
+- [#4533](https://github.com/emdash-cms/emdash/pull/4533) [`bb15813`](https://github.com/emdash-cms/emdash/commit/bb158132b8a8b0b9fc863ccc72bbb931618a888f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the `rows` widget option on `text` fields having no effect in the content editor. A text field that sets `options.rows` to a positive whole number now renders a textarea with that many rows, so fields that already set it change height after upgrading. Text fields without the option keep the 10-row default.
+
+- [#4776](https://github.com/emdash-cms/emdash/pull/4776) [`98d16d8`](https://github.com/emdash-cms/emdash/commit/98d16d874341c10512c1b5e9d573d2b5ee3da50e) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the content editor silently overwriting another editor's changes after a background refresh followed by undoing unsaved edits. The next save now reports a conflict instead of sending older field values with the newer revision token.
+
+- [#4759](https://github.com/emdash-cms/emdash/pull/4759) [`93ad617`](https://github.com/emdash-cms/emdash/commit/93ad617386836c029eeb5dd5a83f9ba5b2ea7bf2) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the content editor's Publish now, Publish changes, and Unpublish buttons to show a spinner and stay disabled while the request is in progress.
+
+- [#4613](https://github.com/emdash-cms/emdash/pull/4613) [`a3da98d`](https://github.com/emdash-cms/emdash/commit/a3da98dd10ad3b374db536e0b2a1b94ca8bce41e) Thanks [@dmythro](https://github.com/dmythro)! - Completes the Ukrainian admin translation, so Ukrainian-speaking editors see every admin screen in Ukrainian. Existing Ukrainian texts that left "passkey", "magic link" or "handle" in English, or had grammar and wording mistakes, are corrected.
+
+- [#4666](https://github.com/emdash-cms/emdash/pull/4666) [`652d957`](https://github.com/emdash-cms/emdash/commit/652d9571e1f05e5bd5a997373a53ee317779b977) Thanks [@dmythro](https://github.com/dmythro)! - Fixes WordPress export file (WXR) imports leaving out menus. The admin said the WXR path imports menus, but the import created none, and the review screen didn't list them. The review screen now lists a file's menus by their names in WordPress, with the switch that exporter imports already have, and the import creates them with their nesting and with links to the imported pages and posts. An item without its own label shows the linked entry's title, as in WordPress. On a site translated with Polylang or WPML, each menu takes the language of the pages it links to. An item that links to a post type archive links to the archive of the collection that the post type was imported into. Items that link to a category or tag archive, to content the import left out, or to one of several pages that share a slug in the same collection and language are skipped and counted in the import result. So is a Polylang language switcher, which only Polylang can turn into language links. A menu that already exists under the same name and language is left as it is.
+- Updated dependencies [[`76f0f53`](https://github.com/emdash-cms/emdash/commit/76f0f53221c380cc77b73da5e455408dca720902), [`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610), [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5), [`4e95f4f`](https://github.com/emdash-cms/emdash/commit/4e95f4f23d9efe288b255d5f94963f8f97dac27a), [`34ff31a`](https://github.com/emdash-cms/emdash/commit/34ff31af2aa096d948ed5657cc409b679df393a9)]:
+  - @emdash-cms/blocks@1.5.0
+  - @emdash-cms/plugin-types@0.6.1
+  - @emdash-cms/registry-lexicons@0.7.1
+  - @emdash-cms/registry-client@0.7.2
 
 ## 1.4.0
 
@@ -145,553 +613,3 @@
 - [#4222](https://github.com/emdash-cms/emdash/pull/4222) [`34b218d`](https://github.com/emdash-cms/emdash/commit/34b218de2e6ef4073cc8fb7da07c9499fe562467) Thanks [@Yusaku01](https://github.com/Yusaku01)! - Adds Japanese translations for media deletion, image replacement, and cropping confirmation dialogs and their progress messages.
 - Updated dependencies [[`9e74ea3`](https://github.com/emdash-cms/emdash/commit/9e74ea36b88509ba3e6b61f718aabe4dda26784a)]:
   - @emdash-cms/blocks@1.3.1
-
-## 1.3.0
-
-### Minor Changes
-
-- [#3969](https://github.com/emdash-cms/emdash/pull/3969) [`01e1f12`](https://github.com/emdash-cms/emdash/commit/01e1f120051497d52456b8f971171caa8e9d0744) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds menu renaming and CSS classes to the admin's menu editor. The pencil button next to a menu's title renames the locale version you are editing. A **CSS classes** field sets an item's classes when you add a custom link or edit any item, and the item list shows each item's classes next to its URL.
-
-- [#4136](https://github.com/emdash-cms/emdash/pull/4136) [`83fe26d`](https://github.com/emdash-cms/emdash/commit/83fe26dff5ef18fccbafbc04f941d6da99d3c3ef) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds readable revision history to the content editor. Selecting a version in the **Revisions** panel shows it in place, read-only, with added text highlighted and removed text struck through in the color of the person who saved it. The selected version lists its changes in plain words, such as "Changed the title", and selecting one scrolls to it. **Restore** moves to a bar at the bottom of the editor, and a version that matches an earlier one is marked "Restored from" with that version's date. **Save** and **Publish** pause while a version is open. The panel no longer shows raw JSON.
-  
-  The revisions list API (`GET /_emdash/api/content/{collection}/{id}/revisions`) and the MCP `revision_list` tool include each revision's `author` as `{ id, name }`, or `null` when no author was recorded or the account no longer exists, so editors without access to user management can see who saved each version.
-  
-  `ContentEditor`'s `onRevisionRestored` callback can now return a promise. The restore stays pending until it settles, and the restore dialog shows the error if it rejects. When a host passes this callback, the restored version stays on screen until `item` carries the restored draft, and the writer can't go back to editing before then. The editor still refreshes the entry's `content` and `revisions` queries, so a host that reads `item` from the entry's `content` query needs no change. Other hosts must reload `item` from the callback.
-
-- [#3623](https://github.com/emdash-cms/emdash/pull/3623) [`49319eb`](https://github.com/emdash-cms/emdash/commit/49319eb171ee2262d913ee65a9d66a3ff8b5bbc4) Thanks [@swissky](https://github.com/swissky)! - Adds a **Disallow AI training** option to **Settings > SEO**. When it is on, `/robots.txt` disallows the AI training crawlers and opt-out tokens `Amazonbot`, `Applebot-Extended`, `Bytespider`, `CCBot`, `ClaudeBot`, `Google-Extended`, `GPTBot`, and `meta-externalagent`, and adds a `Content-Signal: search=yes, ai-train=no` line. Search engine access stays as your other rules define it. The rules are added to both the default and a custom `robots.txt`. The option is also available as `seo.disallowAiTraining` in the settings API and the MCP `settings_update` tool. It is off by default, so existing `robots.txt` output is unchanged.
-
-### Patch Changes
-
-- [#4118](https://github.com/emdash-cms/emdash/pull/4118) [`6524921`](https://github.com/emdash-cms/emdash/commit/6524921152ed0e985ae909a42c6f862336826e84) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes admin borders showing gray instead of their intended color, such as on notices and image drop targets.
-
-- [#4086](https://github.com/emdash-cms/emdash/pull/4086) [`f9dda4d`](https://github.com/emdash-cms/emdash/commit/f9dda4dccd275af36b17a10a56b30b05762c9b37) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes keyboard focus rings that were cut off at the edges of the field dialog, and form fields in the field and byline field dialogs that slid out of line beside a hint or error or overlapped on a phone. The Label, Slug and repeater sub-field controls now stay level, and the two-column rows of both dialogs stack on narrow screens.
-
-- [#4148](https://github.com/emdash-cms/emdash/pull/4148) [`bda9024`](https://github.com/emdash-cms/emdash/commit/bda90246449cf8aaff44d8cede861fb9b7ed973d) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes replacing an image in the rich text editor when it has a custom display size in the image's own proportions: the new image keeps the display width and takes its height from its own proportions, instead of being cropped to the old image's shape. A custom size in other proportions, such as an imported WordPress thumbnail, still applies to the new image.
-
-- [#4148](https://github.com/emdash-cms/emdash/pull/4148) [`bda9024`](https://github.com/emdash-cms/emdash/commit/bda90246449cf8aaff44d8cede861fb9b7ed973d) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes images in the rich text editor getting selected when a swipe that scrolls the page on a touch screen starts on one. Tapping an image still selects it.
-
-- [#4012](https://github.com/emdash-cms/emdash/pull/4012) [`e8bd98e`](https://github.com/emdash-cms/emdash/commit/e8bd98e6267856d606a24d4387d40081557c2474) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes blocks fields overflowing the content editor on phone-width screens. A long block summary made every block card wider than the screen, which pushed the Add block, Duplicate and Delete buttons out of reach and clipped the block's inputs. Cards now fit the screen. A long summary ends with an ellipsis, and a long one-word block type name wraps. A cut-off summary also shows its first words when its text and the admin language read in different directions, such as English content in the Arabic admin.
-
-- [#3967](https://github.com/emdash-cms/emdash/pull/3967) [`5c8ab6b`](https://github.com/emdash-cms/emdash/commit/5c8ab6b6868a83f3b5e951244f4c3f9222c2ae21) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the Bylines page form so it's clear what a new byline needs. The slug now fills in from the display name, Create stays available, and submitting shows an error under each missing or invalid field instead of leaving the button disabled with no explanation. Optional fields, including custom byline fields that aren't required, are marked "(optional)".
-
-- [#4114](https://github.com/emdash-cms/emdash/pull/4114) [`443ca3b`](https://github.com/emdash-cms/emdash/commit/443ca3bce7d21d677b732370dc93687e1f31db32) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the publishing calendar's "Update" tag on scheduled changes to published entries showing as a verb in some languages, such as German ("Aktualisieren") and Spanish ("Actualizar"). The tag shared its message with the taxonomy editor's Update button; it now has its own, so translators can word it as a state. Until a language's catalog translates the new message, the tag shows in English.
-
-- [#4116](https://github.com/emdash-cms/emdash/pull/4116) [`ce9e405`](https://github.com/emdash-cms/emdash/commit/ce9e40599e766d74d9efa06d3412d3782f2db72d) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the language and copy buttons on code blocks in the content editor when the content is right-to-left, such as a post written in Arabic. The divider now sits between the two buttons instead of on the toolbar's outer edge, and hover and focus highlights round the toolbar's outer corners instead of its inner ones.
-
-- [#3970](https://github.com/emdash-cms/emdash/pull/3970) [`983c08c`](https://github.com/emdash-cms/emdash/commit/983c08c743e0a85447b268c3f10e112fbb1f6566) Thanks [@marcin-misiewicz-pl](https://github.com/marcin-misiewicz-pl)! - Completes the Polish (`pl`) admin translation. Polish admins now see localized text across the whole admin, including the publishing calendar, the editor, the Change domain dialog, bylines, relations, site transfer, backups, the plugin registry, and passkey setup. Previously, 2,255 of 3,384 strings fell back to English. Existing Polish strings now use consistent terminology: „witryna” for site, „wersja” for revision, and „klucz dostępu” for passkey, matching the wording Polish users see in Apple, Google, and Windows system prompts. Four strings that displayed a stray `msgstr` prefix are also fixed.
-
-- [#4006](https://github.com/emdash-cms/emdash/pull/4006) [`d4e0af9`](https://github.com/emdash-cms/emdash/commit/d4e0af9030920b109d410634fa712c2ba102e097) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the content editor sliding up under the admin header after you open an entry by clicking a field on the site in edit mode. The editor's top bar was cut off, a blank strip appeared at the bottom, and scrolling could not bring the bar back.
-
-- [#4035](https://github.com/emdash-cms/emdash/pull/4035) [`718c1f2`](https://github.com/emdash-cms/emdash/commit/718c1f2523b6c8a783b423bd74ca1d6ff233ee0c) Thanks [@bimsonz](https://github.com/bimsonz)! - Fixes opening an entry in the admin saving a draft when nothing was edited. It happened when the content ended in something other than a paragraph and was stored in a shape the editor writes differently, such as with empty `markDefs` and `marks` arrays (what `markdownToPortableText` and the MCP content tools write), a block without a `style`, or a code block with extra fields. Such entries showed "Pending changes" that nobody made, and opening them could drop fields the editor doesn't map.
-
-- [#4152](https://github.com/emdash-cms/emdash/pull/4152) [`19fbdd6`](https://github.com/emdash-cms/emdash/commit/19fbdd633416246768488d87bef9a3115d04f0a9) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes clicking a heading in the content editor's Outline panel, which often left the heading out of view. The heading now scrolls to the top of the editor, and on small screens the settings sheet closes so the heading is visible. The outline also highlights the section in view as you scroll, and nests headings by the document's structure.
-
-- [#4015](https://github.com/emdash-cms/emdash/pull/4015) [`302e011`](https://github.com/emdash-cms/emdash/commit/302e011a8470246e8070914d89ff058013b8ca81) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the Arabic item count shown beside repeater fields and unregistered database tables. Counts such as 0, 1, 2 and 100 crashed the content editor or the Content Types page, and other counts showed raw message text. Also fixes the Turkish field count in the content type editor, which left out the word "alan".
-
-- [#4031](https://github.com/emdash-cms/emdash/pull/4031) [`3511069`](https://github.com/emdash-cms/emdash/commit/3511069a26ee1b41575372dc0ea0d6146d4e1289) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes clearing an existing taxonomy term description in the admin so the saved value is removed instead of preserved.
-  
-  Editing a tag, category, or custom taxonomy term and deleting the optional Description text now sends `description: ""` in the update request, so the server clears the stored value. Previously the empty field was converted to `undefined` and dropped from the request body, leaving the previous description in place.
-
-- [#4134](https://github.com/emdash-cms/emdash/pull/4134) [`82627fd`](https://github.com/emdash-cms/emdash/commit/82627fdfd49bd4e9d41784fab54864d30a67b58a) Thanks [@tristanremy](https://github.com/tristanremy)! - Completes missing French translations in the admin interface, including content editing, media management, settings, authentication, plugins, and site transfers, so these messages no longer fall back to English.
-
-- [#4084](https://github.com/emdash-cms/emdash/pull/4084) [`9d89ded`](https://github.com/emdash-cms/emdash/commit/9d89dede349e37c4468082d37617b1d9a4afcb01) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text in the video block and video picker, the editor's block menu, formatting toolbar and slash menu, the change-domain dialog, slug and name errors for content types, fields, sub-fields, taxonomies and relations, and the fallback messages shown when an admin request fails. Plugin update checks now say "Update" consistently.
-
-- [#3973](https://github.com/emdash-cms/emdash/pull/3973) [`75ef2ab`](https://github.com/emdash-cms/emdash/commit/75ef2abf89c49824455c49b4f3854bfb5c1f96ed) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Adds missing Hindi translations for calendar scheduling notices, byline credits, media cropping and uploads, content type and field editing, block editing, table controls, passkey registration, and export/import transfer flows in the admin UI.
-
-- [#3934](https://github.com/emdash-cms/emdash/pull/3934) [`58ac71c`](https://github.com/emdash-cms/emdash/commit/58ac71c698d07b558ca5e4b13a0b6bfe40e7a92b) Thanks [@tomislavcf](https://github.com/tomislavcf)! - Adds Croatian (`hr`) admin translation. Croatian admins now see localized text across all admin UI areas including the editor, media library, publishing calendar, settings, authentication, plugin registry, and capability consent dialogs. Translation covers ~99% of strings (3,291 of ~3,322) with correct ICU plural forms (`one`, `few`, `other`).
-
-- [#3954](https://github.com/emdash-cms/emdash/pull/3954) [`15bbfd7`](https://github.com/emdash-cms/emdash/commit/15bbfd7da186f82083454e408434407979a05190) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Updates Indonesian (`id`) translations in the admin UI.
-
-- [#3961](https://github.com/emdash-cms/emdash/pull/3961) [`e0363c3`](https://github.com/emdash-cms/emdash/commit/e0363c3c68364eb1727f10f285b7a988206788c7) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Updates Indonesian (`id`) translations in the admin UI.
-
-- [#3984](https://github.com/emdash-cms/emdash/pull/3984) [`7a3667b`](https://github.com/emdash-cms/emdash/commit/7a3667baae75dc94b4ae8801ad4c72124a72dd0a) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Updates Indonesian (`id`) translations in the admin UI.
-
-- [#3926](https://github.com/emdash-cms/emdash/pull/3926) [`0861e24`](https://github.com/emdash-cms/emdash/commit/0861e24be3f5b538fc44218a79dfc7e818f5709e) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the error message shown when publishing, unpublishing, scheduling, unscheduling, or discarding changes fails without a server message, so it follows the admin language instead of staying in English. Most other admin requests that fail without a server message also no longer append an English HTTP status text such as "Internal Server Error" to their error message.
-
-- [#4081](https://github.com/emdash-cms/emdash/pull/4081) [`3195f42`](https://github.com/emdash-cms/emdash/commit/3195f42793b0ab84bf1dfeedf6d520434d1edce9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes Media Library drag-and-drop uploads while inside a folder. Files dropped or uploaded from the folder view — in both the main Media Library and the Rich Text / image picker — now land in that folder instead of being rejected.
-
-- [#3791](https://github.com/emdash-cms/emdash/pull/3791) [`dd983cd`](https://github.com/emdash-cms/emdash/commit/dd983cdb26e91435be750226797cccc93c4b90e8) Thanks [@DiogoDuart3](https://github.com/DiogoDuart3)! - Fixes two problems with number fields in the content editor. Clearing a number field now saves it as empty instead of `0`, which previously failed a field's minimum (such as `min: 1`) or silently stored zero. Decimal values such as `4.50` no longer block the Save button with the browser's "nearest valid values" message, while `integer` fields keep stepping in whole numbers.
-
-- [#4076](https://github.com/emdash-cms/emdash/pull/4076) [`be9378c`](https://github.com/emdash-cms/emdash/commit/be9378c0ae3bfa0671b6bb86095da0f9aa2dee0a) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes optional URL fields so clearing the input saves the value as `null` instead of an empty string, which previously caused the save to be rejected as an invalid URL.
-
-- [#988](https://github.com/emdash-cms/emdash/pull/988) [`0ce875f`](https://github.com/emdash-cms/emdash/commit/0ce875fcd956d31d0702be331d49f5eab6da4866) Thanks [@masonjames](https://github.com/masonjames)! - Fixes MCP tool names for plugins with scoped IDs such as `@acme/calendar`: their tools are listed as `acme__calendar__<tool>`, which MCP clients accept. Update saved calls that use the old scoped names. Plugins with plain IDs keep their names, and the admin plugin list displays the generated names before consent.
-  
-  A plugin tool whose JSON Schema cannot be read no longer stops other tools from loading. Unreadable input schemas accept object inputs for route validation; unreadable output schemas are omitted. Duplicate generated names keep the first tool and log a warning instead of disabling the MCP endpoint.
-
-- [#4089](https://github.com/emdash-cms/emdash/pull/4089) [`624390b`](https://github.com/emdash-cms/emdash/commit/624390b591124c87e144f7f87b38be11d0ee7865) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the Plugins page still offering an update for a plugin that was just updated. The "available" badge and the Update button now disappear once the update finishes, without reloading the page.
-
-- [#3690](https://github.com/emdash-cms/emdash/pull/3690) [`bf92be8`](https://github.com/emdash-cms/emdash/commit/bf92be89dd87fd284bc8885b8ea0a4780f2613f6) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes extra quotation marks appearing around blockquotes in the content editor. The editor displays only the quotation marks included in the text, preserving author-entered punctuation and leaving frontend styling unchanged.
-
-- [#4048](https://github.com/emdash-cms/emdash/pull/4048) [`5b227af`](https://github.com/emdash-cms/emdash/commit/5b227afb23cdca07923adbb40e3ad9e2393eb2cd) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the document editor toolbar fade sometimes remaining hidden after scrolling or visible after returning to the top.
-
-- [#4112](https://github.com/emdash-cms/emdash/pull/4112) [`fae844f`](https://github.com/emdash-cms/emdash/commit/fae844fa3536b2b81fda3bf2b26383a823db3449) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the WordPress import wizard so that a failed analyze request after pasting a migration key now shows the error message and the Back/Retry controls instead of a blank page.
-
-- [#4085](https://github.com/emdash-cms/emdash/pull/4085) [`dd216db`](https://github.com/emdash-cms/emdash/commit/dd216dbf9aa486016292156dbe00db711909b242) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the Register button under "Unregistered Content Tables Found" on the Content Types page doing nothing visible when registering fails. The admin now shows an error notification with the server's reason.
-
-- [#3292](https://github.com/emdash-cms/emdash/pull/3292) [`649cfae`](https://github.com/emdash-cms/emdash/commit/649cfae7130d470b154b0ad96a5ba0b6c53535d1) Thanks [@itaides](https://github.com/itaides)! - Formats every date and time in the admin in the admin's own language, and keeps them whole in right-to-left layouts.
-  
-  Relative times already follow the admin's language ([#3512](https://github.com/emdash-cms/emdash/issues/3512)); in Arabic, Farsi or Hebrew their leading number could still render at the wrong end of the surrounding text, so they are now bidi-isolated like the dates below.
-  
-  Dates were formatted with `toLocaleDateString()` and no locale, which follows the _browser's_ language rather than the one chosen in the admin, so a Hebrew admin in an English browser printed English months. Every call site now passes the admin's locale through a shared `formatDate`.
-  
-  Formatted dates are also bidi-isolated: a date carries digits and punctuation whose direction the bidirectional algorithm takes from the text around it, so "22 בספט׳ 2026, 22:48" rendered with its comma against the wrong number. They are wrapped in `<bdi>` where they are rendered on their own, and in Unicode isolates (`isolate`) where they are interpolated into a translated sentence.
-  
-  The shared `formatDate` defaults to the locale's own date format, so no call site changes how it looks. The one exception is the comment detail panel, which showed `9/22/2026 10:48:00 PM` and now shows the date and time as one medium/short pair.
-
-- [#4115](https://github.com/emdash-cms/emdash/pull/4115) [`dd3121c`](https://github.com/emdash-cms/emdash/commit/dd3121cb30562074ba7fbfc97267fd62476569e2) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the OG Image field in the content editor's SEO panel showing its Change and × buttons outside the image when the image was narrower than the panel. The preview now fills the field with the 1.91:1 crop that most social sites use for link previews, whatever the image's size or shape, and puts Replace and Remove buttons in its top corner. The buttons appear on hover or keyboard focus, and stay visible on touch screens and when the image can't load. Adding or removing an image with the keyboard no longer loses focus.
-
-- [#4050](https://github.com/emdash-cms/emdash/pull/4050) [`db8325a`](https://github.com/emdash-cms/emdash/commit/db8325af3773b40784c0417f8a550a0c73ca6873) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the post editor to create and edit bylines with the same form as the Bylines page. Choosing **Create** in a post's byline search opens the full form with the name filled in, so editors can add a website, bio, avatar, linked user, and custom fields before the byline is added to the post. **Edit name and slug** is now **Edit byline** and edits every field. The Bylines panel also appears on new posts before their first save.
-  
-  Bylines created from the post editor are no longer marked as guests by default. Previously, every byline created there was a guest; it now starts as a regular byline, as on the Bylines page. To credit a guest writer, turn on **Guest byline** in the form. Sites whose templates read `byline.isGuest` show new bylines from the post editor as regular bylines unless that switch is on. Existing bylines don't change.
-  
-  Custom admins that render `ContentEditor` now receive every form field, including `isGuest`, in `onQuickCreateByline` and `onQuickEditByline`, not just `slug` and `displayName`. Existing callbacks keep working; a callback that marked new bylines as guests before spreading the input now gets the form's `isGuest` value instead.
-
-- [#4026](https://github.com/emdash-cms/emdash/pull/4026) [`7659466`](https://github.com/emdash-cms/emdash/commit/7659466b1a3ba1756e81692a6438f1186a461898) Thanks [@MarioCerulo](https://github.com/MarioCerulo)! - Adds a first Italian (it) admin catalog for the setup wizard and sign-in screens. Italian is not selectable in the language picker yet.
-
-- [#3977](https://github.com/emdash-cms/emdash/pull/3977) [`d4efb97`](https://github.com/emdash-cms/emdash/commit/d4efb97541e796bc02f90da15ceb3ca4c1c31895) Thanks [@kegren](https://github.com/kegren)! - Translates the Swedish admin strings added since 1.1, including the redesigned content editor, video blocks, the publishing calendar, scheduled changes and the domain move flow.
-
-- [#4141](https://github.com/emdash-cms/emdash/pull/4141) [`20ed58b`](https://github.com/emdash-cms/emdash/commit/20ed58b6e0d5270a71b75b96708b819e9f14dcfa) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes rich-text pastes from Google Docs being rejected entirely when a table contains centred or right-aligned cell paragraphs or a merged cell with a `<colgroup>`.
-  
-  The table-paste safety checks now degrade gracefully instead of blocking the whole paste, so headings, links, and other formatted content outside the table are preserved and the table itself is inserted with alignment or column-width information stripped.
-
-- [#3936](https://github.com/emdash-cms/emdash/pull/3936) [`0e8811d`](https://github.com/emdash-cms/emdash/commit/0e8811d6f46fa88b09f2a46c7c1513fbb8cbc7cf) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `/video`, and **Video** in the add-block menu, to open the video picker first, as `/image` does. The video block is added once you choose a video, and closing the picker adds nothing. A video block saved without a video, such as one left empty by an earlier version, shows as unplayable, with **Replace video** to choose one and **Delete video** to remove it. Blocks chosen from a picker opened by the add-block menu also stay where the menu was if an upload finishes while the picker is open.
-
-- [#4150](https://github.com/emdash-cms/emdash/pull/4150) [`f414d0a`](https://github.com/emdash-cms/emdash/commit/f414d0add811f3ab4a79776b87ec8257de54afed) Thanks [@swissky](https://github.com/swissky)! - Explains why the WordPress exporter import can't connect when Cloudflare's bot protection answers with a challenge page. The URL check and the analyze and import steps now say that bot protection blocked the request and how to let it through, instead of reporting that WordPress couldn't be detected or that the analysis failed. In this case the analyze and execute endpoints return the `WP_SITE_CHALLENGE` error code with status 502, and probe results include `challenged: true`.
-- Updated dependencies [[`af92bf7`](https://github.com/emdash-cms/emdash/commit/af92bf731e33f7d2d1b81b3c75fdf840c99067c8)]:
-  - @emdash-cms/registry-client@0.7.1
-  - @emdash-cms/blocks@1.3.0
-
-## 1.2.0
-
-### Minor Changes
-
-- [#3056](https://github.com/emdash-cms/emdash/pull/3056) [`b92f2d6`](https://github.com/emdash-cms/emdash/commit/b92f2d653689984b804998633276d1bdd7ccec89) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Adds an `admin.locales` option that limits the admin interface to the languages a site uses, which makes the admin bundle smaller.
-  
-  ```js
-  emdash({
-  	admin: { locales: ["en", "de"] },
-  });
-  ```
-  
-  Only the listed languages are built into the admin and offered in its language switcher. Users whose preferred languages aren't listed see English. `en` is always included as the fallback, even when the list leaves it out, so `admin: { locales: ["en-GB"] }` still ships English alongside British English. A code the admin doesn't ship fails the build, and the error lists the available codes. Sites that don't set the option keep every language.
-
-- [#3877](https://github.com/emdash-cms/emdash/pull/3877) [`5f69896`](https://github.com/emdash-cms/emdash/commit/5f69896ade7567f8af99373ef655046d6b823518) Thanks [@swissky](https://github.com/swissky)! - Updates the admin user editor to show the name as read-only, with a hint to change it at the identity provider, when an external auth provider such as Cloudflare Access syncs names (the default). Previously the field looked editable, but the change was replaced on that user's next request. Set `syncName: false` in the provider config to make names editable again.
-
-- [#3744](https://github.com/emdash-cms/emdash/pull/3744) [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6) Thanks [@swissky](https://github.com/swissky)! - Adds a **Change domain** dialog to **Settings > General** for moving a site to a new domain. Before it changes the **Site URL**, EmDash checks that the new domain serves the site. Links in emails and plugins, sitemaps, `robots.txt`, hreflang links, social image URLs, and canonical links set in the SEO panel then use the new domain. If the check can't reach the site, for example on `localhost` or behind a login, the dialog offers to store the address without the check.
-  
-  The **Site URL** field becomes read-only, and saving **Settings > General** no longer writes it. When `siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL` is set, the page names that address, which links in emails and plugins keep using.
-  
-  Passkeys only work at the address where they were created. After a move, keep signing in at the old address, or sign in at the new one with an email link and add a passkey there.
-
-- [#3744](https://github.com/emdash-cms/emdash/pull/3744) [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6) Thanks [@swissky](https://github.com/swissky)! - Adds an **Email users** action to **Settings > General** that tells every other active user where the site now lives. Each user gets an email with a button to the sign-in page at the configured `siteUrl`, or the **Site URL** when none is set, and a note that passkeys from the old address don't work there. The email does not sign anyone in. The action needs an email provider, passkey sign-in, and the `users:manage` permission, and shows how many emails were sent and how many the provider rejected.
-  
-  The emails come from the new `POST /_emdash/api/settings/domain/notify` endpoint. It accepts signed-in sessions only and can be used 3 times per hour per site.
-
-- [#3710](https://github.com/emdash-cms/emdash/pull/3710) [`06a9146`](https://github.com/emdash-cms/emdash/commit/06a9146a069bff01555adf5341e5e4de2b6a22b4) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Redesigns the content editor as a page. The entry's title field is a large heading at the top, the `content` field's Portable Text editor sits under it without a frame, and one bar above the page holds the back link, the entry title, the save status, and **Live View**, **Preview**, and **Publish**. Distraction-free mode uses the same bar and adds **Discard changes** and **Schedule**.
-  
-  - **Writing:** Enter in the title, or Down Arrow at its end, moves into the body, and Up Arrow on the body's first line moves back. Clicking below the last block continues writing at the end. Select All selects the text of the block holding the caret, and the whole document on a second press. Backspace at the start of a heading or code block turns it into text, and next to an image, divider, or embed selects it before deleting it.
-  - **Toolbar:** the formatting toolbar floats above the text and stays in view while you scroll, with the text fading out under it. When it doesn't fit, it scrolls sideways. Its block buttons convert blocks the same way as **Turn into** and the slash menu, and use the same names.
-  - **Blocks:** hovering a block shows **+**, which starts a line below it with the slash menu open (Alt-click starts one above) and takes the line away again if the menu closes before anything is typed after the slash, and a handle to drag the block or open its menu: **Turn into**, **Align**, **Continue numbering** and **Restart numbering**, **Duplicate**, **Move up** and **Move down**, and **Delete**. Escape selects the block holding the caret, and the arrow keys then move between blocks. A block inserted or pasted while another is selected goes after it, and a block inserted with the caret in text goes after that block instead of splitting it. Clicking where there's no line for the caret, such as between two embeds or above an embed at the start, leaves the caret where it was; use **+** to add a line there.
-  - **Quotes and lists:** quotes hold paragraphs, and list items hold text and nested lists, as Portable Text stores them. A heading, code block, image, or other block typed, pasted, or dropped into a quote or list lands beside it, where it's saved, instead of disappearing on save. A pasted quote or list that holds one is split around it, and a numbered list keeps counting after it. Alignment is offered only outside quotes and lists, where it's kept.
-  - **Slash menu:** commands are grouped, show the Markdown that creates each block, and match abbreviated searches such as `/bl` for **Bullet List**, whole titles such as `/heading 2`, and the Markdown itself, such as `/#`. Headings 4 to 6 appear when you search for them.
-  - **Selection toolbar:** **Turn into**, link, bold, italic, underline, strikethrough, and inline code, with subscript, superscript, alignment, and **Clear formatting** under **More formatting**. Clicking a link, or otherwise placing the caret in it, shows where it goes, with **Edit link** and **Remove link**, instead of selecting the whole link. A link typed as a bare domain, such as `example.com`, gets `https://`, a relative path such as `../about.html` stays as typed, and a link the editor can't use says so. The selection, link, table, and image toolbars are announced as toolbars, and the Left and Right arrow keys move between their buttons.
-  - **Narrow screens:** when the bar is narrow, as on phones and tablets, its secondary buttons, **Unpublish** included, show only their icons, and **Publish now** and **Publish changes** read **Publish**, so the bar stays on one row with the entry title readable. Block handles also show on touch screens wide enough for them.
-  
-  Other Portable Text fields keep the framed editor. `PortableTextEditor` adds a `variant` prop (`"boxed"` by default, or `"document"`) and an `onArrowUpAtStart` callback.
-
-- [#3827](https://github.com/emdash-cms/emdash/pull/3827) [`373446f`](https://github.com/emdash-cms/emdash/commit/373446f973d33703718f2f0c22322548fad6ab1a) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a video block to the rich text editor. Type `/video` to choose a Media Library video or upload one. Closing the picker leaves an empty video block in place, which you can fill later by clicking it or dropping a video file on it. Video files dropped or pasted anywhere in the text also upload to the Media Library and appear where you dropped them. The video plays in the editor at the width of the text, with a caption field under it and **Replace video** and **Delete video** in its corner. A video's **Used in** tab in the Media Library lists the entries that use it in a video block.
-  
-  On the site, `Video` from `emdash/ui` renders the `video` block as the browser's own player with its caption. Media Library videos play from your storage's public URL when one is configured, and need the block's `asset.url`: a block without one renders nothing on the site, and the editor shows it as unplayable. A block whose `asset.provider` names a media provider renders from that provider's embed. An empty video block is saved without `asset` and renders nothing.
-  
-  Uploads follow `maxUploadSize`, 50 MiB by default. The admin's content security policy now allows media from `blob:` and `https:` URLs (`media-src 'self' blob: https:`), as it already did for images. This lets the admin read a video's size before uploading it, and preview a video block whose `asset.url` is on another site. Before, videos uploaded from the admin in production were saved without a width and height.
-  
-  #### What should I do?
-  
-  - If a plugin already defines a `video` block, the editor keeps using the plugin's block: it doesn't offer the built-in Video block, and dropped video files aren't uploaded. On the site, the plugin's renderer still wins; a plugin without one gets `Video` for blocks that have only the built-in fields. In TypeScript, narrowing `PortableTextBlock` on `_type === "video"` now gives `PortableTextVideoBlock | PortableTextUnknownBlock`, so reading the plugin's own fields needs a check.
-  - If you edit Portable Text with `portableTextToProsemirror` and `prosemirrorToPortableText` from `emdash` in your own TipTap editor, add a `videoBlock` node with the attributes `src`, `mediaId`, `provider`, `caption`, `width` and `height` to its schema. `portableTextToProsemirror` turns every built-in video block into that node, and a schema without it can't load the document.
-  - The media usage API and `emdash/client` can now return the reference type `"portable_text_video"` for a video used in a video block. Code that checks every reference type, or validates the list, needs to accept it.
-  - With Astro's content security policy turned on and media on another host, allow that host in `media-src`.
-
-- [#3773](https://github.com/emdash-cms/emdash/pull/3773) [`e6fe5d4`](https://github.com/emdash-cms/emdash/commit/e6fe5d498a527b5e6bd6cbc80ee5220ce626673c) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds numbered pages to every collection list in the admin. The All and Trash tabs load one page of entries at a time, so a collection opens with 20 entries instead of fetching 100, and both tabs use the Media Library's pagination footer pinned to the bottom of the screen: the entry range, 20, 50, or 100 entries per page, and controls to jump to any page. The Trash badge counts every trashed entry instead of stopping at 50, and every trashed entry is reachable.
-  
-  Selections persist across pages. Changing the search, a filter, the locale, or the collection clears them.
-  
-  `GET /_emdash/api/content/{collection}` and `GET /_emdash/api/content/{collection}/trash` accept a 1-based `page` parameter instead of `cursor`. A numbered page returns `total` and no `nextCursor`, and sending both `page` and `cursor` returns a `400` validation error. Cursor pagination is unchanged.
-  
-  `ContentList` accepts optional `pagination` and `trashPagination` props for numbered pages; without them it behaves as before.
-
-- [#3744](https://github.com/emdash-cms/emdash/pull/3744) [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6) Thanks [@swissky](https://github.com/swissky)! - Adds a **Continue on** button to **Settings > General** after a site moves to a new domain. Passkeys only work at the address where they were created, so a user signed in at the old address can select the button to sign in at the new one without email. The single-use link expires after 5 minutes and opens **Settings > Security**, ready to add a passkey for the new address. The button appears when you are signed in at an address other than the **Site URL**, or the configured `siteUrl` when one is set. It is not shown when an external provider such as Cloudflare Access handles sign-in.
-  
-  The link comes from the new `POST /_emdash/api/auth/handover` endpoint, which accepts signed-in sessions only and allows 5 links per user every 5 minutes. `GET /_emdash/api/settings/domain` now also returns `siteOrigin`, the address the link points to.
-  
-  `@emdash-cms/auth` exports `createMagicLinkUrl()`, which creates a single-use sign-in link without sending an email.
-
-### Patch Changes
-
-- [#3878](https://github.com/emdash-cms/emdash/pull/3878) [`5c1ebc3`](https://github.com/emdash-cms/emdash/commit/5c1ebc39200f4945feaa59289ce1de4aee4a8a07) Thanks [@swissky](https://github.com/swissky)! - Fixes a blank screen when an entry in the admin content editor fails to open. A missing entry now shows a not-found page, and a subscriber opening an unpublished entry is told that their role can only view published content. Other errors show the error message with a retry button.
-
-- [#3798](https://github.com/emdash-cms/emdash/pull/3798) [`90f39e0`](https://github.com/emdash-cms/emdash/commit/90f39e0cd6635d5c4243d1235b0095fe24d6a850) Thanks [@DiogoDuart3](https://github.com/DiogoDuart3)! - Fixes long block type descriptions in the "Add block" picker of a blocks field running into the next column. Each option now stays within its column and its description wraps.
-
-- [#3925](https://github.com/emdash-cms/emdash/pull/3925) [`a17408f`](https://github.com/emdash-cms/emdash/commit/a17408fe6326999e2acf94949f657621291d54e5) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the byline editor not scrolling when its fields don't fit in the window, which hid the lower fields, such as the linked user, custom fields and translations, behind the dialog's buttons. The form now scrolls, and the title and buttons stay in place.
-
-- [#3852](https://github.com/emdash-cms/emdash/pull/3852) [`f5406f8`](https://github.com/emdash-cms/emdash/commit/f5406f841d80a42b4ec2d9784333705a32551fad) Thanks [@miljan-aleksic](https://github.com/miljan-aleksic)! - Completes the Catalan admin translations so every admin string is localized, keeping the source's punctuation, ICU placeholders, and rich-text tags verbatim, leaving "Token" and technical terms untranslated, and using `exemple.com` for example domains.
-
-- [#3831](https://github.com/emdash-cms/emdash/pull/3831) [`3787eb9`](https://github.com/emdash-cms/emdash/commit/3787eb9aef2ce5f3dfbac98cfdc6073fa95188d5) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes false conflict errors when saving SEO fields, including OG images, after a clean content editor refreshes a cached entry. Background refreshes preserve unsaved edits and their conflict protection, and delayed older reads cannot replace the revision from a successful save.
-
-- [#3728](https://github.com/emdash-cms/emdash/pull/3728) [`e63cc44`](https://github.com/emdash-cms/emdash/commit/e63cc44a953f4786fa211a8989a6547267635be5) Thanks [@huketo](https://github.com/huketo)! - Keeps the WordPress migration-key and site-URL fields inside their cards on narrow screens, while preserving the wider-screen layout. Technical keys and URLs remain left-to-right in RTL locales, and the site-URL input exposes its localized name to assistive technologies.
-
-- [#2791](https://github.com/emdash-cms/emdash/pull/2791) [`c77c6cf`](https://github.com/emdash-cms/emdash/commit/c77c6cfe55611ac9937dbfc23ad48205f324f075) Thanks [@SL33PiNg](https://github.com/SL33PiNg)! - Completes the Thai (`th`) admin translation. Thai admins now see localized text across the publishing calendar, editor image toolbar, site settings, authentication, plugin registry and capability consent dialogs, site transfer, and the media library, which previously fell back to English for 1,725 of 3,188 strings.
-
-- [#3558](https://github.com/emdash-cms/emdash/pull/3558) [`395087d`](https://github.com/emdash-cms/emdash/commit/395087d82596489f0cc7207b9cd668d8e73462a6) Thanks [@kgni](https://github.com/kgni)! - Translates the new admin strings into Danish, including the Bylines page, the bulk tag dialog, sections, menus and the content type editor.
-
-- [#3744](https://github.com/emdash-cms/emdash/pull/3744) [`1e275ae`](https://github.com/emdash-cms/emdash/commit/1e275ae8b4f1a2766c2f29d2efa8d5a8492233d6) Thanks [@swissky](https://github.com/swissky)! - Fixes email links pointing to the address a site was set up on after it moved to a new domain. Sign-in, invitation, self-signup, recovery, and comment notification emails now use the **Site URL** from **Settings > General** when `siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL` is not configured, and fall back to the setup address when the field is empty. Only the origin of the **Site URL** is used, and it must use `https://` unless the host is a loopback address. A configured `siteUrl` still takes precedence. `emdash export-seed` no longer copies the **Site URL** into the seed.
-  
-  If you don't configure `siteUrl` and the **Site URL** field holds an address that doesn't serve this site's admin, for example an old domain, links in these emails point there after upgrading. Check the field before upgrading; clearing it restores the previous behavior. Seeds that set `settings.url`, including seeds exported by earlier versions, still fill in the **Site URL**, so remove `url` from a seed copied from another site before using it.
-
-- [#3721](https://github.com/emdash-cms/emdash/pull/3721) [`24a4327`](https://github.com/emdash-cms/emdash/commit/24a432743bfab219a9231006cc371eb903a988ab) Thanks [@miljan-aleksic](https://github.com/miljan-aleksic)! - Updates Spanish (Spain) admin translations to add missing strings, remove deprecated ones, correct wrong and inconsistent translations, and switch to the informal "tú" tone.
-
-- [#3796](https://github.com/emdash-cms/emdash/pull/3796) [`9f09f60`](https://github.com/emdash-cms/emdash/commit/9f09f60d61d1efc14ed094a2fa5cf866a74fee04) Thanks [@DiogoDuart3](https://github.com/DiogoDuart3)! - Adds European Portuguese (Português (Portugal), `pt-PT`) translations for the admin UI. The locale is selectable from the language picker and uses Portuguese date formats in the calendar and date settings. Browsers that ask for `pt-PT` now get this locale instead of Brazilian Portuguese, and a site whose language is set to `pt-PT` sends its invite, sign-in and recovery emails in European Portuguese. Other Portuguese variants, and plain `pt`, still resolve to Brazilian Portuguese.
-
-- [#3701](https://github.com/emdash-cms/emdash/pull/3701) [`8885267`](https://github.com/emdash-cms/emdash/commit/8885267484f48e93b28a7bcf8f58165b46fb0f3f) Thanks [@ShaneMuir](https://github.com/ShaneMuir)! - Fixes the field editor silently closing and discarding changes when the server rejects a field update, such as toggling `required` or `unique` on a field that already has content (which needs a manual content migration). The dialog now stays open and shows the server's error message instead of the toggle looking like it reverted on its own.
-
-- [#3813](https://github.com/emdash-cms/emdash/pull/3813) [`c07437f`](https://github.com/emdash-cms/emdash/commit/c07437f489f85e5447ae4e5e92951de3a10ade47) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes generated admin identifier slugs for non-ASCII labels in content types, taxonomies, byline fields, relations, and fields.
-  
-  Labels like `Größe` now produce `groesse` and `Título` becomes `titulo`, including equivalent decomposed Unicode input. Labels that cannot produce a valid ASCII identifier, such as `名前` or `2024年`, require a manually entered slug and show an inline message.
-  
-  Adds editable slugs for new repeater sub-fields and blocks duplicate sub-field slugs before saving. Existing sub-field slugs stay read-only so relabeling preserves the keys used by saved content.
-
-- [#3835](https://github.com/emdash-cms/emdash/pull/3835) [`b3e17f6`](https://github.com/emdash-cms/emdash/commit/b3e17f6a5aae92d7b3353a3c115a4e130910fe9e) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text for the publishing calendar, domain settings, HTML and iframe blocks, media controls, visual editing, and plugin permissions.
-
-- [#3293](https://github.com/emdash-cms/emdash/pull/3293) [`595fd15`](https://github.com/emdash-cms/emdash/commit/595fd1566d086b072c450f5958abe592cf043a5a) Thanks [@itaides](https://github.com/itaides)! - Adds Hebrew (עברית) to the admin language picker. The admin renders right-to-left in Hebrew, its date pickers use Hebrew month and weekday names, and its strings are translated as of October 2026. Strings added to the admin later appear in English until the catalog is updated.
-
-- [#3872](https://github.com/emdash-cms/emdash/pull/3872) [`392ade3`](https://github.com/emdash-cms/emdash/commit/392ade3cfbefdf8affdffcbbe8fc99b55aa5e6ae) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Adds Indonesian translations for recently introduced admin UI strings, including slug-generation hints, the sub-field slug placeholder, and sub-field validation messages.
-
-- [#3851](https://github.com/emdash-cms/emdash/pull/3851) [`3bcd2cb`](https://github.com/emdash-cms/emdash/commit/3bcd2cbb949b6eb69182446cc6c49a38cf156d7f) Thanks [@Zahid09987](https://github.com/Zahid09987)! - Adds Indonesian translations for the site domain-change flow, general settings screen, marketplace capability labels, and visual-editing toolbar strings.
-
-- [#3795](https://github.com/emdash-cms/emdash/pull/3795) [`36aee2d`](https://github.com/emdash-cms/emdash/commit/36aee2d17225a44cd4060f1ae158e723e3730372) Thanks [@DiogoDuart3](https://github.com/DiogoDuart3)! - Fixes the content editor failing to open any entry with a date field when the site timezone setting is not a valid IANA timezone (for example `Lisboa` instead of `Europe/Lisbon`). The editor now falls back to UTC for such a value instead of crashing, and the settings API and MCP settings tool reject an unrecognized timezone with a validation error. A site that already stores one can still save its other settings, and can fix the timezone in Settings > General.
-
-- [#3931](https://github.com/emdash-cms/emdash/pull/3931) [`9538600`](https://github.com/emdash-cms/emdash/commit/95386001e4ac5a964fb568fa3d75113fe539e0fe) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the error message on the invite and signup pages ending in a bare colon when the server responds with an error page instead of an error message. The message no longer includes the HTTP status text, which browsers leave empty over HTTP/2 and HTTP/3, and it can now be translated.
-
-- [#3789](https://github.com/emdash-cms/emdash/pull/3789) [`6d2a3bb`](https://github.com/emdash-cms/emdash/commit/6d2a3bbb8ed3f9fcfedda7a929a2de6659b60b58) Thanks [@maikunari](https://github.com/maikunari)! - Aligns the Japanese admin text with the long-vowel spelling used elsewhere in the catalog: ブラウザー and エディター now replace ブラウザ and エディタ in the passkey messages, the rich text editor label, and the WordPress import notice.
-
-- [#3718](https://github.com/emdash-cms/emdash/pull/3718) [`841a5b3`](https://github.com/emdash-cms/emdash/commit/841a5b3f3bc1c01c35b3e770eeab673b3c5bb870) Thanks [@huketo](https://github.com/huketo)! - Expands the Korean admin translations to cover almost every admin screen and corrects terminology in the existing Korean text. Korean remains disabled in the locale selector.
-  
-  The catalog now covers sign-in, passkeys, invitation and sign-in emails, and device authorization; the dashboard, setup, and shared notifications, error, and loading screens; content lists, editing, publishing, and scheduling; rich-text, image, gallery, and block editing; content types, fields, relationships, and references; media; bylines and taxonomies; menus, widgets, and sections; site settings, users, redirects, backups, and transfer tokens; plugins, themes, and the registry; and site transfer and WordPress imports.
-  
-  The Korean text distinguishes content authors from public byline profiles, and the permanent-delete confirmation now shows the content title instead of leaving it blank.
-
-- [#3732](https://github.com/emdash-cms/emdash/pull/3732) [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes plugin permissions for sending email, handling outgoing email, and adding page scripts and styles showing as raw capability names in the admin. They now have readable labels in the plugin list, marketplace, and install consent dialog.
-
-- [#3923](https://github.com/emdash-cms/emdash/pull/3923) [`142da40`](https://github.com/emdash-cms/emdash/commit/142da4056a644a4eef4f79ced5c107aa32be5b89) Thanks [@ascorbic](https://github.com/ascorbic)! - Reduces the admin's JavaScript by about 220 KB by loading the date picker and date-format localization for the active language on demand, instead of bundling every language.
-
-- [#3933](https://github.com/emdash-cms/emdash/pull/3933) [`d72b615`](https://github.com/emdash-cms/emdash/commit/d72b6151d772acb6ff16c8ad9063bc7ea22f69d8) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes admin error messages for menus, taxonomies, widgets, users, and other screens that stayed in English when the server answered with an error page instead of an error message, such as a gateway error. They now follow the admin language.
-
-- [#3010](https://github.com/emdash-cms/emdash/pull/3010) [`2f59cc3`](https://github.com/emdash-cms/emdash/commit/2f59cc37872843381d00f810eeb829b9cdba566c) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes the content list showing a "Pending changes" badge on entries that have never been published. A draft or scheduled entry has a draft revision and no live revision, which the list read as a difference between the two. The badge now appears only where there is a published version for the changes to be pending against, matching the state the editor shows for the same entry.
-
-- [#3773](https://github.com/emdash-cms/emdash/pull/3773) [`e6fe5d4`](https://github.com/emdash-cms/emdash/commit/e6fe5d498a527b5e6bd6cbc80ee5220ce626673c) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes keyboard focus in the Media Library pagination controls. Focus no longer jumps to those controls when the library reloads after a search or filter change; it returns to them only after a page they requested finishes loading, and stays wherever you moved it during the load. Picking a page or a page size from a dropdown returns focus to that dropdown, and when the page reached disables the button you pressed, such as Previous on the first page, focus moves to the page picker instead of being lost.
-
-- [#3710](https://github.com/emdash-cms/emdash/pull/3710) [`06a9146`](https://github.com/emdash-cms/emdash/commit/06a9146a069bff01555adf5341e5e4de2b6a22b4) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes newly inserted HTML, iframe, and code blocks in the content editor. HTML and iframe blocks now highlight the selected tab, and their arrow keys move between tabs. Tab now reaches a code block's language and copy buttons, and the arrow keys move between them. Until now, these worked only for blocks that were there when the page loaded.
-
-- [#3758](https://github.com/emdash-cms/emdash/pull/3758) [`d0c7384`](https://github.com/emdash-cms/emdash/commit/d0c73843245234ea1230d570b1ed9f586f6698c1) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the admin's new-entry form ignoring field default values: a boolean field with `defaultValue: true` started switched off, and saving the entry untouched could store no value. New entries in the admin now start with each field's default value.
-  
-  Manifest field descriptors now include stored field defaults as `defaultValue`, except for relation-bound reference fields.
-
-- [#3369](https://github.com/emdash-cms/emdash/pull/3369) [`b854616`](https://github.com/emdash-cms/emdash/commit/b85461614b9ceaa071573dce717a2a2799963eb8) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes plugin admin pages and dashboard widgets showing no feedback after a Block Kit button click or other action. Until the plugin responds, the content now dims under a loading indicator, and screen readers announce that it is updating.
-
-- [#3546](https://github.com/emdash-cms/emdash/pull/3546) [`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6) Thanks [@swissky](https://github.com/swissky)! - Adds `group` to plugin admin pages, in native plugin descriptors and in `admin.pages` of `emdash-plugin.jsonc`, to place them in collapsible admin sidebar folders. A page whose group matches the group of a collection shown in the sidebar appears inside that folder, after its collections and taxonomies. Pages that share any other group, from one plugin or several, fold into one folder in the Plugins section. Pages without a group stay where they are.
-
-- [#3737](https://github.com/emdash-cms/emdash/pull/3737) [`8867aba`](https://github.com/emdash-cms/emdash/commit/8867aba83db09eee7d4d87b4ac6cdea327c6c113) Thanks [@ryofukutani](https://github.com/ryofukutani)! - Fixes plugin block cards in the content editor dropping `number_input` values from their summary line, so a block whose only identifying field is a number (such as an episode or video number) no longer shows just the block type.
-
-- [#1899](https://github.com/emdash-cms/emdash/pull/1899) [`e9cf2c3`](https://github.com/emdash-cms/emdash/commit/e9cf2c3ff804b54ccfdceb2fbe93e74e26799833) Thanks [@swissky](https://github.com/swissky)! - Adds an optional `urlTemplate` prop to the `core:recent-posts` widget (e.g. `"/blog/:slug"` or `"/:slug"` for catch-all routes), using the same `:collection`, `:id`, `:slug`, and `:path` tokens as LiveSearch's `routeMap`, with a localized label in the admin widget form. Without a template the widget links exactly as before.
-
-- [#3559](https://github.com/emdash-cms/emdash/pull/3559) [`f6ee57e`](https://github.com/emdash-cms/emdash/commit/f6ee57e92445d7c01df6863968875cb979bfae87) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes Select All inside code blocks in the admin and inline visual editors so it selects only the code instead of the entire document.
-
-- [#3810](https://github.com/emdash-cms/emdash/pull/3810) [`788a371`](https://github.com/emdash-cms/emdash/commit/788a3715d8d88f865dc30099b9bec36f7d731636) Thanks [@miljan-aleksic](https://github.com/miljan-aleksic)! - Updates the Serbian (Latin) admin translations to address the user informally ("ti") throughout. Singular imperatives and second-person wording replace the previous mix of formal and plural forms, passive constructions become active, and redundant possessive pronouns are dropped. A mixed-script character, a misspelling, and a few English calques are also corrected.
-
-- [#3771](https://github.com/emdash-cms/emdash/pull/3771) [`550e59b`](https://github.com/emdash-cms/emdash/commit/550e59b51ab4d0bc3ad3ab13e70d94ca96313863) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the visual editing toolbar's Publish button switching to English after a save when the toolbar is shown in another language. The button now keeps its translated label, and the toolbar's status badges and image popover can be translated as well.
-
-- [#3786](https://github.com/emdash-cms/emdash/pull/3786) [`8037f5a`](https://github.com/emdash-cms/emdash/commit/8037f5aa284a65d938d6cb4337c88239bed19a47) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes plugin dashboard widget titles so they translate through the same shared Lingui catalog as admin page labels. Widgets without a `title` still fall back to the raw widget id.
-
-- [#3751](https://github.com/emdash-cms/emdash/pull/3751) [`dea8f58`](https://github.com/emdash-cms/emdash/commit/dea8f589d230220bc81c3b8bd1e8efe3d30f906b) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the WordPress import's media step stopping partway with "No result received from media import" on Cloudflare Workers Paid, where a batch of large photos could exceed the default 30-second CPU limit. The admin now imports media in smaller batches to stay within that limit.
-
-- [#3860](https://github.com/emdash-cms/emdash/pull/3860) [`c5cef43`](https://github.com/emdash-cms/emdash/commit/c5cef432fe040efa36038420eb26e71c3ce94754) Thanks [@leevincent](https://github.com/leevincent)! - Completes the Traditional Chinese (Taiwan, `zh-TW`) admin translations so editors see localized text in the publishing calendar, media library, site transfer tools, plugin permission dialogs, and visual editing toolbar.
-- Updated dependencies [[`2c8c12a`](https://github.com/emdash-cms/emdash/commit/2c8c12a6b84d7c790944aebd5e7e090514fccfd6), [`2210c2c`](https://github.com/emdash-cms/emdash/commit/2210c2c7688a8d407143dfe4d565898674470412)]:
-  - @emdash-cms/plugin-types@0.6.0
-  - @emdash-cms/blocks@1.2.0
-
-## 1.1.0
-
-### Minor Changes
-
-- [#3680](https://github.com/emdash-cms/emdash/pull/3680) [`75de9a4`](https://github.com/emdash-cms/emdash/commit/75de9a4b4bdb3a8298456b4b730aee31c86897fd) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a publishing calendar to the admin. It shows published entries on their publication date, and scheduled entries and scheduled updates on their scheduled date, across every visible collection and locale. Contributors and higher roles open it from **Calendar** in the sidebar, the command palette, or the dashboard's **Scheduled** count.
-  
-  **Month** shows a grid of days and **Agenda** lists entries by day; phones and other narrow screens open the agenda and show the month as a date picker. Both views place entries in the site's time zone, show browser-zone times when the viewer's zone differs, mark schedules that missed their time as **Overdue**, filter by collection, locale, and state, and keep the view, month, filters, and open entry in the URL. When a month's grid holds more than 1,000 entries, the calendar shows the first 1,000 and marks the days it didn't load.
-  
-  Selecting an entry opens a side panel with its details, a link to the editor, and a preview or live link. Users who can publish the entry can also reschedule it, remove its schedule, or publish an overdue entry immediately. Ctrl-click or Cmd-click opens the entry in the editor instead.
-
-- [#3687](https://github.com/emdash-cms/emdash/pull/3687) [`76b06d4`](https://github.com/emdash-cms/emdash/commit/76b06d4e40a9d37ab44ec7109e75339af7aeef85) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds CSS and JavaScript to HTML blocks, and changes how new HTML blocks render on the site.
-  
-  Previously, every HTML block rendered inline, and the site sanitized its HTML, removing scripts and styles. HTML blocks created in the admin editor, or with `/html` in visual editing, now render in a sandboxed iframe that runs their HTML, CSS and JavaScript. Anyone who can edit content (Contributor and up, and sandboxed plugins with `content:write`) can add JavaScript that runs for visitors once the entry is published. The iframe can't read the site's cookies, storage or pages, and the site's styles don't apply inside it. Relative links in it resolve from the site's root. After a visitor clicks inside the iframe, it can open other pages in the visitor's tab or a new one. There is no site-wide setting for this; to render a block the previous way, choose **Inline** in its menu.
-  
-  Existing HTML blocks, and blocks created through imports, REST or MCP, keep rendering inline unless they set `isolated: true`.
-  
-  In the editor, an HTML block has HTML, CSS and JS tabs with a code editor, and a Preview tab that shows the block as the site renders it. A saved block that runs JavaScript waits for **Run preview**. The admin editor no longer nests HTML blocks in quotes, lists or table cells, where saving dropped them. HTML blocks pasted from another website or browser tab render inline.
-  
-  #### New fields
-  
-  `htmlBlock` gains optional `css` and `js` strings and an `isolated` flag. They're written only when set, so existing content is unchanged when it's opened and saved.
-  
-  #### What should I do?
-  
-  - If your site replaces the `htmlBlock` renderer, pass blocks with `isolated: true` to `HtmlBlock` from `emdash/ui`, or render them in an iframe whose `sandbox` omits `allow-same-origin`. Otherwise isolated blocks render without their CSS and JavaScript.
-  - If you render Portable Text outside EmDash's components, handle `isolated` blocks the same way.
-  - With Astro's content security policy turned on, the browser blocks the styles and scripts inside isolated blocks, so they render without their CSS, JavaScript or automatic height.
-
-- [#3688](https://github.com/emdash-cms/emdash/pull/3688) [`a880323`](https://github.com/emdash-cms/emdash/commit/a88032398d25a93c8159392e4bad4c495f5cd89a) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds an iframe block for embedding pages from other sites. In the editor, type `/iframe` and paste an embed code or a link into the Code tab; YouTube and Vimeo links become their players, and the Preview tab shows the embedded page. When an entry opens, a saved block waits for **Load preview**. Iframe blocks pasted from another website or browser tab arrive empty. On the site, `Iframe` from `emdash/ui` renders the `iframe` block as a responsive, lazy-loading iframe.
-  
-  The iframe is sandboxed and sends a `strict-origin-when-cross-origin` referrer. Only https sources render, pages on the site's own host lose same-origin access, and only the permissions video and map players need (such as autoplay, fullscreen and picture-in-picture) reach the embedded page.
-  
-  The admin's content security policy now allows https frames (`frame-src 'self' https:`), so previews can load embedded pages, including frames inside HTML block previews.
-  
-  #### What should I do?
-  
-  - If a plugin already defines an `iframe` block, the editor keeps using the plugin's block and doesn't offer the built-in one. On the site, the plugin's renderer still wins; a plugin without one gets `Iframe` for blocks that have only the built-in fields. In TypeScript, narrowing `PortableTextBlock` on `_type === "iframe"` now gives `PortableTextIframeBlock | PortableTextUnknownBlock`, so reading the plugin's own fields needs a check such as `"theme" in block`.
-  - With Astro's content security policy turned on, allow the embedded hosts in `frame-src`. Iframe blocks also lose their custom size under that policy.
-
-- [#3594](https://github.com/emdash-cms/emdash/pull/3594) [`5346dc8`](https://github.com/emdash-cms/emdash/commit/5346dc80750d8d3e25338e058597890fe79724d6) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds image drag-and-drop and paste to the Portable Text editor. Dropped image files and pasted images or screenshots upload to the Media Library and are inserted between blocks, with a preview shown while each upload runs and the upload error shown in place if it fails. Pasting rich content from apps such as Word is unchanged.
-
-- [#3657](https://github.com/emdash-cms/emdash/pull/3657) [`2288fa6`](https://github.com/emdash-cms/emdash/commit/2288fa6715310ea76907a83c6fe33a08eeda1fbf) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a toolbar above a selected image in the Portable Text editor, replacing the buttons in the image's corner.
-  
-  - **Toolbar:** Replace, Alt text, alignment (None, Left, Center, Right), Link, Image settings, and Delete.
-  - **Captions:** typed directly under the image. An empty caption shows a placeholder, and Enter starts a new paragraph after the image.
-  - **Alt text:** the button is highlighted once an image has a description, and hovering it shows the description. Alt text that is only a Media Library image's file name doesn't count.
-  - **Image settings:** the panel now closes when the image is changed outside it, discarding edits that weren't applied, so **Apply** no longer overwrites those changes.
-
-### Patch Changes
-
-- [#3655](https://github.com/emdash-cms/emdash/pull/3655) [`aa2f87e`](https://github.com/emdash-cms/emdash/commit/aa2f87ec16701402561efee529bcf8517f627031) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes admin date pickers showing English month and day names and a Sunday week start when the admin language is Danish or Georgian. The publish scheduling and publication date dialogs and the content list's date range filter now display the calendar in the admin language, with weeks starting on Monday.
-
-- [#3676](https://github.com/emdash-cms/emdash/pull/3676) [`90d71f9`](https://github.com/emdash-cms/emdash/commit/90d71f92f1e9e73e150e555923a1b666b2496980) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes mobile layout overflow on the Widgets and hierarchical taxonomy management screens.
-
-- [#3581](https://github.com/emdash-cms/emdash/pull/3581) [`253b6f9`](https://github.com/emdash-cms/emdash/commit/253b6f91b5c6780635fd6bc83f18dc7ecb2f6111) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text on the Sections page, in the content type navigation settings (icon, hiding from navigation and the dashboard quick action) and in the plugin permission for reading bylines. The full-width image alignment now reads "Volle Breite" instead of "Voll".
-
-- [#3704](https://github.com/emdash-cms/emdash/pull/3704) [`fc90e27`](https://github.com/emdash-cms/emdash/commit/fc90e276ead6e35246051e662cd1f9e1401f33c1) Thanks [@CacheMeOwside](https://github.com/CacheMeOwside)! - Adds missing Hindi translations for validation messages, media uploads, imports, publishing notices, and editing locks in the admin UI.
-
-- [#3630](https://github.com/emdash-cms/emdash/pull/3630) [`e811952`](https://github.com/emdash-cms/emdash/commit/e8119527d3832f5a0fe3c4a74b74226647eaae55) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the Portable Text editor so text typed after a newly applied link remains plain instead of extending the link.
-
-- [#3583](https://github.com/emdash-cms/emdash/pull/3583) [`7f4064c`](https://github.com/emdash-cms/emdash/commit/7f4064c63d0c4979ca6aa7b499ff533930007cc8) Thanks [@leostera](https://github.com/leostera)! - Fixes Reading settings so the date format example updates as you type and displays month names in the admin language. Formats the preview cannot render can still be saved for use by themes. Adds searchable timezone suggestions and rejects newly entered unrecognized values while allowing unchanged existing timezone settings to be saved.
-
-- [#3624](https://github.com/emdash-cms/emdash/pull/3624) [`998ce63`](https://github.com/emdash-cms/emdash/commit/998ce63d8412ab400f02d0915785aa75b7edfc9d) Thanks [@kegren](https://github.com/kegren)! - Updates the Swedish admin translation to cover every string and renames "Bylines" to "Skribenter" in the Swedish admin.
-
-- [#3609](https://github.com/emdash-cms/emdash/pull/3609) [`fc019e4`](https://github.com/emdash-cms/emdash/commit/fc019e4ee5ac9ca09418bd97735c0f0890e4813d) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes a broken preview while uploading images the browser can't display, such as HEIC or TIFF files, dropped or pasted into the Portable Text editor. The editor now follows the Media Library upload list: files over 8 MB, or in formats other than JPEG, PNG, GIF, WebP and AVIF, upload with a plain placeholder instead of a preview. The featured and Open Graph image fields now use the same "Only image files can be uploaded here." message as the editor. Screen readers no longer hear an extra "Loading" announcement while an image uploads into those fields.
-
-- [#3685](https://github.com/emdash-cms/emdash/pull/3685) [`1942b3a`](https://github.com/emdash-cms/emdash/commit/1942b3aae0ba09d074afc424d738767b676651f8) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes media uploads so supported video files (.mp4, .webm, .mov) report width and height, and prevents the Media Library details panel from truncating the Uploaded date when dimensions are absent.
-  
-  Videos now have their display dimensions extracted via the browser's `<video>` element and sent through both the direct upload form and the signed-URL confirmation payload, so the detail panel can show a Dimensions row for them just like images. Audio and other non-dimensional files continue to omit dimensions cleanly.
-  
-  The details grid also keeps the Uploaded row in the wider left column when no dimensions row is present, so the full upload date remains readable.
-- Updated dependencies [[`85ab50c`](https://github.com/emdash-cms/emdash/commit/85ab50c60e325b564b427d2d7ffde7e903c2dbf7), [`3a00448`](https://github.com/emdash-cms/emdash/commit/3a00448c05604eab26c4ad2b851d33b2de8bc605)]:
-  - @emdash-cms/blocks@1.1.0
-
-## 1.0.1
-
-### Patch Changes
-
-- [#3534](https://github.com/emdash-cms/emdash/pull/3534) [`6f2ef26`](https://github.com/emdash-cms/emdash/commit/6f2ef26f7dc2bd79e191ba5d361923277b35da68) Thanks [@MA2153](https://github.com/MA2153)! - Completes the Arabic (العربية) translation of the admin UI. Every admin string now has an Arabic translation, so Arabic users no longer see English fallback text.
-
-- [#3545](https://github.com/emdash-cms/emdash/pull/3545) [`c66b49b`](https://github.com/emdash-cms/emdash/commit/c66b49b8f98226e3fed4e63f25131551e278edbb) Thanks [@palockocz](https://github.com/palockocz)! - Adds the missing Czech translations for media to the admin UI.
-
-- [#3533](https://github.com/emdash-cms/emdash/pull/3533) [`9e297d6`](https://github.com/emdash-cms/emdash/commit/9e297d6964c3b1875581167484491948f0677fe7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the byline editor discarding changes typed right after it opened. On slower sites the full byline record could finish loading after you started typing and replace your edits, so Save stored the original values. Reopening a byline straight after saving it now also shows the saved values.
-
-- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. Before upgrading from 0.42, read the [upgrade guide](https://docs.emdashcms.com/upgrade-to-v1/), which lists each change and how to migrate.
-  
-  From this release, breaking changes ship only in a new major version.
-
-- [#3522](https://github.com/emdash-cms/emdash/pull/3522) [`a3609fb`](https://github.com/emdash-cms/emdash/commit/a3609fb4c2f514d944e693e1f7eded82aeccdb56) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes collection and taxonomy names appearing in lowercase inside sentences of the German admin, such as "Noch keine kategorien vorhanden." on a taxonomy page or "beiträge durchsuchen..." in a content list's search field. German capitalizes nouns, so the German admin now shows these names as the site defines them. Other admin languages still lowercase them.
-  
-  In admin languages other than English, the dialogs for creating, editing and deleting terms now show the translated word for "term" instead of the English one when the taxonomy has no singular name, such as a taxonomy created in the admin.
-
-- [#3324](https://github.com/emdash-cms/emdash/pull/3324) [`618591e`](https://github.com/emdash-cms/emdash/commit/618591e94fb87af2bb0086d882f0c2c766635874) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text in site transfer (export, import review and approvals), content relations and reference fields, bulk term assignment, the bylines directory, block types, invitation and sign-in emails, CLI device sign-in, the menu dialog, API token scopes and the dashboard's core update notice, as well as in the taxonomy picker, the link and code block pickers, save errors and plugin registry notices. The code block language button now reads "Sprache festlegen" instead of "Sprache speichern".
-  
-  Makes the German terminology consistent across the admin. Some words German-speaking editors already know change: plugins are now "Plugins" instead of "Erweiterungen", collections "Sammlungen" instead of "Kollektionen", bylines "Autorenangaben" instead of "Autorenzeilen", "Website" replaces "Webseite", publishing is "veröffentlichen" instead of "publizieren" and unpublishing "zurückziehen" instead of "depublizieren", and delete actions say "löschen" while remove actions keep "entfernen". Progress messages, button labels and quotation marks follow one style throughout, and strings whose German said something different from the English now match it.
-
-- [#3519](https://github.com/emdash-cms/emdash/pull/3519) [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the deprecated `experimental.registry` integration option. Sites that still set it now fail at startup with an error pointing to the top-level `registry` option, including sites that already set `registry` alongside it. The value is not silently ignored, because that would drop the configured aggregator and release-age policy.
-  
-  Move the value unchanged. The top-level option accepts the same URL string or configuration object:
-  
-  ```diff
-   emdash({
-  -	experimental: {
-  -		registry: {
-  -			aggregatorUrl: "https://registry.example.com",
-  -			policy: { minimumReleaseAge: "48h" },
-  -		},
-  -	},
-  +	registry: {
-  +		aggregatorUrl: "https://registry.example.com",
-  +		policy: { minimumReleaseAge: "48h" },
-  +	},
-   });
-  ```
-  
-  The `experimental` option is also removed from the `EmDashConfig` type, because it has no remaining settings. An empty `experimental: {}` block is still ignored at runtime, but TypeScript configs should delete it. Registry configuration errors in the admin now always name the top-level `registry.*` setting.
-- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d)]:
-  - @emdash-cms/blocks@1.0.1
-
-## 1.0.1-rc.1
-
-### Patch Changes
-
-- [#3545](https://github.com/emdash-cms/emdash/pull/3545) [`c66b49b`](https://github.com/emdash-cms/emdash/commit/c66b49b8f98226e3fed4e63f25131551e278edbb) Thanks [@palockocz](https://github.com/palockocz)! - Adds the missing Czech translations for media to the admin UI.
-
-- [#3533](https://github.com/emdash-cms/emdash/pull/3533) [`9e297d6`](https://github.com/emdash-cms/emdash/commit/9e297d6964c3b1875581167484491948f0677fe7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the byline editor discarding changes typed right after it opened. On slower sites the full byline record could finish loading after you started typing and replace your edits, so Save stored the original values. Reopening a byline straight after saving it now also shows the saved values.
-
-- [#3522](https://github.com/emdash-cms/emdash/pull/3522) [`a3609fb`](https://github.com/emdash-cms/emdash/commit/a3609fb4c2f514d944e693e1f7eded82aeccdb56) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes collection and taxonomy names appearing in lowercase inside sentences of the German admin, such as "Noch keine kategorien vorhanden." on a taxonomy page or "beiträge durchsuchen..." in a content list's search field. German capitalizes nouns, so the German admin now shows these names as the site defines them. Other admin languages still lowercase them.
-  
-  In admin languages other than English, the dialogs for creating, editing and deleting terms now show the translated word for "term" instead of the English one when the taxonomy has no singular name, such as a taxonomy created in the admin.
-
-- [#3324](https://github.com/emdash-cms/emdash/pull/3324) [`618591e`](https://github.com/emdash-cms/emdash/commit/618591e94fb87af2bb0086d882f0c2c766635874) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations so German-speaking editors see localized text in site transfer (export, import review and approvals), content relations and reference fields, bulk term assignment, the bylines directory, block types, invitation and sign-in emails, CLI device sign-in, the menu dialog, API token scopes and the dashboard's core update notice, as well as in the taxonomy picker, the link and code block pickers, save errors and plugin registry notices. The code block language button now reads "Sprache festlegen" instead of "Sprache speichern".
-  
-  Makes the German terminology consistent across the admin. Some words German-speaking editors already know change: plugins are now "Plugins" instead of "Erweiterungen", collections "Sammlungen" instead of "Kollektionen", bylines "Autorenangaben" instead of "Autorenzeilen", "Website" replaces "Webseite", publishing is "veröffentlichen" instead of "publizieren" and unpublishing "zurückziehen" instead of "depublizieren", and delete actions say "löschen" while remove actions keep "entfernen". Progress messages, button labels and quotation marks follow one style throughout, and strings whose German said something different from the English now match it.
-- Updated dependencies []:
-  - @emdash-cms/blocks@1.0.1-rc.1
-
-## 1.0.1-rc.0
-
-### Patch Changes
-
-- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. The other entries for this version describe each one and how to migrate; check them before upgrading from 0.42.
-  
-  From this release, breaking changes ship only in a new major version.
-  
-  The first 1.x version is 1.0.1. npm also lists a deprecated `emdash@1.0.0`, published by mistake from 0.7-era code; do not install it.
-
-- [#3519](https://github.com/emdash-cms/emdash/pull/3519) [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the deprecated `experimental.registry` integration option. Sites that still set it now fail at startup with an error pointing to the top-level `registry` option, including sites that already set `registry` alongside it. The value is not silently ignored, because that would drop the configured aggregator and release-age policy.
-  
-  Move the value unchanged. The top-level option accepts the same URL string or configuration object:
-  
-  ```diff
-   emdash({
-  -	experimental: {
-  -		registry: {
-  -			aggregatorUrl: "https://registry.example.com",
-  -			policy: { minimumReleaseAge: "48h" },
-  -		},
-  -	},
-  +	registry: {
-  +		aggregatorUrl: "https://registry.example.com",
-  +		policy: { minimumReleaseAge: "48h" },
-  +	},
-   });
-  ```
-  
-  The `experimental` option is also removed from the `EmDashConfig` type, because it has no remaining settings. An empty `experimental: {}` block is still ignored at runtime, but TypeScript configs should delete it. Registry configuration errors in the admin now always name the top-level `registry.*` setting.
-- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d)]:
-  - @emdash-cms/blocks@1.0.1-rc.0
-
-## 0.42.0
-
-### Minor Changes
-
-- [#3440](https://github.com/emdash-cms/emdash/pull/3440) [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212) Thanks [@swissky](https://github.com/swissky)! - Adds two settings to the Navigation section of the content type editor:
-  
-  - **Icon**: the Phosphor icon name shown for the collection in the admin sidebar and in command palette navigation, such as `calendar-blank`. A sidebar folder shows the icon of the first collection in it that declares one. A name that does not resolve falls back to the collection's default icon.
-  - **Hide from navigation**: removes the collection's sidebar entry, its command palette link, and its dashboard quick action. The collection stays reachable by URL, the API, and plugins. Collections that were already hidden now also drop out of the command palette.
-  
-  #### API and seed files
-  
-  The manifest now publishes each collection's `icon`. Collection icon names are now trimmed and limited to 64 characters in the schema API and the MCP collection tools, and limited to 64 characters in seed files, so longer values are rejected. Sending an empty `icon` clears the stored icon.
-
-- [#3440](https://github.com/emdash-cms/emdash/pull/3440) [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212) Thanks [@swissky](https://github.com/swissky)! - Adds an `admin.quickCreate` collection setting that removes the collection's "new entry" quick action from the admin dashboard. Set it to `false` in a seed file or through the schema API, or turn off "Quick action on the dashboard" in the content type editor's Navigation section. Collections without the setting keep their quick action. A schema API update replaces the whole `admin` object, so include any existing `admin.listColumns` in the same request.
-
-- [#1939](https://github.com/emdash-cms/emdash/pull/1939) [`2410395`](https://github.com/emdash-cms/emdash/commit/24103953cc5873f76c36625b11251ac5864dca78) Thanks [@swissky](https://github.com/swissky)! - Adds a core update notice to the admin dashboard. When a newer EmDash version is available, admins see a dismissible banner with a link to the release notes. The banner names the newest release that has been public on npm for at least 24 hours.
-  
-  The check is on by default: the server sends a GET request to `https://registry.npmjs.org/emdash` at most once a day, in the background, with no site data. To wait longer before a release is announced, for example to match pnpm's `minimumReleaseAge`, or to turn the check off:
-  
-  ```js
-  emdash({ updateCheck: { minimumReleaseAge: "7d" } }); // a duration string or seconds
-  emdash({ updateCheck: false });
-  ```
-  
-  The banner reads `GET /_emdash/api/admin/core-update`, which requires the new `updates:read` permission (admins only).
-
-- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `bylines:read` plugin capability, which lets plugins read public byline profiles and the bylines credited on content entries through `ctx.bylines`.
-  
-  `ctx.bylines` provides `get()` and cursor-paginated `list()` for profiles, plus `getEntriesBylines()` for credits. `getEntriesBylines()` resolves up to 100 entries of one collection in a single call, so a search indexer or feed plugin can attach author names to a page of `ctx.content.list()` results:
-  
-  ```ts
-  const page = await ctx.content.list("posts", { limit: 100 });
-  const credits = await ctx.bylines.getEntriesBylines(
-  	"posts",
-  	page.items.map((entry) => entry.id),
-  );
-  ```
-  
-  Credits match what the site renders: the credits assigned in the editor, or the author's linked byline, marked `source: "inferred"`, when an entry has none. They resolve at the entry's own locale. Profiles omit the linked user account, guest flag, and byline custom field values.
-  
-  The capability is independent of `content:read` and `users:read`. It is available to native plugins and to sandboxed plugins on Cloudflare Worker Loader and Node.js workerd. Installation and update consent list it as a new permission.
-
-- [#3495](https://github.com/emdash-cms/emdash/pull/3495) [`9358ede`](https://github.com/emdash-cms/emdash/commit/9358ede608670f3734be4e616f674bdf9a046dfe) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `admin.footerLabel` for customizing or hiding the label beside the version in the admin sidebar. The label defaults to `"EmDash"` instead of reusing the configured site name. Set it to a string to use another label, or set it to `false` to show the version alone.
-
-### Patch Changes
-
-- [#3513](https://github.com/emdash-cms/emdash/pull/3513) [`f465247`](https://github.com/emdash-cms/emdash/commit/f46524757512fa32293b7a38829b61d8be17d30a) Thanks [@swissky](https://github.com/swissky)! - Shows the language's name next to its code under "Content language" in the content editor sidebar, for example "Italiano IT", when the admin itself is not translated into that language. It showed the code twice before, as in "IT IT".
-
-- [#3512](https://github.com/emdash-cms/emdash/pull/3512) [`70589bc`](https://github.com/emdash-cms/emdash/commit/70589bc8f35951bb40ec202416ad518ade6ffdc0) Thanks [@swissky](https://github.com/swissky)! - Shows relative times in the admin's language, such as "vor 5 Minuten" in German, in the dashboard's recent activity and the revision history. They were in English for every admin language before. English wording changes slightly: "5 mins ago" is now "5 minutes ago" and "1 day ago" is now "yesterday".
-
-- [#3466](https://github.com/emdash-cms/emdash/pull/3466) [`6e58b48`](https://github.com/emdash-cms/emdash/commit/6e58b48e6cb6db096daa5ed729b29f105e622a9a) Thanks [@solaymanhaider](https://github.com/solaymanhaider)! - Adds Bengali (বাংলা) to the admin UI with a complete translation catalog. The locale is selectable from the language picker, and the date picker shows Bengali month and day names.
-
-- [#3493](https://github.com/emdash-cms/emdash/pull/3493) [`148ff3e`](https://github.com/emdash-cms/emdash/commit/148ff3ee3e7bb86e30e88284bfff54eb286598ed) Thanks [@MA2153](https://github.com/MA2153)! - Fixes bulk term assignment only working with the built-in `tag` taxonomy. Editors can now add a term from any taxonomy, such as a category or a custom taxonomy, to up to 50 posts from a collection's bulk-actions bar or from that taxonomy's page. When several taxonomies apply to a collection, the dialog asks which one to use. The `POST /_emdash/api/taxonomies/bulk-tag` endpoint now accepts a term from any taxonomy, and matches only entries in the collections that use that taxonomy.
-
-- [#3467](https://github.com/emdash-cms/emdash/pull/3467) [`1ba8fcb`](https://github.com/emdash-cms/emdash/commit/1ba8fcbb6d4236e96556b5486f4c89bd4fa16d18) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Bylines admin page with a full-width profile list and a focused create/edit dialog. Editors can see guest and account-link status at a glance while keeping search, custom fields, translations, and deletion in the same workflow.
-
-- [#3441](https://github.com/emdash-cms/emdash/pull/3441) [`cc91805`](https://github.com/emdash-cms/emdash/commit/cc9180504251425429f4b41cc0d68028f834072f) Thanks [@swissky](https://github.com/swissky)! - Fixes the Features column on the Content Types list so the `seo` badge matches the collection's SEO setting. Collections with SEO turned on in the editor now show the badge, and collections with SEO turned off no longer show one.
-
-- [#3492](https://github.com/emdash-cms/emdash/pull/3492) [`d583dfd`](https://github.com/emdash-cms/emdash/commit/d583dfd8d837850493174a1c76fb9de9aef7cbf5) Thanks [@kgni](https://github.com/kgni)! - Adds Danish (Dansk) translations for the admin UI. The locale is selectable from the language picker.
-
-- [#3450](https://github.com/emdash-cms/emdash/pull/3450) [`db76eae`](https://github.com/emdash-cms/emdash/commit/db76eaee4dcd313e7f7e37c11b4bdd319ae33624) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes content type icons in the admin Content Types list so they keep a 1:1 aspect ratio when a collection description forces the Name cell to wrap.
-
-- [#2898](https://github.com/emdash-cms/emdash/pull/2898) [`8b1b585`](https://github.com/emdash-cms/emdash/commit/8b1b585eed4d4a542ee24f449b5992e7aeb72380) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes rich text image settings so caption, alt text, tooltip, size, and alignment edits persist when authors click back into the post. Captions and tooltip titles also round-trip independently, so clearing a caption no longer restores it from the tooltip text.
-
-- [#3439](https://github.com/emdash-cms/emdash/pull/3439) [`ff61df9`](https://github.com/emdash-cms/emdash/commit/ff61df9a518d12e57f5e134382413e4acccce3a9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes WordPress WXR imports failing partway through large exports. The admin now imports taxonomy terms, content, and reusable blocks in bounded requests while preserving translation links and the complete import summary.
-  
-  Direct API clients can continue using a single request for small exports. Larger exports return `WXR_IMPORT_TOO_LARGE` and must use the chunked `taxonomy`, `content`, and `finalize` phases.
-
-- [#3470](https://github.com/emdash-cms/emdash/pull/3470) [`ccd80cb`](https://github.com/emdash-cms/emdash/commit/ccd80cb34d6ae031abd06c6665a21eba01be2cab) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the admin Menus pages with scannable navigation cards, a clearer create-menu dialog, and a menu editor with a labeled back link and matching add-action buttons.
-
-- [#3509](https://github.com/emdash-cms/emdash/pull/3509) [`b84ea22`](https://github.com/emdash-cms/emdash/commit/b84ea2295d2402d5f6042c8cc1e9731e88ec50fc) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the Portable Text editor saving dotted filenames and identifiers such as `README.md` and `setup.sh` as external links when authors type or paste them.
-
-- [#3431](https://github.com/emdash-cms/emdash/pull/3431) [`72f10bd`](https://github.com/emdash-cms/emdash/commit/72f10bd493650d7e503966f8c74ce2bedc480308) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the header of Block Kit plugin panels in the content editor sidebar so it lines up with the Revisions and Outline sections. The section's reorder handle no longer covers the panel's content or, while the panel is collapsed, the section below it.
-
-- [#3491](https://github.com/emdash-cms/emdash/pull/3491) [`bf1aa14`](https://github.com/emdash-cms/emdash/commit/bf1aa14e79f08e46961fc804fb1c36be4f0d51e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the publication-date dialog so editors can retry a date-only change after another writer updates the entry, without overwriting content fields.
-
-- [#2966](https://github.com/emdash-cms/emdash/pull/2966) [`bc32000`](https://github.com/emdash-cms/emdash/commit/bc3200026fc31aa45d325807d89e551fb3d7822b) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes an entry's publication date saving without a warning when someone else changed the entry after the editor loaded it. The date change is now refused like any other save based on a stale read, and the editor shows its conflict notice with the option to save over the newer version.
-
-- [#3325](https://github.com/emdash-cms/emdash/pull/3325) [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes an open redirect in the admin login page and the logout, magic-link sign-in, and dev-bypass routes: a `?redirect=` value containing a tab, carriage return, or line feed (for example `/%09/evil.example`) could send the browser to another site. Redirect values that contain control characters are now ignored.
-
-- [#3475](https://github.com/emdash-cms/emdash/pull/3475) [`42bf9f5`](https://github.com/emdash-cms/emdash/commit/42bf9f5d59125782cb688164a4d31cc91c93aefa) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes reference fields showing "No references selected." when an entry is reopened in the admin within a minute of an autosave, publish, or schedule change. Adding a reference after such a reopen no longer removes the entries that were already saved.
-
-- [#3471](https://github.com/emdash-cms/emdash/pull/3471) [`d96f039`](https://github.com/emdash-cms/emdash/commit/d96f039f4d5ebadfa46d304f77c6adb5a1db3958) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the Sections library to use compact thumbnails for reusable sections, showing a supplied preview image when available and a section icon otherwise. Search, source filtering, creation, and actions now follow the other admin pages. At narrower widths, the section editor places details beneath the content so form fields stay within their panel.
-
-- [#3327](https://github.com/emdash-cms/emdash/pull/3327) [`f796444`](https://github.com/emdash-cms/emdash/commit/f79644435efa642ad4bca5d8735efe07cc7aee71) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes stored cross-site scripting through `url` content fields. EmDash previously accepted `javascript:` and `data:` values, so a theme rendering `<a href={entry.data.website}>` could run an attacker's script on the site origin. A `url` field, including one inside a repeater or block, now accepts only these values:
-  
-  - `http:` and `https:` URLs
-  - `mailto:` and `tel:` links
-  - site-relative paths such as `/about`, and fragments such as `#contact`
-  
-  The REST API, MCP tools, site transfers, WordPress imports, and the admin editor reject any other value with a validation error. Seeds and plugin content updates also reject unsafe schemes and path forms that browsers resolve to another site, including `//example.com` and `/\\example.com`. The admin editor now accepts relative paths, fragments, `mailto:`, and `tel:` and keeps URL input left-to-right in every locale.
-  
-  Existing entries are not changed. An unsafe stored value is still returned by queries, and saving or duplicating that entry fails until the field is corrected. `sanitizeHref()` and `isSafeHref()` now reject unsafe protocol-relative, backslash-prefixed, and control-character forms when rendering older content.
-
-- [#3303](https://github.com/emdash-cms/emdash/pull/3303) [`d8ea3fc`](https://github.com/emdash-cms/emdash/commit/d8ea3fc6538fe14fdefa553ae771bb2fa583e7ee) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a denial-of-service in public URL routing: a collection URL pattern with several placeholders in one path segment, such as `/{a}{b}{c}{d}{e}x`, let a single crafted request tie up the server for seconds while `resolveEmDashPath()` matched it.
-  
-  Collection URL patterns now allow at most one placeholder per path segment. `/{year}/{month}/{slug}.html` and `/p-{id}/{slug}` are still valid, but `/{year}{month}/{slug}` and `/{slug}-{id}` are rejected when a collection is created or its pattern is changed through the admin, the REST API, the MCP `schema_update_collection` tool, or a seed. Seed files with such a pattern fail validation before anything is applied. The admin's collection editor shows the problem next to the URL Pattern field.
-  
-  If a collection already has a pattern that breaks this rule, it keeps working for generating links in menus, sitemaps and redirects, but `resolveEmDashPath()` no longer matches it, and the site logs a warning naming the collection. REST, MCP and admin updates that send the stored pattern back unchanged still succeed. Give each placeholder its own segment (for example, change `/{slug}-{id}` to `/{id}/{slug}`) to route those entries again.
-
-- [#3445](https://github.com/emdash-cms/emdash/pull/3445) [`b2ce32c`](https://github.com/emdash-cms/emdash/commit/b2ce32c31fb448da4a5b0eb2a817982d7613f3e3) Thanks [@swissky](https://github.com/swissky)! - Fixes admin sign-in silently returning to the login page when no Astro session driver is configured. Signing in with a passkey, magic link, invite link, or signup link now fails with a `SESSION_UNAVAILABLE` error explaining that a session driver is required, and OAuth sign-in returns to the login page with the same explanation, instead of reporting success without keeping the user signed in. Magic links, invite links, and signup links stay usable for a retry. `astro dev` and `astro build` also warn when the driver is missing or sessions are disabled with `session: false`. The Node, Cloudflare, and Netlify adapters configure a driver automatically; on other adapters, such as Vercel, configure `session.driver` in `astro.config.mjs`.
-- Updated dependencies [[`f2f9119`](https://github.com/emdash-cms/emdash/commit/f2f9119738ba360d02e3fd00e1cf7d1d49b52fda), [`2e943ff`](https://github.com/emdash-cms/emdash/commit/2e943ff35fcffc5a4e35dd658ef73cf098030e3b), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13)]:
-  - @emdash-cms/blocks@0.42.0
-  - @emdash-cms/plugin-types@0.5.0
-  - @emdash-cms/registry-lexicons@0.7.0
-  - @emdash-cms/registry-client@0.7.0

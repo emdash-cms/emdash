@@ -159,11 +159,12 @@ catalog:
   "@tiptap/react": 3.32.0
   "@tiptap/starter-kit": 3.32.0
   "@tiptap/suggestion": 3.32.0
-  "@tiptap/y-tiptap": ^3.0.7
+  "@tiptap/y-tiptap": 3.2.0
   "@types/node": 24.10.13
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   "@types/semver": ^7.5.8
+  "@types/ws": ^8.18.1
   "@vitest/browser-playwright": 4.1.10
   "@vitest/ui": 4.1.10
   astro: ^7.3.2
@@ -174,6 +175,7 @@ catalog:
   image-size: 2.0.2
   jsonc-parser: ^3.3.1
   kysely: ^0.29.0
+  lib0: ^0.2.117
   lightningcss: ^1.33.0
   lowlight: ^3.3.0
   publint: 0.3.17
@@ -186,6 +188,7 @@ catalog:
   vite: ^8.3.0
   vitest: 4.1.10
   wrangler: ^4.125.0
+  ws: ^8.21.3
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
   zod: 4.6.7

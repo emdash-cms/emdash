@@ -692,6 +692,7 @@ describe("Video block conversion", () => {
 			"videoBlock",
 			"pluginBlock",
 			"pluginBlock",
+			"paragraph",
 		]);
 		expect(prosemirrorToPortableText(pm)).toStrictEqual([
 			native,
