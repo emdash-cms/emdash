@@ -5,7 +5,6 @@ import {
 	Input,
 	Label,
 	LayerCard,
-	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
@@ -566,55 +565,52 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<LayerDialog.Trigger
-				disabled={disabled}
-				render={
-					<Button
-						type="button"
-						variant="primary"
-						size={size}
-						icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
-						className={
-							compact
-								? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
-								: undefined
-						}
-						loading={isPending}
-						disabled={disabled}
-						aria-label={publishLabel}
-					/>
-				}
-			>
-				{compact ? (
-					<>
-						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
-						<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
-						<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
-					</>
-				) : (
-					publishLabel
-				)}
-			</LayerDialog.Trigger>
-			<LayerDialog.Content size="sm">
-				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
-				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
-				<LayerDialog.Body>{revisions ? <PublishEditedBy {...revisions} /> : null}</LayerDialog.Body>
-				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action
-						loading={isPending}
-						disabled={disabled}
-						aria-label={publishLabel}
-						onClick={() => {
-							setConfirmationOpen(false);
-							onPublish();
-						}}
-					>
-						{publishLabel}
-					</LayerDialog.Action>
-				</LayerDialog.Actions>
-			</LayerDialog.Content>
-		</LayerDialog.Root>
+		<ConfirmDialog
+			open={publishOpen}
+			onClose={() => setConfirmationOpen(false)}
+			trigger={
+				<Button
+					type="button"
+					variant="primary"
+					size={size}
+					icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
+					className={
+						compact
+							? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
+							: undefined
+					}
+					loading={isPending}
+					disabled={disabled}
+					aria-label={publishLabel}
+					onClick={() => setConfirmationOpen(true)}
+				>
+					{compact ? (
+						<>
+							<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
+							<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
+							<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
+						</>
+					) : (
+						publishLabel
+					)}
+				</Button>
+			}
+			variant="primary"
+			undoable={!hasSchedule}
+			title={confirmationTitle}
+			description={confirmationDescription}
+			confirmLabel={publishLabel}
+			pendingLabel={publishLabel}
+			confirmDisabled={disabled || isPending}
+			isPending={false}
+			error={null}
+			onConfirm={() => {
+				setConfirmationOpen(false);
+				onPublish();
+			}}
+		>
+			{revisions ? <PublishEditedBy {...revisions} /> : null}
+		</ConfirmDialog>
 	);
 }
 

@@ -6,12 +6,13 @@ import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
 	ContentSettingsPanel,
 	EditorActions,
+	PublishActions,
 	type ContentSettingsPanelProps,
 	type EditorActionsProps,
 } from "../../src/components/ContentSettingsPanel";
@@ -2053,6 +2054,61 @@ describe("EditorActions", () => {
 			dialog.getByRole("button", { name: "Publish changes", exact: true }).element().click();
 			expect(props.onPublish).toHaveBeenCalledOnce();
 		});
+	});
+});
+
+describe("PublishActions", () => {
+	it("publishes with Enter from the Publish button", async () => {
+		const onPublish = vi.fn();
+		const onMenuOpenChange = vi.fn();
+		const screen = await render(
+			<PublishActions
+				isLive={false}
+				hasPendingChanges={false}
+				onPublish={onPublish}
+				onMenuOpenChange={onMenuOpenChange}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Publish now", exact: true });
+		await expect.element(opener).toBeVisible();
+		const trigger = opener.element();
+		trigger.focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Publish now?" });
+		await expect
+			.element(dialog.getByRole("button", { name: "Publish now", exact: true }))
+			.toHaveFocus();
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		await userEvent.keyboard("{Enter}");
+
+		expect(onPublish).toHaveBeenCalledOnce();
+		await expect.element(dialog).not.toBeInTheDocument();
+		await vi.waitFor(() => expect(document.activeElement).toBe(trigger));
+		expect(onMenuOpenChange.mock.calls).toEqual([[true], [false]]);
+	});
+
+	it("opens on Cancel when publishing now would remove a schedule", async () => {
+		const onPublish = vi.fn();
+		const screen = await render(
+			<PublishActions
+				isLive={false}
+				hasPendingChanges={false}
+				publishingState="scheduled"
+				onPublish={onPublish}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Publish now", exact: true });
+		await expect.element(opener).toBeVisible();
+		opener.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Publish now?" });
+		await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(onPublish).not.toHaveBeenCalled();
 	});
 });
 

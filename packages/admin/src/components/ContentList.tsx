@@ -4,7 +4,6 @@ import {
 	Checkbox,
 	DatePicker,
 	DropdownMenu,
-	LayerDialog,
 	Loader,
 	Popover,
 	Select,
@@ -656,46 +655,35 @@ export function ContentList({
 								</span>
 							)}
 							{onBulkDelete && (
-								<LayerDialog.Root
+								<ConfirmDialog
 									open={bulkTrashOpen}
-									onOpenChange={setBulkTrashOpen}
-									disablePointerDismissal
-								>
-									<LayerDialog.Trigger
-										render={(p) => (
-											<Button
-												{...p}
-												size="sm"
-												variant="destructive"
-												icon={<Trash />}
-												disabled={bulkBusy}
-											>
-												{t`Move to trash`}
-											</Button>
-										)}
-									/>
-									<LayerDialog.Content size="sm">
-										<LayerDialog.Title>{t`Move to Trash?`}</LayerDialog.Title>
-										<LayerDialog.Description>
-											{plural(selectedCount, {
-												one: "Move # item to trash? You can restore it later.",
-												other: "Move # items to trash? You can restore them later.",
-											})}
-										</LayerDialog.Description>
-										<LayerDialog.Body>{null}</LayerDialog.Body>
-										<LayerDialog.Actions dismissLabel={t`Cancel`}>
-											<LayerDialog.Action
-												variant="destructive"
-												onClick={() => {
-													setBulkTrashOpen(false);
-													runBulk(onBulkDelete);
-												}}
-											>
-												{t`Move to Trash`}
-											</LayerDialog.Action>
-										</LayerDialog.Actions>
-									</LayerDialog.Content>
-								</LayerDialog.Root>
+									onClose={() => setBulkTrashOpen(false)}
+									trigger={
+										<Button
+											size="sm"
+											variant="destructive"
+											icon={<Trash />}
+											disabled={bulkBusy}
+											onClick={() => setBulkTrashOpen(true)}
+										>
+											{t`Move to trash`}
+										</Button>
+									}
+									undoable
+									title={t`Move to Trash?`}
+									description={plural(selectedCount, {
+										one: "Move # item to trash? You can restore it later.",
+										other: "Move # items to trash? You can restore them later.",
+									})}
+									confirmLabel={t`Move to Trash`}
+									pendingLabel={t`Move to Trash`}
+									isPending={false}
+									error={null}
+									onConfirm={() => {
+										setBulkTrashOpen(false);
+										runBulk(onBulkDelete);
+									}}
+								/>
 							)}
 						</DataTableBulkBar>
 					)}

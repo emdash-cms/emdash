@@ -10,7 +10,6 @@ import {
 	Badge,
 	Button,
 	Checkbox,
-	LayerDialog,
 	Link as KumoLink,
 	Switch,
 	useKumoToastManager,
@@ -61,13 +60,13 @@ import {
 	type RegistryUpdateOpts,
 	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
-import { useConfirmPress } from "../lib/dialog-form.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
-import { DialogError, getMutationError } from "./DialogError.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
+import { getMutationError } from "./DialogError.js";
 import { RegistryPluginIdentity, useRegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -761,7 +760,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 				<UninstallConfirmDialog
 					pluginName={plugin.name}
 					isPending={uninstallMutation.isPending}
-					error={getMutationError(uninstallMutation.error)}
+					error={uninstallMutation.error}
 					onConfirm={(deleteData) => uninstallMutation.mutate(deleteData)}
 					onCancel={() => {
 						setShowUninstallConfirm(false);
@@ -780,7 +779,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 interface UninstallConfirmDialogProps {
 	pluginName: string;
 	isPending: boolean;
-	error?: string | null;
+	error?: unknown;
 	onConfirm: (deleteData: boolean) => void;
 	onCancel: () => void;
 }
@@ -794,42 +793,25 @@ export function UninstallConfirmDialog({
 }: UninstallConfirmDialogProps) {
 	const { t } = useLingui();
 	const [deleteData, setDeleteData] = React.useState(false);
-	const confirm = useConfirmPress(onConfirm, isPending, error);
 
 	return (
-		<LayerDialog.Root
+		<ConfirmDialog
 			open
-			onOpenChange={(nextOpen) => {
-				if (!nextOpen && !isPending) onCancel();
-			}}
-			dismissDisabled={isPending}
+			onClose={onCancel}
+			title={t`Uninstall ${pluginName}?`}
+			description={t`This will remove the plugin and its bundle from your site.`}
+			confirmLabel={t`Uninstall`}
+			pendingLabel={t`Uninstalling...`}
+			isPending={isPending}
+			error={error}
+			onConfirm={() => onConfirm(deleteData)}
 		>
-			<LayerDialog.Content size="sm">
-				<LayerDialog.Title>{t`Uninstall ${pluginName}?`}</LayerDialog.Title>
-				<LayerDialog.Description>
-					{t`This will remove the plugin and its bundle from your site.`}
-				</LayerDialog.Description>
-				<LayerDialog.Body>
-					<div className="space-y-4">
-						<Checkbox
-							checked={deleteData}
-							onCheckedChange={(checked) => setDeleteData(checked)}
-							label={t`Also delete plugin storage data`}
-						/>
-						<DialogError message={error} />
-					</div>
-				</LayerDialog.Body>
-				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action
-						variant="destructive"
-						onClick={() => confirm(deleteData)}
-						disabled={isPending}
-					>
-						{isPending ? t`Uninstalling...` : t`Uninstall`}
-					</LayerDialog.Action>
-				</LayerDialog.Actions>
-			</LayerDialog.Content>
-		</LayerDialog.Root>
+			<Checkbox
+				checked={deleteData}
+				onCheckedChange={(checked) => setDeleteData(checked)}
+				label={t`Also delete plugin storage data`}
+			/>
+		</ConfirmDialog>
 	);
 }
 

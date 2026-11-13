@@ -1150,6 +1150,32 @@ describe("ContentList", () => {
 				.not.toBeInTheDocument();
 			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
 		});
+
+		it("moves the selected entries to trash with Enter", async () => {
+			const onBulkDelete = vi.fn((ids: string[]) => Promise.resolve(ids));
+			const items = [
+				makeItem({ id: "a", data: { title: "Alpha" } }),
+				makeItem({ id: "b", data: { title: "Bravo" } }),
+			];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkDelete={onBulkDelete} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Move to trash", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(
+					screen
+						.getByRole("dialog", { name: "Move to Trash?" })
+						.getByRole("button", { name: "Move to Trash", exact: true }),
+				)
+				.toHaveFocus();
+			await userEvent.keyboard("{Enter}");
+
+			expect(onBulkDelete).toHaveBeenCalledWith(["a", "b"]);
+		});
 	});
 
 	describe("numbered pages", () => {
