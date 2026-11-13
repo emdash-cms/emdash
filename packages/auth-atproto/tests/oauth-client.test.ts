@@ -46,7 +46,7 @@ describe("getAtprotoOAuthClient (HTTPS - public client)", () => {
 	it("requests atproto scope", async () => {
 		const { getAtprotoOAuthClient } = await freshImport();
 		const client = await getAtprotoOAuthClient("https://example.com");
-		expect(client.metadata.scope).toBe("atproto transition:generic");
+		expect(client.metadata.scope).toBe("atproto");
 	});
 
 	it("creates a fresh instance per call (no shared state between requests)", async () => {
