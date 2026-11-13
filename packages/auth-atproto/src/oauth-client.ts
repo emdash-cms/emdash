@@ -142,7 +142,7 @@ export async function getAtprotoOAuthClient(
 		return new OAuthClient({
 			metadata: {
 				redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
-				scope: "atproto transition:generic",
+				scope: "atproto",
 			},
 			stores,
 			actorResolver,
@@ -156,7 +156,7 @@ export async function getAtprotoOAuthClient(
 		metadata: {
 			client_id: `${baseUrl}/.well-known/atproto-client-metadata.json`,
 			redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
-			scope: "atproto transition:generic",
+			scope: "atproto",
 		},
 		stores,
 		actorResolver,
