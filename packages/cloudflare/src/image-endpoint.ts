@@ -16,6 +16,9 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
+	cacheMediaResponse,
+	canonicalTransformRedirect,
+	canonicalTransformSearch,
 	getTransformFingerprint,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
@@ -94,6 +97,9 @@ export const GET: APIRoute = async (ctx) => {
 	// it (bundled assets via ASSETS, allowed remote via fetch).
 	if (!key || !storage) return adapterGET(ctx);
 
+	const canonical = canonicalTransformSearch(url);
+	if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+
 	// An unread download keeps its storage read open even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
 	const serveOriginal = (source: {
@@ -152,6 +158,7 @@ export const GET: APIRoute = async (ctx) => {
 		const response = result.response();
 		if (!response.body) return new Response(null, { status: 500 });
 
+		cacheMediaResponse(ctx.cache, key);
 		return new Response(response.body, {
 			status: 200,
 			headers: {

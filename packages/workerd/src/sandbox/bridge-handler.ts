@@ -818,7 +818,9 @@ async function dispatch(
 			);
 		case "media/delete":
 			requireCapability(opts, "media:write");
-			return mediaDelete(db, requireString(body, "id"), opts.storage);
+			return mediaDelete(db, requireString(body, "id"), opts.storage, (storageKey) =>
+				invalidateMediaCache(opts, pluginId, storageKey, optionalString(body, "invocationId")),
+			);
 
 		// ── HTTP ────────────────────────────────────────────────────────
 		case "http/fetch":
@@ -1318,6 +1320,15 @@ async function guardedContentWrite<T>(
 	const result = await write();
 	if (typeof recordWrite === "function") await recordWrite();
 	return result;
+}
+
+async function invalidateMediaCache(
+	opts: BridgeHandlerOptions,
+	pluginId: string,
+	storageKey: string,
+	invocationId: string | undefined,
+): Promise<void> {
+	await opts.contentActions?.()?.invalidateMedia?.(pluginId, storageKey, invocationId);
 }
 
 function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {
@@ -2074,6 +2085,7 @@ async function mediaDelete(
 	db: Kysely<Database>,
 	id: string,
 	storage?: BridgeStorage | null,
+	invalidateMedia?: (storageKey: string) => Promise<void>,
 ): Promise<boolean> {
 	// Look up storage key before deleting
 	const media = await db
@@ -2096,6 +2108,7 @@ async function mediaDelete(
 		} catch (error) {
 			console.warn(`[bridge] Failed to delete storage object ${media.storage_key}:`, error);
 		}
+		await invalidateMedia?.(media.storage_key);
 	}
 
 	return BigInt(result.numDeletedRows) > 0n;

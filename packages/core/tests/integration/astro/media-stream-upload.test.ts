@@ -1181,6 +1181,37 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.size).toBe(0);
 	});
 
+	it("purges the cached file and variants after deleting the stored file", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		const invalidate = vi.fn(async () => {});
+
+		const response = await deleteMedia({
+			params: { id: media.id },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(storage.objects.size).toBe(0);
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
+	});
+
 	it("reports a failed storage delete and leaves the object reachable for cleanup", async () => {
 		const repo = new MediaRepository(db);
 		const media = await repo.create({
@@ -1193,9 +1224,11 @@ describe("streamed media upload fallback", () => {
 		const storage = streamingStorage();
 		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
 		storage.delete.mockRejectedValueOnce(new Error("bucket unavailable"));
+		const invalidate = vi.fn(async () => {});
 
 		const response = await deleteMedia({
 			params: { id: media.id },
+			cache: { enabled: true, invalidate },
 			locals: {
 				emdash: {
 					db,
@@ -1210,6 +1243,7 @@ describe("streamed media upload fallback", () => {
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as { data: unknown };
 		expect(body.data).toEqual({ deleted: true, storageDeleted: false });
+		expect(invalidate).not.toHaveBeenCalled();
 		expect(await repo.findById(media.id)).toBeNull();
 		expect(storage.objects.has(media.storageKey)).toBe(true);
 

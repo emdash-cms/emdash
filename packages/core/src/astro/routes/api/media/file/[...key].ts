@@ -10,6 +10,7 @@ import { apiError, handleError } from "#api/error.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { contentDisposition } from "#media/content-disposition.js";
 import {
+	cacheMediaResponse,
 	IMMUTABLE_IMAGE_CACHE,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	isNotModified,
@@ -172,6 +173,9 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 
 		const response = new Response(body, { status: 200, headers });
 		if (body) unusedBody = undefined;
+		// Only images: the route cache ignores Range, so a cached video or audio
+		// file would answer a player's seek with the whole file.
+		if (!range && result.contentType.startsWith("image/")) cacheMediaResponse(cache, key);
 		return response;
 	} catch (error) {
 		// Check if it's a "not found" error

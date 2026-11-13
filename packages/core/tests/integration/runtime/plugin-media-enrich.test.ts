@@ -1,9 +1,13 @@
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
-import { PluginContextFactory, createMediaAccessWithWrite } from "../../../src/plugins/context.js";
+import {
+	type ContentActionCallbacks,
+	PluginContextFactory,
+	createMediaAccessWithWrite,
+} from "../../../src/plugins/context.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import type { Storage } from "../../../src/storage/types.js";
 import { JPEG_4x4 } from "../../utils/image-fixtures.js";
@@ -248,6 +252,39 @@ describe("plugin ctx.media.delete", () => {
 
 		expect(await storage.exists(uploaded.storageKey)).toBe(false);
 		expect(await new MediaRepository(db).findById(uploaded.mediaId)).toBeNull();
+	});
+
+	it("purges the cached file and variants after removing the stored file", async () => {
+		const invalidateMedia = vi.fn(async () => {});
+		const media = new PluginContextFactory({
+			db,
+			storage: fakeStorage(),
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- media deletes only call invalidateMedia
+			contentActions: { invalidateMedia } as unknown as ContentActionCallbacks,
+		}).createContext(pluginWithMediaWrite()).media;
+		if (!media || !("delete" in media)) throw new Error("media write capability is unavailable");
+		const uploaded = await media.upload("photo.jpg", "image/jpeg", JPEG_4x4.slice().buffer);
+
+		expect(await media.delete(uploaded.mediaId)).toBe(true);
+
+		expect(invalidateMedia).toHaveBeenCalledWith("media-enrich-test", uploaded.storageKey);
+	});
+
+	it("does not purge while another record still serves the stored file", async () => {
+		const invalidateMedia = vi.fn(async () => {});
+		const storage = fakeStorage();
+		const media = createMediaAccessWithWrite(db, undefined, storage, true, invalidateMedia);
+		const uploaded = await media.upload("photo.jpg", "image/jpeg", JPEG_4x4.slice().buffer);
+		await new MediaRepository(db).create({
+			filename: "copy.jpg",
+			mimeType: "image/jpeg",
+			storageKey: uploaded.storageKey,
+		});
+
+		expect(await media.delete(uploaded.mediaId)).toBe(true);
+
+		expect(await storage.exists(uploaded.storageKey)).toBe(true);
+		expect(invalidateMedia).not.toHaveBeenCalled();
 	});
 
 	it("returns false for an unknown id", async () => {

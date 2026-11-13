@@ -15,6 +15,9 @@ import { GET as genericGET } from "astro/assets/endpoint/generic";
 import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
+	cacheMediaResponse,
+	canonicalTransformRedirect,
+	canonicalTransformSearch,
 	getTransformFingerprint,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
@@ -82,6 +85,9 @@ export const GET: APIRoute = async (ctx) => {
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
 
+	const canonical = canonicalTransformSearch(url, imageConfig.assetQueryParams);
+	if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+
 	// An unread download retains its storage connection even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
 	try {
@@ -128,6 +134,7 @@ export const GET: APIRoute = async (ctx) => {
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
 		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
 
+		cacheMediaResponse(ctx.cache, key);
 		return new Response(data, {
 			status: 200,
 			headers: {

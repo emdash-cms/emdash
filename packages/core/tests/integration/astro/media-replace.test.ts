@@ -29,6 +29,10 @@ function memoryStorage() {
 	return { objects, upload };
 }
 
+function routeCache() {
+	return { enabled: true, invalidate: vi.fn(async () => undefined) };
+}
+
 function replaceRequest(
 	options: {
 		bytes?: Uint8Array;
@@ -65,10 +69,12 @@ function buildContext(options: {
 	user?: User | null;
 	maxUploadSize?: number;
 	replaceMetadata?: ReplaceMetadata;
+	cache?: ReturnType<typeof routeCache>;
 }): APIContext {
 	const user = options.user === undefined ? { id: "author-1", role: 30 as const } : options.user;
 	return {
 		params: { id: "media-1" },
+		cache: options.cache,
 		url: new URL(options.request.url),
 		request: options.request,
 		locals: {
@@ -320,5 +326,58 @@ describe("PUT /media/:id/replace", () => {
 			original.storageKey,
 		]);
 		expect((await new MediaRepository(db).findMany()).items).toHaveLength(1);
+	});
+
+	it("purges the cached file and its variants after the bytes are replaced", async () => {
+		const original = await createImage();
+		const cache = routeCache();
+
+		const response = await putReplace(
+			buildContext({ db, request: replaceRequest(), storage: memoryStorage(), cache }),
+		);
+
+		expect(response.status).toBe(200);
+		expect(cache.invalidate).toHaveBeenCalledWith({
+			tags: [`emdash:media:${original.storageKey}`],
+		});
+	});
+
+	it("purges even when the metadata update fails after the bytes changed", async () => {
+		const original = await createImage();
+		const cache = routeCache();
+		const replaceMetadata = vi.fn<ReplaceMetadata>().mockResolvedValue({
+			success: false,
+			error: { code: "MEDIA_REPLACE_METADATA_ERROR", message: "Failed" },
+		});
+
+		const response = await putReplace(
+			buildContext({
+				db,
+				request: replaceRequest(),
+				storage: memoryStorage(),
+				cache,
+				replaceMetadata,
+			}),
+		);
+
+		expect(response.status).toBe(500);
+		expect(cache.invalidate).toHaveBeenCalledWith({
+			tags: [`emdash:media:${original.storageKey}`],
+		});
+	});
+
+	it("does not purge when the storage write fails", async () => {
+		await createImage();
+		const storage = memoryStorage();
+		storage.upload.mockRejectedValueOnce(new Error("storage unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const cache = routeCache();
+
+		const response = await putReplace(
+			buildContext({ db, request: replaceRequest(), storage, cache }),
+		);
+
+		expect(response.status).toBe(500);
+		expect(cache.invalidate).not.toHaveBeenCalled();
 	});
 });

@@ -127,6 +127,7 @@ describe("Bridge Handler Conformance", () => {
 		) => Promise<unknown>;
 		taxonomyWrite?: BridgeHandlerOptions["taxonomyWrite"];
 		contentActions?: BridgeHandlerOptions["contentActions"];
+		storage?: BridgeHandlerOptions["storage"];
 	}) {
 		return createBridgeHandler({
 			pluginId: opts.pluginId ?? "test-plugin",
@@ -141,6 +142,7 @@ describe("Bridge Handler Conformance", () => {
 			commentModerate: opts.commentModerate,
 			taxonomyWrite: opts.taxonomyWrite,
 			contentActions: opts.contentActions,
+			storage: opts.storage,
 		});
 	}
 
@@ -1491,6 +1493,36 @@ describe("Bridge Handler Conformance", () => {
 			const list = result.result as { items: unknown[] };
 			expect(list.items.length).toBeGreaterThanOrEqual(1);
 			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("media/delete purges the deleted file's route cache within the invocation", async () => {
+			await db.schema
+				.createTable("media")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("storage_key", "text", (col) => col.notNull())
+				.execute();
+			await db
+				.insertInto("media" as any)
+				.values({ id: "m-1", storage_key: "photo.png" })
+				.execute();
+			const storage = {
+				upload: vi.fn(),
+				download: vi.fn(),
+				delete: vi.fn().mockResolvedValue(undefined),
+			};
+			const invalidateMedia = vi.fn().mockResolvedValue(undefined);
+			const handler = makeHandler({
+				capabilities: ["media:write"],
+				storage,
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- media deletes only call invalidateMedia
+				contentActions: () => ({ invalidateMedia }) as any,
+			});
+
+			const result = await call(handler, "media/delete", { id: "m-1", invocationId: "inv-1" });
+
+			expect(result).toEqual({ result: true });
+			expect(storage.delete).toHaveBeenCalledWith("photo.png");
+			expect(invalidateMedia).toHaveBeenCalledWith("test-plugin", "photo.png", "inv-1");
 		});
 
 		it("media/list defaults a non-number limit", async () => {

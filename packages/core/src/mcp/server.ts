@@ -42,6 +42,7 @@ import { convertDataForRead, convertDataForWrite } from "../client/portable-text
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -2921,7 +2922,11 @@ export function createMcpServer(
 			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
-			return unwrap(await ec.handleMediaDelete(args.id));
+			const result = await ec.handleMediaDelete(args.id);
+			if (result.success && result.data?.storageDeleted) {
+				await invalidateRouteCache(getExtra(extra).cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+			return unwrap(result);
 		},
 	);
 

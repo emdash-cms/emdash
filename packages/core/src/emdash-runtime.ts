@@ -97,6 +97,7 @@ import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { pluginToolName } from "./mcp/plugin-tool-name.js";
+import { mediaCacheTag } from "./media/image-endpoint.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -2624,6 +2625,13 @@ export class EmDashRuntime {
 				requireRuntime().beginPluginInvocation(pluginId, invocationId, invalidateContentCache),
 			flush: (pluginId, invocationId, final) =>
 				requireRuntime().flushPluginAfterHooks(pluginId, invocationId, final),
+			invalidateMedia: (pluginId, storageKey, invocationId, invalidateContentCache) =>
+				requireRuntime().invalidatePluginMedia(
+					pluginId,
+					storageKey,
+					invocationId,
+					invalidateContentCache,
+				),
 			getVersioned: (pluginId, collection, id) =>
 				requireRuntime().pluginGetVersioned(pluginId, collection, id),
 			publish: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
@@ -6598,6 +6606,9 @@ export class EmDashRuntime {
 			...actions,
 			begin: (pluginId, invocationId, invocationInvalidator) =>
 				actions.begin?.(pluginId, invocationId, invocationInvalidator ?? invalidateContentCache),
+			invalidateMedia: (pluginId, storageKey, invocationId) =>
+				actions.invalidateMedia?.(pluginId, storageKey, invocationId, invalidateContentCache) ??
+				Promise.resolve(),
 			publish: (pluginId, collection, id, options, invocationId) =>
 				actions.publish(pluginId, collection, id, options, invocationId, invalidateContentCache),
 			unpublish: (pluginId, collection, id, options, invocationId) =>
@@ -7154,6 +7165,28 @@ export class EmDashRuntime {
 
 	private pluginInvocationKey(pluginId: string, invocationId: string): string {
 		return JSON.stringify([pluginId, invocationId]);
+	}
+
+	private async invalidatePluginMedia(
+		pluginId: string,
+		storageKey: string,
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<void> {
+		const invalidator =
+			invalidateContentCache ??
+			(invocationId
+				? this.pluginInvocationCacheInvalidators.get(
+						this.pluginInvocationKey(pluginId, invocationId),
+					)
+				: undefined) ??
+			this.pluginContentCacheInvalidator;
+		if (!invalidator) return;
+		try {
+			await invalidator([mediaCacheTag(storageKey)]);
+		} catch (error) {
+			console.error(`[plugin-media] Cache invalidation failed for ${storageKey}:`, error);
+		}
 	}
 
 	private beginPluginInvocation(

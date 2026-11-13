@@ -71,3 +71,41 @@ describe("Cloudflare content action callback isolation", () => {
 		expect(callbacksB.flush).not.toHaveBeenCalled();
 	});
 });
+
+describe("Cloudflare bridge media delete", () => {
+	afterEach(() => {
+		setContentActionsCallback("runtime-a", null);
+	});
+
+	it("purges the deleted file's route cache through the runtime callbacks", async () => {
+		const invalidateMedia = vi.fn().mockResolvedValue(undefined);
+		setContentActionsCallback("runtime-a", {
+			invalidateMedia,
+		} as unknown as ContentActionCallbacks);
+		const statement = (sql: string) => ({
+			bind: () => ({
+				first: async () => (sql.startsWith("SELECT") ? { storage_key: "photo.png" } : null),
+				run: async () => ({ meta: { changes: 1 } }),
+			}),
+		});
+		const bucket = { delete: vi.fn().mockResolvedValue(undefined) };
+		const plugin = new PluginBridge(
+			{
+				props: {
+					pluginId: "publisher",
+					pluginVersion: "1.0.0",
+					capabilities: ["media:write"],
+					allowedHosts: [],
+					storageCollections: [],
+					contentActionsRuntimeId: "runtime-a",
+				},
+			} as never,
+			{ DB: { prepare: statement }, MEDIA: bucket } as never,
+		);
+
+		await expect(plugin.mediaDelete("m-1", "invoke-a")).resolves.toBe(true);
+
+		expect(bucket.delete).toHaveBeenCalledWith("photo.png");
+		expect(invalidateMedia).toHaveBeenCalledWith("publisher", "photo.png", "invoke-a");
+	});
+});

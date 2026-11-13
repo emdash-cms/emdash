@@ -381,6 +381,37 @@ describe("sandboxed plugin action settlement", () => {
 		expect(afterPublish).toHaveBeenCalledOnce();
 	});
 
+	it("purges a deleted media file through the invocation's cache invalidator", async () => {
+		const invocationId = randomUUID();
+		const invocationInvalidate = vi.fn().mockResolvedValue(undefined);
+		const siteInvalidate = vi.fn().mockResolvedValue(undefined);
+		runtime.setPluginContentCacheInvalidator(siteInvalidate);
+
+		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
+		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+		await contentActions.flush(pluginId, invocationId, true);
+
+		expect(invocationInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+		expect(siteInvalidate).not.toHaveBeenCalled();
+	});
+
+	it("purges a media file deleted outside a route and survives a failed purge", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const invalidate = vi.fn().mockRejectedValue(new Error("purge unavailable"));
+			runtime.setPluginContentCacheInvalidator(invalidate);
+
+			await expect(
+				contentActions.invalidateMedia?.(pluginId, "photo.png"),
+			).resolves.toBeUndefined();
+
+			expect(invalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+			expect(log).toHaveBeenCalled();
+		} finally {
+			log.mockRestore();
+		}
+	});
+
 	it("invalidates publication from a cron hook", async () => {
 		const item = await draft();
 		cronTargetId = item.id;

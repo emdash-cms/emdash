@@ -41,9 +41,10 @@ function context(query: string, contentType = "image/jpeg") {
 		storage,
 		ctx: {
 			request: new Request(
-				`https://example.test/_image?href=/_emdash/api/media/file/photo.jpg&${query}`,
+				`https://example.test/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fphoto.jpg${query ? `&${query}` : ""}`,
 			),
 			locals: { emdash: { storage } },
+			cache: { enabled: true, set: vi.fn() },
 		},
 	};
 }
@@ -95,6 +96,43 @@ describe("Cloudflare image endpoint", () => {
 		expect(transform).toHaveBeenCalledWith({ width: 120 });
 		expect(output).toHaveBeenCalledWith({ format: "image/webp", quality });
 		expect(await response.text()).toBe("transformed");
+	});
+
+	it("stores a transformed variant in the route cache under its storage key", async () => {
+		installImages();
+		const { ctx } = context("w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(ctx.cache.set).toHaveBeenCalledWith({
+			maxAge: 31_536_000,
+			tags: ["emdash:media:photo.jpg"],
+		});
+	});
+
+	it("does not cache the original fallback for malformed params", async () => {
+		installImages();
+		const { ctx } = context("w=120&q=unknown");
+
+		await GET(ctx as never);
+
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("redirects a non-canonical query without reading storage or caching", async () => {
+		const { images } = installImages();
+		const { ctx, storage } = context("x=1&w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe(
+			"/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fphoto.jpg&w=120",
+		);
+		expect(storage.download).not.toHaveBeenCalled();
+		expect(images.input).not.toHaveBeenCalled();
+		expect(ctx.cache.set).not.toHaveBeenCalled();
 	});
 
 	it("uses the Images default quality for an omitted q", async () => {
@@ -196,7 +234,7 @@ async function request(options: {
 			lastModified: new Date("2026-01-01T00:00:00Z"),
 		}),
 	};
-	const url = `https://site.test/_image?href=/_emdash/api/media/file/a.bin&${options.query}`;
+	const url = `https://site.test/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fa.bin&${options.query}`;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the endpoint reads only request and locals
 	const ctx = {
 		request: new Request(url, { method: options.method ?? "GET", headers: options.headers }),
