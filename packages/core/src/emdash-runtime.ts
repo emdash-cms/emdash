@@ -7232,6 +7232,9 @@ export class EmDashRuntime {
 			this.pluginInvocationCacheInvalidators.delete(key);
 		} else {
 			const timer = setTimeout(() => {
+				const late = this.pendingPluginAfterHooks.get(key) ?? [];
+				this.pendingPluginAfterHooks.delete(key);
+				for (const invoke of late) after(invoke);
 				this.releasedPluginInvocations.delete(key);
 				this.activePluginInvocations.delete(key);
 				this.pluginInvocationCacheInvalidators.delete(key);
