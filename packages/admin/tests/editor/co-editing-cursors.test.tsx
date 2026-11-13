@@ -20,6 +20,7 @@ import { editorSchema, fragmentName } from "../../src/co-editing/layout";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
 import { FieldPresence } from "../../src/components/presence/FieldPresence";
 import { PresenceAvatars } from "../../src/components/presence/PresenceAvatars";
+import { UserAvatar } from "../../src/components/UserAvatar";
 import {
 	portableTextExtensions,
 	portableTextToProsemirror,
@@ -27,6 +28,8 @@ import {
 } from "../../src/internal/portable-text";
 import { CURSOR_LABEL_MS } from "../../src/lib/co-editing/replica/cursors";
 import type { RoomEditing } from "../../src/lib/co-editing/types";
+import { USER_AVATAR_PALETTES } from "../../src/lib/user-avatar";
+import { userColorProps, userPaletteColor } from "../../src/lib/user-color";
 import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
 import { PortableTextYSync } from "../../src/portable-text/y-sync";
 import { LoopbackRoom, settle } from "../co-editing/loopback-room";
@@ -37,6 +40,7 @@ import {
 } from "../co-editing/session-harness";
 import { adminRoot } from "../utils/form-layout";
 import { render } from "../utils/render";
+import { USERS_SHARING_A_PALETTE, contrast, srgb } from "../utils/user-colors";
 
 vi.mock("../../src/components/MediaPickerModal", () => ({ MediaPickerModal: () => null }));
 vi.mock("../../src/components/SectionPickerModal", () => ({ SectionPickerModal: () => null }));
@@ -105,17 +109,19 @@ async function mount(
 	options: {
 		width?: number;
 		dir?: string;
+		variant?: "boxed" | "document";
 		children?: React.ReactNode;
 		onRender?: React.ProfilerOnRenderCallback;
 	} = {},
 ): Promise<Editor> {
-	const { width = 640, dir = "ltr", children, onRender = () => {} } = options;
+	const { width = 640, dir = "ltr", variant, children, onRender = () => {} } = options;
 	let editor: Editor | null = null;
 	const screen = await render(
 		<React.Profiler id={client.editing.id} onRender={onRender}>
 			<div dir={dir} data-co-editing-room={client.editing.id} style={{ width }}>
 				<div data-co-editing-field="body">
 					<PortableTextEditor
+						variant={variant}
 						collaboration={client.editing.richText("body")}
 						onEditorReady={(instance) => {
 							editor ??= instance;
@@ -278,24 +284,89 @@ describe("other people's carets", () => {
 		}
 	});
 
-	it("draw each person's caret and selection in the color presence gives them", async () => {
+	it.each(["boxed", "document"] as const)(
+		"show the name over a caret on the first line, clear of the %s editor's toolbar",
+		async (variant) => {
+			const room = roomWith([paragraph("k-a", "Alpha beta gamma")]);
+			const a = await join(room);
+			const b = await join(room);
+			const mine = await mount(a);
+			const theirs = await mount(b, { variant });
+
+			mine.chain().focus().setTextSelection(3).run();
+			await vi.waitFor(() => expect(shows(theirs)).toBe(true));
+			// The label is placed on the next frame.
+			await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+			const caret = caretIn(theirs)!;
+			const label = labelOf(caret)!.getBoundingClientRect();
+			const toolbar = document
+				.querySelector(`[data-co-editing-room="${b.editing.id}"] [data-emdash-editor-toolbar]`)!
+				.getBoundingClientRect();
+			expect(caret.hasAttribute("data-below")).toBe(false);
+			expect(label.top - toolbar.bottom).toBeGreaterThanOrEqual(4);
+		},
+	);
+
+	it("draw each person's caret and selection in their avatar's color", async () => {
 		const room = roomWith([paragraph("k-a", "Alpha beta gamma")]);
 		const a = await join(room);
 		const b = await join(room);
 		const mine = await mount(a);
 		const theirs = await mount(b);
+		const avatar = await render(
+			<UserAvatar user={{ id: `user-${a.replica().doc.clientID}`, name: "A" }} size={30} />,
+		);
+		unmounts.push(() => avatar.unmount());
+		// The wave drawn in the palette's bottom color, the one without a softening opacity.
+		const avatarColor = avatar.container
+			.querySelector("path:not([opacity])")!
+			.getAttribute("fill")!;
 
 		mine.chain().focus().setTextSelection({ from: 2, to: 10 }).run();
 		await vi.waitFor(() =>
 			expect(theirs.view.dom.querySelector(".emdash-remote-selection")).not.toBeNull(),
 		);
 
-		const color = b.replica().presence.colorOf(`user-${a.replica().doc.clientID}`);
-		expect(color).not.toBe("neutral");
-		expect(caretIn(theirs)?.getAttribute("data-author-color")).toBe(color);
+		expect(srgb(getComputedStyle(caretIn(theirs)!).borderInlineStartColor)).toEqual(
+			srgb(avatarColor),
+		);
 		const selection = theirs.view.dom.querySelector<HTMLElement>(".emdash-remote-selection")!;
-		expect(selection.getAttribute("data-author-color")).toBe(color);
+		expect(srgb(getComputedStyle(selection).getPropertyValue("--emdash-author"))).toEqual(
+			srgb(avatarColor),
+		);
 		expect(getComputedStyle(selection).backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+	});
+
+	it("draw two people whose avatars share a palette in the same color", async () => {
+		const room = roomWith([paragraph("k-a", "Alpha beta gamma")]);
+		room.users.push(...USERS_SHARING_A_PALETTE.map((id) => ({ id, name: id })));
+		const ana = await join(room);
+		const ben = await join(room);
+		const theirs = await mount(await join(room));
+		const sync = ySyncPluginKey.getState(theirs.state);
+		for (const [client, at] of [
+			[ana, 2],
+			[ben, 9],
+		] as const) {
+			const cursor = absolutePositionToRelativePosition(at, sync.type, sync.binding.mapping);
+			client.replica().awareness.setLocalStateField("cursor", { anchor: cursor, head: cursor });
+		}
+		await vi.waitFor(() =>
+			expect(theirs.view.dom.querySelectorAll(".emdash-remote-caret")).toHaveLength(2),
+		);
+
+		const carets = [...theirs.view.dom.querySelectorAll<HTMLElement>(".emdash-remote-caret")];
+		expect(new Set(carets.map((caret) => caret.dataset.user))).toEqual(
+			new Set(USERS_SHARING_A_PALETTE),
+		);
+		expect(carets.map((caret) => caret.dataset.authorColor)).not.toContain("neutral");
+		const [first, second] = carets.map((caret) => {
+			const style = getComputedStyle(caret);
+			const label = getComputedStyle(labelOf(caret)!);
+			return [style.borderInlineStartColor, label.backgroundImage];
+		});
+		expect(first).toEqual(second);
 	});
 
 	it("change only ProseMirror's decorations when a cursor moves, never React", async () => {
@@ -343,53 +414,80 @@ describe("other people's carets", () => {
 	});
 });
 
-/** A CSS color as 8-bit sRGB, through a canvas so any color syntax works. */
-function srgb(color: string): number[] {
-	const canvas = document.createElement("canvas");
-	canvas.width = canvas.height = 1;
-	const context = canvas.getContext("2d")!;
-	context.fillStyle = color;
-	context.fillRect(0, 0, 1, 1);
-	const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
-	return [red!, green!, blue!];
-}
-
-function contrast(a: string, b: string): number {
-	const luminance = (color: string) => {
-		const [red, green, blue] = srgb(color).map((value) => {
-			const channel = value / 255;
-			return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-		});
-		return 0.2126 * red! + 0.7152 * green! + 0.0722 * blue!;
-	};
-	const [high, low] = [luminance(a), luminance(b)].toSorted((x, y) => y - x);
-	return (high! + 0.05) / (low! + 0.05);
-}
-
 describe("a remote caret's color", () => {
-	it.each(["light", "dark"])("keeps 3:1 against the editor in %s mode", async (mode) => {
-		const colors = ["neutral", "purple", "teal", "blue", "orange"];
+	it("puts a name flag's darker end at its caret, whichever way the text runs", async () => {
+		const color = userPaletteColor(0);
+		const caret = (key: string) => (
+			<span key={key} className="emdash-remote-caret" {...userColorProps(color)}>
+				<span className="emdash-presence-pill emdash-remote-caret-label">{key}</span>
+			</span>
+		);
 		const screen = await render(
-			<div data-mode={mode} className="bg-kumo-base">
-				<div className="ProseMirror">
-					{colors.map((color) => (
-						<span key={color} className="emdash-remote-caret" data-author-color={color}>
-							x
-						</span>
-					))}
+			<div className="ProseMirror">
+				<p dir="ltr">{caret("ltr")}</p>
+				<p dir="rtl">{caret("rtl")}</p>
+				<div dir="rtl">
+					<pre className="emdash-code-block">{caret("rtl code")}</pre>
 				</div>
 			</div>,
 		);
 		unmounts.push(() => screen.unmount());
-		const surface = screen.container.firstElementChild as HTMLElement;
-		const background = getComputedStyle(surface).backgroundColor;
-		const short = Array.from(
-			surface.querySelectorAll<HTMLElement>(".emdash-remote-caret"),
-			(caret) => ({
-				color: caret.dataset.authorColor,
-				ratio: contrast(getComputedStyle(caret).borderInlineStartColor, background),
-			}),
-		).filter(({ ratio }) => ratio < 3);
-		expect(short).toEqual([]);
+
+		const flags = Array.from(
+			screen.container.querySelectorAll<HTMLElement>(".emdash-remote-caret-label"),
+			(label) => {
+				const style = getComputedStyle(label);
+				return {
+					text: label.textContent,
+					direction: style.direction,
+					towardLeft: /\bto left\b|270deg/.test(style.backgroundImage),
+				};
+			},
+		);
+		expect(flags).toEqual([
+			{ text: "ltr", direction: "ltr", towardLeft: false },
+			{ text: "rtl", direction: "rtl", towardLeft: true },
+			{ text: "rtl code", direction: "ltr", towardLeft: false },
+		]);
 	});
+
+	it.each(["light", "dark"])(
+		"keeps 3:1 against the editor in %s mode, in every avatar palette",
+		async (mode) => {
+			const colors = [null, ...USER_AVATAR_PALETTES.map((_, index) => userPaletteColor(index))];
+			const screen = await render(
+				<div data-mode={mode}>
+					{["bg-kumo-base", "bg-kumo-elevated"].map((surface) => (
+						<div key={surface} className={surface}>
+							<div className="ProseMirror">
+								{colors.map((color) => (
+									<span
+										key={color?.name ?? "neutral"}
+										className="emdash-remote-caret"
+										{...userColorProps(color)}
+									>
+										x
+									</span>
+								))}
+							</div>
+						</div>
+					))}
+				</div>,
+			);
+			unmounts.push(() => screen.unmount());
+			const short = Array.from(screen.container.firstElementChild!.children, (surface) => {
+				const background = srgb(getComputedStyle(surface).backgroundColor);
+				return Array.from(
+					surface.querySelectorAll<HTMLElement>(".emdash-remote-caret"),
+					(caret) => ({
+						color: caret.dataset.authorColor,
+						ratio: contrast(srgb(getComputedStyle(caret).borderInlineStartColor), background),
+					}),
+				);
+			})
+				.flat()
+				.filter(({ ratio }) => ratio < 3);
+			expect(short).toEqual([]);
+		},
+	);
 });

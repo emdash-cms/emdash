@@ -6,7 +6,8 @@ import * as React from "react";
 import { useRoomPeers } from "../../lib/co-editing/hooks.js";
 import type { PresenceUser, RoomEditing } from "../../lib/co-editing/types.js";
 import { cn } from "../../lib/utils.js";
-import { initials, scrollToField } from "./presence-format.js";
+import { UserAvatar } from "../UserAvatar.js";
+import { scrollToField } from "./presence-format.js";
 import { useAfterFirstPaint, useLeavingItems } from "./presence-motion.js";
 
 const MAX_AVATARS = 3;
@@ -14,9 +15,6 @@ const MAX_AVATARS = 3;
 const FIRST_CIRCLE_PX = 30;
 const NEXT_CIRCLE_PX = 23;
 
-/** A person's circle: their photo, or their initials on their color. */
-const FACE =
-	"flex shrink-0 items-center justify-center rounded-full bg-(--emdash-author) font-semibold text-(color:--emdash-author-text) select-none";
 /** Overlapping circles in the bar, cut apart by a ring in the bar's color. */
 const STACKED =
 	"relative size-7.5 text-[11px] leading-none ring-2 ring-kumo-elevated focus-visible:z-10";
@@ -35,7 +33,7 @@ export interface PresenceAvatarsProps {
 	room: RoomEditing;
 	/** The label a field goes by in the editor. */
 	fieldLabel: (field: string) => string;
-	/** Photos the admin already has, by user id. Anyone without one shows their initials. */
+	/** Photos the admin already has, by user id. Anyone without one shows their generated avatar. */
 	photos?: ReadonlyMap<string, string>;
 }
 
@@ -124,23 +122,21 @@ export function PresenceAvatars({ room, fieldLabel, photos }: PresenceAvatarsPro
 							shape="circle"
 							size="sm"
 							data-presence-face=""
-							data-author-color={user.color}
 							aria-label={describe(user)}
 							// Focus still shows a viewer's name, but there's no field to go to.
 							aria-disabled={user.field === null || undefined}
 							aria-hidden={leaving || undefined}
 							tabIndex={leaving ? -1 : undefined}
 							className={cn(
-								FACE,
 								STACKED,
-								"hover:bg-(--emdash-author)",
+								"select-none",
 								index > 0 && OVERLAP,
 								animate && ENTER,
 								leaving && LEAVING,
 							)}
 							onClick={user.field === null ? undefined : () => go(user)}
 						>
-							<Face user={user} photo={photos?.get(user.id)} />
+							<UserAvatar user={withPhoto(user, photos)} size={FIRST_CIRCLE_PX} />
 						</Button>
 					}
 				/>
@@ -167,23 +163,8 @@ export function PresenceAvatars({ room, fieldLabel, photos }: PresenceAvatarsPro
 	);
 }
 
-/** A person's photo, or their initials when there is none or it doesn't load. */
-function Face({ user, photo }: { user: PresenceUser; photo: string | undefined }) {
-	const [failed, setFailed] = React.useState<string | null>(null);
-	if (photo && photo !== failed) {
-		return (
-			<img
-				src={photo}
-				alt=""
-				loading="lazy"
-				decoding="async"
-				draggable={false}
-				className="emdash-presence-photo size-full rounded-full object-cover"
-				onError={() => setFailed(photo)}
-			/>
-		);
-	}
-	return <span dir="auto">{initials(user.name)}</span>;
+function withPhoto(user: PresenceUser, photos: ReadonlyMap<string, string> | undefined) {
+	return { id: user.id, name: user.name, avatarUrl: photos?.get(user.id) };
 }
 
 const FACE_SELECTOR = "[data-presence-face]";
@@ -311,13 +292,7 @@ function Everyone({
 						const status = field === null ? t`Viewing` : t`Editing ${field}`;
 						const row = (
 							<>
-								<span
-									data-author-color={user.color}
-									aria-hidden="true"
-									className={cn(FACE, "size-6 text-[11px] leading-none")}
-								>
-									<Face user={user} photo={photos?.get(user.id)} />
-								</span>
+								<UserAvatar user={withPhoto(user, photos)} size={24} />
 								<span dir="auto" className="min-w-0 flex-1 truncate text-start">
 									{user.name}
 								</span>

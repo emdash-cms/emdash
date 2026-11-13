@@ -12,6 +12,7 @@ import {
 } from "../../src/components/revisions/revision-view-context.js";
 import type { RevisionListItem, RevisionListResponse } from "../../src/lib/api";
 import type { ChangeItem, RevisionDiff } from "../../src/lib/revision-diff/types.js";
+import { USER_AVATAR_PALETTES, userAvatarVariant } from "../../src/lib/user-avatar.js";
 import { render } from "../utils/render.tsx";
 
 vi.mock("../../src/lib/api", async () => {
@@ -24,6 +25,10 @@ import { fetchRevisions } from "../../src/lib/api";
 const mockFetchRevisions = fetchRevisions as Mock;
 
 const REVISIONS_TRIGGER = /^Revisions/;
+
+/** The name `data-author-color` takes for the palette of a user's avatar. */
+const paletteOf = (id: string) =>
+	USER_AVATAR_PALETTES[userAvatarVariant(id).palette]!.name.toLowerCase();
 const MAYA_ROW = /^Today, 12:00\sPM, Current version, Maya Chen$/;
 const SAM_ROW = /^Yesterday, 11:30\sPM, Published, Sam Okafor$/;
 const UNKNOWN_ROW = /^Yesterday, 10:00\sAM, Unknown author$/;
@@ -269,7 +274,7 @@ describe("RevisionHistory", () => {
 			.toBeInTheDocument();
 	});
 
-	it("gives each author their own colour and an unknown author the neutral one", async () => {
+	it("gives each author their avatar's colour and an unknown author the neutral one", async () => {
 		const screen = await renderExpanded(makeView());
 		const colorOf = async (name: RegExp) => {
 			const row = screen.getByRole("button", { name });
@@ -277,10 +282,8 @@ describe("RevisionHistory", () => {
 			return row.element().querySelector("[data-author-color]")?.getAttribute("data-author-color");
 		};
 
-		const maya = await colorOf(MAYA_ROW);
-		const sam = await colorOf(SAM_ROW);
-		expect(maya).not.toBe(sam);
-		expect([maya, sam]).not.toContain("neutral");
+		expect(await colorOf(MAYA_ROW)).toBe(paletteOf("u-maya"));
+		expect(await colorOf(SAM_ROW)).toBe(paletteOf("u-sam"));
 		expect(await colorOf(UNKNOWN_ROW)).toBe("neutral");
 	});
 
@@ -346,8 +349,8 @@ describe("RevisionHistory", () => {
 			.map((row) => row.querySelector("[data-author-color]")?.getAttribute("data-author-color"));
 		expect(both).toBe("neutral");
 		expect(samAndDeleted).toBe("neutral");
-		expect([samAlone, mayaAlone]).not.toContain("neutral");
-		expect(samAlone).not.toBe(mayaAlone);
+		expect(samAlone).toBe(paletteOf(sam.id));
+		expect(mayaAlone).toBe(paletteOf(maya.id));
 	});
 
 	it("shows a version in the canvas when its row is clicked", async () => {

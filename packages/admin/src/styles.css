@@ -1168,13 +1168,39 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 		block-size: 18px;
 		padding-inline: 6px;
 		border-radius: 4px;
-		background-color: var(--emdash-author);
-		color: var(--emdash-author-text);
+		background-color: var(--emdash-author-flag-start);
+		background-image: linear-gradient(
+			to right,
+			var(--emdash-author-flag-start),
+			var(--emdash-author-flag-end)
+		);
+		color: white;
 		font-size: 11px;
 		font-weight: 500;
 		line-height: 18px;
 		white-space: nowrap;
 		user-select: none;
+	}
+
+	/*
+	 * The darker end sits at the inline start, where a caret label meets its
+	 * caret. The parent's direction counts, since a pill's own follows the name.
+	 */
+	:dir(rtl) > .emdash-presence-pill {
+		background-image: linear-gradient(
+			to left,
+			var(--emdash-author-flag-start),
+			var(--emdash-author-flag-end)
+		);
+	}
+
+	/* Code runs left to right in any document, and so does a caret's label in it. */
+	.emdash-code-block .emdash-remote-caret > .emdash-presence-pill {
+		background-image: linear-gradient(
+			to right,
+			var(--emdash-author-flag-start),
+			var(--emdash-author-flag-end)
+		);
 	}
 }
 
@@ -1192,11 +1218,6 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 		cubic-bezier(0, 0, 0.2, 1);
 }
 
-.emdash-presence-photo {
-	outline: 1px solid light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
-	outline-offset: -1px;
-}
-
 @media (prefers-reduced-motion: reduce) {
 	.emdash-presence-avatars > [data-presence-face] {
 		transform: none;
@@ -1205,43 +1226,18 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 }
 
 /*
- * The caret line keeps 3:1 against the page in both themes, which the badge
- * colors miss: dark mode takes lighter shades, and light mode a darker orange.
+ * A person's caret line is their palette's bottom color, which keeps 3:1
+ * against the page in both themes, as the mid gray without a person does.
  */
 .ProseMirror .emdash-remote-caret {
-	--emdash-caret: var(--color-neutral-500, oklch(55.6% 0 0));
 	position: relative;
 	margin-inline: -1px;
-	border-inline-start: 2px solid var(--emdash-caret);
+	border-inline-start: 2px solid var(--emdash-author);
 	pointer-events: none;
 }
 
-.ProseMirror .emdash-remote-caret[data-author-color="purple"] {
-	--emdash-caret: light-dark(
-		var(--color-purple-600, oklch(55.8% 0.288 302.321)),
-		var(--color-purple-500, oklch(62.7% 0.265 303.9))
-	);
-}
-
-.ProseMirror .emdash-remote-caret[data-author-color="teal"] {
-	--emdash-caret: light-dark(
-		var(--color-teal-650, oklch(54.9% 0.096 184.565)),
-		var(--color-teal-500, oklch(70.4% 0.14 182.503))
-	);
-}
-
-.ProseMirror .emdash-remote-caret[data-author-color="blue"] {
-	--emdash-caret: light-dark(
-		var(--color-blue-600, oklch(54.6% 0.245 262.881)),
-		var(--color-blue-500, oklch(62.3% 0.214 259.815))
-	);
-}
-
-.ProseMirror .emdash-remote-caret[data-author-color="orange"] {
-	--emdash-caret: light-dark(
-		var(--color-yellow-700, oklch(55.4% 0.135 66.442)),
-		var(--color-orange-650, oklch(81.5% 0.197 76))
-	);
+.ProseMirror .emdash-remote-caret[data-author-color="neutral"] {
+	--emdash-author: var(--color-neutral-500, oklch(55.6% 0 0));
 }
 
 /* A wider target than the 2px caret, for showing the name on hover. */
@@ -1741,29 +1737,14 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
  * ========================================================================== */
 
 /*
- * Global, so the author dots in the Revisions list pick them up too. Text on
- * the solid colors is white, except on orange, which is light.
+ * Global, so the author dots in the Revisions list pick them up too. Elements
+ * set a person's colors inline, from their avatar's palette, and are neutral
+ * without one.
  */
 [data-author-color] {
 	--emdash-author: var(--color-kumo-badge-neutral);
-	--emdash-author-text: white;
-}
-
-[data-author-color="purple"] {
-	--emdash-author: var(--color-kumo-badge-purple);
-}
-
-[data-author-color="teal"] {
-	--emdash-author: var(--color-kumo-badge-teal);
-}
-
-[data-author-color="blue"] {
-	--emdash-author: var(--color-kumo-badge-blue);
-}
-
-[data-author-color="orange"] {
-	--emdash-author: var(--color-kumo-badge-orange);
-	--emdash-author-text: black;
+	--emdash-author-flag-start: var(--emdash-author);
+	--emdash-author-flag-end: var(--emdash-author);
 }
 
 [data-emdash-revision-view] {
@@ -1809,7 +1790,7 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	text-decoration: none;
 }
 
-/* 40% of the author's colour keeps struck text above 4.5:1 on its tint on every surface, orange included. */
+/* 40% of the author's colour keeps struck text above 4.5:1 on its tint on every surface, in every palette. */
 [data-emdash-revision-view] del {
 	color: color-mix(in oklab, var(--emdash-author) 40%, var(--text-color-kumo-default));
 	text-decoration-line: line-through;

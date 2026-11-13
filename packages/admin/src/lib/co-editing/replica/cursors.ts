@@ -1,7 +1,7 @@
 import type { DecorationAttrs } from "@tiptap/pm/view";
 import type { Awareness } from "y-protocols/awareness";
 
-import type { AuthorColor } from "../../author-colors.js";
+import { userColor, userColorProperties, type UserColor } from "../../user-color.js";
 import type { Clock } from "../session.js";
 
 /** How long a person's name shows over their caret after their cursor moves. */
@@ -29,7 +29,6 @@ interface CursorUser {
 export class RemoteCursors {
 	readonly #awareness: Awareness;
 	readonly #clock: Clock;
-	readonly #colorOf: (userId: string | null) => AuthorColor;
 	/** Each client's last cursor, kept after it leaves, so a rejoin isn't a move. */
 	readonly #cursors = new Map<number, string>();
 	readonly #movedAt = new Map<number, number>();
@@ -38,17 +37,20 @@ export class RemoteCursors {
 	#frame = 0;
 	readonly #unfitted = new Set<HTMLElement>();
 
-	constructor(awareness: Awareness, clock: Clock, colorOf: (userId: string | null) => AuthorColor) {
+	constructor(awareness: Awareness, clock: Clock) {
 		this.#awareness = awareness;
 		this.#clock = clock;
-		this.#colorOf = colorOf;
 		awareness.on("change", this.#onChange);
 	}
 
 	readonly caret = (user: CursorUser, clientId: number): HTMLElement => {
 		const caret = document.createElement("span");
+		const color = colorOf(user);
 		caret.className = "emdash-remote-caret";
-		caret.setAttribute("data-author-color", this.#colorOf(userId(user)));
+		caret.setAttribute("data-author-color", color?.name ?? "neutral");
+		for (const [property, value] of Object.entries(userColorProperties(color))) {
+			caret.style.setProperty(property, value);
+		}
 		caret.setAttribute("data-user", userId(user) ?? "");
 		const label = document.createElement("span");
 		label.className = "emdash-presence-pill emdash-remote-caret-label";
@@ -71,19 +73,15 @@ export class RemoteCursors {
 		return caret;
 	};
 
-	readonly selection = (user: CursorUser): DecorationAttrs => ({
-		class: "emdash-remote-selection",
-		"data-author-color": this.#colorOf(userId(user)),
-	});
-
-	/** Gives the carets on screen their people's colors again, after the colors change. */
-	recolor(): void {
-		for (const carets of this.#carets.values()) {
-			for (const caret of carets) {
-				caret.setAttribute("data-author-color", this.#colorOf(caret.getAttribute("data-user")));
-			}
-		}
-	}
+	readonly selection = (user: CursorUser): DecorationAttrs => {
+		const color = colorOf(user);
+		const attrs: DecorationAttrs = {
+			class: "emdash-remote-selection",
+			"data-author-color": color?.name ?? "neutral",
+		};
+		if (color) attrs.style = `--emdash-author: ${color.line}`;
+		return attrs;
+	};
 
 	dispose(): void {
 		this.#awareness.off("change", this.#onChange);
@@ -211,4 +209,9 @@ function applyPlacement(caret: HTMLElement, placement: Placement | undefined): v
 
 function userId(user: CursorUser): string | null {
 	return typeof user.id === "string" ? user.id : null;
+}
+
+function colorOf(user: CursorUser): UserColor | null {
+	const id = userId(user);
+	return id === null ? null : userColor(id);
 }
