@@ -11,7 +11,7 @@ function hook(integration: AstroIntegration, name: "astro:config:setup" | "astro
 	return handler;
 }
 
-async function routeCacheProviderFor(finalCache: unknown) {
+async function routeCacheProviderFor(cacheConfig: Record<string, unknown>) {
 	const integration = emdash({});
 	const root = new URL("file:///tmp/emdash-route-cache-provider/");
 	const logger = { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() };
@@ -37,7 +37,7 @@ async function routeCacheProviderFor(finalCache: unknown) {
 	} as never);
 
 	// A later integration can still set the provider before the config is final.
-	const finalConfig = { ...setupConfig, cache: finalCache };
+	const finalConfig = { ...setupConfig, ...cacheConfig };
 	await hook(integration, "astro:config:done")({ config: finalConfig, logger } as never);
 
 	const plugins = updateConfig.mock.calls.flatMap(([update]) => update?.vite?.plugins ?? []);
@@ -52,10 +52,16 @@ async function routeCacheProviderFor(finalCache: unknown) {
 
 describe("route cache provider in the config virtual module", () => {
 	it("names memoryCache() from the final Astro config", async () => {
-		expect(await routeCacheProviderFor({ provider: memoryCache() })).toBe("memory");
+		expect(await routeCacheProviderFor({ cache: { provider: memoryCache() } })).toBe("memory");
+	});
+
+	it("names memoryCache() from Astro 6 experimental.cache", async () => {
+		expect(
+			await routeCacheProviderFor({ experimental: { cache: { provider: memoryCache() } } }),
+		).toBe("memory");
 	});
 
 	it("is absent without a cache provider", async () => {
-		expect(await routeCacheProviderFor(undefined)).toBeUndefined();
+		expect(await routeCacheProviderFor({})).toBeUndefined();
 	});
 });

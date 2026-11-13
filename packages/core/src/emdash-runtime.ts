@@ -7177,20 +7177,28 @@ export class EmDashRuntime {
 		invocationId?: string,
 		invalidateContentCache?: PluginContentCacheInvalidator,
 	): Promise<void> {
+		const key = invocationId ? this.pluginInvocationKey(pluginId, invocationId) : undefined;
 		const invalidator =
 			invalidateContentCache ??
-			(invocationId
-				? this.pluginInvocationCacheInvalidators.get(
-						this.pluginInvocationKey(pluginId, invocationId),
-					)
-				: undefined) ??
+			(key ? this.pluginInvocationCacheInvalidators.get(key) : undefined) ??
 			this.pluginContentCacheInvalidator;
 		if (!invalidator) return;
-		try {
-			await invalidator([mediaCacheTag(storageKey)]);
-		} catch (error) {
-			console.error(`[plugin-media] Cache invalidation failed for ${storageKey}:`, error);
+		const purge = async () => {
+			try {
+				await invalidator([mediaCacheTag(storageKey)]);
+			} catch (error) {
+				console.error(`[plugin-media] Cache invalidation failed for ${storageKey}:`, error);
+			}
+		};
+		// Workers Cache purges only the calling entrypoint's entries, and a sandbox
+		// bridge call runs in its own entrypoint, so purge when the host flushes the invocation.
+		if (key && this.activePluginInvocations.has(key) && !this.releasedPluginInvocations.has(key)) {
+			const pending = this.pendingPluginAfterHooks.get(key) ?? [];
+			pending.push(purge);
+			this.pendingPluginAfterHooks.set(key, pending);
+			return;
 		}
+		await purge();
 	}
 
 	private beginPluginInvocation(

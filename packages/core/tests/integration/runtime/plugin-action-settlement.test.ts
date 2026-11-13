@@ -389,7 +389,10 @@ describe("sandboxed plugin action settlement", () => {
 
 		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
 		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+		// The bridge call runs in another entrypoint, so the host purges at flush.
+		expect(invocationInvalidate).not.toHaveBeenCalled();
 		await contentActions.flush(pluginId, invocationId, true);
+		await flushDeferred();
 
 		expect(invocationInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
 		expect(siteInvalidate).not.toHaveBeenCalled();
