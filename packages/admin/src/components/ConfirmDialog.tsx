@@ -39,9 +39,9 @@ export interface ConfirmDialogProps {
 	/** Extra content rendered between description and buttons (e.g. a checkbox) */
 	children?: React.ReactNode;
 	/**
-	 * The action can be reversed afterwards, such as content moved to the trash, a user who can be
-	 * re-enabled, or a draft that stays in Revisions. The dialog then opens on the confirm button, so
-	 * Enter confirms. Leave it off for anything permanent: the dialog opens on Cancel.
+	 * The action can be reversed afterwards, such as content moved to the trash, a demoted user who
+	 * can be promoted again, or a draft that stays in Revisions. The dialog then opens on the confirm
+	 * button, so Enter confirms. Leave it off for anything permanent: the dialog opens on Cancel.
 	 */
 	undoable?: boolean;
 	/**
