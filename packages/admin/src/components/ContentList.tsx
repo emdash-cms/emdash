@@ -1628,6 +1628,7 @@ function ContentListItem({
 				</RowActionsMenu>
 				<ConfirmDialog
 					{...trash.dialog}
+					undoable
 					title={t`Move to Trash?`}
 					description={t`Move "${title}" to trash? You can restore it later.`}
 					confirmLabel={t`Move to Trash`}

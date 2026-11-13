@@ -353,6 +353,7 @@ export function ImageDetailPanel({
 			<ConfirmDialog
 				open={showDeleteConfirm}
 				onClose={() => setShowDeleteConfirm(false)}
+				undoable
 				title={t`Remove image?`}
 				description={t`Remove this image from the document?`}
 				confirmLabel={t`Remove`}

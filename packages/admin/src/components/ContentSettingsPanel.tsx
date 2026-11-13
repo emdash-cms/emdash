@@ -1434,6 +1434,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Button>
 						<ConfirmDialog
 							{...trash.dialog}
+							undoable
 							title={t`Move to Trash?`}
 							description={t`This will move the item to trash. You can restore it later from the trash.`}
 							confirmLabel={t`Move to Trash`}

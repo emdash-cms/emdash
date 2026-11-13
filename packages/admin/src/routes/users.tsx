@@ -301,6 +301,7 @@ export function UsersPage() {
 					setPendingSaveData(null);
 					updateUserMutation.reset();
 				}}
+				undoable
 				title={t`Demote User?`}
 				description={
 					<Trans>
