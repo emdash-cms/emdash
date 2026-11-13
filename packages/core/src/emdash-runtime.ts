@@ -7192,7 +7192,7 @@ export class EmDashRuntime {
 		};
 		// Workers Cache purges only the calling entrypoint's entries, and a sandbox
 		// bridge call runs in its own entrypoint, so purge when the host flushes the invocation.
-		if (key && this.activePluginInvocations.has(key) && !this.releasedPluginInvocations.has(key)) {
+		if (key && this.activePluginInvocations.has(key)) {
 			const pending = this.pendingPluginAfterHooks.get(key) ?? [];
 			pending.push(purge);
 			this.pendingPluginAfterHooks.set(key, pending);

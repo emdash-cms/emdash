@@ -398,6 +398,21 @@ describe("sandboxed plugin action settlement", () => {
 		expect(siteInvalidate).not.toHaveBeenCalled();
 	});
 
+	it("purges a media file deleted after a timed-out invocation once it settles", async () => {
+		const invocationId = randomUUID();
+		const invocationInvalidate = vi.fn().mockResolvedValue(undefined);
+
+		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
+		await contentActions.flush(pluginId, invocationId, false);
+		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+		expect(invocationInvalidate).not.toHaveBeenCalled();
+		await contentActions.flush(pluginId, invocationId, true);
+		await flushDeferred();
+
+		expect(invocationInvalidate).toHaveBeenCalledOnce();
+		expect(invocationInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+	});
+
 	it("purges a media file deleted outside a route and survives a failed purge", async () => {
 		const log = vi.spyOn(console, "error").mockImplementation(() => {});
 		try {
