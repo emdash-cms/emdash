@@ -2103,12 +2103,14 @@ async function mediaDelete(
 	// the DB row is already deleted and the orphan cleanup cron will
 	// catch it. Matches the Cloudflare bridge's behavior.
 	if (storage && media.storage_key) {
+		let storageDeleted = false;
 		try {
 			await storage.delete(media.storage_key);
+			storageDeleted = true;
 		} catch (error) {
 			console.warn(`[bridge] Failed to delete storage object ${media.storage_key}:`, error);
 		}
-		await invalidateMedia?.(media.storage_key);
+		if (storageDeleted) await invalidateMedia?.(media.storage_key);
 	}
 
 	return BigInt(result.numDeletedRows) > 0n;

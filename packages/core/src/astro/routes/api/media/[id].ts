@@ -154,7 +154,7 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 			return apiError("MEDIA_DELETE_ERROR", "Failed to delete media", 500);
 		}
 		if (result.data.storageDeleted) {
-			await invalidateRouteCache(cache, [mediaCacheTag(media.storageKey)]);
+			await invalidateRouteCache(cache, [mediaCacheTag(result.data.storageKey)]);
 		}
 
 		return apiSuccess({ deleted: true, storageDeleted: result.data.storageDeleted });

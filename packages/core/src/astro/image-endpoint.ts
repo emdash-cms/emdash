@@ -13,6 +13,8 @@ import type { APIRoute } from "astro";
 import { GET as genericGET } from "astro/assets/endpoint/generic";
 // @ts-ignore - astro:assets is resolved by the consumer's Astro build
 import { getConfiguredImageService, imageConfig } from "astro:assets";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import {
 	cacheMediaResponse,
@@ -20,6 +22,7 @@ import {
 	canonicalTransformSearch,
 	getTransformFingerprint,
 	matchInternalMediaKey,
+	mediaRouteCacheMaxBytes,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 	validatorHeaders,
@@ -134,7 +137,12 @@ export const GET: APIRoute = async (ctx) => {
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
 		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
 
-		cacheMediaResponse(ctx.cache, key);
+		cacheMediaResponse(
+			ctx.cache,
+			key,
+			data.byteLength,
+			mediaRouteCacheMaxBytes(virtualConfig?.routeCacheProvider),
+		);
 		return new Response(data, {
 			status: 200,
 			headers: {

@@ -75,14 +75,32 @@ export function mediaCacheTag(storageKey: string): string {
 	return `emdash:media:${storageKey}`;
 }
 
-/** Store the current response in the route cache under its storage key's tag. */
+/**
+ * Largest media response stored by Astro's `memoryCache()`, which holds every
+ * entry in process memory and limits only the entry count.
+ */
+export const MEMORY_ROUTE_CACHE_MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+
+/** Byte limit for caching media under the named Astro route cache provider. */
+export function mediaRouteCacheMaxBytes(providerName: string | undefined): number {
+	return providerName === "memory" ? MEMORY_ROUTE_CACHE_MAX_MEDIA_BYTES : Infinity;
+}
+
+/**
+ * Store the current response in the route cache under its storage key's tag.
+ * Skips keys outside the flat storage-key shape, whose tag could contain the
+ * comma that separates `Cache-Tag` values, and responses larger than
+ * `maxBytes` (or of unknown size when a limit applies).
+ */
 export function cacheMediaResponse(
 	cache: { enabled: boolean; set(options: { maxAge: number; tags: string[] }): void } | undefined,
 	storageKey: string,
+	size?: number,
+	maxBytes = Infinity,
 ): void {
-	if (cache?.enabled) {
-		cache.set({ maxAge: MEDIA_ROUTE_CACHE_MAX_AGE, tags: [mediaCacheTag(storageKey)] });
-	}
+	if (!cache?.enabled || !isSafeTransformKey(storageKey)) return;
+	if (maxBytes !== Infinity && !(size !== undefined && size > 0 && size <= maxBytes)) return;
+	cache.set({ maxAge: MEDIA_ROUTE_CACHE_MAX_AGE, tags: [mediaCacheTag(storageKey)] });
 }
 
 /**
@@ -113,7 +131,7 @@ export function canonicalTransformSearch(
 		const value = params.get(name);
 		if (value !== null) canonical.append(name, value);
 	}
-	// Compared as serialized text: the route cache keys on the raw URL, so an
+	// Compared as serialized text: Workers Cache keys on the raw URL, so an
 	// equal query with different percent-encoding would be a separate entry.
 	const search = canonical.toString();
 	return search === url.search.slice(1) ? null : search;

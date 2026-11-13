@@ -6,6 +6,7 @@ import { handleMediaDelete, handleMediaGet } from "../../../src/api/handlers/med
 import { DELETE as deleteMedia } from "../../../src/astro/routes/api/media/[id].js";
 import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/confirm.js";
 import { PUT as putUpload } from "../../../src/astro/routes/api/media/[id]/upload.js";
+import { DELETE as deleteProviderItem } from "../../../src/astro/routes/api/media/providers/[providerId]/[itemId].js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
 import { runSystemCleanup } from "../../../src/cleanup.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
@@ -1212,6 +1213,55 @@ describe("streamed media upload fallback", () => {
 		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
 	});
 
+	it("purges the cached file after a delete from the media picker", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		const invalidate = vi.fn(async () => {});
+		const providerDelete = vi.fn(async () => {});
+
+		const response = await deleteProviderItem({
+			params: { providerId: "local", itemId: media.id },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					getMediaProvider: () => ({ delete: providerDelete }),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 40 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(storage.objects.size).toBe(0);
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
+	});
+
+	it("treats a media picker delete of a missing item as done without purging", async () => {
+		const invalidate = vi.fn(async () => {});
+
+		const response = await deleteProviderItem({
+			params: { providerId: "local", itemId: "missing" },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					getMediaProvider: () => ({ delete: vi.fn() }),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, streamingStorage()),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 40 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(invalidate).not.toHaveBeenCalled();
+	});
+
 	it("reports a failed storage delete and leaves the object reachable for cleanup", async () => {
 		const repo = new MediaRepository(db);
 		const media = await repo.create({
@@ -1247,10 +1297,12 @@ describe("streamed media upload fallback", () => {
 		expect(await repo.findById(media.id)).toBeNull();
 		expect(storage.objects.has(media.storageKey)).toBe(true);
 
-		await runSystemCleanup(db, storage);
+		const purge = vi.fn(async () => {});
+		await runSystemCleanup(db, storage, purge);
 
 		expect(storage.objects.size).toBe(0);
 		expect(await repo.hasUploadAttempt(media.storageKey)).toBe(false);
+		expect(purge).toHaveBeenCalledWith(["emdash:media:photo.png"]);
 	});
 
 	it("keeps an object marked for cleanup tracked while its media row still exists", async () => {
@@ -1265,11 +1317,13 @@ describe("streamed media upload fallback", () => {
 		const storage = streamingStorage();
 		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
 		await repo.trackStorageKeyForCleanup(media.id, media.storageKey);
+		const purge = vi.fn(async () => {});
 
-		await runSystemCleanup(db, storage);
+		await runSystemCleanup(db, storage, purge);
 
 		expect(await repo.hasUploadAttempt(media.storageKey)).toBe(true);
 		expect(storage.objects.size).toBe(1);
+		expect(purge).not.toHaveBeenCalled();
 	});
 
 	it("rejects a non-owner without media:edit_any", async () => {

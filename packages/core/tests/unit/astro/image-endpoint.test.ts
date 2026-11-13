@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const transform = vi.fn();
+const virtualConfig = vi.hoisted(() => ({}) as { routeCacheProvider?: string });
+
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
 
 vi.mock("astro:assets", () => ({
 	getConfiguredImageService: vi.fn(() =>
@@ -58,6 +61,7 @@ function pngDownload() {
 describe("GET /_image over EmDash media", () => {
 	beforeEach(() => {
 		transform.mockClear();
+		delete virtualConfig.routeCacheProvider;
 	});
 
 	it("serves a transformed image with weak validators", async () => {
@@ -208,5 +212,45 @@ describe("GET /_image over EmDash media", () => {
 
 		expect(response.status).toBe(200);
 		expect(await response.text()).toBe("generic");
+	});
+
+	it("does not cache a failed transform", async () => {
+		transform.mockRejectedValue(new Error("unsupported image"));
+		const cache = routeCache();
+		const request = new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=150",
+		);
+
+		const response = await GET(buildContext(request, { download: pngDownload() }, cache));
+
+		expect(response.status).toBe(500);
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("does not cache a variant over 10 MB in memoryCache()", async () => {
+		virtualConfig.routeCacheProvider = "memory";
+		transform.mockResolvedValue({ data: new Uint8Array(10 * 1024 * 1024 + 1), format: "webp" });
+		const cache = routeCache();
+		const request = new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=4000",
+		);
+
+		const response = await GET(buildContext(request, { download: pngDownload() }, cache));
+
+		expect(response.status).toBe(200);
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("caches a small variant in memoryCache()", async () => {
+		virtualConfig.routeCacheProvider = "memory";
+		transform.mockResolvedValue({ data: new Uint8Array([4, 5, 6]), format: "webp" });
+		const cache = routeCache();
+		const request = new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=150",
+		);
+
+		await GET(buildContext(request, { download: pngDownload() }, cache));
+
+		expect(cache.set).toHaveBeenCalledTimes(1);
 	});
 });

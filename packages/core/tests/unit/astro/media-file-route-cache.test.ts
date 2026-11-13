@@ -4,6 +4,9 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const virtualConfig = vi.hoisted(() => ({}) as { routeCacheProvider?: string });
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
+
 import { GET } from "../../../src/astro/routes/api/media/file/[...key].js";
 import { LocalStorage } from "../../../src/storage/local.js";
 
@@ -17,6 +20,7 @@ describe("GET /_emdash/api/media/file/:key — conditional caching", () => {
 	});
 
 	afterEach(async () => {
+		delete virtualConfig.routeCacheProvider;
 		await rm(directory, { recursive: true, force: true });
 	});
 
@@ -169,6 +173,48 @@ describe("GET /_emdash/api/media/file/:key — conditional caching", () => {
 		);
 
 		expect(response.status).toBe(404);
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("does not cache a key whose tag would split at a comma", async () => {
+		await upload("photo,1.png", new Uint8Array([1, 2, 3]), "image/jpeg");
+		const cache = routeCache();
+
+		const response = await GET(
+			buildContext("photo,1.png", new Request("http://localhost/x"), cache),
+		);
+
+		expect(response.status).toBe(200);
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("caches an image of any size under a CDN provider", async () => {
+		await upload("large.png", new Uint8Array(10 * 1024 * 1024 + 1), "image/png");
+		const cache = routeCache();
+
+		await GET(buildContext("large.png", new Request("http://localhost/x"), cache));
+
+		expect(cache.set).toHaveBeenCalledTimes(1);
+	});
+
+	it("caches images up to 10 MB in memoryCache()", async () => {
+		virtualConfig.routeCacheProvider = "memory";
+		await upload("limit.png", new Uint8Array(10 * 1024 * 1024), "image/png");
+		const cache = routeCache();
+
+		await GET(buildContext("limit.png", new Request("http://localhost/x"), cache));
+
+		expect(cache.set).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not cache an image over 10 MB in memoryCache()", async () => {
+		virtualConfig.routeCacheProvider = "memory";
+		await upload("large.png", new Uint8Array(10 * 1024 * 1024 + 1), "image/png");
+		const cache = routeCache();
+
+		const response = await GET(buildContext("large.png", new Request("http://localhost/x"), cache));
+
+		expect(response.status).toBe(200);
 		expect(cache.set).not.toHaveBeenCalled();
 	});
 });

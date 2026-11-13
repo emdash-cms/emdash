@@ -1266,7 +1266,11 @@ export class EmDashRuntime {
 		if (!this.shouldRunSystemCleanup(currentTime)) return;
 		this.lastSystemCleanupAt = currentTime;
 		try {
-			await runSystemCleanup(this.db, this.storage ?? undefined);
+			await runSystemCleanup(
+				this.db,
+				this.storage ?? undefined,
+				this.pluginContentCacheInvalidator,
+			);
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
@@ -2625,8 +2629,8 @@ export class EmDashRuntime {
 				requireRuntime().beginPluginInvocation(pluginId, invocationId, invalidateContentCache),
 			flush: (pluginId, invocationId, final) =>
 				requireRuntime().flushPluginAfterHooks(pluginId, invocationId, final),
-			invalidateMedia: (pluginId, storageKey, invocationId, invalidateContentCache) =>
-				requireRuntime().invalidatePluginMedia(
+			invalidateMedia: async (pluginId, storageKey, invocationId, invalidateContentCache) =>
+				runtimeRef.current?.invalidatePluginMedia(
 					pluginId,
 					storageKey,
 					invocationId,

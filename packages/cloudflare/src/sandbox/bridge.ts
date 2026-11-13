@@ -1748,15 +1748,23 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 		// Delete from R2 if the binding is available
 		if (this.env.MEDIA && media.storage_key) {
+			let storageDeleted = false;
 			try {
 				await this.env.MEDIA.delete(media.storage_key);
+				storageDeleted = true;
 			} catch {
 				// Log but don't fail - the DB row is already deleted
 				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
 			}
-			const runtimeId = this.ctx.props.contentActionsRuntimeId;
-			const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
-			await callbacks?.invalidateMedia?.(this.ctx.props.pluginId, media.storage_key, invocationId);
+			if (storageDeleted) {
+				const runtimeId = this.ctx.props.contentActionsRuntimeId;
+				const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
+				await callbacks?.invalidateMedia?.(
+					this.ctx.props.pluginId,
+					media.storage_key,
+					invocationId,
+				);
+			}
 		}
 
 		return (result.meta?.changes ?? 0) > 0;
