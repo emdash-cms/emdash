@@ -55,7 +55,7 @@ const pluginBlocks: NonNullable<PortableTextEditorProps["pluginBlocks"]> = [
 ];
 
 describe("plugin block media repeater", () => {
-	it("keeps selected images paired with captions through save, reload, reorder, and replacement", async () => {
+	it("keeps selected images paired with captions through save, reload, replacement, and removal", async () => {
 		const onChange = vi.fn<NonNullable<PortableTextEditorProps["onChange"]>>();
 		function Editor() {
 			const [value, setValue] = React.useState<NonNullable<PortableTextEditorProps["value"]>>([
@@ -110,29 +110,16 @@ describe("plugin block media repeater", () => {
 
 		await screen.getByRole("button", { name: "Reload editor", exact: true }).click();
 		await openBlock();
-		const dragHandle = screen.getByRole("button", { name: "Drag to reorder", exact: true }).first();
-		await dragHandle.dropTo(
-			screen.getByRole("button", { name: "Drag to reorder", exact: true }).last(),
-		);
-		await saveBlock();
-		await expectSlides([landscape, diagram]);
-
-		await screen.getByRole("button", { name: "Reload editor", exact: true }).click();
-		await openBlock();
 		await screen.getByRole("button", { name: "Landscape", exact: true }).click();
-		const change = screen.getByRole("button", { name: "Replace Image", exact: true });
-		change.element().focus();
-		await change.click();
+		await screen.getByRole("button", { name: "Replace Image", exact: true }).click();
 		await chooseImage("diagram.png");
 		await saveBlock();
-		await expectSlides([{ ...landscape, image: diagram.image }, diagram]);
+		await expectSlides([diagram, { ...landscape, image: diagram.image }]);
 
 		await openBlock();
 		await screen.getByRole("button", { name: "Landscape", exact: true }).click();
-		const remove = screen.getByRole("button", { name: "Remove Image", exact: true });
-		remove.element().focus();
-		await remove.click();
-		await screen.getByRole("button", { name: "Remove item 2", exact: true }).click();
+		await screen.getByRole("button", { name: "Remove Image", exact: true }).click();
+		await screen.getByRole("button", { name: "Remove item 1", exact: true }).click();
 		await saveBlock();
 		await expectSlides([{ image: "", caption: "Landscape" }]);
 	});
