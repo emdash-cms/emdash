@@ -22,7 +22,7 @@ EmDash gets one model for who publishes a site, who writes its content, and whic
 
 The RFC is delivered in four phases. Each phase ships on its own and leaves a site in a consistent state.
 
-1. **Identity.** Site settings describe the publisher as an `Organization` or a `Person`, with an open list of profile links. Bylines get their own profile links. Each link controls separately whether it appears in Schema.org `sameAs` and whether it is emitted as `<link rel="me">`. The six `site:social` keys keep working.
+1. **Identity.** Site settings describe the publisher as an `Organization` or a `Person`, with an open list of profile links. Each user keeps their own profile links in their profile, and guest bylines carry their own. Each link controls separately whether it appears in Schema.org `sameAs` and whether it is emitted as `<link rel="me">`. The six `site:social` keys keep working.
 2. **Connected graph and canonical URLs.** `EmDashHead` emits one JSON-LD `@graph` whose nodes reference each other by `@id`: publisher, `WebSite`, `WebPage`, the article, its authors, breadcrumbs and the primary image. Themes and plugins replace or extend single nodes instead of the whole block. Every page gets a self-referencing absolute canonical URL from the resolver that also produces sitemap and graph URLs.
 3. **Discovery.** The sitemap index accepts additional sitemap providers. Core ships Google News and video sitemap providers and sends IndexNow notifications on publish, update, unpublish and delete.
 4. **Editorial tooling (optional).** Search and social previews in the editor, separate robots controls per entry, redirect import, and content checks that warn without blocking a save.
@@ -101,7 +101,7 @@ A company site with one author. After Phase 1 the site identity is stored like t
 }
 ```
 
-The byline Jane Doe has one GitHub profile link marked `sameAs`, and the site has an author archive at `/authors/jane-doe/`. An article page emits one graph:
+Jane Doe has one GitHub profile link marked `sameAs` in her user profile, and the site has an author archive at `/authors/jane-doe/`. An article page emits one graph:
 
 ```json
 {
@@ -218,7 +218,7 @@ The WeChat ID appears in neither `sameAs` nor `rel="me"`, because it is not a UR
 ## Goals
 
 - Site settings describe the publisher as an `Organization` or a `Person`, editable in the admin and through REST and MCP.
-- Site and bylines keep an open list of profile links. Each link controls `sameAs` and `rel="me"` separately, and a link can hold a handle or ID that isn't a URL.
+- The site, each user and each guest byline keep an open list of profile links. A user enters their links once, in their own profile, and every byline linked to that user uses them. Each link controls `sameAs` and `rel="me"` separately, and a link can hold a handle or ID that isn't a URL.
 - Existing `site:social` values keep rendering, and themes that read `settings.social` keep working without changes.
 - Each page emits at most one core JSON-LD graph whose nodes reference each other by stable `@id` values.
 - Themes and plugins can replace, merge into or remove a single graph node.
@@ -247,7 +247,7 @@ The WeChat ID appears in neither `sameAs` nor `rel="me"`, because it is not a UR
 
 #### Profile links
 
-A profile link is the shared shape for site and byline links:
+A profile link is the shared shape for site, user and guest byline links:
 
 ```ts
 interface ProfileLink {
@@ -324,9 +324,11 @@ interface SiteIdentity {
 }
 ```
 
-Each property maps to the Schema.org property of the same name. The organization properties are the ones Google lists for `Organization` ([Organization structured data](https://developers.google.com/search/docs/appearance/structured-data/organization)); `identifiers` map to `vatID`, `taxID`, `leiCode` and `duns` there, and other `propertyID` values become `identifier` entries. The policy properties come from Schema.org ([publishingPrinciples](https://schema.org/publishingPrinciples)). Google doesn't document them as a search feature, so the admin shows them in a collapsed section for news publishers.
+Each property maps to the Schema.org property of the same name. The organization properties are the ones Google lists for `Organization` ([Organization structured data](https://developers.google.com/search/docs/appearance/structured-data/organization)); `identifiers` with `propertyID` `vatID` or `taxID` map to those properties, and `iso6523Code` values (for example `0199:` for an LEI or `0060:` for a DUNS number) map to `iso6523Code`, which Google recommends over `leiCode` and `duns`. Other `propertyID` values become `identifier` entries of type `PropertyValue`. The policy properties come from Schema.org ([publishingPrinciples](https://schema.org/publishingPrinciples)). Google doesn't document them as a search feature, so the admin shows them in a collapsed section for news publishers.
 
 Settings, REST and MCP read and write `identity` like the other `site:*` keys, behind the existing `settings:manage` permission. `site:identity` is added to `PORTABLE_SETTING_NAMES`, so site transfer exports and imports it.
+
+The admin edits identity in the SEO settings, which become one screen with sections for the publisher (type, name, logo, links and the collapsed organization details), search appearance (robots defaults and the schema type per collection), and discovery (sitemaps and IndexNow). The publisher section replaces `Settings > Social`, and the old route redirects to it.
 
 The admin warns when the logo is smaller than 112 x 112 pixels or not in a format Google supports, following Google's logo guidelines. The save still succeeds.
 
@@ -334,20 +336,23 @@ When `type` is `Person` and `bylineId` is set, the publisher and that byline's a
 
 Themes read the resolved identity through a new `getSiteIdentity()` export. It returns the stored value, or a value synthesized from legacy settings, with media references resolved. It reads the cached site settings and runs no query of its own.
 
-#### Byline identity
+#### Author identity
 
-Bylines get two built-in columns on `_emdash_bylines`:
+Profile links describe a person, not a translation, so a user's links live on the user:
 
-- `profile_links`: JSON array of `ProfileLink`, nullable.
-- `job_title`: text, nullable.
+- `users.profile_links`: JSON array of `ProfileLink`, nullable.
+- `_emdash_bylines.profile_links`: JSON array of `ProfileLink`, nullable. Used only by guest bylines, which have no user.
+- `_emdash_bylines.job_title`: text, nullable, per locale like `bio`, because a job title is translated.
 
-Both are per locale like `bio`, because a job title is translated and a byline may link a different profile per language. The admin offers **Copy to all translations** so editors don't enter the same links several times.
+A byline linked to a user takes its links from that user, in every locale; its own `profile_links` column is ignored. A guest byline uses its own column. When a byline is unlinked from its user, its author node no longer carries the user's links.
 
-Columns keep the data in the byline row that `getContentBylines` and `getContentBylinesMany` already select, so author nodes need no custom-field hydration. The existing `websiteUrl` stays; it becomes the author's `url` when the site has no author archive.
+Every signed-in user edits their own links on a new **Profile** screen in the admin, through a new `setProfileLinks` action on `POST /_emdash/api/auth/me`. The action writes only the signed-in user's row, so it needs no new permission. Editors keep managing guest bylines and job titles through the existing byline permissions.
+
+The folded byline subquery in the content query and the byline repository queries add `LEFT JOIN users AS u ON u.id = b.user_id` and select only `u.profile_links`. The join reads no email, role or other user column, so the public byline shape gains the links and nothing else. The existing `websiteUrl` stays on the byline; it becomes the author's `url` when the site has no author archive.
 
 #### Head output
 
-`<link rel="me">` is emitted for every site link with `relMe` that resolves to an https URL, and on an author archive also for that byline's links. `PageMetadataLinkRel` gains `"me"`, so plugins can contribute such links.
+`<link rel="me">` is emitted for every site link with `relMe` that resolves to an https URL, and on an author archive also for the links of that byline, or of its user when it has one. `PageMetadataLinkRel` gains `"me"`, so plugins can contribute such links.
 
 ### Phase 2: connected graph and canonical URLs
 
@@ -415,7 +420,7 @@ Properties per node come from Google's documentation for the matching feature:
 - **ProfilePage:** `mainEntity` points at the author node, with `dateCreated` and `dateModified` from the byline ([Profile page structured data](https://developers.google.com/search/docs/appearance/structured-data/profile-page)).
 - **BreadcrumbList:** `ListItem` entries with `position`, `name` and `item`. The last item may omit `item` ([Breadcrumb structured data](https://developers.google.com/search/docs/appearance/structured-data/breadcrumb)). Google shows breadcrumbs on desktop results only. Core emits the node on every page with breadcrumbs, because it also describes the page's position in the site.
 - **Paywalled content:** a template that gates part of a page passes `access: { free: false, selector: ".paywall" }` in the page context. The article then gets `isAccessibleForFree: false` and a `hasPart` `WebPageElement` with that CSS selector ([Subscription and paywalled content](https://developers.google.com/search/docs/appearance/structured-data/paywalled-content)). Without `access`, core emits nothing for paywalls.
-- **Images:** the graph's primary image and `og:image` resolve to the same URL, because Google uses both as sources for thumbnails in Search and Discover (Search Central documentation update of March 2, 2026, in [Search Central documentation updates](https://developers.google.com/search/updates)).
+- **Images:** the graph's primary image and `og:image` resolve to the same URL, because Google uses both as sources for thumbnails in Search and Discover (Search Central documentation update of March 2, 2026, in [Search Central documentation updates](https://developers.google.com/search/updates)). Both use the original file URL. If the [readable image URLs RFC](https://github.com/emdash-cms/emdash/pull/4844) adds a readable original URL, both switch to it together.
 
 Each collection gets an optional `seo.schemaType` in its admin config: `BlogPosting` (default), `Article`, `NewsArticle` or `WebPage`. Setting `WebPage` drops the article node for collections such as landing pages.
 
@@ -517,8 +522,8 @@ Phase 3 therefore ships only the format: a `VideoSource` interface that returns 
 
 IndexNow tells participating search engines about changed URLs ([IndexNow documentation](https://www.indexnow.org/documentation)). The protocol's [list of participating engines](https://www.indexnow.org/searchengines.json) includes Bing, Yandex, Naver, Seznam, Yep, Internet Archive and Amazonbot. Google is not on the list, so IndexNow has no effect on Google Search.
 
-- **Key.** An administrator enables IndexNow in the SEO settings. Core then generates a key of 32 hexadecimal characters (the protocol allows 8 to 128) and stores it in `site:indexnow`, which is target-local: site transfer doesn't copy it, so a cloned site gets its own key.
-- **Key file.** Core serves the key at `/indexnow-{key}.txt` as UTF-8 plain text and sends that URL as `keyLocation`. Because the file sits at the root of the host, it authorizes every URL on the host. Requests for any other key return 404.
+- **Key.** An administrator enables IndexNow in the SEO settings. Core then generates a key of 32 hexadecimal characters (the protocol allows 8 to 128) and stores it in `site:indexnow`, which is target-local: site transfer doesn't copy it, so a cloned site gets its own key. A **Regenerate key** action in the SEO settings replaces the key and resumes submissions that stopped on a key error.
+- **Key file.** Core serves the key at `/{key}.txt` at the root of the host as UTF-8 plain text, the location the protocol recommends, and also sends that URL as `keyLocation`. The route matches only the current key, so requests for any other `.txt` path fall through to the site's own routes.
 - **Triggers.** Publishing (including scheduled publishing), publishing a new revision of a published entry, unpublishing, moving a published entry to trash, restoring a published entry, and slug changes of published entries submit the affected canonical URLs, including the old URL after a slug change. Saving a draft submits nothing. Core hooks into the same points that fire `content:afterPublish`, `content:afterUnpublish`, `content:afterDelete` and `content:afterRestore`.
 - **Delivery.** Submissions run in `after()`, so they never delay the editor's request. Within one request, URLs are batched into one POST; the protocol allows up to 10,000 URLs per request. Core posts to `https://api.indexnow.org/indexnow`, which shares submissions with all participating engines.
 - **Scope.** Core submits only URLs on the configured `site:url` host. Without `site:url`, or while the site is in staging, or when the host is `localhost` or a private address, IndexNow stays inactive and the settings screen says why.
@@ -531,7 +536,7 @@ Phase 4 is optional. Each item can ship on its own after Phase 2, and any of the
 - **Search and social preview.** The SEO panel shows how the entry's title, description and URL may appear in a search result, and how its Open Graph image, title and description look when shared. The preview uses the same resolved values as the head output, including fallbacks, and states that search engines choose their own snippets.
 - **Robots controls.** The SEO panel shows **Hide from search results** (`noIndex`) and **Don't follow links** (`noFollow`) as separate switches. The SEO settings expose `defaultRobots`.
 - **Redirect import and export.** CSV import and export for the existing redirects, with validation per row and a report of rejected rows ([issue #2291](https://github.com/emdash-cms/emdash/issues/2291)). The 404 log gains a **Create redirect** action.
-- **Content checks.** Warnings in the SEO panel and in a site-wide report, each tied to a concrete fix: missing or duplicate SEO title, missing description, missing image alt text, an article image below the 50K pixels Google recommends, a canonical that points at a redirect or a 404, `noindex` on an entry linked from a menu, entries no other entry links to, and titles or descriptions beyond a configurable length. Checks never block a save, and plugins can add checks.
+- **Content checks.** Warnings in the SEO panel and in a site-wide report, each tied to a concrete fix: missing or duplicate SEO title, missing description, missing image alt text, an article image below the 50K pixels Google recommends, an article image narrower than the 1200 pixels Google recommends for Discover when `maxImagePreview` is `large` ([Discover](https://developers.google.com/search/docs/appearance/google-discover)), a canonical that points at a redirect or a 404, `noindex` on an entry linked from a menu, entries no other entry links to, and titles or descriptions beyond a configurable length. Checks never block a save, and plugins can add checks.
 - **Key content.** Editors can mark an entry as key content. The report lists key entries not updated within a configurable period and key entries that few other entries link to.
 - **Internal link suggestions.** Out of core. A plugin can read the draft through the trusted editor panel draft access and suggest links.
 
@@ -550,9 +555,9 @@ All new admin strings go through Lingui, layouts use logical Tailwind classes, a
 
 Site transfer exports `site:identity`. An older version that imports it ignores the unknown setting.
 
-### Byline columns
+### Author columns
 
-A migration adds the nullable columns `profile_links` and `job_title` to `_emdash_bylines`. Each `ALTER TABLE` first checks whether the column exists, so the migration restarts cleanly after a partial run on D1. No backfill is needed, and old code ignores the columns during a rolling deploy.
+A migration adds the nullable column `profile_links` to `users` and the nullable columns `profile_links` and `job_title` to `_emdash_bylines`. Each `ALTER TABLE` first checks whether the column exists, so the migration restarts cleanly after a partial run on D1. No backfill is needed, and old code ignores the columns during a rolling deploy.
 
 ### Robots
 
@@ -577,7 +582,7 @@ Collection sitemaps keep their URLs. Entries whose SEO canonical points at anoth
 ## Security and privacy
 
 - **Untrusted input.** Profile link values, identity fields and plugin graph nodes reach HTML only through `safeJsonLdSerialize` or attribute escaping. `rel="me"` and `sameAs` accept `https:` URLs only. `jsonld-node` contributions use the same serializer as `jsonld` contributions today.
-- **Authorization.** Site identity and IndexNow settings require `settings:manage`. Byline profile links follow the existing byline permissions. A manual IndexNow submission requires permission to publish the entry.
+- **Authorization.** Site identity and IndexNow settings require `settings:manage`. A user's profile links can be written only by that user, through `POST /_emdash/api/auth/me`. Guest byline links and job titles follow the existing byline permissions. A manual IndexNow submission requires permission to publish the entry.
 - **Outbound requests.** IndexNow posts only to `api.indexnow.org`, and only canonical URLs on the configured site host, so editors can't make the server request arbitrary hosts. A failed submission logs the HTTP status, never the key.
 - **Keys.** The IndexNow key is public by design, since the key file proves control of the host. It is excluded from site transfer so two sites don't share a key.
 - **Privacy.** A personal site may publish an address, email or telephone number. Every identity field is optional and empty by default, and the admin labels the section as public. Staging sites send no IndexNow submissions, so search engines don't learn unreleased URLs from them.
@@ -587,7 +592,7 @@ Collection sitemaps keep their URLs. Entries whose SEO canonical points at anoth
 The logged-out render path keeps its query count:
 
 - `site:identity` is a `site:*` option, so it arrives with the existing `getSiteSettings()` read and its isolate cache.
-- Author nodes use `entry.data.bylines`, which entry hydration already loads, and the new byline columns are part of the row that query already selects.
+- Author nodes use `entry.data.bylines`, which entry hydration already loads. The byline columns are part of the row that query already selects, and a user's links arrive through a `LEFT JOIN` on the `users` primary key inside the same byline subquery. A prototype of that join on `main` kept the query counts of every route unchanged on SQLite and D1 (`pnpm query-counts`), and SQLite's query plan looks up `users` by primary key. The perf fixture has no bylines linked to users, so the prototype measured query counts and the plan, not render time with stored links.
 - The graph is built in memory. Building and serializing it adds CPU time per render; the implementation measures it on a representative article page on Workers and reports the numbers in the Phase 2 PR.
 - `pnpm query-counts` snapshots show no increase on logged-out routes in any phase.
 
@@ -598,19 +603,19 @@ Sitemaps run on their own routes. The news provider reads a two-day window. Inde
 - **Invalid stored identity.** Values that fail validation on read, such as a link with an unsupported scheme written by an older client, are left out of the output and logged with the prefix `[seo]`. They stay in storage, and the admin shows them with an error so an administrator can fix them.
 - **Graph builders.** A builder that throws is skipped and logged; the rest of the graph renders. A plugin contribution that fails to serialize is dropped, as `jsonld` contributions are today.
 - **Sitemap providers.** A failing provider is left out of the index and logged, and its route returns 500. Other sitemaps are unaffected.
-- **IndexNow.** 200 and 202 count as success. On 429 the URLs are kept and sent with the next submission. On 403 (key not valid) automatic submissions stop and the settings screen asks the administrator to check the key file. Other errors are logged and recorded in `emdash:indexnow_status`. No failure affects the save or publish that triggered it.
+- **IndexNow.** 200 and 202 count as success. On 429 core reads `Retry-After`, stores the end of the wait in `emdash:indexnow_status`, keeps the URLs and sends them with the first submission after the wait ([IndexNow FAQ](https://www.indexnow.org/faq)). On 403 (key not valid) and 422 (URLs not on the host, or a key the protocol doesn't accept) automatic submissions stop and the settings screen asks the administrator to check the key file or regenerate the key. Other errors are logged and recorded in `emdash:indexnow_status`. No failure affects the save or publish that triggered it.
 - **Missing site URL.** Graph and canonical output fall back to the request origin, and IndexNow stays inactive.
 
 ## Verification
 
-- **Unit tests** for the platform registry, link validation, legacy synthesis, both directions of the `site:social` sync, each canonical rule, graph assembly per page type, `@id` stability, the three contribution modes and robots assembly.
+- **Unit tests** for the platform registry, link validation, legacy synthesis, both directions of the `site:social` sync, link resolution for bylines linked to a user and for guest bylines, each canonical rule, graph assembly per page type, `@id` stability, the three contribution modes and robots assembly.
 - **Dialect tests** with `describeEachDialect` for both migrations, including a restart after the first completed statement and an upgrade from a database with existing `noIndex` entries.
 - **Real D1 tests** in `tests/workerd` for the migrations and for the options batch that writes `site:identity` and `site:social` together.
 - **Render tests** in `tests/repro` for an article, an author archive, a translation and page 2 of an archive. Each checks that canonical, `og:url`, sitemap `<loc>` and graph URLs agree for the same entry.
 - **External validation.** The demo site's article, author and home pages checked with Google's Rich Results Test and the Schema.org validator, with results linked from the implementation PRs.
 - **Query counts.** `pnpm query-counts` on SQLite and D1 shows no increase on logged-out routes.
-- **IndexNow.** Tests with a stubbed `fetch` for batching, skipped hosts, staging, 403 and 429. One manual submission from the demo deployment, confirmed in Bing Webmaster Tools.
-- **Admin.** Playwright tests for editing site identity and byline links, including the Arabic layout, and screenshots in every UI PR.
+- **IndexNow.** Tests with a stubbed `fetch` for batching, skipped hosts, staging, 403, 422 and 429 with `Retry-After`. One manual submission from the demo deployment, confirmed in Bing Webmaster Tools.
+- **Admin.** Playwright tests for editing site identity, a user's own profile links and guest byline links, including the Arabic layout, and screenshots in every UI PR.
 
 ## Rollout and implementation
 
@@ -618,7 +623,7 @@ Kevin Kyburz (@swissky) and Evgenii Zinner (@Evgenii-Zinner) implement the phase
 
 Phase 1 starts from Evgenii's prototype on the [`feat/dynamic-social-links`](https://github.com/Evgenii-Zinner/emdash/tree/feat/dynamic-social-links) branch of his fork. It already synthesizes the link list from `site:social` on read, converts stored handles to profile URLs with `relMe: false`, merges legacy writes without dropping custom links, and keeps `site:social` in sync on every write, with unit and render tests. The implementation PR keeps that engine, moves the list into `site:identity.links`, adds handle-only platforms and the separate `sameAs` switch, and moves `sameAs` from `WebSite` to the publisher node. The admin editor is rebuilt for the identity screen.
 
-1. **Phase 1:** profile link types and platform registry, `site:identity` with legacy sync, byline columns, admin screens, `rel="me"`, `getSiteIdentity()`.
+1. **Phase 1:** profile link types and platform registry, `site:identity` with legacy sync, user and byline columns, the SEO settings screen and the Profile screen, `rel="me"`, `getSiteIdentity()`.
 2. **Phase 2:** `resolveEntryUrl`, canonical rules, graph builders and `jsonld-node`, robots split, `authors` in the page context. The templates in `templates/` pass `authors` and pagination in the same PR.
 3. **Phase 3:** sitemap providers on top of [#4341](https://github.com/emdash-cms/emdash/pull/4341), the news sitemap, the video format and IndexNow. IndexNow can ship before the sitemap work.
 4. **Phase 4:** each tool separately, in any order.
@@ -644,10 +649,11 @@ Phase 2 can begin before Phase 1's admin screens are finished, because it reads 
 
 ## Open questions
 
-1. Should synthesized identity emit `sameAs` for legacy `site:social` values by default, or only after an administrator saves the new settings once?
-2. Should `profile_links` be per locale, as proposed, or shared across a byline's translations?
-3. Does `seo.schemaType` belong in collection admin config, or in the collection's `supports` list?
-4. Should IndexNow ship in core, or as a first-party plugin that uses the same publish hooks?
-5. Who is the sponsoring Maintainer?
+None at the moment. Questions settled during review:
 
-Before the design PR opens, the champion agrees co-authorship with the contributors whose designs this RFC builds on. The author of #4714 has joined as co-author; the author of #4341 has been asked.
+1. Synthesized identity emits `sameAs` for legacy `site:social` values by default, so upgrading sites get the links without saving the settings again.
+2. Profile links live on the user and are shared across locales; guest bylines keep their own links. Job titles stay per locale. A per-locale override for a linked user's links is left out until a site needs one.
+3. `seo.schemaType` belongs in collection admin config, because it maps a collection to a Schema.org type rather than enabling a capability.
+4. IndexNow ships in core next to the sitemap providers and canonical URL resolution.
+
+The author of #4714 co-authors this RFC. The author of #4341 has been asked to co-author it.
