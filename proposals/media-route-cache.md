@@ -56,6 +56,7 @@ The baseline numbers come from a different image on a different Worker (our stoc
 - Media from external providers, or storage served from a public URL. Those responses don't pass through these routes.
 - Limiting which widths, heights, formats or qualities `/_image` accepts, or snapping a width to the nearest preset. That changes which image URLs work and needs configuration, so it belongs in a separate plan together with issue #4214.
 - A configuration option for the lifetime.
+- Storing transformed variants in the media storage, so an evicted variant isn't transformed again. Stored variants don't expire like cache entries, need cleanup on replace and delete, and need limits on which variants exist, so this belongs in the separate plan with issue #4214.
 
 ## Interfaces and compatibility
 
