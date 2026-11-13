@@ -406,7 +406,7 @@ Use `tab` to group related blocks into labelled panels:
 
 ## Repeater and media picker elements
 
-`repeater` and `media_picker` are authoring elements for native plugin Portable Text block forms. They are not ordinary fields in a sandboxed admin-page `form`.
+`repeater` is an authoring element for native plugin Portable Text block forms. `media_picker` works there and in [declarative field widgets](#declarative-field-widgets). Neither is an ordinary field in a sandboxed admin-page `form`.
 
 `repeater` captures an array of objects. Its nested fields support `text_input`, `number_input`, `select`, `toggle`, and `media_picker`.
 

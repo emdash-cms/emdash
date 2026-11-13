@@ -4,7 +4,7 @@ import { Image as ImageIcon, ImageBroken, ImageSquare, X } from "@phosphor-icons
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
-import { localMediaFileUrl } from "../lib/media-utils.js";
+import { isLocalMediaFileUrl, localMediaFileUrl } from "../lib/media-utils.js";
 import { isSafeUrl } from "../lib/url";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -50,6 +50,7 @@ function SelectedMediaCard({
 	onReplace,
 }: SelectedMediaCardProps) {
 	const { t } = useLingui();
+	const title = isLocalMediaFileUrl(url) ? t`Selected image` : mediaFilename(url);
 
 	return (
 		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center rounded-xl p-0">
@@ -71,7 +72,7 @@ function SelectedMediaCard({
 			</div>
 			<div className="flex min-w-0 flex-col gap-2 px-2 py-2 pe-3">
 				<Text as="p" bold truncate>
-					<bdi dir="auto">{mediaFilename(url)}</bdi>
+					<bdi dir="auto">{title}</bdi>
 				</Text>
 				{broken && (
 					<Text as="p" variant="secondary" size="xs">

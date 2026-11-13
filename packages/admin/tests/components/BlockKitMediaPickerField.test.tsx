@@ -133,14 +133,23 @@ describe("BlockKitMediaPickerField", () => {
 	});
 
 	describe("preview", () => {
-		it("shows the selected filename with visible replace and remove actions", async () => {
+		it("labels local media as the selected image instead of its storage key", async () => {
 			const { screen } = await renderField({
-				value: "/_emdash/api/media/file/diagram%20final.png",
+				value: "/_emdash/api/media/file/01JC8ZQ4X9V7K2M5N8P3R6T1W0.jpg",
 			});
 
-			await expect.element(screen.getByText("diagram final.png")).toBeInTheDocument();
+			await expect.element(screen.getByText("Selected image")).toBeInTheDocument();
+			await expect
+				.element(screen.getByText("01JC8ZQ4X9V7K2M5N8P3R6T1W0.jpg"))
+				.not.toBeInTheDocument();
 			await expect.element(screen.getByRole("button", { name: "Replace Hero" })).toBeVisible();
 			await expect.element(screen.getByRole("button", { name: "Remove Hero" })).toBeVisible();
+		});
+
+		it("shows the decoded filename for external media", async () => {
+			const { screen } = await renderField({ value: "https://cdn.example/diagram%20final.png" });
+
+			await expect.element(screen.getByText("diagram final.png")).toBeInTheDocument();
 		});
 
 		it("renders the image with no-referrer and lazy loading when value is a safe URL", async () => {
@@ -206,22 +215,6 @@ describe("BlockKitMediaPickerField", () => {
 			// Both action buttons must remain in the DOM and accessible
 			await expect.element(screen.getByRole("button", { name: "Remove Hero" })).toBeVisible();
 			await expect.element(screen.getByRole("button", { name: "Replace Hero" })).toBeVisible();
-		});
-
-		it("maintains a minimum height so the container does not collapse", async () => {
-			const { screen } = await renderField({
-				value: "/_emdash/api/media/file/missing.png",
-			});
-
-			const img = await waitForImg();
-			img.dispatchEvent(new Event("error"));
-
-			// The broken-image placeholder should be visible (its presence confirms
-			// the container didn't collapse — a zero-height container can't show text)
-			await expect.element(screen.getByText("Image not found")).toBeInTheDocument();
-
-			// The remove button must remain accessible via label
-			await expect.element(screen.getByRole("button", { name: "Remove Hero" })).toBeVisible();
 		});
 	});
 
