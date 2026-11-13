@@ -24,39 +24,39 @@ A `badge` column can carry `badge_variants`: a map from a cell's exact text to a
 
 ```json
 {
-  "type": "table",
-  "page_action_id": "list",
-  "columns": [
-    { "key": "order", "label": "Order" },
-    {
-      "key": "status",
-      "label": "Status",
-      "format": "badge",
-      "badge_variants": {
-        "Needs label": "warning",
-        "Fix address": "error",
-        "In transit": "info",
-        "Delivered": "success",
-        "Completed": "neutral"
-      }
-    }
-  ],
-  "rows": [
-    { "order": "#1012", "status": "Needs label" },
-    { "order": "#1009", "status": "Delivered" }
-  ]
+	"type": "table",
+	"page_action_id": "list",
+	"columns": [
+		{ "key": "order", "label": "Order" },
+		{
+			"key": "status",
+			"label": "Status",
+			"format": "badge",
+			"badge_variants": {
+				"Needs label": "warning",
+				"Fix address": "error",
+				"In transit": "info",
+				"Delivered": "success",
+				"Completed": "neutral"
+			}
+		}
+	],
+	"rows": [
+		{ "order": "#1012", "status": "Needs label" },
+		{ "order": "#1009", "status": "Delivered" }
+	]
 }
 ```
 
 The colours are semantic names, not Kumo class names, so Block Kit stays independent of the component library:
 
 | `badge_variants` value | Kumo `Badge` variant |
-| --- | --- |
-| `neutral` | `secondary` |
-| `info` | `info` |
-| `success` | `success` |
-| `warning` | `warning` |
-| `error` | `error` |
+| ---------------------- | -------------------- |
+| `neutral`              | `secondary`          |
+| `info`                 | `info`               |
+| `success`              | `success`            |
+| `warning`              | `warning`            |
+| `error`                | `error`              |
 
 Rows stay plain strings, so sorting, paging and agents reading the table work exactly as they do now.
 
