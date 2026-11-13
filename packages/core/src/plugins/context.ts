@@ -1573,7 +1573,7 @@ export interface ContentActionCallbacks {
 		invocationId: string,
 		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): void;
-	/** Release queued after-hooks; `final: false` keeps late actions self-scheduling after timeout. */
+	/** Release queued after-hooks; `final: false` keeps late content hooks self-scheduling after timeout. */
 	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
 	/**
 	 * Purge cached responses for a storage key after a plugin deleted its file. Never throws.

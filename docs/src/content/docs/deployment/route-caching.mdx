@@ -89,6 +89,7 @@ Some deletes are not purged:
 
 - Files removed directly from the storage bucket.
 - `ctx.media.delete()` called from a plugin hook or cron job, except on Cloudflare once a Cron Trigger has run in that Worker isolate.
+- On Cloudflare, a sandboxed `ctx.media.delete()` that finishes after its plugin route exceeded the wall-time limit, when the route never completes.
 - Stored files removed by the hourly cleanup on Node.
 - Media whose storage key contains characters other than letters, digits, `.`, `_` and `-`. EmDash does not cache these files, because their tag could not be purged reliably.
 
