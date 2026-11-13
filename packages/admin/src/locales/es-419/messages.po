@@ -166,7 +166,8 @@ msgstr ""
 msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/OptionalLabel.tsx:13
+#: packages/admin/src/components/OptionalLabel.tsx:14
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:14
 msgid "(optional)"
 msgstr ""
 
@@ -2974,7 +2975,7 @@ msgstr ""
 #: packages/admin/src/components/users/InviteUserModal.tsx:232
 #: packages/admin/src/components/Widgets.tsx:524
 #: packages/admin/src/components/WordPressImport.tsx:1967
-#: packages/admin/src/locales/KumoTranslationsProvider.tsx:9
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:13
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -3552,7 +3553,7 @@ msgstr ""
 #: packages/admin/src/components/SectionPickerModal.tsx:71
 #: packages/admin/src/components/TaxonomySidebar.tsx:636
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
-#: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:12
 msgid "Close"
 msgstr "Cerrar"
 
@@ -9840,6 +9841,10 @@ msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4126
 msgid "More formatting"
+msgstr ""
+
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:15
+msgid "More information"
 msgstr ""
 
 #: packages/admin/src/components/DialogSection.tsx:28
