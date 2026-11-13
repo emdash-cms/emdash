@@ -48,8 +48,8 @@ The `stats` block already colors trends, with `text-green-600` for `up` and `tex
 
 | Cell value       | Rendered   | Color                                       |
 | ---------------- | ---------- | ------------------------------------------- |
-| `0.25`           | ↑ +25%     | green, as in the `stats` block's `up` trend   |
-| `-0.1`           | ↓ -10%     | red, as in the `stats` block's `down` trend   |
+| `0.25`           | ↑ +25%     | green, as in the `stats` block's `up` trend |
+| `-0.1`           | ↓ -10%     | red, as in the `stats` block's `down` trend |
 | `0`              | 0%         | `text-kumo-subtle`, no arrow                |
 | `null` or absent | empty cell | —                                           |
 | `"New"`          | New        | default text color                          |
