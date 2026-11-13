@@ -663,7 +663,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// EmDashHead must not access Astro.csp when the host has disabled
 				// Astro's built-in CSP runtime; Astro logs a warning for that access.
 				serializableConfig.astroCspEnabled = Boolean(astroConfig.security.csp);
-				serializableConfig.routeCacheProvider = astroConfig.cache?.provider?.name;
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
@@ -817,6 +816,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					typeof cookie === "string"
 						? cookie || "astro-session"
 						: (cookie?.name ?? "astro-session");
+				serializableConfig.routeCacheProvider = finalConfig.cache?.provider?.name;
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

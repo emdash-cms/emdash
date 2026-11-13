@@ -882,4 +882,24 @@ describe("media_delete route cache purge", () => {
 		expect(objects.has(storageKey)).toBe(true);
 		expect(invalidate).not.toHaveBeenCalled();
 	});
+
+	it("does not purge when the media item does not exist", async () => {
+		const { storage } = trackingStorage([]);
+		const { cache, invalidate } = routeCache();
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			cache,
+			runtimeOptions: { storage },
+		});
+
+		const result = await harness.client.callTool({
+			name: "media_delete",
+			arguments: { id: "missing" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(invalidate).not.toHaveBeenCalled();
+	});
 });

@@ -172,6 +172,21 @@ describe("GET /_image over EmDash media", () => {
 		});
 	});
 
+	it("serves the same response without touching a disabled route cache", async () => {
+		transform.mockResolvedValue({ data: new Uint8Array([4, 5, 6]), format: "webp" });
+		const cache = { enabled: false, set: vi.fn() };
+		const request = new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=150",
+		);
+
+		const response = await GET(buildContext(request, { download: pngDownload() }, cache));
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Cache-Control")).toBe(MUTABLE_MEDIA_CACHE_CONTROL);
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([4, 5, 6]));
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
 	it("does not cache a 304", async () => {
 		transform.mockResolvedValue({ data: new Uint8Array([4, 5, 6]), format: "webp" });
 		const url = "http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=150";

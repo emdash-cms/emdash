@@ -342,6 +342,23 @@ describe("PUT /media/:id/replace", () => {
 		});
 	});
 
+	it("still replaces the image when the route cache purge fails", async () => {
+		const original = await createImage();
+		const cache = routeCache();
+		cache.invalidate.mockRejectedValueOnce(new Error("purge unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		const response = await putReplace(
+			buildContext({ db, request: replaceRequest(), storage: memoryStorage(), cache }),
+		);
+
+		expect(response.status).toBe(200);
+		expect(cache.invalidate).toHaveBeenCalledOnce();
+		const stored = await new MediaRepository(db).findById(original.id);
+		expect(stored?.width).toBe(600);
+		expect(stored?.height).toBe(400);
+	});
+
 	it("purges even when the metadata update fails after the bytes changed", async () => {
 		const original = await createImage();
 		const cache = routeCache();

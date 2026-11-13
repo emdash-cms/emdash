@@ -128,8 +128,8 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 - A restart empties the cache.
 - `memoryCache()` only stores a response that has a `maxAge`, so a route without a rule is never cached, even if the page calls `Astro.cache.set()` with a cache hint.
 - Scheduled publishing does not invalidate the route cache on Node. A page that lists a scheduled entry shows it once its cached copy expires, so keep `maxAge` short on routes that list scheduled content.
-- Media files share the cache's entry limit (1,000 by default) with your pages, so images can evict cached pages. Raise it with `memoryCache({ max })` if that happens.
-- Every cached image sits in process memory. EmDash only stores media responses up to 10 MB in `memoryCache()`; larger files and variants are served uncached.
+- Media files share the cache's entry limit (1,000 by default) with your pages, so images can evict cached pages.
+- Every cached image sits in process memory. EmDash stores media responses of up to 10 MB each in `memoryCache()`; larger files and variants are served uncached. The cache has no total size limit, so its memory can grow to the entry limit times 10 MB (about 10 GB at the default of 1,000), for example when visitors request many large image variants. Lower the limit with `memoryCache({ max })` if memory is tight, or use a CDN provider for media-heavy sites.
 - A cache hit is served without checking `If-None-Match`, so a browser revalidating a cached image gets the whole file again instead of a `304`.
 - With several processes, a replaced or deleted image stays cached in the processes that didn't handle the change for up to a year, or until they restart. Run a single process, or a CDN provider, if editors replace images.
 

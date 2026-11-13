@@ -135,6 +135,31 @@ describe("Cloudflare image endpoint", () => {
 		expect(ctx.cache.set).not.toHaveBeenCalled();
 	});
 
+	it("hands a non-EmDash image to the adapter without redirecting", async () => {
+		installImages();
+		const { ctx, storage } = context("");
+		ctx.request = new Request("https://example.test/_image?x=1&w=120&href=%2F_astro%2Flogo.png");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(418);
+		expect(adapterGET).toHaveBeenCalledOnce();
+		expect(storage.download).not.toHaveBeenCalled();
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("does not cache a failed transform", async () => {
+		const { output } = installImages();
+		output.mockRejectedValueOnce(new Error("Images unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const { ctx } = context("w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(500);
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
 	it("uses the Images default quality for an omitted q", async () => {
 		const { output } = installImages();
 		const { ctx } = context("w=120");

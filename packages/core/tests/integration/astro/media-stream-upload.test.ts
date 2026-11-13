@@ -1213,6 +1213,28 @@ describe("streamed media upload fallback", () => {
 		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
 	});
 
+	it("returns 404 without purging when deleting a missing item", async () => {
+		const invalidate = vi.fn(async () => {});
+		const storage = streamingStorage();
+
+		const response = await deleteMedia({
+			params: { id: "missing" },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(404);
+		expect(invalidate).not.toHaveBeenCalled();
+	});
+
 	it("purges the cached file after a delete from the media picker", async () => {
 		const media = await new MediaRepository(db).create({
 			filename: "photo.png",

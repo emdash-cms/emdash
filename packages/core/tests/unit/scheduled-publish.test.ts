@@ -455,6 +455,18 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		expect(mockCleanup).toHaveBeenCalledTimes(2);
 	});
 
+	it("gives system cleanup the route cache invalidator from the scheduled run", async () => {
+		const mockCleanup = vi.mocked(runSystemCleanup);
+		mockCleanup.mockClear();
+		const invalidateContentCache = vi.fn(async () => {});
+
+		const runtime = buildRuntime(db, () => new Date("2026-10-04T12:00:00.000Z"));
+		await runtime.runScheduledTasks({ invalidateContentCache });
+
+		expect(mockCleanup).toHaveBeenCalledOnce();
+		expect(mockCleanup.mock.calls[0]?.[2]).toBe(invalidateContentCache);
+	});
+
 	it("records a heartbeat on non-hour ticks without running system cleanup", async () => {
 		const mockCleanup = vi.mocked(runSystemCleanup);
 		mockCleanup.mockClear();

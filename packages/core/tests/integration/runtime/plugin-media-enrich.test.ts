@@ -287,9 +287,11 @@ describe("plugin ctx.media.delete", () => {
 		expect(invalidateMedia).not.toHaveBeenCalled();
 	});
 
-	it("returns false for an unknown id", async () => {
-		const media = createMediaAccessWithWrite(db, undefined, fakeStorage());
+	it("returns false for an unknown id without purging", async () => {
+		const invalidateMedia = vi.fn(async () => {});
+		const media = createMediaAccessWithWrite(db, undefined, fakeStorage(), true, invalidateMedia);
 		expect(await media.delete("missing")).toBe(false);
+		expect(invalidateMedia).not.toHaveBeenCalled();
 	});
 
 	it("throws when a database write fails during deletion", async () => {

@@ -1,4 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { DatabaseSync } from "node:sqlite";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("cloudflare:workers", () => ({
 	WorkerEntrypoint: class {
@@ -72,9 +74,50 @@ describe("Cloudflare content action callback isolation", () => {
 	});
 });
 
+function sqliteD1(db: DatabaseSync) {
+	return {
+		prepare(sql: string) {
+			return {
+				bind(...params: Array<string | number | null>) {
+					const statement = db.prepare(sql);
+					return {
+						first: async () => statement.get(...params) ?? null,
+						run: async () => ({ meta: { changes: Number(statement.run(...params).changes) } }),
+					};
+				},
+			};
+		},
+	};
+}
+
+function mediaBridge(db: DatabaseSync, bucket: { delete: (key: string) => Promise<void> }) {
+	return new PluginBridge(
+		{
+			props: {
+				pluginId: "publisher",
+				pluginVersion: "1.0.0",
+				capabilities: ["media:write"],
+				allowedHosts: [],
+				storageCollections: [],
+				contentActionsRuntimeId: "runtime-a",
+			},
+		} as never,
+		{ DB: sqliteD1(db), MEDIA: bucket } as never,
+	);
+}
+
 describe("Cloudflare bridge media delete", () => {
+	let db: DatabaseSync;
+
+	beforeEach(() => {
+		db = new DatabaseSync(":memory:");
+		db.exec("CREATE TABLE media (id TEXT PRIMARY KEY, storage_key TEXT NOT NULL)");
+		db.prepare("INSERT INTO media (id, storage_key) VALUES (?, ?)").run("m-1", "photo.png");
+	});
+
 	afterEach(() => {
 		setContentActionsCallback("runtime-a", null);
+		db.close();
 	});
 
 	it.each([
@@ -87,33 +130,15 @@ describe("Cloudflare bridge media delete", () => {
 			setContentActionsCallback("runtime-a", {
 				invalidateMedia,
 			} as unknown as ContentActionCallbacks);
-			const statement = (sql: string) => ({
-				bind: () => ({
-					first: async () => (sql.startsWith("SELECT") ? { storage_key: "photo.png" } : null),
-					run: async () => ({ meta: { changes: 1 } }),
-				}),
-			});
 			const bucket = {
 				delete: deleted
 					? vi.fn().mockResolvedValue(undefined)
 					: vi.fn().mockRejectedValue(new Error("bucket unavailable")),
 			};
-			const plugin = new PluginBridge(
-				{
-					props: {
-						pluginId: "publisher",
-						pluginVersion: "1.0.0",
-						capabilities: ["media:write"],
-						allowedHosts: [],
-						storageCollections: [],
-						contentActionsRuntimeId: "runtime-a",
-					},
-				} as never,
-				{ DB: { prepare: statement }, MEDIA: bucket } as never,
-			);
 
-			await expect(plugin.mediaDelete("m-1", "invoke-a")).resolves.toBe(true);
+			await expect(mediaBridge(db, bucket).mediaDelete("m-1", "invoke-a")).resolves.toBe(true);
 
+			expect(db.prepare("SELECT id FROM media WHERE id = ?").get("m-1")).toBeUndefined();
 			expect(bucket.delete).toHaveBeenCalledWith("photo.png");
 			if (purges) {
 				expect(invalidateMedia).toHaveBeenCalledWith("publisher", "photo.png", "invoke-a");
@@ -122,4 +147,18 @@ describe("Cloudflare bridge media delete", () => {
 			}
 		},
 	);
+
+	it("does not touch storage or the route cache for an unknown id", async () => {
+		const invalidateMedia = vi.fn().mockResolvedValue(undefined);
+		setContentActionsCallback("runtime-a", {
+			invalidateMedia,
+		} as unknown as ContentActionCallbacks);
+		const bucket = { delete: vi.fn().mockResolvedValue(undefined) };
+
+		await expect(mediaBridge(db, bucket).mediaDelete("missing", "invoke-a")).resolves.toBe(false);
+
+		expect(bucket.delete).not.toHaveBeenCalled();
+		expect(invalidateMedia).not.toHaveBeenCalled();
+		expect(db.prepare("SELECT id FROM media WHERE id = ?").get("m-1")).toEqual({ id: "m-1" });
+	});
 });
