@@ -7,6 +7,7 @@
  */
 import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
+import { blurhashBackgroundStyle } from "../media/placeholder-style.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import { canOptimizeImage, toAbsoluteMediaUrl, responsiveWidths } from "../media/responsive.js";
@@ -196,8 +197,7 @@ const dominantColor = (node.dominantColor ??
 
 let placeholderStyle = "";
 if (placeholder && blurhash) {
-	const { blurhashToImageCssString } = await import("@unpic/placeholder");
-	placeholderStyle = blurhashToImageCssString(blurhash);
+	placeholderStyle = blurhashBackgroundStyle(blurhash);
 } else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }

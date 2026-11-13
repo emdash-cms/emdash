@@ -9,6 +9,7 @@
  */
 import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
+import { blurhashBackgroundStyle } from "../media/placeholder-style.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
@@ -151,8 +152,7 @@ const resolvedImages = await Promise.all(
 		// Image.astro.
 		let placeholderStyle = "";
 		if (placeholder && image.blurhash) {
-			const { blurhashToImageCssString } = await import("@unpic/placeholder");
-			placeholderStyle = blurhashToImageCssString(image.blurhash);
+			placeholderStyle = blurhashBackgroundStyle(image.blurhash);
 		} else if (placeholder && image.dominantColor) {
 			placeholderStyle = `background-color: ${image.dominantColor};`;
 		}

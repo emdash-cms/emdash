@@ -26,6 +26,7 @@ import type { LocalImageProps } from "astro:assets";
 import { Image as AstroImage, Picture as AstroPicture, getImage } from "astro:assets";
 import type { ImageTransformFormat } from "../media/image-endpoint.js";
 import type { ImageEmbed } from "../media/types.js";
+import { blurhashBackgroundStyle } from "../media/placeholder-style.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
 import { buildRenderMediaUrl } from "../media/url.js";
@@ -271,8 +272,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {
-		const { blurhashToImageCssString } = await import("@unpic/placeholder");
-		placeholderStyle = blurhashToImageCssString(blurhash);
+		placeholderStyle = blurhashBackgroundStyle(blurhash);
 	} else if (placeholder && dominantColor) {
 		placeholderStyle = `background-color: ${dominantColor};`;
 	}
