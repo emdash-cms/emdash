@@ -157,6 +157,13 @@ const resolvedImages = await Promise.all(
 			placeholderStyle = `background-color: ${image.dominantColor};`;
 		}
 
+		const imageStyle = [
+			placeholderStyle,
+			objectPosition ? `object-position: ${objectPosition};` : "",
+		]
+			.filter(Boolean)
+			.join(" ");
+
 		return {
 			key: image._key,
 			alt,
@@ -167,8 +174,7 @@ const resolvedImages = await Promise.all(
 			srcset,
 			sizes,
 			astroImageSrc,
-			placeholderStyle,
-			objectPosition,
+			imageStyle,
 		};
 	}),
 );
@@ -177,7 +183,7 @@ const resolvedImages = await Promise.all(
 <div class="emdash-gallery" style={`--columns: ${columns}`}>
 	{
 		resolvedImages.map((image) => (
-			<figure class="emdash-gallery-item" style={image.placeholderStyle || undefined}>
+			<figure class="emdash-gallery-item">
 				{image.astroImageSrc ? (
 					<AstroImage
 						src={image.astroImageSrc}
@@ -186,7 +192,7 @@ const resolvedImages = await Promise.all(
 						height={image.height!}
 						layout="constrained"
 						sizes={cellSizes}
-						style={image.objectPosition ? `object-position: ${image.objectPosition};` : undefined}
+						style={image.imageStyle || undefined}
 					/>
 				) : (
 					<img
@@ -198,7 +204,7 @@ const resolvedImages = await Promise.all(
 						height={image.height}
 						loading="lazy"
 						decoding="async"
-						style={image.objectPosition ? `object-position: ${image.objectPosition};` : undefined}
+						style={image.imageStyle || undefined}
 					/>
 				)}
 				{image.caption && <figcaption>{image.caption}</figcaption>}

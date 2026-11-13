@@ -17,7 +17,7 @@ function styles(html: string): string[] {
 // Browsers drop a `background` shorthand whose size is not preceded by
 // `<position> /`, so the image would load into an empty box.
 function expectValidBlurhashBackground(style: string | undefined) {
-	expect(style).toMatch(/^background: url\("data:image\/bmp;base64,[^"]+"\) center \/ cover;/);
+	expect(style).toMatch(/^background: url\("data:image\/bmp;base64,[^"]+"\) [^;]*\/\s*cover\b/);
 }
 
 describe("blurhash placeholder background", () => {
@@ -65,7 +65,22 @@ describe("blurhash placeholder background", () => {
 			},
 			locals,
 		});
-		expectValidBlurhashBackground(styles(html).find((s) => s.startsWith("background:")));
+		const img = html.match(/<img\b[^>]*>/)?.[0] ?? "";
+		const figure = html.match(/<figure\b[^>]*>/)?.[0] ?? "";
+		expectValidBlurhashBackground(styles(img)[0]);
+		expect(figure).not.toContain("style=");
+	});
+
+	it("is omitted when placeholders are disabled", async () => {
+		const container = await AstroContainer.create();
+		const html = await container.renderToString(EmDashImage, {
+			props: {
+				image: { id: "m1", src: "https://example.com/a.jpg", blurhash },
+				placeholder: false,
+			},
+			locals,
+		});
+		expect(html).not.toContain("background");
 	});
 
 	it("keeps the dominant color fallback when there is no blurhash", async () => {
