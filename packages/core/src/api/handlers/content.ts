@@ -1347,11 +1347,13 @@ export async function handleContentCreate(
 								"collection.id",
 								"field.collection_id",
 							)
-							.select("field.slug")
+							.select(["field.slug", "field.type", "field.validation"])
 							.where("collection.slug", "=", collection)
 							.where("field.translatable", "=", 0)
 							.execute()
-					).map((field) => field.slug)
+					)
+						.filter((field) => !isStoragelessFieldRow(field))
+						.map((field) => field.slug)
 				: [];
 
 			// Resolve the whole selection before the entry is written. On D1 the

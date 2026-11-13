@@ -40,6 +40,14 @@ describe("isMissingTableError", () => {
 		expect(isMissingTableError(new Error("syntax error"))).toBe(false);
 	});
 
+	it("does not treat a missing column of an existing relation as a missing table", () => {
+		expect(isMissingTableError(new Error('column "x" of relation "y" does not exist'))).toBe(false);
+		expect(isMissingTableError(new Error('relation "y" does not exist'))).toBe(true);
+		expect(isMissingTableError(new Error("no such table: y"))).toBe(true);
+		// The word "column" inside a relation name is still a missing table.
+		expect(isMissingTableError(new Error('relation "ec_columns" does not exist'))).toBe(true);
+	});
+
 	it("handles non-Error inputs safely", () => {
 		expect(isMissingTableError("no such table: x")).toBe(true);
 		expect(isMissingTableError(null)).toBe(false);
