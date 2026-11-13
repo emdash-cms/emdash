@@ -8,6 +8,7 @@ import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserAvatar } from "./UserAvatar.js";
 
 export type { CurrentUser } from "../lib/api/current-user";
 
@@ -42,10 +43,7 @@ export function Header({ staging = false }: { staging?: boolean }) {
 
 	const { data: user } = useCurrentUser();
 
-	// Get display name and initials
 	const displayName = user?.name || user?.email || t`User`;
-	const initialsSource = user?.name || user?.email || "U";
-	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
 		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
@@ -79,13 +77,11 @@ export function Header({ staging = false }: { staging?: boolean }) {
 				{/* User menu */}
 				<Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
 					<Popover.Trigger asChild>
-						<Button variant="ghost" size="sm" className="gap-2">
-							{user?.avatarUrl ? (
-								<img src={user.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+						<Button variant="ghost" size="sm" className="gap-2" aria-label={displayName}>
+							{user ? (
+								<UserAvatar user={user} size={20} />
 							) : (
-								<div className="h-5 w-5 rounded-full bg-kumo-brand/10 flex items-center justify-center text-[10px] font-medium">
-									{initials}
-								</div>
+								<span aria-hidden="true" className="size-5 shrink-0 rounded-full bg-kumo-tint" />
 							)}
 							<span className="hidden sm:inline max-w-[120px] truncate">{displayName}</span>
 						</Button>

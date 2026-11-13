@@ -251,6 +251,8 @@ Bylines are reusable author or contributor credits. `byline_create` can create a
 
 While another user holds an entry's [edit lock](/reference/rest-api/#entry-edit-lock) because they have it open in the admin, `content_update`, `content_delete`, `content_publish`, `content_unpublish`, `content_schedule`, `content_unschedule`, `content_discard_draft` and `revision_restore` fail with `ENTRY_LOCKED`, and the error names the holder. Reading the item again does not clear the refusal. Pass `overrideLock: true` to write anyway.
 
+While people [co-edit an entry](/guides/working-with-content/#edit-with-other-people) in the admin, the entry has no edit lock, and these writes appear in their editors. Their saves change `_rev` every few seconds, so a write that sends `_rev` conflicts more often. `content_publish`, `content_unpublish`, `content_schedule` and `content_discard_draft` also conflict while the editors hold edits that aren't saved yet.
+
 ## Translations
 
 Content, byline, taxonomy term, and menu translation tools return every locale variant in the relevant translation group. Use the creation tool's `translationOf` input when its schema provides one; `tools/list` is authoritative for the required fields.

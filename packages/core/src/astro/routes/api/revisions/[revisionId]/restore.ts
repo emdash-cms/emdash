@@ -68,7 +68,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		});
 	}
 
-	const result = await emdash.handleRevisionRestore(revisionId, user!.id);
+	const result = await emdash.handleRevisionRestore(revisionId, user!.id, user!.role);
 
 	return unwrapResult(result);
 };

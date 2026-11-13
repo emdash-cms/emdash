@@ -129,6 +129,9 @@ describe("PluginBridge content write fence", () => {
 					async run() {
 						return { meta: { changes: 1 } };
 					},
+					async all() {
+						return { results: [], meta: { changes: 1 } };
+					},
 				};
 				return statement;
 			},
@@ -136,7 +139,7 @@ describe("PluginBridge content write fence", () => {
 
 		await expect(makeBridge(db).contentDelete("posts", "post-id")).resolves.toBe(true);
 		expect(queries[1]).toContain("write_epoch = write_epoch + 1");
-		expect(queries[2]).toContain("UPDATE ec_posts SET deleted_at");
+		expect(queries[2]).toMatch(/UPDATE "ec_posts"\s+SET deleted_at/);
 	});
 
 	it("keeps the media usage fence before the transfer tables are migrated", async () => {

@@ -196,6 +196,7 @@ export function getActiveContentSaveHookName(): ContentSaveHookName | undefined 
 function assignSaveHookDetails(event: ContentHookEvent, details: ContentSaveHookDetails): void {
 	if (details.locale !== undefined) event.locale = details.locale;
 	if (details.translationOf !== undefined) event.translationOf = details.translationOf;
+	if (details.editedBy !== undefined) event.editedBy = [...details.editedBy];
 }
 
 /**

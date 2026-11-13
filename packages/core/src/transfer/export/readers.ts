@@ -255,8 +255,12 @@ function commentValid(context: FilterContext): RawBuilder<boolean> {
 	);
 }
 
+/** Recovery revisions stay behind, because the target site couldn't tell them from the others. */
+const NOT_RECOVERY_REVISION = (): RawBuilder<boolean> =>
+	sql<boolean>`(${col("revisions", "kind")} IS NULL OR ${col("revisions", "kind")} <> 'recovery')`;
+
 function revisionValid(context: FilterContext): RawBuilder<boolean> {
-	return entryExists(context, col("revisions", "collection"), col("revisions", "entry_id"));
+	return sql<boolean>`(${entryExists(context, col("revisions", "collection"), col("revisions", "entry_id"))} AND ${NOT_RECOVERY_REVISION()})`;
 }
 
 /** Media ids among `ids` that the export operation hashed. */
@@ -744,7 +748,7 @@ function configFor(kind: RecordKind): TableReaderConfig {
 				)`,
 			};
 		case "revision":
-			return { ...tableConfig(kind), filter: revisionValid };
+			return { ...tableConfig(kind), filter: revisionValid, countFilter: NOT_RECOVERY_REVISION };
 		case "content_term":
 			return {
 				...tableConfig("content_term"),

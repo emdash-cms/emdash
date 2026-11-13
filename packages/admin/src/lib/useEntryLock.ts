@@ -21,11 +21,11 @@ export type EntryLockState =
 	/** This session holds the lock. */
 	| { status: "holding" }
 	/** Someone else holds it and the editor has not chosen what to do. */
-	| { status: "blocked"; holder: EntryLockHolder }
+	| { status: "blocked"; holder: EntryLockHolder; room?: boolean }
 	/** Someone else holds it and the editor chose to read. */
-	| { status: "reading"; holder: EntryLockHolder }
+	| { status: "reading"; holder: EntryLockHolder; room?: boolean }
 	/** Someone else now holds the lock this session had, by take-over or after the lease lapsed. */
-	| { status: "taken"; holder: EntryLockHolder };
+	| { status: "taken"; holder: EntryLockHolder; room?: boolean };
 
 export interface EntryLock {
 	state: EntryLockState;
@@ -125,12 +125,15 @@ export function useEntryLock(input: {
 			holdsLockRef.current = false;
 			const previous = stateRef.current.status;
 			const holder = status.holder;
+			const room = status.room;
 			if (previous === "holding" || previous === "taken") {
-				commit({ status: "taken", holder });
+				commit({ status: "taken", holder, room });
 				return false;
 			}
 			commit(
-				previous === "reading" ? { status: "reading", holder } : { status: "blocked", holder },
+				previous === "reading"
+					? { status: "reading", holder, room }
+					: { status: "blocked", holder, room },
 			);
 			return true;
 		};
@@ -227,8 +230,9 @@ export function useEntryLock(input: {
 	}, [collection, entryId, locale, commit]);
 
 	const readInstead = React.useCallback(() => {
-		if (stateRef.current.status !== "blocked") return;
-		commit({ status: "reading", holder: stateRef.current.holder });
+		const current = stateRef.current;
+		if (current.status !== "blocked") return;
+		commit({ status: "reading", holder: current.holder, room: current.room });
 	}, [commit]);
 
 	const reportWriteError = React.useCallback(

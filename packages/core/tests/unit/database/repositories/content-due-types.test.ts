@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 
 import {
 	ContentRepository,
+	findNextScheduledAt,
 	findTypesWithDueContent,
 } from "../../../../src/database/repositories/content.js";
 import { SchemaRegistry } from "../../../../src/schema/registry.js";
@@ -59,5 +60,47 @@ describeEachDialect("findTypesWithDueContent()", (dialect) => {
 		}
 
 		expect(await findTypesWithDueContent(ctx.db, types, new Date())).toEqual(new Set(dueTypes));
+	});
+});
+
+describeEachDialect("findNextScheduledAt()", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: ContentRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+		repo = new ContentRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("returns the earliest live entry scheduled after `after` and by `until`", async () => {
+		const start = Date.now();
+		const at = (offsetMs: number) => new Date(start + offsetMs).toISOString();
+		const schedule = async (type: "post" | "page", slug: string, scheduledAt: string) => {
+			const fixture = type === "post" ? createPostFixture({ slug }) : createPageFixture({ slug });
+			const item = await repo.create(fixture);
+			await repo.update(type, item.id, { status: "scheduled", scheduledAt });
+			return item;
+		};
+		await schedule("post", "due", at(-1_000));
+		const deleted = await schedule("page", "deleted", at(10_000));
+		await repo.delete("page", deleted.id);
+		await schedule("post", "later", at(40_000));
+		await schedule("page", "next", at(30_000));
+		await schedule("page", "outside", at(5 * 60_000));
+
+		const until = new Date(start + 2 * 60_000);
+		expect(await findNextScheduledAt(ctx.db, ["post", "page"], new Date(start), until)).toEqual(
+			new Date(at(30_000)),
+		);
+		expect(
+			await findNextScheduledAt(ctx.db, ["post", "page"], new Date(at(30_000)), until),
+		).toEqual(new Date(at(40_000)));
+		expect(
+			await findNextScheduledAt(ctx.db, ["post", "page"], new Date(at(40_000)), until),
+		).toBeNull();
 	});
 });

@@ -13,13 +13,14 @@ import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowsClockwise, Subtitles, Trash, VideoCameraSlash } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Node, mergeAttributes, type Editor } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
 import type { NodeType } from "@tiptap/pm/model";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import * as React from "react";
 
+import { isDimension, isString } from "../../internal/video-block.js";
 import { fetchMediaItem, type MediaItem } from "../../lib/api/media.js";
 import {
 	canonicalMediaProviderId,
@@ -28,77 +29,9 @@ import {
 } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import { getLocaleDir } from "../../locales/config.js";
+import { VideoBlockNode } from "../../portable-text/schema.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { useCaptionField, useCaptionText } from "./useCaptionField.js";
-
-type FieldCheck = (value: unknown) => boolean;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-const isString = (value: unknown): value is string => typeof value === "string";
-const isDimension = (value: unknown): value is number =>
-	typeof value === "number" && Number.isInteger(value) && value >= 1;
-
-const hasOnly = (record: Record<string, unknown>, fields: Map<string, FieldCheck>) =>
-	Object.entries(record).every(
-		([key, value]) => value === undefined || (fields.get(key)?.(value) ?? false),
-	);
-
-const ASSET_FIELDS = new Map<string, FieldCheck>([
-	["_ref", isString],
-	["url", isString],
-	["provider", isString],
-]);
-
-const isAsset = (value: unknown): value is Record<string, unknown> =>
-	isRecord(value) && isString(value._ref) && hasOnly(value, ASSET_FIELDS);
-
-const VIDEO_FIELDS = new Map<string, FieldCheck>([
-	["_type", () => true],
-	["_key", () => true],
-	["asset", isAsset],
-	["caption", isString],
-	["width", isDimension],
-	["height", isDimension],
-]);
-
-/**
- * Whether a block is the editor's own video block. A `video` block with other
- * fields, or values of other types, belongs to a plugin.
- */
-export function isVideoBlock(block: unknown): boolean {
-	return isRecord(block) && block._type === "video" && hasOnly(block, VIDEO_FIELDS);
-}
-
-/** A video block's node attributes. */
-export function videoNodeAttrs(block: unknown): Record<string, unknown> {
-	const record = isRecord(block) ? block : {};
-	const asset = isRecord(record.asset) ? record.asset : {};
-	return {
-		src: isString(asset.url) ? asset.url : "",
-		mediaId: isString(asset._ref) ? asset._ref : null,
-		provider: isString(asset.provider) ? asset.provider : null,
-		caption: isString(record.caption) ? record.caption : "",
-		width: isDimension(record.width) ? record.width : null,
-		height: isDimension(record.height) ? record.height : null,
-	};
-}
-
-/** A video node's Portable Text fields, written only when set. */
-export function videoBlockFields(attrs: Record<string, unknown>): Record<string, unknown> {
-	const { src, mediaId, provider, caption, width, height } = attrs;
-	const asset: Record<string, string> = { _ref: isString(mediaId) ? mediaId : "" };
-	if (isString(src) && src) asset.url = src;
-	if (isString(provider) && provider && provider !== "local") asset.provider = provider;
-	// An empty block has no media id, file or provider.
-	const empty = !isString(mediaId) && !asset.url && !asset.provider;
-	return {
-		...(empty ? {} : { asset }),
-		...(isString(caption) && caption ? { caption } : {}),
-		...(isDimension(width) ? { width } : {}),
-		...(isDimension(height) ? { height } : {}),
-	};
-}
 
 /** Node attributes for a picked or uploaded Media Library video. */
 export function mediaItemToVideoAttrs(item: MediaItem) {
@@ -431,62 +364,8 @@ function VideoNodeView({
 	);
 }
 
-function textAttribute(name: string, attribute: string, fallback: string | null) {
-	return {
-		default: fallback,
-		parseHTML: (element: HTMLElement) =>
-			element.getAttribute(`data-video-${attribute}`) ?? fallback,
-		renderHTML: (attributes: Record<string, unknown>) => {
-			const value = attributes[name];
-			return isString(value) && value ? { [`data-video-${attribute}`]: value } : {};
-		},
-	};
-}
-
-function numberAttribute(name: string) {
-	return {
-		default: null,
-		parseHTML: (element: HTMLElement) => {
-			const value = Number(element.getAttribute(`data-video-${name}`));
-			return isDimension(value) ? value : null;
-		},
-		renderHTML: (attributes: Record<string, unknown>) =>
-			isDimension(attributes[name]) ? { [`data-video-${name}`]: String(attributes[name]) } : {},
-	};
-}
-
-/**
- * TipTap extension: video block.
- *
- * A top-level atom. The editor's global drag handle moves it, so dragging the
- * player's seek bar can't move the block.
- */
-export const VideoExtension = Node.create({
-	name: "videoBlock",
-	group: "topBlock",
-	atom: true,
-	draggable: false,
-	selectable: true,
-
-	addAttributes() {
-		return {
-			src: textAttribute("src", "src", ""),
-			mediaId: textAttribute("mediaId", "media-id", null),
-			provider: textAttribute("provider", "provider", null),
-			caption: textAttribute("caption", "caption", ""),
-			width: numberAttribute("width"),
-			height: numberAttribute("height"),
-		};
-	},
-
-	parseHTML() {
-		return [{ tag: "figure[data-video-block]" }];
-	},
-
-	renderHTML({ HTMLAttributes }) {
-		return ["figure", mergeAttributes(HTMLAttributes, { "data-video-block": "" })];
-	},
-
+/** TipTap extension: video block. */
+export const VideoExtension = VideoBlockNode.extend({
 	addNodeView() {
 		return ReactNodeViewRenderer(VideoNodeView, { stopEvent });
 	},

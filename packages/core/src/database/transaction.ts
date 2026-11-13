@@ -17,6 +17,7 @@
 import type { Kysely, Transaction } from "kysely";
 
 import { deferObjectCacheInvalidations } from "../object-cache/index.js";
+import { withRoomNotificationQueue } from "../rooms/notifications.js";
 
 /**
  * Run a callback inside a transaction if supported, or directly if not.
@@ -52,6 +53,15 @@ export async function withTransaction<DB, T>(
 	if (db.isTransaction) {
 		return fn(db);
 	}
+	// Room notifications wait for the outermost call: after the commit, or after the last
+	// statement on D1, where a nested call can't tell itself apart by `isTransaction`.
+	return withRoomNotificationQueue(() => runTransaction(db, fn));
+}
+
+async function runTransaction<DB, T>(
+	db: Kysely<DB>,
+	fn: (trx: Kysely<DB> | Transaction<DB>) => Promise<T>,
+): Promise<T> {
 	// Fast path: we already know transactions work
 	if (transactionsSupported === true) {
 		return deferObjectCacheInvalidations(() => db.transaction().execute(fn));
