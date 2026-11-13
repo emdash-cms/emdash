@@ -6,6 +6,7 @@ import * as React from "react";
 import type { MediaItem } from "../lib/api";
 import { isLocalMediaFileUrl, localMediaFileUrl } from "../lib/media-utils.js";
 import { isSafeUrl } from "../lib/url";
+import { cn } from "../lib/utils.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
 export interface BlockKitMediaPickerFieldProps {
@@ -13,6 +14,8 @@ export interface BlockKitMediaPickerFieldProps {
 	label: string;
 	placeholder?: string;
 	mimeTypeFilter?: string;
+	/** Match the labels of the fields around it: Kumo fields use `base`. */
+	labelSize?: "sm" | "base";
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
 }
@@ -26,19 +29,24 @@ interface SelectedMediaCardProps {
 	onReplace: () => void;
 }
 
-function mediaFilename(url: string): string {
+const FILE_EXTENSION_RE = /\.[a-z0-9]{1,8}$/i;
+
+/** Image provider URLs often end in a variant such as `w=400,fit=scale-down`, not a filename. */
+function mediaFilename(url: string): string | undefined {
+	let segment: string | undefined;
 	try {
-		const pathname = new URL(url, "https://emdash.local").pathname;
-		const encodedFilename = pathname.split("/").findLast(Boolean);
-		if (!encodedFilename) return url;
-		try {
-			return decodeURIComponent(encodedFilename);
-		} catch {
-			return encodedFilename;
-		}
+		segment = new URL(url, "https://emdash.local").pathname.split("/").findLast(Boolean);
 	} catch {
-		return url;
+		return undefined;
 	}
+	if (!segment) return undefined;
+	let filename = segment;
+	try {
+		filename = decodeURIComponent(segment);
+	} catch {
+		// Keep the encoded segment when it holds a malformed escape.
+	}
+	return FILE_EXTENSION_RE.test(filename) ? filename : undefined;
 }
 
 function SelectedMediaCard({
@@ -50,7 +58,7 @@ function SelectedMediaCard({
 	onReplace,
 }: SelectedMediaCardProps) {
 	const { t } = useLingui();
-	const title = isLocalMediaFileUrl(url) ? t`Selected image` : mediaFilename(url);
+	const title = (!isLocalMediaFileUrl(url) && mediaFilename(url)) || t`Selected image`;
 
 	return (
 		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center rounded-xl p-0">
@@ -120,6 +128,7 @@ export function BlockKitMediaPickerField({
 	label,
 	placeholder,
 	mimeTypeFilter,
+	labelSize = "base",
 	value,
 	onChange,
 }: BlockKitMediaPickerFieldProps) {
@@ -149,7 +158,13 @@ export function BlockKitMediaPickerField({
 
 	return (
 		<div role="group" aria-labelledby={labelId}>
-			<span id={labelId} className="mb-1.5 block text-sm font-medium text-kumo-default">
+			<span
+				id={labelId}
+				className={cn(
+					"mb-1.5 block font-medium text-kumo-default",
+					labelSize === "sm" ? "text-sm" : "text-base",
+				)}
+			>
 				{label}
 			</span>
 			{canPreview ? (

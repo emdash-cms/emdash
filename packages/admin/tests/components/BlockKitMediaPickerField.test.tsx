@@ -152,6 +152,15 @@ describe("BlockKitMediaPickerField", () => {
 			await expect.element(screen.getByText("diagram final.png")).toBeInTheDocument();
 		});
 
+		it("labels provider media whose URL ends in a variant as the selected image", async () => {
+			const { screen } = await renderField({
+				value: "https://imagedelivery.net/account-hash/image-id/w=400,fit=scale-down",
+			});
+
+			await expect.element(screen.getByText("Selected image")).toBeInTheDocument();
+			await expect.element(screen.getByText("w=400,fit=scale-down")).not.toBeInTheDocument();
+		});
+
 		it("renders the image with no-referrer and lazy loading when value is a safe URL", async () => {
 			await renderField({ value: "/_emdash/api/media/file/abc.png" });
 			const img = await waitForImg();

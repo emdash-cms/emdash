@@ -2853,6 +2853,7 @@ function BlockKitField({
 					label={field.label}
 					placeholder={field.placeholder}
 					mimeTypeFilter={field.mime_type_filter}
+					labelSize="sm"
 					value={value}
 					onChange={onChange}
 				/>
