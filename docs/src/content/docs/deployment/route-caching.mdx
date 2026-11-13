@@ -94,7 +94,7 @@ Some deletes are not purged:
 
 Audio, video, and other non-image files are not cached: `memoryCache()` ignores the `Range` header that media players send, so a cached file would answer every seek with the whole file.
 
-A `/_image` URL for EmDash media whose query has unknown or repeated parameters, or lists them in a different order than Astro writes them, redirects with a `301` to its canonical form, so each variant has one cache entry. URLs built by `<Image>` and `getImage()` are already canonical. Browsers still revalidate media on every visit, because browser caches can't be purged.
+A `/_image` URL for EmDash media whose query has unknown or repeated parameters, lists them in a different order than Astro writes them, or encodes a value differently (for example an `href` with unencoded `/`), redirects with a `301` to its canonical form, so each variant has one cache entry. URLs built by `<Image>` and `getImage()` are already canonical. `memoryCache()` sorts query parameters and drops tracking parameters before its lookup, so a variant it has already cached can be served for such a URL without the redirect. Browsers still revalidate media on every visit, because browser caches can't be purged.
 
 ## Keep responses out of the cache
 

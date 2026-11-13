@@ -189,6 +189,7 @@ describe("GET /_emdash/api/media/file/:key — conditional caching", () => {
 	});
 
 	it("caches an image of any size under a CDN provider", async () => {
+		virtualConfig.routeCacheProvider = "cloudflare";
 		await upload("large.png", new Uint8Array(10 * 1024 * 1024 + 1), "image/png");
 		const cache = routeCache();
 

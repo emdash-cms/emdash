@@ -176,7 +176,7 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 
 		const response = new Response(body, { status: 200, headers });
 		if (body) unusedBody = undefined;
-		// Only images: the route cache ignores Range, so a cached video or audio
+		// Only images: memoryCache() ignores Range, so a cached video or audio
 		// file would answer a player's seek with the whole file.
 		if (!range && result.contentType.startsWith("image/")) {
 			cacheMediaResponse(

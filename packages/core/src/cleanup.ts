@@ -95,7 +95,7 @@ export function shouldRunSystemCleanup(currentTime: Date, lastRunAt?: Date | nul
  *   When omitted, pending upload DB rows are still deleted but the
  *   corresponding files in object storage are not removed.
  * @param invalidateRouteCache - Purges route cache tags; called with the media
- *   tags of every stored file this run removed.
+ *   tags of the stored files this run removed.
  */
 export async function runSystemCleanup(
 	db: Kysely<Database>,

@@ -8,4 +8,4 @@ Caches EmDash media in the route cache on sites with a cache provider. Whole ima
 
 With Astro's `memoryCache()` on Node, media responses are cached only up to 10 MB each and count toward the provider's 1,000-entry limit together with your pages. The cache has no total size limit, so lower `memoryCache({ max })` if memory is tight. Each process keeps its own copy, so sites running several processes keep serving a replaced or deleted image from the processes that didn't handle the change. See [Media files](https://docs.emdashcms.com/deployment/route-caching/#media-files) for the deletes that are not purged.
 
-`/_image` URLs for EmDash media now redirect with a `301` when their query contains unknown or repeated parameters or lists them in a different order than Astro writes them. URLs built by `<Image>` and `getImage()` are unaffected.
+`/_image` URLs for EmDash media now redirect with a `301` when their query contains unknown or repeated parameters, lists them in a different order than Astro writes them, or encodes a value differently (for example an `href` with unencoded `/`). URLs built by `<Image>` and `getImage()` are unaffected.
