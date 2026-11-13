@@ -4954,7 +4954,7 @@ msgstr "削除中…"
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:109
 msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
-msgstr ""
+msgstr "コンテンツタイプ「{0}」の削除に失敗しました。インポートする前に、{action}に{body}を送信して削除を再試行してください。"
 
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
@@ -9845,7 +9845,7 @@ msgstr "その他の書式"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:15
 msgid "More information"
-msgstr ""
+msgstr "詳細情報"
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
@@ -11241,7 +11241,7 @@ msgstr "パスワード"
 #. placeholder {0}: result.passwordProtected.length
 #: packages/admin/src/components/WordPressImport.tsx:2413
 msgid "Password-Protected Entries ({0})"
-msgstr ""
+msgstr "パスワード保護されたコンテンツ（{0}件）"
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:248
 msgid "Paste an embed code or an https link…"
@@ -15283,7 +15283,7 @@ msgstr "リダイレクトが多すぎるため、インポート前に循環を
 
 #: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
-msgstr ""
+msgstr "これらのコンテンツはWordPressでパスワード保護されています。EmDashにはコンテンツごとのパスワード機能がないため、下書きとしてインポートされました。公開する前に、それぞれの内容を確認してください。"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
