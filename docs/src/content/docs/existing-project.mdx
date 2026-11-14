@@ -30,27 +30,27 @@ Commit or otherwise save the current project before changing its configuration.
 
 <Steps>
 
-1. Install EmDash, the Node.js adapter, and React support:
+1. Install EmDash, the Node.js adapter, `sharp` for image optimization, and React support:
 
    <Tabs>
    <TabItem label="npm">
    ```bash
-   npm install emdash @astrojs/node @astrojs/react react react-dom
+   npm install emdash @astrojs/node @astrojs/react react react-dom sharp
    ```
    </TabItem>
    <TabItem label="pnpm">
    ```bash
-   pnpm add emdash @astrojs/node @astrojs/react react react-dom
+   pnpm add emdash @astrojs/node @astrojs/react react react-dom sharp
    ```
    </TabItem>
    <TabItem label="yarn">
    ```bash
-   yarn add emdash @astrojs/node @astrojs/react react react-dom
+   yarn add emdash @astrojs/node @astrojs/react react react-dom sharp
    ```
    </TabItem>
    </Tabs>
 
-   EmDash uses React for the admin panel even when the public site has no React components.
+   EmDash uses React for the admin panel even when the public site has no React components, and `sharp` powers `/_image` transforms at runtime on Node.js.
 
 2. Register the adapter, React, and EmDash in `astro.config.mjs`. If the file already contains other
    integrations or settings, keep them and add the relevant entries from this example:

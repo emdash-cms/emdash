@@ -100,6 +100,10 @@ const MISSING_SSR_DEPENDENCY = /file does not exist at .*node_modules[/\\]\.vite
 const SMOKE_FONT_PROVIDER_PATH = resolve(import.meta.dirname, "smoke-font-provider.mjs");
 const SMOKE_FONT_PATH = resolve(import.meta.dirname, "fixtures/codicon.ttf");
 const SMOKE_ENCRYPTION_KEY = "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const SMOKE_PNG = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+	"base64",
+);
 /** Yjs warns with this when a process loads a second copy of it. */
 const SECOND_YJS = "already imported";
 const COPY_EXCLUDES = new Set([
@@ -720,15 +724,20 @@ describe.sequential("Isolated template installs", () => {
 
 			if (platform.roomUpgrades) {
 				it(
-					"takes room upgrades on the built server",
+					"serves /_image transforms and takes room upgrades on the built server",
 					{ timeout: BUILD_TIMEOUT_MS + STARTUP_TIMEOUT_MS },
 					async () => {
 						const projectDir = projectDirs.get(platform.id);
 						if (!projectDir) throw new Error(`Missing isolated ${platform.name} project`);
+						const origin = `127.0.0.1:${platform.port}`;
+						const uploadsDir = join(projectDir, "uploads");
+						mkdirSync(uploadsDir, { recursive: true });
+						writeFileSync(join(uploadsDir, "smoke.png"), SMOKE_PNG);
 						const env = consumerEnvironment({
 							CI: "true",
 							ASTRO_TELEMETRY_DISABLED: "1",
 							EMDASH_ENCRYPTION_KEY: SMOKE_ENCRYPTION_KEY,
+							EMDASH_SITE_URL: `http://${origin}`,
 							NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(projectDir),
 						});
 						try {
@@ -763,13 +772,24 @@ describe.sequential("Isolated template installs", () => {
 							output += data.toString();
 						});
 						const readOutput = () => stripVTControlCharacters(output);
-						const origin = `127.0.0.1:${platform.port}`;
 
 						try {
 							// The upgrade listener attaches on the first EmDash request.
 							await waitForInjectedRoute(`http://${origin}/_emdash/api/manifest`, readOutput, {
 								timeoutMs: STARTUP_TIMEOUT_MS,
 							});
+							const mediaHref = encodeURIComponent(
+								`http://${origin}/_emdash/api/media/file/smoke.png`,
+							);
+							const transformed = await fetchWithServerOutput(
+								`http://${origin}/_image?href=${mediaHref}&w=1&f=webp`,
+								readOutput,
+							);
+							const transformedBytes = new Uint8Array(await transformed.arrayBuffer());
+							expect(transformed.status, readOutput()).toBe(200);
+							expect(transformed.headers.get("content-type")).toBe("image/webp");
+							expect(transformedBytes.byteLength).toBeGreaterThan(0);
+
 							const socket = await openSocket(
 								`ws://${origin}${roomPath("", "posts", "x", "forged")}`,
 							);

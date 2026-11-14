@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const CARET_SEMVER_RE = /^\^\d+\.\d+\.\d+/;
 
 void test("sync includes the license in the repository and standalone templates", () => {
 	const target = mkdtempSync(join(tmpdir(), "emdash-templates-license-"));
@@ -34,6 +35,12 @@ void test("sync includes the license in the repository and standalone templates"
 			assert.equal(readFileSync(join(target, "LICENSE"), "utf8"), license);
 			for (const template of templates) {
 				assert.equal(readFileSync(join(target, template, "LICENSE"), "utf8"), license);
+				const pkg = JSON.parse(readFileSync(join(target, template, "package.json"), "utf8"));
+				if (template.endsWith("-cloudflare")) {
+					assert.equal(pkg.dependencies.sharp, undefined);
+				} else {
+					assert.match(pkg.dependencies.sharp, CARET_SEMVER_RE);
+				}
 			}
 		}
 	} finally {
