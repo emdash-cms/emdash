@@ -1,11 +1,10 @@
 ---
-import type { RegistryEntryData } from "@emdash-cms/registry-loader";
-
+import type { ListedEntry } from "../../lib/discovery.js";
 import PluginCard from "../PluginCard.astro";
 import StatePanel from "../StatePanel.astro";
 
 interface Props {
-	entries: RegistryEntryData[];
+	entries: ListedEntry[];
 	hasError: boolean;
 }
 
