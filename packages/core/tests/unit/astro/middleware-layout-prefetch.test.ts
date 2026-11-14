@@ -11,9 +11,9 @@ import { afterEach, beforeEach, describe, it, expect, onTestFinished, vi } from 
 
 import { MenuRepository } from "../../../src/database/repositories/menu.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
-import { setI18nConfig } from "../../../src/i18n/config.js";
+import { type I18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
 import { getMenu } from "../../../src/menus/index.js";
-import { getTaxonomyTerms } from "../../../src/taxonomies/index.js";
+import { getTaxonomyTerms, resetTaxonomyDefsCacheForTests } from "../../../src/taxonomies/index.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 vi.mock("astro:middleware", () => ({
@@ -135,12 +135,78 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 
 	afterEach(() => {
 		setI18nConfig(null);
+		resetTaxonomyDefsCacheForTests();
 	});
 
 	const adapterWithoutFlag: DialectAdapter = {
 		acquireMigrationLock: async () => undefined,
 		releaseMigrationLock: async () => undefined,
 	};
+
+	async function renderImplicitLayout({
+		targetLocale,
+		pageLocale = "en",
+		i18n = { defaultLocale: "cs", locales: ["cs", "en"] },
+	}: {
+		targetLocale?: string;
+		pageLocale?: string;
+		i18n?: I18nConfig | null;
+	}) {
+		// Initialize the middleware's once-per-isolate config before overriding it.
+		createRequestScopedDb.mockReturnValue(null);
+		await navigate();
+		setI18nConfig(i18n);
+		const db = await setupTestDatabaseWithCollections();
+		onTestFinished(() => teardownTestDatabase(db));
+		const menuRepository = new MenuRepository(db);
+		const taxonomyRepository = new TaxonomyRepository(db);
+		await menuRepository.create({ name: "primary", label: "Hlavní", locale: "cs" });
+		await taxonomyRepository.create({
+			name: "category",
+			slug: "cs-term",
+			label: "Česky",
+			locale: "cs",
+		});
+
+		let queryCount = 0;
+		const runtimeDb = db.withPlugin({
+			transformQuery({ node }) {
+				queryCount++;
+				return node;
+			},
+			async transformResult({ result }) {
+				return result;
+			},
+		});
+		Object.defineProperty(runtimeDb.getExecutor().adapter, "supportsMultipleConnections", {
+			value: true,
+		});
+		getDb.mockResolvedValue(runtimeDb);
+		createRequestScopedDb.mockReturnValue({ db: runtimeDb, commit: vi.fn() });
+
+		const actual = await vi.importActual<typeof import("../../../src/astro/prefetch.js")>(
+			"../../../src/astro/prefetch.js",
+		);
+		let prefetch: Promise<void> | undefined;
+		prefetchLayoutData.mockImplementationOnce(() => {
+			prefetch = actual.prefetchLayoutData(targetLocale);
+			return prefetch;
+		});
+
+		let queriesAfterPrefetch = 0;
+		await navigate(pageLocale, async () => {
+			await Promise.resolve();
+			expect(prefetch).toBeDefined();
+			await prefetch;
+			queriesAfterPrefetch = queryCount;
+			expect((await getMenu("primary"))?.label).toBe("Hlavní");
+			expect(
+				(await getTaxonomyTerms("category", { includeCounts: false })).map((term) => term.label),
+			).toEqual(["Česky"]);
+			return new Response("<html></html>", { headers: { "content-type": "text/html" } });
+		});
+		return { queryCount, queriesAfterPrefetch };
+	}
 
 	it.each([
 		["multiple connections", new PostgresAdapter()],
@@ -232,10 +298,33 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 			expect(menu?.label).toBe(pageLocale === "en" ? "Main" : "Hlavní");
 			expect(terms.map((term) => term.label)).toEqual([pageLocale === "en" ? "English" : "Česky"]);
 			expect(queryCount).toBe(queriesAfterPrefetch);
-			expect((await getMenu("primary"))?.label).toBe("Hlavní");
 			return new Response("<html></html>", { headers: { "content-type": "text/html" } });
 		});
 
 		expect(prefetchLayoutData).toHaveBeenCalledOnce();
+	});
+
+	it("does not query implicit helpers twice on a single-locale site", async () => {
+		const counts = await renderImplicitLayout({
+			targetLocale: "cs",
+			pageLocale: "cs",
+			i18n: { defaultLocale: "cs", locales: ["cs"] },
+		});
+		expect(counts.queryCount).toBeGreaterThan(0);
+		expect(counts.queryCount).toBe(counts.queriesAfterPrefetch);
+	});
+
+	it("uses the unconfigured i18n locale for implicit helpers", async () => {
+		const counts = await renderImplicitLayout({ targetLocale: "cs", pageLocale: "cs", i18n: null });
+		expect(counts.queryCount).toBeGreaterThan(0);
+		expect(counts.queryCount).toBe(counts.queriesAfterPrefetch);
+	});
+
+	it("measures the explicit-locale prefetch tradeoff for implicit consumers", async () => {
+		const legacy = await renderImplicitLayout({ targetLocale: undefined });
+		const current = await renderImplicitLayout({ targetLocale: "en" });
+		expect(legacy.queryCount).toBe(legacy.queriesAfterPrefetch);
+		expect(current.queryCount).toBeLessThanOrEqual(current.queriesAfterPrefetch + 2);
+		expect(current.queryCount).toBeLessThanOrEqual(legacy.queryCount + 2);
 	});
 });

@@ -11,20 +11,22 @@
  *     overlap instead of serializing, collapsing ~N sequential RTTs into ~1
  *     wall-clock RTT. On a coalescing backend they additionally batch into a
  *     single round trip.
- *   - The results land in the per-request `requestCached` store under the exact
- *     keys the layout helpers use, so when the components render they hit a warm
- *     (in-flight or resolved) cache entry instead of issuing their own query.
+ *   - The results land in the per-request `requestCached` store. On multilingual
+ *     sites, menus and taxonomy terms target the page locale, matching helpers
+ *     called with `{ locale: Astro.currentLocale }`. Implicit-locale calls can
+ *     resolve to the default locale instead and load separately.
  *
- * Nothing here changes what templates call -- it warms the real helpers, so the
- * cache keys and value shapes are guaranteed identical. The caller gates this to
- * the public-page path on a request-scoped (remote) backend that can overlap
- * queries; it is a no-op-ish waste on synchronous local SQLite and only delays
- * the page on a handle that runs one query at a time, so don't call it there.
+ * This warms the real helpers without changing their locale resolution. The
+ * caller gates this to the public-page path on a request-scoped (remote) backend
+ * that can overlap queries; it is a no-op-ish waste on synchronous local SQLite
+ * and only delays the page on a handle that runs one query at a time, so don't
+ * call it there.
  *
  * Fire-and-forget: never awaited by middleware, never throws (a prefetch failure
  * must not affect the request -- the helpers will simply run on demand).
  */
 
+import { isI18nEnabled } from "../i18n/config.js";
 import { getDb } from "../loader.js";
 import { getMenu } from "../menus/index.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
@@ -58,8 +60,7 @@ async function prefetchTaxonomyTerms(locale?: string): Promise<void> {
 
 /** Warm every menu via the real helper (primes `menu:${name}:${locale}`). */
 async function prefetchMenus(locale?: string): Promise<void> {
-	// The layout calls getMenu(name) with hardcoded names; we can't know them, so
-	// discover every menu name and warm them all (small, bounded chrome table).
+	// Discover layout menu names from the small, bounded chrome table.
 	const names = await cachedQuery({
 		namespace: CacheNamespace.MENUS,
 		key: "names",
@@ -77,7 +78,8 @@ async function prefetchMenus(locale?: string): Promise<void> {
  * Safe to call only inside the request ALS frame that owns the (remote)
  * request-scoped db. Never throws.
  */
-export async function prefetchLayoutData(locale?: string): Promise<void> {
+export async function prefetchLayoutData(pageLocale?: string): Promise<void> {
+	const locale = isI18nEnabled() ? pageLocale : undefined;
 	try {
 		await Promise.allSettled([
 			getSiteSettings(),
