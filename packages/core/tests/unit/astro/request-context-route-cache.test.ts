@@ -54,6 +54,7 @@ function buildContext(opts: {
 	playgroundDb?: Kysely<Database>;
 	emdashDb?: Kysely<Database>;
 	cache: { enabled?: boolean; set: (input: unknown) => void } | undefined;
+	isPrerendered?: boolean;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -71,6 +72,7 @@ function buildContext(opts: {
 			__playgroundDb: opts.playgroundDb,
 		},
 		cache: opts.cache,
+		isPrerendered: opts.isPrerendered ?? false,
 	} as unknown as Parameters<typeof onRequest>[0];
 }
 
@@ -235,6 +237,20 @@ describe("preview links", () => {
 	afterEach(async () => {
 		await teardownTestDatabase(db);
 	});
+
+	it.each(["Playground", "standard"] as const)(
+		"does not read the edit cookie for a prerendered %s page",
+		async (site) => {
+			const context = buildContext({
+				...(site === "Playground" ? { playgroundDb: db } : { emdashDb: db }),
+				cache: undefined,
+				isPrerendered: true,
+			});
+			await onRequest(context, async () => htmlResponse());
+
+			expect(context.cookies.get).not.toHaveBeenCalled();
+		},
+	);
 
 	async function renderWithToken(token: string, site: "Playground" | "standard" = "Playground") {
 		const cache = { set: vi.fn() };

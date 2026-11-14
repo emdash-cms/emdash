@@ -796,7 +796,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing
-		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
+		const hasEditCookie =
+			!context.isPrerendered && cookies.get("emdash-edit-mode")?.value === "true";
 		const hasPreviewToken = url.searchParams.has("_preview");
 
 		// Playground mode: the playground middleware stashes the per-session DO database
@@ -814,6 +815,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// backend is KV: calling session.get() on every anonymous public request
 		// turns normal traffic into a flood of KV read misses. See #733.
 		const hasSessionCookie =
+			!context.isPrerendered &&
 			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
@@ -839,9 +841,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// credential directly on the request. Request-scoped adapters use this to
 		// keep such requests on the primary/uncached connection (not a lagging
 		// read replica or the Hyperdrive query cache).
-		const hasBearerAuth = (request.headers.get("authorization") ?? "")
-			.toLowerCase()
-			.startsWith("bearer ");
+		const hasBearerAuth =
+			!context.isPrerendered &&
+			(request.headers.get("authorization") ?? "").toLowerCase().startsWith("bearer ");
 		const isWrite = request.method !== "GET" && request.method !== "HEAD";
 		const isAuthenticated = !!sessionUser || hasBearerAuth;
 		const endedAuthenticated = () => requestEndedAuthenticated(isAuthenticated, cookies);
