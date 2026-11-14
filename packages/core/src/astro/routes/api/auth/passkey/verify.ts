@@ -70,6 +70,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		});
 	} catch (error) {
 		if (error instanceof PasskeyAuthenticationError) {
+			console.warn("[passkey] sign-in rejected:", error.code);
 			return apiError("UNAUTHORIZED", "Authentication failed", 401);
 		}
 
