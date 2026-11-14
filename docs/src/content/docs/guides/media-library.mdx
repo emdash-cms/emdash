@@ -317,8 +317,32 @@ While the image loads, the component shows its stored blurhash as a blurred inli
 cropped at the image's focal point, or its dominant color when there is no blurhash. Pass
 `placeholder={false}` to render the image without a placeholder, for example when the site's Content
 Security Policy does not allow `data:` images.
-Transparent images uploaded before EmDash stopped generating placeholders for them can still have a
-stored blurhash that shows through their transparent areas; render those with `placeholder={false}`.
+
+Transparent images uploaded before EmDash 1.5.0 can still have a stored blurhash that shows through
+their transparent areas. Render those with `placeholder={false}`. For images and galleries in Portable
+Text, pass a component that renders `PTImage` or `Gallery` from `emdash/ui` with
+`placeholder={false}`:
+
+```astro title="src/components/ImageWithoutPlaceholder.astro"
+---
+import { PTImage } from "emdash/ui";
+
+const { node } = Astro.props;
+---
+
+<PTImage node={node} placeholder={false} />
+```
+
+Pass it under the `image` key (a gallery wrapper goes under `gallery`):
+
+```astro
+---
+import { PortableText } from "emdash/ui";
+import ImageWithoutPlaceholder from "../components/ImageWithoutPlaceholder.astro";
+---
+
+<PortableText value={post.data.content} components={{ type: { image: ImageWithoutPlaceholder } }} />
+```
 
 Set `quality={70}` to control optimized image output, or use an Astro preset: `"low"`, `"mid"`,
 `"high"`, or `"max"`. The setting applies to both light and dark variants, and to every `<source>` when `formats` is set. External media providers
