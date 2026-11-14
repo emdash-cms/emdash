@@ -26,6 +26,11 @@ import type {
 	RevisionListItem,
 	RevisionListResponse,
 } from "../../src/lib/api";
+import {
+	createEditorialThread,
+	fetchEditorialThreads,
+	type EditorialThread,
+} from "../../src/lib/api/editorial-threads.js";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { diffVersion } from "../../src/lib/revision-diff/index.js";
 import { withAutosavedDraft } from "../../src/lib/revision-list-cache";
@@ -216,6 +221,15 @@ vi.mock("../../src/lib/api", async () => {
 		fetchRevisionEditors: vi.fn(),
 		fetchRevisions: vi.fn(),
 		restoreRevision: vi.fn(),
+	};
+});
+
+vi.mock("../../src/lib/api/editorial-threads.js", async () => {
+	const actual = await vi.importActual("../../src/lib/api/editorial-threads.js");
+	return {
+		...actual,
+		fetchEditorialThreads: vi.fn(async () => []),
+		createEditorialThread: vi.fn(),
 	};
 });
 
@@ -602,7 +616,7 @@ describe("ContentEditor", () => {
 		const contentLabel = contentLabelText!.parentElement!;
 		const featuredLabel = screen.getByText("Featured Image", { exact: true }).element();
 		const attachmentLabel = screen.getByText("Attachment", { exact: true }).element();
-		const fieldStack = contentLabel.parentElement?.parentElement;
+		const fieldStack = contentLabel.closest("[data-editorial-field]")?.parentElement;
 
 		expect(contentLabelText).toHaveTextContent("Content");
 		expect(contentLabel.tagName).toBe("LABEL");
@@ -5226,5 +5240,98 @@ describe("ContentEditor revision view", () => {
 				.element(screen.getByRole("status").filter({ hasText: "no longer available" }))
 				.toBeInTheDocument();
 		});
+	});
+});
+
+describe("editorial comments", () => {
+	function fieldThread(field: string): EditorialThread {
+		return {
+			id: `thread-${field}`,
+			collection: "posts",
+			entryId: "item-1",
+			anchor: { type: "field", field },
+			anchorState: "attached",
+			status: "open",
+			createdBy: "u-2",
+			resolvedBy: null,
+			resolvedAt: null,
+			createdAt: "2025-01-15T10:30:00Z",
+			updatedAt: "2025-01-15T10:30:00Z",
+			comments: [
+				{
+					id: `comment-${field}`,
+					threadId: `thread-${field}`,
+					author: { id: "u-2", name: "Sam Rivera", avatarUrl: null },
+					body: "Could this be shorter?",
+					createdAt: "2025-01-15T10:30:00Z",
+					editedAt: null,
+					deletedAt: null,
+					can: { edit: false, delete: false },
+				},
+			],
+			can: { resolve: true, delete: false },
+		};
+	}
+
+	function renderWithThreads(threads: EditorialThread[]) {
+		vi.mocked(fetchEditorialThreads).mockResolvedValue(threads);
+		return renderEditor({
+			isNew: false,
+			item: makeItem(),
+			currentUser: { id: "u-1", role: 50 },
+		});
+	}
+
+	it("keeps the margin closed when the entry has open threads", async () => {
+		const screen = await renderWithThreads([fieldThread("body")]);
+
+		await expect.element(screen.getByRole("button", { name: "Show comments" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: "1 comment thread on Body" }))
+			.toBeVisible();
+		expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+	});
+
+	it("opens a field's thread from the button on the field", async () => {
+		const screen = await renderWithThreads([fieldThread("body")]);
+		const fieldButton = screen.getByRole("button", { name: "1 comment thread on Body" });
+
+		await fieldButton.click();
+
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "true");
+	});
+
+	it("starts a comment on a field without threads", async () => {
+		vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+		const screen = await renderWithThreads([]);
+
+		await screen.getByRole("button", { name: "Comment on Title" }).click();
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await margin.getByRole("textbox", { name: "Comment" }).fill("Shorter, please");
+		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "item-1" }),
+				expect.objectContaining({
+					anchor: { type: "field", field: "title" },
+					body: "Shorter, please",
+				}),
+			),
+		);
+	});
+
+	it("marks only fields with open threads", async () => {
+		const screen = await renderWithThreads([
+			{ ...fieldThread("title"), status: "resolved" },
+			fieldThread("body"),
+		]);
+
+		await expect
+			.element(screen.getByRole("button", { name: "1 comment thread on Body" }))
+			.toBeVisible();
+		expect(screen.getByRole("button", { name: /comment thread on Title/ }).query()).toBeNull();
 	});
 });

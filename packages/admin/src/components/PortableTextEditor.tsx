@@ -99,6 +99,7 @@ import {
 	Globe,
 	PencilSimple,
 	TextT,
+	ChatCircleText,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -199,6 +200,10 @@ import {
 } from "./editor/blockTypes.js";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import {
+	createEditorialCommentsExtension,
+	type EditorialCommentsBridge,
+} from "./editor/EditorialCommentsExtension.js";
 import {
 	EditorMenuCheckboxItem,
 	EditorMenuItem,
@@ -2151,6 +2156,15 @@ export interface PortableTextEditorProps {
 	 * never called, and undo is the room's own, limited to this editor's edits.
 	 */
 	collaboration?: RichTextBinding;
+	/**
+	 * Editorial comments: `onComment` adds a Comment button to the selection
+	 * toolbar and handles the shortcut; `onActivate` fires when the caret lands
+	 * in a commented range.
+	 */
+	editorialComments?: {
+		onComment?: () => void;
+		onActivate?: (threadId: string) => void;
+	};
 }
 
 // For external providers, src is only used for admin preview; the frontend Image
@@ -2225,8 +2239,14 @@ export function PortableTextEditor({
 	variant = "boxed",
 	onArrowUpAtStart,
 	collaboration: collaborationProp,
+	editorialComments,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const editorialBridgeRef = React.useRef<EditorialCommentsBridge>({});
+	editorialBridgeRef.current = {
+		onActivate: editorialComments?.onActivate,
+		onCommentShortcut: editorialComments?.onComment,
+	};
 	const [collaboration] = React.useState(collaborationProp);
 	// The drag handle's plugin moves the handle's element out of React's tree, so the handle can't
 	// unmount while the editor lives. Once mounted it stays, and hides itself while read-only.
@@ -2663,6 +2683,7 @@ export function PortableTextEditor({
 		() => [
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
+			createEditorialCommentsExtension(editorialBridgeRef),
 			LinkBoundaryExit,
 			collaboration ? EditorStarterKit.configure({ undoRedo: false }) : EditorStarterKit,
 			TopBlockDocument,
@@ -3460,6 +3481,7 @@ export function PortableTextEditor({
 				editor={editor}
 				appendTo={appendBubbleMenu}
 				getCollisionOptions={getBubbleMenuCollisionOptions}
+				onComment={editorialComments?.onComment}
 			/>
 			<ImageBubbleMenu
 				editor={editor}
@@ -3679,10 +3701,12 @@ function EditorBubbleMenu({
 	editor,
 	appendTo,
 	getCollisionOptions,
+	onComment,
 }: {
 	editor: Editor;
 	appendTo: () => HTMLElement;
 	getCollisionOptions: BubbleMenuCollisionOptions;
+	onComment?: () => void;
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
@@ -3893,6 +3917,11 @@ function EditorBubbleMenu({
 								>
 									<LinkIcon className="h-4 w-4" aria-hidden="true" />
 								</BubbleButton>
+								{onComment && (
+									<BubbleButton onClick={onComment} active={false} title={t`Comment`}>
+										<ChatCircleText className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
 								<BubbleSeparator />
 								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
 									<BubbleButton
