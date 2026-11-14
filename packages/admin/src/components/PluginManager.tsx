@@ -42,6 +42,7 @@ import {
 	type AdminManifest,
 	CAPABILITY_LABELS,
 } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import {
 	checkPluginUpdates,
 	MarketplaceUpdateEscalationError,
@@ -83,6 +84,8 @@ export function RegistryInstallMessage() {
 	);
 }
 
+const ROLE_ADMIN = 50;
+
 const PLUGIN_INSTALL_DOCS_URL = "https://docs.emdashcms.com/plugins/installing/";
 
 export function PluginInstallDocsMessage() {
@@ -109,6 +112,8 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	const toastManager = useKumoToastManager();
 	const hasRegistry = !!manifest?.registry;
 	const canInstallFromRegistry = hasRegistry && manifest?.sandboxEnabled === true;
+	const { data: currentUser } = useCurrentUser();
+	const canManage = (currentUser?.role ?? 0) >= ROLE_ADMIN;
 
 	const {
 		data: plugins,
@@ -231,6 +236,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 						key={plugin.id}
 						plugin={plugin}
 						updateInfo={updateMap.get(plugin.id)}
+						canManage={canManage}
 						onEnable={() => enableMutation.mutate(plugin.id)}
 						onDisable={() => disableMutation.mutate(plugin.id)}
 						isToggling={enableMutation.isPending || disableMutation.isPending}
@@ -254,12 +260,20 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 interface PluginCardProps {
 	plugin: PluginInfo;
 	updateInfo?: PluginUpdateInfo;
+	canManage: boolean;
 	onEnable: () => void;
 	onDisable: () => void;
 	isToggling: boolean;
 }
 
-function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: PluginCardProps) {
+function PluginCard({
+	plugin,
+	updateInfo,
+	canManage,
+	onEnable,
+	onDisable,
+	isToggling,
+}: PluginCardProps) {
 	const { t, i18n } = useLingui();
 	const [expanded, setExpanded] = React.useState(false);
 	const [showUpdateConsent, setShowUpdateConsent] = React.useState(false);
@@ -529,7 +543,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 
 					{/* Actions */}
 					<div className="flex items-center gap-2">
-						{hasUpdate && (
+						{canManage && hasUpdate && (
 							<Button
 								variant="outline"
 								size="sm"
@@ -540,7 +554,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 							</Button>
 						)}
 
-						{plugin.hasSettings && plugin.enabled && (
+						{canManage && plugin.hasSettings && plugin.enabled && (
 							<RouterLinkButton
 								to="/plugins-manager/$pluginId/settings"
 								params={{ pluginId: plugin.id }}
@@ -562,12 +576,14 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 							/>
 						)}
 
-						<Switch
-							checked={plugin.enabled}
-							onCheckedChange={handleToggle}
-							disabled={isToggling}
-							aria-label={plugin.enabled ? t`Disable plugin` : t`Enable plugin`}
-						/>
+						{canManage && (
+							<Switch
+								checked={plugin.enabled}
+								onCheckedChange={handleToggle}
+								disabled={isToggling}
+								aria-label={plugin.enabled ? t`Disable plugin` : t`Enable plugin`}
+							/>
+						)}
 
 						<Button
 							variant="ghost"
@@ -621,7 +637,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 									<Switch
 										checked={plugin.mcpToolsEnabled ?? false}
 										onCheckedChange={(enabled) => mcpMutation.mutate(enabled)}
-										disabled={mcpMutation.isPending || !plugin.enabled}
+										disabled={!canManage || mcpMutation.isPending || !plugin.enabled}
 										aria-label={
 											(plugin.mcpToolsEnabled ?? false)
 												? t`Disable plugin MCP tools`
@@ -693,7 +709,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 						</div>
 
 						{/* Uninstall button for any sandboxed source (marketplace + registry). */}
-						{(isMarketplace || isRegistry) && (
+						{canManage && (isMarketplace || isRegistry) && (
 							<div className="pt-2 border-t">
 								<Button
 									variant="ghost"

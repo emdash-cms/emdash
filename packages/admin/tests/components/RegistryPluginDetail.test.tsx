@@ -67,6 +67,15 @@ vi.mock("../../src/lib/api/plugins", () => ({
 	fetchPlugins: () => mockFetchPlugins(),
 }));
 
+const currentUser = vi.hoisted(() => ({ role: 50 }));
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({
+		data: { id: "user-1", email: "user@example.com", role: currentUser.role },
+		isLoading: false,
+	}),
+}));
+
 const { RegistryPluginDetail } = await import("../../src/components/RegistryPluginDetail");
 
 const CONFIG: RegistryClientConfig = { aggregatorUrl: "https://aggregator.test" };
@@ -399,6 +408,20 @@ describe("RegistryPluginDetail minimum release age", () => {
 describe("RegistryPluginDetail independent install consent", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		currentUser.role = 50;
+	});
+
+	it("does not offer install to editors", async () => {
+		currentUser.role = 40;
+		setup(makePackage(), [makeRelease()]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Install", exact: true }).query()).toBeNull();
 	});
 
 	it("opens consent from the server's verified bundle and provenance report", async () => {

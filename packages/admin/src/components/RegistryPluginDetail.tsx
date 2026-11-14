@@ -27,6 +27,7 @@ import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import {
 	PluginMcpConsentRequiredError,
 	type PluginMcpConsentTool,
@@ -63,6 +64,8 @@ import { getMutationError } from "./DialogError.js";
 import { PublisherIdentity } from "./PublisherHandle.js";
 import { RegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 
+const ROLE_ADMIN = 50;
+
 export interface RegistryPluginDetailProps {
 	/** `${handle}/${slug}` -- the pluginId param from the route. */
 	pluginId: string;
@@ -77,6 +80,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
 	const [verificationPreview, setVerificationPreview] =
 		React.useState<RegistryInstallResult | null>(null);
+	const { data: currentUser } = useCurrentUser();
+	const canInstall = (currentUser?.role ?? 0) >= ROLE_ADMIN;
 
 	// Plugins list — used to compute whether this package is already
 	// installed. Same query key as elsewhere so the install mutation's
@@ -625,7 +630,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						<Button variant="secondary" disabled>
 							{t`Installed`}
 						</Button>
-					) : (
+					) : canInstall ? (
 						<Button
 							variant="primary"
 							disabled={
@@ -640,7 +645,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						>
 							{verificationMutation.isPending ? t`Verifying...` : t`Install`}
 						</Button>
-					)}
+					) : null}
 				</div>
 			</div>
 			{verificationMutation.error ? (

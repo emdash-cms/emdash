@@ -86,6 +86,15 @@ vi.mock("../../src/lib/api/registry", async () => {
 	};
 });
 
+const currentUser = vi.hoisted(() => ({ role: 50 }));
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({
+		data: { id: "user-1", email: "user@example.com", role: currentUser.role },
+		isLoading: false,
+	}),
+}));
+
 // Import after mocks
 const { PluginManager, UninstallConfirmDialog } =
 	await import("../../src/components/PluginManager");
@@ -132,6 +141,7 @@ function Wrapper({ children, staleTime }: { children: React.ReactNode; staleTime
 describe("PluginManager", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		currentUser.role = 50;
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({
 				id: "audit-log",
@@ -439,6 +449,62 @@ describe("PluginManager", () => {
 		expect(settingsLinks.length).toBe(1);
 		const anchor = settingsLinks[0]!.element() as HTMLAnchorElement;
 		expect(anchor.getAttribute("href")).toBe("/plugins-manager/with-settings/settings");
+	});
+
+	describe("plugin management controls", () => {
+		beforeEach(() => {
+			mockFetchPlugins.mockResolvedValue([
+				makePlugin({
+					id: "mp-plugin",
+					name: "MP Plugin",
+					source: "marketplace",
+					version: "1.0.0",
+					hasSettings: true,
+					mcpToolsEnabled: false,
+					mcpTools: [
+						{
+							name: "sync",
+							description: "Sync content",
+							route: "sync",
+							permission: "content:edit_any",
+							destructive: false,
+						},
+					],
+				}),
+			]);
+			mockCheckPluginUpdates.mockResolvedValue([
+				{ pluginId: "mp-plugin", installed: "1.0.0", latest: "2.0.0", hasCapabilityChanges: false },
+			]);
+		});
+
+		it.each([
+			{ role: 50, label: "admins", visible: true },
+			{ role: 40, label: "editors", visible: false },
+		])("usable by $label: $visible", async ({ role, visible }) => {
+			currentUser.role = role;
+			const screen = await render(
+				<Wrapper>
+					<PluginManager />
+				</Wrapper>,
+			);
+			await screen.getByRole("button", { name: "Check for updates" }).click();
+			await expect.element(screen.getByText("v2.0.0 available")).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Expand details" }).click();
+			await expect.element(screen.getByText("Agent access")).toBeInTheDocument();
+
+			const controls = [
+				screen.getByRole("button", { name: "Update to v2.0.0" }),
+				screen.getByRole("link", { name: "Settings" }),
+				screen.getByRole("switch", { name: "Disable plugin", exact: true }),
+				screen.getByRole("button", { name: "Uninstall" }),
+			];
+			for (const control of controls) {
+				expect(control.query() !== null, control.selector).toBe(visible);
+			}
+			const mcpSwitch = screen.getByRole("switch", { name: "Enable plugin MCP tools" });
+			await expect.element(mcpSwitch).toBeInTheDocument();
+			expect((mcpSwitch.element() as HTMLButtonElement).disabled).toBe(!visible);
+		});
 	});
 
 	it("expand/collapse shows plugin details", async () => {
