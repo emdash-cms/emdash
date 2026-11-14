@@ -61,6 +61,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAutosave,
 		onAuthorChange,
 		onSeoChange,
+		onPublish,
 		onPublishedAtChange,
 		onDirtyChange,
 		isSaving,
@@ -77,6 +78,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
 		onAuthorChange?: (authorId: string | null) => void;
 		onSeoChange?: (seo: { title: string }) => void;
+		onPublish?: (payload: { data: Record<string, unknown> }) => void;
 		onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 		onDirtyChange?: (isDirty: boolean) => void;
 		isSaving?: boolean;
@@ -125,6 +127,9 @@ vi.mock("../src/components/ContentEditor", () => ({
 					}
 				>
 					Trigger Draft Sync
+				</button>
+				<button type="button" onClick={() => onPublish?.({ data: { title: "Test Post" } })}>
+					Trigger Publish
 				</button>
 				<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
 					Trigger SEO Sync
@@ -1430,6 +1435,7 @@ describe("ContentNewPage – create failure surfaces the server's error", () => 
 					error: {
 						code: "SLUG_CONFLICT",
 						message: "Slug 'test-post' already exists in collection 'posts'",
+						details: { slug: "test-post" },
 					},
 				},
 				409,
@@ -1440,7 +1446,7 @@ describe("ContentNewPage – create failure surfaces the server's error", () => 
 		mockFetch.restore();
 	});
 
-	it("shows a toast with the server's message on a slug conflict (and stays on /new)", async () => {
+	it("shows a toast naming the slug on a slug conflict (and stays on /new)", async () => {
 		const { router, TestApp } = buildRouter();
 
 		await router.navigate({
@@ -1457,11 +1463,9 @@ describe("ContentNewPage – create failure surfaces the server's error", () => 
 
 		await screen.getByRole("button", { name: "Save", exact: true }).click();
 
-		// The UI surfaces WHAT happened — the server's human-readable
-		// conflict message.
 		await expect.element(screen.getByText("Failed to save")).toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Slug 'test-post' already exists in collection 'posts'"))
+			.element(screen.getByText(/The slug "test-post" is already used by another entry/))
 			.toBeInTheDocument();
 
 		// And with the error affordance: Kumo styles severity off `variant`
@@ -1823,6 +1827,87 @@ describe("ContentEditPage – autosave cache patching", () => {
 				{ authorId: "user_02", _rev: "revision-token" },
 				{ seo: { title: "Search title" }, _rev: "revision-token" },
 			]);
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
+	it("words a slug conflict at publish instead of showing the server text", async () => {
+		// Publishing needs a role that may publish; the default mocked user cannot.
+		mockFetch.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 50 } });
+		const fetchWithMocks = globalThis.fetch;
+		const json = (body: unknown, status: number) =>
+			Promise.resolve(
+				new Response(JSON.stringify(body), {
+					status,
+					headers: { "Content-Type": "application/json" },
+				}),
+			);
+		// Publishing saves the draft first, then publishes it. The mock's prefix
+		// matching would answer both with the entry's GET response.
+		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				return json(
+					{
+						data: {
+							_rev: "revision-token",
+							item: {
+								id: "post_1",
+								type: "posts",
+								slug: "published-slug",
+								status: "draft",
+								locale: "en",
+								translationGroup: null,
+								data: { title: "Test Post" },
+								authorId: null,
+								primaryBylineId: null,
+								createdAt: "2025-01-01T00:00:00Z",
+								updatedAt: "2025-01-01T00:00:00Z",
+								publishedAt: null,
+								scheduledAt: null,
+								liveRevisionId: null,
+								draftRevisionId: null,
+							},
+						},
+					},
+					200,
+				);
+			}
+			if (init?.method === "POST" && url.includes("/content/posts/post_1/publish")) {
+				return json(
+					{
+						success: false,
+						error: {
+							code: "SLUG_CONFLICT",
+							message:
+								"Cannot publish: slug 'published-slug' is already used by another entry in this collection (id: post_9). Choose a different slug.",
+							details: { slug: "published-slug" },
+						},
+					},
+					409,
+				);
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({
+				to: "/content/$collection/$id",
+				params: { collection: "posts", id: "post_1" },
+			});
+			const screen = await render(<TestApp />);
+			const publish = screen.getByRole("button", { name: "Trigger Publish", exact: true });
+			await expect.element(publish).toBeInTheDocument();
+
+			await publish.click();
+
+			await expect.element(screen.getByText("Failed to publish")).toBeInTheDocument();
+			await expect
+				.element(screen.getByText(/The slug "published-slug" is already used by another entry/))
+				.toBeInTheDocument();
 		} finally {
 			globalThis.fetch = fetchWithMocks;
 		}
