@@ -167,6 +167,7 @@ import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
+import { normalizeIncomingSlug } from "./utils/slugify.js";
 import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
@@ -4289,6 +4290,7 @@ export class EmDashRuntime {
 			expected,
 			...bodyWithoutRev
 		} = body;
+		bodyWithoutRev.slug = normalizeIncomingSlug(bodyWithoutRev.slug, resolvedItem?.slug);
 		// The lists are compared once, so every write below is conditioned on the entry as it was
 		// read before them: a write in between changes its version.
 		let revGuard = body._rev;

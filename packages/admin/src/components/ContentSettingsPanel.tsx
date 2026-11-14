@@ -61,6 +61,7 @@ import {
 } from "../lib/publishing-datetime.js";
 import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
+import { normalizeSlugWhitespace } from "../slugify.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
 import { SyncStatus, type SyncProblem } from "./co-editing/SyncStatus.js";
@@ -990,6 +991,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const visibleTrustedPanels = useVisibleContentEditorPanels(trustedPanelCandidates, panelContext);
 
 	const [datesOpen, setDatesOpen] = React.useState(false);
+	const slugOnFocusRef = React.useRef(slug);
 	const trash = useConfirmedRequest(onDelete);
 	const { blocked: operationsBlocked } = useRoomOperations();
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
@@ -1044,6 +1046,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			label={t`Slug`}
 			value={slug}
 			onChange={(event) => onSlugChange(event.target.value)}
+			onFocus={(event) => {
+				slugOnFocusRef.current = event.currentTarget.value;
+			}}
+			onBlur={(event) => {
+				// Only a slug edited in this visit is tidied, so visiting the
+				// field never moves an existing URL.
+				const typed = event.currentTarget.value;
+				if (typed === slugOnFocusRef.current) return;
+				const tidied = normalizeSlugWhitespace(typed);
+				if (tidied !== typed) onSlugChange(tidied);
+			}}
 			placeholder="my-post-slug"
 		/>
 	);

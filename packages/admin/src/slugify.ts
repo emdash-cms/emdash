@@ -3,6 +3,8 @@ const UNSAFE_CHARACTER_PATTERN = /[^\p{Letter}\p{Number}\p{Mark}-]+/gu;
 const MULTIPLE_HYPHENS_PATTERN = /-+/g;
 const EDGE_HYPHENS_PATTERN = /^-+|-+$/g;
 const TRAILING_HYPHENS_PATTERN = /-+$/g;
+const SEPARATOR_RUN_PATTERN = /[\s-]+/gu;
+const WHITESPACE_PATTERN = /\s/u;
 const USABLE_CHARACTER_PATTERN = /[\p{Letter}\p{Number}]/u;
 const GRAPHEME_SEGMENTER = new Intl.Segmenter("en", { granularity: "grapheme" });
 
@@ -46,4 +48,14 @@ export function slugify(text: string, maxLength = 80): string {
 		.replace(EDGE_HYPHENS_PATTERN, "");
 	const value = USABLE_CHARACTER_PATTERN.test(slug) ? slug : fallbackSlug(normalized);
 	return truncateByGrapheme(value, maxLength);
+}
+
+/**
+ * Drop whitespace around a slug and turn each run of whitespace inside it,
+ * with any hyphens beside it, into one hyphen. Every other character is kept.
+ */
+export function normalizeSlugWhitespace(text: string): string {
+	return text
+		.trim()
+		.replace(SEPARATOR_RUN_PATTERN, (run) => (WHITESPACE_PATTERN.test(run) ? "-" : run));
 }
