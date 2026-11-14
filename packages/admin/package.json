@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./internal/app": {
+      "types": "./dist/internal/app.d.ts",
+      "default": "./dist/internal/app.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./locales": {
       "types": "./dist/locales/index.d.ts",
