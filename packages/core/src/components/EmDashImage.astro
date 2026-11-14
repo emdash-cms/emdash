@@ -270,16 +270,16 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	const dominantColor =
 		img.dominantColor ?? (img.meta?.dominantColor as string | undefined);
 
+	// The focal point travels with the media value, so the dark variant gets
+	// its own object-position rather than inheriting the light image's.
+	const objectPosition = focalPointToObjectPosition(img.focalX, img.focalY);
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {
-		placeholderStyle = blurhashBackgroundStyle(blurhash);
+		placeholderStyle = blurhashBackgroundStyle(blurhash, objectPosition);
 	} else if (placeholder && dominantColor) {
 		placeholderStyle = `background-color: ${dominantColor};`;
 	}
 
-	// The focal point travels with the media value, so the dark variant gets
-	// its own object-position rather than inheriting the light image's.
-	const objectPosition = focalPointToObjectPosition(img.focalX, img.focalY);
 	const normalizedPlaceholder =
 		placeholderStyle && !placeholderStyle.endsWith(";")
 			? `${placeholderStyle};`

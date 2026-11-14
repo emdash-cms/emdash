@@ -152,7 +152,7 @@ const resolvedImages = await Promise.all(
 		// Image.astro.
 		let placeholderStyle = "";
 		if (placeholder && image.blurhash) {
-			placeholderStyle = blurhashBackgroundStyle(image.blurhash);
+			placeholderStyle = blurhashBackgroundStyle(image.blurhash, objectPosition);
 		} else if (placeholder && image.dominantColor) {
 			placeholderStyle = `background-color: ${image.dominantColor};`;
 		}
