@@ -17,9 +17,10 @@
  * auth token that encodes its ID and capabilities.
  */
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { rmSync } from "node:fs";
 import { writeFile, mkdir, rm, unlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
@@ -52,6 +53,7 @@ import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
 import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
+import { signalWorkerd, spawnWorkerd } from "./workerd-process.js";
 import { waitForWorkerdReady } from "./workerd-startup.js";
 import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
@@ -103,24 +105,80 @@ export function minimalWorkerdEnv(): NodeJS.ProcessEnv {
  * Falls back to TCP on Windows where Unix sockets are not available. */
 const USE_UNIX_SOCKET = process.platform !== "win32";
 
-const activeRunners = new Set<WorkerdSandboxRunner>();
-let sigHandlerRegistered = false;
+const LIFECYCLE_KEY = Symbol.for("emdash.workerd-runner-lifecycle");
+const lifecycleGlobal = globalThis as typeof globalThis & {
+	[LIFECYCLE_KEY]?: {
+		runners: Set<WorkerdSandboxRunner>;
+		removedSignalHandlers: Set<"SIGTERM" | "SIGINT">;
+		onRemoveListener: typeof onRemoveListener;
+		onSigterm: () => void;
+		onSigint: () => void;
+		onExit: () => void;
+	};
+};
+const lifecycle = (lifecycleGlobal[LIFECYCLE_KEY] ??= {
+	runners: new Set<WorkerdSandboxRunner>(),
+	removedSignalHandlers: new Set<"SIGTERM" | "SIGINT">(),
+	onRemoveListener,
+	onSigterm,
+	onSigint,
+	onExit: onHostExit,
+});
+const activeRunners = lifecycle.runners;
+
+function handleSignal(signal: "SIGTERM" | "SIGINT"): void {
+	const handler = signal === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	const hasOtherHandlers =
+		lifecycle.removedSignalHandlers.has(signal) ||
+		process.listeners(signal).some((listener) => listener !== handler);
+	for (const runner of activeRunners) void runner.terminateAll();
+	if (!hasOtherHandlers) {
+		onHostExit();
+		process.off(signal, handler);
+		process.kill(process.pid, signal);
+	}
+}
+
+function onRemoveListener(event: string | symbol, listener: (...args: never[]) => unknown): void {
+	if (event !== "SIGTERM" && event !== "SIGINT") return;
+	const handler = event === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	if (listener === handler) return;
+	// A once-listener removes itself before later signal listeners run. Keep
+	// its ownership until the synchronous dispatch has finished.
+	lifecycle.removedSignalHandlers.add(event);
+	queueMicrotask(() => lifecycle.removedSignalHandlers.delete(event));
+}
+
+function onSigterm(): void {
+	handleSignal("SIGTERM");
+}
+
+function onSigint(): void {
+	handleSignal("SIGINT");
+}
+
+function onHostExit(): void {
+	for (const runner of activeRunners) runner["cleanupExitFiles"]();
+}
 
 function registerSigHandler(runner: WorkerdSandboxRunner): void {
-	activeRunners.add(runner);
-	if (!sigHandlerRegistered) {
-		sigHandlerRegistered = true;
-		process.on("SIGTERM", () => {
-			for (const r of activeRunners) {
-				r["shuttingDown"] = true;
-				void r.terminateAll();
-			}
-		});
+	if (activeRunners.size === 0) {
+		process.on("removeListener", lifecycle.onRemoveListener);
+		process.prependListener("SIGTERM", lifecycle.onSigterm);
+		process.prependListener("SIGINT", lifecycle.onSigint);
+		process.on("exit", lifecycle.onExit);
 	}
+	activeRunners.add(runner);
 }
 
 function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
 	activeRunners.delete(runner);
+	if (activeRunners.size === 0) {
+		process.off("SIGTERM", lifecycle.onSigterm);
+		process.off("SIGINT", lifecycle.onSigint);
+		process.off("exit", lifecycle.onExit);
+		process.off("removeListener", lifecycle.onRemoveListener);
+	}
 }
 
 /**
@@ -244,10 +302,10 @@ export function waitForProcessExit(proc: ChildProcess, timeoutMs = 5000): Promis
 			resolve();
 		});
 	});
-	proc.kill("SIGTERM");
+	signalWorkerd(proc, "SIGTERM");
 	killTimer = setTimeout(() => {
 		killTimer = null;
-		if (proc.exitCode === null) proc.kill("SIGKILL");
+		if (proc.exitCode === null && proc.signalCode == null) signalWorkerd(proc, "SIGKILL");
 	}, timeoutMs);
 	return exitPromise;
 }
@@ -393,7 +451,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			);
 		}
 
-		// Forward SIGTERM to workerd child for clean shutdown
+		// Preserve host signal behavior while stopping sandbox children.
 		registerSigHandler(this);
 	}
 
@@ -420,14 +478,14 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private resolveWorkerdBinary(): string {
 		try {
-			// workerd package: main is lib/main.js, bin is bin/workerd
 			const esmRequire = createRequire(import.meta.url);
+			// workerd's public default export resolves its native binary, including
+			// the optional-dependency and postinstall-download layouts.
+			const workerd: unknown = esmRequire("workerd");
+			if (isRecord(workerd) && typeof workerd.default === "string") return workerd.default;
 			const workerdMain = esmRequire.resolve("workerd");
-			// workerdMain = .../node_modules/workerd/lib/main.js
-			// binary = .../node_modules/workerd/bin/workerd
-			const pkgDir = join(workerdMain, "..", "..");
 			const binName = process.platform === "win32" ? "workerd.exe" : "workerd";
-			return join(pkgDir, "bin", binName);
+			return join(workerdMain, "..", "..", "bin", binName);
 		} catch {
 			// Fallback: try workerd on PATH
 			return "workerd";
@@ -641,14 +699,27 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			clearTimeout(this.eagerStartTimer);
 			this.eagerStartTimer = null;
 		}
-		unregisterSigHandler(this);
 		this.plugins.clear();
 		this.configurationVersion++;
+		await this.stopWorkerd();
+		await this.startupPromise?.catch(() => {});
 		await this.stopWorkerd();
 		await this.stopBackingServer();
 		if (this.configDir) {
 			await rm(this.configDir, { recursive: true, force: true }).catch(() => {});
 			this.configDir = null;
+		}
+		unregisterSigHandler(this);
+	}
+
+	private cleanupExitFiles(): void {
+		for (const path of [this.configDir, this.backingSocketPath]) {
+			if (!path) continue;
+			try {
+				rmSync(path, { recursive: true, force: true });
+			} catch {
+				// Exit handlers cannot await filesystem cleanup or abort other runners' cleanup.
+			}
 		}
 	}
 
@@ -822,10 +893,12 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// and ignore late exits from a previous workerd if another restart()
 		// has already reassigned this.workerdProcess.
 		const workerdBin = this.resolveWorkerdBinary();
-		const proc = spawn(workerdBin, ["serve", configPath, "--control-fd=3"], {
-			stdio: ["ignore", "pipe", "pipe", "pipe"],
-			env: minimalWorkerdEnv(),
-		});
+		if (this.shuttingDown) return;
+		const proc = spawnWorkerd(
+			workerdBin,
+			["serve", configPath, "--control-fd=3"],
+			minimalWorkerdEnv(),
+		);
 		this.workerdProcess = proc;
 
 		this.epoch++;
@@ -887,7 +960,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		// Fast path: process already exited (exitCode is set after exit)
 		// waitForProcessExit force-kills after five seconds if SIGTERM is ignored.
-		const completion = proc.exitCode === null ? waitForProcessExit(proc) : Promise.resolve();
+		const completion =
+			proc.exitCode === null && proc.signalCode == null
+				? waitForProcessExit(proc)
+				: Promise.resolve();
 		this.stoppingPromise = completion;
 		return completion.finally(() => {
 			this.intentionalStop = false;

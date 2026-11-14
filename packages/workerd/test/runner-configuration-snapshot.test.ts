@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from "node:child_process";
+import { ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { PassThrough } from "node:stream";
 
@@ -8,11 +8,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as DatabaseDriver } from "../../core/src/db/node-sqlite-compat.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
+import { spawnWorkerd } from "../src/sandbox/workerd-process.js";
 
-vi.mock("node:child_process", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("node:child_process")>();
-	return { ...actual, spawn: vi.fn() };
-});
+vi.mock("../src/sandbox/workerd-process.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/sandbox/workerd-process.js")>()),
+	spawnWorkerd: vi.fn(),
+}));
 
 function manifest(version: string): PluginManifest {
 	return {
@@ -73,7 +74,7 @@ describe("workerd configuration readiness", () => {
 	it("rejects a failed spawn without waiting for an exit event", async () => {
 		runner = new WorkerdSandboxRunner({ db: null as never });
 		runner["scheduleEagerStart"] = () => {};
-		vi.mocked(spawn).mockImplementation(() => {
+		vi.mocked(spawnWorkerd).mockImplementation(() => {
 			const child = new ChildProcess();
 			const control = new PassThrough();
 			Object.defineProperty(child, "stdio", { value: [null, null, null, control] });
@@ -90,6 +91,33 @@ describe("workerd configuration readiness", () => {
 		expect(runner["workerdProcess"]).toBeNull();
 	});
 
+	it("waits for an in-flight startup to settle without spawning after termination", async () => {
+		runner = new WorkerdSandboxRunner({ db: null as never });
+		runner["scheduleEagerStart"] = () => {};
+		let entered!: () => void;
+		const enteredBacking = new Promise<void>((resolve) => {
+			entered = resolve;
+		});
+		let release!: () => void;
+		const backingReady = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		vi.spyOn(runner as any, "startBackingServer").mockImplementation(async () => {
+			entered();
+			await backingReady;
+		});
+		vi.mocked(spawnWorkerd).mockClear();
+		await runner.load(manifest("1.0.0"), "export default {};");
+		const starting = runner.ensureRunning();
+		await enteredBacking;
+		const stopping = runner.terminateAll();
+		release();
+		await Promise.all([starting, stopping]);
+		expect(spawnWorkerd).not.toHaveBeenCalled();
+		expect(runner["configDir"]).toBeNull();
+		expect(runner.isHealthy()).toBe(false);
+	});
+
 	it("probes only plugins included in each spawned configuration", async () => {
 		db = new Kysely<Database>({
 			dialect: new SqliteDialect({ database: new DatabaseDriver(":memory:") }),
@@ -99,7 +127,7 @@ describe("workerd configuration readiness", () => {
 		const configurations: number[][] = [];
 		let spawnCount = 0;
 
-		vi.mocked(spawn).mockImplementation((_command, args) => {
+		vi.mocked(spawnWorkerd).mockImplementation((_command, args) => {
 			if (!Array.isArray(args) || typeof args[1] !== "string") {
 				throw new Error("Expected a workerd configuration path");
 			}
