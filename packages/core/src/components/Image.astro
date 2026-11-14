@@ -196,8 +196,8 @@ const dominantColor = (node.dominantColor ??
 
 let placeholderStyle = "";
 if (placeholder && blurhash) {
-	const { blurhashToImageCssString } = await import("@unpic/placeholder");
-	placeholderStyle = blurhashToImageCssString(blurhash);
+	const { blurhashToDataUri } = await import("@unpic/placeholder");
+	placeholderStyle = `background-image: url("${blurhashToDataUri(blurhash)}"); background-size: cover;`;
 } else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }

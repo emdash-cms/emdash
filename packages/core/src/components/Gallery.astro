@@ -151,8 +151,8 @@ const resolvedImages = await Promise.all(
 		// Image.astro.
 		let placeholderStyle = "";
 		if (placeholder && image.blurhash) {
-			const { blurhashToImageCssString } = await import("@unpic/placeholder");
-			placeholderStyle = blurhashToImageCssString(image.blurhash);
+			const { blurhashToDataUri } = await import("@unpic/placeholder");
+			placeholderStyle = `background-image: url("${blurhashToDataUri(image.blurhash)}"); background-size: cover;`;
 		} else if (placeholder && image.dominantColor) {
 			placeholderStyle = `background-color: ${image.dominantColor};`;
 		}
@@ -167,8 +167,10 @@ const resolvedImages = await Promise.all(
 			srcset,
 			sizes,
 			astroImageSrc,
-			placeholderStyle,
-			objectPosition,
+			style:
+				[placeholderStyle, objectPosition ? `object-position: ${objectPosition};` : ""]
+					.filter(Boolean)
+					.join(" ") || undefined,
 		};
 	}),
 );
@@ -177,7 +179,7 @@ const resolvedImages = await Promise.all(
 <div class="emdash-gallery" style={`--columns: ${columns}`}>
 	{
 		resolvedImages.map((image) => (
-			<figure class="emdash-gallery-item" style={image.placeholderStyle || undefined}>
+			<figure class="emdash-gallery-item">
 				{image.astroImageSrc ? (
 					<AstroImage
 						src={image.astroImageSrc}
@@ -186,7 +188,7 @@ const resolvedImages = await Promise.all(
 						height={image.height!}
 						layout="constrained"
 						sizes={cellSizes}
-						style={image.objectPosition ? `object-position: ${image.objectPosition};` : undefined}
+						style={image.style}
 					/>
 				) : (
 					<img
@@ -198,7 +200,7 @@ const resolvedImages = await Promise.all(
 						height={image.height}
 						loading="lazy"
 						decoding="async"
-						style={image.objectPosition ? `object-position: ${image.objectPosition};` : undefined}
+						style={image.style}
 					/>
 				)}
 				{image.caption && <figcaption>{image.caption}</figcaption>}
