@@ -13,12 +13,12 @@ import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	canOptimizeImage,
-	toAbsoluteMediaUrl,
+	mediaOrigin,
+	optimizableMediaUrl,
 	gallerySizes,
 	GALLERY_DEFAULT_COLUMNS,
 	responsiveWidths,
 } from "../media/responsive.js";
-import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
 
@@ -137,11 +137,8 @@ const resolvedImages = await Promise.all(
 				id: asset._ref,
 			});
 			if (width && height) {
-				const absoluteSrc = toAbsoluteMediaUrl(
-					src,
-					getPublicOrigin(Astro.url, Astro.locals.emdash?.config),
-				);
-				if (await canOptimizeImage(getImage, { src: absoluteSrc, width, height })) {
+				const absoluteSrc = optimizableMediaUrl(src, mediaOrigin(Astro));
+				if (absoluteSrc && (await canOptimizeImage(getImage, { src: absoluteSrc, width, height }))) {
 					astroImageSrc = absoluteSrc;
 				}
 			}

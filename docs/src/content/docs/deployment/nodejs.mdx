@@ -60,7 +60,7 @@ When the Node process sits behind a reverse proxy that terminates TLS, internal 
 export EMDASH_SITE_URL=https://example.com
 ```
 
-Set the variable both where `npm run build` runs and where the server runs. The build uses it to enable image optimization for locally stored media. If it is missing at build time, images are served as unoptimized originals instead of through Astro's `/_image` endpoint. See [`siteUrl`](/reference/configuration/#siteurl) for how EmDash resolves the public origin.
+Set the variable where the server runs. Pages rendered on demand optimize locally stored media without it. Prerendered pages also need it where `npm run build` runs, or they show those images as unoptimized originals. See [`siteUrl`](/reference/configuration/#siteurl) for how EmDash resolves the public origin.
 
 The proxy must also forward WebSocket upgrades for co-editing. See [Forward WebSocket upgrades](#forward-websocket-upgrades).
 

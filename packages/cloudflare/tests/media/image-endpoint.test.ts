@@ -186,15 +186,19 @@ async function request(options: {
 	query: string;
 	method?: string;
 	headers?: Record<string, string>;
-}): Promise<{ response: Response; body: TrackedBody }> {
-	const body = trackedBody();
+}): Promise<{ response: Response; body: TrackedBody; downloads: TrackedBody[] }> {
+	const downloads: TrackedBody[] = [];
 	const storage = {
-		download: async () => ({
-			body: body.stream,
-			contentType: options.contentType,
-			size: 3,
-			lastModified: new Date("2026-01-01T00:00:00Z"),
-		}),
+		download: async () => {
+			const tracked = trackedBody();
+			downloads.push(tracked);
+			return {
+				body: tracked.stream,
+				contentType: options.contentType,
+				size: 3,
+				lastModified: new Date("2026-01-01T00:00:00Z"),
+			};
+		},
 	};
 	const url = `https://site.test/_image?href=/_emdash/api/media/file/a.bin&${options.query}`;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the endpoint reads only request and locals
@@ -203,7 +207,7 @@ async function request(options: {
 		locals: { emdash: { storage } },
 	} as unknown as APIContext;
 	const response = await GET(ctx);
-	return { response, body };
+	return { response, body: downloads[0]!, downloads };
 }
 
 describe("cloudflare image endpoint storage body", () => {
@@ -258,11 +262,100 @@ describe("cloudflare image endpoint storage body", () => {
 		expect(body.cancelled()).toBe(false);
 	});
 
-	it("cancels the download when the Images binding fails without reading it", async () => {
+	it("serves the original when the Images binding fails", async () => {
 		fakeEnv.IMAGES = failingImages;
 		vi.spyOn(console, "error").mockImplementation(() => {});
-		const { response, body } = await request({ contentType: "image/png", query: "w=100&f=webp" });
-		expect(response.status).toBe(500);
-		expect(body.cancelled()).toBe(true);
+		const { response, downloads } = await request({
+			contentType: "image/png",
+			query: "w=100&f=webp",
+		});
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Type")).toBe("image/png");
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+		expect(downloads[0]!.cancelled()).toBe(true);
+		expect(downloads[1]!.cancelled()).toBe(false);
 	});
+
+	it("revalidates the original served after the Images binding fails", async () => {
+		fakeEnv.IMAGES = failingImages;
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const first = await request({ contentType: "image/png", query: "w=100&f=webp" });
+		const etag = first.response.headers.get("ETag")!;
+		const { response, downloads } = await request({
+			contentType: "image/png",
+			query: "w=100&f=webp",
+			headers: { "If-None-Match": etag },
+		});
+		expect(response.status).toBe(304);
+		expect(downloads.every((download) => download.cancelled())).toBe(true);
+	});
+
+	it("transforms again once the Images binding recovers", async () => {
+		fakeEnv.IMAGES = failingImages;
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const first = await request({ contentType: "image/png", query: "w=100&f=webp" });
+		fakeEnv.IMAGES = fakeImages;
+		const { response } = await request({
+			contentType: "image/png",
+			query: "w=100&f=webp",
+			headers: { "If-None-Match": first.response.headers.get("ETag")! },
+		});
+		expect(response.status).toBe(200);
+		expect(response.headers.get("ETag")).not.toBe(first.response.headers.get("ETag"));
+	});
+});
+
+describe("Cloudflare image endpoint outside EmDash storage", () => {
+	function imageContext(
+		href: string,
+		locals: object = { emdash: { storage: { download: vi.fn() } } },
+	) {
+		return {
+			request: new Request(
+				`https://example.test/_image?href=${encodeURIComponent(href)}&w=120&f=webp`,
+			),
+			locals,
+		};
+	}
+
+	it.each([
+		"https://attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"//attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"http:attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"http:/attacker.example/_emdash/api/media/file/nested/photo.jpg",
+	])("does not load internal media from another host (%s)", async (href) => {
+		const response = await GET(imageContext(href) as never);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it("does not load cross-host internal media when storage is unavailable", async () => {
+		const response = await GET(
+			imageContext("https://attacker.example/_emdash/api/media/file/photo.jpg", {}) as never,
+		);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		"/_emdash/api/media/file/nested/photo.jpg",
+		"https://example.test/_emdash/api/media/file/nested/photo.jpg",
+	])("does not fetch internal media it cannot read from storage (%s)", async (href) => {
+		const response = await GET(imageContext(href) as never);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it.each(["https://cdn.example.com/photo.jpg", "/_astro/logo.png"])(
+		"delegates other sources to the adapter endpoint (%s)",
+		async (href) => {
+			const response = await GET(imageContext(href) as never);
+
+			expect(response.status).toBe(418);
+			expect(adapterGET).toHaveBeenCalledOnce();
+		},
+	);
 });
