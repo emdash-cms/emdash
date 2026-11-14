@@ -139,27 +139,23 @@ If you try to update without `--rev`, the CLI rejects the command. This ensures 
 
 ### Conflict Handling
 
-If someone else updated the item between your read and write:
+If someone else updated the item between your read and write, the CLI exits with code 1 and prints:
 
-```
-EmDashApiError: Content has been modified since last read (version conflict)
-  status: 409
-  code: CONFLICT
+```text
+ ERROR  Content has been modified since last read (version conflict)
 ```
 
-Resolution: re-read with `get`, inspect the new state, then `update` with the fresh `_rev`.
+Re-read with `get`, inspect the new state, then `update` with the fresh `_rev`.
 
 ### Locked Entries
 
-A 409 does not always mean the item changed. If someone has the entry open in the admin, the write is refused with a different code:
+A 409 does not always mean the item changed. If someone has the entry open in the admin, the CLI exits with code 1 and prints the lock holder's name:
 
-```
-EmDashApiError: Ada is holding this entry
-  status: 409
-  code: ENTRY_LOCKED
+```text
+ ERROR  Ada is holding this entry
 ```
 
-Re-reading does not clear this one. The item has not changed, so a fresh `_rev` produces the same refusal. Check `code` before you retry. Either wait, or pass `--override-lock` to write anyway. An editor releases the lock when they close the entry, and a lock left behind by a crashed tab lapses seven minutes after their last heartbeat.
+The CLI prints only the error message, not the HTTP status or error code. REST API consumers can distinguish this refusal by its `ENTRY_LOCKED` code. Re-reading does not clear it: the item has not changed, so a fresh `_rev` produces the same refusal. Either wait, or pass `--override-lock` to write anyway. An editor releases the lock when they close the entry, and a lock left behind by a crashed tab lapses seven minutes after their last heartbeat.
 
 Overriding does not take the lock. The editor keeps it and their next save is rejected as a version conflict, so wait unless you know they have gone.
 
