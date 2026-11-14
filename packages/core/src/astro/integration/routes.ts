@@ -239,6 +239,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/mentionable",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/mentionable.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/[threadId]/index.ts"),
 	});
