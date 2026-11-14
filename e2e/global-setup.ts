@@ -7,7 +7,7 @@
  */
 
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,6 +46,11 @@ const TARGETS: Record<string, Target> = {
 };
 
 const TARGET = TARGETS[process.env.EMDASH_E2E_TARGET ?? "node"] ?? TARGETS.node!;
+/**
+ * `EMDASH_E2E_BUILD=production` builds the fixture with `astro build --devOutput`
+ * and serves the built output instead of running `astro dev`. Node target only.
+ */
+const PRODUCTION_BUILD = process.env.EMDASH_E2E_BUILD === "production";
 const FIXTURE_DIR = TARGET.fixtureDir;
 const CLI_BINARY = resolve(ROOT, "packages/core/dist/cli/index.mjs");
 const PORT = 4444;
@@ -336,7 +341,19 @@ export default async function globalSetup(): Promise<void> {
 	// the database — source files stay at their real paths so Astro's virtual
 	// module resolver can find the compile metadata.
 	const workDir = FIXTURE_DIR;
-	const tempDataDir = mkdtempSync(join(tmpdir(), "emdash-pw-"));
+	// A production build bakes the database path into its output, so it needs a
+	// path that stays the same between runs.
+	let tempDataDir: string;
+	if (PRODUCTION_BUILD) {
+		if (TARGET !== TARGETS.node) {
+			throw new Error("EMDASH_E2E_BUILD=production only supports the node target");
+		}
+		tempDataDir = join(tmpdir(), "emdash-pw-production");
+		rmSync(tempDataDir, { recursive: true, force: true });
+		mkdirSync(tempDataDir, { recursive: true });
+	} else {
+		tempDataDir = mkdtempSync(join(tmpdir(), "emdash-pw-"));
+	}
 	const dbPath = join(tempDataDir, "test.db");
 	const registryFixturePath = join(tempDataDir, "registry-fixture.json");
 	writeFileSync(registryFixturePath, JSON.stringify(registryFixture));
@@ -352,22 +369,49 @@ export default async function globalSetup(): Promise<void> {
 		rmSync(join(FIXTURE_DIR, ".wrangler"), { recursive: true, force: true });
 	}
 
-	// 2. Start dev server (with marketplace URL injected via env)
+	// 2. Start the server (with marketplace URL injected via env)
 	const astroBin = join(fixtureNodeModules, ".bin", "astro");
-	const server = spawn(astroBin, ["dev", "--port", String(PORT)], {
-		cwd: workDir,
-		env: {
-			...process.env,
+	const fixtureEnv = {
+		...process.env,
+		EMDASH_TEST_DB: `file:${dbPath}`,
+		EMDASH_MARKETPLACE_URL: marketplaceUrl,
+		EMDASH_REGISTRY_URL: marketplaceUrl,
+		EMDASH_REGISTRY_FIXTURE: registryFixturePath,
+		EMDASH_ENCRYPTION_KEY: "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+	};
+	let server;
+	if (PRODUCTION_BUILD) {
+		Object.assign(fixtureEnv, {
+			// The build derives `image.remotePatterns` for EmDash media from the site URL.
+			EMDASH_SITE_URL: baseUrl,
+		});
+		console.log("[pw] Building fixture...");
+		const buildStart = Date.now();
+		// `--devOutput` keeps `import.meta.env.DEV` true, which the dev-bypass
+		// endpoints the suite logs in through require.
+		await execAsync(astroBin, ["build", "--devOutput"], {
+			cwd: workDir,
+			env: fixtureEnv,
+			timeout: 300_000,
+		});
+		console.log(`[pw] Fixture built in ${((Date.now() - buildStart) / 1000).toFixed(1)}s.`);
+		server = spawn(process.execPath, [join(workDir, "dist/server/entry.mjs")], {
+			cwd: workDir,
+			env: {
+				...fixtureEnv,
+				HOST: "localhost",
+				PORT: String(PORT),
+			},
+			stdio: "pipe",
+		});
+	} else {
+		server = spawn(astroBin, ["dev", "--port", String(PORT)], {
+			cwd: workDir,
 			// Keep Astro's agent-mode server in this process so teardown owns it.
-			ASTRO_DEV_BACKGROUND: "1",
-			EMDASH_TEST_DB: `file:${dbPath}`,
-			EMDASH_MARKETPLACE_URL: marketplaceUrl,
-			EMDASH_REGISTRY_URL: marketplaceUrl,
-			EMDASH_REGISTRY_FIXTURE: registryFixturePath,
-			EMDASH_ENCRYPTION_KEY: "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-		},
-		stdio: "pipe",
-	});
+			env: { ...fixtureEnv, ASTRO_DEV_BACKGROUND: "1" },
+			stdio: "pipe",
+		});
+	}
 
 	let serverOutput = "";
 	const appendServerOutput = (data: Buffer) => {
@@ -411,25 +455,29 @@ export default async function globalSetup(): Promise<void> {
 		console.log("[pw] Seeding test data...");
 		const seed = await seedTestData(baseUrl, token);
 
-		// 5b. Warm up pages that use emdash/ui (triggers Astro compilation of all
-		// component virtual modules, avoiding race conditions in tests)
-		console.log("[pw] Warming up pages...");
-		for (let attempt = 0; attempt < 3; attempt++) {
-			try {
-				const resp = await fetch(`${baseUrl}/posts/post-with-image`);
-				if (resp.ok) break;
-				// Retry on compilation errors — Astro may need multiple passes
-				await new Promise((r) => setTimeout(r, 1000));
-			} catch {
-				await new Promise((r) => setTimeout(r, 1000));
+		// A production build compiles everything ahead of time, so only the dev
+		// server needs warming up.
+		if (!PRODUCTION_BUILD) {
+			// 5b. Warm up pages that use emdash/ui (triggers Astro compilation of all
+			// component virtual modules, avoiding race conditions in tests)
+			console.log("[pw] Warming up pages...");
+			for (let attempt = 0; attempt < 3; attempt++) {
+				try {
+					const resp = await fetch(`${baseUrl}/posts/post-with-image`);
+					if (resp.ok) break;
+					// Retry on compilation errors — Astro may need multiple passes
+					await new Promise((r) => setTimeout(r, 1000));
+				} catch {
+					await new Promise((r) => setTimeout(r, 1000));
+				}
 			}
-		}
 
-		// 5c. Load the admin in a browser. Its client dependencies are only
-		// discovered when a browser requests them, and the optimizer then forces
-		// a full reload that would otherwise land inside the first admin test.
-		console.log("[pw] Warming up admin...");
-		await warmUpAdmin(baseUrl);
+			// 5c. Load the admin in a browser. Its client dependencies are only
+			// discovered when a browser requests them, and the optimizer then forces
+			// a full reload that would otherwise land inside the first admin test.
+			console.log("[pw] Warming up admin...");
+			await warmUpAdmin(baseUrl);
+		}
 
 		// 6. Write server info
 		const info = {
