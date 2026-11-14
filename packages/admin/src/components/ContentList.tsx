@@ -477,7 +477,7 @@ export function ContentList({
 	const [bulkTrashOpen, setBulkTrashOpen] = React.useState(false);
 	const [bulkPublishOpen, setBulkPublishOpen] = React.useState(false);
 	const [bulkUnpublishOpen, setBulkUnpublishOpen] = React.useState(false);
-	const bulkPublishRemovesSchedule = [...selectedIds].some(
+	const selectionHasSchedule = [...selectedIds].some(
 		(id) =>
 			!!(items.find((item) => item.id === id) ?? selectedRowsRef.current.get(id))?.scheduledAt,
 	);
@@ -621,13 +621,13 @@ export function ContentList({
 										</Button>
 									}
 									variant="primary"
-									undoable={!bulkPublishRemovesSchedule}
+									undoable={!selectionHasSchedule}
 									title={plural(selectedCount, {
 										one: "Publish # item?",
 										other: "Publish # items?",
 									})}
 									description={
-										bulkPublishRemovesSchedule
+										selectionHasSchedule
 											? plural(selectedCount, {
 													one: "This removes its schedule and publishes it immediately.",
 													other: "This removes their schedules and publishes them immediately.",
@@ -662,15 +662,23 @@ export function ContentList({
 											{t`Set to draft`}
 										</Button>
 									}
-									undoable
+									undoable={!selectionHasSchedule}
 									title={plural(selectedCount, {
 										one: "Set # item to draft?",
 										other: "Set # items to draft?",
 									})}
-									description={plural(selectedCount, {
-										one: "Visitors won't see it until you publish it again.",
-										other: "Visitors won't see them until you publish them again.",
-									})}
+									description={
+										selectionHasSchedule
+											? plural(selectedCount, {
+													one: "This removes its schedule. Visitors won't see it until you publish it again.",
+													other:
+														"This removes their schedules. Visitors won't see them until you publish them again.",
+												})
+											: plural(selectedCount, {
+													one: "Visitors won't see it until you publish it again.",
+													other: "Visitors won't see them until you publish them again.",
+												})
+									}
 									confirmLabel={t`Set to draft`}
 									pendingLabel={t`Set to draft`}
 									isPending={false}

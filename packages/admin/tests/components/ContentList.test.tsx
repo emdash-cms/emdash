@@ -1233,6 +1233,32 @@ describe("ContentList", () => {
 			expect(onBulkPublish).not.toHaveBeenCalled();
 		});
 
+		it("opens bulk Set to draft on Cancel when a selected entry is scheduled", async () => {
+			const onBulkUnpublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						items[0]!,
+						{ ...items[1]!, status: "scheduled", scheduledAt: "2099-01-01T00:00:00Z" },
+					]}
+					onBulkUnpublish={onBulkUnpublish}
+				/>,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Set to draft", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Set 2 items to draft?" });
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+			await expect.element(dialog).toHaveTextContent("This removes their schedules.");
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(onBulkUnpublish).not.toHaveBeenCalled();
+		});
+
 		it("sets the selected entries to draft with Enter", async () => {
 			const onBulkUnpublish = vi.fn((_ids: string[]) => Promise.resolve([]));
 			const screen = await render(
