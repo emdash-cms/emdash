@@ -515,18 +515,18 @@ export function PublishActions({
 	const { t } = useLingui();
 	const { blocked } = useRoomOperations();
 	const disabled = disabledProp || blocked;
-	const [publishOpen, setPublishOpen] = React.useState(false);
-	const publishOpenRef = React.useRef(publishOpen);
-	publishOpenRef.current = publishOpen;
+	const [confirmation, setConfirmation] = React.useState<"publish" | "unpublish" | null>(null);
+	const confirmationRef = React.useRef(confirmation);
+	confirmationRef.current = confirmation;
 	React.useEffect(
 		() => () => {
-			if (publishOpenRef.current) onMenuOpenChange?.(false);
+			if (confirmationRef.current) onMenuOpenChange?.(false);
 		},
 		[onMenuOpenChange],
 	);
-	const setConfirmationOpen = (open: boolean) => {
-		setPublishOpen(open);
-		onMenuOpenChange?.(open);
+	const setConfirmationOpen = (next: "publish" | "unpublish" | null) => {
+		setConfirmation(next);
+		onMenuOpenChange?.(next !== null);
 	};
 	const itemLabel = collectionLabel ?? t`content`;
 	const state =
@@ -535,22 +535,42 @@ export function PublishActions({
 	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
 
 	if (isNew) return null;
+	// The two confirmations are keyed apart so that one's double-press guard can't drop the other's first press.
 	if (state === "published") {
 		return onUnpublish ? (
-			<Button
-				type="button"
-				variant="outline"
-				size={size}
-				onClick={onUnpublish}
-				loading={isPending}
-				disabled={disabled}
-				icon={<EyeSlash />}
-				className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
-			>
-				<span className={compact ? compactBarLabelClassName : undefined}>
-					{t`Unpublish ${itemLabel}`}
-				</span>
-			</Button>
+			<ConfirmDialog
+				key="unpublish"
+				open={confirmation === "unpublish"}
+				onClose={() => setConfirmationOpen(null)}
+				trigger={
+					<Button
+						type="button"
+						variant="outline"
+						size={size}
+						onClick={() => setConfirmationOpen("unpublish")}
+						loading={isPending}
+						disabled={disabled}
+						icon={<EyeSlash />}
+						className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
+					>
+						<span className={compact ? compactBarLabelClassName : undefined}>
+							{t`Unpublish ${itemLabel}`}
+						</span>
+					</Button>
+				}
+				undoable
+				title={t`Unpublish ${itemLabel}?`}
+				description={t`Visitors won't see it until you publish it again. It stays as a draft.`}
+				confirmLabel={t`Unpublish`}
+				pendingLabel={t`Unpublish`}
+				confirmDisabled={disabled || isPending}
+				isPending={false}
+				error={null}
+				onConfirm={() => {
+					setConfirmationOpen(null);
+					onUnpublish();
+				}}
+			/>
 		) : null;
 	}
 	if (!onPublish) return null;
@@ -566,8 +586,9 @@ export function PublishActions({
 
 	return (
 		<ConfirmDialog
-			open={publishOpen}
-			onClose={() => setConfirmationOpen(false)}
+			key="publish"
+			open={confirmation === "publish"}
+			onClose={() => setConfirmationOpen(null)}
 			trigger={
 				<Button
 					type="button"
@@ -582,7 +603,7 @@ export function PublishActions({
 					loading={isPending}
 					disabled={disabled}
 					aria-label={publishLabel}
-					onClick={() => setConfirmationOpen(true)}
+					onClick={() => setConfirmationOpen("publish")}
 				>
 					{compact ? (
 						<>
@@ -605,7 +626,7 @@ export function PublishActions({
 			isPending={false}
 			error={null}
 			onConfirm={() => {
-				setConfirmationOpen(false);
+				setConfirmationOpen(null);
 				onPublish();
 			}}
 		>

@@ -475,6 +475,12 @@ export function ContentList({
 	);
 	const [bulkBusy, setBulkBusy] = React.useState(false);
 	const [bulkTrashOpen, setBulkTrashOpen] = React.useState(false);
+	const [bulkPublishOpen, setBulkPublishOpen] = React.useState(false);
+	const [bulkUnpublishOpen, setBulkUnpublishOpen] = React.useState(false);
+	const bulkPublishRemovesSchedule = [...selectedIds].some(
+		(id) =>
+			!!(items.find((item) => item.id === id) ?? selectedRowsRef.current.get(id))?.scheduledAt,
+	);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
 		const ids = [...selectedIds];
@@ -600,26 +606,80 @@ export function ContentList({
 							onClear={clearSelection}
 						>
 							{onBulkPublish && (
-								<Button
-									size="sm"
-									variant="secondary"
-									disabled={bulkBusy}
-									onClick={() => runBulk(onBulkPublish)}
-									icon={<Upload />}
-								>
-									{t`Publish`}
-								</Button>
+								<ConfirmDialog
+									open={bulkPublishOpen}
+									onClose={() => setBulkPublishOpen(false)}
+									trigger={
+										<Button
+											size="sm"
+											variant="secondary"
+											disabled={bulkBusy}
+											onClick={() => setBulkPublishOpen(true)}
+											icon={<Upload />}
+										>
+											{t`Publish`}
+										</Button>
+									}
+									variant="primary"
+									undoable={!bulkPublishRemovesSchedule}
+									title={plural(selectedCount, {
+										one: "Publish # item?",
+										other: "Publish # items?",
+									})}
+									description={
+										bulkPublishRemovesSchedule
+											? plural(selectedCount, {
+													one: "This removes its schedule and publishes it immediately.",
+													other: "This removes their schedules and publishes them immediately.",
+												})
+											: plural(selectedCount, {
+													one: "Visitors will see it immediately.",
+													other: "Visitors will see them immediately.",
+												})
+									}
+									confirmLabel={t`Publish`}
+									pendingLabel={t`Publish`}
+									isPending={false}
+									error={null}
+									onConfirm={() => {
+										setBulkPublishOpen(false);
+										runBulk(onBulkPublish);
+									}}
+								/>
 							)}
 							{onBulkUnpublish && (
-								<Button
-									size="sm"
-									variant="secondary"
-									disabled={bulkBusy}
-									onClick={() => runBulk(onBulkUnpublish)}
-									icon={<CircleDashed aria-hidden="true" />}
-								>
-									{t`Set to draft`}
-								</Button>
+								<ConfirmDialog
+									open={bulkUnpublishOpen}
+									onClose={() => setBulkUnpublishOpen(false)}
+									trigger={
+										<Button
+											size="sm"
+											variant="secondary"
+											disabled={bulkBusy}
+											onClick={() => setBulkUnpublishOpen(true)}
+											icon={<CircleDashed aria-hidden="true" />}
+										>
+											{t`Set to draft`}
+										</Button>
+									}
+									undoable
+									title={plural(selectedCount, {
+										one: "Set # item to draft?",
+										other: "Set # items to draft?",
+									})}
+									description={plural(selectedCount, {
+										one: "Visitors won't see it until you publish it again.",
+										other: "Visitors won't see them until you publish them again.",
+									})}
+									confirmLabel={t`Set to draft`}
+									pendingLabel={t`Set to draft`}
+									isPending={false}
+									error={null}
+									onConfirm={() => {
+										setBulkUnpublishOpen(false);
+										runBulk(onBulkUnpublish);
+									}}
+								/>
 							)}
 							{bulkTagEnabled && (
 								<Button

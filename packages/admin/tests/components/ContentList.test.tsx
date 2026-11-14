@@ -1178,6 +1178,82 @@ describe("ContentList", () => {
 		});
 	});
 
+	describe("bulk publish and set to draft", () => {
+		const items = [
+			makeItem({ id: "a", data: { title: "Alpha" } }),
+			makeItem({ id: "b", data: { title: "Bravo" } }),
+		];
+
+		it("publishes the selected entries with Enter", async () => {
+			const onBulkPublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkPublish={onBulkPublish} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Publish", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Publish 2 items?" });
+			await expect
+				.element(dialog.getByRole("button", { name: "Publish", exact: true }))
+				.toHaveFocus();
+			expect(onBulkPublish).not.toHaveBeenCalled();
+			await userEvent.keyboard("{Enter}");
+
+			expect(onBulkPublish).toHaveBeenCalledWith(["a", "b"]);
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
+
+		it("opens bulk Publish on Cancel when a selected entry is scheduled", async () => {
+			const onBulkPublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						items[0]!,
+						{ ...items[1]!, status: "scheduled", scheduledAt: "2099-01-01T00:00:00Z" },
+					]}
+					onBulkPublish={onBulkPublish}
+				/>,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Publish", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Publish 2 items?" });
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+			await expect
+				.element(dialog)
+				.toHaveTextContent("This removes their schedules and publishes them immediately.");
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(onBulkPublish).not.toHaveBeenCalled();
+		});
+
+		it("sets the selected entries to draft with Enter", async () => {
+			const onBulkUnpublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkUnpublish={onBulkUnpublish} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			screen.getByRole("button", { name: "Set to draft", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Set 1 item to draft?" });
+			await expect
+				.element(dialog.getByRole("button", { name: "Set to draft", exact: true }))
+				.toHaveFocus();
+			expect(onBulkUnpublish).not.toHaveBeenCalled();
+			await userEvent.keyboard("{Enter}");
+
+			expect(onBulkUnpublish).toHaveBeenCalledWith(["a"]);
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
+	});
+
 	describe("numbered pages", () => {
 		function makePagination(overrides: Partial<ListPagination> = {}): ListPagination {
 			return {
@@ -1273,6 +1349,11 @@ describe("ContentList", () => {
 			);
 			await screen.getByRole("checkbox", { name: "Select Post 22" }).click();
 			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			const confirm = screen
+				.getByRole("dialog", { name: "Publish 2 items?" })
+				.getByRole("button", { name: "Publish", exact: true });
+			await expect.element(confirm).toBeVisible();
+			confirm.element().click();
 
 			expect(onBulkPublish).toHaveBeenCalledWith(["post_3", "post_22"]);
 		});

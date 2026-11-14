@@ -1889,6 +1889,12 @@ describe("EditorActions", () => {
 		await expect.element(unpublish).toBeInTheDocument();
 
 		await unpublish.click();
+		expect(props.onUnpublish).not.toHaveBeenCalled();
+		const confirm = screen
+			.getByRole("dialog", { name: "Unpublish Post?" })
+			.getByRole("button", { name: "Unpublish", exact: true });
+		await expect.element(confirm).toBeVisible();
+		confirm.element().click();
 		expect(props.onUnpublish).toHaveBeenCalled();
 	});
 
@@ -2109,6 +2115,55 @@ describe("PublishActions", () => {
 
 		await expect.element(dialog).not.toBeInTheDocument();
 		expect(onPublish).not.toHaveBeenCalled();
+	});
+
+	it("unpublishes with Enter from the Unpublish button", async () => {
+		const onUnpublish = vi.fn();
+		const screen = await render(
+			<PublishActions
+				collectionLabel="Post"
+				isLive
+				hasPendingChanges={false}
+				onUnpublish={onUnpublish}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Unpublish Post", exact: true });
+		await expect.element(opener).toBeVisible();
+		opener.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Unpublish Post?" });
+		await expect
+			.element(dialog.getByRole("button", { name: "Unpublish", exact: true }))
+			.toHaveFocus();
+		expect(onUnpublish).not.toHaveBeenCalled();
+		await userEvent.keyboard("{Enter}");
+
+		expect(onUnpublish).toHaveBeenCalledOnce();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("doesn't unpublish when the dialog is cancelled", async () => {
+		const onUnpublish = vi.fn();
+		const screen = await render(
+			<PublishActions
+				collectionLabel="Post"
+				isLive
+				hasPendingChanges={false}
+				onUnpublish={onUnpublish}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Unpublish Post", exact: true });
+		await expect.element(opener).toBeVisible();
+		opener.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Unpublish Post?" });
+		await expect.element(dialog).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(onUnpublish).not.toHaveBeenCalled();
 	});
 });
 
