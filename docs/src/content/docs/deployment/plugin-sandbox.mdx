@@ -148,6 +148,8 @@ Settings reads, storage operations, and HTTP requests through the plugin bridge 
 
 When a hook or route exceeds the wall-time limit, the invocation fails with `Plugin <id> exceeded wall-time limit of 30000ms during hook:<name>` (or `route:<name>`). For a hook, EmDash logs the failure with the prefix `EmDash: Sandboxed plugin <id>` and continues the request without that plugin's result. A plugin route that exceeds the limit fails for its caller.
 
+On Node.js, the production `workerd` runner also force-stops and restarts the process with the loaded plugins. This applies to every wall-time timeout, including calls waiting on slow I/O. All plugins share that process, so recovery interrupts other in-flight calls and resets their in-memory state. Calls arriving during recovery wait for startup. These timeout restarts do not count toward the crash-retry budget above.
+
 ### Custom resource limits
 
 To use a different Cloudflare subrequest ceiling, supply a module that exports a `createSandboxRunner` factory through the `sandboxRunner` integration option. Pass `limits` in the factory's `SandboxOptions`, rather than to `sandbox()` or `emdash()` directly. The runner APIs are exported from the runtime-only `@emdash-cms/cloudflare/sandbox` entry point; do not import that entry point into `astro.config.mjs`.
