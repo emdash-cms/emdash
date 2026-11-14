@@ -92,12 +92,14 @@ describe("search snippet sanitization", () => {
 	});
 
 	it("does not crash when the snippet column is NULL", async () => {
-		// FTS triggers insert raw column values with no COALESCE, so any
-		// row whose title (the column the snippet() call targets) is
-		// NULL produces a NULL snippet from SQLite — even when the row
-		// matched via a different searchable column. A regression that
-		// drops the null-guard throws "Cannot read properties of null
-		// (reading 'replace')" before these assertions can run.
+		// FTS triggers insert raw column values with no COALESCE, so a
+		// snippet column that is NULL for a given row produces a NULL
+		// snippet from SQLite. With automatic column selection (-1) this
+		// is rare in practice — SQLite only picks a column that has a
+		// match, and a matched row always has a match in *some* column —
+		// but the guard stays cheap insurance. A regression that drops it
+		// throws "Cannot read properties of null (reading 'replace')"
+		// before these assertions can run.
 		const registry = new SchemaRegistry(db);
 		await registry.updateField("post", "content", { searchable: true });
 		const ftsManager = new FTSManager(db);
@@ -130,6 +132,45 @@ describe("search snippet sanitization", () => {
 		// Whether the snippet ends up as a string or undefined doesn't
 		// matter — the contract is "the search call must not throw".
 		expect(typeof items[0]!.snippet === "string" || items[0]!.snippet === undefined).toBe(true);
+	});
+
+	it("snippet reflects the field that actually matched, not always the title", async () => {
+		// Title never mentions the query term; only the body does. With the
+		// hardcoded column-2 (title) snippet, this row's snippet would be
+		// the title text and would NOT contain the matched word. With
+		// automatic column selection it must.
+		const registry = new SchemaRegistry(db);
+		await registry.updateField("post", "content", { searchable: true });
+		const ftsManager = new FTSManager(db);
+		await ftsManager.enableSearch("post");
+
+		await repo.create(
+			createPostFixture({
+				slug: "houston-mention",
+				status: "published",
+				data: {
+					title: "Weekend Roundup",
+					content: [
+						{
+							_type: "block",
+							style: "normal",
+							children: [{ _type: "span", text: "The team drove to Houston for the game." }],
+						},
+					],
+				},
+			}),
+		);
+
+		const { items } = await searchWithDb(db, "Houston", {
+			collections: ["post"],
+		});
+
+		expect(items).toHaveLength(1);
+		const snippet = items[0]!.snippet ?? "";
+
+		expect(snippet).not.toBe("Weekend Roundup");
+		expect(snippet.toLowerCase()).toContain("houston");
+		expect(snippet).toMatch(/<mark>Houston<\/mark>/i);
 	});
 
 	it("preserves `<mark>` highlight tags as live HTML", async () => {
