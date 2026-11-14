@@ -108,19 +108,31 @@ describe("recentlyUpdated", () => {
 });
 
 describe("catalogPage", () => {
-	it("lists each publisher's two freshest plugins before anyone's third", () => {
+	it("lists each publisher's freshest plugin before anyone's second", () => {
 		const catalog = floodedCatalog();
 
 		const first = catalogPage(catalog, "", 1);
 		const order = allPages(catalog).flatMap((page) => labels(page.items));
 
-		expect(first.items.filter((item) => item.package.did === "did:plc:flood")).toHaveLength(2);
-		expect(first.items[0]).toMatchObject({ package: { slug: "flood-1" }, moreFromPublisher: 58 });
-		expect(first.items[1]).toMatchObject({ package: { slug: "flood-2" }, moreFromPublisher: 0 });
+		expect(first.items.filter((item) => item.package.did === "did:plc:flood")).toHaveLength(1);
+		expect(first.items[0]).toMatchObject({ package: { slug: "flood-1" }, moreFromPublisher: 59 });
 		const lastSolo = Math.max(
 			...order.map((slug, index) => (slug.startsWith("solo") ? index : -1)),
 		);
-		expect(order.indexOf("flood-3")).toBeGreaterThan(lastSolo);
+		expect(order.indexOf("flood-2")).toBeGreaterThan(lastSolo);
+	});
+
+	it("opens the unfiltered listing with the home page's rail", () => {
+		const catalog = [
+			...floodedCatalog(),
+			...publisherPlugins("busy", 4, 10.5),
+			...publisherPlugins("pair", 2, 11.5),
+		];
+
+		const rail = labels(recentlyUpdated(catalog));
+		const first = labels(catalogPage(catalog, "", 1).items);
+
+		expect(first.slice(0, rail.length)).toEqual(rail);
 	});
 
 	it("places every plugin on exactly one page", () => {
@@ -150,20 +162,20 @@ describe("catalogPage", () => {
 		expect(allPages(catalog.toReversed())).toEqual(expected);
 	});
 
-	it("lists each publisher's two most relevant results before anyone's third", () => {
+	it("lists each publisher's most relevant result before anyone's second", () => {
 		const results = searchResults("a-1", "a-2", "a-3", "a-4", "b-1", "a-5", "c-1", "b-2", "b-3");
 
 		const page = catalogPage(results, "forms", 1);
 
 		expect(labels(page.items)).toEqual([
 			"a-1",
-			"a-2",
 			"b-1",
 			"c-1",
+			"a-2",
 			"b-2",
 			"a-3",
-			"a-4",
 			"b-3",
+			"a-4",
 			"a-5",
 		]);
 		expect(page.items.every((item) => item.moreFromPublisher === 0)).toBe(true);

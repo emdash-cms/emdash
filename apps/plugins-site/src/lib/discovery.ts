@@ -32,8 +32,6 @@ export interface CatalogPage<T extends RankablePlugin = ValidatedPackageView> {
 }
 
 const RECENT_RAIL_SIZE = 12;
-/** Plugins each publisher places in each round of a `/search` listing. */
-const LISTING_PER_PUBLISHER = 2;
 
 /**
  * When the plugin's current profile was last updated: the publisher's
@@ -57,7 +55,7 @@ export function recentlyUpdated<T extends RankablePlugin>(
 	catalog: readonly T[],
 ): ListedPlugin<T>[] {
 	const publishers = new Set(catalog.map((pkg) => pkg.did)).size;
-	const rail = tiered(catalog.toSorted(byFreshness), 1).slice(
+	const rail = inRounds(catalog.toSorted(byFreshness)).slice(
 		0,
 		Math.min(RECENT_RAIL_SIZE, publishers),
 	);
@@ -66,12 +64,13 @@ export function recentlyUpdated<T extends RankablePlugin>(
 
 /**
  * One page of `/search`, listing every plugin in `packages` once across the
- * pages: each publisher's first two, then each publisher's next two, and so on.
+ * pages: each publisher's first, then each publisher's second, and so on.
  * With a query, "first" follows the registry's relevance order, so a query
  * matching one publisher, such as their handle, keeps the registry's order.
- * Without one, it follows freshness, newest first, and the order depends only
- * on which plugins are in `packages`, not on the order the registry walk
- * returned them, so `?page=N` is a stable address.
+ * Without one, it follows freshness, newest first, so the first page opens
+ * with the home page's rail, and the order depends only on which plugins are
+ * in `packages`, not on the order the registry walk returned them, so
+ * `?page=N` is a stable address.
  */
 export function catalogPage<T extends RankablePlugin>(
 	packages: readonly T[],
@@ -82,7 +81,7 @@ export function catalogPage<T extends RankablePlugin>(
 	const page = Math.min(Math.max(requestedPage, 1), pageCount);
 	const start = (page - 1) * PAGE_SIZE;
 	const ordered = query ? packages : packages.toSorted(byFreshness);
-	const window = tiered(ordered, LISTING_PER_PUBLISHER).slice(start, start + PAGE_SIZE);
+	const window = inRounds(ordered).slice(start, start + PAGE_SIZE);
 	const items = query
 		? window.map((pkg) => ({ package: pkg, moreFromPublisher: 0 }))
 		: listed(window, packages);
@@ -90,19 +89,18 @@ export function catalogPage<T extends RankablePlugin>(
 }
 
 /**
- * `ordered`, regrouped by tier and keeping its order within a tier, where a
- * plugin's tier is its place among its publisher's plugins in `ordered`
- * divided by `perPublisher`. Publishers are DIDs: handles are mutable and
- * optional.
+ * `ordered`, regrouped by round and keeping its order within a round, where a
+ * plugin's round is its place among its publisher's plugins in `ordered`.
+ * Publishers are DIDs: handles are mutable and optional.
  */
-function tiered<T extends RankablePlugin>(ordered: readonly T[], perPublisher: number): T[] {
+function inRounds<T extends RankablePlugin>(ordered: readonly T[]): T[] {
 	const placed = new Map<string, number>();
 	const ranked = ordered.map((pkg) => {
-		const rank = placed.get(pkg.did) ?? 0;
-		placed.set(pkg.did, rank + 1);
-		return { pkg, tier: Math.floor(rank / perPublisher) };
+		const round = placed.get(pkg.did) ?? 0;
+		placed.set(pkg.did, round + 1);
+		return { pkg, round };
 	});
-	return ranked.toSorted((a, b) => a.tier - b.tier).map(({ pkg }) => pkg);
+	return ranked.toSorted((a, b) => a.round - b.round).map(({ pkg }) => pkg);
 }
 
 /** Newest `updatedAt` first, then DID, then slug, which together are unique. */
