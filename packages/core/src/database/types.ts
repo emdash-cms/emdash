@@ -825,6 +825,8 @@ export interface Database {
 	_emdash_entry_locks: EntryLockTable;
 	_emdash_rooms: RoomTable;
 	_emdash_room_updates: RoomUpdateTable;
+	_emdash_editorial_threads: EditorialThreadTable;
+	_emdash_editorial_comments: EditorialCommentTable;
 	_emdash_transfer_operations: TransferOperationTable;
 	_emdash_transfer_identity_map: TransferIdentityMapTable;
 	_emdash_transfer_staged_files: TransferStagedFileTable;
@@ -1043,6 +1045,32 @@ export interface RateLimitTable {
 	key: string; // {ip or IP hash}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
+}
+
+// Editorial comments
+
+export interface EditorialThreadTable {
+	id: string;
+	collection: string;
+	entry_id: string; // per-locale row ID in the ec_* table
+	anchor: string; // JSON EditorialAnchor
+	anchor_state: Generated<string>; // 'attached' | 'orphaned'
+	status: Generated<string>; // 'open' | 'resolved'
+	created_by: string | null;
+	resolved_by: string | null;
+	resolved_at: string | null;
+	created_at: string; // ISO 8601
+	updated_at: string; // ISO 8601; advances on any change to the thread or its comments
+}
+
+export interface EditorialCommentTable {
+	id: string;
+	thread_id: string;
+	author_id: string | null;
+	body: string; // empty once deleted
+	created_at: string; // ISO 8601
+	edited_at: string | null;
+	deleted_at: string | null;
 }
 
 export interface EntryLockTable {
