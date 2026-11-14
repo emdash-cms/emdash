@@ -1,5 +1,31 @@
 # emdash
 
+## 1.6.0
+
+### Minor Changes
+
+- [#4787](https://github.com/emdash-cms/emdash/pull/4787) [`acb8a0f`](https://github.com/emdash-cms/emdash/commit/acb8a0fa5ec94648dfb0c447819a4d4bc70970fe) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes scheduled entries going live up to a minute after their scheduled time.
+  
+  On Cloudflare, each Cron Trigger run waits up to 70 seconds for upcoming entries and publishes each one at its scheduled time, so an entry scheduled about a minute or more ahead no longer depends on when the next trigger starts. Waiting uses no CPU time, but while entries are scheduled within that window a scheduled invocation stays open for up to about a minute, so consecutive invocations can overlap in Workers logs and metrics. Sites that use `createScheduledHandler()` from `@emdash-cms/cloudflare/worker` get this automatically.
+  
+  On Node.js, the scheduler runs the publishing sweep at the start of every minute, so an entry scheduled for a whole minute, as the admin sets it, goes live at that minute. A schedule with seconds, which only the API and MCP can set, can still go live up to a minute late.
+  
+  A scheduled publish that another scheduler run or an editor has already completed no longer runs `content:beforePublish` hooks, so a hook cannot record a rejection for an entry that is already live.
+  
+  A custom Worker entry point that calls `runScheduledTasks()` from `emdash/middleware` publishes only entries that are already due. To wait for upcoming entries, pass the new `publishUpcomingWithinMs` option:
+  
+  ```ts title="src/worker.ts"
+  await runScheduledTasks({ publishUpcomingWithinMs: 70 * 1000 });
+  ```
+
+### Patch Changes
+
+- Updated dependencies [[`8c2ec3f`](https://github.com/emdash-cms/emdash/commit/8c2ec3f80405ce7dee7de6f0c8b9f8595d35826c), [`b58be50`](https://github.com/emdash-cms/emdash/commit/b58be5079daf5dc5320064abd1f676aed25869e6), [`d3c66d2`](https://github.com/emdash-cms/emdash/commit/d3c66d28fb65e308b1f7a655dd04e59cbe859fe6), [`7ce0d77`](https://github.com/emdash-cms/emdash/commit/7ce0d770c0ace5cfb245a75361848050e4978e55), [`41149d9`](https://github.com/emdash-cms/emdash/commit/41149d97e5142176eff83bf9521e5f092a234924), [`4cf36d3`](https://github.com/emdash-cms/emdash/commit/4cf36d3d9673ad180f7b7eb5f8908a65b62630c7), [`7218164`](https://github.com/emdash-cms/emdash/commit/72181643a1e16dbf6e0af293d869bc8bd7fbac9c), [`c73c600`](https://github.com/emdash-cms/emdash/commit/c73c6008f49c66d4f6629bf7436c883877e21344)]:
+  - @emdash-cms/admin@1.6.0
+  - @emdash-cms/auth@1.6.0
+  - @emdash-cms/blocks@1.6.0
+  - @emdash-cms/gutenberg-to-portable-text@1.6.0
+
 <!-- emdash-changelog-archive: ./changelog/1.2.0-to-1.3.1.md -->
 
 ## 1.5.0
