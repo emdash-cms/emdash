@@ -64,6 +64,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/et-artifact"
           unzip -o artifact.zip
+          if [ -n "$(find . -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            echo "::error::Artifact contains a symbolic link or special file; refusing to use it." >&2
+            exit 1
+          fi
           ls -la
 
       - name: Resolve PR
@@ -190,7 +194,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: regenerate emdash-env.d.ts files"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "ci: regenerate emdash-env.d.ts files"
           # Detached-HEAD push onto the PR branch. If the branch has advanced
           # past the generated SHA, this fails non-fast-forward — the next PR
           # event regenerates against the new head.
@@ -212,7 +216,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: regenerate emdash-env.d.ts files"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "ci: regenerate emdash-env.d.ts files"
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"

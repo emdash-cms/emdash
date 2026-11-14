@@ -166,7 +166,8 @@ msgstr "”{0}” tas bort från menyn. Åtgärden kan inte ångras."
 msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
 msgstr "”{0}” tas bort från widgetområdet. Åtgärden kan inte ångras."
 
-#: packages/admin/src/components/OptionalLabel.tsx:13
+#: packages/admin/src/components/OptionalLabel.tsx:14
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:14
 msgid "(optional)"
 msgstr "(valfritt)"
 
@@ -2974,7 +2975,7 @@ msgstr ""
 #: packages/admin/src/components/users/InviteUserModal.tsx:232
 #: packages/admin/src/components/Widgets.tsx:524
 #: packages/admin/src/components/WordPressImport.tsx:1967
-#: packages/admin/src/locales/KumoTranslationsProvider.tsx:9
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:13
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -3552,7 +3553,7 @@ msgstr "Klicka på den här länken för att logga in på {siteName}:"
 #: packages/admin/src/components/SectionPickerModal.tsx:71
 #: packages/admin/src/components/TaxonomySidebar.tsx:636
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
-#: packages/admin/src/locales/KumoTranslationsProvider.tsx:8
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:12
 msgid "Close"
 msgstr "Stäng"
 
@@ -9841,6 +9842,10 @@ msgstr "Fler åtgärder för {0}"
 #: packages/admin/src/components/PortableTextEditor.tsx:4126
 msgid "More formatting"
 msgstr "Mer formatering"
+
+#: packages/admin/src/locales/KumoTranslationsProvider.tsx:15
+msgid "More information"
+msgstr ""
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
