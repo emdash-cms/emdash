@@ -16,7 +16,7 @@ import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
+import { CaretDown, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -33,7 +33,7 @@ import { resolveTaxonomyDefinitions } from "../lib/taxonomy-definitions.js";
 import { foldForMatch, termExactMatches, termMatches } from "../lib/taxonomy-match.js";
 import { cn } from "../lib/utils.js";
 
-interface TaxonomyTerm {
+export interface TaxonomyTerm {
 	id: string;
 	name: string;
 	slug: string;
@@ -142,7 +142,7 @@ export function useHasApplicableTaxonomies(
  * translation variants are offered. The picker shows no usage counts, so it
  * opts out of the per-collection count aggregate the endpoint runs by default.
  */
-async function fetchTerms(taxonomyName: string, locale?: string): Promise<TaxonomyTerm[]> {
+export async function fetchTerms(taxonomyName: string, locale?: string): Promise<TaxonomyTerm[]> {
 	const path = `/_emdash/api/taxonomies/${taxonomyName}/terms?includeCounts=false${locale ? "&resolveFallback=true" : ""}`;
 	const res = await apiFetch(withLocale(path, locale));
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(
@@ -200,7 +200,12 @@ async function setEntryTerms(
 	if (!res.ok) await throwResponseError(res, i18n._(msg`Failed to set entry terms`));
 }
 
-function TaxonomyTermPicker({
+/**
+ * Searchable multi-select over a taxonomy's terms. The entry editor shows it as
+ * a labeled field with the selected terms as chips; `toolbar` shows a compact
+ * button for a filter bar instead, with the same search and option list.
+ */
+export function TaxonomyTermPicker({
 	terms,
 	selectedIds,
 	onChange,
@@ -212,6 +217,7 @@ function TaxonomyTermPicker({
 	canCreate,
 	allowDelimitedValues,
 	singularLabel,
+	toolbar,
 }: {
 	terms: TaxonomyTerm[];
 	selectedIds: Set<string>;
@@ -224,6 +230,8 @@ function TaxonomyTermPicker({
 	canCreate: boolean;
 	allowDelimitedValues: boolean;
 	singularLabel: string;
+	/** Render a filter-bar button showing `buttonLabel` in place of the field. */
+	toolbar?: { buttonLabel: string; ariaLabel: string };
 }) {
 	const { t } = useLingui();
 	const [input, setInput] = React.useState("");
@@ -404,94 +412,117 @@ function TaxonomyTermPicker({
 				else closePicker();
 			}}
 		>
-			<div ref={anchorRef} className="grid min-w-0 gap-1.5">
-				<div className="flex min-w-0 items-center justify-between gap-2">
-					<Text bold as="span">
-						{label}
-					</Text>
-					<Button
-						ref={addTriggerRef}
-						type="button"
-						variant="ghost"
-						size="xs"
-						shape="square"
-						className="ms-auto me-1.5 h-6 w-6 min-w-6 shrink-0 text-kumo-subtle hover:text-kumo-default"
-						title={t`Choose ${label}`}
-						aria-label={t`Choose ${label}`}
-						aria-expanded={isOpen}
-						aria-controls={listId}
-						disabled={isCreating}
-						loading={isCreating}
-						onClick={() => {
-							if (isOpen) closePicker();
-							else openPicker(addTriggerRef.current);
-						}}
-						icon={<Plus size={14} aria-hidden="true" />}
-					/>
-				</div>
-				<LayerCard className="relative flex min-h-9 items-start bg-kumo-control p-1.5 shadow-none">
+			{toolbar ? (
+				<div ref={anchorRef} className="inline-flex">
 					<Button
 						ref={fieldTriggerRef}
 						id={triggerId}
 						type="button"
-						variant="ghost"
-						className="absolute inset-0 z-0 h-full w-full min-w-0 rounded-lg bg-transparent p-0 hover:bg-transparent"
-						aria-label={t`Edit ${label}`}
+						variant="secondary"
+						size="sm"
+						className="gap-1 px-3.5 font-normal"
+						aria-label={toolbar.ariaLabel}
 						aria-expanded={isOpen}
 						aria-controls={listId}
-						disabled={isCreating}
 						onClick={() => {
 							if (isOpen) closePicker();
 							else openPicker(fieldTriggerRef.current);
 						}}
 					>
-						<span className="sr-only">{t`Edit ${label}`}</span>
+						<span className="max-w-[140px] truncate">{toolbar.buttonLabel}</span>
+						<CaretDown className="size-3 shrink-0" aria-hidden="true" />
 					</Button>
-					{selectedOptions.length > 0 ? (
-						<div
-							role="list"
-							aria-label={t`Selected ${label}`}
-							style={{
-								boxSizing: "border-box",
-								maxHeight: "calc(5.25rem + 2px)",
-								padding: "1px",
-								scrollbarGutter: "stable",
-								scrollbarWidth: "thin",
+				</div>
+			) : (
+				<div ref={anchorRef} className="grid min-w-0 gap-1.5">
+					<div className="flex min-w-0 items-center justify-between gap-2">
+						<Text bold as="span">
+							{label}
+						</Text>
+						<Button
+							ref={addTriggerRef}
+							type="button"
+							variant="ghost"
+							size="xs"
+							shape="square"
+							className="ms-auto me-1.5 h-6 w-6 min-w-6 shrink-0 text-kumo-subtle hover:text-kumo-default"
+							title={t`Choose ${label}`}
+							aria-label={t`Choose ${label}`}
+							aria-expanded={isOpen}
+							aria-controls={listId}
+							disabled={isCreating}
+							loading={isCreating}
+							onClick={() => {
+								if (isOpen) closePicker();
+								else openPicker(addTriggerRef.current);
 							}}
-							className="relative z-1 flex w-full min-w-0 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
-							onClick={(event) => {
-								if (isCreating || (event.target as HTMLElement).closest("button")) return;
-								openPicker(fieldTriggerRef.current);
+							icon={<Plus size={14} aria-hidden="true" />}
+						/>
+					</div>
+					<LayerCard className="relative flex min-h-9 items-start bg-kumo-control p-1.5 shadow-none">
+						<Button
+							ref={fieldTriggerRef}
+							id={triggerId}
+							type="button"
+							variant="ghost"
+							className="absolute inset-0 z-0 h-full w-full min-w-0 rounded-lg bg-transparent p-0 hover:bg-transparent"
+							aria-label={t`Edit ${label}`}
+							aria-expanded={isOpen}
+							aria-controls={listId}
+							disabled={isCreating}
+							onClick={() => {
+								if (isOpen) closePicker();
+								else openPicker(fieldTriggerRef.current);
 							}}
 						>
-							{selectedOptions.map((option) => (
-								<span
-									key={option.term.id}
-									role="listitem"
-									className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-tint ps-2 text-base ring-1 ring-inset ring-kumo-hairline"
-								>
-									<span className="min-w-0 truncate">{option.term.label}</span>
-									<TermLocaleBadge term={option.term} entryLocale={entryLocale} />
-									<Button
-										type="button"
-										variant="ghost"
-										size="xs"
-										shape="square"
-										className="h-6 w-6 min-w-6 bg-transparent"
-										disabled={isCreating}
-										aria-label={t`Remove ${option.term.label}`}
-										onClick={(event) => {
-											event.stopPropagation();
-											toggleTerm(option.term.id);
-										}}
-										icon={<X size={10} aria-hidden="true" />}
-									/>
-								</span>
-							))}
-						</div>
-					) : null}
-				</LayerCard>
-			</div>
+							<span className="sr-only">{t`Edit ${label}`}</span>
+						</Button>
+						{selectedOptions.length > 0 ? (
+							<div
+								role="list"
+								aria-label={t`Selected ${label}`}
+								style={{
+									boxSizing: "border-box",
+									maxHeight: "calc(5.25rem + 2px)",
+									padding: "1px",
+									scrollbarGutter: "stable",
+									scrollbarWidth: "thin",
+								}}
+								className="relative z-1 flex w-full min-w-0 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+								onClick={(event) => {
+									if (isCreating || (event.target as HTMLElement).closest("button")) return;
+									openPicker(fieldTriggerRef.current);
+								}}
+							>
+								{selectedOptions.map((option) => (
+									<span
+										key={option.term.id}
+										role="listitem"
+										className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-tint ps-2 text-base ring-1 ring-inset ring-kumo-hairline"
+									>
+										<span className="min-w-0 truncate">{option.term.label}</span>
+										<TermLocaleBadge term={option.term} entryLocale={entryLocale} />
+										<Button
+											type="button"
+											variant="ghost"
+											size="xs"
+											shape="square"
+											className="h-6 w-6 min-w-6 bg-transparent"
+											disabled={isCreating}
+											aria-label={t`Remove ${option.term.label}`}
+											onClick={(event) => {
+												event.stopPropagation();
+												toggleTerm(option.term.id);
+											}}
+											icon={<X size={10} aria-hidden="true" />}
+										/>
+									</span>
+								))}
+							</div>
+						) : null}
+					</LayerCard>
+				</div>
+			)}
 
 			<PopoverPrimitive.Portal>
 				<PopoverPrimitive.Positioner
@@ -505,7 +536,7 @@ function TaxonomyTermPicker({
 					<PopoverPrimitive.Popup
 						initialFocus={false}
 						finalFocus={false}
-						style={{ width: "var(--anchor-width)" }}
+						style={{ width: toolbar ? "20rem" : "var(--anchor-width)" }}
 						className="max-w-(--available-width) origin-(--transform-origin) outline-none transition-[transform,scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
 					>
 						<LayerCard className="p-0 shadow-md">

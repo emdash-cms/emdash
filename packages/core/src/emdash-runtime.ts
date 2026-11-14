@@ -58,7 +58,7 @@ import type { EmDashManifest } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
 import { lookupContentAuthor, sendCommentNotification } from "./comments/notifications.js";
-import type { ContentFieldFilters } from "./content-list-query.js";
+import type { ContentFieldFilters, ContentTermFilters } from "./content-list-query.js";
 import { keepKnownFields, staleStoredKeys } from "./content/known-fields.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
@@ -3914,6 +3914,7 @@ export class EmDashRuntime {
 			bylinesNone?: boolean;
 			includeInferredBylines?: boolean;
 			fieldFilters?: ContentFieldFilters;
+			termFilters?: ContentTermFilters;
 		},
 	) {
 		return handleContentList(this.db, collection, params);

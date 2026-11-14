@@ -1,7 +1,11 @@
 import { sql, type Kysely, type RawBuilder } from "kysely";
 import { ulid } from "ulidx";
 
-import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import type {
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentTermFilters,
+} from "../../content-list-query.js";
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { getLocaleCandidates } from "../../i18n/config.js";
@@ -16,6 +20,7 @@ import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
+import { jsonTextValues } from "../json-recordset.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -992,16 +997,29 @@ export class ContentRepository {
 		const nullableOrder =
 			resolvedOrderField.indexedCustomField || !NON_NULL_ORDER_COLUMNS.has(dbField);
 		const resolvedFieldFilters = await this.resolveFieldFilters(type, options.where?.fieldFilters);
+		const termGroups = await this.resolveTermFilters(options.where?.termFilters);
+		if (termGroups?.some((groups) => groups.length === 0)) return { items: [], total: 0 };
 
 		// Validate order direction to prevent injection
 		const safeOrderDirection = orderDirection.toLowerCase() === "asc" ? "ASC" : "DESC";
 
 		// Build query with parameterized values (no string interpolation)
 		// Note: Dynamic content tables have deleted_at column, cast needed for Kysely
-		let query = this.db
-			.selectFrom(tableName as keyof Database)
-			.selectAll()
-			.where("deleted_at" as never, "is", null);
+		// With term filters the page query starts from the matching entries'
+		// pivot rows; see termEntries.
+		let query = this.selectLiveRows(tableName);
+		if (termGroups) {
+			query = this.db
+				.selectFrom(this.termEntries(termGroups, type).as("_term_entries"))
+				.crossJoin(tableName as "_term_entries")
+				.selectAll(tableName as "_term_entries")
+				.where(
+					sql<boolean>`${sql.ref(`${tableName}.translation_group`)} = ${sql.ref("_term_entries._term_entry")}`,
+				)
+				.where(
+					sql<boolean>`${sql.ref(`${tableName}.deleted_at`)} IS NULL`,
+				) as unknown as typeof query;
+		}
 
 		// Apply filters with parameterized queries
 		if (options.where?.status) {
@@ -1109,7 +1127,7 @@ export class ContentRepository {
 		// never finishes closing.
 		const [rowsResult, countResult] = await Promise.allSettled([
 			query.execute(),
-			this.countWithResolvedFilters(type, options.where, resolvedFieldFilters),
+			this.countWithResolvedFilters(type, options.where, resolvedFieldFilters, termGroups),
 		]);
 		if (rowsResult.status === "rejected") throw rowsResult.reason;
 		if (countResult.status === "rejected") throw countResult.reason;
@@ -2195,18 +2213,166 @@ export class ContentRepository {
 		});
 	}
 
+	/** The page query's shape without term filters, used to type the joined one. */
+	private selectLiveRows(tableName: string) {
+		return this.db
+			.selectFrom(tableName as keyof Database)
+			.selectAll()
+			.where("deleted_at" as never, "is", null);
+	}
+
+	/**
+	 * The translation groups of entries carrying every resolved term set, as a
+	 * derived table for the page query to start from.
+	 *
+	 * Filtered with `IN` alone, the page query is free to walk its sort index
+	 * and test every row, which reads the whole collection for a narrow term.
+	 * Starting from the pivot instead (`CROSS JOIN` keeps SQLite from
+	 * reordering) reads the terms' assignments and seeks each entry by
+	 * `translation_group`.
+	 *
+	 * One taxonomy (OR within it) is a `DISTINCT` read of its terms' rows. With
+	 * several, every picked term is bound in one JSON value as a `[set, group]`
+	 * pair and an entry matches when its rows cover every set (AND across
+	 * taxonomies). Either way it is one statement with two parameters, so it
+	 * stays under D1's limits of five compound-SELECT terms and 100 bound
+	 * parameters, which an `INTERSECT` per taxonomy did not. The grouped form
+	 * reads about a fifth more rows than `DISTINCT` on D1, so it is kept for
+	 * more than one taxonomy.
+	 *
+	 * The primary key is (collection, entry_id, taxonomy_id), so SQLite could
+	 * answer `GROUP BY entry_id` by walking the collection's whole key range in
+	 * order rather than looking up the picked terms by `taxonomy_id` and
+	 * sorting the few rows found. A unary `+` keeps `collection` out of index
+	 * selection without changing what it matches. SQLite only: Postgres has no
+	 * unary `+` for text.
+	 *
+	 * The column is named `_term_entry` because the page query's field filters
+	 * and ordering refer to content columns unqualified, and a field slug
+	 * cannot start with an underscore.
+	 */
+	private termEntries(termGroups: string[][], type: string) {
+		const entry = sql.ref("ct.entry_id");
+		const term = sql.ref("ct.taxonomy_id");
+		const collection = isPostgres(this.db)
+			? sql.ref("ct.collection")
+			: sql`+${sql.ref("ct.collection")}`;
+		const [only] = termGroups;
+		if (termGroups.length === 1 && only) {
+			return sql<{ _term_entry: string }>`(SELECT DISTINCT ${entry} AS ${sql.ref("_term_entry")}
+				FROM ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
+				WHERE ${collection} = ${type}
+					AND ${term} IN (${jsonTextValues(this.db, only)}))`;
+		}
+		const picked = JSON.stringify(
+			termGroups.flatMap((groups, set) => Array.from(new Set(groups), (group) => [set, group])),
+		);
+		const sets = sql.lit(termGroups.length);
+		if (isPostgres(this.db)) {
+			return sql<{ _term_entry: string }>`(SELECT ${entry} AS ${sql.ref("_term_entry")}
+				FROM jsonb_array_elements(${picked}::jsonb) AS ${sql.ref("picked")}
+				CROSS JOIN ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
+				WHERE ${collection} = ${type}
+					AND ${term} = ${sql.ref("picked.value")} ->> 1
+				GROUP BY ${entry}
+				HAVING COUNT(DISTINCT ${sql.ref("picked.value")} ->> 0) = ${sets})`;
+		}
+		return sql<{ _term_entry: string }>`(SELECT ${entry} AS ${sql.ref("_term_entry")}
+			FROM json_each(${picked}) AS ${sql.ref("picked")}
+			CROSS JOIN ${sql.table("content_taxonomies")} AS ${sql.ref("ct")}
+			WHERE ${collection} = ${type}
+				AND ${term} = json_extract(${sql.ref("picked.value")}, '$[1]')
+			GROUP BY ${entry}
+			HAVING COUNT(DISTINCT json_extract(${sql.ref("picked.value")}, '$[0]')) = ${sets})`;
+	}
+
+	/**
+	 * Resolve each taxonomy's term slugs to term translation groups, in one
+	 * statement for every taxonomy, before the list query runs.
+	 *
+	 * `content_taxonomies.taxonomy_id` holds the term's `translation_group`, so
+	 * the lookup does not restrict `taxonomies.locale`: a term offered from the
+	 * default locale must still match an entry in a locale-scoped list.
+	 *
+	 * Returns one set per taxonomy, in key order. An empty set matches nothing.
+	 */
+	private async resolveTermFilters(
+		filters: ContentTermFilters | undefined,
+	): Promise<string[][] | undefined> {
+		if (!filters) return undefined;
+		const entries = Object.entries(filters);
+		if (entries.length === 0) return undefined;
+
+		const lookups = entries.filter(([, slugs]) => slugs.length > 0);
+		const groupsByTaxonomy = new Map<string, Set<string>>();
+		if (lookups.length > 0) {
+			const rows = await this.db
+				.selectFrom("taxonomies")
+				.select(["name", "translation_group"])
+				.distinct()
+				.where((eb) =>
+					eb.or(
+						lookups.map(([taxonomy, slugs]) =>
+							eb.and([
+								eb("name", "=", taxonomy),
+								sql<boolean>`${sql.ref("slug")} IN (${jsonTextValues(this.db, slugs)})`,
+							]),
+						),
+					),
+				)
+				.execute();
+			for (const row of rows) {
+				if (!row.translation_group) continue;
+				let groups = groupsByTaxonomy.get(row.name);
+				if (!groups) {
+					groups = new Set();
+					groupsByTaxonomy.set(row.name, groups);
+				}
+				groups.add(row.translation_group);
+			}
+		}
+		return entries.map(([taxonomy]) => [...(groupsByTaxonomy.get(taxonomy) ?? [])]);
+	}
+
+	/**
+	 * Restrict to entries carrying resolved taxonomy terms: OR within a set, AND
+	 * across sets.
+	 *
+	 * `content_taxonomies.entry_id` stores the entry's `translation_group`, not
+	 * its id, unlike the byline junction, which stores the row id. Getting that
+	 * wrong matches nothing rather than erroring.
+	 *
+	 * An uncorrelated `IN` over `termEntries` rather than an `EXISTS` per
+	 * content row, so the planner can seek the content table's
+	 * `translation_group` index from the terms' assignments instead of checking
+	 * every row of the collection.
+	 */
+	private applyTermFilters<QB extends { where: (expression: RawBuilder<boolean>) => QB }>(
+		query: QB,
+		termGroups: string[][] | undefined,
+		type: string,
+	): QB {
+		if (!termGroups) return query;
+		if (termGroups.some((groups) => groups.length === 0)) return query.where(sql<boolean>`1 = 0`);
+		const groupColumn = sql.ref(`${getTableName(type)}.translation_group`);
+		return query.where(sql<boolean>`${groupColumn} IN ${this.termEntries(termGroups, type)}`);
+	}
+
 	/**
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
 		const resolvedFieldFilters = await this.resolveFieldFilters(type, where?.fieldFilters);
-		return this.countWithResolvedFilters(type, where, resolvedFieldFilters);
+		const termGroups = await this.resolveTermFilters(where?.termFilters);
+		if (termGroups?.some((groups) => groups.length === 0)) return 0;
+		return this.countWithResolvedFilters(type, where, resolvedFieldFilters, termGroups);
 	}
 
 	private async countWithResolvedFilters(
 		type: string,
 		where: FindManyOptions["where"] | undefined,
 		resolvedFieldFilters: ResolvedFieldFilter[],
+		termGroups: string[][] | undefined,
 	): Promise<number> {
 		const tableName = getTableName(type);
 
@@ -2230,6 +2396,7 @@ export class ContentRepository {
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
 		query = this.applyBylineFilter(query, where, type);
+		query = this.applyTermFilters(query, termGroups, type);
 		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		const result = await query.executeTakeFirst();

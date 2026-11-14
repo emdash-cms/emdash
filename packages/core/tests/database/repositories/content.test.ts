@@ -610,6 +610,306 @@ describe("ContentRepository", () => {
 			});
 		});
 
+		describe("taxonomy term filters", () => {
+			// The junction stores the ec_* row's translation_group, not its id,
+			// and points at taxonomies.translation_group rather than the term
+			// row id. Seeding it by hand is what pins both, since getting either
+			// wrong matches nothing rather than erroring.
+			async function seedTerms() {
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				const terms = [
+					{ id: "t-rodeo", name: "topics", slug: "rodeo", label: "Rodeo" },
+					{ id: "t-polo", name: "topics", slug: "polo", label: "Polo" },
+					{ id: "t-ky", name: "places", slug: "kentucky", label: "Kentucky" },
+				];
+				for (const term of terms) {
+					await db
+						.insertInto("taxonomies")
+						.values({ ...term, parent_id: null, translation_group: term.id })
+						.execute();
+				}
+				// post-0 rodeo+kentucky, post-1 rodeo, post-2 polo+kentucky
+				const links: Array<[number, string]> = [
+					[0, "t-rodeo"],
+					[0, "t-ky"],
+					[1, "t-rodeo"],
+					[2, "t-polo"],
+					[2, "t-ky"],
+				];
+				for (const [index, taxonomyId] of links) {
+					const item = seeded.items[index]!;
+					await db
+						.insertInto("content_taxonomies")
+						.values({
+							collection: "post",
+							entry_id: item.translationGroup ?? item.id,
+							taxonomy_id: taxonomyId,
+						})
+						.execute();
+				}
+				return seeded;
+			}
+
+			it("matches entries carrying any slug within one taxonomy", async () => {
+				await seedTerms();
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"] } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-0", "post-1"]);
+				expect(result.total).toBe(2);
+			});
+
+			it("ORs within a taxonomy", async () => {
+				await seedTerms();
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo", "polo"] } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-0", "post-1", "post-2"]);
+				expect(result.total).toBe(3);
+			});
+
+			it("returns an entry carrying two picked terms once, on every page", async () => {
+				const seeded = await seedTerms();
+				await db
+					.insertInto("content_taxonomies")
+					.values({
+						collection: "post",
+						entry_id: seeded.items[0]!.translationGroup ?? seeded.items[0]!.id,
+						taxonomy_id: "t-polo",
+					})
+					.execute();
+
+				const all = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo", "polo"] } },
+				});
+				expect(all.items.map((item) => item.slug)).toEqual(["post-0", "post-1", "post-2"]);
+
+				const slugs: string[] = [];
+				let cursor: string | undefined;
+				do {
+					const page = await repo.findMany("post", {
+						limit: 1,
+						cursor,
+						orderBy: { field: "slug", direction: "asc" },
+						where: { termFilters: { topics: ["rodeo", "polo"] } },
+					});
+					expect(page.total).toBe(3);
+					slugs.push(...page.items.map((item) => item.slug ?? ""));
+					cursor = page.nextCursor;
+				} while (cursor);
+
+				expect(slugs).toEqual(["post-0", "post-1", "post-2"]);
+			});
+
+			// A custom field may be named like a column of the joined term set.
+			it("combines with a field filter on a field named entry_id", async () => {
+				await seedTerms();
+				await registry.createField("post", {
+					slug: "entry_id",
+					label: "Entry id",
+					type: "string",
+					indexed: true,
+				});
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				await repo.update("post", seeded.items[0]!.id, { data: { entry_id: "a" } });
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "entry_id", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"] }, fieldFilters: { entry_id: "a" } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(result.total).toBe(1);
+			});
+
+			it("ANDs across taxonomies", async () => {
+				await seedTerms();
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"], places: ["kentucky"] } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(result.total).toBe(1);
+			});
+
+			// The failure this guards is the one that costs hours: a filter that
+			// silently matches everything returns a complete, plausible list.
+			it("matches nothing when a taxonomy filter has no slugs", async () => {
+				await seedTerms();
+
+				const result = await repo.findMany("post", {
+					where: { termFilters: { topics: [] } },
+				});
+
+				expect(result.items).toEqual([]);
+				expect(result.total).toBe(0);
+			});
+
+			it("matches nothing for a slug no entry carries", async () => {
+				await seedTerms();
+
+				const result = await repo.findMany("post", {
+					where: { termFilters: { topics: ["dressage"] } },
+				});
+
+				expect(result.total).toBe(0);
+			});
+
+			it("keeps the filtered total stable across cursor pages", async () => {
+				await seedTerms();
+
+				const page1 = await repo.findMany("post", {
+					limit: 1,
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"] } },
+				});
+				const page2 = await repo.findMany("post", {
+					limit: 1,
+					cursor: page1.nextCursor,
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"] } },
+				});
+
+				expect(page1.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(page2.items.map((item) => item.slug)).toEqual(["post-1"]);
+				expect(page1.total).toBe(2);
+				expect(page2.total).toBe(2);
+			});
+
+			it("combines with an indexed field filter", async () => {
+				await seedTerms();
+				await registry.createField("post", {
+					slug: "queue",
+					label: "Queue",
+					type: "string",
+					indexed: true,
+				});
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				await repo.update("post", seeded.items[0]!.id, { data: { queue: "urgent" } });
+				await repo.update("post", seeded.items[1]!.id, { data: { queue: "normal" } });
+
+				const result = await repo.findMany("post", {
+					where: { termFilters: { topics: ["rodeo"] }, fieldFilters: { queue: "urgent" } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(result.total).toBe(1);
+			});
+
+			// The picker offers a default-locale term to a list in another locale
+			// when the term has no variant there, so the lookup must not restrict
+			// taxonomies.locale.
+			it("matches a locale-scoped entry through a term that exists only in the default locale", async () => {
+				await seedTerms();
+				const german = await repo.create({
+					type: "post",
+					slug: "post-de",
+					data: { title: "Rodeo auf Deutsch" },
+					locale: "de",
+				});
+				await db
+					.insertInto("content_taxonomies")
+					.values({
+						collection: "post",
+						entry_id: german.translationGroup ?? german.id,
+						taxonomy_id: "t-rodeo",
+					})
+					.execute();
+
+				const result = await repo.findMany("post", {
+					where: { locale: "de", termFilters: { topics: ["rodeo"] } },
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-de"]);
+				expect(result.total).toBe(1);
+			});
+
+			it("does not match an entry that carries only a child of the selected term", async () => {
+				const seeded = await seedTerms();
+				await db
+					.insertInto("taxonomies")
+					.values({
+						id: "t-bronc",
+						name: "topics",
+						slug: "bronc-riding",
+						label: "Bronc riding",
+						parent_id: "t-rodeo",
+						translation_group: "t-bronc",
+					})
+					.execute();
+				const item = seeded.items[3]!;
+				await db
+					.insertInto("content_taxonomies")
+					.values({
+						collection: "post",
+						entry_id: item.translationGroup ?? item.id,
+						taxonomy_id: "t-bronc",
+					})
+					.execute();
+
+				const parent = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: { termFilters: { topics: ["rodeo"] } },
+				});
+				const child = await repo.findMany("post", {
+					where: { termFilters: { topics: ["bronc-riding"] } },
+				});
+
+				expect(parent.items.map((entry) => entry.slug)).toEqual(["post-0", "post-1"]);
+				expect(child.items.map((entry) => entry.slug)).toEqual([item.slug]);
+			});
+
+			it("looks the terms up once and skips the list query when a taxonomy matches no term", async () => {
+				await seedTerms();
+				const statements: string[] = [];
+				const target = db.withPlugin({
+					transformQuery: (args) => args.node,
+					transformResult: async (args) => args.result,
+				});
+				const executor = target.getExecutor();
+				const execute = executor.executeQuery.bind(executor);
+				executor.executeQuery = ((compiled: { sql: string }, ...rest: unknown[]) => {
+					statements.push(compiled.sql);
+					return (execute as (...args: unknown[]) => unknown)(compiled, ...rest);
+				}) as typeof executor.executeQuery;
+				const logged = new ContentRepository(target);
+
+				const both = await logged.findMany("post", {
+					where: { termFilters: { topics: ["rodeo", "polo"], places: ["kentucky"] } },
+				});
+				const lookups = statements.filter((statement) => /from "taxonomies"/i.test(statement));
+				const lists = statements.filter((statement) => /"ec_post"/i.test(statement));
+
+				expect(both.total).toBe(2);
+				expect(lookups).toHaveLength(1);
+				expect(lists).toHaveLength(2);
+				expect(lists.join("\n")).not.toMatch(/exists/i);
+
+				statements.length = 0;
+				const none = await logged.findMany("post", {
+					where: { termFilters: { topics: ["dressage"], places: ["kentucky"] } },
+				});
+
+				expect(none).toEqual({ items: [], total: 0 });
+				expect(statements.filter((statement) => /"ec_post"/i.test(statement))).toEqual([]);
+			});
+		});
+
 		describe("indexed field filters", () => {
 			async function seedIndexedFields() {
 				await registry.createField("post", {

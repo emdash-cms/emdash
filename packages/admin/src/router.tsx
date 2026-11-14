@@ -80,6 +80,7 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
+import { EMPTY_TERM_FILTER, type TermFilterState } from "./components/TermFilters.js";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
 import { useAdminBranding } from "./lib/admin-branding-context.js";
@@ -645,6 +646,32 @@ function ContentListPage() {
 	const [authorFilter, setAuthorFilter] = React.useState("");
 	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
 	const [bylineFilter, setBylineFilter] = React.useState<BylineFilterState>(EMPTY_BYLINE_FILTER);
+	// Term filters belong to one collection: another collection may not have
+	// the same taxonomies applied, and the API rejects one that is not. The
+	// page stays mounted across collections, so the selection is stored with
+	// its collection and reads as empty anywhere else, from the first render.
+	// It is cleared on a collection change too, as the sort is, so coming back
+	// does not bring an old selection with it.
+	const [termFilterState, setTermFilterState] = React.useState<{
+		collection: string;
+		value: TermFilterState;
+	}>({ collection, value: EMPTY_TERM_FILTER });
+	const termFilter =
+		termFilterState.collection === collection ? termFilterState.value : EMPTY_TERM_FILTER;
+	const setTermFilter = React.useCallback(
+		(value: TermFilterState) => setTermFilterState({ collection, value }),
+		[collection],
+	);
+	React.useEffect(() => setTermFilterState({ collection, value: EMPTY_TERM_FILTER }), [collection]);
+
+	// Only a taxonomy with a selection belongs in the query key or the request:
+	// an untouched control filters nothing, and an empty array would filter
+	// everything out.
+	const termApiParams = React.useMemo(() => {
+		const active = Object.entries(termFilter).filter(([, slugs]) => slugs.length > 0);
+		if (active.length === 0) return undefined;
+		return { termFilters: Object.fromEntries(active) };
+	}, [termFilter]);
 
 	// Only the parts that change the result set belong in the query key —
 	// `includeInferred` alone, with nothing selected, filters nothing.
@@ -689,6 +716,7 @@ function ContentListPage() {
 				author: authorFilter,
 				date: dateApiParams,
 				byline: bylineApiParams,
+				terms: termApiParams,
 			},
 		],
 		queryFn: ({ page, perPage }) =>
@@ -703,6 +731,7 @@ function ContentListPage() {
 				authorId: authorFilter || undefined,
 				...dateApiParams,
 				...bylineApiParams,
+				...termApiParams,
 			}),
 		pageSizes: CONTENT_LIST_PAGE_SIZES,
 		enabled: !!manifest,
@@ -910,6 +939,8 @@ function ContentListPage() {
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
 			bylineFilter={bylineFilter}
+			termFilter={termFilter}
+			onTermFilterChange={setTermFilter}
 			onBylineFilterChange={setBylineFilter}
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
