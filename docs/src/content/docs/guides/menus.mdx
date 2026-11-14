@@ -108,7 +108,9 @@ function menuHref(url: string) {
 )}
 ```
 
-`getMenu()` chooses the explicit `locale` first, then the current request locale, then the configured default locale. If a menu or referenced entry is missing in that locale, lookup follows the configured fallback chain.
+`getMenu()` chooses the explicit `locale` first, then the current request locale (set for preview and visual editing), then the configured default locale. If a menu or referenced entry is missing in that locale, lookup follows the configured fallback chain.
+
+On anonymous multilingual pages, implicit menu and taxonomy-term calls use the default locale. When layout prefetching is enabled for an HTML navigation on a concurrent, request-scoped remote backend, it targets `Astro.currentLocale`. Pass `{ locale: Astro.currentLocale }` to `getMenu()` and `getTaxonomyTerms()` when rendering translated navigation to reuse that prefetched data. Default-locale reads on another locale's page load separately. This also affects menu widgets rendered by EmDash's built-in `WidgetRenderer`, which currently calls `getMenu()` without a locale.
 
 Menu item URLs contain the collection URL pattern or taxonomy path, but they do not contain Astro's locale prefix. The `menuHref()` helper adds that prefix to root-relative links and leaves external links unchanged.
 
