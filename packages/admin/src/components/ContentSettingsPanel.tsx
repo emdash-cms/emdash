@@ -5,7 +5,6 @@ import {
 	Input,
 	Label,
 	LayerCard,
-	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
@@ -516,18 +515,18 @@ export function PublishActions({
 	const { t } = useLingui();
 	const { blocked } = useRoomOperations();
 	const disabled = disabledProp || blocked;
-	const [publishOpen, setPublishOpen] = React.useState(false);
-	const publishOpenRef = React.useRef(publishOpen);
-	publishOpenRef.current = publishOpen;
+	const [confirmation, setConfirmation] = React.useState<"publish" | "unpublish" | null>(null);
+	const confirmationRef = React.useRef(confirmation);
+	confirmationRef.current = confirmation;
 	React.useEffect(
 		() => () => {
-			if (publishOpenRef.current) onMenuOpenChange?.(false);
+			if (confirmationRef.current) onMenuOpenChange?.(false);
 		},
 		[onMenuOpenChange],
 	);
-	const setConfirmationOpen = (open: boolean) => {
-		setPublishOpen(open);
-		onMenuOpenChange?.(open);
+	const setConfirmationOpen = (next: "publish" | "unpublish" | null) => {
+		setConfirmation(next);
+		onMenuOpenChange?.(next !== null);
 	};
 	const itemLabel = collectionLabel ?? t`content`;
 	const state =
@@ -536,22 +535,42 @@ export function PublishActions({
 	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
 
 	if (isNew) return null;
+	// The two confirmations are keyed apart so that one's double-press guard can't drop the other's first press.
 	if (state === "published") {
 		return onUnpublish ? (
-			<Button
-				type="button"
-				variant="outline"
-				size={size}
-				onClick={onUnpublish}
-				loading={isPending}
-				disabled={disabled}
-				icon={<EyeSlash />}
-				className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
-			>
-				<span className={compact ? compactBarLabelClassName : undefined}>
-					{t`Unpublish ${itemLabel}`}
-				</span>
-			</Button>
+			<ConfirmDialog
+				key="unpublish"
+				open={confirmation === "unpublish"}
+				onClose={() => setConfirmationOpen(null)}
+				trigger={
+					<Button
+						type="button"
+						variant="outline"
+						size={size}
+						onClick={() => setConfirmationOpen("unpublish")}
+						loading={isPending}
+						disabled={disabled}
+						icon={<EyeSlash />}
+						className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
+					>
+						<span className={compact ? compactBarLabelClassName : undefined}>
+							{t`Unpublish ${itemLabel}`}
+						</span>
+					</Button>
+				}
+				undoable
+				title={t`Unpublish ${itemLabel}?`}
+				description={t`Visitors won't see it until you publish it again. It stays as a draft.`}
+				confirmLabel={t`Unpublish`}
+				pendingLabel={t`Unpublish`}
+				confirmDisabled={disabled || isPending}
+				isPending={false}
+				error={null}
+				onConfirm={() => {
+					setConfirmationOpen(null);
+					onUnpublish();
+				}}
+			/>
 		) : null;
 	}
 	if (!onPublish) return null;
@@ -566,55 +585,53 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<LayerDialog.Trigger
-				disabled={disabled}
-				render={
-					<Button
-						type="button"
-						variant="primary"
-						size={size}
-						icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
-						className={
-							compact
-								? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
-								: undefined
-						}
-						loading={isPending}
-						disabled={disabled}
-						aria-label={publishLabel}
-					/>
-				}
-			>
-				{compact ? (
-					<>
-						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
-						<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
-						<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
-					</>
-				) : (
-					publishLabel
-				)}
-			</LayerDialog.Trigger>
-			<LayerDialog.Content size="sm">
-				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
-				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
-				<LayerDialog.Body>{revisions ? <PublishEditedBy {...revisions} /> : null}</LayerDialog.Body>
-				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action
-						loading={isPending}
-						disabled={disabled}
-						aria-label={publishLabel}
-						onClick={() => {
-							setConfirmationOpen(false);
-							onPublish();
-						}}
-					>
-						{publishLabel}
-					</LayerDialog.Action>
-				</LayerDialog.Actions>
-			</LayerDialog.Content>
-		</LayerDialog.Root>
+		<ConfirmDialog
+			key="publish"
+			open={confirmation === "publish"}
+			onClose={() => setConfirmationOpen(null)}
+			trigger={
+				<Button
+					type="button"
+					variant="primary"
+					size={size}
+					icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
+					className={
+						compact
+							? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
+							: undefined
+					}
+					loading={isPending}
+					disabled={disabled}
+					aria-label={publishLabel}
+					onClick={() => setConfirmationOpen("publish")}
+				>
+					{compact ? (
+						<>
+							<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
+							<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
+							<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
+						</>
+					) : (
+						publishLabel
+					)}
+				</Button>
+			}
+			variant="primary"
+			undoable={!hasSchedule}
+			title={confirmationTitle}
+			description={confirmationDescription}
+			confirmLabel={publishLabel}
+			pendingLabel={publishLabel}
+			confirmDisabled={disabled || isPending}
+			isPending={false}
+			error={null}
+			onConfirm={() => {
+				setConfirmationOpen(null);
+				onPublish();
+			}}
+		>
+			{revisions ? <PublishEditedBy {...revisions} /> : null}
+		</ConfirmDialog>
 	);
 }
 
@@ -1434,6 +1451,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Button>
 						<ConfirmDialog
 							{...trash.dialog}
+							undoable
 							title={t`Move to Trash?`}
 							description={t`This will move the item to trash. You can restore it later from the trash.`}
 							confirmLabel={t`Move to Trash`}

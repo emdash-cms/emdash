@@ -2,6 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PluginInfo, AdminManifest } from "../../src/lib/api";
 import type { PluginUpdateInfo } from "../../src/lib/api/marketplace";
@@ -892,5 +893,24 @@ describe("UninstallConfirmDialog", () => {
 		uninstall.element().click();
 		expect(onConfirm).toHaveBeenCalledTimes(1);
 		expect(onConfirm).toHaveBeenCalledWith(false);
+	});
+
+	it("opens on Cancel, so Enter keeps the plugin", async () => {
+		const onConfirm = vi.fn();
+		const onCancel = vi.fn();
+		const screen = await render(
+			<UninstallConfirmDialog
+				pluginName="Gallery"
+				isPending={false}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+		expect(onConfirm).not.toHaveBeenCalled();
 	});
 });

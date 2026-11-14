@@ -10,6 +10,7 @@ import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { useConfirmPress } from "../lib/dialog-form.js";
+import { useStableCallback } from "../lib/hooks.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
 export interface ConfirmDialogProps {
@@ -37,6 +38,72 @@ export interface ConfirmDialogProps {
 	onConfirm: () => void;
 	/** Extra content rendered between description and buttons (e.g. a checkbox) */
 	children?: React.ReactNode;
+	/**
+	 * The action can be reversed afterwards, such as content moved to the trash, a demoted user who
+	 * can be promoted again, or a draft that stays in Revisions. The dialog then opens on the confirm
+	 * button, so Enter confirms. Leave it off for anything permanent: the dialog opens on Cancel.
+	 */
+	undoable?: boolean;
+	/**
+	 * The button that opens the dialog, with the onClick that sets `open`. It renders as the dialog's
+	 * trigger, so it announces the dialog and gets focus back when the dialog closes.
+	 */
+	trigger?: React.ReactElement;
+}
+
+type InitialFocus = "confirm" | "cancel";
+
+function useConfirmKeyboard(
+	open: boolean,
+	initialFocus: InitialFocus,
+): React.RefCallback<HTMLElement> {
+	const awaitingFirstFocus = React.useRef(open);
+	const wasOpen = React.useRef(open);
+	React.useLayoutEffect(() => {
+		if (open === wasOpen.current) return;
+		wasOpen.current = open;
+		awaitingFirstFocus.current = open;
+	}, [open]);
+	const currentInitialFocus = useStableCallback(() => initialFocus);
+
+	return React.useCallback(
+		(body: HTMLElement | null) => {
+			const popup = body?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]');
+			if (!popup) return;
+			if (popup.contains(popup.ownerDocument.activeElement)) awaitingFirstFocus.current = false;
+
+			// Focusing a button while the popup mounts would make Base UI return focus to that button
+			// on close instead of the opener, so this waits for Base UI to focus the popup itself.
+			const focusInitialButton = (event: FocusEvent) => {
+				if (!awaitingFirstFocus.current) return;
+				awaitingFirstFocus.current = false;
+				if (event.target !== popup) return;
+				initialFocusButton(popup, currentInitialFocus())?.focus({ preventScroll: true });
+			};
+			const blockHeldEnter = (event: KeyboardEvent) => {
+				if (event.key === "Enter" && event.repeat && event.target instanceof HTMLButtonElement) {
+					event.preventDefault();
+				}
+			};
+			popup.addEventListener("focusin", focusInitialButton);
+			popup.addEventListener("keydown", blockHeldEnter, true);
+			return () => {
+				popup.removeEventListener("focusin", focusInitialButton);
+				popup.removeEventListener("keydown", blockHeldEnter, true);
+			};
+		},
+		[currentInitialFocus],
+	);
+}
+
+function initialFocusButton(
+	popup: HTMLElement,
+	initialFocus: InitialFocus,
+): HTMLButtonElement | null {
+	const confirm = popup.querySelector("[data-confirm-action]");
+	// LayerDialog.Actions renders its Cancel button, which takes no ref, just before the action.
+	const button = initialFocus === "confirm" ? confirm : confirm?.previousElementSibling;
+	return button instanceof HTMLButtonElement && !button.disabled ? button : null;
 }
 
 export function ConfirmDialog({
@@ -54,9 +121,12 @@ export function ConfirmDialog({
 	error,
 	onConfirm,
 	children,
+	undoable = false,
+	trigger,
 }: ConfirmDialogProps) {
 	const { t } = useLingui();
 	const confirm = useConfirmPress(onConfirm, isPending, error);
+	const keyboardRef = useConfirmKeyboard(open, undoable ? "confirm" : "cancel");
 	// A mutation shared by several items still holds the last item's failure.
 	const [staleError, setStaleError] = React.useState(() => (open ? error : null));
 	const [wasOpen, setWasOpen] = React.useState(open);
@@ -72,6 +142,7 @@ export function ConfirmDialog({
 			dismissDisabled={isPending}
 			disablePointerDismissal
 		>
+			{trigger && <LayerDialog.Trigger render={trigger} />}
 			<LayerDialog.Content size="sm">
 				<LayerDialog.Title>
 					<span dir="auto" className="block">
@@ -84,13 +155,14 @@ export function ConfirmDialog({
 					</span>
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<div className="grid gap-3">
+					<div ref={keyboardRef} className="grid gap-3">
 						{children}
 						<DialogError message={error === staleError ? null : getMutationError(error)} />
 					</div>
 				</LayerDialog.Body>
 				<LayerDialog.Actions dismissLabel={cancelLabel ?? t`Cancel`}>
 					<LayerDialog.Action
+						data-confirm-action=""
 						variant={variant}
 						disabled={isPending || confirmDisabled}
 						onClick={() => confirm()}

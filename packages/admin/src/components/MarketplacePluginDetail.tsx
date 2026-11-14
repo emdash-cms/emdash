@@ -383,7 +383,7 @@ export function MarketplacePluginDetail({
 				<UninstallConfirmDialog
 					pluginName={plugin.name}
 					isPending={uninstallMutation.isPending}
-					error={getMutationError(uninstallMutation.error)}
+					error={uninstallMutation.error}
 					onConfirm={(deleteData) => uninstallMutation.mutate(deleteData)}
 					onCancel={() => {
 						setShowUninstallConfirm(false);

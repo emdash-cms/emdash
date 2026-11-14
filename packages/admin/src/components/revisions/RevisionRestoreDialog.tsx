@@ -117,6 +117,7 @@ export function RevisionRestoreDialog({
 			open={open}
 			onClose={onClose}
 			variant="primary"
+			undoable={operations.inRoom || !isDirty}
 			title={t`Restore this version?`}
 			description={
 				<>

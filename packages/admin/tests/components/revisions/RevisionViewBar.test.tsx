@@ -275,6 +275,28 @@ describe("RevisionViewBar", () => {
 		expect(layout[1]).toEqual(layout[0]);
 	});
 
+	it.each([
+		{ dirty: false, focused: "Restore" },
+		{ dirty: true, focused: "Cancel" },
+	])(
+		"opens the restore dialog on $focused when unsaved edits are $dirty",
+		async ({ dirty, focused }) => {
+			const screen = await renderBar(
+				<BarAt width={2000} createdAt={lastWednesdayEvening()} dirty={dirty} />,
+			);
+
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+
+			await expect
+				.element(
+					screen
+						.getByRole("dialog", { name: "Restore this version?" })
+						.getByRole("button", { name: focused, exact: true }),
+				)
+				.toHaveFocus();
+		},
+	);
+
 	describe("in a room", () => {
 		afterEach(() => {
 			vi.unstubAllGlobals();
