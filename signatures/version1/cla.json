@@ -2255,6 +2255,14 @@
       "created_at": "2026-11-13T18:18:15Z",
       "repoId": 1198246700,
       "pullRequestNo": 4851
+    },
+    {
+      "name": "yamitzky",
+      "id": 623449,
+      "comment_id": 6878561749,
+      "created_at": "2026-11-14T14:12:35Z",
+      "repoId": 1198246700,
+      "pullRequestNo": 4859
     }
   ]
 }
