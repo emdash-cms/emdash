@@ -9,14 +9,12 @@ import PluginArt from "../components/PluginArt.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { searchCatalog, withLatestReleases } from "../lib/catalog.js";
 import { recentlyUpdated } from "../lib/discovery.js";
-import { popularKeywords } from "../lib/home.js";
 import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 
 const result = await searchCatalog("");
 const hasError = "error" in result;
 const catalog = "packages" in result ? result.packages : [];
 const recentEntries = await withLatestReleases(recentlyUpdated(catalog));
-const keywords = popularKeywords(catalog, 6);
 
 if (!hasError) {
 	Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
@@ -31,7 +29,7 @@ const websiteJsonLd = {
 ---
 
 <BaseLayout jsonLd={websiteJsonLd}>
-	<Hero keywords={keywords} />
+	<Hero />
 	<RecentPlugins entries={recentEntries} hasError={hasError} />
 	<SectionNotch />
 	<TrustBento />
