@@ -19,6 +19,7 @@ import { getSiteTitle } from "#api/site-title.js";
 import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allowed-origins.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
+import { startUserSession } from "#auth/start-user-session.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { sessionUnavailableError } from "../../../../session-user.js";
@@ -57,7 +58,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			challengeStore,
 		);
 
-		session.set("user", { id: user.id });
+		await startUserSession(emdash.db, session, user.id);
 
 		return apiSuccess({
 			success: true,

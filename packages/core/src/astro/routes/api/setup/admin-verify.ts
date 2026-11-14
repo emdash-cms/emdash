@@ -22,6 +22,7 @@ import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allow
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
+import { startUserSession } from "#auth/start-user-session.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { sessionUnavailableError } from "../../../session-user.js";
@@ -123,7 +124,7 @@ export const POST: APIRoute = async ({ cookies, request, locals, session }) => {
 		await options.set("emdash:setup_complete", true);
 
 		// Authenticate the newly created admin so the dashboard opens immediately.
-		session.set("user", { id: user.id });
+		await startUserSession(emdash.db, session, user.id);
 
 		// Clean up setup state and the session nonce cookie
 		await options.delete("emdash:setup_state");

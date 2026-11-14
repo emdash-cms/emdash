@@ -21,6 +21,7 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkVerifyBody } from "#api/schemas.js";
+import { startUserSession } from "#auth/start-user-session.js";
 
 import { after } from "../../../../../after.js";
 import { sessionUnavailableError } from "../../../../session-user.js";
@@ -61,7 +62,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 			}
 		});
 
-		session.set("user", { id: user.id });
+		await startUserSession(emdash.db, session, user.id);
 
 		return apiSuccess({ success: true });
 	} catch (error) {

@@ -87,17 +87,36 @@ describe("external auth session write", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("does not write the session when the stored user is the signed-in user", async () => {
+	it("does not write the session or advance last login for the signed-in user", async () => {
+		const previousLogin = "2020-01-01T00:00:00.000Z";
+		await db
+			.updateTable("users")
+			.set({ last_login_at: previousLogin })
+			.where("id", "=", "user-1")
+			.execute();
+
 		const session = await authenticatedRequest(db, async () => ({ id: "user-1" }));
+		const user = await db
+			.selectFrom("users")
+			.select("last_login_at")
+			.where("id", "=", "user-1")
+			.executeTakeFirstOrThrow();
 
 		expect(session.get).toHaveBeenCalledWith("user");
 		expect(session.set).not.toHaveBeenCalled();
+		expect(user.last_login_at).toBe(previousLogin);
 	});
 
-	it("writes the session on first sign-in", async () => {
+	it("records the login when writing a fresh session", async () => {
 		const session = await authenticatedRequest(db, async () => undefined);
+		const user = await db
+			.selectFrom("users")
+			.select("last_login_at")
+			.where("id", "=", "user-1")
+			.executeTakeFirstOrThrow();
 
 		expect(session.set).toHaveBeenCalledExactlyOnceWith("user", { id: "user-1" });
+		expect(user.last_login_at).toEqual(expect.any(String));
 	});
 
 	it("writes the session when the read returns null", async () => {
@@ -106,10 +125,16 @@ describe("external auth session write", () => {
 		expect(session.set).toHaveBeenCalledExactlyOnceWith("user", { id: "user-1" });
 	});
 
-	it("writes the session when the stored user is a different user", async () => {
+	it("records the login when replacing a different user's session", async () => {
 		const session = await authenticatedRequest(db, async () => ({ id: "user-2" }));
+		const user = await db
+			.selectFrom("users")
+			.select("last_login_at")
+			.where("id", "=", "user-1")
+			.executeTakeFirstOrThrow();
 
 		expect(session.set).toHaveBeenCalledExactlyOnceWith("user", { id: "user-1" });
+		expect(user.last_login_at).toEqual(expect.any(String));
 	});
 
 	it("writes the session when the read fails", async () => {

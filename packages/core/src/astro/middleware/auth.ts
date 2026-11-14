@@ -35,6 +35,7 @@ import {
 } from "../../api/handlers/api-tokens.js";
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
+import { startUserSession } from "../../auth/start-user-session.js";
 import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
@@ -662,7 +663,7 @@ async function handleExternalAuth(
 		const { session } = context;
 		if (session) {
 			const sessionUser = await resolveSessionUser(session);
-			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+			if (sessionUser?.id !== user.id) await startUserSession(emdash.db, session, user.id);
 		}
 	} catch (error) {
 		console.error("[external-auth] User lookup error:", error);
