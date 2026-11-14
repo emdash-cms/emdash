@@ -1021,7 +1021,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							acceptsHtml &&
 							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
 						) {
-							after(() => prefetchLayoutData());
+							after(() => prefetchLayoutData(context.currentLocale));
 						}
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()
