@@ -10,6 +10,7 @@ import type { PluginContext, StorageCollection } from "emdash";
 import { digestTaskName } from "../digest-task.js";
 import { formatDigestText } from "../format.js";
 import type { FormDefinition, Submission } from "../types.js";
+import { decrementSubmissionCount } from "./submission-count.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: PluginContext): StorageCollection<FormDefinition> {
@@ -64,21 +65,18 @@ export async function handleCleanup(ctx: PluginContext) {
 
 				const ids = batch.items.map((item) => item.id);
 				if (ids.length > 0) {
-					await submissions(ctx).deleteMany(ids);
-					deletedCount += ids.length;
+					// Per batch, so a run that stops partway still accounts for what it removed.
+					const deleted = await submissions(ctx).deleteMany(ids);
+					if (deleted > 0) {
+						await decrementSubmissionCount(forms(ctx), formItem.id, deleted);
+						deletedCount += deleted;
+					}
 				}
 
 				cursor = batch.cursor;
 			} while (cursor);
 
-			// Update form counter
 			if (deletedCount > 0) {
-				const count = await submissions(ctx).count({ formId: formItem.id });
-				await forms(ctx).put(formItem.id, {
-					...form,
-					submissionCount: count,
-				});
-
 				ctx.log.info("Cleaned up expired submissions", {
 					formId: formItem.id,
 					formName: form.name,

@@ -35,6 +35,10 @@ function context(input: unknown) {
 		put: async (_id: string, value: FormDefinition) => {
 			current = value;
 		},
+		updateIf: async (_id: string, args: { set?: Partial<FormDefinition> }) => {
+			current = { ...current, ...args.set };
+			return { applied: true, data: current };
+		},
 		query: async () => ({ items: [], hasMore: false }),
 	};
 	return {
