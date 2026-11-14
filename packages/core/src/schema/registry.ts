@@ -2193,11 +2193,6 @@ export class SchemaRegistry {
 				path: "indexed",
 			});
 		}
-		if (input.searchable) {
-			throw new SchemaError("Blocks fields cannot be searchable", "VALIDATION_ERROR", {
-				path: "searchable",
-			});
-		}
 		if (input.widget !== undefined) {
 			throw new SchemaError("Blocks fields cannot use custom widgets", "VALIDATION_ERROR", {
 				path: "widget",

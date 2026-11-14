@@ -69,6 +69,7 @@ const SEARCHABLE_FIELD_TYPES = new Set<FieldType>([
 	"string",
 	"text",
 	"portableText",
+	"blocks",
 	"slug",
 	"url",
 ]);
@@ -774,9 +775,7 @@ export function FieldEditor({
 			step: "config",
 			// Long text and slug fields send a pattern too, but have no input showing it.
 			...(type === "string" ? {} : { pattern: "" }),
-			...(type === "blocks"
-				? { required: false, unique: false, searchable: false, indexed: false }
-				: {}),
+			...(type === "blocks" ? { required: false, unique: false, indexed: false } : {}),
 		}));
 	};
 
@@ -1214,6 +1213,11 @@ export function FieldEditor({
 											/>
 										)}
 									</div>
+									{selectedType === "blocks" && searchable && (
+										<p className="text-xs text-kumo-subtle">
+											{t`Portable Text content inside blocks is indexed.`}
+										</p>
+									)}
 								</>
 							)}
 

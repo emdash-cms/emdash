@@ -575,7 +575,7 @@ Blocks validation accepts these properties:
 - `minItems` — Minimum number of blocks. Raising it above zero on a populated collection requires a content migration.
 - `maxItems` — Maximum number of blocks, up to 100.
 
-A blocks field is optional and defaults to an empty array. It cannot be required, unique, searchable, indexed, or rendered by a custom field widget. Block definitions can use scalar, text, selection, Portable Text, image, file, and repeater fields. They cannot contain references, JSON, slugs, or nested blocks.
+A blocks field is optional and defaults to an empty array. It cannot be required, unique, indexed, or rendered by a custom field widget. It can be `searchable`: Portable Text content inside blocks (including image alt and caption, and code blocks) is added to full-text search. Plain string and text sub-fields such as headings or labels are not indexed unless their sub-field slug happens to be `text`, `alt`, `caption` or `code`. Block definitions can use scalar, text, selection, Portable Text, image, file, and repeater fields. They cannot contain references, JSON, slugs, or nested blocks.
 
 Render the stored array with `<Blocks value components fallback>` from `emdash/ui`. See [Build pages with blocks](/guides/blocks/) for seed, component-map, missing-renderer, activation, and migration examples.
 
@@ -606,7 +606,7 @@ for sorting or filtering because every index adds storage and write overhead.
 
 `searchable` adds the field's text to the collection's full-text search index. Set `translatable: false` for identifiers, prices, flags, and other values that must stay the same across every translation of an entry; when one locale changes a non-translatable field, EmDash synchronizes the value to its translated entries.
 
-The `blocks` type uses only `slug`, `label`, `type`, `translatable`, `validation`, and `sortOrder` from this common set. Its array is never column-required and always defaults to `[]`.
+The `blocks` type uses only `slug`, `label`, `type`, `searchable`, `translatable`, `validation`, and `sortOrder` from this common set. Its array is never column-required and always defaults to `[]`.
 
 ## Reserved field slugs
 
