@@ -118,12 +118,13 @@ describe("redirect middleware bookkeeping writes", () => {
 	it("logs a 404 before the invocation ends", async () => {
 		const write = createGate();
 		const log404 = RedirectRepository.prototype.log404;
-		vi.spyOn(RedirectRepository.prototype, "log404").mockImplementation(
-			async function (this: RedirectRepository, entry) {
-				await write.opened;
-				return log404.call(this, entry);
-			},
-		);
+		vi.spyOn(RedirectRepository.prototype, "log404").mockImplementation(async function (
+			this: RedirectRepository,
+			entry,
+		) {
+			await write.opened;
+			return log404.call(this, entry);
+		});
 
 		await requestAndExpectInvocationHeldOpen("/no-such-page", write);
 

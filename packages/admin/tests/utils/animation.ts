@@ -22,17 +22,19 @@ export interface HeldAnimations {
 export function holdAnimations(match: (target: Element) => boolean): HeldAnimations {
 	const held: Animation[] = [];
 	const animate = Element.prototype.animate;
-	const spy = vi
-		.spyOn(Element.prototype, "animate")
-		.mockImplementation(function (this: Element, keyframes, options) {
-			const animation = animate.call(this, keyframes, options);
-			if (match(this)) {
-				// Unlike a pause, a zero rate survives the script playing the animation itself.
-				animation.playbackRate = 0;
-				held.push(animation);
-			}
-			return animation;
-		});
+	const spy = vi.spyOn(Element.prototype, "animate").mockImplementation(function (
+		this: Element,
+		keyframes,
+		options,
+	) {
+		const animation = animate.call(this, keyframes, options);
+		if (match(this)) {
+			// Unlike a pause, a zero rate survives the script playing the animation itself.
+			animation.playbackRate = 0;
+			held.push(animation);
+		}
+		return animation;
+	});
 	let holding = true;
 	const release = () => {
 		if (!holding) return;
