@@ -67,6 +67,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/qc-artifact"
           unzip -o artifact.zip
+          if [ -n "$(find . -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            echo "::error::Artifact contains a symbolic link or special file; refusing to use it." >&2
+            exit 1
+          fi
           ls -la
 
       - name: Resolve PR
@@ -168,10 +172,25 @@ jobs:
         if: steps.download.outputs.found == 'true'
         id: apply
         run: |
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.sqlite.json" scripts/
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.snapshot.d1.json" scripts/
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.sqlite.json" scripts/
-          cp "$RUNNER_TEMP/qc-artifact/query-counts.queries.d1.json" scripts/
+          # The checkout may be a fork's tree, so a destination could be a
+          # symlink into .git. Only replace regular files in a real scripts/.
+          if [ -L scripts ] || [ ! -d scripts ]; then
+            echo "::error::scripts is not a directory in the PR tree; refusing to apply snapshots." >&2
+            exit 1
+          fi
+          for name in \
+            query-counts.snapshot.sqlite.json \
+            query-counts.snapshot.d1.json \
+            query-counts.queries.sqlite.json \
+            query-counts.queries.d1.json
+          do
+            dest="scripts/$name"
+            if [ -L "$dest" ] || { [ -e "$dest" ] && [ ! -f "$dest" ]; }; then
+              echo "::error::$dest is not a regular file in the PR tree; refusing to apply snapshots." >&2
+              exit 1
+            fi
+            cp --remove-destination "$RUNNER_TEMP/qc-artifact/$name" "$dest"
+          done
           git add \
             scripts/query-counts.snapshot.sqlite.json \
             scripts/query-counts.snapshot.d1.json \
@@ -196,7 +215,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: update query-count snapshots"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "ci: update query-count snapshots"
           # Detached-HEAD push onto the PR branch. If the branch has
           # advanced past the measured SHA, this fails with a non-fast-
           # forward — safe outcome, since applying stale counts to a
@@ -220,7 +239,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: update query-count snapshots"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "ci: update query-count snapshots"
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
