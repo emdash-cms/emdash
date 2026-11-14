@@ -41,12 +41,12 @@ function allPages(packages: readonly RankablePlugin[], query = "") {
 	return Array.from({ length: pageCount }, (_, index) => catalogPage(packages, query, index + 1));
 }
 
-/** Results in relevance order, each older than the one before it, so freshness order is the reverse. */
+/** Results in relevance order, each newer than the one before it, so freshness order is the reverse. */
 function searchResults(...slugs: string[]): RankablePlugin[] {
 	return slugs.map((slug, index) => plugin(slug.split("-")[0]!, slug, slugs.length - index));
 }
 
-/** A fixed permutation that moves every plugin away from where it was. */
+/** A fixed permutation of the items. */
 function shuffled<T>(items: readonly T[]): T[] {
 	const odd = items.filter((_, index) => index % 2 === 1);
 	const even = items.filter((_, index) => index % 2 === 0);
@@ -129,7 +129,11 @@ describe("catalogPage", () => {
 		const pages = allPages(catalog);
 		const listedSlugs = pages.flatMap((page) => labels(page.items));
 
-		expect(pages.map((page) => page.items.length)).toEqual([PAGE_SIZE, PAGE_SIZE, 14]);
+		expect(pages.map((page) => page.items.length)).toEqual([
+			PAGE_SIZE,
+			PAGE_SIZE,
+			catalog.length - 2 * PAGE_SIZE,
+		]);
 		expect(listedSlugs.toSorted()).toEqual(catalog.map((pkg) => pkg.slug).toSorted());
 	});
 
@@ -188,7 +192,11 @@ describe("catalogPage", () => {
 
 		expect(page.page).toBe(2);
 		expect(page.pageCount).toBe(2);
-		expect(labels(page.items)).toEqual(["a-49", "a-50", "a-51"]);
+		expect(labels(page.items)).toEqual([
+			`a-${PAGE_SIZE + 1}`,
+			`a-${PAGE_SIZE + 2}`,
+			`a-${PAGE_SIZE + 3}`,
+		]);
 	});
 
 	it("sorts plugins with unparseable dates after every dated plugin", () => {

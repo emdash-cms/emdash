@@ -1,8 +1,8 @@
 ---
 /**
- * A plugin summary for the catalog grids. The name links to the plugin, and
- * that link stretches over the whole card, so the card has one link whose
- * accessible name is the plugin's name.
+ * A plugin summary for the catalog grids. The name links to the plugin and
+ * stretches over the whole card. When the listing leaves out some of the
+ * publisher's plugins, a "+N more" link to the publisher page sits above it.
  */
 import type { RegistryEntryData } from "@emdash-cms/registry-loader";
 
@@ -258,16 +258,19 @@ const more = entry.moreFromPublisher ?? 0;
 		position: relative;
 		z-index: 2;
 		flex: none;
+		padding-block: 0.1875rem;
+		margin-block: -0.1875rem;
 		color: var(--muted);
 		font-weight: 500;
-		text-decoration: none;
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.2em;
 		border-radius: var(--radius-sm);
 	}
 
 	@media (hover: hover) {
 		.plugin-card-more:hover {
 			color: var(--ink);
-			text-decoration: underline;
 		}
 	}
 
