@@ -25,6 +25,8 @@ import type { Database } from "../../../src/database/types.js";
 import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { publishRedirectArtifacts } from "../../../src/redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
+import { runWithContext } from "../../../src/request-context.js";
+import { getSiteSettings, setSiteSettings } from "../../../src/settings/index.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 type MiddlewareContext = Parameters<typeof onRequest>[0];
@@ -722,6 +724,32 @@ describe("redirect middleware — responses the route cache stores", () => {
 		expect(response.status).toBe(200);
 		expect(await response.text()).toBe("page");
 		expect(selects).toBe(1);
+	});
+
+	it("restores the outer settings tracker after a nested cacheable render", async () => {
+		const cache = storingRouteCache();
+		const outerReads: string[] = [];
+
+		await runWithContext(
+			{
+				editMode: false,
+				routeCacheFill: true,
+				siteSettings: { onRead: (version) => outerReads.push(version) },
+			},
+			async () => {
+				const { context } = buildContext({ pathname: "/page", cache });
+				await runMiddleware(context, async () => {
+					await setSiteSettings({ title: "updated" }, db);
+					await getSiteSettings();
+					return new Response("page");
+				});
+
+				await getSiteSettings();
+			},
+		);
+
+		expect(outerReads).toHaveLength(1);
+		expect(cache.set).toHaveBeenCalledWith(false);
 	});
 
 	it("does not read the database for a render the route cache will not store", async () => {

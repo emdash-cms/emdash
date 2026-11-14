@@ -758,6 +758,44 @@ function keepUnsharedResponsesOutOfRouteCache(context: APIContext, response: Res
 	}
 }
 
+const ANONYMOUS_RENDER = Symbol.for("emdash:anonymous-render");
+
+type RenderLocals = App.Locals & {
+	[ANONYMOUS_RENDER]?: {
+		method: string;
+		locale: string | undefined;
+		db: unknown;
+		metrics: RequestMetrics | undefined;
+	};
+};
+
+function canReuseAnonymousRender(context: APIContext): boolean {
+	const original = (context.locals as RenderLocals)[ANONYMOUS_RENDER];
+	const parent = getRequestContext();
+	if (!original || !parent) return false;
+	if (context.request.method !== original.method) return false;
+	if (context.currentLocale !== original.locale) return false;
+	if (context.locals.__playgroundDb || context.locals.user || parent.editMode || parent.preview)
+		return false;
+	if (parent.db !== original.db || parent.metrics !== original.metrics) return false;
+	if (context.request.headers.has("authorization")) return false;
+	if (context.cookies.get(virtualConfig?.sessionCookieName ?? "astro-session")) return false;
+	if (context.cookies.get("emdash-edit-mode")?.value === "true") return false;
+	if (context.url.searchParams.has("_preview")) return false;
+	if (context.url.pathname.startsWith("/_emdash") || isImageEndpointRequest(context)) return false;
+	const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
+	const path =
+		base && context.url.pathname.startsWith(`${base}/`)
+			? context.url.pathname.slice(base.length)
+			: context.url.pathname;
+	if (PUBLIC_RUNTIME_ROUTES.has(path) || isCollectionSitemapPath(path)) return false;
+	// A newly cacheable target must not reuse data loaded from an unverified object-cache snapshot.
+	if (virtualConfig?.objectCacheEnabled && context.cache?.enabled && !parent.routeCacheFill) {
+		return false;
+	}
+	return true;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -775,6 +813,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			return finalizeResponse(await next());
 		}
 	}
+
+	// Astro re-enters middleware with the same locals while the original render is
+	// still active. Its outer scope owns prefetch, metrics, and connection cleanup.
+	if (canReuseAnonymousRender(context)) return next();
 
 	const queryRecorder = isInstrumentationEnabled()
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
@@ -980,7 +1022,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				});
 				const runAnon = async () => {
 					const t0 = performance.now();
-					const response = await next();
+					const renderLocals = locals as RenderLocals;
+					const previous = renderLocals[ANONYMOUS_RENDER];
+					const scope = getRequestContext();
+					renderLocals[ANONYMOUS_RENDER] = {
+						method: request.method,
+						locale: context.currentLocale,
+						db: scope?.db,
+						metrics: scope?.metrics,
+					};
+					let response: Response;
+					try {
+						response = await next();
+					} finally {
+						if (previous) renderLocals[ANONYMOUS_RENDER] = previous;
+						else delete renderLocals[ANONYMOUS_RENDER];
+					}
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 					pushMetricsTimings(timings, metrics);

@@ -302,6 +302,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (virtualConfig?.objectCacheEnabled && context.cache?.enabled) {
 			const parent = getRequestContext();
 			if (parent?.siteSettings) parent.siteSettings.live = true;
+			if (parent?.routeCacheFill) return render();
 			return runWithContext({ ...parent, editMode: false, routeCacheFill: true }, render);
 		}
 		return render();
