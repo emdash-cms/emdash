@@ -84,6 +84,84 @@ jobs:
               /^infra\/flue-review\//,
             ];
 
+            // These workflows run with a read-only token and no secrets, and
+            // these scripts run only in them, so editing them needs one
+            // approval. Remove a script once another workflow runs it.
+            const readOnlyWorkflows = new Set([
+              '.github/workflows/ci.yml',
+              '.github/workflows/env-types.yml',
+              '.github/workflows/preview-releases.yml',
+              '.github/workflows/query-counts.yml',
+              '.github/workflows/visual.yml',
+            ]);
+            const readOnlyScripts = new Set([
+              '.github/scripts/test-plan.mjs',
+              '.github/scripts/test-plan.test.mjs',
+            ]);
+
+            // Events that let someone without write access start a workflow in
+            // this repository's context, or that hand it a caller's token and
+            // secrets.
+            const privilegedEvents = [
+              'check_run',
+              'check_suite',
+              'deployment',
+              'deployment_status',
+              'discussion',
+              'discussion_comment',
+              'fork',
+              'gollum',
+              'issue_comment',
+              'issues',
+              'pull_request_target',
+              'watch',
+              'workflow_call',
+              'workflow_run',
+            ];
+            const permissionScopes = [
+              'actions',
+              'artifact-metadata',
+              'attestations',
+              'checks',
+              'code-quality',
+              'contents',
+              'copilot-requests',
+              'deployments',
+              'discussions',
+              'drives',
+              'id-token',
+              'issues',
+              'models',
+              'packages',
+              'pages',
+              'pull-requests',
+              'repository-projects',
+              'security-events',
+              'statuses',
+              'vulnerability-alerts',
+            ];
+            // Expressions ignore case, and an escape in a double-quoted YAML
+            // string can spell any of these words, so case is ignored and any
+            // backslash counts. A `workflow_run` trigger picks the workflow it
+            // follows by name, so a change to the top-level `name:` counts too.
+            const privilegeChange = new RegExp(
+              `permissions|secrets|\\bwrite\\b|\\\\|\\b(?:${privilegedEvents.join('|')})\\b|(?:^[+-]\\s*|[{,]\\s*)(?:${permissionScopes.join('|')})\\s*:|^[+-]["']?name["']?\\s*:`,
+              'i',
+            );
+
+            // Removed lines count too: deleting `permissions:` hands the workflow
+            // the repository's default token, and an empty one may not even parse.
+            // GitHub leaves out the patch of a very large diff, so such an edit
+            // can't be checked.
+            const staysReadOnly = file => {
+              if (file.status !== 'modified') return false;
+              if (readOnlyScripts.has(file.filename)) return true;
+              if (!readOnlyWorkflows.has(file.filename) || typeof file.patch !== 'string') return false;
+              return !file.patch
+                .split('\n')
+                .some(line => /^[+-]/.test(line) && privilegeChange.test(line));
+            };
+
             const proposalIndex = 'proposals/README.md';
             const proposalPath =
               /^proposals\/(?!(?:README|feature-plan-template|rfc-template)\.md$)[a-z0-9][a-z0-9-]*\.md$/;
@@ -99,6 +177,7 @@ jobs:
 
             const isPrivileged = (file, isDesign) =>
               privilegedPaths.some(pattern => pattern.test(file.filename)) &&
+              !staysReadOnly(file) &&
               !(isDesign && file.filename === proposalIndex && onlyChangesIndexRows(file));
 
             const handles = text =>
