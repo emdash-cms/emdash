@@ -36,9 +36,14 @@ function floodedCatalog() {
 	];
 }
 
-function allPages(packages: readonly RankablePlugin[]) {
-	const { pageCount } = catalogPage(packages, "", 1);
-	return Array.from({ length: pageCount }, (_, index) => catalogPage(packages, "", index + 1));
+function allPages(packages: readonly RankablePlugin[], query = "") {
+	const { pageCount } = catalogPage(packages, query, 1);
+	return Array.from({ length: pageCount }, (_, index) => catalogPage(packages, query, index + 1));
+}
+
+/** Results in relevance order, each older than the one before it, so freshness order is the reverse. */
+function searchResults(...slugs: string[]): RankablePlugin[] {
+	return slugs.map((slug, index) => plugin(slug.split("-")[0]!, slug, slugs.length - index));
 }
 
 /** A fixed permutation that moves every plugin away from where it was. */
@@ -141,20 +146,39 @@ describe("catalogPage", () => {
 		expect(allPages(catalog.toReversed())).toEqual(expected);
 	});
 
-	it("keeps a search's order and every result", () => {
-		const results = [
-			plugin("z", "seo-z", 30),
-			plugin("a", "seo-a-1", 1),
-			plugin("a", "seo-a-2", 2),
-			plugin("a", "seo-a-3", 3),
-			plugin("m", "seo-m", 0),
-		];
+	it("lists each publisher's two most relevant results before anyone's third", () => {
+		const results = searchResults("a-1", "a-2", "a-3", "a-4", "b-1", "a-5", "c-1", "b-2", "b-3");
 
-		const page = catalogPage(results, "seo", 1);
+		const page = catalogPage(results, "forms", 1);
+
+		expect(labels(page.items)).toEqual([
+			"a-1",
+			"a-2",
+			"b-1",
+			"c-1",
+			"b-2",
+			"a-3",
+			"a-4",
+			"b-3",
+			"a-5",
+		]);
+		expect(page.items.every((item) => item.moreFromPublisher === 0)).toBe(true);
+	});
+
+	it("places every search result on exactly one page", () => {
+		const results = floodedCatalog();
+
+		const listedSlugs = allPages(results, "forms").flatMap((page) => labels(page.items));
+
+		expect(listedSlugs.toSorted()).toEqual(results.map((pkg) => pkg.slug).toSorted());
+	});
+
+	it("keeps the registry's order when every result has one publisher", () => {
+		const results = searchResults("a-3", "a-1", "a-5", "a-2", "a-4");
+
+		const page = catalogPage(results, "did:plc:a", 1);
 
 		expect(page.items.map((item) => item.package)).toEqual(results);
-		expect(page.items.every((item) => item.moreFromPublisher === 0)).toBe(true);
-		expect(page.pageCount).toBe(1);
 	});
 
 	it("shows the last page for a page past the end", () => {

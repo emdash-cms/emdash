@@ -15,7 +15,8 @@ export interface ListedPlugin<T extends RankablePlugin = ValidatedPackageView> {
 	package: T;
 	/**
 	 * On the publisher's first card in the listing, how many of their other
-	 * plugins the listing leaves out. 0 on every other card, and on search results.
+	 * plugins the listing leaves out. 0 on every other card, and on search results,
+	 * since the publisher page lists all their plugins, not only the matches.
 	 */
 	moreFromPublisher: number;
 }
@@ -31,8 +32,8 @@ export interface CatalogPage<T extends RankablePlugin = ValidatedPackageView> {
 }
 
 const RECENT_RAIL_SIZE = 12;
-/** Plugins each publisher places on "All plugins" before any publisher places more. */
-const BROWSE_PER_PUBLISHER = 2;
+/** Plugins each publisher places in each round of a `/search` listing. */
+const LISTING_PER_PUBLISHER = 2;
 
 /**
  * When the plugin's current profile was last updated: the publisher's
@@ -56,17 +57,21 @@ export function recentlyUpdated<T extends RankablePlugin>(
 	catalog: readonly T[],
 ): ListedPlugin<T>[] {
 	const publishers = new Set(catalog.map((pkg) => pkg.did)).size;
-	const rail = discoveryOrder(catalog, 1).slice(0, Math.min(RECENT_RAIL_SIZE, publishers));
+	const rail = tiered(catalog.toSorted(byFreshness), 1).slice(
+		0,
+		Math.min(RECENT_RAIL_SIZE, publishers),
+	);
 	return listed(rail, catalog);
 }
 
 /**
- * One page of `/search`. With a query, the registry's relevance order as
- * given, uncapped, so a publisher query lists every plugin of that publisher.
- * Without one, every plugin in discovery order: each publisher's two most
- * recently updated plugins, newest first, then each publisher's next two, and
- * so on. The order depends only on which plugins are in `packages`, not on the
- * order the registry walk returned them, so `?page=N` is a stable address.
+ * One page of `/search`, listing every plugin in `packages` once across the
+ * pages: each publisher's first two, then each publisher's next two, and so on.
+ * With a query, "first" follows the registry's relevance order, so a query
+ * matching one publisher, such as their handle, keeps the registry's order.
+ * Without one, it follows freshness, newest first, and the order depends only
+ * on which plugins are in `packages`, not on the order the registry walk
+ * returned them, so `?page=N` is a stable address.
  */
 export function catalogPage<T extends RankablePlugin>(
 	packages: readonly T[],
@@ -76,32 +81,28 @@ export function catalogPage<T extends RankablePlugin>(
 	const pageCount = Math.max(1, Math.ceil(packages.length / PAGE_SIZE));
 	const page = Math.min(Math.max(requestedPage, 1), pageCount);
 	const start = (page - 1) * PAGE_SIZE;
-	if (query) {
-		const items = packages
-			.slice(start, start + PAGE_SIZE)
-			.map((pkg) => ({ package: pkg, moreFromPublisher: 0 }));
-		return { items, page, pageCount };
-	}
-	const window = discoveryOrder(packages, BROWSE_PER_PUBLISHER).slice(start, start + PAGE_SIZE);
-	return { items: listed(window, packages), page, pageCount };
+	const ordered = query ? packages : packages.toSorted(byFreshness);
+	const window = tiered(ordered, LISTING_PER_PUBLISHER).slice(start, start + PAGE_SIZE);
+	const items = query
+		? window.map((pkg) => ({ package: pkg, moreFromPublisher: 0 }))
+		: listed(window, packages);
+	return { items, page, pageCount };
 }
 
 /**
- * Every plugin, ordered by tier and then by freshness, where a plugin's tier is
- * its place among its publisher's plugins, by freshness, divided by
- * `perPublisher`. Publishers are DIDs: handles are mutable and optional.
+ * `ordered`, regrouped by tier and keeping its order within a tier, where a
+ * plugin's tier is its place among its publisher's plugins in `ordered`
+ * divided by `perPublisher`. Publishers are DIDs: handles are mutable and
+ * optional.
  */
-function discoveryOrder<T extends RankablePlugin>(
-	packages: readonly T[],
-	perPublisher: number,
-): T[] {
+function tiered<T extends RankablePlugin>(ordered: readonly T[], perPublisher: number): T[] {
 	const placed = new Map<string, number>();
-	const tiered = packages.toSorted(byFreshness).map((pkg) => {
+	const ranked = ordered.map((pkg) => {
 		const rank = placed.get(pkg.did) ?? 0;
 		placed.set(pkg.did, rank + 1);
 		return { pkg, tier: Math.floor(rank / perPublisher) };
 	});
-	return tiered.toSorted((a, b) => a.tier - b.tier).map(({ pkg }) => pkg);
+	return ranked.toSorted((a, b) => a.tier - b.tier).map(({ pkg }) => pkg);
 }
 
 /** Newest `updatedAt` first, then DID, then slug, which together are unique. */
