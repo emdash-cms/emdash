@@ -49,13 +49,15 @@ async function prefetchWidgetAreas(): Promise<void> {
  * per taxonomy, and only a consumer that renders one can say it's needed. A
  * consumer that does asks for it and reuses the term list warmed here.
  */
-async function prefetchTaxonomyTerms(): Promise<void> {
+async function prefetchTaxonomyTerms(locale?: string): Promise<void> {
 	const defs = await getTaxonomyDefs();
-	await Promise.allSettled(defs.map((def) => getTaxonomyTerms(def.name, { includeCounts: false })));
+	await Promise.allSettled(
+		defs.map((def) => getTaxonomyTerms(def.name, { locale, includeCounts: false })),
+	);
 }
 
 /** Warm every menu via the real helper (primes `menu:${name}:${locale}`). */
-async function prefetchMenus(): Promise<void> {
+async function prefetchMenus(locale?: string): Promise<void> {
 	// The layout calls getMenu(name) with hardcoded names; we can't know them, so
 	// discover every menu name and warm them all (small, bounded chrome table).
 	const names = await cachedQuery({
@@ -67,7 +69,7 @@ async function prefetchMenus(): Promise<void> {
 			return [...new Set(rows.map((r) => r.name))];
 		},
 	});
-	await Promise.allSettled(names.map((name) => getMenu(name)));
+	await Promise.allSettled(names.map((name) => getMenu(name, { locale })));
 }
 
 /**
@@ -75,13 +77,13 @@ async function prefetchMenus(): Promise<void> {
  * Safe to call only inside the request ALS frame that owns the (remote)
  * request-scoped db. Never throws.
  */
-export async function prefetchLayoutData(): Promise<void> {
+export async function prefetchLayoutData(locale?: string): Promise<void> {
 	try {
 		await Promise.allSettled([
 			getSiteSettings(),
-			prefetchMenus(),
+			prefetchMenus(locale),
 			prefetchWidgetAreas(),
-			prefetchTaxonomyTerms(),
+			prefetchTaxonomyTerms(locale),
 		]);
 	} catch (error) {
 		// Defensive: Promise.allSettled shouldn't reject, but never let a prefetch

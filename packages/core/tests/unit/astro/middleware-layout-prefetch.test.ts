@@ -7,17 +7,25 @@ import {
 	SqliteIntrospector,
 	SqliteQueryCompiler,
 } from "kysely";
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, onTestFinished, vi } from "vitest";
+
+import { MenuRepository } from "../../../src/database/repositories/menu.js";
+import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
+import { getMenu } from "../../../src/menus/index.js";
+import { getTaxonomyTerms } from "../../../src/taxonomies/index.js";
+import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
 
-const { MOCK_RUNTIME, createRequestScopedDb, prefetchLayoutData } = vi.hoisted(() => {
+const { MOCK_RUNTIME, createRequestScopedDb, getDb, prefetchLayoutData } = vi.hoisted(() => {
 	const ok = async () => ({ success: true });
 	return {
 		createRequestScopedDb: vi.fn(),
-		prefetchLayoutData: vi.fn(async () => undefined),
+		getDb: vi.fn(),
+		prefetchLayoutData: vi.fn<(locale?: string) => Promise<void>>(async () => undefined),
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl: vi.fn((key: string) => `https://media.example.com/${key}`) },
 			db: {},
@@ -44,12 +52,22 @@ const { MOCK_RUNTIME, createRequestScopedDb, prefetchLayoutData } = vi.hoisted((
 
 vi.mock(
 	"virtual:emdash/config",
-	() => ({ default: { database: { config: { binding: "DB" } }, auth: { mode: "none" } } }),
+	() => ({
+		default: {
+			database: { config: { binding: "DB" } },
+			auth: { mode: "none" },
+			i18n: { defaultLocale: "cs", locales: ["cs", "en", "de"] },
+		},
+	}),
 	{ virtual: true },
 );
-vi.mock("virtual:emdash/dialect", () => ({ createDialect: vi.fn(), createRequestScopedDb }), {
-	virtual: true,
-});
+vi.mock(
+	"virtual:emdash/dialect",
+	() => ({ createDialect: vi.fn(), createCoalescingDialect: undefined, createRequestScopedDb }),
+	{
+		virtual: true,
+	},
+);
 vi.mock("virtual:emdash/media-providers", () => ({ mediaProviders: [] }), { virtual: true });
 vi.mock("virtual:emdash/plugins", () => ({ plugins: [] }), { virtual: true });
 vi.mock(
@@ -67,11 +85,7 @@ vi.mock("../../../src/emdash-runtime.js", () => ({
 	EmDashRuntime: { create: async () => MOCK_RUNTIME },
 }));
 
-vi.mock("../../../src/loader.js", () => ({
-	getDb: vi.fn(async () => ({
-		selectFrom: () => ({ selectAll: () => ({ limit: () => ({ execute: async () => [] }) }) }),
-	})),
-}));
+vi.mock("../../../src/loader.js", () => ({ getDb }));
 
 vi.mock("../../../src/astro/prefetch.js", () => ({ prefetchLayoutData }));
 
@@ -88,7 +102,7 @@ function kyselyWith(adapter: DialectAdapter) {
 	});
 }
 
-function htmlNavigation() {
+function htmlNavigation(currentLocale?: string) {
 	return {
 		request: new Request("https://example.com/posts/hello", {
 			headers: { accept: "text/html,application/xhtml+xml" },
@@ -98,21 +112,29 @@ function htmlNavigation() {
 		locals: {} as Record<string, unknown>,
 		redirect: vi.fn(),
 		isPrerendered: false,
+		currentLocale,
 		session: { get: vi.fn(async () => null) },
 	} as unknown as Parameters<typeof onRequest>[0];
 }
 
-async function navigate() {
-	await onRequest(
-		htmlNavigation(),
-		async () => new Response("<html></html>", { headers: { "content-type": "text/html" } }),
-	);
+async function navigate(
+	currentLocale?: string,
+	next = async () => new Response("<html></html>", { headers: { "content-type": "text/html" } }),
+) {
+	await onRequest(htmlNavigation(currentLocale), next);
 	await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe("layout prefetch on anonymous HTML navigations", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		getDb.mockResolvedValue({
+			selectFrom: () => ({ selectAll: () => ({ limit: () => ({ execute: async () => [] }) }) }),
+		});
+	});
+
+	afterEach(() => {
+		setI18nConfig(null);
 	});
 
 	const adapterWithoutFlag: DialectAdapter = {
@@ -138,5 +160,82 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 
 		expect(createRequestScopedDb).toHaveBeenCalled();
 		expect(prefetchLayoutData).not.toHaveBeenCalled();
+	});
+
+	it.each(["en", "cs", undefined])("warms layout helpers for page locale %s", async (locale) => {
+		setI18nConfig({ defaultLocale: "cs", locales: ["cs", "en", "de"] });
+		const db = await setupTestDatabaseWithCollections();
+		onTestFinished(() => teardownTestDatabase(db));
+		const menuRepository = new MenuRepository(db);
+		const taxonomyRepository = new TaxonomyRepository(db);
+		const csMenu = await menuRepository.create({ name: "primary", label: "Hlavní", locale: "cs" });
+		await menuRepository.create({
+			name: "primary",
+			label: "Main",
+			locale: "en",
+			translationOf: csMenu.id,
+		});
+		await taxonomyRepository.create({
+			name: "category",
+			slug: "cs-term",
+			label: "Česky",
+			locale: "cs",
+		});
+		await taxonomyRepository.create({
+			name: "category",
+			slug: "en-term",
+			label: "English",
+			locale: "en",
+		});
+
+		let queryCount = 0;
+		const runtimeDb = db.withPlugin({
+			transformQuery({ node }) {
+				queryCount++;
+				return node;
+			},
+			async transformResult({ result }) {
+				return result;
+			},
+		});
+
+		// Exercise the remote-backend prefetch path with the real SQLite driver.
+		Object.defineProperty(runtimeDb.getExecutor().adapter, "supportsMultipleConnections", {
+			value: true,
+		});
+		getDb.mockResolvedValue(runtimeDb);
+		createRequestScopedDb.mockReturnValue({
+			db: runtimeDb,
+			commit: vi.fn(),
+		});
+
+		const actual = await vi.importActual<typeof import("../../../src/astro/prefetch.js")>(
+			"../../../src/astro/prefetch.js",
+		);
+		let prefetch: Promise<void> | undefined;
+		prefetchLayoutData.mockImplementationOnce((pageLocale) => {
+			prefetch = actual.prefetchLayoutData(pageLocale);
+			return prefetch;
+		});
+
+		await navigate(locale, async () => {
+			await Promise.resolve();
+			expect(prefetch).toBeDefined();
+			await prefetch;
+			const queriesAfterPrefetch = queryCount;
+			const pageLocale = locale ?? "cs";
+			const menu = await getMenu("primary", { locale: pageLocale });
+			const terms = await getTaxonomyTerms("category", {
+				locale: pageLocale,
+				includeCounts: false,
+			});
+			expect(menu?.label).toBe(pageLocale === "en" ? "Main" : "Hlavní");
+			expect(terms.map((term) => term.label)).toEqual([pageLocale === "en" ? "English" : "Česky"]);
+			expect(queryCount).toBe(queriesAfterPrefetch);
+			expect((await getMenu("primary"))?.label).toBe("Hlavní");
+			return new Response("<html></html>", { headers: { "content-type": "text/html" } });
+		});
+
+		expect(prefetchLayoutData).toHaveBeenCalledOnce();
 	});
 });
