@@ -55,15 +55,17 @@ export async function searchCatalog(
 
 /**
  * Adds each plugin's latest release, which its card needs for the icon and the
- * permission count. A release that fails to load or takes longer than the
- * registry loader's timeout is left out, as the loader does.
+ * permission count, keeping whatever else the item carries. A release that
+ * fails to load or takes longer than the registry loader's timeout is left
+ * out, as the loader does.
  */
-export function withLatestReleases(
-	packages: readonly ValidatedPackageView[],
+export function withLatestReleases<T extends { package: ValidatedPackageView }>(
+	items: readonly T[],
 	client: DiscoveryClient = registry,
-): Promise<RegistryEntryData[]> {
+): Promise<(T & Pick<RegistryEntryData, "latestRelease">)[]> {
 	return Promise.all(
-		packages.map(async (pkg) => {
+		items.map(async (item) => {
+			const pkg = item.package;
 			const latestRelease = pkg.latestVersion
 				? await withTimeout(
 						client.getLatestRelease({ did: pkg.did, package: pkg.slug }),
@@ -78,7 +80,7 @@ export function withLatestReleases(
 						return undefined;
 					})
 				: undefined;
-			return { package: pkg, ...(latestRelease ? { latestRelease } : {}) };
+			return { ...item, ...(latestRelease ? { latestRelease } : {}) };
 		}),
 	);
 }

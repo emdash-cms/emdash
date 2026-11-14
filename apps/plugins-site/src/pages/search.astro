@@ -31,7 +31,9 @@ if (!hasError && page !== requestedPage) {
 }
 
 const entries = await withLatestReleases(
-	packages.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+	packages
+		.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+		.map((pkg) => ({ package: pkg })),
 );
 if (hasError) {
 	Astro.response.status = 503;

@@ -151,7 +151,10 @@ describe("withLatestReleases", () => {
 			latestVersion: undefined,
 		});
 
-		const entries = await withLatestReleases(packages, client);
+		const entries = await withLatestReleases(
+			packages.map((pkg) => ({ package: pkg })),
+			client,
+		);
 
 		expect(entries.map((entry) => [entry.package.slug, entry.latestRelease?.version])).toEqual([
 			["alpha", "1.0.0"],
@@ -173,12 +176,29 @@ describe("withLatestReleases", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const packages = await validated(packageView("alpha"));
 
-		const pending = withLatestReleases(packages, client);
+		const pending = withLatestReleases(
+			packages.map((pkg) => ({ package: pkg })),
+			client,
+		);
 		await vi.advanceTimersByTimeAsync(LATEST_RELEASE_TIMEOUT_MS);
 		const entries = await pending;
 		await vi.advanceTimersByTimeAsync(1000);
 
 		expect(entries).toEqual([{ package: packages[0] }]);
 		expect(warn).toHaveBeenCalledOnce();
+	});
+
+	it("keeps what else each item carries", async () => {
+		const { client } = registryAnswering(() => Response.json(releaseView("alpha")));
+		const packages = await validated(packageView("alpha"));
+
+		const entries = await withLatestReleases(
+			packages.map((pkg) => ({ package: pkg, moreFromPublisher: 3 })),
+			client,
+		);
+
+		expect(entries).toMatchObject([
+			{ package: { slug: "alpha" }, moreFromPublisher: 3, latestRelease: { version: "1.0.0" } },
+		]);
 	});
 });
