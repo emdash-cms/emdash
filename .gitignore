@@ -52,6 +52,7 @@ uploads/
 # Playwright E2E testing
 playwright-report/
 test-results/
+e2e-timings/
 playwright/.cache/
 
 # Visual regression baselines are platform-specific. CI (Linux) is the source
