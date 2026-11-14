@@ -13,6 +13,8 @@ import { POST as analyzeRoute } from "../../../src/astro/routes/api/import/wordp
 import { POST as executeRoute } from "../../../src/astro/routes/api/import/wordpress-plugin/execute.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import type { PluginMenu } from "../../../src/import/menus.js";
+import { importMenusFromPlugin } from "../../../src/import/menus.js";
 import {
 	clearSources,
 	probeUrl,
@@ -468,6 +470,106 @@ describe("WordPress Plugin Source — fetch behaviour", () => {
 		expect(analysis.attachments.items.map((a) => a.id)).toEqual([1, 2, 3]);
 	});
 
+	it("includes navigation menus from the plugin API in the analysis", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(
+					new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+				);
+			}
+			if (url.includes("menus")) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify([
+							{
+								id: 1,
+								name: "main-menu",
+								label: "Main Menu",
+								items: [
+									{
+										id: 10,
+										parent_id: null,
+										sort_order: 0,
+										type: "custom",
+										object: null,
+										object_id: null,
+										url: "/",
+										title: "Home",
+										target: null,
+										classes: null,
+									},
+									{
+										id: 11,
+										parent_id: null,
+										sort_order: 1,
+										type: "custom",
+										object: null,
+										object_id: null,
+										url: "/about",
+										title: "About",
+										target: null,
+										classes: null,
+									},
+								],
+							},
+							{
+								id: 2,
+								name: "footer",
+								label: "Footer",
+								items: [
+									{
+										id: 20,
+										parent_id: null,
+										sort_order: 0,
+										type: "custom",
+										object: null,
+										object_id: null,
+										url: "/privacy",
+										title: "Privacy",
+										target: null,
+										classes: null,
+									},
+								],
+							},
+						]),
+						{ status: 200 },
+					),
+				);
+			}
+			return Promise.resolve(new Response("[]", { status: 200 }));
+		});
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		expect(analysis.navMenus).toEqual([
+			{ name: "main-menu", label: "Main Menu", itemCount: 2 },
+			{ name: "footer", label: "Footer", itemCount: 1 },
+		]);
+	});
+
+	it("omits navMenus when the plugin has no menus endpoint", async () => {
+		mockFetch.mockImplementation((input: RequestInfo | URL) => {
+			const url = toUrlString(input);
+			if (url.includes("/emdash/v1/analyze")) {
+				return Promise.resolve(
+					new Response(JSON.stringify(makeAnalyzeResponse(0)), { status: 200 }),
+				);
+			}
+			return Promise.resolve(new Response("Not Found", { status: 404 }));
+		});
+
+		const analysis = await wordpressPluginSource.analyze(
+			{ type: "url", url: "https://example.com", token: "test-token" },
+			{},
+		);
+
+		expect(analysis.navMenus).toBeUndefined();
+	});
+
 	it("falls back to ?rest_route= when the pretty route 404s (plain permalinks)", async () => {
 		mockFetch.mockImplementation((input: RequestInfo | URL) => {
 			const url = toUrlString(input);
@@ -824,6 +926,17 @@ describe("WordPress Plugin Source: bot-protection challenges", () => {
 		).rejects.toBeInstanceOf(SiteChallengeError);
 	});
 
+	it("rejects analyze when only the menus endpoint answers with a challenge", async () => {
+		challengeOnly("menus");
+
+		await expect(
+			wordpressPluginSource.analyze(
+				{ type: "url", url: "https://example.com", token: "test-token" },
+				{},
+			),
+		).rejects.toBeInstanceOf(SiteChallengeError);
+	});
+
 	it.each([
 		["taxonomies", "content", {}],
 		["menus", "finalize", {}],
@@ -943,4 +1056,63 @@ describe("WordPress Plugin execute: menus", () => {
 			expect(menu?.items).toEqual([expect.objectContaining({ label: "Jane", url: "/post/jane" })]);
 		},
 	);
+});
+
+describe("WordPress Plugin Source: menu skip reporting", () => {
+	it("reports menusSkipped when a same-named menu already exists", async () => {
+		const db = await setupTestDatabase();
+
+		await db
+			.insertInto("_emdash_menus")
+			.values({ id: "existing-menu-id", name: "main-menu", label: "Main Menu" })
+			.execute();
+
+		const menus: PluginMenu[] = [
+			{
+				id: 1,
+				name: "main-menu",
+				label: "Main Menu",
+				items: [
+					{
+						id: 10,
+						parent_id: null,
+						sort_order: 0,
+						type: "custom",
+						object: null,
+						object_id: null,
+						url: "/",
+						title: "Home",
+						target: null,
+						classes: null,
+					},
+				],
+			},
+			{
+				id: 2,
+				name: "footer",
+				label: "Footer",
+				items: [
+					{
+						id: 20,
+						parent_id: null,
+						sort_order: 0,
+						type: "custom",
+						object: null,
+						object_id: null,
+						url: "/privacy",
+						title: "Privacy",
+						target: null,
+						classes: null,
+					},
+				],
+			},
+		];
+
+		const result = await importMenusFromPlugin(menus, db, new Map(), new Map());
+
+		expect(result.menusSkipped).toBe(1);
+		expect(result.menusCreated).toBe(1);
+		expect(result.menuIdMap.get("main-menu")).toBe("existing-menu-id");
+		expect(result.menuIdMap.has("footer")).toBe(true);
+	});
 });
