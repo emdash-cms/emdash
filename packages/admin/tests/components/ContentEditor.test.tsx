@@ -2560,12 +2560,13 @@ describe("ContentEditor", () => {
 				const media = installMatchMedia(true);
 				try {
 					const screen = await renderEditor({ isNew: false, item: makeItem() });
-					await screen.getByRole("button", { name: "Settings" }).click();
+					await screen.getByRole("button", { name: "Show settings" }).click();
 					await expect
 						.element(screen.getByRole("navigation", { name: "Settings" }))
 						.toBeInTheDocument();
-					expect(screen.getByRole("button", { name: "Hide settings" }).query()).toBeNull();
-					expect(screen.getByRole("button", { name: "Show settings" }).query()).toBeNull();
+					expect(screen.getByRole("button", { name: /^(Hide|Show) settings$/ }).all()).toHaveLength(
+						1,
+					);
 				} finally {
 					media.restore();
 				}
@@ -3000,7 +3001,7 @@ describe("ContentEditor", () => {
 
 				media.setMatches(false);
 				await expect
-					.element(screen.getByRole("button", { name: "Settings", exact: true }))
+					.element(screen.getByRole("button", { name: "Show settings", exact: true }))
 					.not.toBeInTheDocument();
 				await expect
 					.element(screen.getByRole("button", { name: "Publish now", exact: true }))

@@ -5,7 +5,6 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { SidebarSimple } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { cn } from "../lib/utils.js";
@@ -193,11 +192,35 @@ export function SettingsPanelToggle({ toggle }: { toggle: SettingsPanelToggleMod
 			aria-label={label}
 			title={label}
 		>
-			{/* The glyph's stripe is drawn on the left. Mirror it to point at a right-hand panel. */}
-			<SidebarSimple
-				aria-hidden="true"
-				className={cn("h-4 w-4", toggle.side === "right" && "-scale-x-100")}
-			/>
+			<PanelToggleIcon open={toggle.open} side={toggle.side} />
 		</Button>
+	);
+}
+
+/**
+ * The animated icon of Kumo's `Sidebar.Trigger`, which Kumo doesn't export on its own: the divider
+ * slides as the panel opens and closes. Kumo draws it for a left-hand panel.
+ */
+export function PanelToggleIcon({ open, side }: { open: boolean; side: Side }) {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			aria-hidden="true"
+			focusable="false"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			className={cn("size-4.5 shrink-0", side === "right" && "-scale-x-100")}
+		>
+			<path d="M21.25 6.72v10.56a2.97 2.97 0 0 1-2.97 2.97H5.72a2.97 2.97 0 0 1-2.97-2.97V6.72a2.97 2.97 0 0 1 2.97-2.97h12.56a2.97 2.97 0 0 1 2.97 2.97" />
+			<path
+				d="M6.25 7.25v9.5"
+				className={cn(
+					"transition-transform duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none",
+					open ? "translate-x-px" : "translate-x-[10.5px]",
+				)}
+			/>
+		</svg>
 	);
 }

@@ -19,7 +19,6 @@ import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
-	Faders,
 	FloppyDisk,
 	Paperclip,
 	X,
@@ -106,8 +105,6 @@ import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModa
 import {
 	ContentSettingsPanel,
 	type ContentSettingsPanelProps,
-	compactBarButtonClassName,
-	compactBarLabelClassName,
 	EditorActions,
 } from "./ContentSettingsPanel.js";
 import { focusDocumentStart } from "./editor/BlockCommands.js";
@@ -138,7 +135,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
-import { SettingsPanelToggle, useSettingsPanel } from "./SettingsPanelToggle.js";
+import { PanelToggleIcon, SettingsPanelToggle, useSettingsPanel } from "./SettingsPanelToggle.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -3293,19 +3290,22 @@ function MobileSettingsButton({
 	disabled?: boolean;
 }) {
 	const { t } = useLingui();
-	const { toggleSidebar } = useSidebar();
+	const { side, openMobile, toggleSidebar } = useSidebar();
+	const label = openMobile ? t`Hide settings` : t`Show settings`;
 	return (
 		<Button
 			ref={buttonRef}
 			type="button"
 			disabled={disabled}
 			variant="ghost"
+			shape="square"
 			size="sm"
-			className={compactBarButtonClassName}
-			icon={<Faders />}
+			className="max-sm:w-full"
+			aria-label={label}
+			title={label}
 			onClick={toggleSidebar}
 		>
-			<span className={compactBarLabelClassName}>{t`Settings`}</span>
+			<PanelToggleIcon open={openMobile} side={side} />
 		</Button>
 	);
 }

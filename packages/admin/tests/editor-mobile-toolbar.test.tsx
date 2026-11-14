@@ -149,7 +149,7 @@ describe("ContentEditor mobile action bar", () => {
 		const grid = expectFourColumnGrid(toolbar);
 		const buttons = actionRects(toolbar);
 		const publish = buttons.find(({ name }) => name === "Publish now" || name === "Publish");
-		const settings = buttons.find(({ name }) => name === "Settings");
+		const settings = buttons.find(({ name }) => name === "Show settings");
 		expect(publish).toBeDefined();
 		expect(settings).toBeDefined();
 		expect(toolbar.textContent).not.toContain("Saved");
@@ -206,7 +206,7 @@ describe("ContentEditor mobile action bar", () => {
 		const { toolbar } = await renderDirectEditor(item(true));
 		const grid = expectFourColumnGrid(toolbar);
 		const buttons = actionRects(toolbar);
-		for (const name of ["Unpublish Post", "Live View", "Settings"]) {
+		for (const name of ["Unpublish Post", "Live View", "Show settings"]) {
 			expect(buttons.find(({ name: found }) => found === name)).toBeDefined();
 		}
 		const actionButtons = buttons.filter(
@@ -216,7 +216,11 @@ describe("ContentEditor mobile action bar", () => {
 		const cell = gridCell(grid);
 		for (const { rect } of actionButtons) expect(rect.width).toBeCloseTo(cell.width, 0);
 		const byPosition = actionButtons.toSorted((a, b) => a.rect.left - b.rect.left);
-		expect(byPosition.map(({ name }) => name)).toEqual(["Unpublish Post", "Live View", "Settings"]);
+		expect(byPosition.map(({ name }) => name)).toEqual([
+			"Unpublish Post",
+			"Live View",
+			"Show settings",
+		]);
 		expect(byPosition[0]!.rect.left).toBeCloseTo(grid.getBoundingClientRect().left, 0);
 		expect(toolbar.scrollWidth).toBeLessThanOrEqual(toolbar.clientWidth);
 		expect(grid.clientWidth).toBeGreaterThanOrEqual(toolbar.clientWidth - 24);
@@ -233,7 +237,7 @@ describe("ContentEditor mobile action bar", () => {
 		const buttons = actionRects(toolbar);
 		expect(new Set(buttons.map(({ rect }) => Math.round(rect.top))).size).toBe(2);
 		expect(new Set(buttons.map(({ rect }) => Math.round(rect.width))).size).toBe(1);
-		const settings = screen.getByRole("button", { name: "Settings", exact: true }).first();
+		const settings = screen.getByRole("button", { name: "Show settings", exact: true }).first();
 		await settings.click();
 		await expect.element(screen.getByRole("button", { name: "Close settings" })).toBeVisible();
 		await screen.getByRole("button", { name: "Close settings" }).click();
@@ -249,7 +253,7 @@ describe("ContentEditor mobile action bar", () => {
 		await expect.poll(() => toolbar.clientWidth).toBe(600);
 		expectSingleRow(toolbar);
 		const settings = screen
-			.getByRole("button", { name: "Settings", exact: true })
+			.getByRole("button", { name: "Show settings", exact: true })
 			.first()
 			.element()
 			.getBoundingClientRect();
