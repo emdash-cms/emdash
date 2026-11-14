@@ -28,6 +28,13 @@ describe("storage-indexes", () => {
 			expect(name.length).toBeLessThanOrEqual(63);
 		});
 
+		it("names long indexes after a SHA-256 of the plugin, collection and fields", () => {
+			const longFieldNames = Array.from({ length: 20 }, (_, i) => `veryLongFieldName${i}`);
+			expect(generateIndexName("my-plugin", "items", longFieldNames)).toBe(
+				"idx_plugin_c33003d245e7b925f65ce5a4d1942bb4",
+			);
+		});
+
 		it("should be consistent across calls", () => {
 			const name1 = generateIndexName("plugin", "coll", ["a", "b"]);
 			const name2 = generateIndexName("plugin", "coll", ["a", "b"]);

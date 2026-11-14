@@ -38,7 +38,7 @@ export default defineConfig([
 			"@emdash-cms/plugin-types",
 			"@emdash-cms/registry-client",
 			"@emdash-cms/registry-lexicons",
-			"@oslojs/crypto",
+			"@noble/hashes",
 			"chokidar",
 			"citty",
 			"consola",

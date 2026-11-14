@@ -48,7 +48,7 @@ function chunked(bytes: Uint8Array): Uint8Array[] {
 
 describe("createSha256", () => {
 	it("always offers the pure-JS fallback", async () => {
-		expect(await availableSha256Backends()).toContain("oslo");
+		expect(await availableSha256Backends()).toContain("noble");
 	});
 
 	it("prefers node:crypto over the fallback on Node", async () => {

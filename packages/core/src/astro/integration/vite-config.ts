@@ -692,6 +692,7 @@ export function createViteConfig(
 							"emdash > kysely/migration",
 							"emdash > mime/lite",
 							"emdash > modern-tar",
+							"emdash > @noble/hashes/sha2.js",
 							"emdash > sanitize-html",
 							"emdash > @tiptap/core",
 							"emdash > ulidx",
@@ -704,6 +705,7 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							"emdash > @emdash-cms/auth > @noble/hashes/sha2.js",
 							// Registry routes are lazy, so their AT Protocol graph is not
 							// present during Vite's initial dependency scan.
 							"emdash > @atcute/identity-resolver",
@@ -723,10 +725,8 @@ export function createViteConfig(
 							// Auth deps imported only on auth/login/callback routes, so
 							// the initial page scan misses them. Pre-bundle to avoid a
 							// re-optimize + reload cascade on first authenticated request.
-							"emdash > @oslojs/crypto/hmac",
-							"emdash > @oslojs/crypto/subtle",
-							"emdash > @oslojs/crypto/rsa",
-							"emdash > arctic",
+							"emdash > @emdash-cms/auth > @noble/hashes/hmac.js",
+							"emdash > @emdash-cms/auth > @oslojs/crypto/rsa",
 							// MCP SDK — server/index.js statically imports ajv (CJS-only).
 							// Pre-bundling converts CJS to ESM so workerd can load it.
 							"emdash > @modelcontextprotocol/sdk > ajv",

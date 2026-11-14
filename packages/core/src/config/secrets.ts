@@ -28,7 +28,7 @@
  * Modeled on `resolveS3Config` in `../storage/s3.ts`.
  */
 
-import { sha256 } from "@oslojs/crypto/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { encodeHexLowerCase } from "@oslojs/encoding";
 import type { Kysely } from "kysely";
 

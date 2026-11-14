@@ -24,7 +24,7 @@
  *   persist one hash per chunk instead of an in-progress hash state.
  */
 
-import { SHA256 } from "@oslojs/crypto/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { encodeHexLowerCase } from "@oslojs/encoding";
 
 import { canonicalJson } from "./canonical.js";
@@ -60,7 +60,7 @@ export interface Sha256Hasher {
 	digest(): Promise<string>;
 }
 
-export type Sha256Backend = "digest-stream" | "node" | "oslo";
+export type Sha256Backend = "digest-stream" | "node" | "noble";
 
 interface DigestStreamLike extends WritableStream<ArrayBufferView | ArrayBuffer> {
 	readonly digest: Promise<ArrayBuffer>;
@@ -120,7 +120,7 @@ function loadNodeCreateHash(): Promise<NodeCreateHash | null> {
 async function preferredBackend(): Promise<Sha256Backend> {
 	if (getDigestStream()) return "digest-stream";
 	if (await loadNodeCreateHash()) return "node";
-	return "oslo";
+	return "noble";
 }
 
 class DigestStreamHasher implements Sha256Hasher {
@@ -166,9 +166,9 @@ class NodeHasher implements Sha256Hasher {
 	}
 }
 
-class OsloHasher implements Sha256Hasher {
-	readonly backend = "oslo";
-	readonly #hash = new SHA256();
+class NobleHasher implements Sha256Hasher {
+	readonly backend = "noble";
+	readonly #hash = sha256.create();
 
 	update(chunk: Uint8Array): void {
 		this.#hash.update(chunk);
@@ -181,13 +181,13 @@ class OsloHasher implements Sha256Hasher {
 
 /**
  * Backends usable in this runtime, most preferred first: `crypto.DigestStream`
- * (workerd), `node:crypto`, then the pure-JS oslo implementation.
+ * (workerd), `node:crypto`, then the pure-JS @noble/hashes implementation.
  */
 export async function availableSha256Backends(): Promise<Sha256Backend[]> {
 	const backends: Sha256Backend[] = [];
 	if (getDigestStream()) backends.push("digest-stream");
 	if (await loadNodeCreateHash()) backends.push("node");
-	backends.push("oslo");
+	backends.push("noble");
 	return backends;
 }
 
@@ -206,8 +206,8 @@ export async function createSha256(
 			if (!createHash) throw new Error("node:crypto is not available");
 			return new NodeHasher(createHash);
 		}
-		case "oslo":
-			return new OsloHasher();
+		case "noble":
+			return new NobleHasher();
 	}
 }
 

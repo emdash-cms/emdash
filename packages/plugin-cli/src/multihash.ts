@@ -16,7 +16,7 @@
  */
 
 import { fromBase32, toBase32 } from "@atcute/multibase";
-import { sha256 } from "@oslojs/crypto/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 
 /** multihash code for sha2-256 (single-byte varint). */
 const SHA256_CODE = 0x12;
