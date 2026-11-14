@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
+import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { handlersFromRuntime, createTestRuntime } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -400,6 +401,103 @@ describe("WXR execute chunked import", () => {
 				"/2008/09/01/sample-page/",
 				"https://other.example/",
 			]);
+		}
+	});
+
+	it("links Polylang translations and keeps their categories per language across chunks", async () => {
+		// The Ukrainian post is the last of the first chunk and its English
+		// translation opens the second.
+		const item = (id: number, lang: string, slug: string, category: string) => `<item>
+			<title>${slug}</title>
+			<wp:post_id>${id}</wp:post_id>
+			<wp:post_type>post</wp:post_type>
+			<wp:status>publish</wp:status>
+			<wp:post_name>${slug}</wp:post_name>
+			<category domain="language" nicename="${lang}"><![CDATA[${lang}]]></category>
+			<category domain="post_translations" nicename="pll_65a1b2c3d4e5f"><![CDATA[pll_65a1b2c3d4e5f]]></category>
+			<category domain="category" nicename="${category}"><![CDATA[${category}]]></category>
+		</item>`;
+		const wxr = makeWxr(29)
+			.replace(
+				"<channel>",
+				`<channel>
+		<wp:category>
+			<wp:term_id>101</wp:term_id>
+			<wp:category_nicename>novyny</wp:category_nicename>
+			<wp:cat_name><![CDATA[Новини]]></wp:cat_name>
+		</wp:category>
+		<wp:category>
+			<wp:term_id>108</wp:term_id>
+			<wp:category_nicename>news</wp:category_nicename>
+			<wp:cat_name><![CDATA[News]]></wp:cat_name>
+		</wp:category>
+		<wp:term>
+			<wp:term_id>105</wp:term_id>
+			<wp:term_taxonomy>term_translations</wp:term_taxonomy>
+			<wp:term_slug>pll_65a1b2c3d4f60</wp:term_slug>
+			<wp:term_name><![CDATA[pll_65a1b2c3d4f60]]></wp:term_name>
+			<wp:term_description><![CDATA[a:2:{s:2:"uk";i:101;s:2:"en";i:108;}]]></wp:term_description>
+		</wp:term>
+		<wp:term>
+			<wp:term_id>160</wp:term_id>
+			<wp:term_taxonomy>post_translations</wp:term_taxonomy>
+			<wp:term_slug>pll_65a1b2c3d4e5f</wp:term_slug>
+			<wp:term_name><![CDATA[pll_65a1b2c3d4e5f]]></wp:term_name>
+			<wp:term_description><![CDATA[a:2:{s:2:"uk";i:130;s:2:"en";i:131;}]]></wp:term_description>
+		</wp:term>`,
+			)
+			.replace(
+				"</channel>",
+				`${item(130, "uk", "novyny-muzeiu", "novyny")}
+		${item(131, "en", "museum-news", "news")}
+	</channel>`,
+			);
+
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
+		expect(prepared.data.result.taxonomies.missingTaxonomies).toEqual([]);
+		let state = prepared.data;
+		do {
+			// oxlint-disable-next-line no-await-in-loop -- each chunk continues from the previous cursor
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(
+					buildFormData(wxr, {
+						phase: "content",
+						cursor: JSON.stringify(state.cursor),
+						chunk: JSON.stringify(state.chunk),
+					}),
+					harness.emdash,
+				) as any,
+			);
+			expect(response.status).toBe(200);
+			// oxlint-disable-next-line no-await-in-loop -- sequential chunks
+			state = (await response.json()).data;
+		} while (!state.done);
+
+		const posts = await harness.db
+			.selectFrom("ec_post")
+			.select(["id", "locale", "translation_group"])
+			.where("slug", "in", ["novyny-muzeiu", "museum-news"])
+			.orderBy("locale")
+			.execute();
+		expect(posts.map((post) => post.locale)).toEqual(["en", "uk"]);
+		expect(posts[0]?.translation_group).toBe(posts[1]?.translation_group);
+
+		const categories = await harness.db
+			.selectFrom("taxonomies")
+			.select(["slug", "label", "locale"])
+			.where("name", "=", "category")
+			.orderBy("locale")
+			.execute();
+		expect(categories).toEqual([
+			{ slug: "news", label: "News", locale: "en" },
+			{ slug: "novyny", label: "Новини", locale: "uk" },
+		]);
+		const repo = new TaxonomyRepository(harness.db);
+		for (const post of posts) {
+			// oxlint-disable-next-line no-await-in-loop -- one lookup per locale
+			const shown = await repo.getTermsForEntry("post", post.id, "category", post.locale);
+			expect(shown.map((term) => term.label)).toEqual([post.locale === "uk" ? "Новини" : "News"]);
 		}
 	});
 
