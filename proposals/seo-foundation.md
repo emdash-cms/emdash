@@ -1,5 +1,5 @@
 ---
-title: "SEO foundation: identity, connected structured data, canonical URLs and discovery"
+title: "SEO foundation: identity, connected structured data and canonical URLs"
 type: rfc
 status: proposed
 authors:
@@ -14,18 +14,18 @@ discussions:
 created: 2026-11-07
 ---
 
-# SEO foundation: identity, connected structured data, canonical URLs and discovery
+# SEO foundation: identity, connected structured data and canonical URLs
 
 ## Summary
 
-EmDash gets one model for who publishes a site, who writes its content, and which URL represents each page. Every search-facing output reads from that model: the canonical link, Open Graph tags, JSON-LD, sitemaps and change notifications to search engines.
+EmDash gets one model for who publishes a site, who writes its content, and which URL represents each page. Every search-facing output reads from that model: the canonical link, Open Graph tags, JSON-LD and sitemap URLs.
 
-The RFC is delivered in four phases. Each phase ships on its own and leaves a site in a consistent state.
+The RFC is delivered in two phases. Each phase ships on its own and leaves a site in a consistent state.
 
 1. **Identity.** Site settings describe the publisher as an `Organization` or a `Person`, with an open list of profile links. Each user keeps their own profile links in their profile, and guest bylines carry their own. Each link controls separately whether it appears in Schema.org `sameAs` and whether it is emitted as `<link rel="me">`. The six `site:social` keys keep working.
 2. **Connected graph and canonical URLs.** `EmDashHead` emits one JSON-LD `@graph` whose nodes reference each other by `@id`: publisher, `WebSite`, `WebPage`, the article, its authors, breadcrumbs and the primary image. Themes and plugins replace or extend single nodes instead of the whole block. Every page gets a self-referencing absolute canonical URL from the resolver that also produces sitemap and graph URLs.
-3. **Discovery.** The sitemap index accepts additional sitemap providers. Core ships Google News and video sitemap providers and sends IndexNow notifications on publish, update, unpublish and delete.
-4. **Editorial tooling (optional).** Search and social previews in the editor, separate robots controls per entry, redirect import, and content checks that warn without blocking a save.
+
+Later proposals build on this foundation and link to it instead of restating it. See [Follow-up proposals](#follow-up-proposals).
 
 Structured data that Google no longer uses for search features is out of scope: FAQ, HowTo and the sitelinks search box.
 
@@ -50,14 +50,6 @@ Core emits one JSON-LD block under the contribution ID `primary`. A theme that n
 ### Canonical URLs depend on the template
 
 A page has a canonical link only when its template passes `canonical` to `createPublicPageContext`, or when an editor sets one in the SEO panel. Sitemap `<loc>`, `og:url`, JSON-LD `url` and slug-change redirects derive their URLs separately. When these disagree, the site sends conflicting signals, which Google's guidance tells sites to avoid: "Don't specify different URLs as canonical for the same page using different canonicalization techniques" ([How to specify a canonical URL](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls)). Sites with runtime locale prefixes already get sitemap URLs that redirect ([issue #2697](https://github.com/emdash-cms/emdash/issues/2697)).
-
-### Search engines learn about changes late
-
-Sitemaps list collection entries only, so Astro routes such as a blog archive are missing ([issue #3426](https://github.com/emdash-cms/emdash/issues/3426), design [#4341](https://github.com/emdash-cms/emdash/pull/4341)). Publishers have no news or video sitemap. Search engines that support IndexNow are not told when content changes ([issue #4529](https://github.com/emdash-cms/emdash/issues/4529)).
-
-### Robots controls are coupled
-
-The SEO panel's **No index** switch emits `noindex, nofollow`. An editor who wants to keep a page out of the index can't keep its links followable, and a site can't allow large image previews, which Google applies to web search, Images and Discover ([Robots meta tag specifications](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag)).
 
 ## Example
 
@@ -193,7 +185,6 @@ The head of the same page contains:
 ```html
 <link rel="canonical" href="https://example.com/blog/launch/" />
 <link rel="me" href="https://mastodon.social/@examplestudio" />
-<meta name="robots" content="max-image-preview:large" />
 <meta property="og:url" content="https://example.com/blog/launch/" />
 ```
 
@@ -223,10 +214,6 @@ The WeChat ID appears in neither `sameAs` nor `rel="me"`, because it is not a UR
 - Each page emits at most one core JSON-LD graph whose nodes reference each other by stable `@id` values.
 - Themes and plugins can replace, merge into or remove a single graph node.
 - Every indexable page has one absolute, self-referencing canonical URL, and the sitemap, `og:url` and graph use that same URL.
-- Plugins and sites can add sitemaps to the sitemap index.
-- Sites can publish a Google News sitemap and a video sitemap.
-- Sites can notify IndexNow when public URLs change, without delaying the editor's save or publish.
-- `noindex` and `nofollow` can be set separately, and sites can set a default `max-image-preview`.
 - Logged-out page renders run no additional database queries.
 - Every new schema property has a source in Google Search Central documentation or the Schema.org vocabulary.
 
@@ -234,7 +221,8 @@ The WeChat ID appears in neither `sameAs` nor `rel="me"`, because it is not a UR
 
 - FAQ, HowTo and sitelinks search box markup. Google removed these features from search results ([Search Central documentation updates](https://developers.google.com/search/updates)).
 - Product, Recipe, Event, JobPosting, LocalBusiness opening hours and other vertical types. Plugins add them through graph nodes.
-- A keyword score, readability score or other single rating of content quality. Phase 4 checks report concrete, fixable problems only.
+- Robots controls, sitemap providers, news and video sitemaps, IndexNow and editorial tooling. Each is a separate proposal that builds on this one ([Follow-up proposals](#follow-up-proposals)).
+- A keyword score, readability score or other single rating of content quality.
 - Server-side AI content generation.
 - Replacing hreflang output, which already renders from translations.
 - Defining an entry's public URL for routes a URL pattern can't express. [Discussion #4336](https://github.com/emdash-cms/emdash/discussions/4336) covers that. This RFC consumes whatever resolver that work produces.
@@ -328,7 +316,7 @@ Each property maps to the Schema.org property of the same name. The organization
 
 Settings, REST and MCP read and write `identity` like the other `site:*` keys, behind the existing `settings:manage` permission. `site:identity` is added to `PORTABLE_SETTING_NAMES`, so site transfer exports and imports it.
 
-The admin edits identity in the SEO settings, which become one screen with sections for the publisher (type, name, logo, links and the collapsed organization details), search appearance (robots defaults and the schema type per collection), and discovery (sitemaps and IndexNow). The publisher section replaces `Settings > Social`, and the old route redirects to it.
+The admin edits identity in the SEO settings, which become one screen. This RFC adds its publisher section (type, name, logo, links and the collapsed organization details) and the schema type per collection; follow-up proposals add their own sections to the same screen. The publisher section replaces `Settings > Social`, and the old route redirects to it.
 
 The admin warns when the logo is smaller than 112 x 112 pixels or not in a format Google supports, following Google's logo guidelines. The save still succeeds.
 
@@ -370,7 +358,7 @@ function resolveEntryUrl(entry: {
 }): Promise<string | null>;
 ```
 
-It wraps today's `resolveLocalizedContentRoutePath` (URL pattern, locale prefix, trailing slash) and prefixes the public site URL from `getPublicSiteUrl()`. When [Discussion #4336](https://github.com/emdash-cms/emdash/discussions/4336) adds a way to override entry URLs, the override plugs into this function. The canonical link, `og:url`, graph URLs and `@id` values, breadcrumbs, sitemap `<loc>` and IndexNow all call it, and none of them builds an entry URL another way.
+It wraps today's `resolveLocalizedContentRoutePath` (URL pattern, locale prefix, trailing slash) and prefixes the public site URL from `getPublicSiteUrl()`. When [Discussion #4336](https://github.com/emdash-cms/emdash/discussions/4336) adds a way to override entry URLs, the override plugs into this function. The canonical link, `og:url`, graph URLs and `@id` values, breadcrumbs and sitemap `<loc>` all call it, and none of them builds an entry URL another way. Follow-up proposals that need an entry URL call it too.
 
 A new site setting, `seo.authorUrlPattern` (for example `/authors/{slug}/`), gives bylines a public archive URL. When it is unset, author nodes use the byline's `websiteUrl` as `url` and fall back to an `@id` under the site URL (`{siteUrl}/#/schema/person/{translationGroup}`), so the same author keeps one identity across pages and locales.
 
@@ -384,7 +372,7 @@ These rules follow Google's canonicalization guidance ([How to specify a canonic
 2. The URL is absolute and has no fragment. Google asks for absolute rather than relative paths and generally doesn't support fragments in canonical URLs. Graph `@id` values keep their fragments, because they identify nodes, not pages.
 3. Query parameters are removed, so `?utm_source=…` and `?gclid=…` variants point at the clean URL. Pagination is the exception: page 2 of an archive is its own canonical and doesn't point at page 1. Templates pass the page number in the page context.
 4. A translation points at itself, never at the default locale. Google asks hreflang sites to use a canonical page in the same language. hreflang alternates keep coming from `getHreflangAlternates`.
-5. An editor's override in the SEO panel resolves to an absolute URL, as today. When it points at another URL, the entry is left out of the sitemap and out of IndexNow, so the site never submits a URL whose page names a different canonical.
+5. An editor's override in the SEO panel resolves to an absolute URL, as today. When it points at another URL, the entry is left out of the sitemap, so the site never submits a URL whose page names a different canonical.
 6. Core emits the canonical in the HTML head only, not also as a `Link` header. Google recommends choosing one method because two can disagree.
 7. A page with `noindex` keeps its self-referencing canonical. Google advises against using `noindex` to choose a canonical.
 8. Custom Astro routes pass `canonical` to `createPublicPageContext`, as today. When they don't, core uses the request URL without query string, under the same rules.
@@ -405,7 +393,6 @@ Core builds the graph from node builders. Each builder receives the resolved pag
 | `author:{translationGroup}` | `Person`, or `Organization` for a byline marked as an organization                                       | each credited byline of an article; the `mainEntity` of an author archive |
 | `primaryimage`              | `ImageObject`                                                                                            | the page has an image                                                     |
 | `breadcrumb`                | `BreadcrumbList`                                                                                         | the page context has breadcrumbs                                          |
-| `video:{n}`                 | `VideoObject`                                                                                            | Phase 3; an entry contains a video with the properties Google requires    |
 
 `@id` values:
 
@@ -450,97 +437,9 @@ The existing `{ kind: "jsonld", id: "primary" }` contribution keeps its meaning.
 
 Sandboxed plugins get the same contribution kind, through the `page:metadata` hook they already have.
 
-#### Robots
-
-`ContentSeo` gains `noFollow` next to `noIndex`, and site SEO settings gain `defaultRobots`:
-
-```ts
-interface SeoSettings {
-	// existing fields unchanged
-	defaultRobots?: {
-		maxImagePreview?: "none" | "standard" | "large";
-		maxSnippet?: number;
-		maxVideoPreview?: number;
-	};
-}
-```
-
-The robots meta tag is assembled from the entry's `noIndex` and `noFollow` and the site defaults, using the rules from [Robots meta tag specifications](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag). New sites get `maxImagePreview: "large"`; existing sites get no new default until an administrator sets one. Staging sites keep emitting `noindex` for every page, as today.
-
-The entry's `noFollow` is stored in a new `seo_no_follow` column on `_emdash_seo`. See [Compatibility and migration](#compatibility-and-migration) for existing `noIndex` values.
-
 #### Author data in the page context
 
 `createPublicPageContext` accepts `authors?: BylineSummary[]`. Templates pass `entry.data.bylines`, which `getEmDashEntry` already hydrates. When `authors` is absent, the article node falls back to `articleMeta.author` as a name-only `Person`, which is today's output. Core never queries bylines during a page render to build the graph.
-
-### Phase 3: discovery
-
-#### Sitemap providers
-
-Phase 3 builds on design [#4341](https://github.com/emdash-cms/emdash/pull/4341), which adds a `sitemap.sitemaps` integration option for extra sitemaps that the site serves itself. This RFC adds a programmatic source next to that static list:
-
-```ts
-interface SitemapProvider {
-	/** Becomes /sitemap-{id}.xml. Lowercase letters, digits and hyphens. */
-	id: string;
-	/** Index entries this provider contributes, with optional lastmod. */
-	list(ctx: SitemapContext): Promise<Array<{ page: number; lastmod?: string }>>;
-	/** Writes one page of the provider's sitemap. */
-	render(ctx: SitemapContext, page: number): Promise<string>;
-}
-```
-
-Native plugins register providers through a `sitemap:providers` hook. Core registers its own providers the same way. Provider IDs can't collide with collection slugs; a colliding provider is skipped with a warning in the log. Sandboxed plugins don't get providers in this RFC, because a provider renders a whole response.
-
-Every provider follows Google's sitemap rules ([Build and submit a sitemap](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)):
-
-- at most 50,000 URLs or 50 MB uncompressed per file; the writer helper pages automatically;
-- only canonical URLs from `resolveEntryUrl`, and no entry whose canonical points elsewhere or that has `noindex`;
-- `lastmod` reflects the last significant change of the page. Core uses the entry's `updated_at`, which changes on content, SEO and slug edits;
-- no `priority` or `changefreq`, which Google ignores.
-
-Core's collection sitemaps keep their current URLs and behavior.
-
-#### News sitemap
-
-A collection can enable a news sitemap in its admin config with a publication name. The provider serves `/sitemap-news.xml` with entries of all news-enabled collections, following [Create a news sitemap](https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap):
-
-- only entries published in the last two days;
-- at most 1,000 `<news:news>` entries per file, split into several files beyond that;
-- `<news:publication>` with `<news:name>` and `<news:language>`, derived from the entry locale as an ISO 639 code, with `zh-cn` and `zh-tw` for Chinese;
-- `<news:publication_date>` from `published_at` with time zone, and `<news:title>` from the entry title.
-
-Entries in news-enabled collections default to `NewsArticle` in the graph unless the collection sets another `schemaType`.
-
-#### Video
-
-Google requires a thumbnail, title and description for a video in a sitemap, and either the video file or a player URL ([Video sitemaps](https://developers.google.com/search/docs/crawling-indexing/sitemaps/video-sitemaps)); `VideoObject` needs `name`, `thumbnailUrl` and `uploadDate` ([Video structured data](https://developers.google.com/search/docs/appearance/structured-data/video)). Entries don't carry these values today in a form core can rely on.
-
-Phase 3 therefore ships only the format: a `VideoSource` interface that returns these properties for an entry, a `VideoObject` node builder, and a video sitemap provider that lists entries with at least one complete video. A video missing a required property is skipped and counted in the provider's log line. Embed plugins (YouTube, Vimeo) and media-library video support implement `VideoSource`. Core provides no source until media items can store a poster image.
-
-#### IndexNow
-
-IndexNow tells participating search engines about changed URLs ([IndexNow documentation](https://www.indexnow.org/documentation)). The protocol's [list of participating engines](https://www.indexnow.org/searchengines.json) includes Bing, Yandex, Naver, Seznam, Yep, Internet Archive and Amazonbot. Google is not on the list, so IndexNow has no effect on Google Search.
-
-- **Key.** An administrator enables IndexNow in the SEO settings. Core then generates a key of 32 hexadecimal characters (the protocol allows 8 to 128) and stores it in `site:indexnow`, which is target-local: site transfer doesn't copy it, so a cloned site gets its own key. A **Regenerate key** action in the SEO settings replaces the key and resumes submissions that stopped on a key error.
-- **Key file.** Core serves the key at `/{key}.txt` at the root of the host as UTF-8 plain text, the location the protocol recommends, and also sends that URL as `keyLocation`. The route matches only the current key, so requests for any other `.txt` path fall through to the site's own routes.
-- **Triggers.** Publishing (including scheduled publishing), publishing a new revision of a published entry, unpublishing, moving a published entry to trash, restoring a published entry, and slug changes of published entries submit the affected canonical URLs, including the old URL after a slug change. Saving a draft submits nothing. Core hooks into the same points that fire `content:afterPublish`, `content:afterUnpublish`, `content:afterDelete` and `content:afterRestore`.
-- **Delivery.** Submissions run in `after()`, so they never delay the editor's request. Within one request, URLs are batched into one POST; the protocol allows up to 10,000 URLs per request. Core posts to `https://api.indexnow.org/indexnow`, which shares submissions with all participating engines.
-- **Scope.** Core submits only URLs on the configured `site:url` host. Without `site:url`, or while the site is in staging, or when the host is `localhost` or a private address, IndexNow stays inactive and the settings screen says why.
-- **Status.** Core stores the time and HTTP status of the last submission in `emdash:indexnow_status` and shows it in the SEO settings. A manual **Submit this URL** action in the editor's SEO panel submits the current entry.
-
-### Phase 4: editorial tooling
-
-Phase 4 is optional. Each item can ship on its own after Phase 2, and any of them can move to a plugin if Maintainers prefer.
-
-- **Search and social preview.** The SEO panel shows how the entry's title, description and URL may appear in a search result, and how its Open Graph image, title and description look when shared. The preview uses the same resolved values as the head output, including fallbacks, and states that search engines choose their own snippets.
-- **Robots controls.** The SEO panel shows **Hide from search results** (`noIndex`) and **Don't follow links** (`noFollow`) as separate switches. The SEO settings expose `defaultRobots`.
-- **Redirect import and export.** CSV import and export for the existing redirects, with validation per row and a report of rejected rows ([issue #2291](https://github.com/emdash-cms/emdash/issues/2291)). The 404 log gains a **Create redirect** action.
-- **Content checks.** Warnings in the SEO panel and in a site-wide report, each tied to a concrete fix: missing or duplicate SEO title, missing description, missing image alt text, an article image below the 50K pixels Google recommends, an article image narrower than the 1200 pixels Google recommends for Discover when `maxImagePreview` is `large` ([Discover](https://developers.google.com/search/docs/appearance/google-discover)), a canonical that points at a redirect or a 404, `noindex` on an entry linked from a menu, entries no other entry links to, and titles or descriptions beyond a configurable length. Checks never block a save, and plugins can add checks.
-- **Key content.** Editors can mark an entry as key content. The report lists key entries not updated within a configurable period and key entries that few other entries link to.
-- **Internal link suggestions.** Out of core. A plugin can read the draft through the trusted editor panel draft access and suggest links.
-
-All new admin strings go through Lingui, layouts use logical Tailwind classes, and new screens are tested in Arabic.
 
 ## Compatibility and migration
 
@@ -558,10 +457,6 @@ Site transfer exports `site:identity`. An older version that imports it ignores 
 ### Author columns
 
 A migration adds the nullable column `profile_links` to `users` and the nullable columns `profile_links` and `job_title` to `_emdash_bylines`. Each `ALTER TABLE` first checks whether the column exists, so the migration restarts cleanly after a partial run on D1. No backfill is needed, and old code ignores the columns during a rolling deploy.
-
-### Robots
-
-A migration adds `seo_no_follow` to `_emdash_seo` with default `0` and sets it to `1` where `seo_no_index` is `1`. Existing entries keep emitting `noindex, nofollow`; only new choices are split. The update is idempotent. Until the migration has run, code treats a missing column as `noFollow = noIndex`.
 
 ### JSON-LD output
 
@@ -582,10 +477,8 @@ Collection sitemaps keep their URLs. Entries whose SEO canonical points at anoth
 ## Security and privacy
 
 - **Untrusted input.** Profile link values, identity fields and plugin graph nodes reach HTML only through `safeJsonLdSerialize` or attribute escaping. `rel="me"` and `sameAs` accept `https:` URLs only. `jsonld-node` contributions use the same serializer as `jsonld` contributions today.
-- **Authorization.** Site identity and IndexNow settings require `settings:manage`. A user's profile links can be written only by that user, through `POST /_emdash/api/auth/me`. Guest byline links and job titles follow the existing byline permissions. A manual IndexNow submission requires permission to publish the entry.
-- **Outbound requests.** IndexNow posts only to `api.indexnow.org`, and only canonical URLs on the configured site host, so editors can't make the server request arbitrary hosts. A failed submission logs the HTTP status, never the key.
-- **Keys.** The IndexNow key is public by design, since the key file proves control of the host. It is excluded from site transfer so two sites don't share a key.
-- **Privacy.** A personal site may publish an address, email or telephone number. Every identity field is optional and empty by default, and the admin labels the section as public. Staging sites send no IndexNow submissions, so search engines don't learn unreleased URLs from them.
+- **Authorization.** Site identity requires `settings:manage`. A user's profile links can be written only by that user, through `POST /_emdash/api/auth/me`. Guest byline links and job titles follow the existing byline permissions.
+- **Privacy.** A personal site may publish an address, email or telephone number. Every identity field is optional and empty by default, and the admin labels the section as public.
 
 ## Performance
 
@@ -596,25 +489,20 @@ The logged-out render path keeps its query count:
 - The graph is built in memory. Building and serializing it adds CPU time per render; the implementation measures it on a representative article page on Workers and reports the numbers in the Phase 2 PR.
 - `pnpm query-counts` snapshots show no increase on logged-out routes in any phase.
 
-Sitemaps run on their own routes. The news provider reads a two-day window. IndexNow runs after the response in `after()`.
-
 ## Failure handling
 
 - **Invalid stored identity.** Values that fail validation on read, such as a link with an unsupported scheme written by an older client, are left out of the output and logged with the prefix `[seo]`. They stay in storage, and the admin shows them with an error so an administrator can fix them.
 - **Graph builders.** A builder that throws is skipped and logged; the rest of the graph renders. A plugin contribution that fails to serialize is dropped, as `jsonld` contributions are today.
-- **Sitemap providers.** A failing provider is left out of the index and logged, and its route returns 500. Other sitemaps are unaffected.
-- **IndexNow.** 200 and 202 count as success. On 429 core reads `Retry-After`, stores the end of the wait in `emdash:indexnow_status`, keeps the URLs and sends them with the first submission after the wait ([IndexNow FAQ](https://www.indexnow.org/faq)). On 403 (key not valid) and 422 (URLs not on the host, or a key the protocol doesn't accept) automatic submissions stop and the settings screen asks the administrator to check the key file or regenerate the key. Other errors are logged and recorded in `emdash:indexnow_status`. No failure affects the save or publish that triggered it.
-- **Missing site URL.** Graph and canonical output fall back to the request origin, and IndexNow stays inactive.
+- **Missing site URL.** Graph and canonical output fall back to the request origin.
 
 ## Verification
 
-- **Unit tests** for the platform registry, link validation, legacy synthesis, both directions of the `site:social` sync, link resolution for bylines linked to a user and for guest bylines, each canonical rule, graph assembly per page type, `@id` stability, the three contribution modes and robots assembly.
-- **Dialect tests** with `describeEachDialect` for both migrations, including a restart after the first completed statement and an upgrade from a database with existing `noIndex` entries.
-- **Real D1 tests** in `tests/workerd` for the migrations and for the options batch that writes `site:identity` and `site:social` together.
+- **Unit tests** for the platform registry, link validation, legacy synthesis, both directions of the `site:social` sync, link resolution for bylines linked to a user and for guest bylines, each canonical rule, graph assembly per page type, `@id` stability, and the three contribution modes.
+- **Dialect tests** with `describeEachDialect` for the migration, including a restart after the first completed statement.
+- **Real D1 tests** in `tests/workerd` for the migration and for the options batch that writes `site:identity` and `site:social` together.
 - **Render tests** in `tests/repro` for an article, an author archive, a translation and page 2 of an archive. Each checks that canonical, `og:url`, sitemap `<loc>` and graph URLs agree for the same entry.
 - **External validation.** The demo site's article, author and home pages checked with Google's Rich Results Test and the Schema.org validator, with results linked from the implementation PRs.
 - **Query counts.** `pnpm query-counts` on SQLite and D1 shows no increase on logged-out routes.
-- **IndexNow.** Tests with a stubbed `fetch` for batching, skipped hosts, staging, 403, 422 and 429 with `Retry-After`. One manual submission from the demo deployment, confirmed in Bing Webmaster Tools.
 - **Admin.** Playwright tests for editing site identity, a user's own profile links and guest byline links, including the Arabic layout, and screenshots in every UI PR.
 
 ## Rollout and implementation
@@ -623,18 +511,24 @@ Kevin Kyburz (@swissky) and Evgenii Zinner (@Evgenii-Zinner) implement the phase
 
 Phase 1 starts from Evgenii's prototype on the [`feat/dynamic-social-links`](https://github.com/Evgenii-Zinner/emdash/tree/feat/dynamic-social-links) branch of his fork. It already synthesizes the link list from `site:social` on read, converts stored handles to profile URLs with `relMe: false`, merges legacy writes without dropping custom links, and keeps `site:social` in sync on every write, with unit and render tests. The implementation PR keeps that engine, moves the list into `site:identity.links`, adds handle-only platforms and the separate `sameAs` switch, and moves `sameAs` from `WebSite` to the publisher node. The admin editor is rebuilt for the identity screen.
 
-1. **Phase 1:** profile link types and platform registry, `site:identity` with legacy sync, user and byline columns, the SEO settings screen and the Profile screen, `rel="me"`, `getSiteIdentity()`.
-2. **Phase 2:** `resolveEntryUrl`, canonical rules, graph builders and `jsonld-node`, robots split, `authors` in the page context. The templates in `templates/` pass `authors` and pagination in the same PR.
-3. **Phase 3:** sitemap providers on top of [#4341](https://github.com/emdash-cms/emdash/pull/4341), the news sitemap, the video format and IndexNow. IndexNow can ship before the sitemap work.
-4. **Phase 4:** each tool separately, in any order.
+- **Phase 1:** profile link types and platform registry, `site:identity` with legacy sync, user and byline columns, the SEO settings screen and the Profile screen, `rel="me"`, `getSiteIdentity()`.
+- **Phase 2:** `resolveEntryUrl`, canonical rules, graph builders and `jsonld-node`, `authors` in the page context. The templates in `templates/` pass `authors` and pagination in the same PR.
 
 Phase 2 can begin before Phase 1's admin screens are finished, because it reads synthesized identity when none is stored. No feature flag is needed: Phase 1 adds data without changing output until Phase 2, and Phase 2's output changes are covered by the compatibility rules above. The deprecated builders are removed in the next major release.
+
+### Follow-up proposals
+
+These build on `resolveEntryUrl`, the `@id` scheme and the SEO settings screen from this RFC, and are reviewed separately:
+
+- **Robots controls:** separate `noindex` and `nofollow` per entry and site-wide robots defaults such as `max-image-preview`. A separate feature plan.
+- **IndexNow:** notify participating search engines when public URLs change ([issue #4529](https://github.com/emdash-cms/emdash/issues/4529)). A separate RFC.
+- **Sitemap providers, news and video sitemaps:** a follow-up to design [#4341](https://github.com/emdash-cms/emdash/pull/4341) once it is accepted.
+- **Editorial tooling:** search and social previews, redirect import and export ([issue #2291](https://github.com/emdash-cms/emdash/issues/2291)), and content checks, each as its own feature plan.
 
 ## Alternatives
 
 - **Feature plan for social links only.** Design [#4714](https://github.com/emdash-cms/emdash/pull/4714) fixes the closed list, but the links feed `sameAs`, which belongs to the publisher and author model. Designing them apart would fix one data shape now and change it again for authors and the graph. Its author co-authors this RFC, and #4714 is superseded by Phase 1.
-- **Separate RFCs per area.** Identity, graph, canonical URLs and discovery share `resolveEntryUrl` and the `@id` scheme. Separate RFCs would each have to restate and agree on those. One RFC with independently shippable phases keeps a single contract.
-- **Everything in a plugin.** A plugin can't change the closed settings schema, the byline table, canonical defaults or the sitemap index. Core keeps the shared data and output; plugins extend it through `jsonld-node`, sitemap providers and content checks.
+- **Everything in a plugin.** A plugin can't change the closed settings schema, the byline table or canonical defaults. Core keeps the shared data and output; plugins extend it through `jsonld-node`.
 - **Custom byline fields for profile links.** They would work without a migration, but group-shared custom fields need the hydration queries on every render that shows bylines, and each site would define the field differently.
 - **`sameAs` on `WebSite`.** Schema.org allows it on any `Thing`, but Google documents profile links on `Organization` and on authors, so the RFC puts them on the publisher and author nodes.
 - **Separate script blocks per type.** This is how core works today. Unconnected blocks repeat the publisher and author and can't express that the article belongs to the page and the page to the site.
@@ -644,8 +538,6 @@ Phase 2 can begin before Phase 1's admin screens are finished, because it reads 
 - Phase 2 changes structured data and canonical output on every existing site, which can move search appearance for better or worse during recrawling.
 - Keeping `site:social` and `site:identity` in sync adds write logic that stays until a major release removes `site:social`.
 - Sites gain more settings. The admin keeps rarely used fields (policies, identifiers, address) collapsed.
-- The video format ships without a core data source, so it does nothing until an embed plugin or media support implements `VideoSource`.
-- IndexNow sends data to a third-party service; it is off by default and enabled per site.
 
 ## Open questions
 
@@ -654,6 +546,6 @@ None at the moment. Questions settled during review:
 1. Synthesized identity emits `sameAs` for legacy `site:social` values by default, so upgrading sites get the links without saving the settings again.
 2. Profile links live on the user and are shared across locales; guest bylines keep their own links. Job titles stay per locale. A per-locale override for a linked user's links is left out until a site needs one.
 3. `seo.schemaType` belongs in collection admin config, because it maps a collection to a Schema.org type rather than enabling a capability.
-4. IndexNow ships in core next to the sitemap providers and canonical URL resolution.
+4. Robots, IndexNow, sitemap providers and editorial tooling are separate proposals that build on this RFC.
 
-The author of #4714 co-authors this RFC. The author of #4341 has been asked to co-author it.
+The author of #4714 co-authors this RFC.
