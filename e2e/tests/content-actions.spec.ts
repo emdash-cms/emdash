@@ -193,28 +193,6 @@ test.describe("Schedule content", () => {
 		expect(Math.abs(changeBox!.width - removeBox!.width)).toBeLessThanOrEqual(1);
 
 		await page.setViewportSize({ width: 320, height: 576 });
-		await page.getByRole("button", { name: "Enter distraction-free mode" }).click();
-		const distractionFreeHeader = page.locator("[data-emdash-editor-bar]");
-		await expect(
-			distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }),
-		).toBeVisible();
-		const headerBox = await distractionFreeHeader.boundingBox();
-		expect(headerBox).not.toBeNull();
-		for (const action of [
-			distractionFreeHeader.getByRole("button", { name: "Change schedule", exact: true }),
-			distractionFreeHeader.getByRole("button", { name: "Remove schedule", exact: true }),
-			distractionFreeHeader.getByRole("button", { name: "Publish now", exact: true }),
-			distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }),
-		]) {
-			const actionBox = await action.boundingBox();
-			expect(actionBox).not.toBeNull();
-			expect(actionBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
-			expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
-		}
-		const titleBox = await page.locator("#field-title").boundingBox();
-		expect(titleBox).not.toBeNull();
-		expect(titleBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
-		await distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }).click();
 		await page.getByRole("button", { name: "Settings" }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
 		const narrowButtons = [
@@ -437,48 +415,6 @@ test.describe("Schedule content", () => {
 			}),
 		).toBeVisible();
 		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
-
-		await page.setViewportSize({ width: 1024, height: 768 });
-		await page
-			.context()
-			.addCookies([
-				{ name: "emdash-locale", value: "pt-BR", domain: "localhost", path: "/_emdash" },
-			]);
-		await page.reload();
-		await admin.waitForLoading();
-		await page.getByRole("button", { name: "Entrar no modo sem distrações" }).click();
-
-		const distractionFreeHeader = page.locator("[data-emdash-editor-bar]");
-		await expect(
-			distractionFreeHeader.getByRole("button", { name: "Sair do modo sem distrações" }),
-		).toBeVisible();
-		const headerBox = await distractionFreeHeader.boundingBox();
-		expect(headerBox).not.toBeNull();
-		const headerActions = distractionFreeHeader.locator("button, a");
-		const actionCount = await headerActions.count();
-		expect(actionCount).toBeGreaterThanOrEqual(6);
-		for (let index = 0; index < actionCount; index++) {
-			const actionBox = await headerActions.nth(index).boundingBox();
-			expect(actionBox).not.toBeNull();
-			expect(actionBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
-			expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
-		}
-		const titleBox = await page.locator("#field-title").boundingBox();
-		expect(titleBox).not.toBeNull();
-		expect(titleBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
-		await page.locator("form").evaluate((form) => {
-			form.scrollTop = form.scrollHeight;
-		});
-		const scrolledHeaderBox = await distractionFreeHeader.boundingBox();
-		expect(scrolledHeaderBox).not.toBeNull();
-		expect(scrolledHeaderBox!.y).toBeGreaterThanOrEqual(0);
-		expect(scrolledHeaderBox!.y + scrolledHeaderBox!.height).toBeLessThanOrEqual(768);
-
-		await page
-			.context()
-			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
-		await page.reload();
-		await admin.waitForLoading();
 
 		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
 		publicHtml = await publicResponse.text();

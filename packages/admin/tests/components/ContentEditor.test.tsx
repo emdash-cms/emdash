@@ -2,8 +2,8 @@ import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { page, userEvent, type Locator } from "vitest/browser";
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from "vitest";
+import { cdp, page, userEvent, type Locator } from "vitest/browser";
 
 import { AdminDocumentTitle } from "../../src/components/AdminDocumentTitle.js";
 import {
@@ -698,37 +698,6 @@ describe("ContentEditor", () => {
 		// can't be tapped while it's up), and triggering it programmatically trips
 		// Kumo's focusout dismissal when the focused settings content is swapped
 		// out — pinning that would test Kumo internals, not the sync.
-
-		it("keeps the sheet closed for block panels in distraction-free mode", async () => {
-			// The sheet's nav is hidden in DF, but Kumo's mobile backdrop is a
-			// separate sibling: letting the sheet open would paint a full-screen
-			// scrim over the writing surface with nothing visible to dismiss.
-			const media = installMatchMedia(true);
-			try {
-				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
-				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
-
-				await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-				const { open } = getPanelHooks();
-				open(makeBlockPanel());
-
-				// Sheet must not open (no nav, and the backdrop must not be scrimming).
-				await expect
-					.element(screen.getByRole("navigation", { name: "Settings" }), { timeout: 200 })
-					.not.toBeInTheDocument();
-				const backdrop = document.querySelector("[data-sidebar-backdrop]");
-				expect(backdrop?.classList.contains("pointer-events-none") ?? true).toBe(true);
-
-				// Exiting DF with the panel still active surfaces it in the sheet.
-				await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
-				await expect
-					.element(screen.getByRole("navigation", { name: "Settings" }))
-					.toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
-			} finally {
-				media.restore();
-			}
-		});
 
 		it("closes the block panel when a read replaces the body", async () => {
 			const props: ContentEditorProps = {
@@ -2380,6 +2349,229 @@ describe("ContentEditor", () => {
 			});
 		});
 
+		describe("settings panel toggle", () => {
+			const STORAGE_KEY = "emdash-editor-settings-panel";
+			const ptFields: Record<string, FieldDescriptor> = {
+				title: { kind: "string", label: "Title" },
+				content: { kind: "portableText", label: "Content" },
+			};
+
+			beforeEach(() => {
+				localStorage.removeItem(STORAGE_KEY);
+			});
+			afterEach(() => {
+				localStorage.removeItem(STORAGE_KEY);
+			});
+
+			function getPanel(screen: Awaited<ReturnType<typeof renderEditor>>) {
+				return screen.getByRole("complementary", { name: "Settings", includeHidden: true });
+			}
+
+			function makeBlockPanel() {
+				return {
+					type: "image",
+					attrs: { src: "https://example.com/image.png", alt: "Example" },
+					onUpdate: vi.fn(),
+					onReplace: vi.fn(),
+					onDelete: vi.fn(),
+					onClose: vi.fn(),
+				};
+			}
+
+			function getPanelHooks() {
+				const open = portableTextProps.current?.onBlockSidebarOpen as (panel: unknown) => void;
+				const close = portableTextProps.current?.onBlockSidebarClose as () => void;
+				expect(typeof open).toBe("function");
+				expect(typeof close).toBe("function");
+				return { open, close };
+			}
+
+			it("hides and shows the panel without unmounting it", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const slug = screen.getByLabelText("Slug");
+				await slug.fill("kept-slug");
+				const slugInput = slug.element();
+				const panel = getPanel(screen).element();
+
+				await screen.getByRole("button", { name: "Hide settings" }).click();
+				expect(panel).toHaveAttribute("inert");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBe(0));
+
+				await screen.getByRole("button", { name: "Show settings" }).click();
+				expect(panel).not.toHaveAttribute("inert");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(368));
+				expect(screen.getByLabelText("Slug").element()).toBe(slugInput);
+				await expect.element(screen.getByLabelText("Slug")).toHaveValue("kept-slug");
+			});
+
+			it("remembers the choice in this browser", async () => {
+				const first = await renderEditor({ isNew: false, item: makeItem() });
+				await first.getByRole("button", { name: "Hide settings" }).click();
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+				await first.unmount();
+
+				const second = await renderEditor({ isNew: false, item: makeItem() });
+				const panel = getPanel(second).element();
+				expect(panel).toHaveAttribute("inert");
+				expect(panel.getBoundingClientRect().width).toBe(0);
+				await expect
+					.element(second.getByRole("button", { name: "Show settings" }))
+					.toBeInTheDocument();
+			});
+
+			it("opens for an unrecognized stored value", async () => {
+				localStorage.setItem(STORAGE_KEY, "banana");
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				expect(getPanel(screen).element()).not.toHaveAttribute("inert");
+				await expect
+					.element(screen.getByRole("button", { name: "Hide settings" }))
+					.toBeInTheDocument();
+			});
+
+			it("closes an image panel when the panel is hidden", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+				const blockPanel = makeBlockPanel();
+				getPanelHooks().open(blockPanel);
+				await expect.element(screen.getByRole("textbox", { name: "Alt text" })).toBeVisible();
+
+				await screen.getByRole("button", { name: "Hide settings" }).click();
+				expect(getPanel(screen).element()).toHaveAttribute("inert");
+				expect(blockPanel.onClose).toHaveBeenCalled();
+
+				await screen.getByRole("button", { name: "Show settings" }).click();
+				await expect.element(screen.getByLabelText("Slug")).toBeVisible();
+				expect(
+					screen.getByRole("textbox", { name: "Alt text", includeHidden: true }).query(),
+				).toBeNull();
+			});
+
+			it("shows a hidden panel for a block panel, then hides it again", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const screen = await renderEditor({ isNew: false, item: makeItem(), fields: ptFields });
+				await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+				const panel = getPanel(screen).element();
+				expect(panel).toHaveAttribute("inert");
+
+				const { open, close } = getPanelHooks();
+				open(makeBlockPanel());
+				await expect.element(screen.getByText("Image settings")).toBeVisible();
+				expect(panel).not.toHaveAttribute("inert");
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+
+				close();
+				await vi.waitFor(() => expect(panel).toHaveAttribute("inert"));
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+			});
+
+			it.each([
+				["after the panel slides open", false],
+				["under reduced motion", true],
+			])("opens a hidden panel to report its invalid control on Save %s", async (_, reduced) => {
+				if (reduced) {
+					await cdp().send("Emulation.setEmulatedMedia", {
+						features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+					});
+					onTestFinished(() => cdp().send("Emulation.setEmulatedMedia", { features: [] }));
+				}
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const onSave = vi.fn();
+				const pluginAdmins: PluginAdmins = {
+					ratings: {
+						contentEditorPanels: [
+							{
+								id: "rating",
+								title: "Rating",
+								component: () => (
+									<input type="number" min={1} max={10} defaultValue={50} aria-label="Rating" />
+								),
+							},
+						],
+					},
+				};
+				const screen = await render(
+					<PluginAdminProvider pluginAdmins={pluginAdmins}>
+						<ContentEditor
+							collection="posts"
+							collectionLabel="Post"
+							fields={defaultFields}
+							isNew={false}
+							item={makeItem()}
+							currentUser={{ id: "u-1", role: 50 }}
+							onSave={onSave}
+						/>
+					</PluginAdminProvider>,
+					{ wrapper: Toasty },
+				);
+				const rating = screen.getByRole("spinbutton", { name: "Rating", includeHidden: true });
+				await expect.element(rating).toBeInTheDocument();
+				const panel = getPanel(screen).element();
+				expect(panel).toHaveAttribute("inert");
+
+				await screen.getByLabelText("Title").fill("Changed");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				await vi.waitFor(() => expect(document.activeElement).toBe(rating.element()));
+				expect(onSave).not.toHaveBeenCalled();
+				expect(panel).not.toHaveAttribute("inert");
+				await expect
+					.element(screen.getByRole("button", { name: "Hide settings" }))
+					.toBeInTheDocument();
+				expect(localStorage.getItem(STORAGE_KEY)).toBe("hidden");
+
+				await new Promise((resolve) => setTimeout(resolve, 400));
+				expect(document.activeElement).toBe(rating.element());
+				expect(panel).not.toHaveAttribute("inert");
+			});
+
+			it("leaves a hidden panel closed when the invalid control is in the canvas", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const onSave = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ data: { title: "My Post", rating: 50 } }),
+					fields: {
+						title: { kind: "string", label: "Title" },
+						rating: { kind: "number", label: "Rating", validation: { min: 1, max: 10 } },
+					},
+					onSave,
+				});
+				await screen.getByLabelText("Title").fill("Changed");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				const rating = screen.getByLabelText("Rating", { exact: true }).element();
+				await vi.waitFor(() => expect(document.activeElement).toBe(rating));
+				expect(onSave).not.toHaveBeenCalled();
+				expect(getPanel(screen).element()).toHaveAttribute("inert");
+			});
+
+			it("shows a hidden panel on a read-only entry", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
+				const panel = getPanel(screen).element();
+				expect(panel).toHaveAttribute("inert");
+
+				await screen.getByRole("button", { name: "Show settings" }).click();
+				expect(panel).not.toHaveAttribute("inert");
+			});
+
+			it("ignores the stored choice below lg", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const media = installMatchMedia(true);
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					await screen.getByRole("button", { name: "Settings" }).click();
+					await expect
+						.element(screen.getByRole("navigation", { name: "Settings" }))
+						.toBeInTheDocument();
+					expect(screen.getByRole("button", { name: "Hide settings" }).query()).toBeNull();
+					expect(screen.getByRole("button", { name: "Show settings" }).query()).toBeNull();
+				} finally {
+					media.restore();
+				}
+			});
+		});
+
 		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
 			await renderEditor({ isNew: false, item: makeItem() });
 			const form = document.querySelector("form");
@@ -2808,7 +3000,7 @@ describe("ContentEditor", () => {
 
 				media.setMatches(false);
 				await expect
-					.element(screen.getByRole("button", { name: "Settings" }))
+					.element(screen.getByRole("button", { name: "Settings", exact: true }))
 					.not.toBeInTheDocument();
 				await expect
 					.element(screen.getByRole("button", { name: "Publish now", exact: true }))
@@ -2888,209 +3080,6 @@ describe("ContentEditor", () => {
 		);
 	});
 
-	describe("distraction-free mode", () => {
-		function dispatchDistractionFreeShortcut() {
-			document.dispatchEvent(
-				new KeyboardEvent("keydown", {
-					key: "\\",
-					shiftKey: true,
-					// `mod` maps to Ctrl on Linux/Windows and Cmd on macOS; firing both
-					// modifiers keeps the test deterministic across Playwright hosts.
-					ctrlKey: true,
-					metaKey: true,
-					bubbles: true,
-				}),
-			);
-		}
-
-		function getMainForm() {
-			return document.querySelector("form");
-		}
-
-		function isDistractionFree() {
-			return getMainForm()?.classList.toString().includes("fixed") ?? false;
-		}
-
-		it("toggles in and out with the advertised keyboard shortcut", async () => {
-			await renderEditor({ isNew: true });
-
-			expect(isDistractionFree()).toBe(false);
-
-			dispatchDistractionFreeShortcut();
-			await vi.waitFor(() => expect(isDistractionFree()).toBe(true));
-
-			dispatchDistractionFreeShortcut();
-			await vi.waitFor(() => expect(isDistractionFree()).toBe(false));
-		});
-
-		it("keeps the normal editor width and field chrome", async () => {
-			const screen = await renderEditor({
-				fields: {
-					title: { kind: "string", label: "Title", required: true },
-					featured_image: { kind: "image", label: "Featured image" },
-					content: { kind: "portableText", label: "Content" },
-				},
-			});
-
-			const initialImagePicker = screen
-				.getByRole("button", { name: /browse for Featured image/i })
-				.element();
-			const initialCanvasWidth = screen
-				.getByTestId("portable-text-editor")
-				.element()
-				.closest(".mx-auto")
-				?.getBoundingClientRect().width;
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-
-			const imagePicker = screen
-				.getByRole("button", { name: /browse for Featured image/i })
-				.element();
-			const portableTextEditor = screen.getByTestId("portable-text-editor").element();
-			const editorCanvas = portableTextEditor.closest(".mx-auto");
-
-			expect(editorCanvas?.getBoundingClientRect().width).toBe(initialCanvasWidth);
-			expect(imagePicker).toBe(initialImagePicker);
-			expect(portableTextProps.current?.minimal).not.toBe(true);
-			expect(portableTextProps.current?.variant).toBe("document");
-		});
-
-		it("matches the settings action order and size", async () => {
-			const item = makeItem({
-				status: "published",
-				liveRevisionId: "rev-1",
-				draftRevisionId: "rev-1",
-			});
-			const screen = await renderEditor({
-				isNew: false,
-				item,
-				supportsDrafts: true,
-				supportsPreview: true,
-				onUnpublish: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-
-			const bar = getEditorBar();
-			const actionContainer = bar.lastElementChild;
-			const actions = [...(actionContainer?.querySelectorAll("button, a") ?? [])];
-			const actionNames = actions.map(
-				(action) => action.getAttribute("aria-label") ?? action.textContent?.trim(),
-			);
-
-			expect(actionNames).toEqual([
-				"Live View",
-				"Preview",
-				"Unpublish Post",
-				"Exit distraction-free mode",
-			]);
-			for (const action of actions.slice(0, -1)) expect(action).toHaveClass("h-6.5");
-			expect(actions.at(-1)).toHaveClass("size-6.5");
-			expect(bar.firstElementChild?.querySelector("button, a")).toBeNull();
-		});
-
-		it("keeps the editor canvas and distraction-free header on the elevated surface", async () => {
-			const screen = await renderEditor({ isNew: true });
-			const form = document.querySelector("form");
-
-			expect(form).toHaveClass("bg-kumo-elevated");
-			expect(form).not.toHaveClass("bg-kumo-base");
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-
-			expect(form).toHaveClass("bg-kumo-elevated");
-			expect(getEditorBar().className).not.toMatch(/\bbg-/);
-		});
-
-		it("toggle adds fixed class for distraction-free mode", async () => {
-			const screen = await renderEditor({ isNew: true });
-			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
-			await enterBtn.click();
-
-			// The form should now have the fixed inset-0 class
-			const form = document.querySelector("form");
-			expect(form?.classList.toString()).toContain("fixed");
-		});
-
-		it("does not exit distraction-free mode with Escape", async () => {
-			const screen = await renderEditor({ isNew: true });
-			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
-			await enterBtn.click();
-
-			// Verify we're in distraction-free mode
-			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
-
-			// Press Escape
-			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-
-			// Wait long enough that any errant state update would have been applied.
-			await new Promise((resolve) => setTimeout(resolve, 100));
-
-			// Escape is reserved for other actions on the Posts page and must not
-			// leave distraction-free mode.
-			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
-		});
-
-		it("keeps Live View available in distraction-free mode", async () => {
-			const item = makeItem({
-				status: "published",
-				liveRevisionId: "rev-1",
-				draftRevisionId: "rev-1",
-			});
-			const screen = await renderEditor({ isNew: false, item, supportsDrafts: true });
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-
-			const liveView = screen.getByRole("link", { name: "Live View" });
-			expect(liveView.all()).toHaveLength(1);
-			await expect.element(liveView).toBeVisible();
-		});
-
-		it("keeps scheduling available in distraction-free mode", async () => {
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({ status: "draft" }),
-				onSchedule: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			const actionContainer = getEditorBar().lastElementChild;
-			const schedule = [...(actionContainer?.querySelectorAll("button") ?? [])].find(
-				(action) => action.textContent?.trim() === "Schedule",
-			);
-			expect(schedule).toBeInstanceOf(HTMLButtonElement);
-			schedule?.click();
-
-			await expect
-				.element(screen.getByRole("dialog", { name: "Schedule publication" }))
-				.toBeVisible();
-		});
-
-		it("keeps scheduled-entry actions available in distraction-free mode", async () => {
-			const onUnschedule = vi.fn();
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
-				onSchedule: vi.fn(),
-				onUnschedule,
-			});
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			const actionContainer = getEditorBar().lastElementChild;
-			const actions = [...(actionContainer?.querySelectorAll("button") ?? [])];
-			const changeSchedule = actions.find(
-				(action) => action.textContent?.trim() === "Change schedule",
-			);
-			const removeSchedule = actions.find(
-				(action) => action.textContent?.trim() === "Remove schedule",
-			);
-
-			expect(changeSchedule).toBeInstanceOf(HTMLButtonElement);
-			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
-			removeSchedule?.click();
-			expect(onUnschedule).toHaveBeenCalledOnce();
-		});
-	});
-
 	describe("scheduler", () => {
 		it("hides scheduling actions when the collection does not support scheduling", async () => {
 			const screen = await renderEditor({
@@ -3100,8 +3089,6 @@ describe("ContentEditor", () => {
 				supportsScheduling: false,
 			});
 
-			expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
 			expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
 		});
 
@@ -3117,13 +3104,7 @@ describe("ContentEditor", () => {
 
 			expect(screen.getByRole("button", { name: "Change schedule" }).query()).toBeNull();
 			await expect.element(screen.getByRole("button", { name: "Remove schedule" })).toBeVisible();
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			expect(screen.getByRole("button", { name: "Change schedule" }).query()).toBeNull();
-			const removeSchedule = [
-				...(getEditorBar().lastElementChild?.querySelectorAll("button") ?? []),
-			].find((action) => action.textContent?.trim() === "Remove schedule");
-			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
-			removeSchedule?.click();
+			await screen.getByRole("button", { name: "Remove schedule" }).click();
 			expect(onUnschedule).toHaveBeenCalledOnce();
 		});
 
@@ -4132,17 +4113,6 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByLabelText("Seats", { exact: true })).toHaveValue(40);
-		});
-
-		it("can still leave distraction-free mode while the entry is read-only", async () => {
-			const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
-
-			const enter = screen.getByRole("button", { name: "Enter distraction-free mode" });
-			await expect.element(enter).not.toBeDisabled();
-			await enter.click();
-
-			const exit = screen.getByRole("button", { name: "Exit distraction-free mode" });
-			await expect.element(exit).not.toBeDisabled();
 		});
 
 		it("does not offer to save over a newer version while the entry is read-only", async () => {
