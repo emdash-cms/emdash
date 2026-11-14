@@ -1139,6 +1139,10 @@ importers:
       zod:
         specifier: ^4.5.4
         version: 4.6.7
+    devDependencies:
+      parse5:
+        specifier: ^7.2.1
+        version: 7.3.0
 
   e2e/fixture:
     dependencies:
