@@ -67,6 +67,10 @@ EmDash opens SQLite databases in [write-ahead logging (WAL) mode](https://sqlite
 
 The `-wal` file can hold committed changes that are not yet in the main database file. Back up with SQLite's backup command instead of copying only the `.db` file. See [SQLite backup and recovery](/guides/backups/#back-up-sqlite-and-local-libsql).
 
+If the main database file is missing but a `-wal` or `-shm` file remains, EmDash refuses to create a replacement database to protect uncheckpointed content. Stop all processes using the database and restore the original main file, preserving the sidecars. See [restore and reset guidance](/reference/cli/#package-scripts) for accidental renames and intentional resets.
+
+Before moving or restoring a database, stop all processes using it and keep the main file with its matching `-wal` and `-shm` files. Do not pair a restored main file with sidecars from a replacement database: EmDash cannot detect that mismatch, and SQLite can replay unrelated WAL data over the restored file.
+
 WAL requires shared memory, so keep the database on a local disk or block volume rather than a network filesystem such as NFS or SMB.
 
 ## Cloudflare D1
