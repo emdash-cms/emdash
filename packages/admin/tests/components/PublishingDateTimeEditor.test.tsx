@@ -17,6 +17,28 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
+it("navigates months with the focused month title without selecting a day", async () => {
+	const onDateChange = vi.fn();
+	const screen = await render(
+		<PublishingDateTimeFields
+			date={new Date(2035, 5, 15, 12)}
+			time="09:00"
+			dateAriaLabel="Publication date"
+			onDateChange={onDateChange}
+			onTimeChange={vi.fn()}
+		/>,
+	);
+	const title = screen.getByText("June 2035", { exact: true });
+	await title.click();
+	await expect.element(title).toHaveFocus();
+	await userEvent.keyboard("{ArrowRight}");
+	const nextTitle = screen.getByText("July 2035", { exact: true });
+	await expect.element(nextTitle).toHaveFocus();
+	await userEvent.keyboard("{ArrowLeft}");
+	await expect.element(title).toHaveFocus();
+	expect(onDateChange).not.toHaveBeenCalled();
+});
+
 it("returns the calendar to the current month when a new entry has no saved date", async () => {
 	const previousDate = new Date(2035, 5, 15, 12);
 	const currentMonth = new Intl.DateTimeFormat("en-US", {
@@ -350,4 +372,112 @@ it("restores an emptied time field when it loses focus", async () => {
 
 	await expect.element(minute).toHaveValue("30");
 	await expect.element(screen.getByText("14:30", { exact: true })).toBeVisible();
+});
+
+it("steps and navigates time segments without changing the date", async () => {
+	function ControlledFields() {
+		const [time, setTime] = React.useState("11:59");
+		return (
+			<>
+				<PublishingDateTimeFields
+					date={new Date(2035, 5, 15, 12)}
+					time={time}
+					dateAriaLabel="Publication date"
+					onDateChange={vi.fn()}
+					onTimeChange={setTime}
+				/>
+				<output>{time}</output>
+			</>
+		);
+	}
+	const screen = await render(<ControlledFields />);
+	const hour = screen.getByRole("textbox", { name: "Hour" });
+	const minute = screen.getByRole("textbox", { name: "Minute" });
+	await hour.click();
+	await userEvent.keyboard("{ArrowUp}");
+	await expect.element(screen.getByText("00:59", { exact: true })).toBeVisible();
+	await minute.click();
+	await userEvent.keyboard("{ArrowUp}");
+	await expect.element(screen.getByText("00:00", { exact: true })).toBeVisible();
+	minute.element().setSelectionRange(0, 0);
+	await userEvent.keyboard("{ArrowLeft}");
+	await expect.element(hour).toHaveFocus();
+});
+
+it("wraps 24-hour steps independently and preserves the minute", async () => {
+	const originalLocale = i18n.locale;
+	i18n.activate("en-GB");
+	try {
+		function ControlledFields() {
+			const [time, setTime] = React.useState("23:42");
+			return (
+				<>
+					<PublishingDateTimeFields
+						date={new Date(2035, 5, 15, 12)}
+						time={time}
+						dateAriaLabel="Publication date"
+						onDateChange={vi.fn()}
+						onTimeChange={setTime}
+					/>
+					<output>{time}</output>
+				</>
+			);
+		}
+		const screen = await render(<ControlledFields />);
+		await screen.getByRole("textbox", { name: "Hour" }).click();
+		await userEvent.keyboard("{ArrowUp}");
+		await expect.element(screen.getByText("00:42", { exact: true })).toBeVisible();
+		await userEvent.keyboard("{ArrowDown}");
+		await expect.element(screen.getByText("23:42", { exact: true })).toBeVisible();
+		await screen.unmount();
+	} finally {
+		i18n.activate(originalLocale);
+	}
+});
+
+it("moves from the period control to the adjacent time fields", async () => {
+	const screen = await render(
+		<PublishingDateTimeFields
+			date={new Date(2035, 5, 15, 12)}
+			time="09:00"
+			dateAriaLabel="Publication date"
+			onDateChange={vi.fn()}
+			onTimeChange={vi.fn()}
+		/>,
+	);
+	const period = screen.getByRole("combobox", { name: "Period" });
+	period.element().focus();
+	await userEvent.keyboard("{ArrowLeft}");
+	await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveFocus();
+	period.element().focus();
+	await userEvent.keyboard("{ArrowRight}");
+	await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveFocus();
+});
+
+it("uses ArrowLeft to advance the focused month title in RTL", async () => {
+	const originalLocale = i18n.locale;
+	i18n.activate("ar");
+	try {
+		const date = new Date(2035, 5, 15, 12);
+		const onDateChange = vi.fn();
+		const screen = await render(
+			<PublishingDateTimeFields
+				date={date}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={onDateChange}
+				onTimeChange={vi.fn()}
+			/>,
+		);
+		const formatter = new Intl.DateTimeFormat("ar", { month: "long", year: "numeric" });
+		const title = screen.getByText(formatter.format(date), { exact: true });
+		await title.click();
+		await userEvent.keyboard("{ArrowLeft}");
+		const next = screen.getByText(formatter.format(new Date(2035, 6, 1)), { exact: true });
+		await expect.element(next).toHaveFocus();
+		expect(onDateChange).not.toHaveBeenCalled();
+		await screen.unmount();
+	} finally {
+		i18n.activate(originalLocale);
+	}
 });
