@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 
 import {
 	handleContentCreate,
@@ -268,6 +268,88 @@ describeEachDialect("translating an entry whose reference field was bound later"
 		});
 
 		expect(translation.success).toBe(true);
+	});
+});
+
+describeEachDialect("translating an entry with a non-translatable reference field", (dialect) => {
+	let ctx: DialectTestContext;
+
+	beforeEach(async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		ctx = await setupForDialect(dialect);
+	});
+
+	afterEach(async () => {
+		setI18nConfig(null);
+		await teardownForDialect(ctx);
+	});
+
+	it("creates the translation and keeps the source link", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({
+			slug: "products",
+			label: "Products",
+			labelSingular: "Product",
+		});
+		await registry.createCollection({ slug: "faqs", label: "FAQs", labelSingular: "FAQ" });
+		await registry.createField("products", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("faqs", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("products", {
+			slug: "sku",
+			label: "SKU",
+			type: "string",
+			translatable: false,
+		});
+		const relation = await new RelationRepository(ctx.db).create({
+			slug: "products_faqs",
+			parentCollection: "products",
+			childCollection: "faqs",
+			parentLabel: "Product",
+			childLabel: "FAQ",
+		});
+		await registry.createField("products", {
+			slug: "faqs",
+			label: "FAQs",
+			type: "reference",
+			translatable: false,
+			validation: {
+				relation: relation.slug,
+				relationSide: "parent",
+				targetCollection: "faqs",
+				multiple: true,
+			},
+		});
+
+		const faq = await handleContentCreate(ctx.db, "faqs", {
+			data: { title: "Shipping" },
+			locale: "en",
+		});
+		if (!faq.success) throw new Error(faq.error.message);
+		const source = await handleContentCreate(ctx.db, "products", {
+			data: { title: "Widget", sku: "SKU-1" },
+			locale: "en",
+			references: { faqs: [faq.data.item.id] },
+		});
+		if (!source.success) throw new Error(source.error.message);
+
+		const translation = await handleContentCreate(ctx.db, "products", {
+			data: { title: "Widget FR" },
+			locale: "fr",
+			translationOf: source.data.item.id,
+		});
+
+		if (!translation.success) {
+			throw new Error(`${translation.error.code}: ${translation.error.message}`);
+		}
+		expect(translation.data.item.translationGroup).toBe(source.data.item.translationGroup);
+		expect(translation.data.item.data).toMatchObject({ title: "Widget FR", sku: "SKU-1" });
+		expect(translation.data.item.data).not.toHaveProperty("faqs");
+
+		const page = await new RelationRepository(ctx.db).getChildrenPage(
+			relation.slug,
+			translation.data.item.translationGroup ?? translation.data.item.id,
+		);
+		expect(page.items.map((item) => item.childGroup)).toEqual([faq.data.item.id]);
 	});
 });
 
