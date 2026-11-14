@@ -1,5 +1,12 @@
 # @emdash-cms/sandbox-workerd
 
+## 0.9.8
+
+### Patch Changes
+
+- Updated dependencies [[`acb8a0f`](https://github.com/emdash-cms/emdash/commit/acb8a0fa5ec94648dfb0c447819a4d4bc70970fe)]:
+  - emdash@1.6.0
+
 <!-- emdash-changelog-archive: ./changelog/0.1.0-to-0.1.1.md -->
 
 ## 0.9.7

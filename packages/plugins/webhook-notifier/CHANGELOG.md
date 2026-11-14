@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-webhook-notifier
 
+## 0.2.4
+
+### Patch Changes
+
+- [#4795](https://github.com/emdash-cms/emdash/pull/4795) [`9d97a3c`](https://github.com/emdash-cms/emdash/commit/9d97a3c680341ac9ea6a342e097cdb68af536d1a) Thanks [@b1ngx](https://github.com/b1ngx)! - Fixes the Webhooks dashboard widget failing to load after a webhook URL is configured and webhooks are enabled, so it displays the Delivered and Failed counts.
+
 ## 0.2.3
 
 ### Patch Changes
