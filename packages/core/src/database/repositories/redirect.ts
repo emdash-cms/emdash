@@ -568,8 +568,8 @@ export class RedirectRepository {
 	 * rename that is later reverted cannot form a loop (#1986).
 	 *
 	 * Returns the redirect now answering the old URL, which is a kept disabled
-	 * or terminal rule when one sits there. Returns null when old and new URL
-	 * are identical (nothing to redirect).
+	 * or terminal rule when one sits there. Returns null without an explicit
+	 * URL pattern or when old and new URLs are identical.
 	 */
 	async createAutoRedirect(
 		collection: string,
@@ -580,8 +580,10 @@ export class RedirectRepository {
 		oldPublishedAt?: string | null,
 		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
+		if (!urlPattern) return null;
+
 		const withPatternSlash = (path: string) =>
-			urlPattern?.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
+			urlPattern.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
 		return this.withWriteLock(async (fence, repository) => {
 			const oldUrl = withPatternSlash(
 				interpolateUrlPattern({

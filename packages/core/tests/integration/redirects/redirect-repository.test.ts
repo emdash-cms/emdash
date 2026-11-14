@@ -515,21 +515,24 @@ describe("RedirectRepository", () => {
 	// --- Auto-redirects -----------------------------------------------------
 
 	describe("createAutoRedirect", () => {
-		it("creates a redirect for slug change with url pattern", async () => {
-			const redirect = await repo.createAutoRedirect(
-				"posts",
-				"old-title",
-				"new-title",
-				"id1",
-				"/blog/{slug}",
-			);
+		it.each(["", "/"])(
+			"creates a redirect for slug change with url pattern suffix '%s'",
+			async (suffix) => {
+				const redirect = await repo.createAutoRedirect(
+					"posts",
+					"old-title",
+					"new-title",
+					"id1",
+					`/blog/{slug}${suffix}`,
+				);
 
-			expect(redirect.source).toBe("/blog/old-title");
-			expect(redirect.destination).toBe("/blog/new-title");
-			expect(redirect.auto).toBe(true);
-			expect(redirect.groupName).toBe("Auto: slug change");
-			expect(redirect.type).toBe(301);
-		});
+				expect(redirect.source).toBe(`/blog/old-title${suffix}`);
+				expect(redirect.destination).toBe(`/blog/new-title${suffix}`);
+				expect(redirect.auto).toBe(true);
+				expect(redirect.groupName).toBe("Auto: slug change");
+				expect(redirect.type).toBe(301);
+			},
+		);
 
 		it("resolves date tokens from the publish date (#1526)", async () => {
 			const redirect = await repo.createAutoRedirect(
@@ -576,11 +579,32 @@ describe("RedirectRepository", () => {
 			expect(redirect!.destination).toBe("/{year}/new-title");
 		});
 
-		it("uses fallback URL when no url pattern", async () => {
-			const redirect = await repo.createAutoRedirect("posts", "old-slug", "new-slug", "id1", null);
+		it.each([null, ""])("returns null when no url pattern (%s)", async (urlPattern) => {
+			const redirect = await repo.createAutoRedirect(
+				"posts",
+				"old-slug",
+				"new-slug",
+				"id1",
+				urlPattern,
+			);
 
-			expect(redirect.source).toBe("/posts/old-slug");
-			expect(redirect.destination).toBe("/posts/new-slug");
+			expect(redirect).toBeNull();
+			expect((await repo.findMany({})).items).toEqual([]);
+		});
+
+		it("preserves manual redirects when no url pattern", async () => {
+			await repo.create({ source: "/posts/new-slug", destination: "/target" });
+			await repo.create({ source: "/legacy", destination: "/posts/old-slug" });
+
+			expect(
+				await repo.createAutoRedirect("posts", "old-slug", "new-slug", "id1", null),
+			).toBeNull();
+			expect((await repo.findMany({})).items).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ source: "/posts/new-slug", destination: "/target" }),
+					expect.objectContaining({ source: "/legacy", destination: "/posts/old-slug" }),
+				]),
+			);
 		});
 
 		it("collapses existing chains", async () => {
