@@ -1274,6 +1274,45 @@ describe("TaxonomyManager", () => {
 		});
 	});
 
+	it("sends parentId: null when a nested term's parent is set back to none", async () => {
+		mockApiFetch(hierarchicalTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByText("Test", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit Test", exact: true }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("combobox", { name: "Parent" }).click();
+		await screen.getByRole("option", { name: "None (top level)", exact: true }).click();
+		await dialog.getByRole("button", { name: "Update", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("PUT", "/terms/test")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ slug: "test", parentId: null });
+		});
+	});
+
+	it("sends parentId: null when only the label of a top-level term changes", async () => {
+		mockApiFetch(hierarchicalTermsResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByText("Design", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Edit Design", exact: true }).click();
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Name", exact: true }).fill("Design 2");
+		await dialog.getByRole("button", { name: "Update", exact: true }).click();
+
+		await vi.waitFor(() => {
+			const call = requestsWith("PUT", "/terms/design")[0];
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ slug: "design", label: "Design 2", parentId: null });
+		});
+	});
+
 	it("delete button opens confirm dialog", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,
