@@ -63,6 +63,7 @@ const { MOCK_RUNTIME, mockGetPublicUrl } = vi.hoisted(() => {
 			collectPageMetadata: async () => [],
 			collectPageFragments: async () => [],
 			ensureSearchHealthy: async () => undefined,
+			ensurePluginStateFresh: async () => undefined,
 			getManifest: async () => ({}),
 			getSandboxRunner: () => null,
 			isSandboxBypassed: () => false,

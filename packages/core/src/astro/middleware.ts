@@ -419,9 +419,13 @@ async function runOutsideRequestWithRuntime<T>(
 		cookies: NOOP_COOKIE_JAR,
 		url: CRON_EVENT_URL,
 	});
+	const run = async () => {
+		await runtime.ensurePluginStateFresh();
+		return fn(runtime);
+	};
 	if (!scoped) {
 		// This adapter needs no event-specific routing or connection.
-		return fn(runtime);
+		return run();
 	}
 	const { closed, deferredTasks, lifecycle } = coordinateScopedDbLifecycle(scoped);
 
@@ -435,7 +439,7 @@ async function runOutsideRequestWithRuntime<T>(
 				deferredTasks,
 			};
 	try {
-		return await runWithContext(ctx, () => fn(runtime));
+		return await runWithContext(ctx, run);
 	} finally {
 		// Guard both so a throw in teardown can't mask the callback result or
 		// skip lifecycle settlement and leak the connection.
@@ -761,6 +765,7 @@ function keepUnsharedResponsesOutOfRouteCache(context: APIContext, response: Res
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
+	let refreshPluginState: (() => Promise<void>) | undefined;
 
 	// Fast path: routes outside /_emdash/ that plugins inject (e.g.,
 	// /.well-known/atproto-client-metadata.json) skip the entire runtime
@@ -914,6 +919,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				if (runtimeInit && !probeFailed) {
 					try {
 						const runtime = await runtimeInit;
+						refreshPluginState = () => runtime.ensurePluginStateFresh();
 						markSetupVerified();
 						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
 						const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
@@ -979,6 +985,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					lastContentWriteAt,
 				});
 				const runAnon = async () => {
+					await refreshPluginState?.();
 					const t0 = performance.now();
 					const response = await next();
 					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
@@ -1053,6 +1060,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
 				const runtime = await getRuntime(config, migrationMode, initSubTimings);
+				refreshPluginState = () => runtime.ensurePluginStateFresh();
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
@@ -1164,7 +1172,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						return runtime.db;
 					},
 					getPublicMediaUrl: providePublicMediaUrl(runtime.storage),
-					hooks: runtime.hooks,
+					get hooks() {
+						return runtime.hooks;
+					},
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
 					sandboxedPluginEntries: runtime.sandboxedPluginEntries,
@@ -1200,6 +1210,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
+					disablePlugin: runtime.disablePlugin?.bind(runtime),
 				};
 			} catch (error) {
 				if (isMigrationRequiredError(error)) {
@@ -1234,6 +1245,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			});
 
 			const renderAndFinalize = async () => {
+				await refreshPluginState?.();
 				const t0 = performance.now();
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });

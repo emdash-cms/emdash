@@ -29,6 +29,7 @@ const {
 	mockRunPluginActivateLifecycle,
 	mockRunPluginInstallLifecycle,
 	mockRunPluginUninstallLifecycle,
+	mockEnsurePluginStateFresh,
 } = vi.hoisted(() => {
 	const publicPluginResult = { success: true, data: { ok: true } };
 	const ok = async () => ({ success: true });
@@ -49,6 +50,7 @@ const {
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
 	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
 	const getRuntimePluginSettingsSchema = vi.fn(() => ({ apiKey: { type: "secret" } }));
+	const ensurePluginStateFresh = vi.fn(async () => undefined);
 	return {
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl },
@@ -101,6 +103,7 @@ const {
 			collectPageMetadata: async () => [],
 			collectPageFragments: async () => [],
 			ensureSearchHealthy: async () => undefined,
+			ensurePluginStateFresh,
 			getManifest: async () => ({}),
 			getSandboxRunner: () => null,
 			isSandboxBypassed: () => false,
@@ -120,6 +123,7 @@ const {
 		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
 		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
 		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
+		mockEnsurePluginStateFresh: ensurePluginStateFresh,
 	};
 });
 
@@ -211,6 +215,7 @@ beforeEach(() => {
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
 	mockRunPluginUninstallLifecycle.mockClear();
+	mockEnsurePluginStateFresh.mockClear();
 });
 
 afterEach(() => {
@@ -536,6 +541,43 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(response.status).toBe(200);
 		expect(sessionGet).not.toHaveBeenCalled();
+	});
+
+	it("refreshes plugin state before an anonymous page executes", async () => {
+		let release!: () => void;
+		const refreshStarted = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const refreshFinished = new Promise<void>((resolve) => {
+			mockEnsurePluginStateFresh.mockImplementationOnce(async () => {
+				await refreshStarted;
+				resolve();
+			});
+		});
+		const { context } = createAnonymousPublicPageContext();
+		const next = vi.fn(async () => new Response("ok"));
+		const request = onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		await Promise.resolve();
+		expect(next).not.toHaveBeenCalled();
+		release();
+		await refreshFinished;
+		await request;
+
+		expect(next).toHaveBeenCalledOnce();
+		expect(mockEnsurePluginStateFresh).toHaveBeenCalledOnce();
+	});
+
+	it("does not execute an anonymous page when plugin state refresh fails", async () => {
+		const refreshError = new Error("plugin state unavailable");
+		mockEnsurePluginStateFresh.mockRejectedValueOnce(refreshError);
+		const { context } = createAnonymousPublicPageContext();
+		const next = vi.fn(async () => new Response("should not render"));
+
+		await expect(onRequest(context as Parameters<typeof onRequest>[0], next)).rejects.toBe(
+			refreshError,
+		);
+		expect(next).not.toHaveBeenCalled();
 	});
 
 	it("exposes only restricted public runtime helpers to anonymous public pages", async () => {

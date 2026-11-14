@@ -38,6 +38,7 @@ const {
 		shutdown: vi.fn(async () => {}),
 		handlePluginApiRoute: vi.fn(async () => ({ success: true, data: { done: true } })),
 		runScheduledTasks: vi.fn(async () => ({ published: [] })),
+		ensurePluginStateFresh: vi.fn(async () => {}),
 	};
 	return {
 		MOCK_RUNTIME: runtime,
