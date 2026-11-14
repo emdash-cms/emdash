@@ -199,6 +199,10 @@ export function localMediaFileUrl(key: string): string {
 	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
 }
 
+export function isLocalMediaFileUrl(url: string): boolean {
+	return url.startsWith(INTERNAL_MEDIA_PREFIX);
+}
+
 export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {
 	if (!contentHash || !originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
 	const separator = originalUrl.includes("?") ? "&" : "?";
