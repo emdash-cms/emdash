@@ -134,24 +134,6 @@ function buildApp() {
 	return { router, TestApp };
 }
 
-function editorCanvasScrollEnd() {
-	return new Promise<void>((resolve) => {
-		document.addEventListener(
-			"scrollend",
-			function onScrollEnd(event) {
-				if (
-					event.target instanceof Element &&
-					event.target.matches("[data-emdash-editor-canvas]")
-				) {
-					document.removeEventListener("scrollend", onScrollEnd, true);
-					resolve();
-				}
-			},
-			true,
-		);
-	});
-}
-
 describe("ContentEditPage opened from a field link on the site", () => {
 	let mockFetch: ReturnType<typeof createMockFetch>;
 
@@ -350,7 +332,9 @@ describe("ContentEditPage opened from a field link on the site", () => {
 			search: { field: "seo" },
 		});
 		await render(<TestApp />);
-		await expect.poll(() => document.activeElement?.id).toBe("field-seo");
+		await expect
+			.element(page.getByRole("textbox", { name: "Custom SEO", exact: true }))
+			.toHaveFocus();
 		await expect.poll(() => router.state.location.search.field).toBeUndefined();
 	});
 
@@ -473,9 +457,10 @@ describe("ContentEditPage opened from a field link on the site", () => {
 			params: { collection: "pages", id: "page_1" },
 			search: { field: "content" },
 		});
-		const scrolledToField = editorCanvasScrollEnd();
 		await render(<TestApp />);
-		await scrolledToField;
+		await expect
+			.poll(() => document.querySelector("[data-emdash-editor-canvas]")?.scrollTop ?? 0)
+			.toBeGreaterThan(0);
 		await expect.poll(() => router.state.location.search.field).toBeUndefined();
 		expect(document.getElementById("field-content")?.contains(document.activeElement)).toBe(true);
 
