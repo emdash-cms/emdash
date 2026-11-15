@@ -1573,21 +1573,6 @@ function ContentEditPage() {
 	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
-	React.useEffect(() => {
-		if (typeof searchParams.field !== "string" || isLoading) return;
-
-		const timeoutId = requestIdleCallback(() => {
-			const el = document.getElementById(`field-${searchParams.field}`);
-			if (el) {
-				el.scrollIntoView({ behavior: "smooth", block: "center" });
-				el.focus();
-				const { field: _, ...preservedSearch } = searchParams;
-				void navigate({ search: preservedSearch as never, replace: true });
-			}
-		});
-		return () => cancelIdleCallback(timeoutId);
-	}, [searchParams, isLoading, navigate]);
-
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
 		queryKey: ["translations", collection, id],
@@ -2585,6 +2570,11 @@ function ContentEditPage() {
 
 	const editor = (
 		<ContentEditor
+			focusField={searchParams.field}
+			onFieldFocused={() => {
+				const { field: _, ...preservedSearch } = searchParams;
+				void navigate({ search: preservedSearch as never, replace: true });
+			}}
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}

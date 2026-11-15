@@ -562,6 +562,8 @@ export interface CurrentUserInfo {
 }
 
 export interface ContentEditorProps {
+	focusField?: string;
+	onFieldFocused?: () => void;
 	collection: string;
 	collectionLabel: string;
 	item?: ContentItem | null;
@@ -838,6 +840,8 @@ export function ContentEditor({
 	onPreviewNotSaved,
 	readFormRef,
 	sendReferencesRef,
+	focusField,
+	onFieldFocused,
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -863,6 +867,7 @@ export function ContentEditor({
 	}, []);
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
+	const revealSettings = React.useCallback(() => setIsDistractionFree(false), []);
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(
 		() => item?.data ?? (isNew ? defaultFieldValues(fields) : {}),
 	);
@@ -2752,6 +2757,14 @@ export function ContentEditor({
 					} as React.CSSProperties
 				}
 			>
+				<EditorFieldLink
+					field={fieldsLoading ? undefined : focusField}
+					onFocused={onFieldFocused}
+					settingsPanelId={settingsPanelId}
+					fields={fields}
+					distractionFree={isDistractionFree}
+					onRevealSettings={revealSettings}
+				/>
 				{pinEditorBar && editorBar}
 				<div className="flex min-h-0 flex-1">
 					{/* The scrollbar is drawn over the canvas rather than beside it, so the page
@@ -2870,6 +2883,10 @@ export function ContentEditor({
 													readOnly,
 													timezone,
 													blockReveal: field.kind === "blocks" ? blockReveal : undefined,
+													blockFocusId: focusField?.startsWith(`${name}.`)
+														? `field-${focusField}`
+														: undefined,
+													onFieldFocused,
 													referenceState,
 													onReferenceChange: handleReferenceCurrentChange,
 													onLoadMoreReferences: handleLoadMoreReferences,
@@ -3401,6 +3418,91 @@ function MobileSettingsButton({
 	);
 }
 
+function EditorFieldLink({
+	field,
+	onFocused,
+	settingsPanelId,
+	fields,
+	distractionFree,
+	onRevealSettings,
+}: {
+	field?: string;
+	onFocused?: () => void;
+	settingsPanelId: string;
+	fields: Record<string, FieldDescriptor>;
+	distractionFree: boolean;
+	onRevealSettings: () => void;
+}) {
+	const { isMobile, openMobile, setOpenMobile } = useSidebar();
+	const linkAttempt = React.useRef<{ field?: string; opened: boolean; revealed: boolean }>({
+		opened: false,
+		revealed: false,
+	});
+	React.useEffect(() => {
+		if (linkAttempt.current.field !== field)
+			linkAttempt.current = { field, opened: false, revealed: false };
+		if (!field) return;
+		const [root = ""] = field.split(".");
+		if (field !== root && fields[root]?.kind === "blocks") return;
+		const section = {
+			publishedAt: "publish",
+			bylines: "bylines",
+			slug: "url-language",
+			seo: "seo",
+		}[field];
+		if (section && !linkAttempt.current.revealed) {
+			linkAttempt.current.revealed = true;
+			if (distractionFree) {
+				onRevealSettings();
+				return;
+			}
+		}
+		if (section && distractionFree) return;
+		if (section && isMobile && !openMobile) {
+			if (!linkAttempt.current.opened) {
+				linkAttempt.current.opened = true;
+				setOpenMobile(true);
+			}
+			return;
+		}
+		const idle = requestIdleCallback(() => {
+			const panel = document.getElementById(settingsPanelId);
+			const container = section
+				? panel?.querySelector<HTMLElement>(`[data-settings-section="${section}"]`)
+				: document.getElementById(`field-${field}`);
+			if (!container) return;
+			const target = section
+				? field === "publishedAt"
+					? container.querySelector<HTMLElement>(
+							'[data-emdash-outside="publishedAt"] button:not(:disabled)',
+						)
+					: (container.querySelector<HTMLElement>(
+							"[data-settings-control] button:not(:disabled)",
+						) ??
+						container.querySelector<HTMLElement>("input:not(:disabled), textarea:not(:disabled)") ??
+						container.querySelector<HTMLElement>('button:not(:disabled), [tabindex="0"]'))
+				: container;
+			container.scrollIntoView({ behavior: "smooth", block: "center" });
+			if (!target) container.tabIndex = -1;
+			const control = target ?? container;
+			control.focus({ preventScroll: true });
+			if (control.contains(document.activeElement)) onFocused?.();
+		});
+		return () => cancelIdleCallback(idle);
+	}, [
+		field,
+		fields,
+		onFocused,
+		settingsPanelId,
+		distractionFree,
+		onRevealSettings,
+		isMobile,
+		openMobile,
+		setOpenMobile,
+	]);
+	return null;
+}
+
 function MobileSettingsCloseButton() {
 	const { t } = useLingui();
 	const { setOpenMobile } = useSidebar();
@@ -3462,6 +3564,8 @@ interface FieldRendererProps {
 	chrome?: FieldChrome;
 	/** For a blocks field: shows its problems and focuses one, as Save does. */
 	blockReveal?: BlockReveal;
+	blockFocusId?: string;
+	onFieldFocused?: () => void;
 }
 
 function quietControlProps(chrome: FieldChrome, required: boolean | undefined) {
@@ -3587,6 +3691,8 @@ function FieldRenderer({
 	collaboration,
 	chrome,
 	blockReveal,
+	blockFocusId,
+	onFieldFocused,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -4194,6 +4300,8 @@ function FieldRenderer({
 					}
 					readOnly={readOnly}
 					reveal={blockReveal}
+					focusId={blockFocusId}
+					onFocused={onFieldFocused}
 					renderField={({
 						name: nestedName,
 						field: nestedField,

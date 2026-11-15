@@ -171,6 +171,9 @@ export interface BlocksFieldProps {
 	 * the control with id `focusId`, and focuses it.
 	 */
 	reveal?: BlockReveal;
+	/** Opens a block field without revealing validation issues. */
+	focusId?: string;
+	onFocused?: () => void;
 }
 
 export interface BlockReveal {
@@ -245,6 +248,7 @@ type FocusRequest =
 			field: string;
 			/** Focuses that control, rather than the block's first problem on screen. */
 			exact?: true;
+			onFocused?: () => void;
 	  }
 	| { key: string; target: "item"; field: string; index: number; scroll?: false | "nearest" }
 	| { target: "add" };
@@ -434,6 +438,8 @@ export function BlocksField({
 	readOnly = false,
 	renderField,
 	reveal,
+	focusId: linkedFocusId,
+	onFocused,
 }: BlocksFieldProps) {
 	const { t } = useLingui();
 	const undo = useUndoToast();
@@ -586,6 +592,35 @@ export function BlocksField({
 		revealIssues(revealFocusId, revealCount);
 	}, [revealToken, revealFocusId, revealCount, revealIssues]);
 
+	const focusFromLink = useStableCallback((elementId: string) => {
+		const block = blocks.find((candidate) =>
+			elementId.startsWith(`field-${fieldPath}.${candidate._key}.`),
+		);
+		if (!block) return false;
+		const path = elementId.slice(`field-${fieldPath}.${block._key}.`.length);
+		const [field = path] = path.split(".");
+		const version = typeBySlug.get(block._type)?.versions.find((v) => v.version === block._version);
+		if (!version?.fields.some((candidate) => candidate.slug === field)) return false;
+		setOpenKeys((current) => withKey(current, block._key));
+		if (
+			planBlockFields(version.fields, "block").advanced.some(
+				(candidate) => candidate.slug === field,
+			)
+		) {
+			setAdvancedKeys((current) => withKey(current, block._key));
+		}
+		setItemReveals((current) => new Map(current).set(block._key, ++revealCountRef.current));
+		setRevealFocus({ key: block._key, target: "field", elementId, field, exact: true, onFocused });
+		return true;
+	});
+	const acceptedFocusId = React.useRef<string | undefined>(undefined);
+	React.useEffect(() => {
+		if (!linkedFocusId) acceptedFocusId.current = undefined;
+		else if (acceptedFocusId.current !== linkedFocusId && focusFromLink(linkedFocusId)) {
+			acceptedFocusId.current = linkedFocusId;
+		}
+	}, [linkedFocusId, value, blockTypes, focusFromLink]);
+
 	/** Opens the block, Advanced row and list item that hold `issue`, and focuses its control. */
 	const showIssue = (issue: BlockValueIssue) => {
 		const block = blocks.find((candidate) => candidate._key === issue.blockKey);
@@ -693,7 +728,12 @@ export function BlocksField({
 				const field = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
 					(element) => element.dataset.field === request.field,
 				);
-				(target() ?? focusableIn(field) ?? firstShown() ?? toggle)?.focus();
+				const control = target() ?? focusableIn(field) ?? firstShown() ?? toggle;
+				control?.focus();
+				if (control?.contains(document.activeElement)) {
+					if (request.onFocused) bringIntoView(control);
+					request.onFocused?.();
+				}
 			};
 			// A labelled Kumo input inside a list takes the id it was given only after its first render.
 			if (target()) focusField();

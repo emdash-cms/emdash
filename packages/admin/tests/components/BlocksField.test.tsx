@@ -766,6 +766,30 @@ describe("BlocksField", () => {
 		expect(screen.getByLabelText("Must not render").query()).toBeNull();
 	});
 
+	it("keeps a field link pending until its block value arrives", async () => {
+		const onFocused = vi.fn();
+		const props: BlocksFieldProps = {
+			id: "field-layout",
+			fieldPath: "layout",
+			label: "Layout",
+			value: [],
+			onChange: vi.fn(),
+			blockTypes,
+			allowedTypes: ["hero"],
+			retiredTypes: [],
+			focusId: "field-layout.late.title",
+			onFocused,
+			renderField: ({ name, field }) => <input id={`field-${name}`} aria-label={field.label} />,
+		};
+		const screen = await render(<BlocksField {...props} />, { wrapper: Toasty });
+		const value = [{ _type: "hero", _version: 2, _key: "late", title: "Arrived" }];
+		await screen.rerender(<BlocksField {...props} value={value} />);
+		await expect.element(screen.getByLabelText("Title")).toHaveFocus();
+		expect(onFocused).toHaveBeenCalledTimes(1);
+		await screen.rerender(<BlocksField {...props} value={[...value]} />);
+		expect(onFocused).toHaveBeenCalledTimes(1);
+	});
+
 	it.each([false, true])(
 		"reveals problems on request unless read-only (read-only: %s)",
 		async (readOnly) => {

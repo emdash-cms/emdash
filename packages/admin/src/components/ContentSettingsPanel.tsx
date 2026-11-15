@@ -1243,23 +1243,25 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									ariaLabel={t`Why are bylines shown in this order?`}
 								/>
 							</div>
-							<BylineCreditsEditor
-								key={`${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`}
-								credits={activeBylines}
-								inferredByline={inferredByline}
-								bylines={availableBylines ?? []}
-								selectedBylineDetails={item?.bylines
-									?.filter((entry) => entry.source !== "inferred")
-									.map((entry) => entry.byline)}
-								bylinesLoaded={availableBylinesLoaded}
-								onChange={onBylinesChange}
-								onQuickCreate={onQuickCreateByline}
-								onQuickEdit={onQuickEditByline}
-								// Existing entry: use its own locale. New entry: use the
-								// URL `?locale=` (passed in via `entryLocale`).
-								entryLocale={item?.locale ?? entryLocale}
-								i18n={i18n}
-							/>
+							<div data-settings-control>
+								<BylineCreditsEditor
+									key={`${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`}
+									credits={activeBylines}
+									inferredByline={inferredByline}
+									bylines={availableBylines ?? []}
+									selectedBylineDetails={item?.bylines
+										?.filter((entry) => entry.source !== "inferred")
+										.map((entry) => entry.byline)}
+									bylinesLoaded={availableBylinesLoaded}
+									onChange={onBylinesChange}
+									onQuickCreate={onQuickCreateByline}
+									onQuickEdit={onQuickEditByline}
+									// Existing entry: use its own locale. New entry: use the
+									// URL `?locale=` (passed in via `entryLocale`).
+									entryLocale={item?.locale ?? entryLocale}
+									i18n={i18n}
+								/>
+							</div>
 						</div>
 					</ContentSettingsSection>
 				)}
