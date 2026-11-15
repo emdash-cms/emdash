@@ -1,0 +1,19 @@
+---
+import Base from "../../../layouts/Base.astro";
+---
+
+<Base title="Seguimiento de pedido" description="Consulta el estado de tu pedido.">
+	<section class="track container"><p class="eyebrow">Ayuda</p><h1>Seguimiento de pedido</h1><p class="muted">Ingresa el número que recibiste al finalizar tu compra.</p><form id="track-form"><input name="order" placeholder="#000001" required /><button class="button" type="submit">Consultar</button></form><p id="track-message" role="status"></p></section>
+</Base>
+
+<script>
+	document.querySelector<HTMLFormElement>("#track-form")?.addEventListener("submit", (event) => { event.preventDefault(); const data = new FormData(event.currentTarget as HTMLFormElement); const order = String(data.get("order") ?? "").trim(); if (order) window.location.assign(`/shop/thanks?order=${encodeURIComponent(order)}`); });
+</script>
+
+<style>
+	.track { max-width: 720px; padding-block: 5rem 7rem; }
+	.track h1 { margin-block: .75rem 1rem; font-size: clamp(2.8rem, 6vw, 5rem); }
+	#track-form { display: flex; gap: .75rem; margin-top: 2rem; }
+	#track-form input { flex: 1; padding: .8rem; border: 1px solid var(--color-border); }
+	@media (max-width: 520px) { #track-form { display: grid; } }
+</style>

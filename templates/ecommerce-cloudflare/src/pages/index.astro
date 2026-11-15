@@ -1,0 +1,76 @@
+---
+import { getEmDashCollection, getEmDashEntry, getSiteSettings, getTaxonomyTerms } from "emdash";
+import { Image } from "emdash/ui";
+import Base from "../layouts/Base.astro";
+import ProductCard from "../components/ProductCard.astro";
+
+const [{ entries: products, cacheHint: productsCache }, { entries: services, cacheHint: servicesCache }, { entry: home, cacheHint: homeCache }, settings, categories] = await Promise.all([
+	getEmDashCollection("products", { limit: 24, orderBy: { created_at: "desc" } }),
+	getEmDashCollection("services", { limit: 12, orderBy: { created_at: "desc" } }),
+	getEmDashEntry("pages", "home"),
+	getSiteSettings(),
+	getTaxonomyTerms("category"),
+]);
+if (Astro.cache?.enabled) { Astro.cache.set(productsCache); Astro.cache.set(servicesCache); Astro.cache.set(homeCache); }
+const homeData = (home?.data ?? {}) as Record<string, any>;
+const siteTitle = settings?.title || "Tienda";
+const featured = products.filter((entry) => entry.data.featured === true).slice(0, 4);
+const promotions = products.filter((entry) => Number(entry.data.promotion_price) > 0 && Number(entry.data.promotion_price) < Number(entry.data.price)).slice(0, 4);
+const heroImage = homeData.hero_image;
+---
+
+<Base title={siteTitle} description={settings?.tagline}>
+	<section class="hero">
+		<div class="container hero__grid">
+			<div class="hero__copy">
+				<p class="eyebrow">{homeData.hero_label || "Hecho para acompañarte"}</p>
+				<h1>{homeData.hero_title || "Encuentra algo que se sienta tuyo."}</h1>
+				<p>{homeData.hero_description || settings?.tagline || "Productos y servicios seleccionados para hacer más especial lo cotidiano."}</p>
+				<div class="hero__actions"><a class="button" href="/catalogo">Ver catálogo</a><a class="button secondary" href="/servicios">Conocer servicios</a></div>
+			</div>
+			<div class="hero__image">
+				{heroImage ? <Image image={heroImage} alt={homeData.hero_image_alt || "Productos de la tienda"} /> : <div class="hero__placeholder"><span>Tu imagen principal</span><small>Edítala desde la página Home en el admin.</small></div>}
+			</div>
+		</div>
+	</section>
+
+	{featured.length > 0 && <section class="section"><div class="container"><div class="section-heading"><div><p class="eyebrow">Producto destacado</p><h2>Lo que más nos gusta compartir</h2></div><a href="/catalogo">Ver catálogo →</a></div><div class="card-grid">{featured.map((product) => <ProductCard product={product} />)}</div></div></section>}
+
+	{promotions.length > 0 && <section class="section section--soft"><div class="container"><div class="section-heading"><div><p class="eyebrow">En promoción</p><h2>Oportunidades para llevarte algo especial</h2></div></div><div class="card-grid">{promotions.map((product) => <ProductCard product={product} />)}</div></div></section>}
+
+	<section class="section"><div class="container"><div class="section-heading"><div><p class="eyebrow">Explora por categoría</p><h2>Encuentra tu próxima pieza</h2></div></div><div class="category-grid">{categories.slice(0, 6).map((category) => <a class="category-card" href={`/catalogo?category=${category.slug}`}><span>{category.label}</span><strong>Ver colección →</strong></a>)}</div></div></section>
+
+	{services.length > 0 && <section class="section section--dark"><div class="container"><div class="section-heading"><div><p class="eyebrow">Servicios</p><h2>También puedes vivir la experiencia</h2></div><a href="/servicios">Ver servicios →</a></div><div class="service-grid">{services.slice(0, 3).map((service) => <a class="service-card" href={`/servicios/${service.id}`}><p class="eyebrow">Servicio</p><h3>{service.data.name}</h3><p>{service.data.short_description || "Conoce los detalles y reserva tu lugar."}</p></a>)}</div></div></section>}
+
+	<section class="about-strip"><div class="container"><div><p class="eyebrow">Conoce la marca</p><h2>{homeData.about_title || "Una tienda que deja espacio para lo humano."}</h2></div><div><p>{homeData.about_description || "Cuenta aquí quiénes son, cómo trabajan y por qué sus productos o servicios merecen un lugar en la vida de tus clientes."}</p><a class="button secondary" href="/nosotros">Nuestra historia</a></div></div></section>
+</Base>
+
+<style>
+	.hero { padding-block: 4rem 5rem; background: var(--color-soft); }
+	.hero__grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 3rem; align-items: center; }
+	.hero__copy h1 { max-width: 650px; margin-block: .8rem 1.2rem; font-size: clamp(3rem, 7vw, 6rem); }
+	.hero__copy > p:not(.eyebrow) { max-width: 560px; color: var(--color-muted); font-size: 1.15rem; }
+	.hero__actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.75rem; }
+	.hero__image { min-height: 460px; background: var(--color-brand); }
+	.hero__image :global(img) { width: 100%; height: 100%; min-height: 460px; object-fit: cover; }
+	.hero__placeholder { display: grid; place-items: center; min-height: 460px; padding: 2rem; color: white; text-align: center; }
+	.hero__placeholder span { font-family: var(--font-display), serif; font-size: 2.5rem; }
+	.hero__placeholder small { max-width: 220px; }
+	.section--soft { background: var(--color-soft); }
+	.section--dark { background: var(--color-brand-dark); color: white; }
+	.section--dark .eyebrow, .section--dark a { color: #f3c99d; }
+	.category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+	.category-card { display: grid; gap: 2.5rem; min-height: 170px; padding: 1.4rem; border: 1px solid var(--color-border); background: var(--color-surface); text-decoration: none; }
+	.category-card span { font-family: var(--font-display), serif; font-size: 1.8rem; }
+	.category-card strong { color: var(--color-brand); font-size: .9rem; }
+	.service-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+	.service-card { padding: 1.5rem; border: 1px solid rgb(255 255 255 / 25%); text-decoration: none; }
+	.service-card h3 { margin-block: .75rem; font-family: var(--font-display), serif; font-size: 2rem; }
+	.service-card p:last-child { color: #e8d8ca; }
+	.about-strip { padding-block: 5rem; background: #d9b89c; }
+	.about-strip .container { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: end; }
+	.about-strip h2 { max-width: 600px; margin-top: .75rem; font-size: clamp(2.2rem, 5vw, 4rem); }
+	.about-strip p { max-width: 520px; }
+	.about-strip .button { margin-top: 1rem; }
+	@media (max-width: 760px) { .hero__grid, .about-strip .container { grid-template-columns: 1fr; } .hero__image, .hero__image :global(img), .hero__placeholder { min-height: 320px; } .category-grid { grid-template-columns: repeat(2, 1fr); } .service-grid { grid-template-columns: 1fr; } }
+</style>

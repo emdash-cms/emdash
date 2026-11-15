@@ -64,6 +64,23 @@ export interface ShopReservationSummary {
 	createdAt: string | null;
 }
 
+export interface ShopEnrollmentSummary {
+	id: string;
+	serviceId: string;
+	orderId: string | null;
+	orderItemId: string | null;
+	customerId: string | null;
+	quantity: number;
+	startsAt: string | null;
+	endsAt: string | null;
+	status: string;
+	customerName: string | null;
+	serviceName: string | null;
+	capacity: number | null;
+	enrolled: number;
+	createdAt: string | null;
+}
+
 export interface ShopCoupon {
 	id: string;
 	code: string;
@@ -173,6 +190,17 @@ export function fetchShopReservations(status = "all"): Promise<ShopReservationSu
 
 export function updateShopReservation(id: string, status: string): Promise<ShopReservationSummary> {
 	return mutate(`/admin/shop/reservations/${encodeURIComponent(id)}`, "PATCH", { status });
+}
+
+export function fetchShopEnrollments(status = "all"): Promise<ShopEnrollmentSummary[]> {
+	return get(`/admin/shop/enrollments?status=${encodeURIComponent(status)}`);
+}
+
+export function updateShopEnrollment(
+	id: string,
+	input: { status: string; startsAt?: string; endsAt?: string },
+): Promise<ShopEnrollmentSummary> {
+	return mutate(`/admin/shop/enrollments/${encodeURIComponent(id)}`, "PATCH", input);
 }
 
 export function fetchShopDeliveryZones(): Promise<ShopDeliveryZone[]> {

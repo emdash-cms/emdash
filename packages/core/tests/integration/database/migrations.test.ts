@@ -82,6 +82,9 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_shop_settings",
 			"_emdash_shop_delivery_zones",
 			"_emdash_shop_customers",
+			"_emdash_shop_inventory_movements",
+			"_emdash_shop_carts",
+			"_emdash_shop_cart_items",
 			"_emdash_shop_orders",
 			"_emdash_shop_order_items",
 			"_emdash_shop_payments",
@@ -96,6 +99,97 @@ describe("Database Migrations (Integration)", () => {
 				.execute();
 			expect(Array.isArray(result)).toBe(true);
 		}
+	});
+
+	it("should register customer first and last name columns", async () => {
+		await runMigrations(db);
+		await runMigrations(db);
+
+		const columns = await sql<{ name: string }>`
+			SELECT name FROM pragma_table_info('_emdash_shop_customers')
+		`.execute(db);
+
+		expect(columns.rows.map((column) => column.name)).toEqual(
+			expect.arrayContaining(["first_name", "last_name"]),
+		);
+		expect(MIGRATION_NAMES.at(-4)).toBe("088_shop_inventory_movements");
+		expect(MIGRATION_NAMES.at(-3)).toBe("089_shop_inventory_idempotency");
+		expect(MIGRATION_NAMES.at(-2)).toBe("090_shop_carts");
+		expect(MIGRATION_NAMES.at(-1)).toBe("091_faq_collection");
+	});
+
+	it("should create the built-in FAQ collection", async () => {
+		await runMigrations(db);
+
+		const collection = await db
+			.selectFrom("_emdash_collections")
+			.select(["slug", "routable", "hidden", "title_field"])
+			.where("slug", "=", "faqs")
+			.executeTakeFirst();
+		const fields = await db
+			.selectFrom("_emdash_fields")
+			.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
+			.select(["_emdash_fields.slug", "_emdash_fields.type", "_emdash_fields.required"])
+			.where("_emdash_collections.slug", "=", "faqs")
+			.orderBy("_emdash_fields.sort_order", "asc")
+			.execute();
+
+		expect(collection).toMatchObject({
+			slug: "faqs",
+			routable: 0,
+			hidden: 0,
+			title_field: "question",
+		});
+		expect(fields).toEqual([
+			{ slug: "question", type: "string", required: 1 },
+			{ slug: "answer", type: "portableText", required: 1 },
+			{ slug: "sort_order", type: "integer", required: 1 },
+		]);
+	});
+
+	it("should create persistent cart identity and item columns", async () => {
+		await runMigrations(db);
+
+		const carts = await sql<{ name: string }>`
+			SELECT name FROM pragma_table_info('_emdash_shop_carts')
+		`.execute(db);
+		const items = await sql<{ name: string }>`
+			SELECT name FROM pragma_table_info('_emdash_shop_cart_items')
+		`.execute(db);
+
+		expect(carts.rows.map((column) => column.name)).toEqual(
+			expect.arrayContaining(["user_id", "guest_token_hash", "status", "currency", "expires_at"]),
+		);
+		expect(items.rows.map((column) => column.name)).toEqual(
+			expect.arrayContaining(["cart_id", "collection", "product_id", "variant_id", "quantity"]),
+		);
+	});
+
+	it("should enforce unique inventory movement event keys", async () => {
+		await runMigrations(db);
+		await db
+			.insertInto("_emdash_shop_inventory_movements")
+			.values({
+				id: "movement-1",
+				product_id: "product-1",
+				type: "sale",
+				quantity_delta: -1,
+				event_key: "sale:order-1:item-1",
+			})
+			.execute();
+
+		await expect(
+			db
+				.insertInto("_emdash_shop_inventory_movements")
+				.values({
+					id: "movement-2",
+					product_id: "product-1",
+					type: "sale",
+					quantity_delta: -1,
+					event_key: "sale:order-1:item-1",
+				})
+				.execute(),
+		).rejects.toThrow();
 	});
 
 	it("should create the ecommerce transaction tables with stable order snapshots", async () => {
@@ -225,49 +319,9 @@ describe("Database Migrations (Integration)", () => {
 		await db.destroy();
 		db = await setupTestDatabaseWithCollections();
 
-		// Kysely only re-runs trailing entries; include the latest migrations.
-		const trailing = [
-			"034_published_at_index",
-			"035_bounded_404_log",
-			"036_i18n_menus_and_taxonomies",
-			"037_credential_algorithm",
-			"038_registry_plugin_state",
-			"039_fix_fts5_triggers",
-			"040_byline_i18n",
-			"041_content_locale_list_index",
-			"042_byline_fields",
-			"043_content_references",
-			"044_comment_reactions",
-			"045_taxonomy_parent_group",
-			"046_media_usage_index",
-			"047_restore_taxonomy_parent_index",
-			"048_restore_content_taxonomies_term_index",
-			"049_taxonomies_name_locale_index",
-			"050_media_usage_index_status",
-			"051_content_taxonomies_denorm",
-			"052_media_usage_read_index",
-			"053_plugin_mcp_tools",
-			"054_media_upload_attempts",
-			"055_content_translation_group_locale_index",
-			"056_taxonomy_term_sort_order",
-			"057_collection_hidden",
-			"058_collection_sort_order",
-			"059_revision_prune_queue",
-			"060_collection_admin_config",
-			"061_media_usage_cleanup",
-			"062_media_usage_cleanup_fence",
-			"063_media_usage_incremental_work",
-			"064_fts_plain_text",
-			"065_media_usage_collection_deletion",
-			"066_media_usage_reconciliation",
-			"067_indexed_content_fields",
-			"068_content_taxonomy_entry_groups",
-			"069_collection_title_date_fields",
-			"070_collection_routable",
-			"071_shop_orders",
-			"072_shop_payment_gateway",
-			"073_shop_currency_symbol",
-		];
+		// Kysely only re-runs trailing entries; exercise the built-in collection
+		// migration after its schema was removed from the test database.
+		const trailing = ["091_faq_collection"];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
 

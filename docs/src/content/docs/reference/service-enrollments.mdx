@@ -1,0 +1,119 @@
+---
+title: Service enrollments
+description: Build template storefronts for scheduled services and services that accept registrations before a date is announced.
+---
+
+Service content lives in the `services` collection. Templates should use the same cart and checkout flow as products, while treating service-specific scheduling as a separate concern.
+
+## Service modes
+
+Service entries expose these fields:
+
+| Field | Values | Meaning |
+| --- | --- | --- |
+| `item_type` | `service` | Identifies the entry as a service. |
+| `service_mode` | `in_person`, `online` | Where the service takes place. |
+| `requires_booking` | boolean | Enables date and time slot selection. |
+| `registration_mode` | `scheduled`, `open_enrollment` | Whether the customer chooses a slot now or only registers. |
+| `duration_minutes` | integer | Duration used to calculate scheduled slots. |
+| `service_capacity` | positive integer | Maximum active people for the service, when set. |
+
+Use `registration_mode: open_enrollment` for a workshop, course, meeting, or consultation whose date will be assigned later. Do not show a calendar or call the reservation hold endpoint for this mode.
+
+## Cart and checkout contract
+
+The cart item sent to Core must identify the service collection:
+
+```ts
+{
+	productId: service.id,
+	collection: "services",
+	quantity: people,
+}
+```
+
+For a scheduled service, include the booking payload instead:
+
+```ts
+{
+	productId: service.id,
+	collection: "services",
+	quantity: 1,
+	booking: {
+		reservationId,
+		startsAt,
+		endsAt,
+	},
+}
+```
+
+When every cart item is a service, the checkout should collect contact and payment information but hide delivery address, district, reference, delivery zone, and delivery date. Mixed carts still require delivery information for physical products.
+
+## Open-enrollment lifecycle
+
+Creating an order for an open-enrollment service creates an enrollment linked to the order, order item, and customer. The initial status is `pending_schedule`.
+
+The admin can:
+
+- cancel the enrollment, which releases its capacity;
+- assign start and end timestamps, changing the status to `scheduled`.
+
+The server counts `pending_schedule` and `scheduled` enrollments against `service_capacity`. Templates must display the server error `SHOP_SERVICE_CAPACITY_REACHED` as an unavailable-capacity message and keep the customer form data.
+
+## Calendar UI recommendation
+
+Calendar rendering belongs to the frontend template, not Core. Choose the smallest UI that matches the experience:
+
+- For a public booking flow that only selects a date, prefer the native date input or [React DayPicker](https://daypicker.dev/). It is a focused date-selection component and works well inside a React island in Astro.
+- For an admin or provider view with month/week/day layouts, event blocks, drag-and-drop, or multiple reservations, consider [FullCalendar](https://fullcalendar.io/docs). It has framework integrations, but adds more dependencies and styling work.
+- For the current MVP, a date selector plus available-slot list is preferred over a full calendar. It is faster, easier to localize, and keeps availability authoritative on the API.
+
+The UI should call `GET /_emdash/api/shop/services/:id/availability?date=YYYY-MM-DD&locale=<locale>` after a date is selected. Render only the returned slots; do not derive availability from the calendar library. When a slot is chosen, call the hold endpoint before adding the booking to the cart.
+
+For `open_enrollment`, do not render a calendar or slot picker. Show the service description, duration, location or online mode, capacity when available, and an enrollment action.
+
+## Public UX requirements
+
+The public service experience should be visual, responsive, and usable on a phone before adding desktop enhancements.
+
+### Responsive layout
+
+- Use a single-column flow on small screens: service summary, date, available times, quantity, and primary action.
+- Move to a two-column layout on larger screens, keeping the service summary visible while the user chooses a slot.
+- Keep the primary action visible without forcing the user to scroll back to the top. On mobile, a compact sticky summary is acceptable if it does not cover form controls.
+- Use cards or buttons for available slots rather than a dense table. Show the selected state clearly.
+
+### Interaction and accessibility
+
+- Make dates and slots keyboard accessible and expose the selected state with text and ARIA state, not color alone.
+- Keep touch targets at least 44 by 44 CSS pixels and provide visible focus styles.
+- Disable unavailable dates and slots instead of allowing a click that will fail later.
+- Show loading, empty, expired-slot, and API-error states next to the control that caused them.
+- Preserve the selected date, customer fields, and quantity when a hold or checkout request fails.
+- Format dates and times using the active locale and the shop timezone; do not show raw ISO strings.
+- Announce important availability changes with an accessible status region.
+
+### Recommended public flow
+
+1. Show the service name, price, description, duration, mode, location or meeting information, and capacity when relevant.
+2. For scheduled services, show the next available dates first, then load time slots for the selected date.
+3. Confirm the selected date and time in the primary action or cart summary before checkout.
+4. For open enrollment, replace the calendar with a clear `Inscribirse` action and explain that the date will be confirmed later.
+5. After adding the service, send the customer directly to the service checkout when the cart contains only services.
+
+Open enrollments are available to administrators through:
+
+```text
+GET   /_emdash/api/admin/shop/enrollments?status=all
+PATCH /_emdash/api/admin/shop/enrollments/:id
+```
+
+The patch body accepts `pending_schedule`, `scheduled`, or `cancelled`. Scheduling requires ISO timestamps with `startsAt` earlier than `endsAt`.
+
+## Template checklist
+
+1. Identify services from `item_type` and send `collection: "services"`.
+2. Render a calendar only when `requires_booking` is true and `registration_mode` is `scheduled`.
+3. Render an enrollment action without a date when `registration_mode` is `open_enrollment`.
+4. Route both service modes through the service checkout behavior.
+5. Never infer capacity from product stock; use the service capacity response and the server validation as the authority.

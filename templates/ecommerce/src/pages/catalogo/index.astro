@@ -1,0 +1,20 @@
+---
+import { ShopStore } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+---
+
+<Base title="Catálogo" description="Explora productos y encuentra algo para ti.">
+	<section class="catalog-page container">
+		<header><p class="eyebrow">Catálogo</p><h1>Productos para elegir con calma</h1><p class="muted">Agrega productos al carrito, revisa tu pedido y continúa al checkout.</p></header>
+		<ShopStore />
+	</section>
+</Base>
+
+<style>
+	.catalog-page { padding-block: 4rem; }
+	.catalog-page > header { max-width: 680px; margin-bottom: 2.5rem; }
+	.catalog-page h1 { margin-block: .75rem 1rem; font-size: clamp(2.8rem, 6vw, 5rem); }
+	.catalog-page :global(.emdash-shop__products > [data-shop-products]) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+	@media (max-width: 900px) { .catalog-page :global(.emdash-shop__products > [data-shop-products]) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+	@media (max-width: 520px) { .catalog-page :global(.emdash-shop__products > [data-shop-products]) { grid-template-columns: 1fr; } }
+</style>

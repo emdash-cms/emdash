@@ -1,0 +1,63 @@
+---
+import Base from "../../layouts/Base.astro";
+---
+
+<Base title="Finalizar compra" description="Completa tus datos para confirmar el pedido.">
+	<section class="checkout-page container">
+		<a class="back-link" href="/catalogo">← Volver al catálogo</a>
+		<header><p class="eyebrow">Tu pedido</p><h1>Finalizar compra</h1><p class="muted">Completa tus datos y elige cómo coordinar el pago.</p></header>
+		<div class="checkout-grid">
+			<section class="summary"><h2>Resumen</h2><div id="checkout-items">Cargando…</div><strong id="checkout-total"></strong></section>
+			<form id="checkout-form" class="form">
+				<h2>Datos del cliente</h2>
+				<div class="two-col"><label>Nombre<input name="firstName" required /></label><label>Apellidos<input name="lastName" required /></label></div>
+				<label>Teléfono<input name="phone" type="tel" required /></label>
+				<label>Correo electrónico<input name="email" type="email" /></label>
+				<div data-delivery-field><label>Dirección<input name="address" /></label><label>Distrito<input name="district" /></label></div>
+				<label>Método de pago<select name="paymentMethod" id="payment-method" required></select></label>
+				<label>Notas<textarea name="notes"></textarea></label>
+				<button class="button" type="submit">Crear pedido</button><p id="checkout-message" class="muted" role="status"></p>
+			</form>
+		</div>
+	</section>
+</Base>
+
+<script>
+	const apiBase = "/_emdash/api/shop";
+	const form = document.querySelector<HTMLFormElement>("#checkout-form");
+	const itemsElement = document.querySelector<HTMLElement>("#checkout-items");
+	const totalElement = document.querySelector<HTMLElement>("#checkout-total");
+	const messageElement = document.querySelector<HTMLElement>("#checkout-message");
+	const paymentElement = document.querySelector<HTMLSelectElement>("#payment-method");
+	const storageKey = "emdash-shop-cart";
+	let cart = [];
+	let settings = { currencySymbol: "S/", paymentMethods: ["whatsapp"] };
+	try { const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]"); if (Array.isArray(stored)) cart = stored; } catch { cart = []; }
+	if (cart.length === 0) window.location.replace("/catalogo");
+	const isService = (entry) => entry?.booking || entry?.product?.data?.item_type === "service" || entry?.product?.isService;
+	const price = (entry) => { const variant = entry.product.data?.variants?.find((item) => (item.id ?? item.label) === entry.variantId); return Number(variant?.price ?? entry.product.data?.promotion_price ?? entry.product.data?.price ?? 0); };
+	const money = (value) => `${settings.currencySymbol} ${value.toFixed(2)}`;
+	const render = () => { let total = 0; itemsElement?.replaceChildren(); for (const entry of cart) { const subtotal = price(entry) * entry.quantity; total += subtotal; const row = document.createElement("p"); row.textContent = `${entry.product.data?.name ?? "Producto"} × ${entry.quantity} — ${money(subtotal)}`; itemsElement?.append(row); } if (totalElement) totalElement.textContent = `Total: ${money(total)}`; };
+	const loadSettings = async () => { const response = await fetch(`${apiBase}/settings`); const body = await response.json(); if (response.ok && body.data) settings = body.data; for (const method of settings.paymentMethods) paymentElement?.append(new Option(method, method)); };
+	form?.addEventListener("submit", async (event) => { event.preventDefault(); if (!form) return; if (messageElement) messageElement.textContent = "Creando pedido…"; const data = new FormData(form); const customer = { firstName: String(data.get("firstName") ?? ""), lastName: String(data.get("lastName") ?? ""), phone: String(data.get("phone") ?? ""), email: String(data.get("email") ?? ""), address: String(data.get("address") ?? ""), district: String(data.get("district") ?? "") }; const response = await fetch(`${apiBase}/orders`, { method: "POST", headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" }, body: JSON.stringify({ items: cart.map((entry) => ({ productId: entry.product.id, collection: isService(entry) ? "services" : "products", quantity: entry.quantity, ...(entry.variantId ? { variantId: entry.variantId } : {}), ...(entry.booking ? { booking: entry.booking } : {}) })), customer, paymentMethod: String(data.get("paymentMethod") ?? "whatsapp"), notes: String(data.get("notes") ?? "") }) }); const body = await response.json(); if (!response.ok) { if (messageElement) messageElement.textContent = body?.error?.message ?? "No se pudo crear el pedido."; return; } localStorage.removeItem(storageKey); window.location.assign(`/shop/thanks?order=${encodeURIComponent(body.data.orderNumber)}`); });
+	void Promise.all([loadSettings(), Promise.resolve(render())]);
+</script>
+
+<style>
+	.checkout-page { padding-block: 3rem 6rem; }
+	.checkout-page header { max-width: 640px; margin-block: 2rem 2.5rem; }
+	.checkout-page h1 { margin-block: .75rem 1rem; font-size: clamp(2.8rem, 6vw, 5rem); }
+	.back-link { color: var(--color-muted); text-decoration: none; }
+	.checkout-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 1.5rem; }
+	.summary, .form { padding: 1.5rem; border: 1px solid var(--color-border); background: var(--color-surface); }
+	.summary h2, .form h2 { margin-bottom: 1.25rem; font-family: var(--font-display), serif; font-size: 1.8rem; }
+	.summary p { padding-bottom: .8rem; border-bottom: 1px solid var(--color-border); }
+	.summary strong { display: block; margin-top: 1.5rem; font-size: 1.25rem; }
+	.form { display: grid; gap: 1rem; }
+	.form label { display: grid; gap: .35rem; font-weight: 600; }
+	.form input, .form select, .form textarea { width: 100%; padding: .7rem; border: 1px solid var(--color-border); background: var(--color-bg); }
+	.form textarea { min-height: 6rem; }
+	.two-col, [data-delivery-field] { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+	[data-delivery-field] { padding: 0; }
+	@media (max-width: 720px) { .checkout-grid { grid-template-columns: 1fr; } .two-col, [data-delivery-field] { grid-template-columns: 1fr; gap: 1rem; } }
+</style>

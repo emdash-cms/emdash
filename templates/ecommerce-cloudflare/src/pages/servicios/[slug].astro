@@ -1,0 +1,15 @@
+---
+import { decodeSlug, getEmDashEntry } from "emdash";
+import Base from "../../layouts/Base.astro";
+import ItemDetail from "../../components/ItemDetail.astro";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
+const { entry: service, cacheHint } = await getEmDashEntry("services", slug);
+if (!service) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+
+<Base title={service.data.name || "Servicio"} content={{ collection: "services", id: service.id, slug }}>
+	<ItemDetail item={service} collection="services" />
+</Base>

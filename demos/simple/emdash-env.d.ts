@@ -17,6 +17,20 @@ export interface Categoria {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
+export interface Faq {
+  id: string;
+  slug: string | null;
+  status: string;
+  question: string;
+  answer: PortableTextBlock[];
+  sort_order: number;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 export interface Page {
   id: string;
   slug: string | null;
@@ -62,6 +76,9 @@ export interface Product {
   variants?: { "label": string; "image"?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } | null; "stock": number; "price"?: number | null }[];
   featured?: boolean;
   discount_percentage?: number;
+  sku?: string;
+  short_description?: string;
+  product_details?: { "text": string }[];
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;
@@ -72,6 +89,7 @@ export interface Product {
 declare module "emdash" {
   interface EmDashCollections {
     categorias: Categoria;
+    faqs: Faq;
     pages: Page;
     posts: Post;
     products: Product;

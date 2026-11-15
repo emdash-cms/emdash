@@ -48,11 +48,25 @@ services
 ├── price
 ├── serviceMode: in_person | online
 ├── requiresBooking: boolean
+├── registrationMode: scheduled | open_enrollment
 ├── durationMinutes: number
 └── capacity: number
 ```
 
 La disponibilidad y las reservas serán entidades internas de ecommerce, separadas del contenido publicado. Los pedidos conservarán una copia histórica del servicio y del horario reservado para que sigan siendo correctos aunque el servicio se edite después.
+
+### Inscripciones abiertas
+
+Un servicio puede usar `registrationMode: open_enrollment` cuando todavía no tiene una fecha fija. El cliente se inscribe indicando la cantidad de personas y completa el mismo checkout del ecommerce. En este modo:
+
+- No se solicita fecha ni hora al cliente.
+- Un carrito compuesto solo por estos servicios no solicita datos de delivery.
+- El pedido crea una fila en `_emdash_shop_enrollments` con estado `pending_schedule`.
+- La inscripción conserva `order_id`, `order_item_id`, `customer_id`, cantidad y snapshots del cliente y del servicio.
+- `capacity`, cuando es un entero positivo, limita la suma de inscripciones activas (`pending_schedule` y `scheduled`). Las canceladas liberan cupo.
+- Administración puede cancelar la inscripción o asignarle fecha y hora; al asignarlas, el estado pasa a `scheduled`.
+
+El frontend del template debe identificar el servicio por `item_type: service` y enviar `collection: services` en la línea del pedido. No debe crear una retención en `_emdash_shop_reservations` para una inscripción abierta.
 
 ### Estados iniciales
 
@@ -384,8 +398,9 @@ El ecommerce utiliza estas tablas de Core:
 | `_emdash_shop_order_items`    | Productos, variaciones, precios y cantidades |
 | `_emdash_shop_payments`       | Método y estado del pago                     |
 | `_emdash_shop_deliveries`     | Dirección y estado del delivery              |
+| `_emdash_shop_enrollments`    | Inscripciones abiertas y su programación     |
 
-Las migraciones `071_shop_orders`, `072_shop_payment_gateway` y `073_shop_currency_symbol` crean y amplían estas tablas; están registradas en el proveedor estático de migraciones de Core. El código ISO se conserva para integraciones y el símbolo configurado se utiliza en la tienda, el pedido y WhatsApp.
+Las migraciones `071_shop_orders`, `072_shop_payment_gateway`, `073_shop_currency_symbol` y `086_shop_open_enrollments` crean y amplían estas tablas; están registradas en el proveedor estático de migraciones de Core. El código ISO se conserva para integraciones y el símbolo configurado se utiliza en la tienda, el pedido y WhatsApp.
 
 ## APIs funcionales
 
@@ -411,6 +426,8 @@ Las migraciones `071_shop_orders`, `072_shop_payment_gateway` y `073_shop_curren
 - `POST /_emdash/api/admin/shop/orders/:id/payment`: confirma el pago.
 - `PATCH /_emdash/api/admin/shop/orders/:id/delivery`: actualiza el delivery.
 - `GET /_emdash/api/admin/shop/customers`: lista clientes con resumen e historial.
+- `GET /_emdash/api/admin/shop/enrollments`: lista inscripciones abiertas; admite `status=all`, `pending_schedule`, `scheduled` o `cancelled`.
+- `PATCH /_emdash/api/admin/shop/enrollments/:id`: cancela o programa una inscripción con `status`, `startsAt` y `endsAt`.
 
 Las operaciones administrativas requieren autenticación y el permiso `shop:read` o `shop:manage` según la operación.
 
@@ -429,6 +446,7 @@ El frontend debe mostrar un mensaje comprensible y conservar los datos del formu
 - No se puede cargar la configuración de la tienda.
 - No se encuentra el número de pedido.
 - El navegador no permite guardar datos localmente.
+- La capacidad configurada del servicio ya fue alcanzada (`SHOP_SERVICE_CAPACITY_REACHED`).
 
 ## Separación entre Core y frontend
 

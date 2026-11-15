@@ -17,6 +17,16 @@
 			"404": "/nonexistent"
 		}
 	},
+	"ecommerce": {
+		"pages": {
+			"homepage": "/",
+			"catalog": "/catalogo",
+			"product": "/catalogo/producto-destacado",
+			"services": "/servicios",
+			"checkout": "/shop/checkout",
+			"404": "/nonexistent"
+		}
+	},
 	"portfolio": {
 		"pages": {
 			"homepage": "/",

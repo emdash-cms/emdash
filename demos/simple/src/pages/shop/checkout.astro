@@ -233,6 +233,7 @@ import Base from "../../layouts/Base.astro";
 				body: JSON.stringify({
 					items: cart.map((entry) => ({
 						productId: entry.product.id,
+						...((entry.product?.isService || (typeof entry.product?.data?.item_type === "string" && entry.product.data.item_type.toLowerCase() === "service")) ? { collection: "services" } : {}),
 						quantity: entry.quantity,
 						...(typeof entry.variantId === "string" && entry.variantId ? { variantId: entry.variantId } : {}),
 						...(entry.booking ? { booking: entry.booking } : {}),

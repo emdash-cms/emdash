@@ -56,8 +56,8 @@ describe("email templates plugin", () => {
 	it("provides an email-safe visual editor configuration", () => {
 		expect(DEFAULT_EMAIL_EDITOR_CONFIG.defaultLayout.type).toBe("section");
 		expect(DEFAULT_EMAIL_BLOCKS.map((block) => block.type)).toEqual([
-			"section",
-			"columns",
+			"branding",
+			"footer",
 			"text",
 			"heading",
 			"image",

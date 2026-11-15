@@ -88,7 +88,7 @@ Use the [configuration reference](https://docs.emdashcms.com/reference/configura
 
 ## Templates
 
-EmDash ships with three starter templates:
+EmDash ships with four starter templates:
 
 <table>
 <tr>
@@ -140,6 +140,10 @@ A visual portfolio for showcasing creative work.
 </td>
 </tr>
 </table>
+
+### Ecommerce
+
+Storefront template for products, services, cart, checkout, order tracking, and Resend email delivery. See [TEMPLATES.md](TEMPLATES.md#ecommerce) for the page map and implementation notes.
 
 ## Why EmDash?
 
@@ -276,7 +280,7 @@ packages/
   create-emdash/  npm create emdash scaffolding
   gutenberg-to-portable-text/  WordPress block converter
 
-templates/        Starter templates (blog, marketing, portfolio, starter, blank)
+templates/        Starter templates (blog, marketing, ecommerce, portfolio, starter, blank)
 demos/            Development and example sites
 docs/             Documentation site (Starlight)
 ```

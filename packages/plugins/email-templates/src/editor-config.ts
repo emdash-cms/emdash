@@ -1,6 +1,8 @@
 export type EmailBlockType =
 	| "section"
 	| "columns"
+	| "branding"
+	| "footer"
 	| "text"
 	| "heading"
 	| "image"
@@ -86,6 +88,18 @@ export const EMAIL_SAFE_FONTS: readonly EmailFontDefinition[] = [
 
 export const DEFAULT_EMAIL_BLOCKS: readonly EmailBlockDefinition[] = [
 	{
+		type: "branding",
+		label: "Email header",
+		category: "layout",
+		defaultProps: {},
+	},
+	{
+		type: "footer",
+		label: "Email footer",
+		category: "layout",
+		defaultProps: {},
+	},
+	{
 		type: "text",
 		label: "Text",
 		category: "content",
@@ -106,8 +120,9 @@ export const DEFAULT_EMAIL_BLOCKS: readonly EmailBlockDefinition[] = [
 			text: "Call to action",
 			href: "https://example.com",
 			alignment: "center",
+			size: "medium",
 			style:
-				"background-color: #111827; color: #ffffff; padding: 12px 24px; border-radius: 6px; font-size: 16px; font-weight: 600; text-decoration: none;",
+				"background-color: #000000; color: #ffffff; padding: 12px 24px; border-radius: 6px; font-size: 16px; font-weight: 600; text-decoration: none;",
 		},
 	},
 	{ type: "divider", label: "Divider", category: "content", defaultProps: {} },

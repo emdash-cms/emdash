@@ -2757,6 +2757,7 @@ export class EmDashRuntime {
 				this.db,
 				configuredLocales,
 				taxonomyDefinitionLocales,
+				manifestTaxonomies.map(({ id, locale }) => ({ id, locale })),
 			);
 		} catch (error) {
 			console.warn("[i18n] taxonomy locale diagnostic failed:", error);

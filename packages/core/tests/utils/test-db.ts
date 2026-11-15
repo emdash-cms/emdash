@@ -75,6 +75,10 @@ export function createTestDatabase(): Kysely<DatabaseSchema> {
 export async function setupTestDatabase(): Promise<Kysely<DatabaseSchema>> {
 	const db = createTestDatabase();
 	await runMigrations(db);
+	const registry = new SchemaRegistry(db);
+	if (await registry.getCollection("faqs")) {
+		await registry.deleteCollection("faqs", { force: true });
+	}
 	return db;
 }
 
@@ -378,6 +382,10 @@ export async function createTestPostgresDatabase(): Promise<PgTestContext> {
 export async function setupTestPostgresDatabase(): Promise<PgTestContext> {
 	const ctx = await createTestPostgresDatabase();
 	await runMigrations(ctx.db, { migrationTableSchema: ctx.schemaName });
+	const registry = new SchemaRegistry(ctx.db);
+	if (await registry.getCollection("faqs")) {
+		await registry.deleteCollection("faqs", { force: true });
+	}
 	return ctx;
 }
 

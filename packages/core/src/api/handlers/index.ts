@@ -94,6 +94,7 @@ export {
 	handleSchemaCollectionCreate,
 	handleSchemaCollectionUpdate,
 	handleSchemaCollectionDelete,
+	handleSchemaCollectionReorder,
 	handleSchemaFieldList,
 	handleSchemaFieldGet,
 	handleSchemaFieldCreate,
@@ -230,6 +231,11 @@ export {
 	type ShopReservationSummary,
 	type ShopBookingBlock,
 } from "./booking.js";
+export {
+	handleShopEnrollmentList,
+	handleShopEnrollmentUpdate,
+	type ShopEnrollmentSummary,
+} from "./enrollment.js";
 
 // Taxonomy handlers
 export {

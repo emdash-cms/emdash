@@ -55,7 +55,10 @@ describeEachDialect("taxonomy locale diagnostic", (dialect) => {
 		await warnAboutUnconfiguredTaxonomyLocales(ctx.db, ["en"]);
 
 		expect(warn).toHaveBeenCalledOnce();
-		expect(warn).toHaveBeenCalledWith(expect.stringContaining("definitions: ja; terms: fr"));
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining(`definitions: ja (ids: ${definitionId})`),
+		);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(`terms: fr (ids: ${termId})`));
 		expect(warn).toHaveBeenCalledWith(
 			expect.stringContaining("repairing-taxonomy-locale-mismatches"),
 		);

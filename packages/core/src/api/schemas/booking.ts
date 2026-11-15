@@ -42,6 +42,12 @@ export const shopReservationUpdateBody = z.object({
 	endsAt: isoDateTime.optional(),
 });
 
+export const shopEnrollmentUpdateBody = z.object({
+	status: z.enum(["pending_schedule", "scheduled", "cancelled"]),
+	startsAt: isoDateTime.optional(),
+	endsAt: isoDateTime.optional(),
+});
+
 export const shopBookingBlockCreateBody = z.object({
 	serviceId: z.string().min(1).nullable().optional(),
 	startsAt: isoDateTime,

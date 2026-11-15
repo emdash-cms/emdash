@@ -1,0 +1,54 @@
+---
+title: Ecommerce template
+description: Implement an EmDash storefront with products, services, checkout, and Resend email delivery.
+---
+
+The ecommerce template provides the page structure from the Taller Azotea prototype and leaves the content editable in the EmDash admin. Copy `templates/ecommerce` for a Node.js site or `templates/ecommerce-cloudflare` for a Cloudflare site.
+
+## Included pages
+
+The template includes the following routes:
+
+- `/` — hero, featured products, promotions, categories, services, and brand story.
+- `/catalogo` — product listing, filters, cart, and links to checkout.
+- `/catalogo/[...slug]` — product detail with variants and stock-aware cart actions.
+- `/servicios` and `/servicios/[slug]` — service listing and service detail.
+- `/shop/checkout` and `/shop/thanks` — order creation and confirmation.
+- `/seguimiento` — public order lookup entry point.
+- `/nosotros`, `/contacto`, `/preguntas-frecuentes`, `/envios-y-devoluciones`, `/terminos-y-condiciones`, `/politica-de-privacidad`, `/politica-de-cookies`, and `/libro-de-reclamaciones` — editable `pages` entries.
+
+## Content model
+
+The seed defines three collections:
+
+- `products` stores prices, stock, variants, images, descriptions, and promotion prices.
+- `services` stores service mode, registration mode, duration, capacity, and price. Use `registration_mode: "open_enrollment"` when the date is assigned later. Use `registration_mode: "scheduled"` with `requires_booking: true` when the customer chooses an available slot.
+- `pages` stores the home fields and informational page content.
+
+The shop runtime validates stock, cart lines, order totals, and service capacity on the server. Keep the client cart as a convenience layer; never use it as the source of truth for inventory or availability.
+
+## Resend configuration
+
+The Node template registers:
+
+```js
+plugins: [emailTemplatesPlugin({ enabled: true }), resendEmail()]
+```
+
+Start the site, then open the plugin settings in the admin and configure the Resend API key and sender address. Verify the sender domain in Resend before sending production mail. Keep the API key in the encrypted plugin secret field or the deployment secret store; do not add it to `seed.json` or `astro.config.mjs`.
+
+The email templates plugin manages reusable transactional templates. Add order confirmation, payment, delivery, and service enrollment templates after deciding which order events the business needs to notify.
+
+## Implementation plan
+
+Use this sequence when adapting the template for a client:
+
+1. Replace the seeded brand settings, pages, categories, products, services, images, prices, and policies.
+2. Configure currency, payment methods, delivery zones, WhatsApp details, and shop settings in the admin.
+3. Configure Resend, verify the sender domain, and create the transactional email templates.
+4. Decide whether payment stays manual or requires a payment gateway. Keep the existing checkout contract when adding a gateway.
+5. Add service booking hours and blocked dates only for scheduled services. Do not show a calendar for open enrollment.
+6. Test product stock, variants, mixed product/service carts, coupon rules, service capacity, order lookup, and Resend delivery in a staging environment.
+7. Deploy the Node or Cloudflare variant, set secrets, run migrations, seed only the intended initial content, and perform a production smoke test.
+
+The template does not activate a payment gateway or a live newsletter subscription by default. Those integrations require a client-specific decision about provider, legal copy, and operational ownership.

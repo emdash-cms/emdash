@@ -25,6 +25,7 @@ import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/conte
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { setSiteSettings } from "../settings/index.js";
+import { ensureShopProductFields } from "../shop/product-fields.js";
 import type { Storage } from "../storage/types.js";
 import type {
 	SeedFile,
@@ -288,6 +289,8 @@ export async function applySeed(
 			result.fields.created += fields.length;
 		}
 	}
+
+	await ensureShopProductFields(db);
 
 	// 4-5. Taxonomies
 	if (seed.taxonomies) {

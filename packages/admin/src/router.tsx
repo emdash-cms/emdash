@@ -128,10 +128,19 @@ import {
 import { runBulkAction } from "./lib/bulk";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
+import { SiteSettingsProvider } from "./lib/site-settings-context.js";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylineSchemaPage } from "./routes/byline-schema";
 import { BylinesPage } from "./routes/bylines";
-import { Shop } from "./routes/shop";
+import {
+	Shop,
+	ShopBookingsRoute,
+	ShopCouponsRoute,
+	ShopCustomersRoute,
+	ShopDeliveryRoute,
+	ShopOrdersRoute,
+	ShopSettingsRoute,
+} from "./routes/shop";
 import { UsersPage } from "./routes/users";
 
 // Router context type
@@ -290,9 +299,11 @@ function RootComponent() {
 
 	// Plugin admin components are passed via props and available through PluginAdminContext
 	return (
-		<Shell manifest={manifest}>
-			<Outlet />
-		</Shell>
+		<SiteSettingsProvider>
+			<Shell manifest={manifest}>
+				<Outlet />
+			</Shell>
+		</SiteSettingsProvider>
 	);
 }
 
@@ -329,6 +340,7 @@ function ContentListPage() {
 	const { t } = useLingui();
 	const { collection } = useParams({ from: "/_admin/content/$collection" });
 	const { locale: localeParam, itemType } = useSearch({ from: "/_admin/content/$collection" });
+	const isServicesView = collection === "services" && itemType === "service";
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const toastManager = Toast.useToastManager();
@@ -573,7 +585,7 @@ function ContentListPage() {
 
 	const items = React.useMemo(() => {
 		const loadedItems = data?.pages.flatMap((page) => page.items) || [];
-		if (collection !== "products" || itemType !== "service") return loadedItems;
+		if (!isServicesView) return loadedItems;
 		return loadedItems.filter((item) => {
 			const value = item.data.item_type;
 			return typeof value === "string" && value.toLowerCase() === "service";
@@ -583,7 +595,7 @@ function ContentListPage() {
 	// Server returns `total` on every page; the first page is authoritative
 	// because filters don't change within a fetch cycle. Fall back to the
 	// loaded count so old servers (pre-total) still render a denominator.
-	const total = itemType === "service" ? items.length : (data?.pages[0]?.total ?? items.length);
+	const total = isServicesView ? items.length : (data?.pages[0]?.total ?? items.length);
 
 	// Keep every hook above the early returns below — a render that takes a
 	// guard (e.g. `error`) must run the same number of hooks as a full render,
@@ -623,7 +635,6 @@ function ContentListPage() {
 		);
 	}
 	const isProductCollection = collection === "products";
-	const isServicesView = isProductCollection && itemType === "service";
 
 	const handleLocaleChange = (locale: string) => {
 		// Update URL search params without full navigation
@@ -803,14 +814,14 @@ function ContentNewPage() {
 		<ContentEditor
 			collection={collection}
 			collectionLabel={
-				collection === "products" && itemType === "service"
+				collection === "services" && itemType === "service"
 					? t`Service`
 					: collectionConfig.labelSingular || collectionConfig.label
 			}
 			fields={collectionConfig.fields}
 			isNew
 			initialData={
-				collection === "products" && itemType === "service"
+				collection === "services" && itemType === "service"
 					? { item_type: "service", requires_booking: true }
 					: undefined
 			}
@@ -926,7 +937,7 @@ function ContentEditPage() {
 		};
 	}, [rawItem, draftRevision]);
 	const isServiceItem =
-		collection === "products" &&
+		collection === "services" &&
 		typeof item?.data.item_type === "string" &&
 		item.data.item_type.toLowerCase() === "service";
 
@@ -1637,6 +1648,42 @@ const shopRoute = createRoute({
 	component: Shop,
 });
 
+const shopSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/shop/settings",
+	component: ShopSettingsRoute,
+});
+
+const shopDeliveryRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/shop/delivery",
+	component: ShopDeliveryRoute,
+});
+
+const shopOrdersRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/shop/orders",
+	component: ShopOrdersRoute,
+});
+
+const shopCustomersRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/shop/customers",
+	component: ShopCustomersRoute,
+});
+
+const shopCouponsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/shop/coupons",
+	component: ShopCouponsRoute,
+});
+
+const shopBookingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/shop/bookings",
+	component: ShopBookingsRoute,
+});
+
 // Security settings route
 const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2227,6 +2274,12 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	promotionsRoute,
 	settingsRoute,
 	shopRoute,
+	shopSettingsRoute,
+	shopDeliveryRoute,
+	shopOrdersRoute,
+	shopCustomersRoute,
+	shopCouponsRoute,
+	shopBookingsRoute,
 	generalSettingsRoute,
 	socialSettingsRoute,
 	seoSettingsRoute,

@@ -1,0 +1,132 @@
+---
+import { getMenu, getSiteSettings } from "emdash";
+import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
+import { createPublicPageContext } from "emdash/page";
+import { Font } from "astro:assets";
+import "../styles/theme.css";
+
+interface Props {
+	title: string;
+	description?: string | null;
+	canonical?: string | null;
+	content?: { collection: string; id: string; slug?: string | null };
+}
+
+const { title, description, canonical, content } = Astro.props;
+const settings = await getSiteSettings();
+const primary = await getMenu("primary");
+const siteTitle = settings?.title || "Tienda";
+const siteTagline = settings?.tagline || "Productos y servicios para tu día a día.";
+const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
+const page = createPublicPageContext({
+	Astro,
+	kind: content ? "content" : "custom",
+	pageType: "website",
+	title: fullTitle,
+	pageTitle: title,
+	description: description || siteTagline,
+	canonical,
+	content,
+	siteName: siteTitle,
+});
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<Font cssVariable="--font-body" preload />
+		<Font cssVariable="--font-display" />
+		<title>{fullTitle}</title>
+		<meta name="description" content={description || siteTagline} />
+		{canonical && <link rel="canonical" href={canonical} />}
+		<EmDashHead page={page} />
+	</head>
+	<body>
+		<EmDashBodyStart page={page} />
+		<header class="site-header">
+			<div class="container site-header__inner">
+				<a class="brand" href="/" aria-label={`${siteTitle} — inicio`}>
+					<span class="brand__mark" aria-hidden="true">✦</span>
+					<span>{siteTitle}</span>
+				</a>
+				<nav class="site-nav" aria-label="Navegación principal">
+					{primary?.items.map((item) => <a href={item.url} target={item.target}>{item.label}</a>)}
+				</nav>
+				<a class="cart-link" href="/catalogo#carrito" aria-label="Abrir carrito">Carrito</a>
+			</div>
+		</header>
+
+		<main><slot /></main>
+
+		<footer class="site-footer">
+			<div class="container footer-grid">
+				<div>
+					<a class="brand" href="/">
+						<span class="brand__mark" aria-hidden="true">✦</span>
+						<span>{siteTitle}</span>
+					</a>
+					<p class="muted">{siteTagline}</p>
+					<a href="/libro-de-reclamaciones">Libro de reclamaciones</a>
+				</div>
+				<div>
+					<h2>Ayuda</h2>
+					<a href="/seguimiento">Seguimiento de pedido</a>
+					<a href="/preguntas-frecuentes">Preguntas frecuentes</a>
+					<a href="/envios-y-devoluciones">Envíos y devoluciones</a>
+				</div>
+				<div>
+					<h2>Políticas</h2>
+					<a href="/terminos-y-condiciones">Términos y condiciones</a>
+					<a href="/politica-de-privacidad">Política de privacidad</a>
+					<a href="/politica-de-cookies">Política de cookies</a>
+				</div>
+				<div>
+					<h2>Recibe novedades</h2>
+					<form class="newsletter-form" data-newsletter-form>
+						<label for="newsletter-email">Correo electrónico</label>
+						<div><input id="newsletter-email" name="email" type="email" required /><button class="button" type="submit">Enviar</button></div>
+						<p class="muted" data-newsletter-message role="status">Configura el flujo de newsletter con Resend.</p>
+					</form>
+				</div>
+			</div>
+			<div class="container footer-bottom"><span>© {new Date().getFullYear()} {siteTitle}</span><span>Hecho con EmDash</span></div>
+		</footer>
+		<EmDashBodyEnd page={page} />
+	</body>
+</html>
+
+<style is:global>
+	.site-header { position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-bg) 92%, transparent); backdrop-filter: blur(12px); }
+	.site-header__inner { display: flex; align-items: center; gap: 2rem; min-height: 4.5rem; }
+	.brand { display: inline-flex; align-items: center; gap: .55rem; color: var(--color-ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+	.brand__mark { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--color-brand); color: white; font-size: .85rem; }
+	.site-nav { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-inline: auto; color: var(--color-muted); font-size: .92rem; }
+	.site-nav a, .site-footer a { text-decoration: none; }
+	.site-nav a:hover, .site-footer a:hover { color: var(--color-brand); }
+	.cart-link { padding: .5rem .8rem; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-brand); font-size: .9rem; font-weight: 700; text-decoration: none; }
+	.site-footer { margin-top: 4rem; padding-top: 4rem; border-top: 1px solid var(--color-border); background: var(--color-soft); }
+	.footer-grid { display: grid; grid-template-columns: 1.3fr repeat(3, 1fr); gap: 2rem; padding-bottom: 3rem; }
+	.footer-grid h2 { margin-bottom: .8rem; font-family: var(--font-body), sans-serif; font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; }
+	.footer-grid > div { display: grid; align-content: start; gap: .45rem; }
+	.footer-grid p { margin: .8rem 0; }
+	.newsletter-form { display: grid; gap: .5rem; }
+	.newsletter-form label { font-size: .85rem; }
+	.newsletter-form > div { display: flex; gap: .4rem; }
+	.newsletter-form input { min-width: 0; width: 100%; padding: .65rem .75rem; border: 1px solid var(--color-border); background: var(--color-surface); }
+	.newsletter-form .button { border: 0; }
+	.newsletter-form .muted { margin: 0; font-size: .78rem; }
+	.footer-bottom { display: flex; justify-content: space-between; gap: 1rem; padding-block: 1rem; border-top: 1px solid var(--color-border); color: var(--color-muted); font-size: .82rem; }
+	@media (max-width: 760px) { .site-header__inner { flex-wrap: wrap; padding-block: .8rem; } .site-nav { order: 3; width: 100%; margin: 0; gap: .75rem 1rem; } .footer-grid { grid-template-columns: 1fr 1fr; } }
+	@media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } .footer-bottom { flex-direction: column; } .newsletter-form > div { display: grid; } }
+</style>
+
+<script>
+	const newsletterForm = document.querySelector<HTMLFormElement>("[data-newsletter-form]");
+	newsletterForm?.addEventListener("submit", (event) => {
+		event.preventDefault();
+		const message = newsletterForm.querySelector<HTMLElement>("[data-newsletter-message]");
+		if (message) message.textContent = "Formulario listo para conectarse al endpoint de suscripciones.";
+	});
+</script>

@@ -8,6 +8,7 @@ import { routeArtifactName } from "./src/astro/integration/route-naming.ts";
 
 const srcDir = resolvePath(import.meta.dirname, "src");
 const TS_EXT = /\.tsx?$/;
+const EXPORT_ALL_IMPORT = /import \{ c as __exportAll \} from "[^"]+";\n/;
 
 /**
  * Mirror each entry's path under src/ into dist/, preserving the original
@@ -145,6 +146,21 @@ export default defineConfig({
 	// the patched implementation into every published entry that uses it.
 	noExternal: ["image-size"],
 	inlineOnly: false,
+	plugins: [
+		{
+			name: "preserve-vite-ignore-for-runtime-plugin-imports",
+			renderChunk(code: string) {
+				const withViteIgnore = code.replaceAll(
+					"import(`data:text/javascript;base64,",
+					"import(/* @vite-ignore */ `data:text/javascript;base64,",
+				);
+				return withViteIgnore.replace(
+					EXPORT_ALL_IMPORT,
+					`var __exportAll = (all, no_symbols) => {\n\tlet target = {};\n\tfor (var name in all) {\n\t\tObject.defineProperty(target, name, { get: all[name], enumerable: true });\n\t}\n\tif (!no_symbols) Object.defineProperty(target, Symbol.toStringTag, { value: "Module" });\n\treturn target;\n};\n`,
+				);
+			},
+		},
+	],
 	inputOptions: (options) => {
 		// tsdown has already normalized the `entry` array into an input record
 		// by this hook; we only augment it with the route map.

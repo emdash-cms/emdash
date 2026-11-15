@@ -1,0 +1,140 @@
+---
+import type { MediaValue, PortableTextBlock } from "emdash";
+import { Image, PortableText } from "emdash/ui";
+
+interface Props { item: any; collection: "products" | "services"; }
+const { item, collection } = Astro.props;
+const data = item.data as Record<string, any>;
+const isService = collection === "services" || data.item_type === "service";
+const name = typeof data.name === "string" ? data.name : item.id;
+const image = data.featured_image as MediaValue | undefined;
+const price = Number(data.price ?? 0);
+const promotionPrice = Number(data.promotion_price ?? price);
+const onSale = promotionPrice > 0 && promotionPrice < price;
+const variants = Array.isArray(data.variants) ? data.variants.filter((variant: any) => variant?.label) : [];
+const description = Array.isArray(data.rich_description) ? data.rich_description as PortableTextBlock[] : [];
+const itemId = typeof data.id === "string" ? data.id : item.id;
+const requiresBooking = isService && (data.requires_booking === true || data.requires_booking === 1);
+const openEnrollment = isService && data.registration_mode === "open_enrollment";
+const available = openEnrollment || requiresBooking || data.stock === undefined || Number(data.stock) > 0;
+const hrefBack = isService ? "/servicios" : "/catalogo";
+---
+
+<main class="item-page container">
+	<a class="back-link" href={hrefBack}>← Volver</a>
+	<section class="item-layout">
+		<div class="item-image">
+			{image ? <Image image={image} alt={name} /> : <span class="muted">Imagen pendiente de cargar</span>}
+		</div>
+		<div class="item-copy">
+			<p class="eyebrow">{isService ? "Servicio" : "Producto"}</p>
+			<h1>{name}</h1>
+			<div class="item-price">
+				<strong>S/ {(onSale ? promotionPrice : price).toFixed(2)}</strong>
+				{onSale && <span class="old-price">S/ {price.toFixed(2)}</span>}
+			</div>
+			{description.length > 0 && <div class="item-description"><PortableText value={description} /></div>}
+			{isService && <p class="service-meta">{data.service_mode === "online" ? "Modalidad online" : "Atención presencial"}{data.duration_minutes ? ` · ${data.duration_minutes} minutos` : ""}</p>}
+			{variants.length > 0 && (
+				<label class="field">Opción
+					<select id="item-variant">
+						<option value="">Selecciona una opción</option>
+						{variants.map((variant: any) => <option value={variant.id ?? variant.label} data-price={variant.price ?? price} data-stock={variant.stock ?? ""}>{variant.label}</option>)}
+					</select>
+				</label>
+			)}
+			{requiresBooking && (
+				<div class="booking-box">
+					<label class="field">Fecha<input id="booking-date" type="date" /></label>
+					<label class="field">Horario<select id="booking-slot" disabled><option value="">Selecciona una fecha</option></select></label>
+					<p id="booking-message" class="muted" role="status"></p>
+				</div>
+			)}
+			{!isService && <div class="quantity" aria-label="Cantidad"><button id="decrease" type="button">−</button><strong id="quantity">1</strong><button id="increase" type="button">+</button></div>}
+			<button id="add-to-cart" class="button" type="button" disabled={!available}>{requiresBooking ? "Reservar horario" : openEnrollment ? "Inscribirme" : available ? "Agregar al carrito" : "No disponible"}</button>
+			<p id="item-message" class="muted" role="status"></p>
+		</div>
+	</section>
+	{Array.isArray(data.product_details) && data.product_details.length > 0 && (
+		<section class="details"><h2>Detalles</h2><ul>{data.product_details.map((detail: any) => <li>{detail.text}</li>)}</ul></section>
+	)}
+</main>
+
+<script type="application/json" id="item-payload" set:html={JSON.stringify({ id: itemId, slug: item.id, data, collection, isService, requiresBooking, openEnrollment }).replace(/</g, "\\u003c")} />
+
+<script>
+	const payloadNode = document.querySelector("#item-payload");
+	const payload = payloadNode?.textContent ? JSON.parse(payloadNode.textContent) : null;
+	const cartKey = "emdash-shop-cart";
+	const addButton = document.querySelector<HTMLButtonElement>("#add-to-cart");
+	const message = document.querySelector<HTMLElement>("#item-message");
+	const date = document.querySelector<HTMLInputElement>("#booking-date");
+	const slot = document.querySelector<HTMLSelectElement>("#booking-slot");
+	const bookingMessage = document.querySelector<HTMLElement>("#booking-message");
+	let quantity = 1;
+	const quantityElement = document.querySelector<HTMLElement>("#quantity");
+	const setMessage = (text: string) => { if (message) message.textContent = text; };
+
+	const loadSlots = async () => {
+		if (!payload?.requiresBooking || !date || !slot || !date.value) return;
+		slot.replaceChildren(new Option("Cargando horarios…", ""));
+		slot.disabled = true;
+		try {
+			const response = await fetch(`/_emdash/api/shop/services/${encodeURIComponent(payload.id)}/availability?date=${encodeURIComponent(date.value)}&locale=es`);
+			const body = await response.json();
+			if (!response.ok) throw new Error(body?.error?.message ?? "No se pudo cargar la disponibilidad.");
+			const slots = Array.isArray(body.data) ? body.data : [];
+			slot.replaceChildren(...(slots.length ? slots.map((entry) => new Option(`${new Date(entry.startsAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })} — ${new Date(entry.endsAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}`, JSON.stringify(entry))) : [new Option("No hay horarios disponibles", "")]));
+			slot.disabled = slots.length === 0;
+			if (bookingMessage) bookingMessage.textContent = slots.length ? "Selecciona un horario." : "No hay horarios para esta fecha.";
+		} catch (error) { if (bookingMessage) bookingMessage.textContent = error instanceof Error ? error.message : "No se pudo cargar la disponibilidad."; }
+	};
+	date?.addEventListener("change", loadSlots);
+	slot?.addEventListener("change", () => { if (addButton && payload?.requiresBooking) addButton.disabled = !slot.value; });
+	document.querySelector("#decrease")?.addEventListener("click", () => { quantity = Math.max(1, quantity - 1); if (quantityElement) quantityElement.textContent = String(quantity); });
+	document.querySelector("#increase")?.addEventListener("click", () => { quantity += 1; if (quantityElement) quantityElement.textContent = String(quantity); });
+
+	addButton?.addEventListener("click", async () => {
+		if (!payload) return;
+		let booking = undefined;
+		if (payload.requiresBooking) {
+			if (!slot?.value) return;
+			const selected = JSON.parse(slot.value);
+			const response = await fetch("/_emdash/api/shop/reservations/hold", { method: "POST", headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" }, body: JSON.stringify({ serviceId: payload.id, ...selected, locale: "es" }) });
+			const body = await response.json();
+			if (!response.ok) { setMessage(body?.error?.message ?? "El horario ya no está disponible."); return; }
+			booking = { reservationId: body.data.id, startsAt: body.data.startsAt, endsAt: body.data.endsAt };
+		}
+		const variant = document.querySelector<HTMLSelectElement>("#item-variant")?.value || null;
+		const key = `${payload.id}:${variant ?? ""}:${booking?.startsAt ?? ""}`;
+		let cart = [];
+		try { const stored = JSON.parse(localStorage.getItem(cartKey) ?? "[]"); if (Array.isArray(stored)) cart = stored; } catch { cart = []; }
+		const existing = cart.find((entry) => entry?.key === key);
+		if (existing) existing.quantity = payload.isService ? 1 : existing.quantity + quantity;
+		else cart.push({ key, product: payload, variantId: variant, quantity: payload.isService ? 1 : quantity, booking });
+		localStorage.setItem(cartKey, JSON.stringify(cart));
+		window.location.assign(payload.isService ? "/shop/checkout" : "/catalogo#carrito");
+	});
+</script>
+
+<style>
+	.item-page { padding-block: 3rem 5rem; }
+	.back-link { color: var(--color-muted); text-decoration: none; }
+	.item-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); gap: clamp(2rem, 7vw, 6rem); align-items: start; margin-top: 2rem; }
+	.item-image { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; background: var(--color-soft); }
+	.item-image :global(img) { width: 100%; height: 100%; object-fit: cover; }
+	.item-copy { padding-top: 1rem; }
+	.item-copy h1 { margin-block: .7rem 1.25rem; font-size: clamp(2.5rem, 6vw, 5rem); }
+	.item-price { display: flex; align-items: baseline; gap: .75rem; margin-bottom: 1.5rem; font-size: 1.25rem; }
+	.item-price strong { font-size: 1.7rem; }
+	.item-description { color: var(--color-muted); }
+	.service-meta { color: var(--color-brand); font-weight: 700; }
+	.field { display: grid; gap: .4rem; margin-block: 1rem; font-weight: 600; }
+	.field select, .field input { width: 100%; padding: .7rem; border: 1px solid var(--color-border); background: var(--color-surface); }
+	.booking-box { margin-block: 1rem; padding: 1rem; background: var(--color-soft); }
+	.quantity { display: inline-flex; align-items: center; gap: 1rem; margin: 1.5rem 1rem 1.5rem 0; }
+	.quantity button { width: 2.25rem; height: 2.25rem; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; }
+	.details { max-width: 680px; margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--color-border); }
+	.details h2 { margin-bottom: 1rem; font-size: 2rem; }
+	@media (max-width: 760px) { .item-layout { grid-template-columns: 1fr; } .item-copy { padding-top: 0; } }
+</style>

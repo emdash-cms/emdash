@@ -34,6 +34,20 @@ A landing page template for products and services with modular content blocks.
 
 **Pages:** Homepage, pricing, contact, 404
 
+### Ecommerce
+
+An ecommerce storefront for physical products, services, categories, checkout, order tracking, and transactional email delivery.
+
+**Features:**
+
+- Hero, featured products, promotions, categories, services, and brand story on the homepage
+- Product catalog with filters, variants, stock-aware cart, and checkout
+- Service catalog with open enrollment and scheduled booking support
+- Editable informational pages for contact, FAQs, shipping, and policies
+- Email templates and Resend transport configuration
+
+**Pages:** Homepage, catalog, product detail, services, service detail, checkout, order confirmation, order tracking, informational pages, 404
+
 ### Portfolio
 
 A portfolio for showcasing creative work with project pages and tag filtering.
@@ -54,7 +68,7 @@ A portfolio for showcasing creative work with project pages and tag filtering.
 
 Each template has two variants:
 
-- **Node.js** (`templates/blog`, `templates/marketing`, `templates/portfolio`) — uses SQLite and local file storage
+- **Node.js** (`templates/blog`, `templates/marketing`, `templates/portfolio`, `templates/ecommerce`) — uses SQLite and local file storage
 - **Cloudflare** (`templates/blog-cloudflare`, etc.) — uses D1 and R2
 
 ### Quick Start

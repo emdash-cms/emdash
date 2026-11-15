@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-email-templates
 
+## 0.2.0
+
+### Minor Changes
+
+- Adds ecommerce email template presets and improves template editing, branding, and footer layout controls.
+
 ## 0.1.1
 
 ### Patch Changes

@@ -849,7 +849,7 @@ msgstr "Datos adicionales para importar."
 
 #: packages/admin/src/routes/shop.tsx:1563
 msgid "Address"
-msgstr ""
+msgstr "Dirección"
 
 #: packages/admin/src/components/ImageEditor.tsx:203
 msgid "Adjust optimization"
@@ -2272,7 +2272,7 @@ msgstr "Crear una lista numerada"
 
 #: packages/admin/src/routes/shop.tsx:162
 msgid "Create a service to configure its availability and accept bookings."
-msgstr ""
+msgstr "Crea un servicio para configurar su disponibilidad y aceptar reservas."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:84
 #: packages/admin/src/components/SignupPage.tsx:221
@@ -2505,7 +2505,7 @@ msgstr "Cliente"
 
 #: packages/admin/src/routes/shop.tsx:1502
 msgid "Customer details"
-msgstr ""
+msgstr "Detalles del cliente"
 
 #: packages/admin/src/routes/shop.tsx:381
 msgid "Customers"
@@ -4422,7 +4422,7 @@ msgstr ""
 
 #: packages/admin/src/routes/shop.tsx:296
 msgid "Filter reservations by status"
-msgstr ""
+msgstr "Filtrar reservas por estado"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:64
 msgid "First-time commenters only"
@@ -5359,7 +5359,7 @@ msgstr "Cargando menús..."
 
 #: packages/admin/src/routes/shop.tsx:1364
 msgid "Loading order details"
-msgstr ""
+msgstr "Cargando detalles del pedido"
 
 #: packages/admin/src/routes/shop.tsx:1282
 msgid "Loading orders"
@@ -5379,7 +5379,7 @@ msgstr "Cargando redirecciones..."
 
 #: packages/admin/src/routes/shop.tsx:310
 msgid "Loading reservations"
-msgstr ""
+msgstr "Cargando reservas"
 
 #: packages/admin/src/components/SectionPickerModal.tsx:95
 #: packages/admin/src/components/Sections.tsx:252
@@ -5388,7 +5388,7 @@ msgstr "Cargando secciones..."
 
 #: packages/admin/src/routes/shop.tsx:156
 msgid "Loading services"
-msgstr ""
+msgstr "Cargando servicios"
 
 #: packages/admin/src/components/PluginSettings.tsx:187
 #: packages/admin/src/components/settings/GeneralSettings.tsx:130
@@ -6107,7 +6107,7 @@ msgstr "Aún no hay comentarios aprobados."
 
 #: packages/admin/src/routes/shop.tsx:160
 msgid "No bookable services found."
-msgstr ""
+msgstr "No se encontraron servicios reservables."
 
 #: packages/admin/src/components/BylineFilter.tsx:99
 msgid "No byline"
@@ -6395,7 +6395,7 @@ msgstr "Aún no hay secciones"
 
 #: packages/admin/src/routes/shop.tsx:217
 msgid "No services match your search."
-msgstr ""
+msgstr "Ningún servicio coincide con tu búsqueda."
 
 #: packages/admin/src/routes/shop.tsx:306
 #: packages/admin/src/routes/shop.tsx:350
@@ -6862,7 +6862,7 @@ msgstr "Permisos"
 #: packages/admin/src/routes/shop.tsx:1472
 #: packages/admin/src/routes/shop.tsx:1608
 msgid "Phone"
-msgstr ""
+msgstr "Teléfono"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:46
 msgid "PHP"
@@ -9675,7 +9675,7 @@ msgstr ""
 
 #: packages/admin/src/routes/shop.tsx:338
 msgid "Update reservation status"
-msgstr ""
+msgstr "Actualizar estado de la reserva"
 
 #. placeholder {0}: editingDomain?.domain
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:324
@@ -9988,7 +9988,7 @@ msgstr "Vídeo"
 #: packages/admin/src/routes/shop.tsx:1544
 #: packages/admin/src/routes/shop.tsx:1659
 msgid "View details"
-msgstr ""
+msgstr "Ver detalles"
 
 #: packages/admin/src/components/Settings.tsx:96
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
@@ -10464,3 +10464,36 @@ msgstr ""
 #: packages/admin/src/components/ImageEditor.tsx:225
 msgid "Zoom:"
 msgstr ""
+
+msgid "Open enrollments"
+msgstr "Inscripciones abiertas"
+
+msgid "Pending schedule"
+msgstr "Pendiente de programar"
+
+msgid "Review people registered for services without a fixed date."
+msgstr "Revisa las personas inscritas en servicios sin fecha fija."
+
+msgid "Scheduled bookings"
+msgstr "Reservas programadas"
+
+msgid "Filter enrollments by status"
+msgstr "Filtrar inscripciones por estado"
+
+msgid "Loading enrollments"
+msgstr "Cargando inscripciones"
+
+msgid "No open enrollments found."
+msgstr "No se encontraron inscripciones abiertas."
+
+msgid "People"
+msgstr "Personas"
+
+msgid "Products in the order"
+msgstr "Productos del pedido"
+
+msgid "Registered"
+msgstr "Registrados"
+
+msgid "Reservation details"
+msgstr "Detalles de la reserva"

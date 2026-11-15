@@ -10,6 +10,7 @@ export * from "./taxonomies.js";
 export * from "./sections.js";
 export * from "./settings.js";
 export * from "./shop.js";
+export * from "./shop-cart.js";
 export * from "./booking.js";
 export * from "./search.js";
 export * from "./import.js";

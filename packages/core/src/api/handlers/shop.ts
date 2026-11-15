@@ -16,6 +16,14 @@ const PRODUCTS_COLLECTION = "products";
 const SERVICES_COLLECTION = "services";
 type ShopCollection = typeof PRODUCTS_COLLECTION | typeof SERVICES_COLLECTION;
 
+async function shopCartTokenHash(token: string): Promise<string> {
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(`shop-cart:${token}`),
+	);
+	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function normalizeShopCollection(value: string): ShopCollection {
 	return value === SERVICES_COLLECTION ? SERVICES_COLLECTION : PRODUCTS_COLLECTION;
 }
@@ -112,8 +120,11 @@ export interface ShopOrderInput {
 		quantity: number;
 		booking?: { reservationId: string; startsAt: string; endsAt: string };
 	}>;
+	cartToken?: string;
 	customer: {
-		name: string;
+		firstName: string;
+		lastName: string;
+		name?: string;
 		phone: string;
 		email?: string;
 		address?: string;
@@ -341,8 +352,23 @@ function isProductAvailable(data: Record<string, unknown>): boolean {
 	return (
 		availability !== "sold_out" &&
 		availability !== "hidden" &&
-		(typeof stock !== "number" || stock > 0 || isBookableService(data))
+		(typeof stock !== "number" ||
+			stock > 0 ||
+			isBookableService(data) ||
+			isOpenEnrollmentService(data))
 	);
+}
+
+function isOpenEnrollmentService(data: Record<string, unknown>): boolean {
+	const itemType = typeof data.item_type === "string" ? data.item_type.toLowerCase() : "";
+	return itemType === "service" && data.registration_mode === "open_enrollment";
+}
+
+function serviceCapacity(data: Record<string, unknown>): number | null {
+	const capacity = data.service_capacity;
+	return typeof capacity === "number" && Number.isInteger(capacity) && capacity > 0
+		? capacity
+		: null;
 }
 
 function isBookableService(data: Record<string, unknown>): boolean {
@@ -564,6 +590,7 @@ export async function handleShopCouponDelete(
 
 class ShopStockError extends Error {}
 class ShopCouponError extends Error {}
+class ShopCapacityError extends Error {}
 
 function makeOrderNumber(): string {
 	return `#${Date.now().toString(36).toUpperCase()}-${ulid().slice(-4)}`;
@@ -1095,10 +1122,38 @@ export async function handleShopOrderCreate(
 	input: ShopOrderInput,
 ): Promise<ApiResult<ShopOrderSummary>> {
 	try {
+		let checkoutItems = input.items;
+		if (input.cartToken && checkoutItems.length === 0) {
+			const digest = await shopCartTokenHash(input.cartToken);
+			const cart = await db
+				.selectFrom("_emdash_shop_carts")
+				.select("id")
+				.where("guest_token_hash", "=", digest)
+				.where("status", "=", "active")
+				.where("expires_at", ">", new Date().toISOString())
+				.executeTakeFirst();
+			if (!cart)
+				return {
+					success: false,
+					error: { code: "SHOP_CART_NOT_FOUND", message: "Cart not found" },
+				};
+			const cartItems = await db
+				.selectFrom("_emdash_shop_cart_items")
+				.selectAll()
+				.where("cart_id", "=", cart.id)
+				.orderBy("created_at", "asc")
+				.execute();
+			checkoutItems = cartItems.map((item) => ({
+				productId: item.product_id,
+				collection: normalizeShopCollection(item.collection),
+				variantId: item.variant_id ?? undefined,
+				quantity: item.quantity,
+			}));
+		}
 		const settingsResult = await handleShopSettingsGet(db);
 		if (!settingsResult.success) return settingsResult;
 		const settings = settingsResult.data;
-		if (input.items.length === 0)
+		if (checkoutItems.length === 0)
 			return {
 				success: false,
 				error: { code: "SHOP_ORDER_EMPTY", message: "Order must contain at least one product" },
@@ -1113,9 +1168,10 @@ export async function handleShopOrderCreate(
 				variantId?: string;
 				quantity: number;
 				booking?: ShopOrderInput["items"][number]["booking"];
+				openEnrollment?: boolean;
 			}
 		>();
-		for (const inputItem of input.items) {
+		for (const inputItem of checkoutItems) {
 			const collection =
 				inputItem.collection ?? (inputItem.booking ? SERVICES_COLLECTION : PRODUCTS_COLLECTION);
 			const key = `${collection}:${inputItem.productId}:${inputItem.variantId ?? ""}:${inputItem.booking?.reservationId ?? ""}`;
@@ -1139,6 +1195,8 @@ export async function handleShopOrderCreate(
 			variantId: string | null;
 			variantName: string | null;
 			booking?: ShopOrderInput["items"][number]["booking"];
+			openEnrollment: boolean;
+			openEnrollmentCapacity: number | null;
 		}>;
 		for (const requested of requestedQuantities.values()) {
 			const product = await products.findByIdOrSlug(requested.collection, requested.productId);
@@ -1176,7 +1234,8 @@ export async function handleShopOrderCreate(
 				};
 			}
 			const bookableService = isBookableService(product.data);
-			if (bookableService && !requested.booking) {
+			const openEnrollment = isOpenEnrollmentService(product.data);
+			if (bookableService && !openEnrollment && !requested.booking) {
 				return {
 					success: false,
 					error: {
@@ -1234,6 +1293,8 @@ export async function handleShopOrderCreate(
 				variantId: requested.variantId ?? null,
 				variantName: null,
 				booking: requested.booking,
+				openEnrollment,
+				openEnrollmentCapacity: openEnrollment ? serviceCapacity(product.data) : null,
 			});
 		}
 		const hasPhysicalItems = items.some((item) => item.collection === PRODUCTS_COLLECTION);
@@ -1293,7 +1354,39 @@ export async function handleShopOrderCreate(
 		const orderNumber = makeOrderNumber();
 		const orderId = ulid();
 		const customerId = ulid();
-		const customerSnapshot = { ...input.customer };
+		const orderItemRows = items.map((item) => ({
+			id: ulid(),
+			order_id: orderId,
+			product_id: item.productId,
+			collection: item.collection,
+			variant_id: item.variantId,
+			product_name: item.productName,
+			variant_name: item.variantName,
+			unit_price: item.unitPrice,
+			quantity: item.quantity,
+			discount: item.discount,
+			subtotal: item.subtotal,
+		}));
+		const inventoryMovements: Array<{
+			product_id: string;
+			variant_id: string | null;
+			order_id: string;
+			order_item_id: string;
+			type: string;
+			quantity_delta: number;
+			reference_type: string;
+			reference_id: string;
+			event_key: string;
+		}> = [];
+		const firstName = input.customer.firstName.trim();
+		const lastName = input.customer.lastName.trim();
+		const customerName = `${firstName} ${lastName}`;
+		const customerSnapshot = {
+			...input.customer,
+			firstName,
+			lastName,
+			name: customerName,
+		};
 		const deliverySnapshot = {
 			zoneId: zone?.id ?? null,
 			zone: zone?.name ?? null,
@@ -1301,7 +1394,7 @@ export async function handleShopOrderCreate(
 			district: input.customer.district ?? null,
 			reference: input.customer.reference ?? null,
 			phone: input.customer.phone,
-			recipientName: input.recipientName ?? input.customer.name,
+			recipientName: input.recipientName ?? customerName,
 			recipientPhone: input.recipientPhone ?? input.customer.phone,
 			scheduledDate: input.deliveryDate ?? null,
 			scheduledTime: input.deliveryTime ?? null,
@@ -1309,6 +1402,25 @@ export async function handleShopOrderCreate(
 		};
 
 		await withTransaction(db, async (trx) => {
+			if (input.cartToken) {
+				const cart = await trx
+					.selectFrom("_emdash_shop_carts")
+					.select("id")
+					.where("guest_token_hash", "=", await shopCartTokenHash(input.cartToken))
+					.where("status", "=", "active")
+					.where("expires_at", ">", new Date().toISOString())
+					.executeTakeFirst();
+				if (!cart) throw new Error("SHOP_CART_NOT_FOUND");
+				await trx
+					.updateTable("_emdash_shop_carts")
+					.set({
+						status: "converted",
+						converted_order_id: orderId,
+						updated_at: new Date().toISOString(),
+					})
+					.where("id", "=", cart.id)
+					.execute();
+			}
 			if (coupon) {
 				const updatedCoupon = await trx
 					.updateTable("_emdash_shop_coupons")
@@ -1322,6 +1434,18 @@ export async function handleShopOrderCreate(
 				if (Number(updatedCoupon.numUpdatedRows) !== 1) throw new ShopCouponError();
 			}
 			for (const item of items) {
+				if (!item.openEnrollment || item.openEnrollmentCapacity === null) continue;
+				const activeEnrollment = await trx
+					.selectFrom("_emdash_shop_enrollments")
+					.select(({ fn }) => fn.sum("quantity").as("quantity"))
+					.where("service_id", "=", item.productId)
+					.where("status", "in", ["pending_schedule", "scheduled"])
+					.executeTakeFirst();
+				if (Number(activeEnrollment?.quantity ?? 0) + item.quantity > item.openEnrollmentCapacity) {
+					throw new ShopCapacityError();
+				}
+			}
+			for (const [itemIndex, item] of items.entries()) {
 				if (item.collection !== PRODUCTS_COLLECTION) continue;
 				if (item.variantId) {
 					const currentProduct = await new ContentRepository(trx).findById(
@@ -1346,6 +1470,17 @@ export async function handleShopOrderCreate(
 						await new ContentRepository(trx).update(PRODUCTS_COLLECTION, item.productId, {
 							data: { ...currentProduct.data, variants: updatedVariants },
 						});
+						inventoryMovements.push({
+							product_id: item.productId,
+							variant_id: item.variantId,
+							order_id: orderId,
+							order_item_id: orderItemRows[itemIndex]?.id ?? "",
+							type: "sale",
+							quantity_delta: -item.quantity,
+							reference_type: "order",
+							reference_id: orderId,
+							event_key: `sale:${orderId}:${orderItemRows[itemIndex]?.id ?? ""}`,
+						});
 						continue;
 					}
 				}
@@ -1358,12 +1493,25 @@ export async function handleShopOrderCreate(
 						AND ${sql.ref("stock")} >= ${item.quantity}
 				`.execute(trx);
 				if (Number(updated.numAffectedRows) !== 1) throw new ShopStockError();
+				inventoryMovements.push({
+					product_id: item.productId,
+					variant_id: null,
+					order_id: orderId,
+					order_item_id: orderItemRows[itemIndex]?.id ?? "",
+					type: "sale",
+					quantity_delta: -item.quantity,
+					reference_type: "order",
+					reference_id: orderId,
+					event_key: `sale:${orderId}:${orderItemRows[itemIndex]?.id ?? ""}`,
+				});
 			}
 			await trx
 				.insertInto("_emdash_shop_customers")
 				.values({
 					id: customerId,
-					name: input.customer.name,
+					name: customerName,
+					first_name: firstName,
+					last_name: lastName,
 					phone: input.customer.phone,
 					email: input.customer.email ?? null,
 					address: input.customer.address,
@@ -1393,27 +1541,46 @@ export async function handleShopOrderCreate(
 					notes: input.notes ?? null,
 				})
 				.execute();
-			const orderItemRows = items.map((item) => ({
-				id: ulid(),
-				order_id: orderId,
-				product_id: item.productId,
-				collection: item.collection,
-				variant_id: item.variantId,
-				product_name: item.productName,
-				variant_name: item.variantName,
-				unit_price: item.unitPrice,
-				quantity: item.quantity,
-				discount: item.discount,
-				subtotal: item.subtotal,
-			}));
 			await trx.insertInto("_emdash_shop_order_items").values(orderItemRows).execute();
+			if (inventoryMovements.length > 0) {
+				await trx
+					.insertInto("_emdash_shop_inventory_movements")
+					.values(inventoryMovements.map((movement) => ({ id: ulid(), ...movement })))
+					.execute();
+			}
 			for (const [index, item] of items.entries()) {
-				if (item.collection !== SERVICES_COLLECTION || !item.booking) continue;
+				if (item.collection !== SERVICES_COLLECTION) continue;
+				const orderItemId = orderItemRows[index]?.id ?? null;
+				if (item.openEnrollment) {
+					await trx
+						.insertInto("_emdash_shop_enrollments")
+						.values({
+							id: ulid(),
+							service_id: item.productId,
+							order_id: orderId,
+							order_item_id: orderItemId,
+							customer_id: customerId,
+							quantity: item.quantity,
+							starts_at: null,
+							ends_at: null,
+							status: "pending_schedule",
+							customer_snapshot: JSON.stringify(customerSnapshot),
+							service_snapshot: JSON.stringify({
+								id: item.productId,
+								name: item.productName,
+								capacity: item.openEnrollmentCapacity,
+							}),
+							notes: input.notes ?? null,
+						})
+						.execute();
+					continue;
+				}
+				if (!item.booking) continue;
 				const updatedReservation = await trx
 					.updateTable("_emdash_shop_reservations")
 					.set({
 						order_id: orderId,
-						order_item_id: orderItemRows[index]?.id ?? null,
+						order_item_id: orderItemId,
 						status: "pending_payment",
 						expires_at: null,
 						updated_at: new Date().toISOString(),
@@ -1450,7 +1617,7 @@ export async function handleShopOrderCreate(
 						delivery_cost: deliveryCost,
 						scheduled_date: input.deliveryDate ?? null,
 						scheduled_time: input.deliveryTime ?? null,
-						recipient_name: input.recipientName ?? input.customer.name,
+						recipient_name: input.recipientName ?? customerName,
 						recipient_phone: input.recipientPhone ?? input.customer.phone,
 						instructions: input.deliveryInstructions ?? null,
 					})
@@ -1524,6 +1691,15 @@ export async function handleShopOrderCreate(
 			return {
 				success: false,
 				error: { code: "SHOP_COUPON_INVALID", message: "Coupon is no longer available" },
+			};
+		}
+		if (error instanceof ShopCapacityError) {
+			return {
+				success: false,
+				error: {
+					code: "SHOP_SERVICE_CAPACITY_REACHED",
+					message: "Service capacity has been reached",
+				},
 			};
 		}
 		return {
@@ -1848,6 +2024,118 @@ export async function handleShopPaymentConfirm(
 		return {
 			success: false,
 			error: { code: "SHOP_PAYMENT_CONFIRM_ERROR", message: "Failed to confirm payment" },
+		};
+	}
+}
+
+export async function handleShopOrderCancel(
+	db: Kysely<Database>,
+	orderId: string,
+	reason: string,
+): Promise<ApiResult<null>> {
+	try {
+		const order = await db
+			.selectFrom("_emdash_shop_orders")
+			.select(["id", "status"])
+			.where("id", "=", orderId)
+			.executeTakeFirst();
+		if (!order) {
+			return {
+				success: false,
+				error: { code: "SHOP_ORDER_NOT_FOUND", message: "Order not found" },
+			};
+		}
+		if (order.status === "cancelled") return { success: true, data: null };
+		if (["delivered", "in_transit"].includes(order.status)) {
+			return {
+				success: false,
+				error: { code: "SHOP_ORDER_NOT_CANCELLABLE", message: "Order cannot be cancelled" },
+			};
+		}
+
+		await withTransaction(db, async (trx) => {
+			const now = new Date().toISOString();
+			const updated = await trx
+				.updateTable("_emdash_shop_orders")
+				.set({ status: "cancelled", cancellation_reason: reason, updated_at: now })
+				.where("id", "=", orderId)
+				.where("status", "!=", "cancelled")
+				.executeTakeFirst();
+			if (Number(updated.numUpdatedRows) !== 1) return;
+
+			const sales = await trx
+				.selectFrom("_emdash_shop_inventory_movements")
+				.selectAll()
+				.where("order_id", "=", orderId)
+				.where("type", "=", "sale")
+				.execute();
+			for (const sale of sales) {
+				const eventKey = `cancellation:${orderId}:${sale.order_item_id ?? sale.id}`;
+				const existing = await trx
+					.selectFrom("_emdash_shop_inventory_movements")
+					.select("id")
+					.where("event_key", "=", eventKey)
+					.executeTakeFirst();
+				if (existing) continue;
+				const quantity = Math.abs(sale.quantity_delta);
+				if (sale.variant_id) {
+					const product = await new ContentRepository(trx).findById(
+						PRODUCTS_COLLECTION,
+						sale.product_id,
+					);
+					const variants = product ? productVariants(product.data) : [];
+					const variant = variants.find((item) => (item.id ?? item.label) === sale.variant_id);
+					const variantStock = variant?.stock;
+					if (!product || !variant || typeof variantStock !== "number") {
+						throw new ShopStockError();
+					}
+					const updatedVariants = variants.map((item) =>
+						(item.id ?? item.label) === sale.variant_id
+							? { ...item, stock: variantStock + quantity }
+							: item,
+					);
+					await new ContentRepository(trx).update(PRODUCTS_COLLECTION, sale.product_id, {
+						data: { ...product.data, variants: updatedVariants },
+					});
+				} else {
+					const updatedStock = await sql`
+						UPDATE ${sql.ref("ec_products")}
+						SET ${sql.ref("stock")} = ${sql.ref("stock")} + ${quantity},
+							${sql.ref("updated_at")} = ${now},
+							${sql.ref("version")} = ${sql.ref("version")} + 1
+						WHERE ${sql.ref("id")} = ${sale.product_id}
+							AND ${sql.ref("stock")} IS NOT NULL
+					`.execute(trx);
+					if (Number(updatedStock.numAffectedRows) !== 1) throw new ShopStockError();
+				}
+				await trx
+					.insertInto("_emdash_shop_inventory_movements")
+					.values({
+						id: ulid(),
+						product_id: sale.product_id,
+						variant_id: sale.variant_id,
+						order_id: orderId,
+						order_item_id: sale.order_item_id,
+						type: "cancellation",
+						quantity_delta: quantity,
+						reason,
+						reference_type: "order",
+						reference_id: orderId,
+						event_key: eventKey,
+					})
+					.execute();
+			}
+			await trx
+				.updateTable("_emdash_shop_deliveries")
+				.set({ status: "cancelled", updated_at: now })
+				.where("order_id", "=", orderId)
+				.execute();
+		});
+		return { success: true, data: null };
+	} catch {
+		return {
+			success: false,
+			error: { code: "SHOP_ORDER_CANCEL_ERROR", message: "Failed to cancel order" },
 		};
 	}
 }

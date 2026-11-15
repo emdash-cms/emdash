@@ -46,10 +46,13 @@ export const shopOrderCreateBody = z
 						.optional(),
 				}),
 			)
-			.min(1)
+			.min(0)
 			.max(100),
+		cartToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
 		customer: z.object({
-			name: z.string().min(1).max(200),
+			firstName: z.string().trim().min(1).max(200),
+			lastName: z.string().trim().min(1).max(200),
+			name: z.string().trim().min(1).max(200).optional(),
 			phone: z.string().min(5).max(30),
 			email: z.string().email().optional(),
 			address: z.string().max(500).optional(),
@@ -78,6 +81,10 @@ export const shopPaymentConfirmBody = z
 		notes: z.string().max(1000).optional(),
 	})
 	.meta({ id: "ShopPaymentConfirmBody" });
+
+export const shopOrderCancelBody = z
+	.object({ reason: z.string().trim().min(1).max(1000) })
+	.meta({ id: "ShopOrderCancelBody" });
 
 export const shopDeliveryUpdateBody = z
 	.object({

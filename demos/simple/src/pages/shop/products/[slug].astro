@@ -80,8 +80,9 @@ const initialPrice = price ?? defaultPrice;
 const initialStock = stock;
 const itemType = typeof data.item_type === "string" ? data.item_type.toLowerCase() : "";
 const requiresBooking = data.requires_booking;
-const isBookableService = itemType === "service" && (requiresBooking === true || requiresBooking === 1 || requiresBooking === "1" || requiresBooking === "true");
-const isAvailable = manuallyAvailable && (isBookableService || stock === null || stock > 0);
+const isOpenEnrollmentService = itemType === "service" && data.registration_mode === "open_enrollment";
+const isBookableService = itemType === "service" && !isOpenEnrollmentService && (requiresBooking === true || requiresBooking === 1 || requiresBooking === "1" || requiresBooking === "true");
+const isAvailable = manuallyAvailable && (isBookableService || isOpenEnrollmentService || stock === null || stock > 0);
 const seo = getSeoMeta(product, {
 	defaultTitle: name,
 	defaultDescription: description || undefined,
@@ -152,7 +153,7 @@ const seo = getSeoMeta(product, {
 					</div>
 				)}
 				<p class:list={["availability", !isAvailable && "unavailable"]}>
-					<span id="product-stock">{isBookableService ? (isAvailable ? "Cupos disponibles para reservar" : "No disponible actualmente") : variants.length > 0 ? `${initialStock ?? ""} disponibles para entrega` : isAvailable ? `${initialStock ?? ""} disponibles para entrega` : "No disponible actualmente"}</span>
+					<span id="product-stock">{isOpenEnrollmentService ? (isAvailable ? "Inscripciones abiertas" : "No disponible actualmente") : isBookableService ? (isAvailable ? "Cupos disponibles para reservar" : "No disponible actualmente") : variants.length > 0 ? `${initialStock ?? ""} disponibles para entrega` : isAvailable ? `${initialStock ?? ""} disponibles para entrega` : "No disponible actualmente"}</span>
 				</p>
 				{isBookableService && (
 					<div class="booking-picker">
@@ -171,8 +172,8 @@ const seo = getSeoMeta(product, {
 					<button id="increase-quantity" type="button" disabled={!isAvailable}>+</button>
 				</div>
 		<button id="add-product-to-cart" class="order-button" disabled={!isAvailable || isBookableService} type="button">
-				{isBookableService ? "Reservar" : isAvailable ? "Agregar al pedido" : "Volver a la tienda"}
-				</button>
+				{isBookableService ? "Reservar" : isOpenEnrollmentService ? "Inscribirse" : isAvailable ? "Agregar al pedido" : "Volver a la tienda"}
+			</button>
 			</div>
 		</section>
 		<section class="related-products" id="related-products" hidden aria-labelledby="related-products-title">
@@ -182,7 +183,7 @@ const seo = getSeoMeta(product, {
 	</main>
 </Base>
 
-<script type="application/json" id="product-payload" set:html={JSON.stringify({ id: productId, slug, data, isBookableService }).replace(/</g, "\\u003c")} />
+<script type="application/json" id="product-payload" set:html={JSON.stringify({ id: productId, slug, data, isBookableService, isService: itemType === "service" }).replace(/</g, "\\u003c")} />
 
 <script>
 	const cartStorageKey = "emdash-shop-cart";

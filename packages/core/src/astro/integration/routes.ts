@@ -637,6 +637,18 @@ export function injectCoreRoutes(
 
 	// Ecommerce public routes
 	injectRoute({
+		pattern: "/_emdash/api/shop/cart",
+		entrypoint: resolveRoute("api/shop/cart/index.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/shop/cart/items/[id]",
+		entrypoint: resolveRoute("api/shop/cart/items/[id].ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/shop/cart/merge",
+		entrypoint: resolveRoute("api/shop/cart/merge.ts"),
+	});
+	injectRoute({
 		pattern: "/_emdash/api/shop/products",
 		entrypoint: resolveRoute("api/shop/products/index.ts"),
 	});
@@ -760,6 +772,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/shop/orders/[id]/delivery",
 		entrypoint: resolveRoute("api/admin/shop/orders/[id]/delivery.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/shop/orders/[id]/cancel",
+		entrypoint: resolveRoute("api/admin/shop/orders/[id]/cancel.ts"),
 	});
 
 	injectRoute({

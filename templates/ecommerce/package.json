@@ -1,0 +1,25 @@
+{
+	"name": "@emdash-cms/template-ecommerce",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"emdash": { "seed": "seed/seed.json" },
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"start": "node ./dist/server/entry.mjs",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/node": "catalog:",
+		"@astrojs/react": "catalog:",
+		"@emdash-cms/plugin-email-templates": "workspace:*",
+		"astro": "catalog:",
+		"better-sqlite3": "catalog:",
+		"emdash": "workspace:*",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	},
+	"devDependencies": { "@astrojs/check": "catalog:" }
+}

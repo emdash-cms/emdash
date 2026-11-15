@@ -1,0 +1,138 @@
+{
+	"$schema": "https://emdashcms.com/seed.schema.json",
+	"version": "1",
+	"meta": {
+		"name": "Ecommerce Starter",
+		"description": "Plantilla de ecommerce con productos, servicios, catálogo, checkout y correo transaccional.",
+		"author": "EmDash"
+	},
+	"settings": {
+		"title": "Tienda",
+		"tagline": "Productos y servicios para hacer especial lo cotidiano."
+	},
+	"collections": [
+		{
+			"slug": "pages",
+			"label": "Páginas",
+			"labelSingular": "Página",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"urlPattern": "/{slug}",
+			"fields": [
+				{ "slug": "title", "label": "Título", "type": "string", "required": true, "searchable": true },
+				{ "slug": "eyebrow", "label": "Etiqueta superior", "type": "string" },
+				{ "slug": "hero_label", "label": "Etiqueta del hero", "type": "string" },
+				{ "slug": "hero_title", "label": "Título del hero", "type": "string" },
+				{ "slug": "hero_description", "label": "Descripción del hero", "type": "text" },
+				{ "slug": "hero_image", "label": "Imagen principal", "type": "image" },
+				{ "slug": "hero_image_alt", "label": "Texto alternativo de la imagen", "type": "string" },
+				{ "slug": "about_title", "label": "Título de la sección de marca", "type": "string" },
+				{ "slug": "about_description", "label": "Descripción de la sección de marca", "type": "text" },
+				{ "slug": "content", "label": "Contenido", "type": "portableText", "searchable": true }
+			]
+		},
+		{
+			"slug": "products",
+			"label": "Productos",
+			"labelSingular": "Producto",
+			"supports": ["drafts", "preview", "search", "seo"],
+			"urlPattern": "/catalogo/{slug}",
+			"fields": [
+				{ "slug": "name", "label": "Nombre", "type": "string", "required": true, "searchable": true },
+				{ "slug": "sku", "label": "SKU", "type": "string", "unique": true, "indexed": true, "translatable": false },
+				{ "slug": "short_description", "label": "Descripción corta", "type": "text" },
+				{ "slug": "rich_description", "label": "Descripción detallada", "type": "portableText", "searchable": true },
+				{ "slug": "featured_image", "label": "Imagen", "type": "image" },
+				{ "slug": "featured", "label": "Destacado", "type": "boolean" },
+				{ "slug": "price", "label": "Precio", "type": "number", "required": true },
+				{ "slug": "promotion_price", "label": "Precio en promoción", "type": "number" },
+				{ "slug": "stock", "label": "Stock", "type": "integer" },
+				{ "slug": "availability_status", "label": "Disponibilidad", "type": "select", "validation": { "options": ["available", "sold_out", "hidden"] } },
+				{ "slug": "has_variations", "label": "Tiene variaciones", "type": "boolean" },
+				{ "slug": "variants", "label": "Variaciones", "type": "repeater", "validation": { "maxItems": 50, "subFields": [ { "slug": "label", "label": "Nombre", "type": "string", "required": true }, { "slug": "stock", "label": "Stock", "type": "integer" }, { "slug": "price", "label": "Precio", "type": "number" }, { "slug": "image", "label": "Imagen", "type": "image" } ] } },
+				{ "slug": "product_details", "label": "Detalles", "type": "repeater", "validation": { "maxItems": 20, "subFields": [ { "slug": "text", "label": "Texto", "type": "text", "required": true } ] } }
+			]
+		},
+		{
+			"slug": "services",
+			"label": "Servicios",
+			"labelSingular": "Servicio",
+			"supports": ["drafts", "preview", "search", "seo"],
+			"urlPattern": "/servicios/{slug}",
+			"fields": [
+				{ "slug": "name", "label": "Nombre", "type": "string", "required": true, "searchable": true },
+				{ "slug": "short_description", "label": "Descripción corta", "type": "text" },
+				{ "slug": "rich_description", "label": "Descripción detallada", "type": "portableText", "searchable": true },
+				{ "slug": "featured_image", "label": "Imagen", "type": "image" },
+				{ "slug": "item_type", "label": "Tipo", "type": "select", "validation": { "options": ["service"] } },
+				{ "slug": "service_mode", "label": "Modalidad", "type": "select", "validation": { "options": ["in_person", "online"] } },
+				{ "slug": "registration_mode", "label": "Registro", "type": "select", "validation": { "options": ["scheduled", "open_enrollment"] } },
+				{ "slug": "requires_booking", "label": "Requiere reserva", "type": "boolean" },
+				{ "slug": "duration_minutes", "label": "Duración en minutos", "type": "integer" },
+				{ "slug": "service_capacity", "label": "Cupos", "type": "integer" },
+				{ "slug": "price", "label": "Precio", "type": "number", "required": true },
+				{ "slug": "stock", "label": "Cupos disponibles", "type": "integer" },
+				{ "slug": "availability_status", "label": "Disponibilidad", "type": "select", "validation": { "options": ["available", "sold_out", "hidden"] } },
+				{ "slug": "product_details", "label": "Detalles", "type": "repeater", "validation": { "maxItems": 20, "subFields": [ { "slug": "text", "label": "Texto", "type": "text", "required": true } ] } }
+			]
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "category",
+			"label": "Categorías",
+			"labelSingular": "Categoría",
+			"hierarchical": true,
+			"collections": ["products", "services"],
+			"terms": [
+				{ "slug": "destacados", "label": "Destacados" },
+				{ "slug": "novedades", "label": "Novedades" },
+				{ "slug": "regalos", "label": "Regalos" },
+				{ "slug": "experiencias", "label": "Experiencias" }
+			]
+		},
+		{
+			"name": "tag",
+			"label": "Etiquetas",
+			"labelSingular": "Etiqueta",
+			"hierarchical": false,
+			"collections": ["products", "services"],
+			"terms": [ { "slug": "nuevo", "label": "Nuevo" }, { "slug": "oferta", "label": "Oferta" }, { "slug": "regalo", "label": "Para regalar" } ]
+		}
+	],
+	"menus": [
+		{
+			"name": "primary",
+			"label": "Navegación principal",
+			"items": [
+				{ "type": "custom", "label": "Inicio", "url": "/" },
+				{ "type": "custom", "label": "Catálogo", "url": "/catalogo" },
+				{ "type": "custom", "label": "Nosotros", "url": "/nosotros" },
+				{ "type": "custom", "label": "Servicios", "url": "/servicios" },
+				{ "type": "custom", "label": "Contacto", "url": "/contacto" }
+			]
+		}
+	],
+	"content": {
+		"pages": [
+			{ "id": "home", "slug": "home", "status": "published", "data": { "title": "Inicio", "hero_label": "Hecho para acompañarte", "hero_title": "Encuentra algo que se sienta tuyo.", "hero_description": "Productos y servicios seleccionados para hacer más especial lo cotidiano.", "hero_image": { "$media": { "url": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1200&h=1400&fit=crop", "alt": "Selección de productos en un espacio cálido", "filename": "home-hero.jpg" } }, "about_title": "Una tienda que deja espacio para lo humano.", "about_description": "Edita este bloque para contar la historia, el proceso y la propuesta de tu marca.", "content": [] } },
+			{ "id": "nosotros", "slug": "nosotros", "status": "published", "data": { "title": "Nosotros", "eyebrow": "Conoce la marca", "content": [ { "_type": "block", "style": "normal", "children": [ { "_type": "span", "text": "Cuenta aquí la historia de tu marca, las personas detrás del proyecto y la forma en que trabajas." } ] } ] } },
+			{ "id": "contacto", "slug": "contacto", "status": "published", "data": { "title": "Contacto", "eyebrow": "Hablemos", "content": [ { "_type": "block", "style": "normal", "children": [ { "_type": "span", "text": "Agrega aquí horarios, dirección, teléfono y los canales de contacto de tu negocio." } ] } ] } },
+			{ "id": "preguntas-frecuentes", "slug": "preguntas-frecuentes", "status": "published", "data": { "title": "Preguntas frecuentes", "content": [ { "_type": "block", "style": "h2", "children": [ { "_type": "span", "text": "¿Cómo realizo un pedido?" } ] }, { "_type": "block", "style": "normal", "children": [ { "_type": "span", "text": "Elige tus productos, agrégalos al carrito y completa tus datos en el checkout." } ] } ] } },
+			{ "id": "envios-y-devoluciones", "slug": "envios-y-devoluciones", "status": "published", "data": { "title": "Envíos y devoluciones", "content": [] } },
+			{ "id": "terminos-y-condiciones", "slug": "terminos-y-condiciones", "status": "published", "data": { "title": "Términos y condiciones", "content": [] } },
+			{ "id": "politica-de-privacidad", "slug": "politica-de-privacidad", "status": "published", "data": { "title": "Política de privacidad", "content": [] } },
+			{ "id": "politica-de-cookies", "slug": "politica-de-cookies", "status": "published", "data": { "title": "Política de cookies", "content": [] } },
+			{ "id": "libro-de-reclamaciones", "slug": "libro-de-reclamaciones", "status": "published", "data": { "title": "Libro de reclamaciones", "content": [] } },
+			{ "id": "seguimiento", "slug": "seguimiento", "status": "published", "data": { "title": "Seguimiento de pedido", "content": [] } }
+		],
+		"products": [
+			{ "id": "producto-destacado", "slug": "producto-destacado", "status": "published", "data": { "name": "Producto destacado", "sku": "DEMO-001", "short_description": "Reemplaza este producto con tu primera pieza de catálogo.", "price": 150, "stock": 12, "availability_status": "available", "featured": true, "featured_image": { "$media": { "url": "https://images.unsplash.com/photo-1577083552431-6e5fd01988e5?w=900&h=900&fit=crop", "alt": "Producto artesanal sobre una mesa", "filename": "product-featured.jpg" } }, "rich_description": [ { "_type": "block", "style": "normal", "children": [ { "_type": "span", "text": "Describe aquí los materiales, medidas, cuidados y lo que hace especial a este producto." } ] } ], "product_details": [ { "text": "Material y medidas" }, { "text": "Tiempo de entrega" } ] }, "taxonomies": { "category": ["destacados", "novedades"], "tag": ["nuevo"] } },
+			{ "id": "producto-en-oferta", "slug": "producto-en-oferta", "status": "published", "data": { "name": "Producto en oferta", "sku": "DEMO-002", "short_description": "Una oportunidad para destacar promociones.", "price": 120, "promotion_price": 89, "stock": 8, "availability_status": "available", "featured_image": { "$media": { "url": "https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=900&h=900&fit=crop", "alt": "Objeto decorativo en promoción", "filename": "product-sale.jpg" } }, "rich_description": [] }, "taxonomies": { "category": ["regalos"], "tag": ["oferta", "regalo"] } },
+			{ "id": "producto-con-variantes", "slug": "producto-con-variantes", "status": "published", "data": { "name": "Producto con variaciones", "sku": "DEMO-003", "short_description": "Ejemplo de colores, tallas o acabados.", "price": 90, "stock": 10, "availability_status": "available", "has_variations": true, "variants": [ { "id": "natural", "label": "Natural", "stock": 4, "price": 90 }, { "id": "terracota", "label": "Terracota", "stock": 6, "price": 96 } ], "rich_description": [] }, "taxonomies": { "category": ["novedades"], "tag": ["nuevo"] } }
+		],
+		"services": [
+			{ "id": "curso-taller", "slug": "curso-taller", "status": "published", "data": { "name": "Cursos y talleres", "short_description": "Crea una experiencia para que tus clientes aprendan contigo.", "item_type": "service", "service_mode": "in_person", "registration_mode": "open_enrollment", "requires_booking": false, "duration_minutes": 120, "service_capacity": 12, "price": 80, "stock": 12, "availability_status": "available", "featured_image": { "$media": { "url": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=900&h=900&fit=crop", "alt": "Persona trabajando en un taller", "filename": "service-workshop.jpg" } }, "rich_description": [ { "_type": "block", "style": "normal", "children": [ { "_type": "span", "text": "Explica qué incluye el servicio, cuánto dura y cómo se confirma la fecha." } ] } ] }, "taxonomies": { "category": ["experiencias"] } },
+			{ "id": "servicio-personalizado", "slug": "servicio-personalizado", "status": "published", "data": { "name": "Trabajos personalizados", "short_description": "Recibe solicitudes para proyectos a medida.", "item_type": "service", "service_mode": "online", "registration_mode": "open_enrollment", "requires_booking": false, "price": 0, "stock": 99, "availability_status": "available", "rich_description": [] }, "taxonomies": { "category": ["experiencias"] } }
+		]
+	}
+}

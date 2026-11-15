@@ -1,0 +1,21 @@
+---
+import { getEmDashCollection } from "emdash";
+import Base from "../../layouts/Base.astro";
+import ProductCard from "../../components/ProductCard.astro";
+
+const { entries: services, cacheHint } = await getEmDashCollection("services", { limit: 50, orderBy: { created_at: "desc" } });
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+
+<Base title="Servicios" description="Servicios, talleres y experiencias para tus clientes.">
+	<section class="services-page container">
+		<header><p class="eyebrow">Servicios</p><h1>Experiencias para hacer algo distinto</h1><p class="muted">Presenta aquí tus cursos, reservas, asesorías o servicios personalizados.</p></header>
+		{services.length > 0 ? <div class="card-grid">{services.map((service) => <ProductCard product={service} hrefPrefix="/servicios" />)}</div> : <p class="muted">Agrega el primer servicio desde el admin.</p>}
+	</section>
+</Base>
+
+<style>
+	.services-page { padding-block: 4rem 6rem; }
+	.services-page > header { max-width: 720px; margin-bottom: 2.5rem; }
+	.services-page h1 { margin-block: .75rem 1rem; font-size: clamp(2.8rem, 6vw, 5rem); }
+</style>

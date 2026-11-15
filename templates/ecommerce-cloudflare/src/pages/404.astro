@@ -1,0 +1,11 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Página no encontrada"><section class="not-found container"><p class="eyebrow">404</p><h1>No encontramos esta página</h1><p class="muted">La URL puede haber cambiado o el contenido todavía no existe.</p><a class="button" href="/">Volver al inicio</a></section></Base>
+
+<style>
+	.not-found { padding-block: 7rem; text-align: center; }
+	.not-found h1 { margin-block: .75rem 1rem; font-size: clamp(2.8rem, 6vw, 5rem); }
+	.not-found .button { margin-top: 1.5rem; }
+</style>

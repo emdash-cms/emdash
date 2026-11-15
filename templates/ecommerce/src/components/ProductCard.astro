@@ -1,0 +1,29 @@
+---
+import type { MediaValue } from "emdash";
+import { Image } from "emdash/ui";
+
+interface Props { product: any; hrefPrefix?: string; }
+const { product, hrefPrefix = "/catalogo" } = Astro.props;
+const data = product.data as Record<string, any>;
+const name = typeof data.name === "string" ? data.name : product.id;
+const image = data.featured_image as MediaValue | undefined;
+const regular = Number(data.price ?? 0);
+const promotion = Number(data.promotion_price ?? regular);
+const onSale = promotion > 0 && promotion < regular;
+const term = data.terms?.category?.[0]?.label;
+const slug = product.id || product.slug;
+---
+
+<article class="product-card">
+	<a class="product-card__image" href={`${hrefPrefix}/${slug}`}>
+		{image ? <Image image={image} alt={name} /> : <span class="muted">Imagen del producto</span>}
+	</a>
+	<div class="product-card__body">
+		{term && <div class="product-card__category">{term}</div>}
+		<h3><a href={`${hrefPrefix}/${slug}`}>{name}</a></h3>
+		<p class="product-card__price">
+			S/ {(onSale ? promotion : regular).toFixed(2)}
+			{onSale && <span class="old-price">S/ {regular.toFixed(2)}</span>}
+		</p>
+	</div>
+</article>

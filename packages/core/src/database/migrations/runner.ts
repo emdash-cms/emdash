@@ -87,6 +87,14 @@ import * as m081 from "./081_shop_service_fields.js";
 import * as m082 from "./082_shop_booking_date_range.js";
 import * as m083 from "./083_shop_order_item_collection.js";
 import * as m084 from "./084_move_service_fields_to_services.js";
+import * as m085 from "./085_repair_implicit_taxonomy_locale.js";
+import * as m086 from "./086_shop_open_enrollments.js";
+import * as m087 from "./087_shop_customer_names.js";
+import * as m088 from "./088_shop_inventory_movements.js";
+import * as m089 from "./089_shop_inventory_idempotency.js";
+import * as m090 from "./090_shop_carts.js";
+import * as m091 from "./091_faq_collection.js";
+import * as m092 from "./092_shop_product_presentation_fields.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -172,6 +180,14 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"082_shop_booking_date_range": m082,
 	"083_shop_order_item_collection": m083,
 	"084_move_service_fields_to_services": m084,
+	"085_repair_implicit_taxonomy_locale": m085,
+	"086_shop_open_enrollments": m086,
+	"087_shop_customer_names": m087,
+	"088_shop_inventory_movements": m088,
+	"089_shop_inventory_idempotency": m089,
+	"090_shop_carts": m090,
+	"091_faq_collection": m091,
+	"092_shop_product_presentation_fields": m092,
 });
 
 /** Ordered names from the statically registered migration set. */
