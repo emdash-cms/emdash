@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
 
-import { SqliteDialect } from "kysely";
+import { CompiledQuery, SqliteDialect } from "kysely";
 import type { KyselyPlugin } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
+import { createRequestScopedDb } from "../../../../cloudflare/src/db/d1.js";
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import { dispatchPluginApiRequest } from "../../../src/plugins/http-route-dispatch.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
 import {
@@ -17,6 +20,10 @@ import {
 } from "../../../src/plugins/storage-indexes.js";
 import { runWithContext } from "../../../src/request-context.js";
 import type { Storage } from "../../../src/storage/types.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+const testBindings = vi.hoisted(() => ({ DB: undefined as unknown }));
+vi.mock("cloudflare:workers", () => ({ env: testBindings }));
 
 class MemoryStorage implements Storage {
 	private files = new Map<string, Uint8Array>();
@@ -98,7 +105,13 @@ class MemoryStorage implements Storage {
 const pluginId = "updated-plugin";
 let invokeRoute: SandboxedPluginInstance["invokeRoute"] = async () => undefined;
 
-function manifest(version: string, unique = false, id = pluginId, hooks: string[] = []) {
+function manifest(
+	version: string,
+	unique = false,
+	id = pluginId,
+	hooks: string[] = [],
+	publicRoute = true,
+) {
 	return {
 		id,
 		version,
@@ -108,7 +121,7 @@ function manifest(version: string, unique = false, id = pluginId, hooks: string[
 			records: { indexes: ["status"], ...(unique ? { uniqueIndexes: ["externalId"] } : {}) },
 		},
 		hooks,
-		routes: [{ name: "submit", public: true }],
+		routes: [{ name: "submit", public: publicRoute }],
 		admin: {},
 	};
 }
@@ -164,10 +177,11 @@ async function putBundle(
 	unique: boolean,
 	id = pluginId,
 	hooks: string[] = [],
+	publicRoute = true,
 ): Promise<void> {
 	storage.putText(
 		`${source}/${id}/${version}/manifest.json`,
-		JSON.stringify(manifest(version, unique, id, hooks)),
+		JSON.stringify(manifest(version, unique, id, hooks, publicRoute)),
 	);
 	storage.putText(`${source}/${id}/${version}/backend.js`, "export default {};");
 }
@@ -176,6 +190,40 @@ function stateOptions(source: "registry" | "marketplace", version: string, id = 
 	return source === "marketplace"
 		? { source, marketplaceVersion: version }
 		: { source, registryPublisherDid: "did:plc:test", registrySlug: id };
+}
+
+function createRoutingD1Binding(
+	primary: EmDashRuntime["db"],
+	replica: Awaited<ReturnType<typeof setupTestDatabase>>,
+) {
+	const statement = (
+		db: EmDashRuntime["db"],
+		sql: string,
+		parameters: readonly unknown[] = [],
+	) => ({
+		bind(...values: unknown[]) {
+			return statement(db, sql, values);
+		},
+		async all() {
+			const result = await db.executeQuery(CompiledQuery.raw(sql, parameters));
+			return {
+				success: true,
+				results: result.rows,
+				meta: { changes: Number(result.numAffectedRows ?? 0), last_row_id: result.insertId },
+			};
+		},
+	});
+	const session = (db: EmDashRuntime["db"]) => ({
+		prepare: (sql: string) => statement(db, sql),
+		batch: (statements: Array<ReturnType<typeof statement>>) =>
+			Promise.all(statements.map((item) => item.all())),
+		getBookmark: () => null,
+	});
+	return {
+		...session(primary),
+		withSession: (constraint: string) =>
+			session(constraint === "first-primary" ? primary : replica),
+	};
 }
 
 async function syncPlugins(
@@ -208,9 +256,135 @@ describe.each(["registry", "marketplace"] as const)(
 	"runtime plugin storage index updates (%s)",
 	(source) => {
 		let runtime: EmDashRuntime | undefined;
+		let replica: Awaited<ReturnType<typeof setupTestDatabase>> | undefined;
 		afterEach(async () => {
 			await runtime?.shutdown();
+			if (replica) await teardownTestDatabase(replica);
 			runtime = undefined;
+			replica = undefined;
+			testBindings.DB = undefined;
+		});
+
+		it("skips installed-plugin refreshes for configured plugin routes", async () => {
+			const configuredId = "configured-plugin";
+			const storage = new MemoryStorage();
+			const deps = createDeps(storage, source);
+			deps.plugins = [
+				definePlugin({
+					id: configuredId,
+					version: "1.0.0",
+					routes: {
+						health: {
+							public: true,
+							handler: async () => ({ ok: true }),
+						},
+					},
+				}),
+			];
+			runtime = await EmDashRuntime.create(deps);
+			const stateQueries = { count: 0 };
+			const queryDb = runtime.db.withPlugin({
+				transformQuery: ({ node }) => {
+					const query = runtime!.db.getExecutor().compileQuery(node);
+					if (query.sql.includes("_plugin_state")) stateQueries.count++;
+					return node;
+				},
+			} satisfies KyselyPlugin);
+			const probesAtStartup = deps.runnerIsAvailable.mock.calls.length;
+			const downloadsAtStartup = storage.downloadCount;
+
+			expect(runtime.mayNeedInstalledPluginRefresh(configuredId)).toBe(false);
+			expect(runtime.mayNeedInstalledPluginRefresh("installed-plugin")).toBe(true);
+			await runWithContext({ db: queryDb, editMode: false }, () =>
+				runtime!.refreshInstalledPluginRoute(configuredId),
+			);
+			const response = await runWithContext({ db: queryDb, editMode: false }, () =>
+				dispatchPluginApiRequest({
+					runtime: runtime!,
+					pluginId: configuredId,
+					path: "/health",
+					request: new Request(`https://example.test/_emdash/api/plugins/${configuredId}/health`),
+				}),
+			);
+
+			expect(response.status).toBe(200);
+			expect(stateQueries.count).toBe(0);
+			expect(storage.downloadCount).toBe(downloadsAtStartup);
+			expect(deps.runnerIsAvailable).toHaveBeenCalledTimes(probesAtStartup);
+		});
+
+		it("routes plugin API refreshes to primary instead of stale replicas", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false, pluginId, [], true);
+			await putBundle(storage, source, "2.0.0", false, pluginId, [], false);
+			runtime = await EmDashRuntime.create(createDeps(storage, source));
+			replica = await setupTestDatabase();
+			const primaryStates = new PluginStateRepository(runtime.db);
+			const replicaStates = new PluginStateRepository(replica);
+			await primaryStates.upsert(pluginId, "2.0.0", "active", stateOptions(source, "2.0.0"));
+			await replicaStates.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+
+			const binding = createRoutingD1Binding(runtime.db, replica);
+			testBindings.DB = binding;
+			const cookies = { get: vi.fn(), set: vi.fn() };
+			const scoped = (requirePrimary: boolean) =>
+				createRequestScopedDb({
+					config: { binding: "DB", session: "auto" },
+					isAuthenticated: false,
+					isWrite: false,
+					cookies,
+					url: new URL(
+						requirePrimary
+							? "https://example.test/_emdash/api/plugins/updated-plugin/submit"
+							: "https://example.test/",
+					),
+					requirePrimary,
+				})!;
+
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toMatchObject({ public: false });
+			const ordinaryPageSession = scoped(false);
+			expect(await new PluginStateRepository(ordinaryPageSession.db).get(pluginId)).toMatchObject({
+				version: "1.0.0",
+			});
+
+			const pluginApiSession = scoped(true);
+			await runWithContext({ db: pluginApiSession.db, editMode: false }, () =>
+				runtime!.refreshInstalledPluginRoute(pluginId),
+			);
+			await expect(
+				dispatchPluginApiRequest({
+					runtime,
+					pluginId,
+					path: "/submit",
+					request: new Request("https://example.test/_emdash/api/plugins/updated-plugin/submit"),
+				}),
+			).resolves.toMatchObject({ status: 401 });
+			expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toMatchObject({ public: false });
+
+			await putBundle(storage, source, "3.0.0", false, pluginId, [], false);
+			await primaryStates.upsert(pluginId, "3.0.0", "active", stateOptions(source, "3.0.0"));
+			const updateSession = scoped(true);
+			await runWithContext({ db: updateSession.db, editMode: false }, () =>
+				runtime!.refreshInstalledPluginRoute(pluginId),
+			);
+			invokeRoute = async () => undefined;
+			expect(await get(runtime)).toMatchObject({ success: true, data: { version: "3.0.0" } });
+			expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toMatchObject({ public: false });
+
+			await primaryStates.delete(pluginId);
+			const freshPrimarySession = scoped(true);
+			await runWithContext({ db: freshPrimarySession.db, editMode: false }, () =>
+				runtime!.refreshInstalledPluginRoute(pluginId),
+			);
+			await expect(
+				dispatchPluginApiRequest({
+					runtime,
+					pluginId,
+					path: "/submit",
+					request: new Request("https://example.test/_emdash/api/plugins/updated-plugin/submit"),
+				}),
+			).resolves.toMatchObject({ status: 404 });
 		});
 
 		it("serializes concurrent refreshes after a DB-only install", async () => {

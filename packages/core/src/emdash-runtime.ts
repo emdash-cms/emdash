@@ -1757,18 +1757,22 @@ export class EmDashRuntime {
 		this.installedPluginRefreshFailures.delete(pluginId);
 	}
 
-	/** Refresh one runtime-installed plugin before reading its route metadata. */
-	async refreshInstalledPluginRoute(pluginId: string): Promise<void> {
+	/** Whether route lookup may need authoritative installed-plugin state. Does no I/O. */
+	mayNeedInstalledPluginRefresh(pluginId: string): boolean {
 		if (this.runtimeDeps.sandboxBypassed || !this.storage || !this.installedPluginSandboxAvailable)
-			return;
-		if (!this.config.marketplace && !getRegistryConfigInput(this.config.registry)) return;
+			return false;
+		if (!this.config.marketplace && !getRegistryConfigInput(this.config.registry)) return false;
 		// Configured plugins do not depend on registry or marketplace state.
-		if (
+		return !(
 			this.sandboxedPluginEntries.some((entry) => entry.id === pluginId) ||
 			(this.configuredPlugins.some((plugin) => plugin.id === pluginId) &&
 				!marketplaceManifestCache.has(pluginId))
-		)
-			return;
+		);
+	}
+
+	/** Refresh one runtime-installed plugin before reading its route metadata. */
+	async refreshInstalledPluginRoute(pluginId: string): Promise<void> {
+		if (!this.mayNeedInstalledPluginRefresh(pluginId)) return;
 
 		const state = await new PluginStateRepository(this.db).get(pluginId);
 		this.checkInstalledPluginRefreshRetry(pluginId, this.installedPluginRefreshStateKey(state));

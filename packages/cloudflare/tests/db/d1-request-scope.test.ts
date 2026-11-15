@@ -22,6 +22,74 @@ import { createRequestScopedDb } from "../../src/db/d1.js";
 
 const config = { binding: "DB", session: "auto" as const };
 
+describe("D1 request scoping session selection", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.binding.withSession.mockReturnValue(mocks.session);
+	});
+
+	it.each([false, true])(
+		"uses first-primary for an anonymous GET when requirePrimary is true (coalesce: %s)",
+		(coalesce) => {
+			createRequestScopedDb({
+				config: { ...config, coalesce },
+				isAuthenticated: false,
+				isWrite: false,
+				requirePrimary: true,
+				cookies: { get: vi.fn(), set: vi.fn() },
+				url: new URL("https://example.com/_emdash/api/content/posts"),
+			});
+
+			expect(mocks.binding.withSession).toHaveBeenCalledWith("first-primary");
+		},
+	);
+
+	it.each([false, true])(
+		"uses first-primary for an authenticated read when requirePrimary overrides an older bookmark (coalesce: %s)",
+		(coalesce) => {
+			const cookies = { get: vi.fn(() => ({ value: "older-bookmark" })), set: vi.fn() };
+			createRequestScopedDb({
+				config: { ...config, coalesce },
+				isAuthenticated: true,
+				isWrite: false,
+				requirePrimary: true,
+				cookies,
+				url: new URL("https://example.com/_emdash/admin"),
+			});
+
+			expect(mocks.binding.withSession).toHaveBeenCalledWith("first-primary");
+		},
+	);
+
+	it.each([false, true])(
+		"keeps ordinary anonymous auto reads on first-unconstrained (coalesce: %s)",
+		(coalesce) => {
+			createRequestScopedDb({
+				config: { ...config, coalesce },
+				isAuthenticated: false,
+				isWrite: false,
+				cookies: { get: vi.fn(), set: vi.fn() },
+				url: new URL("https://example.com/"),
+			});
+
+			expect(mocks.binding.withSession).toHaveBeenCalledWith("first-unconstrained");
+		},
+	);
+
+	it.each([false, true])("keeps explicit writes on first-primary (coalesce: %s)", (coalesce) => {
+		createRequestScopedDb({
+			config: { ...config, coalesce },
+			isAuthenticated: false,
+			isWrite: true,
+			requirePrimary: false,
+			cookies: { get: vi.fn(), set: vi.fn() },
+			url: new URL("https://example.com/api/posts"),
+		});
+
+		expect(mocks.binding.withSession).toHaveBeenCalledWith("first-primary");
+	});
+});
+
 describe("D1 request scoping bookmark persistence", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();

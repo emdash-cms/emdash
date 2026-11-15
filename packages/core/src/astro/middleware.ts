@@ -1045,6 +1045,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// DO database via the same AsyncLocalStorage instance as the loader.
 		const doInit = async () => {
 			let refreshPluginRoutes: (() => Promise<void>) | undefined;
+			let requirePrimary = false;
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const mwStart = performance.now();
 
@@ -1056,10 +1057,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
 				const runtime = await getRuntime(config, migrationMode, initSubTimings);
-				refreshPluginRoutes = async () => {
-					const pluginId = publicPath.slice("/_emdash/api/plugins/".length).split("/")[0];
-					if (pluginId) await runtime.refreshInstalledPluginRoute(pluginId);
-				};
+				const installedPluginId = publicPath.startsWith("/_emdash/api/plugins/")
+					? publicPath.slice("/_emdash/api/plugins/".length).split("/")[0]
+					: undefined;
+				if (installedPluginId && runtime.mayNeedInstalledPluginRefresh(installedPluginId)) {
+					requirePrimary = true;
+					refreshPluginRoutes = () => runtime.refreshInstalledPluginRoute(installedPluginId);
+				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
@@ -1238,6 +1242,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				cookies: context.cookies,
 				url,
 				lastContentWriteAt,
+				// Route permissions must not regress to an older replica snapshot.
+				requirePrimary,
 			});
 
 			const renderAndFinalize = async () => {

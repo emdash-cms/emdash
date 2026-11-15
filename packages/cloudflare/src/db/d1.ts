@@ -178,6 +178,8 @@ export interface RequestScopedDbOpts {
 	 */
 	endedAuthenticated?: () => boolean;
 	isWrite: boolean;
+	/** Require primary freshness even for reads and requests carrying a bookmark. */
+	requirePrimary?: boolean;
 	cookies: CookieJar;
 	url: URL;
 }
@@ -410,12 +412,13 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 
 	// Any write — authenticated or not (e.g. an anonymous comment POST) — must
 	// hit primary; we don't want a write plus a follow-up read racing across
-	// replicas. Authenticated reads resume from a prior bookmark when the client
-	// sent a valid one. Everything else (anonymous reads — the whole point of
-	// read replicas) uses the config default, typically "first-unconstrained"
-	// for nearest-replica routing.
+	// replicas. Reads requiring authoritative state also start at primary,
+	// rather than resuming from an older bookmark. Authenticated reads otherwise
+	// resume from a prior bookmark when the client sent a valid one. Everything
+	// else (anonymous reads) uses the config default, typically
+	// "first-unconstrained" for nearest-replica routing.
 	let constraint: string = configConstraint;
-	if (opts.isWrite) {
+	if (opts.isWrite || opts.requirePrimary) {
 		constraint = "first-primary";
 	} else if (opts.isAuthenticated) {
 		const bookmark = opts.cookies.get(cookieName)?.value;

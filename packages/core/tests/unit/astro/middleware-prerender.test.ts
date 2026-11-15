@@ -24,6 +24,7 @@ const {
 	mockGetPluginRouteMeta,
 	defaultGetPluginRouteMeta,
 	mockRefreshInstalledPluginRoute,
+	mockMayNeedInstalledPluginRefresh,
 	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
@@ -49,6 +50,7 @@ const {
 	});
 	const handleMediaUpload = vi.fn(ok);
 	const refreshInstalledPluginRoute = vi.fn(async (_pluginId: string) => undefined);
+	const mayNeedInstalledPluginRefresh = vi.fn((_pluginId: string) => true);
 	const runPluginInstallLifecycle = vi.fn(async () => undefined);
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
 	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
@@ -111,6 +113,7 @@ const {
 			syncMarketplacePlugins: async () => undefined,
 			syncRegistryPlugins: async () => undefined,
 			refreshInstalledPluginRoute,
+			mayNeedInstalledPluginRefresh,
 			runPluginInstallLifecycle,
 			runPluginActivateLifecycle,
 			runPluginUninstallLifecycle,
@@ -124,6 +127,7 @@ const {
 		mockGetPublicUrl: getPublicUrl,
 		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
 		mockRefreshInstalledPluginRoute: refreshInstalledPluginRoute,
+		mockMayNeedInstalledPluginRefresh: mayNeedInstalledPluginRefresh,
 		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
 		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
 		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
@@ -217,6 +221,7 @@ beforeEach(() => {
 	mockGetRuntimePluginSettingsSchema.mockClear();
 	mockGetPluginRouteMeta.mockReset().mockImplementation(defaultGetPluginRouteMeta);
 	mockRefreshInstalledPluginRoute.mockReset().mockResolvedValue(undefined);
+	mockMayNeedInstalledPluginRefresh.mockReset().mockReturnValue(true);
 	mockHandleMediaUpload.mockClear();
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
@@ -1023,6 +1028,47 @@ describe("astro middleware request-scoped db", () => {
 			canUseCachedBinding: false,
 			lastContentWriteAt: undefined,
 		});
+	});
+
+	it("refreshes plugin routes inside an authoritative request-owned database scope", async () => {
+		const commit = vi.fn();
+		const scopedDb = { _marker: "plugin-primary" };
+		vi.mocked(createRequestScopedDb).mockReturnValue({ db: scopedDb as never, commit });
+		let refreshDb: unknown;
+		mockRefreshInstalledPluginRoute.mockImplementation(async () => {
+			refreshDb = getRequestContext()?.db;
+		});
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/plugins/learnomy/health",
+		});
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			expect(getRequestContext()?.db).toBe(scopedDb);
+			return new Response("route");
+		});
+		expect(refreshDb).toBe(scopedDb);
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0]).toMatchObject({
+			requirePrimary: true,
+			canUseCachedBinding: false,
+		});
+		expect(commit).toHaveBeenCalledOnce();
+	});
+
+	it("keeps configured plugin GETs replica-eligible without refreshing installed state", async () => {
+		mockMayNeedInstalledPluginRefresh.mockReturnValue(false);
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/plugins/emdash-forms/catalog",
+		});
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], () =>
+			getPluginRoute({
+				params: { pluginId: "emdash-forms", path: "catalog" },
+				request: context.request,
+				locals: context.locals,
+			} as never),
+		);
+		expect(response.status).toBe(200);
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0].requirePrimary).toBe(false);
+		expect(mockMayNeedInstalledPluginRefresh).toHaveBeenCalledWith("emdash-forms");
+		expect(mockRefreshInstalledPluginRoute).not.toHaveBeenCalled();
 	});
 
 	it("asks the adapter for a scoped db on anonymous public pages and exposes it via ALS", async () => {
