@@ -13,7 +13,13 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
 	try {
 		const body = await parseBody(request, shopOrderCreateBody);
 		if (isParseError(body)) return body;
-		return unwrapResult(await handleShopOrderCreate(locals.emdash.db, { ...body, cartToken: cookies.get("emdash-shop-cart")?.value }), 201);
+		return unwrapResult(
+			await handleShopOrderCreate(locals.emdash.db, {
+				...body,
+				cartToken: cookies.get("emdash-shop-cart")?.value,
+			}),
+			201,
+		);
 	} catch (error) {
 		return handleError(error, "Failed to create order", "SHOP_ORDER_CREATE_ERROR");
 	}

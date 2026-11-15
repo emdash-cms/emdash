@@ -4,17 +4,17 @@ An ecommerce storefront with editable products, services, categories, informatio
 
 ## Pages
 
-| Page | Path | Purpose |
-| --- | --- | --- |
-| Home | `/` | Hero, featured products, promotions, categories, services, and brand story |
-| Catalog | `/catalogo` | Product listing with the shared EmDash shop cart |
-| Product detail | `/catalogo/[...slug]` | Product information, variants, stock, and add-to-cart |
-| Services | `/servicios` | Service listing |
-| Service detail | `/servicios/[slug]` | Service information, open enrollment, or booking availability |
-| Checkout | `/shop/checkout` | Customer details and order creation |
-| Thanks | `/shop/thanks` | Order confirmation |
-| Tracking | `/seguimiento` | Entry point for public order lookup |
-| Informational pages | `/{slug}` | About, contact, FAQ, shipping, policies, and claims book |
+| Page                | Path                  | Purpose                                                                    |
+| ------------------- | --------------------- | -------------------------------------------------------------------------- |
+| Home                | `/`                   | Hero, featured products, promotions, categories, services, and brand story |
+| Catalog             | `/catalogo`           | Product listing with the shared EmDash shop cart                           |
+| Product detail      | `/catalogo/[...slug]` | Product information, variants, stock, and add-to-cart                      |
+| Services            | `/servicios`          | Service listing                                                            |
+| Service detail      | `/servicios/[slug]`   | Service information, open enrollment, or booking availability              |
+| Checkout            | `/shop/checkout`      | Customer details and order creation                                        |
+| Thanks              | `/shop/thanks`        | Order confirmation                                                         |
+| Tracking            | `/seguimiento`        | Entry point for public order lookup                                        |
+| Informational pages | `/{slug}`             | About, contact, FAQ, shipping, policies, and claims book                   |
 
 ## Customisation
 

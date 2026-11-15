@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { SiteSettings } from "../../src/lib/api/settings.js";
-import { getSiteColor, getSiteLogoAlt, getSiteLogoUrl } from "../../src/lib/site-settings-context.js";
+import {
+	getSiteColor,
+	getSiteLogoAlt,
+	getSiteLogoUrl,
+} from "../../src/lib/site-settings-context.js";
 
 describe("site settings helpers", () => {
 	it("uses the resolved logo URL and accessible name from settings", () => {

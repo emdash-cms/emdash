@@ -19,9 +19,17 @@ export default defineConfig({
 	adapter: node({ mode: "standalone" }),
 	vite: {
 		optimizeDeps: {
-			include: ["@cloudflare/kumo", "@react-email/editor", "@react-email/editor-extensions", "@react-email/editor-plugins", "@react-email/render"],
+			include: [
+				"@cloudflare/kumo",
+				"@react-email/editor",
+				"@react-email/editor-extensions",
+				"@react-email/editor-plugins",
+				"@react-email/render",
+			],
 		},
-		resolve: { alias: { "entities/decode": entitiesDecode, "entities/lib/decode.js": entitiesDecode } },
+		resolve: {
+			alias: { "entities/decode": entitiesDecode, "entities/lib/decode.js": entitiesDecode },
+		},
 	},
 	image: { layout: "constrained", responsiveStyles: true },
 	integrations: [

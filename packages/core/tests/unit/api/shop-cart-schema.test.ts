@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { shopCartItemCreateBody, shopCartItemUpdateBody } from "../../../src/api/schemas/shop-cart.js";
+import {
+	shopCartItemCreateBody,
+	shopCartItemUpdateBody,
+} from "../../../src/api/schemas/shop-cart.js";
 
 describe("shop cart schemas", () => {
 	it("accepts a product line and rejects invalid quantities", () => {

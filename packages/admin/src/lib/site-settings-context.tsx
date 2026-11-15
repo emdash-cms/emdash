@@ -1,5 +1,5 @@
-import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
+import * as React from "react";
 
 import { fetchSettings, type SiteSettings } from "./api/settings.js";
 

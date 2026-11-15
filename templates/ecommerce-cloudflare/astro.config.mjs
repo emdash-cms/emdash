@@ -2,9 +2,9 @@ import { fileURLToPath } from "node:url";
 
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
+import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import { emailTemplatesPlugin, resendEmail } from "@emdash-cms/plugin-email-templates";
 import { defineConfig, fontProviders } from "astro/config";
-import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import emdash from "emdash/astro";
 
 const entitiesDecode = fileURLToPath(
@@ -19,9 +19,17 @@ export default defineConfig({
 	adapter: cloudflare(),
 	vite: {
 		optimizeDeps: {
-			include: ["@cloudflare/kumo", "@react-email/editor", "@react-email/editor-extensions", "@react-email/editor-plugins", "@react-email/render"],
+			include: [
+				"@cloudflare/kumo",
+				"@react-email/editor",
+				"@react-email/editor-extensions",
+				"@react-email/editor-plugins",
+				"@react-email/render",
+			],
 		},
-		resolve: { alias: { "entities/decode": entitiesDecode, "entities/lib/decode.js": entitiesDecode } },
+		resolve: {
+			alias: { "entities/decode": entitiesDecode, "entities/lib/decode.js": entitiesDecode },
+		},
 	},
 	image: { layout: "constrained", responsiveStyles: true },
 	integrations: [

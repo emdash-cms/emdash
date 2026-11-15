@@ -21,7 +21,10 @@ describe("shop cart handlers", () => {
 	});
 
 	it("creates an empty guest cart and does not expose the token in the view", async () => {
-		await db.insertInto("_emdash_shop_settings").values({ id: "default", store_name: "Shop", currency: "USD" }).execute();
+		await db
+			.insertInto("_emdash_shop_settings")
+			.values({ id: "default", store_name: "Shop", currency: "USD" })
+			.execute();
 		const result = await handleShopCartGet(db, {});
 		expect(result.success).toBe(true);
 		if (!result.success) return;

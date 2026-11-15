@@ -7,5 +7,5 @@
 	"d1_databases": [{ "binding": "DB", "database_name": "my-emdash-ecommerce" }],
 	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "my-emdash-ecommerce-media" }],
 	"worker_loaders": [{ "binding": "LOADER" }],
-	"triggers": { "crons": ["* * * * *", "*/2 * * * *"] }
+	"triggers": { "crons": ["* * * * *", "*/2 * * * *"] },
 }

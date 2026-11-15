@@ -48,7 +48,10 @@ export const shopOrderCreateBody = z
 			)
 			.min(0)
 			.max(100),
-		cartToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/).optional(),
+		cartToken: z
+			.string()
+			.regex(/^[A-Za-z0-9_-]{43}$/)
+			.optional(),
 		customer: z.object({
 			firstName: z.string().trim().min(1).max(200),
 			lastName: z.string().trim().min(1).max(200),
