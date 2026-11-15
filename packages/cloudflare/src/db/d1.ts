@@ -19,6 +19,7 @@ import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
 import { EmDashD1Dialect, RawBindingD1Dialect } from "./d1-dialect.js";
+import { createPrimaryD1Session } from "./d1-primary-session.js";
 import { createD1SessionGuard, type D1SessionGuard } from "./d1-session-guard.js";
 
 /**
@@ -178,7 +179,7 @@ export interface RequestScopedDbOpts {
 	 */
 	endedAuthenticated?: () => boolean;
 	isWrite: boolean;
-	/** Require primary freshness even for reads and requests carrying a bookmark. */
+	/** Require a fresh primary session for each operation, regardless of client bookmarks. */
 	requirePrimary?: boolean;
 	cookies: CookieJar;
 	url: URL;
@@ -432,7 +433,9 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		}
 	}
 
-	const session = binding.withSession(constraint);
+	const session = opts.requirePrimary
+		? createPrimaryD1Session(binding)
+		: binding.withSession(constraint);
 	// kysely-d1 only touches .prepare() and .batch() on the database argument,
 	// both of which D1DatabaseSession implements. Hang-guarded: until the
 	// first session query settles in this isolate, queries are raced against
