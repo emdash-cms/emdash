@@ -30,13 +30,30 @@ import Base from "../../layouts/Base.astro";
 	const messageElement = document.querySelector<HTMLElement>("#checkout-message");
 	const paymentElement = document.querySelector<HTMLSelectElement>("#payment-method");
 	const storageKey = "emdash-shop-cart";
-	let cart = [];
-	let settings = { currencySymbol: "S/", paymentMethods: ["whatsapp"] };
+	type CartEntry = {
+		product: {
+			id: string;
+			isService?: boolean;
+			data?: {
+				name?: string;
+				item_type?: string;
+				variants?: { id?: string; label?: string; price?: number }[];
+				promotion_price?: number;
+				price?: number;
+			};
+		};
+		variantId?: string | null;
+		quantity: number;
+		booking?: { startsAt: string; endsAt: string; reservationId: string };
+	};
+	type CheckoutSettings = { currencySymbol: string; paymentMethods: string[] };
+	let cart: CartEntry[] = [];
+	let settings: CheckoutSettings = { currencySymbol: "S/", paymentMethods: ["whatsapp"] };
 	try { const stored = JSON.parse(localStorage.getItem(storageKey) ?? "[]"); if (Array.isArray(stored)) cart = stored; } catch { cart = []; }
 	if (cart.length === 0) window.location.replace("/catalogo");
-	const isService = (entry) => entry?.booking || entry?.product?.data?.item_type === "service" || entry?.product?.isService;
-	const price = (entry) => { const variant = entry.product.data?.variants?.find((item) => (item.id ?? item.label) === entry.variantId); return Number(variant?.price ?? entry.product.data?.promotion_price ?? entry.product.data?.price ?? 0); };
-	const money = (value) => `${settings.currencySymbol} ${value.toFixed(2)}`;
+	const isService = (entry: CartEntry) => entry.booking || entry.product.data?.item_type === "service" || entry.product.isService;
+	const price = (entry: CartEntry) => { const variant = entry.product.data?.variants?.find((item) => (item.id ?? item.label) === entry.variantId); return Number(variant?.price ?? entry.product.data?.promotion_price ?? entry.product.data?.price ?? 0); };
+	const money = (value: number) => `${settings.currencySymbol} ${value.toFixed(2)}`;
 	const render = () => { let total = 0; itemsElement?.replaceChildren(); for (const entry of cart) { const subtotal = price(entry) * entry.quantity; total += subtotal; const row = document.createElement("p"); row.textContent = `${entry.product.data?.name ?? "Producto"} × ${entry.quantity} — ${money(subtotal)}`; itemsElement?.append(row); } if (totalElement) totalElement.textContent = `Total: ${money(total)}`; };
 	const loadSettings = async () => { const response = await fetch(`${apiBase}/settings`); const body = await response.json(); if (response.ok && body.data) settings = body.data; for (const method of settings.paymentMethods) paymentElement?.append(new Option(method, method)); };
 	form?.addEventListener("submit", async (event) => { event.preventDefault(); if (!form) return; if (messageElement) messageElement.textContent = "Creando pedido…"; const data = new FormData(form); const customer = { firstName: String(data.get("firstName") ?? ""), lastName: String(data.get("lastName") ?? ""), phone: String(data.get("phone") ?? ""), email: String(data.get("email") ?? ""), address: String(data.get("address") ?? ""), district: String(data.get("district") ?? "") }; const response = await fetch(`${apiBase}/orders`, { method: "POST", headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" }, body: JSON.stringify({ items: cart.map((entry) => ({ productId: entry.product.id, collection: isService(entry) ? "services" : "products", quantity: entry.quantity, ...(entry.variantId ? { variantId: entry.variantId } : {}), ...(entry.booking ? { booking: entry.booking } : {}) })), customer, paymentMethod: String(data.get("paymentMethod") ?? "whatsapp"), notes: String(data.get("notes") ?? "") }) }); const body = await response.json(); if (!response.ok) { if (messageElement) messageElement.textContent = body?.error?.message ?? "No se pudo crear el pedido."; return; } localStorage.removeItem(storageKey); window.location.assign(`/shop/thanks?order=${encodeURIComponent(body.data.orderNumber)}`); });

@@ -8,8 +8,9 @@ if (!slug) return Astro.redirect("/404");
 const { entry: product, cacheHint } = await getEmDashEntry("products", slug);
 if (!product) return Astro.redirect("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const title = typeof product.data.name === "string" ? product.data.name : "Producto";
 ---
 
-<Base title={product.data.name || "Producto"} content={{ collection: "products", id: product.id, slug }}>
+<Base title={title} content={{ collection: "products", id: product.id, slug }}>
 	<ItemDetail item={product} collection="products" />
 </Base>

@@ -83,7 +83,7 @@ const hrefBack = isService ? "/servicios" : "/catalogo";
 			const response = await fetch(`/_emdash/api/shop/services/${encodeURIComponent(payload.id)}/availability?date=${encodeURIComponent(date.value)}&locale=es`);
 			const body = await response.json();
 			if (!response.ok) throw new Error(body?.error?.message ?? "No se pudo cargar la disponibilidad.");
-			const slots = Array.isArray(body.data) ? body.data : [];
+			const slots: { startsAt: string; endsAt: string }[] = Array.isArray(body.data) ? body.data : [];
 			slot.replaceChildren(...(slots.length ? slots.map((entry) => new Option(`${new Date(entry.startsAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })} — ${new Date(entry.endsAt).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}`, JSON.stringify(entry))) : [new Option("No hay horarios disponibles", "")]));
 			slot.disabled = slots.length === 0;
 			if (bookingMessage) bookingMessage.textContent = slots.length ? "Selecciona un horario." : "No hay horarios para esta fecha.";
@@ -107,7 +107,14 @@ const hrefBack = isService ? "/servicios" : "/catalogo";
 		}
 		const variant = document.querySelector<HTMLSelectElement>("#item-variant")?.value || null;
 		const key = `${payload.id}:${variant ?? ""}:${booking?.startsAt ?? ""}`;
-		let cart = [];
+		type CartEntry = {
+			key: string;
+			quantity: number;
+			product: { id: string; slug: string; data: Record<string, unknown>; collection: string; isService: boolean };
+			variantId: string | null;
+			booking?: { reservationId: string; startsAt: string; endsAt: string };
+		};
+		let cart: CartEntry[] = [];
 		try { const stored = JSON.parse(localStorage.getItem(cartKey) ?? "[]"); if (Array.isArray(stored)) cart = stored; } catch { cart = []; }
 		const existing = cart.find((entry) => entry?.key === key);
 		if (existing) existing.quantity = payload.isService ? 1 : existing.quantity + quantity;
