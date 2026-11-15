@@ -34,7 +34,35 @@ class MemoryStorage implements Storage {
 		this.files.set(options.key, options.body);
 		return { key: options.key, url: `memory://${options.key}`, size: options.body.byteLength };
 	}
+	failDownloads = false;
+	private downloadGate: Promise<void> | undefined;
+	private releaseDownload: (() => void) | undefined;
+	private signalDownloadStarted: (() => void) | undefined;
+	downloadStarted = Promise.resolve();
+
+	pauseNextDownload(): void {
+		this.downloadStarted = new Promise((resolve) => {
+			this.signalDownloadStarted = resolve;
+		});
+		this.downloadGate = new Promise((resolve) => {
+			this.releaseDownload = resolve;
+		});
+	}
+
+	resumeDownload(): void {
+		this.releaseDownload?.();
+		this.releaseDownload = undefined;
+	}
+
 	async download(key: string) {
+		if (this.failDownloads) throw new Error("Storage unavailable");
+		const downloadGate = this.downloadGate;
+		if (downloadGate) {
+			this.downloadGate = undefined;
+			this.signalDownloadStarted?.();
+			this.signalDownloadStarted = undefined;
+			await downloadGate;
+		}
 		const bytes = this.files.get(key);
 		if (!bytes) throw new Error(`Missing ${key}`);
 		return {
@@ -68,9 +96,9 @@ class MemoryStorage implements Storage {
 const pluginId = "updated-plugin";
 let invokeRoute: SandboxedPluginInstance["invokeRoute"] = async () => undefined;
 
-function manifest(version: string, unique = false) {
+function manifest(version: string, unique = false, id = pluginId) {
 	return {
-		id: pluginId,
+		id,
 		version,
 		capabilities: [],
 		allowedHosts: [],
@@ -86,15 +114,15 @@ function manifest(version: string, unique = false) {
 function createDeps(
 	storage: MemoryStorage,
 	source: "registry" | "marketplace",
-): RuntimeDependencies {
+): RuntimeDependencies & { runnerLoad: ReturnType<typeof vi.fn> } {
 	const runner = {
 		isAvailable: () => true,
 		isHealthy: () => true,
 		load: vi.fn(async (loadedManifest: { id: string; version: string }) => ({
 			id: `${loadedManifest.id}:${loadedManifest.version}`,
 			invokeHook: vi.fn(async () => undefined),
-			invokeRoute: (...args: Parameters<SandboxedPluginInstance["invokeRoute"]>) =>
-				invokeRoute(...args),
+			invokeRoute: async (...args: Parameters<SandboxedPluginInstance["invokeRoute"]>) =>
+				(await invokeRoute(...args)) ?? { version: loadedManifest.version },
 			terminate: vi.fn(async () => undefined),
 		})),
 		setEmailSend: vi.fn(),
@@ -115,6 +143,7 @@ function createDeps(
 		sandboxedPluginEntries: [],
 		// eslint-disable-next-line typescript/no-explicit-any -- minimal fake runner for the published boundary
 		createSandboxRunner: (() => runner) as any,
+		runnerLoad: runner.load,
 	};
 }
 
@@ -123,18 +152,19 @@ async function putBundle(
 	source: "registry" | "marketplace",
 	version: string,
 	unique: boolean,
+	id = pluginId,
 ): Promise<void> {
 	storage.putText(
-		`${source}/${pluginId}/${version}/manifest.json`,
-		JSON.stringify(manifest(version, unique)),
+		`${source}/${id}/${version}/manifest.json`,
+		JSON.stringify(manifest(version, unique, id)),
 	);
-	storage.putText(`${source}/${pluginId}/${version}/backend.js`, "export default {};");
+	storage.putText(`${source}/${id}/${version}/backend.js`, "export default {};");
 }
 
-function stateOptions(source: "registry" | "marketplace", version: string) {
+function stateOptions(source: "registry" | "marketplace", version: string, id = pluginId) {
 	return source === "marketplace"
 		? { source, marketplaceVersion: version }
-		: { source, registryPublisherDid: "did:plc:test", registrySlug: pluginId };
+		: { source, registryPublisherDid: "did:plc:test", registrySlug: id };
 }
 
 async function syncPlugins(
@@ -154,6 +184,15 @@ async function post(runtime: EmDashRuntime): Promise<unknown> {
 	);
 }
 
+async function get(runtime: EmDashRuntime): Promise<unknown> {
+	return runtime.handlePluginApiRoute(
+		pluginId,
+		"GET",
+		"/submit",
+		new Request(`https://example.test/_emdash/api/plugins/${pluginId}/submit`),
+	);
+}
+
 describe.each(["registry", "marketplace"] as const)(
 	"runtime plugin storage index updates (%s)",
 	(source) => {
@@ -161,6 +200,129 @@ describe.each(["registry", "marketplace"] as const)(
 		afterEach(async () => {
 			await runtime?.shutdown();
 			runtime = undefined;
+		});
+
+		it("serializes concurrent refreshes after a DB-only install", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+
+			storage.pauseNextDownload();
+			const firstRefresh = runtime.refreshInstalledPluginRoute(pluginId);
+			await storage.downloadStarted;
+			const secondRefresh = runtime.refreshInstalledPluginRoute(pluginId);
+			storage.resumeDownload();
+			await Promise.all([firstRefresh, secondRefresh]);
+
+			expect(deps.runnerLoad).toHaveBeenCalledTimes(1);
+			invokeRoute = async () => undefined;
+			expect(await post(runtime)).toMatchObject({
+				success: true,
+				data: { version: "1.0.0" },
+			});
+		});
+
+		it("does not reload an unchanged plugin", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			storage.failDownloads = true;
+
+			await expect(runtime.refreshInstalledPluginRoute(pluginId)).resolves.toBeUndefined();
+			expect(deps.runnerLoad).toHaveBeenCalledTimes(1);
+		});
+
+		it("propagates a sandbox load failure and retries on the next refresh", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			deps.runnerLoad.mockRejectedValueOnce(new Error("Sandbox unavailable"));
+			await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+				"Sandbox unavailable",
+			);
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			invokeRoute = async () => undefined;
+			expect(await get(runtime)).toMatchObject({ success: true, data: { version: "1.0.0" } });
+		});
+
+		it("refreshes install, update, and uninstall state for the requested route", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			runtime = await EmDashRuntime.create(createDeps(storage, source));
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			invokeRoute = async () => undefined;
+			await expect(post(runtime)).resolves.toMatchObject({
+				success: true,
+				data: { version: "1.0.0" },
+			});
+
+			await putBundle(storage, source, "2.0.0", false);
+			await states.upsert(pluginId, "2.0.0", "active", stateOptions(source, "2.0.0"));
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			await expect(post(runtime)).resolves.toMatchObject({
+				success: true,
+				data: { version: "2.0.0" },
+			});
+
+			await states.delete(pluginId);
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			invokeRoute = vi.fn(async () => ({ unexpected: true }));
+			expect(await get(runtime)).toMatchObject({
+				success: false,
+				error: { code: "NOT_FOUND" },
+			});
+			expect(invokeRoute).not.toHaveBeenCalled();
+		});
+
+		it("isolates a broken requested plugin from a healthy plugin refresh", async () => {
+			const badPluginId = "broken-plugin";
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			await putBundle(storage, source, "1.0.0", false, badPluginId);
+			const deps = createDeps(storage, source);
+			deps.runnerLoad.mockImplementation(
+				async (loadedManifest: { id: string; version: string }) => {
+					if (loadedManifest.id === badPluginId) throw new Error("Broken plugin");
+					return {
+						id: `${loadedManifest.id}:${loadedManifest.version}`,
+						invokeHook: vi.fn(async () => undefined),
+						invokeRoute: async (...args: Parameters<SandboxedPluginInstance["invokeRoute"]>) =>
+							(await invokeRoute(...args)) ?? { version: loadedManifest.version },
+						terminate: vi.fn(async () => undefined),
+					};
+				},
+			);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await states.upsert(
+				badPluginId,
+				"1.0.0",
+				"active",
+				stateOptions(source, "1.0.0", badPluginId),
+			);
+
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			invokeRoute = async () => undefined;
+			expect(await post(runtime)).toMatchObject({ success: true, data: { version: "1.0.0" } });
+			expect(deps.runnerLoad).toHaveBeenCalledTimes(1);
+
+			await expect(runtime.refreshInstalledPluginRoute(badPluginId)).rejects.toThrow(
+				"Broken plugin",
+			);
+			await expect(syncPlugins(runtime, source)).resolves.toBeUndefined();
 		});
 
 		it("syncs a new unique declaration before an updated route executes", async () => {

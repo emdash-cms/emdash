@@ -22,6 +22,9 @@ const { DB_CONFIG_MARKER, DB_DESCRIPTOR_MARKER, mockGetLastContentWriteAt } = vi
 const {
 	MOCK_RUNTIME,
 	mockGetPluginRouteMeta,
+	defaultGetPluginRouteMeta,
+	mockSyncMarketplacePlugins,
+	mockSyncRegistryPlugins,
 	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
@@ -33,18 +36,21 @@ const {
 	const publicPluginResult = { success: true, data: { ok: true } };
 	const ok = async () => ({ success: true });
 	const getPublicUrl = vi.fn((key: string) => `https://media.example.com/${key}`);
-	const getPluginRouteMeta = vi.fn((pluginId: string, path: string) => {
+	const defaultRouteMeta = (pluginId: string, path: string) => {
 		if (pluginId !== "emdash-forms") return null;
 		if (path === "/definition") return { public: true, methods: ["POST"] as const };
 		if (path === "/catalog") return { public: true, methods: ["GET"] as const };
 		if (path === "/private") return { public: false };
 		return null;
-	});
+	};
+	const getPluginRouteMeta = vi.fn(defaultRouteMeta);
 	const handlePluginApiRoute = vi.fn(async (_pluginId: string, method: string, _path: string) => {
 		if (method === "GET") return { success: true, data: { catalog: ["public"] } };
 		return publicPluginResult;
 	});
 	const handleMediaUpload = vi.fn(ok);
+	const syncMarketplacePlugins = vi.fn(async () => undefined);
+	const syncRegistryPlugins = vi.fn(async () => undefined);
 	const runPluginInstallLifecycle = vi.fn(async () => undefined);
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
 	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
@@ -104,8 +110,12 @@ const {
 			getManifest: async () => ({}),
 			getSandboxRunner: () => null,
 			isSandboxBypassed: () => false,
-			syncMarketplacePlugins: async () => undefined,
-			syncRegistryPlugins: async () => undefined,
+			syncMarketplacePlugins,
+			syncRegistryPlugins,
+			refreshInstalledPluginRoute: async () => {
+				await syncMarketplacePlugins();
+				await syncRegistryPlugins();
+			},
 			runPluginInstallLifecycle,
 			runPluginActivateLifecycle,
 			runPluginUninstallLifecycle,
@@ -113,10 +123,13 @@ const {
 			setPluginStatus: async () => undefined,
 		},
 		mockGetPluginRouteMeta: getPluginRouteMeta,
+		defaultGetPluginRouteMeta: defaultRouteMeta,
 		mockHandleMediaUpload: handleMediaUpload,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
 		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
+		mockSyncMarketplacePlugins: syncMarketplacePlugins,
+		mockSyncRegistryPlugins: syncRegistryPlugins,
 		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
 		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
 		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
@@ -190,6 +203,7 @@ vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import onRequest from "../../../src/astro/middleware.js";
+import { GET as getPluginRoute } from "../../../src/astro/routes/api/plugins/[pluginId]/[...path].js";
 import { EmDashConfigurationError } from "../../../src/config/errors.js";
 import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
@@ -207,6 +221,9 @@ beforeEach(() => {
 	resetSetupVerified();
 	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
 	mockGetRuntimePluginSettingsSchema.mockClear();
+	mockGetPluginRouteMeta.mockReset().mockImplementation(defaultGetPluginRouteMeta);
+	mockSyncMarketplacePlugins.mockReset().mockResolvedValue(undefined);
+	mockSyncRegistryPlugins.mockReset().mockResolvedValue(undefined);
 	mockHandleMediaUpload.mockClear();
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
@@ -611,6 +628,137 @@ describe("astro middleware anonymous session reads", () => {
 			"/catalog",
 			expect.any(Request),
 		);
+	});
+
+	type PluginSource = "marketplace" | "registry";
+	type RouteMeta = { public: boolean; methods?: readonly string[] };
+
+	async function requestPluginRoute(
+		source: PluginSource,
+		initialMeta: RouteMeta | null,
+		syncMeta: RouteMeta | null,
+	) {
+		let routeMeta = initialMeta;
+		mockGetPluginRouteMeta.mockImplementation(() => routeMeta);
+		const sync = source === "marketplace" ? mockSyncMarketplacePlugins : mockSyncRegistryPlugins;
+		sync.mockImplementation(async () => {
+			routeMeta = syncMeta;
+		});
+
+		await onRequest(
+			createAnonymousPublicPageContext().context as Parameters<typeof onRequest>[0],
+			async () => new Response("page"),
+		);
+		expect(mockCreateRuntime).toHaveBeenCalledOnce();
+
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/plugins/learnomy/health",
+		});
+		const next = vi.fn(async () =>
+			getPluginRoute({
+				params: { pluginId: "learnomy", path: "health" },
+				request: context.request,
+				locals: context.locals,
+			} as never),
+		);
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+		return { response, next, sync };
+	}
+
+	it.each(["marketplace", "registry"] as const)(
+		"dispatches a newly installed %s route after syncing a warm runtime",
+		async (source) => {
+			const { response, next, sync } = await requestPluginRoute(source, null, {
+				public: true,
+				methods: ["GET"],
+			});
+			expect(response.status).toBe(200);
+			expect(await response.json()).toEqual({ success: true, data: { catalog: ["public"] } });
+			expect(next).toHaveBeenCalledOnce();
+			expect(sync).toHaveBeenCalledOnce();
+		},
+	);
+
+	it.each(["marketplace", "registry"] as const)(
+		"rejects an anonymous request after a %s route becomes private",
+		async (source) => {
+			const { response, next, sync } = await requestPluginRoute(
+				source,
+				{ public: true, methods: ["GET"] },
+				{ public: false },
+			);
+			expect(response.status).toBe(401);
+			expect(next).toHaveBeenCalledOnce();
+			expect(sync).toHaveBeenCalledOnce();
+			expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
+		},
+	);
+
+	it.each(["marketplace", "registry"] as const)(
+		"returns 404 after uninstalling a %s route",
+		async (source) => {
+			const { response, next, sync } = await requestPluginRoute(
+				source,
+				{ public: true, methods: ["GET"] },
+				null,
+			);
+			expect(response.status).toBe(404);
+			expect(await response.json()).toEqual({
+				success: false,
+				error: { code: "NOT_FOUND", message: "Plugin route not found" },
+			});
+			expect(next).toHaveBeenCalledOnce();
+			expect(sync).toHaveBeenCalledOnce();
+		},
+	);
+
+	it.each(["marketplace", "registry"] as const)(
+		"fails closed when %s plugin route sync errors and retries later",
+		async (source) => {
+			const sync = source === "marketplace" ? mockSyncMarketplacePlugins : mockSyncRegistryPlugins;
+			const warm = createAnonymousPublicPageContext();
+			await onRequest(
+				warm.context as Parameters<typeof onRequest>[0],
+				async () => new Response("page"),
+			);
+			const { context } = createRequestContext({
+				url: "https://example.com/_emdash/api/plugins/learnomy/health",
+			});
+			const next = vi.fn(async () =>
+				getPluginRoute({
+					params: { pluginId: "learnomy", path: "health" },
+					request: context.request,
+					locals: context.locals,
+				} as never),
+			);
+			sync.mockRejectedValueOnce(new Error("temporary sync failure"));
+			const failed = await onRequest(context as Parameters<typeof onRequest>[0], next);
+			expect(failed.status).toBe(503);
+			expect(next).not.toHaveBeenCalled();
+
+			mockGetPluginRouteMeta.mockReturnValue({ public: true, methods: ["GET"] });
+			const retried = await onRequest(context as Parameters<typeof onRequest>[0], next);
+			expect(retried.status).toBe(200);
+			expect(next).toHaveBeenCalledOnce();
+		},
+	);
+
+	it.each([
+		["an anonymous page", () => createRequestContext({ url: "https://example.com/" })],
+		[
+			"a media API route",
+			() => createRequestContext({ url: "https://example.com/_emdash/api/media" }),
+		],
+		[
+			"a content API route",
+			() => createRequestContext({ url: "https://example.com/_emdash/api/content/posts" }),
+		],
+	] as const)("does not sync plugins for %s", async (_name, makeContext) => {
+		const { context } = makeContext();
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(mockSyncMarketplacePlugins).not.toHaveBeenCalled();
+		expect(mockSyncRegistryPlugins).not.toHaveBeenCalled();
 	});
 
 	it("hides private and unknown metadata and does not dispatch them anonymously", async () => {
