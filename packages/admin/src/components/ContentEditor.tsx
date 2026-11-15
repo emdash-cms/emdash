@@ -84,7 +84,7 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { useAdminPageTitle } from "./AdminDocumentTitle.js";
 import { ArrowPrev } from "./ArrowIcons.js";
-import { TOAST_REGION } from "./block-field-keyboard.js";
+import { focusableIn, TOAST_REGION } from "./block-field-keyboard.js";
 import {
 	QUIET_DATE,
 	QUIET_HEADING,
@@ -3444,12 +3444,14 @@ function EditorFieldLink({
 		if (!field) return;
 		const [root = ""] = field.split(".");
 		if (field !== root && fields[root]?.kind === "blocks") return;
-		const section = {
-			publishedAt: "publish",
-			bylines: "bylines",
-			slug: "url-language",
-			seo: "seo",
-		}[field];
+		const section = fields[field]
+			? undefined
+			: {
+					publishedAt: "publish",
+					bylines: "bylines",
+					slug: "url-language",
+					seo: "seo",
+				}[field];
 		if (section && !linkAttempt.current.revealed) {
 			linkAttempt.current.revealed = true;
 			if (distractionFree) {
@@ -3481,7 +3483,7 @@ function EditorFieldLink({
 						) ??
 						container.querySelector<HTMLElement>("input:not(:disabled), textarea:not(:disabled)") ??
 						container.querySelector<HTMLElement>('button:not(:disabled), [tabindex="0"]'))
-				: container;
+				: focusableIn(container);
 			container.scrollIntoView({ behavior: "smooth", block: "center" });
 			if (!target) container.tabIndex = -1;
 			const control = target ?? container;

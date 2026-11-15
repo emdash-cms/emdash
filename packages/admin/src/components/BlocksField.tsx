@@ -254,6 +254,7 @@ type FocusRequest =
 	| { target: "add" };
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
+const LIST_ITEM_INDEX = /^\d+$/;
 
 /** The key of the block `element` is in, in any blocks field. */
 export function blockKeyOf(element: Element | null): string | undefined {
@@ -461,6 +462,13 @@ export function BlocksField({
 	const [itemReveals, setItemReveals] = React.useState<ReadonlyMap<string, number>>(
 		() => new Map(),
 	);
+	const [linkedItem, setLinkedItem] = React.useState<{
+		blockKey: string;
+		field: string;
+		index: number;
+		token: number;
+	} | null>(null);
+
 	const revealCountRef = React.useRef(0);
 	const revealTokenRef = React.useRef(reveal?.token ?? 0);
 	/**
@@ -609,14 +617,24 @@ export function BlocksField({
 		) {
 			setAdvancedKeys((current) => withKey(current, block._key));
 		}
-		setItemReveals((current) => new Map(current).set(block._key, ++revealCountRef.current));
+		const [, item] = path.split(".");
+		if (item !== undefined && LIST_ITEM_INDEX.test(item)) {
+			setLinkedItem({
+				blockKey: block._key,
+				field,
+				index: Number(item),
+				token: ++revealCountRef.current,
+			});
+		}
 		setRevealFocus({ key: block._key, target: "field", elementId, field, exact: true, onFocused });
 		return true;
 	});
 	const acceptedFocusId = React.useRef<string | undefined>(undefined);
 	React.useEffect(() => {
-		if (!linkedFocusId) acceptedFocusId.current = undefined;
-		else if (acceptedFocusId.current !== linkedFocusId && focusFromLink(linkedFocusId)) {
+		if (!linkedFocusId) {
+			acceptedFocusId.current = undefined;
+			setLinkedItem(null);
+		} else if (acceptedFocusId.current !== linkedFocusId && focusFromLink(linkedFocusId)) {
 			acceptedFocusId.current = linkedFocusId;
 		}
 	}, [linkedFocusId, value, blockTypes, focusFromLink]);
@@ -1047,6 +1065,7 @@ export function BlocksField({
 											advancedOpen={readOnly || advancedKeys.has(block._key)}
 											issues={shownIssues.get(block._key) ?? NO_ISSUES}
 											revealToken={itemReveals.get(block._key) ?? 0}
+											linkedItem={linkedItem?.blockKey === block._key ? linkedItem : undefined}
 											readOnly={readOnly}
 											canAdd={canAdd}
 											atMax={atMax}
@@ -1166,6 +1185,7 @@ interface BlockRowProps {
 	issues: readonly BlockValueIssue[];
 	/** A new token opens the list items that hold a problem to show. */
 	revealToken: number;
+	linkedItem?: { field: string; index: number; token: number };
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -1217,6 +1237,7 @@ function BlockRow({
 	advancedOpen,
 	issues,
 	revealToken,
+	linkedItem,
 	readOnly,
 	canAdd,
 	atMax,
@@ -1374,6 +1395,7 @@ function BlockRow({
 				error={listIssue && issueMessage(listIssue)}
 				invalidItems={invalidItems}
 				revealToken={revealToken}
+				revealItem={linkedItem?.field === field.slug ? linkedItem : undefined}
 				onItemDeleted={(deleted) => onItemDeleted(field.slug, deleted)}
 				onItemDeleteStart={undo?.hold}
 				onItemsShift={(moves) => onItemsShift(field.slug, moves)}

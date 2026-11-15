@@ -1573,6 +1573,11 @@ function ContentEditPage() {
 	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
+	const handleFieldFocused = React.useCallback(() => {
+		const { field: _, ...preservedSearch } = searchParams;
+		void navigate({ search: preservedSearch as never, replace: true });
+	}, [searchParams, navigate]);
+
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
 		queryKey: ["translations", collection, id],
@@ -2571,10 +2576,7 @@ function ContentEditPage() {
 	const editor = (
 		<ContentEditor
 			focusField={searchParams.field}
-			onFieldFocused={() => {
-				const { field: _, ...preservedSearch } = searchParams;
-				void navigate({ search: preservedSearch as never, replace: true });
-			}}
+			onFieldFocused={handleFieldFocused}
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}

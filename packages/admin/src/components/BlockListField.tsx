@@ -127,6 +127,8 @@ export interface BlockListFieldProps {
 	invalidItems: ReadonlySet<number>;
 	/** A new token opens the items in `invalidItems`. */
 	revealToken: number;
+	/** Opens one saved item independently of validation issues. */
+	revealItem?: { index: number; token: number };
 	onItemDeleted: (deleted: DeletedListItem) => void;
 	/**
 	 * Called as an item's row starts shrinking away before it's deleted, with the function that
@@ -247,6 +249,7 @@ export function BlockListField({
 	error,
 	invalidItems,
 	revealToken,
+	revealItem,
 	onItemDeleted,
 	onItemDeleteStart,
 	onItemsShift,
@@ -272,6 +275,7 @@ export function BlockListField({
 	const [source, setSource] = React.useState(value);
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [seenReveal, setSeenReveal] = React.useState(0);
+	const [seenItemReveal, setSeenItemReveal] = React.useState(0);
 	const [announcement, setAnnouncement] = React.useState("");
 	/** The row just added, duplicated or put back by Undo, which grows into place. */
 	const [arrived, setArrived] = React.useState<{ key: string; restored?: true } | null>(null);
@@ -313,12 +317,20 @@ export function BlockListField({
 		return position === undefined ? `new-${current[index]?.key}` : String(position);
 	};
 
-	if (revealToken !== seenReveal) {
-		setSeenReveal(revealToken);
+	const revealProblems = revealToken !== seenReveal;
+	const revealLinkedItem = revealItem && revealItem.token !== seenItemReveal;
+	if (revealProblems || revealLinkedItem) {
+		if (revealProblems) setSeenReveal(revealToken);
+		if (revealLinkedItem) setSeenItemReveal(revealItem.token);
 		const revealedKeys = current
 			.filter((row, index) => {
 				const position = positions[index];
-				return position !== undefined && invalidItems.has(position) && !openKeys.has(row.key);
+				return (
+					position !== undefined &&
+					!openKeys.has(row.key) &&
+					((revealProblems && invalidItems.has(position)) ||
+						(revealLinkedItem && position === revealItem.index))
+				);
 			})
 			.map((row) => row.key);
 		if (presentation === "items" && revealedKeys.length > 0) {

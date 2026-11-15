@@ -45,7 +45,7 @@ const HERO: BlockType = {
 					validation: {
 						subFields: [
 							{ slug: "label", label: "Label", type: "string" },
-							{ slug: "description", label: "Description", type: "string" },
+							{ slug: "description", label: "Description", type: "text" },
 						],
 					},
 				},
@@ -237,6 +237,24 @@ describe("ContentEditPage opened from a field link on the site", () => {
 			.poll(() => document.activeElement?.id)
 			.toBe("field-content.block_25.items.1.description");
 		await expect.poll(() => router.state.location.search.field).toBeUndefined();
+		expect(document.getElementById("field-content.block_25.items.0.description")).toBeNull();
+		await router.navigate({ search: { field: "content.block_25.items.0.description" } });
+		await expect
+			.poll(() => document.activeElement?.id)
+			.toBe("field-content.block_25.items.0.description");
+		await expect.poll(() => router.state.location.search.field).toBeUndefined();
+		const toggle = document.querySelector<HTMLElement>(
+			'[data-block-key="block_25"] [data-block-toggle]',
+		)!;
+		toggle.click();
+		await expect
+			.poll(() => document.getElementById("field-content.block_25.items.0.description"))
+			.toBeNull();
+		toggle.click();
+		await expect
+			.poll(() => document.querySelector('[data-block-key="block_25"] [data-block-body]'))
+			.not.toBeNull();
+		expect(document.getElementById("field-content.block_25.items.0.description")).toBeNull();
 	});
 
 	it("focuses bylines from the mobile settings sheet rather than a help control", async () => {
@@ -308,6 +326,32 @@ describe("ContentEditPage opened from a field link on the site", () => {
 		await expect
 			.element(screen.getByRole("textbox", { name: "SEO Title", exact: true }))
 			.toHaveFocus();
+	});
+
+	it("keeps custom seo field links targeting the collection field", async () => {
+		mockFetch.on("GET", "/_emdash/api/manifest", {
+			data: {
+				...MANIFEST,
+				collections: {
+					pages: {
+						...MANIFEST.collections.pages,
+						fields: {
+							...MANIFEST.collections.pages.fields,
+							seo: { kind: "string", label: "Custom SEO" },
+						},
+					},
+				},
+			},
+		});
+		const { router, TestApp } = buildApp();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "pages", id: "page_1" },
+			search: { field: "seo" },
+		});
+		await render(<TestApp />);
+		await expect.poll(() => document.activeElement?.id).toBe("field-seo");
+		await expect.poll(() => router.state.location.search.field).toBeUndefined();
 	});
 
 	it("allows closing mobile settings when the requested section is unavailable", async () => {
@@ -390,6 +434,38 @@ describe("ContentEditPage opened from a field link on the site", () => {
 		expect(router.state.location.search.field).toBe("content.missing.line_1");
 	});
 
+	it("focuses an empty field wrapper when it has no interactive controls", async () => {
+		mockFetch.on("GET", "/_emdash/api/auth/me", { data: { id: "user_02", role: 10 } });
+		mockFetch.on("GET", "/_emdash/api/manifest", {
+			data: {
+				...MANIFEST,
+				collections: {
+					pages: {
+						...MANIFEST.collections.pages,
+						fields: {
+							content: {
+								...MANIFEST.collections.pages.fields.content,
+								validation: { allowedTypes: [] },
+							},
+						},
+					},
+				},
+			},
+		});
+		mockFetch.on("GET", "/_emdash/api/content/pages/page_1", {
+			data: { item: { ...PAGE, data: { content: [] } } },
+		});
+		const { router, TestApp } = buildApp();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "pages", id: "page_1" },
+			search: { field: "content" },
+		});
+		await render(<TestApp />);
+		await expect.poll(() => document.activeElement?.id).toBe("field-content");
+		await expect.poll(() => router.state.location.search.field).toBeUndefined();
+	});
+
 	it("scrolls to the field without pushing the editor bar under the header", async () => {
 		const { router, TestApp } = buildApp();
 		await router.navigate({
@@ -400,6 +476,8 @@ describe("ContentEditPage opened from a field link on the site", () => {
 		const scrolledToField = editorCanvasScrollEnd();
 		await render(<TestApp />);
 		await scrolledToField;
+		await expect.poll(() => router.state.location.search.field).toBeUndefined();
+		expect(document.getElementById("field-content")?.contains(document.activeElement)).toBe(true);
 
 		const header = document.querySelector("header")!;
 		const bar = document.querySelector("[data-emdash-editor-bar]")!;
