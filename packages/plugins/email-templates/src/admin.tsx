@@ -12,19 +12,40 @@ import {
 } from "./editor-config.js";
 import {
 	applyEmailBranding,
+	emailButtonColorStyle,
+	emailButtonSizeStyle,
 	resolveEmailBranding,
+	type EmailButtonSize,
 	type EmailBrandingValues,
 	type EmailBrandingSettings,
 } from "./email-branding.js";
 import { fetchEmailMedia, type EmailMediaItem } from "./media.js";
+import {
+	DEFAULT_EMAIL_TEMPLATE_PRESETS,
+	applyEmailBrandingToEditorContent,
+	getEmailTemplatePreset,
+	type EmailTemplatePresetId,
+} from "./presets.js";
 
 const SPANISH_UI: Record<string, string> = {
 	Actions: "Acciones",
 	Active: "Activo",
 	Apply: "Aplicar",
+	"Button size": "Tamaño del botón",
+	"Template preset": "Plantilla predeterminada",
+	"Create default templates": "Crear plantillas predeterminadas",
+	"Default ecommerce templates created.": "Plantillas ecommerce predeterminadas creadas.",
+	"All default templates already exist.": "Todas las plantillas predeterminadas ya existen.",
+	"Order confirmation": "Confirmación de pedido",
+	"Payment confirmation": "Confirmación de pago",
+	"Order shipped": "Pedido enviado",
+	"Order delivered": "Pedido entregado",
 	Cancel: "Cancelar",
 	Center: "Centrar",
 	Close: "Cerrar",
+	Small: "Pequeño",
+	Medium: "Mediano",
+	Large: "Grande",
 	"Email Templates": "Plantillas de correo",
 	"Create and edit transactional email templates.":
 		"Crea y edita plantillas de correo transaccional.",
@@ -38,7 +59,9 @@ const SPANISH_UI: Record<string, string> = {
 	"Logo alignment": "Alineación del logo",
 	"Close image settings": "Cerrar configuración de imagen",
 	"Header background": "Fondo de la cabecera",
+	"Footer background": "Fondo del pie de correo",
 	"Close header settings": "Cerrar configuración de cabecera",
+	"Close footer settings": "Cerrar configuración del pie de correo",
 	"Email settings": "Configuración del correo",
 	"Saved templates": "Plantillas guardadas",
 	"Manage your email templates and open one to edit its details.":
@@ -49,12 +72,21 @@ const SPANISH_UI: Record<string, string> = {
 	"Preview HTML": "Vista previa HTML",
 	"Search templates...": "Buscar plantillas...",
 	"Template name": "Nombre de la plantilla",
+	"Email subject": "Asunto del correo",
+	"Example: Your order is confirmed": "Ejemplo: Tu pedido está confirmado",
 	"Recipient email": "Correo del destinatario",
 	"Send a test email": "Enviar correo de prueba",
 	"Send test": "Enviar prueba",
 	"Sending…": "Enviando…",
 	"Test email sent successfully.": "Correo de prueba enviado correctamente.",
 	"Template saved successfully.": "Plantilla guardada correctamente.",
+	"Template deleted successfully.": "Plantilla eliminada correctamente.",
+	"The template could not be deleted.": "No se pudo eliminar la plantilla.",
+	"Delete template": "Eliminar plantilla",
+	Delete: "Eliminar",
+	"Delete email template?": "¿Eliminar plantilla de correo?",
+	"This action cannot be undone.": "Esta acción no se puede deshacer.",
+	"Deleting…": "Eliminando…",
 	"The template could not be loaded.": "No se pudo cargar la plantilla.",
 	"The template could not be saved.": "No se pudo guardar la plantilla.",
 	"The test email could not be sent. Check the email provider settings.":
@@ -70,6 +102,19 @@ function t(parts: TemplateStringsArray): string {
 		return SPANISH_UI[source] ?? source;
 	}
 	return source;
+}
+
+function templatePresetLabel(id: EmailTemplatePresetId): string {
+	switch (id) {
+		case "payment-confirmation":
+			return t`Payment confirmation`;
+		case "order-shipped":
+			return t`Order shipped`;
+		case "order-delivered":
+			return t`Order delivered`;
+		default:
+			return t`Order confirmation`;
+	}
 }
 
 type UiIconName =
@@ -90,7 +135,7 @@ function buttonAttributes(theme?: EmailThemeSettings) {
 	return {
 		href: "https://example.com",
 		alignment: "center",
-		style: `background-color: ${values.primary}; color: ${values.onPrimary}; padding: 12px 24px; border-radius: 6px; font-size: 16px; font-weight: 600; text-decoration: none;`,
+		style: `${emailButtonColorStyle(values)}${emailButtonSizeStyle()}display:inline-block;margin-top:20px;border-radius:6px;font-weight:600;text-decoration:none;`,
 	};
 }
 
@@ -103,6 +148,9 @@ const EMAIL_EDITOR_EXTENSIONS = [
 ];
 const IMAGE_RADIUS_RE = /border-radius:\s*([^;]+)/i;
 const SECTION_BACKGROUND_RE = /background-color:\s*([^;]+)/i;
+const SECTION_TEXT_COLOR_RE = /(?:^|;)color:\s*([^;]+)/i;
+const EMAIL_FOOTER_STYLE_RE = /--emdash-email-footer\s*:\s*1(?:;|$)/i;
+const EMAIL_FOOTER_CUSTOM_STYLE = "--emdash-email-footer-custom:1;";
 const IMAGE_ALIGNMENT_STYLE_RE = /display:block;margin-(?:left|right):(?:0|auto);/gi;
 const EMAIL_HEADER_STYLE_RE = /--emdash-email-header\s*:\s*1(?:;|$)/i;
 const IMAGE_TAG_RE = /<img\b[^>]*>/gi;
@@ -114,6 +162,17 @@ const ALIGN_ATTRIBUTE_RE = /\s+align="[^"]*"/i;
 const MULTIPLE_SEMICOLONS_RE = /;;+/g;
 const TAG_CLOSE_RE = />$/;
 const UNSUBSCRIBE_URL_TAG = "{{unsubscribe_url}}";
+const BUTTON_PADDING_STYLE_RE = /padding:[^;]*;?/i;
+const BUTTON_FONT_SIZE_STYLE_RE = /font-size:[^;]*;?/i;
+const BUTTON_SIZE_STYLE_RE = /(?:padding|font-size):[^;]*;?/gi;
+
+function buttonSizeFromStyle(style?: string): EmailButtonSize {
+	const padding = style?.match(BUTTON_PADDING_STYLE_RE)?.[0];
+	const fontSize = style?.match(BUTTON_FONT_SIZE_STYLE_RE)?.[0];
+	if (padding?.includes("8px 16px") && fontSize?.includes("14px")) return "sm";
+	if (padding?.includes("16px 32px") && fontSize?.includes("18px")) return "large";
+	return "medium";
+}
 
 async function handleEmailImageUpload(file: File): Promise<{ url: string }> {
 	return { url: URL.createObjectURL(file) };
@@ -149,12 +208,9 @@ function applyImageLayout(html: string, content: EditorJsonNode): string {
 	};
 	const images: ExportedImage[] = [];
 	const collectImages = (node: EditorJsonNode, inHeader = false) => {
-		const attrs = (
-			node as EditorJsonNode & { attrs?: Omit<ExportedImage, "isHeader"> }
-		).attrs;
+		const attrs = (node as EditorJsonNode & { attrs?: Omit<ExportedImage, "isHeader"> }).attrs;
 		const nodeIsHeader =
-			inHeader ||
-			(node.type === "section" && EMAIL_HEADER_STYLE_RE.test(attrs?.style ?? ""));
+			inHeader || (node.type === "section" && EMAIL_HEADER_STYLE_RE.test(attrs?.style ?? ""));
 		if (node.type === "image") images.push({ ...attrs, isHeader: nodeIsHeader });
 		for (const child of node.content ?? []) collectImages(child, nodeIsHeader);
 	};
@@ -274,39 +330,44 @@ function initialEditorContent(
 				content: [
 					{
 						type: "heading",
-						attrs: { level: 1, align: "center", alignment: "center", style: "text-align: center;" },
+						attrs: {
+							level: 1,
+							align: "center",
+							alignment: "center",
+							style: "text-align:center;margin:0 0 24px;",
+						},
 						content: [{ type: "text", text: "EmDash" }],
 					},
 					{
 						type: "paragraph",
 						attrs: { align: "center", alignment: "center", style: "text-align: center;" },
-						content: [{ type: "text", text: "Transactional email template" }],
+						content: [{ type: "text", text: "Plantilla de correo transaccional" }],
 					},
 					{ type: "horizontalRule" },
 					{
 						type: "paragraph",
-						content: [{ type: "text", text: "Hi there," }],
+						content: [{ type: "text", text: "Hola," }],
 					},
 					{
 						type: "paragraph",
 						content: [
 							{
 								type: "text",
-								text: "This is a demo transactional email created with the EmDash visual editor. You can replace this content with your own message.",
+								text: "Este es un correo transaccional de ejemplo creado con el editor visual de EmDash. Puedes reemplazar este contenido con tu propio mensaje.",
 							},
 						],
 					},
 					{
 						type: "button",
 						attrs: { ...button, align: "center" },
-						content: [{ type: "text", text: "Confirm email" }],
+						content: [{ type: "text", text: "Confirmar correo" }],
 					},
 					{
 						type: "paragraph",
 						content: [
 							{
 								type: "text",
-								text: "If you did not request this email, you can safely ignore it.",
+								text: "Si no solicitaste este correo, puedes ignorarlo de forma segura.",
 							},
 						],
 					},
@@ -314,7 +375,7 @@ function initialEditorContent(
 					{
 						type: "paragraph",
 						attrs: { align: "center", alignment: "center", style: "text-align: center;" },
-						content: [{ type: "text", text: "Thanks,\nThe EmDash team\n\n© EmDash CMS" }],
+						content: [{ type: "text", text: "Gracias,\nEl equipo de EmDash\n\n© EmDash CMS" }],
 					},
 				],
 			},
@@ -324,7 +385,9 @@ function initialEditorContent(
 
 interface TemplateSummary {
 	id: string;
+	slug: string;
 	name: string;
+	subject: string;
 	type: "transactional" | "campaign";
 	status?: "draft" | "active";
 	updatedAt: string;
@@ -376,7 +439,7 @@ function insertBlock(
 			editor.commands.insertContentAt(1, {
 				type: "section",
 				attrs: {
-					style: `--emdash-email-header:1;background-color:${branding?.background ?? "#ffffff"};width:100%;max-width:600px;box-sizing:border-box;margin:0 auto;padding:24px;text-align:center;`,
+					style: `--emdash-email-header:1;background-color:${branding?.background ?? "#ffffff"};width:100%;max-width:600px;box-sizing:border-box;margin:0 auto 32px;padding:24px;text-align:center;`,
 				},
 				content: [
 					branding?.logoUrl
@@ -386,7 +449,8 @@ function insertBlock(
 									src: branding.logoUrl,
 									alt: branding.logoAlt || branding.siteName,
 									alignment: "center",
-									style: "display:block;margin-left:auto;margin-right:auto;max-width:160px;max-height:48px;",
+									style:
+										"display:block;margin-left:auto;margin-right:auto;max-width:160px;max-height:48px;",
 								},
 							}
 						: {
@@ -401,43 +465,20 @@ function insertBlock(
 			editor.commands.insertContentAt(editor.state.doc.content.size, {
 				type: "section",
 				attrs: {
-					style: `--emdash-email-footer:1;background-color:${branding?.background ?? "#f4f4f5"};color:${branding?.text ?? "#18181b"};width:100%;max-width:600px;box-sizing:border-box;margin:0 auto;padding:28px 24px 20px;text-align:center;border-top:1px solid #d1d5db;`,
+					style: `--emdash-email-footer:1;background-color:${branding?.background ?? "#f4f4f5"};color:${branding?.text ?? "#18181b"};width:100%;max-width:600px;box-sizing:border-box;min-height:0;height:auto;margin:32px auto 0;padding:10px 24px 8px;text-align:center;border-top:1px solid #d1d5db;`,
 				},
 				content: [
 					{
-						type: "twoColumns",
+						type: "paragraph",
+						attrs: {
+							align: "center",
+							alignment: "center",
+							style: "text-align:center;font-size:12px;line-height:1.2;margin:0;padding:0;",
+						},
 						content: [
 							{
-								type: "columnsColumn",
-								content: [
-									branding?.logoUrl
-										? {
-												type: "image",
-												attrs: {
-														src: branding.logoUrl,
-														alt: branding.logoAlt || branding.siteName,
-														alignment: "left",
-														style: "display:block;margin-left:0;margin-right:auto;max-width:120px;max-height:40px;",
-													},
-												}
-											: {
-																type: "paragraph",
-																attrs: { style: "font-size:16px;font-weight:600;text-align:left;" },
-																content: [{ type: "text", text: branding?.siteName || "EmDash" }],
-											},
-								],
-							},
-							{
-								type: "columnsColumn",
-								content: [
-									{
-										type: "paragraph",
-										attrs: { align: "right", alignment: "right", style: "text-align:right;font-size:13px;color:#4b5563;" },
-										content: [
-											{ type: "text", text: `© ${branding?.siteName || "EmDash"}. ${t`All rights reserved`}` },
-										],
-									},
-								],
+								type: "text",
+								text: `© ${branding?.siteName || "EmDash"}. ${t`All rights reserved`}`,
 							},
 						],
 					},
@@ -446,7 +487,8 @@ function insertBlock(
 						attrs: {
 							align: "center",
 							alignment: "center",
-							style: "text-align:center;font-size:12px;color:#6b7280;margin-top:16px;",
+							style:
+								"text-align:center;font-size:11px;line-height:1.2;color:#6b7280;margin:4px 0 0;padding:0;",
 						},
 						content: [
 							{
@@ -455,7 +497,11 @@ function insertBlock(
 								marks: [
 									{
 										type: "link",
-										attrs: { href: UNSUBSCRIBE_URL_TAG, target: "_blank", rel: "noopener noreferrer" },
+										attrs: {
+											href: UNSUBSCRIBE_URL_TAG,
+											target: "_blank",
+											rel: "noopener noreferrer",
+										},
 									},
 								],
 							},
@@ -641,11 +687,24 @@ function FloatingButtonToolbar({
 }) {
 	const [linkOpen, setLinkOpen] = useState(false);
 	const [href, setHref] = useState("");
+	const [size, setSize] = useState<EmailButtonSize>("medium");
 	const buttonPositionRef = useRef(editor.state.selection.from);
 
 	useEffect(() => {
-		setHref((editor.getAttributes("button") as { href?: string }).href ?? "");
+		const attrs = editor.getAttributes("button") as { href?: string; style?: string };
+		setHref(attrs.href ?? "");
+		setSize(buttonSizeFromStyle(attrs.style));
 	}, [editor, linkOpen]);
+
+	const updateSize = (nextSize: EmailButtonSize) => {
+		editor.commands.setNodeSelection(buttonPositionRef.current);
+		const currentStyle = String(
+			(editor.getAttributes("button") as { style?: string }).style ?? "",
+		).replace(BUTTON_SIZE_STYLE_RE, "");
+		const style = `${currentStyle}${currentStyle && !currentStyle.endsWith(";") ? ";" : ""}${emailButtonSizeStyle(nextSize)}`;
+		editor.commands.updateAttributes("button", { style });
+		setSize(nextSize);
+	};
 
 	const saveLink = () => {
 		editor.commands.setNodeSelection(buttonPositionRef.current);
@@ -667,7 +726,10 @@ function FloatingButtonToolbar({
 			role="toolbar"
 			aria-label={t`Button formatting toolbar`}
 			onMouseDown={(event) => {
-				if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+				if (
+					!(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)
+				)
+					event.preventDefault();
 			}}
 		>
 			<div className="flex items-center gap-1">
@@ -700,6 +762,26 @@ function FloatingButtonToolbar({
 				>
 					✎
 				</button>
+				<label className="flex items-center gap-1 px-1 text-xs text-slate-300">
+					<span>{t`Button size`}</span>
+					<select
+						value={size}
+						onChange={(event) => updateSize(event.target.value as EmailButtonSize)}
+						aria-label={t`Button size`}
+						className="h-8 rounded-md border border-slate-600 bg-slate-800 px-2 text-xs text-white"
+						style={{ backgroundColor: "#1e293b", color: "#ffffff", colorScheme: "dark" }}
+					>
+						<option value="sm" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+							{t`Small`}
+						</option>
+						<option value="medium" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+							{t`Medium`}
+						</option>
+						<option value="large" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+							{t`Large`}
+						</option>
+					</select>
+				</label>
 				<button
 					type="button"
 					className="flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-semibold text-white hover:bg-slate-700"
@@ -939,11 +1021,13 @@ function FloatingSectionToolbar({
 	sectionPosition: number | null;
 	onClose: () => void;
 }) {
-	const attrs = editor.getAttributes("section") as { style?: string };
-	const [background, setBackground] = useState(
-		attrs.style?.match(SECTION_BACKGROUND_RE)?.[1]?.trim() ?? "#ffffff",
-	);
 	const sectionNode = sectionPosition === null ? null : editor.state.doc.nodeAt(sectionPosition);
+	const sectionStyle = String((sectionNode?.attrs as { style?: string } | undefined)?.style ?? "");
+	const isFooter = EMAIL_FOOTER_STYLE_RE.test(sectionStyle);
+	const textColor = sectionStyle.match(SECTION_TEXT_COLOR_RE)?.[1]?.trim() ?? "#18181b";
+	const [background, setBackground] = useState(
+		sectionStyle.match(SECTION_BACKGROUND_RE)?.[1]?.trim() ?? "#ffffff",
+	);
 	let imageNode = sectionNode?.firstChild?.type.name === "image" ? sectionNode.firstChild : null;
 	let imagePosition = imageNode && sectionPosition !== null ? sectionPosition + 1 : null;
 	if (sectionNode && sectionPosition !== null && !imageNode) {
@@ -962,7 +1046,10 @@ function FloatingSectionToolbar({
 		if (sectionPosition !== null) {
 			editor.commands.setNodeSelection(sectionPosition);
 			if (imageNode && imagePosition !== null) {
-				const imageStyle = String(imageNode.attrs.style ?? "").replace(IMAGE_ALIGNMENT_STYLE_RE, "");
+				const imageStyle = String(imageNode.attrs.style ?? "").replace(
+					IMAGE_ALIGNMENT_STYLE_RE,
+					"",
+				);
 				const alignmentStyle =
 					alignment === "left"
 						? "display:block;margin-left:0;margin-right:auto;"
@@ -977,9 +1064,19 @@ function FloatingSectionToolbar({
 				editor.commands.setNodeSelection(sectionPosition);
 			}
 		}
-		editor.commands.updateAttributes("section", {
-			style: `--emdash-email-header:1;background-color:${background};width:100%;max-width:600px;box-sizing:border-box;margin:0 auto;padding:24px;text-align:${alignment};`,
-		});
+		const style = isFooter
+			? `${EMAIL_FOOTER_CUSTOM_STYLE}--emdash-email-footer:1;background-color:${background};color:${textColor};width:100%;max-width:600px;box-sizing:border-box;min-height:0;height:auto;margin:32px auto 0;padding:10px 24px 8px;text-align:center;border-top:1px solid #d1d5db;`
+			: `--emdash-email-header:1;background-color:${background};width:100%;max-width:600px;box-sizing:border-box;margin:0 auto 32px;padding:24px;text-align:${alignment};`;
+		const currentSection =
+			sectionPosition === null ? null : editor.state.doc.nodeAt(sectionPosition);
+		if (currentSection?.type.name === "section" && sectionPosition !== null) {
+			editor.view.dispatch(
+				editor.state.tr.setNodeMarkup(sectionPosition, undefined, {
+					...currentSection.attrs,
+					style,
+				}),
+			);
+		}
 		onClose();
 	};
 
@@ -1001,7 +1098,7 @@ function FloatingSectionToolbar({
 			onMouseDown={(event) => event.stopPropagation()}
 		>
 			<label className="grid gap-1" style={{ color: "#ffffff" }}>
-				<span>{t`Header background`}</span>
+				<span>{isFooter ? t`Footer background` : t`Header background`}</span>
 				<input
 					type="color"
 					value={background}
@@ -1010,25 +1107,27 @@ function FloatingSectionToolbar({
 					style={{ backgroundColor: "#1e293b", borderColor: "#64748b" }}
 				/>
 			</label>
-			<label className="grid gap-1" style={{ color: "#ffffff" }}>
-				<span>{t`Logo alignment`}</span>
-				<select
-					value={alignment}
-					onChange={(event) => setAlignment(event.target.value)}
-					className="h-8 rounded border px-2 text-white"
-					style={{ backgroundColor: "#1e293b", borderColor: "#64748b", color: "#ffffff" }}
-				>
-					<option value="left" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
-						{t`Left`}
-					</option>
-					<option value="center" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
-						{t`Center`}
-					</option>
-					<option value="right" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
-						{t`Right`}
-					</option>
-				</select>
-			</label>
+			{!isFooter && (
+				<label className="grid gap-1" style={{ color: "#ffffff" }}>
+					<span>{t`Logo alignment`}</span>
+					<select
+						value={alignment}
+						onChange={(event) => setAlignment(event.target.value)}
+						className="h-8 rounded border px-2 text-white"
+						style={{ backgroundColor: "#1e293b", borderColor: "#64748b", color: "#ffffff" }}
+					>
+						<option value="left" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+							{t`Left`}
+						</option>
+						<option value="center" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+							{t`Center`}
+						</option>
+						<option value="right" style={{ backgroundColor: "#1e293b", color: "#ffffff" }}>
+							{t`Right`}
+						</option>
+					</select>
+				</label>
+			)}
 			<button
 				type="button"
 				className="rounded bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-500"
@@ -1040,7 +1139,7 @@ function FloatingSectionToolbar({
 				type="button"
 				className="rounded px-2 py-2 text-white hover:bg-slate-700"
 				style={{ color: "#ffffff" }}
-				aria-label={t`Close header settings`}
+				aria-label={isFooter ? t`Close footer settings` : t`Close header settings`}
 				onClick={onClose}
 			>
 				×
@@ -1289,7 +1388,13 @@ function EmailTemplatesPage() {
 	const [templates, setTemplates] = useState<TemplateSummary[]>([]);
 	const [templateSearch, setTemplateSearch] = useState("");
 	const [templatePage, setTemplatePage] = useState(1);
-	const [templateName, setTemplateName] = useState("Transactional email template");
+	const [templateName, setTemplateName] = useState("Plantilla de correo transaccional");
+	const [templateSubject, setTemplateSubject] = useState("Vista previa del correo transaccional");
+	const [newTemplatePreset, setNewTemplatePreset] =
+		useState<EmailTemplatePresetId>("order-confirmation");
+	const [creatingPresets, setCreatingPresets] = useState(false);
+	const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
+	const [deletingTemplate, setDeletingTemplate] = useState(false);
 	const [testTemplateId, setTestTemplateId] = useState<string | null>(null);
 	const [testEmail, setTestEmail] = useState("");
 	const [testSending, setTestSending] = useState(false);
@@ -1352,6 +1457,18 @@ function EmailTemplatesPage() {
 			.then((payload) => setSiteBranding(payload.data))
 			.catch(() => undefined);
 	}, []);
+
+	useEffect(() => {
+		if (!siteBranding) return;
+		setEditorContent((current) => {
+			const nextContent = applyEmailBrandingToEditorContent(
+				current,
+				resolveEmailBranding(siteBranding),
+			) as NonNullable<EmailEditorProps["content"]>;
+			if (activeEditor) activeEditor.commands.setContent(nextContent);
+			return nextContent;
+		});
+	}, [activeEditor, siteBranding]);
 
 	useEffect(() => {
 		if (templatePage > templatePageCount) setTemplatePage(templatePageCount);
@@ -1426,17 +1543,18 @@ function EmailTemplatesPage() {
 			if (insertionPosition !== undefined) insertionPositionRef.current = insertionPosition;
 			const targetElement = event.target as HTMLElement | null;
 			const section = targetElement?.closest<HTMLElement>("section.node-section");
-			if (section && EMAIL_HEADER_STYLE_RE.test(section.getAttribute("style") ?? "")) {
+			const sectionStyle = section?.getAttribute("style") ?? "";
+			if (
+				section &&
+				(EMAIL_HEADER_STYLE_RE.test(sectionStyle) || EMAIL_FOOTER_STYLE_RE.test(sectionStyle))
+			) {
 				const shellRect = editorShellRef.current?.getBoundingClientRect();
 				const sectionRect = section.getBoundingClientRect();
 				const rawSectionPosition = editorView.posAtDOM(section, 0);
 				const sectionPosition =
-					[
-						rawSectionPosition,
-						rawSectionPosition - 1,
-						rawSectionPosition + 1,
-					].find((position) => editorView.state.doc.nodeAt(position)?.type.name === "section") ??
-					rawSectionPosition;
+					[rawSectionPosition, rawSectionPosition - 1, rawSectionPosition + 1].find(
+						(position) => editorView.state.doc.nodeAt(position)?.type.name === "section",
+					) ?? rawSectionPosition;
 				if (shellRect) {
 					const placeBelow = sectionRect.top - shellRect.top < 120;
 					setSectionToolbarPosition({
@@ -1575,8 +1693,13 @@ function EmailTemplatesPage() {
 			.then((template) => {
 				setTemplateId(template.id);
 				setTemplateName(template.name);
-				setEditorContent(template.editableJson);
-				setHtml(template.html);
+				setTemplateSubject(template.subject);
+				setEditorContent(
+					applyEmailBrandingToEditorContent(template.editableJson, emailBranding) as NonNullable<
+						EmailEditorProps["content"]
+					>,
+				);
+				setHtml(applyEmailBranding(template.html, emailBranding));
 				setEditorVersion((version) => version + 1);
 				window.requestAnimationFrame(() =>
 					editorShellRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -1587,14 +1710,54 @@ function EmailTemplatesPage() {
 			.finally(() => setLoadingTemplate(false));
 	};
 
-	const startNewTemplate = () => {
+	const startNewTemplate = (presetId: EmailTemplatePresetId = newTemplatePreset) => {
+		const preset = getEmailTemplatePreset(presetId);
 		setShowEditor(true);
 		setTemplateId(null);
-		setTemplateName("Transactional email template");
-		setEditorContent(initialEditorContent(siteBranding?.theme));
+		setTemplateName(templatePresetLabel(preset.id));
+		setTemplateSubject(preset.subject);
+		setEditorContent(preset.buildContent(emailBranding));
 		setHtml("");
 		setMessage(null);
 		setEditorVersion((version) => version + 1);
+	};
+
+	const createDefaultTemplates = async () => {
+		setCreatingPresets(true);
+		setMessage(null);
+		try {
+			const missingPresets = DEFAULT_EMAIL_TEMPLATE_PRESETS.filter(
+				(preset) => !templates.some((template) => template.slug === preset.slug),
+			);
+			const created = await Promise.all(
+				missingPresets.map(async (preset) => {
+					try {
+						await requestTemplateRoute("templates/create", {
+							name: preset.name,
+							slug: preset.slug,
+							type: "transactional",
+							subject: preset.subject,
+							editableJson: preset.buildContent(emailBranding),
+							html: applyEmailBranding(preset.buildHtml(emailBranding), emailBranding),
+						});
+						return true;
+					} catch {
+						return false;
+					}
+				}),
+			);
+			const list = await requestTemplateRoute<TemplateListResult>("templates/list");
+			setTemplates(list.items);
+			setMessage(
+				created.some(Boolean)
+					? t`Default ecommerce templates created.`
+					: t`All default templates already exist.`,
+			);
+		} catch {
+			setMessage(t`The template could not be saved.`);
+		} finally {
+			setCreatingPresets(false);
+		}
 	};
 
 	const addBlock = (blockType: EmailBlockType) => {
@@ -1612,9 +1775,9 @@ function EmailTemplatesPage() {
 	const handleDrop = (event: DragEvent<HTMLDivElement>) => {
 		event.preventDefault();
 		event.stopPropagation();
-		const blockType = event.dataTransfer.getData(
-			"application/x-emdash-email-block",
-		) as EmailBlockType || (event.dataTransfer.getData("text/plain") as EmailBlockType);
+		const blockType =
+			(event.dataTransfer.getData("application/x-emdash-email-block") as EmailBlockType) ||
+			(event.dataTransfer.getData("text/plain") as EmailBlockType);
 		const editor = editorRef.current?.editor;
 		const insertionPosition = editor?.view.posAtCoords({
 			left: event.clientX,
@@ -1661,6 +1824,28 @@ function EmailTemplatesPage() {
 		setShowEditor(false);
 	};
 
+	const deleteTemplate = async () => {
+		if (!deleteTemplateId) return;
+		const id = deleteTemplateId;
+		setDeletingTemplate(true);
+		setMessage(null);
+		try {
+			await requestTemplateRoute("templates/delete", { id });
+			setTemplates((current) => current.filter((template) => template.id !== id));
+			setDeleteTemplateId(null);
+			if (templateId === id) {
+				setTemplateId(null);
+				setHtml("");
+				returnToList();
+			}
+			setMessage(t`Template deleted successfully.`);
+		} catch {
+			setMessage(t`The template could not be deleted.`);
+		} finally {
+			setDeletingTemplate(false);
+		}
+	};
+
 	const saveTemplate = async () => {
 		if (!editorRef.current) return;
 		const name = templateName.trim();
@@ -1678,14 +1863,14 @@ function EmailTemplatesPage() {
 			const brandedHtml = applyEmailBranding(nextHtml, emailBranding);
 			const route = templateId ? "templates/update" : "templates/create";
 			const body = templateId
-				? { id: templateId, name, editableJson, html: brandedHtml }
+				? { id: templateId, name, subject: templateSubject, editableJson, html: brandedHtml }
 				: {
 						name,
 						slug: templateSlug(name),
 						type: "transactional",
-						subject: t`Transactional email preview`,
+						subject: templateSubject,
 						editableJson,
-					html: brandedHtml,
+						html: brandedHtml,
 					};
 			const response = await fetch(`/_emdash/api/plugins/email-templates/${route}`, {
 				method: "POST",
@@ -1853,7 +2038,28 @@ function EmailTemplatesPage() {
 								{t`Email settings`}
 							</Button>
 							<Button
-								onClick={startNewTemplate}
+								variant="outline"
+								onClick={() => void createDefaultTemplates()}
+								disabled={creatingPresets || loadingTemplate}
+							>
+								{t`Create default templates`}
+							</Button>
+							<select
+								value={newTemplatePreset}
+								onChange={(event) =>
+									setNewTemplatePreset(event.target.value as EmailTemplatePresetId)
+								}
+								aria-label={t`Template preset`}
+								className="h-10 rounded-md border border-kumo-line bg-kumo-base px-3 text-sm"
+							>
+								{DEFAULT_EMAIL_TEMPLATE_PRESETS.map((preset) => (
+									<option key={preset.id} value={preset.id}>
+										{templatePresetLabel(preset.id)}
+									</option>
+								))}
+							</select>
+							<Button
+								onClick={() => startNewTemplate(newTemplatePreset)}
 								disabled={loadingTemplate}
 							>{t`New template`}</Button>
 						</>
@@ -1867,14 +2073,24 @@ function EmailTemplatesPage() {
 			)}
 			{showEditor && !previewMode && (
 				<div className="max-w-xl rounded-lg border border-kumo-line bg-kumo-base p-4">
-					<Input
-						label={t`Template name`}
-						value={templateName}
-						onChange={(event) => setTemplateName(event.target.value)}
-						placeholder={t`Example: Welcome email`}
-						maxLength={120}
-						required
-					/>
+					<div className="space-y-4">
+						<Input
+							label={t`Template name`}
+							value={templateName}
+							onChange={(event) => setTemplateName(event.target.value)}
+							placeholder={t`Example: Welcome email`}
+							maxLength={120}
+							required
+						/>
+						<Input
+							label={t`Email subject`}
+							value={templateSubject}
+							onChange={(event) => setTemplateSubject(event.target.value)}
+							placeholder={t`Example: Your order is confirmed`}
+							maxLength={200}
+							required
+						/>
+					</div>
 					<p className="mt-2 text-xs text-kumo-subtle">{t`Choose a descriptive name to find this template later.`}</p>
 				</div>
 			)}
@@ -1935,18 +2151,18 @@ function EmailTemplatesPage() {
 												key={block.type}
 												draggable
 												variant="outline"
-																className="flex min-h-24 cursor-grab select-none flex-col items-center justify-center gap-2 text-xs active:cursor-grabbing"
+												className="flex min-h-24 cursor-grab select-none flex-col items-center justify-center gap-2 text-xs active:cursor-grabbing"
 												style={{
 													minHeight: "5.5rem",
-																	display: "flex",
+													display: "flex",
 													flexDirection: "column",
 													alignItems: "center",
 													justifyContent: "center",
 													gap: "0.5rem",
 													padding: "0.75rem",
 													lineHeight: 1.2,
-																		width: "100%",
-																	}}
+													width: "100%",
+												}}
 												disabled={
 													block.type === "spacer" ||
 													block.type === "social" ||
@@ -1954,34 +2170,34 @@ function EmailTemplatesPage() {
 												}
 												onClick={() => addBlock(block.type)}
 												onDragStart={(event) => {
-																						event.dataTransfer.setData(
-																							"application/x-emdash-email-block",
-																							block.type,
-																						);
-																						event.dataTransfer.setData("text/plain", block.type);
+													event.dataTransfer.setData(
+														"application/x-emdash-email-block",
+														block.type,
+													);
+													event.dataTransfer.setData("text/plain", block.type);
 													event.dataTransfer.effectAllowed = "copy";
 													setDraggedBlock(block.type);
 												}}
 												onDragEnd={() => setDraggedBlock(null)}
 											>
 												<span className="text-xl" aria-hidden="true">
-											{block.type === "image"
-												? "▧"
-												: block.type === "branding"
-													? "▣"
-													: block.type === "footer"
-														? "▤"
-													: block.type === "button"
-															? "▭"
-															: block.type === "heading"
-																? "H"
-																: block.type === "divider"
-																	? "—"
-																	: block.type === "columns"
-																		? "▥"
-																		: "¶"}
+													{block.type === "image"
+														? "▧"
+														: block.type === "branding"
+															? "▣"
+															: block.type === "footer"
+																? "▤"
+																: block.type === "button"
+																	? "▭"
+																	: block.type === "heading"
+																		? "H"
+																		: block.type === "divider"
+																			? "—"
+																			: block.type === "columns"
+																				? "▥"
+																				: "¶"}
 												</span>
-											<span>{block.type === "branding" ? t`Email header` : block.label}</span>
+												<span>{block.type === "branding" ? t`Email header` : block.label}</span>
 											</Button>
 										))}
 									</div>
@@ -2028,9 +2244,10 @@ function EmailTemplatesPage() {
 							onDrop={handleDrop}
 							onDropCapture={handleDrop}
 						>
-							<style>{`.email-template-editor .node-container,.email-template-editor .tiptap{width:100% !important;max-width:100% !important;min-width:0 !important;box-sizing:border-box;}.email-template-editor .node-h1,.email-template-editor .node-h2,.email-template-editor .node-h3,.email-template-editor .node-h1 + p,.email-template-editor .align-center{text-align:center;}.email-template-editor section.node-section[style*="text-align:left"]{align-items:flex-start !important;text-align:left !important;}.email-template-editor section.node-section[style*="text-align:left"] img{align-self:flex-start !important;margin-left:0 !important;margin-right:auto !important;}.email-template-editor section.node-section[style*="text-align:right"]{align-items:flex-end !important;text-align:right !important;}.email-template-editor section.node-section[style*="text-align:right"] img{align-self:flex-end !important;margin-left:auto !important;margin-right:0 !important;}.email-template-editor section.node-section[style*="text-align:center"]{align-items:center !important;text-align:center !important;}.email-template-editor section.node-section[style*="text-align:center"] img{align-self:center !important;margin-left:auto !important;margin-right:auto !important;}.email-template-editor .email-block-selected{position:relative;min-height:4.5rem;display:flex;align-items:center;justify-content:center;outline:2px solid #3b82f6;outline-offset:6px;}.email-template-editor .email-node-selected{outline:none;box-shadow:none;}.email-template-editor [data-re-bubble-menu]{display:none !important;}[data-re-slash-command]{display:flex;flex-direction:column;max-height:330px;width:256px;overflow:hidden;background:#111827 !important;border:1px solid #475569 !important;color:#f8fafc !important;box-shadow:0 12px 28px rgb(0 0 0 / 35%);z-index:70 !important;}[data-re-slash-command-scroll]{flex:1 1 auto;min-height:0;overflow-y:auto;padding:.25rem;}[data-re-slash-command-item]{display:flex;align-items:center;gap:.5rem;width:100%;padding:.375rem .5rem;border:0;border-radius:.375rem;background:transparent;color:#f8fafc !important;font-size:.875rem;line-height:1.25rem;text-align:start;}[data-re-slash-command-item] svg{flex-shrink:0;}[data-re-slash-command-item]:hover,[data-re-slash-command-item][data-selected]{background:#334155 !important;}[data-re-slash-command-category]{padding:.5rem .5rem .25rem;font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#cbd5e1 !important;}[data-re-slash-command-empty]{padding:.75rem .5rem;font-size:.875rem;text-align:center;color:#cbd5e1 !important;}`}</style>
+							<style>{`.email-template-editor .node-container,.email-template-editor .tiptap{width:100% !important;max-width:100% !important;min-width:0 !important;box-sizing:border-box;}.email-template-editor .node-h1,.email-template-editor .node-h2,.email-template-editor .node-h3,.email-template-editor .node-h1 + p,.email-template-editor .align-center{text-align:center;}.email-template-editor .node-h1,.email-template-editor .node-h2,.email-template-editor .node-h3{margin-block-end:24px !important;}.email-template-editor section.node-section[style*="--emdash-email-footer:1"]{min-height:0 !important;height:auto !important;}.email-template-editor section.node-section[style*="--emdash-email-footer:1"] p{padding-block:0 !important;line-height:1.2 !important;}.email-template-editor section.node-section[style*="--emdash-email-footer:1"] p:first-child{margin-block-start:0 !important;margin-block-end:0 !important;font-size:12px !important;}.email-template-editor section.node-section[style*="--emdash-email-footer:1"] p:nth-child(2){margin-block-start:4px !important;margin-block-end:0 !important;font-size:11px !important;}.email-template-editor section.node-section[style*="text-align:left"]{align-items:flex-start !important;text-align:left !important;}.email-template-editor section.node-section[style*="text-align:left"] img{align-self:flex-start !important;margin-left:0 !important;margin-right:auto !important;}.email-template-editor section.node-section[style*="text-align:right"]{align-items:flex-end !important;text-align:right !important;}.email-template-editor section.node-section[style*="text-align:right"] img{align-self:flex-end !important;margin-left:auto !important;margin-right:0 !important;}.email-template-editor section.node-section[style*="text-align:center"]{align-items:center !important;text-align:center !important;}.email-template-editor section.node-section[style*="text-align:center"] img{align-self:center !important;margin-left:auto !important;margin-right:auto !important;}.email-template-editor .email-block-selected{position:relative;min-height:4.5rem;display:flex;align-items:center;justify-content:center;outline:2px solid #3b82f6;outline-offset:6px;}.email-template-editor .email-node-selected{outline:none;box-shadow:none;}.email-template-editor [data-re-bubble-menu]{display:none !important;}[data-re-slash-command]{display:flex;flex-direction:column;max-height:330px;width:256px;overflow:hidden;background:#111827 !important;border:1px solid #475569 !important;color:#f8fafc !important;box-shadow:0 12px 28px rgb(0 0 0 / 35%);z-index:70 !important;}[data-re-slash-command-scroll]{flex:1 1 auto;min-height:0;overflow-y:auto;padding:.25rem;}[data-re-slash-command-item]{display:flex;align-items:center;gap:.5rem;width:100%;padding:.375rem .5rem;border:0;border-radius:.375rem;background:transparent;color:#f8fafc !important;font-size:.875rem;line-height:1.25rem;text-align:start;}[data-re-slash-command-item] svg{flex-shrink:0;}[data-re-slash-command-item]:hover,[data-re-slash-command-item][data-selected]{background:#334155 !important;}[data-re-slash-command-category]{padding:.5rem .5rem .25rem;font-size:.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#cbd5e1 !important;}[data-re-slash-command-empty]{padding:.75rem .5rem;font-size:.875rem;text-align:center;color:#cbd5e1 !important;}`}</style>
 							<style>{`.email-template-editor .node-hr{height:2px !important;margin-block:22px !important;padding:0 !important;border:0 !important;border-top:2px solid #e5e7eb !important;}`}</style>
 							<style>{`.email-template-editor .node-container{width:100% !important;max-width:600px !important;margin-inline:auto !important;}`}</style>
+							<style>{`.email-template-editor .node-button{background-color:${emailTheme.primary} !important;color:${emailTheme.onPrimary} !important;}`}</style>
 							{selectedBlockBounds && buttonSelected && (
 								<div
 									aria-hidden="true"
@@ -2079,7 +2296,7 @@ function EmailTemplatesPage() {
 									/>
 								</div>
 							)}
-			{activeParagraphBounds && !buttonSelected && !sectionSelected && (
+							{activeParagraphBounds && !buttonSelected && !sectionSelected && (
 								<div
 									className="pointer-events-none absolute"
 									style={{ ...activeParagraphBounds, zIndex: 60, border: "3px solid #3b82f6" }}
@@ -2168,35 +2385,35 @@ function EmailTemplatesPage() {
 								</div>
 							)}
 							{imageSelected && activeEditor && (
-			<FloatingImageToolbar
-					editor={activeEditor}
-					position={imageToolbarPosition}
-					imagePosition={selectedImagePosition}
-					onClose={() => {
-						setImageSelected(false);
-						setSelectedImagePosition(null);
-						activeParagraphRef.current = null;
-						setActiveParagraphBounds(null);
-					}}
-					onApplied={() => {
+								<FloatingImageToolbar
+									editor={activeEditor}
+									position={imageToolbarPosition}
+									imagePosition={selectedImagePosition}
+									onClose={() => {
+										setImageSelected(false);
+										setSelectedImagePosition(null);
+										activeParagraphRef.current = null;
+										setActiveParagraphBounds(null);
+									}}
+									onApplied={() => {
 										setImageSelected(false);
 										activeParagraphRef.current = null;
 										setActiveParagraphBounds(null);
 									}}
-				/>
-			)}
-			{sectionSelected && activeEditor && (
-				<FloatingSectionToolbar
-					editor={activeEditor}
-					position={sectionToolbarPosition}
-					below={sectionToolbarBelow}
-					sectionPosition={selectedSectionPosition}
-					onClose={() => {
-						setSectionSelected(false);
-						setSelectedSectionPosition(null);
-					}}
-				/>
-			)}
+								/>
+							)}
+							{sectionSelected && activeEditor && (
+								<FloatingSectionToolbar
+									editor={activeEditor}
+									position={sectionToolbarPosition}
+									below={sectionToolbarBelow}
+									sectionPosition={selectedSectionPosition}
+									onClose={() => {
+										setSectionSelected(false);
+										setSelectedSectionPosition(null);
+									}}
+								/>
+							)}
 							{(buttonSelected || toolbarPinned) && activeEditor && (
 								<FloatingButtonToolbar
 									editor={activeEditor}
@@ -2348,6 +2565,13 @@ function EmailTemplatesPage() {
 												>
 													{t`Send test`}
 												</Button>
+												<Button
+													variant="destructive"
+													onClick={() => setDeleteTemplateId(template.id)}
+													aria-label={t`Delete template`}
+												>
+													{t`Delete`}
+												</Button>
 											</div>
 										</td>
 									</tr>
@@ -2374,6 +2598,37 @@ function EmailTemplatesPage() {
 					</div>
 				</section>
 			)}
+			<Dialog.Root
+				open={deleteTemplateId !== null}
+				onOpenChange={(open) => {
+					if (!open && !deletingTemplate) setDeleteTemplateId(null);
+				}}
+			>
+				<Dialog className="w-[min(28rem,calc(100vw-2rem))] p-6" size="sm">
+					<Dialog.Title className="text-lg font-semibold">{t`Delete email template?`}</Dialog.Title>
+					<p className="mt-2 text-sm text-kumo-subtle">
+						{templates.find((template) => template.id === deleteTemplateId)?.name}
+					</p>
+					<p className="mt-3 text-sm text-kumo-subtle">{t`This action cannot be undone.`}</p>
+					<div className="mt-6 flex justify-end gap-2">
+						<Dialog.Close
+							disabled={deletingTemplate}
+							render={(props) => (
+								<Button {...props} variant="secondary">
+									{t`Cancel`}
+								</Button>
+							)}
+						/>
+						<Button
+							variant="destructive"
+							onClick={() => void deleteTemplate()}
+							disabled={deletingTemplate}
+						>
+							{deletingTemplate ? t`Deleting…` : t`Delete`}
+						</Button>
+					</div>
+				</Dialog>
+			</Dialog.Root>
 			<MediaPicker
 				open={imagePickerOpen}
 				onOpenChange={setImagePickerOpen}
