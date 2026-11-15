@@ -1,7 +1,11 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const scheduled = vi.hoisted(() => ({
-	general: vi.fn(async (_options?: unknown) => ({ published: [] })),
+	general: vi.fn(
+		async (_options?: unknown): Promise<{ published: Array<{ collection: string; id: string }> }> => ({
+			published: [],
+		}),
+	),
 }));
 const cache = vi.hoisted(() => ({
 	invalidate: vi.fn(async (_options?: unknown) => {}),
@@ -26,7 +30,7 @@ vi.mock("../src/sandbox/bridge.js", () => ({ PluginBridge: vi.fn() }));
 vi.mock("../src/rooms/object.js", () => ({ EmDashRoom: vi.fn() }));
 vi.mock("../src/rooms/site.js", () => ({ EmDashRoomSite: vi.fn() }));
 
-import { createScheduledHandler } from "../src/worker.js";
+import { createScheduledHandler, runScheduledTasks } from "../src/worker.js";
 
 beforeEach(() => {
 	vi.restoreAllMocks();
@@ -147,6 +151,27 @@ it("retries cache provider loading after a transient failure", async () => {
 	expect(astro.cacheProvider).toHaveBeenCalledTimes(2);
 	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({ tags: ["posts", "post-1"] });
 	expect(error).toHaveBeenCalledOnce();
+});
+
+it("purges published content's tags when run outside scheduled()", async () => {
+	scheduled.general.mockImplementationOnce(async (options) => {
+		const onPublished = (
+			options as {
+				onPublished: (published: Array<{ collection: string; id: string }>) => Promise<void>;
+			}
+		).onPublished;
+		await onPublished([{ collection: "posts", id: "post-1" }]);
+		return { published: [{ collection: "posts", id: "post-1" }] };
+	});
+
+	await expect(runScheduledTasks()).resolves.toEqual({
+		published: [{ collection: "posts", id: "post-1" }],
+	});
+
+	expect(scheduled.general).toHaveBeenCalledExactlyOnceWith(
+		expect.not.objectContaining({ publishUpcomingWithinMs: expect.anything() }),
+	);
+	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({ tags: ["posts", "post-1"] });
 });
 
 it("rejects an empty configured expression", () => {

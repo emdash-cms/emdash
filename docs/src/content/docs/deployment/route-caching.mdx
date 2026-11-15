@@ -77,7 +77,7 @@ Creating, editing, or deleting a redirect invalidates the cached page at the red
 
 The comment API routes invalidate `[collection, id]` for the commented entry when a submission is approved immediately, when admin moderation moves a comment into or out of approved status, or when deletion removes an approved comment or reply. Bulk moderation and deletion invalidate only the entries whose approved comments change. Pending submissions, moderation between non-approved statuses, and deletion of non-approved comments without approved replies leave the route cache unchanged. Comment moderation through the plugin API (`ctx.comments.moderate`) does not invalidate the route cache.
 
-Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
+Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags only on Cloudflare, and only when the Worker runs it from its default entrypoint; see [Scheduled publishing with the Workers Cache](#scheduled-publishing-with-the-workers-cache).
 
 This is also why the tag convention matters: EmDash invalidates collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in invalidation will not match them and stale entries survive until `maxAge` expires.
 
@@ -120,7 +120,41 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 - When a cache provider is configured, the `@astrojs/cloudflare` adapter enables the Workers Cache automatically: the build writes `"cache": { "enabled": true }` into the generated Wrangler configuration that `wrangler deploy` picks up.
 - A route without a rule is marked `no-store`, but only if nothing calls `Astro.cache.set()` while it renders. A cache hint without `maxAge`, like the ones from `getSiteSettingsWithCacheHint()` and `getMenuWithCacheHint()`, produces `Cloudflare-CDN-Cache-Control: public` without a lifetime, so the Workers Cache falls back to its [default cache lifetimes](https://developers.cloudflare.com/workers/cache/configuration/#cache-control-semantics) (2 hours for a `200` response). If your layout sets these hints, every page that uses the layout becomes cacheable, with or without a rule.
 - By default the Worker version is part of the cache key, so every deploy starts with an empty cache and the first requests after it render in the Worker. To keep entries across deploys, set `"cache": { "enabled": true, "cross_version_cache": true }` in your Wrangler configuration (see [Cross-version caching](https://developers.cloudflare.com/workers/cache/configuration/#cross-version-caching)). Template changes then only show once the affected entries expire or are invalidated.
-- Scheduled publishing invalidates the tags of the entries it publishes from the Cron Trigger.
+- Purges from `createScheduledHandler()` have no effect, so scheduled publishing leaves cached pages in place. See [Scheduled publishing with the Workers Cache](#scheduled-publishing-with-the-workers-cache).
+
+#### Scheduled publishing with the Workers Cache
+
+A Workers Cache purge only takes effect when the Worker's default entrypoint makes it, from its `fetch` handler or an RPC method on it. A purge made from `scheduled()`, a Workflow, or a named entrypoint reports success but leaves the cached pages in place. `createScheduledHandler()` publishes from `scheduled()`, so pages that list or show a scheduled entry keep their cached copy until `maxAge` expires.
+
+To have scheduled publishing purge the cache, make the default export a `WorkerEntrypoint` with an RPC method that calls `runScheduledTasks()` from `@emdash-cms/cloudflare/worker`, and call that method through `ctx.exports.default` from `scheduled()`:
+
+```ts title="src/worker.ts"
+import { WorkerEntrypoint } from "cloudflare:workers";
+import handler, {
+	EmDashRoom,
+	EmDashRoomSite,
+	PluginBridge,
+	runScheduledTasks,
+} from "@emdash-cms/cloudflare/worker";
+
+export { EmDashRoom, EmDashRoomSite, PluginBridge };
+
+export default class extends WorkerEntrypoint<Env> {
+	fetch(request: Request) {
+		return handler.fetch(request, this.env, this.ctx);
+	}
+
+	scheduled() {
+		this.ctx.waitUntil(this.ctx.exports.default.runScheduledTasks());
+	}
+
+	runScheduledTasks() {
+		return runScheduledTasks({ publishUpcomingWithinMs: 70_000 });
+	}
+}
+```
+
+`runScheduledTasks()` publishes only entries that are already due unless you pass `publishUpcomingWithinMs`. The example passes the same 70 seconds as `createScheduledHandler()`, so an entry goes live at its scheduled time with a Cron Trigger that runs every minute (see [Scheduled publishing](/deployment/cloudflare/#scheduled-publishing)). A Workflow can call `this.ctx.exports.default.runScheduledTasks()` the same way.
 
 #### Purge rate limits
 

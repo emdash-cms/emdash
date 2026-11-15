@@ -15,6 +15,10 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
+import type {
+	runScheduledTasks as runEmDashScheduledTasks,
+	ScheduledTasksOptions,
+} from "emdash/middleware";
 
 import { handleRoomUpgrade } from "./rooms/upgrade.js";
 
@@ -90,6 +94,34 @@ async function invalidateContentTags(tags: string[]): Promise<void> {
 const PUBLISH_UPCOMING_WITHIN_MS = 70 * 1000;
 
 /**
+ * Run scheduled maintenance, including scheduled publishing, and purge the
+ * configured cache provider's tags for the content it changes.
+ *
+ * Workers Cache purges only take effect when made from the default entrypoint,
+ * in its `fetch` or an RPC method on it. A purge made from `scheduled()`, a
+ * Workflow, or a named entrypoint reports success but leaves cached pages in
+ * place. A site that uses the Workers Cache should call this from an RPC method
+ * on a `WorkerEntrypoint` default export, and have its Cron Trigger or
+ * Workflow call that method through `ctx.exports.default`.
+ *
+ * Publishes only content that is already due unless `publishUpcomingWithinMs`
+ * is set.
+ */
+export async function runScheduledTasks(
+	options: Pick<ScheduledTasksOptions, "publishUpcomingWithinMs"> = {},
+): ReturnType<typeof runEmDashScheduledTasks> {
+	const middleware = await import("emdash/middleware");
+	// Invalidate incrementally as each collection batch publishes, so a run
+	// killed mid-sweep (CPU/wall-clock limits on a large backlog) still purged
+	// the cache tags for everything it managed to publish.
+	return middleware.runScheduledTasks({
+		...options,
+		onPublished: invalidatePublishedTags,
+		invalidateContentCache: invalidateContentTags,
+	});
+}
+
+/**
  * Build a Worker `scheduled()` handler for general maintenance.
  */
 export interface ScheduledHandlerOptions {
@@ -113,15 +145,7 @@ export function createScheduledHandler(
 		ctx.waitUntil(
 			(async () => {
 				try {
-					const { runScheduledTasks } = await import("emdash/middleware");
-					// Invalidate incrementally as each collection batch publishes, so a
-					// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
-					// large backlog) still purged the cache tags for everything it managed
-					// to publish — not just whatever completed before a single end-of-sweep
-					// purge that may never run.
 					const { published } = await runScheduledTasks({
-						onPublished: invalidatePublishedTags,
-						invalidateContentCache: invalidateContentTags,
 						publishUpcomingWithinMs: PUBLISH_UPCOMING_WITHIN_MS,
 					});
 					if (published.length > 0) {
