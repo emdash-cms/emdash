@@ -35,6 +35,7 @@ class MemoryStorage implements Storage {
 		return { key: options.key, url: `memory://${options.key}`, size: options.body.byteLength };
 	}
 	failDownloads = false;
+	downloadCount = 0;
 	private downloadGate: Promise<void> | undefined;
 	private releaseDownload: (() => void) | undefined;
 	private signalDownloadStarted: (() => void) | undefined;
@@ -55,6 +56,7 @@ class MemoryStorage implements Storage {
 	}
 
 	async download(key: string) {
+		this.downloadCount++;
 		if (this.failDownloads) throw new Error("Storage unavailable");
 		const downloadGate = this.downloadGate;
 		if (downloadGate) {
@@ -96,7 +98,7 @@ class MemoryStorage implements Storage {
 const pluginId = "updated-plugin";
 let invokeRoute: SandboxedPluginInstance["invokeRoute"] = async () => undefined;
 
-function manifest(version: string, unique = false, id = pluginId) {
+function manifest(version: string, unique = false, id = pluginId, hooks: string[] = []) {
 	return {
 		id,
 		version,
@@ -105,7 +107,7 @@ function manifest(version: string, unique = false, id = pluginId) {
 		storage: {
 			records: { indexes: ["status"], ...(unique ? { uniqueIndexes: ["externalId"] } : {}) },
 		},
-		hooks: [],
+		hooks,
 		routes: [{ name: "submit", public: true }],
 		admin: {},
 	};
@@ -114,13 +116,19 @@ function manifest(version: string, unique = false, id = pluginId) {
 function createDeps(
 	storage: MemoryStorage,
 	source: "registry" | "marketplace",
-): RuntimeDependencies & { runnerLoad: ReturnType<typeof vi.fn> } {
+): RuntimeDependencies & {
+	runnerLoad: ReturnType<typeof vi.fn>;
+	runnerIsAvailable: ReturnType<typeof vi.fn>;
+	runnerInvokeHook: ReturnType<typeof vi.fn>;
+} {
+	const runnerIsAvailable = vi.fn(() => true);
+	const runnerInvokeHook = vi.fn(async () => undefined);
 	const runner = {
-		isAvailable: () => true,
+		isAvailable: runnerIsAvailable,
 		isHealthy: () => true,
 		load: vi.fn(async (loadedManifest: { id: string; version: string }) => ({
 			id: `${loadedManifest.id}:${loadedManifest.version}`,
-			invokeHook: vi.fn(async () => undefined),
+			invokeHook: runnerInvokeHook,
 			invokeRoute: async (...args: Parameters<SandboxedPluginInstance["invokeRoute"]>) =>
 				(await invokeRoute(...args)) ?? { version: loadedManifest.version },
 			terminate: vi.fn(async () => undefined),
@@ -144,6 +152,8 @@ function createDeps(
 		// eslint-disable-next-line typescript/no-explicit-any -- minimal fake runner for the published boundary
 		createSandboxRunner: (() => runner) as any,
 		runnerLoad: runner.load,
+		runnerIsAvailable,
+		runnerInvokeHook,
 	};
 }
 
@@ -153,10 +163,11 @@ async function putBundle(
 	version: string,
 	unique: boolean,
 	id = pluginId,
+	hooks: string[] = [],
 ): Promise<void> {
 	storage.putText(
 		`${source}/${id}/${version}/manifest.json`,
-		JSON.stringify(manifest(version, unique, id)),
+		JSON.stringify(manifest(version, unique, id, hooks)),
 	);
 	storage.putText(`${source}/${id}/${version}/backend.js`, "export default {};");
 }
@@ -225,6 +236,38 @@ describe.each(["registry", "marketplace"] as const)(
 			});
 		});
 
+		it("does not refresh routes when the cold-start sandbox probe was unavailable", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			const deps = createDeps(storage, source);
+			deps.runnerIsAvailable.mockReturnValue(false);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			const probesAtStartup = deps.runnerIsAvailable.mock.calls.length;
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			await runtime.refreshInstalledPluginRoute("unknown-plugin");
+			expect(storage.downloadCount).toBe(0);
+			expect(deps.runnerLoad).not.toHaveBeenCalled();
+			expect(deps.runnerIsAvailable).toHaveBeenCalledTimes(probesAtStartup);
+			expect(await get(runtime)).toMatchObject({ success: false, error: { code: "NOT_FOUND" } });
+		});
+
+		it("does not probe availability during requested refreshes", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const coldStartCalls = deps.runnerIsAvailable.mock.calls.length;
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			expect(deps.runnerIsAvailable).toHaveBeenCalledTimes(coldStartCalls);
+			await syncPlugins(runtime, source);
+			expect(deps.runnerIsAvailable).toHaveBeenCalledTimes(coldStartCalls + 1);
+		});
+
 		it("does not reload an unchanged plugin", async () => {
 			const storage = new MemoryStorage();
 			await putBundle(storage, source, "1.0.0", false);
@@ -239,20 +282,78 @@ describe.each(["registry", "marketplace"] as const)(
 			expect(deps.runnerLoad).toHaveBeenCalledTimes(1);
 		});
 
-		it("propagates a sandbox load failure and retries on the next refresh", async () => {
+		it("backs off a failed refresh, then retries after five seconds", async () => {
 			const storage = new MemoryStorage();
 			await putBundle(storage, source, "1.0.0", false);
 			const deps = createDeps(storage, source);
 			runtime = await EmDashRuntime.create(deps);
 			const states = new PluginStateRepository(runtime.db);
 			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
-			deps.runnerLoad.mockRejectedValueOnce(new Error("Sandbox unavailable"));
-			await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
-				"Sandbox unavailable",
-			);
-			await runtime.refreshInstalledPluginRoute(pluginId);
-			invokeRoute = async () => undefined;
-			expect(await get(runtime)).toMatchObject({ success: true, data: { version: "1.0.0" } });
+			deps.runnerLoad
+				.mockRejectedValueOnce(new Error("Sandbox unavailable"))
+				.mockRejectedValueOnce(new Error("Sandbox unavailable"));
+			const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+			try {
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Sandbox unavailable",
+				);
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Sandbox unavailable",
+				);
+				expect(deps.runnerLoad).toHaveBeenCalledTimes(1);
+				now.mockReturnValue(1_005_001);
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Sandbox unavailable",
+				);
+				expect(deps.runnerLoad).toHaveBeenCalledTimes(2);
+				now.mockReturnValue(1_010_002);
+				await runtime.refreshInstalledPluginRoute(pluginId);
+				invokeRoute = async () => undefined;
+				expect(await get(runtime)).toMatchObject({ success: true, data: { version: "1.0.0" } });
+			} finally {
+				now.mockRestore();
+			}
+		});
+
+		it("retries unavailable bundles only when state changes or backoff expires", async () => {
+			const storage = new MemoryStorage();
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			const now = vi.spyOn(Date, "now").mockReturnValue(2_000_000);
+			try {
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Plugin bundle unavailable",
+				);
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Plugin bundle unavailable",
+				);
+				expect(storage.downloadCount).toBe(1);
+
+				await putBundle(storage, source, "2.0.0", false);
+				await states.upsert(pluginId, "2.0.0", "active", stateOptions(source, "2.0.0"));
+				await runtime.refreshInstalledPluginRoute(pluginId);
+				expect(storage.downloadCount).toBeGreaterThan(1);
+				const successfulDownloads = storage.downloadCount;
+
+				storage.failDownloads = true;
+				await states.upsert(pluginId, "3.0.0", "active", stateOptions(source, "3.0.0"));
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Plugin bundle unavailable",
+				);
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Plugin bundle unavailable",
+				);
+				expect(storage.downloadCount).toBe(successfulDownloads + 1);
+				now.mockReturnValue(2_005_001);
+				await expect(runtime.refreshInstalledPluginRoute(pluginId)).rejects.toThrow(
+					"Plugin bundle unavailable",
+				);
+				expect(storage.downloadCount).toBe(successfulDownloads + 2);
+			} finally {
+				now.mockRestore();
+			}
 		});
 
 		it("refreshes install, update, and uninstall state for the requested route", async () => {
@@ -454,6 +555,58 @@ describe.each(["registry", "marketplace"] as const)(
 				}
 			},
 		);
+
+		it("rebuilds a reclaimed pipeline claim even when the cached version is unchanged", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false, pluginId, ["plugin:activate"]);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+
+			let release!: () => void;
+			const released = new Promise<void>((resolve) => (release = resolve));
+			let paused = false;
+			const pausedQueryIds = new Set<unknown>();
+			const queryDb = runtime.db.withPlugin({
+				transformQuery: ({ node, queryId }) => {
+					const query = runtime!.db.getExecutor().compileQuery(node, queryId);
+					if (!paused && /\bfrom "options"/i.test(query.sql)) {
+						paused = true;
+						pausedQueryIds.add(queryId);
+					}
+					return node;
+				},
+				async transformResult({ queryId, result }) {
+					if (pausedQueryIds.has(queryId)) await released;
+					return result;
+				},
+			} satisfies KyselyPlugin);
+			const now = vi.spyOn(Date, "now").mockReturnValue(3_000_000);
+			let first: Promise<void> | undefined;
+			let second: Promise<void> | undefined;
+			try {
+				first = runWithContext({ editMode: false, db: queryDb }, () =>
+					runtime!.refreshInstalledPluginRoute(pluginId),
+				);
+				await vi.waitFor(() => expect(paused).toBe(true));
+				now.mockReturnValue(3_020_001);
+				second = runtime.refreshInstalledPluginRoute(pluginId);
+				await expect(second).resolves.toBeUndefined();
+				expect(runtime.hooks.getHookCount("plugin:activate")).toBeGreaterThan(0);
+				await runtime.hooks.runPluginActivate(pluginId);
+				expect(deps.runnerInvokeHook).toHaveBeenCalledWith("plugin:activate", {});
+				const publishedPipeline = runtime.hooks;
+				release();
+				await expect(first).rejects.toThrow("superseded");
+				expect(runtime.hooks).toBe(publishedPipeline);
+			} finally {
+				release();
+				await first?.catch(() => undefined);
+				await second?.catch(() => undefined);
+				now.mockRestore();
+			}
+		});
 
 		it("does not retain readiness after removal and reinstall", async () => {
 			const storage = new MemoryStorage();

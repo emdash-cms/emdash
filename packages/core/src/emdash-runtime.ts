@@ -585,6 +585,7 @@ export interface RuntimeDependencies {
  * passes for that field as the canonical default.
  */
 export interface EmDashRuntimeParts {
+	installedPluginSandboxAvailable?: boolean;
 	db: Kysely<Database>;
 	storage: Storage | null;
 	configuredPlugins: ResolvedPlugin[];
@@ -842,6 +843,7 @@ const sandboxedManifestCache = new Map<string, PluginManifest>();
  */
 const marketplacePluginKeys = new Set<string>();
 const registryPluginKeys = new Set<string>();
+const INSTALLED_PLUGIN_REFRESH_RETRY_MS = 5_000;
 /**
  * Manifest metadata for runtime-installed sandboxed plugins (marketplace
  * and registry both). Keyed by `pluginId`; readers don't care which
@@ -959,6 +961,13 @@ export class EmDashRuntime {
 	 */
 	private storageIndexesReady = new Set<string>();
 	private readonly installedPluginSyncLock = createInitLock();
+	private installedPluginSandboxAvailable: boolean;
+	// Cache changes can outlive a cancelled or superseded pipeline rebuild.
+	private installedPluginPipelineDirty = false;
+	private readonly installedPluginRefreshFailures = new Map<
+		string,
+		{ stateKey: string; retryAt: number; error: unknown }
+	>();
 	private storageIndexesSyncPromises = new Map<
 		string,
 		{ declaration: object; promise: Promise<StorageIndexSyncResult> }
@@ -1020,6 +1029,7 @@ export class EmDashRuntime {
 	}
 
 	constructor(parts: EmDashRuntimeParts) {
+		this.installedPluginSandboxAvailable = parts.installedPluginSandboxAvailable ?? false;
 		this._db = parts.db;
 		this.storage = parts.storage;
 		this.configuredPlugins = parts.configuredPlugins;
@@ -1728,9 +1738,29 @@ export class EmDashRuntime {
 		await this.syncSandboxedSourcePlugins("registry");
 	}
 
+	private installedPluginRefreshStateKey(state: PluginState | null): string {
+		return JSON.stringify([
+			state?.source,
+			state?.status,
+			state?.version,
+			state?.marketplaceVersion,
+			state?.installedAt,
+			state?.activatedAt,
+			state?.deactivatedAt,
+		]);
+	}
+
+	private checkInstalledPluginRefreshRetry(pluginId: string, stateKey: string): void {
+		const failure = this.installedPluginRefreshFailures.get(pluginId);
+		if (!failure) return;
+		if (failure.stateKey === stateKey && Date.now() < failure.retryAt) throw failure.error;
+		this.installedPluginRefreshFailures.delete(pluginId);
+	}
+
 	/** Refresh one runtime-installed plugin before reading its route metadata. */
 	async refreshInstalledPluginRoute(pluginId: string): Promise<void> {
-		if (this.runtimeDeps.sandboxBypassed || !this.storage || !sandboxRunner?.isAvailable()) return;
+		if (this.runtimeDeps.sandboxBypassed || !this.storage || !this.installedPluginSandboxAvailable)
+			return;
 		if (!this.config.marketplace && !getRegistryConfigInput(this.config.registry)) return;
 		// Configured plugins do not depend on registry or marketplace state.
 		if (
@@ -1741,6 +1771,7 @@ export class EmDashRuntime {
 			return;
 
 		const state = await new PluginStateRepository(this.db).get(pluginId);
+		this.checkInstalledPluginRefreshRetry(pluginId, this.installedPluginRefreshStateKey(state));
 		const cachedKey = [...registryPluginKeys, ...marketplacePluginKeys].find((key) =>
 			key.startsWith(`${pluginId}:`),
 		);
@@ -1752,7 +1783,15 @@ export class EmDashRuntime {
 					: cachedKey
 						? "marketplace"
 						: undefined;
-		if (!source) return;
+		if (!source) {
+			if (this.installedPluginPipelineDirty) {
+				await this.syncSandboxedSourcePlugins(
+					this.config.marketplace ? "marketplace" : "registry",
+					pluginId,
+				);
+			}
+			return;
+		}
 		if (source === "registry" && !getRegistryConfigInput(this.config.registry)) return;
 		if (source === "marketplace" && !this.config.marketplace) return;
 		const version =
@@ -1760,10 +1799,11 @@ export class EmDashRuntime {
 		if (
 			state?.status === "active" &&
 			cachedKey === `${pluginId}:${version}` &&
-			this.enabledPlugins.has(pluginId)
+			this.enabledPlugins.has(pluginId) &&
+			!this.installedPluginPipelineDirty
 		)
 			return;
-		if (state?.status !== "active" && !cachedKey) return;
+		if (state?.status !== "active" && !cachedKey && !this.installedPluginPipelineDirty) return;
 
 		// The lock is only needed for changes. Re-read under it so an older
 		// request's snapshot cannot overwrite a newer reconciliation.
@@ -1784,7 +1824,11 @@ export class EmDashRuntime {
 		pluginId?: string,
 	): Promise<void> {
 		if (!this.storage) return;
-		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
+		if (!sandboxRunner) return;
+		if (!pluginId) {
+			this.installedPluginSandboxAvailable = sandboxRunner.isAvailable();
+			if (!this.installedPluginSandboxAvailable) return;
+		}
 
 		try {
 			await initWithLock(
@@ -1806,11 +1850,16 @@ export class EmDashRuntime {
 	): Promise<void> {
 		if (!this.storage || !sandboxRunner) return;
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
-		let pipelineChanged = false;
+		let refreshStateKey: string | undefined;
+		let loadingPlugin = false;
 
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
 			const requestedState = requestedPluginId ? await stateRepo.get(requestedPluginId) : null;
+			if (requestedPluginId) {
+				refreshStateKey = this.installedPluginRefreshStateKey(requestedState);
+				this.checkInstalledPluginRefreshRetry(requestedPluginId, refreshStateKey);
+			}
 			const states = requestedPluginId
 				? requestedState?.source === source
 					? [requestedState]
@@ -1871,7 +1920,7 @@ export class EmDashRuntime {
 				this.sandboxedPlugins.delete(key);
 				this.removePluginFromLists(pluginId);
 				keySet.delete(key);
-				pipelineChanged = true;
+				this.installedPluginPipelineDirty = true;
 				if (pluginId) {
 					sandboxedRouteMetaCache.delete(pluginId);
 					marketplaceManifestCache.delete(pluginId);
@@ -1886,9 +1935,12 @@ export class EmDashRuntime {
 					continue;
 				}
 
+				loadingPlugin = true;
 				const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
 				if (!isCurrentClaim()) throw new Error("Plugin synchronization was superseded");
 				if (!bundle) {
+					if (requestedPluginId)
+						throw new Error(`Plugin bundle unavailable: ${pluginId}@${version}`);
 					console.warn(`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`);
 					continue;
 				}
@@ -1904,7 +1956,8 @@ export class EmDashRuntime {
 				this.sandboxedPlugins.set(key, loaded);
 				this.allPipelinePlugins.push(createSandboxedPluginProxy(bundle.manifest, loaded));
 				keySet.add(key);
-				pipelineChanged = true;
+				this.installedPluginRefreshFailures.delete(pluginId);
+				this.installedPluginPipelineDirty = true;
 
 				// Cache manifest admin config for getManifest()
 				marketplaceManifestCache.set(pluginId, {
@@ -1928,13 +1981,29 @@ export class EmDashRuntime {
 				} else {
 					sandboxedRouteMetaCache.delete(pluginId);
 				}
+				loadingPlugin = false;
 			}
 
-			if (pipelineChanged) {
+			if (this.installedPluginPipelineDirty) {
 				await this.rebuildHookPipeline(isCurrentClaim);
+				if (isCurrentClaim()) this.installedPluginPipelineDirty = false;
 			}
 			if (!isCurrentClaim()) throw new Error("Plugin synchronization was superseded");
+			if (requestedPluginId) this.installedPluginRefreshFailures.delete(requestedPluginId);
 		} catch (error) {
+			if (
+				requestedPluginId &&
+				loadingPlugin &&
+				refreshStateKey !== undefined &&
+				isCurrentClaim() &&
+				!this.installedPluginRefreshFailures.has(requestedPluginId)
+			) {
+				this.installedPluginRefreshFailures.set(requestedPluginId, {
+					stateKey: refreshStateKey,
+					retryAt: Date.now() + INSTALLED_PLUGIN_REFRESH_RETRY_MS,
+					error,
+				});
+			}
 			console.error(`EmDash: Failed to sync ${source} plugins:`, error);
 			if (requestedPluginId) throw error;
 		}
@@ -2632,7 +2701,7 @@ export class EmDashRuntime {
 		// sandbox phase above, not on each other, so when both are enabled
 		// they run concurrently instead of paying two sequential loads.
 		// In bypass mode marketplace plugins were already handled above.
-		const installedTierPhases: Promise<void>[] = [];
+		const installedTierPhases: Promise<boolean>[] = [];
 		if (deps.config.marketplace && storage && !deps.sandboxBypassed) {
 			installedTierPhases.push(
 				phase("rt.market", "Marketplace plugins", () =>
@@ -2665,9 +2734,7 @@ export class EmDashRuntime {
 				),
 			);
 		}
-		if (installedTierPhases.length > 0) {
-			await Promise.all(installedTierPhases);
-		}
+		const installedPluginSandboxAvailable = (await Promise.all(installedTierPhases)).some(Boolean);
 
 		const configuredSandboxIds = new Set(deps.sandboxedPluginEntries.map((entry) => entry.id));
 		const sandboxedPlugins = new Map(
@@ -2898,6 +2965,7 @@ export class EmDashRuntime {
 		sandboxRunner?.setCronReschedule?.(() => cronScheduler?.reschedule());
 
 		const runtime = new EmDashRuntime({
+			installedPluginSandboxAvailable,
 			db,
 			storage,
 			// Include bypassed sandboxed plugins in configuredPlugins so route
@@ -3413,7 +3481,7 @@ export class EmDashRuntime {
 			locale?: string;
 			trailingSlash?: "always" | "never" | "ignore";
 		},
-	): Promise<void> {
+	): Promise<boolean> {
 		// Ensure sandbox runner exists with media storage wired up.
 		// (storage here is the media Storage adapter from the runtime.)
 		if (!sandboxRunner && deps.createSandboxRunner) {
@@ -3441,10 +3509,10 @@ export class EmDashRuntime {
 		}
 		// In sandbox bypass mode, marketplace plugins are loaded in-process
 		// BEFORE pipeline creation by EmDashRuntime.create(). Skip here.
-		if (deps.sandboxBypassed) return;
+		if (deps.sandboxBypassed) return false;
 
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) {
-			return;
+			return false;
 		}
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
@@ -3501,6 +3569,7 @@ export class EmDashRuntime {
 				console.error(`EmDash: Failed to load ${source} plugin ${plugin.pluginId}:`, error);
 			}
 		}
+		return true;
 	}
 
 	/**

@@ -23,8 +23,7 @@ const {
 	MOCK_RUNTIME,
 	mockGetPluginRouteMeta,
 	defaultGetPluginRouteMeta,
-	mockSyncMarketplacePlugins,
-	mockSyncRegistryPlugins,
+	mockRefreshInstalledPluginRoute,
 	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
@@ -49,8 +48,7 @@ const {
 		return publicPluginResult;
 	});
 	const handleMediaUpload = vi.fn(ok);
-	const syncMarketplacePlugins = vi.fn(async () => undefined);
-	const syncRegistryPlugins = vi.fn(async () => undefined);
+	const refreshInstalledPluginRoute = vi.fn(async (_pluginId: string) => undefined);
 	const runPluginInstallLifecycle = vi.fn(async () => undefined);
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
 	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
@@ -110,12 +108,9 @@ const {
 			getManifest: async () => ({}),
 			getSandboxRunner: () => null,
 			isSandboxBypassed: () => false,
-			syncMarketplacePlugins,
-			syncRegistryPlugins,
-			refreshInstalledPluginRoute: async () => {
-				await syncMarketplacePlugins();
-				await syncRegistryPlugins();
-			},
+			syncMarketplacePlugins: async () => undefined,
+			syncRegistryPlugins: async () => undefined,
+			refreshInstalledPluginRoute,
 			runPluginInstallLifecycle,
 			runPluginActivateLifecycle,
 			runPluginUninstallLifecycle,
@@ -128,8 +123,7 @@ const {
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
 		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
-		mockSyncMarketplacePlugins: syncMarketplacePlugins,
-		mockSyncRegistryPlugins: syncRegistryPlugins,
+		mockRefreshInstalledPluginRoute: refreshInstalledPluginRoute,
 		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
 		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
 		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
@@ -222,8 +216,7 @@ beforeEach(() => {
 	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
 	mockGetRuntimePluginSettingsSchema.mockClear();
 	mockGetPluginRouteMeta.mockReset().mockImplementation(defaultGetPluginRouteMeta);
-	mockSyncMarketplacePlugins.mockReset().mockResolvedValue(undefined);
-	mockSyncRegistryPlugins.mockReset().mockResolvedValue(undefined);
+	mockRefreshInstalledPluginRoute.mockReset().mockResolvedValue(undefined);
 	mockHandleMediaUpload.mockClear();
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
@@ -630,19 +623,17 @@ describe("astro middleware anonymous session reads", () => {
 		);
 	});
 
-	type PluginSource = "marketplace" | "registry";
 	type RouteMeta = { public: boolean; methods?: readonly string[] };
 
 	async function requestPluginRoute(
-		source: PluginSource,
 		initialMeta: RouteMeta | null,
-		syncMeta: RouteMeta | null,
+		refreshedMeta: RouteMeta | null,
 	) {
 		let routeMeta = initialMeta;
 		mockGetPluginRouteMeta.mockImplementation(() => routeMeta);
-		const sync = source === "marketplace" ? mockSyncMarketplacePlugins : mockSyncRegistryPlugins;
-		sync.mockImplementation(async () => {
-			routeMeta = syncMeta;
+		mockRefreshInstalledPluginRoute.mockImplementation(async (pluginId: string) => {
+			expect(pluginId).toBe("learnomy");
+			routeMeta = refreshedMeta;
 		});
 
 		await onRequest(
@@ -662,86 +653,68 @@ describe("astro middleware anonymous session reads", () => {
 			} as never),
 		);
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
-		return { response, next, sync };
+		return { response, next };
 	}
 
-	it.each(["marketplace", "registry"] as const)(
-		"dispatches a newly installed %s route after syncing a warm runtime",
-		async (source) => {
-			const { response, next, sync } = await requestPluginRoute(source, null, {
-				public: true,
-				methods: ["GET"],
-			});
-			expect(response.status).toBe(200);
-			expect(await response.json()).toEqual({ success: true, data: { catalog: ["public"] } });
-			expect(next).toHaveBeenCalledOnce();
-			expect(sync).toHaveBeenCalledOnce();
-		},
-	);
+	it("dispatches a newly installed route after refreshing a warm runtime", async () => {
+		const { response, next } = await requestPluginRoute(null, {
+			public: true,
+			methods: ["GET"],
+		});
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({ success: true, data: { catalog: ["public"] } });
+		expect(next).toHaveBeenCalledOnce();
+		expect(mockRefreshInstalledPluginRoute).toHaveBeenCalledWith("learnomy");
+	});
 
-	it.each(["marketplace", "registry"] as const)(
-		"rejects an anonymous request after a %s route becomes private",
-		async (source) => {
-			const { response, next, sync } = await requestPluginRoute(
-				source,
-				{ public: true, methods: ["GET"] },
-				{ public: false },
-			);
-			expect(response.status).toBe(401);
-			expect(next).toHaveBeenCalledOnce();
-			expect(sync).toHaveBeenCalledOnce();
-			expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
-		},
-	);
+	it("rejects an anonymous request after a route becomes private", async () => {
+		const { response, next } = await requestPluginRoute(
+			{ public: true, methods: ["GET"] },
+			{ public: false },
+		);
+		expect(response.status).toBe(401);
+		expect(next).toHaveBeenCalledOnce();
+		expect(mockRefreshInstalledPluginRoute).toHaveBeenCalledWith("learnomy");
+		expect(mockHandlePluginApiRoute).not.toHaveBeenCalled();
+	});
 
-	it.each(["marketplace", "registry"] as const)(
-		"returns 404 after uninstalling a %s route",
-		async (source) => {
-			const { response, next, sync } = await requestPluginRoute(
-				source,
-				{ public: true, methods: ["GET"] },
-				null,
-			);
-			expect(response.status).toBe(404);
-			expect(await response.json()).toEqual({
-				success: false,
-				error: { code: "NOT_FOUND", message: "Plugin route not found" },
-			});
-			expect(next).toHaveBeenCalledOnce();
-			expect(sync).toHaveBeenCalledOnce();
-		},
-	);
+	it("returns 404 after uninstalling a route", async () => {
+		const { response, next } = await requestPluginRoute({ public: true, methods: ["GET"] }, null);
+		expect(response.status).toBe(404);
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "NOT_FOUND", message: "Plugin route not found" },
+		});
+		expect(next).toHaveBeenCalledOnce();
+		expect(mockRefreshInstalledPluginRoute).toHaveBeenCalledWith("learnomy");
+	});
 
-	it.each(["marketplace", "registry"] as const)(
-		"fails closed when %s plugin route sync errors and retries later",
-		async (source) => {
-			const sync = source === "marketplace" ? mockSyncMarketplacePlugins : mockSyncRegistryPlugins;
-			const warm = createAnonymousPublicPageContext();
-			await onRequest(
-				warm.context as Parameters<typeof onRequest>[0],
-				async () => new Response("page"),
-			);
-			const { context } = createRequestContext({
-				url: "https://example.com/_emdash/api/plugins/learnomy/health",
-			});
-			const next = vi.fn(async () =>
-				getPluginRoute({
-					params: { pluginId: "learnomy", path: "health" },
-					request: context.request,
-					locals: context.locals,
-				} as never),
-			);
-			sync.mockRejectedValueOnce(new Error("temporary sync failure"));
-			const failed = await onRequest(context as Parameters<typeof onRequest>[0], next);
-			expect(failed.status).toBe(503);
-			expect(next).not.toHaveBeenCalled();
+	it("fails closed when plugin route refresh errors and retries later", async () => {
+		const warm = createAnonymousPublicPageContext();
+		await onRequest(
+			warm.context as Parameters<typeof onRequest>[0],
+			async () => new Response("page"),
+		);
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/plugins/learnomy/health",
+		});
+		const next = vi.fn(async () =>
+			getPluginRoute({
+				params: { pluginId: "learnomy", path: "health" },
+				request: context.request,
+				locals: context.locals,
+			} as never),
+		);
+		mockRefreshInstalledPluginRoute.mockRejectedValueOnce(new Error("temporary refresh failure"));
+		const failed = await onRequest(context as Parameters<typeof onRequest>[0], next);
+		expect(failed.status).toBe(503);
+		expect(next).not.toHaveBeenCalled();
 
-			mockGetPluginRouteMeta.mockReturnValue({ public: true, methods: ["GET"] });
-			const retried = await onRequest(context as Parameters<typeof onRequest>[0], next);
-			expect(retried.status).toBe(200);
-			expect(next).toHaveBeenCalledOnce();
-		},
-	);
+		mockGetPluginRouteMeta.mockReturnValue({ public: true, methods: ["GET"] });
+		const retried = await onRequest(context as Parameters<typeof onRequest>[0], next);
+		expect(retried.status).toBe(200);
+		expect(next).toHaveBeenCalledOnce();
+	});
 
 	it.each([
 		["an anonymous page", () => createRequestContext({ url: "https://example.com/" })],
@@ -757,8 +730,7 @@ describe("astro middleware anonymous session reads", () => {
 		const { context } = makeContext();
 		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
 
-		expect(mockSyncMarketplacePlugins).not.toHaveBeenCalled();
-		expect(mockSyncRegistryPlugins).not.toHaveBeenCalled();
+		expect(mockRefreshInstalledPluginRoute).not.toHaveBeenCalled();
 	});
 
 	it("hides private and unknown metadata and does not dispatch them anonymously", async () => {
