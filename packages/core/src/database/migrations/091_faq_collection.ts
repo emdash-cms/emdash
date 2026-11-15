@@ -1,14 +1,15 @@
 import type { Kysely } from "kysely";
 
 import { SchemaRegistry } from "../../schema/registry.js";
+import type { CreateCollectionInput } from "../../schema/types.js";
 import type { Database } from "../types.js";
 
-const FAQ_COLLECTION = {
+const FAQ_COLLECTION: Omit<CreateCollectionInput, "source"> = {
 	slug: "faqs",
 	label: "FAQs",
 	labelSingular: "FAQ",
 	description: "Frequently asked questions managed from the CMS.",
-	supports: ["drafts", "revisions", "search"] as const,
+	supports: ["drafts", "revisions", "search"],
 	admin: { listColumns: ["question", "sort_order"] },
 };
 
