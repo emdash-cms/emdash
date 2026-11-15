@@ -10,6 +10,7 @@ import {
 	revisionAuthorColor,
 	revisionAuthorColors,
 	revisionDate,
+	revisionNamed,
 	revisionTargetElementId,
 	useRevisionFormat,
 	type AuthorColor,
@@ -513,7 +514,7 @@ export function useRevisionView({
 	React.useEffect(() => {
 		if (!pendingAnnounceRef.current || !revision) return;
 		pendingAnnounceRef.current = false;
-		const name = isolate(format.author(revision.author));
+		const name = isolate(format.people(revisionNamed(revision)));
 		announce(t`Viewing the version from ${when} by ${name}.`);
 	}, [revision, when, format, announce, t]);
 

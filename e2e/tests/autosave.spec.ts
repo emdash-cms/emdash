@@ -8,7 +8,7 @@
  * causing every autosave to create a new revision.
  */
 
-import { test, expect } from "../fixtures";
+import { pinSingleEditor, test, expect } from "../fixtures";
 
 test.describe("Autosave", () => {
 	let collectionSlug: string;
@@ -16,7 +16,8 @@ test.describe("Autosave", () => {
 	let headers: Record<string, string>;
 	let baseUrl: string;
 
-	test.beforeEach(async ({ admin, serverInfo }) => {
+	test.beforeEach(async ({ admin, context, serverInfo }) => {
+		await pinSingleEditor(context, serverInfo.baseUrl);
 		await admin.devBypassAuth();
 
 		baseUrl = serverInfo.baseUrl;

@@ -14,7 +14,9 @@ import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
+import { waitForDeferredTasks } from "../../core/src/deferred-tasks.js";
 import { createKVAccess } from "../../core/src/plugins/context.js";
+import { setRoomNotifier } from "../../core/src/rooms/notifications.js";
 import {
 	bytesOverLimit,
 	INVALID_PLUGIN_HTTP_BYTES,
@@ -1926,6 +1928,40 @@ describe("Bridge Handler Conformance", () => {
 				.selectAll()
 				.execute();
 			expect(rows).toHaveLength(3);
+		});
+
+		it("contentDeleteMany moves each entry to Trash and notifies its room", async () => {
+			await db
+				.insertInto("ec_atomic_posts" as any)
+				.values([
+					{ id: "p1", slug: "p1" },
+					{ id: "p2", slug: "p2" },
+				])
+				.execute();
+			const notified: string[] = [];
+			setRoomNotifier({ notify: async (roomId) => void notified.push(roomId) });
+			try {
+				const result = await call(
+					makeHandler({ capabilities: ["write:content"] }),
+					"content/deleteMany",
+					{
+						collection: "atomic_posts",
+						ids: ["p1", "p2"],
+					},
+				);
+				expect(result.result).toBe(2);
+				await waitForDeferredTasks();
+			} finally {
+				setRoomNotifier(null);
+			}
+
+			expect(notified).toEqual(["atomic_posts:p1", "atomic_posts:p2"]);
+			const rows = await db
+				.selectFrom("ec_atomic_posts" as any)
+				.select("deleted_at")
+				.where("deleted_at", "is", null)
+				.execute();
+			expect(rows).toEqual([]);
 		});
 	});
 });

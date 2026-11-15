@@ -153,11 +153,28 @@ describe("Settings", () => {
 			</Wrapper>,
 		);
 
-		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Language"]) {
+		for (const name of ["Site", "Security Settings", "API Tokens", "Email Settings", "Personal"]) {
 			await expect
 				.element(screen.getByRole("heading", { name, level: 2, exact: true }))
 				.toBeInTheDocument();
 		}
+	});
+
+	it("offers every role the Sidebars page and the language under Personal", async () => {
+		currentUser.role = 30;
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		const personal = screen.getByRole("region", { name: "Personal" });
+		await expect
+			.element(personal.getByRole("link", { name: /^Sidebars/ }))
+			.toHaveAttribute("href", "/settings/sidebars");
+		await expect
+			.element(personal.getByRole("combobox", { name: "Language", exact: true }))
+			.toBeInTheDocument();
 	});
 
 	it("filters and changes the admin language", async () => {

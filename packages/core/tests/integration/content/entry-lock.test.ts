@@ -1,5 +1,5 @@
 import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import {
 	handleContentDelete,
@@ -11,6 +11,10 @@ import {
 	handleEntryLockRead,
 	handleEntryLockRelease,
 } from "../../../src/api/handlers/entry-lock.js";
+import {
+	GET as readLock,
+	POST as takeLock,
+} from "../../../src/astro/routes/api/content/[collection]/[id]/lock.js";
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -228,6 +232,115 @@ describe("entry edit lock", () => {
 				.execute();
 
 			expect(await claimEntryLockForWrite(db, "post", entryId, LINUS)).toBeNull();
+		});
+	});
+
+	describe("while a co-editing room is open", () => {
+		function rooms(open = true) {
+			return { isOpen: vi.fn(async () => open) };
+		}
+
+		const ROOM_STATUS = {
+			enabled: true,
+			room: true,
+			heldByCaller: false,
+			holder: {
+				userId: "",
+				userName: null,
+				acquiredAt: expect.any(String),
+				expiresAt: expect.any(String),
+			},
+		};
+
+		it("reports the room as the holder and grants no lock", async () => {
+			const open = rooms();
+
+			const read = await handleEntryLockRead(db, "post", entryId, ADA, { rooms: open });
+			const acquired = await handleEntryLockAcquire(db, "post", entryId, ADA, { rooms: open });
+
+			expect(read).toEqual({ success: true, data: ROOM_STATUS });
+			expect(acquired).toEqual({ success: true, data: ROOM_STATUS });
+			expect(open.isOpen).toHaveBeenCalledWith(`post:${entryId}`);
+			expect(await new EntryLockRepository(db).findLive("post", entryId)).toBeNull();
+			const holder = acquired.success ? acquired.data.holder : null;
+			expect(holder!.expiresAt > holder!.acquiredAt).toBe(true);
+		});
+
+		it("deletes every user lock on the entry when a tab takes or renews one", async () => {
+			await handleEntryLockAcquire(db, "post", entryId, ADA);
+
+			await handleEntryLockAcquire(db, "post", entryId, LINUS, { rooms: rooms() });
+
+			expect(await new EntryLockRepository(db).findLive("post", entryId)).toBeNull();
+		});
+
+		it("reports the room where the collection takes no edit locks", async () => {
+			await disableLocking();
+
+			expect(await handleEntryLockRead(db, "post", entryId, ADA, { rooms: rooms() })).toEqual({
+				success: true,
+				data: ROOM_STATUS,
+			});
+			expect(await handleEntryLockAcquire(db, "post", entryId, ADA, { rooms: rooms() })).toEqual({
+				success: true,
+				data: ROOM_STATUS,
+			});
+		});
+
+		it("is what the lock route's GET and POST report", async () => {
+			await handleEntryLockAcquire(db, "post", entryId, ADA);
+			const call = (route: typeof readLock, method: string) => {
+				const url = new URL(`http://localhost/_emdash/api/content/post/${entryId}/lock`);
+				return route({
+					params: { collection: "post", id: entryId },
+					request: new Request(url, { method }),
+					url,
+					locals: {
+						user: { id: LINUS, role: 40 },
+						emdash: {
+							db,
+							rooms: rooms(),
+							handleContentGet: async () => ({
+								success: true,
+								data: { item: { id: entryId, authorId: ADA, status: "draft" }, _rev: "rev" },
+							}),
+						},
+					},
+				} as never) as Promise<Response>;
+			};
+
+			for (const [route, method] of [
+				[readLock, "GET"],
+				[takeLock, "POST"],
+			] as const) {
+				const response = await call(route, method);
+				expect(response.status).toBe(200);
+				expect(await response.json()).toEqual({ success: true, data: ROOM_STATUS });
+			}
+			expect(await new EntryLockRepository(db).findLive("post", entryId)).toBeNull();
+		});
+
+		it("locks as before, reporting no room, once the room has closed", async () => {
+			const closed = rooms(false);
+
+			expect(
+				await handleEntryLockAcquire(db, "post", entryId, ADA, { rooms: closed }),
+			).toMatchObject({
+				success: true,
+				data: { enabled: true, room: false, heldByCaller: true, holder: { userId: ADA } },
+			});
+			expect(
+				await handleEntryLockRead(db, "post", entryId, LINUS, { rooms: closed }),
+			).toMatchObject({
+				success: true,
+				data: { room: false, heldByCaller: false, holder: { userId: ADA } },
+			});
+
+			await disableLocking();
+			expect(await handleEntryLockRead(db, "post", entryId, ADA, { rooms: closed })).toEqual({
+				success: true,
+				data: { enabled: false, room: false, holder: null, heldByCaller: false },
+			});
 		});
 	});
 

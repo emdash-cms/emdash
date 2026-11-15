@@ -16,6 +16,7 @@ import {
 	TableIdentity,
 } from "../../src/components/editor/TableExtensions";
 import { MAX_TABLE_COLUMN_WIDTH, MAX_TABLE_PASTE_TEXT_BYTES } from "../../src/portable-text-table";
+import { PortableTextFilledDefaults } from "../../src/portable-text/schema";
 
 const atom = (name: string) =>
 	Node.create({
@@ -40,6 +41,7 @@ function createEditor(onRejected = vi.fn(), content?: JSONContent) {
 			EmDashTableHeader,
 			EmDashTableCell,
 			TableIdentity,
+			PortableTextFilledDefaults,
 			createTableCellSafety(onRejected),
 		],
 		content: content ?? {

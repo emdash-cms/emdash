@@ -84,6 +84,54 @@ jobs:
               /^infra\/flue-review\//,
             ];
 
+            const proposalIndex = 'proposals/README.md';
+            const proposalPath =
+              /^proposals\/(?!(?:README|feature-plan-template|rfc-template)\.md$)[a-z0-9][a-z0-9-]*\.md$/;
+
+            // A design pull request adds its row to the proposal index, which is otherwise a
+            // governance file. Edits that only touch table rows don't need two approvals.
+            const onlyChangesIndexRows = file =>
+              typeof file.patch === 'string' &&
+              file.patch
+                .split('\n')
+                .filter(line => /^[+-]/.test(line))
+                .every(line => /^[+-]\|/.test(line));
+
+            const isPrivileged = (file, isDesign) =>
+              privilegedPaths.some(pattern => pattern.test(file.filename)) &&
+              !(isDesign && file.filename === proposalIndex && onlyChangesIndexRows(file));
+
+            const handles = text =>
+              [...text.matchAll(/\(@([a-z\d-]+)\)/gi)].map(match => match[1].toLowerCase());
+
+            const scalar = value =>
+              value.replace(/\s+#.*$/, '').trim().replace(/^(['"])(.*)\1$/, '$2').trim();
+
+            function parseProposal(path, text) {
+              const frontMatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] || '';
+              const field = name =>
+                frontMatter.match(new RegExp(`^${name}:(.*(?:\\r?\\n[ \\t]+.*)*)`, 'm'))?.[1] || '';
+              return {
+                path,
+                type: scalar(field('type')),
+                authors: handles(field('authors')),
+                sponsor: handles(field('sponsor'))[0] || null,
+              };
+            }
+
+            async function readProposals(pr, files) {
+              const changed = files.filter(file =>
+                file.status !== 'removed' && proposalPath.test(file.filename)
+              );
+              const contents = await Promise.all(changed.map(file =>
+                github.rest.repos.getContent({ owner, repo, path: file.filename, ref: pr.head.sha })
+              ));
+              return contents
+                .map(({ data }, index) => ({ path: changed[index].filename, data }))
+                .filter(({ data }) => !Array.isArray(data) && data.type === 'file')
+                .map(({ path, data }) => parseProposal(path, Buffer.from(data.content, 'base64').toString('utf8')));
+            }
+
             // Read from the default branch, so neither a PR nor its base branch can
             // change who counts as a Maintainer.
             let governanceFile;
@@ -114,6 +162,10 @@ jobs:
               core.setFailed('GOVERNANCE.md does not contain a marked Maintainers list.');
               return;
             }
+            const projectLead = governance
+              .match(/<!-- project-lead:start -->([\s\S]*?)<!-- project-lead:end -->/)?.[1]
+              ?.match(/https:\/\/github\.com\/([a-z\d-]+)/i)?.[1]
+              ?.toLowerCase() || null;
 
             async function setReviewLabel(pr, desired) {
               const current = new Set((pr.labels || []).map(label => label.name));
@@ -191,6 +243,43 @@ jobs:
               }
             }
 
+            const statusMarker = '<!-- approval-status -->';
+
+            // The approval check is easy to miss among the other checks, so design and
+            // privileged pull requests, which have more than one requirement, also get a
+            // comment. It is edited in place rather than reposted.
+            function statusCommentBody(summary, checklist) {
+              return [
+                statusMarker,
+                '### Approval status',
+                '',
+                summary,
+                ...(checklist ? ['', checklist] : []),
+                '',
+                'This comment updates as reviews arrive. See [MAINTAINING.md](https://github.com/emdash-cms/emdash/blob/main/MAINTAINING.md) and [the proposal process](https://github.com/emdash-cms/emdash/blob/main/proposals/README.md) for the rules.',
+              ].join('\n');
+            }
+
+            // A null body removes the comment. Without create, only an existing comment is updated.
+            async function syncStatusComment(pr, body, { create = true } = {}) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: pr.number,
+                per_page: 100,
+              });
+              const existing = comments.find(comment =>
+                comment.user?.login === 'github-actions[bot]' && comment.body?.includes(statusMarker)
+              );
+              if (body === null) {
+                if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
+              } else if (!existing) {
+                if (create) await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+              } else if (existing.body !== body) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+              }
+            }
+
             async function evaluate(pr) {
               if (pr.draft) {
                 await setApprovalStatus(
@@ -200,6 +289,11 @@ jobs:
                   'Maintainer review is not requested while this pull request is a draft.',
                 );
                 await setReviewLabel(pr, null);
+                await syncStatusComment(
+                  pr,
+                  statusCommentBody('This pull request is a draft. Approval requirements are checked when it is ready for review.'),
+                  { create: false },
+                );
                 core.info(`#${pr.number}: draft, no approval required yet`);
                 return;
               }
@@ -262,11 +356,79 @@ jobs:
                 .map(review => review.user.login);
               const changeRequests = decisions.filter(review => review.state === 'CHANGES_REQUESTED');
 
-              const privileged = files.some(file =>
-                privilegedPaths.some(pattern => pattern.test(file.filename))
-              );
+              const isDesign =
+                /^design:/i.test(pr.title || '') || (pr.body || '').includes('<!-- design-pr -->');
+              const proposals = isDesign ? await readProposals(pr, files) : [];
+              const rfcs = proposals.filter(proposal => proposal.type === 'rfc');
+              const opener = pr.user.login.toLowerCase();
+              const authors = new Set([opener, ...proposals.flatMap(proposal => proposal.authors)]);
+              const approved = new Set(approvers.map(login => login.toLowerCase()));
+              const hasApproved = login => login === opener || approved.has(login);
+              const independentApprovers = [...approved].filter(login => !authors.has(login));
+
+              const privileged = files.some(file => isPrivileged(file, isDesign));
               const required = privileged ? 2 : 1;
-              const met = changeRequests.length === 0 && approvers.length >= required;
+              const category = privileged ? 'governance or privileged supply-chain' : 'normal';
+              const requirements = [];
+              const requirement = (met, text) => requirements.push({ met, text });
+              // Only people the pull request is waiting on are mentioned, so the comment
+              // doesn't notify everyone it names.
+              const handle = login => `\`@${login}\``;
+              const approval = (role, login, action) => {
+                if (login === opener) return `${role} ${handle(login)} opened this pull request.`;
+                if (approved.has(login)) return `${role} ${handle(login)} has ${action}.`;
+                return `${role} @${login} has not ${action}.`;
+              };
+              const mentions = logins => logins.map(handle).join(', ');
+
+              requirement(
+                independentApprovers.length >= required,
+                `${required} human Maintainer approval${required === 1 ? '' : 's'} from someone other than the author (${category} change); found ${independentApprovers.length}${independentApprovers.length > 0 ? `: ${mentions(independentApprovers)}` : ''}.`,
+              );
+              for (const proposal of proposals) {
+                if (!['rfc', 'feature-plan'].includes(proposal.type)) {
+                  requirement(
+                    false,
+                    `\`${proposal.path}\` must set \`type\` to \`rfc\` or \`feature-plan\`; found ${proposal.type ? `\`${proposal.type}\`` : 'none'}.`,
+                  );
+                }
+              }
+              if (rfcs.length > 0) {
+                for (const sponsor of new Set(rfcs.map(rfc => rfc.sponsor))) {
+                  if (!sponsor || !maintainers.has(sponsor)) {
+                    requirement(false, `The RFC sponsor must be a Maintainer; found ${sponsor ? handle(sponsor) : 'none'}.`);
+                  } else {
+                    requirement(
+                      hasApproved(sponsor),
+                      approval('The RFC sponsor', sponsor, 'approved the current revision'),
+                    );
+                  }
+                }
+                const supporters = independentApprovers.filter(login => login !== projectLead);
+                requirement(
+                  supporters.length > 0,
+                  `Support from a Maintainer other than the author and the Project Lead${supporters.length > 0 ? `: ${mentions(supporters)}` : ''}.`,
+                );
+                if (!projectLead) {
+                  requirement(false, 'GOVERNANCE.md does not contain a marked Project Lead.');
+                } else {
+                  requirement(
+                    hasApproved(projectLead),
+                    approval('The Project Lead', projectLead, 'accepted the RFC'),
+                  );
+                }
+              }
+              const requesters = changeRequests.map(review => review.user.login);
+              requirement(
+                requesters.length === 0,
+                requesters.length === 0
+                  ? 'No outstanding change requests.'
+                  : `Changes are still requested by ${mentions(requesters)}.`,
+              );
+              const met = requirements.every(item => item.met);
+              const checklist = requirements
+                .map(item => `- ${item.met ? '✅' : '❌'} ${item.text}`)
+                .join('\n');
 
               let label;
               if (met) {
@@ -284,30 +446,22 @@ jobs:
                 label = 'review/needs-review';
               }
 
-              if (met) {
-                await setApprovalStatus(
-                  pr,
-                  true,
-                  'Human Maintainer approval requirement met',
-                  `Current revision approved by ${approvers.join(', ')}.`,
-                );
-              } else if (changeRequests.length > 0) {
-                const requesters = changeRequests.map(review => review.user.login);
-                await setApprovalStatus(
-                  pr,
-                  false,
-                  'Changes requested by a human Maintainer',
-                  `Current revision has ${approvers.length} of ${required} expected human Maintainer approvals. Changes are still requested by ${requesters.join(', ')}.`,
-                );
-              } else {
-                const category = privileged ? 'governance or privileged supply-chain' : 'normal';
-                await setApprovalStatus(
-                  pr,
-                  false,
-                  'Awaiting human Maintainer approval',
-                  `${category} changes require ${required} human Maintainer approval${required === 1 ? '' : 's'} on the current revision; found ${approvers.length}.`,
-                );
-              }
+              let title;
+              if (met) title = 'Human Maintainer approval requirement met';
+              else if (requesters.length > 0) title = 'Changes requested by a human Maintainer';
+              else title = 'Awaiting human Maintainer approval';
+              await setApprovalStatus(pr, met, title, checklist);
+              await syncStatusComment(
+                pr,
+                isDesign || privileged
+                  ? statusCommentBody(
+                      met
+                        ? 'The current revision meets the approval requirements.'
+                        : 'The current revision does not meet the approval requirements yet.',
+                      checklist,
+                    )
+                  : null,
+              );
 
               // Bot-authored PRs have a review status check but carry no review label. This
               // also removes the label the reviewer adds to re-run the workflow.

@@ -1,69 +1,49 @@
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import type { RevisionAuthor, RevisionListItem } from "../../lib/api";
 import type { CurrentUser } from "../../lib/api/current-user.js";
-import { formatDate, parseTimestamp } from "../../lib/utils.js";
+import { assignAuthorColors, authorColorOf, type AuthorColor } from "../../lib/author-colors.js";
+import { formatDate, isolate, parseTimestamp } from "../../lib/utils.js";
 
-export type AuthorColor = "purple" | "teal" | "blue" | "orange" | "neutral";
-
-const AUTHOR_PALETTE = ["purple", "teal", "blue", "orange"] as const;
+export { assignAuthorColors, authorColorOf, type AuthorColor };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function fnv1a(value: string): number {
-	let hash = 0x811c9dc5;
-	for (let index = 0; index < value.length; index++) {
-		hash ^= value.charCodeAt(index);
-		hash = Math.imul(hash, 0x01000193);
-	}
-	return hash >>> 0;
+/**
+ * The people a version names: everyone who edited it since the version before it, or its author
+ * when no one is recorded. An entry is `null` for an account that no longer exists.
+ */
+export function revisionNamed(item: RevisionListItem): Array<RevisionAuthor | null> {
+	return item.editedBy ?? [item.author];
+}
+
+function soleNamed(item: RevisionListItem): RevisionAuthor | null {
+	const named = revisionNamed(item);
+	return named.length === 1 ? (named[0] ?? null) : null;
 }
 
 /**
- * Gives each author a palette colour from a hash of their id. Authors are placed in id order and
- * move to the next free colour on a collision, so two authors only share a colour once the
- * palette runs out.
+ * Colours for the people that versions of a loaded list name on their own, shared by the list dots,
+ * the view bar and the canvas marks.
  */
-export function assignAuthorColors(
-	authorIds: Iterable<string | null | undefined>,
-): ReadonlyMap<string, AuthorColor> {
-	const ids = [...new Set([...authorIds].filter((id): id is string => Boolean(id)))].toSorted();
-	const taken = new Set<number>();
-	const colors = new Map<string, AuthorColor>();
-	for (const id of ids) {
-		const start = fnv1a(id) % AUTHOR_PALETTE.length;
-		let slot = start;
-		for (let step = 1; taken.has(slot) && step < AUTHOR_PALETTE.length; step++) {
-			slot = (start + step) % AUTHOR_PALETTE.length;
-		}
-		taken.add(slot);
-		colors.set(id, AUTHOR_PALETTE[slot] ?? "neutral");
-	}
-	return colors;
-}
-
-export function authorColorOf(
-	colors: ReadonlyMap<string, AuthorColor>,
-	authorId: string | null | undefined,
-): AuthorColor {
-	return (authorId && colors.get(authorId)) || "neutral";
-}
-
-/** Colours for the authors of a loaded revision list, shared by the list dots and the canvas marks. */
 export function revisionAuthorColors(
 	items: readonly RevisionListItem[],
 ): ReadonlyMap<string, AuthorColor> {
-	return assignAuthorColors(items.map((item) => item.author?.id));
+	return assignAuthorColors(items.map((item) => soleNamed(item)?.id));
 }
 
-/** A revision's author colour; neutral when the author is unknown or the account is gone. */
+/**
+ * A version's colour: the colour of the one person it names, or neutral when it names several, or
+ * only an unknown or deleted account.
+ */
 export function revisionAuthorColor(
 	colors: ReadonlyMap<string, AuthorColor>,
 	item: RevisionListItem,
 ): AuthorColor {
-	return authorColorOf(colors, item.author?.id);
+	return authorColorOf(colors, soleNamed(item)?.id);
 }
 
 /** Revision timestamps come from SQLite without a zone and are UTC. */
@@ -94,6 +74,13 @@ export interface RevisionFormat {
 	 * someone else's; "Unknown author" when no author was recorded or the account is gone.
 	 */
 	author(author: RevisionAuthor | null | undefined): string;
+	/**
+	 * The people a version names, such as "Ana", "Ana and Ben", or "Ana, Ben, and 3 other people",
+	 * each named as `author` names them and joined as the locale joins a list. Deleted accounts
+	 * count among the others; a list of only deleted accounts reads "Unknown author". With more
+	 * than one person, each name is isolated.
+	 */
+	people(named: readonly (RevisionAuthor | null)[]): string;
 }
 
 export function useRevisionFormat(): RevisionFormat {
@@ -129,6 +116,22 @@ export function useRevisionFormat(): RevisionFormat {
 			if (value && me && value.id === me.id) return me.name || me.email;
 			return value ? t`Unnamed user` : t`Unknown author`;
 		};
-		return { day, time, when, author };
+		const list = new Intl.ListFormat(locale, { type: "conjunction" });
+		const people = (named: readonly (RevisionAuthor | null)[]) => {
+			const names = named
+				.filter((person): person is RevisionAuthor => person !== null)
+				.slice(0, 2)
+				.map((person) => author(person));
+			const [first] = names;
+			if (first === undefined) return author(null);
+			const others = named.length - names.length;
+			if (names.length === 1 && others === 0) return first;
+			const items = names.map((name) => isolate(name));
+			if (others > 0) {
+				items.push(plural(others, { one: "# other person", other: "# other people" }));
+			}
+			return list.format(items);
+		};
+		return { day, time, when, author, people };
 	}, [t, locale, queryClient]);
 }

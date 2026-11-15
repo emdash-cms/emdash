@@ -8,6 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { ContentWrite } from "../api/content-save.js";
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
@@ -182,6 +183,8 @@ export interface EmDashManifest {
 	signupEnabled?: boolean;
 	/** Whether the site is in staging (hidden from search engines). */
 	staging?: boolean;
+	/** Whether this host runs co-editing rooms. When false, the editor doesn't ask to join one. */
+	coEditing?: boolean;
 	/**
 	 * i18n configuration from Astro config.
 	 * Only present when i18n is enabled (multiple locales configured).
@@ -385,10 +388,21 @@ export interface EmDashHandlers {
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
+			/** Users whose edits this save holds, latest first. Defaults to the actor alone. */
+			editedBy?: readonly string[];
 		},
-	) => Promise<HandlerResponse>;
+	) => Promise<
+		HandlerResponse & {
+			/** This save's own write, when it staged a draft revision and wrote no live metadata. */
+			saved?: ContentWrite;
+		}
+	>;
 
-	handleContentDelete: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentDelete: (
+		collection: string,
+		id: string,
+		options?: { actor?: ActorInfo },
+	) => Promise<HandlerResponse>;
 
 	// Trash handlers
 	handleContentListTrashed: (
@@ -444,7 +458,7 @@ export interface EmDashHandlers {
 	handleContentUnschedule: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo },
 	) => Promise<HandlerResponse>;
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
@@ -452,7 +466,7 @@ export interface EmDashHandlers {
 	handleContentDiscardDraft: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo },
 	) => Promise<HandlerResponse>;
 
 	handleContentCompare: (collection: string, id: string) => Promise<HandlerResponse>;
@@ -530,6 +544,12 @@ export interface EmDashHandlers {
 		params?: { limit?: number },
 	) => Promise<HandlerResponse>;
 
+	handleRevisionEditors: (
+		collection: string,
+		entryId: string,
+		since: string | null,
+	) => Promise<HandlerResponse>;
+
 	handleRevisionGet: (revisionId: string) => Promise<
 		HandlerResponse<{
 			item: {
@@ -542,7 +562,15 @@ export interface EmDashHandlers {
 		}>
 	>;
 
-	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
+	/**
+	 * A recovery revision restores as a save by the caller, with `role` or else their current
+	 * role.
+	 */
+	handleRevisionRestore: (
+		revisionId: string,
+		callerUserId: string,
+		role?: import("@emdash-cms/auth").RoleLevel,
+	) => Promise<HandlerResponse>;
 
 	// Plugin API route handler. `user` is the authenticated caller for
 	// private routes, exposed to plugin handlers as `ctx.user`.
@@ -661,6 +689,10 @@ export interface EmDashHandlers {
 	// routes; logged-out requests don't need it. Per-request, deduplicated
 	// by `requestCached`.
 	getManifest: () => Promise<EmDashManifest>;
+
+	// Co-editing rooms. Null where co-editing is off or the host can't run
+	// rooms, which gives every join single-editor mode.
+	rooms: import("../rooms/types.js").RuntimeRoomHost | null;
 
 	// Clear the cached URL patterns used by `resolveEmDashPath`. Call after
 	// any schema mutation that creates/updates/deletes a collection's

@@ -15,6 +15,7 @@ import { test as base } from "@playwright/test";
 import { AdminPage } from "./admin";
 
 export { AdminPage } from "./admin";
+export { pinSingleEditor } from "./co-editing";
 
 const SERVER_INFO_PATH = join(tmpdir(), "emdash-pw-server.json");
 

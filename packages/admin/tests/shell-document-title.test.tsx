@@ -14,7 +14,8 @@ import { Shell, type ShellProps } from "../src/components/Shell";
 import { AdminBrandingProvider } from "../src/lib/admin-branding-context";
 import { render } from "./utils/render.tsx";
 
-vi.mock("../src/lib/api/current-user", () => ({
+vi.mock("../src/lib/api/current-user", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../src/lib/api/current-user")>()),
 	useCurrentUser: () => ({ data: null }),
 }));
 

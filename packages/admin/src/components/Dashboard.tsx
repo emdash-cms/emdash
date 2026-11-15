@@ -168,11 +168,11 @@ function SchedulerWarning({
 				<div className="space-y-2">
 					<Banner
 						variant="alert"
-						title={t`Publication policy blocked scheduled content`}
+						title={t`Scheduled content was not published`}
 						description={plural(policyRejected, {
-							one: "Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.",
+							one: "Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.",
 							other:
-								"Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.",
+								"Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.",
 						})}
 						role="alert"
 					/>
@@ -216,8 +216,8 @@ function SchedulerWarning({
 					{policyRejected > policyRejections.length && (
 						<p className="text-sm text-kumo-subtle">
 							{plural(policyRejected - policyRejections.length, {
-								one: "One more blocked entry is not shown.",
-								other: "# more blocked entries are not shown.",
+								one: "One more entry is not shown.",
+								other: "# more entries are not shown.",
 							})}
 						</p>
 					)}

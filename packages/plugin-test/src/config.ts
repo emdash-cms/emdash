@@ -18,6 +18,7 @@ export interface EmDashPluginTestOptions {
 const runtimeVirtualModules: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
+	"virtual:emdash/rooms": "export const createRoomHost = null;",
 	"virtual:emdash/config": "export default {};",
 	"virtual:emdash/env": "export const env = undefined;",
 	"virtual:emdash/build": "export const buildTime = 0;",

@@ -102,7 +102,7 @@ function expectSingleRow(toolbar: HTMLElement) {
 }
 
 function actionGrid(toolbar: HTMLElement) {
-	return toolbar.querySelector("fieldset")!.parentElement!;
+	return toolbar.querySelector<HTMLElement>("[data-emdash-editor-actions]")!;
 }
 
 function actionRects(toolbar: HTMLElement) {

@@ -9,7 +9,8 @@ const external = [/^astro:/, /^virtual:emdash\//];
 
 export function convertUiComponentToTSX(source: string, filename: string) {
 	return convertToTSX(source, {
-		// Astro embeds this filename in sourcemap JSON without escaping backslashes.
+		// The compiler writes this name into the sourcemap JSON verbatim and parses
+		// that JSON back, so Windows separators must not reach it as backslashes.
 		filename: filename.replaceAll("\\", "/"),
 		includeScripts: false,
 		includeStyles: false,
