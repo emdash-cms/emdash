@@ -1,9 +1,11 @@
 {
 	"name": "@emdash-cms/template-ecommerce",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"private": true,
 	"type": "module",
-	"emdash": { "seed": "seed/seed.json" },
+	"emdash": {
+		"seed": "seed/seed.json"
+	},
 	"scripts": {
 		"dev": "astro dev",
 		"build": "astro build",
@@ -21,5 +23,7 @@
 		"react": "catalog:",
 		"react-dom": "catalog:"
 	},
-	"devDependencies": { "@astrojs/check": "catalog:" }
+	"devDependencies": {
+		"@astrojs/check": "catalog:"
+	}
 }

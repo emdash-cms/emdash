@@ -1,5 +1,16 @@
 # @emdash-cms/admin
 
+## 0.38.0
+
+### Patch Changes
+
+- [#58](https://github.com/jke-solutions/emdash/pull/58) [`c739487`](https://github.com/jke-solutions/emdash/commit/c739487706d7c0d7b2b0e71111c8cb2073bfa794) Thanks [@jonico22](https://github.com/jonico22)! - Adds route-backed Ecommerce sections and a summary view, while organizing store settings and service administration under the correct services collection.
+
+- [#53](https://github.com/jke-solutions/emdash/pull/53) [`997fbe5`](https://github.com/jke-solutions/emdash/commit/997fbe59338ab9fb930fbffb75f413ad18df4b44) Thanks [@jonico22](https://github.com/jonico22)! - Adds optional images and home visibility to taxonomy terms, so product, service, and post categories can be presented with their own metadata without creating duplicate content types.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.38.0
+
 ## 0.37.1
 
 ### Patch Changes
