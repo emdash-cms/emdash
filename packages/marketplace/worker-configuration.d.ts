@@ -8,13 +8,7 @@ declare namespace Cloudflare {
 	interface Env {
 		R2: R2Bucket;
 		DB: D1Database;
-		AI: Ai;
 		IMAGES: ImagesBinding;
-		GITHUB_CLIENT_ID: string;
-		GITHUB_CLIENT_SECRET: string;
-		AUDIT_ENFORCEMENT: string;
-		SEED_TOKEN?: string;
-		AUDIT_WORKFLOW: Workflow /* AuditWorkflow */;
 	}
 }
 interface Env extends Cloudflare.Env {}
