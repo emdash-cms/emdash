@@ -179,6 +179,7 @@ import {
 } from "./lib/co-editing/types.js";
 import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
+import { invalidateContentViews } from "./lib/invalidate-content-views.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import {
@@ -722,16 +723,14 @@ function ContentListPage() {
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
 	const restoreMutation = useMutation({
 		mutationFn: (id: string) => restoreContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -745,14 +744,14 @@ function ContentListPage() {
 	const permanentDeleteMutation = useMutation({
 		mutationFn: (id: string) => permanentDeleteContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
 	const duplicateMutation = useMutation({
 		mutationFn: (id: string) => duplicateContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -788,7 +787,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -811,7 +810,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -832,8 +831,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -968,7 +966,7 @@ function ContentNewPage() {
 			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
@@ -1235,6 +1233,7 @@ function ContentEditPage() {
 			case "checkpoint":
 				refusedSavesRef.current.clear();
 				if (event.editedBy.length > 0) {
+					void invalidateContentViews(queryClient, { collection, id }, "none");
 					void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 					void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
 					// Only the first save after a publish or discard gives the entry a draft of its own.
@@ -1248,6 +1247,7 @@ function ContentEditPage() {
 				return;
 			case "reconnected":
 			case "operation": {
+				void invalidateContentViews(queryClient, { collection, id });
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 				void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 				void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
@@ -1704,6 +1704,7 @@ function ContentEditPage() {
 			const contentRefresh = queryClient.invalidateQueries({
 				queryKey: ["content", collection, targetId],
 			});
+			void invalidateContentViews(queryClient, { collection, id: targetId });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
 				queryKey: ["revisions", collection, targetId],
@@ -1905,6 +1906,7 @@ function ContentEditPage() {
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
+			void invalidateContentViews(queryClient, { collection, id: variables.targetId }, "none");
 		},
 		onError: async (err, variables) => {
 			if (await recoverInEditor(err, variables.targetId)) return;
@@ -1934,6 +1936,7 @@ function ContentEditPage() {
 			if (savedReferences) {
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			}
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -1958,6 +1961,7 @@ function ContentEditPage() {
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
@@ -1979,6 +1983,7 @@ function ContentEditPage() {
 			await queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			resetEditorItem(id, { discarded: true });
 			toastManager.add({
@@ -2029,6 +2034,7 @@ function ContentEditPage() {
 		mutationFn: (scheduledAt: string) =>
 			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			void invalidateContentViews(queryClient, { collection, id });
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -2040,6 +2046,7 @@ function ContentEditPage() {
 		mutationFn: () =>
 			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			void invalidateContentViews(queryClient, { collection, id });
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
@@ -2065,8 +2072,7 @@ function ContentEditPage() {
 				translationOf: id,
 			}),
 		onSuccess: (result) => {
-			void queryClient.invalidateQueries({ queryKey: ["translations", collection, id] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
@@ -2091,8 +2097,7 @@ function ContentEditPage() {
 	const deleteMutation = useMutation({
 		mutationFn: () => deleteContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection",
 				params: { collection },
@@ -2487,6 +2492,7 @@ function ContentEditPage() {
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
+			invalidateContentViews(queryClient, { collection, id }),
 			queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
