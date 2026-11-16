@@ -1,4 +1,4 @@
-import { Role } from "@emdash-cms/auth";
+import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext, APIRoute } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -45,7 +45,7 @@ describe.skipIf(!PG_CONNECTION_STRING)("PostgreSQL search availability", () => {
 		await teardownTestPostgresDatabase(ctx);
 	});
 
-	function context(path: string, body?: object, role: Role | null = Role.ADMIN): APIContext {
+	function context(path: string, body?: object, role: RoleLevel | null = Role.ADMIN): APIContext {
 		const url = new URL(`http://localhost/_emdash/api/search${path}`);
 		return {
 			url,
