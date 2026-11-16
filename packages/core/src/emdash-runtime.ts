@@ -1071,13 +1071,19 @@ export class EmDashRuntime {
 		currentTime: Date = this.runtimeDeps.now?.() ?? new Date(),
 	): Promise<ScheduledSweepResult> {
 		const recordWrite = await assertSiteWriteAllowed(this.db);
+		const invalidate = this.pluginContentCacheInvalidator;
 		const result = await sweepScheduledContent(this.db, {
 			publish: (collection, id, options) =>
 				this.handleContentPublish(collection, id, {
 					...options,
 					origin: { source: "scheduler" },
 				}),
-			onPublished,
+			onPublished:
+				onPublished ??
+				(invalidate
+					? (refs) =>
+							invalidate([...new Set(refs.flatMap(({ collection, id }) => [collection, id]))])
+					: undefined),
 			currentTime,
 			upcomingUntil,
 		});

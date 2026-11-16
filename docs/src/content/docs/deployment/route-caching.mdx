@@ -77,7 +77,9 @@ Creating, editing, or deleting a redirect invalidates the cached page at the red
 
 The comment API routes invalidate `[collection, id]` for the commented entry when a submission is approved immediately, when admin moderation moves a comment into or out of approved status, or when deletion removes an approved comment or reply. Bulk moderation and deletion invalidate only the entries whose approved comments change. Pending submissions, moderation between non-approved statuses, and deletion of non-approved comments without approved replies leave the route cache unchanged. Comment moderation through the plugin API (`ctx.comments.moderate`) does not invalidate the route cache.
 
-Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
+Scheduled publishing invalidates `[collection, id]` on Node and Cloudflare. On Node, plugin content actions such as `ctx.content.publish` also invalidate those tags when called from plugin routes, hooks, or cron tasks.
+
+Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again.
 
 This is also why the tag convention matters: EmDash invalidates collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in invalidation will not match them and stale entries survive until `maxAge` expires.
 
@@ -112,7 +114,7 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 - Each server process keeps its own cache, and an invalidation only clears the process that handled the write. If you run several processes or instances, the others keep serving their cached pages until `maxAge` expires.
 - A restart empties the cache.
 - `memoryCache()` only stores a response that has a `maxAge`, so a route without a rule is never cached, even if the page calls `Astro.cache.set()` with a cache hint.
-- Scheduled publishing does not invalidate the route cache on Node. A page that lists a scheduled entry shows it once its cached copy expires, so keep `maxAge` short on routes that list scheduled content.
+- Scheduled publishing and plugin content actions from hooks or cron tasks invalidate the cache in the process that publishes the entry. Other processes keep their cached pages until they expire.
 
 ### Cloudflare with `cacheCloudflare()`
 
