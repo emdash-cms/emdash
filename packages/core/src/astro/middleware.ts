@@ -59,12 +59,12 @@ import {
 	type MediaProviderEntry,
 	type CreateSchedulerFn,
 	type CreateRoomHostFn,
+	type ScheduledTasksOptions,
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
-import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -97,7 +97,7 @@ import { resolveSessionUser } from "./session-user.js";
 import type { EmDashHandlers } from "./types.js";
 
 // Public type for withEmDashRuntime() consumers (queue/scheduled handlers).
-export type { EmDashRuntime } from "../emdash-runtime.js";
+export type { EmDashRuntime, ScheduledTasksOptions } from "../emdash-runtime.js";
 
 /**
  * Runtime init lock reclaim deadline. Must be strictly larger than the db
@@ -303,13 +303,11 @@ async function getRuntime(
  * Returns the content promoted by the publishing sweep so the caller can purge
  * edge-cache tags for it. `onPublished` (optional) is awaited after each
  * collection's batch so the caller can invalidate edge-cache tags incrementally
- * rather than only after the whole sweep.
+ * rather than only after the whole sweep. `publishUpcomingWithinMs` keeps the
+ * run open to publish content scheduled within that window at its exact time.
  */
 export async function runScheduledTasks(
-	options: {
-		onPublished?: (refs: PublishedRef[]) => Promise<void>;
-		invalidateContentCache?: PluginContentCacheInvalidator;
-	} = {},
+	options: ScheduledTasksOptions = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
@@ -798,7 +796,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 		// Check for edit mode cookie - editors viewing public pages need the runtime
 		// so auth middleware can verify their session for visual editing
-		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
+		const hasEditCookie =
+			!context.isPrerendered && cookies.get("emdash-edit-mode")?.value === "true";
 		const hasPreviewToken = url.searchParams.has("_preview");
 
 		// Playground mode: the playground middleware stashes the per-session DO database
@@ -816,6 +815,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// backend is KV: calling session.get() on every anonymous public request
 		// turns normal traffic into a flood of KV read misses. See #733.
 		const hasSessionCookie =
+			!context.isPrerendered &&
 			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
@@ -841,9 +841,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// credential directly on the request. Request-scoped adapters use this to
 		// keep such requests on the primary/uncached connection (not a lagging
 		// read replica or the Hyperdrive query cache).
-		const hasBearerAuth = (request.headers.get("authorization") ?? "")
-			.toLowerCase()
-			.startsWith("bearer ");
+		const hasBearerAuth =
+			!context.isPrerendered &&
+			(request.headers.get("authorization") ?? "").toLowerCase().startsWith("bearer ");
 		const isWrite = request.method !== "GET" && request.method !== "HEAD";
 		const isAuthenticated = !!sessionUser || hasBearerAuth;
 		const endedAuthenticated = () => requestEndedAuthenticated(isAuthenticated, cookies);
@@ -1023,7 +1023,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							acceptsHtml &&
 							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
 						) {
-							after(() => prefetchLayoutData());
+							after(() => prefetchLayoutData(context.currentLocale));
 						}
 						// commit() persists per-request state (e.g. the D1 bookmark cookie)
 						// before the response is returned, even if render throws; close()

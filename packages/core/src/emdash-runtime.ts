@@ -327,7 +327,11 @@ import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { notifyRoom } from "./rooms/notifications.js";
 import { roomId, RoomSaveError, type EntryRef, type RuntimeRoomHost } from "./rooms/types.js";
-import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
+import {
+	sweepScheduledContent,
+	type PublishedRef,
+	type ScheduledSweepResult,
+} from "./scheduled-publish.js";
 import { normalizeBlocksData, resolveBlockTypes } from "./schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "./schema/registry.js";
 import { FTSManager } from "./search/fts-manager.js";
@@ -489,6 +493,19 @@ export interface MediaProviderContext {
  */
 export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
 
+/** Options for a request-less scheduled-maintenance run. */
+export interface ScheduledTasksOptions {
+	/** Purges edge-cache tags after each collection batch the sweep publishes. */
+	onPublished?: (refs: PublishedRef[]) => Promise<void>;
+	invalidateContentCache?: PluginContentCacheInvalidator;
+	/**
+	 * Keeps the run open for content scheduled within this many milliseconds and
+	 * publishes each item at its scheduled time instead of on a later run.
+	 * Defaults to 0 (publish only what is already due).
+	 */
+	publishUpcomingWithinMs?: number;
+}
+
 /**
  * Builds the runtime's co-editing room host. Injected via
  * `virtual:emdash/rooms`, so only hosts that can run rooms load their code.
@@ -543,6 +560,8 @@ export interface RuntimeDependencies {
 	createSandboxRunner: SandboxRunnerFactory | null;
 	/** Clock used by cron scheduling, task execution, and scheduled publishing. */
 	now?: () => Date;
+	/** Timer used to wait for content scheduled to publish within a maintenance tick. */
+	sleep?: (ms: number) => Promise<void>;
 	/** Site values supplied by hosts that do not load Astro's virtual config. */
 	siteInfo?: {
 		name?: string;
@@ -1042,15 +1061,17 @@ export class EmDashRuntime {
 	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
 	async publishScheduled(): Promise<PublishedRef[]> {
-		return this.publishScheduledWithFence();
+		const { published } = await this.publishScheduledWithFence();
+		return published;
 	}
 
 	private async publishScheduledWithFence(
 		onPublished?: (refs: PublishedRef[]) => Promise<void>,
-	): Promise<PublishedRef[]> {
+		upcomingUntil?: Date,
+		currentTime: Date = this.runtimeDeps.now?.() ?? new Date(),
+	): Promise<ScheduledSweepResult> {
 		const recordWrite = await assertSiteWriteAllowed(this.db);
-		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		const published = await publishDueContent(this.db, {
+		const result = await sweepScheduledContent(this.db, {
 			publish: (collection, id, options) =>
 				this.handleContentPublish(collection, id, {
 					...options,
@@ -1058,8 +1079,44 @@ export class EmDashRuntime {
 				}),
 			onPublished,
 			currentTime,
+			upcomingUntil,
 		});
-		if (published.length > 0) await recordWrite();
+		if (result.published.length > 0) await recordWrite();
+		return result;
+	}
+
+	/**
+	 * Waits for each upcoming scheduled time up to `until` and sweeps again at
+	 * that moment, so content goes live on time even when the next platform
+	 * tick starts late. The sweep's fence re-checks every item, so a concurrent
+	 * tick racing for the same item publishes it once.
+	 */
+	private async publishAtScheduledTimes(
+		first: Date,
+		until: Date,
+		onPublished?: (refs: PublishedRef[]) => Promise<void>,
+	): Promise<PublishedRef[]> {
+		const now = () => this.runtimeDeps.now?.() ?? new Date();
+		const sleep =
+			this.runtimeDeps.sleep ??
+			((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+		const published: PublishedRef[] = [];
+		let next: Date | null = first;
+		while (next) {
+			// A timer can fire slightly early, so re-check the clock before sweeping.
+			let currentTime = now();
+			for (let attempt = 0; currentTime < next && attempt < 3; attempt++) {
+				await sleep(next.getTime() - currentTime.getTime());
+				currentTime = now();
+			}
+			if (currentTime < next) break;
+			const result = await this.publishScheduledWithFence(onPublished, until, currentTime);
+			published.push(...result.published);
+			// A `scheduled_at` stored in a non-canonical format can sort after the
+			// current time while parsing to a time at or before it.
+			if (result.nextScheduledAt && result.nextScheduledAt <= currentTime) break;
+			next = result.nextScheduledAt;
+		}
 		return published;
 	}
 
@@ -1082,20 +1139,14 @@ export class EmDashRuntime {
 	 * runtime is killed mid-sweep.
 	 */
 	async runScheduledTasks(
-		options: {
-			onPublished?: (refs: PublishedRef[]) => Promise<void>;
-			invalidateContentCache?: PluginContentCacheInvalidator;
-		} = {},
+		options: ScheduledTasksOptions = {},
 	): Promise<{ published: PublishedRef[] }> {
 		const { published } = await this.runScheduledTasksWithStats(options);
 		return { published };
 	}
 
 	async runScheduledTasksWithStats(
-		options: {
-			onPublished?: (refs: PublishedRef[]) => Promise<void>;
-			invalidateContentCache?: PluginContentCacheInvalidator;
-		} = {},
+		options: ScheduledTasksOptions = {},
 	): Promise<{ processed: number; published: PublishedRef[] }> {
 		if (options.invalidateContentCache) {
 			this.pluginContentCacheInvalidator = options.invalidateContentCache;
@@ -1110,24 +1161,39 @@ export class EmDashRuntime {
 			console.error("[plugins] Storage index sync failed:", error);
 		}
 
-		let processed = 0;
-		if (this.cronExecutor) {
-			try {
-				processed = await this.cronExecutor.tick();
-			} catch (error) {
-				console.error("[cron] Tick failed:", error);
-			}
-			try {
-				await this.cronExecutor.recoverStaleLocks();
-			} catch (error) {
-				console.error("[cron] Stale lock recovery failed:", error);
-			}
-		}
-
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		const { published } = await this.runScheduledMaintenanceTick(options, currentTime);
+		const requestedWindowMs = options.publishUpcomingWithinMs ?? 0;
+		const upcomingWindowMs = Number.isFinite(requestedWindowMs) ? requestedWindowMs : 0;
+		const upcomingUntil =
+			upcomingWindowMs > 0 ? new Date(currentTime.getTime() + upcomingWindowMs) : undefined;
+
+		// Plugin cron runs alongside maintenance, as it does on the Node scheduler,
+		// so a slow task cannot hold up a scheduled publication.
+		const [processed, { published }] = await Promise.all([
+			this.runCronTick(),
+			this.runScheduledMaintenanceTick(
+				{ onPublished: options.onPublished, upcomingUntil },
+				currentTime,
+			),
+		]);
 
 		return { processed, published };
+	}
+
+	private async runCronTick(): Promise<number> {
+		if (!this.cronExecutor) return 0;
+		let processed = 0;
+		try {
+			processed = await this.cronExecutor.tick();
+		} catch (error) {
+			console.error("[cron] Tick failed:", error);
+		}
+		try {
+			await this.cronExecutor.recoverStaleLocks();
+		} catch (error) {
+			console.error("[cron] Stale lock recovery failed:", error);
+		}
+		return processed;
 	}
 
 	/**
@@ -1141,15 +1207,34 @@ export class EmDashRuntime {
 	private async runScheduledMaintenanceTick(
 		options: {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+			upcomingUntil?: Date;
 		},
 		currentTime: Date,
 	): Promise<{ published: PublishedRef[] }> {
-		let published: PublishedRef[] = [];
+		let sweep: ScheduledSweepResult = { published: [], nextScheduledAt: null };
 		try {
-			published = await this.publishScheduledWithFence(options.onPublished);
+			sweep = await this.publishScheduledWithFence(
+				options.onPublished,
+				options.upcomingUntil,
+				currentTime,
+			);
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
+
+		// Runs alongside the maintenance below so slow cleanup or backups cannot
+		// delay content scheduled within the window.
+		const upcoming =
+			options.upcomingUntil && sweep.nextScheduledAt
+				? this.publishAtScheduledTimes(
+						sweep.nextScheduledAt,
+						options.upcomingUntil,
+						options.onPublished,
+					).catch((error: unknown) => {
+						console.error("[scheduled-publish] Upcoming publication failed:", error);
+						return [];
+					})
+				: undefined;
 
 		await this.runSystemCleanupIfDue(currentTime);
 
@@ -1165,6 +1250,8 @@ export class EmDashRuntime {
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 		await recordSchedulerHeartbeatSafely(this.db, currentTime);
 
+		const published = [...sweep.published];
+		if (upcoming) published.push(...(await upcoming));
 		return { published };
 	}
 
@@ -5081,7 +5168,7 @@ export class EmDashRuntime {
 		name: ContentPolicyHookName,
 		collection: string,
 		id: string,
-		options: ContentPolicyMutationOptions,
+		options: ContentPolicyMutationOptions & { expectedScheduledAt?: string },
 		rejectionCode: "PUBLISH_REJECTED" | "SCHEDULE_REJECTED" | "UNPUBLISH_REJECTED",
 		failureCode: "CONTENT_PUBLISH_ERROR" | "CONTENT_SCHEDULE_ERROR" | "CONTENT_UNPUBLISH_ERROR",
 		scheduledAt?: string,
@@ -5108,6 +5195,18 @@ export class EmDashRuntime {
 				allowed: false,
 				revision,
 				error: { code: "CONFLICT", message: "Revision precondition did not match" },
+			};
+		}
+		// A scheduled publish that another publish or edit already handled must not
+		// run policy hooks: a cancellation would record a rejection for that entry.
+		if (
+			options.expectedScheduledAt !== undefined &&
+			current.data.item.scheduledAt !== options.expectedScheduledAt
+		) {
+			return {
+				allowed: false,
+				revision,
+				error: { code: "NOT_DUE", message: "Content is no longer scheduled to publish" },
 			};
 		}
 

@@ -40,7 +40,7 @@ export interface UseRevisionViewOptions {
 	liveRevisionId: string | null | undefined;
 	fields: Readonly<Record<string, DiffFieldDescriptor>>;
 	titleField?: string;
-	/** Whether the Revisions list is on screen. It isn't on phones or in distraction-free mode. */
+	/** Whether the Revisions list is on screen. It isn't on phones or while the settings panel is hidden. */
 	listVisible: boolean;
 	/** The editor's scrolling canvas. */
 	canvasRef: React.RefObject<HTMLElement | null>;

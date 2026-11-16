@@ -130,6 +130,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/va"
           unzip -o artifact.zip
+          if [ -n "$(find . -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            echo "::error::Artifact contains a symbolic link or special file; refusing to use it." >&2
+            exit 1
+          fi
           drift=$(cat has-drift 2>/dev/null || echo false)
           measured=$(cat head-sha 2>/dev/null || echo "")
           if [ "$drift" != "true" ]; then
@@ -199,8 +203,16 @@ jobs:
         run: |
           set -e
           dest="e2e/tests/visual-regression.spec.ts-snapshots"
+          # The checkout may be a fork's tree, so $dest or a parent could be a
+          # symlink into .git. Refuse that, and replace files instead of
+          # writing through them.
+          if [ "$(realpath -m "$dest")" != "$(pwd -P)/$dest" ]; then
+            echo "::error::$dest is, or is below, a symbolic link in the PR tree; refusing to stage baselines." >&2
+            exit 1
+          fi
           mkdir -p "$dest"
-          cp -r "$RUNNER_TEMP/va/candidates/." "$dest/"
+          find "$RUNNER_TEMP/va/candidates" -maxdepth 1 -type f -name '*.png' \
+            -exec cp --remove-destination -t "$dest" {} +
           git add "$dest"
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -217,7 +229,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: accept visual baselines (requested by @$ACCEPTER)"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "ci: accept visual baselines (requested by @$ACCEPTER)"
           if ! git push origin "HEAD:$HEAD_REF"; then
             echo "::error::Non-fast-forward push — the PR branch moved. Wait for the new measure run, then comment /accept-baselines again." >&2
             exit 1
@@ -234,7 +246,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "ci: accept visual baselines (requested by @$ACCEPTER)"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "ci: accept visual baselines (requested by @$ACCEPTER)"
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"
           printf '#!/bin/sh\necho "%s"\n' "$APP_TOKEN" > "$GIT_ASKPASS"
           chmod +x "$GIT_ASKPASS"
