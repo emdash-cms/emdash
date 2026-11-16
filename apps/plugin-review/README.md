@@ -27,7 +27,7 @@ The prompt in [`src/prompt.ts`](src/prompt.ts) is public. During an embargo, set
 | `AI_GATEWAY_TOKEN`              | Yes      | Gateway token, also used as the provider key. |
 | `PLUGIN_REVIEW_PROMPT_ADDENDUM` | No       | Private guidance appended to the prompt.      |
 
-Models are `anthropic/<id>` or `openai/<id>` specifiers chosen by the labeler's `LABELER_CODE_REVIEW_MODELS`.
+Models are `anthropic/<id>`, `openai/<id>` or `workers-ai/<id>` specifiers, such as `workers-ai/@cf/zai-org/glm-5.3`, chosen by the labeler's `LABELER_CODE_REVIEW_MODELS`.
 
 ## Evaluation
 

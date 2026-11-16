@@ -127,7 +127,7 @@ These are the only deterministic checks. Everything that depends on what the cod
 
 `apps/plugin-review` is a Worker with no public routes. Its default `WorkerEntrypoint` exposes one RPC method, `review(request)`, reached through the labeler's `PLUGIN_REVIEW` service binding. A request names one model and carries the subject, the listing text, the declared access and the bundle files. Binary files are listed by path and size, without content.
 
-The Worker calls the model through AI Gateway with Unified Billing, using `@earendil-works/pi-ai` with the Anthropic Messages and OpenAI Responses protocols. Models are `anthropic/<id>` or `openai/<id>` specifiers. There is no Workers AI fallback: missing gateway settings fail the review.
+The Worker calls the model through AI Gateway with Unified Billing, using `@earendil-works/pi-ai` with the Anthropic Messages, OpenAI Responses and OpenAI Chat Completions protocols. Models are `anthropic/<id>`, `openai/<id>` or `workers-ai/<id>` specifiers; Workers AI models are reached through the same gateway. Missing gateway settings fail the review.
 
 The model works through four tools over an in-memory copy of the bundle:
 
@@ -147,6 +147,8 @@ Trusted code checks each `submit_review` call before accepting it:
 - Each citation names an existing file and line, and its quote, 3 to 300 characters after trimming, appears on that line.
 
 A rejected submission goes back to the model as a tool error listing the problems. The review fails after three rejected submissions, after 60 turns, after the model answers three times without calling a tool, or when the provider reports an error.
+
+A provider safety refusal is not a failure. Anthropic models can refuse to analyse malicious code; pi-ai reports Anthropic's `refusal` stop reason as an error, so the Worker treats an error that ends a successful HTTP stream, other than an overload, rate-limit or API error, as a refusal. The review then returns `declined: true` with the refusal text as its summary and no findings. The labeler turns a declined review into a `review-declined` finding naming the model, which holds the release for review while keeping the other reviewers' findings.
 
 The labeler treats the review Worker's response as untrusted too. `parseReviewResponse` checks that the response names the requested model, that categories, severities and confidence are valid, and that every citation names a line that exists in the bundle the labeler verified. It turns citations into evidence references of the form `release.package:<file>#L<line>`. A response that fails these checks fails the stage.
 
@@ -182,7 +184,7 @@ One reservation covers every configured model, so the budgets count releases, no
 
 Without a `code` stage, coverage and outcomes are unchanged.
 
-Findings are stored in the existing `findings` table. Migration `0012_code_assessment.sql` adds a nullable `severity` column and the `code_review_budget` table. The operator API returns severity. `@emdash-cms/registry-moderation` adds `CODE_FINDING_CATEGORIES` (`malicious-code`, `vulnerability`, `reviewer-manipulation`, `package-integrity`), `FINDING_SEVERITIES` and `AssessmentFindingSchema`. `NormalizedModerationFindingSchema` still accepts listing categories only, so the listing model and the Clef adapter cannot emit code categories.
+Findings are stored in the existing `findings` table. Migration `0012_code_assessment.sql` adds a nullable `severity` column and the `code_review_budget` table. The operator API returns severity. `@emdash-cms/registry-moderation` adds `CODE_FINDING_CATEGORIES` (`malicious-code`, `vulnerability`, `reviewer-manipulation`, `package-integrity`, `review-declined`), `FINDING_SEVERITIES` and `AssessmentFindingSchema`. `NormalizedModerationFindingSchema` still accepts listing categories only, so the listing model and the Clef adapter cannot emit code categories.
 
 The public assessment output is unchanged. It maps code categories to `uncertain` with the canned summary, so finding text never appears publicly.
 
@@ -232,7 +234,7 @@ Rollback is unsetting `LABELER_CODE_REVIEW_MODELS`. Assessments that already ran
 - **Embargoed guidance.** The public repository holds the prompt and runner but no evaluation cases and no addendum. The addendum is a Worker secret.
 - **Publisher email.** Recipients come only from the verified package profile, and addresses with whitespace or separators are dropped, so a profile cannot add headers or extra recipients. The binding can send only from `plugin-notify@emdashcms.com`. Finding text is HTML-escaped in the HTML part.
 - **Data sent to model providers.** Bundles, listing text and declared access are public in the registry already. They are sent to the configured providers through AI Gateway.
-- **Provider safety refusals.** A model may refuse to analyse malicious code. A refusal ends without a submission, so the review fails and the release gets `listing-error` instead of passing.
+- **Provider safety refusals.** A model may refuse to analyse malicious code. In the first evaluation run, Opus refused all three malicious cases and none of the others. A refusal becomes a `review-declined` finding, so the release is held for review with the other reviewers' findings rather than passing or failing the stage. The publisher email leaves `review-declined` findings out.
 
 ## Performance
 
@@ -244,7 +246,7 @@ Any failure in the code stage gives `listing-error` with `coverage.code = "unava
 
 - an unreadable bundle or checksum mismatch;
 - a missing `PLUGIN_REVIEW` binding or invalid model list;
-- a reviewer that errors, refuses, or never submits a valid review after its step retries;
+- a reviewer that errors or never submits a valid review after its step retries;
 - a review response that cites a line outside the bundle; or
 - a budget that stays exhausted for seven days.
 
@@ -258,9 +260,9 @@ Tests in `apps/labeler/test` cover:
 - the D1 budget, per publisher and in total, including returning a refused publisher unit;
 - production configuration: off by default, a missing binding, invalid models and limits;
 - policy resolution with complete, findings and failed code stages; and
-- the full Workflow: a clean pass with two reviewers, a reviewer finding, archive anomalies alongside a review, waiting for budget, and fail-closed handling of an unreadable bundle, a checksum mismatch, a failing reviewer, an out-of-bundle citation and an exhausted budget.
+- the full Workflow: a clean pass with two reviewers, a reviewer finding, a declined review alongside another reviewer's finding, archive anomalies alongside a review, waiting for budget, and fail-closed handling of an unreadable bundle, a checksum mismatch, a failing reviewer, an out-of-bundle citation and an exhausted budget.
 
-Tests in `apps/plugin-review/test` use scripted models and harmless bundles to cover windowed reading and coverage tracking, search limits, submission checks, resubmission after a rejected citation, tool errors, refusals and provider errors.
+Tests in `apps/plugin-review/test` use scripted models and harmless bundles to cover windowed reading and coverage tracking, search limits, submission checks, resubmission after a rejected citation, tool errors, and provider errors. A stubbed Anthropic stream checks that a `refusal` stop reason becomes a declined review and a mid-stream overload stays an error.
 
 ## Rollout and implementation
 

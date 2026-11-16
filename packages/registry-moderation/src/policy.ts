@@ -41,6 +41,7 @@ export const CODE_FINDING_CATEGORIES = [
 	"vulnerability",
 	"reviewer-manipulation",
 	"package-integrity",
+	"review-declined",
 ] as const;
 
 export type CodeFindingCategory = (typeof CODE_FINDING_CATEGORIES)[number];

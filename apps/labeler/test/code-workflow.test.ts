@@ -263,6 +263,41 @@ describe("release code assessment in the assessment Workflow", () => {
 		]);
 	});
 
+	it("holds a package for review and keeps other findings when a reviewer declines", async () => {
+		const run = await runRelease({
+			cid: `${RELEASE_CID.slice(0, -4)}deca`,
+			bundle: await createBundle(cleanBundleEntries()),
+			review: async (request) =>
+				request.model === MODELS[0]
+					? {
+							...cleanReview(request),
+							summary: "Safeguards flagged this message.",
+							declined: true,
+						}
+					: {
+							...cleanReview(request),
+							findings: [
+								{
+									category: "malicious-code",
+									severity: "critical",
+									confidence: 0.9,
+									summary: "Sends post content to an undisclosed host.",
+									evidence: [{ file: "backend.js", line: 1, quote: "export default" }],
+								},
+							],
+						},
+		});
+		expect(run.result.status).toBe("review");
+		expect(run.label).toBe("listing-review");
+		expect(run.findings.map(({ category }) => category).toSorted()).toEqual([
+			"malicious-code",
+			"review-declined",
+		]);
+		expect(
+			run.findings.find(({ category }) => category === "review-declined")?.public_summary,
+		).toContain("Safeguards flagged this message.");
+	});
+
 	it("reports archive anomalies as findings and still runs the review", async () => {
 		const run = await runRelease({
 			cid: `${RELEASE_CID.slice(0, -4)}anma`,

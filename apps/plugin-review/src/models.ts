@@ -1,7 +1,12 @@
-import { anthropicMessagesApi, openAIResponsesApi } from "@earendil-works/pi-ai/compat";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
+import {
+	anthropicMessagesApi,
+	openAICompletionsApi,
+	openAIResponsesApi,
+} from "@earendil-works/pi-ai/compat";
 import type { Api, Model, ProviderStreams } from "@earendil-works/pi-ai/compat";
 
-import type { ReviewModel } from "./agent.js";
+import { ReviewDeclinedError, type ReviewModel } from "./agent.js";
 
 export interface GatewayEnv {
 	readonly AI_GATEWAY_ACCOUNT_ID?: string;
@@ -9,7 +14,9 @@ export interface GatewayEnv {
 	readonly AI_GATEWAY_TOKEN?: string;
 }
 
-type GatewayProvider = "anthropic" | "openai";
+type GatewayProvider = "anthropic" | "openai" | "workers-ai";
+
+const TRANSIENT_ERROR_RE = /overloaded_error|api_error|rate_limit_error|timeout/i;
 
 const MODEL_LIMITS = { contextWindow: 262_144, maxTokens: 32_000 };
 
@@ -47,9 +54,21 @@ const MODEL_METADATA: Record<string, Partial<Model<Api>>> = {
 	},
 };
 
-const PROTOCOLS: Record<GatewayProvider, { api: Api; streams: () => ProviderStreams }> = {
+const PROTOCOLS: Record<
+	GatewayProvider,
+	{ api: Api; streams: () => ProviderStreams; compat?: Model<Api>["compat"] }
+> = {
 	anthropic: { api: "anthropic-messages", streams: anthropicMessagesApi },
 	openai: { api: "openai-responses", streams: openAIResponsesApi },
+	"workers-ai": {
+		api: "openai-completions",
+		streams: openAICompletionsApi,
+		compat: {
+			supportsStore: false,
+			supportsDeveloperRole: false,
+			supportsLongCacheRetention: false,
+		},
+	},
 };
 
 export class GatewayConfigurationError extends Error {
@@ -73,34 +92,59 @@ export function gatewayReviewModel(env: GatewayEnv, specifier: string): ReviewMo
 	if (slash <= 0 || !id || !isGatewayProvider(provider)) {
 		throw new GatewayConfigurationError(`${specifier} is not an AI Gateway model`);
 	}
-	const { api, streams } = PROTOCOLS[provider];
+	const { api, streams, compat } = PROTOCOLS[provider];
 	const model: Model<Api> = {
 		id,
 		name: id,
 		api,
 		provider,
-		baseUrl: `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(account)}/${encodeURIComponent(gateway)}/${provider}`,
+		baseUrl: `https://gateway.ai.cloudflare.com/v1/${encodeURIComponent(account)}/${encodeURIComponent(gateway)}/${provider}${provider === "workers-ai" ? "/v1" : ""}`,
 		headers: { "cf-aig-authorization": `Bearer ${token}`, "cf-aig-skip-cache": "true" },
 		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		...MODEL_LIMITS,
+		...(compat ? { compat } : {}),
 		...MODEL_METADATA[id],
 	};
 	const client = streams();
 	return {
 		id: specifier,
-		complete: (context, signal) =>
-			client
+		complete: async (context, signal) => {
+			let status: number | undefined;
+			const message = await client
 				.streamSimple(model, context, {
 					apiKey: token,
 					signal,
+					onResponse: (response) => {
+						status = response.status;
+					},
 					...(model.reasoning ? { reasoning: "high" } : {}),
 				})
-				.result(),
+				.result();
+			if (provider === "anthropic" && isRefusal(message, status, signal)) {
+				throw new ReviewDeclinedError(
+					message.errorMessage ?? `${specifier} refused the review`,
+					message,
+				);
+			}
+			return message;
+		},
 	};
 }
 
+// pi-ai reports Anthropic's `refusal` stop reason as an error. A refusal
+// arrives on a successful stream; a transport or overload error does not, or
+// names its error type.
+function isRefusal(message: AssistantMessage, status: number | undefined, signal: AbortSignal) {
+	return (
+		message.stopReason === "error" &&
+		status === 200 &&
+		!signal.aborted &&
+		!TRANSIENT_ERROR_RE.test(message.errorMessage ?? "")
+	);
+}
+
 function isGatewayProvider(value: string): value is GatewayProvider {
-	return value === "anthropic" || value === "openai";
+	return value === "anthropic" || value === "openai" || value === "workers-ai";
 }

@@ -170,6 +170,24 @@ export function parseReviewResponse(
 	if (!isRecord(value) || value["model"] !== model || typeof value["promptVersion"] !== "string") {
 		throw new PluginReviewResponseError("plugin review response is malformed");
 	}
+	const identity = { model, promptVersion: value["promptVersion"].slice(0, 64) };
+	if (value["declined"] === true) {
+		const reason = typeof value["summary"] === "string" ? value["summary"] : "";
+		return {
+			identity,
+			findings: [
+				{
+					category: "review-declined",
+					recommendation: "review",
+					confidence: 1,
+					summary: `${model} declined to review the package. ${reason}`
+						.trim()
+						.slice(0, MAX_SUMMARY_LENGTH),
+					evidenceRefs: [],
+				},
+			],
+		};
+	}
 	const findings = value["findings"];
 	if (!Array.isArray(findings) || findings.length > MAX_REVIEW_FINDINGS) {
 		throw new PluginReviewResponseError("plugin review findings are malformed");
@@ -180,7 +198,7 @@ export function parseReviewResponse(
 		),
 	);
 	return {
-		identity: { model, promptVersion: value["promptVersion"].slice(0, 64) },
+		identity,
 		findings: findings.map((finding): CodeFinding => {
 			if (
 				!isRecord(finding) ||

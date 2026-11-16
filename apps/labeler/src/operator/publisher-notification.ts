@@ -65,10 +65,15 @@ export type PublisherNotificationErrorCode =
 	| "IDEMPOTENCY_CONFLICT"
 	| "EMAIL_SEND_FAILED";
 
-/** Code findings only; listing findings are not sent to publishers. */
+/**
+ * Code findings only. Listing findings are not sent to publishers, and neither
+ * is a reviewer model declining to review, which says nothing the publisher can fix.
+ */
 export function codeFindings(findings: readonly NotificationFinding[]): NotificationFinding[] {
 	const categories: readonly string[] = CODE_FINDING_CATEGORIES;
-	return findings.filter((finding) => categories.includes(finding.category));
+	return findings.filter(
+		(finding) => finding.category !== "review-declined" && categories.includes(finding.category),
+	);
 }
 
 /** Email addresses from a package profile's `security` contacts, validated and deduplicated. */

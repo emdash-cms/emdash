@@ -24,6 +24,18 @@ export class ReviewFailedError extends Error {
 	override readonly name = "ReviewFailedError";
 }
 
+/** The model's provider refused the request, for example under a safety policy. */
+export class ReviewDeclinedError extends Error {
+	override readonly name = "ReviewDeclinedError";
+
+	readonly reply: AssistantMessage | undefined;
+
+	constructor(message: string, reply?: AssistantMessage) {
+		super(message);
+		this.reply = reply;
+	}
+}
+
 const TOOLS: Tool[] = [
 	{
 		name: "list_files",
@@ -86,7 +98,13 @@ const TOOLS: Tool[] = [
 export async function runReview(
 	request: PluginReviewRequest,
 	model: ReviewModel,
-	options: { addendum?: string; signal: AbortSignal; token?: string },
+	options: {
+		addendum?: string;
+		signal: AbortSignal;
+		token?: string;
+		/** Called with every model message, including the last one of a failed review. */
+		onMessage?: (message: AssistantMessage) => void;
+	},
 ): Promise<PluginReviewResponse> {
 	const workspace = new BundleWorkspace(request.files, options.token ?? crypto.randomUUID());
 	const context: Context = {
@@ -99,8 +117,22 @@ export async function runReview(
 	let submissions = 0;
 	let nudges = 0;
 	for (let turn = 0; turn < MAX_TURNS; turn += 1) {
-		// oxlint-disable-next-line no-await-in-loop -- each turn depends on the previous one
-		const message = await model.complete(context, options.signal);
+		let message: AssistantMessage;
+		try {
+			// oxlint-disable-next-line no-await-in-loop -- each turn depends on the previous one
+			message = await model.complete(context, options.signal);
+			options.onMessage?.(message);
+		} catch (error) {
+			if (!(error instanceof ReviewDeclinedError)) throw error;
+			if (error.reply) options.onMessage?.(error.reply);
+			return {
+				model: model.id,
+				promptVersion: PROMPT_VERSION,
+				summary: error.message.slice(0, 500),
+				findings: [],
+				declined: true,
+			};
+		}
 		context.messages.push(message);
 		if (message.stopReason === "error" || message.stopReason === "aborted") {
 			throw new ReviewFailedError(message.errorMessage ?? `${model.id} request failed`);

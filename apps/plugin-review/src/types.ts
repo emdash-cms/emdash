@@ -42,4 +42,6 @@ export interface PluginReviewResponse {
 	promptVersion: string;
 	summary: string;
 	findings: ReviewFinding[];
+	/** The model refused to review the bundle; `summary` carries its stated reason. */
+	declined?: true;
 }
