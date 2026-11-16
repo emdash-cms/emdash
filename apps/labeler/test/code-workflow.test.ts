@@ -4,13 +4,24 @@ import { env } from "cloudflare:workers";
 import type { WorkflowStepConfig } from "cloudflare:workers";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+import type { OperatorIdentity } from "../src/access.js";
+import { buildCanonicalProfileInput } from "../src/assessment/canonical.js";
 import { createD1AssessmentLifecycleStore } from "../src/assessment/lifecycle.js";
 import { createAssessmentWorkflowParams } from "../src/assessment/run-key.js";
 import { runBoundAssessmentWorkflow, type CodeAssessmentStep } from "../src/assessment/workflow.js";
 import type { CodeAssessmentDependencies, PluginReviewRequest } from "../src/code/assessment.js";
 import type { ReviewBudget } from "../src/code/budget.js";
+import { handleOperatorApi, type OperatorApiDependencies } from "../src/operator/api.js";
+import {
+	PUBLISHER_NOTIFICATION_SENDER,
+	readPublisherNotification,
+	type PublisherEmailSender,
+} from "../src/operator/publisher-notification.js";
 import {
 	ASSESSMENT_VERSIONS,
+	PROFILE_CID,
+	PROFILE_RECORD,
+	PROFILE_URI,
 	RELEASE_CID,
 	RELEASE_URI,
 	createReleaseRecord,
@@ -181,7 +192,7 @@ async function runRelease(options: {
 			public_summary: string;
 			evidence_refs_json: string;
 		}>();
-	return { result, step, stored, label, findings: findings.results, requests };
+	return { result, step, stored, label, findings: findings.results, requests, params };
 }
 
 describe("release code assessment in the assessment Workflow", () => {
@@ -338,5 +349,257 @@ describe("release code assessment in the assessment Workflow", () => {
 		expect(JSON.parse(run.stored!.coverage_json)).toMatchObject({ code: "unavailable" });
 		expect(errorLog).toHaveBeenCalledWith(expect.stringContaining("assessment_code_stage_failed"));
 		errorLog.mockRestore();
+	});
+});
+
+const ADMIN: OperatorIdentity = {
+	kind: "human",
+	email: "admin@example.com",
+	sub: "access-admin",
+	roles: ["admin"],
+};
+
+async function seedProfile(security: readonly { url?: `${string}:${string}`; email?: string }[]) {
+	const canonical = buildCanonicalProfileInput({
+		kind: "profile",
+		uri: PROFILE_URI,
+		cid: PROFILE_CID,
+		record: { ...PROFILE_RECORD, security: [...security] },
+		verification: "did-mst-signature",
+	});
+	const now = "2026-11-16T09:00:00.000Z";
+	await env.DB.batch([
+		env.DB.prepare(
+			`INSERT OR IGNORE INTO subjects (uri, cid, kind, publisher_did, first_observed_at, last_observed_at)
+			 VALUES (?, ?, 'profile', ?, ?, ?)`,
+		).bind(PROFILE_URI, PROFILE_CID, "did:plc:assessmentfixture00000000", now, now),
+		env.DB.prepare(
+			`INSERT INTO current_subjects (uri, cid, kind, updated_at) VALUES (?, ?, 'profile', ?)
+			 ON CONFLICT (uri) DO UPDATE SET cid = excluded.cid`,
+		).bind(PROFILE_URI, PROFILE_CID, now),
+		env.DB.prepare("DELETE FROM assessments WHERE run_key = 'profile-fixture'"),
+		env.DB.prepare(
+			`INSERT INTO assessments (
+				id, run_key, subject_uri, subject_cid, subject_kind, policy_version, parser_version,
+				text_model_id, text_prompt_hash, image_model_id, image_prompt_hash, logical_trigger_id,
+				state, canonical_input_json, created_at, updated_at
+			 ) VALUES ('profile-fixture', 'profile-fixture', ?, ?, 'profile', 'p', 'p', 'm', 'h', 'm', 'h', 't',
+				'passed', ?, ?, ?)`,
+		).bind(PROFILE_URI, PROFILE_CID, JSON.stringify(canonical), now, now),
+	]);
+}
+
+function notifyRequest(runKey: string, body: Record<string, unknown>, key = crypto.randomUUID()) {
+	return new Request(
+		`https://labels.example/_admin/api/assessments/${encodeURIComponent(runKey)}/notify-publisher`,
+		{
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				origin: "https://labels.example",
+				"X-EmDash-Request": "1",
+				"Idempotency-Key": key,
+			},
+			body: JSON.stringify(body),
+		},
+	);
+}
+
+function notifyDependencies(
+	identity: OperatorIdentity,
+	publisherEmail: PublisherEmailSender,
+): OperatorApiDependencies {
+	const lifecycle = createD1AssessmentLifecycleStore(env.DB);
+	return {
+		authenticate: async () => identity,
+		actorDid: async () => "did:web:labels.emdashcms.com:operators:fixture",
+		getRun: (runKey) => lifecycle.getRun(runKey),
+		isCurrentSubject: async () => true,
+		issuer: {
+			approve: async () => Promise.reject(new Error("unused")),
+			block: async () => Promise.reject(new Error("unused")),
+			issue: async () => Promise.reject(new Error("unused")),
+		},
+		rerun: async () => Promise.reject(new Error("unused")),
+		publisherEmail,
+		now: () => new Date("2026-11-16T11:00:00.000Z"),
+	};
+}
+
+function recordingSender(failures = 0) {
+	const sent: Parameters<PublisherEmailSender["send"]>[0][] = [];
+	let remainingFailures = failures;
+	const sender: PublisherEmailSender = {
+		async send(message) {
+			if (remainingFailures > 0) {
+				remainingFailures -= 1;
+				throw Object.assign(new Error("rate limited"), { code: "E_RATE_LIMIT_EXCEEDED" });
+			}
+			sent.push(message);
+			return { messageId: `message-${sent.length}` };
+		},
+	};
+	return { sender, sent };
+}
+
+async function heldRelease(suffix: string) {
+	const cid = `${RELEASE_CID.slice(0, -4)}${suffix}`;
+	return {
+		cid,
+		...(await runRelease({
+			cid,
+			bundle: await createBundle([
+				...cleanBundleEntries(),
+				{ name: "../../escape.js", content: "x" },
+			]),
+			review: async (request) => ({
+				...cleanReview(request),
+				findings: [
+					{
+						category: "vulnerability",
+						severity: "high",
+						confidence: 0.8,
+						summary: "A public route returns <draft> posts.",
+						evidence: [{ file: "backend.js", line: 1, quote: "export default" }],
+					},
+				],
+			}),
+		})),
+	};
+}
+
+describe("notifying the publisher about code findings", () => {
+	it("emails the package's security contacts once per assessment", async () => {
+		await seedProfile([
+			{ email: "security@example.test" },
+			{ email: "SECURITY@example.test" },
+			{ url: "https://example.test/security" },
+			{ email: "bad@example.test\nBcc: victim@example.test" },
+		]);
+		const run = await heldRelease("ntaa");
+		const { sender, sent } = recordingSender();
+		const body = { uri: RELEASE_URI, cid: run.cid, reason: "Share findings" };
+		const key = crypto.randomUUID();
+
+		const response = await handleOperatorApi(
+			notifyRequest(run.params.runKey, body, key),
+			env,
+			notifyDependencies(ADMIN, sender),
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			action: "notify-publisher",
+			recipients: ["security@example.test"],
+		});
+		expect(sent).toHaveLength(1);
+		expect(sent[0]).toMatchObject({
+			to: ["security@example.test"],
+			from: PUBLISHER_NOTIFICATION_SENDER,
+			subject: "Review findings for Gallery 1.2.3 on the EmDash plugin registry",
+		});
+		expect(sent[0]?.text).toContain("Vulnerability (high severity)");
+		expect(sent[0]?.text).toContain("Evidence: backend.js line 1");
+		expect(sent[0]?.text).toContain("Package integrity (critical severity)");
+		expect(sent[0]?.text).not.toContain("Share findings");
+		expect(sent[0]?.text).not.toContain("0.8");
+		expect(sent[0]?.html).toContain("A public route returns &lt;draft&gt; posts.");
+		expect(sent[0]?.html).not.toContain("<draft>");
+		expect(await readPublisherNotification(env.DB, run.params.runKey)).toMatchObject({
+			status: "sent",
+			recipients: ["security@example.test"],
+		});
+
+		const replay = await handleOperatorApi(
+			notifyRequest(run.params.runKey, body, key),
+			env,
+			notifyDependencies(ADMIN, sender),
+		);
+		expect(replay.status).toBe(200);
+		const again = await handleOperatorApi(
+			notifyRequest(run.params.runKey, body),
+			env,
+			notifyDependencies(ADMIN, sender),
+		);
+		expect(again.status).toBe(409);
+		expect(await again.json()).toMatchObject({ error: { code: "ALREADY_NOTIFIED" } });
+		expect(sent).toHaveLength(1);
+	});
+
+	it("records a failed send and lets the operator retry", async () => {
+		await seedProfile([{ email: "security@example.test" }]);
+		const run = await heldRelease("ntba");
+		const { sender, sent } = recordingSender(1);
+		const body = { uri: RELEASE_URI, cid: run.cid, reason: "Share findings" };
+		const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		const failed = await handleOperatorApi(
+			notifyRequest(run.params.runKey, body),
+			env,
+			notifyDependencies(ADMIN, sender),
+		);
+		expect(failed.status).toBe(502);
+		expect(await readPublisherNotification(env.DB, run.params.runKey)).toMatchObject({
+			status: "failed",
+			errorCode: "E_RATE_LIMIT_EXCEEDED",
+		});
+		errorLog.mockRestore();
+
+		const retried = await handleOperatorApi(
+			notifyRequest(run.params.runKey, body),
+			env,
+			notifyDependencies(ADMIN, sender),
+		);
+		expect(retried.status).toBe(200);
+		expect(sent).toHaveLength(1);
+	});
+
+	it.each([
+		[
+			"a reviewer",
+			{ ...ADMIN, roles: ["reviewer"] } satisfies OperatorIdentity,
+			"ntca",
+			403,
+			"FORBIDDEN",
+		],
+		["no security email", ADMIN, "ntda", 409, "NO_SECURITY_CONTACT"],
+	] as const)("refuses to send for %s", async (_name, identity, suffix, status, code) => {
+		await seedProfile(
+			code === "NO_SECURITY_CONTACT"
+				? [{ url: "https://example.test/security" }]
+				: [{ email: "security@example.test" }],
+		);
+		const run = await heldRelease(suffix);
+		const { sender, sent } = recordingSender();
+
+		const response = await handleOperatorApi(
+			notifyRequest(run.params.runKey, { uri: RELEASE_URI, cid: run.cid, reason: "x" }),
+			env,
+			notifyDependencies(identity, sender),
+		);
+
+		expect(response.status).toBe(status);
+		expect(await response.json()).toMatchObject({ error: { code } });
+		expect(sent).toEqual([]);
+	});
+
+	it("refuses to send when the assessment has no code findings", async () => {
+		await seedProfile([{ email: "security@example.test" }]);
+		const cid = `${RELEASE_CID.slice(0, -4)}ntea`;
+		const run = {
+			cid,
+			...(await runRelease({ cid, bundle: await createBundle(cleanBundleEntries()) })),
+		};
+		const { sender, sent } = recordingSender();
+
+		const response = await handleOperatorApi(
+			notifyRequest(run.params.runKey, { uri: RELEASE_URI, cid: run.cid, reason: "x" }),
+			env,
+			notifyDependencies(ADMIN, sender),
+		);
+
+		expect(response.status).toBe(409);
+		expect(await response.json()).toMatchObject({ error: { code: "NO_CODE_FINDINGS" } });
+		expect(sent).toEqual([]);
 	});
 });

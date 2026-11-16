@@ -186,6 +186,27 @@ Findings are stored in the existing `findings` table. Migration `0012_code_asses
 
 The public assessment output is unchanged. It maps code categories to `uncertain` with the canned summary, so finding text never appears publicly.
 
+### Notifying the publisher
+
+An administrator can email a release's code findings to the package's security contacts with the **Email publisher** action on the assessment. The action calls `POST /_admin/api/assessments/<run key>/notify-publisher` with the subject URI and CID and a reason, under the same transport, authentication and idempotency rules as the other operator actions. Reviewers cannot send.
+
+Recipients are the `email` values in the current package profile's `security` contacts, read from that profile's latest assessment. Addresses are trimmed, deduplicated case-insensitively, rejected if they contain whitespace or address separators, and capped at five. The publisher profile's contacts are not used.
+
+The labeler sends through the `PUBLISHER_EMAIL` `send_email` binding, which may send only from `plugin-notify@emdashcms.com`. Replies go to that address, and Email Routing forwards them to the shared inbox.
+
+The email names the package and release, then lists each code finding's category, severity, summary and cited lines, for example `backend.js line 5`. Listing findings, confidence, the reviewer models and the operator's reason are not sent. The assessment detail returns the drafted subject and text, and the admin dialog shows them before the operator sends, so an operator can catch a summary that mentions something under embargo.
+
+`publisher_notifications` (migration `0013_publisher_notifications.sql`) allows one sent email per assessment run. A rerun is a new run and can be sent again. The route claims the row before sending and records the message ID or the Email Service error code afterwards. A failed attempt, or one left in `sending` for 15 minutes, can be retried; a sent one returns `ALREADY_NOTIFIED`. Replaying the same idempotency key returns the original result without sending again.
+
+| Error                 | Status | Cause                                                      |
+| --------------------- | ------ | ---------------------------------------------------------- |
+| `NO_CODE_FINDINGS`    | 409    | The assessment has no code findings.                       |
+| `NO_SECURITY_CONTACT` | 409    | The package profile has no usable security email.          |
+| `ALREADY_NOTIFIED`    | 409    | This assessment run was already emailed.                   |
+| `EMAIL_SEND_FAILED`   | 502    | Email Service rejected the message; the attempt is logged. |
+
+Sends are not written to `operator_actions`, whose `action` constraint does not allow them, so they do not appear in the admin activity view.
+
 ### Evaluation
 
 `apps/plugin-review/eval/run.ts` runs the reviewer against a set of bundles with each model and reports whether each case produced its expected categories. The cases are not committed: most are malicious bundles, and publishing them would show attackers what the reviewer is tested against. The runner loads cases from `EVAL_CASES_DIR` and refuses a directory inside the repository. Clean cases, which pass only when the reviewer reports nothing, measure false positives.
@@ -209,6 +230,7 @@ Rollback is unsetting `LABELER_CODE_REVIEW_MODELS`. Assessments that already ran
 - **Prompt injection.** Bundle text reaches the model only inside per-review fences, and the prompt tells the model that fenced text cannot instruct it and that attempts to do so are a `reviewer-manipulation` finding. The model's only actions are reading the bundle and submitting a review. Trusted code, not the model, decides the outcome, and any finding holds the release, so a manipulated reviewer can at worst miss something another reviewer catches. Running more than one model from different providers reduces that risk.
 - **Model output is untrusted.** Both Workers check citations against the bundle before a finding is accepted.
 - **Embargoed guidance.** The public repository holds the prompt and runner but no evaluation cases and no addendum. The addendum is a Worker secret.
+- **Publisher email.** Recipients come only from the verified package profile, and addresses with whitespace or separators are dropped, so a profile cannot add headers or extra recipients. The binding can send only from `plugin-notify@emdashcms.com`. Finding text is HTML-escaped in the HTML part.
 - **Data sent to model providers.** Bundles, listing text and declared access are public in the registry already. They are sent to the configured providers through AI Gateway.
 - **Provider safety refusals.** A model may refuse to analyse malicious code. A refusal ends without a submission, so the review fails and the release gets `listing-error` instead of passing.
 
@@ -261,7 +283,8 @@ Tests in `apps/plugin-review/test` use scripted models and harmless bundles to c
    ```
 3. Run the private evaluation set against the deployed prompt and the chosen models.
 4. Add a `PLUGIN_REVIEW` service binding to `emdash-plugin-review` in the labeler's `wrangler.jsonc`, and set `LABELER_CODE_REVIEW_MODELS`, for example `anthropic/claude-opus-5-5,openai/gpt-6.1-sol`. Optionally set the daily limits.
-5. Deploy the labeler. New release assessments include the code stage.
+5. Onboard `emdashcms.com` to Email Sending, and route `plugin-notify@emdashcms.com` to the shared inbox with Email Routing. Until then, **Email publisher** fails with `EMAIL_SEND_FAILED`.
+6. Deploy the labeler. New release assessments include the code stage.
 
 During an embargo, set `PLUGIN_REVIEW_PROMPT_ADDENDUM` on the review Worker. No redeploy of the labeler is needed.
 
@@ -285,6 +308,6 @@ During an embargo, set `PLUGIN_REVIEW_PROMPT_ADDENDUM` on the review Worker. No 
 - **Prompt changes and existing assessments.** The prompt version is not in the run key. Should a new version trigger re-assessment of current releases?
 - **Public lexicon.** The public assessment has no code coverage field or code categories, so code findings appear as `uncertain`. Should the lexicon gain them?
 - **Admin UI.** The operator API returns severity, but the admin does not display it yet.
-- **Notifying publishers.** An operator action could email a finding to the publisher's security contact from `plugin-notify@emdashcms.com` through an Email Service `send_email` binding, with replies routed to a shared inbox. This needs its own design for templates, a send log and what finding text a publisher may see.
+- **Notification activity.** Publisher emails are logged in their own table, not in the activity view. Should `operator_actions` gain the action?
 - **Manifest consistency.** Neither Worker checks that the bundle's `manifest.json` declares the same access as the signed record.
 - **`neverModel` fixture.** `PROHIBITED_ASSESSMENT_INPUTS_FIXTURE` lists `release.artifacts.package` as never sent to the listing model. The code review sends package files to separate models. The fixture should say which stage it governs.

@@ -27,6 +27,7 @@ import {
 	getHealth,
 	getIssuance,
 	getSession,
+	notifyPublisher,
 	setIssuance,
 	setTakedown,
 	type ActivityItem,
@@ -138,6 +139,7 @@ function renderView(
 					path.startsWith(prefix) ? decodeURIComponent(path.slice(prefix.length)) : undefined
 				}
 				navigate={navigate}
+				isAdmin={session.identity.roles.includes("admin")}
 			/>
 		);
 	}
@@ -252,9 +254,11 @@ function ServiceRow({ label, ready, value }: { label: string; ready: boolean; va
 function ReviewWorkspace({
 	initialRunKey,
 	navigate,
+	isAdmin,
 }: {
 	initialRunKey?: string;
 	navigate: (path: string) => void;
+	isAdmin: boolean;
 }) {
 	const { t } = useLingui();
 	const initialState = stateFromLocation();
@@ -388,6 +392,7 @@ function ReviewWorkspace({
 									navigate={navigate}
 									refreshList={list.refresh}
 									refreshDetail={detail.refresh}
+									isAdmin={isAdmin}
 								/>
 							) : null}
 						</section>
@@ -405,6 +410,7 @@ function AssessmentReview({
 	navigate,
 	refreshList,
 	refreshDetail,
+	isAdmin,
 }: {
 	detail: AssessmentDetail;
 	item: AssessmentListItem;
@@ -412,14 +418,20 @@ function AssessmentReview({
 	navigate: (path: string) => void;
 	refreshList: () => void;
 	refreshDetail: () => void;
+	isAdmin: boolean;
 }) {
 	const { t } = useLingui();
 	const toast = useKumoToastManager();
 	const [evidenceOpen, setEvidenceOpen] = React.useState(false);
 	const [technicalOpen, setTechnicalOpen] = React.useState(false);
-	const [pendingAction, setPendingAction] = React.useState<"approve" | "block" | "rerun" | null>(
-		null,
-	);
+	const [pendingAction, setPendingAction] = React.useState<
+		"approve" | "block" | "rerun" | "notify" | null
+	>(null);
+	const notification = detail.publisherNotification;
+	const notificationDraft = notification?.draft;
+	const notified = notification?.record?.status === "sent" ? notification.record : null;
+	const notifiedAt = notified?.sentAt ? formatDate(notified.sentAt) : null;
+	const recipients = notificationDraft?.recipients.join(", ") ?? "";
 	const preview = listingPreview(detail);
 	const previewType =
 		preview.kind === "release" ? t`Release ${preview.version ?? ""}` : t`Publisher profile`;
@@ -481,7 +493,32 @@ function AssessmentReview({
 					</pre>
 				)}
 			</div>
-			<footer className="flex flex-wrap justify-end gap-2 border-t bg-kumo-recessed px-5 py-3">
+			<footer className="flex flex-wrap items-center justify-end gap-2 border-t bg-kumo-recessed px-5 py-3">
+				{notifiedAt && (
+					<span className="me-auto text-sm text-kumo-subtle">
+						{t`Publisher emailed ${notifiedAt}`}
+					</span>
+				)}
+				{isAdmin && notificationDraft && !notified && (
+					<ActionDialog
+						label={t`Email publisher`}
+						title={t`Email the publisher's security contact`}
+						description={t`Send the code findings below to ${recipients}. Your reason is recorded but not sent.`}
+						variant="secondary"
+						open={pendingAction === "notify"}
+						onOpenChange={(open) => setPendingAction(open ? "notify" : null)}
+						onConfirm={(reason) => notifyPublisher(item, reason)}
+						onSuccess={() => {
+							refreshDetail();
+							toast.add({ title: t`Publisher emailed`, variant: "success" });
+						}}
+					>
+						<p className="mt-4 text-sm font-medium">{notificationDraft.subject}</p>
+						<pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-kumo-recessed p-3 text-xs">
+							{notificationDraft.text}
+						</pre>
+					</ActionDialog>
+				)}
 				{canBlock(item.state) && (
 					<ActionDialog
 						label={t`Block`}
@@ -983,6 +1020,7 @@ function ActionDialog(props: {
 	onOpenChange: (open: boolean) => void;
 	onConfirm: (reason: string) => Promise<unknown>;
 	onSuccess: () => void;
+	children?: React.ReactNode;
 }) {
 	const { t } = useLingui();
 	const [reason, setReason] = React.useState("");
@@ -1024,6 +1062,7 @@ function ActionDialog(props: {
 					<Dialog.Description className="mt-2 text-kumo-subtle">
 						{props.description}
 					</Dialog.Description>
+					{props.children}
 					<div className="mt-5">
 						<Field label={reasonLabel}>
 							<InputArea

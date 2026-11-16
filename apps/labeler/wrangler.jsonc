@@ -58,6 +58,14 @@
 			"service": "blob-proxy",
 		},
 	],
+	// Operator notifications to publishers' security contacts. Replies to the
+	// sender address are routed to the shared inbox with Email Routing.
+	"send_email": [
+		{
+			"name": "PUBLISHER_EMAIL",
+			"allowed_sender_addresses": ["plugin-notify@emdashcms.com"],
+		},
+	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
 		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",

@@ -16,6 +16,7 @@ const api = vi.hoisted(() => ({
 	getIssuance: vi.fn(),
 	getActivity: vi.fn(),
 	assessmentAction: vi.fn(),
+	notifyPublisher: vi.fn(),
 	setIssuance: vi.fn(),
 	setTakedown: vi.fn(),
 }));
@@ -49,6 +50,7 @@ beforeEach(() => {
 	api.getIssuance.mockResolvedValue({ paused: false, updatedAt: null });
 	api.getActivity.mockResolvedValue({ items: [] });
 	api.assessmentAction.mockResolvedValue({});
+	api.notifyPublisher.mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -201,6 +203,77 @@ describe("labeler admin application", () => {
 		expect(confirm.hasAttribute("disabled")).toBe(false);
 		fireEvent.click(confirm);
 		await waitFor(() => expect(api.assessmentAction).toHaveBeenCalledWith(item, "approve", ""));
+	});
+});
+
+describe("emailing a publisher about code findings", () => {
+	const item = assessment("gallery-release", "review");
+	const draft = {
+		recipients: ["security@example.test"],
+		subject: "Review findings for Gallery 1.2.3 on the EmDash plugin registry",
+		text: "1. Vulnerability (high severity)\n   A public route returns draft posts.",
+	};
+
+	function detail(record: null | { status: "sent"; recipients: string[]; sentAt: string }) {
+		return {
+			assessment: { ...item, canonicalInput: { input: { name: "Gallery", slug: "gallery" } } },
+			findings: [],
+			manualDecision: null,
+			publisherNotification: { draft, record },
+		};
+	}
+
+	function renderAs(roles: string[]) {
+		window.history.replaceState(null, "", "/_admin/assessments");
+		api.getSession.mockResolvedValue({
+			authenticated: true,
+			identity: { kind: "human", principal: "op@example.com", actorDid: "did:web:op", roles },
+		});
+		api.getAssessments.mockResolvedValue({ items: [item] });
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+	}
+
+	it("lets an administrator preview and send the email", async () => {
+		api.getAssessment.mockResolvedValue(detail(null));
+		renderAs(["admin"]);
+
+		fireEvent.click(await screen.findByRole("button", { name: "Email publisher" }));
+		expect(
+			await screen.findByText(/to security@example\.test\. Your reason is recorded/),
+		).toBeTruthy();
+		expect(screen.getByText(draft.subject)).toBeTruthy();
+		expect(screen.getByText(/A public route returns draft posts\./)).toBeTruthy();
+		fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), {
+			target: { value: "Share the findings" },
+		});
+		fireEvent.click(screen.getAllByRole("button", { name: "Email publisher" }).at(-1)!);
+		await waitFor(() =>
+			expect(api.notifyPublisher).toHaveBeenCalledWith(item, "Share the findings"),
+		);
+	});
+
+	it("hides the action from reviewers", async () => {
+		api.getAssessment.mockResolvedValue(detail(null));
+		renderAs(["reviewer"]);
+
+		expect((await screen.findAllByText("Gallery")).length).toBeGreaterThan(0);
+		expect(screen.queryByRole("button", { name: "Email publisher" })).toBeNull();
+	});
+
+	it("shows when the publisher was already emailed instead of offering to send again", async () => {
+		api.getAssessment.mockResolvedValue(
+			detail({ status: "sent", recipients: draft.recipients, sentAt: "2026-11-16T11:00:00.000Z" }),
+		);
+		renderAs(["admin"]);
+
+		expect(await screen.findByText(/^Publisher emailed /)).toBeTruthy();
+		expect(screen.queryByRole("button", { name: "Email publisher" })).toBeNull();
 	});
 });
 

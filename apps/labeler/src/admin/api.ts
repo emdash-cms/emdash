@@ -67,6 +67,15 @@ export interface AssessmentDetail {
 	};
 	relatedProfile?: unknown;
 	publisherHandle?: string | null;
+	publisherNotification?: null | {
+		draft?: { recipients: string[]; subject: string; text: string };
+		unavailable?: "NO_CODE_FINDINGS" | "NO_SECURITY_CONTACT";
+		record: null | {
+			status: "sending" | "sent" | "failed";
+			recipients: string[];
+			sentAt: string | null;
+		};
+	};
 }
 
 export interface IssuanceStatus {
@@ -142,6 +151,14 @@ export function assessmentAction(
 	reason: string,
 ): Promise<unknown> {
 	return mutate(`/_admin/api/assessments/${encodeURIComponent(run.run_key)}/${action}`, {
+		reason,
+		uri: run.subject_uri,
+		cid: run.subject_cid,
+	});
+}
+
+export function notifyPublisher(run: AssessmentListItem, reason: string): Promise<unknown> {
+	return mutate(`/_admin/api/assessments/${encodeURIComponent(run.run_key)}/notify-publisher`, {
 		reason,
 		uri: run.subject_uri,
 		cid: run.subject_cid,
