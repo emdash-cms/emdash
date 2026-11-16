@@ -218,7 +218,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# bình luận đã nhập} other {# bình luận đã nhập}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3069
+#: packages/admin/src/router.tsx:3075
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {Đã cập nhật # bình luận} other {Đã cập nhật # bình luận}}"
 
@@ -569,17 +569,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} trên {1} bước · {2} trên {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:829
+#: packages/admin/src/router.tsx:828
 msgid "{0} of {total} could not be deleted"
 msgstr "Không thể xoá {0} trên {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:785
+#: packages/admin/src/router.tsx:784
 msgid "{0} of {total} could not be published"
 msgstr "Không thể xuất bản {0} trên {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:808
+#: packages/admin/src/router.tsx:807
 msgid "{0} of {total} could not be updated"
 msgstr "Không thể cập nhật {0} trên {total}"
 
@@ -1059,15 +1059,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, mục {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "{title} is a draft again."
 msgstr "{title} đã chuyển thành bản nháp."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "{title} is now live."
 msgstr "{title} đã được xuất bản."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:252
 msgid "{title} now goes live {when}."
 msgstr "{title} sẽ được xuất bản {when}."
 
@@ -1420,7 +1420,7 @@ msgstr "Chấp nhận và cài đặt"
 msgid "Accept & Update"
 msgstr "Chấp nhận và cập nhật"
 
-#: packages/admin/src/router.tsx:509
+#: packages/admin/src/router.tsx:510
 msgid "Accept invitation"
 msgstr "Nhận lời mời"
 
@@ -1436,7 +1436,7 @@ msgstr "Nhận lời mời"
 msgid "Access denied"
 msgstr "Không có quyền truy cập"
 
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:3097
 msgid "Access Denied"
 msgstr "Không có quyền truy cập"
 
@@ -2048,7 +2048,7 @@ msgid "Allowed block types"
 msgstr "Các loại khối được phép"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3172
+#: packages/admin/src/router.tsx:3178
 msgid "Allowed Domains"
 msgstr "Tên miền được phép"
 
@@ -2162,21 +2162,21 @@ msgstr "Một loại khoá kỹ thuật số được mã hoá dùng để mở 
 #: packages/admin/src/components/TaxonomySidebar.tsx:712
 #: packages/admin/src/components/TaxonomySidebar.tsx:875
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:739
-#: packages/admin/src/router.tsx:760
-#: packages/admin/src/router.tsx:986
-#: packages/admin/src/router.tsx:1209
+#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:759
+#: packages/admin/src/router.tsx:984
+#: packages/admin/src/router.tsx:1207
 #: packages/admin/src/router.tsx:1373
 #: packages/admin/src/router.tsx:1441
-#: packages/admin/src/router.tsx:1778
-#: packages/admin/src/router.tsx:1944
-#: packages/admin/src/router.tsx:1968
-#: packages/admin/src/router.tsx:2052
-#: packages/admin/src/router.tsx:2085
-#: packages/admin/src/router.tsx:3041
-#: packages/admin/src/router.tsx:3077
-#: packages/admin/src/router.tsx:3584
-#: packages/admin/src/router.tsx:3774
+#: packages/admin/src/router.tsx:1779
+#: packages/admin/src/router.tsx:1947
+#: packages/admin/src/router.tsx:1972
+#: packages/admin/src/router.tsx:2059
+#: packages/admin/src/router.tsx:2091
+#: packages/admin/src/router.tsx:3047
+#: packages/admin/src/router.tsx:3083
+#: packages/admin/src/router.tsx:3590
+#: packages/admin/src/router.tsx:3780
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Đã xảy ra lỗi"
@@ -2271,7 +2271,7 @@ msgstr "Cho phép mọi loại tệp (theo giới hạn chung)."
 msgid "Any number"
 msgstr "Bao nhiêu cũng được"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:59
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:60
 msgid "Anything typed into the changed fields during the restore will be lost."
 msgstr ""
 
@@ -2279,7 +2279,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3184
+#: packages/admin/src/router.tsx:3190
 msgid "API Tokens"
 msgstr "Token API"
 
@@ -2484,7 +2484,7 @@ msgstr "Cấp quyền thất bại"
 msgid "Authorize"
 msgstr "Cấp quyền"
 
-#: packages/admin/src/router.tsx:520
+#: packages/admin/src/router.tsx:521
 msgid "Authorize device"
 msgstr "Cấp quyền cho thiết bị"
 
@@ -2545,7 +2545,7 @@ msgstr "Sao lưu tự động"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Sao lưu tự động cần có nơi lưu trữ (R2, S3 hoặc lưu trữ cục bộ). Hãy cấu hình lưu trữ trong cấu hình EmDash để bật."
 
-#: packages/admin/src/router.tsx:1912
+#: packages/admin/src/router.tsx:1914
 msgid "Autosave failed"
 msgstr "Tự động lưu thất bại"
 
@@ -2675,7 +2675,7 @@ msgstr "Đã lưu cài đặt sao lưu"
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3208
+#: packages/admin/src/router.tsx:3214
 msgid "Backups"
 msgstr "Sao lưu"
 
@@ -2873,7 +2873,7 @@ msgid "Byline schema"
 msgstr "Thông tin tác giả"
 
 #: packages/admin/src/components/Sidebar.tsx:583
-#: packages/admin/src/router.tsx:3521
+#: packages/admin/src/router.tsx:3527
 msgid "Byline Schema"
 msgstr "Thông tin tác giả"
 
@@ -2882,13 +2882,13 @@ msgid "Byline updated"
 msgstr "Đã cập nhật tác giả"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:385
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:549
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3510
+#: packages/admin/src/router.tsx:3516
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Tác giả"
@@ -2908,7 +2908,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:597
 #: packages/admin/src/components/Sidebar.tsx:478
-#: packages/admin/src/router.tsx:592
+#: packages/admin/src/router.tsx:593
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "Lịch"
@@ -3204,7 +3204,7 @@ msgstr "Nhật ký thay đổi"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Thay đổi áp dụng ở mọi nơi tác giả này xuất hiện."
 
-#: packages/admin/src/router.tsx:1985
+#: packages/admin/src/router.tsx:1990
 msgid "Changes discarded"
 msgstr "Đã bỏ các thay đổi"
 
@@ -3533,7 +3533,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "Mở liên kết này để đăng nhập vào {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3627,9 +3627,9 @@ msgstr "Bộ sưu tập “{0}” có mục"
 msgid "Collection “{0}” was created on this site"
 msgstr "Bộ sưu tập “{0}” đã được tạo trên trang web này"
 
-#: packages/admin/src/router.tsx:850
-#: packages/admin/src/router.tsx:1053
-#: packages/admin/src/router.tsx:2504
+#: packages/admin/src/router.tsx:848
+#: packages/admin/src/router.tsx:1051
+#: packages/admin/src/router.tsx:2510
 msgid "Collection \"{collection}\" not found"
 msgstr "Không tìm thấy bộ sưu tập \"{collection}\""
 
@@ -3712,7 +3712,7 @@ msgstr "Phản ứng bình luận"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:513
-#: packages/admin/src/router.tsx:2966
+#: packages/admin/src/router.tsx:2972
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -3748,7 +3748,7 @@ msgstr "Cấu hình nhà cung cấp email, xem trạng thái luồng gửi và g
 msgid "Confirm"
 msgstr "Xác nhận"
 
-#: packages/admin/src/router.tsx:483
+#: packages/admin/src/router.tsx:484
 msgid "Confirm magic link"
 msgstr "Xác nhận liên kết đăng nhập"
 
@@ -3821,7 +3821,7 @@ msgstr "nội dung"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:458
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/router.tsx:604
+#: packages/admin/src/router.tsx:605
 msgid "Content"
 msgstr "Nội dung"
 
@@ -3842,7 +3842,7 @@ msgstr "Lỗi nội dung ({0})"
 msgid "Content found:"
 msgstr "Nội dung tìm thấy:"
 
-#: packages/admin/src/router.tsx:2034
+#: packages/admin/src/router.tsx:2040
 msgid "Content has been scheduled for publishing"
 msgstr "Nội dung đã được đặt lịch xuất bản"
 
@@ -3850,7 +3850,7 @@ msgstr "Nội dung đã được đặt lịch xuất bản"
 msgid "Content ID:"
 msgstr "ID nội dung:"
 
-#: packages/admin/src/router.tsx:1938
+#: packages/admin/src/router.tsx:1941
 msgid "Content is now live"
 msgstr "Nội dung đã được xuất bản"
 
@@ -3875,11 +3875,11 @@ msgstr "Nội dung tham chiếu đến thư viện sai cách"
 msgid "Content refers to media that is not in the package"
 msgstr "Nội dung tham chiếu đến tệp thư viện không có trong gói"
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1966
 msgid "Content removed from public view"
 msgstr "Nội dung đã được gỡ khỏi chế độ xem công khai"
 
-#: packages/admin/src/router.tsx:2045
+#: packages/admin/src/router.tsx:2052
 msgid "Content reverted to draft"
 msgstr "Nội dung đã trở về bản nháp"
 
@@ -3902,7 +3902,7 @@ msgstr "Loại nội dung"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:579
-#: packages/admin/src/router.tsx:3529
+#: packages/admin/src/router.tsx:3535
 msgid "Content Types"
 msgstr "Loại nội dung"
 
@@ -4077,7 +4077,7 @@ msgstr "Không thể tải thư viện."
 msgid "Could not load the calendar"
 msgstr "Không thể tải lịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:395
 msgid "Could not load this entry's details."
 msgstr "Không thể tải chi tiết của mục này."
 
@@ -4085,7 +4085,7 @@ msgstr "Không thể tải chi tiết của mục này."
 msgid "Could not load this folder."
 msgstr "Không thể tải thư mục này."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:229
 msgid "Could not publish"
 msgstr "Không thể xuất bản"
 
@@ -4093,7 +4093,7 @@ msgstr "Không thể xuất bản"
 msgid "Could not reach {origin}"
 msgstr "Không thể kết nối tới {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:244
 msgid "Could not remove the schedule"
 msgstr "Không thể huỷ đặt lịch"
 
@@ -4449,7 +4449,7 @@ msgid "Created {0}"
 msgstr "Đã tạo {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2077
+#: packages/admin/src/router.tsx:2083
 msgid "Created {0} translation"
 msgstr "Đã tạo bản dịch {0}"
 
@@ -4583,7 +4583,7 @@ msgstr "Biến thể chế độ tối"
 #: packages/admin/src/components/Dashboard.tsx:75
 #: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:475
-#: packages/admin/src/router.tsx:574
+#: packages/admin/src/router.tsx:575
 msgid "Dashboard"
 msgstr "Trang quản trị"
 
@@ -5338,7 +5338,7 @@ msgstr "Đang tải gói về"
 msgid "visualEditing.draft"
 msgstr "Nháp"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:416
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5563,11 +5563,11 @@ msgstr "Sửa trường tác giả"
 msgid "Edit caption"
 msgstr "Sửa chú thích"
 
-#: packages/admin/src/router.tsx:1097
+#: packages/admin/src/router.tsx:1095
 msgid "Edit content"
 msgstr "Sửa nội dung"
 
-#: packages/admin/src/router.tsx:3723
+#: packages/admin/src/router.tsx:3729
 msgid "Edit content type"
 msgstr "Sửa loại nội dung"
 
@@ -5618,7 +5618,7 @@ msgstr "Khoá khi sửa"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Sửa văn bản thay thế, chú thích và điểm lấy nét của tệp trong thư viện"
 
-#: packages/admin/src/router.tsx:3427
+#: packages/admin/src/router.tsx:3433
 msgid "Edit menu"
 msgstr "Sửa menu"
 
@@ -5648,7 +5648,7 @@ msgstr "Sửa chuyển hướng {0}"
 msgid "Edit role"
 msgstr "Sửa vai trò"
 
-#: packages/admin/src/router.tsx:3476
+#: packages/admin/src/router.tsx:3482
 msgid "Edit section"
 msgstr "Sửa mẫu"
 
@@ -5805,7 +5805,7 @@ msgstr "Nhà cung cấp email đang hoạt động"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3196
+#: packages/admin/src/router.tsx:3202
 msgid "Email Settings"
 msgstr "Cài đặt email"
 
@@ -5893,7 +5893,7 @@ msgstr "EmDash đang quét nội dung hiện có."
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "EmDash không bao giờ nhận hay lưu trữ mã PIN, mật khẩu hoặc thông tin sinh trắc học của bạn."
 
-#: packages/admin/src/router.tsx:2546
+#: packages/admin/src/router.tsx:2552
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr ""
 
@@ -6201,7 +6201,7 @@ msgstr "mục nguồn"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4057
+#: packages/admin/src/router.tsx:4063
 msgid "Error"
 msgstr "Lỗi"
 
@@ -6537,7 +6537,7 @@ msgid "Failed to create term translation"
 msgstr "Không thể tạo bản dịch của thuật ngữ"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2088
 msgid "Failed to create translation"
 msgstr "Không thể tạo bản dịch"
 
@@ -6549,7 +6549,7 @@ msgstr "Không thể tạo tiện ích"
 msgid "Failed to create widget area"
 msgstr "Không thể tạo khu vực tiện ích"
 
-#: packages/admin/src/router.tsx:828
+#: packages/admin/src/router.tsx:827
 msgid "Failed to delete"
 msgstr "Không thể xoá"
 
@@ -6671,7 +6671,7 @@ msgstr "Không thể đóng lời chào mừng"
 msgid "Failed to download a package file"
 msgstr "Không thể tải về một tệp của gói"
 
-#: packages/admin/src/router.tsx:759
+#: packages/admin/src/router.tsx:758
 msgid "Failed to duplicate"
 msgstr "Không thể nhân bản"
 
@@ -6937,7 +6937,7 @@ msgstr "Không thể tải trạng thái cập nhật"
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2987
+#: packages/admin/src/router.tsx:2993
 msgid "Failed to fetch user"
 msgstr "Không thể tải tài khoản"
 
@@ -7010,7 +7010,7 @@ msgstr "Không thể liệt kê các trường tác giả"
 msgid "Failed to list files to upload"
 msgstr "Không thể liệt kê các tệp cần tải lên"
 
-#: packages/admin/src/router.tsx:558
+#: packages/admin/src/router.tsx:559
 msgid "Failed to load admin"
 msgstr "Không thể tải trang quản trị"
 
@@ -7126,7 +7126,7 @@ msgid "Failed to lock the entry"
 msgstr "Không thể khoá mục này"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3076
+#: packages/admin/src/router.tsx:3082
 msgid "Failed to perform bulk action"
 msgstr "Không thể thực hiện thao tác hàng loạt"
 
@@ -7143,9 +7143,9 @@ msgstr "Không thể chuẩn bị việc nhập"
 msgid "Failed to probe URL"
 msgstr "Không thể kiểm tra URL"
 
-#: packages/admin/src/router.tsx:784
-#: packages/admin/src/router.tsx:1943
-#: packages/admin/src/router.tsx:2291
+#: packages/admin/src/router.tsx:783
+#: packages/admin/src/router.tsx:1946
+#: packages/admin/src/router.tsx:2296
 msgid "Failed to publish"
 msgstr "Không thể xuất bản"
 
@@ -7157,7 +7157,7 @@ msgstr "Không thể xuất bản nội dung"
 msgid "Failed to read byline field usage"
 msgstr "Không thể tải thông tin sử dụng trường tác giả"
 
-#: packages/admin/src/router.tsx:3583
+#: packages/admin/src/router.tsx:3589
 msgid "Failed to register {slug}"
 msgstr "Không thể đăng ký {slug}"
 
@@ -7212,7 +7212,7 @@ msgstr "Không thể sắp xếp lại các tiện ích"
 msgid "Failed to replace media image"
 msgstr "Không thể thay ảnh trong thư viện"
 
-#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:737
 msgid "Failed to restore"
 msgstr "Không thể khôi phục"
 
@@ -7236,9 +7236,9 @@ msgstr "Không thể ghi lại các URL"
 
 #: packages/admin/src/components/ContentEditor.tsx:3018
 #: packages/admin/src/components/ContentEditor.tsx:3270
-#: packages/admin/src/router.tsx:981
-#: packages/admin/src/router.tsx:1773
-#: packages/admin/src/router.tsx:3773
+#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:1774
+#: packages/admin/src/router.tsx:3779
 msgid "Failed to save"
 msgstr "Không thể lưu"
 
@@ -7314,8 +7314,8 @@ msgstr "Không thể bắt đầu nhập"
 msgid "Failed to uninstall plugin"
 msgstr "Không thể gỡ cài đặt plugin"
 
-#: packages/admin/src/router.tsx:1967
-#: packages/admin/src/router.tsx:2338
+#: packages/admin/src/router.tsx:1971
+#: packages/admin/src/router.tsx:2343
 msgid "Failed to unpublish"
 msgstr "Không thể huỷ xuất bản"
 
@@ -7323,8 +7323,8 @@ msgstr "Không thể huỷ xuất bản"
 msgid "Failed to unpublish content"
 msgstr "Không thể huỷ xuất bản nội dung"
 
-#: packages/admin/src/router.tsx:2051
-#: packages/admin/src/router.tsx:2432
+#: packages/admin/src/router.tsx:2058
+#: packages/admin/src/router.tsx:2437
 msgid "Failed to unschedule"
 msgstr "Không thể huỷ đặt lịch"
 
@@ -7332,7 +7332,7 @@ msgstr "Không thể huỷ đặt lịch"
 msgid "Failed to unschedule content"
 msgstr "Không thể huỷ đặt lịch cho nội dung"
 
-#: packages/admin/src/router.tsx:807
+#: packages/admin/src/router.tsx:806
 msgid "Failed to update"
 msgstr "Không thể cập nhật"
 
@@ -7423,7 +7423,7 @@ msgstr "Không thể cập nhật mẫu"
 msgid "Failed to update settings"
 msgstr "Không thể cập nhật cài đặt"
 
-#: packages/admin/src/router.tsx:3040
+#: packages/admin/src/router.tsx:3046
 msgid "Failed to update status"
 msgstr "Không thể cập nhật trạng thái"
 
@@ -7635,7 +7635,7 @@ msgstr "Lọc loại tác giả"
 msgid "Filter: {activeCount} selected"
 msgstr "Lọc: đã chọn {activeCount}"
 
-#: packages/admin/src/router.tsx:1220
+#: packages/admin/src/router.tsx:1218
 msgid "Find it in this entry’s revisions."
 msgstr ""
 
@@ -7697,7 +7697,7 @@ msgstr "Thư mục"
 msgid "Folder deleted"
 msgstr "Đã xoá thư mục"
 
-#: packages/admin/src/router.tsx:2709
+#: packages/admin/src/router.tsx:2715
 msgid "Folder no longer exists"
 msgstr "Thư mục không còn tồn tại"
 
@@ -7808,7 +7808,7 @@ msgid "General"
 msgstr "Tổng quan"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3247
+#: packages/admin/src/router.tsx:3253
 msgid "General Settings"
 msgstr "Cài đặt tổng quan"
 
@@ -7848,12 +7848,12 @@ msgstr "Hãy quay lại chỉnh sửa trước."
 msgid "Go live"
 msgstr "Bật chế độ chính thức"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Go live {countdown}"
 msgstr "Xuất bản {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2500
-#: packages/admin/src/router.tsx:4077
+#: packages/admin/src/router.tsx:4083
 msgid "Go to Dashboard"
 msgstr "Chuyển đến trang quản trị"
 
@@ -7865,11 +7865,11 @@ msgstr "Đến trang đăng nhập"
 msgid "Go to the next problem"
 msgstr "Đến vấn đề tiếp theo"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Goes live"
 msgstr "Thời điểm xuất bản"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 msgid "Goes live {countdown}"
 msgstr "Xuất bản {countdown}"
 
@@ -8351,7 +8351,7 @@ msgid "Import failed"
 msgstr "Nhập thất bại"
 
 #: packages/admin/src/components/WordPressImport.tsx:738
-#: packages/admin/src/router.tsx:3412
+#: packages/admin/src/router.tsx:3418
 msgid "Import from WordPress"
 msgstr "Nhập từ WordPress"
 
@@ -8713,7 +8713,7 @@ msgstr "Khoá truy cập được lưu trữ bởi trình xác thực hoặc tr�
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Tiến trình này đã được khởi chạy từ một phiên làm việc khác, do đó cấu hình nhập không thể thay đổi được nữa. Tiến độ xử lý sẽ được hiển thị tại đây."
 
-#: packages/admin/src/router.tsx:2567
+#: packages/admin/src/router.tsx:2573
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr ""
 
@@ -8907,7 +8907,7 @@ msgstr "Ngôn ngữ"
 msgid "Large section heading"
 msgstr "Đề mục lớn"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:389
 msgid "Last edited"
 msgstr "Sửa lần cuối"
 
@@ -9121,7 +9121,7 @@ msgstr "Xem dạng danh sách"
 msgid "Live"
 msgstr "Chính thức"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:432
 #: packages/admin/src/components/ContentSettingsPanel.tsx:199
 #: packages/admin/src/components/ContentSettingsPanel.tsx:209
 #: packages/admin/src/components/ContentSettingsPanel.tsx:235
@@ -9164,7 +9164,7 @@ msgstr "Tải bản xem trước"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
 #: packages/admin/src/components/ContentEditor.tsx:2768
-#: packages/admin/src/router.tsx:4032
+#: packages/admin/src/router.tsx:4038
 msgid "Loading"
 msgstr "Đang tải"
 
@@ -9193,8 +9193,8 @@ msgstr "Đang tải bộ sưu tập..."
 msgid "Loading comments..."
 msgstr "Đang tải bình luận..."
 
-#: packages/admin/src/router.tsx:4034
-#: packages/admin/src/router.tsx:4046
+#: packages/admin/src/router.tsx:4040
+#: packages/admin/src/router.tsx:4052
 msgid "Loading configuration..."
 msgstr "Đang tải cấu hình..."
 
@@ -9338,7 +9338,7 @@ msgstr "Đang tải…"
 msgid "Local time"
 msgstr "Giờ địa phương"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:366
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -9373,7 +9373,7 @@ msgstr "Khoá tỷ lệ khung hình"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Bị khoá do trường này đã chứa dữ liệu. Vui lòng xoá dữ liệu đã lưu (hoặc xoá trường) nếu muốn thay đổi."
 
-#: packages/admin/src/router.tsx:469
+#: packages/admin/src/router.tsx:470
 msgid "Log in"
 msgstr "Đăng nhập"
 
@@ -9503,11 +9503,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Cửa hàng"
 
-#: packages/admin/src/router.tsx:3400
+#: packages/admin/src/router.tsx:3406
 msgid "Marketplace browsing is no longer available."
 msgstr "Không thể truy cập cửa hàng do đã ngừng hỗ trợ."
 
-#: packages/admin/src/router.tsx:3373
+#: packages/admin/src/router.tsx:3379
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Cửa hàng hiện không còn khả dụng. Quản lý các plugin đã cài đặt từ mục Plugin."
 
@@ -9559,7 +9559,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
-#: packages/admin/src/router.tsx:2668
+#: packages/admin/src/router.tsx:2674
 msgid "Media"
 msgstr "Thư viện"
 
@@ -9622,7 +9622,7 @@ msgstr "Đọc thư viện"
 msgid "Media results"
 msgstr "Kết quả thư viện"
 
-#: packages/admin/src/router.tsx:3143
+#: packages/admin/src/router.tsx:3149
 msgid "Media Usage"
 msgstr "Nơi dùng tệp trong thư viện"
 
@@ -9718,7 +9718,7 @@ msgstr "Đã đổi tên menu"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:521
 #: packages/admin/src/components/WordPressImport.tsx:1201
-#: packages/admin/src/router.tsx:3420
+#: packages/admin/src/router.tsx:3426
 msgid "Menus"
 msgstr "Menu"
 
@@ -9963,11 +9963,11 @@ msgstr "Đã di chuyển {moved} đến vị trí {position} trên {total}"
 msgid "Moved {name} to position {position} of {total}"
 msgstr "Đã di chuyển {name} đến vị trí {position} trên {total}"
 
-#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:803
 msgid "Moved {total} items to draft"
 msgstr "Đã chuyển {total} mục về nháp"
 
-#: packages/admin/src/router.tsx:825
+#: packages/admin/src/router.tsx:824
 msgid "Moved {total} items to trash"
 msgstr "Đã chuyển {total} mục vào thùng rác"
 
@@ -10123,7 +10123,7 @@ msgstr "Cần xử lý"
 msgid "Never"
 msgstr "Không bao giờ"
 
-#: packages/admin/src/router.tsx:2077
+#: packages/admin/src/router.tsx:2083
 msgid "new"
 msgstr "mới"
 
@@ -10154,11 +10154,11 @@ msgstr "Trường tác giả mới"
 msgid "New collection"
 msgstr "Bộ sưu tập mới"
 
-#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:931
 msgid "New content"
 msgstr "Nội dung mới"
 
-#: packages/admin/src/router.tsx:3626
+#: packages/admin/src/router.tsx:3632
 msgid "New content type"
 msgstr "Loại nội dung mới"
 
@@ -10897,7 +10897,7 @@ msgstr "Mở thư mục {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "Mở trong trang quản trị"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:487
 msgid "Open in editor"
 msgstr "Mở trong trình soạn thảo"
 
@@ -11090,11 +11090,11 @@ msgstr "Mã băm của gói"
 msgid "Package downloaded"
 msgstr "Đã tải gói xuống"
 
-#: packages/admin/src/router.tsx:3944
+#: packages/admin/src/router.tsx:3950
 msgid "Page not found"
 msgstr "Không tìm thấy trang"
 
-#: packages/admin/src/router.tsx:4072
+#: packages/admin/src/router.tsx:4078
 msgid "Page Not Found"
 msgstr "Không tìm thấy trang"
 
@@ -11382,7 +11382,7 @@ msgid "Please enter a valid URL"
 msgstr "Vui lòng nhập URL hợp lệ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1234
-#: packages/admin/src/router.tsx:3920
+#: packages/admin/src/router.tsx:3926
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -11419,8 +11419,8 @@ msgstr "Cột plugin không khả dụng"
 msgid "Plugin details"
 msgstr "Chi tiết plugin"
 
-#: packages/admin/src/router.tsx:3345
-#: packages/admin/src/router.tsx:3352
+#: packages/admin/src/router.tsx:3351
+#: packages/admin/src/router.tsx:3358
 msgid "Plugin Details"
 msgstr "Chi tiết plugin"
 
@@ -11445,7 +11445,7 @@ msgstr "Lỗi plugin ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Cài đặt plugin cần có sự đồng ý rõ ràng"
 
-#: packages/admin/src/router.tsx:3337
+#: packages/admin/src/router.tsx:3343
 msgid "Plugin Marketplace"
 msgstr "Cửa hàng plugin"
 
@@ -11485,7 +11485,7 @@ msgid "Plugin Permissions"
 msgstr "Quyền của plugin"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3294
+#: packages/admin/src/router.tsx:3300
 msgid "Plugin Registry"
 msgstr "Kho plugin"
 
@@ -11494,8 +11494,8 @@ msgstr "Kho plugin"
 msgid "Plugin registry configuration error"
 msgstr "Lỗi cấu hình kho plugin"
 
-#: packages/admin/src/router.tsx:3330
-#: packages/admin/src/router.tsx:3364
+#: packages/admin/src/router.tsx:3336
+#: packages/admin/src/router.tsx:3370
 msgid "Plugin registry is not configured."
 msgstr "Kho plugin chưa được cấu hình."
 
@@ -11504,7 +11504,7 @@ msgstr "Kho plugin chưa được cấu hình."
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin phản hồi {0}: {text}"
 
-#: packages/admin/src/router.tsx:3907
+#: packages/admin/src/router.tsx:3913
 msgid "Plugin Settings"
 msgstr "Cài đặt plugin"
 
@@ -11537,7 +11537,7 @@ msgstr "Lỗi tiện ích plugin"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/Sidebar.tsx:587
-#: packages/admin/src/router.tsx:3279
+#: packages/admin/src/router.tsx:3285
 msgid "Plugins"
 msgstr "Plugin"
 
@@ -11626,7 +11626,7 @@ msgstr "Nhấn Escape để thoát khỏi trình soạn thảo mã."
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "Nhấn Space để chọn ảnh. Dùng các phím mũi tên để di chuyển, sau đó nhấn Space để thả."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:496
 #: packages/admin/src/components/ContentSettingsPanel.tsx:426
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
@@ -11636,7 +11636,7 @@ msgstr "Nhấn Space để chọn ảnh. Dùng các phím mũi tên để di chu
 msgid "Preview"
 msgstr "Xem trước"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:496
 msgid "Preview changes"
 msgstr "Xem trước thay đổi"
 
@@ -11761,7 +11761,7 @@ msgstr "Xuất bản thay đổi?"
 msgid "visualEditing.publishFailed"
 msgstr "Xuất bản thất bại. Hãy kiểm tra quyền của bạn rồi thử lại."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:454
 #: packages/admin/src/components/ContentSettingsPanel.tsx:529
 msgid "Publish now"
 msgstr "Xuất bản ngay"
@@ -11780,7 +11780,7 @@ msgid "visualEditing.published"
 msgstr "Đã xuất bản"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
@@ -11788,7 +11788,7 @@ msgstr "Đã xuất bản"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:270
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
-#: packages/admin/src/router.tsx:1938
+#: packages/admin/src/router.tsx:1941
 msgid "Published"
 msgstr "Đã xuất bản"
 
@@ -11797,11 +11797,11 @@ msgstr "Đã xuất bản"
 msgid "Published {0}"
 msgstr "Đã xuất bản {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 msgid "Published {liveSince}"
 msgstr "Đã xuất bản {liveSince}"
 
-#: packages/admin/src/router.tsx:781
+#: packages/admin/src/router.tsx:780
 msgid "Published {total} items"
 msgstr "Đã xuất bản {total} mục"
 
@@ -11829,7 +11829,7 @@ msgstr "Không xác minh được nhà phát hành"
 msgid "Publisher release policy"
 msgstr "Chính sách phát hành phiên bản"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:401
 msgid "Publishing"
 msgstr "Xuất bản"
 
@@ -11941,7 +11941,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Đọc dữ liệu phân loại và các mục phân loại"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2529
+#: packages/admin/src/router.tsx:2535
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -12032,7 +12032,7 @@ msgstr "Đang chuyển đến trang đăng nhập..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:528
-#: packages/admin/src/router.tsx:3462
+#: packages/admin/src/router.tsx:3468
 msgid "Redirects"
 msgstr "Chuyển hướng"
 
@@ -12111,7 +12111,7 @@ msgstr "Kho"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3662
+#: packages/admin/src/router.tsx:3668
 msgid "Relations"
 msgstr "Quan hệ"
 
@@ -12135,7 +12135,7 @@ msgid "Release notes"
 msgstr "Ghi chú phát hành"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2554
+#: packages/admin/src/router.tsx:2560
 msgid "Reload"
 msgstr ""
 
@@ -12147,7 +12147,7 @@ msgstr "Hãy tải lại trang sau khi cập nhật EmDash rồi thử lại."
 msgid "Reload page"
 msgstr "Tải lại trang"
 
-#: packages/admin/src/router.tsx:2545
+#: packages/admin/src/router.tsx:2551
 msgid "Reloading the admin"
 msgstr ""
 
@@ -12265,7 +12265,7 @@ msgstr "Xoá khoá truy cập"
 msgid "Remove passkey?"
 msgstr "Xoá khoá truy cập?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:473
 #: packages/admin/src/components/ContentSettingsPanel.tsx:653
 msgid "Remove schedule"
 msgstr "Huỷ đặt lịch"
@@ -12571,11 +12571,11 @@ msgstr "Bắt buộc cho tính năng trợ năng. Dùng để mô tả hình ả
 msgid "Requires EmDash {0}"
 msgstr "Yêu cầu EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:464
 msgid "Reschedule"
 msgstr "Đổi lịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:252
 msgid "Rescheduled"
 msgstr "Đã đổi lịch"
 
@@ -12664,16 +12664,16 @@ msgid "Restart numbering"
 msgstr "Đánh số lại từ đầu"
 
 #: packages/admin/src/components/ContentList.tsx:1780
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:138
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:140
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:244
 msgid "Restore"
 msgstr "Khôi phục"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:103
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:105
 msgid "Restore failed"
 msgstr "Khôi phục thất bại"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:120
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:122
 msgid "Restore this version?"
 msgstr "Khôi phục phiên bản này?"
 
@@ -12689,7 +12689,7 @@ msgstr "Khôi phục từ {restoredDate}"
 msgid "Restored the version from {date}"
 msgstr "Đã khôi phục phiên bản ngày {date}"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:139
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:141
 msgid "Restoring…"
 msgstr "Đang khôi phục…"
 
@@ -12720,7 +12720,7 @@ msgstr "Đã ngừng dùng"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:276
-#: packages/admin/src/router.tsx:4060
+#: packages/admin/src/router.tsx:4066
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12771,7 +12771,7 @@ msgstr "Đang thử lại…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Các khối nội dung dùng lại được, có thể chèn vào bất kỳ nội dung nào"
 
-#: packages/admin/src/router.tsx:1986
+#: packages/admin/src/router.tsx:1991
 msgid "Reverted to published version"
 msgstr "Đã quay về phiên bản đã xuất bản"
 
@@ -13137,19 +13137,19 @@ msgstr "Ngày đặt lịch"
 msgid "Schedule publication"
 msgstr "Đặt lịch xuất bản"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "Schedule removed"
 msgstr "Đã huỷ đặt lịch"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2033
+#: packages/admin/src/router.tsx:2039
 msgid "Scheduled"
 msgstr "Đã đặt lịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:438
 msgid "Scheduled changes"
 msgstr "Thay đổi đã đặt lịch"
 
@@ -13469,7 +13469,7 @@ msgstr "Tiêu đề mẫu"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:542
-#: packages/admin/src/router.tsx:3469
+#: packages/admin/src/router.tsx:3475
 msgid "Sections"
 msgstr "Mẫu"
 
@@ -13526,7 +13526,7 @@ msgstr "Lỗi bảo mật. Hãy đảm bảo bạn đang dùng kết nối an to
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3151
+#: packages/admin/src/router.tsx:3157
 msgid "Security Settings"
 msgstr "Cài đặt bảo mật"
 
@@ -13793,7 +13793,7 @@ msgid "SEO settings"
 msgstr "Cài đặt SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3271
+#: packages/admin/src/router.tsx:3277
 msgid "SEO Settings"
 msgstr "Cài đặt SEO"
 
@@ -13873,7 +13873,7 @@ msgstr "Đang thiết lập..."
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
 #: packages/admin/src/components/WordPressImport.tsx:1861
-#: packages/admin/src/router.tsx:3136
+#: packages/admin/src/router.tsx:3142
 msgid "Settings"
 msgstr "Cài đặt"
 
@@ -13890,7 +13890,7 @@ msgstr "Đọc cài đặt"
 msgid "Settings saved successfully"
 msgstr "Đã lưu cài đặt"
 
-#: packages/admin/src/router.tsx:461
+#: packages/admin/src/router.tsx:462
 msgid "Setup"
 msgstr "Thiết lập"
 
@@ -14047,7 +14047,7 @@ msgstr "Đăng nhập bằng khoá truy cập"
 msgid "Sign in with your Bluesky/Atmosphere handle"
 msgstr "Đăng nhập bằng tên định danh Bluesky/Atmosphere của bạn"
 
-#: packages/admin/src/router.tsx:501
+#: packages/admin/src/router.tsx:502
 msgid "Sign up"
 msgstr "Đăng ký"
 
@@ -14288,7 +14288,7 @@ msgstr "Liên kết hồ sơ mạng xã hội"
 msgid "Social Profiles"
 msgstr "Hồ sơ mạng xã hội"
 
-#: packages/admin/src/router.tsx:3259
+#: packages/admin/src/router.tsx:3265
 msgid "Social Settings"
 msgstr "Cài đặt mạng xã hội"
 
@@ -14485,7 +14485,7 @@ msgstr "STARTTLS"
 msgid "STARTTLS (port 587)"
 msgstr "STARTTLS (cổng 587)"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:340
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "Trạng thái"
@@ -14688,7 +14688,7 @@ msgstr "Ngôn ngữ đích"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3440
+#: packages/admin/src/router.tsx:3446
 msgid "Taxonomies"
 msgstr "Phân loại"
 
@@ -14816,7 +14816,7 @@ msgstr "trường {0} trên {1}, liệt kê các mục liên kết tới nó"
 msgid "the {0} field on {1}, which picks entries it links to"
 msgstr "trường {0} trên {1}, chọn các mục mà nó liên kết tới"
 
-#: packages/admin/src/router.tsx:1195
+#: packages/admin/src/router.tsx:1193
 msgid "The admin was updated"
 msgstr ""
 
@@ -15087,7 +15087,7 @@ msgstr "Nội dung của gói được ghi vào trang web này. Không thể ho�
 msgid "The package’s file index is not valid."
 msgstr "Chỉ mục tệp của gói không hợp lệ."
 
-#: packages/admin/src/router.tsx:4074
+#: packages/admin/src/router.tsx:4080
 msgid "The page you're looking for doesn't exist."
 msgstr "Trang bạn đang tìm không tồn tại."
 
@@ -15154,7 +15154,7 @@ msgstr "Các nội dung mẫu vừa thêm đã được lưu giữ. Bấm tiếp
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr "ID tệp trong thư viện đã lưu có thể không dùng được trong liên kết chia sẻ. Hãy lưu URL ảnh để dùng tệp này khi chia sẻ."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:239
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Các thay đổi đã đặt lịch cho {title} đã được chuyển về bản nháp."
 
@@ -15206,19 +15206,19 @@ msgstr "Cửa hàng giao diện đang trống. Hãy quay lại sau."
 msgid "The uploaded package is discarded. Nothing on this site has changed."
 msgstr "Gói đã tải lên sẽ bị bỏ. Không có gì trên trang web này thay đổi."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:128
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:130
 msgid "The version from {when} becomes your draft and goes live at the scheduled time."
 msgstr "Phiên bản lúc {when} sẽ trở thành bản nháp của bạn và được xuất bản vào thời gian đã đặt lịch."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:131
 msgid "The version from {when} becomes your draft. The live site won't change until you publish."
 msgstr "Phiên bản lúc {when} sẽ trở thành bản nháp của bạn. Trang web đang công khai sẽ không đổi cho đến khi bạn xuất bản."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:94
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:96
 msgid "The version from {when} is now your draft. It goes live at the scheduled time."
 msgstr "Phiên bản lúc {when} hiện là bản nháp của bạn. Nó sẽ được xuất bản vào thời gian đã đặt lịch."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:95
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:97
 msgid "The version from {when} is now your draft. Publish when you're ready."
 msgstr "Phiên bản lúc {when} hiện là bản nháp của bạn. Hãy xuất bản khi bạn sẵn sàng."
 
@@ -15238,7 +15238,7 @@ msgstr "Giao diện"
 msgid "Theme \"{id}\" not found"
 msgstr "Không tìm thấy giao diện \"{id}\""
 
-#: packages/admin/src/router.tsx:3391
+#: packages/admin/src/router.tsx:3397
 msgid "Theme Details"
 msgstr "Thông tin giao diện"
 
@@ -15247,7 +15247,7 @@ msgstr "Thông tin giao diện"
 msgid "Theme ID: {0}"
 msgstr "ID giao diện: {0}"
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3389
 msgid "Theme Marketplace"
 msgstr "Cửa hàng giao diện"
 
@@ -15383,11 +15383,11 @@ msgstr "Mục này đã thay đổi ở nơi khác sau khi bạn mở nó."
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Mục này đã thay đổi ở nơi khác. Hãy lưu đè, hoặc tải lại để lấy phiên bản mới hơn."
 
-#: packages/admin/src/router.tsx:2516
+#: packages/admin/src/router.tsx:2522
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Mục này không tồn tại hoặc chưa xuất bản. Bạn chỉ có quyền xem nội dung đã xuất bản."
 
-#: packages/admin/src/router.tsx:2517
+#: packages/admin/src/router.tsx:2523
 msgid "This entry doesn't exist or was deleted."
 msgstr "Mục này không tồn tại hoặc đã bị xoá."
 
@@ -15407,11 +15407,11 @@ msgstr "Mục này ở chế độ chỉ đọc vì lược đồ của nó dùn
 msgid "This entry is still loading."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Mục này đã quá hạn {lateness} nhưng chưa được xuất bản. Có thể tiến trình xuất bản theo lịch đang không hoạt động."
 
-#: packages/admin/src/router.tsx:2566
+#: packages/admin/src/router.tsx:2572
 msgid "This entry was moved to Trash or deleted"
 msgstr ""
 
@@ -15882,7 +15882,7 @@ msgstr "Theo dõi nơi dùng tệp trong thư viện trên toàn bộ nội dung
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3215
+#: packages/admin/src/router.tsx:3221
 msgid "Transfer"
 msgstr "Chuyển dữ liệu"
 
@@ -15911,7 +15911,7 @@ msgstr "Đang dịch..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2076
+#: packages/admin/src/router.tsx:2082
 msgid "Translation created"
 msgstr "Đã tạo bản dịch"
 
@@ -15920,7 +15920,7 @@ msgstr "Đã tạo bản dịch"
 msgid "Translations"
 msgstr "Bản dịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:373
 msgid "Translations:"
 msgstr "Bản dịch:"
 
@@ -16203,7 +16203,7 @@ msgstr "Tài khoản chưa đặt tên"
 msgid "Unpublish {itemLabel}"
 msgstr "Huỷ xuất bản {itemLabel}"
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1966
 msgid "Unpublished"
 msgstr "Đã huỷ xuất bản"
 
@@ -16234,7 +16234,7 @@ msgstr "Thay đổi chưa lưu"
 msgid "Unsaved content may leave your site"
 msgstr "Nội dung chưa lưu có thể rời khỏi trang web của bạn"
 
-#: packages/admin/src/router.tsx:2044
+#: packages/admin/src/router.tsx:2051
 msgid "Unscheduled"
 msgstr "Đã huỷ đặt lịch"
 
@@ -16702,7 +16702,7 @@ msgstr "Tên đăng nhập"
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3488
+#: packages/admin/src/router.tsx:3494
 msgid "Users"
 msgstr "Tài khoản"
 
@@ -16792,7 +16792,7 @@ msgstr "Phiên bản {0} (đang dùng)"
 msgid "Version from {when}"
 msgstr "Phiên bản lúc {when}"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:92
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:94
 msgid "Version restored"
 msgstr "Đã khôi phục phiên bản"
 
@@ -16826,7 +16826,7 @@ msgstr "Tải lên video thất bại. Hãy thử lại."
 msgid "View email provider status and send test emails"
 msgstr "Xem trạng thái nhà cung cấp email và gửi email thử"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:506
 msgid "View live"
 msgstr "Xem bản live"
 
@@ -16918,7 +16918,7 @@ msgstr "Cảnh báo"
 msgid "Warnings"
 msgstr "Cảnh báo"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:353
 msgid "Was due"
 msgstr "Đến hạn lúc"
 
@@ -17131,7 +17131,7 @@ msgstr "Đã cập nhật tiện ích"
 #: packages/admin/src/components/Sidebar.tsx:535
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
-#: packages/admin/src/router.tsx:3454
+#: packages/admin/src/router.tsx:3460
 msgid "Widgets"
 msgstr "Tiện ích"
 
@@ -17304,7 +17304,7 @@ msgstr "Bạn cần quyền quản trị để chuyển trang web này."
 msgid "You need admin permissions to view this page."
 msgstr "Bạn cần quyền quản trị để xem trang này."
 
-#: packages/admin/src/router.tsx:3092
+#: packages/admin/src/router.tsx:3098
 msgid "You need Editor permissions to moderate comments."
 msgstr "Bạn cần quyền biên tập viên để kiểm duyệt bình luận."
 
@@ -17420,11 +17420,11 @@ msgstr "Trình quản lý xác thực của thiết bị sẽ lưu và hiển th
 msgid "your device's passkey prompt"
 msgstr "màn hình xác thực khoá truy cập của thiết bị"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:126
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:128
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
 msgstr "Bản nháp của bạn sẽ được thay thế bằng phiên bản lúc {when}. Bản nháp hiện tại vẫn được lưu trong Lịch sử chỉnh sửa, và trang web đang công khai sẽ không thay đổi cho đến khi bạn xuất bản."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:125
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:127
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
 msgstr "Bản nháp của bạn sẽ được thay thế bằng phiên bản lúc {when}. Bản nháp hiện tại vẫn được lưu trong Lịch sử chỉnh sửa, và phiên bản được khôi phục sẽ xuất bản theo thời gian đã đặt lịch."
 
@@ -17432,7 +17432,7 @@ msgstr "Bản nháp của bạn sẽ được thay thế bằng phiên bản lú
 msgid "Your earlier edits weren’t kept"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1196
+#: packages/admin/src/router.tsx:1194
 msgid "Your edits are still on this page. Reload it to edit with others."
 msgstr ""
 
@@ -17460,7 +17460,7 @@ msgstr "Tên tài khoản Instagram của bạn"
 msgid "Your last edits weren’t saved"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1229
+#: packages/admin/src/router.tsx:1227
 msgid "Your latest edits couldn’t be saved"
 msgstr ""
 
@@ -17486,11 +17486,11 @@ msgstr "Tên của bạn (tuỳ chọn)"
 msgid "Your Role"
 msgstr "Vai trò của bạn"
 
-#: packages/admin/src/router.tsx:2532
+#: packages/admin/src/router.tsx:2538
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Bạn chỉ có quyền chỉnh sửa mục của mình khi còn ở trạng thái nháp."
 
-#: packages/admin/src/router.tsx:2533
+#: packages/admin/src/router.tsx:2539
 msgid "Your role can't edit this entry."
 msgstr "Bạn không có quyền chỉnh sửa mục này."
 
@@ -17512,7 +17512,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "Trang web của bạn yêu cầu bản phát hành phải ra mắt được ít nhất {0} mới có thể cài đặt. Bạn có thể cài đặt bản phát hành này sau."
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:361
 msgid "Your time: {viewerTime}"
 msgstr "Giờ của bạn: {viewerTime}"
 
@@ -17520,20 +17520,20 @@ msgstr "Giờ của bạn: {viewerTime}"
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Tên tài khoản Twitter/X của bạn (VD: @username)"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:61
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:62
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:45
 msgid "Your unsaved changes will be lost."
 msgstr "Các thay đổi chưa lưu của bạn sẽ bị mất."
 
-#: packages/admin/src/router.tsx:1219
+#: packages/admin/src/router.tsx:1217
 msgid "Your unsaved edits are in a recovery revision"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1204
+#: packages/admin/src/router.tsx:1202
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1208
+#: packages/admin/src/router.tsx:1206
 msgid "Your unsaved edits couldn’t be kept"
 msgstr ""
 
