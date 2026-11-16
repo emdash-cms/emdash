@@ -11,6 +11,8 @@ export interface UserColor {
 	readonly name: string;
 	/** The palette's bottom color: caret lines, selections, and revision marks. */
 	readonly line: string;
+	/** The caret line in dark mode: the bottom, lightened where it would fall under 3:1 on a dark table header. */
+	readonly darkLine: string;
 	/** The gradient behind a name, from the caret's side to the far end. Both keep white text at 4.5:1. */
 	readonly flag: readonly [string, string];
 }
@@ -20,6 +22,11 @@ const FLAG_START = { darken: 0.12, contrast: 5 };
 const FLAG_END = { darken: 0.08, contrast: 4.6 };
 /** How far the flag's far end turns toward the hue of the palette's top. */
 const FLAG_END_HUE_SHIFT = 0.3;
+/**
+ * The lightest surface a caret sits on in dark mode, a table header in Kumo's tint (gray at
+ * OKLCH lightness 0.269), as a luminance, and the least contrast a caret line keeps against it.
+ */
+const DARK_CARET = { surface: 0.269 ** 3, contrast: 3.1 };
 
 const derived: Array<UserColor | undefined> = [];
 
@@ -39,6 +46,7 @@ export function userColorProperties(color: UserColor | null): Record<string, str
 	if (!color) return {};
 	return {
 		"--emdash-author": color.line,
+		"--emdash-author-dark-line": color.darkLine,
 		"--emdash-author-flag-start": color.flag[0],
 		"--emdash-author-flag-end": color.flag[1],
 	};
@@ -61,11 +69,27 @@ function derive({ name, top, bottom }: UserAvatarPalette): UserColor {
 	return {
 		name: name.toLowerCase(),
 		line: bottom,
+		darkLine: lift(bottom, DARK_CARET.surface, DARK_CARET.contrast),
 		flag: [
 			shade(lightness - FLAG_START.darken, chroma, hue, FLAG_START.contrast),
 			shade(lightness - FLAG_END.darken, chroma, hue + towardTop, FLAG_END.contrast),
 		],
 	};
+}
+
+/** `hex` lightened at its hue as little as keeps `contrast` or more against a darker surface of luminance `surface`. */
+function lift(hex: string, surface: number, contrast: number): string {
+	const enough = (color: string) => (luminance(color) + 0.05) / (surface + 0.05) >= contrast;
+	if (enough(hex)) return hex;
+	const [lightness, chroma, hue] = hexToOklch(hex);
+	let low = lightness;
+	let high = 1;
+	for (let step = 0; step < 20; step++) {
+		const middle = (low + high) / 2;
+		if (enough(oklchToHex(middle, chroma, hue))) high = middle;
+		else low = middle;
+	}
+	return oklchToHex(high, chroma, hue);
 }
 
 /** The lightest color up to `lightness`, at the hue, that keeps white text at `contrast` or more. */
@@ -152,7 +176,11 @@ function oklchToHex(lightness: number, chroma: number, hue: number): string {
 	return linearToHex(oklchToLinear(lightness, low, hue));
 }
 
-function whiteContrast(hex: string): number {
+function luminance(hex: string): number {
 	const [r, g, b] = hexToLinear(hex);
-	return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function whiteContrast(hex: string): number {
+	return 1.05 / (luminance(hex) + 0.05);
 }

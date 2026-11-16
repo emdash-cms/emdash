@@ -31,7 +31,7 @@ Every user without a picture gets a generated avatar: a circle split by a blurre
 
 Each pair is a light top color over a deeper bottom color. The pairs started from OKLCH targets, so the set reads as one family: lightness 0.93 and chroma up to 0.085 for every top color, its hue turned toward yellow from the bottom's, and chroma up to 0.17 for every bottom color. Colors outside sRGB were reduced in chroma until they fit, so the hex values below are the specification, not the targets.
 
-Bottoms alternate between two lightness tiers around the hue circle, so neighboring pairs differ in lightness as well as hue. Deep bottoms sit at lightness 0.53, where a co-editing caret in that color keeps 3:1 against the dark editor. Bright bottoms are as light as 3:1 white initials allow, up to 0.63. No two bottoms are closer than 0.07 in OKLab. The hues skip the olive range between Gold and Moss, whose darker shades read as khaki.
+Bottoms alternate between two lightness tiers around the hue circle, so neighboring pairs differ in lightness as well as hue. Deep bottoms sit at lightness 0.53, where a co-editing caret in that color keeps 3:1 against the dark editor's page. Bright bottoms are as light as 3:1 white initials allow, up to 0.63. No two bottoms are closer than 0.07 in OKLab. The hues skip the olive range between Gold and Moss, whose darker shades read as khaki.
 
 | Pair    | OKLCH hues, top / bottom | Top       | Bottom    | Tier   | Bottom lightness | White initials on the 85% mix |
 | ------- | ------------------------ | --------- | --------- | ------ | ---------------- | ----------------------------- |
@@ -97,7 +97,8 @@ The hash, both tables, their order and their lengths are fixed. Adding a palette
 Each person's color in co-editing and **Revisions** comes from their palette, so they look the same everywhere, and a person with a picture gets the color of their generated avatar.
 
 - The palette's bottom color draws their caret line, their selection at 25% opacity, and the marks and dot of a version that names only them.
-- The gradient behind their name, over their caret and on a field's label, runs between two darker shades of that color, derived in OKLCH rather than listed. At the caret's side the shade is 0.12 darker, and at the far end 0.08 darker with its hue turned 30% toward the top color, each kept at no less than 5:1 and 4.6:1 for white text. The darker end meets the caret in either text direction.
+- In dark mode, the caret line is the bottom lightened at its hue as little as keeps 3:1 against a table header, the lightest surface a caret sits on there. The nine deep bottoms lighten by up to 0.043, and the bright ones are unchanged.
+- The gradient behind their name, over their caret and on a field's label, runs between two darker shades of that color, derived in OKLCH rather than listed. At the caret's side the shade is 0.12 darker, and at the far end 0.08 darker with its hue turned 30% toward the top color, each kept at no less than 5:1 and 4.6:1 for white text. The darker end sits at the inline start in either text direction, where a caret's name meets the caret unless it has shifted to stay in the editor.
 - People whose avatars share a palette share the color, and their names tell them apart.
 
 ## Goals

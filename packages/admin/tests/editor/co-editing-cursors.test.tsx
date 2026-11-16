@@ -452,39 +452,57 @@ describe("a remote caret's color", () => {
 	});
 
 	it.each(["light", "dark"])(
-		"keeps 3:1 against the editor in %s mode, in every avatar palette",
+		"keeps 3:1 against the editor, its table headers and code blocks in %s mode, in every avatar palette",
 		async (mode) => {
 			const colors = [null, ...USER_AVATAR_PALETTES.map((_, index) => userPaletteColor(index))];
+			const carets = () =>
+				colors.map((color) => (
+					<span
+						key={color?.name ?? "neutral"}
+						className="emdash-remote-caret"
+						{...userColorProps(color)}
+					>
+						x
+					</span>
+				));
 			const screen = await render(
-				<div data-mode={mode}>
-					{["bg-kumo-base", "bg-kumo-elevated"].map((surface) => (
-						<div key={surface} className={surface}>
-							<div className="ProseMirror">
-								{colors.map((color) => (
-									<span
-										key={color?.name ?? "neutral"}
-										className="emdash-remote-caret"
-										{...userColorProps(color)}
-									>
-										x
-									</span>
-								))}
-							</div>
-						</div>
-					))}
+				<div data-mode={mode} className="ProseMirror">
+					<div data-surface="base" className="bg-kumo-base">
+						{carets()}
+					</div>
+					<div data-surface="elevated" className="bg-kumo-elevated">
+						{carets()}
+					</div>
+					<div data-surface="control" className="bg-kumo-control">
+						{carets()}
+					</div>
+					<table>
+						<tbody>
+							<tr>
+								<th data-surface="table header">{carets()}</th>
+							</tr>
+						</tbody>
+					</table>
+					<pre data-surface="code" className="emdash-code-block">
+						{carets()}
+					</pre>
 				</div>,
 			);
 			unmounts.push(() => screen.unmount());
-			const short = Array.from(screen.container.firstElementChild!.children, (surface) => {
-				const background = srgb(getComputedStyle(surface).backgroundColor);
-				return Array.from(
-					surface.querySelectorAll<HTMLElement>(".emdash-remote-caret"),
-					(caret) => ({
-						color: caret.dataset.authorColor,
-						ratio: contrast(srgb(getComputedStyle(caret).borderInlineStartColor), background),
-					}),
-				);
-			})
+			const short = Array.from(
+				screen.container.querySelectorAll<HTMLElement>("[data-surface]"),
+				(surface) => {
+					const background = srgb(getComputedStyle(surface).backgroundColor);
+					return Array.from(
+						surface.querySelectorAll<HTMLElement>(".emdash-remote-caret"),
+						(caret) => ({
+							surface: surface.dataset.surface,
+							color: caret.dataset.authorColor,
+							ratio: contrast(srgb(getComputedStyle(caret).borderInlineStartColor), background),
+						}),
+					);
+				},
+			)
 				.flat()
 				.filter(({ ratio }) => ratio < 3);
 			expect(short).toEqual([]);

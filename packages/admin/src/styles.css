@@ -1184,7 +1184,8 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 
 	/*
 	 * The darker end sits at the inline start, where a caret label meets its
-	 * caret. The parent's direction counts, since a pill's own follows the name.
+	 * caret unless it has shifted to stay in the editor. The parent's direction
+	 * counts, since a pill's own follows the name.
 	 */
 	:dir(rtl) > .emdash-presence-pill {
 		background-image: linear-gradient(
@@ -1226,13 +1227,15 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 }
 
 /*
- * A person's caret line is their palette's bottom color, which keeps 3:1
- * against the page in both themes, as the mid gray without a person does.
+ * A person's caret line is their palette's bottom color, lightened in dark
+ * mode where it would fall under 3:1 on a table header. It keeps 3:1 against
+ * the editor, its table headers and code blocks, as the mid gray without a
+ * person does.
  */
 .ProseMirror .emdash-remote-caret {
 	position: relative;
 	margin-inline: -1px;
-	border-inline-start: 2px solid var(--emdash-author);
+	border-inline-start: 2px solid light-dark(var(--emdash-author), var(--emdash-author-dark-line));
 	pointer-events: none;
 }
 
@@ -1743,6 +1746,7 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
  */
 [data-author-color] {
 	--emdash-author: var(--color-kumo-badge-neutral);
+	--emdash-author-dark-line: var(--emdash-author);
 	--emdash-author-flag-start: var(--emdash-author);
 	--emdash-author-flag-end: var(--emdash-author);
 }
