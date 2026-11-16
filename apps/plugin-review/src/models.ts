@@ -71,6 +71,9 @@ const PROTOCOLS: Record<
 	},
 };
 
+export const REASONING_LEVELS = ["low", "medium", "high"] as const;
+export type ReasoningLevel = (typeof REASONING_LEVELS)[number];
+
 export class GatewayConfigurationError extends Error {
 	override readonly name = "GatewayConfigurationError";
 }
@@ -79,7 +82,11 @@ export class GatewayConfigurationError extends Error {
  * A reviewer model reached through an authenticated AI Gateway with Unified
  * Billing. The gateway token stands in for the provider API key.
  */
-export function gatewayReviewModel(env: GatewayEnv, specifier: string): ReviewModel {
+export function gatewayReviewModel(
+	env: GatewayEnv,
+	specifier: string,
+	options: { reasoning?: ReasoningLevel } = {},
+): ReviewModel {
 	const account = env.AI_GATEWAY_ACCOUNT_ID?.trim();
 	const gateway = env.AI_GATEWAY_NAME?.trim();
 	const token = env.AI_GATEWAY_TOKEN?.trim();
@@ -107,6 +114,13 @@ export function gatewayReviewModel(env: GatewayEnv, specifier: string): ReviewMo
 		...(compat ? { compat } : {}),
 		...MODEL_METADATA[id],
 	};
+	if (options.reasoning) {
+		model.reasoning = true;
+		if (api === "openai-completions") {
+			model.compat = { ...model.compat, supportsReasoningEffort: true };
+		}
+	}
+	const reasoning = options.reasoning ?? (model.reasoning ? "high" : undefined);
 	const client = streams();
 	return {
 		id: specifier,
@@ -119,7 +133,7 @@ export function gatewayReviewModel(env: GatewayEnv, specifier: string): ReviewMo
 					onResponse: (response) => {
 						status = response.status;
 					},
-					...(model.reasoning ? { reasoning: "high" } : {}),
+					...(reasoning ? { reasoning } : {}),
 				})
 				.result();
 			if (provider === "anthropic" && isRefusal(message, status, signal)) {

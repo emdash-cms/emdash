@@ -45,6 +45,7 @@ EVAL_CASES_DIR=/path/to/private/cases pnpm --filter @emdash-cms/plugin-review ev
 | `--addendum`  | none                                           | File holding private prompt guidance to append.          |
 | `--out`       | `<cases-dir>/../results/<timestamp>`           | Where to write one JSON result per case and model.       |
 | `--prices`    | none                                           | JSON file of US dollars per million tokens, by model.    |
+| `--reasoning` | the model's default                            | `low`, `medium` or `high`, sent as the reasoning effort. |
 
 Specifiers are `anthropic/<id>`, `openai/<id>` or `workers-ai/<id>`, for example `workers-ai/@cf/zai-org/glm-5.3`.
 

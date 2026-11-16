@@ -102,4 +102,35 @@ describe("gatewayReviewModel", () => {
 			runReview(REQUEST, gatewayReviewModel(ENV, REQUEST.model), options),
 		).rejects.toThrow(/overloaded/i);
 	});
+
+	it("sends a requested reasoning level to Workers AI and none by default", async () => {
+		const bodies: Record<string, unknown>[] = [];
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_url: unknown, init?: RequestInit) => {
+				bodies.push(JSON.parse(init?.body as string) as Record<string, unknown>);
+				const chunk = {
+					id: "c1",
+					object: "chat.completion.chunk",
+					created: 0,
+					model: "@cf/zai-org/glm-5.3",
+					choices: [{ index: 0, delta: { content: "done" }, finish_reason: "stop" }],
+				};
+				return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, {
+					status: 200,
+					headers: { "content-type": "text/event-stream" },
+				});
+			}),
+		);
+		const context = { messages: [{ role: "user" as const, content: "hi", timestamp: 0 }] };
+		const signal = AbortSignal.timeout(5000);
+
+		await gatewayReviewModel(ENV, "workers-ai/@cf/zai-org/glm-5.3", {
+			reasoning: "low",
+		}).complete(context, signal);
+		await gatewayReviewModel(ENV, "workers-ai/@cf/zai-org/glm-5.3").complete(context, signal);
+
+		expect(bodies[0]).toMatchObject({ model: "@cf/zai-org/glm-5.3", reasoning_effort: "low" });
+		expect(bodies[1]).not.toHaveProperty("reasoning_effort");
+	});
 });

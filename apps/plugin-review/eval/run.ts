@@ -14,7 +14,7 @@ import { join, relative, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 import { runReview } from "../src/agent.js";
-import { gatewayReviewModel } from "../src/models.js";
+import { gatewayReviewModel, REASONING_LEVELS, type ReasoningLevel } from "../src/models.js";
 import type { PluginReviewRequest, PluginReviewResponse, ReviewFile } from "../src/types.js";
 
 const DEFAULT_MODELS = "anthropic/claude-opus-5-5,openai/gpt-6.1-sol";
@@ -36,6 +36,7 @@ const { values } = parseArgs({
 		out: { type: "string" },
 		addendum: { type: "string" },
 		prices: { type: "string" },
+		reasoning: { type: "string" },
 	},
 });
 
@@ -61,13 +62,18 @@ const models = values.models
 	.filter(Boolean);
 const addendum = values.addendum ? readFileSync(values.addendum, "utf8") : undefined;
 const prices = values.prices ? loadPrices(values.prices) : {};
+const reasoning = values.reasoning;
+if (reasoning !== undefined && !isReasoningLevel(reasoning)) {
+	console.error(`--reasoning must be one of ${REASONING_LEVELS.join(", ")}.`);
+	process.exit(2);
+}
 const outDir =
 	values.out ?? join(casesDir, "..", "results", new Date().toISOString().replaceAll(":", "-"));
 mkdirSync(outDir, { recursive: true });
 
 let failures = 0;
 for (const model of models) {
-	const reviewer = gatewayReviewModel(process.env, model);
+	const reviewer = gatewayReviewModel(process.env, model, reasoning ? { reasoning } : {});
 	const modelTotal = emptyUsage();
 	let modelSeconds = 0;
 	for (const testCase of cases) {
@@ -101,7 +107,9 @@ for (const model of models) {
 			!response.declined &&
 			(testCase.expect.length === 0
 				? found.size === 0
-				: testCase.expect.every((category) => found.has(category)));
+				: testCase.expect.every((expected) =>
+						expected.split("|").some((category) => found.has(category)),
+					));
 		if (!passed) failures += 1;
 		const seconds = Math.round((Date.now() - started) / 1000);
 		const cost = costOf(prices[model], usage);
@@ -224,6 +232,10 @@ function releaseSubject(testCase: EvalCase): PluginReviewRequest["subject"] {
 		cid: "bafyreievalcaseplaceholdercid",
 		version,
 	};
+}
+
+function isReasoningLevel(value: string): value is ReasoningLevel {
+	return REASONING_LEVELS.some((level) => level === value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
