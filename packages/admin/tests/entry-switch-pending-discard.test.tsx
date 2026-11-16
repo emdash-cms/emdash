@@ -77,6 +77,10 @@ const OTHER = {
 const PAGE = { ...OTHER, id: "page_c", type: "pages", slug: "page-c" };
 
 const ENTRY_PATH = `/_emdash/api/content/posts/${ENTRY.id}`;
+/** The server's answer to a room join while co-editing is off. */
+const SINGLE_EDITOR = { data: { mode: "single-editor" } };
+/** The server's answer to a lock request this session wins. */
+const HELD = { data: { enabled: true, holder: null, heldByCaller: true, room: false } };
 
 // Shaped like the server's tokens, since the router compares their versions before adopting one.
 const ENTRY_REV = btoa(`3:${ENTRY.updatedAt}`);
@@ -139,6 +143,19 @@ function recordSaves(entry: Entry) {
 	return saves;
 }
 
+/** Counts the answers `entry` gets to its lock requests from now on. */
+function recordLockAnswers(entry: Entry) {
+	const answers: number[] = [];
+	const send = globalThis.fetch;
+	globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+		const response = await send(input, init);
+		const lock = typeof input === "string" && input.startsWith(`${entryPath(entry)}/lock`);
+		if (lock && init?.method === "POST") answers.push(response.status);
+		return response;
+	}) as typeof fetch;
+	return answers;
+}
+
 async function discardChanges(screen: Screen) {
 	screen.getByRole("button", { name: "Discard changes", exact: true }).element().click();
 	const dialog = screen.getByRole("dialog", { name: "Discard draft changes?" });
@@ -160,6 +177,8 @@ describe.each([
 			.on("GET", "/_emdash/api/bylines", { data: { items: [], nextCursor: null } })
 			.on("GET", "/_emdash/api/content/posts?", { data: { items: [], nextCursor: null } })
 			.on("GET", "/_emdash/api/content/pages?", { data: { items: [], nextCursor: null } })
+			.on("POST", `${entryPath(other)}/room`, SINGLE_EDITOR)
+			.on("POST", `${ENTRY_PATH}/room`, SINGLE_EDITOR)
 			.on("GET", entryPath(other), { data: { item: other, _rev: OTHER_REV } })
 			.on("PUT", `${entryPath(other)}?locale=en`, { data: { item: other, _rev: OTHER_REV } })
 			.on("GET", ENTRY_PATH, { data: { item: ENTRY, _rev: ENTRY_REV } })
@@ -248,10 +267,18 @@ describe.each([
 	});
 
 	it("keeps the entry now open editable when another editor's lock refuses the discard", async () => {
-		mockFetch.on("POST", `${ENTRY_PATH}/discard-draft?locale=en`, LOCKED, 409);
+		mockFetch
+			.on("POST", `${ENTRY_PATH}/discard-draft?locale=en`, LOCKED, 409)
+			.on("POST", `${ENTRY_PATH}/lock`, HELD)
+			.on("POST", `${entryPath(other)}/lock`, HELD);
 		const saves = recordSaves(other);
-		const { queryClient, screen, title } = await switchDuringDiscard();
+		const otherLocks = recordLockAnswers(other);
+		// The refusal arrives once the entry now open holds its own lock again.
+		const { queryClient, screen, title } = await switchDuringDiscard(async () => {
+			await expect.poll(() => otherLocks.length, { timeout: 5000 }).toBe(2);
+		});
 		await expect.poll(() => queryClient.isMutating()).toBe(0);
+		await expect.element(screen.getByText("You no longer hold this entry")).not.toBeInTheDocument();
 
 		await title.fill("Edited other title");
 		screen.getByRole("button", { name: "Save", exact: true }).element().click();

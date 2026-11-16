@@ -69,6 +69,8 @@ const PUBLISHED = {
 const SCHEDULED = { ...CREATED, scheduledAt: "2030-01-01T09:00:00.000Z" };
 
 const ENTRY_PATH = `/_emdash/api/content/posts/${CREATED.id}`;
+/** The server's answer to a room join while co-editing is off. */
+const SINGLE_EDITOR = { data: { mode: "single-editor" } };
 
 const CONFLICT = { error: { code: "CONFLICT", message: "This entry changed somewhere else." } };
 const LOCKED = {
@@ -707,6 +709,9 @@ describe.each([
 			.on("GET", "/_emdash/api/bylines", { data: { items: [], nextCursor: null } })
 			.on("GET", "/_emdash/api/content/posts?", { data: { items: [], nextCursor: null } })
 			.on("GET", "/_emdash/api/content/pages?", { data: { items: [], nextCursor: null } })
+			.on("POST", `${ENTRY_PATH}/room`, SINGLE_EDITOR)
+			.on("POST", `/_emdash/api/content/posts/${OTHER.id}/room`, SINGLE_EDITOR)
+			.on("POST", `/_emdash/api/content/pages/${PAGE.id}/room`, SINGLE_EDITOR)
 			.on("GET", `/_emdash/api/content/posts/${OTHER.id}`, { data: { item: OTHER } })
 			.on("GET", `/_emdash/api/content/pages/${PAGE.id}`, { data: { item: PAGE } })
 			.on("PUT", `${ENTRY_PATH}?locale=en`, {
