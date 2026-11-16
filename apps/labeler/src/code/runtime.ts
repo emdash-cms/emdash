@@ -1,72 +1,89 @@
-import { createAggregatorPreviousReleaseLookup } from "../aggregator-reconciliation.js";
-import { createWorkersAiCodeReviewAdapter } from "../ai/code-review.js";
-import type { WorkersAiBinding } from "../ai/workers-ai.js";
 import type { GuardedMediaTransport, MediaHostnameResolver } from "../assessment/media.js";
 import {
 	createBlobCachePackageBundleReader,
 	type CodeAssessmentDependencies,
+	type PluginReviewer,
 } from "./assessment.js";
-import { createR2CodeRulesetSource, type CodeRulesetBucket } from "./ruleset-source.js";
+import { createD1ReviewBudget, DEFAULT_REVIEW_BUDGET_LIMITS } from "./budget.js";
 
-const RULESET_KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$/;
+const MODEL_RE = /^[a-z0-9-]+\/[A-Za-z0-9@._/-]{1,128}$/;
 
 export class CodeAssessmentConfigurationError extends Error {
 	override readonly name = "CodeAssessmentConfigurationError";
 }
 
 /**
- * Code assessment stays off until `LABELER_CODE_RULESET_KEY` names the ruleset
- * object. Once the key is set, a missing binding is a configuration error
- * rather than a silent fallback to metadata-only assessment.
+ * Code assessment stays off until `LABELER_CODE_REVIEW_MODELS` lists the
+ * reviewer models. Once it is set, a missing `PLUGIN_REVIEW` binding is a
+ * configuration error rather than a silent fallback to metadata-only
+ * assessment.
  */
 export function createProductionCodeAssessment(
 	env: object,
 	options: {
-		ai: WorkersAiBinding;
+		db: D1Database;
 		resolver: MediaHostnameResolver;
 		transport: GuardedMediaTransport;
 	},
 ): CodeAssessmentDependencies | undefined {
-	const key: unknown = Reflect.get(env, "LABELER_CODE_RULESET_KEY");
-	if (key === undefined || key === "") return undefined;
-	if (typeof key !== "string" || !RULESET_KEY_RE.test(key)) {
-		throw new CodeAssessmentConfigurationError("LABELER_CODE_RULESET_KEY is invalid");
+	const configured: unknown = Reflect.get(env, "LABELER_CODE_REVIEW_MODELS");
+	if (configured === undefined || configured === "") return undefined;
+	if (typeof configured !== "string") {
+		throw new CodeAssessmentConfigurationError("LABELER_CODE_REVIEW_MODELS must be a string");
 	}
-	const bucket: unknown = Reflect.get(env, "CODE_RULESET");
-	if (!isRulesetBucket(bucket)) {
-		throw new CodeAssessmentConfigurationError(
-			"LABELER_CODE_RULESET_KEY is set but the CODE_RULESET bucket binding is missing",
-		);
+	const models = [
+		...new Set(
+			configured
+				.split(",")
+				.map((model) => model.trim())
+				.filter(Boolean),
+		),
+	];
+	if (models.length === 0 || models.some((model) => !MODEL_RE.test(model))) {
+		throw new CodeAssessmentConfigurationError("LABELER_CODE_REVIEW_MODELS is invalid");
 	}
-	const aggregator: unknown = Reflect.get(env, "AGGREGATOR_RECONCILIATION");
-	const token: unknown = Reflect.get(env, "RECONCILIATION_TOKEN");
-	if (!isFetcher(aggregator) || typeof token !== "string") {
+	const reviewer: unknown = Reflect.get(env, "PLUGIN_REVIEW");
+	if (!isPluginReviewer(reviewer)) {
 		throw new CodeAssessmentConfigurationError(
-			"code assessment requires the aggregator reconciliation binding and token",
+			"LABELER_CODE_REVIEW_MODELS is set but the PLUGIN_REVIEW service binding is missing",
 		);
 	}
 	return {
-		rulesets: createR2CodeRulesetSource(bucket, key),
 		bundleReader: createBlobCachePackageBundleReader({
 			resolver: options.resolver,
 			transport: options.transport,
 		}),
-		previousReleases: createAggregatorPreviousReleaseLookup(aggregator, token),
-		createReviewAdapter: (config) => createWorkersAiCodeReviewAdapter(options.ai, config),
+		reviewer,
+		models,
+		budget: createD1ReviewBudget(options.db, {
+			perPublisherPerDay: limit(
+				env,
+				"LABELER_CODE_REVIEW_DAILY_LIMIT_PER_PUBLISHER",
+				DEFAULT_REVIEW_BUDGET_LIMITS.perPublisherPerDay,
+			),
+			totalPerDay: limit(
+				env,
+				"LABELER_CODE_REVIEW_DAILY_LIMIT",
+				DEFAULT_REVIEW_BUDGET_LIMITS.totalPerDay,
+			),
+		}),
 	};
 }
 
-function isRulesetBucket(value: unknown): value is CodeRulesetBucket {
-	return (
-		typeof value === "object" && value !== null && "get" in value && typeof value.get === "function"
-	);
+function limit(env: object, name: string, fallback: number): number {
+	const value: unknown = Reflect.get(env, name);
+	if (value === undefined || value === "") return fallback;
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed) || parsed < 1) {
+		throw new CodeAssessmentConfigurationError(`${name} must be a positive integer`);
+	}
+	return parsed;
 }
 
-function isFetcher(value: unknown): value is Fetcher {
+function isPluginReviewer(value: unknown): value is PluginReviewer {
 	return (
 		typeof value === "object" &&
 		value !== null &&
-		"fetch" in value &&
-		typeof value.fetch === "function"
+		typeof Reflect.get(value, "review") === "function"
 	);
 }

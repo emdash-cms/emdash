@@ -13,10 +13,7 @@ const IDENTITY = {
 };
 
 const CODE_IDENTITY = {
-	engineVersion: "code-assessment-engine-v1",
-	rulesetId: "emdash-example",
-	rulesetVersion: "2026-11-16.1",
-	rulesetSha256: "b".repeat(64),
+	reviewers: [{ model: "anthropic/claude-opus-5-5", promptVersion: "plugin-review-v1" }],
 };
 
 function input(code: AssessmentPolicyInput["code"]): AssessmentPolicyInput {
@@ -44,7 +41,7 @@ function input(code: AssessmentPolicyInput["code"]): AssessmentPolicyInput {
 function complete(findings: CodeAssessmentResult["findings"] = []) {
 	return {
 		status: "complete" as const,
-		result: { identity: CODE_IDENTITY, findings, truncated: false },
+		result: { identity: CODE_IDENTITY, findings },
 	};
 }
 
@@ -56,7 +53,7 @@ describe("assessment policy with code assessment", () => {
 		expect(resolution).not.toHaveProperty("codeIdentity");
 	});
 
-	it("passes a clean scan and records the ruleset version", () => {
+	it("passes a clean review and records the reviewers", () => {
 		expect(resolveAssessmentPolicy(input(complete()))).toMatchObject({
 			outcome: "pass",
 			coverage: { code: "complete" },
@@ -66,12 +63,12 @@ describe("assessment policy with code assessment", () => {
 
 	it("holds a release with code findings for operator review", () => {
 		const finding = {
-			category: "unsafe-code" as const,
+			category: "malicious-code" as const,
 			recommendation: "review" as const,
 			confidence: 0.7,
 			severity: "high" as const,
-			summary: "js-dynamic-evaluation: evaluates strings.",
-			evidenceRefs: ["release.package:backend.js#L2C9:33-37"],
+			summary: "Sends every post to an undeclared host.",
+			evidenceRefs: ["release.package:backend.js#L2"],
 		};
 		expect(resolveAssessmentPolicy(input(complete([finding])))).toMatchObject({
 			outcome: "review",

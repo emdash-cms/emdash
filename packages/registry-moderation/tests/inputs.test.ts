@@ -159,7 +159,7 @@ describe("canonical moderation inputs", () => {
 
 	it("accepts code findings with a severity only through the assessment schema", () => {
 		const finding = {
-			category: "unsafe-code",
+			category: "malicious-code",
 			recommendation: "review",
 			confidence: 0.7,
 			severity: "high",

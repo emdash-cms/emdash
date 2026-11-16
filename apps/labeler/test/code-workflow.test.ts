@@ -1,38 +1,57 @@
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { applyD1Migrations } from "cloudflare:test";
 import { env } from "cloudflare:workers";
+import type { WorkflowStepConfig } from "cloudflare:workers";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { DurableAssessmentStep } from "../src/assessment/foundation.js";
 import { createD1AssessmentLifecycleStore } from "../src/assessment/lifecycle.js";
 import { createAssessmentWorkflowParams } from "../src/assessment/run-key.js";
-import { runBoundAssessmentWorkflow } from "../src/assessment/workflow.js";
-import type { CodeAssessmentDependencies } from "../src/code/assessment.js";
+import { runBoundAssessmentWorkflow, type CodeAssessmentStep } from "../src/assessment/workflow.js";
+import type { CodeAssessmentDependencies, PluginReviewRequest } from "../src/code/assessment.js";
+import type { ReviewBudget } from "../src/code/budget.js";
 import {
 	ASSESSMENT_VERSIONS,
 	RELEASE_CID,
 	RELEASE_URI,
 	createReleaseRecord,
 } from "./assessment-fixtures.js";
-import {
-	checksumOf,
-	cleanBundleEntries,
-	createBundle,
-	loadExampleRuleset,
-} from "./code-fixtures.js";
+import { checksumOf, cleanBundleEntries, createBundle } from "./code-fixtures.js";
 import { createTestIssuer } from "./issuer-helpers.js";
 
-class CachedStep implements DurableAssessmentStep {
+class CachedStep implements CodeAssessmentStep {
 	readonly calls: string[] = [];
+	readonly sleeps: string[] = [];
 	readonly #results = new Map<string, unknown>();
 
-	async do<T>(name: string, callback: () => Promise<T>): Promise<T> {
+	async do<T>(name: string, callback: () => Promise<T>): Promise<T>;
+	async do<T>(name: string, config: WorkflowStepConfig, callback: () => Promise<T>): Promise<T>;
+	async do<T>(
+		name: string,
+		configOrCallback: WorkflowStepConfig | (() => Promise<T>),
+		maybeCallback?: () => Promise<T>,
+	): Promise<T> {
+		const callback = typeof configOrCallback === "function" ? configOrCallback : maybeCallback!;
 		if (this.#results.has(name)) return this.#results.get(name) as T;
 		this.calls.push(name);
 		const result = await callback();
 		this.#results.set(name, result);
 		return result;
 	}
+
+	async sleepUntil(name: string): Promise<void> {
+		this.sleeps.push(name);
+	}
+}
+
+const MODELS = ["anthropic/claude-opus-5-5", "openai/gpt-6.1-sol"];
+
+function cleanReview(request: PluginReviewRequest) {
+	return {
+		model: request.model,
+		promptVersion: "plugin-review-v1",
+		summary: "Clean.",
+		findings: [],
+	};
 }
 
 const TEXT_IDENTITY = {
@@ -53,6 +72,8 @@ async function runRelease(options: {
 	checksum?: string;
 	declaredAccess?: Record<string, unknown>;
 	readBundle?: () => Promise<Uint8Array>;
+	review?: (request: PluginReviewRequest) => Promise<unknown>;
+	budget?: ReviewBudget;
 }) {
 	const base = createReleaseRecord("bafyunused");
 	const record = {
@@ -81,11 +102,17 @@ async function runRelease(options: {
 		logicalTriggerId: `workflow:code:${options.cid}`,
 	});
 	await lifecycle.observeRun({ params, observedAt: "2026-11-16T10:00:00.000Z" });
-	const loaded = await loadExampleRuleset();
+	const requests: PluginReviewRequest[] = [];
 	const codeAssessment: CodeAssessmentDependencies = {
-		rulesets: { load: async () => loaded },
 		bundleReader: { read: options.readBundle ?? (async () => options.bundle) },
-		previousReleases: { previousRelease: async () => null },
+		reviewer: {
+			async review(request) {
+				requests.push(request);
+				return (options.review ?? (async (input) => cleanReview(input)))(request);
+			},
+		},
+		models: MODELS,
+		...(options.budget ? { budget: options.budget } : {}),
 	};
 	const step = new CachedStep();
 	const result = await runBoundAssessmentWorkflow(
@@ -154,11 +181,11 @@ async function runRelease(options: {
 			public_summary: string;
 			evidence_refs_json: string;
 		}>();
-	return { result, step, stored, label, findings: findings.results, loaded };
+	return { result, step, stored, label, findings: findings.results, requests };
 }
 
 describe("release code assessment in the assessment Workflow", () => {
-	it("passes a clean package and records the ruleset that assessed it", async () => {
+	it("passes a package that every reviewer finds clean and records the reviewers", async () => {
 		const run = await runRelease({
 			cid: `${RELEASE_CID.slice(0, -4)}clna`,
 			bundle: await createBundle(cleanBundleEntries()),
@@ -166,38 +193,66 @@ describe("release code assessment in the assessment Workflow", () => {
 		expect(run.result.status).toBe("passed");
 		expect(run.label).toBe("listing-passed");
 		expect(run.step.calls).toEqual(
-			expect.arrayContaining(["verify and project release package", "scan release package code"]),
+			expect.arrayContaining([
+				"verify and project release package",
+				"check release package",
+				`review release package with ${MODELS[0]}`,
+				`review release package with ${MODELS[1]}`,
+			]),
 		);
 		expect(JSON.parse(run.stored!.coverage_json)).toMatchObject({ code: "complete" });
 		expect(JSON.parse(run.stored!.summary_json).codeIdentity).toEqual({
-			engineVersion: "code-assessment-engine-v1",
-			rulesetId: "emdash-example",
-			rulesetVersion: "2026-11-16.1",
-			rulesetSha256: run.loaded.sha256,
+			reviewers: MODELS.map((model) => ({ model, promptVersion: "plugin-review-v1" })),
 		});
+		expect(run.requests.map(({ model }) => model).toSorted()).toEqual(MODELS.toSorted());
+		expect(run.requests[0]).toMatchObject({
+			subject: { uri: RELEASE_URI, version: "1.2.3" },
+			declaredAccess: { network: { request: { allowedHosts: ["api.example.com"] } } },
+		});
+		expect(run.requests[0]?.listing).toContainEqual({
+			ref: expect.any(String),
+			text: expect.stringMatching(/\S/),
+		});
+		expect(run.requests[0]?.files.find(({ path }) => path === "backend.js")?.text).toContain(
+			"export default",
+		);
 	});
 
-	it("holds a package with code and access findings for review", async () => {
+	it("holds a package for review when one reviewer reports a finding", async () => {
 		const run = await runRelease({
 			cid: `${RELEASE_CID.slice(0, -4)}reva`,
-			bundle: await createBundle(
-				cleanBundleEntries("export default { run: (code) => eval(code) };\n"),
-			),
-			declaredAccess: { network: { request: { allowedHosts: ["*"] } } },
+			bundle: await createBundle(cleanBundleEntries()),
+			review: async (request) =>
+				request.model === MODELS[1]
+					? {
+							...cleanReview(request),
+							findings: [
+								{
+									category: "vulnerability",
+									severity: "high",
+									confidence: 0.8,
+									summary: "A public route returns draft posts.",
+									evidence: [{ file: "backend.js", line: 1, quote: "export default" }],
+								},
+							],
+						}
+					: cleanReview(request),
 		});
 		expect(run.result.status).toBe("review");
 		expect(run.label).toBe("listing-review");
-		expect(run.findings.map(({ category, severity }) => [category, severity])).toEqual([
-			["unsafe-code", "high"],
-			["access-risk", "high"],
+		expect(run.findings).toMatchObject([
+			{
+				category: "vulnerability",
+				severity: "high",
+				public_summary: "A public route returns draft posts.",
+			},
 		]);
 		expect(JSON.parse(run.findings[0]!.evidence_refs_json)).toEqual([
-			"release.package:backend.js#L1C32:32-36",
+			"release.package:backend.js#L1",
 		]);
-		expect(run.findings[1]?.public_summary).toMatch(/^access-wildcard-host: /);
 	});
 
-	it("reports archive anomalies as findings instead of failing", async () => {
+	it("reports archive anomalies as findings and still runs the review", async () => {
 		const run = await runRelease({
 			cid: `${RELEASE_CID.slice(0, -4)}anma`,
 			bundle: await createBundle([
@@ -207,6 +262,25 @@ describe("release code assessment in the assessment Workflow", () => {
 		});
 		expect(run.result.status).toBe("review");
 		expect(run.findings).toMatchObject([{ category: "package-integrity", severity: "critical" }]);
+		expect(run.requests).toHaveLength(MODELS.length);
+	});
+
+	it("waits for review budget instead of skipping the review", async () => {
+		let attempts = 0;
+		const run = await runRelease({
+			cid: `${RELEASE_CID.slice(0, -4)}buda`,
+			bundle: await createBundle(cleanBundleEntries()),
+			budget: {
+				async reserve() {
+					attempts += 1;
+					return attempts === 1
+						? { reserved: false, retryAt: "2026-11-17T00:00:00.000Z" }
+						: { reserved: true };
+				},
+			},
+		});
+		expect(run.result.status).toBe("passed");
+		expect(run.step.sleeps).toEqual(["wait for package review budget (0)"]);
 	});
 
 	it.each([
@@ -219,6 +293,38 @@ describe("release code assessment in the assessment Workflow", () => {
 			"the bundle does not match its signed checksum",
 			"erba",
 			async () => ({ checksum: await checksumOf(new TextEncoder().encode("other bytes")) }),
+		],
+		[
+			"a reviewer fails",
+			"erca",
+			async () => ({ review: async () => Promise.reject(new Error("gateway down")) }),
+		],
+		[
+			"a reviewer cites a line outside the bundle",
+			"erda",
+			async () => ({
+				review: async (request: PluginReviewRequest) => ({
+					...cleanReview(request),
+					findings: [
+						{
+							category: "malicious-code",
+							severity: "critical",
+							confidence: 0.9,
+							summary: "Invented.",
+							evidence: [{ file: "backend.js", line: 99, quote: "nothing" }],
+						},
+					],
+				}),
+			}),
+		],
+		[
+			"the review budget stays exhausted",
+			"erea",
+			async () => ({
+				budget: {
+					reserve: async () => ({ reserved: false as const, retryAt: "2026-11-17T00:00:00.000Z" }),
+				},
+			}),
 		],
 	])("fails closed with an error label when %s", async (_name, suffix, overrides) => {
 		const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);

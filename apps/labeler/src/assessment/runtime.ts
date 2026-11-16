@@ -91,7 +91,7 @@ export async function createProductionAssessmentWorkflowDependencies(
 		createWorkersSocketPinnedTransport(connect),
 	);
 	const codeAssessment = createProductionCodeAssessment(env, {
-		ai,
+		db: env.DB,
 		resolver: guardedResolver,
 		transport: guardedTransport,
 	});

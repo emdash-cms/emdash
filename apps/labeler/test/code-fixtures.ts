@@ -1,8 +1,5 @@
 import { computeMultihash } from "@emdash-cms/registry-verification/checksum";
 
-import exampleRuleset from "../code-rules/example-ruleset.json";
-import { parseCodeRulesetText, type LoadedCodeRuleset } from "../src/code/ruleset-source.js";
-
 export interface TarEntryFixture {
 	name: string;
 	content?: string | Uint8Array;
@@ -12,10 +9,6 @@ export interface TarEntryFixture {
 
 const encoder = new TextEncoder();
 const BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
-
-export function loadExampleRuleset(): Promise<LoadedCodeRuleset> {
-	return parseCodeRulesetText(JSON.stringify(exampleRuleset));
-}
 
 export function createTar(entries: readonly TarEntryFixture[]): Uint8Array {
 	const blocks: Uint8Array[] = [];

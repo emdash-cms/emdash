@@ -16,11 +16,7 @@ import {
 	readLabelSourceTrust,
 } from "../src/label-source-policy.js";
 import { upsertHydratedLabelState } from "../src/label-state.js";
-import {
-	isCurrentSubject,
-	listCurrentSubjects,
-	previousReleaseAccess,
-} from "../src/labeler-reconciliation-service.js";
+import { isCurrentSubject, listCurrentSubjects } from "../src/labeler-reconciliation-service.js";
 import {
 	getListingPolicy,
 	packageProfileUri,
@@ -432,36 +428,6 @@ describe("revision migration and ingest", () => {
 		expect(
 			await isCurrentSubject(testEnv.DB, packageProfileUri(DID_A, "demo"), PROFILE_CID_1),
 		).toBe(true);
-	});
-
-	it("returns the declared access of the release before a version in semver order", async () => {
-		const network = { request: { allowedHosts: ["api.example.com"] } };
-		await seedProfile({ cid: PROFILE_CID_1, name: "Demo", at: NOW });
-		await seedProfile({ cid: PROFILE_CID_2, name: "Other", at: NOW, slug: "other" });
-		await seedRelease({
-			cid: RELEASE_CID_1,
-			version: "1.9.0",
-			at: NOW,
-			declaredAccess: { network },
-		});
-		await seedRelease({ cid: RELEASE_CID_2, version: "1.10.0", at: NOW });
-		await seedRelease({ cid: PENDING_RELEASE_CID, version: "1.0.0", at: NOW, slug: "other" });
-
-		expect(await previousReleaseAccess(testEnv.DB, releaseUri(DID_A, "demo", "1.10.0"))).toEqual({
-			found: true,
-			previous: {
-				uri: releaseUri(DID_A, "demo", "1.9.0"),
-				version: "1.9.0",
-				declaredAccess: { network },
-			},
-		});
-		expect(await previousReleaseAccess(testEnv.DB, releaseUri(DID_A, "demo", "1.9.0"))).toEqual({
-			found: true,
-			previous: null,
-		});
-		expect(await previousReleaseAccess(testEnv.DB, releaseUri(DID_A, "demo", "2.0.0"))).toEqual({
-			found: false,
-		});
 	});
 });
 
@@ -1863,7 +1829,6 @@ interface SeedReleaseOptions {
 	at: Date;
 	did?: string;
 	slug?: string;
-	declaredAccess?: Record<string, unknown>;
 }
 
 async function seedRelease(options: SeedReleaseOptions): Promise<void> {
@@ -1882,7 +1847,7 @@ async function seedRelease(options: SeedReleaseOptions): Promise<void> {
 			extensions: {
 				[NSID.packageReleaseExtension]: {
 					$type: NSID.packageReleaseExtension,
-					declaredAccess: options.declaredAccess ?? {},
+					declaredAccess: {},
 				},
 			},
 		}),

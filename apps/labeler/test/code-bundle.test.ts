@@ -73,7 +73,7 @@ describe("package bundle intake", () => {
 				{ name: "package/manifest.json", content: "{}" },
 				{ name: "package/backend.js", content: "" },
 				{ name: "screenshots/one.png", content: "png" },
-				{ name: "lib", type: "5" },
+				{ name: "lib/", type: "5" },
 			]),
 		);
 		expect(codes(result)).toEqual([
@@ -94,6 +94,29 @@ describe("package bundle intake", () => {
 			]),
 		);
 		expect(codes(result)).toEqual(["unsupported-entry-type", "unsupported-entry-type"]);
+	});
+
+	it("applies the installer's rules for entry names and directories", async () => {
+		const result = await unpackPackageBundle(
+			await createBundle([
+				...cleanBundleEntries(),
+				{ name: "screenshots/", type: "5", content: "x" },
+				{ name: "admin.js\0hidden", content: "x" },
+				{ name: "screenshots", type: "5" },
+				{ name: "icon.png/", content: "x" },
+			]),
+		);
+		expect(codes(result)).toEqual([
+			"malformed-archive",
+			"unsafe-path",
+			"unsafe-path",
+			"unsafe-path",
+		]);
+		expect(result.files.map(({ path }) => path)).toEqual([
+			"manifest.json",
+			"backend.js",
+			"README.md",
+		]);
 	});
 
 	it("reports invalid gzip, truncated archives and oversized content", async () => {

@@ -1,14 +1,8 @@
-import type { DeclaredAccess } from "@emdash-cms/plugin-types";
 import { NSID, REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
-import type {
-	CodeFindingCategory,
-	NormalizedModerationFinding,
-} from "@emdash-cms/registry-moderation";
+import { isFindingSeverity } from "@emdash-cms/registry-moderation";
 import { recordScopedBlobCacheUrl } from "@emdash-cms/registry-verification/artifact";
 import { MAX_BUNDLE_COMPRESSED_BYTES } from "@emdash-cms/registry-verification/bundle";
 
-import type { CodeReviewAdapter } from "../ai/code-review.js";
-import type { ModerationModelIdentity } from "../ai/types.js";
 import {
 	fetchGuardedResource,
 	readBoundedBody,
@@ -17,78 +11,90 @@ import {
 } from "../assessment/media.js";
 import type { VerifiedReleaseRecord } from "../assessment/records.js";
 import { parseSubjectUri } from "../assessment/run-key.js";
+import type { ReviewBudget } from "./budget.js";
 import {
 	unpackPackageBundle,
 	verifyPackageBytes,
 	type PackageArtifactReference,
 	type UnpackedBundle,
 } from "./bundle.js";
-import {
-	CODE_ENGINE_VERSION,
-	globToRegExp,
-	rulesetNeedsPreviousRelease,
-	scanPackageCode,
-	toModerationFinding,
-	type PreviousReleaseAccess,
-} from "./engine.js";
-import type { CodeRulesetSource, LoadedCodeRuleset } from "./ruleset-source.js";
-import type { CodeReviewConfig } from "./ruleset.js";
+import { integrityFindings, PACKAGE_EVIDENCE_PREFIX, type CodeFinding } from "./integrity.js";
 
 const BUNDLE_FETCH_TIMEOUT_MS = 20_000;
-const MAX_BUNDLE_READ_BYTES = 4 * MAX_BUNDLE_COMPRESSED_BYTES;
 const MAX_BUNDLE_REDIRECTS = 3;
+const MAX_REVIEW_FINDINGS = 16;
+const MAX_EVIDENCE_PER_FINDING = 8;
+const MAX_SUMMARY_LENGTH = 500;
+const REVIEW_CATEGORIES = ["malicious-code", "vulnerability", "reviewer-manipulation"] as const;
 
 export interface PackageCodeSubject {
 	uri: string;
 	cid: string;
 	version: string;
 	artifact: PackageArtifactReference;
-	declaredAccess: DeclaredAccess;
+	declaredAccess: Record<string, unknown>;
 }
 
 export interface PackageBundleReader {
 	read(subject: PackageCodeSubject, maxBytes: number): Promise<Uint8Array>;
 }
 
-export interface PreviousReleaseLookup {
-	previousRelease(uri: string): Promise<PreviousReleaseAccess | null>;
+/** Listing text shown to the reviewer as the plugin's stated purpose. */
+export interface ListingText {
+	ref: string;
+	text: string;
+}
+
+export interface PluginReviewRequest {
+	model: string;
+	subject: { uri: string; cid: string; version: string };
+	listing: readonly ListingText[];
+	declaredAccess: Record<string, unknown>;
+	files: readonly { path: string; byteLength: number; text?: string }[];
+}
+
+/** The `plugin-review` Worker's RPC surface. */
+export interface PluginReviewer {
+	review(request: PluginReviewRequest): Promise<unknown>;
 }
 
 export interface CodeAssessmentDependencies {
-	rulesets: CodeRulesetSource;
 	bundleReader: PackageBundleReader;
-	previousReleases: PreviousReleaseLookup;
-	createReviewAdapter?(config: CodeReviewConfig): Promise<CodeReviewAdapter>;
+	reviewer: PluginReviewer;
+	/** Every model reviews the bundle independently; a release passes only if none finds anything. */
+	models: readonly string[];
+	budget?: ReviewBudget;
+}
+
+export interface CodeReviewIdentity {
+	model: string;
+	promptVersion: string;
 }
 
 export interface CodeAssessmentIdentity {
-	engineVersion: string;
-	rulesetId: string;
-	rulesetVersion: string;
-	rulesetSha256: string;
-	review?: ModerationModelIdentity;
+	reviewers: readonly CodeReviewIdentity[];
 }
 
-export interface CodeScanStepResult {
-	identity: CodeAssessmentIdentity;
-	findings: readonly NormalizedModerationFinding<CodeFindingCategory>[];
-	truncated: boolean;
-	reviewConfigured: boolean;
+export interface PackageCheckResult {
+	findings: readonly CodeFinding[];
 }
 
-export interface CodeReviewStepResult {
-	identity: ModerationModelIdentity;
-	findings: readonly NormalizedModerationFinding<CodeFindingCategory>[];
+export interface PackageReviewResult {
+	identity: CodeReviewIdentity;
+	findings: readonly CodeFinding[];
 }
 
 export interface CodeAssessmentResult {
 	identity: CodeAssessmentIdentity;
-	findings: readonly NormalizedModerationFinding<CodeFindingCategory>[];
-	truncated: boolean;
+	findings: readonly CodeFinding[];
 }
 
 export class PackageBundleUnavailableError extends Error {
 	override readonly name = "PackageBundleUnavailableError";
+}
+
+export class PluginReviewResponseError extends Error {
+	override readonly name = "PluginReviewResponseError";
 }
 
 /**
@@ -113,65 +119,109 @@ export function projectPackageCodeSubject(verified: VerifiedReleaseRecord): Pack
 	};
 }
 
-export async function scanReleasePackage(
+/** Archive anomalies, the only findings that come from deterministic checks. */
+export async function checkReleasePackage(
 	subject: PackageCodeSubject,
-	dependencies: CodeAssessmentDependencies,
-): Promise<CodeScanStepResult> {
-	const loaded = await dependencies.rulesets.load();
+	dependencies: Pick<CodeAssessmentDependencies, "bundleReader">,
+): Promise<PackageCheckResult> {
 	const bundle = await readVerifiedBundle(subject, dependencies.bundleReader);
-	const previousRelease = rulesetNeedsPreviousRelease(loaded.ruleset)
-		? await dependencies.previousReleases.previousRelease(subject.uri)
-		: undefined;
-	const scan = scanPackageCode({
-		ruleset: loaded.ruleset,
-		bundle,
-		declaredAccess: subject.declaredAccess,
-		...(previousRelease === undefined ? {} : { previousRelease }),
-	});
-	return {
-		identity: rulesetIdentity(loaded),
-		findings: scan.findings.map(toModerationFinding),
-		truncated: scan.truncated,
-		reviewConfigured: loaded.ruleset.review !== undefined,
-	};
+	return { findings: integrityFindings(bundle.anomalies) };
 }
 
 export async function reviewReleasePackage(
 	subject: PackageCodeSubject,
-	dependencies: CodeAssessmentDependencies,
-	expectedRulesetSha256: string,
-): Promise<CodeReviewStepResult> {
-	const loaded = await dependencies.rulesets.load();
-	if (loaded.sha256 !== expectedRulesetSha256) {
-		throw new Error("code ruleset changed between the scan and review steps");
-	}
-	const review = loaded.ruleset.review;
-	if (!review || !dependencies.createReviewAdapter) {
-		throw new Error("code review is not configured");
-	}
-	const adapter = await dependencies.createReviewAdapter(review);
+	listing: readonly ListingText[],
+	model: string,
+	dependencies: Pick<CodeAssessmentDependencies, "bundleReader" | "reviewer">,
+): Promise<PackageReviewResult> {
 	const bundle = await readVerifiedBundle(subject, dependencies.bundleReader);
-	const patterns = review.files.map(globToRegExp);
-	const files = bundle.files.flatMap((file) =>
-		file.text !== undefined && patterns.some((pattern) => pattern.test(file.path))
-			? [{ path: file.path, text: file.text }]
-			: [],
-	);
-	const result = await adapter.review({
-		subject: { uri: subject.uri, cid: subject.cid, kind: "release" },
-		files,
+	const response = await dependencies.reviewer.review({
+		model,
+		subject: { uri: subject.uri, cid: subject.cid, version: subject.version },
+		listing,
+		declaredAccess: subject.declaredAccess,
+		files: bundle.files.map(({ path, byteLength, text }) =>
+			text === undefined ? { path, byteLength } : { path, byteLength, text },
+		),
 	});
-	return { identity: result.identity, findings: result.findings.map(toModerationFinding) };
+	return parseReviewResponse(response, model, bundle);
 }
 
 export function combineCodeAssessment(
-	scan: CodeScanStepResult,
-	review: CodeReviewStepResult | undefined,
+	check: PackageCheckResult,
+	reviews: readonly PackageReviewResult[],
 ): CodeAssessmentResult {
 	return {
-		identity: review ? { ...scan.identity, review: review.identity } : scan.identity,
-		findings: [...scan.findings, ...(review?.findings ?? [])],
-		truncated: scan.truncated,
+		identity: { reviewers: reviews.map(({ identity }) => identity) },
+		findings: [...check.findings, ...reviews.flatMap(({ findings }) => findings)],
+	};
+}
+
+/**
+ * The review Worker already checks citations against the files it was given.
+ * This re-checks the response shape and that every citation names a line that
+ * exists in the bundle the labeler verified.
+ */
+export function parseReviewResponse(
+	value: unknown,
+	model: string,
+	bundle: UnpackedBundle,
+): PackageReviewResult {
+	if (!isRecord(value) || value["model"] !== model || typeof value["promptVersion"] !== "string") {
+		throw new PluginReviewResponseError("plugin review response is malformed");
+	}
+	const findings = value["findings"];
+	if (!Array.isArray(findings) || findings.length > MAX_REVIEW_FINDINGS) {
+		throw new PluginReviewResponseError("plugin review findings are malformed");
+	}
+	const lineCounts = new Map(
+		bundle.files.flatMap((file) =>
+			file.text === undefined ? [] : [[file.path, file.text.split("\n").length] as const],
+		),
+	);
+	return {
+		identity: { model, promptVersion: value["promptVersion"].slice(0, 64) },
+		findings: findings.map((finding): CodeFinding => {
+			if (
+				!isRecord(finding) ||
+				!isReviewCategory(finding["category"]) ||
+				!isFindingSeverity(finding["severity"]) ||
+				typeof finding["confidence"] !== "number" ||
+				!(finding["confidence"] >= 0 && finding["confidence"] <= 1) ||
+				typeof finding["summary"] !== "string" ||
+				!Array.isArray(finding["evidence"]) ||
+				finding["evidence"].length === 0
+			) {
+				throw new PluginReviewResponseError("plugin review finding is malformed");
+			}
+			const evidenceRefs = finding["evidence"]
+				.slice(0, MAX_EVIDENCE_PER_FINDING)
+				.map((citation: unknown) => {
+					if (!isRecord(citation) || typeof citation["file"] !== "string") {
+						throw new PluginReviewResponseError("plugin review citation is malformed");
+					}
+					const lines = lineCounts.get(citation["file"]);
+					const line = citation["line"];
+					if (
+						lines === undefined ||
+						typeof line !== "number" ||
+						!Number.isInteger(line) ||
+						line < 1 ||
+						line > lines
+					) {
+						throw new PluginReviewResponseError("plugin review cites a line outside the bundle");
+					}
+					return `${PACKAGE_EVIDENCE_PREFIX}${citation["file"]}#L${line}`;
+				});
+			return {
+				category: finding["category"],
+				recommendation: "review",
+				confidence: finding["confidence"],
+				severity: finding["severity"],
+				summary: finding["summary"].slice(0, MAX_SUMMARY_LENGTH),
+				evidenceRefs: [...new Set(evidenceRefs)],
+			};
+		}),
 	};
 }
 
@@ -179,18 +229,9 @@ async function readVerifiedBundle(
 	subject: PackageCodeSubject,
 	reader: PackageBundleReader,
 ): Promise<UnpackedBundle> {
-	const bytes = await reader.read(subject, MAX_BUNDLE_READ_BYTES);
+	const bytes = await reader.read(subject, MAX_BUNDLE_COMPRESSED_BYTES);
 	await verifyPackageBytes(bytes, subject.artifact);
 	return unpackPackageBundle(bytes);
-}
-
-function rulesetIdentity(loaded: LoadedCodeRuleset): CodeAssessmentIdentity {
-	return {
-		engineVersion: CODE_ENGINE_VERSION,
-		rulesetId: loaded.ruleset.rulesetId,
-		rulesetVersion: loaded.ruleset.version,
-		rulesetSha256: loaded.sha256,
-	};
 }
 
 export function createBlobCachePackageBundleReader(options: {
@@ -235,6 +276,10 @@ export function createBlobCachePackageBundleReader(options: {
 			}
 		},
 	};
+}
+
+function isReviewCategory(value: unknown): value is (typeof REVIEW_CATEGORIES)[number] {
+	return REVIEW_CATEGORIES.some((category) => category === value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

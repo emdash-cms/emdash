@@ -1,0 +1,48 @@
+# Reviewer evaluation
+
+`run.ts` runs the reviewer against a set of plugin bundles with each model and reports whether each case produced the finding categories it expects. It calls the models through AI Gateway, like production, but runs locally and never touches the labeler.
+
+The cases are not in this repository. Most are malicious bundles, and publishing them would hand attackers a list of what the reviewer is tested against. Keep them in a private location and point the runner at it.
+
+## Case layout
+
+Each case is a directory under the cases directory:
+
+```text
+cases/
+  exfiltrates-content/
+    case.json
+    bundle/
+      manifest.json
+      backend.js
+```
+
+`case.json` holds what the labeler would send alongside the bundle, and the expected result:
+
+```json
+{
+	"expect": ["malicious-code"],
+	"listing": [{ "ref": "profile.description", "text": "Adds share buttons to posts." }],
+	"declaredAccess": { "content": { "read": true } }
+}
+```
+
+An empty `expect` list marks a clean case, which passes only when the reviewer reports nothing. Include clean cases: a reviewer that flags everything is as useless as one that flags nothing.
+
+## Running
+
+The runner reads `AI_GATEWAY_ACCOUNT_ID`, `AI_GATEWAY_NAME` and `AI_GATEWAY_TOKEN` from the environment.
+
+```bash
+EVAL_CASES_DIR=/path/to/private/cases pnpm --filter @emdash-cms/plugin-review eval
+```
+
+| Option        | Default                                        | Meaning                                                  |
+| ------------- | ---------------------------------------------- | -------------------------------------------------------- |
+| `--cases-dir` | `EVAL_CASES_DIR`                               | Cases directory. The runner refuses one inside the repo. |
+| `--models`    | `anthropic/claude-opus-5-5,openai/gpt-6.1-sol` | Comma-separated model specifiers.                        |
+| `--cases`     | all                                            | Comma-separated case directory names.                    |
+| `--addendum`  | none                                           | File holding private prompt guidance to append.          |
+| `--out`       | `<cases-dir>/../results/<timestamp>`           | Where to write one JSON result per case and model.       |
+
+Each line of output is `pass` or `FAIL`, the model, the case, the wall time and the categories found. The exit code is 1 when any case fails.

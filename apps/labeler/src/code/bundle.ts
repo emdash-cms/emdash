@@ -198,6 +198,7 @@ function readTarEntries(bytes: Uint8Array, anomalies: BundleAnomaly[]): BundleFi
 		} else if (type === "1") {
 			report("hardlink");
 		} else if (type === "5") {
+			if (size !== 0) report("malformed-archive");
 			if (path?.kind === "ok" && path.value !== "" && path.value !== "screenshots") {
 				report("unexpected-entry");
 			}
@@ -245,6 +246,7 @@ function readTarPath(header: Uint8Array): string | null {
 function readTarString(field: Uint8Array): string | null {
 	const terminator = field.indexOf(0);
 	const end = terminator === -1 ? field.length : terminator;
+	if (field.subarray(end).some((byte) => byte !== 0)) return null;
 	try {
 		return decoder.decode(field.subarray(0, end));
 	} catch {
@@ -257,8 +259,9 @@ type NormalizedPath = { kind: "ok"; value: string } | { kind: "traversal" } | { 
 function normalizePath(raw: string, isDirectory: boolean): NormalizedPath {
 	if (raw.includes("\\") || hasControlCharacter(raw)) return { kind: "unsafe" };
 	if (raw.startsWith("/") || WINDOWS_DRIVE_RE.test(raw)) return { kind: "traversal" };
+	if (isDirectory !== raw.endsWith("/")) return { kind: "unsafe" };
 	const parts = raw.split("/");
-	if (isDirectory && parts.at(-1) === "") parts.pop();
+	if (isDirectory) parts.pop();
 	const normalized: string[] = [];
 	for (const part of parts) {
 		if (part === ".") continue;

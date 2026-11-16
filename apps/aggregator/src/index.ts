@@ -28,11 +28,7 @@ import {
 	labelSourcePolicy,
 	reconcileLabelSources,
 } from "./label-source-policy.js";
-import {
-	isCurrentSubject,
-	listCurrentSubjects,
-	previousReleaseAccess,
-} from "./labeler-reconciliation-service.js";
+import { isCurrentSubject, listCurrentSubjects } from "./labeler-reconciliation-service.js";
 import { getListingPolicy } from "./listing-policy.js";
 import { enforceConfiguredProjection } from "./projection-enforcement.js";
 import { publicHealth } from "./public-health.js";
@@ -76,7 +72,6 @@ const BACKFILL_PATH = "/_admin/backfill";
 const STATUS_PATH = "/_admin/status";
 const RECONCILIATION_SUBJECTS_PATH = "/_internal/labeler/subjects";
 const RECONCILIATION_CURRENT_PATH = "/_internal/labeler/current";
-const RECONCILIATION_PREVIOUS_RELEASE_PATH = "/_internal/labeler/previous-release";
 const LABEL_REPLAY_PATH = "/_admin/labels/replay";
 const HEALTH_PATH = "/health";
 const PLUGIN_DIRECTORY_URL = "https://plugins.emdashcms.com/";
@@ -236,13 +231,6 @@ export default {
 				{ current: await isCurrentSubject(env.DB, uri, cid) },
 				{ headers: { "cache-control": "private, no-store" } },
 			);
-		}
-		if (url.pathname === RECONCILIATION_PREVIOUS_RELEASE_PATH) {
-			const denied = requireReconciliationAuth(request, env);
-			if (denied) return denied;
-			return Response.json(await previousReleaseAccess(env.DB, url.searchParams.get("uri") ?? ""), {
-				headers: { "cache-control": "private, no-store" },
-			});
 		}
 		if (url.pathname === BOOTSTRAP_PATH) {
 			if (request.method !== "POST") {

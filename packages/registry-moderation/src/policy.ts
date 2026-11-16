@@ -36,7 +36,12 @@ export function isModerationFindingCategory(value: unknown): value is Moderation
  * from {@link MODERATION_FINDING_CATEGORIES}, which lists the listing-metadata
  * categories that text and image models assess.
  */
-export const CODE_FINDING_CATEGORIES = ["unsafe-code", "access-risk", "package-integrity"] as const;
+export const CODE_FINDING_CATEGORIES = [
+	"malicious-code",
+	"vulnerability",
+	"reviewer-manipulation",
+	"package-integrity",
+] as const;
 
 export type CodeFindingCategory = (typeof CODE_FINDING_CATEGORIES)[number];
 
