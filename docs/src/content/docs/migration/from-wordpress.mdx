@@ -118,6 +118,9 @@ The importer maps WordPress statuses as follows:
 | `private` | `draft` |
 | `future` with a date later than the import | `scheduled` |
 | `future` with a past or missing date, `trash`, or an unknown status | `draft` |
+| Any status on a password-protected post (WXR import) | `draft` |
+
+EmDash has no per-entry passwords. A WXR import brings in a password-protected post as a draft whatever its WordPress status, and the **Import Complete** screen lists each one. A password-protected `future` post with a date later than the import is not scheduled and has no publication date, so publishing it sets the current time. The EmDash Exporter does not send post passwords, so an exporter import maps a password-protected post by its status alone, and a published one arrives published.
 
 WordPress visibility rules are not reconstructed from these statuses. Review every imported draft before publication.
 

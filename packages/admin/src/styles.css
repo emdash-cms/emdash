@@ -1024,9 +1024,11 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 
 /*
  * The editor bar mixes bordered and ghost buttons. Drawing the border inside
- * keeps each button as tall as a ghost button's hover background.
+ * keeps each button as tall as a ghost button's hover background. A person's
+ * circle keeps its ring outside, where it cuts the circle apart from the one
+ * it overlaps.
  */
-[data-emdash-editor-bar] :is(button, a):not(:focus-visible) {
+[data-emdash-editor-bar] :is(button, a):not(:focus-visible, [data-presence-face]) {
 	--tw-ring-inset: inset;
 }
 
@@ -1153,6 +1155,136 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	}
 	100% {
 		opacity: 0;
+	}
+}
+
+/*
+ * Another person in a room: the name pill shared by field presence and caret
+ * labels, their caret and their selection in rich text.
+ */
+@layer components {
+	.emdash-presence-pill {
+		display: inline-block;
+		block-size: 18px;
+		padding-inline: 6px;
+		border-radius: 4px;
+		background-color: var(--emdash-author);
+		color: var(--emdash-author-text);
+		font-size: 11px;
+		font-weight: 500;
+		line-height: 18px;
+		white-space: nowrap;
+		user-select: none;
+	}
+}
+
+/*
+ * The circles in the editor bar. Hovering or focusing one sets `--shift` and
+ * `--scale-active` on every circle, and the group's ease for the way they move.
+ */
+.emdash-presence-avatars > [data-presence-face] {
+	transform: translateY(var(--shift, 0px)) scale(var(--scale-active, 1));
+	transform-origin: center;
+	transition-property: transform, scale, opacity;
+	transition-duration: 320ms, 150ms, 150ms;
+	transition-timing-function:
+		var(--emdash-presence-ease, cubic-bezier(0.22, 1, 0.36, 1)), cubic-bezier(0, 0, 0.2, 1),
+		cubic-bezier(0, 0, 0.2, 1);
+}
+
+.emdash-presence-photo {
+	outline: 1px solid light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
+	outline-offset: -1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.emdash-presence-avatars > [data-presence-face] {
+		transform: none;
+		transition: none;
+	}
+}
+
+/*
+ * The caret line keeps 3:1 against the page in both themes, which the badge
+ * colors miss: dark mode takes lighter shades, and light mode a darker orange.
+ */
+.ProseMirror .emdash-remote-caret {
+	--emdash-caret: var(--color-neutral-500, oklch(55.6% 0 0));
+	position: relative;
+	margin-inline: -1px;
+	border-inline-start: 2px solid var(--emdash-caret);
+	pointer-events: none;
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="purple"] {
+	--emdash-caret: light-dark(
+		var(--color-purple-600, oklch(55.8% 0.288 302.321)),
+		var(--color-purple-500, oklch(62.7% 0.265 303.9))
+	);
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="teal"] {
+	--emdash-caret: light-dark(
+		var(--color-teal-650, oklch(54.9% 0.096 184.565)),
+		var(--color-teal-500, oklch(70.4% 0.14 182.503))
+	);
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="blue"] {
+	--emdash-caret: light-dark(
+		var(--color-blue-600, oklch(54.6% 0.245 262.881)),
+		var(--color-blue-500, oklch(62.3% 0.214 259.815))
+	);
+}
+
+.ProseMirror .emdash-remote-caret[data-author-color="orange"] {
+	--emdash-caret: light-dark(
+		var(--color-yellow-700, oklch(55.4% 0.135 66.442)),
+		var(--color-orange-650, oklch(81.5% 0.197 76))
+	);
+}
+
+/* A wider target than the 2px caret, for showing the name on hover. */
+.ProseMirror .emdash-remote-caret::after {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline: -5px -3px;
+	pointer-events: auto;
+}
+
+.ProseMirror .emdash-remote-caret-label {
+	position: absolute;
+	inset-block-end: 100%;
+	inset-inline-start: calc(-2px - var(--emdash-caret-label-shift, 0px));
+	border-end-start-radius: 0;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 150ms ease-out;
+}
+
+.ProseMirror .emdash-remote-caret:is([data-active], :hover) .emdash-remote-caret-label {
+	opacity: 1;
+}
+
+.ProseMirror .emdash-remote-caret[data-below] .emdash-remote-caret-label {
+	inset-block: 100% auto;
+	border-radius: 4px;
+	border-start-start-radius: 0;
+}
+
+/* Away from the caret, the label loses the corner that points at it. */
+.ProseMirror .emdash-remote-caret[data-shifted] .emdash-remote-caret-label {
+	border-radius: 4px;
+}
+
+.ProseMirror .emdash-remote-selection {
+	background-color: color-mix(in oklab, var(--emdash-author) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ProseMirror .emdash-remote-caret-label {
+		transition: none;
 	}
 }
 
@@ -1608,9 +1740,13 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
  * under it, and the author colours shared with the Revisions list.
  * ========================================================================== */
 
-/* Global, so the author dots in the Revisions list pick them up too. */
+/*
+ * Global, so the author dots in the Revisions list pick them up too. Text on
+ * the solid colors is white, except on orange, which is light.
+ */
 [data-author-color] {
 	--emdash-author: var(--color-kumo-badge-neutral);
+	--emdash-author-text: white;
 }
 
 [data-author-color="purple"] {
@@ -1627,6 +1763,7 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 
 [data-author-color="orange"] {
 	--emdash-author: var(--color-kumo-badge-orange);
+	--emdash-author-text: black;
 }
 
 [data-emdash-revision-view] {

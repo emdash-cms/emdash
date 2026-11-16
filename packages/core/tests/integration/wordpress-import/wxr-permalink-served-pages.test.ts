@@ -204,6 +204,32 @@ describeEachDialect("WXR redirects protect served Astro pages", (dialect) => {
 		expect(await ctx.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
 	});
 
+	it("refuses repeated trailing slashes instead of shadowing a served page", async () => {
+		pageRoutes.push({ source: "^/contact/?$", flags: "" });
+		const errors = await importWxrPermalinks(ctx.db, [
+			{
+				title: "Imported",
+				link: "https://wp.test/contact//",
+				collection: "posts",
+				pattern: "/posts/{slug}",
+				item: {
+					id: "other",
+					slug: "other",
+					locale: "en",
+					status: "published",
+					publishedAt: "2024-01-01T00:00:00.000Z",
+				},
+			},
+		]);
+		expect(errors).toEqual([
+			{
+				title: "Imported",
+				error: "Could not create redirect: repeated trailing slashes are unsupported",
+			},
+		]);
+		expect(await ctx.db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
+	});
+
 	it("still redirects a source outside the site's known page routes", async () => {
 		pageRoutes.push({ source: "^/about/?$", flags: "" });
 		expect(

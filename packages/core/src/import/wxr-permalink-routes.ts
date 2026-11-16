@@ -10,7 +10,11 @@ import { normalizeSourcePath } from "../redirects/patterns.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { compileUrlPattern } from "../schema/url-pattern.js";
 
-const TRAILING_SLASHES = /\/+$/;
+function trimTrailingSlashes(path: string): string {
+	let end = path.length;
+	while (end > 0 && path.charCodeAt(end - 1) === 47) end--;
+	return path.slice(0, end);
+}
 
 const URL_TOKEN = /\{\w+\}/g;
 const PERCENT_ESCAPE = /%[\da-f]{2}/gi;
@@ -84,12 +88,12 @@ function compilePermalinkPattern(pattern: string): CompiledPermalinkPattern {
 }
 
 function pathKey(path: string): string {
-	return normalizeSourcePath(path).replace(TRAILING_SLASHES, "") || "/";
+	return trimTrailingSlashes(normalizeSourcePath(path)) || "/";
 }
 
 function basePath(): string {
 	const base = import.meta.env.BASE_URL || "/";
-	return base.replace(TRAILING_SLASHES, "") || "/";
+	return trimTrailingSlashes(base) || "/";
 }
 
 type Collection = Awaited<ReturnType<SchemaRegistry["listCollections"]>>[number];
@@ -155,7 +159,7 @@ export function findPageRouteSources(
 		const relative = baseKey === "/" ? key : key.slice(baseKey.length);
 		let decoded = relative;
 		try {
-			const decodedSource = decodeURI(source).normalize().replace(TRAILING_SLASHES, "") || "/";
+			const decodedSource = trimTrailingSlashes(decodeURI(source).normalize()) || "/";
 			const decodedBase = decodeURI(base).normalize();
 			if (decodedBase === "/") decoded = decodedSource;
 			else if (decodedSource.startsWith(`${decodedBase}/`))
@@ -188,7 +192,7 @@ export async function findLivePermalinkSources(
 		(collection) => collection.routable !== false,
 	);
 	const locales = getI18nConfig()?.locales ?? ["en"];
-	const routeBase = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASHES, "");
+	const routeBase = trimTrailingSlashes(import.meta.env.BASE_URL || "/");
 	const patterns = new Map<
 		string,
 		{
@@ -206,9 +210,8 @@ export async function findLivePermalinkSources(
 				const prefix = await localizePath("/", locale);
 				if (prefix === null) continue;
 				const compiled = compilePermalinkPattern(
-					`${routeBase}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`.replace(
-						TRAILING_SLASHES,
-						"",
+					trimTrailingSlashes(
+						`${routeBase}${prefix === "/" ? "" : prefix}${collection.urlPattern ?? `/${collection.slug}/{slug}`}`,
 					) || "/",
 				);
 				patterns.set(`${collection.slug}:${locale}`, { collection, locale, ...compiled });
@@ -224,7 +227,7 @@ export async function findLivePermalinkSources(
 		if (live.has(sourceKey)) continue;
 		const matches: Candidate[] = candidates.get(sourceKey) ?? [];
 		// Comparison keys may have decoded %25; route captures must retain that layer.
-		const routePath = encodedRoutePath(source).replace(TRAILING_SLASHES, "") || "/";
+		const routePath = trimTrailingSlashes(encodedRoutePath(source)) || "/";
 		for (const { collection, locale, regex, aliasRegex, paramNames } of patterns.values()) {
 			const match = regex.exec(routePath) ?? aliasRegex.exec(routePath);
 			if (!match) continue;

@@ -45,6 +45,7 @@ import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
+	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 	injectBuiltinAuthRoutes,
 	injectAuthProviderRoutes,
@@ -667,6 +668,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
+				serializableConfig.robotsTxtOverridden = hasUserDefinedPublicRoute(
+					astroConfig.srcDir,
+					"robots.txt",
+				);
 				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
 				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
 
@@ -828,6 +833,11 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				invalidatePageRoutes?.();
 			},
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
+				const cookie = finalConfig.session ? finalConfig.session.cookie : undefined;
+				serializableConfig.sessionCookieName =
+					typeof cookie === "string"
+						? cookie || "astro-session"
+						: (cookie?.name ?? "astro-session");
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

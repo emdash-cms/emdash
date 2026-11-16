@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
+import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -51,7 +51,7 @@ import {
 } from "../../plugins/content-policy.js";
 import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
-import { normalizeSourcePath } from "../../redirects/patterns.js";
+import { importSourceKey, importSourceLookupVariants } from "../../redirects/source-paths.js";
 import { requestCached } from "../../request-cache.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
@@ -838,10 +838,7 @@ async function createSlugChangeRedirect(
 const TRAILING_SLASH = /\/$/;
 
 function addRedirectCleanupSource(source: string, target: Set<string>): void {
-	const normalized = normalizeSourcePath(source);
-	for (const path of [source, normalized]) {
-		for (const variant of redirectPathVariants(path)) target.add(variant);
-	}
+	for (const variant of importSourceLookupVariants([source])) target.add(variant);
 }
 
 /**
@@ -877,6 +874,7 @@ async function removeShadowingAutoRedirect(
 	const sources = new Set<string>();
 	const importerSources = new Set<string>();
 	const importerKeys = new Set<string>();
+	const importerLookups = new Set<string>();
 	// Legacy unprefixed aliases may belong to a different locale's imported entry.
 	addRedirectCleanupSource(url, sources);
 
@@ -894,7 +892,8 @@ async function removeShadowingAutoRedirect(
 			const base = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASH, "");
 			const canonical = `${base}${localized}`;
 			addRedirectCleanupSource(canonical, sources);
-			for (const key of redirectPathVariants(normalizeSourcePath(canonical))) importerKeys.add(key);
+			importerKeys.add(importSourceKey(canonical));
+			for (const source of importSourceLookupVariants([canonical])) importerLookups.add(source);
 		}
 	}
 
@@ -902,6 +901,7 @@ async function removeShadowingAutoRedirect(
 		const imported = await db
 			.selectFrom("_emdash_redirects")
 			.select("source")
+			.where("source", "in", [...importerLookups])
 			.where("auto", "=", 1)
 			.where("group_name", "=", "WordPress import")
 			.where("enabled", "=", 1)
@@ -909,7 +909,7 @@ async function removeShadowingAutoRedirect(
 			.where("type", "=", 301)
 			.execute();
 		for (const row of imported) {
-			if (importerKeys.has(normalizeSourcePath(row.source))) {
+			if (importerKeys.has(importSourceKey(row.source))) {
 				importerSources.add(row.source);
 				sources.add(row.source);
 			}

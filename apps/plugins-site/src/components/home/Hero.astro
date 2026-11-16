@@ -2,11 +2,14 @@
 import SearchField from "../SearchField.astro";
 import HeroExhibit from "./HeroExhibit.astro";
 
-interface Props {
-	keywords: string[];
-}
-
-const { keywords } = Astro.props;
+const popularSearches = [
+	{ label: "SEO", query: "seo" },
+	{ label: "Forms", query: "forms" },
+	{ label: "Ecommerce", query: "ecommerce" },
+	{ label: "Email", query: "email" },
+	{ label: "Analytics", query: "analytics" },
+	{ label: "AI", query: "ai" },
+];
 ---
 
 <section class="hero" aria-labelledby="hero-title">
@@ -21,31 +24,20 @@ const { keywords } = Astro.props;
 		<div class="hero-search rise">
 			<SearchField id="hero-search" size="lg" />
 		</div>
-		{
-			keywords.length > 0 && (
-				<div class="hero-popular rise">
-					<span class="hero-popular-label" id="hero-popular-label">
-						Popular
-					</span>
-					<ul
-						class="chip-list hero-popular-list"
-						aria-labelledby="hero-popular-label"
-					>
-						{keywords.map((keyword) => (
-							<li>
-								<a
-									class="chip"
-									href={`/search?q=${encodeURIComponent(keyword)}`}
-									dir="auto"
-								>
-									<span class="chip-label">{keyword}</span>
-								</a>
-							</li>
-						))}
-					</ul>
-				</div>
-			)
-		}
+		<div class="hero-popular rise">
+			<span class="hero-popular-label" id="hero-popular-label">Popular</span>
+			<ul class="chip-list hero-popular-list" aria-labelledby="hero-popular-label">
+				{
+					popularSearches.map(({ label, query }) => (
+						<li>
+							<a class="chip" href={`/search?q=${encodeURIComponent(query)}`}>
+								<span class="chip-label">{label}</span>
+							</a>
+						</li>
+					))
+				}
+			</ul>
+		</div>
 	</div>
 	<HeroExhibit />
 </section>

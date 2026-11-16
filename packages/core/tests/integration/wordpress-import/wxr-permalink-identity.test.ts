@@ -340,7 +340,7 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 	});
 
 	it.each([
-		{ link: "/old/%5Bslug%5D/", source: "/old/%5Bslug%5D" },
+		{ link: "/old/%5Bslug%5D/", source: "/old/[slug]" },
 		{ link: "/old/[slug]/", source: "/old/[slug]" },
 	])(
 		"keeps an imported bracket permalink exact across skipped reruns ($link)",
@@ -375,7 +375,7 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 			).toEqual([
 				{ source, destination: "/updated/overview", is_pattern: 0, enabled: 1, type: 301 },
 			]);
-			for (const path of [source, `${source}/`]) {
+			for (const path of [link, source, `${source}/`]) {
 				const response = await redirectMiddleware(
 					redirectContext(path, harness.db),
 					async () => new Response("not found", { status: 404 }),
@@ -401,7 +401,7 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 			slug: "%d0%bf%d1%80",
 		});
 		expect(await redirects(harness)).toEqual([
-			{ source: "/%d0%bf%d1%80", destination: "/pages/%25d0%25bf%25d1%2580" },
+			{ source: "/%D0%BF%D1%80", destination: "/pages/%25d0%25bf%25d1%2580" },
 		]);
 
 		invalidateRedirectCache();
@@ -527,6 +527,59 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		},
 	);
 
+	it.each([false, true])(
+		"reports ambiguous stored languages on a locale-less skip-existing rerun (i18n=%s)",
+		async (i18n) => {
+			if (i18n) {
+				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
+				_resetAstroI18nCacheForTests();
+			}
+			const original = wxr(
+				item({
+					id: 1,
+					title: "English",
+					link: i18n ? "/en/overview/" : "/overview/",
+					localeMeta: "en",
+					translationGroup: 42,
+				}) +
+					item({
+						id: 2,
+						title: "French",
+						link: "/fr/overview/",
+						localeMeta: "fr",
+						translationGroup: 42,
+					}),
+			);
+			expect(await importContent(harness, original)).toMatchObject({
+				imported: 2,
+				skipped: 0,
+				errors: [],
+			});
+			const beforeData = await harness.db
+				.selectFrom("ec_pages")
+				.selectAll()
+				.orderBy("locale")
+				.execute();
+			const beforeRedirects = await redirects(harness);
+
+			const rerun = wxr(item({ id: 1, title: "English", slug: "overview" }));
+			expect(await importContent(harness, rerun)).toMatchObject({
+				imported: 0,
+				skipped: 1,
+				errors: [
+					{
+						title: "English",
+						error: "Skipped item has ambiguous stored languages; no permalink redirect was created",
+					},
+				],
+			});
+			expect(
+				await harness.db.selectFrom("ec_pages").selectAll().orderBy("locale").execute(),
+			).toEqual(beforeData);
+			expect(await redirects(harness)).toEqual(beforeRedirects);
+		},
+	);
+
 	it("uses the whole WXR to import same-slug languages across a content chunk", async () => {
 		const items = [item({ id: 1, title: "English", link: "/en/overview/", localeMeta: "en" })];
 		for (let id = 2; id <= 30; id++) {
@@ -555,6 +608,18 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		expect(await new RedirectRepository(harness.db).findBySource("/en/overview")).toBeNull();
 		expect(await new RedirectRepository(harness.db).findBySource("/fr/overview")).toBeNull();
 		expect(await new RedirectRepository(harness.db).findBySource("/unique-2")).not.toBeNull();
+	});
+
+	it("handles a long run of slashes in a full import link", async () => {
+		const source = `/old/${"/".repeat(50_000)}tail`;
+		const result = await importContent(
+			harness,
+			wxr(item({ id: 1, title: "Long", link: `${source}/` })),
+		);
+		expect(result).toMatchObject({ imported: 1, skipped: 0, errors: [] });
+		expect(await new RedirectRepository(harness.db).findBySource(source)).toMatchObject({
+			destination: "/pages/overview",
+		});
 	});
 
 	it("keeps created and skipped data when redirect locale verification fails", async () => {

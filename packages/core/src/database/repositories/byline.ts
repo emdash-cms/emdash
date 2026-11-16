@@ -9,6 +9,7 @@ import {
 	invalidateCollectionCache,
 } from "../../object-cache/index.js";
 import { clearRequestCacheEntry, peekRequestCache, requestCached } from "../../request-cache.js";
+import { hasRoomNotifier, notifyRoom } from "../../rooms/notifications.js";
 import type { BylineFieldDefinition, CustomFieldValue } from "../../schema/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { listTablesLike } from "../dialect-helpers.js";
@@ -955,6 +956,13 @@ export class BylineRepository {
 			if (remainingCount > 0) return;
 
 			// Last sibling gone: cascade in application code.
+			const credited = hasRoomNotifier()
+				? await trx
+						.selectFrom("_emdash_content_bylines")
+						.select(["collection_slug", "content_id"])
+						.where("byline_id", "=", group)
+						.execute()
+				: [];
 			await trx.deleteFrom("_emdash_content_bylines").where("byline_id", "=", group).execute();
 
 			// Group-shared custom-field values are keyed by translation_group
@@ -978,6 +986,9 @@ export class BylineRepository {
 					SET primary_byline_id = NULL
 					WHERE primary_byline_id = ${group}
 				`.execute(trx);
+			}
+			for (const credit of credited) {
+				notifyRoom({ collection: credit.collection_slug, id: credit.content_id }, ["bylines"]);
 			}
 		});
 
@@ -1467,6 +1478,7 @@ export class BylineRepository {
 
 		// Byline credits are folded into this entry's cached payload.
 		invalidateCollectionCache(collectionSlug);
+		notifyRoom({ collection: collectionSlug, id: contentId }, ["bylines"]);
 
 		return await this.getContentBylines(collectionSlug, contentId);
 	}

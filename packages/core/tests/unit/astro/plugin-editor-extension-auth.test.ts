@@ -192,6 +192,49 @@ describe("saved-entry plugin extension authorization", () => {
 		await expect(pluginRequest?.json()).resolves.toEqual({ type: "editor_action" });
 	});
 
+	it("skips the base revision check and echoes the client's while the entry's room is open", async () => {
+		const locals = createLocals(Role.AUTHOR);
+		const isOpen = vi.fn(async () => true);
+		Object.assign(locals.emdash, { rooms: { isOpen } });
+		locals.emdash.getPluginEditorExtension = () => ({
+			kind: "panel" as const,
+			extension: {
+				id: "health",
+				title: "Health",
+				route: "entry-health",
+				collections: ["posts"],
+				draft: { read: { translatable: true as const } },
+			},
+			policy: {},
+			capabilities: ["admin.editor-draft:read"] as const,
+		});
+		const draft = {
+			collection: "posts",
+			entryId: "entry-1",
+			locale: "en",
+			baseRevision: "rev-5",
+			generation: 3,
+			invocationId: "invocation_123456",
+			fields: { title: "Unsaved" },
+		};
+
+		const interaction = { type: "block_action", action_id: "inspect", draft };
+		const response = await invoke(locals, interaction);
+
+		expect(response.status).toBe(200);
+		expect(isOpen).toHaveBeenCalledWith("posts:entry-1");
+		const pluginRequest = locals.handlePluginApiRoute.mock.calls[0]?.[3];
+		await expect(pluginRequest?.json()).resolves.toMatchObject({
+			draft: { baseRevision: "rev-5", fields: { title: "Unsaved" } },
+		});
+		await expect(response.json()).resolves.toMatchObject({
+			data: { editorInvocation: { baseRevision: "rev-5", generation: 3 } },
+		});
+
+		isOpen.mockResolvedValue(false);
+		expect((await invoke(locals, interaction)).status).toBe(409);
+	});
+
 	it("forwards a server-sanitized explicit draft and host-attests the patch receipt", async () => {
 		const locals = createLocals(Role.AUTHOR);
 		locals.emdash.getPluginEditorExtension = () => ({

@@ -10,6 +10,12 @@ import { isSiteRelativeDestination } from "../redirects/destination.js";
 import { wouldCreateLoop, type RedirectEdge } from "../redirects/loops.js";
 import { shouldSkipRedirectPath } from "../redirects/paths.js";
 import { normalizeSourcePath } from "../redirects/patterns.js";
+import {
+	canonicalImportSource,
+	importSourceLookupVariants,
+	normalizationDropsSegments,
+} from "../redirects/source-paths.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { findLivePermalinkSources } from "./wxr-permalink-routes.js";
 
 export interface WxrPermalinkEntry {
@@ -74,15 +80,20 @@ async function findCanonicalRedirects(
 	eligibleOnly = true,
 ) {
 	if (canonicalPaths.size === 0) return [];
-	let query = db
-		.selectFrom("_emdash_redirects")
-		.selectAll()
-		.where("auto", "=", 1)
-		.where("group_name", "=", "WordPress import");
-	if (eligibleOnly)
-		query = query.where("enabled", "=", 1).where("is_pattern", "=", 0).where("type", "=", 301);
-	// Stored sources retain escaping, so SQL equality cannot identify every URI alias.
-	return (await query.execute()).filter((row) => canonicalPaths.has(pathKey(row.source)));
+	const keys = new Set(Array.from(canonicalPaths, pathKey));
+	const matches = [];
+	for (const batch of chunks(importSourceLookupVariants(canonicalPaths), SQL_BATCH_SIZE)) {
+		let query = db
+			.selectFrom("_emdash_redirects")
+			.selectAll()
+			.where("source", "in", batch)
+			.where("auto", "=", 1)
+			.where("group_name", "=", "WordPress import");
+		if (eligibleOnly)
+			query = query.where("enabled", "=", 1).where("is_pattern", "=", 0).where("type", "=", 301);
+		matches.push(...(await query.execute()).filter((row) => keys.has(pathKey(row.source))));
+	}
+	return matches;
 }
 
 /** Preserve WXR links without deriving WordPress's stored local date from its GMT date. */
@@ -98,9 +109,11 @@ export async function importWxrPermalinks(
 	const candidates: Array<{
 		title: string;
 		source: string;
+		pathname: string;
 		destination: string;
 	}> = [];
 	const canonicalPaths = new Set<string>();
+	const canonicalKeys = new Set<string>();
 	const canonicalTitles = new Map<string, string[]>();
 	for (const entry of entries) {
 		if (entry.item.status !== "published" || !entry.item.slug) continue;
@@ -122,7 +135,8 @@ export async function importWxrPermalinks(
 				isSiteRelativeDestination(destination)
 			) {
 				const key = pathKey(destination);
-				canonicalPaths.add(key);
+				canonicalPaths.add(destination);
+				if (!normalizationDropsSegments(destination)) canonicalKeys.add(key);
 				canonicalTitles.set(key, [...(canonicalTitles.get(key) ?? []), entry.title]);
 				if ((exportedSources.get(key) ?? 0) > (currentSources.get(key) ?? 0)) {
 					errors.push({
@@ -143,10 +157,25 @@ export async function importWxrPermalinks(
 				});
 				continue;
 			}
-			const source = storedPath(url.pathname);
+			if (url.pathname.endsWith("//")) {
+				errors.push({
+					title: entry.title,
+					error: "Could not create redirect: repeated trailing slashes are unsupported",
+				});
+				continue;
+			}
+			if (normalizationDropsSegments(url.pathname)) {
+				errors.push({
+					title: entry.title,
+					error: "Could not create redirect: unsafe permalink path",
+				});
+				continue;
+			}
+			const source = canonicalImportSource(url.pathname);
 			const sourceKey = pathKey(source);
 			if (roots.has(sourceKey)) {
-				canonicalPaths.add(sourceKey);
+				canonicalPaths.add(url.pathname);
+				canonicalKeys.add(sourceKey);
 				canonicalTitles.set(sourceKey, [...(canonicalTitles.get(sourceKey) ?? []), entry.title]);
 				continue;
 			}
@@ -175,7 +204,7 @@ export async function importWxrPermalinks(
 				continue;
 			}
 			if (sourceKey !== pathKey(destination)) {
-				candidates.push({ title: entry.title, source, destination });
+				candidates.push({ title: entry.title, source, pathname: url.pathname, destination });
 			}
 		} catch {
 			errors.push({
@@ -221,7 +250,7 @@ export async function importWxrPermalinks(
 				candidates.length > 0
 					? await findLivePermalinkSources(
 							repository.db,
-							candidates.map((candidate) => candidate.source),
+							candidates.flatMap((candidate) => [candidate.pathname, candidate.source]),
 						)
 					: new Set<string>();
 			const existingRows =
@@ -236,7 +265,7 @@ export async function importWxrPermalinks(
 					row.enabled === 1 &&
 					row.is_pattern === 0 &&
 					row.type === 301 &&
-					(canonicalPaths.has(pathKey(row.source)) || liveSources.has(pathKey(row.source)))
+					(canonicalKeys.has(pathKey(row.source)) || liveSources.has(pathKey(row.source)))
 				) {
 					if (!(await repository.delete(row.id, undefined, fence)))
 						throw new Error("Redirect write fence expired");
@@ -285,7 +314,7 @@ export async function importWxrPermalinks(
 				const existing = sources.get(sourceKey);
 				if (
 					sourceKey === destinationKey ||
-					canonicalPaths.has(sourceKey) ||
+					canonicalKeys.has(sourceKey) ||
 					liveSources.has(sourceKey)
 				) {
 					if (existing?.owned && existing.enabled && !existing.isPattern && existing.type === 301) {

@@ -9,7 +9,10 @@ import { onRequest } from "../../../src/astro/middleware/redirect.js";
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
-import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
+import {
+	_resetAstroI18nCacheForTests,
+	resolveContentRoutePath,
+} from "../../../src/i18n/resolve.js";
 import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { handlersFromRuntime, createTestRuntime } from "../../utils/mcp-runtime.js";
@@ -322,6 +325,7 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 		{
 			base: "/",
 			source: "/%d0%bf%d1%80/",
+			storedSource: "/%D0%BF%D1%80",
 			destination: "/posts/contact",
 			pageSlug: "пр",
 			i18n: false,
@@ -329,6 +333,7 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 		{
 			base: "/archive/",
 			source: "/archive/%d0%bf%d1%80/",
+			storedSource: "/archive/%D0%BF%D1%80",
 			destination: "/archive/posts/contact",
 			pageSlug: "пр",
 			i18n: false,
@@ -352,7 +357,15 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 		{ base: "/", source: "/contact/", destination: "/posts/contact", i18n: true },
 	])(
 		"removes the imported redirect when a page is published at the canonical path (base=$base, i18n=$i18n)",
-		async ({ base, source, destination, pageSlug = "contact", extraRuleSource, i18n }) => {
+		async ({
+			base,
+			source,
+			destination,
+			pageSlug = "contact",
+			extraRuleSource,
+			storedSource = source.slice(0, -1),
+			i18n,
+		}) => {
 			if (base !== "/") vi.stubEnv("BASE_URL", base);
 			if (i18n) {
 				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: false });
@@ -372,9 +385,9 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 				{ post: { collection: "posts", enabled: true } },
 			);
 			expect(result.data.result).toMatchObject({ imported: 1, errors: [] });
-			expect(
-				await new RedirectRepository(harness.db).findBySource(source.slice(0, -1)),
-			).toMatchObject({ destination });
+			expect(await new RedirectRepository(harness.db).findBySource(storedSource)).toMatchObject({
+				destination,
+			});
 
 			const created = await harness.runtime.handleContentCreate("pages", {
 				data: { title: "Contact" },
@@ -387,7 +400,7 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 			if (!created.success) return;
 			const published = await harness.runtime.handleContentPublish("pages", created.data.item.id);
 			expect(published.success).toBe(true);
-			expect(await new RedirectRepository(harness.db).findBySource(source.slice(0, -1))).toBeNull();
+			expect(await new RedirectRepository(harness.db).findBySource(storedSource)).toBeNull();
 			if (extraRuleSource) {
 				expect(await harness.db.selectFrom("_emdash_redirects").selectAll().execute()).toHaveLength(
 					1,
@@ -402,6 +415,48 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 			}
 		},
 	);
+
+	it("publishing a percent-encoded post slug removes only its own import redirect", async () => {
+		const repository = new RedirectRepository(harness.db);
+		const parent = await repository.create({
+			source: "/posts",
+			destination: "/posts-home",
+			auto: true,
+			groupName: "WordPress import",
+		});
+		const own = await repository.create({
+			source: "/posts/%252e",
+			destination: "/posts/old",
+			auto: true,
+			groupName: "WordPress import",
+		});
+
+		const created = await harness.runtime.handleContentCreate("posts", {
+			data: { title: "Encoded" },
+			slug: "%2e",
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		const published = await harness.runtime.handleContentPublish("posts", created.data.item.id);
+		expect(published.success).toBe(true);
+		expect(
+			resolveContentRoutePath({
+				pattern: "/posts/{slug}",
+				collection: "posts",
+				slug: "%2e",
+				id: created.data.item.id,
+			}),
+		).toBe("/posts/%252e");
+		expect(await repository.findById(own.id)).toBeNull();
+		expect(await repository.findById(parent.id)).toEqual(parent);
+		expect(
+			await harness.db
+				.selectFrom("ec_posts")
+				.select(["slug", "status"])
+				.where("id", "=", created.data.item.id)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ slug: "%2e", status: "published" });
+	});
 
 	it("removes only the localized import redirect when a translated page is published", async () => {
 		setI18nConfig({

@@ -102,6 +102,8 @@ export interface ImportResult {
 	skipped: number;
 	errors: Array<{ title: string; error: string }>;
 	byCollection: Record<string, number>;
+	/** Entries imported as drafts because they had a password in WordPress */
+	passwordProtected?: Array<{ id: string; collection: string; title: string }>;
 	/** Sections import results (if enabled) */
 	sections?: {
 		created: number;
@@ -530,6 +532,7 @@ export async function importContent(
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
 	const permalinks: WxrPermalinkEntry[] = [];
+	const unscopedSkips: Array<{ post: WxrPost; collection: string; item: ContentItem }> = [];
 	const sourceSlugs = new Map<WxrPost, string>();
 	const seenIdentities = new Set<string>();
 	const ambiguousIdentities = new Set<string>();
@@ -556,7 +559,7 @@ export async function importContent(
 				if (seenIdentities.has(key)) ambiguousIdentities.add(key);
 				seenIdentities.add(key);
 			}
-			if (!i18nEnabled) {
+			if (!i18nEnabled || post.locale !== undefined || locale !== undefined) {
 				const key = unlocalizedSlugKey(collection, slug);
 				sourceRouteKeys.set(post, key);
 				const variants = plannedLocales.get(key) ?? new Set<string>();
@@ -635,6 +638,7 @@ export async function importContent(
 						});
 						continue;
 					}
+
 					// Record the translation group mapping so later
 					// translations in this WXR can link to the existing
 					// item. We deliberately trust the WXR's grouping over
@@ -648,7 +652,9 @@ export async function importContent(
 					if (post.translationGroup) {
 						translationGroupMap.set(post.translationGroup, existing.id);
 					}
-					queuePermalink(post, collection, existing);
+					if (requestedLocale === undefined)
+						unscopedSkips.push({ post, collection, item: existing });
+					else queuePermalink(post, collection, existing);
 					continue;
 				}
 			}
@@ -660,8 +666,8 @@ export async function importContent(
 				translationOf = translationGroupMap.get(post.translationGroup);
 			}
 
-			// Map WordPress status to EmDash status
-			const status = mapStatus(post.status);
+			const passwordProtected = Boolean(post.postPassword);
+			const status = passwordProtected ? "draft" : mapStatus(post.status);
 
 			// Build data object with required fields
 			const data: Record<string, unknown> = {
@@ -704,10 +710,9 @@ export async function importContent(
 			// Fallback chain: postDateGmt (UTC) → pubDate (RFC 2822) → postDate (site-local).
 			const parsedDate = parseWxrDate(post.postDateGmt, post.pubDate, post.postDate);
 			const createdAt = parsedDate ? parsedDate.toISOString() : undefined;
-			const scheduledAt =
-				post.status === "future" && createdAt && Date.parse(createdAt) > Date.now()
-					? createdAt
-					: undefined;
+			const futureDated =
+				post.status === "future" && createdAt !== undefined && Date.parse(createdAt) > Date.now();
+			const scheduledAt = futureDated && !passwordProtected ? createdAt : undefined;
 
 			// Create the content item
 			const createResult = await emdash.handleContentCreate(collection, {
@@ -719,8 +724,8 @@ export async function importContent(
 				locale: postLocale,
 				translationOf,
 				createdAt,
-				// Scheduled posts get their publication date from the final schedule.
-				publishedAt: scheduledAt ? undefined : createdAt,
+				// Future-dated posts get their publication date when they are published.
+				publishedAt: futureDated ? undefined : createdAt,
 			});
 
 			if (createResult.success) {
@@ -744,6 +749,14 @@ export async function importContent(
 					!translationGroupMap.has(post.translationGroup)
 				) {
 					translationGroupMap.set(post.translationGroup, createdItem.id);
+				}
+
+				if (createdItem && passwordProtected) {
+					(result.passwordProtected ??= []).push({
+						id: createdItem.id,
+						collection,
+						title: post.title || "Untitled",
+					});
 				}
 
 				// Attach taxonomy assignments parsed from the WXR's per-item
@@ -817,6 +830,28 @@ export async function importContent(
 			result.errors.push({
 				title: post.title || "Untitled",
 				error: error instanceof Error && error.message ? error.message : "Failed to import item",
+			});
+		}
+	}
+
+	for (const { post, collection, item } of unscopedSkips) {
+		try {
+			const stored = await findStoredSlugLocales(emdash.db, collection, item.slug ?? "");
+			const variants = new Set(Array.from(stored, (value) => value?.toLowerCase() ?? ""));
+			for (const value of (i18nEnabled
+				? plannedLocales.get(unlocalizedSlugKey(collection, item.slug ?? ""))
+				: undefined) ?? [])
+				variants.add(value);
+			if (variants.size > 1) {
+				result.errors.push({
+					title: post.title || "Untitled",
+					error: "Skipped item has ambiguous stored languages; no permalink redirect was created",
+				});
+			} else queuePermalink(post, collection, item);
+		} catch {
+			result.errors.push({
+				title: post.title || "Untitled",
+				error: "Could not verify redirect ownership; retry with skip existing",
 			});
 		}
 	}
