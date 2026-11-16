@@ -1715,7 +1715,7 @@ function ContentEditPage() {
 			const contentRefresh = queryClient.invalidateQueries({
 				queryKey: ["content", targetCollection, targetId],
 			});
-			void invalidateContentViews(queryClient, { collection, id: targetId });
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
 				queryKey: ["revisions", targetCollection, targetId],
