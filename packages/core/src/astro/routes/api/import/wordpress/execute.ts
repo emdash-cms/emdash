@@ -888,15 +888,36 @@ export async function importContent(
 				entry.link = undefined;
 		}
 	}
-	const sourceLinks = sourcePosts.flatMap((post) => {
+	const sourceClaims = sourcePosts.flatMap((post, index) => {
 		const mapping = config.postTypeMappings[post.postType || "post"];
 		if (!mapping?.enabled) return [];
 		const routeKey = sourceRouteKeys.get(post);
 		if (routeKey && suppressedRoutes.has(routeKey)) return [];
 		const schema = manifest.collections[sanitizeSlug(mapping.collection)];
-		return schema && schema.routable !== false && post.link ? [post.link] : [];
+		return schema && schema.routable !== false && post.link
+			? [
+					{
+						link: post.link,
+						owner: JSON.stringify([
+							identityFor(
+								sanitizeSlug(mapping.collection),
+								sourceSlugs.get(post) ?? wxrPostSlug(post),
+								post.locale ?? locale,
+							),
+							post.id && post.id > 0 ? post.id : `item:${index}`,
+						]),
+					},
+				]
+			: [];
 	});
-	result.errors.push(...(await importWxrPermalinks(emdash.db, permalinks, sourceLinks)));
+	result.errors.push(
+		...(await importWxrPermalinks(
+			emdash.db,
+			permalinks,
+			sourceClaims.map((claim) => claim.link),
+			sourceClaims,
+		)),
+	);
 	result.success = result.errors.length === 0;
 	return result;
 }

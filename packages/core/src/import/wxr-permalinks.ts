@@ -27,6 +27,11 @@ export interface WxrPermalinkEntry {
 	item: Pick<ContentItem, "id" | "slug" | "status" | "publishedAt" | "locale">;
 }
 
+export interface WxrPermalinkSourceClaim {
+	link: string;
+	owner: string;
+}
+
 interface PermalinkError {
 	title: string;
 	error: string;
@@ -57,6 +62,26 @@ function countPermalinkSources(links: readonly (string | undefined)[]): Map<stri
 		}
 	}
 	return counts;
+}
+
+function competingSourceClaims(claims: readonly WxrPermalinkSourceClaim[]): Set<string> {
+	const owners = new Map<string, Set<string>>();
+	const competing = new Set<string>();
+	for (const claim of claims) {
+		try {
+			const url = new URL(claim.link);
+			if (!["http:", "https:"].includes(url.protocol) || url.search || url.hash) continue;
+			if (normalizationDropsSegments(url.pathname)) continue;
+			const key = pathKey(url.pathname);
+			const claimed = owners.get(key) ?? new Set<string>();
+			claimed.add(claim.owner);
+			owners.set(key, claimed);
+			if (claimed.size > 1) competing.add(key);
+		} catch {
+			// Invalid links are reported when their items are processed.
+		}
+	}
+	return competing;
 }
 
 async function importPermalinkRoots(): Promise<Set<string>> {
@@ -101,6 +126,7 @@ export async function importWxrPermalinks(
 	db: Kysely<Database>,
 	entries: WxrPermalinkEntry[],
 	sourceLinks: readonly (string | undefined)[] = entries.map((entry) => entry.link),
+	sourceClaims: readonly WxrPermalinkSourceClaim[] = [],
 ): Promise<PermalinkError[]> {
 	const errors: PermalinkError[] = [];
 	const exportedSources = countPermalinkSources(sourceLinks);
@@ -213,6 +239,24 @@ export async function importWxrPermalinks(
 			});
 		}
 	}
+	const competing = competingSourceClaims(sourceClaims);
+	const destinations = new Map<string, Set<string>>();
+	for (const candidate of candidates) {
+		const key = pathKey(candidate.source);
+		const targets = destinations.get(key) ?? new Set<string>();
+		targets.add(storedPath(candidate.destination));
+		destinations.set(key, targets);
+		if (targets.size > 1) competing.add(key);
+	}
+	for (let index = candidates.length - 1; index >= 0; index--) {
+		if (!competing.has(pathKey(candidates[index].source))) continue;
+		errors.push({
+			title: candidates[index].title,
+			error: "Could not create redirect: multiple WordPress entries claim the same source path",
+		});
+		candidates.splice(index, 1);
+	}
+
 	if (candidates.length === 0 && canonicalPaths.size === 0) return errors;
 
 	let changed = false;

@@ -178,6 +178,42 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		).toEqual([{ id: rule.id, source: "/old", destination: "/canonical", type: 301 }]);
 	});
 
+	it("reports competing source destinations without retargeting an existing owned rule", async () => {
+		const repository = new RedirectRepository(ctx.db);
+		const before = await repository.create({
+			source: "/shared",
+			destination: "/keep",
+			auto: true,
+			groupName: "WordPress import",
+			isPattern: false,
+		});
+		const result = await importWxrPermalinks(ctx.db, [
+			entry("https://en.wp.test/shared/", post({ id: "one", slug: "one" })),
+			entry("https://fr.wp.test/shared/", post({ id: "two", slug: "two" })),
+		]);
+		expect(result).toHaveLength(2);
+		for (const error of result)
+			expect(error.error).toContain("multiple WordPress entries claim the same source path");
+		expect(await repository.findById(before.id)).toEqual(before);
+	});
+
+	it("accepts repeated claims by different entries when the source and destination match", async () => {
+		const results = await importWxrPermalinks(ctx.db, [
+			entry("https://wp.test/2004/05/01/example-post/", post({ id: "first" })),
+			entry("https://other.test/2004/05/01/example-post/", post({ id: "second" })),
+		]);
+		expect(results).toEqual([]);
+		expect(await redirects()).toEqual([
+			{
+				source: "/2004/05/01/example-post",
+				destination: "/2004/05/02/example-post",
+				type: 301,
+				enabled: 1,
+				isPattern: 0,
+			},
+		]);
+	});
+
 	it("is idempotent and leaves a same-day trailing-slash difference alone", async () => {
 		const first = await importWxrPermalinks(ctx.db, [
 			entry("https://wp.test/2004/05/01/example-post/"),

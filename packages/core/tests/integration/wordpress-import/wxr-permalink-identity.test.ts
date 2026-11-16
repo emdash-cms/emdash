@@ -51,6 +51,7 @@ function item({
 	title,
 	slug = "overview",
 	link,
+	host = "example.test",
 	parent,
 	localeMeta,
 	translationGroup,
@@ -60,11 +61,13 @@ function item({
 	title: string;
 	slug?: string;
 	link?: string;
+	host?: string;
 	parent?: number;
 	localeMeta?: string;
 	translationGroup?: number;
 	category?: boolean;
 }) {
+	const absoluteLink = link?.startsWith("https://") ? link : link && `https://${host}${link}`;
 	return `<item>
 		<title>${title}</title>
 		<wp:post_id>${id}</wp:post_id>
@@ -72,7 +75,7 @@ function item({
 		<wp:status>publish</wp:status>
 		<wp:post_name>${slug}</wp:post_name>
 		${parent === undefined ? "" : `<wp:post_parent>${parent}</wp:post_parent>`}
-		${link ? `<link>https://example.test${link}</link>` : ""}
+		${absoluteLink ? `<link>${absoluteLink}</link>` : ""}
 		<wp:post_date>2024-01-01 12:00:00</wp:post_date>
 		<wp:post_date_gmt>2024-01-01 12:00:00</wp:post_date_gmt>
 		${category ? `<category domain="category" nicename="news">News</category>` : ""}
@@ -608,6 +611,126 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		expect(await new RedirectRepository(harness.db).findBySource("/en/overview")).toBeNull();
 		expect(await new RedirectRepository(harness.db).findBySource("/fr/overview")).toBeNull();
 		expect(await new RedirectRepository(harness.db).findBySource("/unique-2")).not.toBeNull();
+	});
+
+	it.each([
+		{ chunked: false, reverse: false, encoded: false },
+		{ chunked: false, reverse: true, encoded: false },
+		{ chunked: true, reverse: false, encoded: false },
+		{ chunked: true, reverse: true, encoded: false },
+		{ chunked: false, reverse: false, encoded: true },
+	])(
+		"imports same-path localized pages but reports their shared source ($chunked, reverse=$reverse, encoded=$encoded)",
+		async ({ chunked, reverse, encoded }) => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
+			_resetAstroI18nCacheForTests();
+			const shared = [
+				item({
+					id: 1,
+					title: "English shared",
+					link: encoded ? "https://en.example/over%76iew/" : "https://en.example/overview/",
+					localeMeta: "en",
+				}),
+				item({
+					id: 31,
+					title: "French shared",
+					link: "https://fr.example/overview/",
+					localeMeta: "fr",
+				}),
+			];
+			const items = chunked
+				? [
+						shared[0]!,
+						...Array.from({ length: 29 }, (_, index) =>
+							item({
+								id: index + 2,
+								title: `Filler ${index + 2}`,
+								slug: `filler-${index + 2}`,
+								link: `/filler-${index + 2}/`,
+							}),
+						),
+						shared[1]!,
+					]
+				: shared;
+			const text = wxr((reverse ? items.toReversed() : items).join("\n"));
+
+			let result;
+			if (chunked) {
+				const prepared = await post(harness, text, "taxonomy");
+				const first = await post(harness, text, "content", prepared);
+				const second = await post(harness, text, "content", first);
+				result = {
+					imported: first.result.imported + second.result.imported,
+					errors: [...first.result.errors, ...second.result.errors],
+				};
+			} else {
+				result = await importContent(harness, text);
+			}
+			expect(result.imported).toBe(chunked ? 31 : 2);
+			expect(result.errors).toHaveLength(2);
+			expect(result.errors.map(({ title }) => title).toSorted()).toEqual([
+				"English shared",
+				"French shared",
+			]);
+			for (const error of result.errors)
+				expect(error.error).toContain("multiple WordPress entries claim the same source path");
+
+			const rows = await harness.db
+				.selectFrom("ec_pages")
+				.select(["title", "locale"])
+				.where("slug", "=", "overview")
+				.orderBy("locale")
+				.execute();
+			expect(rows).toEqual([
+				expect.objectContaining({ title: "English shared", locale: "en" }),
+				expect.objectContaining({ title: "French shared", locale: "fr" }),
+			]);
+			expect(await new RedirectRepository(harness.db).findBySource("/overview")).toBeNull();
+			if (chunked) {
+				expect(await new RedirectRepository(harness.db).findBySource("/filler-2")).not.toBeNull();
+				expect(await new RedirectRepository(harness.db).findBySource("/filler-29")).not.toBeNull();
+			}
+
+			const before = await harness.db.selectFrom("ec_pages").selectAll().execute();
+			const prepared = await post(harness, text, "taxonomy");
+			let chunk = await post(harness, text, "content", prepared);
+			const results = [chunk.result];
+			while (!chunk.done) {
+				chunk = await post(harness, text, "content", chunk);
+				results.push(chunk.result);
+			}
+			const rerun = {
+				imported: results.reduce((sum, chunkResult) => sum + chunkResult.imported, 0),
+				skipped: results.reduce((sum, chunkResult) => sum + chunkResult.skipped, 0),
+				errors: results.flatMap((chunkResult) => chunkResult.errors),
+			};
+			expect(rerun).toMatchObject({ imported: 0, skipped: chunked ? 31 : 2 });
+			expect(rerun.errors).toHaveLength(2);
+			expect(
+				rerun.errors.every(({ error }) =>
+					error.includes("multiple WordPress entries claim the same source path"),
+				),
+			).toBe(true);
+			expect(await harness.db.selectFrom("ec_pages").selectAll().execute()).toEqual(before);
+			expect(await new RedirectRepository(harness.db).findBySource("/overview")).toBeNull();
+		},
+	);
+
+	it("does not let an unsafe source claim reserve a legitimate pathname", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
+		_resetAstroI18nCacheForTests();
+		const text = wxr(
+			item({ id: 1, title: "English", localeMeta: "en", link: "/overview/" }) +
+				item({ id: 2, title: "Unsafe", localeMeta: "fr", link: "/parent/%252e%252e/overview/" }),
+		);
+		expect(await importContent(harness, text)).toMatchObject({
+			imported: 2,
+			skipped: 0,
+			errors: [{ title: "Unsafe", error: "Could not create redirect: unsafe permalink path" }],
+		});
+		expect(await redirects(harness)).toEqual([
+			{ source: "/overview", destination: "/en/pages/overview" },
+		]);
 	});
 
 	it("handles a long run of slashes in a full import link", async () => {
