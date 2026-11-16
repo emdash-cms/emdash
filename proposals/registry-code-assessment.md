@@ -157,7 +157,7 @@ The labeler treats the review Worker's response as untrusted too. `parseReviewRe
 The prompt is in [`apps/plugin-review/src/prompt.ts`](../apps/plugin-review/src/prompt.ts). It describes the sandboxed plugin model and asks the reviewer to report only three categories:
 
 - `malicious-code`: behaviour the stated purpose does not explain and that harms the site, its users or its visitors, or that hides itself.
-- `vulnerability`: an egregious flaw, whatever the author's intent, that lets an unauthenticated outsider harm a site in the plugin's default configuration, with the whole path from the public entry point traced.
+- `vulnerability`: an egregious flaw, whatever the author's intent, that lets an unauthenticated outsider harm a site in the plugin's default configuration, with the whole path from the public entry point traced. A real secret committed in the bundle counts without a route, since anyone can download a published bundle.
 - `reviewer-manipulation`: text that tries to steer an automated or human reviewer.
 
 It states that broad access, including unrestricted network access, is not a finding by itself; that minified code is not obfuscation by itself; and that finding nothing is a normal result. It sets out a work order (establish the purpose, read everything, map behaviour, compare, try to disprove each candidate, submit) and defines severity so that the reviewer picks the lower level when unsure.
