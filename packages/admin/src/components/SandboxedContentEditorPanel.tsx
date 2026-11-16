@@ -121,6 +121,19 @@ export function SandboxedContentEditorPanel({
 	} | null>(null);
 	const requestQueue = React.useRef(Promise.resolve());
 	const pendingRequests = React.useRef(0);
+	const panelBodyRef = React.useRef<HTMLDivElement>(null);
+	const focusWithinRef = React.useRef(false);
+	const restoreFocusRef = React.useRef(false);
+
+	const handleFocusCapture = React.useCallback(() => {
+		focusWithinRef.current = true;
+	}, []);
+
+	const handleBlurCapture = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+		if (!event.currentTarget.contains(event.relatedTarget)) {
+			focusWithinRef.current = false;
+		}
+	}, []);
 	const panelIdentity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}`;
 	const identityRef = React.useRef(panelIdentity);
 	identityRef.current = panelIdentity;
@@ -156,6 +169,8 @@ export function SandboxedContentEditorPanel({
 	}, []);
 
 	React.useEffect(() => {
+		focusWithinRef.current = false;
+		restoreFocusRef.current = false;
 		setOpen(false);
 		setLoaded(false);
 		setError(false);
@@ -218,8 +233,17 @@ export function SandboxedContentEditorPanel({
 					controller.signal.addEventListener("abort", () => resolve(), { once: true });
 				});
 				const executeRequest = async () => {
+					const preserveFocus = () => {
+						if (
+							focusWithinRef.current ||
+							Boolean(panelBodyRef.current?.contains(document.activeElement))
+						) {
+							restoreFocusRef.current = true;
+						}
+					};
 					try {
 						if (!canApplyResponse()) return;
+						preserveFocus();
 						setError(false);
 						const draft = !isInteraction || !draftAccess ? null : captureDraft?.(draftAccess);
 						if (lastInteraction.current?.interaction === interaction) {
@@ -239,6 +263,7 @@ export function SandboxedContentEditorPanel({
 						if (!response.ok) throw new Error("Plugin panel request failed");
 						const body = (await response.json()) as { data: BlockResponse & EditorDraftResponse };
 						if (!canApplyResponse()) return;
+						preserveFocus();
 						setBlocks(body.data.blocks);
 						setLoaded(true);
 						if (body.data.toast) {
@@ -255,6 +280,7 @@ export function SandboxedContentEditorPanel({
 							if (pendingRequests.current > 1) {
 								toastManager.add({ title: t`Plugin panel unavailable.`, variant: "error" });
 							} else {
+								preserveFocus();
 								setError(true);
 							}
 						}
@@ -312,9 +338,38 @@ export function SandboxedContentEditorPanel({
 		setLoaded(false);
 	}, [cancelRequests, open, panelIdentity, sendInteraction, versionToken]);
 
+	React.useLayoutEffect(() => {
+		const container = panelBodyRef.current;
+		if (restoreFocusRef.current) {
+			restoreFocusRef.current = false;
+			const active = document.activeElement;
+			if (
+				open &&
+				container &&
+				!container.contains(active) &&
+				(active === null ||
+					active === document.body ||
+					active === document.documentElement ||
+					!active.isConnected)
+			) {
+				container.focus({ preventScroll: true });
+			}
+		}
+		if (!container?.contains(document.activeElement)) {
+			focusWithinRef.current =
+				open &&
+				focusWithinRef.current &&
+				Boolean(document.activeElement?.closest("[data-base-ui-portal]"));
+		}
+	}, [blocks, error, loaded, loading, open]);
+
 	const handleOpenChange = React.useCallback(
 		(nextOpen: boolean) => {
 			setOpen(nextOpen);
+			if (!nextOpen) {
+				focusWithinRef.current = false;
+				restoreFocusRef.current = false;
+			}
 			if (!nextOpen && pendingRequests.current > 0) {
 				cancelRequests();
 				setLoaded(false);
@@ -380,7 +435,11 @@ export function SandboxedContentEditorPanel({
 					{(loading && !loaded) || pendingInteractions > 0 ? t`Loading plugin panel` : ""}
 				</span>
 				<div
-					className="min-w-0 px-2 pt-2 pb-1"
+					ref={panelBodyRef}
+					tabIndex={-1}
+					onFocusCapture={handleFocusCapture}
+					onBlurCapture={handleBlurCapture}
+					className="min-w-0 px-2 pt-2 pb-1 outline-none"
 					aria-busy={(loading && !loaded) || pendingInteractions > 0 || undefined}
 				>
 					{loading && !loaded ? (
