@@ -22,6 +22,19 @@ describe("metaPlayback", () => {
 });
 
 describe("providerItemToMediaItem", () => {
+	it("keeps the hosted player separate from the poster when opening provider details", () => {
+		const playerUrl = "https://customer-abc123.cloudflarestream.com/UID/iframe";
+		const result = providerItemToMediaItem("cloudflare-stream", {
+			id: "UID",
+			filename: "webinar.mp4",
+			mimeType: "video/mp4",
+			previewUrl: STREAM_POSTER,
+			playerUrl,
+		});
+		expect(result.playerUrl).toBe(playerUrl);
+		expect(result.url).toBe(STREAM_POSTER);
+	});
+
 	it("falls back to meta.size when the provider reports no top-level size", () => {
 		// Regression: Stream items displayed "0 B" because only `item.size` was read.
 		const result = providerItemToMediaItem("cloudflare-stream", {

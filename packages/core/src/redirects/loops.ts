@@ -14,6 +14,7 @@ import {
 	compilePattern,
 	matchPattern,
 	interpolateDestination,
+	normalizeSourcePath,
 	validatePattern,
 	type CompiledPattern,
 } from "./patterns.js";
@@ -173,13 +174,23 @@ function buildGraph(edges: RedirectEdge[]): Map<string, { destination: string; i
 	return graph;
 }
 
+/** Compare paths in the form the runtime matches them in. */
+function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
+	return edges.map((edge) => ({
+		...edge,
+		source: normalizeSourcePath(edge.source),
+		destination: normalizeSourcePath(edge.destination),
+	}));
+}
+
 /**
  * Detect all redirect IDs that participate in cycles.
  * Walks every node in the graph once, collecting IDs from any cycles found.
  *
  * @returns Array of redirect IDs that are part of a loop
  */
-export function detectLoops(edges: RedirectEdge[]): string[] {
+export function detectLoops(rawEdges: RedirectEdge[]): string[] {
+	const edges = normalizeEdges(rawEdges);
 	const graph = buildGraph(edges);
 	const patterns = compilePatterns(edges);
 	const visited = new Set<string>();
@@ -245,12 +256,17 @@ function findMatchingTemplate(
  * @returns The loop path if a cycle would be created, or null if safe
  */
 export function wouldCreateLoop(
-	source: string,
-	destination: string,
+	rawSource: string,
+	rawDestination: string,
 	existingEdges: RedirectEdge[],
 	excludeId?: string,
 ): string[] | null {
-	const filtered = excludeId ? existingEdges.filter((e) => e.id !== excludeId) : existingEdges;
+	const source = normalizeSourcePath(rawSource);
+	const destination = normalizeSourcePath(rawDestination);
+	if (source === destination) return [rawSource, rawDestination];
+	const filtered = normalizeEdges(
+		excludeId ? existingEdges.filter((e) => e.id !== excludeId) : existingEdges,
+	);
 	const graph = buildGraph(filtered);
 	const patterns = compilePatterns(filtered);
 

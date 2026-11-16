@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { restoreRevision, type ContentItem, type RevisionListItem } from "../../lib/api";
+import { useRoomOperations } from "../../lib/co-editing/operations.js";
 import { isolate } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { getMutationError } from "../DialogError.js";
@@ -50,7 +51,15 @@ export function RevisionRestoreDialog({
 	const format = useRevisionFormat();
 	const queryClient = useQueryClient();
 	const toastManager = useKumoToastManager();
+	const operations = useRoomOperations();
 	const when = isolate(format.when(revisionDate(revision.createdAt)));
+	// In a room everyone's edits are saved before the restore, so what it can lose is typing that
+	// lands while it runs.
+	const warning = operations.inRoom
+		? t`Anything typed into the changed fields during the restore will be lost.`
+		: isDirty
+			? t`Your unsaved changes will be lost.`
+			: null;
 	const shownRef = React.useRef(false);
 	React.useEffect(() => {
 		shownRef.current = open;
@@ -60,7 +69,10 @@ export function RevisionRestoreDialog({
 	}, [open]);
 
 	const restore = useMutation({
-		mutationFn: (revisionId: string) => restoreRevision(revisionId),
+		mutationFn: async (revisionId: string) => {
+			await operations.prepare();
+			return restoreRevision(revisionId);
+		},
 		onSuccess: async (restoredItem) => {
 			onRestoreStart(restoredItem);
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, entryId] });
@@ -115,12 +127,10 @@ export function RevisionRestoreDialog({
 						: scheduled
 							? t`The version from ${when} becomes your draft and goes live at the scheduled time.`
 							: t`The version from ${when} becomes your draft. The live site won't change until you publish.`}
-					{isDirty && (
+					{warning && (
 						<>
 							{" "}
-							<span className="mt-2 block font-medium text-kumo-default">
-								{t`Your unsaved changes will be lost.`}
-							</span>
+							<span className="mt-2 block font-medium text-kumo-default">{warning}</span>
 						</>
 					)}
 				</>

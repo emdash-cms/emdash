@@ -6,7 +6,7 @@
 
 export { applySeed } from "./apply.js";
 export { defaultSeed } from "./default.js";
-export { loadSeed, loadUserSeed } from "./load.js";
+export { loadSeed, loadSeedMediaBasePath, loadUserSeed } from "./load.js";
 export { validateSeed } from "./validate.js";
 
 export type {

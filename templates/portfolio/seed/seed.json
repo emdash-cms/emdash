@@ -18,6 +18,7 @@
 			"slug": "portfolio_statement",
 			"label": "Statement",
 			"description": "A large statement with an optional small label beside it. As the first block, it is the page heading. Line breaks are kept.",
+			"icon": "quotes",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [
@@ -49,6 +50,7 @@
 			"slug": "portfolio_selected_work",
 			"label": "Selected work",
 			"description": "Projects with Feature on home page switched on, newest first and up to 12, or the six newest when none are.",
+			"icon": "grid-four",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [
@@ -73,6 +75,7 @@
 			"slug": "portfolio_clients",
 			"label": "Clients",
 			"description": "A line of client names",
+			"icon": "handshake",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [
@@ -115,6 +118,7 @@
 			"slug": "portfolio_contact",
 			"label": "Contact details",
 			"description": "A heading, an introduction, a large email link and studio details, followed by the social profiles from Settings. As the first block, it is the page heading.",
+			"icon": "envelope-simple",
 			"category": "Portfolio",
 			"currentVersion": 1,
 			"versions": [

@@ -74,7 +74,12 @@ const PAGE = {
 	translationGroup: null,
 	data: {
 		title: "Contact",
-		content: [{ _type: "hero", _key: "block_1", _version: 1, line_1: "Talk to the team" }],
+		content: Array.from({ length: 30 }, (_, index) => ({
+			_type: "hero",
+			_key: `block_${index + 1}`,
+			_version: 1,
+			line_1: "Talk to the team",
+		})),
 	},
 	authorId: null,
 	primaryBylineId: null,

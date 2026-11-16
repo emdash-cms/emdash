@@ -4,9 +4,7 @@
  *
  * Renders an image/video with text overlay from WordPress imports.
  */
-import { PortableText } from "astro-portabletext";
-
-import { emdashMarkComponents } from "./marks.js";
+import PortableText from "./PortableText.astro";
 
 export interface Props {
 	node: {
@@ -63,7 +61,7 @@ const overlayStyle = overlayColor
 	}
 	{hasBackground && <div class="emdash-cover__overlay" style={overlayStyle} />}
 	<div class="emdash-cover__content">
-		<PortableText value={content} components={{ mark: emdashMarkComponents }} />
+		<PortableText value={content} />
 	</div>
 </div>
 

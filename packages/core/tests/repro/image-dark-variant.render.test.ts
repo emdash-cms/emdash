@@ -28,9 +28,13 @@ const imgTags = (html: string) => html.match(/<img\b[^>]*>/g) ?? [];
 const attr = (tag: string, name: string) =>
 	tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]?.replaceAll("&amp;", "&");
 
-async function render(props: Record<string, unknown>) {
+async function render(props: Record<string, unknown>, request?: Request) {
 	const c = await AstroContainer.create();
-	return c.renderToString(EmDashImage, { props, locals });
+	return c.renderToString(EmDashImage, {
+		props,
+		locals,
+		...(request ? { request } : {}),
+	});
 }
 
 describe("EmDashImage dark variant", () => {
@@ -127,27 +131,30 @@ describe("EmDashImage dark variant", () => {
 	});
 
 	test("same-origin local media renders both variants through the Astro image pipeline", async () => {
-		const html = await render({
-			image: {
-				id: "01LOCALLIGHT",
-				src: "/_emdash/api/media/file/01LOCALLIGHT.png",
-				width: 640,
-				height: 320,
-				darkVariant: {
-					id: "01LOCALDARK",
-					src: "/_emdash/api/media/file/01LOCALDARK.png",
+		const html = await render(
+			{
+				image: {
+					id: "01LOCALLIGHT",
+					src: "/_emdash/api/media/file/01LOCALLIGHT.png",
 					width: 640,
 					height: 320,
+					darkVariant: {
+						id: "01LOCALDARK",
+						src: "/_emdash/api/media/file/01LOCALDARK.png",
+						width: 640,
+						height: 320,
+					},
 				},
 			},
-		});
+			new Request("https://quality.example.com/"),
+		);
 		const [lightTag, darkTag] = imgTags(html);
 
 		expect(imgTags(html)).toHaveLength(2);
 		expect(attr(lightTag!, "data-astro-image")).toBe("constrained");
 		expect(attr(lightTag!, "class")).toContain("emdash-image--light");
 		expect(attr(darkTag!, "data-astro-image")).toBe("constrained");
-		expect(attr(darkTag!, "src")).toContain("01LOCALDARK.png");
+		expect(decodeURIComponent(attr(darkTag!, "src") ?? "")).toContain("01LOCALDARK.png");
 		expect(attr(darkTag!, "class")).toContain("emdash-image--dark");
 	});
 });

@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { _resetEnvCache } from "../../../src/api/public-url.js";
 import { POST as inviteRegisterOptions } from "../../../src/astro/routes/api/auth/invite/register-options.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -67,6 +68,25 @@ describe("invite register-options route — siteUrl resolution (issue #994)", ()
 	afterEach(async () => {
 		await teardownTestDatabase(db);
 		_resetEnvCache();
+	});
+
+	it("uses Settings site:title for the passkey RP name", async () => {
+		await new OptionsRepository(db).set("site:title", "New Site");
+		await new OptionsRepository(db).set("emdash:site_title", "Old Site");
+
+		const request = new Request("http://localhost:4321/_emdash/api/auth/invite/register-options", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ token: inviteToken, name: "New User" }),
+		});
+		const response = await inviteRegisterOptions({
+			request,
+			locals: { emdash: { db, config: { siteUrl: "https://staging.example.com" } } },
+		} as Parameters<typeof inviteRegisterOptions>[0]);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { data: { options: { rp: { name: string } } } };
+		expect(body.data.options.rp.name).toBe("New Site");
 	});
 
 	it("uses the public siteUrl from config for the passkey RP, not the internal hostname", async () => {

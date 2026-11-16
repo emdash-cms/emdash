@@ -6,7 +6,7 @@ Follow [AI_POLICY.md](AI_POLICY.md) for external actions and project communicati
 
 To check the autofix bot's status on an issue or PR, read `https://autofix.emdashcms.com/api/cases?issue=N`, where N is the issue or PR number.
 
-`CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
+`.claude/CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
 When writing, revising, or reviewing documentation, load the `writing-emdash-docs` skill. Use it for public docs, READMEs, contributor guidance, technical specifications, release notes and changesets, and skill instructions.
 
@@ -171,7 +171,7 @@ Migrations live in `packages/core/src/database/migrations/`.
 - **Exports:** `up(db: Kysely<unknown>)` and `down(db: Kysely<unknown>)`.
 - **System tables:** Kysely schema builder.
 - **Dynamic content tables (`ec_*`):** `sql` tagged templates with `sql.ref()` for identifiers.
-- **Column types:** SQLite -- `text`, `integer`, `real`, `blob`. Booleans are `integer` defaulting to 0. Timestamps are `text` with ``defaultTo(sql`(datetime('now'))`)``. IDs are `text` primary keys (ULIDs from `ulidx`).
+- **Column types:** SQLite -- `text`, `integer`, `real`, `blob`. Booleans are `integer` defaulting to 0. Timestamps are `text`; a default uses `currentTimestamp(db)` from `database/dialect-helpers.ts`, which emits the SQLite or PostgreSQL expression. IDs are `text` primary keys (ULIDs from `ulidx`).
 - **Registration:** Migrations are statically imported in `runner.ts` and added to `StaticMigrationProvider`. Not auto-discovered (Workers bundler compatibility). When adding: create the file, add a static import in `runner.ts`, add it to `getMigrations()`.
 - **Multi-table migrations:** When altering all content tables, query `_emdash_collections` and loop. See `013_scheduled_publishing.ts`.
 
@@ -183,7 +183,7 @@ Test representative upgrades from existing data, retry after partial completion,
 
 ## Indexes
 
-Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `(deleted_at, scheduled_at)` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
+`SchemaRegistry.createContentTable()` in `schema/registry.ts` defines the indexes every content table gets: single-column indexes on `slug`, `locale`, `author_id`, `primary_byline_id`, `live_revision_id`, and `draft_revision_id`; composites led by `deleted_at` for status filters and list ordering; `(translation_group, locale)` and `(deleted_at, translation_group, locale)`; a partial unique index on `(translation_group, lower(locale))` (`WHERE deleted_at IS NULL AND translation_group IS NOT NULL`), so a translation group has at most one non-deleted row per locale, ignoring case; and the partial `(deleted_at, scheduled_at)` index (`WHERE scheduled_at IS NOT NULL`). When a migration adds an index to existing content tables, `createContentTable()` creates it under the same name. Foreign key columns always get an index.
 
 Naming: `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 
@@ -193,7 +193,7 @@ Managed by `SchemaRegistry` in `schema/registry.ts`:
 
 - **Names:** `ec_{collection_slug}`. System tables: `_emdash_{name}`.
 - **Slugs:** `/^[a-z][a-z0-9_]*$/`, max 63 chars, checked against `RESERVED_COLLECTION_SLUGS` / `RESERVED_FIELD_SLUGS`.
-- **Standard columns:** `id`, `slug`, `status`, `author_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`, `version`, `live_revision_id`, `draft_revision_id`. Field columns added via `ALTER TABLE`.
+- **Standard columns:** `id`, `slug`, `status`, `author_id`, `primary_byline_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`, `version`, `live_revision_id`, `draft_revision_id`, `locale`, `translation_group`. Field columns added via `ALTER TABLE`.
 - **Field type -> column mapping:** `FIELD_TYPE_TO_COLUMN` in `schema/types.ts`. Most string-shaped types -> TEXT; number -> REAL; integer/boolean -> INTEGER; portableText/json/multiSelect -> JSON.
 - **Orphan discovery:** `discoverOrphanedTables()` finds `ec_*` tables without a matching `_emdash_collections` row.
 
@@ -374,7 +374,7 @@ Tool directives are exempt from all of the above: `eslint-disable`, `oxlint-disa
 ## Imports
 
 - **Internal imports** use `.js` extensions (ESM): `import { X } from "../foo.js"`.
-- **Type-only imports** use `import type` (`verbatimModuleSyntax` is on).
+- **Type-only imports** use `import type` (required where a package's tsconfig turns on `verbatimModuleSyntax`).
 - **Package imports** have no extension: `import { sql } from "kysely"`.
 - **Virtual modules** need a `// @ts-ignore`: `// @ts-ignore - virtual module` above `import virtualConfig from "virtual:emdash/config"`.
 - **Barrel files** separate `export type { ... }` from value exports.
@@ -419,9 +419,9 @@ For a bug fix, add an automated regression test when the failure is deterministi
 - **pnpm** -- package manager
 - **tsdown** -- TypeScript builds (ESM + DTS)
 - **vitest** -- testing
-- **oxfmt** -- formatting (tabs, configured in `.prettierrc`). All source files use tabs.
+- **oxfmt** -- formatting (configured in `.oxfmtrc.json`). Prettier, configured in `.prettierrc`, formats only `.astro` files. All source files use tabs.
 
-TypeScript: target ES2023, module `preserve`, strict mode with `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`.
+TypeScript settings differ per package. Check the package's `tsconfig.json` and the config it extends; `packages/core`, for example, turns `noUncheckedIndexedAccess` off.
 
 # Dev Bypass for Browser Testing
 
@@ -430,7 +430,7 @@ Passkey auth can't be automated in browser tests. Two dev-only endpoints (`impor
 - `GET /_emdash/api/setup/dev-bypass?redirect=/_emdash/admin` -- runs migrations, creates a dev admin user (`dev@emdash.local`), establishes a session, redirects.
 - `GET /_emdash/api/auth/dev-bypass?redirect=/_emdash/admin` -- assumes setup is complete, just creates a session.
 
-In agent-browser:
+With Playwright (the `agent-browser` skill has the CLI equivalent):
 
 ```typescript
 await page.goto("http://localhost:4321/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin");

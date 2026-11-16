@@ -10,6 +10,7 @@
 import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
+import { resolveSiteTitle } from "#api/site-title.js";
 import { getAuthMode } from "#auth/mode.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -50,7 +51,9 @@ export const GET: APIRoute = async ({ locals }) => {
 		// null and the React SPA never received custom logo/siteName/favicon.
 		// See issue #835.
 		let adminBranding = emdash?.config?.admin;
+		let siteTitle: string | undefined;
 		let siteTimezone = "UTC";
+		let staging = false;
 
 		// Read the site timezone alongside the title fallback so datetime controls
 		// and branding share one options query. When no build-time `admin.siteName`
@@ -62,16 +65,24 @@ export const GET: APIRoute = async ({ locals }) => {
 		if (emdash?.db) {
 			try {
 				const options = new OptionsRepository(emdash.db);
-				const titles = await options.getMany<string>([
+				const titles = await options.getMany<string | boolean>([
 					"site:title",
 					"emdash:site_title",
 					"site:timezone",
+					"site:staging",
 					"site:logo",
 				]);
-				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
-				siteTimezone = titles.get("site:timezone") || "UTC";
-				if (!adminBranding?.siteName && siteTitle) {
-					adminBranding = { ...adminBranding, siteName: siteTitle };
+				const savedSiteTitle = titles.get("site:title");
+				siteTitle =
+					typeof savedSiteTitle === "string"
+						? savedSiteTitle.trim() || undefined
+						: resolveSiteTitle(undefined, titles.get("emdash:site_title"))?.trim() || undefined;
+				const brandingSiteTitle = resolveSiteTitle(savedSiteTitle, titles.get("emdash:site_title"));
+				const timezone = titles.get("site:timezone");
+				siteTimezone = typeof timezone === "string" && timezone ? timezone : "UTC";
+				staging = titles.get("site:staging") === true;
+				if (!adminBranding?.siteName && brandingSiteTitle) {
+					adminBranding = { ...adminBranding, siteName: brandingSiteTitle };
 				}
 
 				const siteLogo: unknown = titles.get("site:logo");
@@ -113,7 +124,10 @@ export const GET: APIRoute = async ({ locals }) => {
 		const manifest: EmDashManifest = emdashManifest
 			? {
 					...emdashManifest,
+					siteTitle,
 					timezone: siteTimezone,
+					staging,
+					coEditing: Boolean(emdash?.rooms),
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 					providerManagedName,
 					signupEnabled,
@@ -125,7 +139,9 @@ export const GET: APIRoute = async ({ locals }) => {
 					hash: "default",
 					collections: {},
 					plugins: {},
+					siteTitle,
 					timezone: siteTimezone,
+					staging,
 					taxonomies: [],
 					authMode: "passkey",
 					providerManagedName,

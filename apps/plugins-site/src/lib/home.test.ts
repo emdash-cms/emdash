@@ -28,4 +28,17 @@ describe("popular keywords", () => {
 
 		expect(popularKeywords(packages, 2)).toEqual(["email", "forms"]);
 	});
+
+	it("ranks a keyword many publishers share above one publisher's many plugins", () => {
+		const packages: PackageSummary[] = [
+			...Array.from(
+				{ length: 10 },
+				(): PackageSummary => ({ did: "did:plc:a", profile: { keywords: ["read-only"] } }),
+			),
+			{ did: "did:plc:b", profile: { keywords: ["seo"] } },
+			{ did: "did:plc:c", profile: { keywords: ["seo"] } },
+		];
+
+		expect(popularKeywords(packages, 6)).toEqual(["seo", "read-only"]);
+	});
 });

@@ -2,6 +2,7 @@ import type { Kysely, Selectable, Updateable } from "kysely";
 import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { jsonObjectRemoveKeyExpr, jsonObjectSetKeyExpr } from "../dialect-helpers.js";
 import type { Database, UserTable } from "../types.js";
 import { encodeCursor, decodeCursor, type FindManyResult } from "./types.js";
 
@@ -41,6 +42,17 @@ export interface UpdateUserInput {
 	avatarUrl?: string | null;
 	data?: Record<string, unknown>;
 }
+
+export type UserDataValue =
+	| string
+	| number
+	| boolean
+	| null
+	| readonly UserDataValue[]
+	| { readonly [key: string]: UserDataValue };
+
+/** Top-level `users.data` keys that core writes one at a time. */
+export type UserDataKey = "welcomeDismissed" | "adminLayout";
 
 /**
  * User repository for CRUD operations
@@ -179,6 +191,28 @@ export class UserRepository {
 		}
 
 		return this.findById(id);
+	}
+
+	/**
+	 * Set one top-level `users.data` key in a single UPDATE, merging into the
+	 * stored column rather than a caller's copy, so other keys survive a stale
+	 * or data-less `locals.user`. Does not bump `updated_at`, like `update`.
+	 */
+	async setDataKey(id: string, key: UserDataKey, value: UserDataValue): Promise<void> {
+		await this.db
+			.updateTable("users")
+			.set({ data: jsonObjectSetKeyExpr(this.db, "data", key, JSON.stringify(value)) })
+			.where("id", "=", id)
+			.execute();
+	}
+
+	/** Remove one top-level `users.data` key in a single UPDATE. */
+	async removeDataKey(id: string, key: UserDataKey): Promise<void> {
+		await this.db
+			.updateTable("users")
+			.set({ data: jsonObjectRemoveKeyExpr(this.db, "data", key) })
+			.where("id", "=", id)
+			.execute();
 	}
 
 	/**

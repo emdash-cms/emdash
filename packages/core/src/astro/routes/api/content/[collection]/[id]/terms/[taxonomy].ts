@@ -7,6 +7,7 @@
 
 import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
+import { sql } from "kysely";
 
 import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
@@ -14,11 +15,14 @@ import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
+import { isPostgres } from "#db/dialect-helpers.js";
 import { ContentRepository } from "#db/repositories/content.js";
 import {
 	TaxonomyRepository,
 	type TaxonomyAssignmentResolution,
 } from "#db/repositories/taxonomy.js";
+import { withTransaction } from "#db/transaction.js";
+import { validateIdentifier } from "#db/validate.js";
 import { invalidateTermCache } from "#taxonomies/index.js";
 import { chunks } from "#utils/chunks.js";
 
@@ -161,7 +165,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	try {
 		const body = await parseBody(request, contentTermsBody);
 		if (isParseError(body)) return body;
-		const { termIds } = body;
+		const { termIds, expected } = body;
 
 		const repo = new TaxonomyRepository(emdash.db);
 
@@ -181,7 +185,55 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		}
 
 		// Set the terms (replaces existing) using the canonical ID
-		await repo.setTermsForEntry(collection, canonicalId, taxonomy, termIds);
+		const written = await withTransaction(emdash.db, async (trx) => {
+			if (expected) {
+				// Postgres reads without a lock, so two changes could both find the terms they
+				// were based on. Every translation shares the terms, so each one's row is locked,
+				// in id order so that two changes can't deadlock.
+				if (isPostgres(trx)) {
+					validateIdentifier(collection, "collection slug");
+					const table = sql.ref(`ec_${collection}`);
+					await sql`SELECT id FROM ${table} WHERE id = ${canonicalId} OR translation_group = (SELECT translation_group FROM ${table} WHERE id = ${canonicalId}) ORDER BY id FOR UPDATE`.execute(
+						trx,
+					);
+				}
+				const current = await new TaxonomyRepository(trx).getTermAssignmentsForEntry(
+					collection,
+					canonicalId,
+					taxonomy,
+					entryLocale,
+					getI18nConfig()?.defaultLocale ?? "en",
+				);
+				// The admin lists an assignment with no term in the entry's locale by its first translation.
+				const stored = current
+					.flatMap(({ term, translations }) => {
+						const termId = term?.id ?? translations[0]?.id;
+						return termId ? [termId] : [];
+					})
+					.toSorted();
+				const wanted = [...expected].toSorted();
+				if (stored.length !== wanted.length || stored.some((termId, i) => termId !== wanted[i])) {
+					return false;
+				}
+			}
+			// D1 runs these statements without a transaction, so another change can land after the
+			// check. Writing only this change, rather than the whole list, keeps that one too.
+			await new TaxonomyRepository(trx).setTermsForEntry(
+				collection,
+				canonicalId,
+				taxonomy,
+				termIds,
+				expected,
+			);
+			return true;
+		});
+		if (!written) {
+			return apiError(
+				"LIST_CONFLICT",
+				"The entry's terms changed. Read them again and apply the change to them.",
+				409,
+			);
+		}
 
 		// Term assignments changed — invalidate the hasAnyTermAssignments cache
 		// so hydration on subsequent reads issues a fresh query.

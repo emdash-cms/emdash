@@ -6,7 +6,7 @@
  * hands it back.
  */
 
-import { test, expect } from "../fixtures";
+import { pinSingleEditor, test, expect } from "../fixtures";
 
 interface LockStatus {
 	enabled: boolean;
@@ -29,7 +29,8 @@ test.describe("Entry edit lock", () => {
 		return body.data;
 	}
 
-	test.beforeEach(async ({ admin, serverInfo }) => {
+	test.beforeEach(async ({ admin, context, serverInfo }) => {
+		await pinSingleEditor(context, serverInfo.baseUrl);
 		await admin.devBypassAuth();
 
 		baseUrl = serverInfo.baseUrl;

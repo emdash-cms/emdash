@@ -33,7 +33,7 @@ export interface ResourceLimits {
 	cpuMs?: number;
 	/** Memory limit in MB (default: 128MB) */
 	memoryMb?: number;
-	/** Maximum subrequests per invocation (default: 10) */
+	/** Maximum subrequests per invocation (default: 30) */
 	subrequests?: number;
 	/** Wall-clock time limit in milliseconds (default: 30000ms) */
 	wallTimeMs?: number;

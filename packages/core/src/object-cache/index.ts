@@ -196,10 +196,11 @@ function raceInFlightBackendInit(
 
 const BACKEND_KEY = Symbol.for("emdash:object-cache:backend");
 const EPOCH_KEY = Symbol.for("emdash:object-cache:epochs");
-const PENDING_KEY = Symbol.for("emdash:object-cache:pending-bumps");
+const PENDING_KEY = Symbol.for("emdash:object-cache:pending-bumps:v2");
 const LAST_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:last-content-write");
 const PENDING_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:pending-content-write");
 const WRITE_SCOPE_KEY = Symbol.for("emdash:object-cache:write-scope");
+const INVALIDATION_SCOPE_KEY = Symbol.for("emdash:object-cache:invalidation-scope");
 const CHANGE_MARKER_KEY = Symbol.for("emdash:object-cache:change-marker");
 const MARKER_WRITE_KEY = Symbol.for("emdash:object-cache:marker-write");
 const g = globalThis as Record<symbol, unknown>;
@@ -232,14 +233,16 @@ const epochCache: Map<string, EpochEntry> =
 		return m;
 	})();
 
+type PendingBumps = Map<string, Promise<void>>;
+
 /** Namespaces with a backend epoch write already scheduled this tick. */
-const pendingBumps: Set<string> =
+const pendingBumps: PendingBumps =
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
-	(g[PENDING_KEY] as Set<string> | undefined) ??
+	(g[PENDING_KEY] as PendingBumps | undefined) ??
 	(() => {
-		const s = new Set<string>();
-		g[PENDING_KEY] = s;
-		return s;
+		const m: PendingBumps = new Map();
+		g[PENDING_KEY] = m;
+		return m;
 	})();
 
 /**
@@ -323,6 +326,21 @@ const writeScopes: AsyncLocalStorage<WriteScope> =
 	(() => {
 		const als = new AsyncLocalStorage<WriteScope>();
 		g[WRITE_SCOPE_KEY] = als;
+		return als;
+	})();
+
+/** Invalidations held by {@link deferObjectCacheInvalidations} until its work ends. */
+interface InvalidationScope {
+	namespaces: Set<string>;
+	closed: boolean;
+}
+
+const invalidationScopes: AsyncLocalStorage<InvalidationScope> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[INVALIDATION_SCOPE_KEY] as AsyncLocalStorage<InvalidationScope> | undefined) ??
+	(() => {
+		const als = new AsyncLocalStorage<InvalidationScope>();
+		g[INVALIDATION_SCOPE_KEY] = als;
 		return als;
 	})();
 
@@ -934,11 +952,35 @@ export async function getLastContentWriteAt(): Promise<number> {
  * via `after`, or held until the work ends inside
  * {@link coalesceObjectCacheWrites}. Other isolates pick up the new epoch
  * within their `revalidate` window after that write. No-ops when the cache is
- * disabled.
+ * disabled. Inside {@link deferObjectCacheInvalidations} the bump waits until
+ * that scope ends.
+ *
+ * With `waitForPersist: true`, returns a promise that settles after the backend
+ * write attempt, bypassing any coalescing scope. Await it before purging routes.
+ * The change marker is still written in the background, so marker-vouching
+ * readers may keep reusing an old epoch until that marker update is visible.
+ * Backend failures are logged, not thrown; backend propagation delays and other
+ * isolates' `revalidate` windows still apply. Transaction-deferred invalidations
+ * are only queued, even with this option; await persistence after the transaction
+ * scope has settled, not from inside it.
  *
  * Content namespaces (`content:*`) also stamp {@link getLastContentWriteAt}.
  */
-export function invalidateObjectCache(namespace: string): void {
+export function invalidateObjectCache(namespace: string): void;
+export function invalidateObjectCache(
+	namespace: string,
+	options: { waitForPersist: true },
+): Promise<void>;
+export function invalidateObjectCache(
+	namespace: string,
+	options?: { waitForPersist: true },
+): void | Promise<void> {
+	const deferred = invalidationScopes.getStore();
+	if (deferred && !deferred.closed) {
+		deferred.namespaces.add(namespace);
+		return options?.waitForPersist ? Promise.resolve() : undefined;
+	}
+
 	// Monotonic so two writes in the same millisecond still produce distinct
 	// epochs — otherwise the second write reuses the first's stamp and its
 	// stale entries survive.
@@ -951,48 +993,64 @@ export function invalidateObjectCache(namespace: string): void {
 		stampLastContentWrite();
 	}
 
-	scheduleBackendWrite(`epoch:${namespace}`, () => persistEpoch(namespace, stamp));
+	if (options?.waitForPersist) {
+		writeScopes.getStore()?.held.delete(`epoch:${namespace}`);
+		return persistEpoch(namespace, stamp);
+	}
+	scheduleBackendWrite(`epoch:${namespace}`, () => {
+		void persistEpoch(namespace, stamp);
+	});
 }
 
-function persistEpoch(namespace: string, stamp: number): void {
+function persistEpoch(namespace: string, stamp: number): Promise<void> {
 	// Coalesce repeated bumps of the same namespace within a tick into a single
 	// backend write that persists the latest epoch.
-	if (pendingBumps.has(namespace)) return;
-	pendingBumps.add(namespace);
+	const pending = pendingBumps.get(namespace);
+	if (pending) return pending;
 	const covered = isCoveredByMarker(namespace);
 	if (covered && markerWrite.epochWritesInFlight++ === 0) markerWrite.busySince = Date.now();
-	after(async () => {
+	let backend: ObjectCacheBackend | null = null;
+	const write = async () => {
 		pendingBumps.delete(namespace);
-		let backend: ObjectCacheBackend | null = null;
 		try {
 			backend = await getBackend();
 			if (!backend) return;
 			const latest = epochCache.get(namespace)?.value ?? stamp;
 			// Epoch anchors are persistent (no TTL) — they must outlive the
 			// value keys they invalidate.
-			await backend.set(epochKey(namespace), String(latest));
+			await withTimeout(
+				backend.set(epochKey(namespace), String(latest)),
+				holder.config.timeout,
+				"epoch write",
+			);
 		} catch (error) {
 			console.error("[object-cache] epoch bump failed for", namespace, error);
-		} finally {
-			if (covered) {
-				markerWrite.epochWritesInFlight--;
-				// A failed or timed-out write still needs a marker: the backend may
-				// stop waiting on a write that then lands anyway.
-				if (backend) markerWrite.writtenSinceMarker = true;
-				// The last write in flight rewrites the marker. Under a steady stream
-				// of overlapping writes that may never come, so a long busy period
-				// also rewrites it about once per KV write window.
-				const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
-				if (
-					backend &&
-					markerWrite.writtenSinceMarker &&
-					(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
-				) {
-					await writeChangeMarker(backend);
-				}
+		}
+	};
+	const task = Promise.resolve().then(write);
+	pendingBumps.set(namespace, task);
+	// Marker retries must not delay a caller waiting for the epoch write.
+	after(async () => {
+		await task;
+		if (covered) {
+			markerWrite.epochWritesInFlight--;
+			// A failed or timed-out write still needs a marker: the backend may
+			// stop waiting on a write that then lands anyway.
+			if (backend) markerWrite.writtenSinceMarker = true;
+			// The last write in flight rewrites the marker. Under a steady stream
+			// of overlapping writes that may never come, so a long busy period
+			// also rewrites it about once per KV write window.
+			const sinceMarker = Date.now() - Math.max(markerWrite.busySince, markerWrite.lastWriteAt);
+			if (
+				backend &&
+				markerWrite.writtenSinceMarker &&
+				(markerWrite.epochWritesInFlight === 0 || sinceMarker >= MARKER_RETRY_MS)
+			) {
+				await writeChangeMarker(backend);
 			}
 		}
 	});
+	return task;
 }
 
 /**
@@ -1049,6 +1107,28 @@ export async function coalesceObjectCacheWrites<T>(fn: () => Promise<T>): Promis
 		// it sees the closed scope and writes through.
 		scope.closed = true;
 		for (const write of scope.held.values()) write();
+	}
+}
+
+/**
+ * Run a database transaction with its invalidations held until it settles.
+ *
+ * A bump inside the transaction would land before its writes are visible to
+ * other connections: a concurrent read would capture the new epoch, load the
+ * uncommitted (old) rows and cache them under that epoch, where they stay a
+ * HIT until the next write or the TTL. Bumping once `fn` settles orphans
+ * anything read while it ran. Nested scopes join the outermost one.
+ */
+export async function deferObjectCacheInvalidations<T>(fn: () => Promise<T>): Promise<T> {
+	const outer = invalidationScopes.getStore();
+	if (outer && !outer.closed) return fn();
+
+	const scope: InvalidationScope = { namespaces: new Set(), closed: false };
+	try {
+		return await invalidationScopes.run(scope, fn);
+	} finally {
+		scope.closed = true;
+		for (const namespace of scope.namespaces) invalidateObjectCache(namespace);
 	}
 }
 
@@ -1128,8 +1208,15 @@ export function invalidateMenuObjectCache(): void {
 	invalidateObjectCache(CacheNamespace.MENUS);
 }
 
-/** Invalidate cached widget areas. */
-export function invalidateWidgetObjectCache(): void {
+/** Invalidate cached widget areas; optionally await persistence before purging routes. */
+export function invalidateWidgetObjectCache(): void;
+export function invalidateWidgetObjectCache(options: { waitForPersist: true }): Promise<void>;
+export function invalidateWidgetObjectCache(options?: {
+	waitForPersist: true;
+}): void | Promise<void> {
+	if (options?.waitForPersist) {
+		return invalidateObjectCache(CacheNamespace.WIDGETS, options);
+	}
 	invalidateObjectCache(CacheNamespace.WIDGETS);
 }
 

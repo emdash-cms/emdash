@@ -17,6 +17,7 @@ import {
 	securityContactHref,
 	sourceLabel,
 } from "../../../lib/detail.js";
+import { updatedAt } from "../../../lib/discovery.js";
 import { pluginArtSeed } from "../../../lib/plugin-art.js";
 import {
 	isLiveEntryNotFoundError,
@@ -24,6 +25,7 @@ import {
 	isOfficialPublisher,
 	isRegistryRequestRejected,
 	listingImageUrl,
+	PUBLISHER_LINK_REL,
 	permissionCountLabel,
 	pluginPath,
 	publisherHandle,
@@ -87,8 +89,8 @@ const artSeed = pluginArtSeed(plugin);
 const official = isOfficialPublisher(plugin);
 const isNew = isNewPlugin(plugin);
 const version = release?.version ?? plugin.latestVersion;
-const lastUpdated = profile?.lastUpdated;
-const updated = lastUpdated ? relativeUpdated(lastUpdated) : undefined;
+const lastUpdated = updatedAt(plugin);
+const updated = relativeUpdated(lastUpdated);
 const listed = formatListedDate(plugin.indexedAt);
 const license = profile?.license;
 const securityHref = securityContactHref(profile?.security);
@@ -267,7 +269,11 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 					</button>
 					{
 						repository && (
-							<a class="btn btn-secondary btn-lg" href={repository}>
+							<a
+								class="btn btn-secondary btn-lg"
+								href={repository}
+								rel={PUBLISHER_LINK_REL}
+							>
 								<svg
 									viewBox="0 0 24 24"
 									aria-hidden="true"
@@ -437,7 +443,12 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 								<div>
 									<dt>Source</dt>
 									<dd>
-										<a href={repository} dir="ltr" title={repository}>
+										<a
+											href={repository}
+											rel={PUBLISHER_LINK_REL}
+											dir="ltr"
+											title={repository}
+										>
 											{sourceLabel(repository)}
 										</a>
 									</dd>
@@ -506,7 +517,9 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 									{authors.map((author) => (
 										<li dir="auto">
 											{author.url ? (
-												<a href={author.url}>{author.name}</a>
+												<a href={author.url} rel={PUBLISHER_LINK_REL}>
+													{author.name}
+												</a>
 											) : (
 												author.name
 											)}
@@ -552,7 +565,11 @@ const arrowIcon = '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>';
 								<h2 class="aside-title" id="aside-security-title">
 									Security contact
 								</h2>
-								<a class="aside-link" href={securityHref}>
+								<a
+									class="aside-link"
+									href={securityHref}
+									rel={PUBLISHER_LINK_REL}
+								>
 									<svg
 										viewBox="0 0 24 24"
 										aria-hidden="true"

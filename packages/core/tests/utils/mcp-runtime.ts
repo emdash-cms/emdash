@@ -26,6 +26,7 @@ import { createMcpServer, type PluginMcpRegistration } from "../../src/mcp/serve
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
 import { invalidateUrlPatternCache } from "../../src/query.js";
+import type { RuntimeRoomHost } from "../../src/rooms/types.js";
 import type { Storage } from "../../src/storage/types.js";
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,8 @@ export interface TestRuntimeOptions {
 	config?: Partial<EmDashConfig>;
 	/** Optional storage backend for tools that stage or read files. Default: none. */
 	storage?: Storage | null;
+	/** Builds the runtime's room host, as `EmDashRuntime.create` does. Default: none. */
+	createRoomHost?: (runtime: EmDashRuntime) => RuntimeRoomHost;
 }
 
 /**
@@ -139,7 +142,7 @@ export function createTestRuntime(
 		createSandboxRunner: null,
 	};
 
-	return new EmDashRuntime({
+	const runtime = new EmDashRuntime({
 		db,
 		storage: opts.storage ?? null,
 		configuredPlugins: plugins,
@@ -159,6 +162,8 @@ export function createTestRuntime(
 		runtimeDeps,
 		pipelineRef,
 	});
+	if (opts.createRoomHost) Reflect.set(runtime, "_rooms", opts.createRoomHost(runtime));
+	return runtime;
 }
 
 /**
@@ -201,6 +206,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 
 		// Revisions
 		handleRevisionList: runtime.handleRevisionList.bind(runtime),
+		handleRevisionEditors: runtime.handleRevisionEditors.bind(runtime),
 		handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
 		handleRevisionRestore: runtime.handleRevisionRestore.bind(runtime),
 
@@ -213,6 +219,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		sandboxedPluginEntries: runtime.sandboxedPluginEntries,
 		config: runtime.config,
 		getManifest: runtime.getManifest.bind(runtime),
+		rooms: runtime.rooms,
 		invalidateUrlPatternCache,
 
 		// Fields the MCP server doesn't currently call. Stub so the type

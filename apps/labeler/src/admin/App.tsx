@@ -759,11 +759,16 @@ function TakedownDialog({
 					<Dialog.Description className="mt-2 text-kumo-subtle">
 						{retract
 							? t`Remove the active takedown for this subject.`
-							: t`Hide a listing URI or every listing from a publisher DID.`}
+							: t`Hide one package or every listing from a publisher.`}
 					</Dialog.Description>
 					<div className="mt-5 grid gap-4">
 						<Input
-							label={t`Subject URI or DID`}
+							label={t`Subject`}
+							description={
+								retract
+									? undefined
+									: t`A handle (@example.com), handle and package slug (@example.com/my-plugin), DID, or at:// URI.`
+							}
 							value={uri}
 							onChange={(event) => setUri(event.currentTarget.value)}
 							disabled={retract}

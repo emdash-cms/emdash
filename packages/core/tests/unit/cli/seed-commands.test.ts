@@ -292,6 +292,72 @@ describe("CLI Seed Commands", () => {
 				terms: 0,
 			});
 		});
+
+		it("resolves local media relative to the seed file", async () => {
+			const seedDir = join(tempDir, "nested", "migration");
+			const assetDir = join(seedDir, "assets");
+			const uploadsDir = join(tempDir, "uploads");
+			await mkdir(assetDir, { recursive: true });
+			const asset = Buffer.from("local migration image");
+			await writeFile(join(assetDir, "photo.jpg"), asset);
+			const seedPath = join(seedDir, "seed.json");
+			await writeFile(
+				seedPath,
+				JSON.stringify({
+					version: "1",
+					collections: [
+						{
+							slug: "posts",
+							label: "Posts",
+							fields: [{ slug: "featured_image", label: "Featured image", type: "image" }],
+						},
+					],
+					content: {
+						posts: [
+							{
+								id: "local-image-id",
+								slug: "local-image",
+								status: "published",
+								data: {
+									featured_image: { $media: { file: "assets/photo.jpg", alt: "Local photo" } },
+								},
+							},
+						],
+					},
+				}),
+			);
+
+			await runCommand(seedCommand, {
+				rawArgs: [
+					seedPath,
+					"--cwd",
+					tempDir,
+					"--database",
+					"local-media.db",
+					"--uploads-dir",
+					uploadsDir,
+				],
+			});
+
+			const db = createDatabase({ url: `file:${join(tempDir, "local-media.db")}` });
+			try {
+				const post = await new ContentRepository(db).findBySlug("posts", "local-image");
+				const media = post?.data.featured_image as {
+					provider: string;
+					filename: string;
+					alt: string;
+					meta: { storageKey: string };
+				};
+				expect(media).toMatchObject({
+					provider: "local",
+					filename: "photo.jpg",
+					alt: "Local photo",
+				});
+				expect(await readFile(join(uploadsDir, media.meta.storageKey))).toEqual(asset);
+			} finally {
+				await db.destroy();
+			}
+		});
 	});
 
 	describe("export-seed output", () => {
