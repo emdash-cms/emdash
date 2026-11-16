@@ -320,9 +320,9 @@ describe("sandboxed editor draft patches", () => {
 
 		await (await openSandboxedPreview(screen)).apply();
 
-		const banner = screen.getByRole("alert").filter({ hasText: "Plugin changes were not applied" });
+		const toast = screen.getByRole("dialog", { name: "Plugin changes were not applied" });
 		await expect
-			.element(banner)
+			.element(toast)
 			.toHaveTextContent("The plugin proposed a value this editor can't load.");
 		await expect.element(screen.getByLabelText("Title")).toHaveValue("My post");
 		expect(richTextContent("body")).toBe("Saved body");
@@ -765,7 +765,7 @@ describe("trusted panel draft access", () => {
 		await preview.apply();
 
 		await expect
-			.element(screen.getByRole("alert").filter({ hasText: "Plugin changes were not applied" }))
+			.element(screen.getByRole("dialog", { name: "Plugin changes were not applied" }))
 			.toHaveTextContent(
 				"The plugin result is stale because the editor changed while it was working.",
 			);

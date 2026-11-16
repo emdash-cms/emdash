@@ -9,6 +9,7 @@ Draft patches from sandboxed editor panels and actions (`admin.editor-draft:patc
 
 - A patched rich text field shows the patched document. Before, it kept showing the old document, and the next keystroke there wrote the old document back over the patch.
 - In collections with revisions, the first save that includes a patch keeps the draft revision it replaces, autosaves included, so the values from before the patch can be restored. With collaborative editing on, the room's saves don't keep it.
-- A sandboxed patch with rich text that the editor can't load is refused with the "Plugin changes were not applied" notice, and the form is left unchanged.
+- A sandboxed patch with rich text that the editor can't load is refused with the "Plugin changes were not applied" message, and the form is left unchanged.
+- The "Plugin changes were not applied" message shows as a toast. Before, it was a banner that stayed above the fields after the user moved on.
 
 Field descriptors in the admin manifest include the field's schema `type`, which tells apart types that share an editor `kind`, such as `slug` and `string`.

@@ -183,6 +183,30 @@ const OPEN_POPUP =
 /** A dialog a control opens, rather than a toast. */
 const OPENED_DIALOG = ':is([role="dialog"], [role="alertdialog"]):not([aria-modal="false"])';
 
+/** Says once, in a toast, why a plugin's draft patch wasn't applied. */
+function EditorDraftErrorToast({
+	error,
+	onShown,
+}: {
+	error: { message: string };
+	onShown: () => void;
+}) {
+	const { t } = useLingui();
+	const { add } = useKumoToastManager();
+	const shownRef = React.useRef<{ message: string } | null>(null);
+	React.useEffect(() => {
+		if (shownRef.current === error) return;
+		shownRef.current = error;
+		add({
+			title: t`Plugin changes were not applied`,
+			description: error.message,
+			variant: "error",
+		});
+		onShown();
+	}, [add, error, onShown, t]);
+	return null;
+}
+
 /**
  * Says autosave is paused while `heldBy` holds it, once per problem, with a way to reach the field.
  * While focus is still in the block with the problem, or in a popup the block opened, the writer is
@@ -923,14 +947,17 @@ export function ContentEditor({
 	);
 	const editorGenerationRef = React.useRef(0);
 	const editorIdentity = `${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
-	const [editorDraftError, setEditorDraftError] = React.useState<string | null>(null);
+	/** Why the last plugin draft patch wasn't applied, until a toast shows it. A new object per refusal. */
+	const [editorDraftError, setEditorDraftError] = React.useState<{ message: string } | null>(null);
+	const showEditorDraftError = React.useCallback((message: string) => {
+		setEditorDraftError({ message });
+	}, []);
 	const [pendingEditorDraftPatch, setPendingEditorDraftPatch] = React.useState<{
 		access: EditorDraftAccessDeclaration;
 		response: EditorDraftResponse;
 	} | null>(null);
 	React.useEffect(() => {
 		editorGenerationRef.current++;
-		setEditorDraftError(null);
 		setPendingEditorDraftPatch(null);
 	}, [editorIdentity]);
 	// Every write to these two counts sits beside a state update or runs during render, so a
@@ -1839,15 +1866,14 @@ export function ContentEditor({
 		(access: EditorDraftAccessDeclaration, response: EditorDraftResponse) => {
 			if (!response.patch) return;
 			if (!editorDraftResponseIsCurrent(access, response)) {
-				setEditorDraftError(
+				showEditorDraftError(
 					t`The plugin result is stale because the editor changed while it was working.`,
 				);
 				return;
 			}
-			setEditorDraftError(null);
 			setPendingEditorDraftPatch({ access, response });
 		},
-		[editorDraftResponseIsCurrent, t],
+		[editorDraftResponseIsCurrent, showEditorDraftError, t],
 	);
 
 	/**
@@ -2617,22 +2643,28 @@ export function ContentEditor({
 		const { access, response } = pendingEditorDraftPatch;
 		setPendingEditorDraftPatch(null);
 		if (!response.patch || !editorDraftResponseIsCurrent(access, response)) {
-			setEditorDraftError(
+			showEditorDraftError(
 				t`The plugin result is stale because the editor changed while it was working.`,
 			);
 			return;
 		}
 		const checked = checkSandboxedPatch(response.patch.operations, draftHostRef.current.read());
 		if (!checked.ok) {
-			setEditorDraftError(t`The plugin proposed a value this editor can't load.`);
+			showEditorDraftError(t`The plugin proposed a value this editor can't load.`);
 			return;
 		}
 		if (!applyDraftChanges(checked.changes)) {
-			setEditorDraftError(
+			showEditorDraftError(
 				t`The plugin result has formatting this editor can't show, so it wasn't applied.`,
 			);
 		}
-	}, [applyDraftChanges, editorDraftResponseIsCurrent, pendingEditorDraftPatch, t]);
+	}, [
+		applyDraftChanges,
+		editorDraftResponseIsCurrent,
+		pendingEditorDraftPatch,
+		showEditorDraftError,
+		t,
+	]);
 
 	const isPublished = status === "published";
 
@@ -2852,6 +2884,9 @@ export function ContentEditor({
 					onShow={showFirstBlockIssue}
 				/>
 			)}
+			{editorDraftError && (
+				<EditorDraftErrorToast error={editorDraftError} onShown={() => setEditorDraftError(null)} />
+			)}
 			{/* Wraps the whole layout so the bar's Settings button and the
 			    block-panel sync can reach the sidebar context. Below lg Kumo
 			    renders the panel as an inline (not portaled) sheet. */}
@@ -2905,14 +2940,6 @@ export function ContentEditor({
 									)}
 								>
 									{notice}
-									{editorDraftError && !isViewing ? (
-										<Banner
-											variant="error"
-											role="alert"
-											title={t`Plugin changes were not applied`}
-											description={editorDraftError}
-										/>
-									) : null}
 									{refusedFieldLabel && !isViewing ? (
 										<Banner
 											variant="error"
