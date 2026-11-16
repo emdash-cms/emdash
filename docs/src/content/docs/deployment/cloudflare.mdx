@@ -79,7 +79,7 @@ export default defineConfig({
 });
 ```
 
-If the site does not use marketplace, registry, or `sandboxed` plugins, omit `sandboxRunner` and leave the `LOADER` binding commented out.
+If the site uses marketplace, registry, or `sandboxed` plugins, uncomment the `LOADER` binding, which requires a Workers paid plan. Otherwise, omit `sandboxRunner` and leave the `LOADER` binding commented out.
 
 ## Add the Worker entry point
 
