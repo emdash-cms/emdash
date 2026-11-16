@@ -1,3 +1,5 @@
+import type { DeclaredAccess } from "@emdash-cms/plugin-types";
+
 import type { AssessmentSubject } from "./assessment/types.js";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
@@ -17,16 +19,7 @@ export function createAggregatorReconciliationClient(
 	service: Fetcher,
 	token: string,
 ): AggregatorReconciliationClient {
-	if (!token) throw new TypeError("aggregator reconciliation token is not configured");
-	const request = async (url: URL): Promise<unknown> => {
-		const response = await service.fetch(
-			new Request(url, { headers: { authorization: `Bearer ${token}` } }),
-		);
-		if (!response.ok)
-			throw new Error(`aggregator reconciliation request failed: ${response.status}`);
-		const bytes = await readBoundedBody(response, MAX_RESPONSE_BYTES);
-		return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
-	};
+	const request = createAuthenticatedRequest(service, token);
 	return {
 		async listCurrentSubjects(cursor, limit = 100) {
 			const url = new URL("https://aggregator.internal/_internal/labeler/subjects");
@@ -53,6 +46,53 @@ export function createAggregatorReconciliationClient(
 			}
 			return value["current"];
 		},
+	};
+}
+
+export interface AggregatorPreviousReleaseLookup {
+	previousRelease(uri: string): Promise<{ version: string; declaredAccess: DeclaredAccess } | null>;
+}
+
+export function createAggregatorPreviousReleaseLookup(
+	service: Fetcher,
+	token: string,
+): AggregatorPreviousReleaseLookup {
+	const request = createAuthenticatedRequest(service, token);
+	return {
+		async previousRelease(uri) {
+			const url = new URL("https://aggregator.internal/_internal/labeler/previous-release");
+			url.searchParams.set("uri", uri);
+			const value = await request(url);
+			if (!isRecord(value) || value["found"] !== true) {
+				throw new Error("aggregator has not indexed the release being assessed");
+			}
+			const previous = value["previous"];
+			if (previous === null) return null;
+			if (
+				!isRecord(previous) ||
+				typeof previous["version"] !== "string" ||
+				!isRecord(previous["declaredAccess"])
+			) {
+				throw new Error("aggregator previous-release response is invalid");
+			}
+			return {
+				version: previous["version"],
+				declaredAccess: previous["declaredAccess"],
+			};
+		},
+	};
+}
+
+function createAuthenticatedRequest(service: Fetcher, token: string) {
+	if (!token) throw new TypeError("aggregator reconciliation token is not configured");
+	return async (url: URL): Promise<unknown> => {
+		const response = await service.fetch(
+			new Request(url, { headers: { authorization: `Bearer ${token}` } }),
+		);
+		if (!response.ok)
+			throw new Error(`aggregator reconciliation request failed: ${response.status}`);
+		const bytes = await readBoundedBody(response, MAX_RESPONSE_BYTES);
+		return JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes));
 	};
 }
 

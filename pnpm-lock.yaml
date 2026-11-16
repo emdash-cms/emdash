@@ -528,6 +528,9 @@ importers:
       '@cloudflare/kumo':
         specifier: 'catalog:'
         version: 2.15.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.6.7)
+      '@emdash-cms/plugin-types':
+        specifier: workspace:*
+        version: link:../../packages/plugin-types
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../../packages/registry-lexicons
@@ -546,6 +549,9 @@ importers:
       '@phosphor-icons/react':
         specifier: 'catalog:'
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      acorn:
+        specifier: ^8.18.0
+        version: 8.18.0
       hono:
         specifier: 'catalog:'
         version: 4.12.27

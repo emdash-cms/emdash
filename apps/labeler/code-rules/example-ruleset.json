@@ -1,0 +1,81 @@
+{
+	"schemaVersion": 1,
+	"rulesetId": "emdash-example",
+	"version": "2026-11-16.1",
+	"rules": [
+		{
+			"kind": "ast",
+			"id": "js-dynamic-evaluation",
+			"category": "unsafe-code",
+			"severity": "high",
+			"confidence": 0.7,
+			"summary": "The code evaluates strings as code with eval or the Function constructor.",
+			"match": { "type": "identifier", "names": ["eval", "Function"] }
+		},
+		{
+			"kind": "ast",
+			"id": "js-computed-global-access",
+			"category": "unsafe-code",
+			"severity": "medium",
+			"confidence": 0.5,
+			"summary": "The code reads a global property through a computed name, which hides what it uses.",
+			"match": { "type": "member", "object": "globalThis", "computed": true }
+		},
+		{
+			"kind": "ast",
+			"id": "js-node-builtin-import",
+			"category": "unsafe-code",
+			"severity": "medium",
+			"confidence": 0.8,
+			"summary": "The code imports a Node.js built-in module, which sandboxed plugins cannot use.",
+			"match": { "type": "import", "modules": ["node:*", "child_process", "fs"] }
+		},
+		{
+			"kind": "text",
+			"id": "readme-raw-html",
+			"category": "unsafe-code",
+			"severity": "low",
+			"confidence": 0.6,
+			"summary": "The README contains raw HTML elements that can run script or embed content.",
+			"files": ["README.md"],
+			"pattern": "<(?:script|iframe|object|embed)\\b",
+			"flags": "i"
+		},
+		{
+			"kind": "access",
+			"id": "access-wildcard-host",
+			"category": "access-risk",
+			"severity": "high",
+			"confidence": 1,
+			"summary": "The release allows network requests to any host or to a whole top-level domain.",
+			"check": { "type": "host-wildcard" }
+		},
+		{
+			"kind": "access",
+			"id": "access-ip-literal-host",
+			"category": "access-risk",
+			"severity": "medium",
+			"confidence": 1,
+			"summary": "The release allows network requests to an IP address instead of a host name.",
+			"check": { "type": "host-ip-literal" }
+		},
+		{
+			"kind": "access",
+			"id": "access-unrestricted-network",
+			"category": "access-risk",
+			"severity": "high",
+			"confidence": 1,
+			"summary": "The release declares network access without an allowedHosts list.",
+			"check": { "type": "unrestricted-network" }
+		},
+		{
+			"kind": "access-diff",
+			"id": "access-escalation",
+			"category": "access-risk",
+			"severity": "medium",
+			"confidence": 1,
+			"summary": "The release declares more access than the previous release of the package.",
+			"escalationsOnly": true
+		}
+	]
+}

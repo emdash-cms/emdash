@@ -8,6 +8,13 @@ import type {
 	TextModerationAdapter,
 } from "../ai/types.js";
 import {
+	combineCodeAssessment,
+	projectPackageCodeSubject,
+	reviewReleasePackage,
+	scanReleasePackage,
+	type CodeAssessmentDependencies,
+} from "../code/assessment.js";
+import {
 	createAssessmentFinalizationProposal,
 	finalizeResolvedAssessment,
 	type AssessmentFinalizationIssuer,
@@ -17,7 +24,12 @@ import {
 	type AssessmentFoundationDependencies,
 	type DurableAssessmentStep,
 } from "./foundation.js";
-import { resolveAssessmentPolicy, type ModerationStage } from "./policy.js";
+import {
+	resolveAssessmentPolicy,
+	type CodeAssessmentStage,
+	type ModerationStage,
+} from "./policy.js";
+import { verifyExactRegistryRecord } from "./records.js";
 import { workflowParamsToIdentity } from "./run-key.js";
 import { createProductionAssessmentWorkflowDependencies } from "./runtime.js";
 import type { AssessmentWorkflowParams, AssessmentWorkflowResult } from "./types.js";
@@ -37,6 +49,8 @@ export interface AssessmentWorkflowDependencies extends AssessmentFoundationDepe
 	textAdapter: TextModerationAdapter;
 	imageAdapter?: ImageModerationAdapter;
 	mediaReader?: ModerationMediaReader;
+	/** When set, every release must also pass code assessment before it can pass. */
+	codeAssessment?: CodeAssessmentDependencies;
 	policy: ListingModerationPolicy;
 	finalizer: AssessmentFinalizationIssuer;
 }
@@ -137,6 +151,15 @@ export async function runBoundAssessmentWorkflow(
 		),
 	];
 	const images = Object.fromEntries(imageEntries);
+	const code =
+		dependencies.codeAssessment && foundation.run.subject.kind === "release"
+			? await runCodeAssessmentStage(
+					step,
+					foundation.run.subject,
+					dependencies,
+					dependencies.codeAssessment,
+				)
+			: undefined;
 	const resolution = await step.do("resolve assessment policy", async () =>
 		resolveAssessmentPolicy({
 			policy: dependencies.policy,
@@ -148,6 +171,7 @@ export async function runBoundAssessmentWorkflow(
 			checkedLinks: foundation.checkedLinks,
 			...(text ? { text } : {}),
 			images,
+			...(code ? { code } : {}),
 		}),
 	);
 	const proposal = createAssessmentFinalizationProposal({
@@ -205,6 +229,42 @@ async function mapConcurrent<Input, Output>(
 		if (value === undefined) throw new Error("image inference did not produce every result");
 		return value;
 	});
+}
+
+async function runCodeAssessmentStage(
+	step: DurableAssessmentStep,
+	subject: { uri: string; cid: string; kind: "profile" | "release" },
+	dependencies: AssessmentWorkflowDependencies,
+	codeAssessment: CodeAssessmentDependencies,
+): Promise<CodeAssessmentStage> {
+	try {
+		const packageSubject = await step.do("verify and project release package", async () => {
+			const verified = await verifyExactRegistryRecord(dependencies.recordVerifier, subject);
+			if (verified.kind !== "release") {
+				throw new TypeError("code assessment requires a release record");
+			}
+			return projectPackageCodeSubject(verified);
+		});
+		const scan = await step.do("scan release package code", async () =>
+			scanReleasePackage(packageSubject, codeAssessment),
+		);
+		const review = scan.reviewConfigured
+			? await step.do("review release package code", async () =>
+					reviewReleasePackage(packageSubject, codeAssessment, scan.identity.rulesetSha256),
+				)
+			: undefined;
+		return { status: "complete", result: combineCodeAssessment(scan, review) };
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				event: "assessment_code_stage_failed",
+				subjectUri: subject.uri,
+				subjectCid: subject.cid,
+				error: error instanceof Error ? error.message : String(error),
+			}),
+		);
+		return { status: "error", code: "code-assessment-unavailable" };
+	}
 }
 
 async function runModerationStage(

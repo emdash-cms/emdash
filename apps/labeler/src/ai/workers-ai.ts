@@ -268,7 +268,7 @@ function imageModerationXml(evidenceRef: string, mimeType: string): string {
 	].join("\n");
 }
 
-function xmlEscape(value: string): string {
+export function xmlEscape(value: string): string {
 	return value
 		.replaceAll("&", "&amp;")
 		.replaceAll("<", "&lt;")
@@ -309,7 +309,7 @@ function normalizeResponse(
 	};
 }
 
-function structuredModelOutput(provider: Record<string, unknown>): string | undefined {
+export function structuredModelOutput(provider: Record<string, unknown>): string | undefined {
 	if (typeof provider["response"] === "string") return provider["response"];
 	if (isObject(provider["response"])) return JSON.stringify(provider["response"]);
 	const choices = provider["choices"];
@@ -332,7 +332,7 @@ function modelOutputShape(provider: Record<string, unknown>): string {
 	};message.refusal=${isObject(message) && typeof message["refusal"] === "string" ? "present" : "absent"}`;
 }
 
-function parseUsage(value: unknown, configuredUnits?: number): ModerationUsage {
+export function parseUsage(value: unknown, configuredUnits?: number): ModerationUsage {
 	const usage: ModerationUsage = { configuredUnits };
 	if (!isObject(value)) return usage;
 	const record = value;

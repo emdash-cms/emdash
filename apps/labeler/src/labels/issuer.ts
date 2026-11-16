@@ -104,6 +104,7 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 			reasonCodes: proposal.resolution.reasonCodes,
 			textIdentity: proposal.resolution.textIdentity,
 			imageIdentities: proposal.resolution.imageIdentities,
+			codeIdentity: proposal.resolution.codeIdentity,
 		});
 		const coverageJson = JSON.stringify(proposal.resolution.coverage);
 		assertBoundedFinalizationJson(summaryJson, coverageJson);
@@ -736,9 +737,9 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 			.prepare(
 				`INSERT INTO findings (
 					assessment_id, finding_index, category, confidence, reason_code,
-					public_summary, evidence_refs_json, created_at
+					public_summary, evidence_refs_json, severity, created_at
 				)
-				SELECT id, ?, ?, ?, ?, ?, ?, ?
+				SELECT id, ?, ?, ?, ?, ?, ?, ?, ?
 				FROM assessments
 				WHERE id = ? AND run_key = ?
 				  AND state = ? AND state_version = ?
@@ -752,6 +753,7 @@ class D1ListingLabelIssuer implements ListingLabelIssuer {
 				proposal.resolution.reasonCodes[0] ?? "policy-finding",
 				finding.summary,
 				JSON.stringify(finding.evidenceRefs),
+				finding.severity ?? null,
 				createdAt,
 				proposal.assessmentId,
 				proposal.runKey,
