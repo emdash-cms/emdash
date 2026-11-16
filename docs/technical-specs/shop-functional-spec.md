@@ -281,7 +281,7 @@ El delivery utiliza:
 
 ## Seguimiento del pedido
 
-El cliente puede ingresar su número de pedido con o sin el prefijo `#`.
+El seguimiento requiere el número de pedido y el token secreto entregado en el enlace de confirmación. El token funciona como credencial de acceso y no se puede recuperar a partir del número del pedido. Los pedidos antiguos sin token se consultan desde el admin.
 
 El seguimiento muestra:
 
@@ -466,8 +466,8 @@ Las colecciones `products` y `services`, con sus campos propios, se cargan media
 - El checkout valida los datos obligatorios antes de crear el pedido.
 - El servidor valida nuevamente precio, variación, stock y delivery.
 - El pedido conserva los productos y precios usados en la compra.
-- El cliente recibe un número de pedido y un enlace de WhatsApp.
-- El seguimiento funciona con el número escrito con o sin `#`.
+- El cliente recibe un número de pedido, un enlace seguro de seguimiento y un enlace de WhatsApp.
+- El seguimiento requiere el número y el token seguro asociado al pedido.
 - El seguimiento muestra imágenes específicas de las variaciones cuando existen.
 - El administrador puede consultar y filtrar pedidos y clientes.
 - El administrador puede confirmar pagos y actualizar delivery.

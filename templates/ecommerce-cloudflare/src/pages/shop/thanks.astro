@@ -1,16 +1,21 @@
 ---
 import Base from "../../layouts/Base.astro";
+
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+Astro.response.headers.set("Cache-Control", "no-store");
 ---
 
 <Base title="Pedido recibido" description="Tu pedido se registró correctamente.">
-	<section class="thanks container"><p class="eyebrow">Gracias</p><h1>Tu pedido fue recibido</h1><p class="muted">Guarda el número de pedido para consultar su estado.</p><div id="order-card" class="order-card">Cargando pedido…</div><div class="actions"><a class="button" href="/seguimiento">Consultar pedido</a><a class="button secondary" href="/catalogo">Seguir comprando</a></div></section>
+	<section class="thanks container"><p class="eyebrow">Gracias</p><h1>Tu pedido fue recibido</h1><p class="muted">Guarda el número de pedido para consultar su estado.</p><div id="order-card" class="order-card">Cargando pedido…</div><div class="actions"><a class="button" href="/shop/track">Consultar pedido</a><a class="button secondary" href="/catalogo">Seguir comprando</a></div></section>
 </Base>
 
 <script>
 	const card = document.querySelector<HTMLElement>("#order-card");
 	const order = new URLSearchParams(window.location.search).get("order");
+	const token = new URLSearchParams(window.location.search).get("token");
 	if (!order) { if (card) card.textContent = "No se proporcionó el número de pedido."; }
-	else fetch(`/_emdash/api/shop/orders/${encodeURIComponent(order)}`).then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body?.error?.message ?? "No se encontró el pedido."); if (card) card.textContent = `Pedido ${body.data.orderNumber} · Total ${body.data.currencySymbol} ${Number(body.data.total).toFixed(2)}`; return body; }).catch((error) => { if (card) card.textContent = error instanceof Error ? error.message : "No se pudo cargar el pedido."; return null; });
+	else if (!token) { if (card) card.textContent = "Falta el enlace seguro de seguimiento."; }
+	else fetch(`/_emdash/api/shop/orders/${encodeURIComponent(order)}?token=${encodeURIComponent(token)}`).then(async (response) => { const body = await response.json(); if (!response.ok) throw new Error(body?.error?.message ?? "No se encontró el pedido."); if (card) card.textContent = `Pedido ${body.data.orderNumber} · Total ${body.data.currencySymbol} ${Number(body.data.total).toFixed(2)}`; return body; }).catch((error) => { if (card) card.textContent = error instanceof Error ? error.message : "No se pudo cargar el pedido."; return null; });
 </script>
 
 <style>

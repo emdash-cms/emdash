@@ -3,7 +3,9 @@ title: Ecommerce template
 description: Implement an EmDash storefront with products, services, checkout, and Resend email delivery.
 ---
 
-The ecommerce template provides the page structure from the Taller Azotea prototype and leaves the content editable in the EmDash admin. Copy `templates/ecommerce` for a Node.js site or `templates/ecommerce-cloudflare` for a Cloudflare site.
+The ecommerce template provides a storefront for products and services with checkout and order lookup. Choose `templates/ecommerce` for Node.js or `templates/ecommerce-cloudflare` for Cloudflare. Both directories use `workspace:*` dependencies, so run them from an EmDash monorepo checkout. To use one outside the monorepo, replace those dependency versions with published EmDash package versions before installing.
+
+From the repository root, install dependencies and start the selected template with `pnpm install` and `pnpm --dir templates/ecommerce dev`, or use `templates/ecommerce-cloudflare` for the Cloudflare variant. Open `/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin` in development to initialize the admin, then import the template's `seed/seed.json` through the seed workflow.
 
 ## Included pages
 
@@ -14,7 +16,7 @@ The template includes the following routes:
 - `/catalogo/[...slug]` — product detail with variants and stock-aware cart actions.
 - `/servicios` and `/servicios/[slug]` — service listing and service detail.
 - `/shop/checkout` and `/shop/thanks` — order creation and confirmation.
-- `/seguimiento` — public order lookup entry point.
+- `/shop/track` — order lookup form.
 - `/nosotros`, `/contacto`, `/preguntas-frecuentes`, `/envios-y-devoluciones`, `/terminos-y-condiciones`, `/politica-de-privacidad`, `/politica-de-cookies`, and `/libro-de-reclamaciones` — editable `pages` entries.
 
 ## Content model
@@ -37,7 +39,7 @@ plugins: [emailTemplatesPlugin({ enabled: true }), resendEmail()]
 
 Start the site, then open the plugin settings in the admin and configure the Resend API key and sender address. Verify the sender domain in Resend before sending production mail. Keep the API key in the encrypted plugin secret field or the deployment secret store; do not add it to `seed.json` or `astro.config.mjs`.
 
-The email templates plugin manages reusable transactional templates. Add order confirmation, payment, delivery, and service enrollment templates after deciding which order events the business needs to notify.
+The email templates plugin manages reusable transactional templates and supports sending a test message from the admin. Create and activate a transactional template with the slug `order-confirmation` to send checkout receipts. The checkout sends the saved subject and HTML to the buyer's email address and includes the secure order link. Saving a template changes later receipts and does not send a message by itself. Payment, delivery, and service enrollment notifications still require separate event integrations.
 
 ## Implementation plan
 

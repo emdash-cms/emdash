@@ -121,6 +121,7 @@ export interface ShopOrderInput {
 		booking?: { reservationId: string; startsAt: string; endsAt: string };
 	}>;
 	cartToken?: string;
+	idempotencyKey?: string;
 	customer: {
 		firstName: string;
 		lastName: string;
@@ -164,6 +165,7 @@ export interface ShopCoupon {
 export interface ShopOrderSummary {
 	id: string;
 	orderNumber: string;
+	trackingToken?: string;
 	status: string;
 	paymentStatus: string;
 	deliveryStatus: string;
@@ -593,7 +595,25 @@ class ShopCouponError extends Error {}
 class ShopCapacityError extends Error {}
 
 function makeOrderNumber(): string {
-	return `#${Date.now().toString(36).toUpperCase()}-${ulid().slice(-4)}`;
+	return `#${ulid()}`;
+}
+
+async function hashShopTrackingToken(token: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashCheckoutRequest(input: ShopOrderInput): Promise<string> {
+	const request = { ...input, idempotencyKey: undefined };
+	const digest = await crypto.subtle.digest(
+		"SHA-256",
+		new TextEncoder().encode(JSON.stringify(request)),
+	);
+	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashCheckoutKey(key: string): Promise<string> {
+	return hashShopTrackingToken(key);
 }
 
 function makeWhatsAppUrl(
@@ -1122,6 +1142,25 @@ export async function handleShopOrderCreate(
 	input: ShopOrderInput,
 ): Promise<ApiResult<ShopOrderSummary>> {
 	try {
+		const requestHash = input.idempotencyKey ? await hashCheckoutRequest(input) : null;
+		if (input.idempotencyKey && requestHash) {
+			const previous = await db
+				.selectFrom("_emdash_shop_checkout_requests")
+				.select(["request_hash", "order_id"])
+				.where("idempotency_key_hash", "=", await hashCheckoutKey(input.idempotencyKey))
+				.executeTakeFirst();
+			if (previous) {
+				if (previous.request_hash !== requestHash) {
+					return {
+						success: false,
+						error: { code: "IDEMPOTENCY_CONFLICT", message: "Checkout key was reused" },
+					};
+				}
+				const existing = await handleShopOrderGet(db, previous.order_id);
+				if (!existing.success) return existing;
+				return { success: true, data: { ...existing.data, trackingToken: input.idempotencyKey } };
+			}
+		}
 		let checkoutItems = input.items;
 		if (input.cartToken && checkoutItems.length === 0) {
 			const digest = await shopCartTokenHash(input.cartToken);
@@ -1352,6 +1391,8 @@ export async function handleShopOrderCreate(
 				? 0
 				: (zone?.delivery_cost ?? 0);
 		const orderNumber = makeOrderNumber();
+		const trackingToken = input.idempotencyKey ?? crypto.randomUUID() + crypto.randomUUID();
+		const trackingTokenHash = await hashShopTrackingToken(trackingToken);
 		const orderId = ulid();
 		const customerId = ulid();
 		const orderItemRows = items.map((item) => ({
@@ -1528,6 +1569,7 @@ export async function handleShopOrderCreate(
 				.values({
 					id: orderId,
 					order_number: orderNumber,
+					tracking_token_hash: trackingTokenHash,
 					customer_id: customerId,
 					currency: settings.currency,
 					subtotal,
@@ -1541,6 +1583,17 @@ export async function handleShopOrderCreate(
 					notes: input.notes ?? null,
 				})
 				.execute();
+			if (input.idempotencyKey && requestHash) {
+				await trx
+					.insertInto("_emdash_shop_checkout_requests")
+					.values({
+						idempotency_key_hash: await hashCheckoutKey(input.idempotencyKey),
+						request_hash: requestHash,
+						order_id: orderId,
+						created_at: new Date().toISOString(),
+					})
+					.execute();
+			}
 			await trx.insertInto("_emdash_shop_order_items").values(orderItemRows).execute();
 			if (inventoryMovements.length > 0) {
 				await trx
@@ -1631,6 +1684,7 @@ export async function handleShopOrderCreate(
 			data: {
 				id: orderId,
 				orderNumber,
+				trackingToken,
 				status: "new",
 				paymentStatus: "pending",
 				deliveryStatus: "pending",
@@ -1678,6 +1732,26 @@ export async function handleShopOrderCreate(
 			},
 		};
 	} catch (error) {
+		if (input.idempotencyKey) {
+			const previous = await db
+				.selectFrom("_emdash_shop_checkout_requests")
+				.select(["request_hash", "order_id"])
+				.where("idempotency_key_hash", "=", await hashCheckoutKey(input.idempotencyKey))
+				.executeTakeFirst();
+			if (previous) {
+				const requestHash = await hashCheckoutRequest(input);
+				if (previous.request_hash !== requestHash) {
+					return {
+						success: false,
+						error: { code: "IDEMPOTENCY_CONFLICT", message: "Checkout key was reused" },
+					};
+				}
+				const existing = await handleShopOrderGet(db, previous.order_id);
+				if (existing.success) {
+					return { success: true, data: { ...existing.data, trackingToken: input.idempotencyKey } };
+				}
+			}
+		}
 		if (error instanceof ShopStockError) {
 			return {
 				success: false,
@@ -1912,6 +1986,7 @@ export async function handleShopOrderGet(
 export async function handleShopOrderGetByNumber(
 	db: Kysely<Database>,
 	orderNumber: string,
+	trackingToken: string,
 ): Promise<ApiResult<ShopOrderDetail>> {
 	try {
 		const decodedOrderNumber = decodeURIComponent(orderNumber).trim();
@@ -1920,14 +1995,21 @@ export async function handleShopOrderGetByNumber(
 			: `#${decodedOrderNumber}`;
 		const order = await db
 			.selectFrom("_emdash_shop_orders")
-			.select("id")
+			.select(["id", "tracking_token_hash"])
 			.where("order_number", "=", normalizedOrderNumber)
 			.executeTakeFirst();
-		if (!order)
+		if (!order || !order.tracking_token_hash || !trackingToken)
 			return {
 				success: false,
 				error: { code: "SHOP_ORDER_NOT_FOUND", message: "Order not found" },
 			};
+		const tokenHash = await hashShopTrackingToken(trackingToken);
+		if (tokenHash !== order.tracking_token_hash) {
+			return {
+				success: false,
+				error: { code: "SHOP_ORDER_NOT_FOUND", message: "Order not found" },
+			};
+		}
 		const detail = await handleShopOrderGet(db, order.id);
 		if (!detail.success) return detail;
 		const repository = new ContentRepository(db);

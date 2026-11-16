@@ -738,6 +738,7 @@ export interface ShopCartItemTable {
 export interface ShopOrderTable {
 	id: string;
 	order_number: string;
+	tracking_token_hash: string | null;
 	customer_id: string;
 	status: Generated<string>;
 	payment_status: Generated<string>;
@@ -759,6 +760,20 @@ export interface ShopOrderTable {
 	refund_notes: string | null;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
+}
+
+export interface ShopCheckoutRequestTable {
+	idempotency_key_hash: string;
+	request_hash: string;
+	order_id: string;
+	created_at: Generated<string>;
+}
+
+export interface ShopEmailOutboxTable {
+	order_id: string;
+	status: string;
+	attempted_at: string | null;
+	sent_at: string | null;
 }
 
 export interface ShopCouponTable {
@@ -951,6 +966,8 @@ export interface Database {
 	_emdash_shop_carts: ShopCartTable;
 	_emdash_shop_cart_items: ShopCartItemTable;
 	_emdash_shop_orders: ShopOrderTable;
+	_emdash_shop_checkout_requests: ShopCheckoutRequestTable;
+	_emdash_shop_email_outbox: ShopEmailOutboxTable;
 	_emdash_shop_coupons: ShopCouponTable;
 	_emdash_shop_order_items: ShopOrderItemTable;
 	_emdash_shop_payments: ShopPaymentTable;

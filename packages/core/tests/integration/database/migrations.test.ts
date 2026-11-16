@@ -112,10 +112,14 @@ describe("Database Migrations (Integration)", () => {
 		expect(columns.rows.map((column) => column.name)).toEqual(
 			expect.arrayContaining(["first_name", "last_name"]),
 		);
-		expect(MIGRATION_NAMES.at(-4)).toBe("088_shop_inventory_movements");
-		expect(MIGRATION_NAMES.at(-3)).toBe("089_shop_inventory_idempotency");
-		expect(MIGRATION_NAMES.at(-2)).toBe("090_shop_carts");
-		expect(MIGRATION_NAMES.at(-1)).toBe("091_faq_collection");
+		expect(MIGRATION_NAMES.at(-8)).toBe("088_shop_inventory_movements");
+		expect(MIGRATION_NAMES.at(-7)).toBe("089_shop_inventory_idempotency");
+		expect(MIGRATION_NAMES.at(-6)).toBe("090_shop_carts");
+		expect(MIGRATION_NAMES.at(-5)).toBe("091_faq_collection");
+		expect(MIGRATION_NAMES.at(-4)).toBe("092_shop_product_presentation_fields");
+		expect(MIGRATION_NAMES.at(-3)).toBe("093_shop_order_tracking_tokens");
+		expect(MIGRATION_NAMES.at(-2)).toBe("094_shop_checkout_idempotency");
+		expect(MIGRATION_NAMES.at(-1)).toBe("095_shop_order_email_outbox");
 	});
 
 	it("should create the built-in FAQ collection", async () => {
@@ -321,7 +325,11 @@ describe("Database Migrations (Integration)", () => {
 
 		// Kysely only re-runs trailing entries; exercise the built-in collection
 		// migration after its schema was removed from the test database.
-		const trailing = ["091_faq_collection"];
+		const trailing = [
+			"093_shop_order_tracking_tokens",
+			"094_shop_checkout_idempotency",
+			"095_shop_order_email_outbox",
+		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
 
