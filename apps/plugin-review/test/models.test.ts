@@ -47,6 +47,32 @@ const MESSAGE_START = {
 	},
 };
 
+const POLICY_BLOCK =
+	"This content was flagged for possible biological risk. If this seems wrong, try rephrasing your request.";
+
+function openAIStreamError(type: string, code: string, message: string) {
+	const error = { type, code, message, param: null };
+	return [
+		{
+			event: "response.created",
+			data: {
+				type: "response.created",
+				sequence_number: 0,
+				response: { id: "resp_1", object: "response", status: "in_progress", output: [] },
+			},
+		},
+		{ event: "error", data: { type: "error", error, sequence_number: 1 } },
+		{
+			event: "response.failed",
+			data: {
+				type: "response.failed",
+				sequence_number: 2,
+				response: { id: "resp_1", object: "response", status: "failed", error, output: [] },
+			},
+		},
+	];
+}
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 });
@@ -101,6 +127,45 @@ describe("gatewayReviewModel", () => {
 		await expect(
 			runReview(REQUEST, gatewayReviewModel(ENV, REQUEST.model), options),
 		).rejects.toThrow(/overloaded/i);
+	});
+
+	it("returns a declined review when OpenAI blocks the request under a usage policy", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				sse(openAIStreamError("invalid_request_error", "bio_policy", POLICY_BLOCK)),
+			),
+		);
+		const request = { ...REQUEST, model: "openai/gpt-6.1-sol" };
+
+		const response = await runReview(request, gatewayReviewModel(ENV, request.model), options);
+
+		expect(response).toMatchObject({
+			model: request.model,
+			declined: true,
+			findings: [],
+			summary: POLICY_BLOCK,
+		});
+	});
+
+	it("still fails when OpenAI reports a server error mid-stream", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				sse(
+					openAIStreamError(
+						"server_error",
+						"server_error",
+						"An error occurred while processing your request.",
+					),
+				),
+			),
+		);
+		const request = { ...REQUEST, model: "openai/gpt-6.1-sol" };
+
+		await expect(
+			runReview(request, gatewayReviewModel(ENV, request.model), options),
+		).rejects.toThrow(/error occurred while processing/);
 	});
 
 	it("sends a requested reasoning level to Workers AI and none by default", async () => {

@@ -148,7 +148,7 @@ Trusted code checks each `submit_review` call before accepting it:
 
 A rejected submission goes back to the model as a tool error listing the problems. The review fails after three rejected submissions, after 60 turns, after the model answers three times without calling a tool, or when the provider reports an error.
 
-A provider safety refusal is not a failure. Anthropic models can refuse to analyse malicious code; pi-ai reports Anthropic's `refusal` stop reason as an error, so the Worker treats an error that ends a successful HTTP stream, other than an overload, rate-limit or API error, as a refusal. The review then returns `declined: true` with the refusal text as its summary and no findings. The labeler turns a declined review into a `review-declined` finding naming the model, which holds the release for review while keeping the other reviewers' findings.
+A provider safety refusal is not a failure. Anthropic models can refuse to analyse malicious code; pi-ai reports Anthropic's `refusal` stop reason as an error, so the Worker treats an error that ends a successful HTTP stream, other than an overload, rate-limit or API error, as a refusal. OpenAI blocks some requests under its usage policies, for example with the `bio_policy` code, as an error event on a successful stream. pi-ai keeps only that event's message, so the Worker treats an OpenAI stream error whose message says the content was "flagged for possible" risk as a refusal too; if OpenAI rewords the message, the block falls back to an ordinary reviewer error, which fails closed. The review then returns `declined: true` with the refusal text as its summary and no findings. The labeler turns a declined review into a `review-declined` finding naming the model, which holds the release for review while keeping the other reviewers' findings.
 
 The labeler treats the review Worker's response as untrusted too. `parseReviewResponse` checks that the response names the requested model, that categories, severities and confidence are valid, and that every citation names a line that exists in the bundle the labeler verified. It turns citations into evidence references of the form `release.package:<file>#L<line>`. A response that fails these checks fails the stage.
 
@@ -234,7 +234,7 @@ Rollback is unsetting `LABELER_CODE_REVIEW_MODELS`. Assessments that already ran
 - **Embargoed guidance.** The public repository holds the prompt and runner but no evaluation cases and no addendum. The addendum is a Worker secret.
 - **Publisher email.** Recipients come only from the verified package profile, and addresses with whitespace or separators are dropped, so a profile cannot add headers or extra recipients. The binding can send only from `plugin-notify@emdashcms.com`. Finding text is HTML-escaped in the HTML part.
 - **Data sent to model providers.** Bundles, listing text and declared access are public in the registry already. They are sent to the configured providers through AI Gateway.
-- **Provider safety refusals.** A model may refuse to analyse malicious code. In the first evaluation run, Opus refused all three malicious cases and none of the others. A refusal becomes a `review-declined` finding, so the release is held for review with the other reviewers' findings rather than passing or failing the stage. The publisher email leaves `review-declined` findings out.
+- **Provider safety refusals.** A model may refuse to analyse malicious code. In the first evaluation run, Opus refused all three malicious cases and none of the others. Later runs also saw OpenAI's biology filter block GPT-6.1 Terra and Sol on a case written to trip it. A refusal becomes a `review-declined` finding, so the release is held for review with the other reviewers' findings rather than passing or failing the stage. The publisher email leaves `review-declined` findings out.
 
 ## Performance
 
@@ -262,7 +262,7 @@ Tests in `apps/labeler/test` cover:
 - policy resolution with complete, findings and failed code stages; and
 - the full Workflow: a clean pass with two reviewers, a reviewer finding, a declined review alongside another reviewer's finding, archive anomalies alongside a review, waiting for budget, and fail-closed handling of an unreadable bundle, a checksum mismatch, a failing reviewer, an out-of-bundle citation and an exhausted budget.
 
-Tests in `apps/plugin-review/test` use scripted models and harmless bundles to cover windowed reading and coverage tracking, search limits, submission checks, resubmission after a rejected citation, tool errors, and provider errors. A stubbed Anthropic stream checks that a `refusal` stop reason becomes a declined review and a mid-stream overload stays an error.
+Tests in `apps/plugin-review/test` use scripted models and harmless bundles to cover windowed reading and coverage tracking, search limits, submission checks, resubmission after a rejected citation, tool errors, and provider errors. Stubbed provider streams check that an Anthropic `refusal` stop reason and an OpenAI policy block become declined reviews, and that a mid-stream Anthropic overload or OpenAI server error stays an error.
 
 ## Rollout and implementation
 
@@ -302,7 +302,7 @@ During an embargo, set `PLUGIN_REVIEW_PROMPT_ADDENDUM` on the review Worker. No 
 
 - Model reviews cost money and time for every release, and their judgement varies between runs.
 - The labeler now depends on the blob cache, the review Worker and the model providers for every release. An outage in any of them gives `listing-error` until a re-run.
-- A provider's safety filters can refuse some malicious bundles, which surface as errors rather than findings.
+- A provider's safety filters can refuse some malicious bundles. A recognised refusal holds the release as `review-declined`, but that model's judgement is lost, and a refusal the Worker does not recognise surfaces as a reviewer error.
 
 ## Open questions
 

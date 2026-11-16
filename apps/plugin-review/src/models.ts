@@ -17,6 +17,7 @@ export interface GatewayEnv {
 type GatewayProvider = "anthropic" | "openai" | "workers-ai";
 
 const TRANSIENT_ERROR_RE = /overloaded_error|api_error|rate_limit_error|timeout/i;
+const OPENAI_POLICY_BLOCK_RE = /\bflagged for possible\b/i;
 
 const MODEL_LIMITS = { contextWindow: 262_144, maxTokens: 32_000 };
 
@@ -140,7 +141,7 @@ export function gatewayReviewModel(
 					...(reasoning ? { reasoning } : {}),
 				})
 				.result();
-			if (provider === "anthropic" && isRefusal(message, status, signal)) {
+			if (isDeclined(provider, message, status, signal)) {
 				throw new ReviewDeclinedError(
 					message.errorMessage ?? `${specifier} refused the review`,
 					message,
@@ -151,16 +152,21 @@ export function gatewayReviewModel(
 	};
 }
 
-// pi-ai reports Anthropic's `refusal` stop reason as an error. A refusal
-// arrives on a successful stream; a transport or overload error does not, or
-// names its error type.
-function isRefusal(message: AssistantMessage, status: number | undefined, signal: AbortSignal) {
-	return (
-		message.stopReason === "error" &&
-		status === 200 &&
-		!signal.aborted &&
-		!TRANSIENT_ERROR_RE.test(message.errorMessage ?? "")
-	);
+// A refusal or safety block arrives on a successful stream; a transport error
+// does not. pi-ai reports Anthropic's `refusal` stop reason as an error, and
+// keeps only the message of an OpenAI policy error, dropping its code
+// (`bio_policy` and similar), so the OpenAI check has to match the message.
+function isDeclined(
+	provider: GatewayProvider,
+	message: AssistantMessage,
+	status: number | undefined,
+	signal: AbortSignal,
+) {
+	if (message.stopReason !== "error" || status !== 200 || signal.aborted) return false;
+	const text = message.errorMessage ?? "";
+	if (provider === "anthropic") return !TRANSIENT_ERROR_RE.test(text);
+	if (provider === "openai") return OPENAI_POLICY_BLOCK_RE.test(text);
+	return false;
 }
 
 function isGatewayProvider(value: string): value is GatewayProvider {
