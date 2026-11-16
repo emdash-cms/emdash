@@ -224,6 +224,119 @@ describe("SandboxedPluginPage while an action is answered", () => {
 		await expect.element(screen.getByRole("heading", { name: "Updated" })).toBeVisible();
 		await expect.element(screen.getByRole("status")).toHaveTextContent("");
 	});
+
+	it("keeps keyboard focus on the plugin page when an action replaces the view", async () => {
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{ type: "header", text: "Order #1010" },
+							{
+								type: "actions",
+								block_id: "detail-actions",
+								elements: [{ type: "button", action_id: "back", label: "Back to orders" }],
+							},
+						],
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								elements: [{ type: "button", action_id: "inspect", label: "Inspect #1010" }],
+							},
+							{ type: "section", text: "3 fulfilled orders" },
+						],
+					},
+				}),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<div>
+				<a href="/_emdash/admin">Dashboard</a>
+				<SandboxedPluginPage pluginId="commerce" page="/orders" />
+				<a href="/_emdash/admin/settings">Plugin settings</a>
+			</div>,
+		);
+
+		const back = screen.getByRole("button", { name: "Back to orders" });
+		await expect.element(back).toBeVisible();
+		back.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const inspect = screen.getByRole("button", { name: "Inspect #1010" });
+		await expect.element(inspect).toBeVisible();
+
+		expect(document.activeElement).not.toBe(document.body);
+		expect(document.activeElement).not.toBe(inspect.element());
+
+		await userEvent.tab();
+		expect(document.activeElement).toBe(inspect.element());
+	});
+
+	it("keeps focus on a surviving control and does not steal focus moved outside", async () => {
+		const pending = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								block_id: "toolbar",
+								elements: [{ type: "button", action_id: "refresh", label: "Refresh" }],
+							},
+						],
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								block_id: "toolbar",
+								elements: [{ type: "button", action_id: "refresh", label: "Refresh" }],
+							},
+						],
+					},
+				}),
+			)
+			.mockReturnValueOnce(pending.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<div>
+				<a href="/_emdash/admin">Dashboard</a>
+				<SandboxedPluginPage pluginId="analytics" page="/analytics" />
+			</div>,
+		);
+
+		const dashboard = screen.getByRole("link", { name: "Dashboard" });
+		const refresh = screen.getByRole("button", { name: "Refresh" });
+		await expect.element(refresh).toBeVisible();
+		refresh.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		await expect.element(screen.getByRole("status")).toHaveTextContent("");
+		expect(document.activeElement).toBe(refresh.element());
+
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Updating...");
+		dashboard.element().focus();
+		expect(document.activeElement).toBe(dashboard.element());
+
+		pending.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Updated" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "Updated" })).toBeVisible();
+		expect(document.activeElement).toBe(dashboard.element());
+	});
 });
 
 describe("resolvePluginLinkTarget", () => {
