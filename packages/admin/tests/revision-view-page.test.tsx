@@ -150,13 +150,32 @@ interface RecordedRequest {
 	body?: Record<string, unknown>;
 }
 
-function createMockServer() {
+interface ServerRevision {
+	id: string;
+	data: Record<string, unknown>;
+	createdAt: string;
+	kept: boolean;
+}
+
+/** `draftKept`: the entry's draft is a kept version, which the next autosave doesn't replace. */
+function createMockServer({ draftKept = false }: { draftKept?: boolean } = {}) {
 	const originalFetch = globalThis.fetch;
 	const requests: RecordedRequest[] = [];
 	let restored = false;
 	let draftId = "revision-draft";
 	let autosaves = 0;
 	let version = 1;
+	// Newest first; the first is the entry's draft. Each save this server takes writes a new draft,
+	// and an autosave also removes the draft before it, unless that one is kept.
+	let revisions: ServerRevision[] = [
+		{
+			id: "revision-draft",
+			data: { ...DRAFT_DATA, ...DRAFT_INTERNALS },
+			createdAt: "2026-01-02 00:00:00",
+			kept: draftKept,
+		},
+		{ id: "revision-old", data: OLD_DATA, createdAt: "2026-01-01 00:00:00", kept: true },
+	];
 	let releaseRestoredEntry = () => {};
 	const restoredEntryReleased = new Promise<void>((resolve) => {
 		releaseRestoredEntry = resolve;
@@ -203,27 +222,16 @@ function createMockServer() {
 			// The list as the server holds it when the read arrives.
 			const response = jsonResponse({
 				data: {
-					items: [
-						{
-							id: draftId,
-							collection: "posts",
-							entryId: "post_1",
-							data: restored ? OLD_DATA : DRAFT_DATA,
-							authorId: null,
-							author: null,
-							createdAt: "2026-01-02 00:00:00",
-						},
-						{
-							id: "revision-old",
-							collection: "posts",
-							entryId: "post_1",
-							data: OLD_DATA,
-							authorId: null,
-							author: null,
-							createdAt: "2026-01-01 00:00:00",
-						},
-					],
-					total: 2,
+					items: revisions.map(({ id, data, createdAt }) => ({
+						id,
+						collection: "posts",
+						entryId: "post_1",
+						data,
+						authorId: null,
+						author: null,
+						createdAt,
+					})),
+					total: revisions.length,
 				},
 			});
 			await gate;
@@ -252,6 +260,17 @@ function createMockServer() {
 			autosaves++;
 			version++;
 			draftId = `revision-autosaved-${autosaves}`;
+			const autosave = body?.skipRevision === true;
+			const [draft, ...older] = revisions;
+			revisions = [
+				{
+					id: draftId,
+					data: { ...draft?.data, ...(body?.data as Record<string, unknown>) },
+					createdAt: new Date().toISOString(),
+					kept: !autosave,
+				},
+				...(autosave && !draft?.kept ? older : revisions),
+			];
 			// A draft autosave leaves the entry's updatedAt where it was.
 			const item = makeItem({
 				draftRevisionId: draftId,
@@ -263,6 +282,10 @@ function createMockServer() {
 			restored = true;
 			version++;
 			draftId = "revision-restored";
+			revisions = [
+				{ id: draftId, data: OLD_DATA, createdAt: "2026-01-02 00:00:00", kept: true },
+				...revisions.slice(1),
+			];
 			const item = makeItem({ draftRevisionId: "revision-restored", data: OLD_DATA });
 			return jsonResponse({ data: { item, _rev: rev(version) } });
 		}
@@ -395,23 +418,24 @@ describe("ContentEditPage revision view", () => {
 		await expect.element(screen.getByText("Current version", { exact: true })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Back to editing" })).toBeVisible();
 		expect(document.body.textContent).not.toContain("no longer available");
-		expect(listReads()).toHaveLength(1);
+		await vi.waitFor(() => expect(listReads()).toHaveLength(2));
 	});
 
-	it("reads the versions again when a view opens after an autosave, not for the open list", async () => {
-		server = createMockServer();
+	it("reads the open list again after an autosave and keeps a version the server kept", async () => {
+		server = createMockServer({ draftKept: true });
 		const screen = await renderEditPage();
 		await vi.waitFor(() => expect(listReads()).toHaveLength(1));
 		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Typed and autosaved");
-		await vi.waitFor(
-			() => expect(cachedList(screen.queryClient)?.items[0]?.id).toBe("revision-autosaved-1"),
-			{ timeout: 5000 },
-		);
-		expect(listReads()).toHaveLength(1);
 
-		await screen.getByRole("button", { name: "View the current version" }).click();
-		await expect.element(screen.getByRole("button", { name: "Back to editing" })).toBeVisible();
-		await vi.waitFor(() => expect(listReads()).toHaveLength(2));
+		await vi.waitFor(() => expect(listReads()).toHaveLength(2), { timeout: 5000 });
+		await vi.waitFor(() =>
+			expect(cachedList(screen.queryClient)?.items.map((item) => item.id)).toEqual([
+				"revision-autosaved-1",
+				"revision-draft",
+				"revision-old",
+			]),
+		);
+		expect(cachedList(screen.queryClient)?.total).toBe(3);
 	});
 
 	it("patches the open list the way the server writes the autosaved draft", async () => {
@@ -424,21 +448,49 @@ describe("ContentEditPage revision view", () => {
 			);
 		});
 		await vi.waitFor(() => expect(cachedList(screen.queryClient)).toBeDefined());
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
 		const sent = Date.now();
-		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Typed and autosaved");
+		let releaseRead = server.holdNextListRead();
+		await title.fill("Typed and autosaved");
 		await vi.waitFor(
 			() => expect(cachedList(screen.queryClient)?.items[0]?.id).toBe("revision-autosaved-1"),
 			{ timeout: 5000 },
 		);
 
+		// This client didn't write the draft it followed, so the patch keeps it.
 		const list = cachedList(screen.queryClient)!;
-		expect(list.items.map((item) => item.id)).toEqual(["revision-autosaved-1", "revision-old"]);
-		expect(list.total).toBe(2);
+		expect(list.items.map((item) => item.id)).toEqual([
+			"revision-autosaved-1",
+			"revision-draft",
+			"revision-old",
+		]);
+		expect(list.total).toBe(3);
 		expect(list.items[0]?.data).toMatchObject({
 			title: "Typed and autosaved",
 			...DRAFT_INTERNALS,
 		});
 		expect(Date.parse(list.items[0]!.createdAt)).toBeGreaterThanOrEqual(sent);
+
+		releaseRead();
+		await vi.waitFor(() =>
+			expect(cachedList(screen.queryClient)?.items.map((item) => item.id)).toEqual([
+				"revision-autosaved-1",
+				"revision-old",
+			]),
+		);
+
+		// It wrote this one, so the next autosave's patch replaces it.
+		releaseRead = server.holdNextListRead();
+		await title.fill("Typed and autosaved again");
+		await vi.waitFor(
+			() => expect(cachedList(screen.queryClient)?.items[0]?.id).toBe("revision-autosaved-2"),
+			{ timeout: 5000 },
+		);
+		expect(cachedList(screen.queryClient)?.items.map((item) => item.id)).toEqual([
+			"revision-autosaved-2",
+			"revision-old",
+		]);
+		releaseRead();
 	});
 	it("keeps an autosave's draft in the list when a read sent before it lands after it", async () => {
 		server = createMockServer();
@@ -486,9 +538,15 @@ describe("ContentEditPage revision view", () => {
 			() => expect(cachedList(screen.queryClient)?.items[0]?.id).toBe("revision-autosaved-2"),
 			{ timeout: 5000 },
 		);
-		const list = cachedList(screen.queryClient)!;
-		expect(list.items.map((item) => item.id)).toEqual(["revision-autosaved-2", "revision-old"]);
-		expect(list.total).toBe(2);
+		await vi.waitFor(() =>
+			expect(cachedList(screen.queryClient)?.items.map((item) => item.id)).toEqual([
+				"revision-autosaved-2",
+				"revision-autosaved-1",
+				"revision-draft",
+				"revision-old",
+			]),
+		);
+		expect(cachedList(screen.queryClient)?.total).toBe(4);
 		releaseEntryRead();
 	});
 

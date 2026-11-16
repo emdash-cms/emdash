@@ -206,9 +206,10 @@ describe("renderToolbar", () => {
 			clearTimeout,
 			console,
 			pendingSaves: [],
+			pendingEntries: new Map([["post-1", { collection: "posts", id: "post-1" }]]),
 		});
 		runInContext(script.slice(refreshStart, refreshEnd), context);
-		runInContext(`${script.slice(publishStart, publishEnd)}\npublish("posts", "post-1");`, context);
+		runInContext(`${script.slice(publishStart, publishEnd)}\npublish();`, context);
 		await vi.advanceTimersByTimeAsync(0);
 
 		expect(ecFetch).toHaveBeenCalledTimes(1);

@@ -20,7 +20,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { QueryRecorder } from "./database/instrumentation.js";
-import type { DeferredTaskTracker } from "./deferred-tasks.js";
+import { createDeferredTaskTracker, type DeferredTaskTracker } from "./deferred-tasks.js";
 import type { SiteSettings } from "./settings/types.js";
 
 /**
@@ -121,6 +121,12 @@ export interface EmDashRequestContext {
 	metrics?: RequestMetrics;
 	/** Deferred work that owns resources scoped to this request. */
 	deferredTasks?: DeferredTaskTracker;
+	/**
+	 * Resolves a storage key to its public URL through the configured storage
+	 * adapter, so code without `Astro.locals` (site settings) honors `publicUrl`.
+	 * @internal
+	 */
+	publicMediaUrl?: (storageKey: string) => string;
 }
 
 const ALS_KEY = Symbol.for("emdash:request-context");
@@ -142,6 +148,28 @@ const storage: AsyncLocalStorage<EmDashRequestContext> =
  */
 export function runWithContext<T>(ctx: EmDashRequestContext, fn: () => T): T {
 	return storage.run(ctx, fn);
+}
+
+/**
+ * Runs `fn` in a new context with its own metrics and deferred-task tracker,
+ * for work outside any request. Deferred work `fn` starts runs on without
+ * holding up the result. Work that a request only queued must not run in that
+ * request's context: its cached reads go stale and its tracker has settled.
+ */
+export function runInFreshRequestContext<T>(fn: () => Promise<T>): Promise<T> {
+	const deferredTasks = createDeferredTaskTracker(() => {});
+	const context: EmDashRequestContext = {
+		editMode: false,
+		metrics: createRequestMetrics(performance.now()),
+		deferredTasks,
+	};
+	return runWithContext(context, async () => {
+		try {
+			return await fn();
+		} finally {
+			deferredTasks.settle();
+		}
+	});
 }
 
 /**

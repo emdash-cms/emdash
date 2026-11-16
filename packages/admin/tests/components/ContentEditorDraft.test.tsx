@@ -327,7 +327,9 @@ describe("sandboxed editor draft patches", () => {
 		await expect.element(screen.getByLabelText("Title")).toHaveValue("My post");
 		expect(richTextContent("body")).toBe("Saved body");
 		expect(richText.mounts).toBe(1);
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
 	});
 });
 
@@ -504,7 +506,9 @@ describe("trusted panel draft access", () => {
 			canonical: null,
 			noIndex: false,
 		});
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
 		await vi.advanceTimersByTimeAsync(2500);
 		expect(props.onAutosave).not.toHaveBeenCalled();
 	});
@@ -737,7 +741,9 @@ describe("trusted panel draft access", () => {
 
 		const saved = makeItem({ data: { ...makeItem().data, title: "Typed title" }, _rev: "rev-2" });
 		await screen.rerender(<TrustedEditor {...props} item={saved} autosaveCompletionToken={1} />);
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
 
 		expect(
 			draft.patch([{ op: "set", field: "title", value: "Patched" }], {
@@ -859,7 +865,9 @@ describe("trusted panel draft access", () => {
 		await expect.element(screen.getByLabelText("Title", { exact: true })).toHaveValue("My post");
 		expect(richTextContent("body")).toBe("Saved body");
 		expect(richText.mounts).toBe(1);
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
 	});
 
 	it("writes back a boolean it read as 0 or 1", async () => {

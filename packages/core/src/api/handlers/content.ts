@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -70,6 +70,7 @@ import {
 } from "./relations.js";
 import {
 	applyStagedReferences,
+	liveReferenceData,
 	liveReferenceSelection,
 	pageStagedGroups,
 	readStagedReferenceBaselines,
@@ -259,7 +260,7 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 async function getCollectionPublishConfig(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<{ supportsRevisions: boolean; routable: boolean }> {
+): Promise<{ supportsRevisions: boolean; supportsScheduling: boolean; routable: boolean }> {
 	return requestCached(`collectionPublishConfig:${collection}`, async () => {
 		const row = await db
 			.selectFrom("_emdash_collections")
@@ -269,6 +270,7 @@ async function getCollectionPublishConfig(
 		const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
 		return {
 			supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
+			supportsScheduling: !Array.isArray(supports) || !supports.includes("no-scheduling"),
 			routable: row?.routable !== 0,
 		};
 	});
@@ -863,7 +865,7 @@ async function removeShadowingAutoRedirect(
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "=", url)
+		.where("source", "in", redirectPathVariants(url))
 		.where("auto", "=", 1)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
@@ -1038,6 +1040,28 @@ export async function handleContentList(
 				: undefined,
 			sortableExtras,
 		});
+
+		// Unpublished entries have no live data to preserve in the list. Keep the
+		// base columns untouched so discarding a draft can still restore them.
+		const unpublishedDrafts = result.items.filter(
+			(item) => item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
+		);
+		const draftIds = unpublishedDrafts.flatMap((item) =>
+			item.draftRevisionId ? [item.draftRevisionId] : [],
+		);
+		if (draftIds.length > 0) {
+			const revisions = await new RevisionRepository(db).findByIds(collection, draftIds);
+			const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+			for (const item of unpublishedDrafts) {
+				if (!item.draftRevisionId) continue;
+				const revision = byId.get(item.draftRevisionId);
+				if (!revision || revision.entryId !== item.id) continue;
+				const fields = Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				);
+				item.data = { ...item.data, ...fields };
+			}
+		}
 
 		// Hydrate SEO data if the collection has SEO enabled
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -2298,6 +2322,9 @@ export async function handleContentSchedule(
 			const resolvedId = existing?.id ?? id;
 			if (existing) {
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				if (!publishConfig.supportsScheduling) {
+					throw new EmDashValidationError("Scheduling is disabled for this collection");
+				}
 				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
 			}
 			return repo.schedule(collection, resolvedId, scheduledAt, currentTime, expectedRevision);
@@ -2542,6 +2569,14 @@ export async function handleContentPublish(
 						stagedReferenceBaselines,
 					);
 				}
+			}
+
+			// `repo.publish()` writes the starting revision too, but without the links.
+			if (publishConfig.supportsRevisions && existing) {
+				const entryGroup = existing.translationGroup;
+				await repo.keepStartingRevision(new RevisionRepository(trx), collection, existing, () =>
+					liveReferenceData(trx, collection, entryGroup),
+				);
 			}
 
 			const published = await repo.publish(

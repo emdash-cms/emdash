@@ -189,6 +189,7 @@ export function ContentTypeEditor({
 	const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? "");
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
+	const [dateField, setDateField] = React.useState(collection?.dateField ?? "");
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
 	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
 	const [icon, setIcon] = React.useState(collection?.icon ?? "");
@@ -248,6 +249,7 @@ export function ContentTypeEditor({
 			labelSingular !== (collection.labelSingular ?? "") ||
 			description !== (collection.description ?? "") ||
 			urlPattern !== (collection.urlPattern ?? "") ||
+			dateField !== (collection.dateField ?? "") ||
 			routable !== (collection.routable ?? true) ||
 			editLocking !== (collection.editLocking ?? true) ||
 			icon !== (collection.icon ?? "") ||
@@ -270,6 +272,7 @@ export function ContentTypeEditor({
 		labelSingular,
 		description,
 		urlPattern,
+		dateField,
 		routable,
 		editLocking,
 		icon,
@@ -331,6 +334,7 @@ export function ContentTypeEditor({
 				labelSingular: labelSingular || undefined,
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
+				...(dateField !== (collection?.dateField ?? "") ? { dateField: dateField || null } : {}),
 				routable,
 				editLocking,
 				icon: icon.trim(),
@@ -383,6 +387,18 @@ export function ContentTypeEditor({
 
 	const isFromCode = collection?.source === "code";
 	const fields = collection?.fields ?? [];
+
+	React.useEffect(() => {
+		if (
+			dateField &&
+			dateField !== "publishedAt" &&
+			dateField !== "createdAt" &&
+			dateField !== "updatedAt" &&
+			!fields.some((field) => field.slug === dateField && field.type === "datetime")
+		) {
+			setDateField(collection?.dateField ?? "");
+		}
+	}, [dateField, fields, collection?.dateField]);
 
 	const { data: relations = [], isLoading: relationsLoading } = useQuery({
 		queryKey: ["relations"],
@@ -649,6 +665,29 @@ export function ContentTypeEditor({
 									</div>
 								))}
 							</div>
+
+							{!isNew && (
+								<div className="space-y-2">
+									<Select
+										label={t`Date column source`}
+										value={dateField}
+										onValueChange={(value) => setDateField(value ?? "")}
+										items={Object.fromEntries([
+											["", t`Last updated (default)`],
+											["publishedAt", t`Published`],
+											["createdAt", t`Created`],
+											["updatedAt", t`Updated`],
+											...fields
+												.filter((field) => field.type === "datetime")
+												.map((field) => [field.slug, field.label]),
+										])}
+										disabled={isFromCode}
+									/>
+									<p className="text-xs text-kumo-subtle">
+										{t`Choose which date appears in the content list.`}
+									</p>
+								</div>
+							)}
 
 							{/* SEO toggle */}
 							<div className="pt-2 border-t">

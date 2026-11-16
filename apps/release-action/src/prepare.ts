@@ -9,6 +9,8 @@ import {
 } from "@emdash-cms/registry-verification/bundle";
 import { computeMultihash } from "@emdash-cms/registry-verification/checksum";
 
+import { prepareReleaseMedia, type PreparedReleaseMedia } from "./media.js";
+
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const WORKFLOW_REF_PATTERN =
@@ -30,9 +32,11 @@ export interface PrepareReleaseFilesOptions {
 	repository: string;
 	workflowRef: string;
 	repositoryVisibility: string;
+	info?: (message: string) => void;
 }
 
 export interface PreparedReleaseFiles {
+	media?: PreparedReleaseMedia;
 	packageSlug: string;
 	version: string;
 	packageBytes: Uint8Array;
@@ -204,6 +208,15 @@ export async function prepareReleaseFiles(
 	}
 	const computeChecksum = dependencies.computeChecksum ?? checksum;
 	return {
+		media: await prepareReleaseMedia({
+			workspace: options.workspace,
+			pluginDirectory: resolve(options.workspace, options.pluginDirectory ?? "."),
+			packageSlug: bundle.value.packageSlug,
+			version: bundle.value.version,
+			ignoreUnrelatedManifest:
+				Boolean(options.bundleFile) && (options.pluginDirectory ?? ".") === ".",
+			info: options.info,
+		}),
 		packageSlug: bundle.value.packageSlug,
 		version: bundle.value.version,
 		packageBytes,

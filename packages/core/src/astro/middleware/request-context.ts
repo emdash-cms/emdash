@@ -237,7 +237,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const playgroundDb = context.locals.__playgroundDb;
 	if (playgroundDb) {
 		// Check if playground user has toggled edit mode on
-		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
+		const hasEditCookie =
+			!context.isPrerendered && cookies.get("emdash-edit-mode")?.value === "true";
 		const hasPreviewToken = url.searchParams.has("_preview");
 		let preview: { collection: string; id: string } | undefined;
 		if (hasPreviewToken) {
@@ -271,7 +272,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	}
 
 	// Fast path: check for CMS signals before doing any work
-	const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
+	const hasEditCookie = !context.isPrerendered && cookies.get("emdash-edit-mode")?.value === "true";
 	const hasPreviewToken = url.searchParams.has("_preview");
 	// `_edit` requests a fresh (never cached) editor render; only meaningful in
 	// client toolbar mode where public HTML is otherwise identical for everyone.

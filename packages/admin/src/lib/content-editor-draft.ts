@@ -43,8 +43,11 @@ export interface EditorDraftState {
 export interface EditorDraftHost {
 	/** The editor's state, or null once the editor shows another entry or has unmounted. */
 	read(): EditorDraftState | null;
-	/** Writes a checked patch into the form, slug and SEO text in one step. */
-	apply(changes: DraftChanges): void;
+	/**
+	 * Writes a checked patch into the form, slug and SEO text in one step. False when the editor
+	 * refuses the values, and nothing is written.
+	 */
+	apply(changes: DraftChanges): boolean;
 }
 
 /** The writes one patch makes, with a JSON copy of every `set` value. */
@@ -377,12 +380,14 @@ function expectedRevisionOf(options: unknown): unknown {
  * is the host's `read()` returning null, which never reverts.
  */
 export function createContentEditorDraft(host: EditorDraftHost): ContentEditorDraft {
-	const id =
-		globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	// Made on first use: every editor creates a draft, and most never hand out a revision.
+	let id: string | null = null;
 	let counter = 0;
 	let lastValues: string | null = null;
 
 	const revisionOf = (serialized: readonly string[]): string => {
+		id ??=
+			globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 		const values = `[${serialized.join(",")}]`;
 		if (lastValues !== null && values !== lastValues) counter++;
 		lastValues = values;
@@ -430,7 +435,9 @@ export function createContentEditorDraft(host: EditorDraftHost): ContentEditorDr
 				checked = { ok: false, message: "the operations couldn't be read" };
 			}
 			if (!checked.ok) return refuse("EDITOR_DRAFT_INVALID", checked.message);
-			host.apply(checked.changes);
+			if (!host.apply(checked.changes)) {
+				return refuse("EDITOR_DRAFT_INVALID", "The editor can't represent a rich text value.");
+			}
 			return { ok: true };
 		},
 	};

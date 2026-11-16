@@ -20,6 +20,28 @@ Open `https://<new domain>/_emdash/admin` in a browser. The EmDash sign-in page 
 
 If the site sets [`siteUrl`](/reference/configuration/#siteurl), `EMDASH_SITE_URL`, or `SITE_URL`, links in emails and plugins use that address instead of the **Site URL**, and **Settings > General** names it. Change the configuration and deploy again to move those links as well.
 
+### While the new domain still serves the old site
+
+When EmDash runs at a temporary address, such as `https://new.example.com`, while `https://example.com` still serves the site you are replacing, point [`siteUrl`](/reference/configuration/#siteurl) at the final domain and add the temporary address to [`allowedOrigins`](/reference/configuration/#allowedorigins).
+
+A configured `siteUrl` is the address passkeys belong to: it sets the relying party ID and the single browser origin that passkey verification accepts. Listing the temporary address keeps passkey sign-in working there, and since the relying party ID is the final domain from the start, those passkeys keep working after the move.
+
+Each entry must be the same hostname as `siteUrl` or a subdomain of it, so this works for a temporary subdomain of the final domain, not for an unrelated staging host:
+
+```js title="astro.config.mjs"
+emdash({
+	siteUrl: "https://example.com",
+	allowedOrigins: ["https://new.example.com"],
+});
+```
+
+<Aside type="caution">
+	Links in emails, including [magic
+	links](/guides/authentication/#log-in-with-a-magic-link), use the configured `siteUrl`. Until DNS
+	points the final domain at EmDash they lead to the old site and sign nobody in. Give every
+	administrator a passkey that works at the temporary address before the cutover.
+</Aside>
+
 ## Change the domain
 
 <Steps>
@@ -85,11 +107,13 @@ The dialog shows why the check failed:
 - **`www.example.com does not resolve to a public address`:** the domain has no public DNS record yet, or it points to a private network. Finish the DNS setup and try again.
 - **`Could not reach https://www.example.com`:** the request timed out or the connection failed, for example because the certificate is not ready yet. Wait a few minutes and try again.
 - **`https://example.com redirects to https://www.example.com. Enter that address instead.`:** the domain redirects. Enter the address it redirects to.
-- **`https://www.example.com does not serve this site yet`:** the domain answers, but not with this site. It may still point to a previous host, or a login page such as Cloudflare Access may be in front of it. On Cloudflare, add the domain on the Worker's **Domains** tab as a Custom Domain. A route does not work for the check: Cloudflare does not run a Worker for requests that the Worker sends to its own route on the same zone.
+- **`Could not verify that https://www.example.com serves this site`:** the response did not contain the expected proof code. The domain may point to a previous host, or a login page such as Cloudflare Access may be in front of it. On Cloudflare, add the domain on the Worker's **Domains** tab as a Custom Domain. A route does not work for the check: Cloudflare [does not run a Worker](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#worker-to-worker-communication) for requests that the Worker sends to its own route on the same zone. Even with a Custom Domain, the check can fail because a Worker may be unable to reach its own domain, although the domain serves the site in a browser.
 
 ### Use an address without the check
 
 When the check fails, the dialog offers **Use … anyway**. It stores the address without checking it. Use it when the site cannot be reached from the internet, for example during local development at `http://localhost:4321` or on a staging domain behind a login.
+
+On Cloudflare Workers, if the check cannot reach or verify the domain, open the new address in your browser. Confirm that the address stays on the new domain and shows this site before selecting **Use … anyway**. If it redirects to another domain, enter that destination in the dialog instead.
 
 Sitemaps and search metadata use the stored address as entered, including a path such as `https://example.com/blog`. Emails and plugins use only its origin, and only when it uses `https://` or the host is `localhost`, `127.0.0.1`, or `[::1]`. Otherwise they keep using the address the site was set up on.
 

@@ -59,7 +59,7 @@ function makeState(overrides: Partial<EditorDraftState> = {}): EditorDraftState 
 /** A draft over a state the test changes between calls, and the writes it hands the editor. */
 function setup(overrides: Partial<EditorDraftState> = {}) {
 	let state: EditorDraftState | null = makeState(overrides);
-	const apply = vi.fn<(changes: DraftChanges) => void>();
+	const apply = vi.fn<(changes: DraftChanges) => boolean>(() => true);
 	const draft = createContentEditorDraft({ read: () => state, apply });
 	return {
 		draft,

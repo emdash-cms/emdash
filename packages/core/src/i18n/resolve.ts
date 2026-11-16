@@ -174,6 +174,16 @@ export async function localizePath(path: string, locale: string): Promise<string
 }
 
 /**
+ * The path prefix of a locale's pages, such as `/en`. Empty when the locale
+ * is the unprefixed default, isn't configured, or isn't given.
+ */
+export async function localePathPrefix(locale: string | undefined): Promise<string> {
+	if (!locale) return "";
+	const root = await localizePath("/", locale);
+	return root && root !== "/" ? root : "";
+}
+
+/**
  * Resolve the URL segment to use for a locale.
  *
  * Returns:

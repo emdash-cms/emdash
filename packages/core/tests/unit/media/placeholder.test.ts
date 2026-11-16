@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 
 import { generatePlaceholder } from "../../../src/media/placeholder.js";
+import {
+	PNG_PARTIALLY_TRANSPARENT_64x64,
+	PNG_TRANSPARENT_2x2,
+} from "../../utils/image-fixtures.js";
 
 const CSS_RGB_PATTERN = /^rgb\(\d+,\s?\d+,\s?\d+\)$/;
 
@@ -39,6 +43,13 @@ describe("generatePlaceholder", () => {
 		expect(result).not.toBeNull();
 		expect(result!.blurhash).toBeTruthy();
 		expect(result!.dominantColor).toBeTruthy();
+	});
+
+	it.each([
+		["fully transparent PNG", PNG_TRANSPARENT_2x2],
+		["PNG with a non-opaque pixel outside the downsample grid", PNG_PARTIALLY_TRANSPARENT_64x64],
+	] as const)("omits placeholders for a %s", async (_description, png) => {
+		expect(await generatePlaceholder(png, "image/png")).toBeNull();
 	});
 
 	it("returns a valid CSS color string for dominantColor", async () => {

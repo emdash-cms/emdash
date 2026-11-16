@@ -454,9 +454,12 @@ Panel fields have the following behavior:
 - `id`, `title`, and `component` are required. The ID must be unique among this plugin's panels.
 - `collections` is an array of collection names or a predicate. Omit it to show the panel for every collection.
 - `minRole` is a numeric visibility threshold. It does not authorize API calls.
+- `isVisible` optionally receives the same context as the component and returns `boolean` or `Promise<boolean>`. EmDash checks it after the static `collections` and `minRole` filters. Only `true` shows the section, including its heading and reorder control. The section stays hidden while the first check for a collection, entry ID, and locale is pending. A throw or rejection hides the section and logs the plugin and panel IDs in the browser console. Results and errors from superseded checks are ignored.
 - `order` sorts lower values first. Ties use plugin ID and panel ID.
 
-The component receives the saved `entry`, its `collection`, the resolved `locale`, and `editorDraft`. Keep its layout responsive to the narrow sidebar. EmDash isolates component and collection-predicate failures so one panel cannot unmount the editor.
+The component receives the saved `entry`, its `collection`, the resolved `locale`, and `editorDraft`. Keep its layout responsive to the narrow sidebar. EmDash isolates component, visibility-check, and collection-predicate failures so one panel cannot unmount the editor.
+
+Use `isVisible` when panel visibility depends on plugin settings loaded from an API. Returning `null` from the component hides only its contents, not the host-rendered section. Checks run again when the saved entry, collection, resolved locale, or eligible panel set changes. When the same entry is saved again, including by autosave or publication, the section keeps its last visibility decision while the new check is pending. A visible panel stays mounted and keeps its local state if the recheck returns `true`. Any other result, throw, or rejection hides it. Changing the collection, entry ID, or resolved locale starts a new first check with the section hidden. Cache settings requests in your plugin if multiple checks can share them; visibility checks do not authorize API calls.
 
 `entry` holds the entry as last saved. `editorDraft` works with the values open in the editor, including changes the user has not saved yet. Its `get()` method reads them, and its `patch()` method puts new values into the form without saving the entry. Both methods return synchronously.
 
@@ -497,6 +500,8 @@ An empty slug or SEO value is `null`. The definitions of these keys use the labe
 - `{ op: "clear", field }` clears a value.
 
 A successful patch writes the values into the form without saving the entry. A patch to collection fields or the slug marks the entry as having unsaved changes. The form autosaves on its usual schedule, and the user can keep, edit, or save the values like typed changes. In a collection with revisions, the first save that includes the patched values keeps the previous draft in the revision history, so the user can restore it. A patched rich text field reloads with the new value and starts a new undo history. Patching `slug` has the same effect as typing in the slug input, so later edits to the title leave the slug unchanged.
+
+With collaborative editing on, a patch goes into the document everyone in the entry shares, and the room's regular saves save it like typed edits. Those saves don't keep the previous draft in the revision history, so the revision history can't restore the values from before the patch. A patched rich text field keeps its undo history, and one undo step reverts the patch. Draft values another person changes after `get()` make a patch with that revision stale.
 
 <Aside type="caution">
 	The SEO panel saves `seo.title` and `seo.description` itself within about half a second, as it saves typed SEO edits. The save takes effect at once, on a published entry too, and the revision history cannot restore the values it replaced. A patch that also changes collection fields is saved in two requests, and either request can fail on its own.

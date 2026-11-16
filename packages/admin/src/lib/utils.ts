@@ -30,8 +30,10 @@ export function parseTimestamp(value: string): Date {
 }
 
 /** "5 minutes ago" in the given locale for the past week, the date after that. */
-export function formatRelativeTime(dateString: string, locale: string): string {
+export function formatRelativeTime(dateString: string | null | undefined, locale: string): string {
+	if (dateString == null) return "";
 	const date = parseTimestamp(dateString);
+	if (Number.isNaN(date.getTime())) return "";
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
 	const diffSecs = Math.floor(diffMs / 1000);
@@ -60,11 +62,12 @@ export function formatRelativeTime(dateString: string, locale: string): string {
  * options it formats exactly as `toLocaleDateString()` did, so no call site changes how it looks.
  */
 export function formatDate(
-	value: string | Date,
+	value: string | Date | null | undefined,
 	locale: string,
 	options: Intl.DateTimeFormatOptions = {},
 ): string {
 	const date = typeof value === "string" ? parseTimestamp(value) : value;
+	if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
 	return new Intl.DateTimeFormat(locale, options).format(date);
 }
 

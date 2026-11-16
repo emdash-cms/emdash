@@ -1,7 +1,7 @@
 import { buttonVariants, Loader } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { Extension } from "@tiptap/core";
+import { Extension, type MappablePosition } from "@tiptap/core";
 import type { Node } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
@@ -23,7 +23,7 @@ type MediaKind = "image" | "video";
 
 interface Placeholder {
 	id: number;
-	pos: number;
+	position: MappablePosition;
 	kind?: MediaKind;
 	previewUrl?: string;
 	error?: string;
@@ -45,7 +45,7 @@ const DROP_EVENTS = new Set(["dragenter", "dragover", "drop"]);
 
 function placeholderWidget(placeholder: Placeholder, onDismiss: DismissHandler) {
 	return Decoration.widget(
-		placeholder.pos,
+		placeholder.position.position,
 		(view) => renderPlaceholder(placeholder, () => onDismiss(view, placeholder.id)),
 		{
 			// Later files render after earlier ones sharing a position.
@@ -167,6 +167,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 	addProseMirrorPlugins() {
 		const { upload, acceptsVideo } = this.options;
 		if (!upload) return [];
+		const { editor } = this;
 
 		const { controller, previewUrls } = this.storage;
 		let nextId = 0;
@@ -217,14 +218,14 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 			const nodeType = view.state.schema.nodes[kind === "video" ? "videoBlock" : "image"];
 			const tr = view.state.tr.setMeta(imageUploadKey, { remove: id } satisfies PlaceholderMeta);
 			if (placeholder && nodeType) {
-				tr.insert(placeholder.pos, nodeType.create(attrs));
+				tr.insert(placeholder.position.position, nodeType.create(attrs));
 			}
 			view.dispatch(tr);
 			releasePreview(id);
 		};
 
 		const start = (view: EditorView, files: File[], dropPos: number) => {
-			const pos = blockBoundary(view.state.doc, dropPos);
+			const position = editor.utils.createMappablePosition(blockBoundary(view.state.doc, dropPos));
 			const media = files.flatMap((file) => {
 				const kind = kindOf(view, file);
 				return kind ? [{ file, kind }] : [];
@@ -233,13 +234,13 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 				const id = ++nextId;
 				const previewUrl = kind === "image" ? createUploadPreviewUrl(file) : undefined;
 				if (previewUrl) previewUrls.set(id, previewUrl);
-				return { file, kind, placeholder: { id, pos, kind, previewUrl } };
+				return { file, kind, placeholder: { id, position, kind, previewUrl } };
 			});
 			const placeholders: Placeholder[] = uploads.map(({ placeholder }) => placeholder);
 			if (uploads.length < files.length) {
 				placeholders.push({
 					id: ++nextId,
-					pos,
+					position,
 					error: takesVideo(view)
 						? i18n._(msg`Only images and videos can be uploaded here.`)
 						: i18n._(msg`Only image files can be uploaded here.`),
@@ -274,10 +275,12 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 					apply(tr, placeholders) {
 						// Mapped positions are never dropped, so edits beside a placeholder can't discard its upload.
 						const next = tr.docChanged
-							? placeholders.map((item) => ({
-									...item,
-									pos: blockBoundary(tr.doc, tr.mapping.map(item.pos, 1)),
-								}))
+							? placeholders.map((item) => {
+									const { position } = editor.utils.getUpdatedPosition(item.position, tr);
+									// Later edits move the placeholder from the block boundary it shows at.
+									position.position = blockBoundary(tr.doc, position.position);
+									return { ...item, position };
+								})
 							: placeholders;
 						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only this plugin sets its meta
 						const meta = tr.getMeta(imageUploadKey) as PlaceholderMeta | undefined;

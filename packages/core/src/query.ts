@@ -24,6 +24,7 @@
  * import resolves there at typecheck time without our help.
  */
 
+import { primeBylineFieldsVersion } from "./bylines/field-defs-cache.js";
 import type { ContentSeo } from "./database/repositories/types.js";
 import {
 	getFallbackChain,
@@ -41,6 +42,7 @@ import {
 	FOLDED_AUTHOR_BYLINE,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
+	FOLDED_BYLINE_FIELDS_VERSION,
 	FOLDED_TERMS,
 	loadPublishedDates,
 	type WhereRange,
@@ -1603,6 +1605,11 @@ interface CachedEntryValue {
  */
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
+
+	const foldedVersion = Reflect.get(entryData(entries[0]), FOLDED_BYLINE_FIELDS_VERSION);
+	if (typeof foldedVersion === "number") {
+		primeBylineFieldsVersion(foldedVersion);
+	}
 
 	// Fast path: bylines were folded into the content query. Parse the JSON
 	// (no extra round trip): explicit credits, plus the author-fallback byline

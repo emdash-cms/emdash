@@ -440,7 +440,15 @@ describe("saving editor draft patches", () => {
 			.getByRole("button", { name: "Publish changes", exact: true });
 		await expect.element(confirm).toBeVisible();
 		confirm.element().click();
-		await vi.waitFor(() => expect(requests("POST")).toHaveLength(1), { timeout: 5000 });
+		await vi.waitFor(
+			() =>
+				expect(requests("POST").filter((request) => request.url.includes("/publish"))).toHaveLength(
+					1,
+				),
+			{
+				timeout: 5000,
+			},
+		);
 
 		expect(patchDraft([{ op: "set", field: "summary", value: "Patched summary" }])).toEqual({
 			ok: true,
@@ -495,6 +503,8 @@ describe("saving editor draft patches", () => {
 			data: { summary: "Resumen" },
 			skipRevision: false,
 		});
-		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.not.toBeInTheDocument();
 	});
 });

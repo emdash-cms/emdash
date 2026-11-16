@@ -102,6 +102,13 @@ export function domainBlockerLabel(i18n: I18n, blocker: PortableDomainBlocker): 
 		}
 		case "collection_has_entries":
 			return i18n._(msg`Collection “${blocker.slug}” has entries`);
+		case "collection_deletion_unfinished": {
+			const body = JSON.stringify({ collectionId: blocker.id });
+			const action = "POST /_emdash/api/admin/media-usage/collection-deletions/retry";
+			return i18n._(
+				msg`Deletion of collection “${blocker.slug}” failed. Retry it by sending ${body} to ${action} before importing.`,
+			);
+		}
 		case "collection_not_seeded":
 			return i18n._(msg`Collection “${blocker.slug}” was created on this site`);
 		case "block_type_not_seeded":
