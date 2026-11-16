@@ -20,8 +20,10 @@ export interface ContentEditorPanelContext {
 export interface ContentEditorDraft {
 	get(): ContentEditorDraftSnapshot;
 	/**
-	 * Sets or clears draft values in the form without saving it. Refuses the whole patch when
-	 * any draft value changed after `expectedRevision` was read. Never throws.
+	 * Sets or clears draft values in the form without saving it. `seo.title` and
+	 * `seo.description` are the exception: the SEO panel saves them within about half a
+	 * second, on a published entry too. Refuses the whole patch when any draft value
+	 * changed after `expectedRevision` was read. Never throws.
 	 */
 	patch(
 		operations: readonly EditorDraftPatchOperation[],

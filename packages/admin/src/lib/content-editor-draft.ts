@@ -2,11 +2,9 @@ import type { EditorDraftFieldDefinition, EditorDraftPatchOperation } from "@emd
 import { i18n, type MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
-import {
-	portableTextToProsemirror,
-	type PluginBlockDef,
-} from "../components/PortableTextEditor.js";
+import type { PluginBlockDef } from "../components/PortableTextEditor.js";
 import type { SeoText } from "../components/SeoPanel.js";
+import { portableTextToProsemirror } from "../portable-text/convert.js";
 import type { ContentEditorDraft, ContentEditorDraftPatchResult } from "./content-editor-panels.js";
 import { getFieldLabel } from "./field-label.js";
 import { findUnsupportedPortableTextMarks } from "./portable-text-marks.js";
