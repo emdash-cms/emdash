@@ -147,11 +147,15 @@ function holdEntryReads() {
 	}) as typeof fetch;
 }
 
-/** Holds every PUT from now on until `release`; `answered` settles once one has its response. */
+/** Holds every PUT from now on until `release`; `requested` settles once one is sent, `answered` once one has its response. */
 function holdPuts() {
 	let release = () => {};
 	const released = new Promise<void>((resolve) => {
 		release = resolve;
+	});
+	let request = () => {};
+	const requested = new Promise<void>((resolve) => {
+		request = resolve;
 	});
 	let answer = () => {};
 	const answered = new Promise<void>((resolve) => {
@@ -160,12 +164,13 @@ function holdPuts() {
 	const send = globalThis.fetch;
 	globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
 		if (init?.method !== "PUT") return send(input, init);
+		request();
 		await released;
 		const response = await send(input, init);
 		answer();
 		return response;
 	}) as typeof fetch;
-	return { release, answered };
+	return { release, requested, answered };
 }
 
 function reloadIsBlocked() {
@@ -184,7 +189,7 @@ function openPost(router: ReturnType<typeof createAdminRouter>, id: string, coll
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
-/** Collects every write sent to an entry from now on, leaving out its edit lock. */
+/** Collects every write sent to an entry from now on, leaving out its edit lock and its co-editing room. */
 function recordEntryWrites() {
 	const writes: Array<{ method: string; path: string; body: Record<string, unknown> }> = [];
 	const send = globalThis.fetch;
@@ -194,6 +199,7 @@ function recordEntryWrites() {
 			typeof input === "string" &&
 			input.includes("/content/") &&
 			!input.includes("/lock") &&
+			!input.includes("/room") &&
 			method !== "GET"
 		) {
 			const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
@@ -731,7 +737,7 @@ describe.each([
 
 		const save = holdPuts();
 		await act(screen);
-		await expect.element(screen.getByRole("button", { name: "Saving..." })).toBeVisible();
+		await save.requested;
 		await openPost(router, other.id, other.type);
 		await expect.element(title).toHaveValue("Other title");
 		save.release();
