@@ -24,6 +24,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@astrojs/check": "catalog:"
+    "@astrojs/check": "catalog:",
+    "lightningcss": "catalog:"
   }
 }

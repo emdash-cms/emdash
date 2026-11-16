@@ -9,10 +9,10 @@
  * - Future: CLI export, backup, site migration
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
-import { listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
+import { isSqlite, listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -490,6 +490,84 @@ function projectPublishedRows(
 	}
 }
 
+/**
+ * D1 rejects a query whose result exceeds 50 MB. A page that hits the limit is
+ * retried at half the size, and later pages are sized from the largest row
+ * read so far to aim at a third of the limit.
+ */
+const FIRST_PAGE_ROWS = 500;
+const MAX_PAGE_ROWS = 10_000;
+const PAGE_TARGET_CHARS = 16 * 1024 * 1024;
+const ROWID_ALIAS = "__emdash_snapshot_rowid";
+const ROWID_NAMES = ["rowid", "_rowid_", "oid"];
+
+function isResultTooLargeError(error: unknown): boolean {
+	return error instanceof Error && error.message.includes("maximum response size");
+}
+
+function approximateRowChars(row: Record<string, unknown>): number {
+	let chars = 0;
+	for (const value of Object.values(row)) {
+		if (typeof value === "string") chars += value.length;
+		else if (value instanceof Uint8Array) chars += value.byteLength * 2;
+		else if (Array.isArray(value)) chars += value.length * 4;
+		else chars += 8;
+	}
+	return chars;
+}
+
+/**
+ * Read every row of a table that matches `where`. On SQLite (including D1)
+ * rows are read in rowid-ordered pages so no single result grows past D1's
+ * result size limit. A column named like the rowid shadows it, so the first
+ * rowid name that no column uses is the one paged on.
+ */
+async function readTableRows(
+	db: Kysely<Database>,
+	tableName: string,
+	columns: string[],
+	where: RawBuilder<unknown> = sql`1 = 1`,
+): Promise<Record<string, unknown>[]> {
+	const rowid = ROWID_NAMES.find((name) => !columns.includes(name));
+	if (!isSqlite(db) || !rowid) {
+		return (
+			await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)} WHERE ${where}
+			`.execute(db)
+		).rows;
+	}
+
+	const rows: Record<string, unknown>[] = [];
+	let after: unknown = null;
+	let limit = FIRST_PAGE_ROWS;
+	let largestRowChars = 1;
+	for (;;) {
+		const afterClause = after === null ? sql`1 = 1` : sql`${sql.ref(rowid)} > ${after}`;
+		let page;
+		try {
+			// oxlint-disable-next-line no-await-in-loop -- each page starts after the previous one
+			page = await sql<Record<string, unknown>>`
+				SELECT ${sql.ref(rowid)} AS ${sql.ref(ROWID_ALIAS)}, * FROM ${sql.ref(tableName)}
+				WHERE (${where}) AND ${afterClause}
+				ORDER BY ${sql.ref(rowid)}
+				LIMIT ${limit}
+			`.execute(db);
+		} catch (error) {
+			if (limit === 1 || !isResultTooLargeError(error)) throw error;
+			limit = Math.ceil(limit / 2);
+			continue;
+		}
+		for (const row of page.rows) {
+			after = row[ROWID_ALIAS];
+			delete row[ROWID_ALIAS];
+			largestRowChars = Math.max(largestRowChars, approximateRowChars(row));
+			rows.push(row);
+		}
+		if (page.rows.length < limit) return rows;
+		limit = Math.min(MAX_PAGE_ROWS, Math.max(1, Math.floor(PAGE_TARGET_CHARS / largestRowChars)));
+	}
+}
+
 export interface GenerateSnapshotOptions {
 	/** Include draft and scheduled content (default: false) */
 	includeDrafts?: boolean;
@@ -555,26 +633,16 @@ export async function generateSnapshot(
 
 		if (tableName.startsWith("ec_")) {
 			if (includeTrashed) {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(db, tableName, columns);
 			} else if (includeDrafts) {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(db, tableName, columns, sql`deleted_at IS NULL`);
 			} else {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-						AND status = 'published'
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(
+					db,
+					tableName,
+					columns,
+					sql`deleted_at IS NULL AND status = 'published'`,
+				);
 			}
 		} else if (
 			publishedOnly &&
@@ -583,20 +651,12 @@ export async function generateSnapshot(
 		) {
 			rows = [];
 		} else if (tableName === "options") {
-			rows = (
-				await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.ref(tableName)}
-				`.execute(db)
-			).rows.filter((row) => {
+			rows = (await readTableRows(db, tableName, columns)).filter((row) => {
 				const name = typeof row.name === "string" ? row.name : "";
 				return optionKeys.has(name) || optionPrefixes.some((prefix) => name.startsWith(prefix));
 			});
 		} else {
-			rows = (
-				await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.ref(tableName)}
-				`.execute(db)
-			).rows;
+			rows = await readTableRows(db, tableName, columns);
 		}
 
 		if (publishedOnly) {

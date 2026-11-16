@@ -10,6 +10,7 @@ import {
 	revisionAuthorColor,
 	revisionAuthorColors,
 	revisionDate,
+	revisionNamed,
 	revisionTargetElementId,
 	useRevisionFormat,
 	type AuthorColor,
@@ -40,7 +41,7 @@ export interface UseRevisionViewOptions {
 	liveRevisionId: string | null | undefined;
 	fields: Readonly<Record<string, DiffFieldDescriptor>>;
 	titleField?: string;
-	/** Whether the Revisions list is on screen. It isn't on phones or in distraction-free mode. */
+	/** Whether the Revisions list is on screen. It isn't on phones or while the settings panel is hidden. */
 	listVisible: boolean;
 	/** The editor's scrolling canvas. */
 	canvasRef: React.RefObject<HTMLElement | null>;
@@ -513,7 +514,7 @@ export function useRevisionView({
 	React.useEffect(() => {
 		if (!pendingAnnounceRef.current || !revision) return;
 		pendingAnnounceRef.current = false;
-		const name = isolate(format.author(revision.author));
+		const name = isolate(format.people(revisionNamed(revision)));
 		announce(t`Viewing the version from ${when} by ${name}.`);
 	}, [revision, when, format, announce, t]);
 

@@ -283,6 +283,7 @@ describe("Iframe block conversion", () => {
 			"iframeBlock",
 			"pluginBlock",
 			"pluginBlock",
+			"paragraph",
 		]);
 		expect(prosemirrorToPortableText(pm)).toStrictEqual([embed, plugin, pluginSize]);
 	});

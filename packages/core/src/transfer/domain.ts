@@ -43,6 +43,13 @@ export type DomainBlocker =
 	| { code: "collection_not_seeded"; id: string; slug: string }
 	| { code: "block_type_not_seeded"; id: string; slug: string }
 	| { code: "collection_has_entries"; id: string; slug: string }
+	| {
+			code: "collection_deletion_unfinished";
+			id: string;
+			slug: string;
+			state: "failed";
+			phase: string;
+	  }
 	| { code: "taxonomy_def_not_scaffold"; id: string; name: string };
 
 export interface PortableDomainInspection {
@@ -104,6 +111,22 @@ export async function inspectPortableDomain(
 	});
 	if (flags.user_sections != null)
 		blockers.push({ code: "table_not_empty", table: "_emdash_sections" });
+
+	const deletions = await db
+		.selectFrom("_emdash_media_usage_collection_deletions")
+		.select(["collection_id", "collection_slug", "phase"])
+		.where("state", "=", "failed")
+		.orderBy("collection_slug")
+		.execute();
+	for (const deletion of deletions) {
+		blockers.push({
+			code: "collection_deletion_unfinished",
+			id: deletion.collection_id,
+			slug: deletion.collection_slug,
+			state: "failed",
+			phase: deletion.phase,
+		});
+	}
 
 	const collections = await db
 		.selectFrom("_emdash_collections")

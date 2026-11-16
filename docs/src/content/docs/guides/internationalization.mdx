@@ -490,7 +490,7 @@ Behaviour matches the sitemap:
 - **Untranslated entries** still get a self-referencing alternate and `x-default` when i18n is enabled, mirroring the sitemap.
 - With **i18n disabled**, the result is empty and no queries run.
 
-URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute.
+URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute. When Astro's `base` is set, it is appended to the site URL unless that URL already ends with it.
 
 ## Import multilingual content
 

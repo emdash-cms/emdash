@@ -94,7 +94,7 @@ export async function searchThemes(opts: ThemeSearchOpts = {}): Promise<ThemeSea
 export async function fetchTheme(id: string): Promise<ThemeDetail> {
 	const response = await apiFetch(`${THEME_MARKETPLACE_BASE}/${encodeURIComponent(id)}`);
 	if (response.status === 404) {
-		throw new Error(`Theme "${id}" not found`);
+		throw new Error(i18n._(msg`Theme "${id}" not found`));
 	}
 	return parseApiResponse<ThemeDetail>(response, i18n._(msg`Failed to fetch theme`));
 }

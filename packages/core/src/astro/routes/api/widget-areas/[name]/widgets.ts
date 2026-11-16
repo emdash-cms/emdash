@@ -70,7 +70,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 				component_props: body.componentProps ? JSON.stringify(body.componentProps) : null,
 			})
 			.execute();
-		invalidateWidgetObjectCache();
+		await invalidateWidgetObjectCache({ waitForPersist: true });
 
 		const widget = await db
 			.selectFrom("_emdash_widgets")

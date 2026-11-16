@@ -82,4 +82,19 @@ describe("invite route — email localization wiring", () => {
 		expect(sentEmails[0]!.html).toContain('lang="en"');
 		expect(sentEmails[0]!.html).toContain('dir="ltr"');
 	});
+
+	it("uses the Settings title in the invite email", async () => {
+		const options = new OptionsRepository(db);
+		await options.set("site:title", "New Site");
+		await options.set("emdash:site_title", "Old Site");
+
+		const response = await postInvite();
+
+		expect(response.status).toBe(200);
+		expect(sentEmails).toHaveLength(1);
+		expect(sentEmails[0]!.subject).toContain("New Site");
+		expect(sentEmails[0]!.subject).not.toContain("Old Site");
+		expect(sentEmails[0]!.text).toContain("New Site");
+		expect(sentEmails[0]!.text).not.toContain("Old Site");
+	});
 });

@@ -106,18 +106,18 @@ test.describe("Sandboxed plugin admin surfaces", () => {
 
 		const response = await page.request.post("/_emdash/api/plugins/marketplace-test/events-list", {
 			headers: { "X-EmDash-Request": "1" },
-			data: {},
+			data: { ids: [contentId, `action:publish:${contentId}`] },
 		});
 		const body = (await response.json()) as {
 			data: { events: { items: Array<{ id: string; data: Record<string, unknown> }> } };
 		};
 		expect(body.data.events.items).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ id: contentId, data: { type: "saved", collection: "posts" } }),
-				expect.objectContaining({
+				{ id: contentId, data: { type: "saved", collection: "posts" } },
+				{
 					id: `action:publish:${contentId}`,
 					data: { type: "content-action", action: "publish", contentId },
-				}),
+				},
 			]),
 		);
 	});

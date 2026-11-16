@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
  * A collection's `titleField`/`dateField` override the admin list's
  * Title and Date columns. Update-only (fields must exist first), so
  * `updateCollection` validates: titleField = a real field, dateField = a
- * `datetime` field; `null`/`""` clears to default; unset stays undefined.
+ * `datetime` field or system timestamp; `null`/`""` clears to default; unset stays undefined.
  */
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
@@ -59,6 +59,17 @@ describe("collection titleField/dateField", () => {
 		expect(reread?.titleField).toBe("name");
 		expect(reread?.dateField).toBe("pub_date");
 	});
+
+	it.each(["publishedAt", "createdAt", "updatedAt"])(
+		"updateCollection accepts the system timestamp %s",
+		async (dateField) => {
+			const updated = await registry.updateCollection("employees", { dateField });
+			expect(updated.dateField).toBe(dateField);
+
+			const reread = await registry.getCollection("employees");
+			expect(reread?.dateField).toBe(dateField);
+		},
+	);
 
 	it("clears titleField/dateField back to default with null", async () => {
 		await registry.updateCollection("employees", { titleField: "name", dateField: "pub_date" });

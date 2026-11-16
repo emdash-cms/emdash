@@ -212,6 +212,13 @@ describe("TransferSettings", () => {
 				empty: false,
 				blockers: [
 					{ code: "collection_has_entries", id: "c1", slug: "posts" },
+					{
+						code: "collection_deletion_unfinished",
+						id: "c3",
+						slug: "legacy",
+						state: "failed",
+						phase: "sources",
+					},
 					{ code: "table_not_empty", table: "media" },
 				],
 			}),
@@ -219,6 +226,13 @@ describe("TransferSettings", () => {
 		const screen = await render(<TransferSettings />);
 		await expect.element(screen.getByText("This site can’t receive an import")).toBeVisible();
 		await expect.element(screen.getByText("Collection “posts” has entries")).toBeVisible();
+		await expect
+			.element(
+				screen.getByText(
+					'Deletion of collection “legacy” failed. Retry it by sending {"collectionId":"c3"} to POST /_emdash/api/admin/media-usage/collection-deletions/retry before importing.',
+				),
+			)
+			.toBeVisible();
 		await expect.element(screen.getByText("Media: this site already has some")).toBeVisible();
 		expect(screen.getByRole("button", { name: "Choose package file" }).elements()).toHaveLength(0);
 	});

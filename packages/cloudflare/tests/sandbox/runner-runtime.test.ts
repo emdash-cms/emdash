@@ -8,6 +8,8 @@ import type {
 } from "emdash";
 import { describe, expect, it, vi } from "vitest";
 
+import atprotoPlugin from "../../../plugins/atproto/src/plugin.js";
+
 const mocks = vi.hoisted(() => ({
 	loader: { get: vi.fn() },
 	bridge: vi.fn(),
@@ -38,6 +40,23 @@ const request = {
 function setupLoader(pluginModule: unknown) {
 	mocks.loader.get.mockImplementation((_name: string, create: () => any) => {
 		const definition = create();
+		const bridge = definition.env.BRIDGE;
+		const budget = definition.limits?.subRequests;
+		if (budget !== undefined) {
+			let calls = 0;
+			definition.env.BRIDGE = new Proxy(bridge, {
+				get(target, property, receiver) {
+					const value = Reflect.get(target, property, receiver);
+					if (typeof value !== "function") return value;
+					return (...args: unknown[]) => {
+						calls += 1;
+						if (calls > budget)
+							return Promise.reject(new Error(`Subrequest limit exceeded: ${budget}`));
+						return value(...args);
+					};
+				},
+			});
+		}
 		const source = definition.modules["plugin.js"].js
 			.replace('import { WorkerEntrypoint } from "cloudflare:workers";', "")
 			.replace('import pluginModule from "sandbox-plugin.js";', "")
@@ -73,6 +92,56 @@ function loopbackBridge() {
 function runner(options: Partial<SandboxOptions> = {}) {
 	mocks.bridge.mockImplementation(() => loopbackBridge());
 	return new CloudflareSandboxRunner({ db: null as never, ...options });
+}
+
+function atprotoBridge() {
+	const kv = new Map<string, unknown>();
+	let nextRkey = 1;
+	let publicationCreates = 0;
+	const response = (status: number, body: unknown) => ({
+		status,
+		statusText: status === 200 ? "OK" : "Bad Request",
+		headers: [["content-type", "application/json"]] as Array<[string, string]>,
+		finalUrl: "https://pds.example",
+		redirected: false,
+		body: new TextEncoder().encode(JSON.stringify(body)),
+	});
+	const bridge = {
+		kvGet: async (key: string) => kv.get(key) ?? null,
+		kvSet: async (key: string, value: unknown) => {
+			kv.set(key, value);
+			return true;
+		},
+		storageCount: async () => 0,
+		storageQuery: async () => ({ items: [], total: 0 }),
+		log: async () => {},
+		httpFetch: async (url: string, init?: RequestInit) => {
+			const method = url.split("/xrpc/")[1];
+			if (method === "com.atproto.server.createSession")
+				return response(200, {
+					accessJwt: "access-token",
+					refreshJwt: "refresh-token",
+					did: "did:plc:test",
+					handle: "test.example",
+				});
+			if (method === "com.atproto.repo.createRecord") {
+				const body = JSON.parse(new TextDecoder().decode(init?.body as Uint8Array));
+				const rkey = String(nextRkey++);
+				const uri = `at://did:plc:test/${body.collection}/${rkey}`;
+				if (body.collection === "site.standard.publication") publicationCreates += 1;
+				return response(200, { uri, cid: `cid-${rkey}` });
+			}
+			if (method === "com.atproto.repo.putRecord") {
+				const body = JSON.parse(new TextDecoder().decode(init?.body as Uint8Array));
+				return response(200, {
+					uri: `at://did:plc:test/${body.collection}/${body.rkey}`,
+					cid: "cid-updated",
+				});
+			}
+			throw new Error(`Unexpected PDS request: ${url}`);
+		},
+	};
+	return { bridge, kv, publicationCreates: () => publicationCreates };
 }
 
 const manifest = (capabilities: PluginCapability[]) => ({
@@ -248,6 +317,105 @@ describe("Cloudflare sandbox runner runtime targets", () => {
 		await expect(plugin.invokeRoute("ops", {}, request)).rejects.toThrow(
 			"Missing capability: taxonomies:write",
 		);
+		await instance.terminateAll();
+	});
+
+	it("persists an AT Protocol publication across sync invocations", async () => {
+		const pds = atprotoBridge();
+		mocks.bridge.mockImplementation(() => pds.bridge);
+		setupLoader(atprotoPlugin);
+		const instance = new CloudflareSandboxRunner({
+			db: null as never,
+			httpFetch: async () => new Response(),
+		});
+		const plugin = await instance.load(
+			{
+				id: "atproto",
+				version: "0.2.4",
+				capabilities: ["network:request:unrestricted"],
+				allowedHosts: [],
+				storage: { records: { indexes: [] } },
+				hooks: [],
+				routes: ["admin", "sync-publication", "status"],
+				admin: {},
+			},
+			"",
+		);
+		const settings = {
+			type: "form_submit",
+			action_id: "save_settings",
+			values: {
+				handle: "test.example",
+				appPassword: "app-password",
+				pdsHost: "pds.example",
+				siteUrl: "https://example.com",
+				siteName: "Example",
+			},
+		};
+		const saved = await plugin.invokeRoute("admin", settings, request);
+		expect(saved).toMatchObject({ toast: { type: "success" } });
+		expect(saved).not.toMatchObject({
+			blocks: [{ title: "Failed to load settings" }],
+		});
+		const first = await plugin.invokeRoute(
+			"admin",
+			{
+				type: "block_action",
+				action_id: "sync_publication",
+			},
+			request,
+		);
+		expect(first).toMatchObject({ toast: { type: "success" } });
+		expect(first).not.toMatchObject({ blocks: [{ title: "Failed to load settings" }] });
+		const firstUri = pds.kv.get("state:publicationUri");
+		expect(firstUri).toEqual(expect.any(String));
+		const second = await plugin.invokeRoute("sync-publication", {}, request);
+		const status = await plugin.invokeRoute("status", {}, request);
+		expect(second).toMatchObject({ success: true, uri: firstUri, cid: "cid-updated" });
+		expect(status).toMatchObject({ publicationUri: firstUri, connected: true });
+		expect(pds.publicationCreates()).toBe(1);
+		expect(pds.kv.get("state:publicationUri")).toBe(firstUri);
+		expect(pds.kv.get("state:publicationCid")).toBe("cid-updated");
+		const reloaded = await plugin.invokeRoute("admin", {}, request);
+		expect(reloaded).not.toMatchObject({
+			blocks: [{ title: "Failed to load settings" }],
+		});
+		await instance.terminateAll();
+	});
+
+	it("preserves an explicit lower subrequest limit", async () => {
+		const pds = atprotoBridge();
+		mocks.bridge.mockImplementation(() => pds.bridge);
+		setupLoader(atprotoPlugin);
+		const instance = new CloudflareSandboxRunner({
+			db: null as never,
+			httpFetch: async () => new Response(),
+			limits: { subrequests: 10 },
+		});
+		const plugin = await instance.load(
+			{
+				id: "atproto-limited",
+				version: "0.2.4",
+				capabilities: ["network:request:unrestricted"],
+				allowedHosts: [],
+				storage: { records: { indexes: [] } },
+				hooks: [],
+				routes: ["admin", "sync-publication"],
+				admin: {},
+			},
+			"",
+		);
+		for (const [key, value] of Object.entries({
+			"settings:siteUrl": "https://example.com",
+			"settings:siteName": "Example",
+			"settings:handle": "test.example",
+			"settings:appPassword": "app-password",
+			"state:accessJwt": "access-token",
+			"state:did": "did:plc:test",
+		}))
+			pds.kv.set(key, value);
+		const result = await plugin.invokeRoute("sync-publication", {}, request);
+		expect(result).toMatchObject({ success: false, error: "Subrequest limit exceeded: 10" });
 		await instance.terminateAll();
 	});
 

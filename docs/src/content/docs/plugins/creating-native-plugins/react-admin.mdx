@@ -454,9 +454,12 @@ Panel fields have the following behavior:
 - `id`, `title`, and `component` are required. The ID must be unique among this plugin's panels.
 - `collections` is an array of collection names or a predicate. Omit it to show the panel for every collection.
 - `minRole` is a numeric visibility threshold. It does not authorize API calls.
+- `isVisible` optionally receives the same context as the component and returns `boolean` or `Promise<boolean>`. EmDash checks it after the static `collections` and `minRole` filters. Only `true` shows the section, including its heading and reorder control. The section stays hidden while the first check for a collection, entry ID, and locale is pending. A throw or rejection hides the section and logs the plugin and panel IDs in the browser console. Results and errors from superseded checks are ignored.
 - `order` sorts lower values first. Ties use plugin ID and panel ID.
 
-The component receives the saved `entry`, its `collection`, and the resolved `locale`. Keep its layout responsive to the narrow sidebar. EmDash isolates component and collection-predicate failures so one panel cannot unmount the editor.
+The component receives the saved `entry`, its `collection`, and the resolved `locale`. Keep its layout responsive to the narrow sidebar. EmDash isolates component, visibility-check, and collection-predicate failures so one panel cannot unmount the editor.
+
+Use `isVisible` when panel visibility depends on plugin settings loaded from an API. Returning `null` from the component hides only its contents, not the host-rendered section. Checks run again when the saved entry, collection, resolved locale, or eligible panel set changes. When the same entry is saved again, including by autosave or publication, the section keeps its last visibility decision while the new check is pending. A visible panel stays mounted and keeps its local state if the recheck returns `true`. Any other result, throw, or rejection hides it. Changing the collection, entry ID, or resolved locale starts a new first check with the section hidden. Cache settings requests in your plugin if multiple checks can share them; visibility checks do not authorize API calls.
 
 ## Content-list columns
 

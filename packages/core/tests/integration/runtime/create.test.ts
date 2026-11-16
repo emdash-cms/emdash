@@ -43,6 +43,7 @@ import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { ContentBeforeSaveHandler } from "../../../src/plugins/types.js";
 import { runWithContext } from "../../../src/request-context.js";
+import type { RuntimeRoomHost } from "../../../src/rooms/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 class LockingSqliteDialect extends SqliteDialect {
@@ -177,6 +178,39 @@ describe("EmDashRuntime.create — cold boot", () => {
 		} finally {
 			await runtime.stopCron();
 		}
+	});
+
+	it("builds the room host with the new runtime, drops idle rooms hourly and shuts them down", async () => {
+		const host = {
+			issueToken: vi.fn(),
+			isOpen: vi.fn(),
+			save: vi.fn(),
+			release: vi.fn(),
+			notify: vi.fn(),
+			forgetTokens: vi.fn(),
+			expireIdle: vi.fn(async () => {}),
+			shutdown: vi.fn(async () => {}),
+			activate: vi.fn(),
+		} satisfies RuntimeRoomHost;
+		const deps = createDeps();
+		deps.createRoomHost = vi.fn(() => host);
+		let now = new Date("2026-11-04T12:30:00Z");
+		deps.now = () => now;
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			expect(deps.createRoomHost).toHaveBeenCalledWith(runtime);
+			expect(runtime.rooms).toBe(host);
+			expect(host.activate).not.toHaveBeenCalled();
+
+			await runtime.runScheduledTasks();
+			expect(host.expireIdle).not.toHaveBeenCalled();
+			now = new Date("2026-11-04T13:00:00Z");
+			await runtime.runScheduledTasks();
+			expect(host.expireIdle).toHaveBeenCalledOnce();
+		} finally {
+			await runtime.shutdown();
+		}
+		expect(host.shutdown).toHaveBeenCalledOnce();
 	});
 
 	it("creates a runtime without a timings array (backwards compatible)", async () => {

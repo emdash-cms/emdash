@@ -11,11 +11,12 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Code, Eye, Play } from "@phosphor-icons/react";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { mergeAttributes } from "@tiptap/core";
 import type { NodeViewProps } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils";
+import { IframeBlockNode } from "../../portable-text/schema.js";
 import {
 	CLIPBOARD_TOKEN,
 	EmbedBlockCard,
@@ -262,7 +263,6 @@ const copiedHere = (element: HTMLElement) =>
 
 function textAttribute(name: string) {
 	return {
-		default: "",
 		parseHTML: (element: HTMLElement) =>
 			(copiedHere(element) && element.getAttribute(`data-iframe-${name}`)) || "",
 		renderHTML: (attributes: Record<string, unknown>) =>
@@ -274,7 +274,6 @@ function textAttribute(name: string) {
 
 function numberAttribute(name: string) {
 	return {
-		default: null,
 		parseHTML: (element: HTMLElement) => {
 			if (!copiedHere(element)) return null;
 			const value = Number(element.getAttribute(`data-iframe-${name}`));
@@ -287,37 +286,24 @@ function numberAttribute(name: string) {
 	};
 }
 
-/**
- * TipTap extension: iframe block.
- *
- * A top-level atom. The editor's global drag handle moves it.
- */
-export const IframeBlockExtension = Node.create({
-	name: "iframeBlock",
-	group: "topBlock",
-	atom: true,
-	draggable: false,
-	selectable: true,
-
+/** TipTap extension: iframe block. */
+export const IframeBlockExtension = IframeBlockNode.extend({
 	addAttributes() {
+		const parent = this.parent?.() ?? {};
 		return {
-			src: textAttribute("src"),
-			title: textAttribute("title"),
-			width: numberAttribute("width"),
-			height: numberAttribute("height"),
-			allow: textAttribute("allow"),
+			src: { ...parent.src, ...textAttribute("src") },
+			title: { ...parent.title, ...textAttribute("title") },
+			width: { ...parent.width, ...numberAttribute("width") },
+			height: { ...parent.height, ...numberAttribute("height") },
+			allow: { ...parent.allow, ...textAttribute("allow") },
 			allowFullscreen: {
-				default: false,
+				...parent.allowFullscreen,
 				parseHTML: (element: HTMLElement) =>
 					copiedHere(element) && element.hasAttribute("data-iframe-allowfullscreen"),
 				renderHTML: (attributes: Record<string, unknown>) =>
 					attributes.allowFullscreen === true ? { "data-iframe-allowfullscreen": "" } : {},
 			},
 		};
-	},
-
-	parseHTML() {
-		return [{ tag: "div[data-iframe-block]" }];
 	},
 
 	renderHTML({ HTMLAttributes }) {

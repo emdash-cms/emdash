@@ -8,7 +8,7 @@ import { Button, DropdownMenu, Tabs } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import { DotsThreeVertical, Trash } from "@phosphor-icons/react";
-import { Node, type Editor } from "@tiptap/core";
+import type { Editor } from "@tiptap/core";
 import { GapCursor } from "@tiptap/pm/gapcursor";
 import type { NodeType } from "@tiptap/pm/model";
 import { NodeSelection, Selection } from "@tiptap/pm/state";
@@ -22,6 +22,8 @@ import { enterBlockSelection } from "./BlockCommands.js";
 import type { CodeEditorProps } from "./CodeEditor";
 import { useAttachedKey } from "./useAttachedKey.js";
 
+export { TopBlockDocument } from "../../portable-text/schema.js";
+
 const CodeEditor = React.lazy(() => import("./CodeEditor"));
 
 /**
@@ -31,17 +33,6 @@ const CodeEditor = React.lazy(() => import("./CodeEditor"));
 export const CLIPBOARD_TOKEN = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
 	n.toString(36),
 ).join("");
-
-/**
- * Document node that also accepts `topBlock` nodes. Quotes, list items and
- * table cells accept only `block`, so ProseMirror can't nest a top-level
- * block there, where the Portable Text converters would drop it.
- */
-export const TopBlockDocument = Node.create({
-	name: "doc",
-	topNode: true,
-	content: "(block | topBlock)+",
-});
 
 /**
  * The code editor owns every event inside it, including dropped text, except

@@ -147,6 +147,85 @@ describeEachDialect("byline hydration on the fold fast path", (dialect) => {
 		return (entry!.data as any).bylines as ContentBylineCredit[];
 	}
 
+	it.each([
+		["entry", "present"],
+		["collection", "present"],
+		["entry", "missing"],
+		["collection", "missing"],
+	] as const)(
+		"uses one query for a warm folded %s request with a %s version row",
+		async (path, versionRow) => {
+			const author = await bylines.create({ displayName: "Ada Lovelace", slug: "ada" });
+			const post = await createPost("warm");
+			await bylines.setContentBylines("post", post!.id, [
+				{ bylineId: author.id, roleLabel: "Author" },
+			]);
+			await ctx.db.deleteFrom("options").where("name", "=", "byline_fields_version").execute();
+			if (versionRow === "present") {
+				await ctx.db
+					.insertInto("options")
+					.values({ name: "byline_fields_version", value: "2" })
+					.execute();
+			}
+			resetBylineFieldDefsCacheForTests();
+
+			let queries = 0;
+			const countedDb = ctx.db.withPlugin({
+				transformQuery(args) {
+					queries += 1;
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			});
+			const read = () =>
+				runWithContext({ editMode: false, db: countedDb }, async () => {
+					if (path === "entry") {
+						const { entry } = await getEmDashEntry("post", "warm", { locale: "en" });
+						return entry;
+					}
+					const { entries } = await getEmDashCollection("post", { locale: "en" });
+					return entries[0];
+				});
+
+			await read();
+			queries = 0;
+			const entry = await read();
+			expect(entry?.data.bylines).toHaveLength(1);
+			expect(queries).toBe(1);
+		},
+	);
+
+	it("refreshes folded custom-field hydration when the version changes between requests", async () => {
+		const author = await bylines.create({ displayName: "Ada Lovelace", slug: "ada-versioned" });
+		const post = await createPost("versioned");
+		await bylines.setContentBylines("post", post!.id, [
+			{ bylineId: author.id, roleLabel: "Author" },
+		]);
+		resetBylineFieldDefsCacheForTests();
+		await entryBylines("versioned");
+
+		const registry = new BylineSchemaRegistry(ctx.db);
+		const field = await registry.createField({
+			slug: "job_title",
+			label: "Job title",
+			type: "string",
+		});
+		// Write as another isolate would, without refreshing this isolate's defs cache.
+		await ctx.db
+			.insertInto("_emdash_byline_field_values")
+			.values({
+				byline_id: author.id,
+				field_id: field.id,
+				value: JSON.stringify("Editor"),
+			})
+			.execute();
+
+		const credits = await entryBylines("versioned");
+		expect(credits[0]?.byline.customFields).toEqual({ job_title: "Editor" });
+	});
+
 	it("hydrates custom fields onto folded explicit credits without the query path", async () => {
 		await registerCustomFields();
 		const author = await bylines.create({

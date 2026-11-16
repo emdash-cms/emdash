@@ -15,6 +15,7 @@ import { GET as listPlugins } from "../../../src/astro/routes/api/admin/plugins/
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime, type SandboxedPluginEntry } from "../../../src/emdash-runtime.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import { createSandboxedPluginProxy } from "../../../src/plugins/sandbox/proxy.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -25,7 +26,26 @@ function buildRuntime(
 ): EmDashRuntime {
 	const config: EmDashConfig = {};
 	const pipelineFactoryOptions = { db } as const;
-	const hooks = createHookPipeline([], pipelineFactoryOptions);
+	const allPipelinePlugins = entries.flatMap((entry) => {
+		const instance = sandboxedPlugins.get(`${entry.id}:${entry.version}`);
+		if (!instance) return [];
+		return [
+			createSandboxedPluginProxy(
+				{
+					id: entry.id,
+					version: entry.version,
+					capabilities: entry.capabilities,
+					allowedHosts: entry.allowedHosts,
+					storage: entry.storage,
+					hooks: [],
+					routes: [],
+					admin: {},
+				},
+				instance,
+			),
+		];
+	});
+	const hooks = createHookPipeline(allPipelinePlugins, pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
 	const runtimeDeps = {
 		config,
@@ -55,7 +75,7 @@ function buildRuntime(
 		cronExecutor: null,
 		cronScheduler: null,
 		emailPipeline: null,
-		allPipelinePlugins: [],
+		allPipelinePlugins,
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef,

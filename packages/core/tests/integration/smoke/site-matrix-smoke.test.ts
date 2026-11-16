@@ -264,7 +264,15 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 	});
 
 	const waitPath = site.waitPath ?? "/_emdash/admin/";
-	await waitForServer(`${baseUrl}${waitPath}`, site.startupTimeoutMs);
+	try {
+		await waitForServer(`${baseUrl}${waitPath}`, site.startupTimeoutMs);
+	} catch (error) {
+		await killServer(serverProcess);
+		throw new Error(
+			`${error instanceof Error ? error.message : String(error)}\n\nServer output:\n${output.slice(-3000)}`,
+			{ cause: error },
+		);
+	}
 
 	return {
 		baseUrl,

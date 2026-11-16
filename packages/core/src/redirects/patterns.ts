@@ -228,3 +228,19 @@ export function interpolateDestination(
 
 	return result;
 }
+
+/**
+ * Normalize a source the way Astro normalizes a request pathname (decode, then
+ * re-encode through the URL parser), so raw Unicode and any percent-encoding
+ * of the same path compare equal.
+ */
+export function normalizeSourcePath(source: string): string {
+	if (source.includes("?") || source.includes("#")) return source;
+	try {
+		const url = new URL("http://placeholder.invalid");
+		url.pathname = decodeURI(source);
+		return url.pathname;
+	} catch {
+		return source;
+	}
+}
