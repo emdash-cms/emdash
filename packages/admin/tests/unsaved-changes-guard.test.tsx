@@ -760,6 +760,7 @@ describe.each([
 		mockFetch
 			.on("GET", otherPath, { data: { item: other, _rev: "rev-other" } })
 			.on("PUT", `${otherPath}?locale=en`, { data: { item: other, _rev: "rev-other" } })
+			.on("POST", `${otherPath}/publish?locale=en`, CONFLICT, 409)
 			.on("POST", `${ENTRY_PATH}/publish?locale=en`, {
 				data: { item: { ...PUBLISHED, data: { title: "Edited title" } }, _rev: "rev-3" },
 			});
