@@ -291,9 +291,7 @@ async function getRuntime(
 		},
 	);
 	if (virtualCreateScheduler && cache?.enabled) {
-		// Reuse Astro's active provider: constructing another memory provider
-		// would invalidate a separate, empty cache. Only long-lived runtimes
-		// may retain this handle beyond the request.
+		// Only long-lived runtimes may retain the request's cache handle beyond the request.
 		instance.setPluginContentCacheInvalidator((tags) => cache.invalidate({ tags }));
 	}
 	return instance;

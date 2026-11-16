@@ -119,14 +119,11 @@ beforeEach(() => {
 
 describe("background route-cache invalidation binding", () => {
 	it.each(["/", "/robots.txt"])(
-		"keeps the request cache usable after the request ends on %s",
+		"forwards background invalidation to the request cache on %s",
 		async (path) => {
-			const entries = new Map([["posts:post-1", "cached"]]);
 			const cache = {
 				enabled: true,
-				invalidate: vi.fn(async ({ tags }: { tags: string[] }) => {
-					for (const tag of tags) entries.delete(tag);
-				}),
+				invalidate: vi.fn(async () => {}),
 			};
 			const context = createContext({ cache, path });
 			if (path === "/") {
@@ -141,7 +138,6 @@ describe("background route-cache invalidation binding", () => {
 			) => Promise<void>;
 			await invalidator(["posts:post-1"]);
 			expect(cache.invalidate).toHaveBeenCalledWith({ tags: ["posts:post-1"] });
-			expect(entries.has("posts:post-1")).toBe(false);
 		},
 	);
 
