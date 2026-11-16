@@ -1830,6 +1830,82 @@ describe("ContentEditor", () => {
 				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
 				.toBeNull();
 		});
+
+		it("saves an untouched switch in a new entry as off", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: true,
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					checked: { kind: "boolean", label: "Checked", required: true },
+				},
+			});
+
+			await screen.getByLabelText("Title").fill("Hello");
+			await expect.element(screen.getByRole("switch", { name: "Checked" })).not.toBeChecked();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledTimes(1);
+			expect(onSave.mock.calls[0]![0].data).toEqual({ title: "Hello", checked: false });
+		});
+
+		it("saves an off switch in a repeater row saved before the switch existed, without saving on open", async () => {
+			vi.useFakeTimers();
+			try {
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "pages",
+					collectionLabel: "Page",
+					fields: {
+						title: { kind: "string", label: "Title", required: true },
+						links: {
+							kind: "repeater",
+							label: "Links",
+							validation: {
+								subFields: [
+									{ slug: "label", type: "string", label: "Label" },
+									{ slug: "external", type: "boolean", label: "External", required: true },
+								],
+							},
+						},
+					},
+					isNew: false,
+					item: makeItem({ data: { title: "About", links: [{ label: "Home" }] } }),
+					onSave: vi.fn(),
+					onAutosave,
+					autosaveCompletionToken: 0,
+				};
+				const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+
+				await expect.element(screen.getByRole("switch", { name: "External" })).not.toBeChecked();
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).not.toHaveBeenCalled();
+
+				await screen.getByLabelText("Title").fill("About us");
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+				expect(onAutosave.mock.calls[0]![0].data).toEqual({
+					title: "About us",
+					links: [{ label: "Home", external: false }],
+				});
+
+				await screen.rerender(
+					<ContentEditor
+						{...props}
+						item={makeItem({
+							updatedAt: "2026-04-12T18:38:00Z",
+							data: { title: "About us", links: [{ label: "Home", external: false }] },
+						})}
+						autosaveCompletionToken={1}
+					/>,
+				);
+				await vi.advanceTimersByTimeAsync(2500);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("field constraints", () => {

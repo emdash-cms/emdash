@@ -182,6 +182,7 @@ import { describeContentValidationError } from "./lib/content-validation-errors"
 import { invalidateContentViews } from "./lib/invalidate-content-views.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
+import { withRequiredSwitchesOff } from "./lib/required-switches.js";
 import {
 	autosavedDraftKey,
 	lastAutosavedDrafts,
@@ -2066,7 +2067,7 @@ function ContentEditPage() {
 	const translateMutation = useMutation({
 		mutationFn: (locale: string) =>
 			createContent(collection, {
-				data: rawItem?.data ?? {},
+				data: withRequiredSwitchesOff(collectionFields, rawItem?.data ?? {}),
 				slug: rawItem?.slug ?? undefined,
 				locale,
 				translationOf: id,

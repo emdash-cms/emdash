@@ -71,6 +71,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		autosaveRejectionToken,
 		onQuickCreateByline,
 		onQuickEditByline,
+		onTranslate,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
@@ -87,6 +88,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		autosaveRejectionToken?: number;
 		onQuickCreateByline?: (input: typeof MOCK_BYLINE_VALUES) => Promise<unknown>;
 		onQuickEditByline?: (bylineId: string, input: typeof MOCK_BYLINE_VALUES) => Promise<unknown>;
+		onTranslate?: (locale: string) => void;
 	}) => {
 		const [isDirty, setIsDirty] = React.useState(false);
 		const onDirtyChangeRef = React.useRef(onDirtyChange);
@@ -166,6 +168,9 @@ vi.mock("../src/components/ContentEditor", () => ({
 					}
 				>
 					Trigger Byline Edit
+				</button>
+				<button type="button" onClick={() => onTranslate?.("fr")}>
+					Trigger Translate
 				</button>
 			</div>
 		);
@@ -1638,6 +1643,99 @@ describe("Content editor routes – byline profiles saved from the editor", () =
 			method: "PUT",
 			url: "/_emdash/api/admin/bylines/byline_01",
 			body: MOCK_BYLINE_VALUES,
+		});
+	});
+});
+
+describe("ContentEditPage – translation copies the entry's values", () => {
+	let mockFetch: ReturnType<typeof createMockFetch>;
+	let mockedFetch: typeof fetch;
+	let created: unknown[];
+
+	beforeEach(() => {
+		const manifest: AdminManifest = {
+			...MANIFEST,
+			collections: {
+				posts: {
+					...MANIFEST.collections.posts,
+					fields: {
+						title: { kind: "string", label: "Title" },
+						links: {
+							kind: "repeater",
+							label: "Links",
+							validation: {
+								subFields: [
+									{ slug: "label", type: "string", label: "Label" },
+									{ slug: "external", type: "boolean", label: "External", required: true },
+								],
+							},
+						},
+					},
+				},
+			},
+		};
+		const item = {
+			id: "post_1",
+			type: "posts",
+			slug: "post-1",
+			status: "draft",
+			locale: "en",
+			translationGroup: "group_1",
+			data: { title: "Post 1", links: [{ label: "Home" }] },
+			authorId: null,
+			primaryBylineId: null,
+			createdAt: "2025-01-01T00:00:00Z",
+			updatedAt: "2025-01-01T00:00:00Z",
+			publishedAt: null,
+			scheduledAt: null,
+			liveRevisionId: null,
+			draftRevisionId: null,
+		};
+		mockFetch = createMockFetch();
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", { data: manifest })
+			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 60 } })
+			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
+			.on("GET", "/_emdash/api/content/posts/post_1/translations", {
+				data: { translationGroup: "group_1", translations: [{ id: "post_1", locale: "en" }] },
+			})
+			.on("GET", "/_emdash/api/content/posts/post_1", { data: { item } })
+			.on("POST", "/_emdash/api/content/posts", {
+				data: { item: { ...item, id: "post_2", locale: "fr" } },
+			});
+
+		created = [];
+		mockedFetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (url === "/_emdash/api/content/posts" && init?.method === "POST") {
+				created.push(JSON.parse(init.body as string));
+			}
+			return mockedFetch(input, init);
+		};
+	});
+
+	afterEach(() => {
+		globalThis.fetch = mockedFetch;
+		mockFetch.restore();
+	});
+
+	it("turns off a required switch missing from a repeater row saved before the switch existed", async () => {
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+
+		await screen.getByRole("button", { name: "Trigger Translate" }).click();
+
+		await vi.waitFor(() => expect(created).toHaveLength(1));
+		expect(created[0]).toMatchObject({
+			data: { title: "Post 1", links: [{ label: "Home", external: false }] },
+			locale: "fr",
+			translationOf: "post_1",
 		});
 	});
 });

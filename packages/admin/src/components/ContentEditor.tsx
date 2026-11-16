@@ -69,6 +69,7 @@ import { getEntryTitle } from "../lib/entryTitle.js";
 import { getFieldLabel } from "../lib/field-label.js";
 import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { withRequiredSwitchesOff } from "../lib/required-switches.js";
 import {
 	resolveSandboxedEditorActions,
 	selectEditorDraftFields,
@@ -315,6 +316,7 @@ function defaultFieldValues(fields: Record<string, FieldDescriptor>): Record<str
 	const data: Record<string, unknown> = {};
 	for (const [name, field] of Object.entries(fields)) {
 		if (field.defaultValue !== undefined) data[name] = structuredClone(field.defaultValue);
+		else if (field.kind === "boolean" && !field.widget) data[name] = false;
 	}
 	return data;
 }
@@ -854,8 +856,8 @@ export function ContentEditor({
 		mq.addEventListener("change", onChange);
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
-	const [formData, setFormData] = React.useState<Record<string, unknown>>(
-		() => item?.data ?? (isNew ? defaultFieldValues(fields) : {}),
+	const [formData, setFormData] = React.useState<Record<string, unknown>>(() =>
+		item ? withRequiredSwitchesOff(fields, item.data) : isNew ? defaultFieldValues(fields) : {},
 	);
 	const editorGenerationRef = React.useRef(0);
 	const editorIdentity = `${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
@@ -1152,9 +1154,9 @@ export function ContentEditor({
 	);
 
 	// Track the last saved state to determine if dirty
-	const [lastSavedData, setLastSavedData] = React.useState<string>(
+	const [lastSavedData, setLastSavedData] = React.useState<string>(() =>
 		serializeEditorState({
-			data: item?.data || {},
+			data: item ? withRequiredSwitchesOff(fields, item.data) : {},
 			slug: item?.slug || "",
 			bylines: resolvedItemBylines.explicitCredits,
 		}),
@@ -1192,7 +1194,8 @@ export function ContentEditor({
 	const [previousEditorIdentity, setPreviousEditorIdentity] = React.useState(editorIdentity);
 	if (item && editorIdentity !== previousEditorIdentity) {
 		setPreviousEditorIdentity(editorIdentity);
-		setFormData(item.data);
+		const loadedData = withRequiredSwitchesOff(fields, item.data);
+		setFormData(loadedData);
 		setSlug(item.slug || "");
 		setSlugTouched(!!item.slug);
 		setStatus(item.status);
@@ -1200,7 +1203,7 @@ export function ContentEditor({
 		setInternalBylines(nextBylines);
 		setLastSavedData(
 			serializeEditorState({
-				data: item.data,
+				data: loadedData,
 				slug: item.slug || "",
 				bylines: nextBylines,
 			}),
@@ -1307,6 +1310,7 @@ export function ContentEditor({
 			if (isDirtyRef.current && !itemReset && !autosaveJustCompleted && !restored) return;
 			editorGenerationRef.current++;
 			setHasAppliedEditorDraftPatch(false);
+			const loadedData = withRequiredSwitchesOff(fields, item.data);
 
 			// When an autosave resolves, the server payload is a snapshot from the
 			// moment the request was sent. Writing it back into formData would
@@ -1326,7 +1330,7 @@ export function ContentEditor({
 				// A save's reload may arrive after newer edits. Keep fields changed since
 				// the saved payload while accepting refreshed values for the others.
 				const keepEdits = (current: Record<string, unknown>) => {
-					let next = item.data;
+					let next = loadedData;
 					if (!saved) return next;
 					for (const [name, field] of Object.entries(fields)) {
 						const before = READ_ONCE_FIELD_KINDS.has(field.kind)
@@ -1365,11 +1369,11 @@ export function ContentEditor({
 				setInternalBylines(nextBylines);
 				setBylinesTouched(false);
 				// Retained edits still belong to the saved version, not this newer read.
-				if (keepEdits(formDataRef.current) === item.data) onItemAppliedRef.current?.(item);
+				if (keepEdits(formDataRef.current) === loadedData) onItemAppliedRef.current?.(item);
 			}
 			setLastSavedData(
 				serializeEditorState({
-					data: item.data,
+					data: loadedData,
 					slug: item.slug || "",
 					bylines: nextBylines,
 				}),
