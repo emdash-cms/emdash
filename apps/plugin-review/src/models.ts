@@ -26,6 +26,20 @@ const ANTHROPIC_COMPAT = {
 	supportsTemperature: false,
 };
 
+const OPENAI_REASONING: Partial<Model<Api>> = {
+	reasoning: true,
+	thinkingLevelMap: {
+		off: null,
+		minimal: null,
+		low: "low",
+		medium: "medium",
+		high: "high",
+		xhigh: "xhigh",
+		max: "max",
+	},
+	compat: { supportsStrictMode: true },
+};
+
 // The bundled pi-ai catalog predates these models; without this metadata the
 // wire protocols treat them as non-reasoning models and drop the thinking level.
 const MODEL_METADATA: Record<string, Partial<Model<Api>>> = {
@@ -39,19 +53,9 @@ const MODEL_METADATA: Record<string, Partial<Model<Api>>> = {
 		thinkingLevelMap: { xhigh: "xhigh", max: "max" },
 		compat: ANTHROPIC_COMPAT,
 	},
-	"gpt-6.1-sol": {
-		reasoning: true,
-		thinkingLevelMap: {
-			off: null,
-			minimal: null,
-			low: "low",
-			medium: "medium",
-			high: "high",
-			xhigh: "xhigh",
-			max: "max",
-		},
-		compat: { supportsStrictMode: true },
-	},
+	"gpt-6.1-sol": OPENAI_REASONING,
+	"gpt-6.1-terra": OPENAI_REASONING,
+	"gpt-6-luna": OPENAI_REASONING,
 };
 
 const PROTOCOLS: Record<
