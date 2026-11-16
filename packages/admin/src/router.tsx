@@ -2058,8 +2058,8 @@ function ContentEditPage() {
 			scheduledAt,
 		}: EntryMutationTarget & { scheduledAt: string }) =>
 			scheduleContent(targetCollection, targetId, scheduledAt, { locale: targetLocale }),
-		onSuccess: () => {
-			void invalidateContentViews(queryClient, { collection, id });
+		onSuccess: (_, { targetCollection, targetId }) => {
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -2070,8 +2070,8 @@ function ContentEditPage() {
 	const unscheduleMutation = useMutation({
 		mutationFn: ({ targetCollection, targetId, targetLocale }: EntryMutationTarget) =>
 			unscheduleContent(targetCollection, targetId, { locale: targetLocale }),
-		onSuccess: () => {
-			void invalidateContentViews(queryClient, { collection, id });
+		onSuccess: (_, { targetCollection, targetId }) => {
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
