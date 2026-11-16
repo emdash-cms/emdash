@@ -995,6 +995,7 @@ describe("SandboxedContentEditorPanel", () => {
 
 	it("keeps keyboard focus inside the panel across replaced forms, errors, and retries without stealing external focus", async () => {
 		const externalPending = Promise.withResolvers<Response>();
+		const bodyBlurPending = Promise.withResolvers<Response>();
 		const fetchMock = vi
 			.fn<() => Promise<Response>>()
 			.mockResolvedValueOnce(
@@ -1047,7 +1048,8 @@ describe("SandboxedContentEditorPanel", () => {
 					},
 				}),
 			)
-			.mockReturnValueOnce(externalPending.promise);
+			.mockReturnValueOnce(externalPending.promise)
+			.mockReturnValueOnce(bodyBlurPending.promise);
 		vi.stubGlobal("fetch", fetchMock);
 		const screen = await render(
 			<div>
@@ -1094,10 +1096,33 @@ describe("SandboxedContentEditorPanel", () => {
 		const deleteButton = screen.getByRole("button", { name: "Delete entry" }).element();
 		deleteButton.focus();
 		externalPending.resolve(
-			Response.json({ data: { blocks: [{ type: "header", text: "Synced" }] } }),
+			Response.json({
+				data: {
+					blocks: [
+						{
+							type: "actions",
+							block_id: "synced-actions",
+							elements: [{ type: "button", action_id: "resync", label: "Resync inventory" }],
+						},
+					],
+				},
+			}),
 		);
-		await expect.element(screen.getByRole("heading", { name: "Synced" })).toBeVisible();
+		const resync = screen.getByRole("button", { name: "Resync inventory" });
+		await expect.element(resync).toBeVisible();
 		expect(document.activeElement).toBe(deleteButton);
+
+		resync.element().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Loading plugin panel");
+		(document.activeElement as HTMLElement | null)?.blur();
+		expect(document.activeElement).toBe(document.body);
+
+		bodyBlurPending.resolve(
+			Response.json({ data: { blocks: [{ type: "header", text: "Synced after blur" }] } }),
+		);
+		await expect.element(screen.getByRole("heading", { name: "Synced after blur" })).toBeVisible();
+		expect(document.activeElement).toBe(document.body);
 	});
 
 	it("applies panel refresh and safe navigation terminal effects", async () => {

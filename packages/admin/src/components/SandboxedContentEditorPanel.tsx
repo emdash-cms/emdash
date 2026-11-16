@@ -164,6 +164,7 @@ export function SandboxedContentEditorPanel({
 		lastInteraction.current = null;
 		requestQueue.current = Promise.resolve();
 		pendingRequests.current = 0;
+		restoreFocusRef.current = false;
 		setLoading(false);
 		setPendingInteractions(0);
 	}, []);
@@ -234,17 +235,16 @@ export function SandboxedContentEditorPanel({
 				});
 				const executeRequest = async () => {
 					const preserveFocus = () => {
-						if (
+						restoreFocusRef.current =
 							focusWithinRef.current ||
-							Boolean(panelBodyRef.current?.contains(document.activeElement))
-						) {
-							restoreFocusRef.current = true;
-						}
+							Boolean(panelBodyRef.current?.contains(document.activeElement));
 					};
 					try {
 						if (!canApplyResponse()) return;
-						preserveFocus();
-						setError(false);
+						setError((wasError) => {
+							if (wasError) preserveFocus();
+							return false;
+						});
 						const draft = !isInteraction || !draftAccess ? null : captureDraft?.(draftAccess);
 						if (lastInteraction.current?.interaction === interaction) {
 							lastInteraction.current.draftIdentity = getEditorDraftIdentity(draft);
