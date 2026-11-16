@@ -320,4 +320,44 @@ describe("ConfirmDialog", () => {
 		await afterBaseUiFocus();
 		await expect.element(reason).toHaveFocus();
 	});
+
+	function layout() {
+		const dialog = page.getByRole("dialog", { name: "Delete widget?" }).element();
+		const description = dialog.querySelector("p")!;
+		const text = description.firstElementChild!;
+		return {
+			title: dialog.querySelector("h2")!.getBoundingClientRect(),
+			textTop:
+				text.getBoundingClientRect().top + Number.parseFloat(getComputedStyle(text).paddingTop),
+			description: description.getBoundingClientRect(),
+			actions: page.getByRole("button", { name: "Delete" }).element().getBoundingClientRect(),
+		};
+	}
+
+	it("sits the actions under the description when its body is empty", async () => {
+		await render(<ConfirmDialog {...props()} />);
+		await expect.element(page.getByRole("dialog", { name: "Delete widget?" })).toBeVisible();
+
+		const { title, textTop, description, actions } = layout();
+
+		expect(Math.round(textTop - title.bottom)).toBe(8);
+		expect(actions.top - description.bottom).toBeGreaterThanOrEqual(20);
+		expect(actions.top - description.bottom).toBeLessThanOrEqual(26);
+	});
+
+	it("keeps the body's padding around content in it", async () => {
+		await render(
+			<ConfirmDialog {...props()}>
+				<Checkbox label="Also delete its data" />
+			</ConfirmDialog>,
+		);
+		const checkbox = page.getByRole("checkbox", { name: "Also delete its data" });
+		await expect.element(checkbox).toBeVisible();
+
+		const { description, actions } = layout();
+		const content = checkbox.element().closest("label")!.getBoundingClientRect();
+
+		expect(content.top - description.bottom).toBeGreaterThanOrEqual(16);
+		expect(actions.top - content.bottom).toBeGreaterThanOrEqual(20);
+	});
 });

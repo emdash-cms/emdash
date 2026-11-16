@@ -150,12 +150,12 @@ export function ConfirmDialog({
 					</span>
 				</LayerDialog.Title>
 				<LayerDialog.Description>
-					<span dir="auto" className="block">
+					<span dir="auto" className="block pt-1">
 						{description}
 					</span>
 				</LayerDialog.Description>
 				<LayerDialog.Body>
-					<div ref={keyboardRef} className="grid gap-3">
+					<div ref={keyboardRef} data-emdash-confirm-body="" className="grid gap-3">
 						{children}
 						<DialogError message={error === staleError ? null : getMutationError(error)} />
 					</div>
