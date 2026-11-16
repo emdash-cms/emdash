@@ -1176,6 +1176,8 @@ export function ContentEditor({
 	// and reference fields stay quiet until then.
 	const [saveAttempted, setSaveAttempted] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
+	/** The entry switch count when the running publishing action started. */
+	const publishingSwitchesRef = React.useRef(0);
 
 	// Synchronously reset form state when the underlying item changes (e.g. a
 	// translation switch where TanStack Router keeps ContentEditor mounted but
@@ -1315,10 +1317,10 @@ export function ContentEditor({
 			// While the notice is up the writer still has to choose between their copy
 			// and the newer version, so a refetch must not put the newer one into the
 			// form under them.
-			if (
-				restored ||
-				(!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current)
-			) {
+			// An action still running from before a switch belongs to the entry it started on.
+			const publishingHere =
+				isPublishingRef.current && publishingSwitchesRef.current === entrySwitchesRef.current;
+			if (restored || (!publishingHere && !autosaveJustCompleted && !hasSaveConflictRef.current)) {
 				const saved =
 					itemReset && !discarded && !restored
 						? (JSON.parse(lastSavedData) as { data: Record<string, unknown> }).data
@@ -2146,6 +2148,7 @@ export function ContentEditor({
 		const payload = room ? undefined : createSavePayload();
 		const saved = payload && beginSave(payload);
 		isPublishingRef.current = true;
+		publishingSwitchesRef.current = entrySwitchesRef.current;
 		setIsPublishing(true);
 		const result = onPublish(payload);
 		if (!result) {
@@ -2225,6 +2228,7 @@ export function ContentEditor({
 			const payload = !room && hasPendingSaveRef.current ? createSavePayload() : undefined;
 			const saved = payload && beginSave(payload);
 			isPublishingRef.current = true;
+			publishingSwitchesRef.current = entrySwitchesRef.current;
 			setIsPublishing(true);
 
 			let result: void | Promise<void>;
