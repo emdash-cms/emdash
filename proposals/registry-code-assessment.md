@@ -134,7 +134,7 @@ The model works through four tools over an in-memory copy of the bundle:
 | Tool            | Behaviour                                                                                                                                  |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `list_files`    | Paths, sizes and line counts.                                                                                                              |
-| `read_file`     | A 16,000-character window with line numbers, and the offset of the next window. A `+` marks a line that started before the window.         |
+| `read_file`     | A 131,072-character window with line numbers, and the offset of the next window. A `+` marks a line that started before the window.        |
 | `search`        | Literal or regular-expression search, at most 50 matches with 120 characters of context. Regular expressions are capped at 200 characters. |
 | `submit_review` | The summary and findings.                                                                                                                  |
 
@@ -238,7 +238,7 @@ Rollback is unsetting `LABELER_CODE_REVIEW_MODELS`. Assessments that already ran
 
 ## Performance
 
-The stage runs inside the assessment Workflow, not on a visitor request, so no logged-out route changes. Each release assessment adds one blob-cache read for the check and one per reviewer, two D1 writes for the budget, and one review per configured model. A review is a multi-turn tool conversation; a bundle at the 128 KB file limit takes about eight `read_file` windows per file plus searches. The labeler bundle no longer includes a JavaScript parser.
+The stage runs inside the assessment Workflow, not on a visitor request, so no logged-out route changes. Each release assessment adds one blob-cache read for the check and one per reviewer, two D1 writes for the budget, and one review per configured model. A review is a multi-turn tool conversation; the `read_file` window matches the registry's 128 KiB per-file limit, so each file the registry accepts is read in one call. Every turn resends the conversation, so input tokens grow with the number of turns; with 16,000-character windows a 168 KB file took 12 to 27 turns and up to 1.9 million input tokens. The labeler bundle no longer includes a JavaScript parser.
 
 ## Failure handling
 

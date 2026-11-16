@@ -1,6 +1,8 @@
 import type { ReviewFile } from "./types.js";
 
-export const READ_WINDOW_CHARS = 16_000;
+// The registry's per-file limit (MAX_BUNDLE_FILE_BYTES), so any file it
+// accepts is read in one call.
+export const READ_WINDOW_CHARS = 131_072;
 const MAX_SEARCH_MATCHES = 50;
 const SEARCH_CONTEXT_CHARS = 120;
 const MAX_REGEX_LENGTH = 200;

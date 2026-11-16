@@ -45,7 +45,7 @@ const TOOLS: Tool[] = [
 	{
 		name: "read_file",
 		description:
-			"Read a text file from the bundle, up to 16,000 characters at a time, with line numbers. Call again with the returned offset until the file ends.",
+			"Read a text file from the bundle, up to 131,072 characters at a time, with line numbers. Call again with the returned offset until the file ends.",
 		parameters: Type.Object({
 			path: Type.String({ description: "File path from list_files." }),
 			offset: Type.Optional(
