@@ -2066,14 +2066,8 @@ describe("EditorActions", () => {
 describe("PublishActions", () => {
 	it("publishes with Enter from the Publish button", async () => {
 		const onPublish = vi.fn();
-		const onMenuOpenChange = vi.fn();
 		const screen = await render(
-			<PublishActions
-				isLive={false}
-				hasPendingChanges={false}
-				onPublish={onPublish}
-				onMenuOpenChange={onMenuOpenChange}
-			/>,
+			<PublishActions isLive={false} hasPendingChanges={false} onPublish={onPublish} />,
 		);
 		const opener = screen.getByRole("button", { name: "Publish now", exact: true });
 		await expect.element(opener).toBeVisible();
@@ -2091,7 +2085,6 @@ describe("PublishActions", () => {
 		expect(onPublish).toHaveBeenCalledOnce();
 		await expect.element(dialog).not.toBeInTheDocument();
 		await vi.waitFor(() => expect(document.activeElement).toBe(trigger));
-		expect(onMenuOpenChange.mock.calls).toEqual([[true], [false]]);
 	});
 
 	it("opens on Cancel when publishing now would remove a schedule", async () => {

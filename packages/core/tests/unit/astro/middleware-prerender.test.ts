@@ -463,17 +463,19 @@ describe("astro middleware prerendered routes", () => {
 		).toBeUndefined();
 	});
 
-	it("does not access context.session when prerendering public pages", async () => {
+	it.each(["/", "/robots.txt"])("does not read credentials when prerendering %s", async (path) => {
 		const cookies = {
 			get: vi.fn(() => undefined),
 		};
+		const request = new Request(`https://example.com${path}`);
+		const headersGet = vi.spyOn(request.headers, "get");
 		const redirect = vi.fn(
 			(location: string) => new Response(null, { status: 302, headers: { Location: location } }),
 		);
 
 		const context: Record<string, unknown> = {
-			request: new Request("https://example.com/"),
-			url: new URL("https://example.com/"),
+			request,
+			url: new URL(request.url),
 			cookies,
 			locals: {},
 			redirect,
@@ -493,6 +495,8 @@ describe("astro middleware prerendered routes", () => {
 
 		expect(response.status).toBe(200);
 		expect(redirect).not.toHaveBeenCalled();
+		expect(cookies.get).not.toHaveBeenCalled();
+		expect(headersGet).not.toHaveBeenCalled();
 	});
 });
 

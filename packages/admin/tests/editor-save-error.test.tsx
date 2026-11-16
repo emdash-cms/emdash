@@ -250,7 +250,7 @@ describe("ContentEditPage save error wiring", () => {
 		await expect.poll(() => server!.writes.length, { timeout: 6000 }).toBe(1);
 		await expect.element(status).toHaveTextContent("Saved");
 		expect(server.writes[0]).toMatchObject({ skipRevision: true });
-		await screen.getByRole("button", { name: "Settings", exact: true }).click();
+		await screen.getByRole("button", { name: "Show settings", exact: true }).click();
 		const manualSave = screen.getByRole("button", { name: "Save draft", exact: true });
 		await expect.element(manualSave).toBeEnabled();
 		await manualSave.click();

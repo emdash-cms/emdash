@@ -499,7 +499,10 @@ async function handlePublicRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
-	if (context.cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") === undefined)
+	if (
+		context.isPrerendered ||
+		context.cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") === undefined
+	)
 		return next();
 
 	const { locals, session } = context;

@@ -32,13 +32,13 @@ type MiddlewareContext = Parameters<typeof onRequest>[0];
 interface BuildContextOpts {
 	pathname: string;
 	emdashDb?: unknown;
-	cache?: { set: ReturnType<typeof vi.fn> };
+	cache?: { enabled?: boolean; options?: { tags: string[] }; set: ReturnType<typeof vi.fn> };
 }
 
 function buildContext({ pathname, emdashDb, cache = { set: vi.fn() } }: BuildContextOpts): {
 	context: MiddlewareContext;
 	redirect: ReturnType<typeof vi.fn>;
-	cache: { set: ReturnType<typeof vi.fn> };
+	cache: { enabled?: boolean; set: ReturnType<typeof vi.fn> };
 } {
 	const redirect = vi.fn(
 		(location: string, status: number) =>
@@ -295,13 +295,46 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 	});
 
 	it("keeps 404 responses out of the route cache", async () => {
-		const miss = buildContext({ pathname: "/posts/deleted-post" });
+		const miss = buildContext({
+			pathname: "/posts/deleted-post",
+			cache: { enabled: true, options: { tags: [] }, set: vi.fn() },
+		});
 		await onRequest(miss.context, async () => new Response("not found", { status: 404 }));
 		expect(miss.cache.set).toHaveBeenCalledWith(false);
 
-		const hit = buildContext({ pathname: "/posts/live-post" });
+		const hit = buildContext({
+			pathname: "/posts/live-post",
+			cache: { enabled: true, options: { tags: [] }, set: vi.fn() },
+		});
 		await onRequest(hit.context, async () => new Response("ok", { status: 200 }));
 		expect(hit.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("does not set an explicitly disabled cache for a 404", async () => {
+		const cache = { enabled: false, set: vi.fn() };
+		const miss = buildContext({ pathname: "/posts/deleted-post", cache });
+
+		await onRequest(miss.context, async () => new Response("not found", { status: 404 }));
+
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("logs a missing path rendered by a prerendered 404 without reading headers", async () => {
+		const { context } = buildContext({ pathname: "/missing" });
+		Object.defineProperty(context, "isPrerendered", { value: true });
+		const headersGet = vi.spyOn(context.request.headers, "get");
+
+		const response = await onRequest(
+			context,
+			async () => new Response("not found", { status: 404 }),
+		);
+		await waitForDeferredTasks();
+
+		expect(response.status).toBe(404);
+		expect(headersGet).not.toHaveBeenCalled();
+		const rows = await db.selectFrom("_emdash_404_log").selectAll().execute();
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ path: "/missing", referrer: null, user_agent: null });
 	});
 
 	it("does not log ordinary redirects", async () => {
@@ -565,6 +598,18 @@ describe("redirect middleware — does not rerun route when next() throws (issue
 
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
+		spy.mockRestore();
+	});
+
+	it("does not disable an explicitly disabled cache when redirect lookup fails", async () => {
+		const spy = vi.spyOn(RedirectRepository.prototype, "findAllEnabled");
+		spy.mockRejectedValueOnce(new Error("redirects table missing"));
+		const cache = { enabled: false, set: vi.fn() };
+		const { context } = buildContext({ pathname: "/page", cache });
+
+		await onRequest(context, async () => new Response("ok"));
+
+		expect(cache.set).not.toHaveBeenCalled();
 		spy.mockRestore();
 	});
 });
