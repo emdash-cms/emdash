@@ -2300,13 +2300,23 @@ function CompleteStep({
 				}),
 			);
 		}
-		if (result.menus && result.menus.created > 0) {
-			parts.push(
-				plural(result.menus.created, {
-					one: "# menu imported",
-					other: "# menus imported",
-				}),
-			);
+		if (result.menus && (result.menus.created > 0 || result.menus.skipped > 0)) {
+			if (result.menus.created > 0) {
+				parts.push(
+					plural(result.menus.created, {
+						one: "# menu imported",
+						other: "# menus imported",
+					}),
+				);
+			}
+			if (result.menus.skipped > 0) {
+				parts.push(
+					plural(result.menus.skipped, {
+						one: "# menu skipped (already exists)",
+						other: "# menus skipped (already exist)",
+					}),
+				);
+			}
 		}
 		if (result.comments && result.comments.imported > 0) {
 			parts.push(
