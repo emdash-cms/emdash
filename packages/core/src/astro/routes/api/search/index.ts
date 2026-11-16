@@ -10,6 +10,7 @@ import type { APIRoute } from "astro";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { searchQuery } from "#api/schemas.js";
+import { requireSearchSupport } from "#api/search.js";
 import { searchWithDb } from "#search/index.js";
 
 export const prerender = false;
@@ -43,6 +44,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		query.status && query.status !== "published" && hasPermission(user, "content:read_drafts")
 			? query.status
 			: "published";
+
+	const unavailable = requireSearchSupport(emdash.db);
+	if (unavailable) return unavailable;
 
 	try {
 		// Verify FTS indexes are healthy on first use. At most once per worker
