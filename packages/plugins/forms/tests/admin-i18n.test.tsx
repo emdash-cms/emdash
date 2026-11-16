@@ -231,4 +231,20 @@ describe("forms admin message IDs", () => {
 			expect(id, message).toBe(generateMessageId(message));
 		}
 	});
+
+	// Lingui only extracts a descriptor passed straight to `i18n._(...)` or marked
+	// with `/*i18n*/`; one handed to a helper argument would never reach the catalogs.
+	it.each(["../src/admin.tsx", "../src/admin-errors.ts"])(
+		"marks every descriptor for extraction in %s",
+		(file) => {
+			const source = readFileSync(new URL(file, import.meta.url), "utf8");
+			for (const match of source.matchAll(DESCRIPTOR)) {
+				const before = source.slice(0, match.index).trimEnd();
+				expect(
+					before.endsWith("_(") || before.endsWith("/*i18n*/"),
+					`${match[2] ?? match[3]} is not extractable`,
+				).toBe(true);
+			}
+		},
+	);
 });

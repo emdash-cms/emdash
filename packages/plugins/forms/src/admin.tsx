@@ -273,7 +273,7 @@ function FormsListPage() {
 			i18n,
 			"forms/update",
 			{ id: form.id, status: newStatus },
-			{ id: "bVfpd4", message: "Failed to update form" },
+			/*i18n*/ { id: "bVfpd4", message: "Failed to update form" },
 			setActionError,
 		);
 		if (res) await loadForms();
@@ -284,7 +284,7 @@ function FormsListPage() {
 			i18n,
 			"forms/duplicate",
 			{ id: form.id },
-			{ id: "GZWYuE", message: "Failed to duplicate form" },
+			/*i18n*/ { id: "GZWYuE", message: "Failed to duplicate form" },
 			setActionError,
 		);
 		if (res) await loadForms();
@@ -301,7 +301,7 @@ function FormsListPage() {
 			i18n,
 			"forms/delete",
 			{ id: form.id, deleteSubmissions: true },
-			{ id: "AB1bxU", message: "Failed to delete form" },
+			/*i18n*/ { id: "AB1bxU", message: "Failed to delete form" },
 			setActionError,
 		);
 		if (res) await loadForms();
@@ -1341,7 +1341,7 @@ function SubmissionsPage() {
 			i18n,
 			"submissions/update",
 			{ id: sub.id, starred: !sub.starred },
-			{ id: "sH3BT9", message: "Failed to update submission" },
+			/*i18n*/ { id: "sH3BT9", message: "Failed to update submission" },
 			setActionError,
 		);
 		if (res) {
@@ -1358,7 +1358,7 @@ function SubmissionsPage() {
 			i18n,
 			"submissions/update",
 			{ id: sub.id, status: newStatus },
-			{ id: "sH3BT9", message: "Failed to update submission" },
+			/*i18n*/ { id: "sH3BT9", message: "Failed to update submission" },
 			setActionError,
 		);
 		if (res) {
@@ -1375,7 +1375,7 @@ function SubmissionsPage() {
 			i18n,
 			"submissions/delete",
 			{ id: sub.id },
-			{ id: "6XEmGy", message: "Failed to delete submission" },
+			/*i18n*/ { id: "6XEmGy", message: "Failed to delete submission" },
 			setActionError,
 		);
 		if (res) {
@@ -1390,7 +1390,7 @@ function SubmissionsPage() {
 			i18n,
 			"submissions/export",
 			{ formId: selectedFormId, format },
-			{ id: "zfOJix", message: "Failed to export submissions" },
+			/*i18n*/ { id: "zfOJix", message: "Failed to export submissions" },
 			setActionError,
 		);
 		if (!res) return;
