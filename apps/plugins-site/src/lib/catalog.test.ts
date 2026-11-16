@@ -135,6 +135,25 @@ describe("searchCatalog", () => {
 		expect(isRegistryRequestRejected(await errorOf(answering(502)))).toBe(false);
 		expect(isRegistryRequestRejected(await errorOf(rejectingPage2))).toBe(false);
 	});
+
+	it("keeps the plugins it collected before a later page failed", async () => {
+		const { client } = registryAnswering((url) =>
+			url.searchParams.has("cursor")
+				? Response.json({ error: "InternalServerError", message: "Down" }, { status: 502 })
+				: Response.json({
+						packages: [packageView("alpha"), packageView("beta")],
+						cursor: "page-2",
+					}),
+		);
+		const failingFirst = registryAnswering(() =>
+			Response.json({ error: "InternalServerError", message: "Down" }, { status: 502 }),
+		).client;
+
+		const result = await searchCatalog("", client);
+		expect(result).toHaveProperty("error");
+		expect("error" in result && result.partial?.map((pkg) => pkg.slug)).toEqual(["alpha", "beta"]);
+		expect(await searchCatalog("", failingFirst)).toEqual({ error: expect.any(Error) });
+	});
 });
 
 describe("withLatestReleases", () => {

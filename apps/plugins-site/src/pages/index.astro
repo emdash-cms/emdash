@@ -12,11 +12,11 @@ import { recentlyUpdated } from "../lib/discovery.js";
 import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 
 const result = await searchCatalog("");
-const hasError = "error" in result;
-const catalog = "packages" in result ? result.packages : [];
+const catalog = "packages" in result ? result.packages : (result.partial ?? []);
+const hasError = "error" in result && catalog.length === 0;
 const recentEntries = await withLatestReleases(recentlyUpdated(catalog));
 
-if (!hasError) {
+if (!("error" in result)) {
 	Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
 }
 
