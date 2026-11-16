@@ -19,9 +19,9 @@ import {
 	CalendarX,
 	CaretDown,
 	Eye,
-	EyeSlash,
+	GlobeSimple,
+	GlobeSimpleX,
 	Trash,
-	Upload,
 	X,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -514,7 +514,7 @@ export function PublishActions({
 				onClick={onUnpublish}
 				loading={isPending}
 				disabled={disabled}
-				icon={<EyeSlash />}
+				icon={<GlobeSimpleX />}
 				className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
 			>
 				<span className={compact ? compactBarLabelClassName : undefined}>
@@ -543,7 +543,9 @@ export function PublishActions({
 						type="button"
 						variant="primary"
 						size={size}
-						icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
+						icon={
+							<GlobeSimple aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />
+						}
 						className={
 							compact
 								? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"

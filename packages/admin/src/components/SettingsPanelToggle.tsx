@@ -67,12 +67,16 @@ export interface SettingsPanelOptions {
 	closeBlockPanel: () => void;
 }
 
-export interface SettingsPanelToggleModel {
+export interface SettingsPanelToggleProps {
 	open: boolean;
+	/** Kumo's physical side, so "left" in RTL. */
 	side: Side;
-	controls: string;
-	ref: React.RefObject<HTMLButtonElement | null>;
 	onClick: () => void;
+	/** The panel's id. */
+	controls: string;
+	buttonRef?: React.Ref<HTMLButtonElement>;
+	disabled?: boolean;
+	className?: string;
 }
 
 export interface SettingsPanel {
@@ -80,12 +84,16 @@ export interface SettingsPanel {
 	providerOpen: boolean | undefined;
 	/** Stable. Replays a validation report deferred by `onInvalidCapture` once the panel has opened. */
 	onOpenChangeComplete: (open: boolean) => void;
-	asideProps: { inert: true | undefined; contentClassName: string | undefined };
+	asideProps: {
+		ref: (node: HTMLElement | null) => void;
+		contentClassName: string | undefined;
+	};
 	asideClassName: string | undefined;
 	listVisible: boolean;
 	/** Compose into the form's `onInvalidCapture`. Reveals the panel when the first invalid control is hidden in it. */
 	onInvalidCapture: (event: React.FormEvent<HTMLFormElement>) => void;
-	toggle: SettingsPanelToggleModel | null;
+	/** Desktop only. Below lg, the editor drives the button from Kumo's phone sheet. */
+	toggle: SettingsPanelToggleProps | null;
 }
 
 export function useSettingsPanel({
@@ -158,41 +166,60 @@ export function useSettingsPanel({
 		}, 0);
 	}, []);
 
+	// Kumo leaves a collapsed desktop rail focusable and in the accessibility tree. Set the
+	// attribute directly, as Kumo does for its phone sheet: React 18 drops `inert={true}`.
+	// Below lg the ref reaches Kumo's sheet, whose `inert` stays Kumo's to manage.
+	const panelRef = React.useCallback(
+		(node: HTMLElement | null) => {
+			if (desktop) node?.toggleAttribute("inert", !open);
+		},
+		[desktop, open],
+	);
+
 	const collapsed = desktop && !open;
 
 	return {
 		providerOpen: desktop ? open : undefined,
 		onOpenChangeComplete,
 		asideProps: {
-			// Kumo leaves a collapsed desktop rail focusable and in the accessibility tree.
-			inert: collapsed ? true : undefined,
+			ref: panelRef,
 			contentClassName: desktop ? PINNED_CONTENT : undefined,
 		},
 		// Kumo's collapsed content container keeps its 1px border at width 0. Clip it.
 		asideClassName: collapsed ? "overflow-hidden" : undefined,
 		listVisible: desktop && open,
 		onInvalidCapture,
-		toggle: desktop ? { open, side, controls: panelId, ref: toggleRef, onClick } : null,
+		toggle: desktop ? { open, side, onClick, controls: panelId, buttonRef: toggleRef } : null,
 	};
 }
 
-export function SettingsPanelToggle({ toggle }: { toggle: SettingsPanelToggleModel | null }) {
+/** Shows or hides the editor's settings panel. Its label names what a click does. */
+export function SettingsPanelToggle({
+	open,
+	side,
+	onClick,
+	controls,
+	buttonRef,
+	disabled,
+	className,
+}: SettingsPanelToggleProps) {
 	const { t } = useLingui();
-	if (!toggle) return null;
-	const label = toggle.open ? t`Hide settings` : t`Show settings`;
+	const label = open ? t`Hide settings` : t`Show settings`;
 	return (
 		<Button
-			ref={toggle.ref}
+			ref={buttonRef}
 			variant="ghost"
 			shape="square"
 			size="sm"
 			type="button"
-			onClick={toggle.onClick}
-			aria-controls={toggle.controls}
+			disabled={disabled}
+			className={className}
+			onClick={onClick}
+			aria-controls={controls}
 			aria-label={label}
 			title={label}
 		>
-			<PanelToggleIcon open={toggle.open} side={toggle.side} />
+			<PanelToggleIcon open={open} side={side} />
 		</Button>
 	);
 }
@@ -201,7 +228,7 @@ export function SettingsPanelToggle({ toggle }: { toggle: SettingsPanelToggleMod
  * The animated icon of Kumo's `Sidebar.Trigger`, which Kumo doesn't export on its own: the divider
  * slides as the panel opens and closes. Kumo draws it for a left-hand panel.
  */
-export function PanelToggleIcon({ open, side }: { open: boolean; side: Side }) {
+function PanelToggleIcon({ open, side }: { open: boolean; side: Side }) {
 	return (
 		<svg
 			viewBox="0 0 24 24"
@@ -211,7 +238,7 @@ export function PanelToggleIcon({ open, side }: { open: boolean; side: Side }) {
 			stroke="currentColor"
 			strokeWidth="1.5"
 			strokeLinecap="round"
-			className={cn("size-4.5 shrink-0", side === "right" && "-scale-x-100")}
+			className={cn("size-4 shrink-0", side === "right" && "-scale-x-100")}
 		>
 			<path d="M21.25 6.72v10.56a2.97 2.97 0 0 1-2.97 2.97H5.72a2.97 2.97 0 0 1-2.97-2.97V6.72a2.97 2.97 0 0 1 2.97-2.97h12.56a2.97 2.97 0 0 1 2.97 2.97" />
 			<path

@@ -2333,7 +2333,7 @@ describe("ContentEditor", () => {
 					await expect
 						.element(screen.getByRole("separator", { name: "Settings" }))
 						.not.toBeInTheDocument();
-					await screen.getByRole("button", { name: "Settings" }).click();
+					await screen.getByRole("button", { name: "Show settings", exact: true }).click();
 					await expect
 						.element(screen.getByRole("navigation", { name: "Settings" }))
 						.toBeInTheDocument();
@@ -2402,6 +2402,37 @@ describe("ContentEditor", () => {
 				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(368));
 				expect(screen.getByLabelText("Slug").element()).toBe(slugInput);
 				await expect.element(screen.getByLabelText("Slug")).toHaveValue("kept-slug");
+			});
+
+			it("moves focus to the toggle when hiding from inside the panel", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				screen.getByLabelText("Slug").element().focus();
+				const toggle = screen.getByRole("button", { name: "Hide settings" }).element();
+
+				// A scripted click doesn't move focus, like a click in Safari.
+				(toggle as HTMLButtonElement).click();
+				await vi.waitFor(() => expect(getPanel(screen).element()).toHaveAttribute("inert"));
+				expect(document.activeElement).toBe(toggle);
+			});
+
+			it("keeps the closed phone sheet inert after hiding the panel on desktop", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const media = installMatchMedia(false);
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					expect(getPanel(screen).element()).toHaveAttribute("inert");
+
+					await media.setMatchesSequentially(true);
+					const sheet = screen.getByRole("navigation", { name: "Settings", includeHidden: true });
+					await vi.waitFor(() => expect(sheet.element()).toHaveAttribute("inert"));
+
+					await screen.getByRole("button", { name: "Show settings", exact: true }).click();
+					await vi.waitFor(() => expect(sheet.element()).not.toHaveAttribute("inert"));
+					await screen.getByRole("button", { name: "Close settings" }).click();
+					await vi.waitFor(() => expect(sheet.element()).toHaveAttribute("inert"));
+				} finally {
+					media.restore();
+				}
 			});
 
 			it("remembers the choice in this browser", async () => {

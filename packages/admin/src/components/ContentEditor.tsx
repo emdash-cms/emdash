@@ -135,7 +135,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
-import { PanelToggleIcon, SettingsPanelToggle, useSettingsPanel } from "./SettingsPanelToggle.js";
+import { SettingsPanelToggle, useSettingsPanel } from "./SettingsPanelToggle.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -2554,9 +2554,9 @@ export function ContentEditor({
 						<PresenceAvatars room={room} fieldLabel={presenceFieldLabel} photos={presencePhotos} />
 					)}
 				</div>
-				{/* The settings panel toggle stays enabled for a reader: it changes the
-				    view, not the entry. So does the save button, which explains a
-				    co-editing problem such as joining the room. */}
+				{/* On wide screens the settings panel toggle stays enabled for a reader:
+				    it changes the view, not the entry. So does the save button, which
+				    explains a co-editing problem such as joining the room. */}
 				<div
 					data-emdash-editor-actions=""
 					className="grid w-full grid-cols-4 items-center gap-1.5 sm:ms-1.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end"
@@ -2619,8 +2619,14 @@ export function ContentEditor({
 								: undefined
 						}
 					/>
-					{isBelowLg && <MobileSettingsButton buttonRef={settingsButtonRef} disabled={readOnly} />}
-					<SettingsPanelToggle toggle={settingsPanel.toggle} />
+					{isBelowLg && (
+						<MobileSettingsButton
+							buttonRef={settingsButtonRef}
+							panelId={settingsPanelId}
+							disabled={readOnly}
+						/>
+					)}
+					{settingsPanel.toggle && <SettingsPanelToggle {...settingsPanel.toggle} />}
 				</div>
 			</div>
 			{saveError && (
@@ -3284,29 +3290,24 @@ function EditorSaveError({ message, title }: { message: string; title?: string }
  */
 function MobileSettingsButton({
 	buttonRef,
+	panelId,
 	disabled,
 }: {
 	buttonRef?: React.Ref<HTMLButtonElement>;
+	panelId: string;
 	disabled?: boolean;
 }) {
-	const { t } = useLingui();
 	const { side, openMobile, toggleSidebar } = useSidebar();
-	const label = openMobile ? t`Hide settings` : t`Show settings`;
 	return (
-		<Button
-			ref={buttonRef}
-			type="button"
-			disabled={disabled}
-			variant="ghost"
-			shape="square"
-			size="sm"
-			className="max-sm:w-full"
-			aria-label={label}
-			title={label}
+		<SettingsPanelToggle
+			open={openMobile}
+			side={side}
 			onClick={toggleSidebar}
-		>
-			<PanelToggleIcon open={openMobile} side={side} />
-		</Button>
+			controls={panelId}
+			buttonRef={buttonRef}
+			disabled={disabled}
+			className="max-sm:w-full"
+		/>
 	);
 }
 

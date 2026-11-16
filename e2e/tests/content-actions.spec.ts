@@ -193,7 +193,7 @@ test.describe("Schedule content", () => {
 		expect(Math.abs(changeBox!.width - removeBox!.width)).toBeLessThanOrEqual(1);
 
 		await page.setViewportSize({ width: 320, height: 576 });
-		await page.getByRole("button", { name: "Settings" }).click();
+		await page.getByRole("button", { name: "Show settings", exact: true }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
 		const narrowButtons = [
 			settingsPanel.getByRole("button", { name: "Change schedule", exact: true }),
@@ -213,7 +213,7 @@ test.describe("Schedule content", () => {
 		const publishButton = page.getByRole("button", { name: "Publish now", exact: true });
 		await expect(publishButton).toBeVisible();
 		await expect(publishButton).not.toHaveAttribute("aria-haspopup", "menu");
-		await page.getByRole("button", { name: "Settings" }).click();
+		await page.getByRole("button", { name: "Show settings", exact: true }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
 		// Below lg the panel is a sheet that slides in; measure it where it stops.
 		await settingsPanel.evaluate(async (element) => {
