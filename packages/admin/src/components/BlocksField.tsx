@@ -171,7 +171,9 @@ export interface BlocksFieldProps {
 	 * the control with id `focusId`, and focuses it.
 	 */
 	reveal?: BlockReveal;
+	/** A full field path (`<fieldPath>.<blockKey>.<slug>[...]`) to open and focus once it resolves. */
 	focusField?: string;
+	/** Called once after the resolved `focusField` control takes focus. */
 	onFieldFocused?: () => void;
 }
 

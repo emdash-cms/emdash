@@ -51,6 +51,11 @@ const MANIFEST: AdminManifest = {
 			hasSeo: false,
 			fields: {
 				title: { kind: "string", label: "Title" },
+				items: {
+					kind: "repeater",
+					label: "Items",
+					validation: { subFields: [{ slug: "label", label: "Label", type: "string" }] },
+				},
 				content: {
 					kind: "blocks",
 					label: "Content",
@@ -74,6 +79,7 @@ const PAGE = {
 	translationGroup: null,
 	data: {
 		title: "Contact",
+		items: [{ label: "First item" }],
 		content: Array.from({ length: 30 }, (_, index) => ({
 			_type: "hero",
 			_key: `block_${index + 1}`,
@@ -141,6 +147,19 @@ describe("ContentEditPage opened from a field link on the site", () => {
 
 	afterEach(() => {
 		mockFetch.restore();
+	});
+
+	it("focuses a top-level repeater subfield and clears only the field search parameter", async () => {
+		const { router, TestApp } = buildApp();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "pages", id: "page_1" },
+			search: { field: "items.0.label", locale: "en" },
+		});
+		await render(<TestApp />);
+
+		await expect.poll(() => document.activeElement?.id).toBe("field-items.0.label");
+		await expect.poll(() => router.state.location.search).toEqual({ locale: "en" });
 	});
 
 	it("scrolls to the field without pushing the editor bar under the header", async () => {

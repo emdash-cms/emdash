@@ -1580,8 +1580,11 @@ function ContentEditPage() {
 
 	React.useEffect(() => {
 		if (typeof searchParams.field !== "string" || isLoading) return;
+		const rootField = searchParams.field.split(".")[0] ?? "";
+		const rootDefinition = (roomView?.manifest?.collections[collection]?.fields ??
+			collectionFields)[rootField];
 		// Blocks fields reveal and focus their own nested controls after mounting them.
-		if (searchParams.field.includes(".")) return;
+		if (searchParams.field.includes(".") && rootDefinition?.kind === "blocks") return;
 
 		const timeoutId = requestIdleCallback(() => {
 			const el = document.getElementById(`field-${searchParams.field}`);
@@ -1592,7 +1595,14 @@ function ContentEditPage() {
 			}
 		});
 		return () => cancelIdleCallback(timeoutId);
-	}, [searchParams, isLoading, handleFieldFocused]);
+	}, [
+		searchParams,
+		isLoading,
+		handleFieldFocused,
+		roomView?.manifest,
+		collection,
+		collectionFields,
+	]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
