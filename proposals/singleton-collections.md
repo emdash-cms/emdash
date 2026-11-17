@@ -224,7 +224,7 @@ All strings go through Lingui, and the layout uses logical properties for RTL.
 ## Security and privacy
 
 - **Authorization.** No new permission. Marking a collection as a singleton is a schema change and needs `schema:manage`, as any other collection setting does. The write rules apply to every role equally. They refuse writes and never allow one that permissions refuse.
-- **Information in errors.** `SINGLETON_EXISTS` returns the existing entry's id and locales. Creating content needs `content:create` and reading drafts needs `content:read_drafts`, and both start at Contributor, so anyone who can trigger the error can already list the collection's entries. If collection-scoped permissions from the custom roles RFC ([#4156](https://github.com/emdash-cms/emdash/pull/4156)) land, the details should only be included when the caller can read the collection.
+- **Information in errors.** `SINGLETON_EXISTS` includes the existing entry's id and locales only when the caller may read the collection's drafts (`content:read_drafts`). Otherwise it carries the code and message alone. Today that check always passes, because `content:create` and `content:read_drafts` both start at Contributor. If collection-scoped permissions from the custom roles RFC ([#4156](https://github.com/emdash-cms/emdash/pull/4156)) land, the same check applies per collection, so a role that may create in a collection but not read it learns nothing about the existing entry.
 - **Untrusted input.** The index name comes from the collection slug, which is already validated against `/^[a-z][a-z0-9_]*$/`. The DDL uses `sql.ref()` for identifiers. No new input reaches SQL.
 - **Privacy.** No personal data is added or exposed.
 
@@ -290,6 +290,8 @@ Slices 2 and 3 can land in either order, but slice 2 should follow slice 1 in th
 - **One entry per locale without the shared group** (refusing only within the same locale). It allows an English home page and a French one that the admin shows as unrelated entries.
 - **A second index on the group's root entries**, which would also put "one translation group" in the database and close the concurrent first-create race. The prototype showed it works on all three dialects, but it needs a rule for trashing the root entry while translations stay active, and more error mapping. It can follow if the race turns out to matter.
 - **Refusing to trash the last entry.** Unpublishing already leaves the site without the entry, and the empty state exists anyway before the first entry is created. A refusal would add an error code and a read on every trash while protecting nothing that unpublishing doesn't already allow.
+- **An overload, `getEmDashEntry(collection)` without an id**, instead of a new accessor. The id is `getEmDashEntry`'s second required argument, so the overload would make that position take either an id or an options object. Its id-less branch would also be the only cached one, since `getEmDashEntry` has no request cache ([#4838](https://github.com/emdash-cms/emdash/issues/4838)). A separate function is additive and says what it reads.
+- **URL patterns without `{slug}` in a follow-up.** The first release would then leave a singleton home page at `/home` behind a redirect, as today, although a home page is the main example in both Ideas threads. They sit in slices 2 and 3, and slice 1 doesn't depend on them, so they can still move to a later release without changing the core.
 - **A plugin.** origin-emdash-uniq shows how far a plugin gets. It can't create an index, its hooks don't see duplicate, restore or seed writes (it needs a site middleware to refuse the first two), and it has to hide admin buttons through the DOM.
 
 ## Drawbacks
@@ -302,6 +304,4 @@ Slices 2 and 3 can land in either order, but slice 2 should follow slice 1 in th
 
 ## Open questions
 
-- **The accessor's name.** `getEmDashSingleton(collection, options)` is proposed. An overload, `getEmDashEntry(collection)` without an id, is the alternative.
-- **Whether URL patterns without `{slug}` belong in this RFC.** They are included because a home page is the headline example in both Ideas threads. If they move to a follow-up, the first release leaves a singleton home page at `/home` behind a redirect, as today.
-- **The error details under collection-scoped permissions**, if the custom roles RFC lands first.
+None.
