@@ -1581,13 +1581,26 @@ export class EmDashRuntime {
 				plugin.version === this.runtimePluginVersion(state));
 		let plugin = this.allPipelinePlugins.find(matches);
 		if (!plugin && snapshot && state && this.isRuntimePluginState(state)) {
-			if (
-				this.runtimeDeps.sandboxBypassed ||
-				!this.installedPluginSandboxAvailable ||
-				!this.storage ||
-				!sandboxRunner
-			)
+			if (this.runtimeDeps.sandboxBypassed) {
+				if (!required && state.source === "marketplace" && this.storage) {
+					try {
+						const bundle = await loadBundleFromR2(
+							this.storage,
+							pluginId,
+							this.runtimePluginVersion(state),
+						);
+						if (!isCurrentClaim()) return;
+						if (bundle) {
+							const restored = await this.adaptBypassedRuntimePlugin(bundle);
+							if (isCurrentClaim()) return restored;
+						}
+					} catch (error) {
+						console.warn(`EmDash: Bypassed teardown unavailable for ${pluginId}:`, error);
+					}
+				}
 				return;
+			}
+			if (!this.installedPluginSandboxAvailable || !this.storage || !sandboxRunner) return;
 			await this.retryRuntimePlugins(snapshot, isCurrentClaim, pluginId, true);
 			if (!isCurrentClaim()) return;
 			plugin = this.allPipelinePlugins.find(matches);
@@ -1627,21 +1640,65 @@ export class EmDashRuntime {
 		return disableRuntimePlugin(this, pluginId);
 	}
 
-	/** Dispatch teardown lifecycle while the runtime-installed isolate is still loaded. */
+	/** Run teardown before bundle deletion, including plugins already disabled in this isolate. */
 	async runPluginUninstallLifecycle(pluginId: string, deleteData: boolean): Promise<void> {
-		const active = this.isPluginEnabled(pluginId);
-		if (active) {
-			try {
-				await this._hooks.runPluginDeactivate(pluginId);
-			} catch (error) {
-				console.error(`EmDash: Plugin ${pluginId} deactivate hook failed during uninstall:`, error);
-			}
-		}
-
 		try {
-			const results = await this._hooks.runPluginUninstall(pluginId, deleteData);
-			if (results.length > 0) return;
-			await this.findSandboxedPlugin(pluginId)?.invokeHook("plugin:uninstall", { deleteData });
+			await this.withPluginStateLock(async (isCurrentClaim) => {
+				let warned = false;
+				const current = () => {
+					const held = isCurrentClaim();
+					if (!held && !warned) {
+						warned = true;
+						console.warn(
+							`EmDash: Uninstall cleanup for ${pluginId} was superseded; remaining cleanup was skipped`,
+						);
+					}
+					return held;
+				};
+				let snapshot = await new PluginStateRepository(this.db).getSnapshot();
+				if (!current()) return;
+				if (this.pluginStateSnapshot && this.pluginStateSnapshot.generation > snapshot.generation) {
+					snapshot = this.pluginStateSnapshot;
+				}
+				await this.applyPluginStateSnapshot(snapshot, current, pluginId);
+				if (!current()) return;
+				const active =
+					snapshot.states.find((state) => state.pluginId === pluginId)?.status === "active";
+				try {
+					const plugin = await this.pluginForStatusLifecycle(pluginId, current, snapshot, false);
+					if (!current()) return;
+					const pipeline = plugin ? this.statusLifecyclePipeline(plugin) : this._hooks;
+					this.setSandboxedPluginActive(pluginId, true);
+					if (active) {
+						try {
+							await pipeline.runPluginDeactivate(pluginId);
+						} catch (error) {
+							console.error(
+								`EmDash: Plugin ${pluginId} deactivate hook failed during uninstall:`,
+								error,
+							);
+						}
+					}
+					if (!current()) return;
+					const results = await pipeline.runPluginUninstall(pluginId, deleteData);
+					if (results.length === 0) {
+						await this.findSandboxedPlugin(pluginId)?.invokeHook("plugin:uninstall", {
+							deleteData,
+						});
+					}
+				} finally {
+					if (current()) {
+						this.setSandboxedPluginActive(pluginId, active);
+						if (!active) {
+							for (const key of [...registryPluginKeys, ...marketplacePluginKeys]) {
+								if (key.slice(0, key.lastIndexOf(":")) === pluginId)
+									await this.discardRuntimePlugin(key, current);
+							}
+						}
+						await this.finishPluginPipeline(current);
+					}
+				}
+			});
 		} catch (error) {
 			console.error(`EmDash: Plugin ${pluginId} uninstall hook failed:`, error);
 		}
@@ -1982,9 +2039,13 @@ export class EmDashRuntime {
 		if (this.pluginStateSnapshot && snapshot.generation < this.pluginStateSnapshot.generation) {
 			snapshot = this.pluginStateSnapshot;
 		}
-		if (snapshot.generation <= this.appliedPluginGeneration) return;
-		this.pluginStateSnapshot = snapshot;
 		const states = new Map(snapshot.states.map((state) => [state.pluginId, state]));
+		if (snapshot.generation <= this.appliedPluginGeneration) {
+			if (!this.runtimeDeps.sandboxBypassed)
+				await this.discardInactiveRuntimePlugins(states, isCurrentClaim);
+			return;
+		}
+		this.pluginStateSnapshot = snapshot;
 		for (const pluginId of this.pluginStates.keys()) {
 			if (states.has(pluginId)) continue;
 			this.pluginStates.delete(pluginId);
@@ -2015,18 +2076,7 @@ export class EmDashRuntime {
 				await this.syncMarketplacePluginsBypassed(snapshot.states, isCurrentClaim);
 			}
 		} else {
-			for (const key of [...registryPluginKeys, ...marketplacePluginKeys]) {
-				const pluginId = key.slice(0, key.lastIndexOf(":"));
-				const desired = states.get(pluginId);
-				const source = registryPluginKeys.has(key) ? "registry" : "marketplace";
-				if (
-					desired?.status === "active" &&
-					this.isRuntimePluginState(desired) &&
-					desired.source === source
-				)
-					continue;
-				await this.discardRuntimePlugin(key, isCurrentClaim);
-			}
+			await this.discardInactiveRuntimePlugins(states, isCurrentClaim);
 			await this.retryRuntimePlugins(snapshot, isCurrentClaim, requestedPluginId);
 		}
 		await this.finishPluginPipeline(isCurrentClaim);
@@ -2034,10 +2084,30 @@ export class EmDashRuntime {
 		this.appliedPluginGeneration = snapshot.generation;
 	}
 
+	private async discardInactiveRuntimePlugins(
+		states: ReadonlyMap<string, PluginState>,
+		isCurrentClaim: () => boolean,
+	): Promise<void> {
+		for (const key of [...registryPluginKeys, ...marketplacePluginKeys]) {
+			const pluginId = key.slice(0, key.lastIndexOf(":"));
+			const desired = states.get(pluginId);
+			const source = registryPluginKeys.has(key) ? "registry" : "marketplace";
+			if (
+				desired?.status === "active" &&
+				this.isRuntimePluginState(desired) &&
+				desired.source === source
+			)
+				continue;
+			await this.discardRuntimePlugin(key, isCurrentClaim);
+		}
+	}
+
 	private async discardRuntimePlugin(key: string, isCurrentClaim: () => boolean): Promise<void> {
 		const pluginId = key.slice(0, key.lastIndexOf(":"));
 		try {
-			await sandboxedPluginCache.get(key)?.terminate();
+			const instance = sandboxedPluginCache.get(key);
+			instance?.setActive?.(false);
+			await instance?.terminate();
 		} catch (error) {
 			console.warn(`EmDash: Failed to terminate sandboxed plugin ${key}:`, error);
 		}
@@ -2200,7 +2270,6 @@ export class EmDashRuntime {
 			}
 
 			// Load plugin code, adapt as trusted plugins, and add to pipeline lists
-			const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
 			for (const [pluginId, version] of desired) {
 				if (
 					marketplaceManifestCache.get(pluginId)?.version === version &&
@@ -2246,38 +2315,7 @@ export class EmDashRuntime {
 				}
 
 				try {
-					const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
-					// Dynamic data: import returns `any` from a base64-encoded module.
-					// We trust the bundle to be shaped like a plugin (built by plugin-cli);
-					// adaptSandboxEntry then validates fields it cares about.
-					// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle
-					const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<
-						string,
-						unknown
-					>;
-					const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
-						typeof adaptSandboxEntry
-					>[0];
-					const adapted = adaptSandboxEntry(pluginDef, {
-						id: bundle.manifest.id,
-						version: bundle.manifest.version,
-						entrypoint: "",
-						capabilities: bundle.manifest.capabilities ?? [],
-						allowedHosts: bundle.manifest.allowedHosts ?? [],
-						// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
-						storage: (bundle.manifest.storage ?? {}) as never,
-						adminPages: bundle.manifest.admin?.pages,
-						adminWidgets: bundle.manifest.admin?.widgets?.map((w) => ({
-							id: w.id,
-							title: w.title,
-							size:
-								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
-						})),
-						settingsSchema: bundle.manifest.admin?.settingsSchema,
-						editorPanels: bundle.manifest.admin?.editorPanels,
-						editorActions: bundle.manifest.admin?.editorActions,
-						mcp: bundle.manifest.mcp,
-					});
+					const adapted = await this.adaptBypassedRuntimePlugin(bundle);
 					if (!isCurrentClaim()) throw new Error("Plugin synchronization was superseded");
 					this.pluginPipelineDirty = true;
 					this.allPipelinePlugins.push(adapted);
@@ -2293,6 +2331,41 @@ export class EmDashRuntime {
 		} catch (error) {
 			console.error("EmDash: Failed to sync marketplace plugins (bypass):", error);
 		}
+	}
+
+	private async adaptBypassedRuntimePlugin(bundle: {
+		manifest: PluginManifest;
+		backendCode: string;
+	}): Promise<ResolvedPlugin> {
+		const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
+		const dataUrl = `data:text/javascript;base64,${Buffer.from(bundle.backendCode).toString("base64")}`;
+		// Dynamic data: import returns `any` from a base64-encoded module.
+		// We trust the bundle to be shaped like a plugin (built by plugin-cli);
+		// adaptSandboxEntry then validates fields it cares about.
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- dynamic module from trusted bundle
+		const pluginModule = (await import(/* @vite-ignore */ dataUrl)) as Record<string, unknown>;
+		const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
+			typeof adaptSandboxEntry
+		>[0];
+		return adaptSandboxEntry(pluginDef, {
+			id: bundle.manifest.id,
+			version: bundle.manifest.version,
+			entrypoint: "",
+			capabilities: bundle.manifest.capabilities ?? [],
+			allowedHosts: bundle.manifest.allowedHosts ?? [],
+			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- adaptSandboxEntry copies storage through
+			storage: (bundle.manifest.storage ?? {}) as never,
+			adminPages: bundle.manifest.admin?.pages,
+			adminWidgets: bundle.manifest.admin?.widgets?.map((w) => ({
+				id: w.id,
+				title: w.title,
+				size: w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
+			})),
+			settingsSchema: bundle.manifest.admin?.settingsSchema,
+			editorPanels: bundle.manifest.admin?.editorPanels,
+			editorActions: bundle.manifest.admin?.editorActions,
+			mcp: bundle.manifest.mcp,
+		});
 	}
 
 	/**

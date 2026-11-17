@@ -26,6 +26,7 @@ describe("D1 request scoping bookmark persistence", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.session.getBookmark.mockReturnValue("d1-bookmark-1");
+		mocks.binding.withSession.mockReturnValue(mocks.session);
 	});
 
 	it("persists the bookmark for a request that started authenticated", () => {

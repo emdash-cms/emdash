@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
+import { handleMarketplaceUninstall } from "../../../src/api/handlers/marketplace.js";
+import { handleRegistryUninstall } from "../../../src/api/handlers/registry.js";
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { CronAccessImpl } from "../../../src/plugins/cron.js";
@@ -553,6 +555,157 @@ describe.each(["registry", "marketplace"] as const)(
 			});
 			expect(invokeRoute).not.toHaveBeenCalled();
 		});
+
+		it.each([false, true])(
+			"runs uninstall lifecycle after disable without duplicating deactivation (deleteData=%s)",
+			async (deleteData) => {
+				const storage = new MemoryStorage();
+				await putBundle(storage, source, "1.0.0", false, pluginId, [
+					"plugin:deactivate",
+					"plugin:uninstall",
+				]);
+				const deps = createDeps(storage, source);
+				runtime = await EmDashRuntime.create(deps);
+				const states = new PluginStateRepository(runtime.db);
+				await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+				await syncPlugins(runtime, source);
+
+				await expect(disableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+					success: true,
+				});
+				const deactivations = deps.runnerInvokeHook.mock.calls.filter(
+					([hook]) => hook === "plugin:deactivate",
+				);
+				expect(deactivations).toHaveLength(1);
+
+				const uninstall =
+					source === "registry"
+						? handleRegistryUninstall(runtime.db, storage, pluginId, {
+								deleteData,
+								beforeDelete: () => runtime!.runPluginUninstallLifecycle(pluginId, deleteData),
+							})
+						: handleMarketplaceUninstall(runtime.db, storage, pluginId, {
+								deleteData,
+								beforeDelete: () => runtime!.runPluginUninstallLifecycle(pluginId, deleteData),
+							});
+				await expect(uninstall).resolves.toMatchObject({ success: true });
+				await syncPlugins(runtime, source);
+
+				expect(deps.runnerInvokeHook).toHaveBeenCalledWith("plugin:uninstall", { deleteData });
+				expect(
+					deps.runnerInvokeHook.mock.calls.filter(([hook]) => hook === "plugin:deactivate"),
+				).toHaveLength(1);
+			},
+		);
+
+		it("warns when superseded uninstall cleanup skips remaining cleanup", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false, pluginId, ["plugin:uninstall"]);
+			const deps = createDeps(storage, source);
+			const instances: Array<{ active: boolean }> = [];
+			let releaseHook!: () => void;
+			const hookReleased = new Promise<void>((resolve) => (releaseHook = resolve));
+			let uninstallEntered = false;
+			const uninstallStarted = new Promise<void>((resolve) => {
+				deps.runnerInvokeHook.mockImplementation(async (hook: string) => {
+					if (hook !== "plugin:uninstall") return;
+					uninstallEntered = true;
+					expect(instances.at(-1)?.active).toBe(true);
+					resolve();
+					await hookReleased;
+				});
+			});
+			deps.runnerLoad.mockImplementation(async (m: { id: string; version: string }) => {
+				const state = { active: true };
+				instances.push(state);
+				return {
+					id: `${m.id}:${m.version}`,
+					invokeHook: async (hook: string, event: unknown) => deps.runnerInvokeHook(hook, event),
+					invokeRoute: async () => ({ version: m.version }),
+					setActive: (active: boolean) => {
+						state.active = active;
+					},
+					terminate: vi.fn(async () => undefined),
+				};
+			});
+			const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+			const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+			let cleanup: Promise<void> | undefined;
+			try {
+				runtime = await EmDashRuntime.create(deps);
+				const states = new PluginStateRepository(runtime.db);
+				await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+				await syncPlugins(runtime, source);
+				await states.disable(pluginId, "1.0.0");
+				await syncPlugins(runtime, source);
+				expect(instances[0]?.active).toBe(false);
+				expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toBeNull();
+
+				cleanup = runtime.runPluginUninstallLifecycle(pluginId, false);
+				await uninstallStarted;
+				now.mockReturnValue(1_016_001);
+				await syncPlugins(runtime, source);
+				expect(instances.at(-1)?.active).toBe(false);
+				expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toBeNull();
+
+				releaseHook();
+				await cleanup;
+				expect(uninstallEntered).toBe(true);
+				expect(warning.mock.calls.flat().join(" ")).toContain("Uninstall cleanup");
+				expect(warning.mock.calls.flat().join(" ")).toContain("superseded");
+				expect(warning.mock.calls.flat().join(" ")).toContain("remaining cleanup was skipped");
+				expect(await states.get(pluginId)).toMatchObject({ status: "inactive" });
+			} finally {
+				releaseHook();
+				await cleanup?.catch(() => undefined);
+				warning.mockRestore();
+				now.mockRestore();
+			}
+		});
+
+		it.skipIf(source !== "marketplace")(
+			"recovers an inactive bypassed marketplace plugin for deactivation after sync removes it",
+			async () => {
+				const storage = new MemoryStorage();
+				await putBundle(storage, "marketplace", "1.0.0", false);
+				const keyName = `emdash:test:bypass-deactivate:${randomUUID()}`;
+				const key = Symbol.for(keyName);
+				const calls = { deactivate: 0, uninstall: [] as boolean[] };
+				const globals = globalThis as Record<symbol, unknown>;
+				globals[key] = calls;
+				storage.putText(
+					`marketplace/${pluginId}/1.0.0/backend.js`,
+					`const calls = globalThis[Symbol.for(${JSON.stringify(keyName)})];
+				export default { hooks: {
+					"plugin:deactivate": async () => { calls.deactivate++; },
+					"plugin:uninstall": async (event) => { calls.uninstall.push(event.deleteData); }
+				} };`,
+				);
+				const deps = createDeps(storage, "marketplace");
+				deps.sandboxBypassed = true;
+				try {
+					runtime = await EmDashRuntime.create(deps);
+					const states = new PluginStateRepository(runtime.db);
+					await states.upsert(pluginId, "1.0.0", "active", stateOptions("marketplace", "1.0.0"));
+					await runtime.syncMarketplacePlugins();
+					expect(runtime.configuredPlugins.some((plugin) => plugin.id === pluginId)).toBe(true);
+
+					await states.disable(pluginId, "1.0.0");
+					const oldGeneration = states.getLastWrittenGeneration();
+					await states.upsert("unrelated-plugin", "1.0.0", "inactive", { source: "config" });
+					await runtime.syncMarketplacePlugins();
+					expect(runtime.configuredPlugins.some((plugin) => plugin.id === pluginId)).toBe(false);
+
+					await runtime.setPluginStatus(pluginId, "inactive", oldGeneration);
+					expect(calls.deactivate).toBe(1);
+					await runtime.runPluginUninstallLifecycle(pluginId, true);
+					expect(calls.uninstall).toEqual([true]);
+					expect(calls.deactivate).toBe(1);
+				} finally {
+					delete globals[key];
+				}
+			},
+		);
 
 		it("serializes status changes with a snapshot refresh", async () => {
 			const storage = new MemoryStorage();

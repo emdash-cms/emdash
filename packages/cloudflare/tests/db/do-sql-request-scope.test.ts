@@ -27,6 +27,7 @@ import { createRequestScopedDb } from "../../src/db/do-sql.js";
 
 describe("DO SQL request scoping", () => {
 	beforeEach(() => {
+		vi.clearAllMocks();
 		mocks.query.mockResolvedValue({ rows: [] });
 		mocks.batchQuery.mockResolvedValue([]);
 	});

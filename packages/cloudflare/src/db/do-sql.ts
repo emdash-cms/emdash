@@ -166,8 +166,8 @@ export function createCoalescingDialect(config: DurableObjectsConfig): Dialect {
 //
 // createRequestScopedDb is called by the core middleware on each request.
 // Replica sessions get a per-request Kysely and authenticated bookmark cookie.
-// Mutations get a scope when sessions are disabled so writes are routed to
-// the primary.
+// Mutation requests also get a scope when sessions are disabled so every
+// safety read is explicitly routed to the primary.
 // =========================================================================
 
 interface CookieJar {
@@ -220,7 +220,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 
 	// Authenticated read-your-writes: pass the client's last bookmark on reads
 	// so a replica waits until it has caught up before serving. Anonymous
-	// readers can't resume across requests and use nearest-replica.
+	// readers can't resume across requests, so they always read nearest-replica.
 	let readBookmark: string | undefined;
 	if (sessionEnabled && opts.isAuthenticated) {
 		const bookmark = opts.cookies.get(cookieName)?.value;

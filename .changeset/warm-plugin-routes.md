@@ -10,3 +10,5 @@ Plugin route requests return `503 PLUGIN_SYNC_ERROR` if state cannot be read or 
 On Durable Object SQL deployments, upgrade core and the Cloudflare adapter together so plugin state and its generation are committed atomically.
 
 Durable Object SQL also executes existing atomic batches for content saves, menus, seeding and block-type updates as single primary transactions instead of separate statements.
+
+Disabled plugins retain uninstall cleanup support before bundle deletion, and bypassed marketplace plugins retain deactivation hooks across snapshot refreshes.

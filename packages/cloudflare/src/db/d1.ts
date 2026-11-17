@@ -411,8 +411,9 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	// Any write — authenticated or not (e.g. an anonymous comment POST) — must
 	// hit primary; we don't want a write plus a follow-up read racing across
 	// replicas. Authenticated reads resume from a prior bookmark when the client
-	// sent a valid one. Everything else (anonymous reads) uses the config default,
-	// typically "first-unconstrained" for nearest-replica routing.
+	// sent a valid one. Everything else (anonymous reads — the whole point of
+	// read replicas) uses the config default, typically "first-unconstrained"
+	// for nearest-replica routing.
 	let constraint: string = configConstraint;
 	if (opts.isWrite) {
 		constraint = "first-primary";
