@@ -5749,6 +5749,18 @@ export class EmDashRuntime {
 		const result = await handleMediaReplaceMetadata(this.db, id, expectedStorageKey, input);
 		if (result.success) {
 			invalidateSiteSettingsCache();
+			if (this.hooks.hasHooks("media:afterUpload")) {
+				const item = result.data.item;
+				const mediaItem: MediaItem = {
+					id: item.id,
+					filename: item.filename,
+					mimeType: item.mimeType,
+					size: item.size,
+					url: `/media/${item.id}/${item.filename}`,
+					createdAt: item.createdAt,
+				};
+				this.runMediaAfterUploadHook(mediaItem);
+			}
 		}
 		return result;
 	}
