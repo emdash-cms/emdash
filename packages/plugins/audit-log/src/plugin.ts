@@ -209,7 +209,7 @@ export default {
 					type: string;
 					page?: string;
 					action_id?: string;
-					value?: string;
+					value?: { cursor?: string };
 				};
 
 				if (interaction.type === "page_load" && interaction.page === "/history") {
@@ -219,7 +219,7 @@ export default {
 					return buildRecentBlocks(ctx);
 				}
 				if (interaction.type === "block_action" && interaction.action_id === "load-page") {
-					return buildHistoryBlocks(ctx, interaction.value);
+					return buildHistoryBlocks(ctx, interaction.value?.cursor);
 				}
 				return { blocks: [] };
 			},
@@ -301,7 +301,7 @@ async function buildHistoryBlocks(ctx: PluginContext, cursor?: string) {
 				{ type: "divider" },
 				{
 					type: "table",
-					blockId: "history-table",
+					block_id: "history-table",
 					columns: [
 						{ key: "action", label: "Action", format: "badge" },
 						{ key: "resource", label: "Resource", format: "code" },
@@ -314,9 +314,9 @@ async function buildHistoryBlocks(ctx: PluginContext, cursor?: string) {
 						collection: e.collection ?? "-",
 						time: e.timestamp,
 					})),
-					pageActionId: "load-page",
-					nextCursor: result.cursor,
-					emptyText: "No audit entries yet",
+					page_action_id: "load-page",
+					next_cursor: result.cursor,
+					empty_text: "No audit entries yet",
 				},
 				{ type: "context", text: `Showing ${entries.length} entries` },
 			],
