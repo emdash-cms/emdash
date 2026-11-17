@@ -119,6 +119,19 @@ test.describe("blocks field deep links", () => {
 				"true",
 			);
 
+			await page.goto(`${edit}?locale=en&field=layout.services.items.1.title`);
+			await admin.waitForLoading();
+			await expect(page.locator('[id="field-layout.services.items.1.title"]')).toBeFocused();
+			const itemToggles = page.locator(
+				'[data-block-key="services"] [data-field="items"] [data-item-focus]',
+			);
+			await expect(itemToggles).toHaveCount(3);
+			await expect(itemToggles.nth(0)).toHaveAttribute("aria-expanded", "false");
+			await expect(itemToggles.nth(1)).toHaveAttribute("aria-expanded", "true");
+			await expect(itemToggles.nth(2)).toHaveAttribute("aria-expanded", "false");
+			await expect(page).not.toHaveURL(/[?&]field=/);
+			await expect(page).toHaveURL(/[?&]locale=en/);
+
 			// Hold frames until after focus to simulate a tab that has not become visible yet.
 			await page.addInitScript(() => {
 				const requestFrame = window.requestAnimationFrame.bind(window);

@@ -247,6 +247,7 @@ type FocusRequest =
 			target: "field";
 			elementId: string;
 			field: string;
+			item?: number;
 			/** Focuses that control, rather than the block's first problem on screen. */
 			exact?: true;
 			onFocused?: () => void;
@@ -255,6 +256,7 @@ type FocusRequest =
 	| { target: "add" };
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
+const LIST_ITEM_INDEX = /^(0|[1-9][0-9]*)$/;
 
 /** The key of the block `element` is in, in any blocks field. */
 export function blockKeyOf(element: Element | null): string | undefined {
@@ -604,11 +606,30 @@ export function BlocksField({
 			focusField.startsWith(`${fieldPath}.${candidate._key}.`),
 		);
 		if (!block) return;
-		const field = focusField.slice(`${fieldPath}.${block._key}.`.length).split(".")[0];
+		const [field, index, subfield, ...rest] = focusField
+			.slice(`${fieldPath}.${block._key}.`.length)
+			.split(".");
 		const version = typeBySlug
 			.get(block._type)
 			?.versions.find((candidate) => candidate.version === block._version);
-		if (!field || !version?.fields.some((candidate) => candidate.slug === field)) return;
+		const definition = version?.fields.find((candidate) => candidate.slug === field);
+		if (!field || !definition || !version) return;
+		let item: number | undefined;
+		if (definition.type === "repeater" && index !== undefined) {
+			const items = block[field];
+			const position = Number(index);
+			if (
+				!LIST_ITEM_INDEX.test(index) ||
+				!Number.isSafeInteger(position) ||
+				!Array.isArray(items) ||
+				position >= items.length ||
+				rest.length > 0 ||
+				(subfield !== undefined &&
+					!repeaterSubFields(definition).some((candidate) => candidate.slug === subfield))
+			)
+				return;
+			item = position;
+		}
 		linkedFieldRef.current = focusField;
 		if (
 			planBlockFields(version.fields, "block").advanced.some(
@@ -623,6 +644,7 @@ export function BlocksField({
 			target: "field",
 			elementId: `field-${focusField}`,
 			field,
+			item,
 			exact: true,
 			onFocused: () => onFieldFocused?.(),
 		});
@@ -738,7 +760,11 @@ export function BlocksField({
 				const field = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
 					(element) => element.dataset.field === request.field,
 				);
-				const control = target() ?? focusableIn(field) ?? firstShown() ?? toggle;
+				const fallback =
+					request.item === undefined
+						? field
+						: field?.querySelectorAll<HTMLElement>("[data-list-item]")[request.item];
+				const control = target() ?? focusableIn(fallback) ?? firstShown() ?? toggle;
 				if (request.onFocused && control) {
 					control.scrollIntoView({ behavior: "smooth", block: "center" });
 					control.focus({ preventScroll: true });
@@ -1059,6 +1085,13 @@ export function BlocksField({
 											advancedOpen={readOnly || advancedKeys.has(block._key)}
 											issues={shownIssues.get(block._key) ?? NO_ISSUES}
 											revealToken={itemReveals.get(block._key) ?? 0}
+											revealItem={
+												revealFocus?.target === "field" &&
+												revealFocus.key === block._key &&
+												revealFocus.item !== undefined
+													? { field: revealFocus.field, index: revealFocus.item }
+													: undefined
+											}
 											readOnly={readOnly}
 											canAdd={canAdd}
 											atMax={atMax}
@@ -1178,6 +1211,7 @@ interface BlockRowProps {
 	issues: readonly BlockValueIssue[];
 	/** A new token opens the list items that hold a problem to show. */
 	revealToken: number;
+	revealItem?: { field: string; index: number };
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -1229,6 +1263,7 @@ function BlockRow({
 	advancedOpen,
 	issues,
 	revealToken,
+	revealItem,
 	readOnly,
 	canAdd,
 	atMax,
@@ -1386,6 +1421,7 @@ function BlockRow({
 				error={listIssue && issueMessage(listIssue)}
 				invalidItems={invalidItems}
 				revealToken={revealToken}
+				revealItem={revealItem?.field === field.slug ? revealItem.index : undefined}
 				onItemDeleted={(deleted) => onItemDeleted(field.slug, deleted)}
 				onItemDeleteStart={undo?.hold}
 				onItemsShift={(moves) => onItemsShift(field.slug, moves)}

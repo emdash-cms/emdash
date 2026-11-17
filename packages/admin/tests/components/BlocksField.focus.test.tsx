@@ -320,6 +320,19 @@ describe("A linked field focus request", () => {
 		},
 	);
 
+	it.each(["-1.label", "01.label", "99.label", "one.label", "1.missing", "1.label.extra"])(
+		"leaves an invalid indexed repeater target unopened: %s",
+		async (path) => {
+			const onFieldFocused = vi.fn();
+			await renderField([stats()], { focusField: `layout.stats.stats.${path}`, onFieldFocused });
+			await frame();
+			await expect
+				.element(page.getByRole("button", { name: "Stats", exact: true }))
+				.toHaveAttribute("aria-expanded", "false");
+			expect(onFieldFocused).not.toHaveBeenCalled();
+		},
+	);
+
 	it("focuses the requested field without revealing another validation issue", async () => {
 		await renderField(
 			[
