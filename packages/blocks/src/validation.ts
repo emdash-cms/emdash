@@ -40,7 +40,13 @@ const ELEMENT_TYPES = new Set([
 	"menu",
 ]);
 
-const REPEATER_SUB_FIELD_TYPES = new Set(["text_input", "number_input", "select", "toggle"]);
+const REPEATER_SUB_FIELD_TYPES = new Set([
+	"text_input",
+	"number_input",
+	"select",
+	"toggle",
+	"media_picker",
+]);
 
 const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "code", "element"]);
 const TABLE_CELL_ELEMENT_TYPES = new Set(["button", "link", "menu"]);

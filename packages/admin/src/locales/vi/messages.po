@@ -191,12 +191,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# mục)} other {(# mục)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4677
+#: packages/admin/src/components/ContentEditor.tsx:4587
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} trên # ký tự, tối thiểu {min}} other {{counted} trên # ký tự, tối thiểu {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4682
+#: packages/admin/src/components/ContentEditor.tsx:4592
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} trên # ký tự} other {{counted} trên # ký tự}}"
 
@@ -218,7 +218,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# bình luận đã nhập} other {# bình luận đã nhập}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3069
+#: packages/admin/src/router.tsx:3075
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {Đã cập nhật # bình luận} other {Đã cập nhật # bình luận}}"
 
@@ -365,7 +365,7 @@ msgstr "{0, plural, one {# quan hệ mà loại nội dung này tham gia} other 
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:4255
+#: packages/admin/src/components/PortableTextEditor.tsx:4256
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# hàng} other {# hàng}} × {1, plural, one {# cột} other {# cột}} đã chọn"
 
@@ -415,7 +415,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Thêm # video} other {Thêm # video}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4687
+#: packages/admin/src/components/ContentEditor.tsx:4597
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Ít nhất # ký tự} other {Ít nhất # ký tự}}"
 
@@ -569,17 +569,17 @@ msgid "{0} of {1} steps · {2} of {3}"
 msgstr "{0} trên {1} bước · {2} trên {3}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:829
+#: packages/admin/src/router.tsx:828
 msgid "{0} of {total} could not be deleted"
 msgstr "Không thể xoá {0} trên {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:785
+#: packages/admin/src/router.tsx:784
 msgid "{0} of {total} could not be published"
 msgstr "Không thể xuất bản {0} trên {total}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:808
+#: packages/admin/src/router.tsx:807
 msgid "{0} of {total} could not be updated"
 msgstr "Không thể cập nhật {0} trên {total}"
 
@@ -640,8 +640,8 @@ msgstr "Đã cập nhật {added} · {0} thất bại"
 msgid "{base} to: {0}"
 msgstr "{base} tới: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2038
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2039
+#: packages/admin/src/components/PortableTextEditor.tsx:2051
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# ký tự} other {# ký tự}}"
 
@@ -985,8 +985,8 @@ msgstr "{position} trên {total}"
 msgid "{previewRows} × {previewColumns} table"
 msgstr "Bảng {previewRows} × {previewColumns}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2040
-#: packages/admin/src/components/PortableTextEditor.tsx:2051
+#: packages/admin/src/components/PortableTextEditor.tsx:2041
+#: packages/admin/src/components/PortableTextEditor.tsx:2052
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr "{readingTime, plural, one {# phút đọc} other {# phút đọc}}"
 
@@ -1015,7 +1015,7 @@ msgstr "Bảng {row} × {column}"
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr "{rows, plural, one {Đã xoá hàng} other {Đã xoá # hàng}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2328
+#: packages/admin/src/components/PortableTextEditor.tsx:2329
 msgid "{rows} × {columns} table pasted"
 msgstr "Đã dán bảng {rows} × {columns}"
 
@@ -1059,15 +1059,15 @@ msgstr "{state}, {time}:"
 msgid "{subLabel} ({label}, item {position})"
 msgstr "{subLabel} ({label}, mục {position})"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:241
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "{title} is a draft again."
 msgstr "{title} đã chuyển thành bản nháp."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "{title} is now live."
 msgstr "{title} đã được xuất bản."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:252
 msgid "{title} now goes live {when}."
 msgstr "{title} sẽ được xuất bản {when}."
 
@@ -1111,8 +1111,8 @@ msgstr "{when}, Đã xuất bản, {author}"
 msgid "{widgetType} in {areaName}"
 msgstr "{widgetType} trong {areaName}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2036
-#: packages/admin/src/components/PortableTextEditor.tsx:2049
+#: packages/admin/src/components/PortableTextEditor.tsx:2037
+#: packages/admin/src/components/PortableTextEditor.tsx:2050
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# từ} other {# từ}}"
 
@@ -1337,7 +1337,7 @@ msgstr "Thiếu một tệp trong gói dữ liệu"
 msgid "A publication time has not been selected"
 msgstr "Chưa chọn thời gian xuất bản"
 
-#: packages/admin/src/components/ContentEditor.tsx:2199
+#: packages/admin/src/components/ContentEditor.tsx:2197
 msgid "A publishing action is already in progress"
 msgstr "Một tác vụ xuất bản đang được thực hiện"
 
@@ -1420,7 +1420,7 @@ msgstr "Chấp nhận và cài đặt"
 msgid "Accept & Update"
 msgstr "Chấp nhận và cập nhật"
 
-#: packages/admin/src/router.tsx:509
+#: packages/admin/src/router.tsx:510
 msgid "Accept invitation"
 msgstr "Nhận lời mời"
 
@@ -1436,7 +1436,7 @@ msgstr "Nhận lời mời"
 msgid "Access denied"
 msgstr "Không có quyền truy cập"
 
-#: packages/admin/src/router.tsx:3091
+#: packages/admin/src/router.tsx:3097
 msgid "Access Denied"
 msgstr "Không có quyền truy cập"
 
@@ -1531,7 +1531,7 @@ msgstr "Thêm"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:649
-#: packages/admin/src/components/PortableTextEditor.tsx:1632
+#: packages/admin/src/components/PortableTextEditor.tsx:1633
 #: packages/admin/src/components/TaxonomyManager.tsx:716
 #: packages/admin/src/components/TaxonomyManager.tsx:1249
 msgid "Add {0}"
@@ -1612,12 +1612,12 @@ msgstr "Thêm tác giả"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4717
+#: packages/admin/src/components/PortableTextEditor.tsx:4718
 msgid "Add caption"
 msgstr "Thêm chú thích"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4268
+#: packages/admin/src/components/PortableTextEditor.tsx:4269
 msgid "Add column after"
 msgstr "Thêm cột phía sau"
 
@@ -1680,7 +1680,7 @@ msgid "Add images to gallery"
 msgstr "Thêm ảnh vào thư viện ảnh"
 
 #: packages/admin/src/components/BlockListField.tsx:885
-#: packages/admin/src/components/PortableTextEditor.tsx:1632
+#: packages/admin/src/components/PortableTextEditor.tsx:1633
 msgid "Add item"
 msgstr "Thêm mục"
 
@@ -1700,9 +1700,9 @@ msgstr "Thêm mục bên dưới"
 msgid "Add item to {label}"
 msgstr "Thêm mục vào {label}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3892
-#: packages/admin/src/components/PortableTextEditor.tsx:4710
-#: packages/admin/src/components/PortableTextEditor.tsx:5159
+#: packages/admin/src/components/PortableTextEditor.tsx:3893
+#: packages/admin/src/components/PortableTextEditor.tsx:4711
+#: packages/admin/src/components/PortableTextEditor.tsx:5160
 msgid "Add link"
 msgstr "Thêm liên kết"
 
@@ -1728,7 +1728,7 @@ msgstr "Thêm thư mục mới"
 msgid "Add noindex meta tag"
 msgstr "Thêm thẻ meta noindex"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2408
+#: packages/admin/src/components/PortableTextEditor.tsx:2409
 msgid "Add one or more link buttons"
 msgstr "Thêm một hoặc nhiều nút liên kết"
 
@@ -1736,8 +1736,8 @@ msgstr "Thêm một hoặc nhiều nút liên kết"
 msgid "Add Passkey"
 msgstr "Thêm khoá truy cập"
 
-#: packages/admin/src/components/ContentEditor.tsx:4591
-#: packages/admin/src/components/ContentEditor.tsx:4591
+#: packages/admin/src/components/ContentEditor.tsx:4501
+#: packages/admin/src/components/ContentEditor.tsx:4501
 msgid "Add reference"
 msgstr "Thêm tham chiếu"
 
@@ -1750,7 +1750,7 @@ msgid "Add row above"
 msgstr "Thêm hàng phía trên"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4261
+#: packages/admin/src/components/PortableTextEditor.tsx:4262
 msgid "Add row below"
 msgstr "Thêm hàng bên dưới"
 
@@ -1945,25 +1945,25 @@ msgid "Agent-callable MCP tools"
 msgstr "Công cụ MCP mà tác nhân có thể gọi"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:4156
+#: packages/admin/src/components/PortableTextEditor.tsx:4157
 msgid "Align"
 msgstr "Căn chỉnh"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5333
+#: packages/admin/src/components/PortableTextEditor.tsx:5334
 msgid "Align center"
 msgstr "Căn giữa"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5325
+#: packages/admin/src/components/PortableTextEditor.tsx:5326
 msgid "Align left"
 msgstr "Căn trái"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5341
+#: packages/admin/src/components/PortableTextEditor.tsx:5342
 msgid "Align right"
 msgstr "Căn phải"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:484
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:725
-#: packages/admin/src/components/PortableTextEditor.tsx:4691
+#: packages/admin/src/components/PortableTextEditor.tsx:4692
 msgid "Alignment"
 msgstr "Căn chỉnh"
 
@@ -2048,7 +2048,7 @@ msgid "Allowed block types"
 msgstr "Các loại khối được phép"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3172
+#: packages/admin/src/router.tsx:3178
 msgid "Allowed Domains"
 msgstr "Tên miền được phép"
 
@@ -2089,8 +2089,8 @@ msgstr "Văn bản thay thế"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:515
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:519
 #: packages/admin/src/components/MediaLibrary.tsx:1176
-#: packages/admin/src/components/PortableTextEditor.tsx:4622
-#: packages/admin/src/components/PortableTextEditor.tsx:4688
+#: packages/admin/src/components/PortableTextEditor.tsx:4623
+#: packages/admin/src/components/PortableTextEditor.tsx:4689
 msgid "Alt text"
 msgstr "Văn bản thay thế"
 
@@ -2162,21 +2162,21 @@ msgstr "Một loại khoá kỹ thuật số được mã hoá dùng để mở 
 #: packages/admin/src/components/TaxonomySidebar.tsx:712
 #: packages/admin/src/components/TaxonomySidebar.tsx:875
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:739
-#: packages/admin/src/router.tsx:760
-#: packages/admin/src/router.tsx:986
-#: packages/admin/src/router.tsx:1209
+#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:759
+#: packages/admin/src/router.tsx:984
+#: packages/admin/src/router.tsx:1207
 #: packages/admin/src/router.tsx:1373
 #: packages/admin/src/router.tsx:1441
-#: packages/admin/src/router.tsx:1778
-#: packages/admin/src/router.tsx:1944
-#: packages/admin/src/router.tsx:1968
-#: packages/admin/src/router.tsx:2052
-#: packages/admin/src/router.tsx:2085
-#: packages/admin/src/router.tsx:3041
-#: packages/admin/src/router.tsx:3077
-#: packages/admin/src/router.tsx:3584
-#: packages/admin/src/router.tsx:3774
+#: packages/admin/src/router.tsx:1779
+#: packages/admin/src/router.tsx:1947
+#: packages/admin/src/router.tsx:1972
+#: packages/admin/src/router.tsx:2059
+#: packages/admin/src/router.tsx:2091
+#: packages/admin/src/router.tsx:3047
+#: packages/admin/src/router.tsx:3083
+#: packages/admin/src/router.tsx:3590
+#: packages/admin/src/router.tsx:3780
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Đã xảy ra lỗi"
@@ -2271,7 +2271,7 @@ msgstr "Cho phép mọi loại tệp (theo giới hạn chung)."
 msgid "Any number"
 msgstr "Bao nhiêu cũng được"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:59
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:60
 msgid "Anything typed into the changed fields during the restore will be lost."
 msgstr ""
 
@@ -2279,7 +2279,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3184
+#: packages/admin/src/router.tsx:3190
 msgid "API Tokens"
 msgstr "Token API"
 
@@ -2296,7 +2296,7 @@ msgid "Applies to every collection. Sections a collection doesn't use are skippe
 msgstr "Áp dụng cho mọi bộ sưu tập. Những phần mà bộ sưu tập không dùng sẽ được bỏ qua."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
-#: packages/admin/src/components/PortableTextEditor.tsx:5424
+#: packages/admin/src/components/PortableTextEditor.tsx:5425
 msgid "Apply"
 msgstr "Áp dụng"
 
@@ -2304,8 +2304,8 @@ msgstr "Áp dụng"
 msgid "Apply changes"
 msgstr "Áp dụng thay đổi"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3866
-#: packages/admin/src/components/PortableTextEditor.tsx:4663
+#: packages/admin/src/components/PortableTextEditor.tsx:3867
+#: packages/admin/src/components/PortableTextEditor.tsx:4664
 msgid "Apply link"
 msgstr "Áp dụng liên kết"
 
@@ -2410,11 +2410,11 @@ msgstr "Các trợ lý ảo kết nối qua MCP cần được quản trị viê
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:4710
+#: packages/admin/src/components/ContentEditor.tsx:4620
 msgid "At least {min}"
 msgstr "Tối thiểu {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4707
+#: packages/admin/src/components/ContentEditor.tsx:4617
 msgid "At most {max}"
 msgstr "Tối đa {max}"
 
@@ -2461,7 +2461,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Xác thực đã bị huỷ hoặc hết thời gian chờ. Vui lòng thử lại."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1466
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1418
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2484,7 +2484,7 @@ msgstr "Cấp quyền thất bại"
 msgid "Authorize"
 msgstr "Cấp quyền"
 
-#: packages/admin/src/router.tsx:520
+#: packages/admin/src/router.tsx:521
 msgid "Authorize device"
 msgstr "Cấp quyền cho thiết bị"
 
@@ -2545,11 +2545,11 @@ msgstr "Sao lưu tự động"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Sao lưu tự động cần có nơi lưu trữ (R2, S3 hoặc lưu trữ cục bộ). Hãy cấu hình lưu trữ trong cấu hình EmDash để bật."
 
-#: packages/admin/src/router.tsx:1912
+#: packages/admin/src/router.tsx:1914
 msgid "Autosave failed"
 msgstr "Tự động lưu thất bại"
 
-#: packages/admin/src/components/ContentEditor.tsx:254
+#: packages/admin/src/components/ContentEditor.tsx:247
 msgid "Autosave paused"
 msgstr "Đã tạm dừng lưu tự động"
 
@@ -2594,7 +2594,7 @@ msgstr "Quay lại"
 msgid "Back"
 msgstr "Quay lại"
 
-#: packages/admin/src/components/ContentEditor.tsx:2532
+#: packages/admin/src/components/ContentEditor.tsx:2513
 msgid "Back to {collectionLabel} list"
 msgstr "Quay lại danh sách {collectionLabel}"
 
@@ -2675,7 +2675,7 @@ msgstr "Đã lưu cài đặt sao lưu"
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3208
+#: packages/admin/src/router.tsx:3214
 msgid "Backups"
 msgstr "Sao lưu"
 
@@ -2703,7 +2703,7 @@ msgstr "Trước khi gửi:"
 msgid "Before you continue:"
 msgstr "Trước khi bạn tiếp tục:"
 
-#: packages/admin/src/components/ContentEditor.tsx:4704
+#: packages/admin/src/components/ContentEditor.tsx:4614
 msgid "Between {min} and {max}"
 msgstr "Từ {min} đến {max}"
 
@@ -2755,8 +2755,8 @@ msgstr "Vấn đề cần giải quyết"
 msgid "Blocks"
 msgstr "Khối"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3643
-#: packages/admin/src/components/PortableTextEditor.tsx:5193
+#: packages/admin/src/components/PortableTextEditor.tsx:3644
+#: packages/admin/src/components/PortableTextEditor.tsx:5194
 msgid "Bold"
 msgstr "Đậm"
 
@@ -2817,16 +2817,16 @@ msgstr "Đã xác minh nguồn gốc bản dựng"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:5250
+#: packages/admin/src/components/PortableTextEditor.tsx:5251
 msgid "Bullet List"
 msgstr "Danh sách gạch đầu dòng"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2425
+#: packages/admin/src/components/PortableTextEditor.tsx:2426
 msgid "button"
 msgstr "nút"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2406
-#: packages/admin/src/components/PortableTextEditor.tsx:2424
+#: packages/admin/src/components/PortableTextEditor.tsx:2407
+#: packages/admin/src/components/PortableTextEditor.tsx:2425
 msgid "Buttons"
 msgstr "Nút"
 
@@ -2873,7 +2873,7 @@ msgid "Byline schema"
 msgstr "Thông tin tác giả"
 
 #: packages/admin/src/components/Sidebar.tsx:583
-#: packages/admin/src/router.tsx:3521
+#: packages/admin/src/router.tsx:3527
 msgid "Byline Schema"
 msgstr "Thông tin tác giả"
 
@@ -2882,13 +2882,13 @@ msgid "Byline updated"
 msgstr "Đã cập nhật tác giả"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1239
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:385
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:549
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3510
+#: packages/admin/src/router.tsx:3516
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Tác giả"
@@ -2908,7 +2908,7 @@ msgstr "C++"
 #: packages/admin/src/components/AdminCommandPalette.tsx:147
 #: packages/admin/src/components/ContentTypeEditor.tsx:597
 #: packages/admin/src/components/Sidebar.tsx:478
-#: packages/admin/src/router.tsx:592
+#: packages/admin/src/router.tsx:593
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
 msgstr "Lịch"
@@ -2941,7 +2941,7 @@ msgstr ""
 #: packages/admin/src/components/ConfirmDialog.tsx:92
 #: packages/admin/src/components/ContentList.tsx:686
 #: packages/admin/src/components/ContentPickerModal.tsx:386
-#: packages/admin/src/components/ContentSettingsPanel.tsx:603
+#: packages/admin/src/components/ContentSettingsPanel.tsx:574
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:826
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -2956,9 +2956,9 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PluginManager.tsx:822
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
-#: packages/admin/src/components/PortableTextEditor.tsx:4634
-#: packages/admin/src/components/PortableTextEditor.tsx:4660
-#: packages/admin/src/components/PortableTextEditor.tsx:5408
+#: packages/admin/src/components/PortableTextEditor.tsx:4635
+#: packages/admin/src/components/PortableTextEditor.tsx:4661
+#: packages/admin/src/components/PortableTextEditor.tsx:5409
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:391
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -3071,13 +3071,11 @@ msgstr "Đã gộp ô"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:4160
-#: packages/admin/src/components/PortableTextEditor.tsx:4281
+#: packages/admin/src/components/PortableTextEditor.tsx:4161
+#: packages/admin/src/components/PortableTextEditor.tsx:4282
 msgid "Center"
 msgstr "Chính giữa"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:79
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:110
 #: packages/admin/src/components/FieldEditor.tsx:1066
 msgid "Change"
 msgstr "Đổi"
@@ -3119,7 +3117,7 @@ msgstr "Đổi ngày xuất bản"
 msgid "Change publication date: {0}"
 msgstr "Đổi ngày xuất bản: {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:677
+#: packages/admin/src/components/ContentSettingsPanel.tsx:639
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:515
 msgid "Change schedule"
 msgstr "Đổi thời gian đặt lịch"
@@ -3206,7 +3204,7 @@ msgstr "Nhật ký thay đổi"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Thay đổi áp dụng ở mọi nơi tác giả này xuất hiện."
 
-#: packages/admin/src/router.tsx:1985
+#: packages/admin/src/router.tsx:1990
 msgid "Changes discarded"
 msgstr "Đã bỏ các thay đổi"
 
@@ -3488,7 +3486,7 @@ msgstr "Xoá mục đã hoàn tất"
 msgid "Clear filters"
 msgstr "Xoá bộ lọc"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4170
+#: packages/admin/src/components/PortableTextEditor.tsx:4171
 msgid "Clear formatting"
 msgstr "Xoá định dạng"
 
@@ -3535,7 +3533,7 @@ msgid "Click this link to sign in to {siteName}:"
 msgstr "Mở liên kết này để đăng nhập vào {siteName}:"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:274
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:325
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/ContentPickerModal.tsx:231
@@ -3577,7 +3575,7 @@ msgstr "Đóng cài đặt ảnh"
 msgid "Close panel"
 msgstr "Đóng bảng"
 
-#: packages/admin/src/components/ContentEditor.tsx:3413
+#: packages/admin/src/components/ContentEditor.tsx:3323
 msgid "Close settings"
 msgstr "Đóng cài đặt"
 
@@ -3593,7 +3591,7 @@ msgstr "Mã"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:572
-#: packages/admin/src/components/PortableTextEditor.tsx:5292
+#: packages/admin/src/components/PortableTextEditor.tsx:5293
 msgid "Code Block"
 msgstr "Khối mã"
 
@@ -3629,9 +3627,9 @@ msgstr "Bộ sưu tập “{0}” có mục"
 msgid "Collection “{0}” was created on this site"
 msgstr "Bộ sưu tập “{0}” đã được tạo trên trang web này"
 
-#: packages/admin/src/router.tsx:850
-#: packages/admin/src/router.tsx:1053
-#: packages/admin/src/router.tsx:2504
+#: packages/admin/src/router.tsx:848
+#: packages/admin/src/router.tsx:1051
+#: packages/admin/src/router.tsx:2510
 msgid "Collection \"{collection}\" not found"
 msgstr "Không tìm thấy bộ sưu tập \"{collection}\""
 
@@ -3657,7 +3655,7 @@ msgid "Collections created:"
 msgstr "Bộ sưu tập đã tạo:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4266
+#: packages/admin/src/components/PortableTextEditor.tsx:4267
 msgid "Column added after"
 msgstr "Đã thêm cột phía sau"
 
@@ -3673,7 +3671,7 @@ msgstr "Đã giảm độ rộng cột"
 msgid "Column width increased"
 msgstr "Đã tăng độ rộng cột"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2328
+#: packages/admin/src/components/PortableTextEditor.tsx:2329
 msgid "Column width resized"
 msgstr "Đã đổi độ rộng cột"
 
@@ -3714,7 +3712,7 @@ msgstr "Phản ứng bình luận"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:513
-#: packages/admin/src/router.tsx:2966
+#: packages/admin/src/router.tsx:2972
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -3750,7 +3748,7 @@ msgstr "Cấu hình nhà cung cấp email, xem trạng thái luồng gửi và g
 msgid "Confirm"
 msgstr "Xác nhận"
 
-#: packages/admin/src/router.tsx:483
+#: packages/admin/src/router.tsx:484
 msgid "Confirm magic link"
 msgstr "Xác nhận liên kết đăng nhập"
 
@@ -3812,7 +3810,7 @@ msgstr "Đang kết nối..."
 msgid "Connects"
 msgstr "Kết nối"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:532
+#: packages/admin/src/components/ContentSettingsPanel.tsx:501
 msgid "content"
 msgstr "nội dung"
 
@@ -3823,7 +3821,7 @@ msgstr "nội dung"
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:458
 #: packages/admin/src/components/Widgets.tsx:986
-#: packages/admin/src/router.tsx:604
+#: packages/admin/src/router.tsx:605
 msgid "Content"
 msgstr "Nội dung"
 
@@ -3844,7 +3842,7 @@ msgstr "Lỗi nội dung ({0})"
 msgid "Content found:"
 msgstr "Nội dung tìm thấy:"
 
-#: packages/admin/src/router.tsx:2034
+#: packages/admin/src/router.tsx:2040
 msgid "Content has been scheduled for publishing"
 msgstr "Nội dung đã được đặt lịch xuất bản"
 
@@ -3852,11 +3850,11 @@ msgstr "Nội dung đã được đặt lịch xuất bản"
 msgid "Content ID:"
 msgstr "ID nội dung:"
 
-#: packages/admin/src/router.tsx:1938
+#: packages/admin/src/router.tsx:1941
 msgid "Content is now live"
 msgstr "Nội dung đã được xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1199
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1151
 msgid "Content language"
 msgstr "Ngôn ngữ nội dung"
 
@@ -3877,11 +3875,11 @@ msgstr "Nội dung tham chiếu đến thư viện sai cách"
 msgid "Content refers to media that is not in the package"
 msgstr "Nội dung tham chiếu đến tệp thư viện không có trong gói"
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1966
 msgid "Content removed from public view"
 msgstr "Nội dung đã được gỡ khỏi chế độ xem công khai"
 
-#: packages/admin/src/router.tsx:2045
+#: packages/admin/src/router.tsx:2052
 msgid "Content reverted to draft"
 msgstr "Nội dung đã trở về bản nháp"
 
@@ -3904,7 +3902,7 @@ msgstr "Loại nội dung"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:579
-#: packages/admin/src/router.tsx:3529
+#: packages/admin/src/router.tsx:3535
 msgid "Content Types"
 msgstr "Loại nội dung"
 
@@ -3940,7 +3938,7 @@ msgid "Continue Import"
 msgstr "Tiếp tục nhập"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:5267
+#: packages/admin/src/components/PortableTextEditor.tsx:5268
 msgid "Continue numbering"
 msgstr "Tiếp tục đánh số"
 
@@ -4055,7 +4053,7 @@ msgstr "Không thể sao chép tự động. Vui lòng chọn URL ở trên và 
 msgid "Could not create {singularLower}"
 msgstr "Không thể tạo {singularLower}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3432
+#: packages/admin/src/components/PortableTextEditor.tsx:3433
 msgid "Could not insert section"
 msgstr "Không thể chèn mẫu"
 
@@ -4079,7 +4077,7 @@ msgstr "Không thể tải thư viện."
 msgid "Could not load the calendar"
 msgstr "Không thể tải lịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:396
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:395
 msgid "Could not load this entry's details."
 msgstr "Không thể tải chi tiết của mục này."
 
@@ -4087,7 +4085,7 @@ msgstr "Không thể tải chi tiết của mục này."
 msgid "Could not load this folder."
 msgstr "Không thể tải thư mục này."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:230
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:229
 msgid "Could not publish"
 msgstr "Không thể xuất bản"
 
@@ -4095,7 +4093,7 @@ msgstr "Không thể xuất bản"
 msgid "Could not reach {origin}"
 msgstr "Không thể kết nối tới {origin}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:245
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:244
 msgid "Could not remove the schedule"
 msgstr "Không thể huỷ đặt lịch"
 
@@ -4127,7 +4125,7 @@ msgstr "Không thể nhận diện WordPress"
 msgid "Couldn’t join. Try again."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4568
+#: packages/admin/src/components/ContentEditor.tsx:4478
 msgid "Couldn't load all references."
 msgstr "Không thể tải toàn bộ tham chiếu."
 
@@ -4433,7 +4431,7 @@ msgid "Create, update, delete content"
 msgstr "Tạo, cập nhật, xoá nội dung"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1148
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1100
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:223
@@ -4451,11 +4449,11 @@ msgid "Created {0}"
 msgstr "Đã tạo {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2077
+#: packages/admin/src/router.tsx:2083
 msgid "Created {0} translation"
 msgstr "Đã tạo bản dịch {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1128
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
 msgid "Created and updated"
 msgstr "Ngày tạo và cập nhật"
 
@@ -4565,7 +4563,7 @@ msgstr "Mẫu tuỳ chỉnh"
 msgid "Custom Taxonomies"
 msgstr "Phân loại tuỳ chỉnh"
 
-#: packages/admin/src/components/ContentEditor.tsx:3063
+#: packages/admin/src/components/ContentEditor.tsx:2988
 #: packages/admin/src/components/Sidebar.tsx:796
 msgid "Customize sidebar"
 msgstr "Tuỳ chỉnh thanh bên"
@@ -4585,7 +4583,7 @@ msgstr "Biến thể chế độ tối"
 #: packages/admin/src/components/Dashboard.tsx:75
 #: packages/admin/src/components/Shell.tsx:85
 #: packages/admin/src/components/Sidebar.tsx:475
-#: packages/admin/src/router.tsx:574
+#: packages/admin/src/router.tsx:575
 msgid "Dashboard"
 msgstr "Trang quản trị"
 
@@ -4636,7 +4634,7 @@ msgstr "Quyền đã khai báo"
 msgid "Decrease column width"
 msgstr "Giảm độ rộng cột"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2434
+#: packages/admin/src/components/PortableTextEditor.tsx:2435
 msgctxt "button style"
 msgid "Default"
 msgstr "Mặc định"
@@ -4823,7 +4821,7 @@ msgstr "Xoá thư mục"
 msgid "Delete gallery"
 msgstr "Xoá thư viện ảnh"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4729
+#: packages/admin/src/components/PortableTextEditor.tsx:4730
 msgid "Delete image"
 msgstr "Xoá ảnh"
 
@@ -4993,7 +4991,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "Mô tả hình ảnh"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:522
-#: packages/admin/src/components/PortableTextEditor.tsx:4623
+#: packages/admin/src/components/PortableTextEditor.tsx:4624
 msgid "Describe the image"
 msgstr "Mô tả hình ảnh"
 
@@ -5130,8 +5128,8 @@ msgstr "Không cho phép huấn luyện AI"
 msgid "Discard"
 msgstr "Huỷ bỏ"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:357
-#: packages/admin/src/components/ContentSettingsPanel.tsx:364
+#: packages/admin/src/components/ContentSettingsPanel.tsx:344
+#: packages/admin/src/components/ContentSettingsPanel.tsx:350
 msgid "Discard changes"
 msgstr "Huỷ các thay đổi"
 
@@ -5139,11 +5137,11 @@ msgstr "Huỷ các thay đổi"
 msgid "Discard changes?"
 msgstr "Huỷ các thay đổi?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:362
+#: packages/admin/src/components/ContentSettingsPanel.tsx:348
 msgid "Discard draft changes?"
 msgstr "Huỷ các thay đổi nháp?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:365
+#: packages/admin/src/components/ContentSettingsPanel.tsx:351
 #: packages/admin/src/components/MediaDetailPanel.tsx:1887
 msgid "Discarding..."
 msgstr "Đang huỷ..."
@@ -5164,15 +5162,15 @@ msgstr "Bỏ qua mục đã hoàn tất {0}"
 msgid "Dismiss import suggestion"
 msgstr "Bỏ qua gợi ý nhập"
 
-#: packages/admin/src/components/ContentEditor.tsx:3366
+#: packages/admin/src/components/ContentEditor.tsx:3278
 msgid "Dismiss save error"
 msgstr "Bỏ qua lỗi lưu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3453
+#: packages/admin/src/components/PortableTextEditor.tsx:3454
 msgid "Dismiss section error"
 msgstr "Bỏ qua lỗi mẫu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3420
+#: packages/admin/src/components/PortableTextEditor.tsx:3421
 msgid "Dismiss table paste error"
 msgstr "Bỏ qua lỗi dán bảng"
 
@@ -5208,10 +5206,6 @@ msgstr "Hiện đám mây thẻ"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:757
 msgid "Displayed below the image as a visible caption."
 msgstr "Hiện bên dưới ảnh làm chú thích."
-
-#: packages/admin/src/components/ContentEditor.tsx:2695
-msgid "Distraction-free mode (⌘⇧\\)"
-msgstr "Chế độ tập trung (⌘⇧\\)"
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
 msgid "Distribute columns evenly"
@@ -5344,7 +5338,7 @@ msgstr "Đang tải gói về"
 msgid "visualEditing.draft"
 msgstr "Nháp"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:417
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:416
 #: packages/admin/src/components/ContentList.tsx:1017
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
@@ -5384,7 +5378,7 @@ msgstr "Kéo thả hoặc bấm để chọn tệp (.xml)"
 msgid "Drag here to add"
 msgstr "Kéo vào đây để thêm"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1808
+#: packages/admin/src/components/PortableTextEditor.tsx:1809
 msgid "Drag to reorder"
 msgstr "Kéo để sắp xếp lại"
 
@@ -5529,12 +5523,12 @@ msgstr "Sửa {0}"
 msgid "Edit {0} field"
 msgstr "Sửa trường {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2309
-#: packages/admin/src/components/ContentEditor.tsx:2317
+#: packages/admin/src/components/ContentEditor.tsx:2307
+#: packages/admin/src/components/ContentEditor.tsx:2315
 msgid "Edit {itemLabel}"
 msgstr "Sửa {itemLabel}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2316
+#: packages/admin/src/components/ContentEditor.tsx:2314
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr "Sửa {itemLabel}: {tabEntryTitle}"
 
@@ -5565,15 +5559,15 @@ msgstr "Sửa trường tác giả"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4717
+#: packages/admin/src/components/PortableTextEditor.tsx:4718
 msgid "Edit caption"
 msgstr "Sửa chú thích"
 
-#: packages/admin/src/router.tsx:1097
+#: packages/admin/src/router.tsx:1095
 msgid "Edit content"
 msgstr "Sửa nội dung"
 
-#: packages/admin/src/router.tsx:3723
+#: packages/admin/src/router.tsx:3729
 msgid "Edit content type"
 msgstr "Sửa loại nội dung"
 
@@ -5609,10 +5603,10 @@ msgstr "Sửa ảnh"
 msgid "Edit image {0}"
 msgstr "Sửa ảnh {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3892
-#: packages/admin/src/components/PortableTextEditor.tsx:4001
-#: packages/admin/src/components/PortableTextEditor.tsx:4710
-#: packages/admin/src/components/PortableTextEditor.tsx:5158
+#: packages/admin/src/components/PortableTextEditor.tsx:3893
+#: packages/admin/src/components/PortableTextEditor.tsx:4002
+#: packages/admin/src/components/PortableTextEditor.tsx:4711
+#: packages/admin/src/components/PortableTextEditor.tsx:5159
 msgid "Edit link"
 msgstr "Sửa liên kết"
 
@@ -5624,7 +5618,7 @@ msgstr "Khoá khi sửa"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Sửa văn bản thay thế, chú thích và điểm lấy nét của tệp trong thư viện"
 
-#: packages/admin/src/router.tsx:3427
+#: packages/admin/src/router.tsx:3433
 msgid "Edit menu"
 msgstr "Sửa menu"
 
@@ -5654,7 +5648,7 @@ msgstr "Sửa chuyển hướng {0}"
 msgid "Edit role"
 msgstr "Sửa vai trò"
 
-#: packages/admin/src/router.tsx:3476
+#: packages/admin/src/router.tsx:3482
 msgid "Edit section"
 msgstr "Sửa mẫu"
 
@@ -5707,7 +5701,7 @@ msgstr "Đã sửa chú thích ảnh"
 msgid "Edited an image description"
 msgstr "Đã sửa mô tả ảnh"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:493
+#: packages/admin/src/components/ContentSettingsPanel.tsx:475
 msgid "Edited by <0>{people}</0>"
 msgstr ""
 
@@ -5811,7 +5805,7 @@ msgstr "Nhà cung cấp email đang hoạt động"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3196
+#: packages/admin/src/router.tsx:3202
 msgid "Email Settings"
 msgstr "Cài đặt email"
 
@@ -5837,7 +5831,7 @@ msgid "Embed"
 msgstr "Nhúng"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2538
+#: packages/admin/src/components/PortableTextEditor.tsx:2539
 msgid "Embed a {0}"
 msgstr "Nhúng {0}"
 
@@ -5899,7 +5893,7 @@ msgstr "EmDash đang quét nội dung hiện có."
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "EmDash không bao giờ nhận hay lưu trữ mã PIN, mật khẩu hoặc thông tin sinh trắc học của bạn."
 
-#: packages/admin/src/router.tsx:2546
+#: packages/admin/src/router.tsx:2552
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr ""
 
@@ -5967,7 +5961,7 @@ msgstr "Bật theo dõi để lập chỉ mục nội dung hiện có và cập 
 msgid "Enabled"
 msgstr "Đã bật"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1202
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1154
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "Hệ thống đang dùng tiếng Anh do chưa cấu hình ngôn ngữ nội dung. Ngôn ngữ này được lưu cùng với bài viết và tách biệt với ngôn ngữ giao diện quản trị của bạn."
 
@@ -6109,7 +6103,7 @@ msgid "Enter a valid time"
 msgstr "Nhập thời gian hợp lệ"
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4758
+#: packages/admin/src/components/ContentEditor.tsx:4668
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Nhập URL hợp lệ (ví dụ: https://example.com)"
 
@@ -6138,15 +6132,11 @@ msgstr "Nhập địa chỉ email."
 msgid "Enter credentials manually"
 msgstr "Nhập thông tin xác thực thủ công"
 
-#: packages/admin/src/components/ContentEditor.tsx:2690
-msgid "Enter distraction-free mode"
-msgstr "Vào chế độ tập trung"
-
 #: packages/admin/src/components/users/UserDetail.tsx:162
 msgid "Enter email"
 msgstr "Nhập email"
 
-#: packages/admin/src/components/ContentEditor.tsx:3910
+#: packages/admin/src/components/ContentEditor.tsx:3820
 msgid "Enter markdown content..."
 msgstr "Nhập nội dung markdown..."
 
@@ -6211,7 +6201,7 @@ msgstr "mục nguồn"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4057
+#: packages/admin/src/router.tsx:4063
 msgid "Error"
 msgstr "Lỗi"
 
@@ -6291,14 +6281,6 @@ msgstr "Nội dung hiện có đã được lập chỉ mục. Các thay đổi 
 #: packages/admin/src/components/WordPressImport.tsx:2060
 msgid "Exists"
 msgstr "Đã tồn tại"
-
-#: packages/admin/src/components/ContentEditor.tsx:2690
-msgid "Exit distraction-free mode"
-msgstr "Thoát chế độ tập trung"
-
-#: packages/admin/src/components/ContentEditor.tsx:2694
-msgid "Exit distraction-free mode (⌘⇧\\)"
-msgstr "Thoát chế độ tập trung (⌘⇧\\)"
 
 #: packages/admin/src/components/BlocksField.tsx:984
 msgid "Expand all"
@@ -6555,7 +6537,7 @@ msgid "Failed to create term translation"
 msgstr "Không thể tạo bản dịch của thuật ngữ"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2088
 msgid "Failed to create translation"
 msgstr "Không thể tạo bản dịch"
 
@@ -6567,7 +6549,7 @@ msgstr "Không thể tạo tiện ích"
 msgid "Failed to create widget area"
 msgstr "Không thể tạo khu vực tiện ích"
 
-#: packages/admin/src/router.tsx:828
+#: packages/admin/src/router.tsx:827
 msgid "Failed to delete"
 msgstr "Không thể xoá"
 
@@ -6689,7 +6671,7 @@ msgstr "Không thể đóng lời chào mừng"
 msgid "Failed to download a package file"
 msgstr "Không thể tải về một tệp của gói"
 
-#: packages/admin/src/router.tsx:759
+#: packages/admin/src/router.tsx:758
 msgid "Failed to duplicate"
 msgstr "Không thể nhân bản"
 
@@ -6955,7 +6937,7 @@ msgstr "Không thể tải trạng thái cập nhật"
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2987
+#: packages/admin/src/router.tsx:2993
 msgid "Failed to fetch user"
 msgstr "Không thể tải tài khoản"
 
@@ -7028,7 +7010,7 @@ msgstr "Không thể liệt kê các trường tác giả"
 msgid "Failed to list files to upload"
 msgstr "Không thể liệt kê các tệp cần tải lên"
 
-#: packages/admin/src/router.tsx:558
+#: packages/admin/src/router.tsx:559
 msgid "Failed to load admin"
 msgstr "Không thể tải trang quản trị"
 
@@ -7144,7 +7126,7 @@ msgid "Failed to lock the entry"
 msgstr "Không thể khoá mục này"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3076
+#: packages/admin/src/router.tsx:3082
 msgid "Failed to perform bulk action"
 msgstr "Không thể thực hiện thao tác hàng loạt"
 
@@ -7161,9 +7143,9 @@ msgstr "Không thể chuẩn bị việc nhập"
 msgid "Failed to probe URL"
 msgstr "Không thể kiểm tra URL"
 
-#: packages/admin/src/router.tsx:784
-#: packages/admin/src/router.tsx:1943
-#: packages/admin/src/router.tsx:2291
+#: packages/admin/src/router.tsx:783
+#: packages/admin/src/router.tsx:1946
+#: packages/admin/src/router.tsx:2296
 msgid "Failed to publish"
 msgstr "Không thể xuất bản"
 
@@ -7175,7 +7157,7 @@ msgstr "Không thể xuất bản nội dung"
 msgid "Failed to read byline field usage"
 msgstr "Không thể tải thông tin sử dụng trường tác giả"
 
-#: packages/admin/src/router.tsx:3583
+#: packages/admin/src/router.tsx:3589
 msgid "Failed to register {slug}"
 msgstr "Không thể đăng ký {slug}"
 
@@ -7230,7 +7212,7 @@ msgstr "Không thể sắp xếp lại các tiện ích"
 msgid "Failed to replace media image"
 msgstr "Không thể thay ảnh trong thư viện"
 
-#: packages/admin/src/router.tsx:738
+#: packages/admin/src/router.tsx:737
 msgid "Failed to restore"
 msgstr "Không thể khôi phục"
 
@@ -7252,11 +7234,11 @@ msgstr "Không thể thu hồi token API"
 msgid "Failed to rewrite URLs"
 msgstr "Không thể ghi lại các URL"
 
-#: packages/admin/src/components/ContentEditor.tsx:3095
-#: packages/admin/src/components/ContentEditor.tsx:3358
-#: packages/admin/src/router.tsx:981
-#: packages/admin/src/router.tsx:1773
-#: packages/admin/src/router.tsx:3773
+#: packages/admin/src/components/ContentEditor.tsx:3018
+#: packages/admin/src/components/ContentEditor.tsx:3270
+#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:1774
+#: packages/admin/src/router.tsx:3779
 msgid "Failed to save"
 msgstr "Không thể lưu"
 
@@ -7332,8 +7314,8 @@ msgstr "Không thể bắt đầu nhập"
 msgid "Failed to uninstall plugin"
 msgstr "Không thể gỡ cài đặt plugin"
 
-#: packages/admin/src/router.tsx:1967
-#: packages/admin/src/router.tsx:2338
+#: packages/admin/src/router.tsx:1971
+#: packages/admin/src/router.tsx:2343
 msgid "Failed to unpublish"
 msgstr "Không thể huỷ xuất bản"
 
@@ -7341,8 +7323,8 @@ msgstr "Không thể huỷ xuất bản"
 msgid "Failed to unpublish content"
 msgstr "Không thể huỷ xuất bản nội dung"
 
-#: packages/admin/src/router.tsx:2051
-#: packages/admin/src/router.tsx:2432
+#: packages/admin/src/router.tsx:2058
+#: packages/admin/src/router.tsx:2437
 msgid "Failed to unschedule"
 msgstr "Không thể huỷ đặt lịch"
 
@@ -7350,7 +7332,7 @@ msgstr "Không thể huỷ đặt lịch"
 msgid "Failed to unschedule content"
 msgstr "Không thể huỷ đặt lịch cho nội dung"
 
-#: packages/admin/src/router.tsx:807
+#: packages/admin/src/router.tsx:806
 msgid "Failed to update"
 msgstr "Không thể cập nhật"
 
@@ -7441,7 +7423,7 @@ msgstr "Không thể cập nhật mẫu"
 msgid "Failed to update settings"
 msgstr "Không thể cập nhật cài đặt"
 
-#: packages/admin/src/router.tsx:3040
+#: packages/admin/src/router.tsx:3046
 msgid "Failed to update status"
 msgstr "Không thể cập nhật trạng thái"
 
@@ -7581,7 +7563,7 @@ msgstr "Không thể đổi tên tệp sau khi tải lên"
 msgid "Files upload as soon as you add them."
 msgstr "Tệp sẽ tải lên ngay khi bạn thêm."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2436
+#: packages/admin/src/components/PortableTextEditor.tsx:2437
 msgctxt "button style"
 msgid "Fill"
 msgstr "Tô nền"
@@ -7653,7 +7635,7 @@ msgstr "Lọc loại tác giả"
 msgid "Filter: {activeCount} selected"
 msgstr "Lọc: đã chọn {activeCount}"
 
-#: packages/admin/src/router.tsx:1220
+#: packages/admin/src/router.tsx:1218
 msgid "Find it in this entry’s revisions."
 msgstr ""
 
@@ -7678,19 +7660,19 @@ msgstr "Phiên bản đầu tiên"
 msgid "First-time commenters only"
 msgstr "Chỉ duyệt người bình luận lần đầu"
 
-#: packages/admin/src/components/ContentEditor.tsx:258
+#: packages/admin/src/components/ContentEditor.tsx:251
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr "Hãy sửa {field} trong khối {block} để tiếp tục lưu."
 
-#: packages/admin/src/components/ContentEditor.tsx:2291
+#: packages/admin/src/components/ContentEditor.tsx:2289
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Hãy sửa các trường không hợp lệ trước khi đổi ngày xuất bản"
 
-#: packages/admin/src/components/ContentEditor.tsx:2215
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Hãy sửa các trường không hợp lệ trước khi thay đổi việc đặt lịch"
 
-#: packages/admin/src/components/ContentEditor.tsx:257
+#: packages/admin/src/components/ContentEditor.tsx:250
 msgid "Fix the {block} block to resume saving."
 msgstr "Hãy sửa khối {block} để tiếp tục lưu."
 
@@ -7715,7 +7697,7 @@ msgstr "Thư mục"
 msgid "Folder deleted"
 msgstr "Đã xoá thư mục"
 
-#: packages/admin/src/router.tsx:2709
+#: packages/admin/src/router.tsx:2715
 msgid "Folder no longer exists"
 msgstr "Thư mục không còn tồn tại"
 
@@ -7763,7 +7745,7 @@ msgstr "Để nhập đầy đủ, kể cả bản nháp và toàn bộ nội du
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Để nhập tốt nhất, hãy cài đặt plugin <0>EmDash Exporter</0> trên trang web WordPress của bạn."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3844
+#: packages/admin/src/components/PortableTextEditor.tsx:3845
 msgid "Format selection"
 msgstr "Định dạng phần chọn"
 
@@ -7811,7 +7793,7 @@ msgstr "Toàn quyền quản trị"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:44
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2486
+#: packages/admin/src/components/PortableTextEditor.tsx:2487
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:437
 msgid "Gallery"
 msgstr "Thư viện ảnh"
@@ -7826,7 +7808,7 @@ msgid "General"
 msgstr "Tổng quan"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3247
+#: packages/admin/src/router.tsx:3253
 msgid "General Settings"
 msgstr "Cài đặt tổng quan"
 
@@ -7858,7 +7840,7 @@ msgstr "Hãy đặt tên cho khoá truy cập này để dễ nhận ra về sau
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:2202
+#: packages/admin/src/components/ContentEditor.tsx:2200
 msgid "Go back to editing first."
 msgstr "Hãy quay lại chỉnh sửa trước."
 
@@ -7866,12 +7848,12 @@ msgstr "Hãy quay lại chỉnh sửa trước."
 msgid "Go live"
 msgstr "Bật chế độ chính thức"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:440
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Go live {countdown}"
 msgstr "Xuất bản {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2500
-#: packages/admin/src/router.tsx:4077
+#: packages/admin/src/router.tsx:4083
 msgid "Go to Dashboard"
 msgstr "Chuyển đến trang quản trị"
 
@@ -7883,11 +7865,11 @@ msgstr "Đến trang đăng nhập"
 msgid "Go to the next problem"
 msgstr "Đến vấn đề tiếp theo"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:355
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Goes live"
 msgstr "Thời điểm xuất bản"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:422
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 msgid "Goes live {countdown}"
 msgstr "Xuất bản {countdown}"
 
@@ -8042,6 +8024,10 @@ msgstr "Ẩn khỏi điều hướng"
 msgid "Hide from search engines"
 msgstr "Ẩn khỏi công cụ tìm kiếm"
 
+#: packages/admin/src/components/SettingsPanelToggle.tsx:207
+msgid "Hide settings"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:294
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
 msgid "Hide token"
@@ -8069,7 +8055,7 @@ msgstr "Lượt truy cập"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Giữ mục khi có người đang sửa và từ chối người khác ghi vào"
 
-#: packages/admin/src/components/ContentEditor.tsx:4144
+#: packages/admin/src/components/ContentEditor.tsx:4054
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Trường này đang lưu ID của mục. Hãy thiết lập bộ sưu tập đích trong phần Loại nội dung để có thể chọn trực tiếp từ danh mục."
 
@@ -8085,7 +8071,7 @@ msgstr "Trang chủ"
 msgid "Hooks"
 msgstr "Hook"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2417
+#: packages/admin/src/components/PortableTextEditor.tsx:2418
 msgid "Horizontal"
 msgstr "Ngang"
 
@@ -8222,7 +8208,7 @@ msgstr "Hình ảnh"
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:710
 #: packages/admin/src/components/FieldEditor.tsx:1702
-#: packages/admin/src/components/PortableTextEditor.tsx:2473
+#: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
 msgid "Image"
@@ -8244,7 +8230,7 @@ msgstr "Hình ảnh {0}"
 msgid "Image actions"
 msgstr "Thao tác với ảnh"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4588
+#: packages/admin/src/components/PortableTextEditor.tsx:4589
 msgid "Image controls"
 msgstr "Điều khiển ảnh"
 
@@ -8252,11 +8238,11 @@ msgstr "Điều khiển ảnh"
 msgid "Image from media library"
 msgstr "Ảnh từ thư viện"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5156
+#: packages/admin/src/components/PortableTextEditor.tsx:5157
 msgid "Image link"
 msgstr "Liên kết ảnh"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:70
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
 #: packages/admin/src/components/ImageFieldRenderer.tsx:638
 #: packages/admin/src/components/ImageFieldRenderer.tsx:677
 #: packages/admin/src/components/ImageFieldRenderer.tsx:884
@@ -8274,7 +8260,7 @@ msgid "Image replaced."
 msgstr "Đã thay ảnh."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:391
-#: packages/admin/src/components/PortableTextEditor.tsx:4722
+#: packages/admin/src/components/PortableTextEditor.tsx:4723
 msgid "Image settings"
 msgstr "Cài đặt ảnh"
 
@@ -8365,7 +8351,7 @@ msgid "Import failed"
 msgstr "Nhập thất bại"
 
 #: packages/admin/src/components/WordPressImport.tsx:738
-#: packages/admin/src/router.tsx:3412
+#: packages/admin/src/router.tsx:3418
 msgid "Import from WordPress"
 msgstr "Nhập từ WordPress"
 
@@ -8506,8 +8492,8 @@ msgstr "Nội tuyến"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Khối nội tuyến dùng kiểu dáng trang web của bạn. Hệ thống sẽ loại bỏ script, thẻ style, thuộc tính style và các iframe không phải YouTube hay Vimeo."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3647
-#: packages/admin/src/components/PortableTextEditor.tsx:5225
+#: packages/admin/src/components/PortableTextEditor.tsx:3648
+#: packages/admin/src/components/PortableTextEditor.tsx:5226
 msgid "Inline Code"
 msgstr "Mã cùng dòng"
 
@@ -8532,7 +8518,7 @@ msgstr "Chèn một khối mã"
 msgid "Insert a horizontal rule"
 msgstr "Chèn đường kẻ ngang"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2517
+#: packages/admin/src/components/PortableTextEditor.tsx:2518
 msgid "Insert a reusable section"
 msgstr "Chèn một mẫu dùng lại được"
 
@@ -8540,11 +8526,11 @@ msgstr "Chèn một mẫu dùng lại được"
 msgid "Insert a table"
 msgstr "Chèn một bảng"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2474
+#: packages/admin/src/components/PortableTextEditor.tsx:2475
 msgid "Insert an image"
 msgstr "Chèn một ảnh"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2487
+#: packages/admin/src/components/PortableTextEditor.tsx:2488
 msgid "Insert an image gallery"
 msgstr "Chèn một thư viện ảnh"
 
@@ -8552,8 +8538,8 @@ msgstr "Chèn một thư viện ảnh"
 msgid "Insert block"
 msgstr "Chèn khối"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5172
-#: packages/admin/src/components/PortableTextEditor.tsx:5182
+#: packages/admin/src/components/PortableTextEditor.tsx:5173
+#: packages/admin/src/components/PortableTextEditor.tsx:5183
 msgid "Insert block after current block"
 msgstr "Chèn khối sau khối hiện tại"
 
@@ -8561,12 +8547,12 @@ msgstr "Chèn khối sau khối hiện tại"
 msgid "Insert block below"
 msgstr "Chèn khối bên dưới"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5306
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
 msgid "Insert HTML"
 msgstr "Chèn HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3553
-#: packages/admin/src/components/PortableTextEditor.tsx:5299
+#: packages/admin/src/components/PortableTextEditor.tsx:3554
+#: packages/admin/src/components/PortableTextEditor.tsx:5300
 msgid "Insert image"
 msgstr "Chèn ảnh"
 
@@ -8595,7 +8581,7 @@ msgstr "Chèn mẫu"
 msgid "Insert table"
 msgstr "Chèn bảng"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3567
+#: packages/admin/src/components/PortableTextEditor.tsx:3568
 msgid "Insert video"
 msgstr "Chèn video"
 
@@ -8657,7 +8643,7 @@ msgstr "TÊN ĐỊNH DANH KHÔNG HỢP LỆ"
 msgid "Invalid invite link"
 msgstr "Liên kết mời không hợp lệ"
 
-#: packages/admin/src/components/ContentEditor.tsx:4851
+#: packages/admin/src/components/ContentEditor.tsx:4761
 msgid "Invalid JSON"
 msgstr "JSON không hợp lệ"
 
@@ -8715,7 +8701,7 @@ msgstr "Chỉ gọi các công cụ MCP đang bật của plugin này"
 msgid "Isolated frame"
 msgstr "Khung biệt lập"
 
-#: packages/admin/src/components/ContentEditor.tsx:2798
+#: packages/admin/src/components/ContentEditor.tsx:2725
 msgid "It has formatting this editor can’t keep."
 msgstr ""
 
@@ -8727,18 +8713,18 @@ msgstr "Khoá truy cập được lưu trữ bởi trình xác thực hoặc tr�
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Tiến trình này đã được khởi chạy từ một phiên làm việc khác, do đó cấu hình nhập không thể thay đổi được nữa. Tiến độ xử lý sẽ được hiển thị tại đây."
 
-#: packages/admin/src/router.tsx:2567
+#: packages/admin/src/router.tsx:2573
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3644
-#: packages/admin/src/components/PortableTextEditor.tsx:5201
+#: packages/admin/src/components/PortableTextEditor.tsx:3645
+#: packages/admin/src/components/PortableTextEditor.tsx:5202
 msgid "Italic"
 msgstr "Nghiêng"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlockListField.tsx:386
-#: packages/admin/src/components/PortableTextEditor.tsx:1794
+#: packages/admin/src/components/PortableTextEditor.tsx:1795
 #: packages/admin/src/components/RepeaterField.tsx:252
 msgid "Item {0}"
 msgstr "Mục {0}"
@@ -8802,7 +8788,7 @@ msgstr ""
 msgid "Joining..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3081
+#: packages/admin/src/components/ContentEditor.tsx:3004
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
 msgstr ""
@@ -8921,7 +8907,7 @@ msgstr "Ngôn ngữ"
 msgid "Large section heading"
 msgstr "Đề mục lớn"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:390
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:389
 msgid "Last edited"
 msgstr "Sửa lần cuối"
 
@@ -8968,7 +8954,7 @@ msgstr "Dùng lần cuối {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr "Chưa tải các mục tiếp theo. Khoảng thời gian này có quá nhiều mục để hiển thị trên lịch."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2414
+#: packages/admin/src/components/PortableTextEditor.tsx:2415
 msgid "Layout"
 msgstr "Bố cục"
 
@@ -8999,8 +8985,8 @@ msgstr "Rời đi mà không lưu?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:4159
-#: packages/admin/src/components/PortableTextEditor.tsx:4280
+#: packages/admin/src/components/PortableTextEditor.tsx:4160
+#: packages/admin/src/components/PortableTextEditor.tsx:4281
 msgid "Left"
 msgstr "Trái"
 
@@ -9022,7 +9008,7 @@ msgid "Limit"
 msgstr "Giới hạn"
 
 #: packages/admin/src/components/BlocksField.tsx:2238
-#: packages/admin/src/components/PortableTextEditor.tsx:5385
+#: packages/admin/src/components/PortableTextEditor.tsx:5386
 msgid "Link"
 msgstr "Liên kết"
 
@@ -9030,7 +9016,7 @@ msgstr "Liên kết"
 msgid "Link expired"
 msgstr "Liên kết đã hết hạn"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3979
+#: packages/admin/src/components/PortableTextEditor.tsx:3980
 msgid "Link options"
 msgstr "Tuỳ chọn liên kết"
 
@@ -9118,7 +9104,7 @@ msgstr "Liên kết tới"
 msgid "Links to {0}"
 msgstr "Liên kết tới {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2249
+#: packages/admin/src/components/PortableTextEditor.tsx:2250
 msgid "List"
 msgstr "Danh sách"
 
@@ -9135,7 +9121,7 @@ msgstr "Xem dạng danh sách"
 msgid "Live"
 msgstr "Chính thức"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:432
 #: packages/admin/src/components/ContentSettingsPanel.tsx:199
 #: packages/admin/src/components/ContentSettingsPanel.tsx:209
 #: packages/admin/src/components/ContentSettingsPanel.tsx:235
@@ -9143,7 +9129,7 @@ msgstr "Chính thức"
 msgid "Live version"
 msgstr "Phiên bản live"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:800
+#: packages/admin/src/components/ContentSettingsPanel.tsx:754
 msgid "Live View"
 msgstr "Xem bản live"
 
@@ -9177,8 +9163,8 @@ msgid "Load preview"
 msgstr "Tải bản xem trước"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/components/ContentEditor.tsx:2841
-#: packages/admin/src/router.tsx:4032
+#: packages/admin/src/components/ContentEditor.tsx:2768
+#: packages/admin/src/router.tsx:4038
 msgid "Loading"
 msgstr "Đang tải"
 
@@ -9207,8 +9193,8 @@ msgstr "Đang tải bộ sưu tập..."
 msgid "Loading comments..."
 msgstr "Đang tải bình luận..."
 
-#: packages/admin/src/router.tsx:4034
-#: packages/admin/src/router.tsx:4046
+#: packages/admin/src/router.tsx:4040
+#: packages/admin/src/router.tsx:4052
 msgid "Loading configuration..."
 msgstr "Đang tải cấu hình..."
 
@@ -9216,7 +9202,7 @@ msgstr "Đang tải cấu hình..."
 msgid "Loading content..."
 msgstr "Đang tải nội dung..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3383
+#: packages/admin/src/components/PortableTextEditor.tsx:3384
 msgid "Loading editor..."
 msgstr "Đang tải trình soạn thảo..."
 
@@ -9266,7 +9252,7 @@ msgstr "Đang tải plugin..."
 msgid "Loading redirects..."
 msgstr "Đang tải chuyển hướng..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4576
+#: packages/admin/src/components/ContentEditor.tsx:4486
 msgid "Loading references..."
 msgstr "Đang tải các tham chiếu..."
 
@@ -9319,7 +9305,7 @@ msgstr "Đang tải tiện ích..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1277
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:1924
+#: packages/admin/src/components/PortableTextEditor.tsx:1925
 #: packages/admin/src/components/Redirects.tsx:851
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
@@ -9352,7 +9338,7 @@ msgstr "Đang tải…"
 msgid "Local time"
 msgstr "Giờ địa phương"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:367
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:366
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:80
 #: packages/admin/src/components/ContentList.tsx:506
 #: packages/admin/src/components/ContentList.tsx:762
@@ -9387,7 +9373,7 @@ msgstr "Khoá tỷ lệ khung hình"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Bị khoá do trường này đã chứa dữ liệu. Vui lòng xoá dữ liệu đã lưu (hoặc xoá trường) nếu muốn thay đổi."
 
-#: packages/admin/src/router.tsx:469
+#: packages/admin/src/router.tsx:470
 msgid "Log in"
 msgstr "Đăng nhập"
 
@@ -9517,11 +9503,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Cửa hàng"
 
-#: packages/admin/src/router.tsx:3400
+#: packages/admin/src/router.tsx:3406
 msgid "Marketplace browsing is no longer available."
 msgstr "Không thể truy cập cửa hàng do đã ngừng hỗ trợ."
 
-#: packages/admin/src/router.tsx:3373
+#: packages/admin/src/router.tsx:3379
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Cửa hàng hiện không còn khả dụng. Quản lý các plugin đã cài đặt từ mục Plugin."
 
@@ -9573,7 +9559,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
-#: packages/admin/src/router.tsx:2668
+#: packages/admin/src/router.tsx:2674
 msgid "Media"
 msgstr "Thư viện"
 
@@ -9636,7 +9622,7 @@ msgstr "Đọc thư viện"
 msgid "Media results"
 msgstr "Kết quả thư viện"
 
-#: packages/admin/src/router.tsx:3143
+#: packages/admin/src/router.tsx:3149
 msgid "Media Usage"
 msgstr "Nơi dùng tệp trong thư viện"
 
@@ -9732,7 +9718,7 @@ msgstr "Đã đổi tên menu"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:521
 #: packages/admin/src/components/WordPressImport.tsx:1201
-#: packages/admin/src/router.tsx:3420
+#: packages/admin/src/router.tsx:3426
 msgid "Menus"
 msgstr "Menu"
 
@@ -9839,7 +9825,7 @@ msgstr "Lưu trữ theo tháng/năm"
 msgid "More actions for {0}"
 msgstr "Thêm thao tác cho {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4126
+#: packages/admin/src/components/PortableTextEditor.tsx:4127
 msgid "More formatting"
 msgstr "Thêm định dạng"
 
@@ -9883,7 +9869,7 @@ msgstr "Bỏ \"{title}\" vào thùng rác? Bạn có thể khôi phục sau."
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4543
+#: packages/admin/src/components/ContentEditor.tsx:4453
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "Di chuyển {0} xuống"
@@ -9900,7 +9886,7 @@ msgstr "Chuyển {0} ra sau"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4532
+#: packages/admin/src/components/ContentEditor.tsx:4442
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "Di chuyển {0} lên"
@@ -9940,14 +9926,14 @@ msgstr "Bỏ vào thùng rác"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1633
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1433
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1439
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1385
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1391
 msgid "Move to Trash"
 msgstr "Bỏ vào thùng rác"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1631
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1437
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
 msgid "Move to Trash?"
 msgstr "Bỏ vào thùng rác?"
 
@@ -9977,11 +9963,11 @@ msgstr "Đã di chuyển {moved} đến vị trí {position} trên {total}"
 msgid "Moved {name} to position {position} of {total}"
 msgstr "Đã di chuyển {name} đến vị trí {position} trên {total}"
 
-#: packages/admin/src/router.tsx:804
+#: packages/admin/src/router.tsx:803
 msgid "Moved {total} items to draft"
 msgstr "Đã chuyển {total} mục về nháp"
 
-#: packages/admin/src/router.tsx:825
+#: packages/admin/src/router.tsx:824
 msgid "Moved {total} items to trash"
 msgstr "Đã chuyển {total} mục vào thùng rác"
 
@@ -10062,7 +10048,7 @@ msgid "Moving from another EmDash site?"
 msgstr "Bạn đang chuyển từ một trang web EmDash khác?"
 
 #: packages/admin/src/components/ContentList.tsx:1634
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1440
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1392
 msgid "Moving to trash..."
 msgstr "Đang bỏ vào thùng rác..."
 
@@ -10137,7 +10123,7 @@ msgstr "Cần xử lý"
 msgid "Never"
 msgstr "Không bao giờ"
 
-#: packages/admin/src/router.tsx:2077
+#: packages/admin/src/router.tsx:2083
 msgid "new"
 msgstr "mới"
 
@@ -10145,8 +10131,8 @@ msgstr "mới"
 msgid "NEW"
 msgstr "MỚI"
 
-#: packages/admin/src/components/ContentEditor.tsx:2309
-#: packages/admin/src/components/ContentEditor.tsx:2314
+#: packages/admin/src/components/ContentEditor.tsx:2307
+#: packages/admin/src/components/ContentEditor.tsx:2312
 msgid "New {itemLabel}"
 msgstr "{itemLabel} mới"
 
@@ -10168,11 +10154,11 @@ msgstr "Trường tác giả mới"
 msgid "New collection"
 msgstr "Bộ sưu tập mới"
 
-#: packages/admin/src/router.tsx:933
+#: packages/admin/src/router.tsx:931
 msgid "New content"
 msgstr "Nội dung mới"
 
-#: packages/admin/src/router.tsx:3626
+#: packages/admin/src/router.tsx:3632
 msgid "New content type"
 msgstr "Loại nội dung mới"
 
@@ -10398,7 +10384,7 @@ msgstr "Chưa có loại nội dung nào."
 msgid "No custom fields yet"
 msgstr "Chưa có trường tuỳ chỉnh nào"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4684
+#: packages/admin/src/components/PortableTextEditor.tsx:4685
 msgid "No description yet"
 msgstr "Chưa có mô tả"
 
@@ -10495,7 +10481,7 @@ msgid "No invite token provided"
 msgstr "Không tìm thấy mã mời"
 
 #: packages/admin/src/components/BlockListField.tsx:870
-#: packages/admin/src/components/PortableTextEditor.tsx:1717
+#: packages/admin/src/components/PortableTextEditor.tsx:1718
 #: packages/admin/src/components/RepeaterField.tsx:172
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -10634,7 +10620,7 @@ msgstr "Không có chuyển hướng nào khớp với các bộ lọc này"
 msgid "No redirects yet"
 msgstr "Chưa có chuyển hướng nào"
 
-#: packages/admin/src/components/ContentEditor.tsx:4486
+#: packages/admin/src/components/ContentEditor.tsx:4396
 msgid "No references selected."
 msgstr "Chưa chọn tham chiếu nào."
 
@@ -10720,7 +10706,7 @@ msgid "Non-guest"
 msgstr "Không phải khách"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:4279
+#: packages/admin/src/components/PortableTextEditor.tsx:4280
 msgid "None"
 msgstr "Không có"
 
@@ -10749,13 +10735,13 @@ msgstr "Không khớp"
 msgid "Not recorded in this version"
 msgstr "Không được ghi trong phiên bản này"
 
-#: packages/admin/src/components/ContentEditor.tsx:3085
+#: packages/admin/src/components/ContentEditor.tsx:3008
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3097
+#: packages/admin/src/components/ContentEditor.tsx:3020
 msgid "Not saved yet"
 msgstr "Chưa lưu"
 
@@ -10810,7 +10796,7 @@ msgstr "Số bài viết hiển thị trên mỗi trang ở dạng danh sách"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:552
-#: packages/admin/src/components/PortableTextEditor.tsx:5258
+#: packages/admin/src/components/PortableTextEditor.tsx:5259
 msgid "Numbered List"
 msgstr "Danh sách đánh số"
 
@@ -10823,7 +10809,7 @@ msgstr "Uỷ quyền OAuth cần HTTPS. Vui lòng dùng thông tin xác thực t
 msgid "Off"
 msgstr "Tắt"
 
-#: packages/admin/src/components/ContentEditor.tsx:3083
+#: packages/admin/src/components/ContentEditor.tsx:3006
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
 msgstr ""
@@ -10895,7 +10881,7 @@ msgid "Open"
 msgstr "Mở"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4521
+#: packages/admin/src/components/ContentEditor.tsx:4431
 msgid "Open {0} in a new tab"
 msgstr "Mở {0} trong tab mới"
 
@@ -10911,7 +10897,7 @@ msgstr "Mở thư mục {0}"
 msgid "visualEditing.openInAdmin"
 msgstr "Mở trong trang quản trị"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:488
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:487
 msgid "Open in editor"
 msgstr "Mở trong trình soạn thảo"
 
@@ -11064,7 +11050,7 @@ msgstr ""
 msgid "Outline"
 msgstr "Dàn ý"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2435
+#: packages/admin/src/components/PortableTextEditor.tsx:2436
 msgctxt "button style"
 msgid "Outline"
 msgstr "Viền"
@@ -11085,7 +11071,7 @@ msgstr "Quá hạn · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Thay tiêu đề trang trong kết quả của công cụ tìm kiếm"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1221
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1173
 #: packages/admin/src/lib/editor-sections.ts:33
 msgid "Ownership"
 msgstr "Quyền sở hữu"
@@ -11104,11 +11090,11 @@ msgstr "Mã băm của gói"
 msgid "Package downloaded"
 msgstr "Đã tải gói xuống"
 
-#: packages/admin/src/router.tsx:3944
+#: packages/admin/src/router.tsx:3950
 msgid "Page not found"
 msgstr "Không tìm thấy trang"
 
-#: packages/admin/src/router.tsx:4072
+#: packages/admin/src/router.tsx:4078
 msgid "Page Not Found"
 msgstr "Không tìm thấy trang"
 
@@ -11396,7 +11382,7 @@ msgid "Please enter a valid URL"
 msgstr "Vui lòng nhập URL hợp lệ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1234
-#: packages/admin/src/router.tsx:3920
+#: packages/admin/src/router.tsx:3926
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -11421,7 +11407,7 @@ msgstr "Thao tác plugin không thành công"
 msgid "Plugin actions"
 msgstr "Thao tác plugin"
 
-#: packages/admin/src/components/ContentEditor.tsx:2789
+#: packages/admin/src/components/ContentEditor.tsx:2716
 msgid "Plugin changes were not applied"
 msgstr "Thay đổi từ plugin chưa được áp dụng"
 
@@ -11433,8 +11419,8 @@ msgstr "Cột plugin không khả dụng"
 msgid "Plugin details"
 msgstr "Chi tiết plugin"
 
-#: packages/admin/src/router.tsx:3345
-#: packages/admin/src/router.tsx:3352
+#: packages/admin/src/router.tsx:3351
+#: packages/admin/src/router.tsx:3358
 msgid "Plugin Details"
 msgstr "Chi tiết plugin"
 
@@ -11459,7 +11445,7 @@ msgstr "Lỗi plugin ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Cài đặt plugin cần có sự đồng ý rõ ràng"
 
-#: packages/admin/src/router.tsx:3337
+#: packages/admin/src/router.tsx:3343
 msgid "Plugin Marketplace"
 msgstr "Cửa hàng plugin"
 
@@ -11499,7 +11485,7 @@ msgid "Plugin Permissions"
 msgstr "Quyền của plugin"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3294
+#: packages/admin/src/router.tsx:3300
 msgid "Plugin Registry"
 msgstr "Kho plugin"
 
@@ -11508,8 +11494,8 @@ msgstr "Kho plugin"
 msgid "Plugin registry configuration error"
 msgstr "Lỗi cấu hình kho plugin"
 
-#: packages/admin/src/router.tsx:3330
-#: packages/admin/src/router.tsx:3364
+#: packages/admin/src/router.tsx:3336
+#: packages/admin/src/router.tsx:3370
 msgid "Plugin registry is not configured."
 msgstr "Kho plugin chưa được cấu hình."
 
@@ -11518,7 +11504,7 @@ msgstr "Kho plugin chưa được cấu hình."
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin phản hồi {0}: {text}"
 
-#: packages/admin/src/router.tsx:3907
+#: packages/admin/src/router.tsx:3913
 msgid "Plugin Settings"
 msgstr "Cài đặt plugin"
 
@@ -11551,7 +11537,7 @@ msgstr "Lỗi tiện ích plugin"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/Sidebar.tsx:587
-#: packages/admin/src/router.tsx:3279
+#: packages/admin/src/router.tsx:3285
 msgid "Plugins"
 msgstr "Plugin"
 
@@ -11640,8 +11626,8 @@ msgstr "Nhấn Escape để thoát khỏi trình soạn thảo mã."
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr "Nhấn Space để chọn ảnh. Dùng các phím mũi tên để di chuyển, sau đó nhấn Space để thả."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:443
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:496
+#: packages/admin/src/components/ContentSettingsPanel.tsx:426
 #: packages/admin/src/components/ContentTypeEditor.tsx:105
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:37
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:42
@@ -11650,7 +11636,7 @@ msgstr "Nhấn Space để chọn ảnh. Dùng các phím mũi tên để di chu
 msgid "Preview"
 msgstr "Xem trước"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:497
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:496
 msgid "Preview changes"
 msgstr "Xem trước thay đổi"
 
@@ -11658,7 +11644,7 @@ msgstr "Xem trước thay đổi"
 msgid "Preview content before publishing"
 msgstr "Xem trước nội dung trước khi xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:443
+#: packages/admin/src/components/ContentSettingsPanel.tsx:426
 msgid "Preview draft"
 msgstr "Xem trước bản nháp"
 
@@ -11743,9 +11729,9 @@ msgstr "Nhà cung cấp:"
 msgid "Public routes"
 msgstr "Định tuyến (route) công khai"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1091
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1096
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1043
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1048
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Ngày xuất bản"
@@ -11756,17 +11742,17 @@ msgid "visualEditing.publish"
 msgstr "Xuất bản"
 
 #: packages/admin/src/components/ContentList.tsx:611
-#: packages/admin/src/components/ContentSettingsPanel.tsx:592
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1060
+#: packages/admin/src/components/ContentSettingsPanel.tsx:563
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1012
 #: packages/admin/src/lib/editor-sections.ts:31
 msgid "Publish"
 msgstr "Xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:560
+#: packages/admin/src/components/ContentSettingsPanel.tsx:529
 msgid "Publish changes"
 msgstr "Xuất bản thay đổi"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:561
+#: packages/admin/src/components/ContentSettingsPanel.tsx:530
 msgid "Publish changes?"
 msgstr "Xuất bản thay đổi?"
 
@@ -11775,12 +11761,12 @@ msgstr "Xuất bản thay đổi?"
 msgid "visualEditing.publishFailed"
 msgstr "Xuất bản thất bại. Hãy kiểm tra quyền của bạn rồi thử lại."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:455
-#: packages/admin/src/components/ContentSettingsPanel.tsx:560
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:454
+#: packages/admin/src/components/ContentSettingsPanel.tsx:529
 msgid "Publish now"
 msgstr "Xuất bản ngay"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:561
+#: packages/admin/src/components/ContentSettingsPanel.tsx:530
 msgid "Publish now?"
 msgstr "Xuất bản ngay?"
 
@@ -11794,7 +11780,7 @@ msgid "visualEditing.published"
 msgstr "Đã xuất bản"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:227
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1016
 #: packages/admin/src/components/ContentList.tsx:1027
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
@@ -11802,7 +11788,7 @@ msgstr "Đã xuất bản"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:270
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
-#: packages/admin/src/router.tsx:1938
+#: packages/admin/src/router.tsx:1941
 msgid "Published"
 msgstr "Đã xuất bản"
 
@@ -11811,11 +11797,11 @@ msgstr "Đã xuất bản"
 msgid "Published {0}"
 msgstr "Đã xuất bản {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:434
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 msgid "Published {liveSince}"
 msgstr "Đã xuất bản {liveSince}"
 
-#: packages/admin/src/router.tsx:781
+#: packages/admin/src/router.tsx:780
 msgid "Published {total} items"
 msgstr "Đã xuất bản {total} mục"
 
@@ -11843,11 +11829,11 @@ msgstr "Không xác minh được nhà phát hành"
 msgid "Publisher release policy"
 msgstr "Chính sách phát hành phiên bản"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:402
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:401
 msgid "Publishing"
 msgstr "Xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1064
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
 msgid "Publishing summary"
 msgstr "Tóm tắt xuất bản"
 
@@ -11878,8 +11864,8 @@ msgstr "Tạo nhanh sẽ tự động đặt tên quan hệ theo trường và b
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:562
-#: packages/admin/src/components/PortableTextEditor.tsx:2250
-#: packages/admin/src/components/PortableTextEditor.tsx:5284
+#: packages/admin/src/components/PortableTextEditor.tsx:2251
+#: packages/admin/src/components/PortableTextEditor.tsx:5285
 msgid "Quote"
 msgstr "Trích dẫn"
 
@@ -11955,7 +11941,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Đọc dữ liệu phân loại và các mục phân loại"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2529
+#: packages/admin/src/router.tsx:2535
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -12046,7 +12032,7 @@ msgstr "Đang chuyển đến trang đăng nhập..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:528
-#: packages/admin/src/router.tsx:3462
+#: packages/admin/src/router.tsx:3468
 msgid "Redirects"
 msgstr "Chuyển hướng"
 
@@ -12054,7 +12040,7 @@ msgstr "Chuyển hướng"
 msgid "Redirects that loop will be imported turned off"
 msgstr "Các chuyển hướng bị lặp sẽ được nhập ở trạng thái tắt"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5447
+#: packages/admin/src/components/PortableTextEditor.tsx:5448
 msgid "Redo"
 msgstr "Làm lại"
 
@@ -12125,7 +12111,7 @@ msgstr "Kho"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3662
+#: packages/admin/src/router.tsx:3668
 msgid "Relations"
 msgstr "Quan hệ"
 
@@ -12149,7 +12135,7 @@ msgid "Release notes"
 msgstr "Ghi chú phát hành"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2554
+#: packages/admin/src/router.tsx:2560
 msgid "Reload"
 msgstr ""
 
@@ -12161,7 +12147,7 @@ msgstr "Hãy tải lại trang sau khi cập nhật EmDash rồi thử lại."
 msgid "Reload page"
 msgstr "Tải lại trang"
 
-#: packages/admin/src/router.tsx:2545
+#: packages/admin/src/router.tsx:2551
 msgid "Reloading the admin"
 msgstr ""
 
@@ -12174,10 +12160,9 @@ msgstr "Đang tải lại kế hoạch…"
 msgid "visualEditing.removeImage"
 msgstr "Xoá"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:87
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:118
-#: packages/admin/src/components/ContentEditor.tsx:5044
-#: packages/admin/src/components/ContentEditor.tsx:5110
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
+#: packages/admin/src/components/ContentEditor.tsx:4954
+#: packages/admin/src/components/ContentEditor.tsx:5020
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -12186,7 +12171,7 @@ msgstr "Xoá"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:5420
+#: packages/admin/src/components/PortableTextEditor.tsx:5421
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -12198,7 +12183,7 @@ msgstr "Xoá"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4556
+#: packages/admin/src/components/ContentEditor.tsx:4466
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12215,8 +12200,9 @@ msgstr "Xoá {0} khỏi lựa chọn"
 msgid "Remove {entry}"
 msgstr "Xoá {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:5042
-#: packages/admin/src/components/ContentEditor.tsx:5108
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
+#: packages/admin/src/components/ContentEditor.tsx:4952
+#: packages/admin/src/components/ContentEditor.tsx:5018
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12260,14 +12246,14 @@ msgid "Remove image?"
 msgstr "Xoá ảnh?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1833
+#: packages/admin/src/components/PortableTextEditor.tsx:1834
 #: packages/admin/src/components/RepeaterField.tsx:288
 msgid "Remove item {0}"
 msgstr "Xoá mục {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3870
-#: packages/admin/src/components/PortableTextEditor.tsx:4013
-#: packages/admin/src/components/PortableTextEditor.tsx:4656
+#: packages/admin/src/components/PortableTextEditor.tsx:3871
+#: packages/admin/src/components/PortableTextEditor.tsx:4014
+#: packages/admin/src/components/PortableTextEditor.tsx:4657
 msgid "Remove link"
 msgstr "Xoá liên kết"
 
@@ -12279,8 +12265,8 @@ msgstr "Xoá khoá truy cập"
 msgid "Remove passkey?"
 msgstr "Xoá khoá truy cập?"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:474
-#: packages/admin/src/components/ContentSettingsPanel.tsx:697
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:473
+#: packages/admin/src/components/ContentSettingsPanel.tsx:653
 msgid "Remove schedule"
 msgstr "Huỷ đặt lịch"
 
@@ -12437,9 +12423,11 @@ msgstr "Nhóm trường lặp lại"
 msgid "visualEditing.replaceImage"
 msgstr "Thay thế"
 
-#: packages/admin/src/components/ContentEditor.tsx:4999
-#: packages/admin/src/components/ContentEditor.tsx:5034
-#: packages/admin/src/components/ContentEditor.tsx:5100
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
+#: packages/admin/src/components/ContentEditor.tsx:4909
+#: packages/admin/src/components/ContentEditor.tsx:4944
+#: packages/admin/src/components/ContentEditor.tsx:5010
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12452,14 +12440,16 @@ msgstr "Thay thế"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:4678
-#: packages/admin/src/components/PortableTextEditor.tsx:4760
+#: packages/admin/src/components/PortableTextEditor.tsx:4679
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
 msgstr "Thay thế"
 
-#: packages/admin/src/components/ContentEditor.tsx:4998
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
+#: packages/admin/src/components/ContentEditor.tsx:4908
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12479,7 +12469,7 @@ msgstr "Thay biến thể chế độ tối của {label}"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:372
 #: packages/admin/src/components/MediaDetailPanel.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1942
-#: packages/admin/src/components/PortableTextEditor.tsx:4759
+#: packages/admin/src/components/PortableTextEditor.tsx:4760
 msgid "Replace image"
 msgstr "Thay hình ảnh"
 
@@ -12497,7 +12487,7 @@ msgstr "Thay ảnh gốc?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Chỉ thay được ảnh gốc khi chọn tỷ lệ khung hình Gốc."
 
-#: packages/admin/src/components/ContentEditor.tsx:4591
+#: packages/admin/src/components/ContentEditor.tsx:4501
 msgid "Replace reference"
 msgstr "Thay tham chiếu"
 
@@ -12581,11 +12571,11 @@ msgstr "Bắt buộc cho tính năng trợ năng. Dùng để mô tả hình ả
 msgid "Requires EmDash {0}"
 msgstr "Yêu cầu EmDash {0}"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:465
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:464
 msgid "Reschedule"
 msgstr "Đổi lịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:253
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:252
 msgid "Rescheduled"
 msgstr "Đã đổi lịch"
 
@@ -12656,7 +12646,7 @@ msgstr "Đổi kích thước vùng cắt từ góc trên bên trái. Dùng các
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Đổi kích thước vùng cắt từ góc trên bên phải. Dùng các phím mũi tên để đổi kích thước."
 
-#: packages/admin/src/components/ContentEditor.tsx:3175
+#: packages/admin/src/components/ContentEditor.tsx:3098
 msgid "Resize settings panel"
 msgstr "Đổi kích thước bảng cài đặt"
 
@@ -12669,21 +12659,21 @@ msgid "Resolving publisher handle..."
 msgstr "Đang phân giải tên định danh của nhà phát hành..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:5274
+#: packages/admin/src/components/PortableTextEditor.tsx:5275
 msgid "Restart numbering"
 msgstr "Đánh số lại từ đầu"
 
 #: packages/admin/src/components/ContentList.tsx:1780
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:138
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:140
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:244
 msgid "Restore"
 msgstr "Khôi phục"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:103
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:105
 msgid "Restore failed"
 msgstr "Khôi phục thất bại"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:120
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:122
 msgid "Restore this version?"
 msgstr "Khôi phục phiên bản này?"
 
@@ -12699,7 +12689,7 @@ msgstr "Khôi phục từ {restoredDate}"
 msgid "Restored the version from {date}"
 msgstr "Đã khôi phục phiên bản ngày {date}"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:139
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:141
 msgid "Restoring…"
 msgstr "Đang khôi phục…"
 
@@ -12713,7 +12703,7 @@ msgid "Retired"
 msgstr "Đã ngừng dùng"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4570
+#: packages/admin/src/components/ContentEditor.tsx:4480
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12730,7 +12720,7 @@ msgstr "Đã ngừng dùng"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:276
-#: packages/admin/src/router.tsx:4060
+#: packages/admin/src/router.tsx:4066
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12781,7 +12771,7 @@ msgstr "Đang thử lại…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Các khối nội dung dùng lại được, có thể chèn vào bất kỳ nội dung nào"
 
-#: packages/admin/src/router.tsx:1986
+#: packages/admin/src/router.tsx:1991
 msgid "Reverted to published version"
 msgstr "Đã quay về phiên bản đã xuất bản"
 
@@ -12871,14 +12861,14 @@ msgid "Rich text content"
 msgstr "Nội dung văn bản định dạng"
 
 #: packages/admin/src/components/FieldEditor.tsx:705
-#: packages/admin/src/components/PortableTextEditor.tsx:2736
+#: packages/admin/src/components/PortableTextEditor.tsx:2737
 msgid "Rich text editor"
 msgstr "Trình soạn thảo văn bản"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:4161
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4162
+#: packages/admin/src/components/PortableTextEditor.tsx:4283
 msgid "Right"
 msgstr "Phải"
 
@@ -12933,7 +12923,7 @@ msgid "Row added above"
 msgstr "Đã thêm hàng phía trên"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4259
+#: packages/admin/src/components/PortableTextEditor.tsx:4260
 msgid "Row added below"
 msgstr "Đã thêm hàng phía dưới"
 
@@ -12993,11 +12983,11 @@ msgstr "Lưu"
 msgid "Save (Enter)"
 msgstr "Lưu (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4637
+#: packages/admin/src/components/PortableTextEditor.tsx:4638
 msgid "Save alt text"
 msgstr "Lưu văn bản thay thế"
 
-#: packages/admin/src/components/ContentEditor.tsx:2825
+#: packages/admin/src/components/ContentEditor.tsx:2752
 msgid "Save anyway"
 msgstr "Vẫn lưu"
 
@@ -13022,8 +13012,8 @@ msgstr "Lưu nội dung dưới dạng nháp trước khi xuất bản"
 msgid "Save date"
 msgstr "Lưu ngày"
 
-#: packages/admin/src/components/ContentEditor.tsx:2995
-#: packages/admin/src/components/ContentSettingsPanel.tsx:777
+#: packages/admin/src/components/ContentEditor.tsx:2920
+#: packages/admin/src/components/ContentSettingsPanel.tsx:731
 msgid "Save draft"
 msgstr "Lưu nháp"
 
@@ -13063,8 +13053,8 @@ msgstr "Lưu cài đặt"
 msgid "visualEditing.saved"
 msgstr "Đã lưu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3091
-#: packages/admin/src/components/ContentEditor.tsx:3100
+#: packages/admin/src/components/ContentEditor.tsx:3014
+#: packages/admin/src/components/ContentEditor.tsx:3023
 #: packages/admin/src/components/SaveButton.tsx:53
 msgid "Saved"
 msgstr "Đã lưu"
@@ -13087,8 +13077,8 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr "Khi lưu, bài được tạo ở dạng nháp và chưa hiện trên trang web. Bạn có thể xuất bản sau lần lưu đầu tiên."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:3088
-#: packages/admin/src/components/ContentEditor.tsx:3093
+#: packages/admin/src/components/ContentEditor.tsx:3011
+#: packages/admin/src/components/ContentEditor.tsx:3016
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -13129,7 +13119,7 @@ msgstr "SBOM · {0}"
 msgid "Scan it with a nearby phone or tablet."
 msgstr "Dùng điện thoại hoặc máy tính bảng gần bạn để quét mã."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:677
+#: packages/admin/src/components/ContentSettingsPanel.tsx:639
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:519
 msgid "Schedule"
 msgstr "Đặt lịch"
@@ -13147,19 +13137,19 @@ msgstr "Ngày đặt lịch"
 msgid "Schedule publication"
 msgstr "Đặt lịch xuất bản"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:237
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "Schedule removed"
 msgstr "Đã huỷ đặt lịch"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2033
+#: packages/admin/src/router.tsx:2039
 msgid "Scheduled"
 msgstr "Đã đặt lịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:438
 msgid "Scheduled changes"
 msgstr "Thay đổi đã đặt lịch"
 
@@ -13446,7 +13436,7 @@ msgstr "Có thể tìm kiếm"
 msgid "Searching…"
 msgstr "Đang tìm…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2516
+#: packages/admin/src/components/PortableTextEditor.tsx:2517
 msgid "Section"
 msgstr "Mẫu"
 
@@ -13479,7 +13469,7 @@ msgstr "Tiêu đề mẫu"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:542
-#: packages/admin/src/router.tsx:3469
+#: packages/admin/src/router.tsx:3475
 msgid "Sections"
 msgstr "Mẫu"
 
@@ -13536,7 +13526,7 @@ msgstr "Lỗi bảo mật. Hãy đảm bảo bạn đang dùng kết nối an to
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3151
+#: packages/admin/src/router.tsx:3157
 msgid "Security Settings"
 msgstr "Cài đặt bảo mật"
 
@@ -13552,10 +13542,10 @@ msgstr "Xem tệp này được dùng ở đâu."
 msgid "Select"
 msgstr "Chọn"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:143
-#: packages/admin/src/components/ContentEditor.tsx:4998
-#: packages/admin/src/components/ContentEditor.tsx:5059
-#: packages/admin/src/components/ContentEditor.tsx:5120
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
+#: packages/admin/src/components/ContentEditor.tsx:4908
+#: packages/admin/src/components/ContentEditor.tsx:4969
+#: packages/admin/src/components/ContentEditor.tsx:5030
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13604,7 +13594,7 @@ msgstr "Chọn tất cả trên trang này"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr "Chọn và cấu hình nhà cung cấp dịch vụ gửi toàn bộ email đi từ hệ thống."
 
-#: packages/admin/src/components/ContentEditor.tsx:4594
+#: packages/admin/src/components/ContentEditor.tsx:4504
 msgid "Select at least one entry."
 msgstr "Chọn ít nhất một mục."
 
@@ -13637,13 +13627,13 @@ msgstr "Chọn favicon"
 msgid "Select Favicon"
 msgstr "Chọn favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:5061
-#: packages/admin/src/components/ContentEditor.tsx:5126
+#: packages/admin/src/components/ContentEditor.tsx:4971
+#: packages/admin/src/components/ContentEditor.tsx:5036
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Chọn tệp"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3581
+#: packages/admin/src/components/PortableTextEditor.tsx:3582
 msgid "Select gallery images"
 msgstr "Chọn ảnh cho thư viện ảnh"
 
@@ -13651,7 +13641,7 @@ msgstr "Chọn ảnh cho thư viện ảnh"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3552
+#: packages/admin/src/components/PortableTextEditor.tsx:3553
 msgid "Select image"
 msgstr "Chọn ảnh"
 
@@ -13667,7 +13657,7 @@ msgstr "Chọn logo"
 msgid "Select Logo"
 msgstr "Chọn logo"
 
-#: packages/admin/src/components/BlockKitMediaPickerField.tsx:134
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:188
 msgid "Select media"
 msgstr "Chọn tệp từ thư viện"
 
@@ -13684,7 +13674,7 @@ msgid "Select up to 50 posts at a time."
 msgstr "Chọn tối đa 50 bài viết mỗi lần."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3566
+#: packages/admin/src/components/PortableTextEditor.tsx:3567
 msgid "Select video"
 msgstr "Chọn video"
 
@@ -13693,7 +13683,7 @@ msgid "Select which content types to import."
 msgstr "Chọn các loại nội dung cần nhập."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:1932
+#: packages/admin/src/components/PortableTextEditor.tsx:1933
 #: packages/admin/src/components/RepeaterField.tsx:401
 msgid "Select..."
 msgstr "Chọn..."
@@ -13706,6 +13696,7 @@ msgstr "Đã chọn {label}"
 msgid "Selected {selectedItemTitle}"
 msgstr "Đã chọn {selectedItemTitle}"
 
+#: packages/admin/src/components/BlockKitMediaPickerField.tsx:61
 #: packages/admin/src/components/ImageFieldRenderer.tsx:367
 #: packages/admin/src/components/ImageFieldRenderer.tsx:382
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:336
@@ -13788,7 +13779,7 @@ msgstr "Tên người gửi (không bắt buộc)"
 msgid "Sending..."
 msgstr "Đang gửi..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
 #: packages/admin/src/components/ContentTypeEditor.tsx:700
 #: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/lib/editor-sections.ts:37
@@ -13802,7 +13793,7 @@ msgid "SEO settings"
 msgstr "Cài đặt SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3271
+#: packages/admin/src/router.tsx:3277
 msgid "SEO Settings"
 msgstr "Cài đặt SEO"
 
@@ -13875,15 +13866,14 @@ msgid "Setting up..."
 msgstr "Đang thiết lập..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2963
-#: packages/admin/src/components/ContentEditor.tsx:3399
+#: packages/admin/src/components/ContentEditor.tsx:2887
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
 #: packages/admin/src/components/WordPressImport.tsx:1861
-#: packages/admin/src/router.tsx:3136
+#: packages/admin/src/router.tsx:3142
 msgid "Settings"
 msgstr "Cài đặt"
 
@@ -13900,7 +13890,7 @@ msgstr "Đọc cài đặt"
 msgid "Settings saved successfully"
 msgstr "Đã lưu cài đặt"
 
-#: packages/admin/src/router.tsx:461
+#: packages/admin/src/router.tsx:462
 msgid "Setup"
 msgstr "Thiết lập"
 
@@ -13934,7 +13924,7 @@ msgstr "Văn bản ngắn"
 msgid "Short Text"
 msgstr "Văn bản ngắn"
 
-#: packages/admin/src/components/ContentEditor.tsx:263
+#: packages/admin/src/components/ContentEditor.tsx:256
 msgid "Show"
 msgstr "Hiện"
 
@@ -13966,6 +13956,10 @@ msgstr "Hiện các bản lưu cũ hơn"
 msgid "Show post count"
 msgstr "Hiện số bài viết"
 
+#: packages/admin/src/components/SettingsPanelToggle.tsx:207
+msgid "Show settings"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Show thumbnails"
 msgstr "Hiện ảnh thu nhỏ"
@@ -13987,7 +13981,7 @@ msgstr "Hiển thị {pageShowingRange} trên {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "Hiện trong trang quản trị. Một số giao diện cũng hiện nó trên trang web."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1242
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1194
 msgid "Shown to readers in this order."
 msgstr "Hiển thị cho người đọc theo thứ tự này."
 
@@ -14053,7 +14047,7 @@ msgstr "Đăng nhập bằng khoá truy cập"
 msgid "Sign in with your Bluesky/Atmosphere handle"
 msgstr "Đăng nhập bằng tên định danh Bluesky/Atmosphere của bạn"
 
-#: packages/admin/src/router.tsx:501
+#: packages/admin/src/router.tsx:502
 msgid "Sign up"
 msgstr "Đăng ký"
 
@@ -14206,8 +14200,8 @@ msgstr "Đã bỏ qua"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentEditor.tsx:2485
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1044
+#: packages/admin/src/components/ContentEditor.tsx:2482
+#: packages/admin/src/components/ContentSettingsPanel.tsx:996
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:518
 #: packages/admin/src/components/ContentTypeList.tsx:218
@@ -14294,7 +14288,7 @@ msgstr "Liên kết hồ sơ mạng xã hội"
 msgid "Social Profiles"
 msgstr "Hồ sơ mạng xã hội"
 
-#: packages/admin/src/router.tsx:3259
+#: packages/admin/src/router.tsx:3265
 msgid "Social Settings"
 msgstr "Cài đặt mạng xã hội"
 
@@ -14460,9 +14454,9 @@ msgstr "Bắt đầu với các bài viết và trang mẫu từ template. Khuy�
 msgid "Start writing with plain text"
 msgstr "Bắt đầu viết bằng văn bản thuần"
 
-#: packages/admin/src/components/ContentEditor.tsx:3832
-#: packages/admin/src/components/ContentEditor.tsx:3855
-#: packages/admin/src/components/PortableTextEditor.tsx:2238
+#: packages/admin/src/components/ContentEditor.tsx:3742
+#: packages/admin/src/components/ContentEditor.tsx:3765
+#: packages/admin/src/components/PortableTextEditor.tsx:2239
 msgid "Start writing, or type '/' for commands"
 msgstr "Bắt đầu viết, hoặc gõ '/' để xem lệnh"
 
@@ -14491,7 +14485,7 @@ msgstr "STARTTLS"
 msgid "STARTTLS (port 587)"
 msgstr "STARTTLS (cổng 587)"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:341
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:340
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
 msgstr "Trạng thái"
@@ -14540,8 +14534,8 @@ msgstr "Bản sao lưu đã lưu"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Lưu theo từng ngôn ngữ — mỗi bản dịch của một tác giả có giá trị riêng."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:5217
+#: packages/admin/src/components/PortableTextEditor.tsx:3647
+#: packages/admin/src/components/PortableTextEditor.tsx:5218
 msgid "Strikethrough"
 msgstr "Gạch giữa từ"
 
@@ -14553,7 +14547,7 @@ msgstr "Cấu trúc"
 msgid "Structured"
 msgstr "Có cấu trúc"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2432
+#: packages/admin/src/components/PortableTextEditor.tsx:2433
 msgid "Style"
 msgstr "Kiểu"
 
@@ -14575,11 +14569,11 @@ msgstr "Trường con"
 msgid "Subscriber"
 msgstr "Thành viên đăng ký"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4140
+#: packages/admin/src/components/PortableTextEditor.tsx:4141
 msgid "Subscript"
 msgstr "Chữ nhỏ ở dưới"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4146
+#: packages/admin/src/components/PortableTextEditor.tsx:4147
 msgid "Superscript"
 msgstr "Chữ nhỏ ở trên"
 
@@ -14631,11 +14625,11 @@ msgstr "Trường hệ thống"
 msgid "Table"
 msgstr "Bảng"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3397
+#: packages/admin/src/components/PortableTextEditor.tsx:3398
 msgid "Table cells accept text, links, and formatting only."
 msgstr "Ô trong bảng chỉ nhận văn bản, liên kết và định dạng."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4249
+#: packages/admin/src/components/PortableTextEditor.tsx:4250
 msgid "Table controls"
 msgstr "Điều khiển bảng"
 
@@ -14644,7 +14638,7 @@ msgid "Table deleted"
 msgstr "Đã xoá bảng"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:3285
+#: packages/admin/src/components/PortableTextEditor.tsx:3286
 msgid "Table inserted"
 msgstr "Đã chèn bảng"
 
@@ -14652,7 +14646,7 @@ msgstr "Đã chèn bảng"
 msgid "Table size"
 msgstr "Kích thước bảng"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3394
+#: packages/admin/src/components/PortableTextEditor.tsx:3395
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Không thể dán bảng vào trong danh sách hoặc trích dẫn. Hãy dán bảng vào một đoạn văn riêng rồi thử lại."
 
@@ -14694,7 +14688,7 @@ msgstr "Ngôn ngữ đích"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3440
+#: packages/admin/src/router.tsx:3446
 msgid "Taxonomies"
 msgstr "Phân loại"
 
@@ -14794,11 +14788,11 @@ msgid "test@example.com"
 msgstr "test@example.com"
 
 #: packages/admin/src/components/BlocksField.tsx:2237
-#: packages/admin/src/components/PortableTextEditor.tsx:2427
+#: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Văn bản"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5461
+#: packages/admin/src/components/PortableTextEditor.tsx:5462
 msgid "Text formatting"
 msgstr "Định dạng văn bản"
 
@@ -14822,7 +14816,7 @@ msgstr "trường {0} trên {1}, liệt kê các mục liên kết tới nó"
 msgid "the {0} field on {1}, which picks entries it links to"
 msgstr "trường {0} trên {1}, chọn các mục mà nó liên kết tới"
 
-#: packages/admin/src/router.tsx:1195
+#: packages/admin/src/router.tsx:1193
 msgid "The admin was updated"
 msgstr ""
 
@@ -15093,7 +15087,7 @@ msgstr "Nội dung của gói được ghi vào trang web này. Không thể ho�
 msgid "The package’s file index is not valid."
 msgstr "Chỉ mục tệp của gói không hợp lệ."
 
-#: packages/admin/src/router.tsx:4074
+#: packages/admin/src/router.tsx:4080
 msgid "The page you're looking for doesn't exist."
 msgstr "Trang bạn đang tìm không tồn tại."
 
@@ -15113,12 +15107,12 @@ msgstr "Tiện ích trường của plugin không hiển thị được."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Plugin chưa lưu các thay đổi này. Hãy xem lại trước khi cập nhật trình soạn thảo."
 
-#: packages/admin/src/components/ContentEditor.tsx:1791
+#: packages/admin/src/components/ContentEditor.tsx:1789
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1761
-#: packages/admin/src/components/ContentEditor.tsx:1777
+#: packages/admin/src/components/ContentEditor.tsx:1759
+#: packages/admin/src/components/ContentEditor.tsx:1775
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Kết quả từ plugin không còn hiệu lực vì nội dung trong trình chỉnh sửa đã thay đổi trong lúc xử lý."
 
@@ -15160,7 +15154,7 @@ msgstr "Các nội dung mẫu vừa thêm đã được lưu giữ. Bấm tiếp
 msgid "The saved media ID may not work in shared links. Save the image URL to use this file for sharing."
 msgstr "ID tệp trong thư viện đã lưu có thể không dùng được trong liên kết chia sẻ. Hãy lưu URL ảnh để dùng tệp này khi chia sẻ."
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:239
 msgid "The scheduled changes to {title} stay as a draft."
 msgstr "Các thay đổi đã đặt lịch cho {title} đã được chuyển về bản nháp."
 
@@ -15212,19 +15206,19 @@ msgstr "Cửa hàng giao diện đang trống. Hãy quay lại sau."
 msgid "The uploaded package is discarded. Nothing on this site has changed."
 msgstr "Gói đã tải lên sẽ bị bỏ. Không có gì trên trang web này thay đổi."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:128
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:130
 msgid "The version from {when} becomes your draft and goes live at the scheduled time."
 msgstr "Phiên bản lúc {when} sẽ trở thành bản nháp của bạn và được xuất bản vào thời gian đã đặt lịch."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:129
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:131
 msgid "The version from {when} becomes your draft. The live site won't change until you publish."
 msgstr "Phiên bản lúc {when} sẽ trở thành bản nháp của bạn. Trang web đang công khai sẽ không đổi cho đến khi bạn xuất bản."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:94
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:96
 msgid "The version from {when} is now your draft. It goes live at the scheduled time."
 msgstr "Phiên bản lúc {when} hiện là bản nháp của bạn. Nó sẽ được xuất bản vào thời gian đã đặt lịch."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:95
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:97
 msgid "The version from {when} is now your draft. Publish when you're ready."
 msgstr "Phiên bản lúc {when} hiện là bản nháp của bạn. Hãy xuất bản khi bạn sẵn sàng."
 
@@ -15244,7 +15238,7 @@ msgstr "Giao diện"
 msgid "Theme \"{id}\" not found"
 msgstr "Không tìm thấy giao diện \"{id}\""
 
-#: packages/admin/src/router.tsx:3391
+#: packages/admin/src/router.tsx:3397
 msgid "Theme Details"
 msgstr "Thông tin giao diện"
 
@@ -15253,7 +15247,7 @@ msgstr "Thông tin giao diện"
 msgid "Theme ID: {0}"
 msgstr "ID giao diện: {0}"
 
-#: packages/admin/src/router.tsx:3383
+#: packages/admin/src/router.tsx:3389
 msgid "Theme Marketplace"
 msgstr "Cửa hàng giao diện"
 
@@ -15322,7 +15316,7 @@ msgstr "Loại khối này không còn thêm được vào trường này, nên 
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "Khối này thuộc phiên bản cũ và không thể khôi phục sau khi bạn xoá."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3220
+#: packages/admin/src/components/PortableTextEditor.tsx:3221
 msgid "This block was deleted, so your changes can't be saved."
 msgstr ""
 
@@ -15356,11 +15350,11 @@ msgstr "Mã không hợp lệ hoặc đã được sử dụng."
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Bộ sưu tập này được định nghĩa trong mã nguồn. Một số cài đặt không thể thay đổi tại đây. Hãy chỉnh sửa tệp live.config.ts để thay đổi cấu trúc dữ liệu."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3369
+#: packages/admin/src/components/PortableTextEditor.tsx:3370
 msgid "This content cannot be edited safely"
 msgstr "Không thể sửa nội dung này một cách an toàn"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:566
+#: packages/admin/src/components/ContentSettingsPanel.tsx:535
 msgid "This content will be visible on the site immediately."
 msgstr "Nội dung này sẽ hiển thị trên trang web ngay lập tức."
 
@@ -15380,20 +15374,20 @@ msgstr "Khoá di chuyển này có vẻ không hợp lệ. Hãy tạo khoá mớ
 msgid "This domain is already in the list. Enter a different one."
 msgstr "Tên miền này đã có trong danh sách. Hãy nhập tên miền khác."
 
-#: packages/admin/src/components/ContentEditor.tsx:2821
+#: packages/admin/src/components/ContentEditor.tsx:2748
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Mục này đã thay đổi ở nơi khác sau khi bạn mở nó."
 
-#: packages/admin/src/components/ContentEditor.tsx:2221
+#: packages/admin/src/components/ContentEditor.tsx:2219
 #: packages/admin/src/router.tsx:1561
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Mục này đã thay đổi ở nơi khác. Hãy lưu đè, hoặc tải lại để lấy phiên bản mới hơn."
 
-#: packages/admin/src/router.tsx:2516
+#: packages/admin/src/router.tsx:2522
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Mục này không tồn tại hoặc chưa xuất bản. Bạn chỉ có quyền xem nội dung đã xuất bản."
 
-#: packages/admin/src/router.tsx:2517
+#: packages/admin/src/router.tsx:2523
 msgid "This entry doesn't exist or was deleted."
 msgstr "Mục này không tồn tại hoặc đã bị xoá."
 
@@ -15405,19 +15399,19 @@ msgstr "Mục này chưa có URL cho đến khi được xuất bản. Hãy dán
 msgid "This entry is open somewhere else"
 msgstr "Mục này đang mở ở nơi khác"
 
-#: packages/admin/src/components/ContentEditor.tsx:2808
+#: packages/admin/src/components/ContentEditor.tsx:2735
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Mục này ở chế độ chỉ đọc vì lược đồ của nó dùng các loại trường mà phiên bản EmDash này không hỗ trợ."
 
-#: packages/admin/src/components/ContentEditor.tsx:2205
+#: packages/admin/src/components/ContentEditor.tsx:2203
 msgid "This entry is still loading."
 msgstr ""
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:410
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Mục này đã quá hạn {lateness} nhưng chưa được xuất bản. Có thể tiến trình xuất bản theo lịch đang không hoạt động."
 
-#: packages/admin/src/router.tsx:2566
+#: packages/admin/src/router.tsx:2572
 msgid "This entry was moved to Trash or deleted"
 msgstr ""
 
@@ -15429,17 +15423,17 @@ msgstr ""
 msgid "This export is large"
 msgstr "Lần xuất này lớn"
 
-#: packages/admin/src/components/ContentEditor.tsx:3607
-#: packages/admin/src/components/ContentEditor.tsx:3615
+#: packages/admin/src/components/ContentEditor.tsx:3517
+#: packages/admin/src/components/ContentEditor.tsx:3525
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Phiên bản EmDash này không thể sửa trường này."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3352
+#: packages/admin/src/components/PortableTextEditor.tsx:3353
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "Trường này chứa nội dung bảng mà trình soạn thảo không thể giữ nguyên. Hãy cập nhật qua API trước khi sửa hoặc lưu nội dung này."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3371
+#: packages/admin/src/components/PortableTextEditor.tsx:3372
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "Trường này chứa các mark Portable Text không được hỗ trợ: <0>{markList}</0>. Hãy xoá chúng qua API trước khi sửa hoặc lưu nội dung này."
 
@@ -15456,7 +15450,7 @@ msgstr "Trường này không nhận tệp {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Trường này yêu cầu dữ liệu dạng danh sách. Giá trị đã lưu sẽ được giữ nguyên cho đến khi bạn thay bằng một danh sách trống (thao tác này sẽ xoá giá trị cũ). Hãy sao chép lại dữ liệu cần thiết trước khi thực hiện."
 
-#: packages/admin/src/components/ContentEditor.tsx:5132
+#: packages/admin/src/components/ContentEditor.tsx:5042
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Trường này là bắt buộc"
@@ -15568,7 +15562,7 @@ msgstr "Gói này được tạo từ một phiên bản EmDash mới hơn hoặ
 msgid "This passkey is already registered on this device."
 msgstr "Khoá truy cập đã được đăng ký trên thiết bị này."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3390
+#: packages/admin/src/components/PortableTextEditor.tsx:3391
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "Dữ liệu dán quá lớn. Hãy dán ít ô hoặc ít văn bản hơn trong mỗi lần."
 
@@ -15637,7 +15631,7 @@ msgstr "Thao tác này sẽ xoá hồ sơ tác giả. Tác giả sẽ bị gỡ 
 msgid "This removes the relationship, every link stored under it, and the reference fields that use it:"
 msgstr "Thao tác này xoá quan hệ, mọi liên kết lưu theo nó và các trường tham chiếu dùng nó:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:563
+#: packages/admin/src/components/ContentSettingsPanel.tsx:532
 msgid "This removes the schedule and publishes immediately."
 msgstr "Thao tác này huỷ đặt lịch và xuất bản ngay."
 
@@ -15645,12 +15639,12 @@ msgstr "Thao tác này huỷ đặt lịch và xuất bản ngay."
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Múi giờ đã lưu này không được nhận diện. Hãy chọn một gợi ý để ngày giờ hiển thị chính xác."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3435
+#: packages/admin/src/components/PortableTextEditor.tsx:3436
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "Mẫu này chứa nội dung bảng mà trình soạn thảo không thể giữ nguyên. Hãy cập nhật mẫu trước khi chèn."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3437
+#: packages/admin/src/components/PortableTextEditor.tsx:3438
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "Mẫu này chứa các mark Portable Text không được hỗ trợ: <0>{0}</0>. Hãy cập nhật mẫu trước khi chèn."
 
@@ -15708,15 +15702,15 @@ msgstr "Trang web này được thiết lập kèm nội dung khởi tạo. Nó 
 msgid "This slug is reserved. Enter a different one."
 msgstr "Slug này đã được hệ thống bảo lưu. Vui lòng nhập slug khác."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3392
+#: packages/admin/src/components/PortableTextEditor.tsx:3393
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "Dữ liệu bảng tính này có ô trích dẫn không hợp lệ. Hãy sửa dấu nháy hoặc xoá các dấu tab phân tách rồi thử lại."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3350
+#: packages/admin/src/components/PortableTextEditor.tsx:3351
 msgid "This table cannot be edited safely"
 msgstr "Không thể sửa bảng này một cách an toàn"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3396
+#: packages/admin/src/components/PortableTextEditor.tsx:3397
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "Bảng này có định dạng ô, ô đã gộp hoặc độ rộng cột không được hỗ trợ. Hãy dán dưới dạng văn bản thuần hoặc đơn giản hoá bảng rồi thử lại."
 
@@ -15740,7 +15734,7 @@ msgstr "Không thể phát video này."
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Thao tác này sẽ xoá khu vực tiện ích và mọi tiện ích trong đó. Không thể hoàn tác."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1438
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Thao tác này sẽ chuyển mục vào thùng rác. Bạn có thể khôi phục lại sau."
 
@@ -15762,7 +15756,7 @@ msgstr "Thao tác này sẽ xoá vĩnh viễn bình luận này. Không thể ho
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Thao tác này sẽ xoá plugin và gói của nó khỏi trang web của bạn."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:363
+#: packages/admin/src/components/ContentSettingsPanel.tsx:349
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Thao tác này sẽ quay về phiên bản đã xuất bản. Các thay đổi nháp của bạn sẽ bị mất."
 
@@ -15888,7 +15882,7 @@ msgstr "Theo dõi nơi dùng tệp trong thư viện trên toàn bộ nội dung
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3215
+#: packages/admin/src/router.tsx:3221
 msgid "Transfer"
 msgstr "Chuyển dữ liệu"
 
@@ -15917,7 +15911,7 @@ msgstr "Đang dịch..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2076
+#: packages/admin/src/router.tsx:2082
 msgid "Translation created"
 msgstr "Đã tạo bản dịch"
 
@@ -15926,7 +15920,7 @@ msgstr "Đã tạo bản dịch"
 msgid "Translations"
 msgstr "Bản dịch"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:374
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:373
 msgid "Translations:"
 msgstr "Bản dịch:"
 
@@ -16041,9 +16035,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:4063
-#: packages/admin/src/components/PortableTextEditor.tsx:4065
-#: packages/admin/src/components/PortableTextEditor.tsx:4082
+#: packages/admin/src/components/PortableTextEditor.tsx:4064
+#: packages/admin/src/components/PortableTextEditor.tsx:4066
+#: packages/admin/src/components/PortableTextEditor.tsx:4083
 msgid "Turn into"
 msgstr "Chuyển thành"
 
@@ -16114,7 +16108,7 @@ msgstr "Kiểu không khớp ({0})"
 msgid "Type to filter"
 msgstr "Gõ để lọc"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3507
+#: packages/admin/src/components/PortableTextEditor.tsx:3508
 msgid "Type to search"
 msgstr "Gõ để tìm"
 
@@ -16131,18 +16125,18 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Không thể kết nối tới cửa hàng"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1458
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1475
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1410
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1427
 msgid "Unassigned"
 msgstr "Chưa gán"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3645
-#: packages/admin/src/components/PortableTextEditor.tsx:5209
+#: packages/admin/src/components/PortableTextEditor.tsx:3646
+#: packages/admin/src/components/PortableTextEditor.tsx:5210
 msgid "Underline"
 msgstr "Gạch chân"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:5440
+#: packages/admin/src/components/PortableTextEditor.tsx:5441
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:68
 msgid "Undo"
 msgstr "Hoàn tác"
@@ -16205,11 +16199,11 @@ msgstr "Khoá truy cập chưa đặt tên"
 msgid "Unnamed user"
 msgstr "Tài khoản chưa đặt tên"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:552
+#: packages/admin/src/components/ContentSettingsPanel.tsx:521
 msgid "Unpublish {itemLabel}"
 msgstr "Huỷ xuất bản {itemLabel}"
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1966
 msgid "Unpublished"
 msgstr "Đã huỷ xuất bản"
 
@@ -16231,8 +16225,8 @@ msgstr "Phần gán chưa xử lý"
 msgid "visualEditing.unsaved"
 msgstr "Chưa lưu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3090
-#: packages/admin/src/components/ContentEditor.tsx:3099
+#: packages/admin/src/components/ContentEditor.tsx:3013
+#: packages/admin/src/components/ContentEditor.tsx:3022
 msgid "Unsaved changes"
 msgstr "Thay đổi chưa lưu"
 
@@ -16240,7 +16234,7 @@ msgstr "Thay đổi chưa lưu"
 msgid "Unsaved content may leave your site"
 msgstr "Nội dung chưa lưu có thể rời khỏi trang web của bạn"
 
-#: packages/admin/src/router.tsx:2044
+#: packages/admin/src/router.tsx:2051
 msgid "Unscheduled"
 msgstr "Đã huỷ đặt lịch"
 
@@ -16265,7 +16259,7 @@ msgstr "Đến {0}"
 msgid "Untitled"
 msgstr "Không có tiêu đề"
 
-#: packages/admin/src/components/ContentEditor.tsx:4958
+#: packages/admin/src/components/ContentEditor.tsx:4868
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Tệp chưa đặt tên"
@@ -16338,7 +16332,7 @@ msgid "Update to v{0}"
 msgstr "Cập nhật lên v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
 #: packages/admin/src/components/ContentTypeEditor.tsx:679
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -16444,7 +16438,7 @@ msgstr "Tải tệp lên để lưu trữ tập trung các tài nguyên tái s�
 msgid "Upload not finished"
 msgstr "Tải lên chưa hoàn tất"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2503
+#: packages/admin/src/components/PortableTextEditor.tsx:2504
 msgid "Upload or choose a video"
 msgstr "Tải lên hoặc chọn một video"
 
@@ -16504,11 +16498,11 @@ msgstr "Đang tải video lên…"
 #: packages/admin/src/components/MenuEditor.tsx:636
 #: packages/admin/src/components/MenuEditor.tsx:857
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
-#: packages/admin/src/components/PortableTextEditor.tsx:2428
+#: packages/admin/src/components/PortableTextEditor.tsx:2429
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1185
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1137
 #: packages/admin/src/lib/editor-sections.ts:32
 msgid "URL & language"
 msgstr "URL & ngôn ngữ"
@@ -16646,7 +16640,7 @@ msgstr "Được sử dụng làm ảnh Open Graph mặc định khi bài viết
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Dùng làm mã định danh. Chỉ gồm chữ cái viết thường, chữ số và dấu gạch dưới."
 
-#: packages/admin/src/components/ContentEditor.tsx:4044
+#: packages/admin/src/components/ContentEditor.tsx:3954
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Dùng làm hình ảnh chính cho bài viết này ở trang danh sách và đầu bài viết"
 
@@ -16708,7 +16702,7 @@ msgstr "Tên đăng nhập"
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3488
+#: packages/admin/src/router.tsx:3494
 msgid "Users"
 msgstr "Tài khoản"
 
@@ -16798,11 +16792,11 @@ msgstr "Phiên bản {0} (đang dùng)"
 msgid "Version from {when}"
 msgstr "Phiên bản lúc {when}"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:92
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:94
 msgid "Version restored"
 msgstr "Đã khôi phục phiên bản"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2418
+#: packages/admin/src/components/PortableTextEditor.tsx:2419
 msgid "Vertical"
 msgstr "Dọc"
 
@@ -16810,7 +16804,7 @@ msgstr "Dọc"
 #: packages/admin/src/components/editor/BlockMenu.tsx:43
 #: packages/admin/src/components/MediaLibrary.tsx:946
 #: packages/admin/src/components/MediaPickerModal.tsx:407
-#: packages/admin/src/components/PortableTextEditor.tsx:2502
+#: packages/admin/src/components/PortableTextEditor.tsx:2503
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
 msgstr "Video"
@@ -16832,7 +16826,7 @@ msgstr "Tải lên video thất bại. Hãy thử lại."
 msgid "View email provider status and send test emails"
 msgstr "Xem trạng thái nhà cung cấp email và gửi email thử"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:507
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:506
 msgid "View live"
 msgstr "Xem bản live"
 
@@ -16894,7 +16888,7 @@ msgstr "Khách truy cập đang thấy phiên bản xuất bản này"
 msgid "Visitors still see the published version"
 msgstr "Khách truy cập vẫn thấy phiên bản đã xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:565
+#: packages/admin/src/components/ContentSettingsPanel.tsx:534
 msgid "Visitors will see these changes immediately."
 msgstr "Khách truy cập sẽ thấy ngay những thay đổi này."
 
@@ -16924,7 +16918,7 @@ msgstr "Cảnh báo"
 msgid "Warnings"
 msgstr "Cảnh báo"
 
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:353
 msgid "Was due"
 msgstr "Đến hạn lúc"
 
@@ -17020,7 +17014,7 @@ msgstr "Những gì sẽ được nhập"
 msgid "What will happen when you import"
 msgstr "Điều gì sẽ xảy ra khi bạn nhập"
 
-#: packages/admin/src/components/ContentEditor.tsx:2822
+#: packages/admin/src/components/ContentEditor.tsx:2749
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Nội dung bạn vừa nhập vẫn còn nguyên. Nếu lưu, bạn sẽ ghi đè lên phiên bản mới hơn."
 
@@ -17057,7 +17051,7 @@ msgstr "Những loại nội dung có thể dùng phân loại này"
 msgid "Whole number"
 msgstr "Số nguyên"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1243
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 msgid "Why are bylines shown in this order?"
 msgstr "Vì sao tác giả được hiện theo thứ tự này?"
 
@@ -17065,7 +17059,7 @@ msgstr "Vì sao tác giả được hiện theo thứ tự này?"
 msgid "Why can't this be changed?"
 msgstr "Vì sao không thể đổi?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1203
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
 msgid "Why English is used"
 msgstr "Vì sao dùng tiếng Anh"
 
@@ -17137,7 +17131,7 @@ msgstr "Đã cập nhật tiện ích"
 #: packages/admin/src/components/Sidebar.tsx:535
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
-#: packages/admin/src/router.tsx:3454
+#: packages/admin/src/router.tsx:3460
 msgid "Widgets"
 msgstr "Tiện ích"
 
@@ -17310,7 +17304,7 @@ msgstr "Bạn cần quyền quản trị để chuyển trang web này."
 msgid "You need admin permissions to view this page."
 msgstr "Bạn cần quyền quản trị để xem trang này."
 
-#: packages/admin/src/router.tsx:3092
+#: packages/admin/src/router.tsx:3098
 msgid "You need Editor permissions to moderate comments."
 msgstr "Bạn cần quyền biên tập viên để kiểm duyệt bình luận."
 
@@ -17391,7 +17385,7 @@ msgstr "Tài khoản của bạn đã được tạo thành công."
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Trình duyệt của bạn không hỗ trợ khoá truy cập. Vui lòng dùng trình duyệt như: Chrome, Safari, Firefox hoặc Edge."
 
-#: packages/admin/src/components/ContentEditor.tsx:2797
+#: packages/admin/src/components/ContentEditor.tsx:2724
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
 msgstr ""
 
@@ -17426,11 +17420,11 @@ msgstr "Trình quản lý xác thực của thiết bị sẽ lưu và hiển th
 msgid "your device's passkey prompt"
 msgstr "màn hình xác thực khoá truy cập của thiết bị"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:126
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:128
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the live site won't change until you publish."
 msgstr "Bản nháp của bạn sẽ được thay thế bằng phiên bản lúc {when}. Bản nháp hiện tại vẫn được lưu trong Lịch sử chỉnh sửa, và trang web đang công khai sẽ không thay đổi cho đến khi bạn xuất bản."
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:125
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:127
 msgid "Your draft will be replaced with the version from {when}. Your current draft stays in Revisions, and the restored version goes live at the scheduled time."
 msgstr "Bản nháp của bạn sẽ được thay thế bằng phiên bản lúc {when}. Bản nháp hiện tại vẫn được lưu trong Lịch sử chỉnh sửa, và phiên bản được khôi phục sẽ xuất bản theo thời gian đã đặt lịch."
 
@@ -17438,7 +17432,7 @@ msgstr "Bản nháp của bạn sẽ được thay thế bằng phiên bản lú
 msgid "Your earlier edits weren’t kept"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1196
+#: packages/admin/src/router.tsx:1194
 msgid "Your edits are still on this page. Reload it to edit with others."
 msgstr ""
 
@@ -17466,7 +17460,7 @@ msgstr "Tên tài khoản Instagram của bạn"
 msgid "Your last edits weren’t saved"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1229
+#: packages/admin/src/router.tsx:1227
 msgid "Your latest edits couldn’t be saved"
 msgstr ""
 
@@ -17492,11 +17486,11 @@ msgstr "Tên của bạn (tuỳ chọn)"
 msgid "Your Role"
 msgstr "Vai trò của bạn"
 
-#: packages/admin/src/router.tsx:2532
+#: packages/admin/src/router.tsx:2538
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Bạn chỉ có quyền chỉnh sửa mục của mình khi còn ở trạng thái nháp."
 
-#: packages/admin/src/router.tsx:2533
+#: packages/admin/src/router.tsx:2539
 msgid "Your role can't edit this entry."
 msgstr "Bạn không có quyền chỉnh sửa mục này."
 
@@ -17518,7 +17512,7 @@ msgid "Your site requires releases to be at least {0} old before they can be ins
 msgstr "Trang web của bạn yêu cầu bản phát hành phải ra mắt được ít nhất {0} mới có thể cài đặt. Bạn có thể cài đặt bản phát hành này sau."
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
-#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:362
+#: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:361
 msgid "Your time: {viewerTime}"
 msgstr "Giờ của bạn: {viewerTime}"
 
@@ -17526,20 +17520,20 @@ msgstr "Giờ của bạn: {viewerTime}"
 msgid "Your Twitter/X handle (e.g., @username)"
 msgstr "Tên tài khoản Twitter/X của bạn (VD: @username)"
 
-#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:61
+#: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:62
 #: packages/admin/src/components/UnsavedChangesGuard.tsx:45
 msgid "Your unsaved changes will be lost."
 msgstr "Các thay đổi chưa lưu của bạn sẽ bị mất."
 
-#: packages/admin/src/router.tsx:1219
+#: packages/admin/src/router.tsx:1217
 msgid "Your unsaved edits are in a recovery revision"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1204
+#: packages/admin/src/router.tsx:1202
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1208
+#: packages/admin/src/router.tsx:1206
 msgid "Your unsaved edits couldn’t be kept"
 msgstr ""
 

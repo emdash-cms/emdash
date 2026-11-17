@@ -1,11 +1,12 @@
 ---
 /**
- * A plugin summary for the catalog grids. The name links to the plugin, and
- * that link stretches over the whole card, so the card has one link whose
- * accessible name is the plugin's name.
+ * A plugin summary for the catalog grids. The name links to the plugin and
+ * stretches over the whole card. When the listing leaves out some of the
+ * publisher's plugins, a "+N more" link to the publisher page sits above it.
  */
 import type { RegistryEntryData } from "@emdash-cms/registry-loader";
 
+import { type ListedPlugin, updatedAt } from "../lib/discovery.js";
 import { pluginArtSeed } from "../lib/plugin-art.js";
 import {
 	isNewPlugin,
@@ -14,13 +15,14 @@ import {
 	permissionCountLabel,
 	pluginPath,
 	publisherHandle,
+	publisherPath,
 	relativeUpdated,
 	requestedPermissions,
 } from "../lib/registry.js";
 import PluginArt from "./PluginArt.astro";
 
 interface Props {
-	entry: RegistryEntryData;
+	entry: RegistryEntryData & Partial<Pick<ListedPlugin, "moreFromPublisher">>;
 	headingLevel?: 2 | 3;
 }
 
@@ -30,13 +32,14 @@ const plugin = entry.package;
 const profile = plugin.profile;
 const name = profile?.name || plugin.slug;
 const handle = publisherHandle(plugin);
+const identity = handle ? `@${handle}` : plugin.did;
 const official = isOfficialPublisher(plugin);
 const icon = listingImageUrl(entry, "icon");
 const permissions = requestedPermissions(entry);
 const isNew = isNewPlugin(plugin);
-const updated = profile?.lastUpdated
-	? relativeUpdated(profile.lastUpdated)
-	: undefined;
+const updatedTime = updatedAt(plugin);
+const updated = relativeUpdated(updatedTime);
+const more = entry.moreFromPublisher ?? 0;
 ---
 
 <article class="plugin-card card">
@@ -67,9 +70,18 @@ const updated = profile?.lastUpdated
 				>
 			</Heading>
 			<p class="plugin-card-publisher">
-				<span class="plugin-card-handle" dir="auto"
-					>{handle ? `@${handle}` : plugin.did}</span
-				>
+				<span class="plugin-card-handle" dir="auto">{identity}</span>
+				{
+					more > 0 && (
+						<a
+							class="plugin-card-more"
+							href={publisherPath(plugin)}
+							aria-label={`${more} more ${more === 1 ? "plugin" : "plugins"} from ${identity}`}
+						>
+							+{more} more
+						</a>
+					)
+				}
 				{
 					official && (
 						<span class="plugin-card-official">
@@ -114,7 +126,7 @@ const updated = profile?.lastUpdated
 						<path d="M12 7.5V12l3 2" />
 					</svg>
 					<span class="visually-hidden">{"Updated "}</span>
-					<time datetime={profile?.lastUpdated}>{updated}</time>
+					<time datetime={updatedTime}>{updated}</time>
 				</span>
 			)
 		}
@@ -239,6 +251,32 @@ const updated = profile?.lastUpdated
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	/* Above the stretched name link, which covers the card. */
+	.plugin-card-more {
+		position: relative;
+		z-index: 2;
+		flex: none;
+		padding-block: 0.1875rem;
+		margin-block: -0.1875rem;
+		color: var(--muted);
+		font-weight: 500;
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 0.2em;
+		border-radius: var(--radius-sm);
+	}
+
+	@media (hover: hover) {
+		.plugin-card-more:hover {
+			color: var(--ink);
+		}
+	}
+
+	.plugin-card-more:focus-visible {
+		outline: 2px solid var(--accent-ink);
+		outline-offset: 2px;
 	}
 
 	.plugin-card-official {
