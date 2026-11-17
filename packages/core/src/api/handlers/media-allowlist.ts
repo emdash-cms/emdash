@@ -40,6 +40,9 @@ export const GLOBAL_UPLOAD_ALLOWLIST: readonly string[] = [
  * slug and retained version number. Only types configured on the outer blocks
  * field can supply an allowlist.
  *
+ * Repeater image sub-fields append `.subFieldSlug` to the repeater field ID
+ * (or to the final slug in a composite block field ID).
+ *
  * Authentication is the caller's responsibility (the upload routes already
  * gate on `media:upload`).
  */
@@ -92,17 +95,60 @@ export async function resolveFieldAllowlist(
 		const type = await new BlockTypeRegistry(db).getBlockType(blockType);
 		const version = type?.versions.find((candidate) => candidate.version === blockVersion);
 		if (!version || version.unsupportedTypes?.length) return null;
-		const field = version.fields.find((candidate) => candidate.slug === slug);
-		if (!field || (field.type !== "file" && field.type !== "image")) return null;
-		return parseAllowedMimeTypes(JSON.stringify(field.validation));
+		const [fieldSlug, subFieldSlug, ...extra] = slug.split(".");
+		if (extra.length || subFieldSlug === "") return null;
+		const field = version.fields.find((candidate) => candidate.slug === fieldSlug);
+		return field
+			? mediaFieldAllowlist(field.type, JSON.stringify(field.validation), subFieldSlug)
+			: null;
 	}
 
+	const [outerId, subFieldSlug, ...extra] = fieldId.split(".");
+	if (!outerId || extra.length || subFieldSlug === "") return null;
 	const row = await db
 		.selectFrom("_emdash_fields")
 		.select(["type", "validation"])
-		.where("id", "=", fieldId)
-		.where("type", "in", ["file", "image"])
+		.where("id", "=", outerId)
 		.executeTakeFirst();
 
-	return row ? parseAllowedMimeTypes(row.validation) : null;
+	return row ? mediaFieldAllowlist(row.type, row.validation, subFieldSlug) : null;
+}
+
+function mediaFieldAllowlist(
+	type: string,
+	validation: string | null | undefined,
+	subFieldSlug?: string,
+): string[] | null {
+	if (subFieldSlug !== undefined) {
+		if (type !== "repeater" || !validation) return null;
+		try {
+			const parsed: unknown = JSON.parse(validation);
+			if (
+				!parsed ||
+				typeof parsed !== "object" ||
+				!("subFields" in parsed) ||
+				!Array.isArray(parsed.subFields)
+			)
+				return null;
+			const field: unknown = parsed.subFields.find(
+				(candidate: unknown) =>
+					candidate !== null &&
+					typeof candidate === "object" &&
+					"slug" in candidate &&
+					candidate.slug === subFieldSlug,
+			);
+			if (
+				!field ||
+				typeof field !== "object" ||
+				!("type" in field) ||
+				field.type !== "image" ||
+				!("validation" in field)
+			)
+				return null;
+			return parseAllowedMimeTypes(JSON.stringify(field.validation));
+		} catch {
+			return null;
+		}
+	}
+	return type === "image" || type === "file" ? parseAllowedMimeTypes(validation) : null;
 }

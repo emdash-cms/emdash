@@ -161,6 +161,7 @@ interface RepeaterSubFieldState {
 	type: string;
 	label: string;
 	required: boolean;
+	validation?: { allowedMimeTypes?: string[] };
 }
 
 interface FieldFormState {
@@ -592,6 +593,7 @@ export function FieldEditor({
 					type: sf.type,
 					label: sf.label,
 					required: sf.required || undefined,
+					...(sf.validation ? { validation: sf.validation } : {}),
 				}));
 			}
 			if (formState.minItems)

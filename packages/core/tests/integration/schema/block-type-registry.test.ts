@@ -191,6 +191,41 @@ describeEachDialect("BlockTypeRegistry", (dialect) => {
 		expect(rejected).toMatchObject({ status: "rejected", reason: { code: "CONFLICT" } });
 	});
 
+	it("reads legacy repeater sub-field validation without rejecting unrelated settings", async () => {
+		const created = await registry.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: heroFields,
+		});
+		const fields = [
+			{
+				slug: "partners",
+				label: "Partners",
+				type: "repeater",
+				validation: {
+					subFields: [
+						{ slug: "name", label: "Name", type: "string", validation: { maxLength: 80 } },
+						{ slug: "photo", label: "Photo", type: "image", validation: null },
+						{
+							slug: "logo",
+							label: "Logo",
+							type: "image",
+							validation: { legacyOption: true, allowedMimeTypes: ["image/svg+xml"] },
+						},
+					],
+				},
+			},
+		];
+		await ctx.db
+			.updateTable("_emdash_block_type_versions")
+			.set({ fields: JSON.stringify(fields) })
+			.where("id", "=", created.versions[0]!.id)
+			.execute();
+		const reread = await registry.getBlockType("hero");
+		expect(reread?.versions[0]?.fields).toEqual(fields);
+		expect(reread?.versions[0]?.unsupportedTypes).toBeUndefined();
+	});
+
 	it("preserves unknown stored field types as fail-closed metadata", async () => {
 		const created = await registry.createBlockType({
 			slug: "hero",

@@ -80,6 +80,19 @@ const repeaterSubFieldSchema = z.object({
 	label: z.string().min(1),
 	required: z.boolean().optional(),
 	options: z.array(z.string()).optional(),
+	validation: z
+		.object({
+			allowedMimeTypes: z
+				.array(
+					z
+						.string()
+						.regex(/^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i, "Invalid MIME type"),
+				)
+				.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
+				.max(64, "allowedMimeTypes may contain at most 64 entries")
+				.optional(),
+		})
+		.optional(),
 });
 
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {

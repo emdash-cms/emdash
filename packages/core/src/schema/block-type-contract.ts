@@ -115,6 +115,23 @@ function validateRepeaterSubFields(
 		if (required !== undefined && typeof required !== "boolean") {
 			fail(`${fieldPath}.required`, "must be a boolean");
 		}
+		const validation = "validation" in subField ? subField.validation : undefined;
+		if (
+			type === "image" &&
+			validation &&
+			typeof validation === "object" &&
+			!Array.isArray(validation)
+		) {
+			const allowedMimeTypes: unknown =
+				"allowedMimeTypes" in validation ? validation.allowedMimeTypes : undefined;
+			if (allowedMimeTypes !== undefined) {
+				validateOptions(allowedMimeTypes, `${fieldPath}.validation.allowedMimeTypes`);
+				for (const mime of allowedMimeTypes) {
+					if (!MIME_PATTERN.test(mime))
+						fail(`${fieldPath}.validation.allowedMimeTypes`, `invalid MIME type "${mime}"`);
+				}
+			}
+		}
 	}
 }
 
@@ -345,7 +362,16 @@ function repeaterFields(fields: readonly RepeaterSubField[] | undefined): BlockF
 		label: field.label,
 		type: field.type,
 		required: field.required,
-		...(field.options ? { validation: { options: field.options } } : {}),
+		...(field.options || field.validation
+			? {
+					validation: {
+						...(field.options ? { options: field.options } : {}),
+						...(field.validation?.allowedMimeTypes
+							? { allowedMimeTypes: field.validation.allowedMimeTypes }
+							: {}),
+					},
+				}
+			: {}),
 	}));
 }
 
