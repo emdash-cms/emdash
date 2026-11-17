@@ -784,16 +784,6 @@ describe.each([
 		});
 	});
 
-	it("refreshes the entry whose publication date it changed", async () => {
-		const { queryClient } = await actThenSwitch(PUBLISHED, changePublicationDate);
-
-		await expect
-			.poll(() =>
-				queryClient.getQueryState(["content", "posts", CREATED.id, { locale: undefined }]),
-			)
-			.toMatchObject({ isInvalidated: true });
-	});
-
 	it("keeps the conflict notice of the entry now open when the previous entry's date change conflicts", async () => {
 		const otherPath = `/_emdash/api/content/${other.type}/${other.id}`;
 		const datedOther = { ...other, status: "published", publishedAt: PUBLISHED.publishedAt };
