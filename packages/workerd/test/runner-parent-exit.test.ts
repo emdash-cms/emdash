@@ -20,26 +20,46 @@ try {
 
 const hostSource = (
 	modulePath: string,
-	listener: "none" | "on" | "once" | "prependOnceListener" | "removed",
+	listener: "none" | "on" | "once" | "prependOnceListener" | "removed" | "reraised",
 	signal: "SIGTERM" | "SIGINT",
 ) => `
 import { createSandboxRunner } from ${JSON.stringify(modulePath)};
 import { stdin, stdout } from "node:process";
+import { connect } from "node:net";
+import { once } from "node:events";
 ${listener === "on" || listener === "once" ? `process.${listener}(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
+${listener === "reraised" ? `function reraise() { if (process.listenerCount(${JSON.stringify(signal)}) === 1) { process.off(${JSON.stringify(signal)}, reraise); process.kill(process.pid, ${JSON.stringify(signal)}); } } process.on(${JSON.stringify(signal)}, reraise);` : ""}
 const runner = createSandboxRunner({ db: null, siteInfo: { name: "exit-test", url: "http://localhost", locale: "en" } });
 ${listener === "prependOnceListener" ? `process.prependOnceListener(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
 ${listener === "removed" ? `const removedHandler = () => stdout.write("UNEXPECTED\\n"); process.prependOnceListener(${JSON.stringify(signal)}, removedHandler); process.off(${JSON.stringify(signal)}, removedHandler);` : ""}
 const plugin = await runner.load(
-  { id: "exit-test", version: "1.0.0", capabilities: [], allowedHosts: [], storage: {}, hooks: ["test"], routes: [], admin: {} },
-  'export default { hooks: { test: async () => ({ ok: true }) } };',
+  { id: "exit-test", version: "1.0.0", capabilities: [], allowedHosts: [], storage: {}, hooks: ["test"], routes: ["ping"], admin: {} },
+  'export default { hooks: { test: async () => ({ ok: true }) }, routes: { ping: { handler: async () => ({ ok: true }) } } };',
 );
 await plugin.invokeHook("test", {});
+const backingConnections = [];
+async function holdBackingConnection() {
+  const connection = connect(runner.backingSocketPath);
+  await once(connection, "connect");
+  connection.unref();
+  backingConnections.push(connection);
+}
+await holdBackingConnection();
 const entries = [...runner.plugins.values()];
 stdout.write("READY " + JSON.stringify({ pid: runner.workerdProcess.pid, port: entries[0].port, configDir: runner.configDir, socketPath: runner.backingSocketPath }) + "\\n");
 stdin.setEncoding("utf8");
-stdin.on("data", (command) => {
+stdin.on("data", async (command) => {
   if (command.includes("exit")) process.exit(0);
-  if (command.includes("ping")) stdout.write("ALIVE\\n");
+  if (command.includes("drain")) {
+    try {
+      const hook = await plugin.invokeHook("test", {});
+      await holdBackingConnection();
+      const route = await plugin.invokeRoute("ping", {}, { url: "http://localhost/ping", method: "GET", headers: {} });
+      stdout.write("DRAIN_OK " + JSON.stringify({ hook, route }) + "\\n");
+    } catch (error) {
+      stdout.write("DRAIN_FAILED " + error.message + "\\n");
+    }
+  }
 });
 `;
 
@@ -170,7 +190,8 @@ async function runMode(
 		| "handled"
 		| "handled-once"
 		| "handled-prepend"
-		| "removed-prepend",
+		| "removed-prepend"
+		| "reraised",
 	signal: "SIGTERM" | "SIGINT" = "SIGTERM",
 ): Promise<void> {
 	const host = spawn(
@@ -188,7 +209,9 @@ async function runMode(
 							? "prependOnceListener"
 							: mode === "removed-prepend"
 								? "removed"
-								: "none",
+								: mode === "reraised"
+									? "reraised"
+									: "none",
 				signal,
 			),
 		],
@@ -213,22 +236,22 @@ async function runMode(
 			const handled = waitForLine(host, (line) => line === "HANDLED");
 			host.kill(signal);
 			expect(await handled).toBe("HANDLED");
-			await waitForPortClosed(ready.port);
-			await expect.poll(() => [ready!.configDir, ready!.socketPath].some(existsSync)).toBe(false);
-			const alive = waitForLine(host, (line) => line === "ALIVE");
-			host.stdin.write("ping\n");
-			expect(await alive).toBe("ALIVE");
+			const drained = waitForLine(host, (line) => line.startsWith("DRAIN_"));
+			host.stdin.write("drain\n");
+			expect(await drained).toBe('DRAIN_OK {"hook":{"ok":true},"route":{"ok":true}}');
 			expect(host.exitCode).toBeNull();
-			return;
 		}
 		const exited = waitForExit(host);
-		if (mode === "exit") host.stdin.write("exit\n");
-		else host.kill(mode === "removed-prepend" ? signal : mode);
+		if (mode.startsWith("handled")) host.stdin.end();
+		else if (mode === "exit") host.stdin.write("exit\n");
+		else host.kill(mode === "removed-prepend" || mode === "reraised" ? signal : mode);
 		const result = await exited;
-		if (mode === "exit") expect(result).toEqual({ code: 0, signal: null });
-		else expect(result.signal).toBe(mode === "removed-prepend" ? signal : mode);
+		if (mode === "exit" || mode.startsWith("handled"))
+			expect(result).toEqual({ code: 0, signal: null });
+		else
+			expect(result.signal).toBe(mode === "removed-prepend" || mode === "reraised" ? signal : mode);
 		await waitForPortClosed(ready.port);
-		if (mode !== "SIGKILL") {
+		if (mode !== "SIGKILL" && mode !== "reraised") {
 			expect(existsSync(ready.configDir)).toBe(false);
 			expect(existsSync(ready.socketPath)).toBe(false);
 		}
@@ -258,8 +281,16 @@ describe.skipIf(isWindows || !workerdAvailable)("runner parent exit cleanup", ()
 	it("cleans up on SIGTERM", () => runMode("SIGTERM"), 20_000);
 	it("cleans up on SIGINT", () => runMode("SIGINT"), 20_000);
 	it.skipIf(!existsSync("/bin/sh"))("cleans up on SIGKILL", () => runMode("SIGKILL"), 20_000);
-	it("does not suppress an application SIGTERM listener", () => runMode("handled"), 20_000);
-	it("preserves an application once-only SIGTERM listener", () => runMode("handled-once"), 20_000);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"keeps hooks and routes available during an application-owned %s drain",
+		(signal) => runMode("handled", signal),
+		20_000,
+	);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"keeps hooks and routes available during a once-only %s drain",
+		(signal) => runMode("handled-once", signal),
+		20_000,
+	);
 	it.each(["SIGTERM", "SIGINT"] as const)(
 		"preserves a prepended once-only %s listener installed after construction",
 		(signal) => runMode("handled-prepend", signal),
@@ -268,6 +299,11 @@ describe.skipIf(isWindows || !workerdAvailable)("runner parent exit cleanup", ()
 	it.each(["SIGTERM", "SIGINT"] as const)(
 		"keeps default %s exit after an application listener was removed before dispatch",
 		(signal) => runMode("removed-prepend", signal),
+		20_000,
+	);
+	it.skipIf(!existsSync("/bin/sh")).each(["SIGTERM", "SIGINT"] as const)(
+		"does not block an application %s handler that re-raises only when alone",
+		(signal) => runMode("reraised", signal),
 		20_000,
 	);
 });

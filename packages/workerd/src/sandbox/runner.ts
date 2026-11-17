@@ -25,6 +25,7 @@ import { writeFile, mkdir, rm, unlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { createRequire } from "node:module";
+import type { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -53,7 +54,7 @@ import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
 import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
-import { signalWorkerd, spawnWorkerd } from "./workerd-process.js";
+import { signalWorkerd, spawnWorkerd, unrefWorkerd } from "./workerd-process.js";
 import { waitForWorkerdReady } from "./workerd-startup.js";
 import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
@@ -131,12 +132,15 @@ function handleSignal(signal: "SIGTERM" | "SIGINT"): void {
 	const hasOtherHandlers =
 		lifecycle.removedSignalHandlers.has(signal) ||
 		process.listeners(signal).some((listener) => listener !== handler);
-	for (const runner of activeRunners) void runner.terminateAll();
-	if (!hasOtherHandlers) {
-		onHostExit();
+	if (hasOtherHandlers) {
+		for (const runner of activeRunners) runner["allowHostDrain"]();
 		process.off(signal, handler);
-		process.kill(process.pid, signal);
+		return;
 	}
+	for (const runner of activeRunners) void runner.terminateAll();
+	onHostExit();
+	process.off(signal, handler);
+	process.kill(process.pid, signal);
 }
 
 function onRemoveListener(event: string | symbol, listener: (...args: never[]) => unknown): void {
@@ -363,6 +367,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Backing service HTTP server (runs in Node) */
 	private backingServer: Server | null = null;
+	private backingConnections = new Set<Socket>();
+	private hostDraining = false;
 	private backingPort = 0;
 	private backingService: BackingServiceHandler | null = null;
 	private backingSocketPath: string | null = null;
@@ -683,6 +689,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.eagerStartTimer = null;
 			this.ensureRunning().catch(() => {});
 		}, 50);
+		if (this.hostDraining) this.eagerStartTimer.unref();
 	}
 
 	/**
@@ -710,6 +717,15 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.configDir = null;
 		}
 		unregisterSigHandler(this);
+	}
+
+	private allowHostDrain(): void {
+		this.hostDraining = true;
+		this.backingServer?.unref();
+		for (const connection of this.backingConnections) connection.unref();
+		if (this.workerdProcess) unrefWorkerd(this.workerdProcess);
+		this.eagerStartTimer?.unref();
+		this.restartTimer?.unref();
 	}
 
 	private cleanupExitFiles(): void {
@@ -780,6 +796,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.needsRestart = true;
 			this.resolveRestartWaiters();
 		}, delayMs);
+		if (this.hostDraining) this.restartTimer.unref();
 	}
 
 	/**
@@ -900,6 +917,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			minimalWorkerdEnv(),
 		);
 		this.workerdProcess = proc;
+		if (this.hostDraining) unrefWorkerd(proc);
 
 		this.epoch++;
 
@@ -979,6 +997,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		return new Promise((resolve, reject) => {
 			this.backingServer = createServer(this.backingService!.handler);
+			this.backingServer.on("connection", (connection) => {
+				this.backingConnections.add(connection);
+				connection.once("close", () => this.backingConnections.delete(connection));
+				if (this.hostDraining) connection.unref();
+			});
 
 			if (USE_UNIX_SOCKET) {
 				const socketPath = join(
@@ -987,11 +1010,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				);
 				this.backingSocketPath = socketPath;
 				this.backingServer.listen(socketPath, () => {
+					if (this.hostDraining) this.backingServer?.unref();
 					resolve();
 				});
 			} else {
 				// Windows fallback: TCP on localhost
 				this.backingServer.listen(0, "127.0.0.1", () => {
+					if (this.hostDraining) this.backingServer?.unref();
 					const addr = this.backingServer!.address();
 					if (addr && typeof addr === "object") {
 						this.backingPort = addr.port;

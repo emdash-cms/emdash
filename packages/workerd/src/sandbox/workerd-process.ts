@@ -16,6 +16,13 @@ function killChildren(): void {
 	for (const child of children) signalWorkerd(child, "SIGKILL");
 }
 
+export function unrefWorkerd(child: ChildProcess): void {
+	child.unref();
+	for (const stream of child.stdio) {
+		if (stream && "unref" in stream && typeof stream.unref === "function") stream.unref();
+	}
+}
+
 /** Signal the whole POSIX process group, including any binary launcher. */
 export function signalWorkerd(child: ChildProcess, signal: NodeJS.Signals): void {
 	if (process.platform === "win32" || !children.has(child) || child.pid === undefined) {
