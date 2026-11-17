@@ -413,53 +413,56 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 		return scope;
 	}
 
-	it("does not repeat layout reads through Astro's real rewrite pipeline", async () => {
-		const scope = { db: realDb, commit: vi.fn(), close: vi.fn() };
-		createRequestScopedDb.mockReturnValue(scope);
-		const read = () =>
-			requestCached("rewrite-layout", async () =>
-				realDb.selectFrom("_emdash_migrations").selectAll().limit(1).execute(),
-			);
-		const notFound = createComponent(async (result, props, slots) => {
-			const Astro = result.createAstro(createAstro(), props, slots);
-			Astro.response.status = 404;
-			await read();
-			return render`<html><body>Not found</body></html>`;
-		});
-		const missing = createComponent(async (result, props, slots) => {
-			const Astro = result.createAstro(createAstro(), props, slots);
-			await read();
-			return Astro.rewrite("/404");
-		});
-		const container = await AstroContainer.create({
-			manifest: {
-				middleware: async () => ({ onRequest }),
-			} as NonNullable<Parameters<typeof AstroContainer.create>[0]>["manifest"],
-		});
-		container.insertPageRoute("/404", notFound);
-		const direct = await container.renderToResponse(notFound, {
-			request: new Request("https://example.com/404", { headers: { accept: "text/html" } }),
-		});
-		expect(direct.status).toBe(404);
-		await direct.text();
-		await new Promise((resolve) => setTimeout(resolve, 10));
-		const directQueries = rewriteQueryCount.mock.calls.length;
-		vi.clearAllMocks();
-		const rewritten = await container.renderToResponse(missing, {
-			request: new Request("https://example.com/missing-page", {
-				headers: { accept: "text/html" },
-			}),
-		});
-		expect(rewritten.status).toBe(404);
-		expect(await rewritten.text()).toContain("Not found");
-		await new Promise((resolve) => setTimeout(resolve, 10));
-		expect(directQueries).toBe(1);
-		expect(rewriteQueryCount).toHaveBeenCalledTimes(directQueries);
-		expect(prefetchLayoutData).toHaveBeenCalledOnce();
-		expect(createRequestScopedDb).toHaveBeenCalledOnce();
-		expect(scope.commit).toHaveBeenCalledOnce();
-		expect(scope.close).toHaveBeenCalledOnce();
-	});
+	it.each([true, false])(
+		"does not repeat layout reads through Astro's real rewrite pipeline (scoped db: %s)",
+		async (hasScopedDb) => {
+			const scope = { db: realDb, commit: vi.fn(), close: vi.fn() };
+			createRequestScopedDb.mockReturnValue(hasScopedDb ? scope : null);
+			const read = () =>
+				requestCached("rewrite-layout", async () =>
+					realDb.selectFrom("_emdash_migrations").selectAll().limit(1).execute(),
+				);
+			const notFound = createComponent(async (result, props, slots) => {
+				const Astro = result.createAstro(createAstro(), props, slots);
+				Astro.response.status = 404;
+				await read();
+				return render`<html><body>Not found</body></html>`;
+			});
+			const missing = createComponent(async (result, props, slots) => {
+				const Astro = result.createAstro(createAstro(), props, slots);
+				await read();
+				return Astro.rewrite("/404");
+			});
+			const container = await AstroContainer.create({
+				manifest: {
+					middleware: async () => ({ onRequest }),
+				} as NonNullable<Parameters<typeof AstroContainer.create>[0]>["manifest"],
+			});
+			container.insertPageRoute("/404", notFound);
+			const direct = await container.renderToResponse(notFound, {
+				request: new Request("https://example.com/404", { headers: { accept: "text/html" } }),
+			});
+			expect(direct.status).toBe(404);
+			await direct.text();
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			const directQueries = rewriteQueryCount.mock.calls.length;
+			vi.clearAllMocks();
+			const rewritten = await container.renderToResponse(missing, {
+				request: new Request("https://example.com/missing-page", {
+					headers: { accept: "text/html" },
+				}),
+			});
+			expect(rewritten.status).toBe(404);
+			expect(await rewritten.text()).toContain("Not found");
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			expect(directQueries).toBe(1);
+			expect(rewriteQueryCount).toHaveBeenCalledTimes(directQueries);
+			expect(prefetchLayoutData).toHaveBeenCalledTimes(hasScopedDb ? 1 : 0);
+			expect(createRequestScopedDb).toHaveBeenCalledOnce();
+			expect(scope.commit).toHaveBeenCalledTimes(hasScopedDb ? 1 : 0);
+			expect(scope.close).toHaveBeenCalledTimes(hasScopedDb ? 1 : 0);
+		},
+	);
 
 	it("reuses the prefetched layout read for an anonymous rewrite", async () => {
 		const scope = await rewrite();
@@ -493,7 +496,7 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 		expect(rewriteQueryCount).toHaveBeenCalledTimes(2);
 	});
 
-	it.each(["/_emdash/api/content", "/sitemap.xml"])(
+	it.each(["/_emdash/api/content", "/sitemap.xml", "/robots.txt", "/sitemap-post.xml"])(
 		"initializes runtime handlers for a rewrite to %s",
 		async (targetPath) => {
 			await rewrite({ targetPath });
@@ -501,6 +504,50 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 			expect(createRequestScopedDb).toHaveBeenCalledTimes(2);
 		},
 	);
+
+	it.each(["astro-session", "emdash-edit-mode"])(
+		"does not reuse the anonymous scope after a rewrite adds %s",
+		async (cookieName) => {
+			await rewrite({
+				targetProperties: {
+					cookies: {
+						get: (name: string) => (name === cookieName ? { value: "true" } : undefined),
+						set: vi.fn(),
+					},
+				},
+			});
+			expect(rewriteQueryCount).toHaveBeenCalledTimes(2);
+			expect(createRequestScopedDb).toHaveBeenCalledTimes(2);
+		},
+	);
+
+	it("keeps an unresolved session cookie on the initial anonymous fast path", async () => {
+		createRequestScopedDb.mockReturnValue({ db: realDb, commit: vi.fn() });
+		const context = htmlNavigation(
+			"/404",
+			{},
+			{
+				cookies: {
+					get: (name: string) => (name === "astro-session" ? { value: "stale" } : undefined),
+					set: vi.fn(),
+				},
+			},
+		);
+		const response = await onRequest(context, async () => new Response("page"));
+		await response.text();
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(context.session?.get).toHaveBeenCalledOnce();
+		expect(prefetchLayoutData).toHaveBeenCalledOnce();
+		expect(createRequestScopedDb).toHaveBeenCalledOnce();
+	});
+
+	it("initializes runtime handlers for a rewrite to a base-prefixed runtime route", async () => {
+		vi.stubEnv("BASE_URL", "/cms/");
+		onTestFinished(() => vi.unstubAllEnvs());
+		await rewrite({ targetPath: "/cms/robots.txt" });
+		expect(rewriteQueryCount).toHaveBeenCalledTimes(2);
+		expect(createRequestScopedDb).toHaveBeenCalledTimes(2);
+	});
 
 	it("does not reuse the cache for a preview target", async () => {
 		await rewrite({ targetPath: "/404?_preview=1" });
