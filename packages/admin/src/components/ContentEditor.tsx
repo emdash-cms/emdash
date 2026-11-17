@@ -643,6 +643,22 @@ function buildReferencesPayload(
 
 /** Contributors and above may read and write editorial comments. */
 const EDITORIAL_COMMENT_MIN_ROLE = 20;
+/** Narrower than this, the comments margin and the settings panel leave too little room to write. */
+const MARGIN_AND_SETTINGS_QUERY = "(min-width: 1680px)";
+
+function useMediaQuery(query: string): boolean {
+	const [matches, setMatches] = React.useState(
+		() => typeof window !== "undefined" && window.matchMedia(query).matches,
+	);
+	React.useEffect(() => {
+		const mq = window.matchMedia(query);
+		const onChange = () => setMatches(mq.matches);
+		onChange();
+		mq.addEventListener("change", onChange);
+		return () => mq.removeEventListener("change", onChange);
+	}, [query]);
+	return matches;
+}
 
 /** Simplified user info for current user context */
 export interface CurrentUserInfo {
@@ -1185,12 +1201,17 @@ export function ContentEditor({
 			return null;
 		});
 	}, []);
+	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
+	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
+	const roomForMarginAndSettings = useMediaQuery(MARGIN_AND_SETTINGS_QUERY);
+	const closeComments = React.useCallback(() => setCommentsOpen(false), []);
 	const settingsPanel = useSettingsPanel({
 		panelId: settingsPanelId,
 		side: panelSide,
 		isBelowLg,
 		blockPanel: blockSidebarPanel,
 		closeBlockPanel: handleBlockSidebarClose,
+		yieldTo: canComment && commentsOpen && !roomForMarginAndSettings ? closeComments : null,
 	});
 
 	const [settingsOpenToken, setSettingsOpenToken] = React.useState(0);
@@ -1601,8 +1622,6 @@ export function ContentEditor({
 	// touched has nothing to lose on leaving.
 	const [newEntryInitialState] = React.useState(currentData);
 
-	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
-	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
 	const editorialEntry = React.useMemo(
 		() =>
 			canComment && item ? { collection, id: item.id, locale: entryLocale ?? undefined } : null,
@@ -1627,6 +1646,7 @@ export function ContentEditor({
 		// oxlint-disable-next-line react-hooks/exhaustive-deps -- setActiveThreadId is a stable state setter
 		[],
 	);
+	const setActiveEditorialThread = editorial.setActiveThreadId;
 	const editorialBridge = React.useMemo<PortableTextEditorProps["editorialComments"]>(
 		() =>
 			canComment
@@ -1636,9 +1656,10 @@ export function ContentEditor({
 							startEditorialComment();
 						},
 						onActivate: openEditorialThread,
+						onDeactivate: () => setActiveEditorialThread(null),
 					}
 				: undefined,
-		[canComment, startEditorialComment, openEditorialThread],
+		[canComment, startEditorialComment, openEditorialThread, setActiveEditorialThread],
 	);
 	const setEditorialDraft = editorial.setDraft;
 	const startFieldComment = React.useCallback(

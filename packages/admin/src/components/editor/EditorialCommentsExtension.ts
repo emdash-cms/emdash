@@ -42,6 +42,8 @@ type Meta = Partial<
 export interface EditorialCommentsBridge {
 	/** The caret landed in a thread's highlight. */
 	onActivate?: (threadId: string) => void;
+	/** A click landed outside every highlight. */
+	onDeactivate?: () => void;
 	/** The user asked to comment on the selection with the keyboard shortcut. */
 	onCommentShortcut?: () => void;
 }
@@ -197,6 +199,7 @@ export function createEditorialCommentsExtension(bridge: { current: EditorialCom
 							const state = editorialCommentsKey.getState(view.state);
 							const hit = state ? highlightAt(state.highlights, pos) : null;
 							if (hit) bridge.current.onActivate?.(hit.threadId);
+							else bridge.current.onDeactivate?.();
 							return false;
 						},
 					},
