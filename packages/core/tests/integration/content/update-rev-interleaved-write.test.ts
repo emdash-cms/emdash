@@ -3,6 +3,7 @@
  * `_rev` check.
  */
 
+import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,32 +48,27 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 	});
 
 	/**
-	 * Runs `write` inside the second call to `method`, before that call reads
-	 * the row. The first call is the read the runtime validates `_rev` against
-	 * (`findByIdOrSlug` reaches `findById` for a ULID), so the write lands after
-	 * the token check and before the read that guards the update. The spy is
-	 * removed before `write` runs so the interleaved save sees the real
-	 * repository.
+	 * Runs `write` inside the second `findByIdOrSlug` call, before that call
+	 * reads the row. The first call is the read the runtime validates `_rev`
+	 * against, so the write lands after the token check and before the read that
+	 * guards the column update. The spy is removed before `write` runs so the
+	 * interleaved save sees the real repository.
 	 */
-	function interleaveBeforeSecondRead(
-		method: "findById" | "findByIdOrSlug",
-		write: () => Promise<unknown>,
-	) {
-		const original = ContentRepository.prototype[method];
+	function interleaveBeforeSecondRead(write: () => Promise<unknown>) {
+		const original = ContentRepository.prototype.findByIdOrSlug;
 		let calls = 0;
-		const spy = vi.spyOn(ContentRepository.prototype, method).mockImplementation(async function (
-			this: ContentRepository,
-			...args
-		) {
-			if (calls++ === 1) {
-				spy.mockRestore();
-				await write();
-			}
-			return original.apply(this, args as Parameters<typeof original>);
-		});
+		const spy = vi
+			.spyOn(ContentRepository.prototype, "findByIdOrSlug")
+			.mockImplementation(async function (this: ContentRepository, ...args) {
+				if (calls++ === 1) {
+					spy.mockRestore();
+					await write();
+				}
+				return original.apply(this, args as Parameters<typeof original>);
+			});
 	}
 
-	it("returns CONFLICT instead of staging a draft over a write that landed between the two reads", async () => {
+	it("returns CONFLICT instead of staging a draft over a write that landed after the _rev check", async () => {
 		const created = await runtime.handleContentCreate("posts", {
 			data: { title: "Live" },
 			slug: "live",
@@ -85,12 +81,17 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 		expect(read.success).toBe(true);
 		const staleRev = read.data!._rev;
 
-		interleaveBeforeSecondRead("findById", async () => {
-			const other = await runtime.handleContentUpdate("posts", id, {
-				data: { title: "Other writer" },
+		const stage = ContentRepository.prototype.stageDraftRevision;
+		const spy = vi
+			.spyOn(ContentRepository.prototype, "stageDraftRevision")
+			.mockImplementation(async function (this: ContentRepository, ...args) {
+				spy.mockRestore();
+				const other = await runtime.handleContentUpdate("posts", id, {
+					data: { title: "Other writer" },
+				});
+				expect(other.success).toBe(true);
+				return stage.apply(this, args);
 			});
-			expect(other.success).toBe(true);
-		});
 
 		const stale = await runtime.handleContentUpdate("posts", id, {
 			data: { title: "Stale writer" },
@@ -104,6 +105,61 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 		expect(after.data!.item.data.title).toBe("Other writer");
 	});
 
+	it("returns CONFLICT instead of staging a draft over a schedule that landed after the _rev check", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Draft" },
+			slug: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+		const staleRev = created.data!._rev;
+
+		const stage = ContentRepository.prototype.stageDraftRevision;
+		const spy = vi
+			.spyOn(ContentRepository.prototype, "stageDraftRevision")
+			.mockImplementation(async function (this: ContentRepository, ...args) {
+				spy.mockRestore();
+				// A second ahead, so updated_at moves even within the create's millisecond.
+				const scheduled = await handleContentSchedule(
+					db,
+					"posts",
+					id,
+					"2099-01-01T00:00:00.000Z",
+					new Date(Date.now() + 1000),
+				);
+				expect(scheduled.success).toBe(true);
+				return stage.apply(this, args);
+			});
+
+		const stale = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Stale writer" },
+			_rev: staleRev,
+		});
+
+		expect(stale.success).toBe(false);
+		expect(!stale.success && stale.error.code).toBe("CONFLICT");
+
+		const after = await runtime.handleContentGet("posts", id);
+		expect(after.data!.item.status).toBe("scheduled");
+		expect(after.data!.item.data.title).toBe("Draft");
+	});
+
+	it("saves a draft on an entry without updated_at", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Imported" },
+			slug: "imported",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+		await sql`UPDATE ec_posts SET updated_at = NULL WHERE id = ${id}`.execute(db);
+
+		const saved = await runtime.handleContentUpdate("posts", id, { data: { title: "Edited" } });
+
+		expect(saved.success).toBe(true);
+		const after = await runtime.handleContentGet("posts", id);
+		expect(after.data!.item.data.title).toBe("Edited");
+	});
+
 	it("returns CONFLICT instead of overwriting columns on a collection without revisions", async () => {
 		const created = await runtime.handleContentCreate("plain_posts", {
 			data: { title: "Plain" },
@@ -113,7 +169,7 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 		const id = created.data!.item.id;
 		const staleRev = created.data!._rev;
 
-		interleaveBeforeSecondRead("findByIdOrSlug", async () => {
+		interleaveBeforeSecondRead(async () => {
 			const other = await runtime.handleContentUpdate("plain_posts", id, {
 				data: { title: "Other writer" },
 			});

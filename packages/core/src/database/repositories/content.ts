@@ -3047,7 +3047,7 @@ export class ContentRepository {
 		type: string,
 		id: string,
 		revisionId: string,
-		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
+		expected: Pick<ContentItem, "version" | "updatedAt" | "liveRevisionId" | "draftRevisionId">,
 	): Promise<boolean> {
 		return (await this.stageDraftRevision(type, id, revisionId, expected)) !== null;
 	}
@@ -3055,13 +3055,13 @@ export class ContentRepository {
 	/**
 	 * `replaceDraftRevision`, returning the `version` and `updatedAt` the entry has after the
 	 * update, or null when the entry no longer matches `expected`. Scheduling moves `updatedAt`
-	 * without bumping `version`, so the entry's `_rev` can't be derived from `expected`.
+	 * without bumping `version`, so `expected.updatedAt` is matched too.
 	 */
 	async stageDraftRevision(
 		type: string,
 		id: string,
 		revisionId: string,
-		expected: Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId">,
+		expected: Pick<ContentItem, "version" | "updatedAt" | "liveRevisionId" | "draftRevisionId">,
 	): Promise<Pick<ContentItem, "version" | "updatedAt"> | null> {
 		const tableName = getTableName(type);
 		const result = await sql<{ version: number; updated_at: string }>`
@@ -3071,6 +3071,7 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 			AND version = ${expected.version}
+			AND ${nullableColumnMatch("updated_at", expected.updatedAt ?? null)}
 			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
 			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
 			AND EXISTS (
