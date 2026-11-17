@@ -3919,7 +3919,16 @@ function EditorBubbleMenu({
 									<LinkIcon className="h-4 w-4" aria-hidden="true" />
 								</BubbleButton>
 								{onComment && (
-									<BubbleButton onClick={onComment} active={false} title={t`Comment`}>
+									<BubbleButton
+										onClick={() => {
+											onComment();
+											// Focus moves to the draft from this menu, which the menu doesn't notice.
+											// An empty selection hides it.
+											editor.commands.setTextSelection(editor.state.selection.to);
+										}}
+										active={false}
+										title={t`Comment`}
+									>
 										<ChatCircleText className="h-4 w-4" aria-hidden="true" />
 									</BubbleButton>
 								)}
