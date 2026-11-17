@@ -37,15 +37,15 @@ The runner reads `AI_GATEWAY_ACCOUNT_ID`, `AI_GATEWAY_NAME` and `AI_GATEWAY_TOKE
 EVAL_CASES_DIR=/path/to/private/cases pnpm --filter @emdash-cms/plugin-review eval
 ```
 
-| Option        | Default                                        | Meaning                                                  |
-| ------------- | ---------------------------------------------- | -------------------------------------------------------- |
-| `--cases-dir` | `EVAL_CASES_DIR`                               | Cases directory. The runner refuses one inside the repo. |
+| Option        | Default                                                              | Meaning                                                  |
+| ------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
+| `--cases-dir` | `EVAL_CASES_DIR`                                                     | Cases directory. The runner refuses one inside the repo. |
 | `--models`    | `workers-ai/@cf/thinkingmachines/inkling-2-small,openai/gpt-6.1-sol` | Comma-separated model specifiers.                        |
-| `--cases`     | all                                            | Comma-separated case directory names.                    |
-| `--addendum`  | none                                           | File holding private prompt guidance to append.          |
-| `--out`       | `<cases-dir>/../results/<timestamp>`           | Where to write one JSON result per case and model.       |
-| `--prices`    | none                                           | JSON file of US dollars per million tokens, by model.    |
-| `--reasoning` | the model's default                            | `low`, `medium` or `high`, sent as the reasoning effort. |
+| `--cases`     | all                                                                  | Comma-separated case directory names.                    |
+| `--addendum`  | none                                                                 | File holding private prompt guidance to append.          |
+| `--out`       | `<cases-dir>/../results/<timestamp>`                                 | Where to write one JSON result per case and model.       |
+| `--prices`    | none                                                                 | JSON file of US dollars per million tokens, by model.    |
+| `--reasoning` | the model's default                                                  | `low`, `medium` or `high`, sent as the reasoning effort. |
 
 Specifiers are `anthropic/<id>`, `openai/<id>` or `workers-ai/<id>`, for example `workers-ai/@cf/zai-org/glm-5.3`.
 
