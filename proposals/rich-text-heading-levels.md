@@ -131,6 +131,14 @@ The WordPress importer, the other importers, and content written through the API
 - Pressing Enter in the middle of an existing disallowed heading splits it into two headings at that level, because both halves are the heading that was already there. Pressing Enter at its end starts a paragraph, as it does today.
 - Undo after a Markdown shortcut works as it does now; a disallowed `# ` never converted, so there's nothing to undo.
 
+### Co-editing
+
+Since [real-time co-editing](./real-time-co-editing.md), the editor's ProseMirror schema lives in a module that the editor and the server's co-editing rooms share. A room builds every rich text field of an entry with that one schema, and a document must be read with the schema that built it. So this setting never changes the schema: it keeps Heading 1 to 6 for every field, and the setting only filters the ways the editor creates a heading.
+
+- Each person's editor applies the setting to their own input: menus, shortcuts, paste, inserted sections, and duplicated blocks. There's no rule that rewrites the document after a change, which would also rewrite other people's edits. Changes from other people in the room arrive as they are, like stored content.
+- Everyone in a room works with the same setting. Field options are part of the admin manifest's hash, which rooms compare, so changing a field's heading levels resets open rooms like any other change to a collection's definition, and everyone rejoins with the new levels.
+- Rooms don't read the setting, so co-editing needs no server change for it.
+
 ## Compatibility and migration
 
 - **Additive, except for one reserved name.** Because the API and seed validation check `options.headingLevels` on every field type, a plugin widget that already stores something else under that name would need to rename it. No default changes.
@@ -155,7 +163,7 @@ The WordPress importer, the other importers, and content written through the API
 
 - `headingLevels` missing, or not an array when read by the editor (for example, an older malformed value): the editor offers all six levels.
 - Values outside 1 to 6, decimals, or duplicates: rejected by the API and seed validation. If one reaches the editor anyway, it skips the invalid entries, and offers all six levels when none is valid.
-- The setting changes while someone has the editor open: the menus, shortcuts, and paste follow the new levels once the admin refetches the schema. Nothing already in the editor changes.
+- The setting changes while someone has the editor open: the menus, shortcuts, and paste follow the new levels once the admin refetches the schema. Nothing already in the editor changes. With co-editing on, the change resets open rooms, as described in [Co-editing](#co-editing).
 - The visual editor can't read the field's options: as today, the query logs a warning, and the inline editor offers all six levels.
 
 ## Verification
@@ -166,6 +174,7 @@ The WordPress importer, the other importers, and content written through the API
 - Field settings dialog test: unchecking Heading 1 saves `options.headingLevels: [2, 3, 4, 5, 6]`, checking all six removes the key, and other options on the field are kept.
 - API and seed tests for the validation errors, and that a valid value round-trips.
 - Visual editor test that the slash menu follows the field's setting.
+- Co-editing test with two clients in one room and H1 disallowed: an H1 pasted by one client arrives as an H2 for both, and an existing H1 that a remote edit touches stays an H1.
 - A manual pass in light and dark mode, in Arabic, and with keyboard only.
 
 ## Rollout and implementation
@@ -177,7 +186,7 @@ One implementation pull request after acceptance, covering core (types, API, MCP
 - **An option in `astro.config.mjs`, even as a site-wide default.** It would split the content model between the database and the site's code. The admin couldn't show or change it, seeds and exports wouldn't carry it, and the two places could disagree about the same field.
 - **A save rule in `validation`.** See [Editor setting, not a save rule](#editor-setting-not-a-save-rule).
 - **Rendering disallowed levels as another level on the site.** The editor would still offer Heading 1 and show text that looks different once published.
-- **Passing the allowed levels to the editor's heading extension directly.** TipTap's heading extension then draws a stored H1 as the first allowed level and turns pasted H1s into plain paragraphs. Editors would see existing headings at the wrong level, and pasted headings would lose their structure. The editor keeps all six levels in its schema and filters only the ways of creating a heading.
+- **Passing the allowed levels to the editor's heading extension directly.** TipTap's heading extension then draws a stored H1 as the first allowed level and turns pasted H1s into plain paragraphs. Editors would see existing headings at the wrong level, and pasted headings would lose their structure. The schema is also shared by every field and by the co-editing rooms, so it can't differ per field. The editor keeps all six levels in its schema and filters only the ways of creating a heading.
 
 ## Drawbacks
 
