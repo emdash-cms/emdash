@@ -54,7 +54,13 @@ import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
 import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
-import { signalWorkerd, spawnWorkerd, unrefWorkerd } from "./workerd-process.js";
+import {
+	killWorkerdChildren,
+	signalWorkerd,
+	spawnWorkerd,
+	supportsWorkerdWatchdog,
+	unrefWorkerd,
+} from "./workerd-process.js";
 import { waitForWorkerdReady } from "./workerd-startup.js";
 import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
@@ -134,6 +140,15 @@ function handleSignal(signal: "SIGTERM" | "SIGINT"): void {
 		process.listeners(signal).some((listener) => listener !== handler);
 	if (hasOtherHandlers) {
 		for (const runner of activeRunners) runner["allowHostDrain"]();
+		if (process.platform !== "win32" && !supportsWorkerdWatchdog()) {
+			// A native re-raise skips JavaScript exit handlers; without the EOF
+			// watchdog, cleanup must complete before application handlers run.
+			for (const runner of activeRunners) {
+				void runner.terminateAll();
+				runner["cleanupExitFiles"]();
+			}
+			killWorkerdChildren();
+		}
 		process.off(signal, handler);
 		return;
 	}

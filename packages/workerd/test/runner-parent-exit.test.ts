@@ -22,11 +22,15 @@ const hostSource = (
 	modulePath: string,
 	listener: "none" | "on" | "once" | "prependOnceListener" | "removed" | "reraised",
 	signal: "SIGTERM" | "SIGINT",
+	shellless: boolean,
 ) => `
 import { createSandboxRunner } from ${JSON.stringify(modulePath)};
 import { stdin, stdout } from "node:process";
 import { connect } from "node:net";
 import { once } from "node:events";
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+${shellless ? `const existsSync = fs.existsSync; fs.existsSync = (path) => path === "/bin/sh" ? false : existsSync(path); syncBuiltinESMExports();` : ""}
 ${listener === "on" || listener === "once" ? `process.${listener}(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
 ${listener === "reraised" ? `function reraise() { if (process.listenerCount(${JSON.stringify(signal)}) === 1) { process.off(${JSON.stringify(signal)}, reraise); process.kill(process.pid, ${JSON.stringify(signal)}); } } process.on(${JSON.stringify(signal)}, reraise);` : ""}
 const runner = createSandboxRunner({ db: null, siteInfo: { name: "exit-test", url: "http://localhost", locale: "en" } });
@@ -193,6 +197,7 @@ async function runMode(
 		| "removed-prepend"
 		| "reraised",
 	signal: "SIGTERM" | "SIGINT" = "SIGTERM",
+	shellless = false,
 ): Promise<void> {
 	const host = spawn(
 		process.execPath,
@@ -213,6 +218,7 @@ async function runMode(
 									? "reraised"
 									: "none",
 				signal,
+				shellless,
 			),
 		],
 		{
@@ -238,7 +244,8 @@ async function runMode(
 			expect(await handled).toBe("HANDLED");
 			const drained = waitForLine(host, (line) => line.startsWith("DRAIN_"));
 			host.stdin.write("drain\n");
-			expect(await drained).toBe('DRAIN_OK {"hook":{"ok":true},"route":{"ok":true}}');
+			if (shellless) expect(await drained).toContain("DRAIN_FAILED Plugin sandbox unavailable");
+			else expect(await drained).toBe('DRAIN_OK {"hook":{"ok":true},"route":{"ok":true}}');
 			expect(host.exitCode).toBeNull();
 		}
 		const exited = waitForExit(host);
@@ -251,7 +258,7 @@ async function runMode(
 		else
 			expect(result.signal).toBe(mode === "removed-prepend" || mode === "reraised" ? signal : mode);
 		await waitForPortClosed(ready.port);
-		if (mode !== "SIGKILL" && mode !== "reraised") {
+		if (mode !== "SIGKILL" && (mode !== "reraised" || shellless)) {
 			expect(existsSync(ready.configDir)).toBe(false);
 			expect(existsSync(ready.socketPath)).toBe(false);
 		}
@@ -281,17 +288,17 @@ describe.skipIf(isWindows || !workerdAvailable)("runner parent exit cleanup", ()
 	it("cleans up on SIGTERM", () => runMode("SIGTERM"), 20_000);
 	it("cleans up on SIGINT", () => runMode("SIGINT"), 20_000);
 	it.skipIf(!existsSync("/bin/sh"))("cleans up on SIGKILL", () => runMode("SIGKILL"), 20_000);
-	it.each(["SIGTERM", "SIGINT"] as const)(
+	it.skipIf(!existsSync("/bin/sh")).each(["SIGTERM", "SIGINT"] as const)(
 		"keeps hooks and routes available during an application-owned %s drain",
 		(signal) => runMode("handled", signal),
 		20_000,
 	);
-	it.each(["SIGTERM", "SIGINT"] as const)(
+	it.skipIf(!existsSync("/bin/sh")).each(["SIGTERM", "SIGINT"] as const)(
 		"keeps hooks and routes available during a once-only %s drain",
 		(signal) => runMode("handled-once", signal),
 		20_000,
 	);
-	it.each(["SIGTERM", "SIGINT"] as const)(
+	it.skipIf(!existsSync("/bin/sh")).each(["SIGTERM", "SIGINT"] as const)(
 		"preserves a prepended once-only %s listener installed after construction",
 		(signal) => runMode("handled-prepend", signal),
 		20_000,
@@ -304,6 +311,16 @@ describe.skipIf(isWindows || !workerdAvailable)("runner parent exit cleanup", ()
 	it.skipIf(!existsSync("/bin/sh")).each(["SIGTERM", "SIGINT"] as const)(
 		"does not block an application %s handler that re-raises only when alone",
 		(signal) => runMode("reraised", signal),
+		20_000,
+	);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"cleans up on shell-less POSIX when an application re-raises %s",
+		(signal) => runMode("reraised", signal, true),
+		20_000,
+	);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"stops sandboxes before a shell-less application-owned %s drain",
+		(signal) => runMode("handled", signal, true),
 		20_000,
 	);
 });

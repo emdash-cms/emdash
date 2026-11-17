@@ -8,11 +8,11 @@ const childrenGlobal = globalThis as typeof globalThis & {
 };
 const state = (childrenGlobal[CHILDREN_KEY] ??= {
 	children: new Set<ChildProcess>(),
-	onExit: killChildren,
+	onExit: killWorkerdChildren,
 });
 const children = state.children;
 
-function killChildren(): void {
+export function killWorkerdChildren(): void {
 	for (const child of children) signalWorkerd(child, "SIGKILL");
 }
 
@@ -48,16 +48,19 @@ const SUPERVISOR = `
 exec "$@" 4<&-
 `;
 
+export function supportsWorkerdWatchdog(): boolean {
+	return process.platform !== "win32" && existsSync("/bin/sh");
+}
+
 export function spawnWorkerd(binary: string, args: string[], env: NodeJS.ProcessEnv): ChildProcess {
 	const posix = process.platform !== "win32";
-	const child =
-		posix && existsSync("/bin/sh")
-			? spawn("/bin/sh", ["-c", SUPERVISOR, "emdash-workerd", binary, ...args], {
-					detached: true,
-					stdio: ["ignore", "pipe", "pipe", "pipe", "pipe"],
-					env,
-				})
-			: spawn(binary, args, { detached: posix, stdio: ["ignore", "pipe", "pipe", "pipe"], env });
+	const child = supportsWorkerdWatchdog()
+		? spawn("/bin/sh", ["-c", SUPERVISOR, "emdash-workerd", binary, ...args], {
+				detached: true,
+				stdio: ["ignore", "pipe", "pipe", "pipe", "pipe"],
+				env,
+			})
+		: spawn(binary, args, { detached: posix, stdio: ["ignore", "pipe", "pipe", "pipe"], env });
 	if (children.size === 0) process.on("exit", state.onExit);
 	children.add(child);
 	child.once("close", () => {
