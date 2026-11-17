@@ -6,7 +6,8 @@ authors:
   - Daniel Mueller (@danielmlr)
 champion: Daniel Mueller (@danielmlr)
 sponsor: Daniel Mueller (@danielmlr)
-discussions: []
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/4921
 created: 2026-10-22
 ---
 
