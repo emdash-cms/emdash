@@ -40,7 +40,7 @@ EVAL_CASES_DIR=/path/to/private/cases pnpm --filter @emdash-cms/plugin-review ev
 | Option        | Default                                        | Meaning                                                  |
 | ------------- | ---------------------------------------------- | -------------------------------------------------------- |
 | `--cases-dir` | `EVAL_CASES_DIR`                               | Cases directory. The runner refuses one inside the repo. |
-| `--models`    | `anthropic/claude-opus-5-5,openai/gpt-6.1-sol` | Comma-separated model specifiers.                        |
+| `--models`    | `workers-ai/@cf/thinkingmachines/inkling-2-small,openai/gpt-6.1-sol` | Comma-separated model specifiers.                        |
 | `--cases`     | all                                            | Comma-separated case directory names.                    |
 | `--addendum`  | none                                           | File holding private prompt guidance to append.          |
 | `--out`       | `<cases-dir>/../results/<timestamp>`           | Where to write one JSON result per case and model.       |

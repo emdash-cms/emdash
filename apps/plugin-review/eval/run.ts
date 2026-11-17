@@ -17,7 +17,7 @@ import { runReview } from "../src/agent.js";
 import { gatewayReviewModel, REASONING_LEVELS, type ReasoningLevel } from "../src/models.js";
 import type { PluginReviewRequest, PluginReviewResponse, ReviewFile } from "../src/types.js";
 
-const DEFAULT_MODELS = "anthropic/claude-opus-5-5,openai/gpt-6.1-sol";
+const DEFAULT_MODELS = "workers-ai/@cf/thinkingmachines/inkling-2-small,openai/gpt-6.1-sol";
 const TIMEOUT_MS = 20 * 60 * 1000;
 
 interface EvalCase {
