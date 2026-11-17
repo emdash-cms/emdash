@@ -337,18 +337,21 @@ describe("validateBlocks", () => {
 		});
 
 		it("rejects repeaters in plugin page form fields", () => {
-			const result = validateBlockResponse({
-				blocks: [
-					{
-						type: "form",
-						fields: [
-							elements.textInput("title", "Title"),
-							elements.repeater("qs", "Questions", [elements.textInput("question", "Question")]),
-						],
-						submit: { label: "Save", action_id: "save" },
-					},
-				],
-			});
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "form",
+							fields: [
+								elements.textInput("title", "Title"),
+								elements.repeater("qs", "Questions", [elements.textInput("question", "Question")]),
+							],
+							submit: { label: "Save", action_id: "save" },
+						},
+					],
+				},
+				{},
+			);
 
 			expect(result).toEqual({
 				valid: false,
