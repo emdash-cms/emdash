@@ -97,6 +97,8 @@ export interface SeedCollection {
 	urlPattern?: string;
 	/** Require a slug before an entry can be published. Defaults to true. */
 	routable?: boolean;
+	/** Create an automatic redirect when a published entry's slug changes. Defaults to true. */
+	autoSlugRedirects?: boolean;
 	/**
 	 * Omit this collection from the admin sidebar, the dashboard quick
 	 * actions, and the dashboard Content card. It stays reachable through the

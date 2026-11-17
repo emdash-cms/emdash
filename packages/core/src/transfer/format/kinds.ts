@@ -191,6 +191,7 @@ export const collectionRecordSchema = z.strictObject({
 	titleField: shortString.optional(),
 	dateField: shortString.optional(),
 	routable: z.boolean(),
+	autoSlugRedirects: z.boolean().optional().default(true),
 	editLocking: z.boolean(),
 	navGroup: shortString.optional(),
 	createdAt: timestamp.optional(),

@@ -75,6 +75,8 @@ export interface SchemaCollection {
 	urlPattern?: string;
 	/** Published entries require a slug unless this is false. */
 	routable?: boolean;
+	/** Create automatic redirects when a published slug changes. */
+	autoSlugRedirects?: boolean;
 	hasSeo: boolean;
 	/** Sidebar entry, dashboard quick action, and dashboard Content card row omitted in the admin; the collection stays reachable by URL */
 	hidden: boolean;
@@ -150,6 +152,7 @@ export interface CreateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	routable?: boolean;
+	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;
@@ -166,6 +169,7 @@ export interface UpdateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	routable?: boolean;
+	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;

@@ -38,6 +38,7 @@ function collectionFixture(n: number, extraFields = 0): CollectionFixture {
 		searchConfig: { enabled: true, weights: { title: 5 } },
 		hasSeo: true,
 		urlPattern: "/imported/{slug}",
+		autoSlugRedirects: false,
 		commentsEnabled: true,
 		commentsModeration: "all",
 		commentsClosedAfterDays: 30,
@@ -178,6 +179,7 @@ for (const capture of ["expanded", "active"] as const) {
 				nav_group: "Imports",
 				title_field: "title",
 				date_field: "published_at",
+				auto_slug_redirects: 0,
 				created_at: T0,
 			});
 			expect(JSON.parse(collection.search_config ?? "null")).toEqual({

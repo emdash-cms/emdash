@@ -815,9 +815,10 @@ async function createSlugChangeRedirect(
 
 	const collectionRow = await db
 		.selectFrom("_emdash_collections")
-		.select("url_pattern")
+		.selectAll()
 		.where("slug", "=", collection)
 		.executeTakeFirst();
+	if (collectionRow?.auto_slug_redirects === 0) return false;
 
 	const redirectRepo = new RedirectRepository(db);
 	const redirect = await redirectRepo.createAutoRedirect(

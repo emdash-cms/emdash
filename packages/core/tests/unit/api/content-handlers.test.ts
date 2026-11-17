@@ -1003,39 +1003,42 @@ describe("Content Handlers — slug-change auto-redirect", () => {
 		`.execute(db);
 	}
 
-	it("creates a 301 from the old URL when publishing a staged slug change", async () => {
-		const created = await handleContentCreate(db, "post", {
-			data: { title: "Hello" },
-			slug: "hello",
-			status: "published",
-		});
-		expect(created.success).toBe(true);
-		const id = created.data!.item.id;
-
-		await stageDraftSlugChange("post", id, { title: "Hello" }, "hello-world");
-
-		const published = await handleContentPublish(db, "post", id);
-		expect(published.success).toBe(true);
-		expect(published.data?.item.slug).toBe("hello-world");
-
-		const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
-		expect(redirects).toHaveLength(1);
-		expect(redirects[0]).toMatchObject({
-			source: "/post/hello",
-			destination: "/post/hello-world",
-			type: 301,
-			auto: 1,
-		});
-	});
-
-	it.each([null, ""])(
-		"publishes a staged slug change without a redirect when there is no url pattern (%s)",
+	it.each(["/post/{slug}", null])(
+		"creates a 301 from the old URL when publishing a staged slug change (%s)",
 		async (urlPattern) => {
-			await db
-				.updateTable("_emdash_collections")
-				.set({ url_pattern: urlPattern })
-				.where("slug", "=", "post")
-				.execute();
+			await new SchemaRegistry(db).updateCollection("post", { urlPattern });
+			const created = await handleContentCreate(db, "post", {
+				data: { title: "Hello" },
+				slug: "hello",
+				status: "published",
+			});
+			expect(created.success).toBe(true);
+			const id = created.data!.item.id;
+
+			await stageDraftSlugChange("post", id, { title: "Hello" }, "hello-world");
+
+			const published = await handleContentPublish(db, "post", id);
+			expect(published.success).toBe(true);
+			expect(published.data?.item.slug).toBe("hello-world");
+
+			const redirects = await db.selectFrom("_emdash_redirects").selectAll().execute();
+			expect(redirects).toHaveLength(1);
+			expect(redirects[0]).toMatchObject({
+				source: "/post/hello",
+				destination: "/post/hello-world",
+				type: 301,
+				auto: 1,
+			});
+		},
+	);
+
+	it.each([null, "/{slug}/"])(
+		"publishes a staged slug change without a redirect when automatic slug redirects are disabled (%s)",
+		async (urlPattern) => {
+			await new SchemaRegistry(db).updateCollection("post", {
+				autoSlugRedirects: false,
+				urlPattern,
+			});
 			const created = await handleContentCreate(db, "post", {
 				data: { title: "Hello" },
 				slug: "hello",
@@ -1052,6 +1055,30 @@ describe("Content Handlers — slug-change auto-redirect", () => {
 			expect(await db.selectFrom("_emdash_redirects").selectAll().execute()).toEqual([]);
 		},
 	);
+
+	it("restores automatic redirects when the option is re-enabled", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.updateCollection("post", { autoSlugRedirects: false, urlPattern: null });
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Hello" },
+			slug: "hello",
+			status: "published",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+
+		await expect(handleContentUpdate(db, "post", id, { slug: "disabled" })).resolves.toMatchObject({
+			success: true,
+		});
+		await registry.updateCollection("post", { autoSlugRedirects: true });
+		await expect(handleContentUpdate(db, "post", id, { slug: "enabled" })).resolves.toMatchObject({
+			success: true,
+		});
+
+		expect(
+			await db.selectFrom("_emdash_redirects").select(["source", "destination"]).execute(),
+		).toEqual([{ source: "/post/disabled", destination: "/post/enabled" }]);
+	});
 
 	it("does not create a redirect on first publish (draft URL was never live)", async () => {
 		const created = await handleContentCreate(db, "post", {

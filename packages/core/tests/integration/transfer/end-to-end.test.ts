@@ -140,6 +140,7 @@ for (const [sourceDialect, targetDialect] of DIALECT_PAIRS) {
 				const originStorage = createMemoryStorage();
 				const targetStorage = createMemoryStorage();
 				const site: OriginSite = await buildOriginSite(source.db, originStorage);
+				await new SchemaRegistry(source.db).updateCollection("posts", { autoSlugRedirects: false });
 				const ids = site.ids;
 				await seedTarget(target.db, TARGET_SEED);
 				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
@@ -379,6 +380,9 @@ async function expectBlockTypes(
 	]);
 
 	const posts = await new SchemaRegistry(db).getCollectionWithFields("posts");
+	const originPosts = await new SchemaRegistry(origin).getCollection("posts");
+	expect(posts?.autoSlugRedirects).toBe(false);
+	expect(originPosts?.autoSlugRedirects).toBe(false);
 	const expanded = await expandCollectionBlockFields(db, posts!);
 	const blocksField = expanded.fields.find((field) => field.slug === "blocks");
 	expect(blocksField?.blockTypes?.map((type) => type.slug)).toEqual(["callout", "quote"]);

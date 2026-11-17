@@ -196,6 +196,7 @@ A collection requires `slug`, `label`, and `fields`:
 | `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `scheduling`, `search`, and `seo` |
 | `urlPattern` | `string` | Public pattern such as `/posts/{slug}`, with at most one placeholder per path segment |
 | `routable` | `boolean` | Whether published entries require a slug; defaults to `true` |
+| `autoSlugRedirects` | `boolean` | Creates redirects when a published entry's slug changes; defaults to `true`. Set to `false` for custom routing and manage redirects manually; see [Redirects and the 404 log](/guides/seo/#redirects-and-the-404-log) |
 | `hidden` | `boolean` | Hides the generated sidebar link, command palette link, dashboard quick action, and dashboard **Content** card row; the collection stays reachable by URL and API |
 | `sortOrder` | `number` | Explicit admin-sidebar position; ordered collections come first, ascending |
 | `group` | `string` | Admin-sidebar folder; collections with the same group share one collapsible entry |

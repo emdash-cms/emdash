@@ -107,14 +107,14 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 		]);
 	});
 
-	it.each([null, ""])(
-		"does not create a redirect when the collection has no url pattern (%s)",
+	it.each([null, "/{slug}/"])(
+		"does not create a redirect when automatic slug redirects are disabled (%s)",
 		async (urlPattern) => {
-			await db
-				.updateTable("_emdash_collections")
-				.set({ url_pattern: urlPattern })
-				.where("slug", "=", "posts")
-				.execute();
+			const registry = new SchemaRegistry(db);
+			await registry.updateCollection("posts", {
+				autoSlugRedirects: false,
+				urlPattern,
+			});
 			const entry = await new ContentRepository(db).create({
 				type: "posts",
 				slug: "old-title",
@@ -131,6 +131,72 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 			await expect(db.selectFrom("_emdash_redirects").selectAll().execute()).resolves.toEqual([]);
 		},
 	);
+
+	it.each([
+		{ urlPattern: null, oldPath: "/posts/old-title", newPath: "/posts/new-title" },
+		{ urlPattern: "/{slug}/", oldPath: "/old-title/", newPath: "/new-title/" },
+	])(
+		"leaves manual redirects unchanged when automatic slug redirects are disabled",
+		async ({ urlPattern, oldPath, newPath }) => {
+			const registry = new SchemaRegistry(db);
+			await registry.updateCollection("posts", {
+				autoSlugRedirects: false,
+				urlPattern,
+			});
+			const redirects = new RedirectRepository(db);
+			await redirects.create({ source: newPath, destination: "/manual" });
+			await redirects.create({ source: "/legacy", destination: oldPath });
+			const entry = await new ContentRepository(db).create({
+				type: "posts",
+				slug: "old-title",
+				status: "published",
+				data: { title: "Old title" },
+			});
+
+			await expect(
+				handleContentUpdate(db, "posts", entry.id, { slug: "new-title" }),
+			).resolves.toMatchObject({
+				success: true,
+			});
+			await expect(
+				db
+					.selectFrom("_emdash_redirects")
+					.select(["source", "destination"])
+					.orderBy("source")
+					.execute(),
+			).resolves.toEqual([
+				{ source: "/legacy", destination: oldPath },
+				{ source: newPath, destination: "/manual" },
+			]);
+		},
+	);
+
+	it("uses the fallback for a null url pattern and collapses redirect chains", async () => {
+		await new SchemaRegistry(db).updateCollection("posts", { urlPattern: null });
+		const entry = await new ContentRepository(db).create({
+			type: "posts",
+			slug: "a",
+			status: "published",
+			data: { title: "A" },
+		});
+
+		await expect(handleContentUpdate(db, "posts", entry.id, { slug: "b" })).resolves.toMatchObject({
+			success: true,
+		});
+		await expect(handleContentUpdate(db, "posts", entry.id, { slug: "c" })).resolves.toMatchObject({
+			success: true,
+		});
+		await expect(
+			db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination"])
+				.orderBy("source")
+				.execute(),
+		).resolves.toEqual([
+			{ source: "/posts/a", destination: "/posts/c" },
+			{ source: "/posts/b", destination: "/posts/c" },
+		]);
+	});
 
 	it("removes a redirect from the new URL before collapsing chains", async () => {
 		const entry = await new ContentRepository(db).create({

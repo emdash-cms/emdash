@@ -119,6 +119,7 @@ const PORTABLE_TABLE_LIST: PortableTableSpec[] = [
 			search_config: f("searchConfig", "json"),
 			has_seo: f("hasSeo", "boolean"),
 			url_pattern: f("urlPattern"),
+			auto_slug_redirects: f("autoSlugRedirects", "boolean"),
 			comments_enabled: f("commentsEnabled", "boolean"),
 			comments_moderation: f("commentsModeration"),
 			comments_closed_after_days: f("commentsClosedAfterDays", "integer"),

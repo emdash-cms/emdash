@@ -281,6 +281,8 @@ export interface Collection {
 	urlPattern?: string;
 	/** Whether published entries require a public slug. Defaults to true. */
 	routable?: boolean;
+	/** Whether published slug changes create automatic redirects. Defaults to true. */
+	autoSlugRedirects?: boolean;
 	/**
 	 * Omit this collection's auto-generated sidebar entry, dashboard quick
 	 * action, and dashboard Content card row. The collection stays fully
@@ -358,6 +360,7 @@ export interface CreateCollectionInput {
 	source?: CollectionSource;
 	urlPattern?: string;
 	routable?: boolean;
+	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	/** Omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row (defaults to false) */
 	hidden?: boolean;
@@ -382,6 +385,7 @@ export interface UpdateCollectionInput {
 	supports?: CollectionSupport[];
 	urlPattern?: string | null;
 	routable?: boolean;
+	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	/** Omit the auto-generated sidebar entry, dashboard quick action, and dashboard Content card row */
 	hidden?: boolean;

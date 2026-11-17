@@ -246,6 +246,9 @@ const schemaUpdateCollectionToolSchema = z.object({
 	routable: updateCollectionBody.shape.routable.describe(
 		"Whether entries require a slug before they can be published",
 	),
+	autoSlugRedirects: updateCollectionBody.shape.autoSlugRedirects.describe(
+		"Whether published slug changes create automatic redirects",
+	),
 	hasSeo: updateCollectionBody.shape.hasSeo.describe(
 		"Whether the collection supports SEO metadata",
 	),
@@ -2408,6 +2411,9 @@ export function createMcpServer(
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",
 				),
+				autoSlugRedirects: createCollectionBody.shape.autoSlugRedirects.describe(
+					"Create automatic redirects when published slugs change (default: true)",
+				),
 				editLocking: createCollectionBody.shape.editLocking.describe(
 					"Take an edit lock when an entry is opened (default: true)",
 				),
@@ -2433,6 +2439,7 @@ export function createMcpServer(
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
 					routable: args.routable,
+					autoSlugRedirects: args.autoSlugRedirects,
 					editLocking: args.editLocking,
 					group: args.group,
 				});
