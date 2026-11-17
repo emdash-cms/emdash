@@ -42,8 +42,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Test Maintainer review status
-        run: node --test .github/scripts/approval.test.mjs
+      - name: Test CI scripts
+        run: node --test .github/scripts/*.test.mjs
       - name: Select tests for this change
         id: plan
         env:
