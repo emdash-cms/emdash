@@ -78,6 +78,9 @@ catalogs:
     '@atproto/crypto':
       specifier: ^0.4.5
       version: 0.4.5
+    '@atproto/lex-data':
+      specifier: ^0.0.15
+      version: 0.0.15
     '@atproto/repo':
       specifier: ^0.9.1
       version: 0.9.1
@@ -757,6 +760,15 @@ importers:
       '@atcute/cid':
         specifier: 'catalog:'
         version: 2.4.1
+      '@atproto/crypto':
+        specifier: 'catalog:'
+        version: 0.4.5
+      '@atproto/lex-data':
+        specifier: 'catalog:'
+        version: 0.0.15
+      '@atproto/repo':
+        specifier: 'catalog:'
+        version: 0.9.1
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
         version: 1.36.3(vite@8.3.1(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))(workerd@1.20260911.1)(wrangler@4.125.0(@cloudflare/workers-types@5.20260820.1))

@@ -16,7 +16,8 @@
 		"test:encryption-v2": "vitest run --config vitest.encryption-v2.config.ts",
 		"test:ui": "vitest run --config vitest.ui.config.ts",
 		"test:browser": "playwright test --config playwright.config.ts",
-		"types": "wrangler types"
+		"types": "wrangler types",
+		"fixtures:proofs": "node scripts/generate-publication-proofs.mjs"
 	},
 	"dependencies": {
 		"@atcute/atproto": "catalog:",
@@ -41,6 +42,9 @@
 	},
 	"devDependencies": {
 		"@atcute/cid": "catalog:",
+		"@atproto/crypto": "catalog:",
+		"@atproto/lex-data": "catalog:",
+		"@atproto/repo": "catalog:",
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-plugin": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
