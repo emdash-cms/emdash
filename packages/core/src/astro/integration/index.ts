@@ -10,6 +10,7 @@
  * to avoid bundling Node.js-only code into the production build.
  */
 
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -37,6 +38,8 @@ import {
 	resolveRegistryConfigForSandbox,
 } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
+import { TOOLBAR_BOOTSTRAP_SCRIPT } from "../../visual-editing/toolbar-bootstrap.js";
+import { TOOLBAR_SCRIPT, TOOLBAR_STYLE } from "../../visual-editing/toolbar.js";
 import { local } from "../storage/adapters.js";
 import { readAdminLocaleManifest, resolveAdminLocales } from "./admin-locales.js";
 import { resolveHiddenNavItems } from "./admin-nav.js";
@@ -62,6 +65,10 @@ export type {
 	ResolvedPlugin,
 } from "./runtime.js";
 export { getStoredConfig } from "./runtime.js";
+
+function cspHash(source: string): string {
+	return `sha256-${createHash("sha256").update(source).digest("base64")}`;
+}
 
 /**
  * Resolve the version of Astro the host project is building with, by reading
@@ -693,6 +700,20 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 							}
 						: {}),
 				};
+
+				// Middleware injects these assets after Astro has finalized the page's CSP.
+				if (astroConfig.security.csp && resolvedConfig.toolbar !== false) {
+					securityConfig.csp = {
+						...(astroConfig.security.csp === true ? { algorithm: "SHA-256" } : {}),
+						scriptDirective: {
+							hashes: [
+								cspHash(TOOLBAR_SCRIPT),
+								...(resolvedConfig.toolbar === "client" ? [cspHash(TOOLBAR_BOOTSTRAP_SCRIPT)] : []),
+							],
+						},
+						styleDirective: { hashes: [cspHash(TOOLBAR_STYLE)] },
+					};
+				}
 
 				// Inject default Noto Sans font for the admin UI.
 				// Uses the Astro Font API so fonts are downloaded at build time

@@ -39,10 +39,7 @@ export const TOOLBAR_LABELS_KEY = "emdash-toolbar-labels";
  */
 export const EDIT_PARAM = "_edit";
 
-export function renderToolbarBootstrap(): string {
-	return `
-<!-- EmDash Toolbar Bootstrap -->
-<script>
+export const TOOLBAR_BOOTSTRAP_SCRIPT = `
 (function mountToolbar() {
   var flag, dismissed, labelsRaw;
   var labels = null;
@@ -140,6 +137,11 @@ export function renderToolbarBootstrap(): string {
   root.appendChild(inner);
   document.body.appendChild(root);
 })();
-</script>
+`;
+
+export function renderToolbarBootstrap(): string {
+	return `
+<!-- EmDash Toolbar Bootstrap -->
+<script>${TOOLBAR_BOOTSTRAP_SCRIPT}</script>
 `;
 }

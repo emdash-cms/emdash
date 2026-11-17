@@ -79,7 +79,7 @@ describe("editor toolbar by response content type", () => {
 
 		const html = await response.text();
 		expect(html).toContain('id="emdash-toolbar"');
-		expect(html).toMatch(/var visualActionToken = "[^"]+";/);
+		expect(html).toMatch(/data-action-token="[^"]+"/);
 		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
 	});
 });
