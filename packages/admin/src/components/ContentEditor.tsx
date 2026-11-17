@@ -67,6 +67,7 @@ import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { getFieldLabel } from "../lib/field-label.js";
+import { useStableCallback } from "../lib/hooks.js";
 import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import {
@@ -135,6 +136,7 @@ import type {
 	BrowserEditorDraftRequest,
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
+import { isSettingsField, SettingsFieldLink } from "./SettingsFieldLink.js";
 import { SettingsPanelToggle, useSettingsPanel } from "./SettingsPanelToggle.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
 
@@ -1082,6 +1084,20 @@ export function ContentEditor({
 		blockPanel: blockSidebarPanel,
 		closeBlockPanel: handleBlockSidebarClose,
 	});
+
+	const [settingsOpenToken, setSettingsOpenToken] = React.useState(0);
+	const handleSettingsOpenComplete = useStableCallback((open: boolean) => {
+		settingsPanel.onOpenChangeComplete(open);
+		if (open) setSettingsOpenToken((token) => token + 1);
+	});
+	const revealSettings = useStableCallback(() => {
+		handleBlockSidebarClose();
+		if (!isBelowLg) settingsPanel.reveal();
+	});
+	const settingsField =
+		focusField && !Object.hasOwn(fields, focusField) && isSettingsField(focusField)
+			? focusField
+			: undefined;
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -2667,7 +2683,7 @@ export function ContentEditor({
 				contained={!isBelowLg}
 				defaultOpen
 				open={settingsPanel.providerOpen}
-				onOpenChangeComplete={settingsPanel.onOpenChangeComplete}
+				onOpenChangeComplete={handleSettingsOpenComplete}
 				side={panelSide}
 				collapsible="offcanvas"
 				resizable
@@ -3003,6 +3019,16 @@ export function ContentEditor({
 				{/* Below lg, opening a block detail panel must open the sheet. */}
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} />
 				<MobileSidebarPortalGuard />
+				{settingsField && (
+					<SettingsFieldLink
+						key={`${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}:${settingsField}`}
+						field={settingsField}
+						panelId={settingsPanelId}
+						openToken={settingsOpenToken}
+						onReveal={revealSettings}
+						onFocused={onFieldFocused}
+					/>
+				)}
 				<RevisionViewSheetSync sheetRef={revisionView.sheetRef} />
 			</Sidebar.Provider>
 			<span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
