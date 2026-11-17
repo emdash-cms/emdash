@@ -2160,11 +2160,12 @@ export interface PortableTextEditorProps {
 	/**
 	 * Editorial comments: `onComment` adds a Comment button to the selection
 	 * toolbar and handles the shortcut; `onActivate` fires when the caret lands
-	 * in a commented range.
+	 * in a commented range, and `onDeactivate` when a click lands outside every one.
 	 */
 	editorialComments?: {
 		onComment?: () => void;
 		onActivate?: (threadId: string) => void;
+		onDeactivate?: () => void;
 	};
 }
 
@@ -2246,6 +2247,7 @@ export function PortableTextEditor({
 	const editorialBridgeRef = React.useRef<EditorialCommentsBridge>({});
 	editorialBridgeRef.current = {
 		onActivate: editorialComments?.onActivate,
+		onDeactivate: editorialComments?.onDeactivate,
 		onCommentShortcut: editorialComments?.onComment,
 	};
 	const [collaboration] = React.useState(collaborationProp);

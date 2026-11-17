@@ -1,7 +1,8 @@
 import { Editor, Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { EditorialCommentsBridge } from "../../src/components/editor/EditorialCommentsExtension";
 import {
 	anchorForRange,
 	anchorForSelection,
@@ -27,10 +28,13 @@ const KeyAttribute = Extension.create({
 
 let editor: Editor | null = null;
 
-function createEditor(paragraphs: Array<{ key: string | null; content: unknown[] }>) {
+function createEditor(
+	paragraphs: Array<{ key: string | null; content: unknown[] }>,
+	bridge: EditorialCommentsBridge = {},
+) {
 	editor = new Editor({
 		element: document.createElement("div"),
-		extensions: [StarterKit, KeyAttribute, createEditorialCommentsExtension({ current: {} })],
+		extensions: [StarterKit, KeyAttribute, createEditorialCommentsExtension({ current: bridge })],
 		content: {
 			type: "doc",
 			content: paragraphs.map((paragraph) => ({
@@ -147,6 +151,28 @@ describe("editorial comment highlights", () => {
 
 		expect(ed.view.dom.querySelector(".emdash-editorial-badge")?.textContent).toBe("3");
 		expect(ed.state.doc.textContent).toBe("The quick brown fox");
+	});
+
+	it("reports a click in a highlight as its thread and a click elsewhere as none", () => {
+		const onActivate = vi.fn();
+		const onDeactivate = vi.fn();
+		const ed = createEditor([{ key: "b1", content: [text("The quick brown fox")] }], {
+			onActivate,
+			onDeactivate,
+		});
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", kind: "text", from: 5, to: 10 }],
+		});
+		const click = (pos: number) =>
+			ed.view.someProp("handleClick", (handle) => handle(ed.view, pos, new MouseEvent("click")));
+
+		click(7);
+		expect(onActivate).toHaveBeenCalledWith("t1");
+		expect(onDeactivate).not.toHaveBeenCalled();
+
+		click(16);
+		expect(onDeactivate).toHaveBeenCalledOnce();
+		expect(onActivate).toHaveBeenCalledOnce();
 	});
 
 	it("drops a highlight whose text is deleted", () => {

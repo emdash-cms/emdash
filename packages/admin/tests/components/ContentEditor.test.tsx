@@ -5350,6 +5350,70 @@ describe("editorial comments", () => {
 		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "true");
 	});
 
+	it("clears the active thread when the margin closes", async () => {
+		const screen = await renderWithThreads([fieldThread("body")]);
+		const fieldButton = screen.getByRole("button", { name: "1 comment thread on Body" });
+		await fieldButton.click();
+		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "true");
+
+		await screen.getByRole("button", { name: "Hide comments" }).click();
+		await screen.getByRole("button", { name: "Show comments" }).click();
+
+		await expect
+			.element(
+				screen.getByRole("complementary", { name: "Comments" }).getByText("Could this be shorter?"),
+			)
+			.toBeVisible();
+		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "false");
+	});
+
+	describe("beside the settings panel", () => {
+		const STORAGE_KEY = "emdash-editor-settings-panel";
+		const settingsPanel = (screen: Awaited<ReturnType<typeof renderWithThreads>>) =>
+			screen.getByRole("complementary", { name: "Settings", includeHidden: true });
+
+		afterEach(async () => {
+			localStorage.removeItem(STORAGE_KEY);
+			await page.viewport(1280, 800);
+		});
+
+		it("hides the settings panel while comments are open on a narrow screen", async () => {
+			const screen = await renderWithThreads([fieldThread("body")]);
+			await expect.element(settingsPanel(screen)).not.toHaveAttribute("inert");
+
+			await screen.getByRole("button", { name: "Show comments" }).click();
+
+			await expect.element(settingsPanel(screen)).toHaveAttribute("inert");
+			expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+			await screen.getByRole("button", { name: "Hide comments" }).click();
+
+			await expect.element(settingsPanel(screen)).not.toHaveAttribute("inert");
+		});
+
+		it("closes comments to show the settings panel on a narrow screen", async () => {
+			const screen = await renderWithThreads([fieldThread("body")]);
+			await screen.getByRole("button", { name: "Show comments" }).click();
+			await expect.element(settingsPanel(screen)).toHaveAttribute("inert");
+
+			await screen.getByRole("button", { name: "Show settings" }).click();
+
+			await expect.element(settingsPanel(screen)).not.toHaveAttribute("inert");
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Show comments" })).toBeVisible();
+		});
+
+		it("keeps both open on a wide screen", async () => {
+			await page.viewport(1800, 900);
+			const screen = await renderWithThreads([fieldThread("body")]);
+
+			await screen.getByRole("button", { name: "Show comments" }).click();
+
+			await expect.element(screen.getByRole("complementary", { name: "Comments" })).toBeVisible();
+			expect(settingsPanel(screen).element()).not.toHaveAttribute("inert");
+		});
+	});
+
 	it("starts a comment on a field without threads", async () => {
 		vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
 		const screen = await renderWithThreads([]);

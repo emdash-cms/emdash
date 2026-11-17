@@ -65,6 +65,11 @@ export interface SettingsPanelOptions {
 	/** The open image or gallery detail panel, which shows a hidden panel while it lasts. */
 	blockPanel: object | null;
 	closeBlockPanel: () => void;
+	/**
+	 * Closes another panel that keeps this one hidden while it's open, without changing the stored
+	 * choice. Showing this panel calls it.
+	 */
+	yieldTo?: (() => void) | null;
 }
 
 export interface SettingsPanelToggleProps {
@@ -104,6 +109,7 @@ export function useSettingsPanel({
 	isBelowLg,
 	blockPanel,
 	closeBlockPanel,
+	yieldTo = null,
 }: SettingsPanelOptions): SettingsPanel {
 	const [choice, setChoice] = React.useState(readSettingsPanelChoice);
 	const toggleRef = React.useRef<HTMLButtonElement>(null);
@@ -111,7 +117,7 @@ export function useSettingsPanel({
 	const deferringRef = React.useRef(false);
 
 	const desktop = !isBelowLg;
-	const open = choice === "shown" || blockPanel !== null;
+	const open = (choice === "shown" && !yieldTo) || blockPanel !== null;
 
 	// A deferred report waits for a desktop open that a breakpoint change means never comes.
 	React.useEffect(() => {
@@ -131,6 +137,7 @@ export function useSettingsPanel({
 			writeSettingsPanelChoice("hidden");
 			setChoice("hidden");
 		} else {
+			yieldTo?.();
 			writeSettingsPanelChoice("shown");
 			setChoice("shown");
 		}
@@ -154,6 +161,7 @@ export function useSettingsPanel({
 			deferringRef.current = false;
 		}, 0);
 		pendingInvalidRef.current = first;
+		yieldTo?.();
 		setChoice("shown");
 	};
 

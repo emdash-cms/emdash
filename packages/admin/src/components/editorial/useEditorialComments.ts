@@ -72,6 +72,9 @@ export function useEditorialComments({
 		initialThreadId ?? null,
 	);
 	const [draft, setDraft] = React.useState<EditorialDraft | null>(null);
+	React.useEffect(() => {
+		if (!open) setActiveThreadId(null);
+	}, [open]);
 	const [showResolved, setShowResolved] = React.useState(false);
 
 	const query = useQuery({
