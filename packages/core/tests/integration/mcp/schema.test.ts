@@ -9,6 +9,7 @@
  *   - schema_delete_collection
  *   - schema_create_field
  *   - schema_update_field
+ *   - schema_reorder_fields
  *   - schema_delete_field
  *
  * For each tool: happy path, edge cases (empty, missing, duplicate,
