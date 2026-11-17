@@ -43,7 +43,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Test CI scripts
-        run: node --test .github/scripts/*.test.mjs
+        run: node --test .github/scripts/*.test.mjs scripts/*.test.mjs
       - name: Select tests for this change
         id: plan
         env:
