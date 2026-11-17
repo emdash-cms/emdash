@@ -12,6 +12,8 @@
  * precompiled package and can be unit-tested directly.
  */
 
+import mime from "mime/lite";
+
 import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 
 /** Output formats the wrapped endpoint can produce on Cloudflare. */
@@ -75,9 +77,14 @@ export function mediaCacheTag(storageKey: string): string {
 	return `emdash:media:${storageKey}`;
 }
 
-/** Whether media of this type and key can be in the route cache, so deleting its file needs a purge. */
+/**
+ * Whether media of this type and key can be in the route cache, so deleting its file needs a purge.
+ * Storage backends that infer the served type from the key's extension can serve an image even
+ * when the stored MIME type is not one.
+ */
 export function isRouteCachedMedia(storageKey: string, mimeType: string): boolean {
-	return mimeType.startsWith("image/") && isSafeTransformKey(storageKey);
+	if (!isSafeTransformKey(storageKey)) return false;
+	return mimeType.startsWith("image/") || (mime.getType(storageKey) ?? "").startsWith("image/");
 }
 
 /**

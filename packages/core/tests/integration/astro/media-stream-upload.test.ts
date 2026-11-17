@@ -1247,6 +1247,36 @@ describe("streamed media upload fallback", () => {
 		}
 	});
 
+	it("purges an image key stored with a non-image MIME type", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "photo.jpg",
+			mimeType: "application/octet-stream",
+			size: 3,
+			storageKey: "photo.jpg",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		const invalidate = vi.fn(async () => {});
+
+		const response = await deleteMedia({
+			params: { id: media.id },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.jpg"] });
+	});
+
 	it("returns 404 without purging when deleting a missing item", async () => {
 		const invalidate = vi.fn(async () => {});
 		const storage = streamingStorage();
