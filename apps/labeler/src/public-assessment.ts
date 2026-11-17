@@ -822,11 +822,11 @@ const PUBLIC_REASON_CODES = [
 	{ code: "automatic-pass", description: "Automated moderation approved this exact revision." },
 	{
 		code: "policy-finding",
-		description: "The metadata assessment produced a finding that requires review.",
+		description: "The assessment produced a finding that requires review.",
 	},
 	{
 		code: "required-coverage-unavailable",
-		description: "At least one required metadata coverage stage could not complete.",
+		description: "At least one required assessment stage could not complete.",
 	},
 	{ code: "operator-approved", description: "An operator approved this exact record revision." },
 	{ code: "operator-blocked", description: "An operator blocked this exact record revision." },

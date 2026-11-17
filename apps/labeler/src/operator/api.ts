@@ -524,14 +524,7 @@ async function handleOperatorRead(
 			.bind(runKey)
 			.first();
 		if (!row) return apiError("NOT_FOUND", "Assessment was not found", 404);
-		const findings = await env.DB.prepare(
-			`SELECT finding_index, category, confidence, reason_code, public_summary,
-			        evidence_refs_json, severity, source, excerpts_json, created_at
-			 FROM findings WHERE assessment_id = ?
-			 ORDER BY finding_index ASC, id ASC`,
-		)
-			.bind(runKey)
-			.all();
+		const decodedFindings = await readAssessmentFindings(env.DB, runKey);
 		const manualDecision = await readProductionManualDecision(
 			env.DB,
 			row["subject_uri"],
@@ -552,7 +545,7 @@ async function handleOperatorRead(
 		const publisherNotification =
 			row["subject_kind"] === "release"
 				? {
-						...draftForAssessment(row, canonicalInput, findings.results, relatedProfile),
+						...draftForAssessment(row, canonicalInput, decodedFindings, relatedProfile),
 						record: await readPublisherNotification(env.DB, runKey),
 					}
 				: null;
@@ -566,13 +559,7 @@ async function handleOperatorRead(
 				canonical_input_json: undefined,
 				summary_json: undefined,
 			},
-			findings: findings.results.map((finding) => ({
-				...finding,
-				evidenceRefs: parseStoredJson(finding["evidence_refs_json"]),
-				excerpts: parseStoredJson(finding["excerpts_json"]),
-				evidence_refs_json: undefined,
-				excerpts_json: undefined,
-			})),
+			findings: decodedFindings,
 			manualDecision,
 			relatedProfile,
 			publisherHandle,
@@ -654,21 +641,11 @@ async function notifyPublisher(
 		.bind(input.runKey)
 		.first();
 	if (!row) return apiError("NOT_FOUND", "Assessment was not found", 404);
-	const findings = await env.DB.prepare(
-		`SELECT category, severity, public_summary, evidence_refs_json
-		 FROM findings WHERE assessment_id = ?
-		 ORDER BY finding_index ASC, id ASC`,
-	)
-		.bind(input.runKey)
-		.all();
 	const canonicalInput = parseStoredJson(row["canonical_input_json"]);
 	const prepared = draftForAssessment(
 		row,
 		canonicalInput,
-		findings.results.map((finding) => ({
-			...finding,
-			evidenceRefs: parseStoredJson(finding["evidence_refs_json"]),
-		})),
+		await readAssessmentFindings(env.DB, input.runKey),
 		await readOperatorRelatedProfile(env.DB, canonicalInput),
 	);
 	if (!prepared.draft) {
@@ -714,6 +691,28 @@ async function notifyPublisher(
 		recipients: result.recipients,
 		sentAt: result.sentAt,
 	});
+}
+
+async function readAssessmentFindings(
+	db: D1Database,
+	runKey: string,
+): Promise<Record<string, unknown>[]> {
+	const findings = await db
+		.prepare(
+			`SELECT finding_index, category, confidence, reason_code, public_summary,
+			        evidence_refs_json, severity, source, excerpts_json, created_at
+			 FROM findings WHERE assessment_id = ?
+			 ORDER BY finding_index ASC, id ASC`,
+		)
+		.bind(runKey)
+		.all();
+	return findings.results.map((finding) => ({
+		...finding,
+		evidenceRefs: parseStoredJson(finding["evidence_refs_json"]),
+		excerpts: parseStoredJson(finding["excerpts_json"]),
+		evidence_refs_json: undefined,
+		excerpts_json: undefined,
+	}));
 }
 
 function draftForAssessment(

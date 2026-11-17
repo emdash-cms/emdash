@@ -150,6 +150,10 @@ export interface GuardedMediaAcquirerOptions {
 	now?: () => number;
 }
 
+export class ByteLimitExceededError extends Error {
+	override readonly name = "ByteLimitExceededError";
+}
+
 export class MediaTransportConfigurationError extends Error {
 	override readonly name = "MediaTransportConfigurationError";
 }
@@ -508,7 +512,7 @@ export async function readBoundedBody(
 	const declaredLength = Number(response.headers.get("content-length"));
 	if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
 		await cancelResponseBody(response);
-		throw new Error("display media exceeds the byte limit");
+		throw new ByteLimitExceededError("display media exceeds the byte limit");
 	}
 	const reader = response.body?.getReader();
 	if (!reader) throw new Error("display media response body is missing");
@@ -522,7 +526,9 @@ export async function readBoundedBody(
 			done = next.done;
 			if (next.value) {
 				total += next.value.byteLength;
-				if (total > maximumBytes) throw new Error("display media exceeds the byte limit");
+				if (total > maximumBytes) {
+					throw new ByteLimitExceededError("display media exceeds the byte limit");
+				}
 				chunks.push(next.value);
 			}
 		}

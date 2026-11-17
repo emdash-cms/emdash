@@ -150,7 +150,19 @@ export async function runReview(
 			});
 			continue;
 		}
+		const submitsWithOtherCalls = calls.some((call) => call.name !== "submit_review");
 		for (const call of calls) {
+			if (call.name === "submit_review" && submitsWithOtherCalls) {
+				context.messages.push(
+					toolResult(
+						call.id,
+						call.name,
+						"Call submit_review on its own, after you have seen the results of your other tool calls.",
+						true,
+					),
+				);
+				continue;
+			}
 			if (call.name === "submit_review") {
 				submissions += 1;
 				const checked = checkSubmission(call.arguments, workspace);

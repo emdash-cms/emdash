@@ -4,9 +4,11 @@ import { env } from "cloudflare:workers";
 import type { WorkflowStepConfig } from "cloudflare:workers";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+import { parseRequest } from "../../plugin-review/src/request.js";
 import type { OperatorIdentity } from "../src/access.js";
 import { buildCanonicalProfileInput } from "../src/assessment/canonical.js";
 import { createD1AssessmentLifecycleStore } from "../src/assessment/lifecycle.js";
+import { ByteLimitExceededError } from "../src/assessment/media.js";
 import { createAssessmentWorkflowParams } from "../src/assessment/run-key.js";
 import { runBoundAssessmentWorkflow, type CodeAssessmentStep } from "../src/assessment/workflow.js";
 import type { CodeAssessmentDependencies, PluginReviewRequest } from "../src/code/assessment.js";
@@ -116,8 +118,14 @@ async function runRelease(options: {
 	const requests: PluginReviewRequest[] = [];
 	const codeAssessment: CodeAssessmentDependencies = {
 		bundleReader: { read: options.readBundle ?? (async () => options.bundle) },
+		profiles: {
+			async currentCid(uri) {
+				return uri === PROFILE_URI ? PROFILE_CID : null;
+			},
+		},
 		reviewer: {
 			async review(request) {
+				parseRequest(request);
 				requests.push(request);
 				return (options.review ?? (async (input) => cleanReview(input)))(request);
 			},
@@ -137,7 +145,15 @@ async function runRelease(options: {
 		{
 			lifecycle,
 			recordVerifier: {
-				async verifyExactRecord() {
+				async verifyExactRecord(subject) {
+					if (subject.kind === "profile") {
+						return {
+							uri: PROFILE_URI,
+							cid: PROFILE_CID,
+							record: PROFILE_RECORD,
+							verification: "did-mst-signature" as const,
+						};
+					}
 					return {
 						uri: RELEASE_URI,
 						cid: options.cid,
@@ -223,8 +239,8 @@ describe("release code assessment in the assessment Workflow", () => {
 			declaredAccess: { network: { request: { allowedHosts: ["api.example.com"] } } },
 		});
 		expect(run.requests[0]?.listing).toContainEqual({
-			ref: expect.any(String),
-			text: expect.stringMatching(/\S/),
+			ref: "profile.description",
+			text: PROFILE_RECORD.description,
 		});
 		expect(run.requests[0]?.files.find(({ path }) => path === "backend.js")?.text).toContain(
 			"export default",
@@ -352,6 +368,57 @@ describe("release code assessment in the assessment Workflow", () => {
 		expect(run.result.status).toBe("review");
 		expect(run.findings).toMatchObject([{ category: "package-integrity", severity: "critical" }]);
 		expect(run.requests).toHaveLength(MODELS.length);
+	});
+
+	it.each([
+		["invalid-gzip", async () => new Uint8Array([1, 2, 3, 4]), "bada"],
+		[
+			"duplicate-entry",
+			async () =>
+				createBundle([...cleanBundleEntries(), { name: "backend.js", content: "export {};" }]),
+			"dupe",
+		],
+	])(
+		"holds a package with %s for review without asking reviewers to read it",
+		async (code, bundle, suffix) => {
+			const run = await runRelease({
+				cid: `${RELEASE_CID.slice(0, -4)}${suffix}`,
+				bundle: await bundle(),
+			});
+			expect(run.result.status).toBe("review");
+			expect(run.findings.map(({ public_summary }) => public_summary)).toEqual([
+				expect.stringContaining(`bundle.${code}`),
+			]);
+			expect(run.requests).toEqual([]);
+		},
+	);
+
+	it("reports a package over the size limit as a finding", async () => {
+		const bundle = await createBundle(cleanBundleEntries());
+		const run = await runRelease({
+			cid: `${RELEASE_CID.slice(0, -4)}biga`,
+			bundle,
+			readBundle: async () => {
+				throw new ByteLimitExceededError("too large");
+			},
+		});
+		expect(run.result.status).toBe("review");
+		expect(run.findings.map(({ public_summary }) => public_summary)).toEqual([
+			expect.stringContaining("bundle.compressed-size-exceeded"),
+		]);
+		expect(run.requests).toEqual([]);
+	});
+
+	it("keeps archive findings when a reviewer fails", async () => {
+		const run = await runRelease({
+			cid: `${RELEASE_CID.slice(0, -4)}kpfa`,
+			bundle: await createBundle([...cleanBundleEntries(), { name: "extra.txt", content: "x" }]),
+			review: async () => {
+				throw new Error("reviewer unavailable");
+			},
+		});
+		expect(run.result.status).toBe("error");
+		expect(run.findings.map(({ category }) => category)).toEqual(["package-integrity"]);
 	});
 
 	it("waits for review budget instead of skipping the review", async () => {

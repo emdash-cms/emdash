@@ -144,6 +144,25 @@ describe("runReview", () => {
 		expect(response.findings).toEqual([]);
 	});
 
+	it("rejects a submission sent in the same message as the reads it depends on", async () => {
+		const model = scriptedModel([
+			(context) => [
+				...(readAll(context) as ToolCall[]),
+				call("submit_review", { summary: "Clean.", findings: [] }),
+			],
+			(context) => {
+				const result = lastToolResult(context);
+				expect(result.toolName).toBe("submit_review");
+				expect(result.isError).toBe(true);
+				return [call("submit_review", { summary: "Counts posts.", findings: [VULNERABILITY] })];
+			},
+		]);
+
+		const response = await runReview(REQUEST, model, options);
+
+		expect(response.findings).toEqual([VULNERABILITY]);
+	});
+
 	it("rejects a citation whose quote is not on the cited line", async () => {
 		const misquoted = {
 			...VULNERABILITY,

@@ -183,6 +183,7 @@ describe("package bundle intake", () => {
 					uri: "at://did:plc:assessmentfixture00000000/com.emdashcms.experimental.package.release/gallery:1.2.3",
 					cid: "bafyreiacaibaeaqcaibaeaqcaibaeaqcaibaeaqcaibaeaqcaibaeaqcai",
 					version: "1.2.3",
+					packageSlug: "gallery",
 					artifact: { checksum: "bafy" },
 					declaredAccess: {},
 				},

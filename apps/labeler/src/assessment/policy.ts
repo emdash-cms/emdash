@@ -35,7 +35,10 @@ export type ModerationStage = CompletedModerationStage | FailedModerationStage;
 
 export type CodeAssessmentStage =
 	| { status: "complete"; result: CodeAssessmentResult }
-	| FailedModerationStage;
+	| (FailedModerationStage & {
+			/** Findings from checks that completed before the stage failed. */
+			findings?: CodeAssessmentResult["findings"];
+	  });
 
 export interface AssessmentPolicyInput {
 	policy: ListingModerationPolicy;
@@ -104,7 +107,9 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 		...completedResults.flatMap((result) =>
 			result.findings.map((finding) => ({ source: result.identity.modelId, ...finding })),
 		),
-		...(input.code?.status === "complete" ? input.code.result.findings : []),
+		...(input.code?.status === "complete"
+			? input.code.result.findings
+			: (input.code?.findings ?? [])),
 	];
 	const imageIdentities = uniqueIdentities(
 		Object.values(input.images).flatMap((stage) =>

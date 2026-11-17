@@ -37,6 +37,7 @@ export function isFindingSeverity(value: unknown): value is FindingSeverity {
 function parseFinding<Category extends AssessmentFindingCategory>(
 	value: unknown,
 	isCategory: (category: unknown) => category is Category,
+	allowSeverity: boolean,
 ): NormalizedModerationFinding<Category> {
 	const finding = record(value, "finding", [
 		"category",
@@ -44,7 +45,7 @@ function parseFinding<Category extends AssessmentFindingCategory>(
 		"confidence",
 		"summary",
 		"evidenceRefs",
-		"severity",
+		...(allowSeverity ? ["severity"] : []),
 	]);
 	const category = finding["category"];
 	if (!isCategory(category)) {
@@ -80,10 +81,10 @@ function isAssessmentFindingCategory(value: unknown): value is AssessmentFinding
 }
 
 export const NormalizedModerationFindingSchema = runtimeSchema((value) =>
-	parseFinding(value, isModerationFindingCategory),
+	parseFinding(value, isModerationFindingCategory, false),
 );
 
 /** Accepts listing-metadata findings and findings about a release's package code. */
 export const AssessmentFindingSchema = runtimeSchema((value) =>
-	parseFinding(value, isAssessmentFindingCategory),
+	parseFinding(value, isAssessmentFindingCategory, true),
 );

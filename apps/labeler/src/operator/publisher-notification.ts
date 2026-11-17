@@ -306,14 +306,41 @@ export async function sendPublisherNotification(input: {
 		);
 		return { ok: false, code: "EMAIL_SEND_FAILED" };
 	}
-	const sentAt = new Date().toISOString();
-	await db
-		.prepare(
-			"UPDATE publisher_notifications SET status = 'sent', message_id = ?, sent_at = ? WHERE id = ?",
-		)
-		.bind(messageId, sentAt, claimed.id)
-		.run();
+	const sentAt = now.toISOString();
+	await recordSent(db, claimed.id, messageId, sentAt, input.runKey);
 	return { ok: true, replayed: false, messageId, recipients: draft.recipients, sentAt };
+}
+
+const RECORD_SENT_ATTEMPTS = 3;
+
+// The email has already gone out, so a lost update would let a stale claim resend it.
+async function recordSent(
+	db: D1Database,
+	id: number,
+	messageId: string,
+	sentAt: string,
+	runKey: string,
+): Promise<void> {
+	for (let attempt = 1; ; attempt += 1) {
+		try {
+			// oxlint-disable-next-line no-await-in-loop -- retries one write in order
+			await db
+				.prepare(
+					"UPDATE publisher_notifications SET status = 'sent', message_id = ?, sent_at = ? WHERE id = ?",
+				)
+				.bind(messageId, sentAt, id)
+				.run();
+			return;
+		} catch (error) {
+			if (attempt >= RECORD_SENT_ATTEMPTS) {
+				console.error(
+					JSON.stringify({ event: "publisher_notification_unrecorded", runKey, messageId }),
+					error,
+				);
+				return;
+			}
+		}
+	}
 }
 
 function describeEvidence(ref: string): string {

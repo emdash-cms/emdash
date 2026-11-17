@@ -2,6 +2,7 @@ import type { GuardedMediaTransport, MediaHostnameResolver } from "../assessment
 import {
 	createBlobCachePackageBundleReader,
 	type CodeAssessmentDependencies,
+	type PackageProfileLocator,
 	type PluginReviewer,
 } from "./assessment.js";
 import { createD1ReviewBudget, DEFAULT_REVIEW_BUDGET_LIMITS } from "./budget.js";
@@ -54,6 +55,7 @@ export function createProductionCodeAssessment(
 			transport: options.transport,
 		}),
 		reviewer,
+		profiles: createD1PackageProfileLocator(options.db),
 		models,
 		budget: createD1ReviewBudget(options.db, {
 			perPublisherPerDay: limit(
@@ -67,6 +69,18 @@ export function createProductionCodeAssessment(
 				DEFAULT_REVIEW_BUDGET_LIMITS.totalPerDay,
 			),
 		}),
+	};
+}
+
+export function createD1PackageProfileLocator(db: D1Database): PackageProfileLocator {
+	return {
+		async currentCid(profileUri) {
+			const row = await db
+				.prepare("SELECT cid FROM current_subjects WHERE uri = ? AND deleted_at IS NULL")
+				.bind(profileUri)
+				.first<{ cid: string }>();
+			return row?.cid ?? null;
+		},
 	};
 }
 

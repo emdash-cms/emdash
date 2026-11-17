@@ -177,4 +177,17 @@ describe("canonical moderation inputs", () => {
 			success: false,
 		});
 	});
+
+	it("rejects a severity on a listing finding", () => {
+		expect(
+			NormalizedModerationFindingSchema.safeParse({
+				category: "scam-or-spam",
+				recommendation: "review",
+				confidence: 0.9,
+				summary: "Review this listing",
+				evidenceRefs: ["profile.name"],
+				severity: "high",
+			}),
+		).toMatchObject({ success: false });
+	});
 });

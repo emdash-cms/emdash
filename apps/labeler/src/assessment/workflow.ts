@@ -1,3 +1,4 @@
+import { NSID } from "@emdash-cms/registry-lexicons";
 import type { ListingModerationPolicy } from "@emdash-cms/registry-moderation";
 import { WorkflowEntrypoint } from "cloudflare:workers";
 import type { WorkflowEvent, WorkflowStep, WorkflowStepConfig } from "cloudflare:workers";
@@ -15,7 +16,7 @@ import {
 	type CodeAssessmentDependencies,
 	type ListingText,
 } from "../code/assessment.js";
-import type { ModerationTextField } from "./canonical.js";
+import { buildCanonicalProfileInput, type ModerationTextField } from "./canonical.js";
 import {
 	createAssessmentFinalizationProposal,
 	finalizeResolvedAssessment,
@@ -253,6 +254,7 @@ async function runCodeAssessmentStage(
 	dependencies: AssessmentWorkflowDependencies,
 	codeAssessment: CodeAssessmentDependencies,
 ): Promise<CodeAssessmentStage> {
+	let check: Awaited<ReturnType<typeof checkReleasePackage>> | undefined;
 	try {
 		if (!isCodeAssessmentStep(step)) {
 			throw new AssessmentWorkflowConfigurationError(
@@ -266,13 +268,22 @@ async function runCodeAssessmentStage(
 			}
 			return projectPackageCodeSubject(verified);
 		});
-		const check = await step.do("check release package", async () =>
+		check = await step.do("check release package", async () =>
 			checkReleasePackage(packageSubject, codeAssessment),
 		);
+		if (!check.reviewable) {
+			return { status: "complete", result: combineCodeAssessment(check, []) };
+		}
 		if (codeAssessment.budget) {
 			await reserveReviewBudget(step, subject.uri, codeAssessment.budget, dependencies.now);
 		}
-		const listingText: ListingText[] = listing.map(({ ref, value }) => ({ ref, text: value }));
+		const purpose = await step.do("verify package profile", async () =>
+			readPackagePurpose(packageSubject, codeAssessment, dependencies),
+		);
+		const listingText: ListingText[] = [...purpose, ...listing].map(({ ref, value }) => ({
+			ref,
+			text: value,
+		}));
 		const reviews = await Promise.all(
 			codeAssessment.models.map((model) =>
 				step.do(`review release package with ${model}`, PACKAGE_REVIEW_STEP, async () =>
@@ -290,8 +301,35 @@ async function runCodeAssessmentStage(
 				error: error instanceof Error ? error.message : String(error),
 			}),
 		);
-		return { status: "error", code: "code-assessment-unavailable" };
+		return {
+			status: "error",
+			code: "code-assessment-unavailable",
+			...(check && check.findings.length > 0 ? { findings: check.findings } : {}),
+		};
 	}
+}
+
+/**
+ * The package profile holds the description and sections that state what the
+ * plugin is for. A release published before its profile is known is reviewed
+ * against the release record alone.
+ */
+async function readPackagePurpose(
+	subject: { uri: string; packageSlug: string },
+	codeAssessment: CodeAssessmentDependencies,
+	dependencies: AssessmentWorkflowDependencies,
+): Promise<ModerationTextField[]> {
+	const { publisherDid } = parseSubjectUri(subject.uri);
+	const profileUri = `at://${publisherDid}/${NSID.packageProfile}/${subject.packageSlug}`;
+	const cid = await codeAssessment.profiles.currentCid(profileUri);
+	if (!cid) return [];
+	const verified = await verifyExactRegistryRecord(dependencies.recordVerifier, {
+		uri: profileUri,
+		cid,
+		kind: "profile",
+	});
+	if (verified.kind !== "profile") throw new TypeError("package profile is not a profile record");
+	return [...buildCanonicalProfileInput(verified).text];
 }
 
 async function reserveReviewBudget(

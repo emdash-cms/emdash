@@ -4,6 +4,7 @@ import { recordScopedBlobCacheUrl } from "@emdash-cms/registry-verification/arti
 import { MAX_BUNDLE_COMPRESSED_BYTES } from "@emdash-cms/registry-verification/bundle";
 
 import {
+	ByteLimitExceededError,
 	fetchGuardedResource,
 	readBoundedBody,
 	type GuardedMediaTransport,
@@ -39,6 +40,7 @@ export interface PackageCodeSubject {
 	uri: string;
 	cid: string;
 	version: string;
+	packageSlug: string;
 	artifact: PackageArtifactReference;
 	declaredAccess: Record<string, unknown>;
 }
@@ -61,6 +63,11 @@ export interface PluginReviewRequest {
 	files: readonly { path: string; byteLength: number; text?: string }[];
 }
 
+/** Finds the current record of a package's profile, which holds the listing's stated purpose. */
+export interface PackageProfileLocator {
+	currentCid(profileUri: string): Promise<string | null>;
+}
+
 /** The `plugin-review` Worker's RPC surface. */
 export interface PluginReviewer {
 	review(request: PluginReviewRequest): Promise<unknown>;
@@ -69,6 +76,7 @@ export interface PluginReviewer {
 export interface CodeAssessmentDependencies {
 	bundleReader: PackageBundleReader;
 	reviewer: PluginReviewer;
+	profiles: PackageProfileLocator;
 	/** Every model reviews the bundle independently; a release passes only if none finds anything. */
 	models: readonly string[];
 	budget?: ReviewBudget;
@@ -92,6 +100,8 @@ export interface CodeReviewReport extends CodeReviewIdentity {
 
 export interface PackageCheckResult {
 	findings: readonly CodeFinding[];
+	/** False when the archive has no files or repeats a path, so no reviewer can be given it. */
+	reviewable: boolean;
 }
 
 export interface PackageReviewResult {
@@ -129,6 +139,7 @@ export function projectPackageCodeSubject(verified: VerifiedReleaseRecord): Pack
 		uri: verified.uri,
 		cid: verified.cid,
 		version: verified.record.version,
+		packageSlug: verified.record.package,
 		artifact: {
 			checksum: artifact.checksum,
 			...(blob && "ref" in blob ? { blobCid: blob.ref.$link } : {}),
@@ -143,7 +154,13 @@ export async function checkReleasePackage(
 	dependencies: Pick<CodeAssessmentDependencies, "bundleReader">,
 ): Promise<PackageCheckResult> {
 	const bundle = await readVerifiedBundle(subject, dependencies.bundleReader);
-	return { findings: integrityFindings(bundle.anomalies) };
+	const paths = new Set(bundle.files.map(({ path }) => path));
+	const reviewable = bundle.files.length > 0 && paths.size === bundle.files.length;
+	const findings = integrityFindings(bundle.anomalies);
+	if (!reviewable && findings.length === 0) {
+		throw new PackageBundleUnavailableError("package cannot be reviewed and reports no anomaly");
+	}
+	return { findings, reviewable };
 }
 
 export async function reviewReleasePackage(
@@ -259,7 +276,13 @@ export function parseReviewResponse(
 					) {
 						throw new PluginReviewResponseError("plugin review cites a line outside the bundle");
 					}
-					return { ref: `${PACKAGE_EVIDENCE_PREFIX}${citation["file"]}#L${line}`, lines, line };
+					const quote = typeof citation["quote"] === "string" ? citation["quote"] : "";
+					return {
+						ref: `${PACKAGE_EVIDENCE_PREFIX}${citation["file"]}#L${line}`,
+						lines,
+						line,
+						quote,
+					};
 				});
 			const evidenceRefs = citations.map(({ ref }) => ref);
 			return {
@@ -277,28 +300,49 @@ export function parseReviewResponse(
 }
 
 function excerptsFor(
-	citations: readonly { ref: string; lines: readonly string[]; line: number }[],
+	citations: readonly { ref: string; lines: readonly string[]; line: number; quote: string }[],
 ): EvidenceExcerpt[] {
 	const seen = new Set<string>();
 	return citations
 		.filter(({ ref }) => !seen.has(ref) && seen.add(ref))
 		.slice(0, MAX_EXCERPTS_PER_FINDING)
-		.map(({ ref, lines, line }) => {
+		.map(({ ref, lines, line, quote }) => {
 			const start = Math.max(1, line - EXCERPT_CONTEXT_LINES);
 			const end = Math.min(lines.length, line + EXCERPT_CONTEXT_LINES);
 			return {
 				ref,
 				startLine: start,
-				lines: lines.slice(start - 1, end).map((text) => text.slice(0, MAX_EXCERPT_LINE_LENGTH)),
+				lines: lines
+					.slice(start - 1, end)
+					.map((text, index) => clipLine(text, start + index === line ? quote : "")),
 			};
 		});
+}
+
+/** Cuts a long line to a window around `focus`, marking each cut with an ellipsis. */
+function clipLine(text: string, focus: string): string {
+	if (text.length <= MAX_EXCERPT_LINE_LENGTH) return text;
+	const at = focus ? text.indexOf(focus) : -1;
+	const centred = at - Math.floor((MAX_EXCERPT_LINE_LENGTH - focus.length) / 2);
+	const start =
+		at === -1 ? 0 : Math.max(0, Math.min(centred, text.length - MAX_EXCERPT_LINE_LENGTH, at));
+	const end = start + MAX_EXCERPT_LINE_LENGTH;
+	return `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`;
 }
 
 async function readVerifiedBundle(
 	subject: PackageCodeSubject,
 	reader: PackageBundleReader,
 ): Promise<UnpackedBundle> {
-	const bytes = await reader.read(subject, MAX_BUNDLE_COMPRESSED_BYTES);
+	let bytes: Uint8Array;
+	try {
+		bytes = await reader.read(subject, MAX_BUNDLE_COMPRESSED_BYTES);
+	} catch (error) {
+		if (error instanceof ByteLimitExceededError) {
+			return { files: [], anomalies: [{ code: "compressed-size-exceeded" }] };
+		}
+		throw error;
+	}
 	await verifyPackageBytes(bytes, subject.artifact);
 	return unpackPackageBundle(bytes);
 }

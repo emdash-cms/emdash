@@ -16,7 +16,7 @@ A rejected submission goes back to the model with the problems listed, up to thr
 
 ## Prompt
 
-The prompt in [`src/prompt.ts`](src/prompt.ts) is public. During an embargo, set the `PLUGIN_REVIEW_PROMPT_ADDENDUM` secret to append private guidance; remove it once the issue is disclosed. Change `PROMPT_VERSION` when a prompt change should invalidate earlier assessments.
+The prompt in [`src/prompt.ts`](src/prompt.ts) is public. During an embargo, set the `PLUGIN_REVIEW_PROMPT_ADDENDUM` secret to append private guidance; remove it once the issue is disclosed. Change `PROMPT_VERSION` with every prompt change. The labeler stores it with each review, so the operator console shows which prompt reviewed a release. Changing it does not invalidate or re-run earlier assessments; to review an earlier release with a new prompt, re-run its assessment from the operator console.
 
 ## Configuration
 
