@@ -1,7 +1,7 @@
 import { Toasty } from "@cloudflare/kumo";
 import * as React from "react";
 import { flushSync } from "react-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
@@ -89,7 +89,11 @@ const linked = (): StoredBlockValue => ({
 	title: "Contact",
 });
 
-function Harness({ initial }: { initial: StoredBlockValue[] }) {
+type HarnessProps = Partial<Omit<BlocksFieldProps, "value" | "onChange">> & {
+	initial: StoredBlockValue[];
+};
+
+function Harness({ initial, ...extraProps }: HarnessProps) {
 	const [value, setValue] = React.useState(initial);
 	const props: BlocksFieldProps = {
 		id: "field-layout",
@@ -110,18 +114,40 @@ function Harness({ initial }: { initial: StoredBlockValue[] }) {
 				onChange={(event) => onChange(event.target.value)}
 			/>
 		),
+		...extraProps,
 	};
 	return <BlocksField {...props} />;
 }
 
-function renderField(initial: StoredBlockValue[], { width = 480 }: { width?: number } = {}) {
+function renderField(
+	initial: StoredBlockValue[],
+	{ width = 480, ...props }: Omit<HarnessProps, "initial"> & { width?: number } = {},
+) {
 	return render(
 		<div style={{ width, marginInline: 80 }}>
-			<Harness initial={initial} />
+			<Harness initial={initial} {...props} />
 		</div>,
 		{ wrapper: Toasty },
 	);
 }
+
+const advanced = blockType("advanced", "Advanced", [
+	{ slug: "title", label: "Title", type: "string" },
+	{
+		slug: "anchor_id",
+		label: "Section ID",
+		type: "string",
+		validation: { pattern: "^(?:$|[a-z][a-z0-9_-]*)$" },
+	},
+]);
+
+const advancedBlock = (key: string, anchor_id = "section"): StoredBlockValue => ({
+	_type: "advanced",
+	_version: 1,
+	_key: key,
+	title: key,
+	anchor_id,
+});
 
 const row = (key: string) => document.querySelector<HTMLElement>(`[data-block-key="${key}"]`)!;
 const menuButtonOf = (key: string) =>
@@ -149,6 +175,103 @@ async function openLinked() {
 afterEach(() => {
 	// A test that fails part way could leave a press unlanded for the next one.
 	document.body.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
+});
+
+describe("A linked field focus request", () => {
+	it("opens only the addressed block and focuses its field", async () => {
+		const onFieldFocused = vi.fn();
+		await renderField([short("first"), short("target"), short("last")], {
+			focusField: "layout.target.title",
+			onFieldFocused,
+		});
+
+		await expect.element(textbox("Title")).toHaveFocus();
+		expect(onFieldFocused).toHaveBeenCalledOnce();
+		expect(textbox("Title").all()).toHaveLength(1);
+		await expect
+			.element(
+				page.elementLocator(row("target")).getByRole("button", { name: "Short", exact: true }),
+			)
+			.toHaveAttribute("aria-expanded", "true");
+		for (const key of ["first", "last"])
+			await expect
+				.element(page.elementLocator(row(key)).getByRole("button", { name: "Short", exact: true }))
+				.toHaveAttribute("aria-expanded", "false");
+	});
+
+	it("does not refocus the same request when a field value changes", async () => {
+		const onFieldFocused = vi.fn();
+		await renderField([linked()], { focusField: "layout.linked.title", onFieldFocused });
+		await expect.element(textbox("Title")).toHaveFocus();
+
+		await link().fill("https://example.com");
+		await expect.element(link()).toHaveFocus();
+		expect(onFieldFocused).toHaveBeenCalledOnce();
+	});
+
+	it("opens Advanced for an anchor_id field and focuses it", async () => {
+		await renderField([advancedBlock("target")], {
+			blockTypes: [advanced],
+			allowedTypes: ["advanced"],
+			focusField: "layout.target.anchor_id",
+		});
+
+		await expect.element(textbox("Section ID")).toHaveFocus();
+		await expect
+			.element(page.getByRole("button", { name: "Advanced: Advanced" }))
+			.toHaveAttribute("aria-expanded", "true");
+	});
+
+	it("focuses the add button for an empty repeater", async () => {
+		await renderField([{ ...stats(), stats: [] }], { focusField: "layout.stats.stats" });
+		await expect.element(page.getByRole("button", { name: "Add item to Stats" })).toHaveFocus();
+	});
+
+	it("focuses a target in read-only mode", async () => {
+		await renderField([short("first"), short("target")], {
+			focusField: "layout.target.title",
+			readOnly: true,
+		});
+
+		const target = page.elementLocator(document.querySelector("#field-layout\\.target\\.title")!);
+		await expect.element(target).toHaveFocus();
+		await expect.element(target).toHaveValue("target");
+	});
+
+	it.each(["layout.missing.title", "layout.target.missing"])(
+		"does not expand or focus a missing target: %s",
+		async (focusField) => {
+			const onFieldFocused = vi.fn();
+			await renderField([short("target")], { focusField, onFieldFocused });
+
+			await frame();
+			expect(textbox("Title").query()).toBeNull();
+			expect(onFieldFocused).not.toHaveBeenCalled();
+			await expect
+				.element(
+					page.elementLocator(row("target")).getByRole("button", { name: "Short", exact: true }),
+				)
+				.toHaveAttribute("aria-expanded", "false");
+		},
+	);
+
+	it("focuses the requested field without revealing another validation issue", async () => {
+		await renderField(
+			[
+				{
+					_type: "linked",
+					_version: 1,
+					_key: "target",
+					title: "Target",
+					cta_url: "not a link",
+				},
+			],
+			{ focusField: "layout.target.title" },
+		);
+
+		await expect.element(textbox("Title")).toHaveFocus();
+		await expect.element(textbox("Link")).not.toHaveAttribute("aria-invalid", "true");
+	});
 });
 
 describe("Focus left by a press that opens a popup", () => {

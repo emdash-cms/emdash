@@ -555,6 +555,8 @@ export interface CurrentUserInfo {
 }
 
 export interface ContentEditorProps {
+	focusField?: string;
+	onFieldFocused?: () => void;
 	collection: string;
 	collectionLabel: string;
 	item?: ContentItem | null;
@@ -831,6 +833,8 @@ export function ContentEditor({
 	onPreviewNotSaved,
 	readFormRef,
 	sendReferencesRef,
+	focusField,
+	onFieldFocused,
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -2797,6 +2801,8 @@ export function ContentEditor({
 													readOnly,
 													timezone,
 													blockReveal: field.kind === "blocks" ? blockReveal : undefined,
+													focusField,
+													onFieldFocused,
 													referenceState,
 													onReferenceChange: handleReferenceCurrentChange,
 													onLoadMoreReferences: handleLoadMoreReferences,
@@ -3372,6 +3378,8 @@ interface FieldRendererProps {
 	chrome?: FieldChrome;
 	/** For a blocks field: shows its problems and focuses one, as Save does. */
 	blockReveal?: BlockReveal;
+	focusField?: string;
+	onFieldFocused?: () => void;
 }
 
 function quietControlProps(chrome: FieldChrome, required: boolean | undefined) {
@@ -3497,6 +3505,8 @@ function FieldRenderer({
 	collaboration,
 	chrome,
 	blockReveal,
+	focusField,
+	onFieldFocused,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -4104,6 +4114,8 @@ function FieldRenderer({
 					}
 					readOnly={readOnly}
 					reveal={blockReveal}
+					focusField={focusField}
+					onFieldFocused={onFieldFocused}
 					renderField={({
 						name: nestedName,
 						field: nestedField,

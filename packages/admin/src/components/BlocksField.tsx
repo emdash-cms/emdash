@@ -171,6 +171,8 @@ export interface BlocksFieldProps {
 	 * the control with id `focusId`, and focuses it.
 	 */
 	reveal?: BlockReveal;
+	focusField?: string;
+	onFieldFocused?: () => void;
 }
 
 export interface BlockReveal {
@@ -245,6 +247,7 @@ type FocusRequest =
 			field: string;
 			/** Focuses that control, rather than the block's first problem on screen. */
 			exact?: true;
+			onFocused?: () => void;
 	  }
 	| { key: string; target: "item"; field: string; index: number; scroll?: false | "nearest" }
 	| { target: "add" };
@@ -434,6 +437,8 @@ export function BlocksField({
 	readOnly = false,
 	renderField,
 	reveal,
+	focusField,
+	onFieldFocused,
 }: BlocksFieldProps) {
 	const { t } = useLingui();
 	const undo = useUndoToast();
@@ -441,6 +446,7 @@ export function BlocksField({
 	const rootRef = React.useRef<HTMLDivElement>(null);
 	const addButtonRef = React.useRef<HTMLButtonElement>(null);
 	const focusRequestRef = React.useRef<FocusRequest | null>(null);
+	const linkedFieldRef = React.useRef<string | null>(null);
 	const maxHintId = React.useId();
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	/** The open set Expand all or Collapse all made, which opens and closes without motion. */
@@ -586,6 +592,43 @@ export function BlocksField({
 		revealIssues(revealFocusId, revealCount);
 	}, [revealToken, revealFocusId, revealCount, revealIssues]);
 
+	const focusLinkedField = useStableCallback(() => {
+		if (!focusField) {
+			linkedFieldRef.current = null;
+			return;
+		}
+		if (linkedFieldRef.current === focusField) return;
+		const block = blocks.find((candidate) =>
+			focusField.startsWith(`${fieldPath}.${candidate._key}.`),
+		);
+		if (!block) return;
+		const field = focusField.slice(`${fieldPath}.${block._key}.`.length).split(".")[0];
+		const version = typeBySlug
+			.get(block._type)
+			?.versions.find((candidate) => candidate.version === block._version);
+		if (!field || !version?.fields.some((candidate) => candidate.slug === field)) return;
+		linkedFieldRef.current = focusField;
+		if (
+			planBlockFields(version.fields, "block").advanced.some(
+				(candidate) => candidate.slug === field,
+			)
+		) {
+			setAdvancedKeys((current) => withKey(current, block._key));
+		}
+		setOpenKeys((current) => withKey(current, block._key));
+		setRevealFocus({
+			key: block._key,
+			target: "field",
+			elementId: `field-${focusField}`,
+			field,
+			exact: true,
+			onFocused: () => onFieldFocused?.(),
+		});
+	});
+	React.useEffect(() => {
+		focusLinkedField();
+	}, [focusField, value, blockTypes, focusLinkedField]);
+
 	/** Opens the block, Advanced row and list item that hold `issue`, and focuses its control. */
 	const showIssue = (issue: BlockValueIssue) => {
 		const block = blocks.find((candidate) => candidate._key === issue.blockKey);
@@ -689,15 +732,20 @@ export function BlocksField({
 				);
 			const target = () =>
 				(exact ? null : firstShown()) ?? focusableIn(document.getElementById(elementId));
-			const focusField = () => {
+			const focusControl = () => {
 				const field = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
 					(element) => element.dataset.field === request.field,
 				);
-				(target() ?? focusableIn(field) ?? firstShown() ?? toggle)?.focus();
+				const control = target() ?? focusableIn(field) ?? firstShown() ?? toggle;
+				if (request.onFocused && control) {
+					control.scrollIntoView({ behavior: "smooth", block: "center" });
+					control.focus({ preventScroll: true });
+					request.onFocused();
+				} else control?.focus();
 			};
 			// A labelled Kumo input inside a list takes the id it was given only after its first render.
-			if (target()) focusField();
-			else requestAnimationFrame(focusField);
+			if (target()) focusControl();
+			else requestAnimationFrame(focusControl);
 			return;
 		}
 		const control =

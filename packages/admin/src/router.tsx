@@ -1573,20 +1573,26 @@ function ContentEditPage() {
 	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
+	const handleFieldFocused = React.useCallback(() => {
+		const { field: _, ...preservedSearch } = searchParams;
+		void navigate({ search: preservedSearch as never, replace: true });
+	}, [searchParams, navigate]);
+
 	React.useEffect(() => {
 		if (typeof searchParams.field !== "string" || isLoading) return;
+		// Blocks fields reveal and focus their own nested controls after mounting them.
+		if (searchParams.field.includes(".")) return;
 
 		const timeoutId = requestIdleCallback(() => {
 			const el = document.getElementById(`field-${searchParams.field}`);
 			if (el) {
 				el.scrollIntoView({ behavior: "smooth", block: "center" });
 				el.focus();
-				const { field: _, ...preservedSearch } = searchParams;
-				void navigate({ search: preservedSearch as never, replace: true });
+				handleFieldFocused();
 			}
 		});
 		return () => cancelIdleCallback(timeoutId);
-	}, [searchParams, isLoading, navigate]);
+	}, [searchParams, isLoading, handleFieldFocused]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
@@ -2594,6 +2600,8 @@ function ContentEditPage() {
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
+			focusField={typeof searchParams.field === "string" ? searchParams.field : undefined}
+			onFieldFocused={handleFieldFocused}
 			timezone={manifest.timezone ?? "UTC"}
 			fields={(editorManifest?.collections[collection] ?? collectionConfig).fields}
 			isSaving={
