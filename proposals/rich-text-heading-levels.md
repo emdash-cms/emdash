@@ -5,7 +5,7 @@ status: proposed
 authors:
   - Daniel Mueller (@danielmlr)
 champion: Daniel Mueller (@danielmlr)
-sponsor: null
+sponsor: Daniel Mueller (@danielmlr)
 discussions: []
 created: 2026-10-22
 ---
