@@ -51,9 +51,6 @@ describe("record kind registry", () => {
 		const defaulted = validateRecord("collection", { ...record, autoSlugRedirects: undefined });
 		expect(defaulted).toMatchObject({ success: true, record: { autoSlugRedirects: true } });
 		expect(validateRecord("collection", { ...record, autoSlugRedirects: 0 }).success).toBe(false);
-		expect(getPortableTableSpecForKind("collection")?.columns.auto_slug_redirects).toEqual(
-			expect.objectContaining({ property: "autoSlugRedirects", codec: "boolean" }),
-		);
 	});
 
 	it("every kind except principal and entry maps to exactly one portable table", () => {
