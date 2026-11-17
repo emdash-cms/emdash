@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { elements } from "../src/builders.js";
 import {
 	isSafePluginPagePath,
 	validateBlockResponse,
@@ -333,6 +334,31 @@ describe("validateBlocks", () => {
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].columns[0].format");
 			expect(result.errors[0]!.message).toContain("format");
+		});
+
+		it("rejects repeaters in plugin page form fields", () => {
+			const result = validateBlockResponse({
+				blocks: [
+					{
+						type: "form",
+						fields: [
+							elements.textInput("title", "Title"),
+							elements.repeater("qs", "Questions", [elements.textInput("question", "Question")]),
+						],
+						submit: { label: "Save", action_id: "save" },
+					},
+				],
+			});
+
+			expect(result).toEqual({
+				valid: false,
+				errors: [
+					{
+						path: "blocks[0].fields[1].type",
+						message: "Repeater elements cannot be used as form fields",
+					},
+				],
+			});
 		});
 
 		it("form missing fields or submit", () => {
