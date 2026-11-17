@@ -568,7 +568,7 @@ export class RedirectRepository {
 	 * rename that is later reverted cannot form a loop (#1986).
 	 *
 	 * Returns the redirect now answering the old URL, which is a kept disabled
-	 * or terminal rule when one sits there. Returns null when old and new URLs
+	 * or terminal rule when one sits there. Returns null when old and new URL
 	 * are identical (nothing to redirect).
 	 */
 	async createAutoRedirect(

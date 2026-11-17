@@ -557,7 +557,7 @@ The `Comments` and `CommentForm` components from `emdash/ui/comments` render Eng
 
 `CommentForm` accepts `name`, `email`, `comment`, `submit`, `submitting`, `published`, `pending`, `error`, and `networkError`. The form shows `published` when the comment is approved immediately and `pending` when it waits for moderation. Without `error`, the form shows the server's English error message.
 
-`Comments` formats comment dates in the page locale (`Astro.currentLocale`) and falls back to `en-US`. Astro sets `Astro.currentLocale` only when the [`i18n` configuration](https://docs.astro.build/en/guides/internationalization/) is enabled. Without it, or to use a different format, pass a BCP 47 locale tag such as `locale="de-CH"`.
+`Comments` formats comment dates in the page locale (`Astro.currentLocale`) and falls back to `en-US`. Dates use the site's **Settings → General → Timezone**, falling back to UTC when the setting is missing or invalid. Astro sets `Astro.currentLocale` only when the [`i18n` configuration](https://docs.astro.build/en/guides/internationalization/) is enabled. Without it, or to use a different format, pass a BCP 47 locale tag such as `locale="de-CH"`.
 
 ## Menus
 

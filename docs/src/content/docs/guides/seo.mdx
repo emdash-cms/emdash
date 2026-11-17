@@ -177,7 +177,7 @@ Search engines keep the access your other rules give them. If a custom `robots.t
 `robots.txt` and the sitemaps build absolute URLs from the **Site URL** in **Settings > General**, then the [`siteUrl`](/reference/configuration/#siteurl) option or the `EMDASH_SITE_URL` environment variable, then the request origin. Set one of these so the URLs match the public domain. Browsers and shared caches may keep `robots.txt` for up to a day and sitemaps for up to an hour.
 
 <Aside>
-To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others. Collections with more than 2,000 entries span several child sitemaps: a custom `sitemap.xml` must list `/sitemap-{collection}-{n}.xml` for each further page, and a custom `sitemap-[collection].xml` receives those paged names, such as `post-2`.
+To serve your own version, add a route file such as `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts`, or `src/pages/sitemap-[collection].xml.ts`. EmDash serves your route for that path and keeps its routes for the others. With your own `robots.txt` route, the MCP `settings_update` tool rejects changes to `seo.robotsTxt` and `seo.disallowAiTraining`, since they would have no effect. Collections with more than 2,000 entries span several child sitemaps: a custom `sitemap.xml` must list `/sitemap-{collection}-{n}.xml` for each further page, and a custom `sitemap-[collection].xml` receives those paged names, such as `post-2`.
 </Aside>
 
 ## Hide a site until it goes live

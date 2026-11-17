@@ -15,7 +15,7 @@ import { join } from "node:path";
 
 import type { Page } from "@playwright/test";
 
-import { test, expect } from "../fixtures";
+import { pinSingleEditor, test, expect } from "../fixtures";
 
 // ---------- regex patterns (module scope for linter) ----------
 
@@ -280,7 +280,8 @@ test.describe("Autosave after perf optimizations", () => {
 	let headers: Record<string, string>;
 	let baseUrl: string;
 
-	test.beforeEach(async ({ admin, serverInfo }) => {
+	test.beforeEach(async ({ admin, context, serverInfo }) => {
+		await pinSingleEditor(context, serverInfo.baseUrl);
 		await admin.devBypassAuth();
 
 		baseUrl = serverInfo.baseUrl;

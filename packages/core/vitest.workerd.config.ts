@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 const virtualStubs: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
+	"virtual:emdash/rooms": "export const createRoomHost = null;",
+	"virtual:emdash/room-engine":
+		'export const loadRoomEngine = () => import("emdash/internal/co-editing/room");',
 	"virtual:emdash/config": "export default {};",
 	"virtual:emdash/env": "export const env = undefined;",
 	"virtual:emdash/object-cache":
@@ -31,6 +34,8 @@ export default defineConfig({
 				compatibilityFlags: ["nodejs_compat"],
 				d1Databases: ["DB", "TARGET_DB"],
 				r2Buckets: ["MEDIA"],
+				// Without `useSQLite`, the object gets key-value storage with no `storage.sql`.
+				durableObjects: { EMDASH_ROOMS: { className: "EmDashRoom", useSQLite: true } },
 			},
 		}),
 	],

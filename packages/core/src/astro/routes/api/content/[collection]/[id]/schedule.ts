@@ -125,7 +125,9 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 		});
 	}
 
-	const result = await emdash.handleContentUnschedule(collection, resolvedId ?? id);
+	const result = await emdash.handleContentUnschedule(collection, resolvedId ?? id, {
+		actor: { id: user!.id, role: user!.role },
+	});
 
 	if (!result.success) return unwrapResult(result);
 

@@ -20,6 +20,7 @@ const { CONFIG, LOCAL_STORAGE, MOCK_RUNTIME, mockCreateRuntime } = vi.hoisted(()
 			auth: { mode: "none" },
 			storage: localStorage as { entrypoint: string; config: Record<string, unknown> },
 			imageEndpointRoute: "/_image" as string | undefined,
+			sessionCookieName: undefined as string | undefined,
 		},
 		// Every runtime method is a no-op. `then` stays undefined so the runtime is
 		// not mistaken for a thenable when a mock resolves with it.
@@ -135,6 +136,7 @@ beforeEach(() => {
 	delete (globalThis as Record<symbol, unknown>)[Symbol.for("emdash:runtime-holder")];
 	CONFIG.storage = LOCAL_STORAGE;
 	CONFIG.imageEndpointRoute = "/_image";
+	CONFIG.sessionCookieName = undefined;
 	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
 	vi.mocked(getDb).mockClear();
 	vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
@@ -219,20 +221,27 @@ describe("astro middleware image endpoint requests", () => {
 		},
 	);
 
-	it("resolves the user of a signed-in image request on an adapter without request scoping", async () => {
-		const { context, locals } = imageRequestContext({
-			cookieValues: { "astro-session": "session-id" },
-			sessionUser: { id: "admin-id" },
-		});
+	it.each(["astro-session", "custom-session"])(
+		"resolves a signed-in image request with %s on an adapter without request scoping",
+		async (cookieName) => {
+			CONFIG.sessionCookieName = cookieName;
+			const { context, locals } = imageRequestContext({
+				cookieValues: { [cookieName]: "session-id" },
+				sessionUser: { id: "admin-id" },
+			});
 
-		const response = await onRequest(context, () =>
-			authOnRequest(context as never, imageEndpoint(locals)),
-		);
+			const response = await onRequest(context, () =>
+				authOnRequest(context as never, imageEndpoint(locals)),
+			);
 
-		expect(await response.text()).toBe(MEDIA_BYTES);
-		expect((locals.user as { id?: string } | undefined)?.id).toBe("admin-id");
-		expect(mockCreateRuntime).not.toHaveBeenCalled();
-	});
+			expect(await response.text()).toBe(MEDIA_BYTES);
+			expect((locals.user as { id?: string } | undefined)?.id).toBe("admin-id");
+			expect(createRequestScopedDb).toHaveBeenCalledWith(
+				expect.objectContaining({ isAuthenticated: true }),
+			);
+			expect(mockCreateRuntime).not.toHaveBeenCalled();
+		},
+	);
 
 	it("keeps runtime init for playground image requests", async () => {
 		const { context, locals } = imageRequestContext({ locals: { __playgroundDb: {} } });

@@ -8,7 +8,11 @@ The role lists in this file are canonical. GitHub, Discord, publishing, infrastr
 
 ### Project Lead
 
+<!-- project-lead:start -->
+
 - [Matt Kane (@ascorbic)](https://github.com/ascorbic)
+
+<!-- project-lead:end -->
 
 ### Maintainers
 

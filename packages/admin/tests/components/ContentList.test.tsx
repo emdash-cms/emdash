@@ -1320,6 +1320,74 @@ describe("ContentList", () => {
 		});
 	});
 
+	describe("date column sources", () => {
+		it.each([
+			["publishedAt", "3/14/2015"],
+			["createdAt", "1/1/2020"],
+			["updatedAt", "9/1/2026"],
+			["event_date", "7/4/2018"],
+		])("displays and sorts by %s", async (dateField, expectedDate) => {
+			const onSortChange = vi.fn();
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					dateField={dateField}
+					items={[
+						makeItem({
+							data: {
+								title: "Archive article",
+								event_date: "2018-07-04",
+								publishedAt: "1999-01-01",
+							},
+							publishedAt: "2015-03-15 02:00:00",
+							createdAt: "2020-01-01 12:00:00",
+							updatedAt: "2026-09-01 12:00:00",
+						}),
+					]}
+					sort={{ field: dateField, direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+			await expect.element(firstRowCell("Date")).toHaveTextContent(expectedDate);
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Date", exact: true }))
+				.toHaveAttribute("aria-sort", "descending");
+			await screen.getByRole("button", { name: "Date", exact: true }).click();
+			expect(onSortChange).toHaveBeenCalledWith({ field: dateField, direction: "asc" });
+		});
+
+		it.each([undefined, "publishedAt", "event_date"])(
+			"falls back to last updated for a missing %s date",
+			async (dateField) => {
+				await render(
+					<ContentList
+						{...defaultProps}
+						dateField={dateField}
+						items={[makeItem({ updatedAt: "2026-09-01 12:00:00" })]}
+					/>,
+				);
+				await expect.element(firstRowCell("Date")).toHaveTextContent("9/1/2026");
+			},
+		);
+	});
+
+	it.each(["publishedAt", "event_date"])("falls back for an invalid %s date", async (dateField) => {
+		await render(
+			<ContentList
+				{...defaultProps}
+				dateField={dateField}
+				items={[
+					makeItem({
+						publishedAt: "not-a-date",
+						data: { title: "Post", event_date: "not-a-date" },
+						updatedAt: "2026-09-01 12:00:00",
+					}),
+				]}
+			/>,
+		);
+		await expect.element(firstRowCell("Date")).toHaveTextContent("9/1/2026");
+	});
+
 	describe("sortable headers", () => {
 		it("calls onSortChange when a header is clicked", async () => {
 			const onSortChange = vi.fn();

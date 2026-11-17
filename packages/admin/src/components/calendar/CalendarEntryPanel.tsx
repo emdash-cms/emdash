@@ -40,6 +40,7 @@ import {
 	type CalendarState,
 } from "../../lib/calendar.js";
 import { canPublishEntry } from "../../lib/content-permissions.js";
+import { invalidateContentViews } from "../../lib/invalidate-content-views.js";
 import { openPreviewWindow } from "../../lib/preview-window.js";
 import { contentUrl } from "../../lib/url.js";
 import { cn } from "../../lib/utils.js";
@@ -82,6 +83,7 @@ export interface CalendarEntryPanelProps {
 	/** Each collection's public URL pattern, for View live. */
 	urlPatterns: Readonly<Record<string, string | undefined>>;
 	user: CurrentUser | undefined;
+	collections: AdminManifest["collections"];
 	/** The entry link to focus when the panel closes, if it is still on the page. */
 	returnFocus?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
@@ -174,6 +176,7 @@ function CalendarEntryPanelContent({
 	i18n,
 	urlPatterns,
 	user,
+	collections,
 	onClose,
 	onRescheduled,
 }: CalendarEntryPanelProps & { item: CalendarItem }) {
@@ -200,6 +203,7 @@ function CalendarEntryPanelContent({
 	const entry = details.data;
 	const canPublish = Boolean(entry && canPublishEntry(user, { authorId: entry.authorId ?? null }));
 	const scheduled = item.kind === "scheduled";
+	const supportsScheduling = !collections[item.collection]?.supports?.includes("no-scheduling");
 	const title = item.title;
 	const editorLink = {
 		to: "/content/$collection/$id",
@@ -208,9 +212,7 @@ function CalendarEntryPanelContent({
 	} as const;
 
 	const refresh = () => {
-		void queryClient.invalidateQueries({ queryKey: ["calendar"] });
-		void queryClient.invalidateQueries({ queryKey: ["content", item.collection] });
-		void queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+		void invalidateContentViews(queryClient);
 	};
 	const reportError = (errorTitle: string, error: unknown) => {
 		toastManager.add({ title: errorTitle, description: getMutationError(error), variant: "error" });
@@ -452,14 +454,16 @@ function CalendarEntryPanelContent({
 										{t`Publish now`}
 									</Button>
 								)}
-								<Button
-									variant="secondary"
-									icon={<CalendarDots aria-hidden="true" />}
-									disabled={publish.isPending || unschedule.isPending}
-									onClick={() => setScheduleOpen(true)}
-								>
-									{t`Reschedule`}
-								</Button>
+								{supportsScheduling && (
+									<Button
+										variant="secondary"
+										icon={<CalendarDots aria-hidden="true" />}
+										disabled={publish.isPending || unschedule.isPending}
+										onClick={() => setScheduleOpen(true)}
+									>
+										{t`Reschedule`}
+									</Button>
+								)}
 								<Button
 									variant="secondary-destructive"
 									loading={unschedule.isPending}
@@ -504,7 +508,7 @@ function CalendarEntryPanelContent({
 				)}
 			</div>
 
-			{scheduled && canPublish && (
+			{scheduled && canPublish && supportsScheduling && (
 				<PublishingScheduleDialog
 					open={scheduleOpen}
 					entryKey={item.key}

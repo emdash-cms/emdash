@@ -75,6 +75,8 @@ export interface SchemaCollection {
 	urlPattern?: string;
 	/** Published entries require a slug unless this is false. */
 	routable?: boolean;
+	/** Source for the content list's Date column. */
+	dateField?: string | null;
 	/** Create automatic redirects when a published slug changes. */
 	autoSlugRedirects?: boolean;
 	hasSeo: boolean;
@@ -169,6 +171,8 @@ export interface UpdateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	routable?: boolean;
+	/** Source for the content list's Date column. */
+	dateField?: string | null;
 	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	hidden?: boolean;

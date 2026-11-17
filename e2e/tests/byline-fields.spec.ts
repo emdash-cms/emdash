@@ -43,12 +43,19 @@ test.describe("Byline custom fields", () => {
 		await expect(dialog).not.toHaveAttribute("data-starting-style");
 		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 
-		const requiredBox = await page.getByRole("switch", { name: "Required" }).boundingBox();
-		const translatableBox = await page.getByRole("switch", { name: "Translatable" }).boundingBox();
+		const required = page.getByRole("switch", { name: "Required" });
+		const translatable = page.getByRole("switch", { name: "Translatable" });
+		await expect(translatable).toBeVisible();
 
-		expect(requiredBox).not.toBeNull();
-		expect(translatableBox).not.toBeNull();
-		expect(Math.abs(requiredBox!.y - translatableBox!.y)).toBeLessThanOrEqual(1);
+		// Both rects come from one frame: the dialog is still sliding in, so two separate reads
+		// would measure the slide instead of the layout.
+		const offset = await required.evaluate(
+			(requiredSwitch, translatableSwitch) =>
+				requiredSwitch.getBoundingClientRect().top -
+				translatableSwitch!.getBoundingClientRect().top,
+			await translatable.elementHandle(),
+		);
+		expect(Math.abs(offset)).toBeLessThanOrEqual(1);
 	});
 
 	test("custom field value round-trips through the API end to end", async ({

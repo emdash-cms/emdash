@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import * as migration096 from "../../../src/database/migrations/096_collection_auto_slug_redirects.js";
+import * as migration099 from "../../../src/database/migrations/099_collection_auto_slug_redirects.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -9,7 +9,7 @@ import {
 	type DialectTestContext,
 } from "../../utils/test-db.js";
 
-describeEachDialect("collection auto slug redirects migration (096)", (dialect) => {
+describeEachDialect("collection auto slug redirects migration (099)", (dialect) => {
 	let ctx: DialectTestContext;
 
 	beforeEach(async () => {
@@ -28,7 +28,7 @@ describeEachDialect("collection auto slug redirects migration (096)", (dialect) 
 			.dropColumn("auto_slug_redirects")
 			.execute();
 
-		await migration096.up(ctx.db);
+		await migration099.up(ctx.db);
 
 		const legacy = await ctx.db
 			.selectFrom("_emdash_collections")
@@ -53,7 +53,7 @@ describeEachDialect("collection auto slug redirects migration (096)", (dialect) 
 			.set({ auto_slug_redirects: 0 })
 			.where("slug", "=", "legacy")
 			.execute();
-		await migration096.up(ctx.db);
+		await migration099.up(ctx.db);
 
 		const preserved = await ctx.db
 			.selectFrom("_emdash_collections")

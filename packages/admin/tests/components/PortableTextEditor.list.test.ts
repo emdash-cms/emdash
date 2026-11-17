@@ -563,6 +563,7 @@ describe("numbered-list continuity metadata", () => {
 			"orderedList",
 			"pluginBlock",
 			"orderedList",
+			"paragraph",
 		]);
 	});
 });

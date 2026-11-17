@@ -103,7 +103,10 @@ import * as m092 from "./092_plugin_kv_options.js";
 import * as m093 from "./093_menu_item_orphans.js";
 import * as m094 from "./094_media_usage_file_url_reindex.js";
 import * as m095 from "./095_plugin_storage_unique_scope.js";
-import * as m096 from "./096_collection_auto_slug_redirects.js";
+import * as m096 from "./096_revision_kind_and_editors.js";
+import * as m097 from "./097_room_storage.js";
+import * as m098 from "./098_user_last_login.js";
+import * as m099 from "./099_collection_auto_slug_redirects.js";
 import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
@@ -201,7 +204,10 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"093_menu_item_orphans": m093,
 	"094_media_usage_file_url_reindex": m094,
 	"095_plugin_storage_unique_scope": m095,
-	"096_collection_auto_slug_redirects": m096,
+	"096_revision_kind_and_editors": m096,
+	"097_room_storage": m097,
+	"098_user_last_login": m098,
+	"099_collection_auto_slug_redirects": m099,
 });
 
 /** Ordered names from the statically registered migration set. */
