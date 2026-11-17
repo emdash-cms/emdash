@@ -50,7 +50,11 @@ describe("createDatabase", () => {
 	describe("file-based SQLite", () => {
 		const testDbPath = "./test-db.sqlite";
 
-		afterEach(() => {
+		afterEach(async () => {
+			if (db) {
+				await db.destroy();
+				db = undefined;
+			}
 			try {
 				unlinkSync(testDbPath);
 			} catch {
