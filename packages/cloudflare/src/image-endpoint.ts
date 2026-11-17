@@ -13,6 +13,8 @@
 // @astrojs/cloudflare's binding-mode transform endpoint; resolved in the consumer.
 import { GET as adapterGET } from "@astrojs/cloudflare/image-transform-endpoint";
 import type { APIRoute } from "astro";
+// @ts-ignore - astro:assets is resolved by the consumer's Astro build
+import { imageConfig } from "astro:assets";
 import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
@@ -97,7 +99,9 @@ export const GET: APIRoute = async (ctx) => {
 	// it (bundled assets via ASSETS, allowed remote via fetch).
 	if (!key || !storage) return adapterGET(ctx);
 
-	const canonical = canonicalTransformSearch(url);
+	// Astro adds the adapter's assetQueryParams; the public `astro:assets` type omits it.
+	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
+	const canonical = canonicalTransformSearch(url, config.assetQueryParams);
 	if (canonical !== null) return canonicalTransformRedirect(url, canonical);
 
 	// An unread download keeps its storage read open even for a bodyless response.

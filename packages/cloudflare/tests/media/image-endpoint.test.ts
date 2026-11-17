@@ -1,12 +1,14 @@
 import type { APIContext } from "astro";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { fakeEnv, adapterGET } = vi.hoisted(() => ({
+const { fakeEnv, adapterGET, imageConfig } = vi.hoisted(() => ({
 	fakeEnv: {} as Record<string, unknown>,
 	adapterGET: vi.fn(async () => new Response("adapter", { status: 418 })),
+	imageConfig: {} as { assetQueryParams?: URLSearchParams },
 }));
 
 vi.mock("cloudflare:workers", () => ({ env: fakeEnv }));
+vi.mock("astro:assets", () => ({ imageConfig }));
 vi.mock("@astrojs/cloudflare/image-transform-endpoint", () => ({ GET: adapterGET }));
 vi.mock(
 	"emdash/media/image-endpoint",
@@ -71,6 +73,7 @@ function installImages() {
 
 afterEach(() => {
 	for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
+	delete imageConfig.assetQueryParams;
 	vi.clearAllMocks();
 });
 
@@ -133,6 +136,19 @@ describe("Cloudflare image endpoint", () => {
 		expect(storage.download).not.toHaveBeenCalled();
 		expect(images.input).not.toHaveBeenCalled();
 		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("serves a URL that ends in the adapter's asset query params without redirecting", async () => {
+		installImages();
+		imageConfig.assetQueryParams = new URLSearchParams({ dpl: "abc" });
+		const { ctx } = context("w=120&dpl=abc");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(ctx.cache.set).toHaveBeenCalledWith(
+			expect.objectContaining({ tags: ["emdash:media:photo.jpg"] }),
+		);
 	});
 
 	it("hands a non-EmDash image to the adapter without redirecting", async () => {
