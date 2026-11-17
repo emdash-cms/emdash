@@ -182,8 +182,8 @@ async function runRelease(options: {
 		.bind(params.runKey)
 		.first<string>("val");
 	const findings = await env.DB.prepare(
-		`SELECT category, severity, public_summary, evidence_refs_json FROM findings
-		 WHERE assessment_id = ? ORDER BY finding_index`,
+		`SELECT category, severity, public_summary, evidence_refs_json, source, excerpts_json
+		 FROM findings WHERE assessment_id = ? ORDER BY finding_index`,
 	)
 		.bind(params.runKey)
 		.all<{
@@ -191,6 +191,8 @@ async function runRelease(options: {
 			severity: string;
 			public_summary: string;
 			evidence_refs_json: string;
+			source: string | null;
+			excerpts_json: string | null;
 		}>();
 	return { result, step, stored, label, findings: findings.results, requests, params };
 }
@@ -260,6 +262,47 @@ describe("release code assessment in the assessment Workflow", () => {
 		]);
 		expect(JSON.parse(run.findings[0]!.evidence_refs_json)).toEqual([
 			"release.package:backend.js#L1",
+		]);
+	});
+
+	it("records which reviewer raised a finding, the cited code, and each reviewer's conclusion", async () => {
+		const run = await runRelease({
+			cid: `${RELEASE_CID.slice(0, -4)}srca`,
+			bundle: await createBundle(cleanBundleEntries()),
+			review: async (request) =>
+				request.model === MODELS[1]
+					? {
+							...cleanReview(request),
+							summary: "One public route leaks drafts.",
+							findings: [
+								{
+									category: "vulnerability",
+									severity: "high",
+									confidence: 0.8,
+									summary: "A public route returns draft posts.",
+									evidence: [{ file: "backend.js", line: 1, quote: "misquoted" }],
+								},
+							],
+						}
+					: cleanReview(request),
+		});
+		const backend = run.requests[0]!.files.find(({ path }) => path === "backend.js")!.text!;
+		expect(run.findings[0]!.source).toBe(MODELS[1]);
+		expect(JSON.parse(run.findings[0]!.excerpts_json!)).toEqual([
+			{
+				ref: "release.package:backend.js#L1",
+				startLine: 1,
+				lines: backend.split("\n").slice(0, 4),
+			},
+		]);
+		expect(JSON.parse(run.stored!.summary_json).codeReviews).toEqual([
+			{ model: MODELS[0], promptVersion: "plugin-review-v1", summary: "Clean.", findingCount: 0 },
+			{
+				model: MODELS[1],
+				promptVersion: "plugin-review-v1",
+				summary: "One public route leaks drafts.",
+				findingCount: 1,
+			},
 		]);
 	});
 

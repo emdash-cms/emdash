@@ -18,13 +18,21 @@ import {
 	type PackageArtifactReference,
 	type UnpackedBundle,
 } from "./bundle.js";
-import { integrityFindings, PACKAGE_EVIDENCE_PREFIX, type CodeFinding } from "./integrity.js";
+import {
+	integrityFindings,
+	PACKAGE_EVIDENCE_PREFIX,
+	type CodeFinding,
+	type EvidenceExcerpt,
+} from "./integrity.js";
 
 const BUNDLE_FETCH_TIMEOUT_MS = 20_000;
 const MAX_BUNDLE_REDIRECTS = 3;
 const MAX_REVIEW_FINDINGS = 16;
 const MAX_EVIDENCE_PER_FINDING = 8;
 const MAX_SUMMARY_LENGTH = 500;
+const MAX_EXCERPTS_PER_FINDING = 4;
+const EXCERPT_CONTEXT_LINES = 3;
+const MAX_EXCERPT_LINE_LENGTH = 240;
 const REVIEW_CATEGORIES = ["malicious-code", "vulnerability", "reviewer-manipulation"] as const;
 
 export interface PackageCodeSubject {
@@ -75,17 +83,27 @@ export interface CodeAssessmentIdentity {
 	reviewers: readonly CodeReviewIdentity[];
 }
 
+/** What one reviewer concluded, kept so operators can see where reviewers disagree. */
+export interface CodeReviewReport extends CodeReviewIdentity {
+	summary: string;
+	findingCount: number;
+	declined?: true;
+}
+
 export interface PackageCheckResult {
 	findings: readonly CodeFinding[];
 }
 
 export interface PackageReviewResult {
 	identity: CodeReviewIdentity;
+	summary: string;
+	declined?: true;
 	findings: readonly CodeFinding[];
 }
 
 export interface CodeAssessmentResult {
 	identity: CodeAssessmentIdentity;
+	reviews: readonly CodeReviewReport[];
 	findings: readonly CodeFinding[];
 }
 
@@ -153,6 +171,12 @@ export function combineCodeAssessment(
 ): CodeAssessmentResult {
 	return {
 		identity: { reviewers: reviews.map(({ identity }) => identity) },
+		reviews: reviews.map((review) => ({
+			...review.identity,
+			summary: review.summary,
+			findingCount: review.declined ? 0 : review.findings.length,
+			...(review.declined ? { declined: true as const } : {}),
+		})),
 		findings: [...check.findings, ...reviews.flatMap(({ findings }) => findings)],
 	};
 }
@@ -171,13 +195,18 @@ export function parseReviewResponse(
 		throw new PluginReviewResponseError("plugin review response is malformed");
 	}
 	const identity = { model, promptVersion: value["promptVersion"].slice(0, 64) };
+	const summary =
+		typeof value["summary"] === "string" ? value["summary"].slice(0, MAX_SUMMARY_LENGTH) : "";
 	if (value["declined"] === true) {
-		const reason = typeof value["summary"] === "string" ? value["summary"] : "";
+		const reason = summary;
 		return {
 			identity,
+			summary,
+			declined: true,
 			findings: [
 				{
 					category: "review-declined",
+					source: model,
 					recommendation: "review",
 					confidence: 1,
 					summary: `${model} declined to review the package. ${reason}`
@@ -192,13 +221,14 @@ export function parseReviewResponse(
 	if (!Array.isArray(findings) || findings.length > MAX_REVIEW_FINDINGS) {
 		throw new PluginReviewResponseError("plugin review findings are malformed");
 	}
-	const lineCounts = new Map(
+	const fileLines = new Map(
 		bundle.files.flatMap((file) =>
-			file.text === undefined ? [] : [[file.path, file.text.split("\n").length] as const],
+			file.text === undefined ? [] : [[file.path, file.text.split("\n")] as const],
 		),
 	);
 	return {
 		identity,
+		summary,
 		findings: findings.map((finding): CodeFinding => {
 			if (
 				!isRecord(finding) ||
@@ -212,35 +242,56 @@ export function parseReviewResponse(
 			) {
 				throw new PluginReviewResponseError("plugin review finding is malformed");
 			}
-			const evidenceRefs = finding["evidence"]
+			const citations = finding["evidence"]
 				.slice(0, MAX_EVIDENCE_PER_FINDING)
 				.map((citation: unknown) => {
 					if (!isRecord(citation) || typeof citation["file"] !== "string") {
 						throw new PluginReviewResponseError("plugin review citation is malformed");
 					}
-					const lines = lineCounts.get(citation["file"]);
+					const lines = fileLines.get(citation["file"]);
 					const line = citation["line"];
 					if (
 						lines === undefined ||
 						typeof line !== "number" ||
 						!Number.isInteger(line) ||
 						line < 1 ||
-						line > lines
+						line > lines.length
 					) {
 						throw new PluginReviewResponseError("plugin review cites a line outside the bundle");
 					}
-					return `${PACKAGE_EVIDENCE_PREFIX}${citation["file"]}#L${line}`;
+					return { ref: `${PACKAGE_EVIDENCE_PREFIX}${citation["file"]}#L${line}`, lines, line };
 				});
+			const evidenceRefs = citations.map(({ ref }) => ref);
 			return {
 				category: finding["category"],
+				source: model,
 				recommendation: "review",
 				confidence: finding["confidence"],
 				severity: finding["severity"],
 				summary: finding["summary"].slice(0, MAX_SUMMARY_LENGTH),
 				evidenceRefs: [...new Set(evidenceRefs)],
+				excerpts: excerptsFor(citations),
 			};
 		}),
 	};
+}
+
+function excerptsFor(
+	citations: readonly { ref: string; lines: readonly string[]; line: number }[],
+): EvidenceExcerpt[] {
+	const seen = new Set<string>();
+	return citations
+		.filter(({ ref }) => !seen.has(ref) && seen.add(ref))
+		.slice(0, MAX_EXCERPTS_PER_FINDING)
+		.map(({ ref, lines, line }) => {
+			const start = Math.max(1, line - EXCERPT_CONTEXT_LINES);
+			const end = Math.min(lines.length, line + EXCERPT_CONTEXT_LINES);
+			return {
+				ref,
+				startLine: start,
+				lines: lines.slice(start - 1, end).map((text) => text.slice(0, MAX_EXCERPT_LINE_LENGTH)),
+			};
+		});
 }
 
 async function readVerifiedBundle(

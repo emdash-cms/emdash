@@ -612,7 +612,7 @@ function clefResult(
 					category,
 					recommendation: "review",
 					confidence: probability,
-					summary: `Clef estimated ${category} at p=${probability.toFixed(3)}.`,
+					summary: `Clef scored ${category} at ${probability.toFixed(3)}, above its threshold of ${config.categoryThresholds?.[category] ?? config.threshold}.`,
 					evidenceRefs: [...cited].slice(0, MAX_FINDING_EVIDENCE_REFS),
 				},
 			];

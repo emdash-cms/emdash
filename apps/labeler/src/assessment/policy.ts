@@ -6,12 +6,20 @@ import {
 } from "@emdash-cms/registry-moderation";
 
 import type { ModerationInferenceResult, ModerationModelIdentity } from "../ai/types.js";
-import type { CodeAssessmentIdentity, CodeAssessmentResult } from "../code/assessment.js";
+import type {
+	CodeAssessmentIdentity,
+	CodeAssessmentResult,
+	CodeReviewReport,
+} from "../code/assessment.js";
+import type { FindingProvenance } from "../code/integrity.js";
 import type { CheckedModerationLink } from "./links.js";
 
 export const ASSESSMENT_POLICY_ENGINE_VERSION = "listing-assessment-policy-v1";
 
-export type AssessmentFinding = NormalizedModerationFinding<AssessmentFindingCategory>;
+export type AssessmentFinding = NormalizedModerationFinding<AssessmentFindingCategory> &
+	FindingProvenance;
+
+export const LINK_CHECK_SOURCE = "link-check";
 
 export interface FailedModerationStage {
 	status: "error";
@@ -53,6 +61,7 @@ export interface AssessmentPolicyResolution {
 	textIdentity?: ModerationModelIdentity;
 	imageIdentities: readonly ModerationModelIdentity[];
 	codeIdentity?: CodeAssessmentIdentity;
+	codeReviews?: readonly CodeReviewReport[];
 }
 
 export function resolveAssessmentPolicy(input: AssessmentPolicyInput): AssessmentPolicyResolution {
@@ -76,9 +85,10 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 			: [
 					{
 						category: "malicious-or-deceptive-link" as const,
+						source: LINK_CHECK_SOURCE,
 						recommendation: "review" as const,
 						confidence: 1,
-						summary: "Displayed link requires operator review.",
+						summary: `Displayed link failed the link check: ${link.issues.join(", ")}.`,
 						evidenceRefs: [link.ref],
 					},
 				],
@@ -91,7 +101,9 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 	];
 	const findings = [
 		...deterministicFindings,
-		...completedResults.flatMap((result) => result.findings),
+		...completedResults.flatMap((result) =>
+			result.findings.map((finding) => ({ source: result.identity.modelId, ...finding })),
+		),
 		...(input.code?.status === "complete" ? input.code.result.findings : []),
 	];
 	const imageIdentities = uniqueIdentities(
@@ -234,7 +246,9 @@ function resolution(
 		reasonCodes,
 		textIdentity,
 		imageIdentities,
-		...(input.code?.status === "complete" ? { codeIdentity: input.code.result.identity } : {}),
+		...(input.code?.status === "complete"
+			? { codeIdentity: input.code.result.identity, codeReviews: input.code.result.reviews }
+			: {}),
 	};
 }
 

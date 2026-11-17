@@ -13,7 +13,7 @@ import {
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ClipboardText, Pulse, WarningCircle } from "@phosphor-icons/react";
 import React from "react";
@@ -42,6 +42,32 @@ import {
 type View = "overview" | "assessments" | "takedowns" | "issuance" | "activity";
 const ADMIN_VIEWS = new Set<View>(["takedowns", "issuance", "activity"]);
 const SLUG_SEPARATOR_RE = /[-_]/;
+const PACKAGE_EVIDENCE_PREFIX = "release.package:";
+const PACKAGE_LINE_RE = /^(.*)#L(\d+)$/;
+
+const SEVERITY_LABELS: Record<string, MessageDescriptor> = {
+	critical: msg`Critical`,
+	high: msg`High`,
+	medium: msg`Medium`,
+	low: msg`Low`,
+};
+
+const FINDING_CATEGORY_LABELS: Record<string, MessageDescriptor> = {
+	"explicit-sexual-content": msg`Explicit sexual content`,
+	"hateful-or-dehumanizing-content": msg`Hateful or dehumanizing content`,
+	"graphic-violence": msg`Graphic violence`,
+	"phishing-or-credential-solicitation": msg`Phishing or credential solicitation`,
+	"material-impersonation": msg`Material impersonation`,
+	"scam-or-spam": msg`Scam or spam`,
+	"malicious-or-deceptive-link": msg`Malicious or deceptive link`,
+	"misleading-media-or-claims": msg`Misleading media or claims`,
+	"moderation-manipulation": msg`Moderation manipulation`,
+	"malicious-code": msg`Malicious code`,
+	vulnerability: msg`Vulnerability`,
+	"reviewer-manipulation": msg`Reviewer manipulation`,
+	"package-integrity": msg`Package integrity`,
+	"review-declined": msg`Review declined`,
+};
 
 export function App() {
 	const { t } = useLingui();
@@ -422,7 +448,7 @@ function AssessmentReview({
 }) {
 	const { t } = useLingui();
 	const toast = useKumoToastManager();
-	const [evidenceOpen, setEvidenceOpen] = React.useState(false);
+	const [evidenceOpen, setEvidenceOpen] = React.useState((detail.findings ?? []).length > 0);
 	const [technicalOpen, setTechnicalOpen] = React.useState(false);
 	const [pendingAction, setPendingAction] = React.useState<
 		"approve" | "block" | "rerun" | "notify" | null
@@ -636,19 +662,17 @@ function AssessmentEvidence({
 }) {
 	const { t } = useLingui();
 	const coverage = detail.assessment.coverage;
+	const evidence = listingEvidence(detail.assessment.canonicalInput);
+	const reviews = codeReviews(detail.assessment.summary);
 	return (
-		<div className="mt-3 grid gap-2">
+		<div className="mt-3 grid gap-3">
+			{reviews.length > 0 && <CodeReviews reviews={reviews} />}
 			{findings.map((finding) => (
-				<div
-					key={`${finding.finding_index}-${finding.reason_code}`}
-					className="border-s-2 border-kumo-warning py-2 ps-3"
-				>
-					<p className="text-sm font-medium">{finding.public_summary}</p>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						{finding.category} · {finding.reason_code}
-						{finding.confidence === null ? "" : ` · ${Math.round(finding.confidence * 100)}%`}
-					</p>
-				</div>
+				<FindingCard
+					key={`${finding.finding_index}-${finding.category}`}
+					finding={finding}
+					evidence={evidence}
+				/>
 			))}
 			{findings.length === 0 && (
 				<div className="border-s-2 border-kumo-success py-2 ps-3">
@@ -677,6 +701,143 @@ function AssessmentEvidence({
 				</div>
 			)}
 		</div>
+	);
+}
+
+type Finding = NonNullable<AssessmentDetail["findings"]>[number];
+
+interface CodeReview {
+	model: string;
+	summary: string;
+	findingCount: number;
+	declined: boolean;
+}
+
+interface Excerpt {
+	ref: string;
+	startLine: number;
+	lines: string[];
+}
+
+function CodeReviews({ reviews }: { reviews: CodeReview[] }) {
+	const { t } = useLingui();
+	return (
+		<LayerCard className="p-0">
+			<p className="border-b px-4 py-2 text-xs font-medium text-kumo-subtle">
+				<Trans>Code reviewers</Trans>
+			</p>
+			<ul className="divide-y">
+				{reviews.map((review) => (
+					<li key={review.model} className="px-4 py-3">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="font-mono text-xs">{review.model}</span>
+							<Badge
+								variant={
+									review.declined ? "warning" : review.findingCount > 0 ? "error" : "success"
+								}
+							>
+								{review.declined
+									? t`Declined to review`
+									: review.findingCount === 0
+										? t`No findings`
+										: plural(review.findingCount, { one: "# finding", other: "# findings" })}
+							</Badge>
+						</div>
+						{review.summary && <p className="mt-1 text-sm leading-6">{review.summary}</p>}
+					</li>
+				))}
+			</ul>
+		</LayerCard>
+	);
+}
+
+function FindingCard({
+	finding,
+	evidence,
+}: {
+	finding: Finding;
+	evidence: ReadonlyMap<string, ListingEvidence>;
+}) {
+	const { t } = useLingui();
+	const refs = stringArray(finding.evidenceRefs);
+	const excerpts = excerptArray(finding.excerpts);
+	const excerptRefs = new Set(excerpts.map(({ ref }) => ref));
+	const otherRefs = refs.filter((ref) => !excerptRefs.has(ref));
+	const category = FINDING_CATEGORY_LABELS[finding.category];
+	return (
+		<LayerCard className="border-s-2 border-kumo-warning p-0">
+			<div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+				{finding.severity && (
+					<Badge variant={severityVariant(finding.severity)}>
+						{SEVERITY_LABELS[finding.severity]
+							? t(SEVERITY_LABELS[finding.severity]!)
+							: finding.severity}
+					</Badge>
+				)}
+				<span className="text-sm font-semibold">{category ? t(category) : finding.category}</span>
+				<span className="ms-auto text-xs text-kumo-subtle">
+					{[
+						finding.source,
+						finding.confidence === null
+							? null
+							: t`${Math.round(finding.confidence * 100)}% confidence`,
+					]
+						.filter(Boolean)
+						.join(" · ")}
+				</span>
+			</div>
+			<p className="px-4 pt-2 pb-3 text-sm leading-6">{finding.public_summary}</p>
+			{excerpts.map((excerpt) => (
+				<CodeExcerpt key={excerpt.ref} excerpt={excerpt} />
+			))}
+			{otherRefs.length > 0 && (
+				<ul className="grid gap-2 border-t px-4 py-3">
+					{otherRefs.map((ref) => (
+						<EvidenceItem key={ref} evidenceRef={ref} value={evidence.get(ref)} />
+					))}
+				</ul>
+			)}
+		</LayerCard>
+	);
+}
+
+function CodeExcerpt({ excerpt }: { excerpt: Excerpt }) {
+	const { file, line } = packageLocation(excerpt.ref);
+	return (
+		<figure className="border-t">
+			<figcaption className="px-4 py-2 font-mono text-xs text-kumo-subtle">
+				{line === null ? file : `${file}:${line}`}
+			</figcaption>
+			<pre className="overflow-x-auto bg-kumo-recessed py-2 text-xs leading-5" dir="ltr">
+				{excerpt.lines.map((text, index) => {
+					const number = excerpt.startLine + index;
+					return (
+						<div key={number} className={number === line ? "bg-kumo-warning-tint px-4" : "px-4"}>
+							<span className="inline-block w-10 select-none pe-3 text-end text-kumo-subtle">
+								{number}
+							</span>
+							{text}
+						</div>
+					);
+				})}
+			</pre>
+		</figure>
+	);
+}
+
+function EvidenceItem({ evidenceRef, value }: { evidenceRef: string; value?: ListingEvidence }) {
+	return (
+		<li className="text-xs">
+			<p className="font-mono text-kumo-subtle">{evidenceRef}</p>
+			{value?.kind === "link" && (
+				<p className="mt-1 break-all font-mono text-sm" dir="ltr">
+					{value.url}
+				</p>
+			)}
+			{value?.kind === "text" && (
+				<p className="mt-1 line-clamp-6 whitespace-pre-wrap text-sm leading-6">{value.value}</p>
+			)}
+		</li>
 	);
 }
 
@@ -1492,4 +1653,60 @@ function stringArray(value: unknown): string[] {
 }
 function toError(value: unknown, fallback: string) {
 	return value instanceof Error ? value : new Error(fallback);
+}
+
+type ListingEvidence = { kind: "text"; value: string } | { kind: "link"; url: string };
+
+function listingEvidence(canonicalInput: unknown): Map<string, ListingEvidence> {
+	const evidence = new Map<string, ListingEvidence>();
+	for (const item of arrayValue(recordValue(canonicalInput, "text"))) {
+		const ref = stringValue(recordValue(item, "ref"));
+		const value = stringValue(recordValue(item, "value"));
+		if (ref && value) evidence.set(ref, { kind: "text", value });
+	}
+	for (const item of arrayValue(recordValue(canonicalInput, "links"))) {
+		const ref = stringValue(recordValue(item, "ref"));
+		const url = stringValue(recordValue(item, "url"));
+		if (ref && url) evidence.set(ref, { kind: "link", url });
+	}
+	return evidence;
+}
+
+function codeReviews(summary: unknown): CodeReview[] {
+	return arrayValue(recordValue(summary, "codeReviews")).flatMap((item) => {
+		const model = stringValue(recordValue(item, "model"));
+		if (!model) return [];
+		return [
+			{
+				model,
+				summary: stringValue(recordValue(item, "summary")) ?? "",
+				findingCount: numberValue(asRecord(item), "findingCount") ?? 0,
+				declined: recordValue(item, "declined") === true,
+			},
+		];
+	});
+}
+
+function excerptArray(value: unknown): Excerpt[] {
+	return arrayValue(value).flatMap((item) => {
+		const ref = stringValue(recordValue(item, "ref"));
+		const startLine = numberValue(asRecord(item), "startLine");
+		const lines = stringArray(recordValue(item, "lines"));
+		return ref && startLine !== undefined ? [{ ref, startLine, lines }] : [];
+	});
+}
+
+function packageLocation(ref: string): { file: string; line: number | null } {
+	const path = ref.startsWith(PACKAGE_EVIDENCE_PREFIX)
+		? ref.slice(PACKAGE_EVIDENCE_PREFIX.length)
+		: ref;
+	const match = PACKAGE_LINE_RE.exec(path);
+	return match ? { file: match[1]!, line: Number(match[2]) } : { file: path, line: null };
+}
+
+function severityVariant(severity: string): "error" | "warning" | "info" | "neutral" {
+	if (severity === "critical" || severity === "high") return "error";
+	if (severity === "medium") return "warning";
+	if (severity === "low") return "info";
+	return "neutral";
 }

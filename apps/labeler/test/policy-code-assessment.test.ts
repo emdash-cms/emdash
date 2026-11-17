@@ -41,7 +41,7 @@ function input(code: AssessmentPolicyInput["code"]): AssessmentPolicyInput {
 function complete(findings: CodeAssessmentResult["findings"] = []) {
 	return {
 		status: "complete" as const,
-		result: { identity: CODE_IDENTITY, findings },
+		result: { identity: CODE_IDENTITY, reviews: [], findings },
 	};
 }
 

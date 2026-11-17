@@ -526,7 +526,7 @@ async function handleOperatorRead(
 		if (!row) return apiError("NOT_FOUND", "Assessment was not found", 404);
 		const findings = await env.DB.prepare(
 			`SELECT finding_index, category, confidence, reason_code, public_summary,
-			        evidence_refs_json, severity, created_at
+			        evidence_refs_json, severity, source, excerpts_json, created_at
 			 FROM findings WHERE assessment_id = ?
 			 ORDER BY finding_index ASC, id ASC`,
 		)
@@ -569,7 +569,9 @@ async function handleOperatorRead(
 			findings: findings.results.map((finding) => ({
 				...finding,
 				evidenceRefs: parseStoredJson(finding["evidence_refs_json"]),
+				excerpts: parseStoredJson(finding["excerpts_json"]),
 				evidence_refs_json: undefined,
+				excerpts_json: undefined,
 			})),
 			manualDecision,
 			relatedProfile,

@@ -56,6 +56,9 @@ export interface AssessmentDetail {
 		reason_code: string;
 		public_summary: string;
 		evidenceRefs: unknown;
+		severity?: string | null;
+		source?: string | null;
+		excerpts?: unknown;
 		created_at: string;
 	}>;
 	manualDecision: null | {
