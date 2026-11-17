@@ -706,40 +706,40 @@ function publicFindingCategory(value: string): string {
 function publicFindingSummary(category: string): string {
 	switch (category) {
 		case "explicit-sexual-content":
-			return "The assessment identified explicit sexual content in listing metadata.";
+			return "The assessment identified explicit sexual content.";
 		case "hateful-content":
-			return "The assessment identified hateful content in listing metadata.";
+			return "The assessment identified hateful content.";
 		case "graphic-violence":
-			return "The assessment identified graphic violence in listing metadata.";
+			return "The assessment identified graphic violence.";
 		case "phishing":
-			return "The assessment identified potential phishing in listing metadata.";
+			return "The assessment identified potential phishing.";
 		case "impersonation":
-			return "The assessment identified potential impersonation in listing metadata.";
+			return "The assessment identified potential impersonation.";
 		case "scam-or-spam":
-			return "The assessment identified potential scam or spam content in listing metadata.";
+			return "The assessment identified potential scam or spam content.";
 		case "malicious-link":
-			return "The assessment identified a potentially malicious link in listing metadata.";
+			return "The assessment identified a potentially malicious link.";
 		case "misleading-content":
-			return "The assessment identified potentially misleading listing metadata.";
+			return "The assessment identified potentially misleading content.";
 		case "moderation-manipulation":
 			return "The assessment identified an attempt to manipulate automated moderation.";
 		default:
-			return "The assessment identified listing metadata that requires review.";
+			return "The assessment identified something that requires review.";
 	}
 }
 
 function publicSummary(state: PublicAssessmentState): string {
 	switch (state) {
 		case "pending":
-			return "The listing metadata assessment is pending.";
+			return "The assessment of this revision is pending.";
 		case "passed":
-			return "The listing metadata is eligible under the current assessment policy.";
+			return "This revision is eligible under the current assessment policy.";
 		case "review":
-			return "The listing metadata requires operator review.";
+			return "This revision requires operator review.";
 		case "blocked":
-			return "An operator blocked this listing revision.";
+			return "An operator blocked this revision.";
 		case "error":
-			return "The listing metadata could not be assessed.";
+			return "This revision could not be assessed.";
 		case "superseded":
 			return "A newer assessment superseded this run.";
 	}
