@@ -20,6 +20,23 @@ describeEachDialect("collection auto slug redirects migration (099)", (dialect) 
 		await teardownForDialect(ctx);
 	});
 
+	it("creates default-enabled collections before the option column has been migrated", async () => {
+		await ctx.db.schema
+			.alterTable("_emdash_collections")
+			.dropColumn("auto_slug_redirects")
+			.execute();
+		const registry = new SchemaRegistry(ctx.db);
+
+		await registry.createCollection({ slug: "pending", label: "Pending" });
+		await registry.createSeedCollection({ slug: "seeded", label: "Seeded" }, []);
+
+		expect((await registry.getCollection("pending"))?.autoSlugRedirects).toBe(true);
+		expect((await registry.getCollection("seeded"))?.autoSlugRedirects).toBe(true);
+		await migration099.up(ctx.db);
+		expect((await registry.getCollection("pending"))?.autoSlugRedirects).toBe(true);
+		expect((await registry.getCollection("seeded"))?.autoSlugRedirects).toBe(true);
+	});
+
 	it("defaults existing and new collections to enabled and is rerunnable", async () => {
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "legacy", label: "Legacy" });
