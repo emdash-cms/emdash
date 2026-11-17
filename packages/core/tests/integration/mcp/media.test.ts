@@ -821,7 +821,7 @@ describe("media_delete route cache purge", () => {
 	}
 
 	it("purges the cached file and variants once the stored file is removed", async () => {
-		const storageKey = "media/photo.png";
+		const storageKey = "photo.png";
 		const { objects, storage } = trackingStorage([storageKey]);
 		const { cache, invalidate } = routeCache();
 		const item = await new MediaRepository(db).create({
@@ -849,7 +849,7 @@ describe("media_delete route cache purge", () => {
 	});
 
 	it("does not purge while another record still serves the stored file", async () => {
-		const storageKey = "media/shared.png";
+		const storageKey = "shared.png";
 		const { objects, storage } = trackingStorage([storageKey]);
 		const { cache, invalidate } = routeCache();
 		const repo = new MediaRepository(db);

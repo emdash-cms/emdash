@@ -47,6 +47,7 @@ import {
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
+import { isRouteCachedMedia } from "../media/image-endpoint.js";
 import { matchesMimeAllowlist, normalizeMime } from "../media/mime.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
@@ -1125,7 +1126,12 @@ export function createMediaAccessWithWrite(
 			// 404s. Matches the invalidation in
 			// `EmDashRuntime.handleMediaDelete`.
 			invalidateSiteSettingsCache();
-			if (result.data.storageDeleted) await invalidateMedia?.(result.data.storageKey);
+			if (
+				result.data.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateMedia?.(result.data.storageKey);
+			}
 			return true;
 		},
 	};

@@ -62,6 +62,7 @@ import type {
 	TaxonomyAccessWithWrite,
 } from "emdash";
 import { createKVAccess, withTransaction } from "emdash/internal/plugins/host";
+import { isRouteCachedMedia } from "emdash/media/image-endpoint";
 import type { Kysely } from "kysely";
 
 const CONTENT_CREATE_ERROR_CODES = new Set([
@@ -2091,7 +2092,7 @@ async function mediaDelete(
 	const media = await db
 		.selectFrom("media")
 		.where("id", "=", id)
-		.select("storage_key")
+		.select(["storage_key", "mime_type"])
 		.executeTakeFirst();
 
 	if (!media) return false;
@@ -2110,7 +2111,9 @@ async function mediaDelete(
 		} catch (error) {
 			console.warn(`[bridge] Failed to delete storage object ${media.storage_key}:`, error);
 		}
-		if (storageDeleted) await invalidateMedia?.(media.storage_key);
+		if (storageDeleted && isRouteCachedMedia(media.storage_key, media.mime_type)) {
+			await invalidateMedia?.(media.storage_key);
+		}
 	}
 
 	return BigInt(result.numDeletedRows) > 0n;

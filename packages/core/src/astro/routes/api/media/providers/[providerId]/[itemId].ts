@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
-import { mediaCacheTag } from "#media/image-endpoint.js";
+import { isRouteCachedMedia, mediaCacheTag } from "#media/image-endpoint.js";
 
 export const prerender = false;
 
@@ -89,7 +89,11 @@ export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 			if (!result.success && result.error.code !== "NOT_FOUND") {
 				throw new Error(result.error.message);
 			}
-			if (result.success && result.data.storageDeleted) {
+			if (
+				result.success &&
+				result.data.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
 				await invalidateRouteCache(cache, [mediaCacheTag(result.data.storageKey)]);
 			}
 		} else {

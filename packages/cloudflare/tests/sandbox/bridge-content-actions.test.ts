@@ -111,8 +111,14 @@ describe("Cloudflare bridge media delete", () => {
 
 	beforeEach(() => {
 		db = new DatabaseSync(":memory:");
-		db.exec("CREATE TABLE media (id TEXT PRIMARY KEY, storage_key TEXT NOT NULL)");
-		db.prepare("INSERT INTO media (id, storage_key) VALUES (?, ?)").run("m-1", "photo.png");
+		db.exec(
+			"CREATE TABLE media (id TEXT PRIMARY KEY, storage_key TEXT NOT NULL, mime_type TEXT NOT NULL)",
+		);
+		db.prepare("INSERT INTO media (id, storage_key, mime_type) VALUES (?, ?, ?)").run(
+			"m-1",
+			"photo.png",
+			"image/png",
+		);
 	});
 
 	afterEach(() => {
@@ -147,6 +153,24 @@ describe("Cloudflare bridge media delete", () => {
 			}
 		},
 	);
+
+	it("deletes a document from R2 without purging the route cache", async () => {
+		db.prepare("INSERT INTO media (id, storage_key, mime_type) VALUES (?, ?, ?)").run(
+			"m-2",
+			"report.pdf",
+			"application/pdf",
+		);
+		const invalidateMedia = vi.fn().mockResolvedValue(undefined);
+		setContentActionsCallback("runtime-a", {
+			invalidateMedia,
+		} as unknown as ContentActionCallbacks);
+		const bucket = { delete: vi.fn().mockResolvedValue(undefined) };
+
+		await expect(mediaBridge(db, bucket).mediaDelete("m-2", "invoke-a")).resolves.toBe(true);
+
+		expect(bucket.delete).toHaveBeenCalledWith("report.pdf");
+		expect(invalidateMedia).not.toHaveBeenCalled();
+	});
 
 	it("does not touch storage or the route cache for an unknown id", async () => {
 		const invalidateMedia = vi.fn().mockResolvedValue(undefined);

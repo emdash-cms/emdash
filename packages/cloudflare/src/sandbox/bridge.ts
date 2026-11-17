@@ -44,6 +44,7 @@ import type {
 	PluginStorageRepository,
 	SettingField,
 } from "emdash/internal/plugins/host";
+import { isRouteCachedMedia } from "emdash/media/image-endpoint";
 import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import {
 	createPluginSecretRedactor,
@@ -1737,9 +1738,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 
 		// Look up the storage key before deleting
-		const media = await this.env.DB.prepare("SELECT storage_key FROM media WHERE id = ?")
+		const media = await this.env.DB.prepare("SELECT storage_key, mime_type FROM media WHERE id = ?")
 			.bind(id)
-			.first<{ storage_key: string }>();
+			.first<{ storage_key: string; mime_type: string }>();
 
 		if (!media) return false;
 
@@ -1756,7 +1757,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 				// Log but don't fail - the DB row is already deleted
 				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
 			}
-			if (storageDeleted) {
+			if (storageDeleted && isRouteCachedMedia(media.storage_key, media.mime_type)) {
 				const runtimeId = this.ctx.props.contentActionsRuntimeId;
 				const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
 				await callbacks?.invalidateMedia?.(

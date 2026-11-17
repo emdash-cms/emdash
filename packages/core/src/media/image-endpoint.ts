@@ -75,6 +75,11 @@ export function mediaCacheTag(storageKey: string): string {
 	return `emdash:media:${storageKey}`;
 }
 
+/** Whether media of this type and key can be in the route cache, so deleting its file needs a purge. */
+export function isRouteCachedMedia(storageKey: string, mimeType: string): boolean {
+	return mimeType.startsWith("image/") && isSafeTransformKey(storageKey);
+}
+
 /**
  * Largest media response stored by Astro's `memoryCache()`, which holds every
  * entry in process memory and limits only the entry count.

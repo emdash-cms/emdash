@@ -129,6 +129,31 @@ describe("GET /_emdash/api/media/file/:key — conditional caching", () => {
 		});
 	});
 
+	it("caches an image requested with the admin preview cache-buster", async () => {
+		await upload("image.png", new Uint8Array([1, 2, 3]), "image/png");
+		const cache = routeCache();
+
+		await GET(
+			buildContext("image.png", new Request("http://localhost/x?_emdash_media=abc"), cache),
+		);
+
+		expect(cache.set).toHaveBeenCalledTimes(1);
+	});
+
+	it("serves but does not cache an image requested with any other query", async () => {
+		await upload("image.png", new Uint8Array([1, 2, 3]), "image/png");
+
+		for (const query of ["?x=1", "?_emdash_media=abc&x=1", "?_emdash_media=a&_emdash_media=b"]) {
+			const cache = routeCache();
+			const response = await GET(
+				buildContext("image.png", new Request(`http://localhost/x${query}`), cache),
+			);
+
+			expect(response.status).toBe(200);
+			expect(cache.set).not.toHaveBeenCalled();
+		}
+	});
+
 	it("does not cache a 304", async () => {
 		await upload("image.png", new Uint8Array([1, 2, 3]), "image/png");
 		const first = await GET(buildContext("image.png", new Request("http://localhost/x")));

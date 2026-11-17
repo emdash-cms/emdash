@@ -68,6 +68,15 @@ const SAFE_INLINE_TYPES = new Set([
 	"audio/ogg",
 ]);
 
+/**
+ * Whether the URL's query is empty or only the admin's preview cache-buster.
+ * Any other query would give the same file another route cache entry.
+ */
+function hasCacheableQuery(requestUrl: string): boolean {
+	const names = [...new URL(requestUrl).searchParams.keys()];
+	return names.length === 0 || (names.length === 1 && names[0] === "_emdash_media");
+}
+
 export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 	const { key } = params;
 	const { emdash } = locals;
@@ -178,7 +187,7 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 		if (body) unusedBody = undefined;
 		// Only images: memoryCache() ignores Range, so a cached video or audio
 		// file would answer a player's seek with the whole file.
-		if (!range && result.contentType.startsWith("image/")) {
+		if (!range && result.contentType.startsWith("image/") && hasCacheableQuery(request.url)) {
 			cacheMediaResponse(
 				cache,
 				key,

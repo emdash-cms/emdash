@@ -1,7 +1,7 @@
 ---
 title: Cache media files in the route cache
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Kevin Kyburz (@swissky)
 discussion: https://github.com/emdash-cms/emdash/discussions/3159
@@ -22,10 +22,13 @@ Sites pay for this on every image request, although replacing an original is rar
 
 When the site configures an Astro cache provider (`cacheCloudflare()`, `memoryCache()` or another adapter's provider), EmDash stores image responses in the route cache and purges them when the image changes:
 
-- A whole `200` image response from the media file route, and every successful variant from the image endpoints (Node and the Cloudflare Images binding), calls `context.cache.set({ maxAge: 31536000, tags: ["emdash:media:<storageKey>"] })`. The lifetime is one year because the purge, not the expiry, keeps the cache correct.
+- A whole `200` image response from the media file route, and every successful variant from the image endpoints (Node and the Cloudflare Images binding), calls `context.cache.set({ maxAge: 31536000, tags: ["emdash:media:<storageKey>"] })`. The lifetime is one year because the purge, not the expiry, keeps the cache correct. The media file route caches only requests whose query is empty or holds just the admin's `_emdash_media` preview parameter, so other query strings can't add entries for the same file.
+- Storage keys with characters other than letters, digits, `.`, `_` and `-` are not cached, because their tag could not be purged reliably (a comma separates `Cache-Tag` values).
+- With `memoryCache()`, which keeps every entry in process memory and limits only the entry count, media responses larger than 10 MB, or of unknown size, are not cached.
 - Variant URLs for EmDash media are normalized before anything is transformed. The canonical query holds the parameters Astro's `getURL` writes, in its order (`href`, `w`, `h`, `q`, `f`, `fit`, `position`, `background`), each at most once, followed by the adapter's `assetQueryParams`. A request whose query differs from its canonical form (unknown parameters, a repeated parameter, another order) gets a `301` to the canonical URL. A repeated parameter keeps the value the endpoint uses today, the first one, so the redirect target renders the same image. URLs built by `<Image>` and `getImage()` are already canonical and never redirect. Only canonical requests are cached, so extra or reordered parameters can't create new cache entries.
-- A successful replace invalidates `emdash:media:<storageKey>`. One purge removes the original file and every cached variant of it.
-- A successful delete that removed the stored file invalidates the same tag, so a deleted image stops being served from the cache. This covers the media routes, the MCP `media_delete` tool and `ctx.media.delete` in plugins.
+- A replace invalidates `emdash:media:<storageKey>` as soon as the new file is stored, even if the metadata update after it fails, because the bytes under the key have already changed. One purge removes the original file and every cached variant of it.
+- A successful delete that removed the stored file of a cacheable image (an `image/*` type with a cacheable key) invalidates the same tag, so a deleted image stops being served from the cache. Deleting other media costs no purge. This covers the media routes, the MCP `media_delete` tool and `ctx.media.delete` in plugins. Stored files that scheduled cleanup removes later, after a delete could not remove them, are purged then.
+- A sandboxed plugin's `ctx.media.delete` runs in its own Workers entrypoint, and Workers Cache purges only the calling entrypoint's entries, so its purge runs on the host request when the plugin invocation is flushed.
 - The `Cache-Control` header that browsers see stays `public, max-age=0, must-revalidate` with the existing `ETag` and `Last-Modified` validators. Browser caches can't be purged, so a replaced image must still revalidate there. Revalidation still returns `304` when the image is unchanged.
 - Without a cache provider, nothing is cached. Non-canonical variant URLs still redirect, so a URL behaves the same with or without a provider.
 
@@ -79,15 +82,15 @@ The baseline numbers come from a different image on a different Worker (our stoc
 
 ## Verification
 
-- Media file route: a whole image `200` sets the route cache with the tag and `maxAge`; a ranged request, a `304`, a `404` and a non-image file do not.
+- Media file route: a whole image `200` sets the route cache with the tag and `maxAge`, also with only the `_emdash_media` parameter; a ranged request, a `304`, a `404`, a non-image file, any other query string, an uncacheable key and, with `memoryCache()`, a file over 10 MB do not.
 - Image endpoints on Node and Cloudflare: a successful canonical variant sets the same tag; a failed transform does not.
 - Normalization: a URL from `getImage()` (with `fit` and `position`) is served without a redirect; unknown, repeated and reordered parameters return `301` to the canonical URL without transforming or caching; a repeated parameter redirects to its first value; `assetQueryParams` are kept.
-- Replace: a successful replace invalidates the tag; a failed upload or metadata update does not. A rejected purge doesn't fail the replace.
-- Delete through the media route, the MCP tool and `ctx.media.delete`: invalidates the tag when the stored file was removed, not when the media item doesn't exist.
+- Replace: a stored replacement invalidates the tag, also when the metadata update fails afterwards; a failed upload does not. A rejected purge doesn't fail the replace.
+- Delete through the media route, the MCP tool and `ctx.media.delete`: invalidates the tag when the stored file of a cacheable image was removed, not when the media item doesn't exist, the file wasn't removed, or the media is not a cacheable image.
 - Without a cache provider, canonical requests return the same responses and headers as before.
 - Logged-out query counts don't increase (`pnpm query-counts`).
 - Manual check on Cloudflare with `cacheCloudflare()`: `BYPASS` before, `HIT` after; replace and delete take effect immediately for the file and a variant.
 
 ## Open questions
 
-- Does Workers Cache key entries by the full query string? Normalization makes the answer irrelevant for correctness, but it decides whether the redirect is also needed to avoid duplicate entries on Cloudflare.
+- Answered: Workers Cache keys entries by the full URL, including the query string, so the redirect also avoids duplicate entries on Cloudflare.

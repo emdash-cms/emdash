@@ -1505,10 +1505,11 @@ describe("Bridge Handler Conformance", () => {
 					.createTable("media")
 					.addColumn("id", "text", (col) => col.primaryKey())
 					.addColumn("storage_key", "text", (col) => col.notNull())
+					.addColumn("mime_type", "text", (col) => col.notNull())
 					.execute();
 				await db
 					.insertInto("media" as any)
-					.values({ id: "m-1", storage_key: "photo.png" })
+					.values({ id: "m-1", storage_key: "photo.png", mime_type: "image/png" })
 					.execute();
 				const storage = {
 					upload: vi.fn(),
@@ -1536,6 +1537,37 @@ describe("Bridge Handler Conformance", () => {
 				}
 			},
 		);
+
+		it("media/delete removes a document without purging the route cache", async () => {
+			await db.schema
+				.createTable("media")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("storage_key", "text", (col) => col.notNull())
+				.addColumn("mime_type", "text", (col) => col.notNull())
+				.execute();
+			await db
+				.insertInto("media" as any)
+				.values({ id: "m-1", storage_key: "report.pdf", mime_type: "application/pdf" })
+				.execute();
+			const storage = {
+				upload: vi.fn(),
+				download: vi.fn(),
+				delete: vi.fn().mockResolvedValue(undefined),
+			};
+			const invalidateMedia = vi.fn().mockResolvedValue(undefined);
+			const handler = makeHandler({
+				capabilities: ["media:write"],
+				storage,
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- media deletes only call invalidateMedia
+				contentActions: () => ({ invalidateMedia }) as any,
+			});
+
+			const result = await call(handler, "media/delete", { id: "m-1", invocationId: "inv-1" });
+
+			expect(result).toEqual({ result: true });
+			expect(storage.delete).toHaveBeenCalledWith("report.pdf");
+			expect(invalidateMedia).not.toHaveBeenCalled();
+		});
 
 		it("media/list defaults a non-number limit", async () => {
 			await db.schema

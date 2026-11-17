@@ -1213,6 +1213,40 @@ describe("streamed media upload fallback", () => {
 		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
 	});
 
+	it("deletes the stored file without purging media that is never route-cached", async () => {
+		for (const item of [
+			{ filename: "report.pdf", mimeType: "application/pdf", storageKey: "report.pdf" },
+			{ filename: "photo.png", mimeType: "image/png", storageKey: "photo,1.png" },
+		]) {
+			const media = await new MediaRepository(db).create({
+				...item,
+				size: 3,
+				authorId: "user-1",
+			});
+			const storage = streamingStorage();
+			storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+			const invalidate = vi.fn(async () => {});
+
+			const response = await deleteMedia({
+				params: { id: media.id },
+				cache: { enabled: true, invalidate },
+				locals: {
+					emdash: {
+						db,
+						storage,
+						handleMediaGet: (id: string) => handleMediaGet(db, id),
+						handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+					},
+					user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+				},
+			} as unknown as APIContext);
+
+			expect(response.status).toBe(200);
+			expect(storage.objects.size).toBe(0);
+			expect(invalidate).not.toHaveBeenCalled();
+		}
+	});
+
 	it("returns 404 without purging when deleting a missing item", async () => {
 		const invalidate = vi.fn(async () => {});
 		const storage = streamingStorage();
