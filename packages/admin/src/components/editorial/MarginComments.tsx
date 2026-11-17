@@ -246,6 +246,7 @@ export function MarginComments({
 	const draftCard = draft && (
 		<DraftCard
 			key="draft"
+			focusKey={!draftInPlace || "draft" in tops ? JSON.stringify(draft.anchor) : null}
 			quote={draft.anchor.type === "text" ? draft.anchor.quote : null}
 			currentUser={currentUser}
 			pending={comments.actions.createThread.isPending}
@@ -360,12 +361,15 @@ export function MarginComments({
 }
 
 function DraftCard({
+	focusKey,
 	quote,
 	currentUser,
 	pending,
 	onCancel,
 	onSubmit,
 }: {
+	/** Null while the card is hidden for measuring. Each new key moves focus to the composer. */
+	focusKey: string | null;
 	quote: string | null;
 	currentUser: EditorialCommentsUser | undefined;
 	pending: boolean;
@@ -374,8 +378,13 @@ function DraftCard({
 }) {
 	const { t } = useLingui();
 	const [body, setBody] = React.useState("");
+	const cardRef = React.useRef<HTMLDivElement>(null);
+	// A hidden element can't take focus, so `autoFocus` would miss a card that mounts before it's placed.
+	React.useEffect(() => {
+		if (focusKey !== null) cardRef.current?.querySelector<HTMLElement>("textarea")?.focus();
+	}, [focusKey]);
 	return (
-		<div className="rounded-xl border border-kumo-brand bg-kumo-base p-3 shadow-md">
+		<div ref={cardRef} className="rounded-xl border border-kumo-brand bg-kumo-base p-3 shadow-md">
 			<div className="mb-2 flex items-center gap-2">
 				<Avatar
 					person={
@@ -390,7 +399,6 @@ function DraftCard({
 			<CommentComposer
 				value={body}
 				onChange={setBody}
-				autoFocus
 				label={t`Comment`}
 				placeholder={t`Add a comment`}
 				submitLabel={t`Comment`}

@@ -5356,7 +5356,9 @@ describe("editorial comments", () => {
 
 		await screen.getByRole("button", { name: "Comment on Title" }).click();
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Shorter, please");
+		const composer = margin.getByRole("textbox", { name: "Comment" });
+		await expect.element(composer).toHaveFocus();
+		await composer.fill("Shorter, please");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 		await vi.waitFor(() =>
