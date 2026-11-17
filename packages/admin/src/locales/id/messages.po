@@ -452,7 +452,7 @@ msgstr "{0, plural, other {# baris dihapus}}"
 #. placeholder {0}: names.length - SCAFFOLD_NAMES_SHOWN
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:574
 msgid "{0, plural, one {Show # more} other {Show # more}}"
-msgstr "{0, plural, other {# lainnya}}"
+msgstr "{0, plural, other {Tampilkan # lainnya}}"
 
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:156
@@ -5416,7 +5416,7 @@ msgstr "Lepaskan berkas ekspor WordPress Anda di sini"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:442
 msgid "Dropped {label} at position {position} of {count}."
-msgstr "{label} dilepaskan pada posisi {posisi} dari {count}."
+msgstr "{label} dilepaskan pada posisi {position} dari {count}."
 
 #: packages/admin/src/components/settings/LayoutList.tsx:440
 msgid "Dropped {label}."
@@ -10605,7 +10605,7 @@ msgstr "Belum ada pengalihan"
 
 #: packages/admin/src/components/ContentEditor.tsx:4396
 msgid "No references selected."
-msgstr "Tidak ada referensi dipilih"
+msgstr "Tidak ada referensi dipilih."
 
 #: packages/admin/src/components/RelationsPanel.tsx:85
 msgid "No relations yet"
@@ -11322,7 +11322,7 @@ msgstr "{label} dipilih."
 
 #: packages/admin/src/components/useDragAnnouncements.ts:52
 msgid "Picked up {name}, position {position} of {total}"
-msgstr "{name} diambil, posisi {position} dari {count}."
+msgstr "{name} diambil, posisi {position} dari {total}"
 
 #: packages/admin/src/components/FieldEditor.tsx:1879
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
