@@ -44,6 +44,7 @@ const ADMIN_VIEWS = new Set<View>(["takedowns", "issuance", "activity"]);
 const SLUG_SEPARATOR_RE = /[-_]/;
 const PACKAGE_EVIDENCE_PREFIX = "release.package:";
 const PACKAGE_LINE_RE = /^(.*)#L(\d+)$/;
+const MEDIA_REF_RE = /^release\.media\.([a-z]+):(\d+)$/;
 
 const SEVERITY_LABELS: Record<string, MessageDescriptor> = {
 	critical: msg`Critical`,
@@ -485,7 +486,11 @@ function AssessmentReview({
 				<p className="mb-2 text-xs font-medium text-kumo-subtle">
 					<Trans>Marketplace preview</Trans>
 				</p>
-				<ListingPreviewCard preview={preview} runKey={item.run_key} />
+				<ListingPreviewCard
+					preview={preview}
+					runKey={item.run_key}
+					flaggedMedia={new Set(findings.flatMap((finding) => stringArray(finding.evidenceRefs)))}
+				/>
 				<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-y py-3 text-sm">
 					<div>
 						<strong>
@@ -595,7 +600,15 @@ function AssessmentReview({
 	);
 }
 
-function ListingPreviewCard({ preview, runKey }: { preview: ListingPreview; runKey: string }) {
+function ListingPreviewCard({
+	preview,
+	runKey,
+	flaggedMedia,
+}: {
+	preview: ListingPreview;
+	runKey: string;
+	flaggedMedia: ReadonlySet<string>;
+}) {
 	const { t } = useLingui();
 	const previewType =
 		preview.kind === "release" ? t`Release ${preview.version ?? ""}` : t`Publisher profile`;
@@ -629,11 +642,19 @@ function ListingPreviewCard({ preview, runKey }: { preview: ListingPreview; runK
 							key={`${media.kind}-${media.index}`}
 							className="overflow-hidden rounded-lg bg-kumo-recessed"
 						>
-							<img
-								className="aspect-video w-full object-contain"
-								src={assessmentMediaUrl(runKey, media.kind, media.index)}
-								alt={t`Submitted ${media.kind}`}
-							/>
+							{flaggedMedia.has(`release.media.${media.kind}:${media.index}`) ? (
+								<FlaggedImage
+									className="aspect-video w-full object-contain"
+									src={assessmentMediaUrl(runKey, media.kind, media.index)}
+									alt={t`Submitted ${media.kind}`}
+								/>
+							) : (
+								<img
+									className="aspect-video w-full object-contain"
+									src={assessmentMediaUrl(runKey, media.kind, media.index)}
+									alt={t`Submitted ${media.kind}`}
+								/>
+							)}
 							<figcaption className="px-3 py-2 text-xs text-kumo-subtle">{media.kind}</figcaption>
 						</figure>
 					))}
@@ -672,6 +693,7 @@ function AssessmentEvidence({
 					key={`${finding.finding_index}-${finding.category}`}
 					finding={finding}
 					evidence={evidence}
+					runKey={detail.assessment.run_key}
 				/>
 			))}
 			{findings.length === 0 && (
@@ -754,9 +776,11 @@ function CodeReviews({ reviews }: { reviews: CodeReview[] }) {
 function FindingCard({
 	finding,
 	evidence,
+	runKey,
 }: {
 	finding: Finding;
 	evidence: ReadonlyMap<string, ListingEvidence>;
+	runKey: string;
 }) {
 	const { t } = useLingui();
 	const refs = stringArray(finding.evidenceRefs);
@@ -793,7 +817,7 @@ function FindingCard({
 			{otherRefs.length > 0 && (
 				<ul className="grid gap-2 border-t px-4 py-3">
 					{otherRefs.map((ref) => (
-						<EvidenceItem key={ref} evidenceRef={ref} value={evidence.get(ref)} />
+						<EvidenceItem key={ref} evidenceRef={ref} value={evidence.get(ref)} runKey={runKey} />
 					))}
 				</ul>
 			)}
@@ -825,14 +849,48 @@ function CodeExcerpt({ excerpt }: { excerpt: Excerpt }) {
 	);
 }
 
-function EvidenceItem({ evidenceRef, value }: { evidenceRef: string; value?: ListingEvidence }) {
+function FlaggedImage({ className, src, alt }: { className: string; src: string; alt: string }) {
+	const [shown, setShown] = React.useState(false);
+	if (shown) return <img className={className} src={src} alt={alt} />;
+	return (
+		<div className="mt-2 grid aspect-video place-items-center rounded-lg bg-kumo-recessed">
+			<Button size="sm" variant="secondary" onClick={() => setShown(true)}>
+				<Trans>Show flagged image</Trans>
+			</Button>
+		</div>
+	);
+}
+
+function EvidenceItem({
+	evidenceRef,
+	value,
+	runKey,
+}: {
+	evidenceRef: string;
+	value?: ListingEvidence;
+	runKey: string;
+}) {
+	const { t } = useLingui();
+	const media = MEDIA_REF_RE.exec(evidenceRef);
 	return (
 		<li className="text-xs">
 			<p className="font-mono text-kumo-subtle">{evidenceRef}</p>
+			{media && (
+				<FlaggedImage
+					className="mt-2 max-h-80 rounded-lg bg-kumo-recessed object-contain"
+					src={assessmentMediaUrl(runKey, media[1]!, Number(media[2]))}
+					alt={t`Flagged ${media[1]!}`}
+				/>
+			)}
 			{value?.kind === "link" && (
-				<p className="mt-1 break-all font-mono text-sm" dir="ltr">
-					{value.url}
-				</p>
+				<>
+					<p className="mt-1 break-all font-mono text-sm" dir="ltr">
+						{value.url}
+					</p>
+					{value.issues.length > 0 && (
+						<p className="mt-1 text-kumo-subtle">{t`Link check: ${value.issues.join(", ")}`}</p>
+					)}
+				</>
 			)}
 			{value?.kind === "text" && (
 				<p className="mt-1 line-clamp-6 whitespace-pre-wrap text-sm leading-6">{value.value}</p>
@@ -1655,7 +1713,9 @@ function toError(value: unknown, fallback: string) {
 	return value instanceof Error ? value : new Error(fallback);
 }
 
-type ListingEvidence = { kind: "text"; value: string } | { kind: "link"; url: string };
+type ListingEvidence =
+	| { kind: "text"; value: string }
+	| { kind: "link"; url: string; issues: string[] };
 
 function listingEvidence(canonicalInput: unknown): Map<string, ListingEvidence> {
 	const evidence = new Map<string, ListingEvidence>();
@@ -1667,7 +1727,9 @@ function listingEvidence(canonicalInput: unknown): Map<string, ListingEvidence> 
 	for (const item of arrayValue(recordValue(canonicalInput, "links"))) {
 		const ref = stringValue(recordValue(item, "ref"));
 		const url = stringValue(recordValue(item, "url"));
-		if (ref && url) evidence.set(ref, { kind: "link", url });
+		if (ref && url) {
+			evidence.set(ref, { kind: "link", url, issues: stringArray(recordValue(item, "issues")) });
+		}
 	}
 	return evidence;
 }

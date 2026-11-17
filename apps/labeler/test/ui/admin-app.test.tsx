@@ -19,6 +19,9 @@ const api = vi.hoisted(() => ({
 	notifyPublisher: vi.fn(),
 	setIssuance: vi.fn(),
 	setTakedown: vi.fn(),
+	assessmentMediaUrl: vi.fn(
+		(runKey: string, kind: string, index: number) => `/media/${runKey}/${kind}/${index}`,
+	),
 }));
 
 vi.mock("../../src/admin/api.js", () => api);
@@ -286,10 +289,22 @@ describe("assessment findings", () => {
 			assessment: {
 				...item,
 				canonicalInput: {
-					input: { name: "Gallery", slug: "gallery" },
+					input: {
+						name: "Gallery",
+						slug: "gallery",
+						media: [
+							{ kind: "screenshot", index: 0 },
+							{ kind: "screenshot", index: 1 },
+						],
+					},
 					text: [{ ref: "profile.name", value: "Gallery", format: "plain" }],
 					links: [
-						{ ref: "profile.sections.faq.links[0]", url: "javascript:alert(1)", usage: "markdown" },
+						{
+							ref: "profile.sections.faq.links[0]",
+							url: "javascript:alert(1)",
+							usage: "markdown",
+							issues: ["unsupported-scheme"],
+						},
 					],
 				},
 				summary: {
@@ -335,10 +350,22 @@ describe("assessment findings", () => {
 					category: "malicious-or-deceptive-link",
 					confidence: 1,
 					reason_code: "policy-finding",
-					public_summary: "Displayed link failed the link check: unsupported-scheme.",
+					public_summary: "Displayed link requires operator review.",
 					evidenceRefs: ["profile.sections.faq.links[0]"],
 					severity: null,
 					source: "link-check",
+					created_at: "2026-08-27T10:00:00.000Z",
+				},
+				{
+					finding_index: 2,
+					category: "explicit-sexual-content",
+					confidence: 0.82,
+					reason_code: "policy-finding",
+					public_summary:
+						"Clef scored explicit-sexual-content at 0.820, above its threshold of 0.45.",
+					evidenceRefs: ["release.media.screenshot:1"],
+					severity: null,
+					source: "@cf/cloudflare/clef",
 					created_at: "2026-08-27T10:00:00.000Z",
 				},
 			],
@@ -364,6 +391,15 @@ describe("assessment findings", () => {
 		).toBeTruthy();
 		expect(screen.getByText("javascript:alert(1)")).toBeTruthy();
 		expect(screen.getByText("link-check · 100% confidence")).toBeTruthy();
+		expect(screen.getByText("Link check: unsupported-scheme")).toBeTruthy();
+		expect(screen.getAllByRole("img", { name: "Submitted screenshot" })).toHaveLength(1);
+		expect(screen.queryByRole("img", { name: "Flagged screenshot" })).toBeNull();
+		const show = screen.getAllByRole("button", { name: "Show flagged image" });
+		expect(show).toHaveLength(2);
+		fireEvent.click(show[1]!);
+		expect(screen.getByRole("img", { name: "Flagged screenshot" }).getAttribute("src")).toBe(
+			"/media/gallery-release/screenshot/1",
+		);
 	});
 });
 
