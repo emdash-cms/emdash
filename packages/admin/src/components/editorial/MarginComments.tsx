@@ -375,7 +375,7 @@ function DraftCard({
 	const { t } = useLingui();
 	const [body, setBody] = React.useState("");
 	return (
-		<div className="rounded-lg border border-kumo-brand bg-kumo-base p-3 shadow-sm">
+		<div className="rounded-xl border border-kumo-brand bg-kumo-base p-3 shadow-md">
 			<div className="mb-2 flex items-center gap-2">
 				<Avatar
 					person={
@@ -423,6 +423,7 @@ function CommentComposer({
 	submitLabel,
 	pending,
 	autoFocus,
+	compact,
 	onCancel,
 	onSubmit,
 }: {
@@ -433,6 +434,8 @@ function CommentComposer({
 	submitLabel: string;
 	pending: boolean;
 	autoFocus?: boolean;
+	/** One line that grows with the text, with its buttons shown once there is something to send. */
+	compact?: boolean;
 	onCancel?: () => void;
 	onSubmit: () => void;
 }) {
@@ -444,8 +447,9 @@ function CommentComposer({
 				aria-label={label}
 				placeholder={placeholder}
 				value={value}
-				rows={2}
+				rows={compact ? 1 : 2}
 				autoFocus={autoFocus}
+				className="max-h-60 resize-none field-sizing-content"
 				onChange={(event) => onChange(event.target.value)}
 				onKeyDown={(event) => {
 					if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !empty) {
@@ -458,23 +462,25 @@ function CommentComposer({
 					}
 				}}
 			/>
-			<div className="flex justify-end gap-2">
-				{onCancel && (
-					<Button variant="ghost" size="sm" type="button" onClick={onCancel}>
-						{t`Cancel`}
+			{(!compact || !empty) && (
+				<div className="flex justify-end gap-2">
+					{onCancel && (
+						<Button variant="ghost" size="sm" type="button" onClick={onCancel}>
+							{t`Cancel`}
+						</Button>
+					)}
+					<Button
+						variant="primary"
+						size="sm"
+						type="button"
+						disabled={empty || pending}
+						loading={pending}
+						onClick={onSubmit}
+					>
+						{submitLabel}
 					</Button>
-				)}
-				<Button
-					variant="primary"
-					size="sm"
-					type="button"
-					disabled={empty || pending}
-					loading={pending}
-					onClick={onSubmit}
-				>
-					{submitLabel}
-				</Button>
-			</div>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -538,67 +544,59 @@ function ThreadCard({
 				if (event.key === "Escape") comments.setActiveThreadId(null);
 			}}
 			className={cn(
-				"rounded-lg border bg-kumo-base p-3 text-sm transition-shadow",
+				"group/thread rounded-xl border bg-kumo-base p-3 text-sm transition-[border-color,box-shadow]",
 				active ? "border-kumo-brand shadow-md" : "cursor-pointer border-kumo-line hover:shadow-sm",
-				resolved && "opacity-75",
+				resolved && !active && "opacity-75",
 			)}
 		>
-			<div className="mb-2 flex items-center justify-between gap-2">
-				<div className="flex min-w-0 items-center gap-1.5">
+			{(heading || detached || resolved) && (
+				<div className="mb-2 flex min-w-0 items-center gap-1.5">
 					{heading && <span className="truncate text-xs text-kumo-subtle">{heading}</span>}
 					{detached && <Badge variant="secondary">{t`Detached`}</Badge>}
 					{resolved && <Badge variant="secondary">{t`Resolved`}</Badge>}
 				</div>
-				<div className="flex shrink-0 items-center" onClick={(event) => event.stopPropagation()}>
-					{thread.can.resolve && (
-						<Button
-							variant="ghost"
-							size="sm"
-							shape="square"
-							type="button"
-							aria-label={resolved ? t`Reopen` : t`Resolve`}
-							title={resolved ? t`Reopen` : t`Resolve`}
-							disabled={actions.setStatus.isPending}
-							onClick={() =>
-								actions.setStatus.mutate({
-									threadId: thread.id,
-									status: resolved ? "open" : "resolved",
-								})
-							}
-						>
-							{resolved ? (
-								<ArrowCounterClockwise className="size-4" aria-hidden="true" />
-							) : (
-								<Check className="size-4" aria-hidden="true" />
-							)}
-						</Button>
-					)}
-					{thread.can.delete && (
-						<Button
-							variant="ghost"
-							size="sm"
-							shape="square"
-							type="button"
-							aria-label={t`Delete thread`}
-							title={t`Delete thread`}
-							disabled={actions.deleteThread.isPending}
-							onClick={() => actions.deleteThread.mutate(thread.id)}
-						>
-							<Trash className="size-4" aria-hidden="true" />
-						</Button>
-					)}
-				</div>
-			</div>
+			)}
 
 			{thread.anchor.type === "text" && (detached || !active) && (
 				<Quote text={thread.anchor.quote} detached={detached} />
 			)}
 
 			<ol className="flex flex-col gap-3">
-				{visibleComments.map((comment) => (
+				{visibleComments.map((comment, index) => (
 					<CommentItem
 						key={comment.id}
 						comment={comment}
+						revealed={active}
+						threadActions={
+							index === 0 && thread.can.resolve ? (
+								<Button
+									variant="ghost"
+									size="sm"
+									shape="square"
+									type="button"
+									aria-label={resolved ? t`Reopen` : t`Resolve`}
+									title={resolved ? t`Reopen` : t`Resolve`}
+									disabled={actions.setStatus.isPending}
+									onClick={() =>
+										actions.setStatus.mutate({
+											threadId: thread.id,
+											status: resolved ? "open" : "resolved",
+										})
+									}
+								>
+									{resolved ? (
+										<ArrowCounterClockwise className="size-4" aria-hidden="true" />
+									) : (
+										<Check className="size-4" aria-hidden="true" />
+									)}
+								</Button>
+							) : null
+						}
+						onDeleteThread={
+							index === 0 && thread.can.delete
+								? () => actions.deleteThread.mutate(thread.id)
+								: undefined
+						}
 						locale={i18n.locale}
 						onEdit={(body) =>
 							actions.editComment.mutate({ threadId: thread.id, commentId: comment.id, body })
@@ -610,7 +608,7 @@ function ThreadCard({
 				))}
 			</ol>
 			{hiddenReplies > 0 && (
-				<p className="mt-2 text-xs text-kumo-subtle">
+				<p className="mt-2 ps-8 text-xs font-medium text-kumo-link">
 					{plural(hiddenReplies, { one: "# reply", other: "# replies" })}
 				</p>
 			)}
@@ -620,6 +618,7 @@ function ThreadCard({
 					<CommentComposer
 						value={reply}
 						onChange={setReply}
+						compact
 						label={t`Reply`}
 						placeholder={resolved ? t`Reply to reopen` : t`Reply`}
 						submitLabel={t`Reply`}
@@ -639,11 +638,19 @@ function ThreadCard({
 
 function CommentItem({
 	comment,
+	revealed,
+	threadActions,
+	onDeleteThread,
 	locale,
 	onEdit,
 	onDelete,
 }: {
 	comment: EditorialComment;
+	/** Shows the actions without hovering, as on the open thread. */
+	revealed: boolean;
+	/** Thread controls that sit beside the first comment's menu. */
+	threadActions?: React.ReactNode;
+	onDeleteThread?: () => void;
 	locale: string;
 	onEdit: (body: string) => void;
 	onDelete: () => void;
@@ -654,9 +661,11 @@ function CommentItem({
 	const deleted = comment.deletedAt !== null;
 	const name = comment.author?.name ?? (comment.author ? t`Unnamed user` : t`Deleted user`);
 
+	const hasMenu = comment.can.edit || comment.can.delete || onDeleteThread !== undefined;
+
 	return (
-		<li className="flex flex-col gap-1">
-			<div className="flex items-center gap-2">
+		<li className="flex flex-col gap-0.5">
+			<div className="flex min-h-7 items-center gap-2">
 				<Avatar person={comment.author} />
 				<div className="flex min-w-0 flex-1 items-baseline gap-1.5">
 					<span className="truncate font-medium">{name}</span>
@@ -664,50 +673,69 @@ function CommentItem({
 						<bdi>{formatRelativeTime(comment.createdAt, locale)}</bdi>
 					</time>
 				</div>
-				{(comment.can.edit || comment.can.delete) && !editing && (
-					<div onClick={(event) => event.stopPropagation()}>
-						<DropdownMenu>
-							<DropdownMenu.Trigger
-								render={
-									<Button
-										variant="ghost"
-										size="sm"
-										shape="square"
-										type="button"
-										aria-label={t`Comment actions`}
-									>
-										<DotsThree className="size-4" aria-hidden="true" />
-									</Button>
-								}
-							/>
-							<DropdownMenu.Content align="end">
-								{comment.can.edit && (
-									<DropdownMenu.Item
-										icon={<PencilSimple className="size-4" aria-hidden="true" />}
-										onClick={() => {
-											setBody(comment.body);
-											setEditing(true);
-										}}
-									>
-										{t`Edit`}
-									</DropdownMenu.Item>
-								)}
-								{comment.can.delete && (
-									<DropdownMenu.Item
-										variant="danger"
-										icon={<Trash className="size-4" aria-hidden="true" />}
-										onClick={onDelete}
-									>
-										{t`Delete`}
-									</DropdownMenu.Item>
-								)}
-							</DropdownMenu.Content>
-						</DropdownMenu>
+				{(threadActions || hasMenu) && !editing && (
+					<div
+						className={cn(
+							"-me-1.5 -my-1 flex shrink-0 items-center",
+							!revealed &&
+								"opacity-0 transition-opacity group-focus-within/thread:opacity-100 group-hover/thread:opacity-100 pointer-coarse:opacity-100",
+						)}
+						onClick={(event) => event.stopPropagation()}
+					>
+						{threadActions}
+						{hasMenu && (
+							<DropdownMenu>
+								<DropdownMenu.Trigger
+									render={
+										<Button
+											variant="ghost"
+											size="sm"
+											shape="square"
+											type="button"
+											aria-label={t`Comment actions`}
+										>
+											<DotsThree className="size-4" aria-hidden="true" />
+										</Button>
+									}
+								/>
+								<DropdownMenu.Content align="end">
+									{comment.can.edit && (
+										<DropdownMenu.Item
+											icon={<PencilSimple className="size-4" aria-hidden="true" />}
+											onClick={() => {
+												setBody(comment.body);
+												setEditing(true);
+											}}
+										>
+											{t`Edit`}
+										</DropdownMenu.Item>
+									)}
+									{comment.can.delete && (
+										<DropdownMenu.Item
+											variant="danger"
+											icon={<Trash className="size-4" aria-hidden="true" />}
+											onClick={onDelete}
+										>
+											{onDeleteThread ? t`Delete comment` : t`Delete`}
+										</DropdownMenu.Item>
+									)}
+									{onDeleteThread && (
+										<DropdownMenu.Item
+											variant="danger"
+											icon={<Trash className="size-4" aria-hidden="true" />}
+											onClick={onDeleteThread}
+										>
+											{t`Delete thread`}
+										</DropdownMenu.Item>
+									)}
+								</DropdownMenu.Content>
+							</DropdownMenu>
+						)}
 					</div>
 				)}
 			</div>
 			{editing ? (
-				<div onClick={(event) => event.stopPropagation()}>
+				<div className="ps-8" onClick={(event) => event.stopPropagation()}>
 					<CommentComposer
 						value={body}
 						onChange={setBody}
@@ -724,9 +752,9 @@ function CommentItem({
 					/>
 				</div>
 			) : deleted ? (
-				<p className="text-kumo-subtle italic">{t`Comment deleted`}</p>
+				<p className="ps-8 text-kumo-subtle italic">{t`Comment deleted`}</p>
 			) : (
-				<p className="whitespace-pre-wrap break-words">
+				<p className="ps-8 whitespace-pre-wrap break-words">
 					{comment.body}
 					{comment.editedAt && <span className="ms-1 text-xs text-kumo-subtle">{t`(edited)`}</span>}
 				</p>
