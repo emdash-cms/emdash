@@ -730,10 +730,9 @@ export interface EmDashHandlers {
 	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
 
 	/**
-	 * Lazy search index health check. Search routes call this before
-	 * querying so a crash-corrupted index gets repaired on first use
-	 * rather than stalling cold start. Optional because it's only
-	 * meaningful when an FTS5-capable runtime is wired in.
+	 * Lazy missing- or empty-index repair. Search routes call this before querying
+	 * without performing full row-count verification. Optional because
+	 * it's only meaningful when an FTS5-capable runtime is wired in.
 	 */
 	ensureSearchHealthy?: () => Promise<void>;
 }
