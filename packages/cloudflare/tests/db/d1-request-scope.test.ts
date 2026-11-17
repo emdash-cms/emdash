@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => {
 	const binding = {
 		prepare: vi.fn(),
 		batch: vi.fn(),
-		withSession: vi.fn((_constraint: string) => session),
+		withSession: vi.fn(() => session),
 	};
 	return { session, binding };
 });
@@ -22,99 +22,10 @@ import { createRequestScopedDb } from "../../src/db/d1.js";
 
 const config = { binding: "DB", session: "auto" as const };
 
-function configureSessionTransport(session: {
-	prepare: ReturnType<typeof vi.fn>;
-	batch: ReturnType<typeof vi.fn>;
-}) {
-	const result = { success: true, results: [], meta: { changes: 0, last_row_id: 0 } };
-	session.prepare.mockImplementation((sql: string) => {
-		const statement = {
-			sql,
-			bind: vi.fn(() => statement),
-			all: vi.fn(async () => result),
-		};
-		return statement;
-	});
-	session.batch.mockImplementation(async (statements: unknown[]) => statements.map(() => result));
-}
-
-describe("D1 request scoping session selection", () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-		configureSessionTransport(mocks.session);
-		mocks.binding.withSession.mockReturnValue(mocks.session);
-	});
-
-	it.each([false, true])(
-		"uses first-primary for an anonymous GET when requirePrimary is true (coalesce: %s)",
-		async (coalesce) => {
-			const scoped = createRequestScopedDb({
-				config: { ...config, coalesce },
-				isAuthenticated: false,
-				isWrite: false,
-				requirePrimary: true,
-				cookies: { get: vi.fn(), set: vi.fn() },
-				url: new URL("https://example.com/_emdash/api/content/posts"),
-			});
-
-			await scoped!.db.selectFrom("posts").selectAll().execute();
-			expect(mocks.binding.withSession).toHaveBeenCalledWith("first-primary");
-		},
-	);
-
-	it.each([false, true])(
-		"uses first-primary for an authenticated read when requirePrimary overrides an older bookmark (coalesce: %s)",
-		async (coalesce) => {
-			const cookies = { get: vi.fn(() => ({ value: "older-bookmark" })), set: vi.fn() };
-			const scoped = createRequestScopedDb({
-				config: { ...config, coalesce },
-				isAuthenticated: true,
-				isWrite: false,
-				requirePrimary: true,
-				cookies,
-				url: new URL("https://example.com/_emdash/admin"),
-			});
-
-			await scoped!.db.selectFrom("posts").selectAll().execute();
-			expect(mocks.binding.withSession).toHaveBeenCalledWith("first-primary");
-		},
-	);
-
-	it.each([false, true])(
-		"keeps ordinary anonymous auto reads on first-unconstrained (coalesce: %s)",
-		(coalesce) => {
-			createRequestScopedDb({
-				config: { ...config, coalesce },
-				isAuthenticated: false,
-				isWrite: false,
-				cookies: { get: vi.fn(), set: vi.fn() },
-				url: new URL("https://example.com/"),
-			});
-
-			expect(mocks.binding.withSession).toHaveBeenCalledWith("first-unconstrained");
-		},
-	);
-
-	it.each([false, true])("keeps explicit writes on first-primary (coalesce: %s)", (coalesce) => {
-		createRequestScopedDb({
-			config: { ...config, coalesce },
-			isAuthenticated: false,
-			isWrite: true,
-			requirePrimary: false,
-			cookies: { get: vi.fn(), set: vi.fn() },
-			url: new URL("https://example.com/api/posts"),
-		});
-
-		expect(mocks.binding.withSession).toHaveBeenCalledWith("first-primary");
-	});
-});
-
 describe("D1 request scoping bookmark persistence", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		configureSessionTransport(mocks.session);
 		mocks.session.getBookmark.mockReturnValue("d1-bookmark-1");
-		mocks.binding.withSession.mockReturnValue(mocks.session);
 	});
 
 	it("persists the bookmark for a request that started authenticated", () => {
@@ -171,74 +82,6 @@ describe("D1 request scoping bookmark persistence", () => {
 		scoped!.commit();
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
-});
-
-describe("D1 request scoping primary routing", () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
-
-	it.each([false, true])(
-		"uses a fresh first-primary session for every physical operation (coalesce: %s)",
-		async (coalesce) => {
-			const result = { success: true, results: [], meta: { changes: 0, last_row_id: 0 } };
-			const sessions: {
-				bookmark: string;
-				prepare: ReturnType<typeof vi.fn>;
-				batch: ReturnType<typeof vi.fn>;
-			}[] = [];
-			const cookies = { get: vi.fn(), set: vi.fn() };
-			mocks.binding.withSession.mockImplementation((constraint: string) => {
-				const session = {
-					bookmark: `primary-bookmark-${sessions.length + 1}`,
-					prepare: vi.fn((sql: string) => {
-						const statement = {
-							sql,
-							bind: vi.fn(() => statement),
-							all: vi.fn(async () => result),
-						};
-						return statement;
-					}),
-					batch: vi.fn(async (statements: unknown[]) => statements.map(() => result)),
-					getBookmark: vi.fn(() => session.bookmark),
-				};
-				expect(constraint).toBe("first-primary");
-				sessions.push(session);
-				return session;
-			});
-
-			const scoped = createRequestScopedDb({
-				config: { ...config, coalesce },
-				isAuthenticated: true,
-				isWrite: false,
-				requirePrimary: true,
-				cookies,
-				url: new URL("https://example.com/_emdash/admin"),
-			})!;
-			await scoped.db.selectFrom("a").selectAll().execute();
-			await scoped.db.selectFrom("b").selectAll().execute();
-			await Promise.all([
-				scoped.db.selectFrom("c").selectAll().execute(),
-				scoped.db.selectFrom("d").selectAll().execute(),
-			]);
-
-			const physicalOperations = coalesce ? 3 : 4;
-			expect(sessions).toHaveLength(physicalOperations);
-			expect(sessions.map((session) => session.bookmark)).toEqual(
-				Array.from({ length: physicalOperations }, (_, index) => `primary-bookmark-${index + 1}`),
-			);
-			expect(sessions.reduce((count, session) => count + session.batch.mock.calls.length, 0)).toBe(
-				coalesce ? 1 : 0,
-			);
-			expect(mocks.binding.withSession).toHaveBeenCalledTimes(physicalOperations);
-			scoped.commit();
-			expect(cookies.set).toHaveBeenCalledWith(
-				"__em_d1_bookmark",
-				`primary-bookmark-${physicalOperations}`,
-				expect.objectContaining({ httpOnly: true, secure: true }),
-			);
-		},
-	);
 });
 
 describe("D1 request scoping query concurrency", () => {

@@ -27,7 +27,6 @@ import { createRequestScopedDb } from "../../src/db/do-sql.js";
 
 describe("DO SQL request scoping", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
 		mocks.query.mockResolvedValue({ rows: [] });
 		mocks.batchQuery.mockResolvedValue([]);
 	});
@@ -99,90 +98,5 @@ describe("DO SQL request scoping", () => {
 				url: new URL("https://example.com/"),
 			}),
 		).toBeNull();
-	});
-
-	it("routes a required-primary read through the primary with sessions enabled", async () => {
-		const scoped = createRequestScopedDb({
-			config: { binding: "DB_DO", session: "auto" },
-			isAuthenticated: false,
-			isWrite: false,
-			requirePrimary: true,
-			cookies: { get: vi.fn(), set: vi.fn() },
-			url: new URL("https://example.com/admin"),
-		});
-
-		expect(scoped).not.toBeNull();
-		await sql`SELECT 1`.execute(scoped!.db);
-		expect(mocks.query).toHaveBeenCalledWith("SELECT 1", [], { primary: true });
-	});
-
-	it("creates a primary-forced read scope when sessions are disabled", async () => {
-		const scoped = createRequestScopedDb({
-			config: { binding: "DB_DO", session: "disabled" },
-			isAuthenticated: false,
-			isWrite: false,
-			requirePrimary: true,
-			cookies: { get: vi.fn(), set: vi.fn() },
-			url: new URL("https://example.com/admin"),
-		});
-
-		expect(scoped).not.toBeNull();
-		await sql`SELECT 1`.execute(scoped!.db);
-		expect(mocks.query).toHaveBeenCalledWith("SELECT 1", [], { primary: true });
-	});
-
-	it("combines an authenticated bookmark with primary routing", async () => {
-		const cookies = { get: vi.fn(() => ({ value: "old-bookmark" })), set: vi.fn() };
-		const scoped = createRequestScopedDb({
-			config: { binding: "DB_DO", session: "auto" },
-			isAuthenticated: true,
-			isWrite: false,
-			requirePrimary: true,
-			cookies,
-			url: new URL("https://example.com/admin"),
-		});
-
-		expect(scoped).not.toBeNull();
-		await sql`SELECT 1`.execute(scoped!.db);
-		expect(mocks.query).toHaveBeenCalledWith("SELECT 1", [], {
-			bookmark: "old-bookmark",
-			primary: true,
-		});
-	});
-
-	it("routes every coalesced required-primary read through the primary", async () => {
-		mocks.batchQuery.mockResolvedValue([{ rows: [] }, { rows: [] }]);
-		const scoped = createRequestScopedDb({
-			config: { binding: "DB_DO", session: "auto" },
-			isAuthenticated: false,
-			isWrite: false,
-			requirePrimary: true,
-			cookies: { get: vi.fn(), set: vi.fn() },
-			url: new URL("https://example.com/admin"),
-		});
-
-		expect(scoped).not.toBeNull();
-		await Promise.all([sql`SELECT 1`.execute(scoped!.db), sql`SELECT 2`.execute(scoped!.db)]);
-		expect(mocks.batchQuery).toHaveBeenCalledWith(
-			[
-				{ sql: "SELECT 1", params: [] },
-				{ sql: "SELECT 2", params: [] },
-			],
-			{ primary: true },
-		);
-	});
-
-	it("leaves an ordinary anonymous session read replica-eligible", async () => {
-		const scoped = createRequestScopedDb({
-			config: { binding: "DB_DO", session: "auto" },
-			isAuthenticated: false,
-			isWrite: false,
-			cookies: { get: vi.fn(), set: vi.fn() },
-			url: new URL("https://example.com/"),
-		});
-
-		expect(scoped).not.toBeNull();
-		await sql`SELECT 1`.execute(scoped!.db);
-		expect(mocks.query).toHaveBeenCalledWith("SELECT 1", [], undefined);
 	});
 });

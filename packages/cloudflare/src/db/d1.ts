@@ -19,7 +19,6 @@ import { type Dialect, Kysely } from "kysely";
 
 import { CoalescingD1Dialect } from "./coalescing-d1.js";
 import { EmDashD1Dialect, RawBindingD1Dialect } from "./d1-dialect.js";
-import { createPrimaryD1Session } from "./d1-primary-session.js";
 import { createD1SessionGuard, type D1SessionGuard } from "./d1-session-guard.js";
 
 /**
@@ -179,8 +178,6 @@ export interface RequestScopedDbOpts {
 	 */
 	endedAuthenticated?: () => boolean;
 	isWrite: boolean;
-	/** Require a fresh primary session for each operation, regardless of client bookmarks. */
-	requirePrimary?: boolean;
 	cookies: CookieJar;
 	url: URL;
 }
@@ -413,13 +410,11 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 
 	// Any write — authenticated or not (e.g. an anonymous comment POST) — must
 	// hit primary; we don't want a write plus a follow-up read racing across
-	// replicas. Reads requiring authoritative state also start at primary,
-	// rather than resuming from an older bookmark. Authenticated reads otherwise
-	// resume from a prior bookmark when the client sent a valid one. Everything
-	// else (anonymous reads) uses the config default, typically
-	// "first-unconstrained" for nearest-replica routing.
+	// replicas. Authenticated reads resume from a prior bookmark when the client
+	// sent a valid one. Everything else (anonymous reads) uses the config default,
+	// typically "first-unconstrained" for nearest-replica routing.
 	let constraint: string = configConstraint;
-	if (opts.isWrite || opts.requirePrimary) {
+	if (opts.isWrite) {
 		constraint = "first-primary";
 	} else if (opts.isAuthenticated) {
 		const bookmark = opts.cookies.get(cookieName)?.value;
@@ -433,9 +428,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		}
 	}
 
-	const session = opts.requirePrimary
-		? createPrimaryD1Session(binding)
-		: binding.withSession(constraint);
+	const session = binding.withSession(constraint);
 	// kysely-d1 only touches .prepare() and .batch() on the database argument,
 	// both of which D1DatabaseSession implements. Hang-guarded: until the
 	// first session query settles in this isolate, queries are raced against

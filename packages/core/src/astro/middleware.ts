@@ -1045,7 +1045,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// DO database via the same AsyncLocalStorage instance as the loader.
 		const doInit = async () => {
 			let refreshPluginRoutes: (() => Promise<void>) | undefined;
-			let requirePrimary = false;
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const mwStart = performance.now();
 
@@ -1061,7 +1060,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					? publicPath.slice("/_emdash/api/plugins/".length).split("/")[0]
 					: undefined;
 				if (installedPluginId && runtime.mayNeedInstalledPluginRefresh(installedPluginId)) {
-					requirePrimary = true;
 					refreshPluginRoutes = () => runtime.refreshInstalledPluginRoute(installedPluginId);
 				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
@@ -1242,8 +1240,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				cookies: context.cookies,
 				url,
 				lastContentWriteAt,
-				// Route permissions must not regress to an older replica snapshot.
-				requirePrimary,
 			});
 
 			const renderAndFinalize = async () => {

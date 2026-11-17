@@ -70,8 +70,6 @@ declare module "virtual:emdash/dialect" {
 		 */
 		endedAuthenticated?: () => boolean;
 		isWrite: boolean;
-		/** Require each read to use primary instead of a potentially lagging replica or cache. */
-		requirePrimary?: boolean;
 		/** Whether core routing allows this request to use an anonymous public-read cache. */
 		canUseCachedBinding?: boolean;
 		cookies: {

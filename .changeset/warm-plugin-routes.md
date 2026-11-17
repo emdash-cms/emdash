@@ -3,8 +3,8 @@
 "@emdash-cms/cloudflare": patch
 ---
 
-Fixes registry and marketplace plugin API routes returning stale results on warm Cloudflare Workers isolates after an install, update, or uninstall. Plugin API requests now refresh installed plugins before checking route permissions, without requiring a redeploy. With D1 or Durable Object SQL read replication enabled, installed-plugin requests read from primary, including after waiting for another refresh, so a lagging replica cannot restore an older plugin version or its route permissions.
+Fixes registry and marketplace plugin routes intermittently returning `404 Plugin route not found` on warm Cloudflare isolates after an install, update, or uninstall. Requests to `/_emdash/api/plugins/*` check for plugin-state changes before checking route permissions, without requiring a redeploy. Only newer generation-tagged snapshots are applied, so replica lag can delay a change but cannot restore older plugin code or permissions. Plugin handlers keep their normal database routing.
 
-Plugin API requests return `503 PLUGIN_SYNC_ERROR` if the requested plugin's state or bundle cannot be read, or the plugin fails to load in its sandbox. Bundle and sandbox-load failures retry after a five-second backoff, or immediately when the plugin's stored state changes.
+Plugin route requests return `503 PLUGIN_SYNC_ERROR` if state cannot be read or the requested plugin fails to load. Bundle and sandbox-load failures retry after a five-second backoff, or immediately when the plugin's stored state changes.
 
-Upgrade `emdash` and `@emdash-cms/cloudflare` together for this fix.
+On Durable Object SQL deployments, upgrade core and the Cloudflare adapter together so plugin state and its generation are committed atomically.

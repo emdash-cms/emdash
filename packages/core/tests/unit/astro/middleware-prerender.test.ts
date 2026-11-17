@@ -1030,9 +1030,9 @@ describe("astro middleware request-scoped db", () => {
 		});
 	});
 
-	it("refreshes plugin routes inside an authoritative request-owned database scope", async () => {
+	it("refreshes plugin routes inside the request-owned database scope", async () => {
 		const commit = vi.fn();
-		const scopedDb = { _marker: "plugin-primary" };
+		const scopedDb = { _marker: "plugin-request" };
 		vi.mocked(createRequestScopedDb).mockReturnValue({ db: scopedDb as never, commit });
 		let refreshDb: unknown;
 		mockRefreshInstalledPluginRoute.mockImplementation(async () => {
@@ -1047,7 +1047,6 @@ describe("astro middleware request-scoped db", () => {
 		});
 		expect(refreshDb).toBe(scopedDb);
 		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0]).toMatchObject({
-			requirePrimary: true,
 			canUseCachedBinding: false,
 		});
 		expect(commit).toHaveBeenCalledOnce();
@@ -1066,7 +1065,6 @@ describe("astro middleware request-scoped db", () => {
 			} as never),
 		);
 		expect(response.status).toBe(200);
-		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0].requirePrimary).toBe(false);
 		expect(mockMayNeedInstalledPluginRefresh).toHaveBeenCalledWith("emdash-forms");
 		expect(mockRefreshInstalledPluginRoute).not.toHaveBeenCalled();
 	});
