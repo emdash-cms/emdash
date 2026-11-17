@@ -1,7 +1,6 @@
 ---
 export const prerender = false;
 
-import { getLiveCollection } from "astro:content";
 import { isDid, isHandle } from "@atcute/lexicons/syntax";
 
 import ExploreBand from "../../../components/ExploreBand.astro";
@@ -9,6 +8,7 @@ import PluginCard from "../../../components/PluginCard.astro";
 import PublisherHead from "../../../components/publisher/PublisherHead.astro";
 import SubNav from "../../../components/SubNav.astro";
 import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { searchCatalog, withLatestReleases } from "../../../lib/catalog.js";
 import { publisherSummary } from "../../../lib/publisher.js";
 import {
 	isOfficialPublisher,
@@ -25,38 +25,35 @@ const identifier = publisherParam.startsWith("@")
 	? publisherParam.slice(1)
 	: publisherParam;
 if (!isDid(identifier) && !isHandle(identifier)) return Astro.rewrite("/404");
-const result = await getLiveCollection("plugins", {
-	q: identifier,
-	limit: 100,
-	includeLatestRelease: true,
-});
-if (result.error) {
+const result = await searchCatalog(identifier);
+if ("error" in result) {
 	return Astro.rewrite(
 		isRegistryRequestRejected(result.error) ? "/404" : "/registry-unavailable",
 	);
 }
-const entries = (result.entries ?? []).filter(({ data }) =>
+const packages = result.packages.filter((pkg) =>
 	isDid(identifier)
-		? data.package.did === identifier
-		: publisherHandle(data.package) === identifier,
+		? pkg.did === identifier
+		: publisherHandle(pkg) === identifier,
 );
-if (entries.length === 0) return Astro.rewrite("/404");
+if (packages.length === 0) return Astro.rewrite("/404");
 
-const handle = entries
-	.map(({ data }) => publisherHandle(data.package))
-	.find(Boolean);
-const canonicalPath = publisherPath(entries[0]!.data.package);
+const handle = packages.map((pkg) => publisherHandle(pkg)).find(Boolean);
+const canonicalPath = publisherPath(packages[0]!);
 Astro.cache.set({
 	...REGISTRY_PAGE_CACHE,
-	tags: ["registry", `publisher:${entries[0]!.data.package.did}`],
+	tags: ["registry", `publisher:${packages[0]!.did}`],
 });
 if (handle && publisherParam !== `@${handle}`) {
 	return Astro.redirect(canonicalPath, 302);
 }
 
+const entries = await withLatestReleases(
+	packages.map((pkg) => ({ package: pkg })),
+);
 const displayIdentity = handle ? `@${handle}` : identifier;
-const publisherDid = entries[0]!.data.package.did;
-const summary = publisherSummary(entries.map(({ data }) => data.package));
+const publisherDid = packages[0]!.did;
+const summary = publisherSummary(packages);
 ---
 
 <BaseLayout
@@ -74,9 +71,9 @@ const summary = publisherSummary(entries.map(({ data }) => data.package));
 	<PublisherHead
 		did={publisherDid}
 		identity={displayIdentity}
-		official={isOfficialPublisher(entries[0]!.data.package)}
+		official={isOfficialPublisher(packages[0]!)}
 		summary={summary}
-		plugins={entries.map(({ data }) => data)}
+		plugins={entries}
 	/>
 
 	<section class="publisher-plugins shell" aria-labelledby="plugins-heading">
@@ -87,7 +84,7 @@ const summary = publisherSummary(entries.map(({ data }) => data.package));
 			{
 				entries.map((entry) => (
 					<li>
-						<PluginCard entry={entry.data} headingLevel={3} />
+						<PluginCard entry={entry} headingLevel={3} />
 					</li>
 				))
 			}

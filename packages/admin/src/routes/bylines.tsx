@@ -9,13 +9,21 @@ import {
 	Toast,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { DotsThree, IdentificationCard, Pencil, Plus, Trash } from "@phosphor-icons/react";
+import { IdentificationCard, Pencil, Plus, Trash } from "@phosphor-icons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { BylineFormDialog, type BylineFormValues } from "../components/BylineFormDialog.js";
 import { ConfirmDialog } from "../components/ConfirmDialog.js";
+import {
+	DataTable,
+	RowActionsMenu,
+	RowMeta,
+	RowTitleButton,
+	secondaryColumn,
+	tertiaryColumn,
+} from "../components/DataTable.js";
 import { LocaleSwitcher, useI18nConfig } from "../components/LocaleSwitcher.js";
 import { RouterLinkButton } from "../components/RouterLinkButton.js";
 import { BYLINE_SCHEMA_NAV_ITEM } from "../components/Sidebar.js";
@@ -75,6 +83,15 @@ function BylineMonogram({ name }: { name: string }) {
 		>
 			{initials || <IdentificationCard className="size-5" />}
 		</span>
+	);
+}
+
+function BylineTypeBadge({ byline }: { byline: BylineSummary }) {
+	const { t } = useLingui();
+	return (
+		<Badge variant={byline.userId && !byline.isGuest ? "success" : "secondary"}>
+			{byline.isGuest ? t`Guest` : byline.userId ? t`Linked user` : t`Unlinked`}
+		</Badge>
 	);
 }
 
@@ -334,108 +351,96 @@ export function BylinesPage() {
 			</TableToolbar>
 
 			{items.length > 0 ? (
-				<LayerCard className="p-0">
-					<div className="overflow-x-auto">
-						<Table className="text-start">
-							<Table.Header variant="compact">
-								<Table.Row>
-									<Table.Head className="text-start">{t`Byline`}</Table.Head>
-									<Table.Head className="w-32 text-start">{t`Type`}</Table.Head>
-									<Table.Head className="hidden w-48 text-start lg:table-cell">
-										{t`Website`}
-									</Table.Head>
-									<Table.Head className="w-24 text-end">
-										<span className="sr-only">{t`Actions`}</span>
-									</Table.Head>
-								</Table.Row>
-							</Table.Header>
-							<Table.Body>
-								{items.map((item) => (
-									<Table.Row key={item.id} className="hover:bg-kumo-tint/25">
-										<Table.Cell>
-											<div className="flex min-w-0 items-center gap-3 py-1">
-												<BylineMonogram name={item.displayName} />
-												<div className="min-w-0">
-													<span dir="auto" className="block font-medium">
-														{item.displayName}
-													</span>
-													<bdi dir="ltr" className="block text-xs text-kumo-subtle">
-														/{item.slug}
-													</bdi>
-													{item.bio && (
-														<span
-															dir="auto"
-															className="block max-w-lg truncate text-sm text-kumo-subtle"
-														>
-															{item.bio}
-														</span>
-													)}
-												</div>
+				<DataTable>
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>{t`Byline`}</Table.Head>
+							<Table.Head className="w-32" {...secondaryColumn}>
+								{t`Type`}
+							</Table.Head>
+							<Table.Head className="w-48" {...tertiaryColumn}>
+								{t`Website`}
+							</Table.Head>
+							<Table.Head className="w-0">
+								<span className="sr-only">{t`Actions`}</span>
+							</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{items.map((item) => (
+							<Table.Row key={item.id}>
+								<Table.Cell>
+									<div className="flex min-w-0 items-center gap-3">
+										<BylineMonogram name={item.displayName} />
+										<div className="min-w-0">
+											<RowTitleButton
+												dir="auto"
+												className="block"
+												aria-label={t`Edit ${item.displayName}`}
+												onClick={() => openEdit(item)}
+											>
+												{item.displayName}
+											</RowTitleButton>
+											<div className="text-xs text-kumo-subtle wrap-anywhere">
+												<bdi dir="ltr">/{item.slug}</bdi>
 											</div>
-										</Table.Cell>
-										<Table.Cell>
-											<Badge variant={item.userId && !item.isGuest ? "success" : "secondary"}>
-												{item.isGuest ? t`Guest` : item.userId ? t`Linked user` : t`Unlinked`}
-											</Badge>
-										</Table.Cell>
-										<Table.Cell className="hidden lg:table-cell">
-											{item.websiteUrl ? (
-												<bdi
-													dir="ltr"
-													className="block max-w-44 truncate text-sm text-kumo-subtle"
-													title={item.websiteUrl}
-												>
-													{item.websiteUrl}
-												</bdi>
-											) : (
-												<span className="text-kumo-subtle">—</span>
-											)}
-										</Table.Cell>
-										<Table.Cell>
-											<div className="flex justify-end gap-1">
-												<Button
-													variant="ghost"
-													size="sm"
-													shape="square"
-													icon={<Pencil aria-hidden="true" />}
-													aria-label={t`Edit ${item.displayName}`}
-													onClick={() => openEdit(item)}
-												/>
-												<DropdownMenu>
-													<DropdownMenu.Trigger
-														render={
-															<Button
-																type="button"
-																variant="ghost"
-																size="sm"
-																shape="square"
-																icon={<DotsThree aria-hidden="true" />}
-																aria-label={t`More actions for ${item.displayName}`}
-															/>
-														}
-													/>
-													<DropdownMenu.Content
-														align="end"
-														className="origin-(--transform-origin) transition-[transform,scale,opacity] duration-150 data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0 data-starting-style:scale-90 data-starting-style:opacity-0 motion-reduce:transition-none"
+											{item.bio && (
+												// A minmax(0, 1fr) track adds nothing to the cell's minimum width,
+												// so the truncated bio can't widen the column.
+												<div className="grid max-w-lg grid-cols-1">
+													<div
+														dir="auto"
+														className="w-fit max-w-full truncate text-sm text-kumo-subtle"
 													>
-														<DropdownMenu.Item
-															variant="danger"
-															icon={<Trash className="me-2 size-4" aria-hidden="true" />}
-															aria-label={t`Delete byline ${item.displayName}`}
-															onClick={() => setDeleteTarget(item)}
-														>
-															{t`Delete byline`}
-														</DropdownMenu.Item>
-													</DropdownMenu.Content>
-												</DropdownMenu>
-											</div>
-										</Table.Cell>
-									</Table.Row>
-								))}
-							</Table.Body>
-						</Table>
-					</div>
-				</LayerCard>
+														{item.bio}
+													</div>
+												</div>
+											)}
+											<RowMeta>
+												<BylineTypeBadge byline={item} />
+											</RowMeta>
+										</div>
+									</div>
+								</Table.Cell>
+								<Table.Cell {...secondaryColumn}>
+									<BylineTypeBadge byline={item} />
+								</Table.Cell>
+								<Table.Cell {...tertiaryColumn}>
+									{item.websiteUrl ? (
+										<bdi
+											dir="ltr"
+											className="block w-fit max-w-44 truncate text-sm text-kumo-subtle"
+											title={item.websiteUrl}
+										>
+											{item.websiteUrl}
+										</bdi>
+									) : (
+										<span className="text-kumo-subtle">—</span>
+									)}
+								</Table.Cell>
+								<Table.Cell className="text-end">
+									<RowActionsMenu label={t`Actions for ${item.displayName}`}>
+										<DropdownMenu.Item
+											icon={<Pencil className="size-4" aria-hidden="true" />}
+											onClick={() => openEdit(item)}
+										>
+											{t`Edit`}
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item
+											variant="danger"
+											icon={<Trash className="size-4" aria-hidden="true" />}
+											aria-label={t`Delete byline ${item.displayName}`}
+											onClick={() => setDeleteTarget(item)}
+										>
+											{t`Delete byline`}
+										</DropdownMenu.Item>
+									</RowActionsMenu>
+								</Table.Cell>
+							</Table.Row>
+						))}
+					</Table.Body>
+				</DataTable>
 			) : (
 				<LayerCard className="flex min-h-60 flex-col items-center justify-center gap-2 p-6 text-center">
 					<IdentificationCard

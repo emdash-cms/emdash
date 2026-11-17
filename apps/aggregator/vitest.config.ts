@@ -33,6 +33,9 @@ export default defineConfig({
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.jsonc" },
 			miniflare: {
+				// Every outbound request from the worker gets this stub, so no test
+				// waits on DNS or on the live atproto relay, Jetstream or PLC directory.
+				outboundService: () => new Response("no network in tests", { status: 503 }),
 				bindings: {
 					TEST_MIGRATIONS: migrations,
 					// Stub admin auth token so tests can exercise the auth-gated

@@ -75,6 +75,8 @@ export interface SchemaCollection {
 	urlPattern?: string;
 	/** Published entries require a slug unless this is false. */
 	routable?: boolean;
+	/** Source for the content list's Date column. */
+	dateField?: string | null;
 	hasSeo: boolean;
 	/** Sidebar entry, dashboard quick action, and dashboard Content card row omitted in the admin; the collection stays reachable by URL */
 	hidden: boolean;
@@ -166,6 +168,8 @@ export interface UpdateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	routable?: boolean;
+	/** Source for the content list's Date column. */
+	dateField?: string | null;
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;
@@ -346,7 +350,7 @@ export async function fetchCollection(
 	const response = await apiFetch(url);
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Collection "${slug}" not found`);
+			throw new Error(i18n._(msg`Collection "${slug}" not found`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch collection`));
 	}

@@ -34,7 +34,7 @@ test.describe("Bylines", () => {
 
 		await page.getByRole("button", { name: "New" }).click();
 		await page.getByLabel("Display name").fill(initialName);
-		await page.getByLabel("Slug").fill(`guest-byline-${unique}`);
+		await page.getByLabel("Slug", { exact: true }).fill(`guest-byline-${unique}`);
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
 
@@ -400,8 +400,17 @@ test.describe("Bylines", () => {
 
 		await addByline(primaryName);
 		await addByline(secondaryName);
-		await admin.clickSave();
-		await admin.waitForSaveComplete();
+		// In the entry's room, bylines save as soon as they change.
+		await expect
+			.poll(async () => {
+				const response = await fetch(
+					`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
+					{ headers },
+				);
+				const body: any = await response.json();
+				return body.data?.item?.bylines?.length;
+			})
+			.toBe(2);
 
 		const ownershipUpdateResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,

@@ -267,14 +267,22 @@ describe("MarketplacePluginDetail", () => {
 			</Wrapper>,
 		);
 		await screen.getByRole("button", { name: INSTALL_RE }).click();
-		await screen.getByRole("button", { name: "Accept & Install" }).click();
+		const accept = screen.getByRole("button", { name: "Accept & Install" });
+		await expect.element(accept).toBeEnabled();
+		accept.element().click();
 
 		await expect.element(screen.getByText("Public routes")).toBeInTheDocument();
 		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();
-		await screen.getByRole("button", { name: "Accept & Install" }).click();
-		expect(mockInstallMarketplacePlugin).toHaveBeenLastCalledWith(
-			"seo-helper",
-			expect.objectContaining({ acknowledgedPublicRoutes: ["webhook"] }),
+		expect(screen.getByText("Plugin installation requires explicit consent").query()).toBeNull();
+		await expect.element(accept).toBeEnabled();
+		// A press this soon after the first would count as the same double click.
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		accept.element().click();
+		await vi.waitFor(() =>
+			expect(mockInstallMarketplacePlugin).toHaveBeenLastCalledWith(
+				"seo-helper",
+				expect.objectContaining({ acknowledgedPublicRoutes: ["webhook"] }),
+			),
 		);
 	});
 

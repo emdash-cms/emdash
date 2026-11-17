@@ -4,9 +4,11 @@ interface Props {
 }
 
 const { placeholder = "Search..." } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 ---
 
-<form method="get" action="/search" class="widget-search">
+<form method="get" action={`${base}/search`} class="widget-search">
 	<input
 		type="search"
 		name="q"

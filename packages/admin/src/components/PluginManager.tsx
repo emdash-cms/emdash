@@ -10,6 +10,7 @@ import {
 	Badge,
 	Button,
 	Checkbox,
+	LayerDialog,
 	Link as KumoLink,
 	Switch,
 	useKumoToastManager,
@@ -60,6 +61,7 @@ import {
 	type RegistryUpdateOpts,
 	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
+import { useConfirmPress } from "../lib/dialog-form.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
@@ -336,7 +338,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
-			} else {
+			} else if (!showUpdateConsent) {
 				toastManager.add({
 					title: t`Failed to update plugin`,
 					description: err instanceof Error ? err.message : t`An error occurred`,
@@ -792,38 +794,42 @@ export function UninstallConfirmDialog({
 }: UninstallConfirmDialogProps) {
 	const { t } = useLingui();
 	const [deleteData, setDeleteData] = React.useState(false);
+	const confirm = useConfirmPress(onConfirm, isPending, error);
 
 	return (
-		<div
-			className="fixed inset-0 z-50 flex items-center justify-center"
-			role="dialog"
-			aria-modal="true"
-			aria-label={t`Uninstall confirmation`}
+		<LayerDialog.Root
+			open
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen && !isPending) onCancel();
+			}}
+			dismissDisabled={isPending}
 		>
-			<div className="absolute inset-0 bg-black/50" onClick={() => !isPending && onCancel()} />
-			<div className="relative w-full max-w-sm rounded-lg border bg-kumo-base shadow-lg">
-				<div className="p-6 space-y-4">
-					<h2 className="text-lg font-semibold">{t`Uninstall ${pluginName}?`}</h2>
-					<p className="text-sm text-kumo-subtle">
-						{t`This will remove the plugin and its bundle from your site.`}
-					</p>
-					<Checkbox
-						checked={deleteData}
-						onCheckedChange={(checked) => setDeleteData(checked)}
-						label={t`Also delete plugin storage data`}
-					/>
-					<DialogError message={error} />
-				</div>
-				<div className="flex justify-end gap-3 border-t px-6 py-4">
-					<Button variant="ghost" onClick={onCancel} disabled={isPending}>
-						{t`Cancel`}
-					</Button>
-					<Button variant="destructive" onClick={() => onConfirm(deleteData)} disabled={isPending}>
+			<LayerDialog.Content size="sm">
+				<LayerDialog.Title>{t`Uninstall ${pluginName}?`}</LayerDialog.Title>
+				<LayerDialog.Description>
+					{t`This will remove the plugin and its bundle from your site.`}
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="space-y-4">
+						<Checkbox
+							checked={deleteData}
+							onCheckedChange={(checked) => setDeleteData(checked)}
+							label={t`Also delete plugin storage data`}
+						/>
+						<DialogError message={error} />
+					</div>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action
+						variant="destructive"
+						onClick={() => confirm(deleteData)}
+						disabled={isPending}
+					>
 						{isPending ? t`Uninstalling...` : t`Uninstall`}
-					</Button>
-				</div>
-			</div>
-		</div>
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

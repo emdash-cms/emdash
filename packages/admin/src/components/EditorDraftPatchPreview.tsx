@@ -1,7 +1,9 @@
-import { Button, Dialog } from "@cloudflare/kumo";
+import { LayerDialog } from "@cloudflare/kumo";
 import type { EditorDraftPatchOperation } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
+
+import { guardUnsavedInput } from "../lib/dialog-form.js";
 
 interface EditorDraftPatchPreviewProps {
 	operations: EditorDraftPatchOperation[];
@@ -46,42 +48,44 @@ export function EditorDraftPatchPreview({
 }: EditorDraftPatchPreviewProps) {
 	const { t } = useLingui();
 	return (
-		<Dialog.Root open onOpenChange={(open) => !open && onClose()} disablePointerDismissal>
-			<Dialog className="max-w-2xl p-6" size="sm">
-				<Dialog.Title className="text-lg font-semibold">{t`Review proposed changes`}</Dialog.Title>
-				<Dialog.Description className="text-kumo-subtle">
+		<LayerDialog.Root
+			open
+			{...guardUnsavedInput(true, (open) => {
+				if (!open) onClose();
+			})}
+		>
+			<LayerDialog.Content size="lg">
+				<LayerDialog.Title>{t`Review proposed changes`}</LayerDialog.Title>
+				<LayerDialog.Description>
 					{t`The plugin has not saved these changes. Review them before updating the editor.`}
-				</Dialog.Description>
-				<div className="mt-4 max-h-96 space-y-3 overflow-y-auto">
-					{operations.map((operation) => (
-						<div key={operation.field} className="rounded-md border p-3">
-							<p className="font-medium">{fields[operation.field]?.label ?? operation.field}</p>
-							<dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
-								<div className="min-w-0">
-									<dt className="text-kumo-subtle">{t`Before`}</dt>
-									<dd className="break-words" dir="auto">
-										{summarize(currentValues[operation.field])}
-									</dd>
-								</div>
-								<div className="min-w-0">
-									<dt className="text-kumo-subtle">{t`After`}</dt>
-									<dd className="break-words" dir="auto">
-										{summarize(operation.op === "clear" ? null : operation.value)}
-									</dd>
-								</div>
-							</dl>
-						</div>
-					))}
-				</div>
-				<div className="mt-6 flex justify-end gap-2">
-					<Button type="button" variant="secondary" onClick={onClose}>
-						{t`Cancel`}
-					</Button>
-					<Button type="button" variant="primary" onClick={onApply}>
-						{t`Apply changes`}
-					</Button>
-				</div>
-			</Dialog>
-		</Dialog.Root>
+				</LayerDialog.Description>
+				<LayerDialog.Body>
+					<div className="space-y-3">
+						{operations.map((operation) => (
+							<div key={operation.field} className="rounded-md border p-3">
+								<p className="font-medium">{fields[operation.field]?.label ?? operation.field}</p>
+								<dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+									<div className="min-w-0">
+										<dt className="text-kumo-subtle">{t`Before`}</dt>
+										<dd className="break-words" dir="auto">
+											{summarize(currentValues[operation.field])}
+										</dd>
+									</div>
+									<div className="min-w-0">
+										<dt className="text-kumo-subtle">{t`After`}</dt>
+										<dd className="break-words" dir="auto">
+											{summarize(operation.op === "clear" ? null : operation.value)}
+										</dd>
+									</div>
+								</dl>
+							</div>
+						))}
+					</div>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action onClick={onApply}>{t`Apply changes`}</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }

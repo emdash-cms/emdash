@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { SeoPanel } from "../../src/components/SeoPanel";
 import { render } from "../utils/render";
+import { tap } from "../utils/touch";
 
 // SeoPanel renders SeoImageField, which uses MediaPickerModal -- that hooks
 // into react-query. Tests need a QueryClient in scope even when the modal is
@@ -348,5 +349,30 @@ describe("SeoPanel", () => {
 		await expect
 			.element(screen.getByLabelText("Meta Description"))
 			.not.toHaveAttribute("placeholder");
+	});
+
+	it("keeps SEO help open after a tap until the next tap", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+		const help = screen.getByRole("button", {
+			name: "Why is this important for search result titles?",
+		});
+		const helpText = page.getByRole("tooltip", {
+			name: "Overrides the page title in search engine results",
+		});
+
+		await tap(help.element());
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await expect.element(helpText).toBeVisible();
+
+		await tap(help.element());
+		await expect.element(helpText).not.toBeInTheDocument();
 	});
 });

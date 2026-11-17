@@ -1,0 +1,69 @@
+---
+title: Google AdSense
+description: Add AdSense verification, ad scripts, and a root ads.txt file to an EmDash-powered Astro site.
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+Integrate Google AdSense through your site's Astro layouts and static files. This path uses site code; it does not require an EmDash plugin. You need access to the site's source and deployment, plus the verification code and publisher ID from your AdSense account.
+
+Google controls site approval, ad delivery, and consent requirements. Follow [Google's site connection instructions](https://support.google.com/adsense/answer/9274019) for your account. The examples below show where that code belongs in EmDash, not a guarantee of AdSense approval.
+
+## Add verification and ad code
+
+<Steps>
+
+1. Open the shared layout used by the public pages you want to monetize. In the blog template, this is `src/layouts/Base.astro`. Keep its existing `<EmDashHead>` and other head content.
+
+2. Paste the AdSense code into the layout's `<head>`. The following loader example uses a placeholder publisher ID; replace the entire `ca-pub-0000000000000000` value with your own.
+
+   ```astro title="src/layouts/Base.astro (inside <head>)"
+   <script
+       is:inline
+       async
+       src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-0000000000000000"
+       crossorigin="anonymous"
+   ></script>
+   ```
+
+   Astro's `is:inline` keeps the script as written rather than bundling it. Load it once per page, even when several ad units share the page. See [Astro's script handling documentation](https://docs.astro.build/en/guides/client-side-scripts/#opting-out-of-processing).
+
+   If you choose AdSense's meta-tag verification method, put the exact tag supplied by Google in the same `<head>`. The following example shows the AdSense account tag with a placeholder ID.
+
+   ```html title="src/layouts/Base.astro (inside <head>)"
+   <meta name="google-adsense-account" content="ca-pub-0000000000000000" />
+   ```
+
+   The **Google Verification** field in EmDash's **Settings > SEO** emits `google-site-verification`, not `google-adsense-account`. Do not put the AdSense publisher ID in that field.
+
+3. For Auto ads, configure placements in AdSense. For manual ad units, paste Google's ad-unit markup and initialization script into an Astro component or page where the ad should appear. Add `is:inline` to any initialization `<script>` so Astro preserves it. Keep the shared loader in the layout, rather than repeating it for each unit.
+
+</Steps>
+
+Keep executable ad code in trusted site source, rather than post content. Apply any consent requirements before enabling ad scripts; this example does not implement a consent manager. If the site sets a Content Security Policy, configure it for the resources required by Google's current instructions.
+
+## Serve `ads.txt` at the root
+
+Create `public/ads.txt` in your Astro site project, alongside the site's `src/` directory. Astro [copies public files unchanged](https://docs.astro.build/en/basics/project-structure/#public) so the file is served at `/ads.txt`.
+
+Copy the line supplied by AdSense into the file as plain text. The following example uses a placeholder publisher ID; use Google's exact line for your account.
+
+```text title="public/ads.txt"
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+```
+
+If `ads.txt` already exists, add the AdSense line while preserving entries for other ad providers. Follow [Google's ads.txt guidance](https://support.google.com/adsense/answer/7532444) for the required domain and file contents. Store this file in the site project, not the EmDash media library.
+
+## Deploy and check
+
+Deploy the site after changing its layout or `public/` files. On the public domain registered with AdSense, check that:
+
+- The page source contains the chosen verification tag or script in `<head>`, with your publisher ID, and only one shared AdSense loader.
+- `https://your-domain.example/ads.txt` returns the expected plain text rather than a 404 or HTML page.
+- The browser's network and console panels show no script errors or blocked requests from the site's security policy. Ad blockers can prevent local checks from loading ads.
+
+Return to AdSense to request verification and review. Successful script loading or a reachable `ads.txt` file does not itself mean the site is approved or ads will display.
+
+## Reuse the integration in a plugin
+
+For an integration shared across sites, a trusted native plugin can contribute scripts through [`page:fragments`](/plugins/creating-native-plugins/page-fragments/). The host layout must render the corresponding EmDash insertion components. Sandboxed plugins cannot inject scripts or raw HTML. A static `public/ads.txt` file remains a site-level deployment concern.

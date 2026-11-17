@@ -242,6 +242,7 @@ export function SandboxedContentEditorActions({
 								variant="ghost"
 								shape="square"
 								aria-label={t`Plugin actions`}
+								className="max-sm:w-full"
 								disabled={allActionsDisabled}
 								title={
 									allActionsDisabled ? t`Save changes before running plugin actions` : undefined
@@ -283,7 +284,6 @@ export function SandboxedContentEditorActions({
 					cancelLabel={confirming.extension.confirm.deny}
 					pendingLabel={t`Working…`}
 					variant={confirming.extension.style === "danger" ? "destructive" : "primary"}
-					preventCloseWhilePending
 					confirmDisabled={isActionDisabled(confirming)}
 					isPending={confirmingKey ? pending.has(confirmingKey) : false}
 					error={confirmError}

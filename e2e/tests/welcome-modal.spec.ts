@@ -2,7 +2,7 @@ import { test, expect } from "../fixtures";
 
 const ADMIN_ROOT_PATTERN = /\/_emdash\/admin\/?$/;
 const CURRENT_USER_PATTERN = "**/_emdash/api/auth/me";
-const LONG_FIRST_NAME = "Alexanderthegreatestname";
+const LONG_FIRST_NAME = "Alexanderthegreatestnameeverwritten";
 const MAX_LINE_BOX_OVERLAP_RATIO = 0.1;
 
 test("wrapped welcome title lines do not collide", async ({ page }) => {
@@ -38,8 +38,14 @@ test("wrapped welcome title lines do not collide", async ({ page }) => {
 	await expect(title).toBeVisible({ timeout: 30_000 });
 
 	const lineRects = await title.evaluate((element) => {
+		// The heading also holds the site logo, so measure only its text.
+		const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
 		const range = document.createRange();
-		range.selectNodeContents(element);
+		let text: Node | null = null;
+		while (walker.nextNode()) {
+			if (walker.currentNode.textContent?.trim()) text = walker.currentNode;
+		}
+		range.selectNodeContents(text ?? element);
 		return Array.from(range.getClientRects(), ({ top, bottom, height }) => ({
 			top,
 			bottom,

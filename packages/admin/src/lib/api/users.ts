@@ -86,7 +86,7 @@ export async function fetchUser(id: string): Promise<UserDetail> {
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`User not found: ${id}`);
+			throw new Error(i18n._(msg`User not found: ${id}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch user`));
 	}

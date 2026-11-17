@@ -22,10 +22,10 @@ describe("storage-indexes", () => {
 			expect(name).toBe("idx_plugin_my-plugin_items_status_createdAt");
 		});
 
-		it("should truncate long names to 128 characters", () => {
+		it("should bound long names to PostgreSQL identifiers", () => {
 			const longFieldNames = Array.from({ length: 20 }, (_, i) => `veryLongFieldName${i}`);
 			const name = generateIndexName("my-plugin", "items", longFieldNames);
-			expect(name.length).toBeLessThanOrEqual(128);
+			expect(name.length).toBeLessThanOrEqual(63);
 		});
 
 		it("should be consistent across calls", () => {

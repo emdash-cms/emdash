@@ -11,6 +11,8 @@ import {
 import { getPublishingTimeZone } from "../../src/lib/publishing-datetime.js";
 import { render } from "../utils/render.tsx";
 
+import "../../dist/styles.css";
+
 afterEach(() => {
 	vi.useRealTimers();
 });
@@ -170,6 +172,34 @@ it("keeps the chosen day when it is clicked again", async () => {
 	expect(cell()).toHaveAttribute("aria-selected", "true");
 });
 
+it("centres each day under its weekday heading", async () => {
+	const screen = await render(
+		<div style={{ width: 480 }}>
+			<PublishingDateTimeFields
+				date={new Date(2035, 5, 15, 12)}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={vi.fn()}
+				onTimeChange={vi.fn()}
+			/>
+		</div>,
+	);
+	await expect.element(screen.getByText("June 2035", { exact: true })).toBeVisible();
+
+	const centre = (element: Element) => {
+		const { left, width } = element.getBoundingClientRect();
+		return left + width / 2;
+	};
+	const grid = screen.container.querySelector('[role="grid"]')!;
+	const headings = Array.from(grid.querySelectorAll("thead th"), centre);
+	const firstWeek = Array.from(grid.querySelectorAll("tbody tr:first-child button"), centre);
+
+	expect(firstWeek).toHaveLength(7);
+	firstWeek.forEach((dayCentre, column) => {
+		expect(dayCentre).toBeCloseTo(headings[column]!, 0);
+	});
+});
+
 const scheduleDialogProps = {
 	entryKey: "post-1:en",
 	isLive: false,
@@ -233,9 +263,7 @@ it("shows why the server rejected the schedule", async () => {
 	await expect.element(schedule).toBeVisible();
 	schedule.element().click();
 
-	await expect
-		.element(screen.getByRole("alert"))
-		.toHaveTextContent("Scheduling is locked for this post");
+	await expect.element(screen.getByText("Scheduling is locked for this post")).toBeVisible();
 });
 
 it("replaces a server error with the reason a retry cannot be saved", async () => {
@@ -248,14 +276,13 @@ it("replaces a server error with the reason a retry cannot be saved", async () =
 	const schedule = screen.getByRole("button", { name: "Schedule", exact: true });
 	await expect.element(schedule).toBeVisible();
 	schedule.element().click();
-	await expect
-		.element(screen.getByRole("alert"))
-		.toHaveTextContent("Scheduling is locked for this post");
+	await expect.element(screen.getByText("Scheduling is locked for this post")).toBeVisible();
 
 	vi.setSystemTime(new Date(2035, 5, 15, 16, 30));
 	schedule.element().click();
 
 	await expect.element(screen.getByRole("alert")).toHaveTextContent("Choose a time in the future");
+	expect(screen.getByText("Scheduling is locked for this post").query()).toBeNull();
 });
 
 it("accepts a single-digit minute", async () => {

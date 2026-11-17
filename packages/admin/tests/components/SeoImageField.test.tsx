@@ -8,6 +8,7 @@ import type { MediaPickerModalProps } from "../../src/components/MediaPickerModa
 import { SeoImageField } from "../../src/components/SeoImageField.js";
 import type { ContentSeoInput } from "../../src/lib/api/index.js";
 import { render } from "../utils/render.js";
+import { actionStates, loadedPreview, solidImage } from "../utils/seo-image-field.js";
 
 const picker = vi.hoisted(() => ({ finishClosing: () => {} }));
 
@@ -146,46 +147,10 @@ function Field({
 	);
 }
 
-function solidImage(width: number, height: number) {
-	const canvas = document.createElement("canvas");
-	canvas.width = width;
-	canvas.height = height;
-	const context = canvas.getContext("2d")!;
-	context.fillStyle = "#4f46e5";
-	context.fillRect(0, 0, width, height);
-	return canvas.toDataURL("image/png");
-}
-
 const WIDE_IMAGE = solidImage(1600, 840);
 
 function button(screen: RenderResult, name: string) {
 	return screen.getByRole("button", { name, exact: true });
-}
-
-async function loadedPreview(screen: RenderResult) {
-	const img = await vi.waitFor(() => {
-		const element = screen.container.querySelector("img");
-		if (!element) throw new Error("The preview image has not rendered");
-		return element;
-	});
-	await img.decode();
-	return img;
-}
-
-/** "shown" when both an action can be seen and the pointer hits it, "hidden" when neither. */
-function actionStates(screen: RenderResult) {
-	return [REPLACE, REMOVE].map((name) => {
-		const element = button(screen, name).element();
-		let opacity = 1;
-		for (let node: Element | null = element; node; node = node.parentElement) {
-			opacity *= Number(getComputedStyle(node).opacity);
-		}
-		const { x, y, width, height } = element.getBoundingClientRect();
-		const hit = element.contains(document.elementFromPoint(x + width / 2, y + height / 2));
-		if (opacity === 1 && hit) return "shown";
-		if (opacity === 0 && !hit) return "hidden";
-		return `opacity ${opacity}, ${hit ? "hit" : "missed"} by the pointer`;
-	});
 }
 
 function movePointerOffPreview(screen: RenderResult) {
@@ -496,19 +461,6 @@ describe("SeoImageField", () => {
 		await userEvent.tab();
 		await expect.element(button(screen, REMOVE)).toHaveFocus();
 		expect(actionStates(screen)).toEqual(["shown", "shown"]);
-	});
-
-	it("always shows the image actions on touch screens", async () => {
-		await cdp().send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
-		try {
-			expect(matchMedia("(pointer: coarse)").matches).toBe(true);
-			const screen = await render(<Field image={WIDE_IMAGE} />);
-			await loadedPreview(screen);
-
-			await expect.poll(() => actionStates(screen)).toEqual(["shown", "shown"]);
-		} finally {
-			await cdp().send("Emulation.setTouchEmulationEnabled", { enabled: false });
-		}
 	});
 
 	it("says when the image can't be loaded and shows its actions", async () => {

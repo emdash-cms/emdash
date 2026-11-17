@@ -74,6 +74,14 @@ import {
 	metaNumber,
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
+import {
+	DataTable,
+	DataTableMessage,
+	RowMeta,
+	RowTitleButton,
+	cellCodeClassName,
+	tertiaryColumn,
+} from "./DataTable.js";
 import { ListPaginationFooter, type ListPagination } from "./ListPaginationFooter.js";
 import {
 	MEDIA_BROWSER_PAGE_SIZES,
@@ -724,7 +732,7 @@ export function MediaLibrary({
 		<div
 			className={
 				activeProvider === "local" && pagination && pagination.totalCount > 0
-					? "flex min-h-full flex-col gap-4 [&_[data-media-layout]]:scroll-mb-48"
+					? "flex min-h-full flex-col gap-4 [&_[data-media-layout]]:scroll-mb-48 [&_tbody_*]:scroll-mb-48"
 					: "space-y-4"
 			}
 			data-media-library
@@ -1146,113 +1154,113 @@ export function MediaLibrary({
 							))}
 				</Grid>
 			) : (
-				<div
+				<DataTable
 					inert={currentLoading || undefined}
-					className="rounded-md border bg-kumo-base overflow-x-auto"
+					aria-busy={
+						(showFolderResults && Boolean(foldersLoading || isLoadingMoreFolders)) || undefined
+					}
 				>
-					<table
-						className="w-full"
-						aria-busy={
-							(showFolderResults && Boolean(foldersLoading || isLoadingMoreFolders)) || undefined
-						}
-					>
-						<thead>
-							<tr className="border-b bg-kumo-tint/50">
-								<th className="px-4 py-3 text-start text-sm font-medium">{t`Preview`}</th>
-								<th className="px-4 py-3 text-start text-sm font-medium">{t`Filename`}</th>
-								<th className="px-4 py-3 text-start text-sm font-medium">{t`Type`}</th>
-								<th className="px-4 py-3 text-start text-sm font-medium">{t`Size`}</th>
-								<th className="px-4 py-3 text-end text-sm font-medium">{t`Alt text`}</th>
+					<thead>
+						<tr>
+							<th scope="col" className="w-0">
+								{t`Preview`}
+							</th>
+							<th scope="col">{t`Filename`}</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Type`}
+							</th>
+							<th scope="col" {...tertiaryColumn}>
+								{t`Size`}
+							</th>
+							<th scope="col" className="text-end" {...tertiaryColumn}>
+								{t`Alt text`}
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{showFolderResults && foldersLoading && visibleFolders.length === 0 && (
+							<DataTableMessage colSpan={5}>
+								<span className="inline-flex items-center gap-2">
+									<Loader size="sm" />
+									{t`Loading folders`}
+								</span>
+							</DataTableMessage>
+						)}
+						{showFolderResults && foldersError && visibleFolders.length === 0 && (
+							<MediaFolderErrorRow onRetry={onRetryFolders} />
+						)}
+						{activeProvider === "local" &&
+							visibleFolders.map((folder) => (
+								<MediaFolderListItem
+									key={folder.id}
+									folder={folder}
+									canEdit={folderActionsAvailable}
+									canDrop={dragDropAvailable && !moveMutation.isPending}
+									activeDragItem={activeDragItem}
+									onOpen={onOpenFolder ? () => openFolder(folder) : undefined}
+									onEdit={(trigger) => openEditFolder(folder, trigger)}
+								/>
+							))}
+						{showFolderResults && foldersError && visibleFolders.length > 0 && (
+							<MediaFolderErrorRow onRetry={onRetryFolders} />
+						)}
+						{showFolderResults && hasMoreFolders && onLoadMoreFolders && (
+							<tr>
+								<td colSpan={5}>
+									<Button
+										variant="outline"
+										className="mx-auto"
+										onClick={onLoadMoreFolders}
+										disabled={isLoadingMoreFolders}
+										loading={isLoadingMoreFolders}
+									>
+										{t`Load more folders`}
+									</Button>
+								</td>
 							</tr>
-						</thead>
-						<tbody className="divide-y divide-kumo-line">
-							{showFolderResults && foldersLoading && visibleFolders.length === 0 && (
-								<tr>
-									<td colSpan={5} className="px-4 py-6">
-										<div className="flex items-center justify-center gap-2 text-sm text-kumo-subtle">
-											<Loader />
-											<span>{t`Loading folders`}</span>
-										</div>
-									</td>
-								</tr>
-							)}
-							{showFolderResults && foldersError && visibleFolders.length === 0 && (
-								<MediaFolderErrorRow onRetry={onRetryFolders} />
-							)}
-							{activeProvider === "local" &&
-								visibleFolders.map((folder) => (
-									<MediaFolderListItem
-										key={folder.id}
-										folder={folder}
-										canEdit={folderActionsAvailable}
-										canDrop={dragDropAvailable && !moveMutation.isPending}
-										activeDragItem={activeDragItem}
-										onOpen={onOpenFolder ? () => openFolder(folder) : undefined}
-										onEdit={(trigger) => openEditFolder(folder, trigger)}
+						)}
+						{activeProvider === "local"
+							? currentItems.map((item) => (
+									<MediaListItem
+										key={item.id}
+										item={item}
+										selected={detailItem?.id === item.id}
+										draggable={
+											dragDropAvailable &&
+											!moveMutation.isPending &&
+											isLocalMediaItem(item) &&
+											canMoveMedia?.(item) === true
+										}
+										isMoving={moveMutation.isPending && moveMutation.variables?.item.id === item.id}
+										onClick={() => openDetail(item)}
+									/>
+								))
+							: currentProviderItems.map((item) => (
+									<ProviderListItem
+										key={item.id}
+										item={item}
+										selected={detailItem?.id === item.id}
+										onClick={() => {
+											const dims = loadedDimensions[item.id];
+											const itemWithDims = dims
+												? {
+														...item,
+														width: item.width ?? dims.width,
+														height: item.height ?? dims.height,
+													}
+												: item;
+											openDetail(providerItemToMediaItem(activeProvider, itemWithDims));
+										}}
+										onDimensionsLoaded={(width, height) => {
+											setLoadedDimensions((prev) => ({
+												...prev,
+												[item.id]: { width, height },
+											}));
+										}}
 									/>
 								))}
-							{showFolderResults && foldersError && visibleFolders.length > 0 && (
-								<MediaFolderErrorRow onRetry={onRetryFolders} />
-							)}
-							{showFolderResults && hasMoreFolders && onLoadMoreFolders && (
-								<tr>
-									<td colSpan={5} className="px-4 py-3 text-center">
-										<Button
-											variant="outline"
-											onClick={onLoadMoreFolders}
-											disabled={isLoadingMoreFolders}
-											loading={isLoadingMoreFolders}
-										>
-											{t`Load more folders`}
-										</Button>
-									</td>
-								</tr>
-							)}
-							{activeProvider === "local"
-								? currentItems.map((item) => (
-										<MediaListItem
-											key={item.id}
-											item={item}
-											selected={detailItem?.id === item.id}
-											draggable={
-												dragDropAvailable &&
-												!moveMutation.isPending &&
-												isLocalMediaItem(item) &&
-												canMoveMedia?.(item) === true
-											}
-											isMoving={
-												moveMutation.isPending && moveMutation.variables?.item.id === item.id
-											}
-											onClick={() => openDetail(item)}
-										/>
-									))
-								: currentProviderItems.map((item) => (
-										<ProviderListItem
-											key={item.id}
-											item={item}
-											selected={detailItem?.id === item.id}
-											onClick={() => {
-												const dims = loadedDimensions[item.id];
-												const itemWithDims = dims
-													? {
-															...item,
-															width: item.width ?? dims.width,
-															height: item.height ?? dims.height,
-														}
-													: item;
-												openDetail(providerItemToMediaItem(activeProvider, itemWithDims));
-											}}
-											onDimensionsLoaded={(width, height) => {
-												setLoadedDimensions((prev) => ({
-													...prev,
-													[item.id]: { width, height },
-												}));
-											}}
-										/>
-									))}
-						</tbody>
-					</table>
-				</div>
+					</tbody>
+				</DataTable>
 			)}
 
 			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
@@ -1423,30 +1431,26 @@ function MediaFolderListItem({
 	return (
 		<tr
 			ref={setNodeRef}
-			className={cn(
-				"hover:bg-kumo-tint/25",
-				isValidTarget &&
-					"bg-kumo-tint outline-2 outline-dashed -outline-offset-2 outline-kumo-brand",
-			)}
 			data-media-folder-drop-target={canDrop || undefined}
 			data-drop-active={isValidTarget || undefined}
 		>
-			<td className="px-4 py-3">
+			<td>
 				<div className="flex h-10 w-10 items-center justify-center rounded bg-kumo-tint text-emdash-media-folder">
 					<Folder className="h-5 w-5" weight="fill" aria-hidden="true" />
 				</div>
 			</td>
-			<td className="px-4 py-3">
-				<div className="flex items-center justify-start gap-2">
+			<td>
+				<div className="flex items-center gap-2">
 					<RouterLinkButton
 						to="/media"
 						search={{ folder: folder.id }}
 						variant="ghost"
-						className="max-w-64 min-w-0 justify-start px-0"
+						className="w-auto max-w-64 min-w-0 shrink justify-start px-0"
 						aria-label={t`Open folder ${folder.name}`}
 						onClick={(event) => handleNavigationClick(event, onOpen)}
 					>
-						<span dir="auto" className="truncate">
+						{/* With `truncate`, a long name would set the table's minimum width. */}
+						<span dir="auto" className="line-clamp-1 wrap-anywhere">
 							{folder.name}
 						</span>
 					</RouterLinkButton>
@@ -1463,15 +1467,15 @@ function MediaFolderListItem({
 					)}
 				</div>
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">
+			<td className="text-sm text-kumo-subtle" {...tertiaryColumn}>
 				<span aria-hidden="true">—</span>
 				<span className="sr-only">{t`Type: Folder`}</span>
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">
+			<td className="text-sm text-kumo-subtle" {...tertiaryColumn}>
 				<span aria-hidden="true">—</span>
 				<span className="sr-only">{t`Size is not applicable to folders`}</span>
 			</td>
-			<td className="px-4 py-3 text-end text-sm text-kumo-subtle">
+			<td className="text-end text-sm text-kumo-subtle" {...tertiaryColumn}>
 				<span aria-hidden="true">—</span>
 				<span className="sr-only">{t`Alt text is not applicable to folders`}</span>
 			</td>
@@ -1483,7 +1487,7 @@ function MediaFolderErrorRow({ onRetry }: { onRetry?: () => void }) {
 	const { t } = useLingui();
 	return (
 		<tr>
-			<td colSpan={5} className="px-4 py-3">
+			<td colSpan={5}>
 				<div className="flex flex-wrap items-center justify-start gap-3 rounded-md bg-kumo-danger/10 p-3 text-sm text-kumo-danger">
 					<span role="alert">{t`Folders could not be loaded.`}</span>
 					{onRetry && (
@@ -1650,7 +1654,6 @@ interface MediaListItemProps {
 }
 
 function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaListItemProps) {
-	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
 	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
@@ -1668,15 +1671,16 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 			{...listeners}
 			aria-busy={isMoving || undefined}
 			data-media-draggable={draggable || undefined}
+			data-selected={selected || undefined}
+			data-clickable
 			className={cn(
 				"cursor-pointer",
-				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
 				draggable && "cursor-grab touch-manipulation active:cursor-grabbing",
 				(isDragging || isMoving) && "opacity-40",
 			)}
 			onClick={onClick}
 		>
-			<td className="px-4 py-3">
+			<td>
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
@@ -1694,16 +1698,12 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 					)}
 				</div>
 			</td>
-			<td className="px-4 py-3 text-base font-medium leading-5">{item.filename}</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle tabular-nums">
-				{formatFileSize(item.size)}
-			</td>
-			<td className="px-4 py-3 text-end">
-				<span className="text-sm text-kumo-subtle">
-					{item.alt ? t`Alt text set` : t`No alt text`}
-				</span>
-			</td>
+			<MediaListDetailCells
+				filename={item.filename}
+				mimeType={item.mimeType}
+				size={formatFileSize(item.size)}
+				hasAlt={Boolean(item.alt)}
+			/>
 		</tr>
 	);
 }
@@ -1717,7 +1717,6 @@ interface ProviderListItemProps {
 }
 
 function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: ProviderListItemProps) {
-	const { t } = useLingui();
 	const size = item.size ?? metaNumber(item.meta, "size");
 
 	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -1729,13 +1728,12 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 
 	return (
 		<tr
-			className={cn(
-				"cursor-pointer transition-colors",
-				selected ? "bg-kumo-brand/10" : "hover:bg-kumo-tint/25",
-			)}
+			data-selected={selected || undefined}
+			data-clickable
+			className="cursor-pointer"
 			onClick={onClick}
 		>
-			<td className="px-4 py-3">
+			<td>
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{item.previewUrl ? (
 						<img
@@ -1751,17 +1749,64 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 					)}
 				</div>
 			</td>
-			<td className="px-4 py-3 text-base font-medium leading-5">{item.filename}</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{item.mimeType}</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle tabular-nums">
-				{size ? formatFileSize(size) : "—"}
-			</td>
-			<td className="px-4 py-3 text-end">
-				<span className="text-sm text-kumo-subtle">
-					{item.alt ? t`Alt text set` : t`No alt text`}
-				</span>
-			</td>
+			<MediaListDetailCells
+				filename={item.filename}
+				mimeType={item.mimeType}
+				size={size ? formatFileSize(size) : undefined}
+				hasAlt={Boolean(item.alt)}
+			/>
 		</tr>
+	);
+}
+
+/**
+ * The filename, type, size, and alt text cells of a media list row. The filename is a
+ * button so keyboard users can open the file; its click reaches the row's `onClick`.
+ */
+function MediaListDetailCells({
+	filename,
+	mimeType,
+	size,
+	hasAlt,
+}: {
+	filename: string;
+	mimeType: string;
+	size?: string;
+	hasAlt: boolean;
+}) {
+	const { t } = useLingui();
+	const type = <span className={cellCodeClassName}>{mimeType}</span>;
+	const altText = hasAlt ? t`Alt text set` : t`No alt text`;
+
+	return (
+		<>
+			<td>
+				<RowTitleButton dir="auto" className="wrap-anywhere">
+					{filename}
+				</RowTitleButton>
+				<div className="text-sm">
+					<RowMeta priority="tertiary">
+						{type}
+						{size && (
+							<>
+								<span aria-hidden="true">·</span>
+								<bdi className="tabular-nums">{size}</bdi>
+							</>
+						)}
+					</RowMeta>
+					<RowMeta priority="tertiary">{altText}</RowMeta>
+				</div>
+			</td>
+			<td className="text-sm text-kumo-subtle" {...tertiaryColumn}>
+				{type}
+			</td>
+			<td className="text-sm whitespace-nowrap text-kumo-subtle tabular-nums" {...tertiaryColumn}>
+				{size ? <bdi>{size}</bdi> : "—"}
+			</td>
+			<td className="text-end text-sm whitespace-nowrap text-kumo-subtle" {...tertiaryColumn}>
+				{altText}
+			</td>
+		</>
 	);
 }
 

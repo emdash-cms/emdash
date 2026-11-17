@@ -24,7 +24,7 @@ import {
 } from "./media/useMediaUploadQueue.js";
 
 export const LOCAL_MEDIA_UPLOAD_ACCEPT =
-	"image/png,image/jpeg,image/gif,image/webp,image/avif,image/jxl,.jxl,video/*,audio/*,application/pdf";
+	"image/png,image/jpeg,image/gif,image/webp,image/avif,image/bmp,image/jxl,.jxl,video/*,audio/*,application/pdf";
 
 export interface MediaUploadDialogProps {
 	open: boolean;
@@ -119,6 +119,9 @@ function UploadFileRow({
 					<span aria-hidden="true">·</span>
 					<span className="tabular-nums">{formatFileSize(row.file.size)}</span>
 				</div>
+				{row.status === "failed" && row.error && (
+					<p className="mt-0.5 text-sm wrap-break-word text-kumo-danger">{row.error}</p>
+				)}
 			</div>
 			<div className="flex items-center gap-1">
 				{row.status === "failed" && (

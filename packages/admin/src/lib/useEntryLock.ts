@@ -21,11 +21,11 @@ export type EntryLockState =
 	/** This session holds the lock. */
 	| { status: "holding" }
 	/** Someone else holds it and the editor has not chosen what to do. */
-	| { status: "blocked"; holder: EntryLockHolder }
+	| { status: "blocked"; holder: EntryLockHolder; room?: boolean }
 	/** Someone else holds it and the editor chose to read. */
-	| { status: "reading"; holder: EntryLockHolder }
+	| { status: "reading"; holder: EntryLockHolder; room?: boolean }
 	/** Someone else now holds the lock this session had, by take-over or after the lease lapsed. */
-	| { status: "taken"; holder: EntryLockHolder };
+	| { status: "taken"; holder: EntryLockHolder; room?: boolean };
 
 export interface EntryLock {
 	state: EntryLockState;
@@ -34,6 +34,8 @@ export interface EntryLock {
 	takeOver: () => void;
 	readInstead: () => void;
 	isTakingOver: boolean;
+	/** Whether the last take-over attempt failed, until the editor tries again or the lock state changes. */
+	takeOverFailed: boolean;
 	/**
 	 * Report a failed write. Returns true when the lock explains the failure,
 	 * which also switches the editor to read-only. `entryId` is the entry the
@@ -57,6 +59,10 @@ function sessionToken(): string {
 	);
 }
 
+function holderId(state: EntryLockState): string | undefined {
+	return "holder" in state ? state.holder.userId : undefined;
+}
+
 export function useEntryLock(input: {
 	collection: string;
 	entryId: string;
@@ -67,6 +73,7 @@ export function useEntryLock(input: {
 	const { collection, entryId, locale, ready } = input;
 	const [state, setState] = React.useState<EntryLockState>(IDLE);
 	const [isTakingOver, setIsTakingOver] = React.useState(false);
+	const [takeOverFailed, setTakeOverFailed] = React.useState(false);
 	// Release only what this session actually took, so a read-only viewer
 	// never drops the holder's lock on the way out.
 	const holdsLockRef = React.useRef(false);
@@ -82,6 +89,11 @@ export function useEntryLock(input: {
 	const scheduleHeartbeatRef = React.useRef<() => void>(() => {});
 
 	const commit = React.useCallback((next: EntryLockState) => {
+		// A failed take-over is about the state, and the holder, it was tried from.
+		const previous = stateRef.current;
+		if (next.status !== previous.status || holderId(next) !== holderId(previous)) {
+			setTakeOverFailed(false);
+		}
 		stateRef.current = next;
 		setState(next);
 	}, []);
@@ -95,6 +107,7 @@ export function useEntryLock(input: {
 		const token = tokenRef.current;
 		commit(IDLE);
 		setIsTakingOver(false);
+		setTakeOverFailed(false);
 		holdsLockRef.current = false;
 
 		// Returns whether the heartbeat should carry on.
@@ -112,12 +125,15 @@ export function useEntryLock(input: {
 			holdsLockRef.current = false;
 			const previous = stateRef.current.status;
 			const holder = status.holder;
+			const room = status.room;
 			if (previous === "holding" || previous === "taken") {
-				commit({ status: "taken", holder });
+				commit({ status: "taken", holder, room });
 				return false;
 			}
 			commit(
-				previous === "reading" ? { status: "reading", holder } : { status: "blocked", holder },
+				previous === "reading"
+					? { status: "reading", holder, room }
+					: { status: "blocked", holder, room },
 			);
 			return true;
 		};
@@ -184,6 +200,7 @@ export function useEntryLock(input: {
 		const generation = generationRef.current;
 		const token = tokenRef.current;
 		setIsTakingOver(true);
+		setTakeOverFailed(false);
 		void (async () => {
 			try {
 				const status = await acquireEntryLock(collection, entryId, {
@@ -191,7 +208,10 @@ export function useEntryLock(input: {
 					takeover: true,
 					token,
 				});
-				if (!status.heldByCaller) return;
+				if (!status.heldByCaller) {
+					if (generation === generationRef.current) setTakeOverFailed(true);
+					return;
+				}
 				if (generation !== generationRef.current) {
 					// The editor moved on while the take-over was in flight. Hand back
 					// what it just took rather than holding a lock nobody is using.
@@ -202,7 +222,7 @@ export function useEntryLock(input: {
 				commit({ status: "holding" });
 				scheduleHeartbeatRef.current();
 			} catch {
-				// Leave the notice standing; the editor can try again.
+				if (generation === generationRef.current) setTakeOverFailed(true);
 			} finally {
 				if (generation === generationRef.current) setIsTakingOver(false);
 			}
@@ -210,8 +230,9 @@ export function useEntryLock(input: {
 	}, [collection, entryId, locale, commit]);
 
 	const readInstead = React.useCallback(() => {
-		if (stateRef.current.status !== "blocked") return;
-		commit({ status: "reading", holder: stateRef.current.holder });
+		const current = stateRef.current;
+		if (current.status !== "blocked") return;
+		commit({ status: "reading", holder: current.holder, room: current.room });
 	}, [commit]);
 
 	const reportWriteError = React.useCallback(
@@ -231,6 +252,7 @@ export function useEntryLock(input: {
 		takeOver,
 		readInstead,
 		isTakingOver,
+		takeOverFailed,
 		reportWriteError,
 	};
 }

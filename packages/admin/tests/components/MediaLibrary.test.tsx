@@ -2,6 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { MediaLibrary } from "../../src/components/MediaLibrary";
 import type { LocalMediaItem, MediaFolder, MediaItem, MediaProviderItem } from "../../src/lib/api";
@@ -1399,8 +1400,37 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("tab", { name: "List view" }).click();
 
 			await expect.element(screen.getByText("document.pdf")).toBeInTheDocument();
-			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
-			await expect.element(screen.getByText("1 MB")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "application/pdf", exact: true }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "1 MB", exact: true }))
+				.toBeInTheDocument();
+		});
+
+		it("opens a file's details from the filename button with the keyboard", async () => {
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "photo.jpg" })],
+			});
+			await screen.getByRole("tab", { name: "List view" }).click();
+			const filename = screen.getByRole("button", { name: "photo.jpg", exact: true });
+
+			await userEvent.tab();
+			await expect.element(filename).toHaveFocus();
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(screen.getByRole("heading", { name: "Media details" })).toBeVisible();
+		});
+
+		it("opens a file's details from a click elsewhere on its row", async () => {
+			const screen = await renderLibrary({
+				items: [makeMediaItem({ id: "1", filename: "photo.jpg", mimeType: "image/jpeg" })],
+			});
+			await screen.getByRole("tab", { name: "List view" }).click();
+
+			await screen.getByRole("cell", { name: "image/jpeg", exact: true }).click();
+
+			await expect.element(screen.getByRole("heading", { name: "Media details" })).toBeVisible();
 		});
 	});
 
@@ -1704,7 +1734,9 @@ describe("MediaLibrary", () => {
 			const screen = await renderStreamTab();
 			await screen.getByRole("tab", { name: "List view" }).click();
 
-			await expect.element(screen.getByText("71.9 MB")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("cell", { name: "71.9 MB", exact: true }))
+				.toBeInTheDocument();
 		});
 	});
 });

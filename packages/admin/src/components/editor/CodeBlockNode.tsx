@@ -41,10 +41,10 @@ import {
 } from "./codeBlockLanguages";
 import { useAttachedKey } from "./useAttachedKey.js";
 
-// Each `rounded-none`/`border-0` makes tailwind-merge drop Kumo's physical class. Keep it
-// before its logical replacement, or tailwind-merge drops the replacement too.
+// Kumo's Toolbar sets physical corner and divider classes on its children from the root's
+// child selectors, which outrank a child's own classes. Important logical classes win in RTL.
 const TOOLBAR_BUTTON_LOGICAL_EDGES =
-	"first:rounded-none first:rounded-s-lg last:rounded-none last:rounded-e-lg not-first:border-0 not-first:border-s";
+	"first:rounded-s-lg! first:rounded-e-none! last:rounded-s-none! last:rounded-e-lg! not-first:border-s! not-first:border-e-0!";
 
 const ADMIN_CODE_BLOCK_LOWLIGHT_KEY = Symbol.for("emdash:admin-code-block-lowlight");
 const globalStore = globalThis as Record<symbol, unknown>;

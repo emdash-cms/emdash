@@ -4,9 +4,7 @@
  *
  * Renders multi-column layouts from WordPress imports.
  */
-import { PortableText } from "astro-portabletext";
-
-import { emdashMarkComponents } from "./marks.js";
+import PortableText from "./PortableText.astro";
 
 export interface Props {
 	node: {
@@ -36,7 +34,7 @@ if (!columns.length) {
 				class="emdash-column"
 				style={column.width ? `flex-basis: ${column.width}` : undefined}
 			>
-				<PortableText value={column.content} components={{ mark: emdashMarkComponents }} />
+				<PortableText value={column.content} />
 			</div>
 		))
 	}

@@ -203,11 +203,9 @@ test.describe("User Management", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 
-		// Click on user email link
-		await admin.page.locator("text=dev@emdash.local").first().click();
+		await admin.page.locator("table").getByRole("button", { name: "Dev Admin" }).click();
 
-		// Should show detail panel with user info
-		await expect(admin.page.locator("text=Dev Admin").first()).toBeVisible();
+		await expect(admin.page.getByRole("dialog", { name: "User Details" })).toBeVisible();
 	});
 });
 

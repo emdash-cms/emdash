@@ -4,6 +4,7 @@
  * Tests the search functionality via:
  * 1. The AdminCommandPalette (Cmd+K) which provides UI-driven content search
  * 2. Direct API calls to the search endpoints
+ * 3. The public LiveSearch component on the fixture's /live-search page
  *
  * Search must be enabled per-collection before it returns content results.
  * The fixture does not enable search by default, so tests enable it first.
@@ -19,6 +20,7 @@ import { test, expect } from "../fixtures";
 // Regex patterns (module scope per lint rules)
 const MEDIA_URL_PATTERN = /\/media/;
 const CONTENT_POSTS_URL_PATTERN = /\/content\/posts\//;
+const LIVE_SEARCH_URL_PATTERN = /\/live-search$/;
 
 // Keyboard modifier for Cmd (Mac) / Ctrl (Linux/Windows)
 const MOD_KEY = process.platform === "darwin" ? "Meta" : "Control";
@@ -373,6 +375,55 @@ test.describe("Search", () => {
 
 			const body = await res.json();
 			expect(body.error).toBeDefined();
+		});
+	});
+
+	test.describe("LiveSearch component", () => {
+		test("keeps arrow keys and Escape working once a result has focus", async ({
+			page,
+			serverInfo,
+		}) => {
+			await enableSearch(serverInfo, "posts");
+			await apiRequest(serverInfo, "POST", "/_emdash/api/search/rebuild", {
+				collection: "posts",
+			});
+
+			await page.goto(`${serverInfo.baseUrl}/live-search`);
+			const search = page.locator("emdash-live-search");
+			const input = search.locator(".emdash-live-search-input");
+			const results = search.locator(".emdash-live-search-result");
+			await expect
+				.poll(() => page.evaluate(() => Boolean(customElements.get("emdash-live-search"))))
+				.toBe(true);
+
+			// Three published seed posts have "Post" in their title.
+			await input.fill("Post");
+			await expect.poll(() => results.count(), { timeout: 10000 }).toBeGreaterThanOrEqual(3);
+			const count = await results.count();
+
+			await input.press("ArrowDown");
+			await expect(results.nth(0)).toBeFocused();
+			// Focus is now on a result link, not the input.
+			await page.keyboard.press("ArrowDown");
+			await expect(results.nth(1)).toBeFocused();
+			await page.keyboard.press("ArrowUp");
+			await expect(results.nth(0)).toBeFocused();
+			await page.keyboard.press("ArrowUp");
+			await expect(results.nth(count - 1)).toBeFocused();
+
+			await page.keyboard.press("Escape");
+			await expect(search.locator(".emdash-live-search-results")).toBeHidden();
+			await expect(input).toBeFocused();
+			// No result stays highlighted, so Enter in the input doesn't open the hidden result.
+			await expect(search.locator(".emdash-live-search-result.focused")).toHaveCount(0);
+			// Arrow keys don't move into the closed results.
+			await input.press("ArrowDown");
+			await expect(search.locator(".emdash-live-search-results")).toBeHidden();
+			await expect(input).toBeFocused();
+			await expect(search.locator(".emdash-live-search-result.focused")).toHaveCount(0);
+			await input.press("Enter");
+			await expect(page).toHaveURL(LIVE_SEARCH_URL_PATTERN);
+			await expect(input).toBeFocused();
 		});
 	});
 

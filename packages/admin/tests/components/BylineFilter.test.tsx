@@ -1,9 +1,11 @@
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { page } from "vitest/browser";
 
 import { BylineFilter, EMPTY_BYLINE_FILTER } from "../../src/components/BylineFilter.js";
 import { fetchBylines, type BylineSummary } from "../../src/lib/api/index.js";
 import { render } from "../utils/render.tsx";
+import { tap } from "../utils/touch.ts";
 
 vi.mock("../../src/lib/api/index.js", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/index.js")>(
@@ -75,11 +77,40 @@ describe("BylineFilter", () => {
 		await inferredHelp.hover();
 		await expect
 			.element(
-				screen.getByText(
-					"Also match the byline linked to an entry's author when it has none assigned.",
-				),
+				screen.getByRole("tooltip", {
+					name: "Also match the byline linked to an entry's author when it has none assigned.",
+				}),
 			)
 			.toBeVisible();
+	});
+
+	it("closes the inferred bylines help on a tap elsewhere in the filter", async () => {
+		const screen = await render(
+			<BylineFilter value={EMPTY_BYLINE_FILTER} onChange={vi.fn()} locale="en" />,
+		);
+		await screen.getByRole("button", { name: "Filter by byline" }).click();
+		const search = screen.getByRole("searchbox", { name: "Search bylines" });
+		await expect.element(search).toBeVisible();
+		const helpButton = screen.getByRole("button", { name: "About inferred bylines" }).element();
+		const help = page.getByRole("tooltip", {
+			name: "Also match the byline linked to an entry's author when it has none assigned.",
+		});
+		// Like Safari, don't focus the tapped button, so focus leaving it can't close the help.
+		const keepFocus = (event: MouseEvent) => {
+			if (event.target instanceof Node && helpButton.contains(event.target)) event.preventDefault();
+		};
+		document.addEventListener("mousedown", keepFocus, true);
+		try {
+			await tap(helpButton);
+			await expect.element(help).toBeVisible();
+			expect(document.activeElement).not.toBe(helpButton);
+
+			await tap(search.element());
+			await expect.element(help).not.toBeInTheDocument();
+			await expect.element(search).toBeVisible();
+		} finally {
+			document.removeEventListener("mousedown", keepFocus, true);
+		}
 	});
 
 	it("disables unselected bylines after reaching the selection limit", async () => {

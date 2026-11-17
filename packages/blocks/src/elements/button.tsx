@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogRoot } from "@cloudflare/kumo";
+import { Button, LayerDialog } from "@cloudflare/kumo";
 import { useCallback, useState } from "react";
 
 import type { BlockInteraction, ButtonElement } from "../types.js";
@@ -46,23 +46,21 @@ export function ButtonElementComponent({
 				{element.label}
 			</Button>
 			{element.confirm && (
-				<DialogRoot open={confirmOpen} onOpenChange={setConfirmOpen}>
-					<Dialog className="p-6" size="sm">
-						<h3 className="text-lg font-semibold text-kumo-default">{element.confirm.title}</h3>
-						<p className="mt-1 text-sm text-kumo-subtle">{element.confirm.text}</p>
-						<div className="flex justify-end gap-2 pt-4">
-							<Button variant="secondary" onClick={() => setConfirmOpen(false)}>
-								{element.confirm.deny}
-							</Button>
-							<Button
+				<LayerDialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
+					<LayerDialog.Content size="sm">
+						<LayerDialog.Title>{element.confirm.title}</LayerDialog.Title>
+						<LayerDialog.Description>{element.confirm.text}</LayerDialog.Description>
+						<LayerDialog.Body>{null}</LayerDialog.Body>
+						<LayerDialog.Actions dismissLabel={element.confirm.deny}>
+							<LayerDialog.Action
 								variant={element.confirm.style === "danger" ? "destructive" : "primary"}
 								onClick={handleConfirm}
 							>
 								{element.confirm.confirm}
-							</Button>
-						</div>
-					</Dialog>
-				</DialogRoot>
+							</LayerDialog.Action>
+						</LayerDialog.Actions>
+					</LayerDialog.Content>
+				</LayerDialog.Root>
 			)}
 		</>
 	);

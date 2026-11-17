@@ -20,7 +20,7 @@ export const searchCommand = defineCommand({
 	args: {
 		query: {
 			type: "positional",
-			description: "Search query (matches name, description, keywords, authors)",
+			description: "Search query (matches package text, slug, and publisher handle)",
 			required: true,
 		},
 		capability: {

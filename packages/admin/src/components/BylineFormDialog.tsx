@@ -1,11 +1,11 @@
-import { Button, Dialog, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
+import { Button, Input, InputArea, LayerDialog, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { flushSync } from "react-dom";
 
 import {
+	ApiResponseError,
 	fetchByline,
 	fetchUsers,
 	type BylineInput,
@@ -13,9 +13,12 @@ import {
 	type UserListItem,
 } from "../lib/api";
 import { listBylineFields, type BylineFieldDefinition } from "../lib/api/byline-fields.js";
+import { guardUnsavedInput, useSingleFlight } from "../lib/dialog-form.js";
 import { isSafeUrl } from "../lib/url.js";
 import { BylineAvatarField } from "./BylineAvatarField.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { DialogSection } from "./DialogSection.js";
+import { HelpLabel } from "./FieldHelpLabel.js";
 import { OptionalLabel } from "./OptionalLabel.js";
 
 const BYLINE_SLUG_PATTERN = /^[a-z][a-z0-9-]*$/;
@@ -149,6 +152,17 @@ function isHttpUrl(value: string): boolean {
 	return isSafeUrl(value) && URL.canParse(value);
 }
 
+/**
+ * The server answers CONFLICT both for a slug another byline has and for a user
+ * already linked to another byline, so only a save without a linked user can
+ * tell which one it was.
+ */
+function isTakenSlug(error: unknown, values: BylineFormValues | undefined): boolean {
+	return (
+		error instanceof ApiResponseError && error.code === "CONFLICT" && !!values && !values.userId
+	);
+}
+
 function getUserLabel(user: UserListItem): string {
 	if (user.name) return `${user.name} (${user.email})`;
 	return user.email;
@@ -196,6 +210,7 @@ export function BylineFormDialog({
 	renderExtra,
 }: BylineFormDialogProps) {
 	const { t } = useLingui();
+	const formId = React.useId();
 	const queryClient = useQueryClient();
 	const [wasOpen, setWasOpen] = React.useState(false);
 	// While the dialog closes, keep showing the byline it was opened for.
@@ -206,6 +221,8 @@ export function BylineFormDialog({
 	// resolve after typing starts, and the caller's copy can be stale.
 	const [formSource, setFormSource] = React.useState<BylineSummary | null>(null);
 	const [formErrors, setFormErrors] = React.useState<BylineFormErrors>({});
+	// The save error the slug field shows, which the banner leaves out.
+	const [slugFieldError, setSlugFieldError] = React.useState<unknown>(null);
 	// A new byline's slug follows its display name until the slug is edited.
 	const [slugEdited, setSlugEdited] = React.useState(false);
 	const displayNameRef = React.useRef<HTMLInputElement>(null);
@@ -259,6 +276,23 @@ export function BylineFormDialog({
 		if (open) resetSave();
 	}, [open, resetSave]);
 	const isSaving = saveMutation.isPending;
+	const save = useSingleFlight((values: BylineFormValues) =>
+		saveMutation.mutateAsync(values, {
+			onSuccess: onSaved,
+			onError: (saveError) => {
+				// A slug changed while the save ran isn't the one the server refused.
+				if (!isTakenSlug(saveError, values) || slugRef.current?.value !== values.slug) return;
+				flushSync(() => {
+					setSlugFieldError(saveError);
+					setFormErrors((prev) => ({
+						...prev,
+						slug: t`Another byline already uses this slug. Enter a different one.`,
+					}));
+				});
+				slugRef.current?.focus();
+			},
+		}),
+	);
 
 	React.useEffect(() => {
 		if (!open || !source || source === formSource) return;
@@ -330,7 +364,7 @@ export function BylineFormDialog({
 		) {
 			values.customFields = form.customFields;
 		}
-		saveMutation.mutate(values, { onSuccess: onSaved });
+		save(values);
 	};
 
 	const description = source
@@ -340,46 +374,20 @@ export function BylineFormDialog({
 			: t`Add a person or team to credit on your content.`;
 
 	return (
-		<Dialog.Root
+		<LayerDialog.Root
 			open={open}
-			onOpenChange={(next) => {
+			{...guardUnsavedInput(true, (next) => {
 				if (!next && isSaving) return;
 				onOpenChange(next);
-			}}
+			})}
 			onOpenChangeComplete={onOpenChangeComplete}
-			disablePointerDismissal
+			dismissDisabled={isSaving}
 		>
-			<Dialog
-				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[36rem]"
-				size="lg"
-			>
-				<form noValidate onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
-					<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
-						<div className="min-w-0">
-							<Dialog.Title className="text-lg font-semibold">
-								{shownBylineId ? t`Edit byline` : t`New byline`}
-							</Dialog.Title>
-							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
-								{description}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<X className="size-4" aria-hidden="true" />}
-									aria-label={t`Close`}
-									disabled={isSaving}
-								/>
-							)}
-						/>
-					</div>
-
-					<div className="emdash-auto-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-6">
+			<LayerDialog.Content>
+				<LayerDialog.Title>{shownBylineId ? t`Edit byline` : t`New byline`}</LayerDialog.Title>
+				{description && <LayerDialog.Description>{description}</LayerDialog.Description>}
+				<LayerDialog.Body>
+					<form id={formId} noValidate onSubmit={submitForm} className="grid gap-5">
 						<fieldset disabled={!formLoaded} className="min-w-0 space-y-5">
 							<Input
 								ref={displayNameRef}
@@ -406,7 +414,18 @@ export function BylineFormDialog({
 							/>
 							<Input
 								ref={slugRef}
-								label={t`Slug`}
+								label={
+									<HelpLabel
+										help={
+											!shownBylineId && !slugEdited
+												? t`Filled in from the display name. Use lowercase letters, numbers, and hyphens.`
+												: t`Use lowercase letters, numbers, and hyphens.`
+										}
+									>
+										{t`Slug`}
+									</HelpLabel>
+								}
+								aria-label={t`Slug`}
 								dir="ltr"
 								value={form.slug}
 								onChange={(e) => {
@@ -415,11 +434,6 @@ export function BylineFormDialog({
 									setForm((prev) => ({ ...prev, slug }));
 									setFormErrors((prev) => ({ ...prev, slug: undefined }));
 								}}
-								description={
-									!shownBylineId && !slugEdited
-										? t`Filled in from the display name. Use lowercase letters, numbers, and hyphens.`
-										: t`Use lowercase letters, numbers, and hyphens.`
-								}
 								error={formErrors.slug}
 								aria-invalid={!!formErrors.slug || undefined}
 								required
@@ -449,13 +463,10 @@ export function BylineFormDialog({
 								value={form.avatarMediaId}
 								onChange={(mediaId) => setForm((prev) => ({ ...prev, avatarMediaId: mediaId }))}
 							/>
-							<div className="space-y-4 border-t border-kumo-line pt-5">
-								<div className="space-y-1">
-									<h3 className="text-sm font-semibold">{t`Attribution`}</h3>
-									<p className="text-sm text-kumo-subtle">
-										{t`Link this byline to a user or mark it as a guest profile.`}
-									</p>
-								</div>
+							<DialogSection
+								title={t`Attribution`}
+								help={t`Link this byline to a user or mark it as a guest profile.`}
+							>
 								<Select
 									label={<OptionalLabel>{t`Linked user`}</OptionalLabel>}
 									aria-label={t`Linked user`}
@@ -485,11 +496,10 @@ export function BylineFormDialog({
 										}))
 									}
 								/>
-							</div>
+							</DialogSection>
 
 							{customFieldDefs.length > 0 && (
-								<div className="space-y-4 border-t border-kumo-line pt-5">
-									<h3 className="text-sm font-semibold">{t`Additional details`}</h3>
+								<DialogSection title={t`Additional details`}>
 									{customFieldDefs.map((field) => (
 										<CustomFieldInput
 											key={field.id}
@@ -506,7 +516,7 @@ export function BylineFormDialog({
 											}
 										/>
 									))}
-								</div>
+								</DialogSection>
 							)}
 							{customFieldsError && (
 								<div className="rounded-md border border-kumo-danger/40 bg-kumo-danger/5 p-3 text-sm">
@@ -519,40 +529,37 @@ export function BylineFormDialog({
 
 							{source && renderExtra ? renderExtra(source) : null}
 						</fieldset>
-					</div>
-					<DialogError
-						message={getMutationError(saveMutation.error ?? error)}
-						className="mx-6 mt-3"
-					/>
-
-					<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-6 py-4">
+						<DialogError
+							message={getMutationError(
+								saveMutation.error === slugFieldError ? error : (saveMutation.error ?? error),
+							)}
+						/>
 						{source && onDelete && (
-							<Button
-								type="button"
-								variant="secondary-destructive"
-								onClick={() => onDelete(source)}
-								disabled={isSaving}
-							>
-								{t`Delete`}
-							</Button>
+							<DialogSection
+								title={t`Delete byline`}
+								description={t`Content that credits this byline loses the credit.`}
+								action={
+									<Button
+										type="button"
+										variant="secondary-destructive"
+										aria-label={t`Delete byline`}
+										onClick={() => onDelete(source)}
+										disabled={isSaving}
+									>
+										{t`Delete`}
+									</Button>
+								}
+							/>
 						)}
-						<div className="ms-auto flex items-center gap-2">
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={() => onOpenChange(false)}
-								disabled={isSaving}
-							>
-								{t`Cancel`}
-							</Button>
-							<Button type="submit" variant="primary" disabled={!formLoaded || isSaving}>
-								{isSaving ? t`Saving...` : shownBylineId ? t`Save` : (createLabel ?? t`Create`)}
-							</Button>
-						</div>
-					</div>
-				</form>
-			</Dialog>
-		</Dialog.Root>
+					</form>
+				</LayerDialog.Body>
+				<LayerDialog.Actions dismissLabel={t`Cancel`}>
+					<LayerDialog.Action type="submit" form={formId} disabled={!formLoaded || isSaving}>
+						{isSaving ? t`Saving...` : shownBylineId ? t`Save` : (createLabel ?? t`Create`)}
+					</LayerDialog.Action>
+				</LayerDialog.Actions>
+			</LayerDialog.Content>
+		</LayerDialog.Root>
 	);
 }
 

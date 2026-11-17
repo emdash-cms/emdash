@@ -27,10 +27,10 @@ afterEach(async () => {
 	_resetEnvCache();
 });
 
-async function pluginSiteUrl(
+async function pluginSiteInfo(
 	options: Record<string, string>,
 	config: { siteUrl?: string } = {},
-): Promise<string> {
+): Promise<{ url: string; name?: string }> {
 	const sqlite = new Database(":memory:");
 	const setupDb = new Kysely<EmDashDatabase>({ dialect: new SqliteDialect({ database: sqlite }) });
 	await runMigrations(setupDb);
@@ -45,9 +45,14 @@ async function pluginSiteUrl(
 		},
 		plugins: [
 			definePlugin({
-				id: "site-url-probe",
+				id: "site-info-probe",
 				version: "1.0.0",
-				routes: { site: { public: true, handler: async (ctx) => ({ url: ctx.site.url }) } },
+				routes: {
+					site: {
+						public: true,
+						handler: async (ctx) => ({ url: ctx.site.url, name: ctx.site.name }),
+					},
+				},
 			}),
 		],
 		createDialect: () => new SqliteDialect({ database: sqlite }),
@@ -63,14 +68,25 @@ async function pluginSiteUrl(
 
 	const response = await dispatchPluginApiRequest({
 		runtime,
-		pluginId: "site-url-probe",
+		pluginId: "site-info-probe",
 		path: "/site",
-		request: new Request("https://request.example/_emdash/api/plugins/site-url-probe/site", {
+		request: new Request("https://request.example/_emdash/api/plugins/site-info-probe/site", {
 			method: "POST",
 		}),
 	});
-	const body = (await response.json()) as { data: { url: string } };
-	return body.data.url;
+	const body = (await response.json()) as { data: { url: string; name?: string } };
+	return body.data;
+}
+
+async function pluginSiteUrl(
+	options: Record<string, string>,
+	config: { siteUrl?: string } = {},
+): Promise<string> {
+	return (await pluginSiteInfo(options, config)).url;
+}
+
+async function pluginSiteName(options: Record<string, string>): Promise<string | undefined> {
+	return (await pluginSiteInfo(options)).name;
 }
 
 describe("plugin ctx.site.url", () => {
@@ -110,5 +126,17 @@ describe("plugin ctx.site.url", () => {
 				"emdash:site_url": "https://old.example",
 			}),
 		).toBe("https://old.example");
+	});
+});
+
+describe("plugin ctx.site.name (#4642)", () => {
+	it("prefers Settings site:title over the setup title", async () => {
+		expect(
+			await pluginSiteName({ "site:title": "New Site", "emdash:site_title": "Old Site" }),
+		).toBe("New Site");
+	});
+
+	it("falls back to the setup title", async () => {
+		expect(await pluginSiteName({ "emdash:site_title": "Setup Site" })).toBe("Setup Site");
 	});
 });

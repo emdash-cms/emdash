@@ -156,7 +156,7 @@ Start by identifying what kind of issue it is.
 | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
 | A bug report           | Ask for missing reproduction details, try to reproduce if practical, and add priority if the impact is clear. |
 | A feature request      | Convert it to an Ideas Discussion, or point the author there.                                                 |
-| A docs problem         | Add `documentation`, or comment with the specific page/section that needs work.                               |
+| A docs problem         | Add `area/docs`, or comment with the specific page/section that needs work.                                   |
 | A support question     | Answer if you know, or point to docs, Discussions or Discord then close.                                      |
 | A duplicate            | Link the earlier issue and close as a duplicate if you are confident.                                         |
 | Not enough information | Add `Awaiting author response` and ask one or two specific questions.                                         |

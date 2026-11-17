@@ -95,7 +95,17 @@ function redirectResponse(
 	}
 	recordHitInBackground(repo, redirect.id);
 	const code = isRedirectCode(redirect.type) ? redirect.type : 301;
-	return context.redirect(destination, code);
+	return context.redirect(encodeLocation(destination), code);
+}
+
+const NON_ASCII = /[^\p{ASCII}]+/gu;
+
+/**
+ * Percent-encode non-ASCII characters, since a Location header only accepts
+ * ByteStrings. Everything else is left as is so the path is not re-resolved.
+ */
+function encodeLocation(destination: string): string {
+	return destination.replace(NON_ASCII, encodeURIComponent);
 }
 
 /** Whether Astro's route cache will store the response: it does once a max age or a tag is set. */
@@ -130,7 +140,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	const routeCache: APIContext["cache"] | undefined = context.cache;
+	const routeCache: APIContext["cache"] | undefined = context.cache?.enabled
+		? context.cache
+		: undefined;
 	const renderedSettings = new Set<string>();
 	let currentSettingsVersion: string | null | undefined;
 	const checkSettings = () => {
@@ -268,8 +280,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				isRedirectCode(response.status) && (location === "/404" || location === "/404/");
 			const missedDirectly = response.status === 404 && pathname !== "/404" && pathname !== "/404/";
 			if (missedDirectly || missedByRedirect) {
-				const referrer = context.request.headers.get("referer") ?? null;
-				const userAgent = context.request.headers.get("user-agent") ?? null;
+				const referrer = context.isPrerendered
+					? null
+					: (context.request.headers.get("referer") ?? null);
+				const userAgent = context.isPrerendered
+					? null
+					: (context.request.headers.get("user-agent") ?? null);
 				after(async () => {
 					try {
 						await repo.log404({

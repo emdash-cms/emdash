@@ -78,10 +78,10 @@ test.describe("Keyboard Shortcuts", () => {
 			await admin.waitForShell();
 			await admin.waitForLoading();
 
-			// Click a user row to open the detail panel
-			const userRow = page.locator("table tbody tr").first();
-			await expect(userRow).toBeVisible({ timeout: 10000 });
-			await userRow.click();
+			// Click a user's name to open the detail panel
+			const userName = page.locator("table tbody tr").first().getByRole("button");
+			await expect(userName).toBeVisible({ timeout: 10000 });
+			await userName.click();
 
 			// Panel should appear
 			const panel = page.locator("text=User Details");

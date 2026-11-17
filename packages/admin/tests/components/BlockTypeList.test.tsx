@@ -40,6 +40,7 @@ it("shows active and retained versions with exact fingerprints", async () => {
 	const screen = await render(<BlockTypeList blockTypes={[blockType]} />);
 
 	await expect.element(screen.getByRole("heading", { name: "Block types" })).toBeInTheDocument();
+	await expect.element(screen.getByRole("table", { name: "Block types" })).toBeInTheDocument();
 	await expect.element(screen.getByText("Active v2")).toBeInTheDocument();
 	await expect.element(screen.getByText(/Version 1/)).toBeInTheDocument();
 	await expect.element(screen.getByText("sha256:first")).toBeInTheDocument();

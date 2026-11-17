@@ -36,13 +36,26 @@ test.describe("Byline custom fields", () => {
 		await admin.goto("/byline-schema");
 		await admin.waitForLoading();
 		await page.getByRole("button", { name: "New field" }).click();
+		// The two boxes are read one after the other, so measuring while the
+		// dialog still animates in reports an offset that is not there.
+		const dialog = page.getByRole("dialog", { name: "New byline field" });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).not.toHaveAttribute("data-starting-style");
+		await expect.poll(() => dialog.evaluate((element) => element.getAnimations().length)).toBe(0);
 
-		const requiredBox = await page.getByRole("switch", { name: "Required" }).boundingBox();
-		const translatableBox = await page.getByRole("switch", { name: "Translatable" }).boundingBox();
+		const required = page.getByRole("switch", { name: "Required" });
+		const translatable = page.getByRole("switch", { name: "Translatable" });
+		await expect(translatable).toBeVisible();
 
-		expect(requiredBox).not.toBeNull();
-		expect(translatableBox).not.toBeNull();
-		expect(Math.abs(requiredBox!.y - translatableBox!.y)).toBeLessThanOrEqual(1);
+		// Both rects come from one frame: the dialog is still sliding in, so two separate reads
+		// would measure the slide instead of the layout.
+		const offset = await required.evaluate(
+			(requiredSwitch, translatableSwitch) =>
+				requiredSwitch.getBoundingClientRect().top -
+				translatableSwitch!.getBoundingClientRect().top,
+			await translatable.elementHandle(),
+		);
+		expect(Math.abs(offset)).toBeLessThanOrEqual(1);
 	});
 
 	test("custom field value round-trips through the API end to end", async ({
@@ -91,7 +104,7 @@ test.describe("Byline custom fields", () => {
 
 		await page.getByRole("button", { name: "New" }).click();
 		await page.getByLabel("Display name").fill(bylineDisplayName);
-		await page.getByLabel("Slug").fill(bylineSlug);
+		await page.getByLabel("Slug", { exact: true }).fill(bylineSlug);
 		// Guest byline keeps the form simple — no user-link side quest.
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
@@ -111,7 +124,13 @@ test.describe("Byline custom fields", () => {
 
 		await expect(page.getByLabel(fieldLabel)).toBeVisible();
 		await page.getByLabel(fieldLabel).fill(fieldValue);
+		const saveResponse = page.waitForResponse(
+			(res) =>
+				res.url().includes("/api/admin/bylines/") && res.request().method() === "PUT" && res.ok(),
+			{ timeout: 10000 },
+		);
 		await page.getByRole("button", { name: "Save" }).click();
+		await saveResponse;
 
 		// ---------------------------------------------------------------
 		// 4. Verify the round-trip via the REST API

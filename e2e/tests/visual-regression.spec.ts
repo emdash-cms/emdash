@@ -28,6 +28,9 @@ const VISUAL_ENABLED = process.env.EMDASH_VISUAL === "1";
 const FIXED_VISUAL_TIME = "2026-08-27T12:00:00.000Z";
 const DYNAMIC_TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "publishedAt", "scheduledAt"]);
 const TIMESTAMPED_API_ROUTES = ["**/_emdash/api/dashboard", "**/_emdash/api/content/**"];
+// The dev-bypass user gets a random ID on every fresh database, and the ID
+// chooses the header avatar's colors.
+const VISUAL_USER_ID = "01JBQ8Z6X3K9M2N4P5R7S8T0VW";
 
 // Kill the usual sources of pixel nondeterminism: animations, transitions,
 // the blinking text caret, and smooth-scroll. Re-injected after every reload
@@ -169,6 +172,16 @@ async function installTimestampNormalizer(
 	}
 }
 
+async function pinCurrentUserId(admin: AdminPage): Promise<void> {
+	await admin.page.route("**/_emdash/api/auth/me", async (route) => {
+		if (route.request().method() !== "GET") return route.fallback();
+		const response = await route.fetch();
+		const body = (await response.json()) as { data?: Record<string, unknown> };
+		if (body.data) body.data.id = VISUAL_USER_ID;
+		await route.fulfill({ response, json: body });
+	});
+}
+
 /**
  * Navigate to an admin path and wait for it to be ready without relying on any
  * localized selectors. The shared AdminPage.waitForShell() matches the sidebar
@@ -269,6 +282,7 @@ test.describe("visual regression", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
 		await admin.page.clock.setFixedTime(FIXED_VISUAL_TIME);
+		await pinCurrentUserId(admin);
 	});
 
 	test.afterEach(async ({ admin }) => {
@@ -355,9 +369,9 @@ test.describe("visual regression", () => {
 			tableShot,
 		);
 		await page.keyboard.press("Escape");
-		await visualAction(admin, "Select table");
+		await visualAction(admin, "تحديد الجدول");
 		await page.locator("#field-body [data-emdash-table-trigger]").click();
-		await expect(page.getByRole("menuitem", { name: /Delete.*rows/ })).toBeDisabled();
+		await expect(page.getByRole("menuitem", { name: "حذف الصفوف", exact: true })).toBeDisabled();
 		await expect(page.locator('[role="menu"]:visible')).toHaveScreenshot(
 			"table-d-delete-disabled.png",
 			tableShot,
@@ -407,11 +421,11 @@ test.describe("visual regression", () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		view = await openTableVisual(admin, 3, 3, false, LOCALES[1], "dark");
 		await visualAction(admin, "تبديل صف الرأس");
-		await visualAction(admin, "Toggle header column");
+		await visualAction(admin, "تبديل عمود الرأس");
 		await settleTableGeometry(admin);
 		await expect(view.table).toHaveScreenshot("table-h-header-row-column.png", tableShot);
 		await visualAction(admin, "تبديل صف الرأس");
-		await visualAction(admin, "Toggle header column");
+		await visualAction(admin, "تبديل عمود الرأس");
 		await settleTableGeometry(admin);
 		await expect(view.table).toHaveScreenshot("table-h-body-only.png", tableShot);
 

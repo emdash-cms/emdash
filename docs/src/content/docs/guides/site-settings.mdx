@@ -11,7 +11,7 @@ Site settings hold values that apply across the site. Templates can use them for
 
 Open **Settings** in the EmDash admin, then choose the page for the values you need:
 
-- **General** contains the site title, tagline, logo, favicon, public URL, posts per page, date format, and timezone. Change the public URL with **Change domain**; see [Move to a New Domain](/guides/change-domain/).
+- **General** contains the site status (staging or live), site title, tagline, logo, favicon, public URL, posts per page, date format, and timezone. See [Hide a site until it goes live](/guides/seo/#hide-a-site-until-it-goes-live). Change the public URL with **Change domain**; see [Move to a New Domain](/guides/change-domain/).
 - **Social** contains profile handles for the supported social services.
 - **SEO** contains the title separator, default social image, verification values, `robots.txt` content, and the AI training opt-out. See [Built-in SEO Features](/guides/seo/) for what each one does.
 
@@ -179,4 +179,4 @@ Site settings hold one logo and one favicon. A dark image variant belongs to an 
 	later in the same request reuse the cached result.
 </Aside>
 
-The [runtime API reference](/reference/api/#site-settings) documents the setting keys and query return types. For programmatic changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [settings endpoints](/reference/rest-api/#settings-endpoints) for request bodies and responses.
+The [runtime API reference](/reference/api/#site-settings) documents the setting keys and query return types. For programmatic changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [settings endpoints](/reference/rest-api/#settings) for the available operations.

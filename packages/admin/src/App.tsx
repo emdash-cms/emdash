@@ -18,10 +18,12 @@ import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
+import { refetchCurrentUserOnForbidden } from "./lib/api/current-user";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
 import { LocaleDirectionProvider } from "./locales/index.js";
+import { KumoTranslationsProvider } from "./locales/KumoTranslationsProvider.js";
 import { createAdminRouter } from "./router";
 
 // Create a query client
@@ -33,6 +35,8 @@ const queryClient = new QueryClient({
 		},
 	},
 });
+
+refetchCurrentUserOnForbidden(queryClient);
 
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
@@ -167,19 +171,21 @@ export function AdminApp({
 		<ThemeProvider>
 			<I18nProvider i18n={i18n}>
 				<LocaleDirectionProvider>
-					<Toasty>
-						<AdminBrandingProvider adminBranding={adminBranding}>
-							<AuthProviderProvider authProviders={authProviders}>
-								<PluginAdminProvider pluginAdmins={pluginAdmins}>
-									<QueryClientProvider client={queryClient}>
-										<LinkProvider component={KumoRouterLink}>
-											<RouterProvider router={router} />
-										</LinkProvider>
-									</QueryClientProvider>
-								</PluginAdminProvider>
-							</AuthProviderProvider>
-						</AdminBrandingProvider>
-					</Toasty>
+					<KumoTranslationsProvider>
+						<Toasty>
+							<AdminBrandingProvider adminBranding={adminBranding}>
+								<AuthProviderProvider authProviders={authProviders}>
+									<PluginAdminProvider pluginAdmins={pluginAdmins}>
+										<QueryClientProvider client={queryClient}>
+											<LinkProvider component={KumoRouterLink}>
+												<RouterProvider router={router} />
+											</LinkProvider>
+										</QueryClientProvider>
+									</PluginAdminProvider>
+								</AuthProviderProvider>
+							</AdminBrandingProvider>
+						</Toasty>
+					</KumoTranslationsProvider>
 				</LocaleDirectionProvider>
 			</I18nProvider>
 		</ThemeProvider>

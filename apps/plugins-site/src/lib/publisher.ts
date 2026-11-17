@@ -1,5 +1,6 @@
 import type { RegistryEntryData } from "@emdash-cms/registry-loader";
 
+import { updatedAt } from "./discovery.js";
 import { relativeUpdated } from "./registry.js";
 
 type PackageView = RegistryEntryData["package"];
@@ -19,7 +20,7 @@ export interface PublisherSummary {
 	countLabel: string;
 	/** The earliest listing, as a month such as "Sep 2026". */
 	listedSince?: PublisherDate;
-	/** The most recent profile update, as `relativeUpdated` words it. */
+	/** The most recent profile update, by `updatedAt`, as `relativeUpdated` words it. */
 	lastUpdated?: PublisherDate;
 }
 
@@ -52,7 +53,7 @@ export function publisherSummary(
 		"earliest",
 	);
 	const updated = extreme(
-		packages.map((plugin) => plugin.profile?.lastUpdated),
+		packages.map((plugin) => updatedAt(plugin)),
 		"latest",
 	);
 	const updatedLabel = updated && relativeUpdated(updated.value, now);

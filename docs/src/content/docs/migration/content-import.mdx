@@ -33,7 +33,7 @@ Use WXR when WordPress can export the content you need and the EmDash Exporter c
 
 </Steps>
 
-The XML contains attachment metadata and source URLs, not the media bytes. Keep WordPress reachable until the optional media copy has finished.
+The XML contains attachment metadata and source URLs, not the media bytes. Keep WordPress reachable at a public address until the optional media copy has finished. A site on your computer needs a tunnel, as described in [Import from a local WordPress site](/migration/from-wordpress/#import-from-a-local-wordpress-site).
 
 ### Connect the EmDash Exporter
 
@@ -50,7 +50,9 @@ The admin performs these stages:
 5. **Import.** Convert and create content. The exporter path uses bounded content, comment, and finalization requests.
 6. **Copy media.** Download selected WXR attachments into EmDash storage and rewrite matching URLs.
 
-The WXR path can import posts, pages, custom post types, taxonomies, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch selected site settings and supported SEO values from the live WordPress API, and with exporter 1.2.0 or later also comments, menus, the logo, and the favicon.
+The WXR path can import posts, pages, custom post types, taxonomies, menus, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch selected site settings and supported SEO values from the live WordPress API, and with exporter 1.2.0 or later also comments, the logo, and the favicon.
+
+A WXR import creates each menu with its WordPress slug as the name that `getMenu()` looks up, and its WordPress name as the label. Each menu keeps its nesting, and its items link to the imported entries. An item without its own label shows the entry's title, as in WordPress. An item that links to a post type archive links to the archive of the collection that the post type was imported into, and without its own label it shows the collection's label. On a site translated with Polylang or WPML, each menu takes the language of the entries it links to. Items are skipped and counted in the import result when they link to a category or tag archive, to content the import left out, or to one of several pages that share a slug in the same collection and language, such as `services/support` and `products/support`. The import creates one entry for that slug, so it can't tell which page the entry stands for. A Polylang language switcher in a menu is skipped and counted too: Polylang replaces it with the language links when it shows the menu, so the export holds only a placeholder. To offer the same choice on the new site, [build a language switcher](/guides/internationalization/#build-a-language-switcher) in your templates. A menu that already exists with the same name and language is left unchanged.
 
 ### Understand the analysis
 
@@ -76,6 +78,7 @@ The content routes store two statuses from a WordPress import:
 | `pending` | `draft` |
 | `private` | `draft` |
 | `future`, `trash`, or another value | `draft` |
+| Any status on a password-protected post (WXR import) | `draft` |
 
 The importer does not preserve WordPress pending, private, scheduled, or trash semantics. Review those entries before publishing them in EmDash.
 
@@ -160,7 +163,7 @@ Its `data` value contains `success`, `collectionsCreated`, `fieldsCreated`, and 
 - `file`: the WXR file.
 - `config`: a JSON string containing `postTypeMappings`, `skipExisting`, optional `authorMappings`, optional `importSections`, and an optional import-wide `locale`.
 
-Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries.
+Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries. When the request imports password-protected posts, `data` also contains `passwordProtected`, which lists each one as `{ id, collection, title }`.
 
 ### Copy media
 

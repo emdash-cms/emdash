@@ -1,4 +1,4 @@
-import { Button, LinkButton, Popover } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Popover } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
@@ -8,8 +8,11 @@ import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserAvatar } from "./UserAvatar.js";
 
 export type { CurrentUser } from "../lib/api/current-user";
+
+const ROLE_ADMIN = 50;
 
 async function handleLogout() {
 	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
@@ -34,16 +37,13 @@ async function handleLogout() {
  * Admin header with mobile menu toggle and user actions.
  * Uses useSidebar() hook from kumo Sidebar.Provider context.
  */
-export function Header() {
+export function Header({ staging = false }: { staging?: boolean }) {
 	const { t } = useLingui();
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	const { data: user } = useCurrentUser();
 
-	// Get display name and initials
 	const displayName = user?.name || user?.email || t`User`;
-	const initialsSource = user?.name || user?.email || "U";
-	const initials = (initialsSource[0] ?? "U").toUpperCase();
 
 	return (
 		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
@@ -54,6 +54,17 @@ export function Header() {
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">
+				{staging &&
+					((user?.role ?? 0) >= ROLE_ADMIN ? (
+						<Link to="/settings/general" title={t`Hidden from search engines until you go live`}>
+							<Badge variant="warning">{t`Staging`}</Badge>
+						</Link>
+					) : (
+						<span title={t`Hidden from search engines until you go live`}>
+							<Badge variant="warning">{t`Staging`}</Badge>
+						</span>
+					))}
+
 				{/* View site link */}
 				<LinkButton variant="ghost" size="sm" href="/" external>
 					<ArrowSquareOut className="h-4 w-4 me-1" />
@@ -66,13 +77,11 @@ export function Header() {
 				{/* User menu */}
 				<Popover open={userMenuOpen} onOpenChange={setUserMenuOpen}>
 					<Popover.Trigger asChild>
-						<Button variant="ghost" size="sm" className="gap-2">
-							{user?.avatarUrl ? (
-								<img src={user.avatarUrl} alt="" className="h-5 w-5 rounded-full object-cover" />
+						<Button variant="ghost" size="sm" className="gap-2" aria-label={displayName}>
+							{user ? (
+								<UserAvatar user={user} size={20} />
 							) : (
-								<div className="h-5 w-5 rounded-full bg-kumo-brand/10 flex items-center justify-center text-[10px] font-medium">
-									{initials}
-								</div>
+								<span aria-hidden="true" className="size-5 shrink-0 rounded-full bg-kumo-tint" />
 							)}
 							<span className="hidden sm:inline max-w-[120px] truncate">{displayName}</span>
 						</Button>

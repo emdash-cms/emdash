@@ -135,18 +135,12 @@ export interface DocumentOutlineProps {
 	editor: Editor | null;
 	/** Additional CSS classes */
 	className?: string;
-	/** Reserve the inline end of the disclosure header for an external control. */
-	reserveHeaderEnd?: boolean;
 }
 
 /**
  * Document outline component showing heading tree structure
  */
-export function DocumentOutline({
-	editor,
-	className,
-	reserveHeaderEnd = false,
-}: DocumentOutlineProps) {
+export function DocumentOutline({ editor, className }: DocumentOutlineProps) {
 	const { t } = useLingui();
 	const { isMobile, setOpenMobile } = useSidebar();
 	const [isExpanded, setIsExpanded] = React.useState(true);
@@ -238,7 +232,7 @@ export function DocumentOutline({
 						variant="ghost"
 						className="relative justify-between"
 						style={{
-							width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+							width: "calc(100% + 1.5rem)",
 							insetInlineStart: "-0.75rem",
 						}}
 					/>
@@ -256,13 +250,12 @@ export function DocumentOutline({
 			</Collapsible.Trigger>
 
 			<Collapsible.Panel
-				className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				className="overflow-hidden transition-[height] duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
 				style={({ transitionStatus }) => ({
 					height:
 						transitionStatus === "starting" || transitionStatus === "ending"
 							? 0
 							: "var(--collapsible-panel-height)",
-					transitionProperty: "height",
 				})}
 			>
 				{headings.length === 0 ? (

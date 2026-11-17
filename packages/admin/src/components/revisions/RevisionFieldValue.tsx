@@ -21,8 +21,8 @@ type ValueFieldDiff = Extract<FieldDiff, { type: "value" }>;
 type BoxVariant = "line" | "title" | "area" | "code";
 
 const BOX_CLASSES: Record<BoxVariant, string> = {
-	line: cn(inputVariants({ size: "base" }), "block h-auto min-h-9 py-2"),
-	title: cn(inputVariants({ size: "lg" }), "block h-auto min-h-10 py-2.5 text-lg!"),
+	line: cn(inputVariants({ size: "base" }), "block h-auto min-h-9 py-2 leading-5"),
+	title: cn(inputVariants({ size: "lg" }), "block h-auto min-h-10 py-2.5 text-lg! leading-5!"),
 	area: cn(inputVariants({ size: "base" }), "block h-auto min-h-[calc(10lh+1rem)] py-2"),
 	code: cn(inputVariants({ size: "base" }), "block h-auto min-h-[calc(8lh+1rem)] py-2 font-mono"),
 };

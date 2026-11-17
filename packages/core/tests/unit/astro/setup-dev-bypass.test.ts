@@ -6,6 +6,11 @@
  * site without deleting seeded entries afterwards.
  */
 
+import { randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -13,7 +18,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import type { SeedFile } from "../../../src/seed/types.js";
+import { LocalStorage } from "../../../src/storage/local.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+const fixtureMediaBasePath = join(tmpdir(), `emdash-setup-dev-bypass-seed-${randomUUID()}`);
 
 const fixtureSeed: SeedFile = {
 	version: "1",
@@ -64,7 +72,11 @@ const fixtureSeed: SeedFile = {
 	],
 };
 
-vi.mock("virtual:emdash/seed", () => ({ seed: fixtureSeed, userSeed: null }), { virtual: true });
+vi.mock(
+	"virtual:emdash/seed",
+	() => ({ seed: fixtureSeed, userSeed: null, mediaBasePath: fixtureMediaBasePath }),
+	{ virtual: true },
+);
 
 import { GET as AUTH_GET } from "../../../src/astro/routes/api/auth/dev-bypass.js";
 import { GET } from "../../../src/astro/routes/api/setup/dev-bypass.js";
@@ -121,6 +133,50 @@ describe("setup dev-bypass seed gating", () => {
 		expect(await countPosts(db)).toBe(1);
 		expect(await countRows(db, "taxonomies")).toBe(1);
 		expect(await countRows(db, "_emdash_bylines")).toBe(1);
+	});
+
+	it.each(["dev-bypass", "wizard"])("resolves local seed media during %s", async (route) => {
+		const asset = Buffer.from("dev bypass local image");
+		await mkdir(fixtureMediaBasePath, { recursive: true });
+		await writeFile(join(fixtureMediaBasePath, "photo.jpg"), asset);
+		const originalImage = fixtureSeed.content!.posts![0]!.data!.featured_image;
+		fixtureSeed.content!.posts![0]!.data!.featured_image = {
+			$media: { file: "photo.jpg", alt: "Local dev image" },
+		};
+		const uploadsDir = await mkdtemp(join(tmpdir(), "emdash-dev-bypass-uploads-"));
+		const storage = new LocalStorage({ directory: uploadsDir, baseUrl: "/media" });
+		const context = route === "dev-bypass" ? makeContext(db) : makeSetupContext(db);
+		if (route === "wizard") {
+			context.request = new Request(context.url, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ title: "Local Media Site", includeContent: true }),
+			});
+		}
+		context.locals.emdash!.storage = storage;
+
+		try {
+			const response = await (route === "dev-bypass" ? GET(context) : SETUP_POST(context));
+			expect(response.status).toBe(200);
+
+			const post = await new ContentRepository(db).findBySlug("posts", "sample-post");
+			const media = post?.data.featured_image as {
+				provider: string;
+				filename: string;
+				alt: string;
+				meta: { storageKey: string };
+			};
+			expect(media).toMatchObject({
+				provider: "local",
+				filename: "photo.jpg",
+				alt: "Local dev image",
+			});
+			expect(await readFile(join(uploadsDir, media.meta.storageKey))).toEqual(asset);
+		} finally {
+			fixtureSeed.content!.posts![0]!.data!.featured_image = originalImage;
+			await rm(uploadsDir, { recursive: true, force: true });
+			await rm(fixtureMediaBasePath, { recursive: true, force: true });
+		}
 	});
 
 	it("makes seeded media usage ready without activating incremental capture", async () => {
@@ -196,6 +252,11 @@ describe("setup dev-bypass seed gating", () => {
 	])("does not migrate from the %s route", async (_name, invoke) => {
 		const pending = MIGRATION_NAMES.at(-1)!;
 		await db.deleteFrom("_emdash_migrations").where("name", "=", pending).execute();
+
+		if (_name === "auth dev bypass") {
+			const setup = await GET(makeContext(db, "?content=0"));
+			expect(setup.status).toBe(200);
+		}
 
 		const response = await invoke(db);
 

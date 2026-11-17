@@ -58,7 +58,13 @@ const days = groupByDay(
 	}),
 );
 
+/**
+ * Five weeks share the height below the weekday row. At the default, a row
+ * fits four chips, so a day with more shows three and "+N more".
+ */
 function month({
+	shownMonth = "2026-10",
+	height = 682,
 	compact = false,
 	today = "2026-10-15",
 	at = now,
@@ -69,6 +75,8 @@ function month({
 	onSelect,
 	onClearFilters,
 }: {
+	shownMonth?: string;
+	height?: number;
 	compact?: boolean;
 	today?: string;
 	at?: number;
@@ -80,20 +88,22 @@ function month({
 	onClearFilters?: () => void;
 } = {}) {
 	return (
-		<CalendarMonth
-			month="2026-10"
-			gridDays={monthGridDays("2026-10", 0)}
-			days={shown}
-			unfilteredDays={unfilteredDays}
-			today={today}
-			now={at}
-			display={display}
-			compact={compact}
-			loadedThrough={loadedThrough}
-			onMonthChange={onMonthChange}
-			onSelect={onSelect}
-			onClearFilters={onClearFilters}
-		/>
+		<div style={{ display: "flex", flexDirection: "column", width: 1100, height }}>
+			<CalendarMonth
+				month={shownMonth}
+				gridDays={monthGridDays(shownMonth, 0)}
+				days={shown}
+				unfilteredDays={unfilteredDays}
+				today={today}
+				now={at}
+				display={display}
+				compact={compact}
+				loadedThrough={loadedThrough}
+				onMonthChange={onMonthChange}
+				onSelect={onSelect}
+				onClearFilters={onClearFilters}
+			/>
+		</div>
 	);
 }
 
@@ -115,12 +125,46 @@ describe("CalendarMonth", () => {
 		const screen = await renderMonth({ shown: all, unfilteredDays: all });
 		const full = busyWeek();
 
-		// Four cards unfold where the whole day folds into three and "+2 more".
+		// Four chips unfold where the whole day folds into three and "+2 more".
 		await screen.rerender(month({ shown: toDays(scheduled), unfilteredDays: all }));
 		expect(busyWeek()).toBe(full);
 
 		await screen.rerender(month({ shown: new Map(), unfilteredDays: all }));
 		expect(busyWeek()).toBe(full);
+	});
+
+	it("shows as many entries as a row has room for", async () => {
+		const screen = await renderMonth({ height: 1000 });
+		const busy = screen.getByRole("list", { name: "Tuesday, October 20, 2026" });
+		await expect.poll(() => busy.getByRole("link").elements()).toHaveLength(6);
+		expect(busy.getByRole("button").elements()).toHaveLength(0);
+
+		await screen.rerender(month({ height: 560 }));
+		await expect.poll(() => busy.getByRole("link").elements()).toHaveLength(2);
+		await expect
+			.element(busy.getByRole("button", { name: "4 more entries on Tuesday, October 20, 2026" }))
+			.toBeVisible();
+	});
+
+	it("fits a six-week month with two entries a day in a 720px-tall window", async () => {
+		const pair = groupByDay(
+			toCalendarItems(
+				[entry("first", "2026-08-12T00:00:00.000Z"), entry("second", "2026-08-12T01:00:00.000Z")],
+				{ timeZone, loadedAt: now, collectionOrder: ["posts"] },
+			),
+		);
+		// The height the admin leaves the month at 1280×720.
+		const screen = await renderMonth({ shownMonth: "2026-08", shown: pair, height: 509 });
+		expect(document.querySelectorAll("tbody tr")).toHaveLength(6);
+
+		const day = screen.getByRole("list", { name: "Wednesday, August 12, 2026" });
+		await expect.poll(() => day.getByRole("link").elements()).toHaveLength(2);
+		const scroller = screen.getByRole("table").element().parentElement!;
+		expect(scroller.scrollHeight).toBeLessThanOrEqual(scroller.clientHeight);
+		const cell = day.element().closest("td")!.getBoundingClientRect();
+		expect(
+			day.getByRole("link").last().element().getBoundingClientRect().bottom,
+		).toBeLessThanOrEqual(cell.bottom);
 	});
 
 	it("places entries on site-zone days and folds a busy day into a popover", async () => {
@@ -192,22 +236,6 @@ describe("CalendarMonth", () => {
 		).toBeTruthy();
 	});
 
-	it("draws the present after the folded entries once they are all past", async () => {
-		const screen = await renderMonth({
-			today: "2026-10-20",
-			at: Date.parse("2026-10-20T06:30:00.000Z"),
-		});
-		const busy = screen.getByRole("list", { name: "Tuesday, October 20, 2026" });
-		const more = busy
-			.getByRole("button", { name: /3 more entries/ })
-			.element()
-			.closest("li");
-		const last = busy.element().lastElementChild;
-
-		expect(last?.getAttribute("aria-hidden")).toBe("true");
-		expect(last?.previousElementSibling).toBe(more);
-	});
-
 	it("lists the entries of the day picked on a phone", async () => {
 		const screen = await renderMonth({ compact: true });
 
@@ -267,18 +295,7 @@ describe("CalendarMonth", () => {
 
 		expect(onMonthChange).toHaveBeenCalledWith("2026-11");
 
-		await screen.rerender(
-			<CalendarMonth
-				month="2026-11"
-				gridDays={monthGridDays("2026-11", 0)}
-				days={days}
-				today="2026-10-15"
-				now={now}
-				display={display}
-				compact
-				onMonthChange={onMonthChange}
-			/>,
-		);
+		await screen.rerender(month({ shownMonth: "2026-11", compact: true, onMonthChange }));
 
 		await expect
 			.poll(() => document.activeElement?.getAttribute("aria-label"))

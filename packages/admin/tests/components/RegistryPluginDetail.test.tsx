@@ -433,13 +433,17 @@ describe("RegistryPluginDetail independent install consent", () => {
 		await screen.getByRole("button", { name: "Technical verification details" }).click();
 		await expect.element(screen.getByText("bafy-profile")).toBeInTheDocument();
 		await expect.element(screen.getByText("bafy-release")).toBeInTheDocument();
-		await screen.getByRole("button", { name: "Accept & Install" }).click();
-		expect(mockInstallRegistryPlugin).toHaveBeenCalledWith(
-			expect.objectContaining({
-				acknowledgedPublicRoutes: ["webhook"],
-				acknowledgedProfileCid: "bafy-profile",
-				acknowledgedReleaseCid: "bafy-release",
-			}),
+		const accept = screen.getByRole("button", { name: "Accept & Install" });
+		await expect.element(accept).toBeEnabled();
+		accept.element().click();
+		await vi.waitFor(() =>
+			expect(mockInstallRegistryPlugin).toHaveBeenCalledWith(
+				expect.objectContaining({
+					acknowledgedPublicRoutes: ["webhook"],
+					acknowledgedProfileCid: "bafy-profile",
+					acknowledgedReleaseCid: "bafy-release",
+				}),
+			),
 		);
 	});
 
@@ -529,7 +533,9 @@ describe("RegistryPluginDetail independent install consent", () => {
 		);
 
 		await screen.getByRole("button", { name: "Install" }).click();
-		await screen.getByRole("button", { name: "Accept & Install" }).click();
+		const accept = screen.getByRole("button", { name: "Accept & Install" });
+		await expect.element(accept).toBeEnabled();
+		accept.element().click();
 
 		await expect
 			.element(screen.getByRole("dialog").getByRole("alert"))

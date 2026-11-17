@@ -457,6 +457,7 @@ export interface CollectionSchemaInfo {
 	supports: string[];
 	hasSeo: boolean;
 	titleField: string | null;
+	/** Custom datetime field slug or system timestamp (`publishedAt`, `createdAt`, `updatedAt`); null means last-updated. */
 	dateField: string | null;
 	urlPattern: string | null;
 	routable: boolean;
@@ -1431,12 +1432,20 @@ export interface ContentHookEvent {
 	 * Absent on updates and on creates that start a new translation group.
 	 */
 	translationOf?: string;
+	/**
+	 * Users whose edits this save holds, latest first. An ordinary save lists
+	 * only its actor. A hook that checks the actor's role before accepting
+	 * content must check everyone here. Absent when the save names no editors,
+	 * such as an internal write without an authenticated user.
+	 */
+	editedBy?: readonly string[];
 }
 
-/** Locale details a save passes to its `content:beforeSave` and `content:afterSave` hooks. */
+/** Details a save passes to its `content:beforeSave` and `content:afterSave` hooks. */
 export interface ContentSaveHookDetails {
 	locale?: string;
 	translationOf?: string;
+	editedBy?: readonly string[];
 }
 
 /**
@@ -2151,6 +2160,10 @@ export interface PluginAdminConfig {
 export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginStorageConfig> {
 	/** Unique plugin identifier */
 	id: string;
+	/** Human-readable plugin name */
+	displayName?: string;
+	/** Description shown in plugin management UI */
+	description?: string;
 	/** Plugin version (semver) */
 	version: string;
 
@@ -2181,6 +2194,8 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
  */
 export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginStorageConfig> {
 	id: string;
+	displayName?: string;
+	description?: string;
 	version: string;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];

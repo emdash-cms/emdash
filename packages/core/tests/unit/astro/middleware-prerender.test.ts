@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
@@ -84,6 +84,7 @@ const {
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
 			handleRevisionList: ok,
+			handleRevisionEditors: ok,
 			handleRevisionGet: ok,
 			handleRevisionRestore: ok,
 			getPluginRouteMeta,
@@ -210,6 +211,10 @@ beforeEach(() => {
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
 	mockRunPluginUninstallLifecycle.mockClear();
+});
+
+afterEach(() => {
+	vi.unstubAllEnvs();
 });
 
 /** A getDb stub whose migrations-probe query throws `error`. */
@@ -379,6 +384,39 @@ describe("astro middleware prerendered routes", () => {
 		expect(typeof emdash.handleContentAuthors).toBe("function");
 	});
 
+	it.each(["/field-notes", "/field-notes/"])(
+		"initializes the runtime for public SEO routes under base %s",
+		async (base) => {
+			vi.stubEnv("BASE_URL", base);
+			for (const path of [
+				"/sitemap.xml",
+				"/sitemap-post.xml",
+				"/sitemap-post-2.xml",
+				"/robots.txt",
+			]) {
+				resetSetupVerified();
+				mockCreateRuntime.mockClear();
+				const { context } = createRequestContext({ url: `https://example.com/field-notes${path}` });
+				await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+					expect((context.locals.emdash as Record<string, unknown>)?.db).toBe(MOCK_RUNTIME.db);
+					return new Response("ok");
+				});
+				expect(mockCreateRuntime).toHaveBeenCalledOnce();
+			}
+		},
+	);
+
+	it.each([
+		"/field-notes-other/sitemap.xml",
+		"/field-notes/article",
+		"/field-notes/sitemap-Post.xml",
+	])("keeps anonymous requests to %s on the fast path", async (path) => {
+		vi.stubEnv("BASE_URL", "/field-notes");
+		const { context } = createRequestContext({ url: `https://example.com${path}` });
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+		expect((context.locals.emdash as Record<string, unknown>)?.db).toBeUndefined();
+	});
+
 	it.each(["/sitemap-post.xml", "/sitemap-post-2.xml", `/sitemap-${"a".repeat(63)}.xml`])(
 		"initializes the runtime for collection sitemap %s",
 		async (path) => {
@@ -425,17 +463,19 @@ describe("astro middleware prerendered routes", () => {
 		).toBeUndefined();
 	});
 
-	it("does not access context.session when prerendering public pages", async () => {
+	it.each(["/", "/robots.txt"])("does not read credentials when prerendering %s", async (path) => {
 		const cookies = {
 			get: vi.fn(() => undefined),
 		};
+		const request = new Request(`https://example.com${path}`);
+		const headersGet = vi.spyOn(request.headers, "get");
 		const redirect = vi.fn(
 			(location: string) => new Response(null, { status: 302, headers: { Location: location } }),
 		);
 
 		const context: Record<string, unknown> = {
-			request: new Request("https://example.com/"),
-			url: new URL("https://example.com/"),
+			request,
+			url: new URL(request.url),
 			cookies,
 			locals: {},
 			redirect,
@@ -455,6 +495,8 @@ describe("astro middleware prerendered routes", () => {
 
 		expect(response.status).toBe(200);
 		expect(redirect).not.toHaveBeenCalled();
+		expect(cookies.get).not.toHaveBeenCalled();
+		expect(headersGet).not.toHaveBeenCalled();
 	});
 });
 
@@ -754,6 +796,34 @@ describe("astro middleware anonymous session reads", () => {
 		);
 		expect(mockHandleMediaUpload).toHaveBeenCalledWith(input);
 	});
+
+	it("gives anonymous page renders the storage public media URL resolver", async () => {
+		const { context } = createAnonymousPublicPageContext();
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
+	});
+
+	it("gives authenticated page renders the storage public media URL resolver", async () => {
+		const { context } = createRequestContext({
+			url: "https://example.com/",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+		});
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
+	});
 });
 
 describe("astro middleware request-scoped db", () => {
@@ -885,6 +955,22 @@ describe("astro middleware request-scoped db", () => {
 		// a refactor to enterWith() could silently leak request state into
 		// other async work on the same worker.
 		expect(getRequestContext()).toBeUndefined();
+	});
+
+	it("keeps the public media URL resolver in the scoped db context", async () => {
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit: vi.fn(),
+		});
+		const { context } = createAnonymousPublicPageContext();
+
+		let resolved: string | undefined;
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			resolved = getRequestContext()?.publicMediaUrl?.("01ABC.jpg");
+			return new Response("ok");
+		});
+
+		expect(resolved).toBe("https://media.example.com/01ABC.jpg");
 	});
 
 	it("marks an API-token (Bearer) request as authenticated even without a session cookie", async () => {
