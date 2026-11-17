@@ -8,8 +8,14 @@ import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import { CronAccessImpl } from "../../../src/plugins/cron.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { dispatchPluginApiRequest } from "../../../src/plugins/http-route-dispatch.js";
+import {
+	disableRuntimePlugin,
+	enableRuntimePlugin,
+	type PluginLifecycleRuntime,
+} from "../../../src/plugins/lifecycle.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import {
 	PLUGIN_STATE_GENERATION_OPTION,
@@ -197,10 +203,13 @@ async function get(runtime: EmDashRuntime) {
 		new Request(`https://example.test/_emdash/api/plugins/${pluginId}/submit`),
 	);
 }
-function countingDb(runtime: EmDashRuntime, counts: { generation: number; snapshot: number }) {
-	return runtime.db.withPlugin({
+function countingDb(
+	database: EmDashRuntime["db"],
+	counts: { generation: number; snapshot: number },
+) {
+	return database.withPlugin({
 		transformQuery: ({ node }) => {
-			const q = runtime!.db.getExecutor().compileQuery(node);
+			const q = database.getExecutor().compileQuery(node);
 			if (q.parameters.includes(PLUGIN_STATE_GENERATION_OPTION) && !q.sql.includes("_plugin_state"))
 				counts.generation++;
 			if (q.sql.includes("_plugin_state")) counts.snapshot++;
@@ -236,7 +245,7 @@ describe.each(["registry", "marketplace"] as const)(
 			];
 			runtime = await EmDashRuntime.create(deps);
 			const counts = { generation: 0, snapshot: 0 };
-			const db = countingDb(runtime, counts);
+			const db = countingDb(runtime.db, counts);
 			const downloads = storage.downloadCount;
 			const probes = deps.runnerIsAvailable.mock.calls.length;
 			expect(runtime.mayNeedInstalledPluginRefresh(configuredId)).toBe(false);
@@ -272,33 +281,30 @@ describe.each(["registry", "marketplace"] as const)(
 			await primary.upsert(pluginId, "2.0.0", "active", stateOptions(source, "2.0.0"));
 			await runtime.refreshPluginState();
 			const counts = { generation: 0, snapshot: 0 };
-			const stale = countingDb(runtime, counts);
-			await runWithContext({ db: stale, editMode: false }, () =>
-				runtime!.refreshPluginState(pluginId),
-			);
+			const stale = countingDb(replica, counts);
+			expect(await secondary.getGeneration()).toBeLessThan(await primary.getGeneration());
+			const requestFromReplica = () =>
+				runWithContext({ db: stale, editMode: false }, async () => {
+					await runtime!.refreshPluginState(pluginId);
+					return dispatchPluginApiRequest({
+						runtime: runtime!,
+						pluginId,
+						path: "/submit",
+						request: new Request("https://example.test/_emdash/api/plugins/updated-plugin/submit"),
+					});
+				});
+			expect((await requestFromReplica()).status).toBe(401);
 			expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toMatchObject({ public: false });
 			expect(counts.generation).toBe(1);
 			expect(counts.snapshot).toBe(0);
-			await expect(
-				dispatchPluginApiRequest({
-					runtime,
-					pluginId,
-					path: "/submit",
-					request: new Request("https://example.test/_emdash/api/plugins/updated-plugin/submit"),
-				}),
-			).resolves.toMatchObject({ status: 401 });
 			await primary.upsert(pluginId, "3.0.0", "active", stateOptions(source, "3.0.0"));
 			await runtime.refreshPluginState();
 			expect(await get(runtime)).toMatchObject({ success: true, data: { version: "3.0.0" } });
 			await primary.delete(pluginId);
 			await runtime.refreshPluginState();
-			await runWithContext({ db: stale, editMode: false }, () =>
-				runtime!.refreshPluginState(pluginId),
-			);
-			await expect(get(runtime)).resolves.toMatchObject({
-				success: false,
-				error: { code: "NOT_FOUND" },
-			});
+			expect((await requestFromReplica()).status).toBe(404);
+			expect(counts.generation).toBe(2);
+			expect(counts.snapshot).toBe(0);
 		});
 
 		it("does not allow an old generation to win an interleaved refresh", async () => {
@@ -596,6 +602,101 @@ describe.each(["registry", "marketplace"] as const)(
 			}
 		});
 
+		it("runs activation after a newer unrelated generation refresh", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false, pluginId, ["plugin:activate"]);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "inactive", stateOptions(source, "1.0.0"));
+			await runtime.refreshPluginState();
+
+			await states.enable(pluginId, "1.0.0");
+			const generation = states.getLastWrittenGeneration();
+			expect(generation).toBeDefined();
+			await states.upsert("unrelated-plugin", "1.0.0", "inactive", { source: "config" });
+			await runtime.refreshPluginState();
+			deps.runnerInvokeHook.mockClear();
+
+			await runtime.setPluginStatus(pluginId, "active", generation);
+
+			expect(deps.runnerInvokeHook).toHaveBeenCalledTimes(1);
+			expect(deps.runnerInvokeHook).toHaveBeenCalledWith("plugin:activate", {});
+		});
+
+		it("runs deactivation after a newer unrelated generation refresh", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false, pluginId, ["plugin:deactivate"]);
+			const deps = createDeps(storage, source);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await runtime.refreshPluginState();
+
+			await states.disable(pluginId, "1.0.0");
+			const generation = states.getLastWrittenGeneration();
+			expect(generation).toBeDefined();
+			await states.upsert("unrelated-plugin", "1.0.0", "inactive", { source: "config" });
+			await runtime.refreshPluginState();
+			deps.runnerInvokeHook.mockClear();
+
+			await runtime.setPluginStatus(pluginId, "inactive", generation);
+
+			expect(deps.runnerInvokeHook).toHaveBeenCalledTimes(1);
+			expect(deps.runnerInvokeHook).toHaveBeenCalledWith("plugin:deactivate", {});
+			expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toBeNull();
+			expect(await get(runtime)).toMatchObject({
+				success: false,
+				error: { code: "NOT_FOUND" },
+			});
+		});
+
+		it("rolls back a failed activation after a newer unrelated generation", async () => {
+			let failActivation = false;
+			const activated = vi.fn(async () => {
+				if (failActivation) throw new Error("activation failed");
+			});
+			const deps = createDeps(new MemoryStorage(), source);
+			deps.plugins = [
+				definePlugin({
+					id: "activation-rollback",
+					version: "1.0.0",
+					hooks: {
+						"plugin:activate": activated,
+					},
+				}),
+			];
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.disable("activation-rollback", "1.0.0");
+			await runtime.setPluginStatus(
+				"activation-rollback",
+				"inactive",
+				states.getLastWrittenGeneration(),
+			);
+			activated.mockClear();
+			failActivation = true;
+			const target = runtime;
+			const delayed: PluginLifecycleRuntime = {
+				db: target.db,
+				configuredPlugins: target.configuredPlugins,
+				sandboxedPluginEntries: target.sandboxedPluginEntries,
+				syncMarketplacePlugins: () => target.syncMarketplacePlugins(),
+				syncRegistryPlugins: () => target.syncRegistryPlugins(),
+				setPluginStatus: async (id, status, generation) => {
+					await states.upsert("unrelated-generation", "1.0.0", "inactive");
+					await target.refreshPluginState();
+					await target.setPluginStatus(id, status, generation);
+				},
+			};
+			expect(await enableRuntimePlugin(delayed, "activation-rollback")).toMatchObject({
+				success: false,
+				error: { code: "PLUGIN_ENABLE_ERROR" },
+			});
+			expect(activated).toHaveBeenCalledOnce();
+			expect(await states.get("activation-rollback")).toMatchObject({ status: "inactive" });
+		});
+
 		it("does not reactivate a newer disabled state when local callers share a write receipt", async () => {
 			const activated = vi.fn();
 			const deps = createDeps(new MemoryStorage(), source);
@@ -634,7 +735,7 @@ describe.each(["registry", "marketplace"] as const)(
 			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
 			await runtime.refreshPluginState();
 			const counts = { generation: 0, snapshot: 0 };
-			const db = countingDb(runtime, counts);
+			const db = countingDb(runtime.db, counts);
 			await runWithContext({ db, editMode: false }, () => runtime!.refreshPluginState(pluginId));
 			expect(counts.generation).toBe(1);
 			expect(counts.snapshot).toBe(0);
@@ -644,6 +745,74 @@ describe.each(["registry", "marketplace"] as const)(
 			counts.snapshot = 0;
 			await runWithContext({ db, editMode: false }, () => runtime!.refreshPluginState());
 			expect(counts.snapshot).toBe(1);
+		});
+
+		it("does not block healthy routes on an unrelated bundle download", async () => {
+			const unrelatedId = "slow-unrelated";
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false);
+			await putBundle(storage, source, "1.0.0", false, unrelatedId);
+			runtime = await EmDashRuntime.create(createDeps(storage, source));
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await runtime.refreshInstalledPluginRoute(pluginId);
+			const healthyDownloads = storage.downloadCount;
+			await states.upsert(
+				unrelatedId,
+				"1.0.0",
+				"active",
+				stateOptions(source, "1.0.0", unrelatedId),
+			);
+
+			const requestHealthy = async () => {
+				await runtime!.refreshInstalledPluginRoute(pluginId);
+				return dispatchPluginApiRequest({
+					runtime: runtime!,
+					pluginId,
+					path: "/submit",
+					request: new Request(`https://example.test/_emdash/api/plugins/${pluginId}/submit`),
+				});
+			};
+			storage.pauseNextDownload();
+			let firstFinished = false;
+			const firstHealthy = requestHealthy().then(
+				(response) => {
+					firstFinished = true;
+					return response;
+				},
+				(error) => {
+					firstFinished = true;
+					throw error;
+				},
+			);
+			void firstHealthy.catch(() => undefined);
+			let unrelatedRefresh: Promise<unknown> | undefined;
+			let secondHealthy: Promise<Response> | undefined;
+			try {
+				await vi.waitFor(() => expect(firstFinished).toBe(true), { timeout: 1000 });
+				await expect(firstHealthy).resolves.toMatchObject({ status: 200 });
+				expect(storage.downloadCount).toBe(healthyDownloads);
+
+				storage.pauseNextDownload();
+				unrelatedRefresh = runtime.refreshInstalledPluginRoute(unrelatedId);
+				void unrelatedRefresh.catch(() => undefined);
+				await storage.downloadStarted;
+				let secondFinished = false;
+				secondHealthy = requestHealthy().then((response) => {
+					secondFinished = true;
+					return response;
+				});
+				void secondHealthy.catch(() => undefined);
+				await vi.waitFor(() => expect(secondFinished).toBe(true), { timeout: 1000 });
+				await expect(secondHealthy).resolves.toMatchObject({ status: 200 });
+			} finally {
+				storage.resumeDownload();
+				await Promise.allSettled(
+					[firstHealthy, unrelatedRefresh, secondHealthy].filter(
+						(value): value is Promise<unknown> => value !== undefined,
+					),
+				);
+			}
 		});
 
 		it("tries the full snapshot for healthy and broken plugins when generation changes", async () => {
@@ -855,6 +1024,155 @@ describe.each(["registry", "marketplace"] as const)(
 					releaseOldSync();
 					await oldSync.catch(() => undefined);
 					await newPost?.catch(() => undefined);
+				}
+			},
+		);
+
+		it("keeps an unrelated old plugin version serving until its replacement loads", async () => {
+			const storage = new MemoryStorage();
+			const a = "healthy-a";
+			const b = "healthy-b";
+			await putBundle(storage, source, "1.0.0", false, a);
+			await putBundle(storage, source, "1.0.0", false, b, ["plugin:activate"]);
+			await putBundle(storage, source, "2.0.0", false, b, ["plugin:activate"]);
+			for (const version of ["1.0.0", "2.0.0"]) {
+				storage.putText(
+					`${source}/${b}/${version}/manifest.json`,
+					JSON.stringify({
+						...manifest(version, false, b, ["plugin:activate"]),
+						routes: [],
+					}),
+				);
+			}
+			const deps = createDeps(storage, source);
+			const hookVersions: string[] = [];
+			deps.runnerLoad.mockImplementation(async (m: { id: string; version: string }) => ({
+				id: `${m.id}:${m.version}`,
+				invokeHook: async (...args: Parameters<SandboxedPluginInstance["invokeHook"]>) => {
+					if (m.id === b) hookVersions.push(m.version);
+					await deps.runnerInvokeHook(...args);
+				},
+				invokeRoute: async () => ({ version: m.version }),
+				terminate: vi.fn(async () => undefined),
+			}));
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(a, "1.0.0", "active", stateOptions(source, "1.0.0", a));
+			await states.upsert(b, "1.0.0", "active", stateOptions(source, "1.0.0", b));
+			await syncPlugins(runtime, source);
+			await runtime.hooks.runPluginActivate(b);
+			hookVersions.length = 0;
+
+			await states.upsert(b, "2.0.0", "active", stateOptions(source, "2.0.0", b));
+			await runtime.refreshInstalledPluginRoute(a);
+			const response = await dispatchPluginApiRequest({
+				runtime,
+				pluginId: a,
+				path: "/submit",
+				request: new Request(`https://example.test/_emdash/api/plugins/${a}/submit`, {
+					method: "POST",
+				}),
+			});
+			expect(response.status).toBe(200);
+			await runtime.hooks.runPluginActivate(b);
+			expect(hookVersions).toEqual(["1.0.0"]);
+			expect(deps.runnerLoad).not.toHaveBeenCalledWith(
+				expect.objectContaining({ id: b, version: "2.0.0" }),
+			);
+
+			await runtime.refreshPluginState();
+			await runtime.hooks.runPluginActivate(b);
+			expect(hookVersions).toEqual(["1.0.0", "2.0.0"]);
+		});
+
+		it("disables a plugin and cron tasks even when its bundle is unavailable", async () => {
+			const storage = new MemoryStorage();
+			await putBundle(storage, source, "1.0.0", false, pluginId, ["plugin:deactivate"]);
+			runtime = await EmDashRuntime.create(createDeps(storage, source));
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+			await syncPlugins(runtime, source);
+			await new CronAccessImpl(runtime.db, pluginId, () => undefined).schedule("cleanup", {
+				schedule: "0 * * * *",
+			});
+
+			await states.disable(pluginId, "1.0.0");
+			await runtime.refreshPluginState();
+			storage.failDownloads = true;
+			await expect(disableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+				success: true,
+			});
+			expect(await states.get(pluginId)).toMatchObject({ status: "inactive" });
+			expect(runtime.getPluginRouteMeta(pluginId, "/submit")).toBeNull();
+			const task = await runtime.db
+				.selectFrom("_emdash_cron_tasks")
+				.select(["enabled"])
+				.where("plugin_id", "=", pluginId)
+				.where("task_name", "=", "cleanup")
+				.executeTakeFirst();
+			expect(task?.enabled).toBe(0);
+		});
+
+		it("persists lifecycle changes when sandbox instances are unavailable", async () => {
+			const storage = new MemoryStorage();
+			const deps = createDeps(storage, source);
+			deps.runnerIsAvailable.mockReturnValue(false);
+			runtime = await EmDashRuntime.create(deps);
+			const states = new PluginStateRepository(runtime.db);
+			await states.upsert(pluginId, "1.0.0", "inactive", stateOptions(source, "1.0.0"));
+
+			await expect(enableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+				success: true,
+			});
+			expect(await states.get(pluginId)).toMatchObject({ status: "active" });
+			await expect(disableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+				success: true,
+			});
+			expect(await states.get(pluginId)).toMatchObject({ status: "inactive" });
+		});
+
+		it.skipIf(source !== "marketplace")(
+			"enables and disables bypassed marketplace hooks once per mutation",
+			async () => {
+				const storage = new MemoryStorage();
+				await putBundle(storage, source, "1.0.0", false);
+				const keyName = `emdash:test:bypass-status:${randomUUID()}`;
+				const key = Symbol.for(keyName);
+				const calls = { active: 0, inactive: 0 };
+				const globals = globalThis as Record<symbol, unknown>;
+				globals[key] = calls;
+				storage.putText(
+					`${source}/${pluginId}/1.0.0/backend.js`,
+					`
+				const calls = globalThis[Symbol.for(${JSON.stringify(keyName)})];
+				export default { hooks: {
+					"plugin:activate": async () => { calls.active++; },
+					"plugin:deactivate": async () => { calls.inactive++; }
+				} };
+			`,
+				);
+				const deps = createDeps(storage, source);
+				deps.sandboxBypassed = true;
+				try {
+					runtime = await EmDashRuntime.create(deps);
+					const states = new PluginStateRepository(runtime.db);
+					await states.upsert(pluginId, "1.0.0", "inactive", stateOptions(source, "1.0.0"));
+					await expect(enableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+						success: true,
+					});
+					expect(calls).toEqual({ active: 1, inactive: 0 });
+					await expect(disableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+						success: true,
+					});
+					expect(calls).toEqual({ active: 1, inactive: 1 });
+					expect(await states.get(pluginId)).toMatchObject({ status: "inactive" });
+					await expect(enableRuntimePlugin(runtime, pluginId)).resolves.toMatchObject({
+						success: true,
+					});
+					expect(calls).toEqual({ active: 2, inactive: 1 });
+					expect(deps.runnerLoad).not.toHaveBeenCalled();
+				} finally {
+					delete globals[key];
 				}
 			},
 		);

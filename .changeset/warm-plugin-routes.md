@@ -8,3 +8,5 @@ Fixes registry and marketplace plugin routes intermittently returning `404 Plugi
 Plugin route requests return `503 PLUGIN_SYNC_ERROR` if state cannot be read or the requested plugin fails to load. Bundle and sandbox-load failures retry after a five-second backoff, or immediately when the plugin's stored state changes.
 
 On Durable Object SQL deployments, upgrade core and the Cloudflare adapter together so plugin state and its generation are committed atomically.
+
+Durable Object SQL also executes existing atomic batches for content saves, menus, seeding and block-type updates as single primary transactions instead of separate statements.

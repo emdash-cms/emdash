@@ -70,11 +70,14 @@ export async function disableRuntimePlugin(runtime: PluginLifecycleRuntime, plug
 	);
 	if (!result.success) return result;
 
-	await runtime.setPluginStatus(
-		pluginId,
-		"inactive",
-		new PluginStateRepository(runtime.db).getLastWrittenGeneration(),
-	);
-	await setCronTasksEnabled(runtime.db, pluginId, false);
+	try {
+		await runtime.setPluginStatus(
+			pluginId,
+			"inactive",
+			new PluginStateRepository(runtime.db).getLastWrittenGeneration(),
+		);
+	} finally {
+		await setCronTasksEnabled(runtime.db, pluginId, false);
+	}
 	return result;
 }
