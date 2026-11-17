@@ -138,12 +138,17 @@ export default defineConfig({
 		const firstToken = await toolbar.getAttribute("data-action-token");
 		expect(firstToken).toBeTruthy();
 		const script = await page.locator("script").last().textContent();
-		await page.waitForTimeout(1100);
-		const reloaded = await page.reload();
-		expect(reloaded!.headers()["content-security-policy"]).toBe(
-			response!.headers()["content-security-policy"],
-		);
-		await expect(toolbar).not.toHaveAttribute("data-action-token", firstToken!);
+		await expect
+			.poll(async () => {
+				const reloaded = await page.reload();
+				expect(reloaded!.headers()["content-security-policy"]).toBe(
+					response!.headers()["content-security-policy"],
+				);
+				const token = await toolbar.getAttribute("data-action-token");
+				expect(token).toBeTruthy();
+				return token;
+			})
+			.not.toBe(firstToken);
 		expect(await page.locator("script").last().textContent()).toBe(script);
 		await page.locator("#emdash-tb-dismiss").click();
 		await expect(toolbar).toHaveCount(0);
