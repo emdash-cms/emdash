@@ -227,6 +227,71 @@ describe("A linked field focus request", () => {
 		await expect.element(page.getByRole("button", { name: "Add item to Stats" })).toHaveFocus();
 	});
 
+	it.each([false, true])(
+		"focuses a repeater before paused animation frames resume (empty: %s)",
+		async (empty) => {
+			const servicesType = blockType("services", "Services", [
+				{ slug: "heading", label: "Heading", type: "string" },
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "title", label: "Title", type: "string" },
+							{ slug: "text", label: "Text", type: "text" },
+						],
+					},
+				},
+			]);
+			const initial = [
+				{
+					_type: "services",
+					_version: 1,
+					_key: "services",
+					heading: "Our services",
+					items: empty
+						? []
+						: [
+								{ title: "First service", text: "First description" },
+								{ title: "Second service", text: "Second description" },
+								{ title: "Third service", text: "Third description" },
+							],
+				},
+			];
+			const props = { initial, blockTypes: [servicesType], allowedTypes: ["services"] };
+			const screen = await render(<Harness {...props} />, { wrapper: Toasty });
+			const onFieldFocused = vi.fn();
+			const requestFrame = window.requestAnimationFrame.bind(window);
+			const pendingFrames: FrameRequestCallback[] = [];
+			const frames = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+				pendingFrames.push(callback);
+				return -pendingFrames.length;
+			});
+			try {
+				await screen.rerender(
+					<Harness {...props} focusField="layout.services.items" onFieldFocused={onFieldFocused} />,
+				);
+				await expect
+					.poll(() =>
+						row("services").querySelector("[data-block-toggle]")?.getAttribute("aria-expanded"),
+					)
+					.toBe("true");
+				const firstControl = () =>
+					empty
+						? page.getByRole("button", { name: "Add item to Items", exact: true }).query()
+						: row("services").querySelector('[data-field="items"] [data-item-focus]');
+				await expect.poll(firstControl).not.toBeNull();
+				await expect.poll(() => document.activeElement).toBe(firstControl());
+				expect(onFieldFocused).toHaveBeenCalledOnce();
+			} finally {
+				frames.mockRestore();
+				for (const callback of pendingFrames) requestFrame(callback);
+				await frame();
+			}
+		},
+	);
+
 	it("focuses a target in read-only mode", async () => {
 		await renderField([short("first"), short("target")], {
 			focusField: "layout.target.title",

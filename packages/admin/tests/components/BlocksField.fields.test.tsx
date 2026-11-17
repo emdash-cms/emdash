@@ -741,6 +741,26 @@ describe("Checking fields inside a block", () => {
 		expect(box(minimum).left).toBeGreaterThan(listLabel.right);
 	});
 
+	it("focuses a linked non-first repeater subfield rather than the first control", async () => {
+		const onFieldFocused = vi.fn();
+		await renderEditor(
+			[
+				{
+					_type: "logos",
+					_version: 1,
+					_key: "logos-1",
+					logos: [{ name: "Arc" }, { name: "Boreal" }, { name: "Cobalt" }],
+				},
+			],
+			[logoWall],
+			{ focusField: "content.logos-1.logos.2.name", onFieldFocused },
+		);
+		await expect
+			.element(page.getByRole("textbox", { name: "Company name 3", exact: true }))
+			.toHaveFocus();
+		expect(onFieldFocused).toHaveBeenCalledOnce();
+	});
+
 	it("marks a required list sub-field where it is and focuses it", async () => {
 		await renderEditor(
 			[

@@ -42,7 +42,10 @@ test.describe("blocks field deep links", () => {
 					label: "Items",
 					type: "repeater",
 					validation: {
-						subFields: [{ slug: "label", label: "Label", type: "string" }],
+						subFields: [
+							{ slug: "title", label: "Title", type: "string" },
+							{ slug: "text", label: "Text", type: "text" },
+						],
 					},
 				},
 			],
@@ -76,7 +79,11 @@ test.describe("blocks field deep links", () => {
 						_version: 1,
 						heading: "Services heading",
 						anchor_id: "services-section",
-						items: [{ label: "Service item" }],
+						items: [
+							{ title: "First service", text: "First description" },
+							{ title: "Second service", text: "Second description" },
+							{ title: "Third service", text: "Third description" },
+						],
 					},
 				],
 			},
@@ -112,9 +119,29 @@ test.describe("blocks field deep links", () => {
 				"true",
 			);
 
-			await page.goto(`${edit}?field=layout.services.items`);
+			// Hold frames until after focus to simulate a tab that has not become visible yet.
+			await page.addInitScript(() => {
+				const requestFrame = window.requestAnimationFrame.bind(window);
+				const pendingFrames: FrameRequestCallback[] = [];
+				window.requestAnimationFrame = (callback) => {
+					if (new URL(window.location.href).searchParams.get("field") !== "layout.services.items")
+						return requestFrame(callback);
+					pendingFrames.push(callback);
+					return -pendingFrames.length;
+				};
+				window.addEventListener("resume-animation-frames", () => {
+					for (const callback of pendingFrames.splice(0)) requestFrame(callback);
+				});
+			});
+			await page.goto(`${edit}?locale=en&field=layout.services.items`);
 			await admin.waitForLoading();
-			await expect(page.getByRole("textbox", { name: "Label 1", exact: true })).toBeFocused();
+			const firstItem = page
+				.locator('[data-block-key="services"] [data-field="items"] [data-item-focus]')
+				.first();
+			await expect(firstItem).toBeFocused();
+			await expect(page).not.toHaveURL(/[?&]field=/);
+			await expect(page).toHaveURL(/[?&]locale=en/);
+			await page.evaluate(() => window.dispatchEvent(new Event("resume-animation-frames")));
 
 			await page.goto(`${edit}?field=layout.missing.heading`);
 			await admin.waitForLoading();

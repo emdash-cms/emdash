@@ -745,8 +745,10 @@ export function BlocksField({
 					request.onFocused();
 				} else control?.focus();
 			};
-			// A labelled Kumo input inside a list takes the id it was given only after its first render.
-			if (target()) focusControl();
+			const wholeField = elementId === `field-${fieldPath}.${request.key}.${request.field}`;
+			// Whole-field links can use the fallback while hidden tabs pause animation frames.
+			// Exact list controls may receive their Kumo input ids only after the first render.
+			if ((request.onFocused && wholeField) || target()) focusControl();
 			else requestAnimationFrame(focusControl);
 			return;
 		}
