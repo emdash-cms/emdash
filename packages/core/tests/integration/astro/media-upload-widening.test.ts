@@ -16,6 +16,7 @@ import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { resolveFieldAllowlist } from "../../../src/api/handlers/media-allowlist.js";
 import { POST as postMedia } from "../../../src/astro/routes/api/media.js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
 import type { Database } from "../../../src/database/types.js";
@@ -783,6 +784,29 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 			}
 		});
 	}
+
+	it.each([["image/svg+xml", 1], [".svg"]])(
+		"falls back to the global allowlist for malformed stored repeater MIME lists: %j",
+		async (...allowedMimeTypes) => {
+			await ctx.db
+				.updateTable("_emdash_fields")
+				.set({
+					validation: JSON.stringify({
+						subFields: [
+							{
+								slug: "logo",
+								label: "Logo",
+								type: "image",
+								validation: { allowedMimeTypes },
+							},
+						],
+					}),
+				})
+				.where("id", "=", repeaterFieldId)
+				.execute();
+			expect(await resolveFieldAllowlist(ctx.db, `${repeaterFieldId}.logo`)).toBeNull();
+		},
+	);
 
 	it("uses retained repeater allowlists after their block type is retired", async () => {
 		await new SchemaRegistry(ctx.db).updateField("article", "attachments", {

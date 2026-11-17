@@ -85,9 +85,12 @@ function validateOptions(values: unknown, path: string): asserts values is strin
 	if (new Set(values).size !== values.length) fail(path, "must not contain duplicates");
 }
 
+type ValidationMode = "write" | "read";
+
 function validateRepeaterSubFields(
 	value: unknown,
 	path: string,
+	mode: ValidationMode,
 ): asserts value is RepeaterSubField[] {
 	if (!Array.isArray(value) || value.length === 0) fail(path, "must be a non-empty array");
 	const slugs = new Set<string>();
@@ -124,7 +127,7 @@ function validateRepeaterSubFields(
 		) {
 			const allowedMimeTypes: unknown =
 				"allowedMimeTypes" in validation ? validation.allowedMimeTypes : undefined;
-			if (allowedMimeTypes !== undefined) {
+			if (allowedMimeTypes !== undefined && mode === "write") {
 				validateOptions(allowedMimeTypes, `${fieldPath}.validation.allowedMimeTypes`);
 				for (const mime of allowedMimeTypes) {
 					if (!MIME_PATTERN.test(mime))
@@ -135,7 +138,7 @@ function validateRepeaterSubFields(
 	}
 }
 
-function validateValidation(field: BlockFieldDefinition, path: string): void {
+function validateValidation(field: BlockFieldDefinition, path: string, mode: ValidationMode): void {
 	const validation = field.validation;
 	if (validation === undefined) {
 		if (field.type === "select" || field.type === "multiSelect") {
@@ -199,7 +202,7 @@ function validateValidation(field: BlockFieldDefinition, path: string): void {
 		validateOptions(validation.options, `${path}.validation.options`);
 	}
 	if (field.type === "repeater") {
-		validateRepeaterSubFields(validation.subFields, `${path}.validation.subFields`);
+		validateRepeaterSubFields(validation.subFields, `${path}.validation.subFields`, mode);
 	}
 	if (validation.allowedMimeTypes !== undefined) {
 		validateOptions(validation.allowedMimeTypes, `${path}.validation.allowedMimeTypes`);
@@ -212,7 +215,9 @@ function validateValidation(field: BlockFieldDefinition, path: string): void {
 
 export function validateBlockFields(
 	fields: readonly BlockFieldDefinition[],
+	options: { mode?: ValidationMode } = {},
 ): BlockFieldDefinition[] {
+	const mode = options.mode ?? "write";
 	if (!Array.isArray(fields)) fail("fields", "must be an array");
 	const slugs = new Set<string>();
 	return fields.map((field, index) => {
@@ -246,7 +251,7 @@ export function validateBlockFields(
 				fail(`${path}.options.darkVariant`, "must be a boolean");
 			}
 		}
-		validateValidation(field, path);
+		validateValidation(field, path, mode);
 		return field;
 	});
 }
@@ -366,7 +371,7 @@ function repeaterFields(fields: readonly RepeaterSubField[] | undefined): BlockF
 			? {
 					validation: {
 						...(field.options ? { options: field.options } : {}),
-						...(field.validation?.allowedMimeTypes
+						...(Array.isArray(field.validation?.allowedMimeTypes)
 							? { allowedMimeTypes: field.validation.allowedMimeTypes }
 							: {}),
 					},

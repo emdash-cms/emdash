@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import { parseAllowedMimeTypes } from "../../media/mime.js";
+import { expandExtensionShorthand, parseAllowedMimeTypes } from "../../media/mime.js";
 import { BlockTypeRegistry } from "../../schema/block-type-registry.js";
 
 /**
@@ -115,6 +115,19 @@ export async function resolveFieldAllowlist(
 	return row ? mediaFieldAllowlist(row.type, row.validation, subFieldSlug) : null;
 }
 
+function parseNestedMimeAllowlist(validation: unknown): string[] | null {
+	if (!validation || typeof validation !== "object" || Array.isArray(validation)) return null;
+	const raw = "allowedMimeTypes" in validation ? validation.allowedMimeTypes : undefined;
+	if (!Array.isArray(raw) || raw.length === 0 || raw.some((entry) => typeof entry !== "string")) {
+		return null;
+	}
+	const parsed = parseAllowedMimeTypes(JSON.stringify(validation));
+	return parsed?.length === raw.length &&
+		raw.every((entry) => entry.includes("/") && expandExtensionShorthand(entry) === entry)
+		? parsed
+		: null;
+}
+
 function mediaFieldAllowlist(
 	type: string,
 	validation: string | null | undefined,
@@ -146,7 +159,7 @@ function mediaFieldAllowlist(
 				!("validation" in field)
 			)
 				return null;
-			return parseAllowedMimeTypes(JSON.stringify(field.validation));
+			return parseNestedMimeAllowlist(field.validation);
 		} catch {
 			return null;
 		}

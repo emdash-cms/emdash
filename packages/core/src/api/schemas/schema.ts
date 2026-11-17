@@ -99,7 +99,8 @@ const repeaterSubFieldSchema = z.object({
 				.max(64, "allowedMimeTypes may contain at most 64 entries")
 				.optional(),
 		})
-		.optional(),
+		.nullish()
+		.transform((value) => value ?? undefined),
 });
 
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {
