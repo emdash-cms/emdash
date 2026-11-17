@@ -16,20 +16,20 @@ app.use(
 	}),
 );
 
-app.on(["POST", "PUT", "PATCH", "DELETE"], "/api/*", (c) =>
-	c.json(
-		{
-			error:
-				"The EmDash plugin marketplace is read-only. Publish plugins to the plugin registry instead: https://docs.emdashcms.com/plugins/registry/",
-		},
-		410,
-	),
-);
-
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.route("/api/v1", publicRoutes);
 app.route("/api/v1", themeRoutes);
 app.route("/api/v1", imageRoutes);
+
+app.all("/api/*", (c) =>
+	c.json(
+		{
+			error:
+				"The EmDash plugin marketplace is read-only. Publish plugins to the plugin registry instead: https://docs.emdashcms.com/plugins/creating-plugins/publishing/",
+		},
+		410,
+	),
+);
 
 export default app;

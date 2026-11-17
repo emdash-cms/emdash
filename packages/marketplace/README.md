@@ -2,11 +2,11 @@
 
 Read-only Cloudflare Worker for the deprecated EmDash plugin marketplace at `marketplace.emdashcms.com`.
 
-The marketplace no longer accepts sign-ins or new plugins. It keeps serving plugins that were already published, so existing EmDash sites with the `marketplace` option can still browse, install and update them. New plugins are published to the [plugin registry](https://docs.emdashcms.com/plugins/registry/). To move a site off the marketplace, see [Migrate from Marketplace](https://docs.emdashcms.com/plugins/migrate-from-marketplace/).
+The marketplace no longer accepts sign-ins or new plugins. It keeps serving plugins that were already published, so existing EmDash sites with the `marketplace` option can still browse, install and update them. New plugins are [published to the plugin registry](https://docs.emdashcms.com/plugins/creating-plugins/publishing/). To move a site off the marketplace, see [Migrate from Marketplace](https://docs.emdashcms.com/plugins/migrate-from-marketplace/).
 
 ## Routes
 
-All routes are under `/api/v1` and accept `GET` only. Any other method returns `410 Gone`.
+The routes below are under `/api/v1` and support `GET` and `HEAD`. `OPTIONS` is handled for CORS preflight. Any other request under `/api/*`, including `POST`, `PUT`, `PATCH`, `DELETE` and the removed sign-in and publishing routes, returns `410 Gone`.
 
 | Route                                                 | Purpose                  |
 | ----------------------------------------------------- | ------------------------ |
