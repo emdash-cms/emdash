@@ -2,22 +2,23 @@
  * Writes test/fixtures/publication-proofs.json: a fresh signing key and two
  * signed `com.atproto.sync.getRecord` CARs for the release record at the
  * deterministic key, one matching the workflow test's intent and one with a
- * different version.
+ * different version. The release values come from
+ * test/fixtures/publication-release.json, which the workflow test also reads.
  *
  * Run with `pnpm --filter @emdash-cms/release-service fixtures:proofs`.
  */
 
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 import { P256Keypair } from "@atproto/crypto";
 import { parseCid } from "@atproto/lex-data";
 import { MemoryBlockstore, Repo, WriteOpAction, getRecords } from "@atproto/repo";
+import { NSID } from "@emdash-cms/registry-lexicons";
 
-const PUBLISHER_DID = "did:web:publisher.example.com";
-const COLLECTION = "com.emdashcms.experimental.package.release";
-const RKEY = "gallery:1.2.3";
-const ARTIFACT_CHECKSUM = "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity";
-const ARTIFACT_BLOB_CID = "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4";
+const RELEASE = JSON.parse(
+	await readFile(new URL("../test/fixtures/publication-release.json", import.meta.url), "utf8"),
+);
+const COLLECTION = NSID.packageRelease;
 const FIXTURE_PATH = new URL("../test/fixtures/publication-proofs.json", import.meta.url);
 
 function releaseRecord(version) {
@@ -30,25 +31,18 @@ function releaseRecord(version) {
 				blob: {
 					$type: "blob",
 					// A `{ $link }` map would be encoded as a plain map, not as a CID link.
-					ref: parseCid(ARTIFACT_BLOB_CID),
+					ref: parseCid(RELEASE.artifactBlobCid),
 					mimeType: "application/gzip",
 					size: 5,
 				},
-				checksum: ARTIFACT_CHECKSUM,
+				checksum: RELEASE.artifactChecksum,
 				contentType: "application/gzip",
 			},
 		},
 		extensions: {
-			"com.emdashcms.experimental.package.releaseExtension": {
-				$type: "com.emdashcms.experimental.package.releaseExtension",
-				provenance: {
-					url: "https://github.com/example/gallery/attestation.sigstore.json",
-					checksum: "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					builderId:
-						"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
-					predicateType: "https://slsa.dev/provenance/v1",
-					sourceRepository: "https://github.com/example/gallery",
-				},
+			[NSID.packageReleaseExtension]: {
+				$type: NSID.packageReleaseExtension,
+				provenance: RELEASE.provenance,
 				declaredAccess: {},
 			},
 		},
@@ -57,15 +51,15 @@ function releaseRecord(version) {
 
 async function signedProof(keypair, record) {
 	const storage = new MemoryBlockstore();
-	const repo = await Repo.create(storage, PUBLISHER_DID, keypair);
+	const repo = await Repo.create(storage, RELEASE.publisherDid, keypair);
 	const updated = await repo.applyWrites(
-		{ action: WriteOpAction.Create, collection: COLLECTION, rkey: RKEY, record },
+		{ action: WriteOpAction.Create, collection: COLLECTION, rkey: RELEASE.rkey, record },
 		keypair,
 	);
-	const recordCid = await updated.data.get(`${COLLECTION}/${RKEY}`);
+	const recordCid = await updated.data.get(`${COLLECTION}/${RELEASE.rkey}`);
 	const chunks = [];
 	for await (const chunk of getRecords(storage, updated.cid, [
-		{ collection: COLLECTION, rkey: RKEY },
+		{ collection: COLLECTION, rkey: RELEASE.rkey },
 	])) {
 		chunks.push(chunk);
 	}

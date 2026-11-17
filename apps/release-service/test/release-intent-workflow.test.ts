@@ -26,15 +26,16 @@ import { digestWorkloadIdentity } from "../src/workload/policy.js";
 import type { VerifiedWorkloadIdentity } from "../src/workload/types.js";
 import { ASSERTION_KEY_2, TEST_BINDINGS } from "./fixtures/oauth.js";
 import publicationProofs from "./fixtures/publication-proofs.json";
+import publicationRelease from "./fixtures/publication-release.json";
 
-const PUBLISHER_DID = "did:web:publisher.example.com";
+const PUBLISHER_DID = publicationRelease.publisherDid as `did:${string}:${string}`;
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
-const CREATED_URI = `at://${PUBLISHER_DID}/${NSID.packageRelease}/gallery:1.2.3`;
+const CREATED_URI = `at://${PUBLISHER_DID}/${NSID.packageRelease}/${publicationRelease.rkey}`;
 const CREATED_CID = publicationProofs.exactRecordCid;
 const PACKAGE_BYTES = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01]);
-const ARTIFACT_CHECKSUM = "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity";
-const ARTIFACT_BLOB_CID = "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4";
+const ARTIFACT_CHECKSUM = publicationRelease.artifactChecksum;
+const ARTIFACT_BLOB_CID = publicationRelease.artifactBlobCid;
 const DEFAULT_SIGNING_KEY = "zDnaeq9feE9D74uYD5jynoyyQPbhhWU2vStcmC8W1xQHG3fWe";
 const DEFAULT_PDS_URL = "https://pds.example.com";
 const FORMER_PDS_URL = "https://pds-a.example.com";
@@ -164,13 +165,7 @@ const ESCALATION_ONLY_REPOSITORY_BEFORE =
 const ESCALATION_ONLY_REPOSITORY_AFTER =
 	"OqJlcm9vdHOB2CpYJQABcRIgd66Z6kv1ZzpaZY5x3LqvpVHzyI0GPDWzXRja2p07UDFndmVyc2lvbgHdAQFxEiB3rpnqS/VnOlpljnHcuq+lUfPIjQY8NbNdGNranTtQMaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211anN2aDU1Z2syNmNzaWdYQAagH6XoDxXLhINDqkLnI5YKAP58z9Y1NXfO6FmmhpEVTEaai3sa/VGvfsz09cRnzbzJ2dKTE+znz9fY76wM1K5kZGF0YdgqWCUAAXESICbKK5XxJf/D8rimLj48VYnG8jT9R2LzJiMC7arQnlkNZHByZXb2Z3ZlcnNpb24DlwIBcRIgJsorlfEl/8PyuKYuPjxVicbyNP1HYvMmIwLtqtCeWQ2iYWWDpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgw0TlSwQE8Qi5DmeWDUCV1/wovIGUh847dRDPTil7SySkYWtVcmVsZWFzZS9nYWxsZXJ5OjEuMC4wYXAYI2F09mF22CpYJQABcRIgKe3xvLMXzqP1GXCCI8xRmbB0J8uCPTbjue4z0kmJDqqkYWtDMS4wYXAYNWF09mF22CpYJQABcRIgoo1VqGByjoff0+Pg2xv8KnHaOMEMEbwJl8qTpWpejWNhbPbhBAFxEiDDROVLBATxCLkOZ5YNQJXX/Ci8gZSHzjt1EM9OKXtLJKhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3mjZSR0eXBleEFjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVFeHRlbnNpb24jcmVsZWFzZVBvbGljeWlhcHByb3ZlcnOBcGRpZDpwbGM6YXBwcm92ZXJsY29uZmlybWF0aW9ub2VzY2FsYXRpb24tb25seYYDAXESICnt8byzF86j9RlwgiPMUZmwdCfLgj0247nuM9JJiQ6qpWUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlZ3BhY2thZ2VnZ2FsbGVyeWd2ZXJzaW9uZTEuMC4waWFydGlmYWN0c6FncGFja2FnZaNjdXJseCVodHRwczovL2V4YW1wbGUuY29tL2dhbGxlcnktMS4wLjAudGd6aGNoZWNrc3VtbGJjaXFiYXNlbGluZWtjb250ZW50VHlwZXBhcHBsaWNhdGlvbi9nemlwamV4dGVuc2lvbnOheDNjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VFeHRlbnNpb26iZSR0eXBleDNjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VFeHRlbnNpb25uZGVjbGFyZWRBY2Nlc3OhZ25ldHdvcmuhZ3JlcXVlc3Sg9AIBcRIgoo1VqGByjoff0+Pg2xv8KnHaOMEMEbwJl8qTpWpejWOlZSR0eXBleCpjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VncGFja2FnZWdnYWxsZXJ5Z3ZlcnNpb25lMS4xLjBpYXJ0aWZhY3RzoWdwYWNrYWdlo2N1cmx4JWh0dHBzOi8vZXhhbXBsZS5jb20vZ2FsbGVyeS0xLjEuMC50Z3poY2hlY2tzdW1sYmNpcWJhc2VsaW5la2NvbnRlbnRUeXBlcGFwcGxpY2F0aW9uL2d6aXBqZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucmVsZWFzZUV4dGVuc2lvbqJlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucmVsZWFzZUV4dGVuc2lvbm5kZWNsYXJlZEFjY2Vzc6A=";
 const ESCALATION_ONLY_SIGNING_KEY = "zDnaeTBBqgbt5fZ557KrELsN77jxpGavqjxcC9yQFSbTf1dc5";
-const PROVENANCE = {
-	predicateType: "https://slsa.dev/provenance/v1",
-	url: "https://github.com/example/gallery/attestation.sigstore.json",
-	checksum: "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-	sourceRepository: "https://github.com/example/gallery",
-	builderId: "https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
-} as const;
+const PROVENANCE = publicationRelease.provenance;
 const CONTROL_ACTOR = {
 	realm: "access",
 	identity: "admin@example.com",
@@ -418,7 +413,7 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 			const collection = url.searchParams.get("collection");
 			if (collection === NSID.packageRelease) {
 				options.onAuthoritativeRead?.();
-				expect(url.searchParams.get("rkey")).toBe("gallery:1.2.3");
+				expect(url.searchParams.get("rkey")).toBe(publicationRelease.rkey);
 				return options.authoritativeProof?.() || nominalCreateVisible
 					? Response.json({ uri: CREATED_URI, cid: CREATED_CID, value: {} })
 					: Response.json({ error: "RecordNotFound" }, { status: 400 });
