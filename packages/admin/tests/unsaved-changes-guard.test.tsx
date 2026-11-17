@@ -243,6 +243,10 @@ async function publishNow(screen: Screen) {
 	confirm.getByRole("button", { name: "Publish now", exact: true }).element().click();
 }
 
+function unpublish(screen: Screen) {
+	screen.getByRole("button", { name: "Unpublish Post", exact: true }).element().click();
+}
+
 async function changePublicationDate(screen: Screen) {
 	screen
 		.getByRole("button", { name: /Change publication date/ })
@@ -276,9 +280,7 @@ const ACTIONS: Array<{
 	{
 		title: "unpublishes the entry Unpublish was clicked on",
 		item: PUBLISHED,
-		act: (screen) => {
-			screen.getByRole("button", { name: "Unpublish Post", exact: true }).element().click();
-		},
+		act: unpublish,
 		write: { method: "POST", path: `${ENTRY_PATH}/unpublish?locale=en`, body: { _rev: "rev-2" } },
 	},
 	{
@@ -760,29 +762,48 @@ describe.each([
 		});
 	}
 
-	it("leaves the entry now open as it was once Publish lands", async () => {
-		const otherPath = `/_emdash/api/content/${other.type}/${other.id}`;
-		mockFetch
-			.on("GET", otherPath, { data: { item: other, _rev: "rev-other" } })
-			.on("PUT", `${otherPath}?locale=en`, { data: { item: other, _rev: "rev-other" } })
-			.on("POST", `${otherPath}/publish?locale=en`, CONFLICT, 409)
-			.on("POST", `${ENTRY_PATH}/publish?locale=en`, {
-				data: { item: { ...PUBLISHED, data: { title: "Edited title" } }, _rev: "rev-3" },
+	for (const { action, item, act, endpoint, landed, notice } of [
+		{
+			action: "Publish",
+			item: CREATED,
+			act: publishNow,
+			endpoint: "publish",
+			landed: PUBLISHED,
+			notice: "Content is now live",
+		},
+		{
+			action: "Unpublish",
+			item: PUBLISHED,
+			act: unpublish,
+			endpoint: "unpublish",
+			landed: CREATED,
+			notice: "Content removed from public view",
+		},
+	]) {
+		it(`leaves the entry now open as it was once ${action} lands`, async () => {
+			const otherPath = `/_emdash/api/content/${other.type}/${other.id}`;
+			mockFetch
+				.on("GET", otherPath, { data: { item: other, _rev: "rev-other" } })
+				.on("PUT", `${otherPath}?locale=en`, { data: { item: other, _rev: "rev-other" } })
+				.on("POST", `${otherPath}/${endpoint}?locale=en`, CONFLICT, 409)
+				.on("POST", `${ENTRY_PATH}/${endpoint}?locale=en`, {
+					data: { item: { ...landed, data: { title: "Edited title" } }, _rev: "rev-3" },
+				});
+			const { screen, title, writes } = await actThenSwitch(item, act);
+			await expect.element(screen.getByText(notice)).toBeVisible();
+			await expect.element(title).toHaveValue("Other title");
+
+			await title.fill("Edited other title");
+			screen.getByRole("button", { name: "Save", exact: true }).element().click();
+
+			await expect.poll(() => writes.length).toBe(3);
+			expect(writes[2]).toMatchObject({
+				method: "PUT",
+				path: `${otherPath}?locale=en`,
+				body: { _rev: "rev-other" },
 			});
-		const { screen, title, writes } = await actThenSwitch(CREATED, publishNow);
-		await expect.element(screen.getByText("Content is now live")).toBeVisible();
-		await expect.element(title).toHaveValue("Other title");
-
-		await title.fill("Edited other title");
-		screen.getByRole("button", { name: "Save", exact: true }).element().click();
-
-		await expect.poll(() => writes.length).toBe(3);
-		expect(writes[2]).toMatchObject({
-			method: "PUT",
-			path: `${otherPath}?locale=en`,
-			body: { _rev: "rev-other" },
 		});
-	});
+	}
 
 	it("keeps the conflict notice of the entry now open when the previous entry's date change conflicts", async () => {
 		const otherPath = `/_emdash/api/content/${other.type}/${other.id}`;
