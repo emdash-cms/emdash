@@ -23,7 +23,9 @@ import {
 	contentSeoInput,
 	createBlockTypeBody,
 	createCollectionBody,
+	createFieldBody,
 	createTaxonomyDefBody,
+	fieldReorderBody,
 	updateCollectionBody,
 	updateBlockTypeBody,
 	updateFieldBody,
@@ -227,6 +229,7 @@ const mediaUsageRepairToolSchema = z
 	});
 
 const schemaUpdateCollectionToolSchema = z.object({
+	...updateCollectionBody.shape,
 	slug: z
 		.string()
 		.min(1)
@@ -237,6 +240,13 @@ const schemaUpdateCollectionToolSchema = z.object({
 	labelSingular: updateCollectionBody.shape.labelSingular.describe("New singular display name"),
 	description: updateCollectionBody.shape.description.describe("New collection description"),
 	icon: updateCollectionBody.shape.icon.describe("New admin UI icon name"),
+	admin: updateCollectionBody.shape.admin.describe(
+		"Admin list columns and quick-create settings; replaces the current admin configuration",
+	),
+	hidden: updateCollectionBody.shape.hidden.describe("Hide the collection from the admin sidebar"),
+	sortOrder: updateCollectionBody.shape.sortOrder.describe(
+		"Collection order in the admin sidebar; pass null to restore alphabetical ordering",
+	),
 	supports: updateCollectionBody.shape.supports.describe(
 		"Complete feature list to enable; omit to preserve the current list",
 	),
@@ -272,6 +282,37 @@ const schemaUpdateCollectionToolSchema = z.object({
 	),
 	dateField: updateCollectionBody.shape.dateField.describe(
 		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+	),
+});
+
+const schemaCreateFieldToolSchema = z.object({
+	...createFieldBody.shape,
+	collection: z.string().describe("Collection slug to add the field to"),
+	slug: createFieldBody.shape.slug.describe(
+		"Field identifier (lowercase letters, numbers, underscores)",
+	),
+	label: createFieldBody.shape.label.describe("Display name for the field"),
+	type: createFieldBody.shape.type.describe("Data type for this field"),
+	required: createFieldBody.shape.required.describe(
+		"Whether the field is required (default false)",
+	),
+	unique: createFieldBody.shape.unique.describe("Whether values must be unique (default false)"),
+	defaultValue: createFieldBody.shape.defaultValue.describe("Default value for new items"),
+	validation: createFieldBody.shape.validation.describe(
+		"Validation constraints; for repeater fields, define subFields here",
+	),
+	widget: createFieldBody.shape.widget.describe("Admin editor widget name"),
+	options: createFieldBody.shape.options.describe(
+		"Widget configuration; reference fields can use collection for the target collection slug",
+	),
+	sortOrder: createFieldBody.shape.sortOrder.describe("Field order in the content editor"),
+	searchable: createFieldBody.shape.searchable.describe(
+		"Include in full-text search index (default false)",
+	),
+	indexed: createFieldBody.shape.indexed.describe("Create a physical index for structured sorting"),
+	translatable: createFieldBody.shape.translatable.describe(
+		"Whether this field is translatable (default true). " +
+			"Non-translatable fields are synced across all locales in a translation group.",
 	),
 });
 
@@ -2510,105 +2551,30 @@ export function createMcpServer(
 			description:
 				"Add a new field to a collection's schema. This adds a column to the " +
 				"database table. Field types: string (short text), text (long text), " +
-				"number (decimal), integer, boolean, datetime, select (single choice), " +
+				"url (web address), number (decimal), integer, boolean, datetime, select (single choice), " +
 				"multiSelect (multiple), portableText (rich text), image, file, " +
-				"reference (link to another collection), json, slug (URL-safe id), or blocks. " +
+				"reference (link to another collection), json, slug (URL-safe id), repeater, or blocks. " +
 				"For select/multiSelect, provide choices in validation.options array.",
-			inputSchema: z.object({
-				collection: z.string().describe("Collection slug to add the field to"),
-				slug: z
-					.string()
-					.regex(COLLECTION_SLUG_PATTERN)
-					.describe("Field identifier (lowercase letters, numbers, underscores)"),
-				label: z.string().describe("Display name for the field"),
-				type: z
-					.enum([
-						"string",
-						"text",
-						"number",
-						"integer",
-						"boolean",
-						"datetime",
-						"select",
-						"multiSelect",
-						"portableText",
-						"image",
-						"file",
-						"reference",
-						"json",
-						"slug",
-						"blocks",
-					])
-					.describe("Data type for this field"),
-				required: z.boolean().optional().describe("Whether the field is required (default false)"),
-				unique: z.boolean().optional().describe("Whether values must be unique (default false)"),
-				defaultValue: z.unknown().optional().describe("Default value for new items"),
-				validation: z
-					.object({
-						min: z.number().optional(),
-						max: z.number().optional(),
-						minLength: z.number().optional(),
-						maxLength: z.number().optional(),
-						pattern: z.string().optional(),
-						options: z
-							.array(z.string())
-							.optional()
-							.describe("Allowed values for select/multiSelect"),
-						allowedTypes: z
-							.array(z.string())
-							.optional()
-							.describe("Ordered block type slugs allowed by a blocks field"),
-						minItems: z.number().int().min(0).optional(),
-						maxItems: z.number().int().min(1).optional(),
-					})
-					.optional()
-					.describe("Validation constraints"),
-				options: z
-					.object({
-						collection: z
-							.string()
-							.optional()
-							.describe("Target collection slug for reference fields"),
-						rows: z.number().optional().describe("Number of rows for textarea"),
-					})
-					.loose()
-					.optional()
-					.describe("Widget configuration"),
-				searchable: z
-					.boolean()
-					.optional()
-					.describe("Include in full-text search index (default false)"),
-				indexed: z.boolean().optional().describe("Create a physical index for structured sorting"),
-				translatable: z
-					.boolean()
-					.optional()
-					.describe(
-						"Whether this field is translatable (default true). " +
-							"Non-translatable fields are synced across all locales in a translation group.",
-					),
-			}),
+			inputSchema: schemaCreateFieldToolSchema,
 		},
 		async (args, extra) => {
 			requireScope(extra, "schema:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
 			try {
-				const { SchemaRegistry } = await import("../schema/index.js");
-				const registry = new SchemaRegistry(ec.db);
-				const field = await registry.createField(args.collection, {
-					slug: args.slug,
-					label: args.label,
-					type: args.type,
-					required: args.required,
-					unique: args.unique,
-					defaultValue: args.defaultValue,
-					validation: args.validation,
-					options: args.options,
-					searchable: args.searchable,
-					indexed: args.indexed,
-					translatable: args.translatable,
-				});
-				return jsonResult(field);
+				const { handleSchemaFieldCreate } = await import("../api/handlers/schema.js");
+				const { collection, ...input } = args;
+				// Older MCP clients supplied the reference target in widget options.
+				if (
+					input.type === "reference" &&
+					!input.validation?.relation &&
+					!input.validation?.targetCollection &&
+					typeof input.options?.collection === "string"
+				) {
+					input.validation = { ...input.validation, targetCollection: input.options.collection };
+				}
+				const result = await handleSchemaFieldCreate(ec.db, collection, input);
+				return result.success ? jsonResult(result.data.item) : unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "FIELD_CREATE_ERROR");
 			}
@@ -2664,6 +2630,32 @@ export function createMcpServer(
 				return unwrap(await handleSchemaFieldUpdate(ec.db, collection, fieldSlug, input));
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_FIELD_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"schema_reorder_fields",
+		{
+			title: "Reorder Fields",
+			description:
+				"Set the field order in a collection's content editor using ordered field slugs.",
+			inputSchema: z.object({
+				...fieldReorderBody.shape,
+				collection: z.string().describe("Collection slug"),
+				fieldSlugs: fieldReorderBody.shape.fieldSlugs.describe("Field slugs in the desired order"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			try {
+				const { handleSchemaFieldReorder } = await import("../api/handlers/schema.js");
+				return unwrap(await handleSchemaFieldReorder(ec.db, args.collection, args.fieldSlugs));
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_FIELD_REORDER_ERROR");
 			}
 		},
 	);
