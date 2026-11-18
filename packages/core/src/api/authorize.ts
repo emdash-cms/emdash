@@ -130,20 +130,20 @@ export function requireAnyPerm(
 	return null;
 }
 
-/**
- * Editorial threads discuss unpublished content, so every editorial route needs
- * `content:read_drafts` as well as `editorial:comment`.
- */
 const EDITORIAL_PERMISSIONS = [
 	"content:read_drafts",
 	"editorial:comment",
 ] as const satisfies readonly Permission[];
 
 /** The lowest role that holds every permission editorial threads need. */
-export const EDITORIAL_MIN_ROLE = Math.max(
-	...EDITORIAL_PERMISSIONS.map((permission) => Permissions[permission]),
-);
+export function editorialMinRole(): number {
+	return Math.max(...EDITORIAL_PERMISSIONS.map((permission) => Permissions[permission]));
+}
 
+/**
+ * Editorial threads discuss unpublished content, so every editorial route needs
+ * `content:read_drafts` as well as `editorial:comment`.
+ */
 export function requireEditorialPerm(user: UserLike | null | undefined): Response | null {
 	for (const permission of EDITORIAL_PERMISSIONS) {
 		const denied = requirePerm(user, permission);
