@@ -459,8 +459,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		(releasesQueryEnabled && !areReleasesFetchedAfterMount);
 	const isUnavailableView = listingUnavailable || packageQueryError || releasesQueryError;
 	let breadcrumbLabel: string | undefined = t`Plugin Details`;
-	if (isLoadingView) breadcrumbLabel = undefined;
-	else if (pkg && !isUnavailableView) breadcrumbLabel = displayName ?? slug;
+	if (pkg && !isUnavailableView) breadcrumbLabel = displayName ?? slug;
+	else if (isLoadingView) breadcrumbLabel = undefined;
 	useBreadcrumbLabel(breadcrumbLabel);
 
 	if (isLoadingView) {

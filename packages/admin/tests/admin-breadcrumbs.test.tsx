@@ -340,6 +340,27 @@ describe("admin breadcrumbs", () => {
 					]),
 				{ timeout: 6000 },
 			);
+
+			await trailNav().getByRole("link", { name: "Media", exact: true }).click();
+			await expect
+				.element(page.getByRole("heading", { name: "Media Library", level: 1 }))
+				.toHaveFocus();
+		});
+
+		it("keeps the folder's trail when the folder's media fails to load", async () => {
+			on("/_emdash/api/media", () =>
+				json({ error: { code: "INTERNAL_ERROR", message: "Failed" } }, 500),
+			);
+			await openAdmin(`/media?folder=${FOLDER.id}`);
+
+			await vi.waitFor(
+				() =>
+					expect(readTrail()).toEqual([
+						{ label: "Media", href: `${ADMIN}/media` },
+						{ label: FOLDER.name, current: "page" },
+					]),
+				{ timeout: 6000 },
+			);
 		});
 
 		it("moves focus to the library heading when the browser goes back to the library", async () => {

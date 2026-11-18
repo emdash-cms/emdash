@@ -2935,21 +2935,35 @@ function MediaPage() {
 		[currentUser],
 	);
 
+	const folderCrumb = folder !== undefined && (
+		<NestedBreadcrumb
+			label={
+				currentFolderQuery.data?.name ?? (currentFolderQuery.isLoading ? undefined : t`Folder`)
+			}
+		/>
+	);
+
 	if (currentFolderQuery.error && !missingFolder) {
 		return (
 			<>
-				<NestedBreadcrumb label={t`Folder`} />
+				{folderCrumb}
 				<ErrorScreen error={currentFolderQuery.error.message} />
 			</>
 		);
 	}
 
 	if (error) {
-		return <ErrorScreen error={error.message} />;
+		return (
+			<>
+				{folderCrumb}
+				<ErrorScreen error={error.message} />
+			</>
+		);
 	}
 
 	return (
 		<MediaLibrary
+			focusHeadingOnMount={folderChanged}
 			items={isRecoveringPage ? [] : (data?.items ?? [])}
 			isLoading={paginationPending}
 			pagination={{

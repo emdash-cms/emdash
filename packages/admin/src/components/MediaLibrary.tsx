@@ -123,6 +123,8 @@ export interface MediaLibraryProps {
 	canManageFolders?: boolean;
 	onOpenFolder?: (folder: MediaFolder) => void;
 	onBackToMain?: () => void;
+	/** Moves focus to the heading on mount, as when the library replaces an error screen after the folder changed. */
+	focusHeadingOnMount?: boolean;
 	onRetryFolders?: () => void;
 	onCreateFolder?: (name: string) => Promise<MediaFolder>;
 	onRenameFolder?: (folder: MediaFolder, name: string) => Promise<MediaFolder>;
@@ -203,6 +205,7 @@ export function MediaLibrary({
 	canManageFolders,
 	onOpenFolder,
 	onBackToMain,
+	focusHeadingOnMount = false,
 	onRetryFolders,
 	onCreateFolder,
 	onRenameFolder,
@@ -459,7 +462,9 @@ export function MediaLibrary({
 			}),
 		[router],
 	);
-	const previousFolderIdRef = React.useRef(folderId);
+	const previousFolderIdRef = React.useRef<string | undefined | null>(
+		focusHeadingOnMount ? null : folderId,
+	);
 	React.useLayoutEffect(() => {
 		if (previousFolderIdRef.current === folderId) return;
 		previousFolderIdRef.current = folderId;

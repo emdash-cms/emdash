@@ -1049,6 +1049,9 @@ test.describe("Media Library", () => {
 		await expect(pageSize).toContainText("70");
 		await expect(mediaRow).toBeVisible();
 		const main = page.locator("main");
+		// Collapses the page while the library loads, so the scroll position clamps and must be restored.
+		const tallUnlessLoading =
+			"main:not(:has([data-media-library][aria-busy='true'], [aria-labelledby='media-folders-heading'][aria-busy='true'])) { padding-bottom: 1200px !important; }";
 		await mediaCrumb(page).focus();
 		const scrollFixture = await page.addStyleTag({
 			content: "main { padding-bottom: 1200px !important; }",
@@ -1091,18 +1094,18 @@ test.describe("Media Library", () => {
 			new URL(response.url()).pathname.endsWith("/_emdash/api/media/folders"),
 		);
 		await mediaCrumb(page).focus();
-		const delayedScrollFixture = await page.addStyleTag({
-			content: "main { padding-bottom: 1200px !important; }",
-		});
+		const delayedScrollFixture = await page.addStyleTag({ content: tallUnlessLoading });
 		const delayedScrollBeforeBack = await main.evaluate((element) => {
 			element.scrollTop = 400;
 			return element.scrollTop;
 		});
-		expect(delayedScrollBeforeBack).toBeGreaterThan(0);
+		expect(delayedScrollBeforeBack).toBeGreaterThan(100);
 		await page.keyboard.press("Enter");
 		await expect(page).toHaveURL(/\/media\/?$/);
 		await rootFoldersResponse;
-		await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+		await expect
+			.poll(() => main.evaluate((element) => element.scrollTop))
+			.toBe(delayedScrollBeforeBack);
 		await delayedScrollFixture.evaluate((element) => element.remove());
 		await page.unroute("**/_emdash/api/media/folders?**");
 		await page.goBack();
@@ -1120,11 +1123,13 @@ test.describe("Media Library", () => {
 			element.scrollTop = 400;
 			return element.scrollTop;
 		});
-		expect(historyScrollBeforeBack).toBeGreaterThan(0);
+		expect(historyScrollBeforeBack).toBeGreaterThan(100);
 		await page.goBack();
 		await expect(page).toHaveURL(/\/media\/?$/);
 		await expect(page.getByRole("heading", { name: "Media Library" })).toBeFocused();
-		await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+		await expect
+			.poll(() => main.evaluate((element) => element.scrollTop))
+			.toBe(historyScrollBeforeBack);
 		await historyScrollFixture.evaluate((element) => element.remove());
 
 		const search = page.getByRole("searchbox", { name: "Search media" });
