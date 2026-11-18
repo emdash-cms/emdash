@@ -6,7 +6,8 @@ authors:
   - Ondřej Varga (@onvarga)
 champion: Ondřej Varga (@onvarga)
 sponsor: null
-discussions: []
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/4952
 created: 2026-11-18
 ---
 
