@@ -89,7 +89,8 @@ interface ThreadRow {
 
 /**
  * Threads and comments are ordered by `(created_at, id)`. Monotonic IDs keep
- * rows written in the same millisecond in the order they were written.
+ * rows that one process writes in the same millisecond in the order it wrote
+ * them. Rows from different processes or isolates have no such order.
  */
 const ulid = monotonicFactory();
 
@@ -290,7 +291,11 @@ export class EditorialThreadRepository {
 		return rows.flatMap((row) => (row.author_id ? [row.author_id] : []));
 	}
 
-	/** Creates a thread together with its first comment. */
+	/**
+	 * Creates a thread together with its first comment. Call it inside
+	 * `withTransaction`, so both rows commit together where the database has
+	 * transactions.
+	 */
 	async createThread(input: {
 		collection: string;
 		entryId: string;
@@ -317,22 +322,37 @@ export class EditorialThreadRepository {
 				updated_at: input.now,
 			})
 			.execute();
-		await this.db
-			.insertInto("_emdash_editorial_comments")
-			.values({
-				id: commentId,
-				thread_id: threadId,
-				author_id: input.createdBy,
-				body: input.body,
-				created_at: input.now,
-				edited_at: null,
-				deleted_at: null,
-			})
-			.execute();
+		try {
+			await this.db
+				.insertInto("_emdash_editorial_comments")
+				.values({
+					id: commentId,
+					thread_id: threadId,
+					author_id: input.createdBy,
+					body: input.body,
+					created_at: input.now,
+					edited_at: null,
+					deleted_at: null,
+				})
+				.execute();
+		} catch (error) {
+			// Without a transaction, as on D1, the thread would stay behind with no comments.
+			if (!this.db.isTransaction) {
+				await this.db
+					.deleteFrom("_emdash_editorial_threads")
+					.where("id", "=", threadId)
+					.execute()
+					.catch(() => {});
+			}
+			throw error;
+		}
 		return { threadId, commentId };
 	}
 
-	/** Adds a reply, reopening the thread if it was resolved. */
+	/**
+	 * Adds a reply, reopening the thread if it was resolved. Call it inside
+	 * `withTransaction`, so the reply and the reopening commit together.
+	 */
 	async addComment(input: {
 		threadId: string;
 		authorId: string;
@@ -373,6 +393,7 @@ export class EditorialThreadRepository {
 	/**
 	 * Clears the comment's body and marks it deleted. When no live comment
 	 * remains, the thread goes too. Returns whether the thread was deleted.
+	 * Call it inside `withTransaction`.
 	 */
 	async deleteComment(input: {
 		commentId: string;
@@ -383,16 +404,29 @@ export class EditorialThreadRepository {
 			.updateTable("_emdash_editorial_comments")
 			.set({ body: "", deleted_at: input.now })
 			.where("id", "=", input.commentId)
-			.execute();
-		const live = await this.db
-			.selectFrom("_emdash_editorial_comments")
-			.select("id")
-			.where("thread_id", "=", input.threadId)
 			.where("deleted_at", "is", null)
-			.limit(1)
+			.execute();
+		// Checking for live comments in the delete itself keeps a reply that lands
+		// after the update from going with the thread.
+		const deleted = await this.db
+			.deleteFrom("_emdash_editorial_threads")
+			.where("id", "=", input.threadId)
+			.where(({ exists, not, selectFrom }) =>
+				not(
+					exists(
+						selectFrom("_emdash_editorial_comments")
+							.select("id")
+							.where("thread_id", "=", input.threadId)
+							.where("deleted_at", "is", null),
+					),
+				),
+			)
 			.executeTakeFirst();
-		if (!live) {
-			await this.deleteThread(input.threadId);
+		if (Number(deleted.numDeletedRows ?? 0) > 0) {
+			await this.db
+				.deleteFrom("_emdash_editorial_comments")
+				.where("thread_id", "=", input.threadId)
+				.execute();
 			return true;
 		}
 		await this.touch(input.threadId, input.now);
