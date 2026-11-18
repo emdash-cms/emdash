@@ -5737,7 +5737,7 @@ describe("editorial comments", () => {
 
 			await screen.getByRole("button", { name: "Comment on Title" }).click();
 			const margin = screen.getByRole("complementary", { name: "Comments" });
-			await margin.getByRole("textbox", { name: "Comment" }).fill("Shorter, please");
+			await margin.getByRole("combobox", { name: "Comment" }).fill("Shorter, please");
 			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 			await vi.waitFor(() =>
@@ -5760,7 +5760,7 @@ describe("editorial comments", () => {
 			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
 
 			const margin = screen.getByRole("complementary", { name: "Comments" });
-			await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeEnabled();
+			await expect.element(margin.getByRole("combobox", { name: "Reply" })).toBeEnabled();
 			await expect
 				.element(margin.getByRole("button", { name: "Comment", exact: true }))
 				.toBeEnabled();
@@ -5782,7 +5782,7 @@ describe("editorial comments", () => {
 		await screen.getByRole("button", { name: "Comment on Title" }).click();
 		const composer = screen
 			.getByRole("complementary", { name: "Comments" })
-			.getByRole("textbox", { name: "Comment" });
+			.getByRole("combobox", { name: "Comment" });
 		await composer.fill("Half a thought");
 
 		await screen.rerender(
@@ -5856,7 +5856,7 @@ describe("editorial comments", () => {
 				margin.element().querySelectorAll<HTMLElement>("[data-editorial-thread-card]"),
 				(card) => card.parentElement!,
 			);
-		const reply = margin.getByRole("textbox", { name: "Reply" });
+		const reply = margin.getByRole("combobox", { name: "Reply" });
 		await expect.element(reply).toBeVisible();
 		// Lets the cards settle where they start, so only the reply can move them.
 		for (let frame = 0; frame < 5; frame++) {

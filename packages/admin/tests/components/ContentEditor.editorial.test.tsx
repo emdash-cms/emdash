@@ -132,6 +132,7 @@ function textThread(
 				can: { edit: false, delete: false },
 			},
 		],
+		mentions: [],
 		can: { resolve: true, delete: false },
 		...overrides,
 	};
@@ -232,7 +233,7 @@ describe("editorial comments in Portable Text fields", () => {
 		toolbar.querySelector<HTMLElement>('[aria-label="Comment"]')!.click();
 		const margin = screen.getByRole("complementary", { name: "Comments" });
 		await expect.element(margin.getByText("brown", { exact: true })).toBeVisible();
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Which brown?");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Which brown?");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 		await vi.waitFor(() =>
@@ -282,7 +283,7 @@ describe("editorial comments in Portable Text fields", () => {
 		selectText(summary.editor, "short");
 		await userEvent.keyboard(COMMENT_SHORTCUT);
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Shorter still");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Shorter still");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 		await vi.waitFor(() =>
@@ -426,7 +427,7 @@ describe("editorial comments without edit access", () => {
 		toolbar.querySelector<HTMLElement>('[aria-label="Comment"]')!.click();
 
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Faster?");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Faster?");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 		await vi.waitFor(() =>
 			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
@@ -453,7 +454,7 @@ describe("editorial comments without edit access", () => {
 		await userEvent.keyboard(COMMENT_SHORTCUT);
 
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await expect.element(margin.getByRole("textbox", { name: "Comment" })).toHaveFocus();
+		await expect.element(margin.getByRole("combobox", { name: "Comment" })).toHaveFocus();
 		await expect.element(margin.getByText("brown", { exact: true })).toBeVisible();
 	});
 
@@ -479,7 +480,7 @@ describe("editorial comments without edit access", () => {
 
 		const margin = screen.getByRole("complementary", { name: "Comments" });
 		await expect.element(margin.getByText("This block can’t take a comment yet")).toBeVisible();
-		expect(margin.getByRole("textbox", { name: "Comment" }).query()).toBeNull();
+		expect(margin.getByRole("combobox", { name: "Comment" }).query()).toBeNull();
 	});
 });
 
@@ -509,7 +510,7 @@ describe("editorial comments on blocks", () => {
 		editor.commands.setNodeSelection(dividerPos);
 		await userEvent.keyboard(COMMENT_SHORTCUT);
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Drop this?");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Drop this?");
 		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 		await vi.waitFor(() =>
@@ -541,7 +542,7 @@ describe("editorial comments on blocks", () => {
 		await userEvent.click(divider!);
 
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeVisible();
+		await expect.element(margin.getByRole("combobox", { name: "Reply" })).toBeVisible();
 	});
 });
 
@@ -577,7 +578,7 @@ describe("editorial comment links", () => {
 		const scrolled = await scrolledDuring(async () => {
 			await screen.navigate({ initialThreadId: "thread-1" });
 			const margin = screen.getByRole("complementary", { name: "Comments" });
-			await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeVisible();
+			await expect.element(margin.getByRole("combobox", { name: "Reply" })).toBeVisible();
 			await vi.waitFor(() =>
 				expect(dom.querySelector('[data-editorial-thread="thread-1"]')).not.toBeNull(),
 			);
@@ -644,7 +645,7 @@ describe("editorial comment composer", () => {
 		selectText(editor, "quick");
 		await userEvent.keyboard(COMMENT_SHORTCUT);
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Faster?");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Faster?");
 		await userEvent.keyboard("{Control>}{Enter}{/Control}");
 		await vi.waitFor(() => expect(vi.mocked(createEditorialThread)).toHaveBeenCalledTimes(1));
 		await userEvent.keyboard("{Control>}{Enter}{/Control}");
@@ -706,8 +707,8 @@ describe("editorial block comments without edit access", () => {
 		toolbar.querySelector<HTMLElement>('[aria-label="Comment"]')!.click();
 
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await expect.element(margin.getByRole("textbox", { name: "Comment" })).toHaveFocus();
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Drop this?");
+		await expect.element(margin.getByRole("combobox", { name: "Comment" })).toHaveFocus();
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Drop this?");
 		vi.mocked(createEditorialThread).mockImplementation(async (_entry, input) => ({
 			...textThread("thread-new", "content", "x", ""),
 			anchor: input.anchor,
@@ -738,7 +739,7 @@ describe("editorial comment drafts", () => {
 		selectText(editor, "brown");
 		await userEvent.keyboard(COMMENT_SHORTCUT);
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await margin.getByRole("textbox", { name: "Comment" }).fill("Which shade?");
+		await margin.getByRole("combobox", { name: "Comment" }).fill("Which shade?");
 		let inside = -1;
 		editor.state.doc.descendants((node, pos) => {
 			if (node.isText && inside < 0) inside = pos + node.text!.indexOf("brown") + 2;
