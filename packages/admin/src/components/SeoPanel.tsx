@@ -225,6 +225,7 @@ export function SeoPanel({
 				</FieldHelpLabel>
 				<Input
 					id={titleId}
+					data-settings-field="seo"
 					aria-label={t`SEO Title`}
 					className="w-full"
 					value={draft.title}

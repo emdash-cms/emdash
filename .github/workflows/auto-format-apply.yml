@@ -65,6 +65,10 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/af-artifact"
           unzip -o artifact.zip
+          if [ -n "$(find . -mindepth 1 ! -type f ! -type d -print -quit)" ]; then
+            echo "::error::Artifact contains a symbolic link or special file; refusing to use it." >&2
+            exit 1
+          fi
           ls -la
 
       - name: Resolve PR
@@ -184,7 +188,7 @@ jobs:
           set -e
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "style: format"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "style: format"
           # Detached-HEAD push onto the PR branch. If the branch has advanced
           # past the measured SHA, this fails non-fast-forward — the next PR
           # event re-runs format+apply against the new head.
@@ -206,7 +210,7 @@ jobs:
         run: |
           git config user.name "emdashbot[bot]"
           git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "style: format"
+          git -c core.hooksPath=/dev/null commit --no-verify -m "style: format"
           # Push the formatted commit to the fork via the app token, supplied
           # through GIT_ASKPASS so it never lands in process args or git config.
           export GIT_ASKPASS="$RUNNER_TEMP/git-askpass.sh"

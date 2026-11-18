@@ -736,7 +736,7 @@ describe("ContentEditor's save button in a room", () => {
 		].filter(
 			(button) =>
 				button !== saveButton() &&
-				!/distraction-free/i.test(button.getAttribute("aria-label") ?? ""),
+				!/^(Hide|Show) settings$/.test(button.getAttribute("aria-label") ?? ""),
 		);
 		expect(others.length).toBeGreaterThan(1);
 		for (const button of others) {

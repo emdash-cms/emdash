@@ -13,7 +13,7 @@ import type { APIRoute } from "astro";
 import { hashString } from "emdash";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiSuccess, handleError, requireDb } from "#api/error.js";
+import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { expandCollectionBlockFields } from "#schema/block-values.js";
 import { SchemaRegistry } from "#schema/registry.js";
 import { generateCollectionsTypeScript } from "#schema/zod-generator.js";
@@ -23,8 +23,9 @@ export const prerender = false;
 export const GET: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;

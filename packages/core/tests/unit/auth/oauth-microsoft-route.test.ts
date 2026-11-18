@@ -137,6 +137,9 @@ describe("Microsoft login through the OAuth routes", () => {
 		expect(await signIn(member)).toBe("/_emdash/admin");
 		const user = await userByEmail("ada@contoso.com");
 		expect(user?.email_verified).toBe(1);
+		expect(
+			(await createKyselyAdapter(db).getUserWithDetails(user?.id ?? ""))?.lastLogin,
+		).not.toBeNull();
 	});
 
 	it("refuses self-signup for a guest", async () => {
@@ -156,6 +159,13 @@ describe("Microsoft login through the OAuth routes", () => {
 			role: Role.ADMIN,
 			emailVerified: true,
 		});
+		const existing = await userByEmail("owner@fabrikam.com");
+		const recordedLogin = "2025-01-01T00:00:00.000Z";
+		await db
+			.updateTable("users")
+			.set({ last_login_at: recordedLogin })
+			.where("id", "=", existing!.id)
+			.execute();
 		const location = await signIn((nonce) => ({
 			...member(nonce),
 			email: "owner@fabrikam.com",
@@ -163,6 +173,9 @@ describe("Microsoft login through the OAuth routes", () => {
 		}));
 		expect(location).toContain("error=signup_not_allowed");
 		expect(await db.selectFrom("oauth_accounts").selectAll().execute()).toEqual([]);
+		expect((await createKyselyAdapter(db).getUserWithDetails(existing!.id))?.lastLogin).toEqual(
+			new Date(recordedLogin),
+		);
 	});
 
 	it("rejects an ID token that carries another flow's nonce", async () => {

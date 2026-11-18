@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../../src/components/ThemeProvider";
 import type { AdminManifest, ContentItem, EntryRef } from "../../src/lib/api";
@@ -590,21 +590,22 @@ describe("resetting a room", () => {
 
 	it("keeps the editor mounted, so its view survives", async () => {
 		const { screen } = await openInRoom(entry());
-		await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-		const exit = screen.getByRole("button", { name: "Exit distraction-free mode" });
-		await expect.element(exit).toBeVisible();
+		const resize = screen.getByRole("separator", { name: "Resize settings panel" });
+		await expect.element(resize).toHaveAttribute("aria-valuenow", "368");
+		resize.element().focus();
+		await userEvent.keyboard("{End}");
+		await expect.element(resize).toHaveAttribute("aria-valuenow", "480");
 
 		show({ mode: "pending", waiting: false });
 
 		await expect
 			.element(screen.getByRole("textbox", { name: "Title", exact: true }))
 			.not.toBeInTheDocument();
-		await expect.element(exit).toBeVisible();
 		show(roomView(createRoom({ title: "From the new replica", slug: "post-one" })));
 		await expect
 			.element(screen.getByRole("textbox", { name: "Title", exact: true }))
 			.toHaveValue("From the new replica");
-		await expect.element(exit).toBeVisible();
+		await expect.element(resize).toHaveAttribute("aria-valuenow", "480");
 	});
 
 	it("saves a pending SEO edit as the room does, without _rev", async () => {

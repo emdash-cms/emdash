@@ -143,7 +143,7 @@ test.describe("Autosave", () => {
 			(revision: { data: { title: string } }) => revision.data.title === "Mobile checkpoint",
 		).id;
 
-		await page.getByRole("button", { name: "Settings", exact: true }).click();
+		await page.getByRole("button", { name: "Show settings", exact: true }).click();
 		const manualSave = page.waitForResponse(
 			(response) => response.url().includes(contentUrl) && response.request().method() === "PUT",
 		);

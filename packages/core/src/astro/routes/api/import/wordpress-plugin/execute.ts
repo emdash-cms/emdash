@@ -1121,10 +1121,7 @@ export async function importContent(
 			} else {
 				result.errors.push({
 					title: item.title || "Untitled",
-					error:
-						typeof createResult.error === "object" && createResult.error !== null
-							? (createResult.error as { message?: string }).message || "Unknown error"
-							: String(createResult.error),
+					error: createResult.error.message || "Unknown error",
 				});
 			}
 		} catch (error) {
