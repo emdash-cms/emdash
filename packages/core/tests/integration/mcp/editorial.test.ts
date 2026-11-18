@@ -1,9 +1,10 @@
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
+import { queueEditorialCommentNotifications } from "../../../src/editorial/notifications.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	connectMcpHarness,
@@ -13,6 +14,11 @@ import {
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
+
+vi.mock("../../../src/editorial/notifications.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../src/editorial/notifications.js")>()),
+	queueEditorialCommentNotifications: vi.fn(),
+}));
 
 const USER = "user_contributor";
 
@@ -62,6 +68,7 @@ describe("MCP editorial tools", () => {
 	});
 
 	afterEach(async () => {
+		vi.mocked(queueEditorialCommentNotifications).mockClear();
 		await harness?.cleanup();
 		harness = undefined;
 		await teardownTestDatabase(db);
@@ -129,6 +136,70 @@ describe("MCP editorial tools", () => {
 			quote: "whale",
 		});
 		expect(extractText(missing)).toMatch(/^\[VALIDATION_ERROR\]/);
+	});
+
+	it("explains that a quote needs a known rich text field", async () => {
+		await connect();
+
+		const plain = await call("editorial_thread_create", {
+			body: "Shorter?",
+			field: "title",
+			quote: "Fish",
+		});
+		expect(extractText(plain)).toMatch(/^\[VALIDATION_ERROR\] 'title' isn't a rich text field/);
+
+		const unknown = await call("editorial_thread_create", {
+			body: "Shorter?",
+			field: "subtitle",
+			quote: "Fish",
+		});
+		expect(extractText(unknown)).toMatch(/^\[VALIDATION_ERROR\] Unknown field 'subtitle'/);
+	});
+
+	it("refuses a quote in a block whose key is too long to store", async () => {
+		const item = await new ContentRepository(db).create({
+			type: "post",
+			data: { title: "Imported", content: [block("k".repeat(200), "Imported text.")] },
+			authorId: USER,
+		});
+		await connect();
+
+		const result = await harness!.client.callTool({
+			name: "editorial_thread_create",
+			arguments: {
+				collection: "post",
+				id: item.id,
+				body: "Check this",
+				field: "content",
+				quote: "Imported",
+			},
+		});
+
+		expect(extractText(result)).toMatch(/^\[VALIDATION_ERROR\].*_key/);
+		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
+	});
+
+	it("queues notifications for comments it creates", async () => {
+		await db
+			.insertInto("users")
+			.values({
+				id: "user_editor",
+				email: "editor@example.com",
+				name: "Ed",
+				role: Role.EDITOR,
+				email_verified: 1,
+			})
+			.execute();
+		await connect();
+
+		const thread = extractJson<Thread>(
+			await call("editorial_thread_create", { body: "<@user_editor> can you check this?" }),
+		);
+		await call("editorial_comment_create", { threadId: thread.id, body: "<@user_editor> ping" });
+
+		const queued = vi.mocked(queueEditorialCommentNotifications).mock.calls;
+		expect(queued.map(([, created]) => created.threadId)).toEqual([thread.id, thread.id]);
+		expect(queued[0]![0].request).toBeInstanceOf(Request);
 	});
 
 	it("finds a quote in the draft revision, not only the saved columns", async () => {
