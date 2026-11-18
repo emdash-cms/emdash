@@ -83,9 +83,17 @@ format or size limit and will report that failure in the upload row.
 
 ## Find and organize files
 
-Search matches partial filenames. The type filter limits results to images, documents, video, or
-audio. A filename search covers the whole local library, even while a folder is open; browsing a
-folder without a search shows only the files assigned to that folder.
+In the local Media Library and media picker, search matches parts of filenames, storage keys, and
+media IDs case-insensitively. Short terms may match a key or ID even when the filename does not
+contain the term. The type filter limits results to images, documents, video, or audio. A search
+covers the whole local library, even while a folder is open; browsing a folder without a search
+shows only the files assigned to that folder.
+
+To find a file from a copied link, paste its relative or full media URL into search. For example,
+`https://example.com/_emdash/api/media/file/01M66PYKARAMWV7H63E8S28HYA.01M66PYM1K0Y37FSW9F9XXMP3F.jpg?download=1#preview`
+searches for `01M66PYKARAMWV7H63E8S28HYA.01M66PYM1K0Y37FSW9F9XXMP3F.jpg`. For any term containing `/`,
+search removes the query string and fragment and uses the last path segment. A path ending in `/`
+leaves no search term and applies no search filter.
 
 Editors can select **Add new folder** in the Main library. Move a local file by dragging its card or
 row onto a visible folder, or open the file, change **Location**, and select **Save**. Use **Main
