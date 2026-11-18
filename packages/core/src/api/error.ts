@@ -92,19 +92,6 @@ export function requireInit(emdash: unknown): Response | null {
 }
 
 /**
- * Standard database check.
- *
- * Returns an error response if the database is not available, or null if OK.
- * Usage: `const err = requireDb(emdash?.db); if (err) return err;`
- */
-export function requireDb(db: unknown): Response | null {
-	if (!db) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
-	return null;
-}
-
-/**
  * Convert an ApiResult into an HTTP Response.
  *
  * Collapses the handler-to-response boilerplate:

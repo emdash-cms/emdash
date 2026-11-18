@@ -11,7 +11,7 @@ import type { APIRoute } from "astro";
 
 import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { saveContent } from "#api/content-save.js";
-import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { apiError, apiSuccess, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentUpdateBody } from "#api/schemas.js";
@@ -37,18 +37,8 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	// Hide non-published items from users without content:read_drafts. Return
 	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.
 	if (result.success && !hasPermission(user, "content:read_drafts")) {
-		const data =
-			result.data && typeof result.data === "object"
-				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
-					(result.data as Record<string, unknown>)
-				: undefined;
-		const item =
-			data?.item && typeof data.item === "object"
-				? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
-					(data.item as Record<string, unknown>)
-				: undefined;
-		const status = typeof item?.status === "string" ? item.status : null;
-		if (status !== "published") {
+		const { liveData, draftRevisionId: _draftRevisionId, ...item } = result.data.item;
+		if (item.status !== "published") {
 			return apiError("NOT_FOUND", `Content item not found: ${id}`, 404);
 		}
 
@@ -56,13 +46,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 		// handleContentGet overlays draft revision data onto item.data and exposes
 		// the published values in item.liveData. Without this, subscribers see
 		// unpublished edits in the data field.
-		if (item) {
-			if (item.liveData && typeof item.liveData === "object") {
-				item.data = item.liveData;
-			}
-			delete item.liveData;
-			delete item.draftRevisionId;
-		}
+		return apiSuccess({ ...result.data, item: { ...item, data: liveData ?? item.data } });
 	}
 
 	return unwrapResult(result);
@@ -130,23 +114,17 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 		);
 	}
 
-	const deleteData =
-		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
-				(existing.data as Record<string, unknown>)
-			: undefined;
-	// Handler returns { item, _rev } — extract the item for ownership and ID resolution
-	const deleteItem =
-		deleteData?.item && typeof deleteData.item === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
-				(deleteData.item as Record<string, unknown>)
-			: deleteData;
-	const authorId = typeof deleteItem?.authorId === "string" ? deleteItem.authorId : "";
-	const deleteDenied = requireOwnerPerm(user, authorId, "content:delete_own", "content:delete_any");
+	const deleteItem = existing.data.item;
+	const deleteDenied = requireOwnerPerm(
+		user,
+		deleteItem.authorId ?? "",
+		"content:delete_own",
+		"content:delete_any",
+	);
 	if (deleteDenied) return deleteDenied;
 
 	// Use the resolved ID (handles slug → ID resolution)
-	const resolvedId = typeof deleteItem?.id === "string" ? deleteItem.id : id;
+	const resolvedId = deleteItem.id;
 
 	// DELETE carries no body, so the lock opt-out rides on the query string.
 	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
