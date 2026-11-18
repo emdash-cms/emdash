@@ -1,5 +1,10 @@
-import type { Database, EditorialActor } from "emdash";
-import { handleEditorialCommentCreate, handleEditorialThreadCreate, locateQuote } from "emdash";
+import type { Database } from "emdash";
+import {
+	handleEditorialCommentCreate,
+	handleEditorialThreadCreate,
+	locateQuote,
+	type EditorialActor,
+} from "emdash/internal/editorial";
 import { type Kysely, sql } from "kysely";
 
 const REVIEWER: EditorialActor & { name: string; email: string } = {

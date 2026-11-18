@@ -225,6 +225,10 @@
       "types": "./dist/plugins/host.d.mts",
       "default": "./dist/plugins/host.mjs"
     },
+    "./internal/editorial": {
+      "types": "./dist/editorial/index.d.mts",
+      "default": "./dist/editorial/index.mjs"
+    },
     "./internal/co-editing": {
       "types": "./dist/rooms/index.d.mts",
       "default": "./dist/rooms/index.mjs"
