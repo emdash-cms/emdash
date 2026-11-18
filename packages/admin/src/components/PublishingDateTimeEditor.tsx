@@ -2,7 +2,7 @@ import { Button, DatePicker, Input, LayerDialog, Select, Text } from "@cloudflar
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Globe, PencilSimple } from "@phosphor-icons/react";
+import { PencilSimple } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { guardUnsavedInput } from "../lib/dialog-form.js";
@@ -125,8 +125,14 @@ export function PublishingDateTimeFields({
 	const resolved = resolvePublishingLocalDateTime(date, time);
 	const zoneDate = resolved.success ? resolved.date : (date ?? new Date());
 	const { timeZone, shortName } = getPublishingTimeZone(zoneDate, i18n.locale);
-	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
-	const zoneValue = zoneDetails ?? t`Local time`;
+	// Etc/GMT IDs use the opposite sign from the displayed UTC offset.
+	const zoneLabel = timeZone?.startsWith("Etc/")
+		? null
+		: timeZone?.split("/").slice(1).reverse().join(", ").replaceAll("_", " ") || timeZone;
+	const zoneValue =
+		zoneLabel && shortName && zoneLabel !== shortName
+			? `${zoneLabel} (${shortName})`
+			: (zoneLabel ?? shortName ?? t`Local time`);
 	const use12HourClock = React.useMemo(() => uses12HourClock(i18n.locale), [i18n.locale]);
 	const periodItems = React.useMemo(
 		() => [
@@ -194,7 +200,7 @@ export function PublishingDateTimeFields({
 
 	const errorText = invalid ? t(VALIDATION_MESSAGES[invalid.reason]) : null;
 	return (
-		<div className="grid gap-5">
+		<div className="grid gap-3">
 			<DatePicker
 				mode="single"
 				required
@@ -210,6 +216,8 @@ export function PublishingDateTimeFields({
 				className="w-full"
 				classNames={{
 					caption_label: "rdp-caption_label text-base !font-medium",
+					month_caption: "rdp-month_caption !justify-center",
+					nav: "rdp-nav pointer-events-none !inset-x-0 !w-full !justify-between [&>button]:pointer-events-auto",
 					day_button: "rdp-day_button !mx-auto",
 					month: "rdp-month !w-full",
 					month_grid: "rdp-month_grid !w-full table-fixed",
@@ -220,79 +228,77 @@ export function PublishingDateTimeFields({
 				<Text as="legend" bold DANGEROUS_className="mb-2">
 					{t`Time`}
 				</Text>
-				<div
-					ref={timeGroupRef}
-					dir="ltr"
-					className={
-						use12HourClock
-							? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2 rtl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_minmax(0,1fr)]"
-							: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
-					}
-				>
-					<Input
-						aria-label={t`Hour`}
-						variant={hourInvalid ? "error" : "default"}
-						aria-invalid={hourInvalid || undefined}
-						aria-describedby={hourInvalid ? errorId : undefined}
-						placeholder="--"
-						value={timeParts.hour}
-						type="text"
-						inputMode="numeric"
-						maxLength={2}
-						pattern="[0-9]*"
-						autoComplete="off"
-						onChange={(event) => updateHour(event.target.value)}
-						onFocus={(event) => event.currentTarget.select()}
-						onBlur={(event) => {
-							const hour = numericTimePart(event.currentTarget.value);
-							if (hour.length === 1) updateHour(hour.padStart(2, "0"));
-							if (!hour) restoreTimePart("hour");
-						}}
-						disabled={disabled}
-						className="w-full tabular-nums"
-					/>
-					<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
-						:
+				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+					<div ref={timeGroupRef} dir="ltr" className="flex items-center gap-2">
+						<Input
+							aria-label={t`Hour`}
+							variant={hourInvalid ? "error" : "default"}
+							aria-invalid={hourInvalid || undefined}
+							aria-describedby={hourInvalid ? errorId : undefined}
+							placeholder="--"
+							value={timeParts.hour}
+							type="text"
+							inputMode="numeric"
+							maxLength={2}
+							pattern="[0-9]*"
+							autoComplete="off"
+							onChange={(event) => updateHour(event.target.value)}
+							onFocus={(event) => event.currentTarget.select()}
+							onBlur={(event) => {
+								const hour = numericTimePart(event.currentTarget.value);
+								if (hour.length === 1) updateHour(hour.padStart(2, "0"));
+								if (!hour) restoreTimePart("hour");
+							}}
+							disabled={disabled}
+							className="!w-14 tabular-nums"
+						/>
+						<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
+							:
+						</Text>
+						<Input
+							ref={minuteInputRef}
+							aria-label={t`Minute`}
+							variant={minuteInvalid ? "error" : "default"}
+							aria-invalid={minuteInvalid || undefined}
+							aria-describedby={minuteInvalid ? errorId : undefined}
+							placeholder="--"
+							value={timeParts.minute}
+							type="text"
+							inputMode="numeric"
+							maxLength={2}
+							pattern="[0-9]*"
+							autoComplete="off"
+							onChange={(event) => updateMinute(event.target.value)}
+							onFocus={(event) => event.currentTarget.select()}
+							onBlur={(event) => {
+								const minute = numericTimePart(event.currentTarget.value);
+								if (minute.length === 1) updateMinute(minute.padStart(2, "0"));
+								if (!minute) restoreTimePart("minute");
+							}}
+							disabled={disabled}
+							className="!w-14 tabular-nums"
+						/>
+						{use12HourClock ? (
+							<div dir={getLocaleDir(i18n.locale)} className="rtl:order-first">
+								<Select
+									aria-label={t`Period`}
+									value={timeParts.period}
+									onValueChange={(period) => {
+										if (period === "am" || period === "pm") {
+											updateTimeParts({ ...timeParts, period });
+										}
+									}}
+									items={periodItems}
+									disabled={disabled}
+									className="w-full"
+								/>
+							</div>
+						) : null}
+					</div>
+					<Text as="p" variant="secondary" DANGEROUS_className="min-w-0">
+						<span className="sr-only">{t`Timezone`}: </span>
+						<bdi>{zoneValue}</bdi>
 					</Text>
-					<Input
-						ref={minuteInputRef}
-						aria-label={t`Minute`}
-						variant={minuteInvalid ? "error" : "default"}
-						aria-invalid={minuteInvalid || undefined}
-						aria-describedby={minuteInvalid ? errorId : undefined}
-						placeholder="--"
-						value={timeParts.minute}
-						type="text"
-						inputMode="numeric"
-						maxLength={2}
-						pattern="[0-9]*"
-						autoComplete="off"
-						onChange={(event) => updateMinute(event.target.value)}
-						onFocus={(event) => event.currentTarget.select()}
-						onBlur={(event) => {
-							const minute = numericTimePart(event.currentTarget.value);
-							if (minute.length === 1) updateMinute(minute.padStart(2, "0"));
-							if (!minute) restoreTimePart("minute");
-						}}
-						disabled={disabled}
-						className="w-full tabular-nums"
-					/>
-					{use12HourClock ? (
-						<div dir={getLocaleDir(i18n.locale)} className="rtl:order-first">
-							<Select
-								aria-label={t`Period`}
-								value={timeParts.period}
-								onValueChange={(period) => {
-									if (period === "am" || period === "pm") {
-										updateTimeParts({ ...timeParts, period });
-									}
-								}}
-								items={periodItems}
-								disabled={disabled}
-								className="w-full"
-							/>
-						</div>
-					) : null}
 				</div>
 				<Text
 					as="p"
@@ -304,15 +310,6 @@ export function PublishingDateTimeFields({
 				>
 					{errorText}
 				</Text>
-				<div className="mt-2 flex items-start gap-2 text-kumo-subtle">
-					<span className="flex h-lh shrink-0 items-center" aria-hidden="true">
-						<Globe className="size-4" />
-					</span>
-					<Text as="p" variant="secondary" DANGEROUS_className="min-w-0">
-						<span className="sr-only">{t`Timezone`}: </span>
-						<bdi>{zoneValue}</bdi>
-					</Text>
-				</div>
 			</fieldset>
 		</div>
 	);
