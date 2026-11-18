@@ -25,17 +25,7 @@
 			"bucket_name": "plugin-bundles",
 		},
 	],
-	"ai": {
-		"binding": "AI",
-	},
 	"images": {
 		"binding": "IMAGES",
 	},
-	"workflows": [
-		{
-			"name": "audit-workflow",
-			"binding": "AUDIT_WORKFLOW",
-			"class_name": "AuditWorkflow",
-		},
-	],
 }
