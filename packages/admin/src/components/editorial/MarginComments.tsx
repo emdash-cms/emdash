@@ -32,6 +32,7 @@ import {
 	bodyToDraft,
 	draftToBody,
 	MentionText,
+	updateDraftText,
 	useMentionPicker,
 	type MentionDraft,
 } from "./mentions.js";
@@ -710,7 +711,7 @@ function CommentComposer({
 				className="max-h-60 resize-none field-sizing-content"
 				{...picker.textareaProps}
 				onChange={(event) => {
-					onChange({ ...value, text: event.target.value });
+					onChange(updateDraftText(value, event.target.value, event.target.selectionStart));
 					picker.syncCaret(event);
 				}}
 				onKeyDown={(event) => {
@@ -997,7 +998,7 @@ function CommentItem({
 	const body = edit ?? EMPTY_DRAFT;
 	const setBody = (value: MentionDraft) => setEdit(value);
 	const setEditing = (value: boolean) =>
-		setEdit(value ? bodyToDraft(comment.body, people) : undefined);
+		setEdit(value ? bodyToDraft(comment.body, people, t`Unknown user`) : undefined);
 	const deleted = comment.deletedAt !== null;
 	const name = comment.author?.name ?? (comment.author ? t`Unnamed user` : t`Deleted user`);
 

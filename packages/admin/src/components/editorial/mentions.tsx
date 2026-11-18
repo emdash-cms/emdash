@@ -11,7 +11,6 @@ import { useDebouncedValue } from "../../lib/hooks.js";
 import { cn } from "../../lib/utils.js";
 
 const MENTION_TOKEN = /<@([^<>\s]{1,64})>/g;
-const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
 const SEARCH_DEBOUNCE_MS = 200;
 const MENTION_TRIGGER = /(?:^|\s)@([^\s@]{0,30})$/;
 
@@ -19,37 +18,94 @@ export function mentionLabel(person: Pick<EditorialPerson, "id" | "name">): stri
 	return person.name?.trim() || person.id;
 }
 
+/** A picked person, shown as `@Name` in `text.slice(from, to)`. */
+export interface DraftMention {
+	id: string;
+	from: number;
+	to: number;
+}
+
 /**
  * Comment text as the composer shows it: each `<@USER_ID>` token becomes
- * `@Name`, and the people it names are remembered so the tokens can be put
- * back on save.
+ * `@Name`, and the range each name covers is remembered so the right tokens
+ * can be put back on save.
  */
 export interface MentionDraft {
 	text: string;
-	mentions: EditorialPerson[];
+	mentions: DraftMention[];
 }
 
-export function bodyToDraft(body: string, people: EditorialPerson[]): MentionDraft {
+export function bodyToDraft(
+	body: string,
+	people: EditorialPerson[],
+	unknownLabel: string,
+): MentionDraft {
 	const byId = new Map(people.map((person) => [person.id, person]));
-	const mentions = new Map<string, EditorialPerson>();
-	const text = body.replace(MENTION_TOKEN, (token, id: string) => {
+	const mentions: DraftMention[] = [];
+	let text = "";
+	let last = 0;
+	for (const match of body.matchAll(MENTION_TOKEN)) {
+		text += body.slice(last, match.index);
+		const id = match[1]!;
 		const person = byId.get(id);
-		if (!person) return token;
-		mentions.set(id, person);
-		return `@${mentionLabel(person)}`;
-	});
-	return { text, mentions: [...mentions.values()] };
+		const label = `@${person ? mentionLabel(person) : unknownLabel}`;
+		mentions.push({ id, from: text.length, to: text.length + label.length });
+		text += label;
+		last = match.index + match[0].length;
+	}
+	text += body.slice(last);
+	return { text, mentions };
 }
 
-/** The stored body for a draft: each `@Name` of a picked person becomes their token. */
+/** The stored body for a draft: each remembered mention range becomes its person's token. */
 export function draftToBody(draft: MentionDraft): string {
-	const people = draft.mentions.toSorted((a, b) => mentionLabel(b).length - mentionLabel(a).length);
-	let body = draft.text;
-	for (const person of people) {
-		const label = mentionLabel(person).replace(REGEX_SPECIAL, "\\$&");
-		body = body.replace(new RegExp(`@${label}(?![\\p{L}\\p{N}_])`, "gu"), `<@${person.id}>`);
+	let body = "";
+	let last = 0;
+	for (const mention of draft.mentions.toSorted((a, b) => a.from - b.from)) {
+		body += `${draft.text.slice(last, mention.from)}<@${mention.id}>`;
+		last = mention.to;
 	}
+	body += draft.text.slice(last);
 	return body.trim();
+}
+
+/**
+ * Replaces `text.slice(from, to)` with `insert`. Mentions after the change
+ * move with their text; a mention the change touches is no longer a mention.
+ */
+export function editDraft(
+	draft: MentionDraft,
+	from: number,
+	to: number,
+	insert: string,
+): MentionDraft {
+	const shift = insert.length - (to - from);
+	const mentions = draft.mentions.flatMap((mention) => {
+		if (mention.to <= from) return [mention];
+		if (mention.from >= to) {
+			return [{ ...mention, from: mention.from + shift, to: mention.to + shift }];
+		}
+		return [];
+	});
+	return { text: draft.text.slice(0, from) + insert + draft.text.slice(to), mentions };
+}
+
+/**
+ * The draft after the textarea's text became `text`, with the caret at
+ * `caret`. The caret places the edit where the text alone is ambiguous, as
+ * when a letter is typed next to the same letter.
+ */
+export function updateDraftText(draft: MentionDraft, text: string, caret: number): MentionDraft {
+	const before = draft.text;
+	let suffix = 0;
+	const maxSuffix = Math.min(before.length, text.length - caret);
+	while (suffix < maxSuffix && before[before.length - 1 - suffix] === text[text.length - 1 - suffix]) {
+		suffix++;
+	}
+	let prefix = 0;
+	const maxPrefix = Math.min(before.length, text.length) - suffix;
+	while (prefix < maxPrefix && before[prefix] === text[prefix]) prefix++;
+	return editDraft(draft, prefix, before.length - suffix, text.slice(prefix, text.length - suffix));
 }
 
 /** A comment body with its mention tokens shown as names. */
@@ -119,15 +175,19 @@ export function useMentionPicker({
 
 	const pick = (person: EditorialPerson) => {
 		if (!trigger) return;
-		const inserted = `@${mentionLabel(person)} `;
-		const text = draft.text.slice(0, trigger.from) + inserted + draft.text.slice(caret);
-		const mentions = draft.mentions.some((known) => known.id === person.id)
-			? draft.mentions
-			: [...draft.mentions, person];
-		onDraftChange({ text, mentions });
-		const next = trigger.from + inserted.length;
-		setCaret(next);
-		requestAnimationFrame(() => textareaRef.current?.setSelectionRange(next, next));
+		const label = `@${mentionLabel(person)}`;
+		const inserted = `${label} `;
+		const next = editDraft(draft, trigger.from, caret, inserted);
+		onDraftChange({
+			text: next.text,
+			mentions: [
+				...next.mentions,
+				{ id: person.id, from: trigger.from, to: trigger.from + label.length },
+			],
+		});
+		const end = trigger.from + inserted.length;
+		setCaret(end);
+		requestAnimationFrame(() => textareaRef.current?.setSelectionRange(end, end));
 	};
 
 	const syncCaret = (event: React.SyntheticEvent<HTMLTextAreaElement>) =>
@@ -210,7 +270,6 @@ function MentionListbox({
 			)}
 		>
 			{people.map((person, index) => (
-				// Focus stays on the textarea, which handles keyboard selection.
 				// oxlint-disable-next-line click-events-have-key-events -- keyboard selection is handled on the combobox textarea
 				<li
 					key={person.id}

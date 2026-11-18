@@ -5517,6 +5517,120 @@ describe("editorial comments", () => {
 		expect(queries).not.toContain("gr");
 	});
 
+	describe("mentions", () => {
+		const SAM_A = { id: "u-sam-a", name: "Sam Lee", avatarUrl: null };
+		const SAM_B = { id: "u-sam-b", name: "Sam Lee", avatarUrl: null };
+
+		afterEach(() => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([]);
+		});
+
+		async function openComposer() {
+			const screen = await renderWithThreads([]);
+			await screen.getByRole("button", { name: "Comment on Title" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			const composer = margin.getByRole("combobox", { name: "Comment" });
+			await expect.element(composer).toHaveFocus();
+			return { screen, margin, composer };
+		}
+
+		it("keeps each picked person, even when two share a name, and leaves typed names alone", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A, SAM_B]);
+			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+			const { screen, margin, composer } = await openComposer();
+			const options = screen.getByRole("listbox", { name: "People to mention" }).getByRole("option");
+
+			await userEvent.keyboard("@sa");
+			await expect.element(options.first()).toBeVisible();
+			await userEvent.keyboard("{Enter}");
+			await expect.element(composer).toHaveValue("@Sam Lee ");
+			await userEvent.keyboard("and @sa");
+			await expect.element(options.last()).toBeVisible();
+			await userEvent.keyboard("{ArrowDown}");
+			await expect.element(options.last()).toHaveAttribute("aria-selected", "true");
+			await userEvent.keyboard("{Enter}");
+			await expect.element(composer).toHaveValue("@Sam Lee and @Sam Lee ");
+			await userEvent.keyboard("cc @Sam Lee");
+			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+					expect.anything(),
+					expect.objectContaining({ body: "<@u-sam-a> and <@u-sam-b> cc @Sam Lee" }),
+				),
+			);
+		});
+
+		function threadMentioning(body: string, mentions: EditorialThread["mentions"]) {
+			const thread = fieldThread("body");
+			return {
+				...thread,
+				comments: thread.comments.map((comment) => ({
+					...comment,
+					author: { id: "u-1", name: "Alex Kim", avatarUrl: null },
+					body,
+					can: { edit: true, delete: true },
+				})),
+				mentions,
+			};
+		}
+
+		function moveCaretToEnd(composer: Locator) {
+			const textarea = composer.element() as HTMLTextAreaElement;
+			textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+		}
+
+		async function editComment(thread: EditorialThread) {
+			vi.mocked(editEditorialComment).mockResolvedValue(thread);
+			const screen = await renderWithThreads([thread]);
+			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await margin.getByRole("button", { name: "Comment actions" }).click();
+			await screen.getByRole("menuitem", { name: "Edit" }).click();
+			const composer = margin.getByRole("combobox", { name: "Edit comment" });
+			await expect.element(composer).toHaveFocus();
+			return { margin, composer };
+		}
+
+		it("keeps the people an edited comment mentions, even when they share a name", async () => {
+			const { margin, composer } = await editComment(
+				threadMentioning("<@u-sam-a> and <@u-sam-b>: shorter?", [SAM_A, SAM_B]),
+			);
+			await expect.element(composer).toHaveValue("@Sam Lee and @Sam Lee: shorter?");
+
+			moveCaretToEnd(composer);
+			await userEvent.keyboard("!");
+			await margin.getByRole("button", { name: "Save", exact: true }).click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(editEditorialComment)).toHaveBeenCalledWith(
+					expect.anything(),
+					"thread-body",
+					"comment-body",
+					"<@u-sam-a> and <@u-sam-b>: shorter?!",
+				),
+			);
+		});
+
+		it("shows a mention of a deleted user by name and keeps it on save", async () => {
+			const { margin, composer } = await editComment(threadMentioning("Ask <@u-gone>", []));
+			await expect.element(composer).toHaveValue("Ask @Unknown user");
+
+			moveCaretToEnd(composer);
+			await userEvent.keyboard(" now");
+			await margin.getByRole("button", { name: "Save", exact: true }).click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(editEditorialComment)).toHaveBeenCalledWith(
+					expect.anything(),
+					"thread-body",
+					"comment-body",
+					"Ask <@u-gone> now",
+				),
+			);
+		});
+	});
+
 	describe("managing a thread", () => {
 		function ownThread(): EditorialThread {
 			const thread = fieldThread("body");
