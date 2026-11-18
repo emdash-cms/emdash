@@ -341,7 +341,9 @@ export function anchorForSelection(
 	}
 	let doc = state.doc;
 	if (!$from.parent.attrs[PORTABLE_TEXT_KEY_ATTR]) {
-		const tr = state.tr.setNodeAttribute($from.before(), PORTABLE_TEXT_KEY_ATTR, generateKey());
+		const tr = state.tr
+			.setNodeAttribute($from.before(), PORTABLE_TEXT_KEY_ATTR, generateKey())
+			.setMeta("addToHistory", false);
 		dispatch(tr);
 		doc = tr.doc;
 	}

@@ -19,6 +19,7 @@ import type {
 	EditorialThread,
 } from "../../lib/api/editorial-threads.js";
 import { cn, formatRelativeTime } from "../../lib/utils.js";
+import { ConfirmDialog } from "../ConfirmDialog.js";
 import { getEditorialHighlights } from "../editor/EditorialCommentsExtension.js";
 import { EDITORIAL_DOCUMENT_FIELD, type EditorialCommentsState } from "./useEditorialComments.js";
 
@@ -514,6 +515,7 @@ function ThreadCard({
 	const anchorLabel = useAnchorLabel();
 	const active = comments.activeThreadId === thread.id;
 	const [reply, setReply] = React.useState("");
+	const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 	const resolved = thread.status === "resolved";
 	const { actions } = comments;
 	const heading = inPlace
@@ -538,109 +540,136 @@ function ThreadCard({
 	const hiddenReplies = thread.comments.length - visibleComments.length;
 
 	return (
-		<article
-			aria-label={t`Comment thread`}
-			data-editorial-thread-card={thread.id}
-			tabIndex={active ? -1 : 0}
-			onClick={activate}
-			onKeyDown={(event) => {
-				if (event.target !== event.currentTarget) return;
-				if (event.key === "Enter" || event.key === " ") {
-					event.preventDefault();
-					activate();
+		<>
+			<article
+				aria-label={t`Comment thread`}
+				data-editorial-thread-card={thread.id}
+				tabIndex={active ? -1 : 0}
+				onClick={activate}
+				onKeyDown={(event) => {
+					if (event.target !== event.currentTarget) return;
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						activate();
+					}
+					if (event.key === "Escape") comments.setActiveThreadId(null);
+				}}
+				className={cn(
+					"group/thread rounded-xl border bg-kumo-base p-3 text-sm transition-[border-color,box-shadow]",
+					active
+						? "border-kumo-brand shadow-md"
+						: "cursor-pointer border-kumo-line hover:shadow-sm",
+					resolved && !active && "opacity-75",
+				)}
+			>
+				{(heading || detached || resolved) && (
+					<div className="mb-2 flex min-w-0 items-center gap-1.5">
+						{heading && <span className="truncate text-xs text-kumo-subtle">{heading}</span>}
+						{detached && <Badge variant="secondary">{t`Detached`}</Badge>}
+						{resolved && <Badge variant="secondary">{t`Resolved`}</Badge>}
+					</div>
+				)}
+
+				{thread.anchor.type === "text" && (detached || !active) && (
+					<Quote text={thread.anchor.quote} detached={detached} />
+				)}
+
+				<ol className="flex flex-col gap-3">
+					{visibleComments.map((comment, index) => (
+						<CommentItem
+							key={comment.id}
+							comment={comment}
+							revealed={active}
+							threadActions={
+								index === 0 && thread.can.resolve ? (
+									<Button
+										variant="ghost"
+										size="sm"
+										shape="square"
+										type="button"
+										aria-label={resolved ? t`Reopen` : t`Resolve`}
+										title={resolved ? t`Reopen` : t`Resolve`}
+										disabled={actions.setStatus.isPending}
+										onClick={() =>
+											actions.setStatus.mutate({
+												threadId: thread.id,
+												status: resolved ? "open" : "resolved",
+											})
+										}
+									>
+										{resolved ? (
+											<ArrowCounterClockwise className="size-4" aria-hidden="true" />
+										) : (
+											<Check className="size-4" aria-hidden="true" />
+										)}
+									</Button>
+								) : null
+							}
+							onDeleteThread={
+								index === 0 && thread.can.delete ? () => setConfirmingDelete(true) : undefined
+							}
+							locale={i18n.locale}
+							editPending={
+								actions.editComment.isPending &&
+								actions.editComment.variables?.commentId === comment.id
+							}
+							onEdit={(body, onSaved) =>
+								actions.editComment.mutate(
+									{ threadId: thread.id, commentId: comment.id, body },
+									{ onSuccess: onSaved },
+								)
+							}
+							onDelete={() =>
+								actions.deleteComment.mutate({ threadId: thread.id, commentId: comment.id })
+							}
+						/>
+					))}
+				</ol>
+				{hiddenReplies > 0 && (
+					<p className="mt-2 ps-8 text-xs font-medium text-kumo-link">
+						{plural(hiddenReplies, { one: "# reply", other: "# replies" })}
+					</p>
+				)}
+
+				{active && canComment && (
+					<div className="mt-3" onClick={(event) => event.stopPropagation()}>
+						<CommentComposer
+							value={reply}
+							onChange={setReply}
+							compact
+							label={t`Reply`}
+							placeholder={resolved ? t`Reply to reopen` : t`Reply`}
+							submitLabel={t`Reply`}
+							pending={actions.reply.isPending}
+							onSubmit={() =>
+								actions.reply.mutate(
+									{ threadId: thread.id, body: reply.trim() },
+									{ onSuccess: () => setReply("") },
+								)
+							}
+						/>
+					</div>
+				)}
+			</article>
+			{/* Outside the card, so clicks and Escape in the dialog don't reach the card's handlers. */}
+			<ConfirmDialog
+				open={confirmingDelete}
+				onClose={() => {
+					setConfirmingDelete(false);
+					actions.deleteThread.reset();
+				}}
+				role="alertdialog"
+				title={t`Delete thread`}
+				description={t`This deletes the thread and every reply in it. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={actions.deleteThread.isPending}
+				error={actions.deleteThread.error}
+				onConfirm={() =>
+					actions.deleteThread.mutate(thread.id, { onSuccess: () => setConfirmingDelete(false) })
 				}
-				if (event.key === "Escape") comments.setActiveThreadId(null);
-			}}
-			className={cn(
-				"group/thread rounded-xl border bg-kumo-base p-3 text-sm transition-[border-color,box-shadow]",
-				active ? "border-kumo-brand shadow-md" : "cursor-pointer border-kumo-line hover:shadow-sm",
-				resolved && !active && "opacity-75",
-			)}
-		>
-			{(heading || detached || resolved) && (
-				<div className="mb-2 flex min-w-0 items-center gap-1.5">
-					{heading && <span className="truncate text-xs text-kumo-subtle">{heading}</span>}
-					{detached && <Badge variant="secondary">{t`Detached`}</Badge>}
-					{resolved && <Badge variant="secondary">{t`Resolved`}</Badge>}
-				</div>
-			)}
-
-			{thread.anchor.type === "text" && (detached || !active) && (
-				<Quote text={thread.anchor.quote} detached={detached} />
-			)}
-
-			<ol className="flex flex-col gap-3">
-				{visibleComments.map((comment, index) => (
-					<CommentItem
-						key={comment.id}
-						comment={comment}
-						revealed={active}
-						threadActions={
-							index === 0 && thread.can.resolve ? (
-								<Button
-									variant="ghost"
-									size="sm"
-									shape="square"
-									type="button"
-									aria-label={resolved ? t`Reopen` : t`Resolve`}
-									title={resolved ? t`Reopen` : t`Resolve`}
-									disabled={actions.setStatus.isPending}
-									onClick={() =>
-										actions.setStatus.mutate({
-											threadId: thread.id,
-											status: resolved ? "open" : "resolved",
-										})
-									}
-								>
-									{resolved ? (
-										<ArrowCounterClockwise className="size-4" aria-hidden="true" />
-									) : (
-										<Check className="size-4" aria-hidden="true" />
-									)}
-								</Button>
-							) : null
-						}
-						onDeleteThread={
-							index === 0 && thread.can.delete
-								? () => actions.deleteThread.mutate(thread.id)
-								: undefined
-						}
-						locale={i18n.locale}
-						onEdit={(body) =>
-							actions.editComment.mutate({ threadId: thread.id, commentId: comment.id, body })
-						}
-						onDelete={() =>
-							actions.deleteComment.mutate({ threadId: thread.id, commentId: comment.id })
-						}
-					/>
-				))}
-			</ol>
-			{hiddenReplies > 0 && (
-				<p className="mt-2 ps-8 text-xs font-medium text-kumo-link">
-					{plural(hiddenReplies, { one: "# reply", other: "# replies" })}
-				</p>
-			)}
-
-			{active && canComment && (
-				<div className="mt-3" onClick={(event) => event.stopPropagation()}>
-					<CommentComposer
-						value={reply}
-						onChange={setReply}
-						compact
-						label={t`Reply`}
-						placeholder={resolved ? t`Reply to reopen` : t`Reply`}
-						submitLabel={t`Reply`}
-						pending={actions.reply.isPending}
-						onSubmit={() =>
-							actions.reply.mutate(
-								{ threadId: thread.id, body: reply.trim() },
-								{ onSuccess: () => setReply("") },
-							)
-						}
-					/>
-				</div>
-			)}
-		</article>
+			/>
+		</>
 	);
 }
 
@@ -650,6 +679,7 @@ function CommentItem({
 	threadActions,
 	onDeleteThread,
 	locale,
+	editPending,
 	onEdit,
 	onDelete,
 }: {
@@ -660,7 +690,9 @@ function CommentItem({
 	threadActions?: React.ReactNode;
 	onDeleteThread?: () => void;
 	locale: string;
-	onEdit: (body: string) => void;
+	editPending: boolean;
+	/** Saves an edit, calling `onSaved` once it is stored. */
+	onEdit: (body: string, onSaved: () => void) => void;
 	onDelete: () => void;
 }) {
 	const { t } = useLingui();
@@ -751,12 +783,9 @@ function CommentItem({
 						label={t`Edit comment`}
 						placeholder={t`Comment`}
 						submitLabel={t`Save`}
-						pending={false}
+						pending={editPending}
 						onCancel={() => setEditing(false)}
-						onSubmit={() => {
-							onEdit(body.trim());
-							setEditing(false);
-						}}
+						onSubmit={() => onEdit(body.trim(), () => setEditing(false))}
 					/>
 				</div>
 			) : deleted ? (

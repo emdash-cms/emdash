@@ -231,6 +231,18 @@ describe("editorial comment highlights", () => {
 		expect(ed.state.doc.firstChild!.attrs[PORTABLE_TEXT_KEY_ATTR]).toBe("new1");
 	});
 
+	it("keeps the new block key when the edit before the comment is undone", () => {
+		const ed = createEditor([{ key: null, content: [text("Fresh paragraph")] }]);
+		ed.commands.insertContentAt(16, "!");
+		ed.commands.setTextSelection({ from: 7, to: 16 });
+		anchorForSelection(ed.state, ed.view.dispatch, "content", () => "new1");
+
+		ed.commands.undo();
+
+		expect(ed.state.doc.textContent).toBe("Fresh paragraph");
+		expect(ed.state.doc.firstChild!.attrs[PORTABLE_TEXT_KEY_ATTR]).toBe("new1");
+	});
+
 	it("refuses a selection across blocks", () => {
 		const ed = createEditor([
 			{ key: "b1", content: [text("One")] },

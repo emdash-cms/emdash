@@ -48,7 +48,7 @@ export function FieldCommentsButton({
 				type="button"
 				aria-label={t`Comment on ${label}`}
 				title={t`Comment on ${label}`}
-				className="absolute end-0 top-0 z-10 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+				className="absolute end-0 top-0 z-10 opacity-0 group-focus-within/field:opacity-100 group-hover/field:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
 				onClick={onStart}
 			>
 				<ChatCircleText className="h-3.5 w-3.5" aria-hidden="true" />
