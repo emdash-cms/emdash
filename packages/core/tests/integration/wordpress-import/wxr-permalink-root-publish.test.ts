@@ -8,6 +8,7 @@ import { _resetEnvCache } from "../../../src/api/public-url.js";
 import { onRequest } from "../../../src/astro/middleware/redirect.js";
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	_resetAstroI18nCacheForTests,
@@ -138,6 +139,9 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 	});
 
 	afterEach(async () => {
+		invalidateRedirectCache();
+		await waitForDeferredTasks();
+		vi.restoreAllMocks();
 		vi.unstubAllEnvs();
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
@@ -457,6 +461,78 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 				.executeTakeFirstOrThrow(),
 		).toEqual({ slug: "%2e", status: "published" });
 	});
+
+	it.each([
+		{
+			label: "internal tab",
+			slug: "left\tright",
+			unrelated: ["/posts", "/posts/", "/posts/leftright"],
+		},
+		{
+			label: "internal newline",
+			slug: "left\nright",
+			unrelated: ["/posts", "/posts/", "/posts/leftright"],
+		},
+		{
+			label: "internal carriage return",
+			slug: "left\rright",
+			unrelated: ["/posts", "/posts/", "/posts/leftright"],
+		},
+		{
+			label: "internal backslash",
+			slug: "left\\right",
+			unrelated: ["/posts", "/posts/", "/posts/left/right"],
+		},
+	])(
+		"publishing a $label slug preserves other rules and warns about remaining matching aliases",
+		async ({ slug, unrelated }) => {
+			const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+			const repository = new RedirectRepository(harness.db);
+			const ownSource = `/posts/${encodeURIComponent(slug)}`;
+			const own = await repository.create({
+				source: ownSource,
+				destination: "/posts/old",
+				type: 301,
+				enabled: true,
+				auto: true,
+				groupName: "WordPress import",
+			});
+			const other = [];
+			for (const [index, source] of unrelated.entries()) {
+				other.push(
+					await repository.create({
+						source,
+						destination: `/keep-${index}`,
+						type: 301,
+						enabled: true,
+						auto: true,
+						groupName: index % 3 === 0 ? "WordPress import" : index % 3 === 1 ? "legacy" : null,
+					}),
+				);
+			}
+			const created = await harness.runtime.handleContentCreate("posts", {
+				data: { title: "Control" },
+				slug,
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+			const published = await harness.runtime.handleContentPublish("posts", created.data.item.id);
+			expect(published.success).toBe(true);
+			expect(await repository.findById(own.id)).toBeNull();
+			for (const rule of other) expect(await repository.findById(rule.id)).toEqual(rule);
+			expect(warning).toHaveBeenCalledWith(
+				expect.stringContaining("normalization rewrites"),
+				expect.objectContaining({ source: ownSource }),
+			);
+			invalidateRedirectCache();
+			const response = await onRequest(
+				middlewareContext(ownSource, harness.db),
+				async () => new Response("page", { status: 200 }),
+			);
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe("/keep-2");
+		},
+	);
 
 	it("removes only the localized import redirect when a translated page is published", async () => {
 		setI18nConfig({

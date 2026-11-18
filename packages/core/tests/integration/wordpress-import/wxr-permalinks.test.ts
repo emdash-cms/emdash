@@ -499,6 +499,42 @@ describeEachDialect("WordPress permalink preservation", (dialect) => {
 		]);
 	});
 
+	it.each([false, true])(
+		"reserves a rewritten canonical key without deleting a differently spelled rule (existing=%s)",
+		async (existing) => {
+			const repository = new RedirectRepository(ctx.db);
+			const before = existing
+				? await repository.create({
+						source: "/posts/leftright",
+						destination: "/keep",
+						auto: true,
+						groupName: "WordPress import",
+						isPattern: false,
+					})
+				: null;
+			const errors = await importWxrPermalinks(ctx.db, [
+				entry("https://wp.test/legacy/control/", post({ id: "control", slug: "left\tright" }), {
+					pattern: "/posts/{slug}",
+				}),
+				entry("https://wp.test/posts/leftright/", post({ id: "other", slug: "other" }), {
+					pattern: "/posts/{slug}",
+				}),
+			]);
+			expect(errors).toEqual([
+				{
+					title: "other",
+					error:
+						"Could not create redirect: the WordPress permalink conflicts with a page served by the site",
+				},
+			]);
+			if (before) expect(await repository.findById(before.id)).toEqual(before);
+			else expect(await repository.findBySource("/posts/leftright")).toBeNull();
+			expect(await repository.findBySource("/legacy/control")).toMatchObject({
+				destination: "/posts/left%09right",
+			});
+		},
+	);
+
 	it("does not treat a doubly encoded source as a loop with its canonical destination", async () => {
 		const result = await importWxrPermalinks(ctx.db, [
 			entry("https://wp.test/literal%2541/", post({ id: "literal-a", slug: "literalA" }), {

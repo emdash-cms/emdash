@@ -716,12 +716,18 @@ describeEachDialect("WXR permalink identity across an import", (dialect) => {
 		},
 	);
 
-	it("does not let an unsafe source claim reserve a legitimate pathname", async () => {
+	it.each([
+		"/parent/%252e%252e/overview/",
+		"/over%09view/",
+		"/over%0Aview/",
+		"/over%0Dview/",
+		"/parent%5C..%5Coverview/",
+	])("does not let unsafe source %s reserve a legitimate pathname", async (unsafe) => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"], prefixDefaultLocale: true });
 		_resetAstroI18nCacheForTests();
 		const text = wxr(
 			item({ id: 1, title: "English", localeMeta: "en", link: "/overview/" }) +
-				item({ id: 2, title: "Unsafe", localeMeta: "fr", link: "/parent/%252e%252e/overview/" }),
+				item({ id: 2, title: "Unsafe", localeMeta: "fr", link: unsafe }),
 		);
 		expect(await importContent(harness, text)).toMatchObject({
 			imported: 2,

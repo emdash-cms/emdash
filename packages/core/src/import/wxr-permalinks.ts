@@ -13,7 +13,7 @@ import { normalizeSourcePath } from "../redirects/patterns.js";
 import {
 	canonicalImportSource,
 	importSourceLookupVariants,
-	normalizationDropsSegments,
+	normalizationChangesPath,
 } from "../redirects/source-paths.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { findLivePermalinkSources } from "./wxr-permalink-routes.js";
@@ -71,7 +71,7 @@ function competingSourceClaims(claims: readonly WxrPermalinkSourceClaim[]): Set<
 		try {
 			const url = new URL(claim.link);
 			if (!["http:", "https:"].includes(url.protocol) || url.search || url.hash) continue;
-			if (normalizationDropsSegments(url.pathname)) continue;
+			if (normalizationChangesPath(url.pathname)) continue;
 			const key = pathKey(url.pathname);
 			const claimed = owners.get(key) ?? new Set<string>();
 			claimed.add(claim.owner);
@@ -140,6 +140,7 @@ export async function importWxrPermalinks(
 	}> = [];
 	const canonicalPaths = new Set<string>();
 	const canonicalKeys = new Set<string>();
+	const canonicalConflictKeys = new Set<string>();
 	const canonicalTitles = new Map<string, string[]>();
 	for (const entry of entries) {
 		if (entry.item.status !== "published" || !entry.item.slug) continue;
@@ -162,7 +163,8 @@ export async function importWxrPermalinks(
 			) {
 				const key = pathKey(destination);
 				canonicalPaths.add(destination);
-				if (!normalizationDropsSegments(destination)) canonicalKeys.add(key);
+				canonicalConflictKeys.add(key);
+				if (!normalizationChangesPath(destination)) canonicalKeys.add(key);
 				canonicalTitles.set(key, [...(canonicalTitles.get(key) ?? []), entry.title]);
 				if ((exportedSources.get(key) ?? 0) > (currentSources.get(key) ?? 0)) {
 					errors.push({
@@ -190,7 +192,7 @@ export async function importWxrPermalinks(
 				});
 				continue;
 			}
-			if (normalizationDropsSegments(url.pathname)) {
+			if (normalizationChangesPath(url.pathname)) {
 				errors.push({
 					title: entry.title,
 					error: "Could not create redirect: unsafe permalink path",
@@ -202,6 +204,7 @@ export async function importWxrPermalinks(
 			if (roots.has(sourceKey)) {
 				canonicalPaths.add(url.pathname);
 				canonicalKeys.add(sourceKey);
+				canonicalConflictKeys.add(sourceKey);
 				canonicalTitles.set(sourceKey, [...(canonicalTitles.get(sourceKey) ?? []), entry.title]);
 				continue;
 			}
@@ -358,10 +361,16 @@ export async function importWxrPermalinks(
 				const existing = sources.get(sourceKey);
 				if (
 					sourceKey === destinationKey ||
-					canonicalKeys.has(sourceKey) ||
+					canonicalConflictKeys.has(sourceKey) ||
 					liveSources.has(sourceKey)
 				) {
-					if (existing?.owned && existing.enabled && !existing.isPattern && existing.type === 301) {
+					if (
+						(canonicalKeys.has(sourceKey) || liveSources.has(sourceKey)) &&
+						existing?.owned &&
+						existing.enabled &&
+						!existing.isPattern &&
+						existing.type === 301
+					) {
 						if (!(await repository.delete(existing.id, undefined, fence)))
 							throw new Error("Redirect write fence expired");
 						changed = true;

@@ -17,33 +17,36 @@ function percentEscapeCaseVariants(path: string): string[] {
 	];
 }
 
-/** Return whether URL normalization removes a slash-delimited path segment. */
-export function normalizationDropsSegments(path: string): boolean {
-	const raw = withoutOneTrailingSlash(path);
-	const normalized = withoutOneTrailingSlash(normalizeSourcePath(path));
-	let rawSlashes = 0;
-	let normalizedSlashes = 0;
-	for (let index = 0; index < raw.length; index++) {
-		if (raw[index] === "/") rawSlashes++;
+/** Return whether normalization changes the decoded pathname, beyond URI escaping. */
+export function normalizationChangesPath(path: string): boolean {
+	if (path.includes("?") || path.includes("#")) return false;
+	try {
+		const decoded = decodeURI(path);
+		const preserved = new URL("http://placeholder.invalid");
+		// Shield literal percent sequences so decoding the serialized path cannot
+		// consume another encoding layer while detecting stripped or rewritten characters.
+		preserved.pathname = decoded.replaceAll("%", "%25");
+		return (
+			decodeURI(preserved.pathname) !== decoded ||
+			preserved.pathname.replaceAll("%25", "%") !== normalizeSourcePath(path)
+		);
+	} catch {
+		// normalizeSourcePath also leaves invalid encodings unchanged.
+		return false;
 	}
-	for (let index = 0; index < normalized.length; index++) {
-		if (normalized[index] === "/") normalizedSlashes++;
-	}
-	return normalizedSlashes < rawSlashes;
 }
 
 /**
  * Return the stable source spelling used for an imported redirect.
  *
- * A normalization which removes a segment must not turn an imported source
- * into a parent path. Otherwise, a path such as /%252e/posts could shadow
- * /posts. The second normalization check re-escapes non-idempotent keys so
- * layered percent escapes remain distinct when they are stored.
+ * Normalization must not turn an imported source into another pathname. The
+ * second normalization check re-escapes non-idempotent keys so layered
+ * percent escapes remain distinct when they are stored.
  */
 export function canonicalImportSource(path: string): string {
 	const raw = withoutOneTrailingSlash(path);
 	const key = normalizeSourcePath(raw);
-	if (normalizationDropsSegments(raw)) return raw;
+	if (normalizationChangesPath(raw)) return raw;
 	if (normalizeSourcePath(key) === key) return key;
 	try {
 		return encodeURI(key);
@@ -60,7 +63,7 @@ export function importSourceLookupVariants(rawPaths: Iterable<string>): string[]
 			...withTrailingSlashVariants(raw),
 			...withTrailingSlashVariants(canonicalImportSource(raw)),
 		];
-		if (!normalizationDropsSegments(raw)) {
+		if (!normalizationChangesPath(raw)) {
 			candidates.push(...withTrailingSlashVariants(normalizeSourcePath(raw)));
 		}
 		for (const candidate of candidates) {
