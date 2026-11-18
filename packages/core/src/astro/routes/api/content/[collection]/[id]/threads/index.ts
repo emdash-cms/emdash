@@ -1,10 +1,3 @@
-/**
- * Editorial threads on an entry
- *
- * GET  /_emdash/api/content/{collection}/{id}/threads - List the entry's threads
- * POST /_emdash/api/content/{collection}/{id}/threads - Start a thread
- */
-
 import type { APIRoute } from "astro";
 
 import { requireEditorialPerm } from "#api/authorize.js";

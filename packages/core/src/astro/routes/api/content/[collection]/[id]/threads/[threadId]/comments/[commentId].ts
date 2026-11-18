@@ -1,10 +1,3 @@
-/**
- * One comment on an editorial thread
- *
- * PATCH  /_emdash/api/content/{collection}/{id}/threads/{threadId}/comments/{commentId} - Edit
- * DELETE /_emdash/api/content/{collection}/{id}/threads/{threadId}/comments/{commentId} - Delete
- */
-
 import type { APIRoute } from "astro";
 
 import { requireEditorialPerm } from "#api/authorize.js";

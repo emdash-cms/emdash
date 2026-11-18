@@ -1,9 +1,3 @@
-/**
- * Replies on an editorial thread
- *
- * POST /_emdash/api/content/{collection}/{id}/threads/{threadId}/comments - Reply
- */
-
 import type { APIRoute } from "astro";
 
 import { requireEditorialPerm } from "#api/authorize.js";

@@ -1,9 +1,3 @@
-/**
- * Editorial thread anchors
- *
- * PATCH /_emdash/api/content/{collection}/{id}/threads/anchors - Store recomputed anchors
- */
-
 import type { APIRoute } from "astro";
 
 import { requireEditorialPerm } from "#api/authorize.js";
